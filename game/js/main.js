@@ -137,7 +137,7 @@ function explode(arr, x, y, z, n, sp, is2d) {
 }
 
 // ---------------------------------------------------------------- game state
-const G = { state: 'title', mode: 'zarch', score: 0, hi: 0, lives: 3, fuel: 100, visit: 0, tr: null, msgT: 0, over: false };
+const G = { res: 150, cargo: 0, state: 'title', mode: 'zarch', score: 0, hi: 0, lives: 3, fuel: 100, visit: 0, tr: null, msgT: 0, over: false };
 try { G.hi = +(localStorage.getItem('tz_hi') || 0); } catch (e) {}
 function addScore(n) { G.score += n; if (G.score > G.hi) { G.hi = G.score; try { localStorage.setItem('tz_hi', G.hi); } catch (e) {} } }
 function say(t, secs = 2) { const m = $('msg'); m.textContent = t; m.style.opacity = t ? 1 : 0; G.msgT = secs; }
@@ -145,12 +145,24 @@ function say(t, secs = 2) { const m = $('msg'); m.textContent = t; m.style.opaci
 // ================================================================ ZARCH
 const PAD_H = 6, BASE_R = 18, GRAV = 9.0, THRUST = 21, MAXLEAN = 0.8, BOUND = 360;
 const rawH = (x, z) => 14 * Math.sin(x * .035 + 1.3) * Math.cos(z * .04) + 9 * Math.sin(x * .09 + z * .07) + 5 * Math.sin(z * .13 - x * .05) + 2.5 * Math.sin(x * .31) * Math.sin(z * .27) + 8;
-// The Thrust cave lives underground in the plane z = 0, centred under the base pad. CS = world units per cave cell.
+// Every base is a pad on the surface with a shaft down into its own Thrust cave, which lives underground in the plane
+// z = base.z under the pad. CS = world units per cave cell. Home is friendly (reservoir + intake pad); the four enemy
+// bases sit in the N/E/S/W sectors with turrets, fuel tanks to loot and a pod to steal.
 const CS = 1.6, CAVE_OX = 32.5, CAVE_DEPTH = 6, HOLE_X = 3.5 * CS, HOLE_Z = CAVE_DEPTH / 2 * CS, STRIP_X = 76, STRIP_Z = 9;
-const stripW = (x, z) => smooth(0, 14, Math.hypot(Math.max(Math.abs(x) - STRIP_X, 0), Math.max(Math.abs(z) - STRIP_Z, 0)));
-const terrainH = (x, z) => { const h = lerp(PAD_H, rawH(x, z), smooth(BASE_R, 60, Math.hypot(x, z))); return lerp(Math.max(h, PAD_H + 1), h, stripW(x, z)); };
-const inHole = (x, z) => Math.abs(x) < HOLE_X && Math.abs(z) < HOLE_Z;
+const BASES = [{ kind: 'home', name: 'HOME BASE', x: 0, z: 0, h: PAD_H }];
+for (const [x, z, n] of [[0, -240, 'NORTH'], [240, 0, 'EAST'], [0, 240, 'SOUTH'], [-240, 0, 'WEST']])
+  BASES.push({ kind: 'enemy', name: n + ' BASE', x, z, h: clamp(Math.round(rawH(x, z)), 4, 16) });
+const stripW = (x, z, b) => smooth(0, 14, Math.hypot(Math.max(Math.abs(x - b.x) - STRIP_X, 0), Math.max(Math.abs(z - b.z) - STRIP_Z, 0)));
+const terrainH = (x, z) => {
+  let h = rawH(x, z);
+  for (const b of BASES) h = lerp(b.h, h, smooth(BASE_R, 60, Math.hypot(x - b.x, z - b.z)));   // flat pad area
+  for (const b of BASES) h = lerp(Math.max(h, b.h), h, stripW(x, z, b));                      // ground over the cave
+  return h;
+};
+const holeOf = (x, z) => BASES.find(b => Math.abs(x - b.x) < HOLE_X && Math.abs(z - b.z) < HOLE_Z);
+const inHole = (x, z) => !!holeOf(x, z);
 const groundY = (x, z) => inHole(x, z) ? -1e4 : Math.max(terrainH(x, z), 0);
+const baseUniform = BASES.map(b => new THREE.Vector4(b.x, b.z, b.h, b.kind === 'enemy' ? 1 : 0));
 
 const zScene = new THREE.Scene();
 const HORIZON = new THREE.Color(0xbfd9f2);
@@ -169,22 +181,22 @@ sky.renderOrder = -10; zScene.add(sky);
 const TG = 2.5, TN = 170;
 const terrainGeo = new THREE.PlaneGeometry(TG * TN, TG * TN, TN, TN); terrainGeo.rotateX(-Math.PI / 2);
 const terrain = new THREE.Mesh(terrainGeo, new THREE.ShaderMaterial({
-  uniforms: { uFog: { value: HORIZON }, uSun: { value: new THREE.Vector3(.5, 1, .3) } },
+  uniforms: { uFog: { value: HORIZON }, uSun: { value: new THREE.Vector3(.5, 1, .3) }, uBases: { value: baseUniform } },
   vertexShader: `
-    varying vec3 vW; varying float vRaw;
+    varying vec3 vW; varying float vRaw; uniform vec4 uBases[${BASES.length}];
     float rawH(vec2 p){return 14.*sin(p.x*.035+1.3)*cos(p.y*.04)+9.*sin(p.x*.09+p.y*.07)+5.*sin(p.y*.13-p.x*.05)+2.5*sin(p.x*.31)*sin(p.y*.27)+8.;}
     void main(){
       vec4 w=modelMatrix*vec4(position,1.);
-      float h=mix(${PAD_H.toFixed(1)},rawH(w.xz),smoothstep(${BASE_R.toFixed(1)},60.,length(w.xz)));
-      vec2 sd=max(abs(w.xz)-vec2(${STRIP_X.toFixed(1)},${STRIP_Z.toFixed(1)}),0.);
-      h=mix(max(h,${(PAD_H + 1).toFixed(1)}),h,smoothstep(0.,14.,length(sd)));
+      float h=rawH(w.xz);
+      for(int i=0;i<${BASES.length};i++){ vec4 b=uBases[i]; h=mix(b.z,h,smoothstep(${BASE_R.toFixed(1)},60.,length(w.xz-b.xy))); }
+      for(int i=0;i<${BASES.length};i++){ vec4 b=uBases[i]; vec2 sd=max(abs(w.xz-b.xy)-vec2(${STRIP_X.toFixed(1)},${STRIP_Z.toFixed(1)}),0.); h=mix(max(h,b.z),h,smoothstep(0.,14.,length(sd))); }
       vRaw=h; w.y=max(h,0.); vW=w.xyz;
       gl_Position=projectionMatrix*viewMatrix*w;
     }`,
   fragmentShader: `
-    varying vec3 vW; varying float vRaw; uniform vec3 uFog; uniform vec3 uSun;
+    varying vec3 vW; varying float vRaw; uniform vec3 uFog; uniform vec3 uSun; uniform vec4 uBases[${BASES.length}];
     void main(){
-      if(abs(vW.x)<${HOLE_X.toFixed(2)}&&abs(vW.z)<${HOLE_Z.toFixed(2)}) discard;
+      for(int i=0;i<${BASES.length};i++){ vec2 q=abs(vW.xz-uBases[i].xy); if(q.x<${HOLE_X.toFixed(2)}&&q.y<${HOLE_Z.toFixed(2)}) discard; }
       vec3 n=normalize(cross(dFdx(vW),dFdy(vW))); if(n.y<0.) n=-n;
       float l=max(dot(n,normalize(uSun)),0.)*.75+.4;
       vec2 g=floor(vW.xz/6.); float chk=mod(g.x+g.y,2.);
@@ -194,8 +206,8 @@ const terrain = new THREE.Mesh(terrainGeo, new THREE.ShaderMaterial({
       c=mix(vec3(.78,.72,.45),c,smoothstep(0.,3.,vW.y));
       c*=l;
       if(vRaw<=0.) c=mix(vec3(.04,.18,.5),vec3(.07,.25,.6),chk)*(.8+.2*n.y);
-      float d=length(vW.xz);
-      if(d<${BASE_R.toFixed(1)}){ vec3 pc=vec3(.5,.52,.58)*l; if(d<8.5){float r=d/8.5; pc=mix(vec3(.15,.16,.2),vec3(.95,.8,.1),step(.5,fract(r*4.)))*l;} c=pc; }
+      for(int i=0;i<${BASES.length};i++){ vec4 b=uBases[i]; float d=length(vW.xz-b.xy);
+        if(d<${BASE_R.toFixed(1)}){ vec3 pc=mix(vec3(.5,.52,.58),vec3(.36,.3,.3),b.w)*l; if(d<8.5){float r=d/8.5; pc=mix(vec3(.15,.16,.2),mix(vec3(.95,.8,.1),vec3(.85,.15,.1),b.w),step(.5,fract(r*4.)))*l;} c=pc; } }
       float fd=length((viewMatrix*vec4(vW,1.)).xyz);
       gl_FragColor=vec4(mix(c,uFog,smoothstep(130.,370.,fd)),1.);
     }`,
@@ -210,7 +222,7 @@ terrain.frustumCulled = false; zScene.add(terrain);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(); let n = 0;
   for (let i = 0; i < 6000 && n < 1400; i++) {
     const x = (r() * 2 - 1) * BOUND, z = (r() * 2 - 1) * BOUND, h = terrainH(x, z);
-    if (h < 2.5 || h > 24 || Math.hypot(x, z) < 30) continue;
+    if (h < 2.5 || h > 24 || BASES.some(b => Math.hypot(x - b.x, z - b.z) < 30 || stripW(x, z, b) < 1)) continue;
     const k = 0.7 + r() * 1.1; sc.set(k, k * (0.8 + r() * 0.6), k);
     m.compose(new THREE.Vector3(x, h, z), q, sc); mesh.setMatrixAt(n++, m);
   }
@@ -227,6 +239,18 @@ const baseGroup = new THREE.Group(); baseGroup.position.set(0, PAD_H, 0); zScene
   for (let i = 0; i < 7; i++) {
     const a = i / 7 * Math.PI * 2, b = new THREE.Mesh(new THREE.BoxGeometry(4 + (i % 3), 3 + (i % 4) * 1.5, 4), mat);
     b.position.set(Math.cos(a) * 14.5, 1.5 + (i % 4) * 0.7, Math.sin(a) * 14.5); b.rotation.y = -a; baseGroup.add(b);
+  }
+}
+
+for (const b of BASES) if (b.kind === 'enemy') {
+  const g = new THREE.Group(); g.position.set(b.x, b.h, b.z); zScene.add(g); b.surface = g;
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 90, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0xff4030, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }));
+  beam.position.y = 45; g.add(beam);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(8.7, 0.18, 6, 48), new THREE.MeshBasicMaterial({ color: 0xff3020 })); ring.rotation.x = Math.PI / 2; ring.position.y = 0.25; g.add(ring);
+  const mat = new THREE.MeshPhongMaterial({ color: 0x4a3a3a, flatShading: true });
+  for (let i = 0; i < 6; i++) {
+    const a = i / 6 * Math.PI * 2 + 0.3, m = new THREE.Mesh(new THREE.BoxGeometry(3.5 + (i % 2) * 2, 4 + (i % 3) * 2, 3.5), mat);
+    m.position.set(Math.cos(a) * 14, 2 + (i % 3), Math.sin(a) * 14); m.rotation.y = -a; g.add(m);
   }
 }
 
@@ -314,7 +338,7 @@ function updateZarch(dt, inp) {
   let lm = 0;
   if (!Z.alive) {
     Z.deadT -= dt;
-    if (Z.deadT <= 0 && !G.over) { G.fuel = 100; resetZarch(true); }
+    if (Z.deadT <= 0 && !G.over) { G.fuel = 100; G.cargo = 0; resetZarch(true); }
   } else {
     const ctl = HI.read(dt);
     const ev = H.step(dt, ctl, { groundY, fuel: G.fuel, water: terrainH(H.pos.x, H.pos.z) <= 0 });
@@ -324,7 +348,10 @@ function updateZarch(dt, inp) {
     G.fuel = Math.max(0, G.fuel - HELI.BURN * (0.15 + 0.85 * H.coll) * H.rpm * dt);
     if (G.fuel <= 0 && !H.landed) say('FUEL EXHAUSTED  -  AUTOROTATE!', 0.5);
     sfx.engine(H.rpm * (0.25 + 0.75 * H.coll));
-    if (ev === 'land') { if (Math.hypot(P.x, P.z) < 8.5) refuelAtBase(); }
+    if (H.landed && Math.hypot(P.x, P.z) < 8.5) {
+      const fill = Math.min(G.res, 20 * dt, 100 - G.fuel); G.res -= fill; G.fuel += fill;
+      if (fill > 0) Z.refuelling = true; else if (Z.refuelling) { Z.refuelling = false; say(G.res < 1 ? 'RESERVOIR EMPTY  -  LOOT ENEMY FUEL' : 'TANKS FULL', 1.6); }
+    }
     else if (ev === 'water') killPlayerZ('DITCHED IN THE WATER');
     else if (ev === 'rotor') killPlayerZ('ROTOR STRIKE');
     else if (ev === 'crash') killPlayerZ('CRASHED');
@@ -344,7 +371,7 @@ function updateZarch(dt, inp) {
       const bv = Z.aim.clone().multiplyScalar(75).addScaledVector(Z.vel, 0.5);
       zBullets.push({ p: P.clone().addScaledVector(Z.aim, 3.2), v: bv, life: 1.8, own: true });
     }
-    if (inHole(P.x, P.z) && P.y < PAD_H - 0.5 && Z.vel.y < 0) { enterCave(); return; }
+    { const hb = holeOf(P.x, P.z); if (hb && P.y < hb.h - 0.5 && Z.vel.y < 0) { enterCave(hb); return; } }
     if (Math.abs(P.x) > BOUND || Math.abs(P.z) > BOUND) { H.pos.x = clamp(H.pos.x, -BOUND, BOUND); H.pos.z = clamp(H.pos.z, -BOUND, BOUND); }
   }
   for (let i = zBullets.length - 1; i >= 0; i--) {
@@ -392,56 +419,82 @@ function refuelAtBase() {
 
 // ================================================================ THRUST
 const T_THRUST = 17, T_ROT = 3.4, ROPE = 4.2, PODM = 0.35, T_VIEWH = 30;
-const T = { lvl: null, w: 0, ge: 0, onPad: false, yawF: -Math.PI / 2, face: 1, roll: 0, zOff: 0, q0: new THREE.Quaternion(), qLast: new THREE.Quaternion(), x: 0, y: 0, vx: 0, vy: 0, ang: 0, landed: true, alive: true, deadT: 0, fireCd: 0, pod: null, bullets: [], tb: [], parts: [], turrets: [], tanks: [], cam: new THREE.Vector2(), beamOn: false, thrOn: 0, hadPod: false };
-const caveGroup = new THREE.Group(); caveGroup.scale.setScalar(CS); zScene.add(caveGroup);
-const caveDyn = new THREE.Group(); caveGroup.add(caveDyn);
-let caveMesh = null;
-const tPartCloud = new Cloud(caveGroup, 1600, 1.0, true), tBulCloud = new Cloud(caveGroup, 300, 1.9, true);
+const T = { base: null, lvl: null, w: 0, ge: 0, onPad: false, yawF: -Math.PI / 2, face: 1, roll: 0, zOff: 0, q0: new THREE.Quaternion(), qLast: new THREE.Quaternion(), x: 0, y: 0, vx: 0, vy: 0, ang: 0, landed: true, alive: true, deadT: 0, fireCd: 0, pod: null, bullets: [], tb: [], parts: [], turrets: [], tanks: [], cam: new THREE.Vector2(), beamOn: false, thrOn: 0, hadPod: false };
 const podMesh = makePod(), rope = makeRope();
 const beam3 = new THREE.Mesh(new THREE.ConeGeometry(2.2, 5.8, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0x66ffee, transparent: true, opacity: 0.22, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
-caveGroup.add(podMesh, rope.obj, beam3);
-const caveToWorld = (x, y, out) => out.set((x - CAVE_OX) * CS, PAD_H + (y - T.lvl.H) * CS, 0);
+let caveGroup = null, tPartCloud = null, tBulCloud = null;
+const caveToWorld = (x, y, out, b = T.base) => out.set(b.x + (x - CAVE_OX) * CS, b.h + (y - T.lvl.H) * CS, b.z);
 const sol = (x, y) => { const L = T.lvl; if (x < 0 || x >= L.W || y < 0) return 1; if (y >= L.H) return 0; return L.solid[Math.floor(y) * L.W + Math.floor(x)]; };
 const isPad = (x, y) => { const L = T.lvl; if (x < 0 || x >= L.W || y < 0 || y >= L.H) return false; return L.pad[Math.floor(y) * L.W + Math.floor(x)] === 1; };
 
-function buildCave(visit) {
-  const L = T.lvl = buildLevel(visit);
-  if (!caveMesh) { caveMesh = buildCaveMesh(L, { depth: CAVE_DEPTH }); caveGroup.add(caveMesh); }
-  caveGroup.position.set(-CAVE_OX * CS, PAD_H - L.H * CS, 0);
-  caveDyn.clear();
-  T.turrets = L.turrets.map(t => ({ ...t, cd: rnd(0.5, 2), alive: true, ang: 0, mesh: null }));
-  T.tanks = L.tanks.map(t => ({ ...t, mesh: null, max: t.fuel }));
-  for (const t of T.turrets) { t.mesh = makeTurret(); t.mesh.position.set(t.x, t.y, 0); caveDyn.add(t.mesh); }
-  for (const t of T.tanks) { t.mesh = makeTank(); t.mesh.position.set(t.x, t.y, 0); caveDyn.add(t.mesh); }
-  T.pod = { x: L.orb.x, y: L.orb.y, vx: 0, vy: 0, attached: false };
-  T.bullets.length = 0; T.tb.length = 0; T.parts.length = 0; T.hadPod = false;
+// Build every base's cave once. Geometry is shared; each base keeps its own turrets/tanks/pod state, so a looted
+// tank stays empty and a destroyed turret stays dead. The home cave is friendly: no turrets, a big reservoir tank and
+// a blue intake pad where carried fuel is pumped into the reservoir.
+const CARGO_MAX = 100, RES_MAX = 300;
+function buildCaves() {
+  let proto = null;
+  BASES.forEach((b, i) => {
+    const L = b.L = buildLevel(i);
+    if (!proto) proto = buildCaveMesh(L, { depth: CAVE_DEPTH });
+    const grp = b.group = new THREE.Group(); grp.scale.setScalar(CS); grp.position.set(b.x - CAVE_OX * CS, b.h - L.H * CS, b.z); zScene.add(grp);
+    const mesh = proto.clone(); grp.add(mesh);
+    const dyn = new THREE.Group(); grp.add(dyn);
+    b.st = { turrets: [], tanks: [], pod: null, podTaken: false };
+    if (b.kind === 'home') {
+      mesh.traverse(o => { if (o.isMesh && o.material.color && o.material.color.getHex() === 0x1abf59) { o.material = o.material.clone(); o.material.color.setHex(0x2a7fff); o.material.emissive.setHex(0x0a2a70); } });
+      const res = makeTank(); res.scale.setScalar(2.2); res.position.set(L.tanks[1].x, L.padTop + 1.8, -1); dyn.add(res); b.resTank = res;
+      b.st.pod = { x: -99, y: -99, vx: 0, vy: 0, attached: false }; b.st.podTaken = true;
+    } else {
+      b.st.turrets = L.turrets.map(t => ({ ...t, cd: rnd(0.5, 2), alive: true, ang: 0, mesh: null }));
+      b.st.tanks = L.tanks.map(t => ({ ...t, mesh: null, max: t.fuel }));
+      for (const t of b.st.turrets) { t.mesh = makeTurret(); t.mesh.position.set(t.x, t.y, 0); dyn.add(t.mesh); }
+      for (const t of b.st.tanks) { t.mesh = makeTank(); t.mesh.position.set(t.x, t.y, 0); dyn.add(t.mesh); }
+      b.st.pod = { x: L.orb.x, y: L.orb.y, vx: 0, vy: 0, attached: false };
+    }
+  });
+  useCave(BASES[0]);
+}
+function useCave(b) {   // point the shared cave state + effects at base b
+  T.base = b; T.lvl = b.L; caveGroup = b.group;
+  T.turrets = b.st.turrets; T.tanks = b.st.tanks; T.pod = b.st.pod;
+  if (!tPartCloud) { tPartCloud = new Cloud(caveGroup, 1600, 1.0, true); tBulCloud = new Cloud(caveGroup, 300, 1.9, true); }
+  caveGroup.add(podMesh, rope.obj, beam3, tPartCloud.obj, tBulCloud.obj);
+  T.bullets.length = 0; T.tb.length = 0; T.parts.length = 0;
+}
+function resetBases() {   // new game: restock every enemy base
+  for (const b of BASES) if (b.kind === 'enemy') {
+    for (const t of b.st.turrets) { t.alive = true; t.mesh.visible = true; }
+    for (const t of b.st.tanks) { t.fuel = t.max; t.mesh.userData.bar.scale.y = 1; }
+    Object.assign(b.st.pod, { x: b.L.orb.x, y: b.L.orb.y, vx: 0, vy: 0, attached: false }); b.st.podTaken = false;
+  }
 }
 // Fly into the shaft from the surface: the same ship carries on, locked to the cave plane.
-function enterCave() {
-  G.visit++; buildCave(G.visit);
+function enterCave(b) {
+  useCave(b);
   const L = T.lvl, P = Z.pos;
   G.mode = 'thrust';
-  T.x = P.x / CS + CAVE_OX; T.y = (P.y - PAD_H) / CS + L.H; T.vx = Z.vel.x / CS; T.vy = Z.vel.y / CS;
+  T.x = (P.x - b.x) / CS + CAVE_OX; T.y = (P.y - b.h) / CS + L.H; T.vx = Z.vel.x / CS; T.vy = Z.vel.y / CS;
   T.vy = Math.max(T.vy, -5); T.vx = clamp(T.vx, -4, 4); T.q0.copy(shipMesh.quaternion);
-  { const u = H.up(); T.ang = Math.atan2(u.x, u.y); } T.w = 0; T.zOff = P.z; T.landed = false; T.alive = true; T.thrOn = Z.throttle;
+  { const u = H.up(); T.ang = Math.atan2(u.x, u.y); } T.w = 0; T.zOff = P.z - b.z; T.landed = false; T.alive = true; T.thrOn = Z.throttle;
   T.face = Z.facing.x < 0 ? -1 : 1; T.yawF = -T.face * Math.PI / 2;
-  say('GRAB THE POD  -  ESCAPE UP THE SHAFT', 3);
+  say(b.kind === 'home' ? 'HOME BASE  -  LAND ON THE BLUE PAD TO UNLOAD FUEL' : `${b.name}  -  LOOT THE FUEL, STEAL THE POD`, 3);
 }
 // Climb out of the shaft: hand the ship back to the 3D flight model with its momentum.
 function exitCave() {
   const had = T.pod.attached;
-  if (had) { addScore(1500); say('PAYLOAD DELIVERED  +1500', 2.5); sfx.dock(); }
+  if (had) { addScore(1500); say('POD STOLEN  +1500', 2.5); sfx.dock(); T.base.st.podTaken = true; }
   else say('BACK ON THE SURFACE', 1.5);
   T.pod.attached = false;
-  caveToWorld(T.x, T.y, Z.pos); Z.pos.z = 0; Z.vel.set(T.vx * CS, T.vy * CS, 0);
+  caveToWorld(T.x, T.y, Z.pos); Z.vel.set(T.vx * CS, T.vy * CS, 0);
   H.pos.copy(Z.pos); H.vel.copy(Z.vel); H.q.copy(T.qLast); H.w.set(0, 0, 0); H.landed = false;
   Z.facing.set(T.face, 0); Z.landed = false; Z.alive = true; Z.throttle = T.thrOn;
   G.mode = 'zarch';
 }
-function resetThrustShip() {
-  const L = T.lvl; T.x = L.start.x; T.y = L.padTop + 0.76; T.vx = T.vy = 0; T.ang = 0; T.w = 0; T.landed = true; T.onPad = true; T.alive = true; shipMesh.visible = true;
-  if (T.pod.attached) { T.pod.attached = false; T.pod.x = L.orb.x; T.pod.y = L.orb.y; T.pod.vx = T.pod.vy = 0; }
-  T.cam.set(T.x, T.y + 4);
+// after a crash anywhere: a fresh helicopter, cold on the home pad. A pod on the line drops back where it came from.
+function respawnHome() {
+  if (T.pod && T.pod.attached) Object.assign(T.pod, { attached: false, x: T.lvl.orb.x, y: T.lvl.orb.y, vx: 0, vy: 0 });
+  T.alive = true; T.landed = false; G.fuel = 100; G.cargo = 0;
+  G.mode = 'zarch'; resetZarch(true); say('NEW HELICOPTER ON THE HOME PAD', 2);
 }
 function shipPts() {
   // helicopter outline in cave cells (0.7 scale): nose, tail, rotor tips, then the two skid ends (which may touch down)
@@ -462,7 +515,7 @@ function los(ax, ay, bx, by) {
 
 function updateThrust(dt, inp) {
   const L = T.lvl;
-  if (!T.alive) { T.deadT -= dt; if (T.deadT <= 0 && !G.over) { G.fuel = 100; resetThrustShip(); } stepParts(T.parts, dt); return; }
+  if (!T.alive) { T.deadT -= dt; if (T.deadT <= 0 && !G.over) respawnHome(); stepParts(T.parts, dt); return; }
   const ctl = HI.read(dt); Z.ctl = ctl;
   if (G.fuel > 0) H.rpm = Math.min(1, H.rpm + 0.4 * dt); else H.rpm = Math.max(0, H.rpm - (0.06 + 0.2 * ctl.coll) * dt);
   const auth = H.rpm * H.rpm, thr = ctl.coll * auth, beam = !!ctl.winch;
@@ -478,7 +531,7 @@ function updateThrust(dt, inp) {
   const n = Math.ceil(dt / (1 / 240)), h = dt / n, pod = T.pod;
   for (let it = 0; it < n && T.alive; it++) {
     const lift = thr * HELI.TMAX * 7 * (1 + 0.22 * T.ge);
-    if (T.landed) { if (lift > 7) T.landed = false; else { T.vx = T.vy = 0; T.w = 0; T.ang *= 0.9; break; } }
+    if (T.landed) { if (lift > 7) { T.landed = false; T.onPad = false; } else { T.vx = T.vy = 0; T.w = 0; T.ang *= 0.9; break; } }
     {   // disc tilt rate follows the cyclic; stability assist levels it hands-off
       let want = ctl.cx * HELI.RATE.roll; if (ctl.sas) want += -T.ang * 1.6 * (1 - Math.min(1, Math.abs(ctl.cx) * 2.5));
       T.w += (want - T.w) * HELI.RESP * auth * h; T.ang += T.w * h;
@@ -514,7 +567,11 @@ function updateThrust(dt, inp) {
     if (T.y > L.H + 1) { exitCave(); return; }
   }
   if (!T.alive) return;
-  if (T.landed && T.onPad) G.fuel = Math.min(100, G.fuel + 25 * dt);
+  if (T.landed && T.onPad && T.base.kind === 'home') {
+    const unload = Math.min(G.cargo, 30 * dt, RES_MAX - G.res); G.cargo -= unload; G.res += unload;
+    const fill = Math.min(G.res, 25 * dt, 100 - G.fuel); G.res -= fill; G.fuel += fill;
+    if (unload > 0) { T.unloaded = (T.unloaded || 0) + unload; if (G.cargo <= 0.01) { say(`FUEL UNLOADED  -  RESERVOIR ${Math.round(G.res)}`, 2); addScore(Math.round(T.unloaded * 5)); T.unloaded = 0; } }
+  }
   if (Math.abs(T.vx) > 1.5) T.face = Math.sign(T.vx);
   if (thr > 0.1) {
     const s = Math.sin(T.ang), c = Math.cos(T.ang);
@@ -528,7 +585,9 @@ function updateThrust(dt, inp) {
     const bx = T.x - Math.sin(T.ang) * 3.5, by = T.y - Math.cos(T.ang) * 3.5;
     if (!pod.attached && Math.hypot(pod.x - bx, pod.y - by) < 4.5) { pod.attached = true; pod.len = Math.max(ROPE, Math.hypot(pod.x - T.x, pod.y - T.y)); pod.grace = 0; T.hadPod = true; addScore(500); sfx.pickup(); say('POD SECURED  -  GET OUT!', 2.5); }
     for (const tk of T.tanks) if (tk.fuel > 0 && Math.hypot(tk.x - bx, tk.y - by) < 4.5) {
-      const take = Math.min(tk.fuel, 30 * dt, 100 - G.fuel); tk.fuel -= take; G.fuel += take;
+      const toCargo = Math.min(tk.fuel, 30 * dt, CARGO_MAX - G.cargo), toTank = Math.min(tk.fuel - toCargo, 30 * dt - toCargo, 100 - G.fuel);
+      const take = toCargo + Math.max(0, toTank); tk.fuel -= take; G.cargo += toCargo; G.fuel += Math.max(0, toTank);
+      if (take > 0 && tk.fuel <= 0.01) say('TANK DRAINED  -  TAKE IT HOME', 1.5);
       tk.mesh.userData.bar.scale.y = Math.max(0.01, tk.fuel / tk.max);
       if (take > 0) emit(T.parts, tk.x, tk.y, 0, (T.x - tk.x) * 2, (T.y - tk.y) * 2, 0, 0.4, .3, 1, .5, 0);
     }
@@ -547,7 +606,7 @@ function updateThrust(dt, inp) {
     t.ang = Math.atan2(dy, dx);
     t.cd -= dt;
     if (d < 22 && t.cd <= 0 && los(t.x, t.y, T.x, T.y)) {
-      t.cd = Math.max(0.9, 2.4 - G.visit * 0.25) + rnd(0.6); sfx.enemyShot();
+      t.cd = Math.max(0.9, 2.4 - BASES.indexOf(T.base) * 0.2) + rnd(0.6); sfx.enemyShot();
       const lead = d / 11, ax = T.x + T.vx * lead * .5 - t.x, ay = T.y + T.vy * lead * .5 - t.y, al = Math.hypot(ax, ay) || 1;
       T.tb.push({ x: t.x + ax / al * 1.2, y: t.y + ay / al * 1.2, vx: ax / al * 11, vy: ay / al * 11, life: 4 });
     }
@@ -568,7 +627,7 @@ function gameOver() {
 function startTransition(label, swap) { G.state = 'trans'; G.tr = { t: 0, phase: 0, swap }; $('fadeText').textContent = label; }
 function newGame() {
   G.score = 0; G.lives = 3; G.fuel = 100; G.visit = 0; G.mode = 'zarch'; G.over = false; G.state = 'play';
-  clearEnemies(); Z.wave = 0; Z.round = 0; Z.sector = -1; resetSectors(); zParts.length = 0; resetZarch(true); say('ROTOR SPOOLING  -  RAISE COLLECTIVE TO LIFT', 3);
+  G.res = 150; G.cargo = 0; resetBases(); clearEnemies(); Z.wave = 0; Z.round = 0; Z.sector = -1; resetSectors(); zParts.length = 0; resetZarch(true); say('ROTOR SPOOLING  -  RAISE COLLECTIVE TO LIFT', 3);
   $('title').style.display = 'none'; $('title').querySelector('h1').textContent = 'THRUST / ZARCH'; say('');
 }
 function pressStart() { if (G.state === 'title') newGame(); }
@@ -605,6 +664,11 @@ function drawMap() {
   radar.beginPath(); radar.arc(bx, by, bigMap ? 3 : 2, 0, 6.283); radar.fill();
   if (bigMap) { radar.font = '14px monospace'; radar.fillText('REFUEL / BASE', bx + 14, by + 5); }
   if (pinned) { radar.font = 'bold 9px monospace'; radar.fillText('F', bx - 3, by + 3); }
+  for (const b of BASES) if (b.kind === 'enemy') {
+    const X = px(b.x), Y = py(b.z); if (Math.hypot(X - cx, Y - cy) > lim) continue;
+    radar.strokeStyle = '#f53'; radar.lineWidth = 2; radar.beginPath(); radar.arc(X, Y, bigMap ? 8 : 5, 0, 6.283); radar.stroke();
+    if (bigMap) { radar.fillStyle = '#f86'; radar.font = '13px monospace'; radar.fillText(b.name + (b.st && b.st.podTaken ? '  (POD TAKEN)' : ''), X + 12, Y + 4); }
+  }
   for (const e of enemies) dot(e.mesh.position.x, e.mesh.position.z, '#f44', bigMap ? 6 : 4);
   for (const b of zBullets) if (!b.own) dot(b.p.x, b.p.z, '#fa4', 2);
   // player: triangle pointing along the nose
@@ -619,14 +683,14 @@ function updateHud() {
   setText('score', String(G.score)); setText('hi', String(G.hi));
   setText('lives', '▲'.repeat(Math.max(0, G.lives)));
   setStyle('fuel', 'width', clamp(G.fuel, 0, 100).toFixed(1) + '%');
-  setText('modeTag', G.mode === 'zarch' ? 'ZARCH' : 'THRUST  ·  visit ' + G.visit);
+  setText('modeTag', (G.mode === 'zarch' ? 'ZARCH' : 'THRUST  ·  ' + (T.base ? T.base.name : '')) + `   RESERVOIR ${Math.round(G.res)}/${RES_MAX}  CARGO ${Math.round(G.cargo)}`);
   setText('pad', readPad() ? 'CONTROLLER' : (keyboardOnly ? 'KEYBOARD ONLY' : 'KEYBOARD'));
   setStyle('radar', 'display', G.mode === 'zarch' ? 'block' : 'none');
   if (G.mode === 'zarch') {
-    const alt = Z.pos.y - 0.9 - (inHole(Z.pos.x, Z.pos.z) ? PAD_H : groundY(Z.pos.x, Z.pos.z)), bd = Math.hypot(Z.pos.x, Z.pos.z);
+    const hb = holeOf(Z.pos.x, Z.pos.z), alt = Z.pos.y - 0.9 - (hb ? hb.h : groundY(Z.pos.x, Z.pos.z)), bd = Math.hypot(Z.pos.x, Z.pos.z);
     const ias = Math.hypot(Z.vel.x, Z.vel.z) * 1.944, hdg = ((H.heading() * 180 / Math.PI) + 360) % 360, c = Z.ctl || {};
     setText('alt', `COLL ${(H.coll * 100).toFixed(0)}%  RPM ${(H.rpm * 100).toFixed(0)}%  IAS ${ias.toFixed(0)}kt  VS ${Z.vel.y.toFixed(1)}  AGL ${Math.max(0, H.agl).toFixed(0)}m  HDG ${hdg.toFixed(0).padStart(3, '0')}  ${c.sas ? 'SAS' : 'MANUAL'}  [${c.source || ''}]${H.vrs > 0.4 ? '  VORTEX RING!' : ''}`);
-    setText('hint', H.landed && H.rpm < 0.9 ? 'ROTOR SPOOLING...' : Z.sector >= 0 && sectors[Z.sector].state === 'active' ? `${SECT_NAMES[Z.sector]} SECTOR  -  ${enemies.filter(e => e.area === Z.sector).length} HOSTILES LEFT` : (bd < 60 && !Z.landed ? 'LAND ON THE PAD TO REFUEL  -  DESCEND INTO THE SHAFT FOR THE CAVE' : ''));
+    setText('hint', H.landed && H.rpm < 0.9 ? 'ROTOR SPOOLING...' : H.landed && bd < 8.5 && G.res < 1 && G.fuel < 99 ? 'RESERVOIR EMPTY  -  LOOT FUEL FROM ENEMY BASES, UNLOAD IT IN THE HOME CAVE' : Z.sector >= 0 && sectors[Z.sector].state === 'active' ? `${SECT_NAMES[Z.sector]} SECTOR  -  ${enemies.filter(e => e.area === Z.sector).length} HOSTILES LEFT` : (bd < 60 && !Z.landed ? 'LAND ON THE PAD TO REFUEL FROM THE RESERVOIR  -  DESCEND THE SHAFT TO UNLOAD CARGO' : ''));
     drawMap();
   } else {
     const c = Z.ctl || {};
@@ -660,9 +724,10 @@ let camB = 0;
 function updateCamsAndMeshes(dt, time) {
   const P = Z.pos, inCave = G.mode === 'thrust' && !!T.lvl;
   if (inCave) {   // keep Z.pos on the ship so the 3D camera keeps following it through the swing
-    caveToWorld(T.x, T.y, P); T.zOff *= Math.exp(-5 * dt); P.z = T.zOff;
+    caveToWorld(T.x, T.y, P); T.zOff *= Math.exp(-5 * dt); P.z = T.base.z + T.zOff;
   }
   heliModel.animate(H.rpm, dt, time);
+  for (const b of BASES) if (b.group) b.group.visible = b === T.base && inCave || Math.hypot(zCam.position.x - b.x, zCam.position.z - b.z) < 140;
   baseGroup.userData.ring.material.color.setHSL((time * 0.5) % 1, 1, 0.6);
   if (G.state === 'title') {
     const a = time * 0.15; camA.position.set(Math.cos(a) * 40, PAD_H + 14, Math.sin(a) * 40); camA.lookAt(0, PAD_H + 3, 0);
@@ -687,7 +752,7 @@ function updateCamsAndMeshes(dt, time) {
     const k = 1 - Math.exp(-4 * dt);
     T.cam.x = lerp(T.cam.x, T.x + T.vx * 0.3, k); T.cam.y = lerp(T.cam.y, T.y + T.vy * 0.3, k);
     const cx = clamp(T.cam.x, hw - 10, L.W - hw + 10), cy = clamp(T.cam.y, hh - 10, L.H + 6 - hh);
-    caveToWorld(cx, cy, camS.position); camS.position.z = SIDE_VIEWH / 2 / Math.tan(SIDE_FOV / 2 * Math.PI / 180);
+    caveToWorld(cx, cy, camS.position); camS.position.z = T.base.z + SIDE_VIEWH / 2 / Math.tan(SIDE_FOV / 2 * Math.PI / 180);
     camS.quaternion.identity();
   }
   camB = clamp(camB + (inCave ? dt : -dt) / 1.3, 0, 1);
@@ -737,7 +802,8 @@ function updateCamsAndMeshes(dt, time) {
   beam3.visible = rope.obj.visible = false;
   if (T.lvl) {
     const pod = T.pod, zo = inCave ? T.zOff / CS : 0;
-    podMesh.position.set(pod.x, pod.y, 0);
+    podMesh.position.set(pod.x, pod.y, 0); podMesh.visible = T.base.kind === 'enemy' && !T.base.st.podTaken;
+    if (BASES[0].resTank) BASES[0].resTank.userData.bar.scale.y = Math.max(0.01, G.res / RES_MAX);
     beam3.visible = false;
     if (beam3.visible) { beam3.position.set(T.x - Math.sin(T.ang) * 3.6, T.y - Math.cos(T.ang) * 3.6, zo); beam3.rotation.z = -T.ang; }
     rope.obj.visible = inCave && pod.attached;
@@ -779,6 +845,6 @@ function frame(now) {
   PROF.sim += ((t1 - now0) - PROF.sim) * pk; PROF.prep += ((t2 - t1) - PROF.prep) * pk; PROF.render += ((t3 - t2) - PROF.render) * pk;
 }
 const PROF = { sim: 0, prep: 0, render: 0 };
-buildCave(1); resetZarch(true);
+buildCaves(); resetZarch(true);
 requestAnimationFrame(frame);
-if (params.has('debug')) { window.__G = { G, Z, T, H, HI, THREE, PROF, renderer, newGame, enemies, sectors, enterCave, exitCave, get camB() { return camB; } }; if (params.has('auto')) newGame(); if (params.has('thrust')) { newGame(); Z.pos.set(0, PAD_H - 1, 0); Z.vel.set(0, -4, 0); enterCave(); } }
+if (params.has('debug')) { window.__G = { G, Z, T, H, HI, THREE, PROF, renderer, newGame, enemies, sectors, BASES, enterCave, respawnHome, exitCave, get camB() { return camB; } }; if (params.has('auto')) newGame(); if (params.has('thrust')) { newGame(); Z.pos.set(0, PAD_H - 1, 0); Z.vel.set(0, -4, 0); enterCave(BASES[+params.get('thrust') || 0]); } }
