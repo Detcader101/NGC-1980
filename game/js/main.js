@@ -251,18 +251,27 @@ const H = createHeliSim(GRAV);
 const HI = createHeliInput({ keyDown: kd, readPad, say: (t, s) => say(t, s) });
 const Z = {
   pos: new THREE.Vector3(0, PAD_H + 0.9, 6.5), vel: new THREE.Vector3(), lean: new THREE.Vector2(), facing: new THREE.Vector2(0, -1),
-  aim: new THREE.Vector3(0, 0, -1), hd: 0, throttle: 0, landed: true, alive: true, deadT: 0, fireCd: 0, wave: 0, waveT: 2,
+  aim: new THREE.Vector3(0, 0, -1), hd: 0, sector: -1, round: 0, throttle: 0, landed: true, alive: true, deadT: 0, fireCd: 0, wave: 0, waveT: 2,
 };
 const enemyMat = new THREE.MeshPhongMaterial({ color: 0xdd2222, emissive: 0x440808, flatShading: true });
 const enemyRing = new THREE.MeshBasicMaterial({ color: 0xff8844 });
-function spawnEnemy() {
-  const a = rnd(Math.PI * 2), d = rnd(130, 220);
-  const x = clamp(Z.pos.x + Math.cos(a) * d, -BOUND, BOUND), zz = clamp(Z.pos.z + Math.sin(a) * d, -BOUND, BOUND);
+// The map is a 3x3 grid of sectors. The centre one holds the home base and is a safe zone (land, refuel, repair).
+// Flying into an uncleared sector launches that sector's wave; its ships stay and patrol there, so you can always
+// fall back home. Clear all eight and a new, tougher round begins.
+const SECT = (2 * BOUND) / 3, HOME = 4;
+const SECT_NAMES = ['NORTH-WEST', 'NORTH', 'NORTH-EAST', 'WEST', 'HOME', 'EAST', 'SOUTH-WEST', 'SOUTH', 'SOUTH-EAST'];
+const sectorOf = (x, z) => clamp(Math.floor((x + BOUND) / SECT), 0, 2) + 3 * clamp(Math.floor((z + BOUND) / SECT), 0, 2);
+const sectorCentre = i => [-BOUND + SECT * ((i % 3) + 0.5), -BOUND + SECT * (Math.floor(i / 3) + 0.5)];
+const sectors = Array.from({ length: 9 }, () => ({ state: 'idle' }));   // idle -> active -> cleared
+function resetSectors() { for (const sc of sectors) sc.state = 'idle'; sectors[HOME].state = 'cleared'; }
+function spawnEnemy(area) {
+  const [cx, cz] = sectorCentre(area);
+  const x = clamp(cx + rnd(-0.4, 0.4) * SECT, -BOUND, BOUND), zz = clamp(cz + rnd(-0.4, 0.4) * SECT, -BOUND, BOUND);
   const g = new THREE.Group();
   g.add(new THREE.Mesh(new THREE.OctahedronGeometry(1.8).scale(1.4, 0.7, 1.4), enemyMat));
   g.add(new THREE.Mesh(new THREE.TorusGeometry(2.6, 0.12, 4, 20).rotateX(Math.PI / 2), enemyRing));
   g.position.set(x, groundY(x, zz) + 28, zz); zScene.add(g);
-  enemies.push({ mesh: g, vel: new THREE.Vector3(), fireT: rnd(1, 3), ph: rnd(6.28), hp: 1 });
+  enemies.push({ mesh: g, vel: new THREE.Vector3(), fireT: rnd(1, 3), ph: rnd(6.28), hp: 1, area });
 }
 function clearEnemies() { for (const e of enemies) zScene.remove(e.mesh); enemies.length = 0; }
 function resetZarch(fromPad) {
@@ -284,9 +293,23 @@ function killPlayerZ(why) {
 
 function updateZarch(dt, inp) {
   const P = Z.pos;
-  if (enemies.length === 0 && !params.has('peace')) {   // ?peace: no waves (automated tests)
-    Z.waveT -= dt;
-    if (Z.waveT <= 0) { Z.wave++; const n = Math.min(2 + Z.wave, 9); for (let i = 0; i < n; i++) spawnEnemy(); Z.waveT = 3; say('WAVE ' + Z.wave, 1.5); }
+  if (Z.alive && !params.has('peace')) {   // ?peace: no waves (automated tests)
+    const here = sectorOf(P.x, P.z);
+    if (here !== Z.sector) {
+      Z.sector = here;
+      const sc = sectors[here];
+      if (here === HOME) say('HOME SECTOR  -  SAFE ZONE', 1.6);
+      else if (sc.state === 'idle') {
+        sc.state = 'active'; Z.wave++;
+        const n = Math.min(2 + Z.round * 2 + Math.floor(Z.wave / 3), 10);
+        for (let i = 0; i < n; i++) spawnEnemy(here);
+        say(`${SECT_NAMES[here]} SECTOR  -  ${n} HOSTILES`, 2);
+      } else if (sc.state === 'cleared') say(`${SECT_NAMES[here]} SECTOR  -  CLEAR`, 1.2);
+    }
+  }
+  for (let i = 0; i < 9; i++) if (sectors[i].state === 'active' && !enemies.some(e => e.area === i)) {
+    sectors[i].state = 'cleared'; addScore(500); say(`${SECT_NAMES[i]} SECTOR CLEARED  +500`, 2);
+    if (sectors.every(sc => sc.state === 'cleared')) { Z.round++; resetSectors(); Z.sector = -1; say(`ALL SECTORS CLEAR  -  ROUND ${Z.round + 1} INCOMING`, 3); }
   }
   let lm = 0;
   if (!Z.alive) {
@@ -339,17 +362,19 @@ function updateZarch(dt, inp) {
       explode(zParts, ep.x, ep.y, ep.z, 70, 22, false); sfx.boom(0.8); addScore(150);
       zScene.remove(e.mesh); enemies.splice(i, 1); continue;
     }
-    const tx = Z.alive ? P.x : 0, tz = Z.alive ? P.z : 0;
-    const dx = tx - ep.x, dz = tz - ep.z, hd = Math.hypot(dx, dz) || 1, sp = 15 + Z.wave * 1.2;
-    const near = hd < 40 ? -1 : 1;
+    const pSec = sectorOf(P.x, P.z), hunting = Z.alive && pSec === e.area && pSec !== HOME;
+    const [acx, acz] = sectorCentre(e.area);
+    const tx = hunting ? P.x : acx + Math.cos(e.ph * 0.3) * SECT * 0.3, tz = hunting ? P.z : acz + Math.sin(e.ph * 0.3) * SECT * 0.3;
+    const dx = tx - ep.x, dz = tz - ep.z, hd = Math.hypot(dx, dz) || 1, sp = (hunting ? 15 : 10) + Z.round * 2;
+    const near = hunting && hd < 40 ? -1 : 1;
     const wantV = new THREE.Vector3((dx / hd) * sp * near + Math.cos(e.ph * 1.3) * 5, 0, (dz / hd) * sp * near + Math.sin(e.ph * 1.1) * 5);
     wantV.y = (groundY(ep.x, ep.z) + 26 + Math.sin(e.ph) * 5 - ep.y) * 1.2;
     e.vel.lerp(wantV, 1 - Math.exp(-1.5 * dt)); ep.addScaledVector(e.vel, dt);
     ep.x = clamp(ep.x, -BOUND, BOUND); ep.z = clamp(ep.z, -BOUND, BOUND);
     e.mesh.rotation.y += dt * 2;
     e.fireT -= dt;
-    if (Z.alive && e.fireT <= 0 && hd < 100) {
-      e.fireT = Math.max(0.9, 2.6 - Z.wave * 0.12) + rnd(1); sfx.enemyShot();
+    if (hunting && e.fireT <= 0 && hd < 100) {
+      e.fireT = Math.max(0.9, 2.4 - Z.round * 0.3) + rnd(1); sfx.enemyShot();
       const t = ep.distanceTo(P) / 48, aim = P.clone().addScaledVector(Z.vel, t * 0.5);
       aim.x += rnd(-5, 5); aim.z += rnd(-5, 5);
       zBullets.push({ p: ep.clone(), v: aim.sub(ep).normalize().multiplyScalar(48), life: 3, own: false });
@@ -543,7 +568,7 @@ function gameOver() {
 function startTransition(label, swap) { G.state = 'trans'; G.tr = { t: 0, phase: 0, swap }; $('fadeText').textContent = label; }
 function newGame() {
   G.score = 0; G.lives = 3; G.fuel = 100; G.visit = 0; G.mode = 'zarch'; G.over = false; G.state = 'play';
-  clearEnemies(); Z.wave = 0; Z.waveT = 2; zParts.length = 0; resetZarch(true); say('ROTOR SPOOLING  -  RAISE COLLECTIVE TO LIFT', 3);
+  clearEnemies(); Z.wave = 0; Z.round = 0; Z.sector = -1; resetSectors(); zParts.length = 0; resetZarch(true); say('ROTOR SPOOLING  -  RAISE COLLECTIVE TO LIFT', 3);
   $('title').style.display = 'none'; $('title').querySelector('h1').textContent = 'THRUST / ZARCH'; say('');
 }
 function pressStart() { if (G.state === 'title') newGame(); }
@@ -561,7 +586,17 @@ function drawMap() {
   const ox = bigMap ? 0 : Z.pos.x, oz = bigMap ? 0 : Z.pos.z, lim = bigMap ? 1e9 : 72;
   const px = x => cx + (x - ox) * half, py = z => cy + (z - oz) * half;
   const dot = (x, z, c, sz) => { const X = px(x), Y = py(z); if (Math.hypot(X - cx, Y - cy) > lim) return; radar.fillStyle = c; radar.fillRect(X - sz / 2, Y - sz / 2, sz, sz); };
-  if (bigMap) { radar.strokeStyle = '#4aa'; radar.lineWidth = 1; radar.strokeRect(px(-BOUND), py(-BOUND), 2 * BOUND * half, 2 * BOUND * half); }
+  if (bigMap) {
+    radar.strokeStyle = '#4aa'; radar.lineWidth = 1; radar.strokeRect(px(-BOUND), py(-BOUND), 2 * BOUND * half, 2 * BOUND * half);
+    radar.font = '13px monospace';
+    for (let i = 0; i < 9; i++) {
+      const x0 = -BOUND + SECT * (i % 3), z0 = -BOUND + SECT * Math.floor(i / 3), st = sectors[i].state;
+      radar.fillStyle = i === HOME ? 'rgba(255,230,80,.08)' : st === 'cleared' ? 'rgba(60,255,120,.10)' : st === 'active' ? 'rgba(255,60,60,.14)' : 'rgba(0,0,0,0)';
+      radar.fillRect(px(x0), py(z0), SECT * half, SECT * half); radar.strokeRect(px(x0), py(z0), SECT * half, SECT * half);
+      radar.fillStyle = i === HOME ? '#ff8' : st === 'cleared' ? '#6f8' : st === 'active' ? '#f66' : '#8aa';
+      radar.fillText(i === HOME ? 'HOME  (SAFE)' : `${SECT_NAMES[i]}  ${st === 'idle' ? '?' : st === 'active' ? 'HOSTILE' : 'CLEAR'}`, px(x0) + 6, py(z0) + 16);
+    }
+  }
   // refuel station (base pad): ring + label; pinned to the radar edge when out of range
   let bx = px(0), by = py(0); const bd = Math.hypot(bx - cx, by - cy), pinned = bd > lim;
   if (pinned) { bx = cx + (bx - cx) / bd * lim; by = cy + (by - cy) / bd * lim; }
@@ -591,7 +626,7 @@ function updateHud() {
     const alt = Z.pos.y - 0.9 - (inHole(Z.pos.x, Z.pos.z) ? PAD_H : groundY(Z.pos.x, Z.pos.z)), bd = Math.hypot(Z.pos.x, Z.pos.z);
     const ias = Math.hypot(Z.vel.x, Z.vel.z) * 1.944, hdg = ((H.heading() * 180 / Math.PI) + 360) % 360, c = Z.ctl || {};
     setText('alt', `COLL ${(H.coll * 100).toFixed(0)}%  RPM ${(H.rpm * 100).toFixed(0)}%  IAS ${ias.toFixed(0)}kt  VS ${Z.vel.y.toFixed(1)}  AGL ${Math.max(0, H.agl).toFixed(0)}m  HDG ${hdg.toFixed(0).padStart(3, '0')}  ${c.sas ? 'SAS' : 'MANUAL'}  [${c.source || ''}]${H.vrs > 0.4 ? '  VORTEX RING!' : ''}`);
-    setText('hint', H.landed && H.rpm < 0.9 ? 'ROTOR SPOOLING...' : (bd < 60 && !Z.landed ? 'LAND ON THE PAD TO REFUEL  -  DESCEND INTO THE SHAFT FOR THE CAVE' : ''));
+    setText('hint', H.landed && H.rpm < 0.9 ? 'ROTOR SPOOLING...' : Z.sector >= 0 && sectors[Z.sector].state === 'active' ? `${SECT_NAMES[Z.sector]} SECTOR  -  ${enemies.filter(e => e.area === Z.sector).length} HOSTILES LEFT` : (bd < 60 && !Z.landed ? 'LAND ON THE PAD TO REFUEL  -  DESCEND INTO THE SHAFT FOR THE CAVE' : ''));
     drawMap();
   } else {
     const c = Z.ctl || {};
@@ -746,4 +781,4 @@ function frame(now) {
 const PROF = { sim: 0, prep: 0, render: 0 };
 buildCave(1); resetZarch(true);
 requestAnimationFrame(frame);
-if (params.has('debug')) { window.__G = { G, Z, T, H, HI, THREE, PROF, renderer, newGame, enemies, enterCave, exitCave, get camB() { return camB; } }; if (params.has('auto')) newGame(); if (params.has('thrust')) { newGame(); Z.pos.set(0, PAD_H - 1, 0); Z.vel.set(0, -4, 0); enterCave(); } }
+if (params.has('debug')) { window.__G = { G, Z, T, H, HI, THREE, PROF, renderer, newGame, enemies, sectors, enterCave, exitCave, get camB() { return camB; } }; if (params.has('auto')) newGame(); if (params.has('thrust')) { newGame(); Z.pos.set(0, PAD_H - 1, 0); Z.vel.set(0, -4, 0); enterCave(); } }
