@@ -148,18 +148,21 @@ const rawH = (x, z) => 14 * Math.sin(x * .035 + 1.3) * Math.cos(z * .04) + 9 * M
 // Every base is a pad on the surface with a shaft down into its own Thrust cave, which lives underground in the plane
 // z = base.z under the pad. CS = world units per cave cell. Home is friendly (reservoir + intake pad); the four enemy
 // bases sit in the N/E/S/W sectors with turrets, fuel tanks to loot and a pod to steal.
-const CS = 1.6, CAVE_OX = 32.5, CAVE_DEPTH = 6, HOLE_X = 3.5 * CS, HOLE_Z = CAVE_DEPTH / 2 * CS, STRIP_X = 76, STRIP_Z = 9;
+const CS = 1.6, CAVE_SINK = 0.15, CAVE_OX = 32.5, CAVE_DEPTH = 6, HOLE_R = 9, STRIP_X = 76, STRIP_Z = 9;
+// the home refuel pad sits beside the shaft on solid ground (no hole), clear of the cave strip
+const PAD = { x: 0, z: 30, r: 8.5 };
 const BASES = [{ kind: 'home', name: 'HOME BASE', x: 0, z: 0, h: PAD_H }];
 for (const [x, z, n] of [[0, -240, 'NORTH'], [240, 0, 'EAST'], [0, 240, 'SOUTH'], [-240, 0, 'WEST']])
   BASES.push({ kind: 'enemy', name: n + ' BASE', x, z, h: clamp(Math.round(rawH(x, z)), 4, 16) });
 const stripW = (x, z, b) => smooth(0, 14, Math.hypot(Math.max(Math.abs(x - b.x) - STRIP_X, 0), Math.max(Math.abs(z - b.z) - STRIP_Z, 0)));
 const terrainH = (x, z) => {
   let h = rawH(x, z);
-  for (const b of BASES) h = lerp(b.h, h, smooth(BASE_R, 60, Math.hypot(x - b.x, z - b.z)));   // flat pad area
+  for (const b of BASES) h = lerp(b.h, h, smooth(BASE_R, 60, Math.hypot(x - b.x, z - b.z)));   // flat apron round the shaft
+  h = lerp(PAD_H, h, smooth(12, 34, Math.hypot(x - PAD.x, z - PAD.z)));                        // flat home refuel pad
   for (const b of BASES) h = lerp(Math.max(h, b.h), h, stripW(x, z, b));                      // ground over the cave
   return h;
 };
-const holeOf = (x, z) => BASES.find(b => Math.abs(x - b.x) < HOLE_X && Math.abs(z - b.z) < HOLE_Z);
+const holeOf = (x, z) => BASES.find(b => Math.hypot(x - b.x, z - b.z) < HOLE_R);
 const inHole = (x, z) => !!holeOf(x, z);
 const groundY = (x, z) => inHole(x, z) ? -1e4 : Math.max(terrainH(x, z), 0);
 const baseUniform = BASES.map(b => new THREE.Vector4(b.x, b.z, b.h, b.kind === 'enemy' ? 1 : 0));
@@ -189,6 +192,7 @@ const terrain = new THREE.Mesh(terrainGeo, new THREE.ShaderMaterial({
       vec4 w=modelMatrix*vec4(position,1.);
       float h=rawH(w.xz);
       for(int i=0;i<${BASES.length};i++){ vec4 b=uBases[i]; h=mix(b.z,h,smoothstep(${BASE_R.toFixed(1)},60.,length(w.xz-b.xy))); }
+      h=mix(${PAD_H.toFixed(1)},h,smoothstep(12.,34.,length(w.xz-vec2(${PAD.x.toFixed(1)},${PAD.z.toFixed(1)}))));
       for(int i=0;i<${BASES.length};i++){ vec4 b=uBases[i]; vec2 sd=max(abs(w.xz-b.xy)-vec2(${STRIP_X.toFixed(1)},${STRIP_Z.toFixed(1)}),0.); h=mix(max(h,b.z),h,smoothstep(0.,14.,length(sd))); }
       vRaw=h; w.y=max(h,0.); vW=w.xyz;
       gl_Position=projectionMatrix*viewMatrix*w;
@@ -196,7 +200,7 @@ const terrain = new THREE.Mesh(terrainGeo, new THREE.ShaderMaterial({
   fragmentShader: `
     varying vec3 vW; varying float vRaw; uniform vec3 uFog; uniform vec3 uSun; uniform vec4 uBases[${BASES.length}];
     void main(){
-      for(int i=0;i<${BASES.length};i++){ vec2 q=abs(vW.xz-uBases[i].xy); if(q.x<${HOLE_X.toFixed(2)}&&q.y<${HOLE_Z.toFixed(2)}) discard; }
+      for(int i=0;i<${BASES.length};i++){ if(length(vW.xz-uBases[i].xy)<${HOLE_R.toFixed(1)}) discard; }
       vec3 n=normalize(cross(dFdx(vW),dFdy(vW))); if(n.y<0.) n=-n;
       float l=max(dot(n,normalize(uSun)),0.)*.75+.4;
       vec2 g=floor(vW.xz/6.); float chk=mod(g.x+g.y,2.);
@@ -207,7 +211,11 @@ const terrain = new THREE.Mesh(terrainGeo, new THREE.ShaderMaterial({
       c*=l;
       if(vRaw<=0.) c=mix(vec3(.04,.18,.5),vec3(.07,.25,.6),chk)*(.8+.2*n.y);
       for(int i=0;i<${BASES.length};i++){ vec4 b=uBases[i]; float d=length(vW.xz-b.xy);
-        if(d<${BASE_R.toFixed(1)}){ vec3 pc=mix(vec3(.5,.52,.58),vec3(.36,.3,.3),b.w)*l; if(d<8.5){float r=d/8.5; pc=mix(vec3(.15,.16,.2),mix(vec3(.95,.8,.1),vec3(.85,.15,.1),b.w),step(.5,fract(r*4.)))*l;} c=pc; } }
+        if(d<${BASE_R.toFixed(1)}){ vec3 pc=mix(vec3(.5,.52,.58),vec3(.36,.3,.3),b.w)*l;
+          if(d<${(HOLE_R + 2.2).toFixed(1)}){ float a=atan(vW.z-b.y,vW.x-b.x); pc=mix(vec3(.12,.12,.14),mix(vec3(.95,.8,.1),vec3(.85,.15,.1),b.w),step(.5,fract(a*3.82)))*l; }   // hazard ring round the shaft mouth
+          c=pc; } }
+      { float d=length(vW.xz-vec2(${PAD.x.toFixed(1)},${PAD.z.toFixed(1)}));
+        if(d<${(PAD.r + 2.5).toFixed(1)}){ vec3 pc=vec3(.5,.52,.58)*l; if(d<${PAD.r.toFixed(1)}){float r=d/${PAD.r.toFixed(1)}; pc=mix(vec3(.15,.16,.2),vec3(.95,.8,.1),step(.5,fract(r*4.)))*l;} c=pc; } }
       float fd=length((viewMatrix*vec4(vW,1.)).xyz);
       gl_FragColor=vec4(mix(c,uFog,smoothstep(130.,370.,fd)),1.);
     }`,
@@ -222,7 +230,7 @@ terrain.frustumCulled = false; zScene.add(terrain);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(); let n = 0;
   for (let i = 0; i < 6000 && n < 1400; i++) {
     const x = (r() * 2 - 1) * BOUND, z = (r() * 2 - 1) * BOUND, h = terrainH(x, z);
-    if (h < 2.5 || h > 24 || BASES.some(b => Math.hypot(x - b.x, z - b.z) < 30 || stripW(x, z, b) < 1)) continue;
+    if (h < 2.5 || h > 24 || Math.hypot(x - PAD.x, z - PAD.z) < 16 || BASES.some(b => Math.hypot(x - b.x, z - b.z) < 30 || stripW(x, z, b) < 1)) continue;
     const k = 0.7 + r() * 1.1; sc.set(k, k * (0.8 + r() * 0.6), k);
     m.compose(new THREE.Vector3(x, h, z), q, sc); mesh.setMatrixAt(n++, m);
   }
@@ -234,7 +242,7 @@ const baseGroup = new THREE.Group(); baseGroup.position.set(0, PAD_H, 0); zScene
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 90, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0x66ddff, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }));
   beam.position.y = 45; baseGroup.add(beam);
   const ring = new THREE.Mesh(new THREE.TorusGeometry(8.7, 0.18, 6, 48), new THREE.MeshBasicMaterial({ color: 0xffee66 }));
-  ring.rotation.x = Math.PI / 2; ring.position.y = 0.25; baseGroup.add(ring); baseGroup.userData.ring = ring;
+  ring.rotation.x = Math.PI / 2; ring.position.set(PAD.x, 0.25, PAD.z); baseGroup.add(ring); baseGroup.userData.ring = ring;
   const mat = new THREE.MeshPhongMaterial({ color: 0x8a92a0, flatShading: true });
   for (let i = 0; i < 7; i++) {
     const a = i / 7 * Math.PI * 2, b = new THREE.Mesh(new THREE.BoxGeometry(4 + (i % 3), 3 + (i % 4) * 1.5, 4), mat);
@@ -246,12 +254,18 @@ for (const b of BASES) if (b.kind === 'enemy') {
   const g = new THREE.Group(); g.position.set(b.x, b.h, b.z); zScene.add(g); b.surface = g;
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 90, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0xff4030, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }));
   beam.position.y = 45; g.add(beam);
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(8.7, 0.18, 6, 48), new THREE.MeshBasicMaterial({ color: 0xff3020 })); ring.rotation.x = Math.PI / 2; ring.position.y = 0.25; g.add(ring);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(HOLE_R + 2.3, 0.18, 6, 48), new THREE.MeshBasicMaterial({ color: 0xff3020 })); ring.rotation.x = Math.PI / 2; ring.position.y = 0.25; g.add(ring);
   const mat = new THREE.MeshPhongMaterial({ color: 0x4a3a3a, flatShading: true });
   for (let i = 0; i < 6; i++) {
     const a = i / 6 * Math.PI * 2 + 0.3, m = new THREE.Mesh(new THREE.BoxGeometry(3.5 + (i % 2) * 2, 4 + (i % 3) * 2, 3.5), mat);
     m.position.set(Math.cos(a) * 14, 2 + (i % 3), Math.sin(a) * 14); m.rotation.y = -a; g.add(m);
   }
+}
+
+const funnelMat = new THREE.MeshLambertMaterial({ color: 0x4a3c31, side: THREE.DoubleSide, flatShading: true });
+for (const b of BASES) {
+  const f = new THREE.Mesh(new THREE.CylinderGeometry(HOLE_R, 4.4, 7, 28, 1, true), funnelMat);
+  f.position.set(b.x, b.h - 3.5, b.z); zScene.add(f); b.funnel = f;
 }
 
 // player ship (zarch)
@@ -274,7 +288,7 @@ const zPartCloud = new Cloud(zScene, 1600, 1.1, true), zBulCloud = new Cloud(zSc
 const H = createHeliSim(GRAV);
 const HI = createHeliInput({ keyDown: kd, readPad, say: (t, s) => say(t, s) });
 const Z = {
-  pos: new THREE.Vector3(0, PAD_H + 0.9, 6.5), vel: new THREE.Vector3(), lean: new THREE.Vector2(), facing: new THREE.Vector2(0, -1),
+  pos: new THREE.Vector3(PAD.x, PAD_H + 0.9, PAD.z), vel: new THREE.Vector3(), lean: new THREE.Vector2(), facing: new THREE.Vector2(0, -1),
   aim: new THREE.Vector3(0, 0, -1), hd: 0, sector: -1, round: 0, throttle: 0, landed: true, alive: true, deadT: 0, fireCd: 0, wave: 0, waveT: 2,
 };
 const enemyMat = new THREE.MeshPhongMaterial({ color: 0xdd2222, emissive: 0x440808, flatShading: true });
@@ -299,8 +313,8 @@ function spawnEnemy(area) {
 }
 function clearEnemies() { for (const e of enemies) zScene.remove(e.mesh); enemies.length = 0; }
 function resetZarch(fromPad) {
-  H.reset(new THREE.Vector3(0, PAD_H - HELI.SKID_Y, 6.5), 0, fromPad, fromPad ? 0 : 1); HI.setCollective(0);
-  Z.pos.set(0, PAD_H + (fromPad ? 0.9 : 2.5), 6.5); Z.vel.set(0, fromPad ? 0 : 14, 0); Z.lean.set(0, 0); Z.landed = fromPad;
+  H.reset(new THREE.Vector3(PAD.x, PAD_H - HELI.SKID_Y, PAD.z), 0, fromPad, fromPad ? 0 : 1); HI.setCollective(0);
+  Z.pos.set(PAD.x, PAD_H + (fromPad ? 0.9 : 2.5), PAD.z); Z.vel.set(0, fromPad ? 0 : 14, 0); Z.lean.set(0, 0); Z.landed = fromPad;
   Z.alive = true; shipMesh.visible = true; shipShadow.visible = true; zBullets.length = 0;
   for (const e of enemies) {
     const dx = e.mesh.position.x, dz = e.mesh.position.z, d = Math.hypot(dx, dz);
@@ -348,7 +362,7 @@ function updateZarch(dt, inp) {
     G.fuel = Math.max(0, G.fuel - HELI.BURN * (0.15 + 0.85 * H.coll) * H.rpm * dt);
     if (G.fuel <= 0 && !H.landed) say('FUEL EXHAUSTED  -  AUTOROTATE!', 0.5);
     sfx.engine(H.rpm * (0.25 + 0.75 * H.coll));
-    if (H.landed && Math.hypot(P.x, P.z) < 8.5) {
+    if (H.landed && Math.hypot(P.x - PAD.x, P.z - PAD.z) < PAD.r) {
       const fill = Math.min(G.res, 20 * dt, 100 - G.fuel); G.res -= fill; G.fuel += fill;
       if (fill > 0) Z.refuelling = true; else if (Z.refuelling) { Z.refuelling = false; say(G.res < 1 ? 'RESERVOIR EMPTY  -  LOOT ENEMY FUEL' : 'TANKS FULL', 1.6); }
     }
@@ -419,11 +433,11 @@ function refuelAtBase() {
 
 // ================================================================ THRUST
 const T_THRUST = 17, T_ROT = 3.4, ROPE = 4.2, PODM = 0.35, T_VIEWH = 30;
-const T = { base: null, lvl: null, w: 0, ge: 0, onPad: false, yawF: -Math.PI / 2, face: 1, roll: 0, zOff: 0, q0: new THREE.Quaternion(), qLast: new THREE.Quaternion(), x: 0, y: 0, vx: 0, vy: 0, ang: 0, landed: true, alive: true, deadT: 0, fireCd: 0, pod: null, bullets: [], tb: [], parts: [], turrets: [], tanks: [], cam: new THREE.Vector2(), beamOn: false, thrOn: 0, hadPod: false };
+const T = { guide: 0, base: null, lvl: null, w: 0, ge: 0, onPad: false, yawF: -Math.PI / 2, face: 1, roll: 0, zOff: 0, q0: new THREE.Quaternion(), qLast: new THREE.Quaternion(), x: 0, y: 0, vx: 0, vy: 0, ang: 0, landed: true, alive: true, deadT: 0, fireCd: 0, pod: null, bullets: [], tb: [], parts: [], turrets: [], tanks: [], cam: new THREE.Vector2(), beamOn: false, thrOn: 0, hadPod: false };
 const podMesh = makePod(), rope = makeRope();
 const beam3 = new THREE.Mesh(new THREE.ConeGeometry(2.2, 5.8, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0x66ffee, transparent: true, opacity: 0.22, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
 let caveGroup = null, tPartCloud = null, tBulCloud = null;
-const caveToWorld = (x, y, out, b = T.base) => out.set(b.x + (x - CAVE_OX) * CS, b.h + (y - T.lvl.H) * CS, b.z);
+const caveToWorld = (x, y, out, b = T.base) => out.set(b.x + (x - CAVE_OX) * CS, b.h - CAVE_SINK + (y - T.lvl.H) * CS, b.z);
 const sol = (x, y) => { const L = T.lvl; if (x < 0 || x >= L.W || y < 0) return 1; if (y >= L.H) return 0; return L.solid[Math.floor(y) * L.W + Math.floor(x)]; };
 const isPad = (x, y) => { const L = T.lvl; if (x < 0 || x >= L.W || y < 0 || y >= L.H) return false; return L.pad[Math.floor(y) * L.W + Math.floor(x)] === 1; };
 
@@ -436,7 +450,7 @@ function buildCaves() {
   BASES.forEach((b, i) => {
     const L = b.L = buildLevel(i);
     if (!proto) proto = buildCaveMesh(L, { depth: CAVE_DEPTH });
-    const grp = b.group = new THREE.Group(); grp.scale.setScalar(CS); grp.position.set(b.x - CAVE_OX * CS, b.h - L.H * CS, b.z); zScene.add(grp);
+    const grp = b.group = new THREE.Group(); grp.scale.setScalar(CS); grp.position.set(b.x - CAVE_OX * CS, b.h - CAVE_SINK - L.H * CS, b.z); zScene.add(grp);
     const mesh = proto.clone(); grp.add(mesh);
     const dyn = new THREE.Group(); grp.add(dyn);
     b.st = { turrets: [], tanks: [], pod: null, podTaken: false };
@@ -473,9 +487,9 @@ function enterCave(b) {
   useCave(b);
   const L = T.lvl, P = Z.pos;
   G.mode = 'thrust';
-  T.x = (P.x - b.x) / CS + CAVE_OX; T.y = (P.y - b.h) / CS + L.H; T.vx = Z.vel.x / CS; T.vy = Z.vel.y / CS;
-  T.vy = Math.max(T.vy, -5); T.vx = clamp(T.vx, -4, 4); T.q0.copy(shipMesh.quaternion);
-  { const u = H.up(); T.ang = Math.atan2(u.x, u.y); } T.w = 0; T.zOff = P.z - b.z; T.landed = false; T.alive = true; T.thrOn = Z.throttle;
+  T.x = (P.x - b.x) / CS + CAVE_OX; T.y = (P.y - b.h + CAVE_SINK) / CS + L.H; T.vx = Z.vel.x / CS; T.vy = Z.vel.y / CS;
+  T.vy = Math.max(T.vy, -5); T.vx = clamp(T.vx, -2, 2); T.guide = 1.2; T.q0.copy(shipMesh.quaternion);
+  { const u = H.up(); T.ang = clamp(Math.atan2(u.x, u.y), -0.3, 0.3); } T.w = 0; T.zOff = P.z - b.z; T.landed = false; T.alive = true; T.thrOn = Z.throttle;
   T.face = Z.facing.x < 0 ? -1 : 1; T.yawF = -T.face * Math.PI / 2;
   say(b.kind === 'home' ? 'HOME BASE  -  LAND ON THE BLUE PAD TO UNLOAD FUEL' : `${b.name}  -  LOOT THE FUEL, STEAL THE POD`, 3);
 }
@@ -531,6 +545,7 @@ function updateThrust(dt, inp) {
   const n = Math.ceil(dt / (1 / 240)), h = dt / n, pod = T.pod;
   for (let it = 0; it < n && T.alive; it++) {
     const lift = thr * HELI.TMAX * 7 * (1 + 0.22 * T.ge);
+    if (T.guide > 0) { T.guide -= h; T.landed = false; T.x += (CAVE_OX - T.x) * Math.min(1, 5 * h); T.vx *= 1 - Math.min(1, 4 * h); T.ang *= 1 - Math.min(1, 3 * h); }   // the funnel lines you up on the shaft
     if (T.landed) { if (lift > 7) { T.landed = false; T.onPad = false; } else { T.vx = T.vy = 0; T.w = 0; T.ang *= 0.9; break; } }
     {   // disc tilt rate follows the cyclic; stability assist levels it hands-off
       let want = ctl.cx * HELI.RATE.roll; if (ctl.sas) want += -T.ang * 1.6 * (1 - Math.min(1, Math.abs(ctl.cx) * 2.5));
@@ -559,6 +574,7 @@ function updateThrust(dt, inp) {
       if (!sol(pts[i][0], pts[i][1])) continue;
       if (i >= 4) skid = true; else bad = i >= 2 ? 'ROTOR STRIKE' : 'CRASHED';
     }
+    if (T.guide > 0) { bad = null; skid = false; }   // no wall strikes or rim landings while the funnel lines you up
     if (bad) { crashThrust(bad); break; }
     if (skid) {   // a helicopter can set down on any ledge; only the pad refuels
       if (T.vy > -4 && Math.abs(T.vx) < 3.5 && Math.abs(T.ang) < 0.4) { T.y -= T.vy * h; T.vx = T.vy = 0; T.w = 0; T.landed = true; T.onPad = pts.slice(4).some(p => isPad(p[0], p[1] - 0.05)); }
@@ -657,7 +673,7 @@ function drawMap() {
     }
   }
   // refuel station (base pad): ring + label; pinned to the radar edge when out of range
-  let bx = px(0), by = py(0); const bd = Math.hypot(bx - cx, by - cy), pinned = bd > lim;
+  let bx = px(PAD.x), by = py(PAD.z); const bd = Math.hypot(bx - cx, by - cy), pinned = bd > lim;
   if (pinned) { bx = cx + (bx - cx) / bd * lim; by = cy + (by - cy) / bd * lim; }
   radar.strokeStyle = '#ff0'; radar.fillStyle = '#ff0'; radar.lineWidth = 2;
   radar.beginPath(); radar.arc(bx, by, bigMap ? 9 : 6, 0, 6.283); radar.stroke();
@@ -689,8 +705,8 @@ function updateHud() {
   if (G.mode === 'zarch') {
     const hb = holeOf(Z.pos.x, Z.pos.z), alt = Z.pos.y - 0.9 - (hb ? hb.h : groundY(Z.pos.x, Z.pos.z)), bd = Math.hypot(Z.pos.x, Z.pos.z);
     const ias = Math.hypot(Z.vel.x, Z.vel.z) * 1.944, hdg = ((H.heading() * 180 / Math.PI) + 360) % 360, c = Z.ctl || {};
-    setText('alt', `COLL ${(H.coll * 100).toFixed(0)}%  RPM ${(H.rpm * 100).toFixed(0)}%  IAS ${ias.toFixed(0)}kt  VS ${Z.vel.y.toFixed(1)}  AGL ${Math.max(0, H.agl).toFixed(0)}m  HDG ${hdg.toFixed(0).padStart(3, '0')}  ${c.sas ? 'SAS' : 'MANUAL'}  [${c.source || ''}]${H.vrs > 0.4 ? '  VORTEX RING!' : ''}`);
-    setText('hint', H.landed && H.rpm < 0.9 ? 'ROTOR SPOOLING...' : H.landed && bd < 8.5 && G.res < 1 && G.fuel < 99 ? 'RESERVOIR EMPTY  -  LOOT FUEL FROM ENEMY BASES, UNLOAD IT IN THE HOME CAVE' : Z.sector >= 0 && sectors[Z.sector].state === 'active' ? `${SECT_NAMES[Z.sector]} SECTOR  -  ${enemies.filter(e => e.area === Z.sector).length} HOSTILES LEFT` : (bd < 60 && !Z.landed ? 'LAND ON THE PAD TO REFUEL FROM THE RESERVOIR  -  DESCEND THE SHAFT TO UNLOAD CARGO' : ''));
+    setText('alt', `COLL ${(H.coll * 100).toFixed(0)}%  RPM ${(H.rpm * 100).toFixed(0)}%  IAS ${ias.toFixed(0)}kt  VS ${Z.vel.y.toFixed(1)}  AGL ${Math.max(0, hb ? Z.pos.y + HELI.SKID_Y - hb.h : H.agl).toFixed(0)}m  HDG ${hdg.toFixed(0).padStart(3, '0')}  ${c.sas ? 'SAS' : 'MANUAL'}  [${c.source || ''}]${H.vrs > 0.4 ? '  VORTEX RING!' : ''}`);
+    setText('hint', H.landed && H.rpm < 0.9 ? 'ROTOR SPOOLING...' : H.landed && Math.hypot(Z.pos.x - PAD.x, Z.pos.z - PAD.z) < PAD.r && G.res < 1 && G.fuel < 99 ? 'RESERVOIR EMPTY  -  LOOT FUEL FROM ENEMY BASES, UNLOAD IT IN THE HOME CAVE' : Z.sector >= 0 && sectors[Z.sector].state === 'active' ? `${SECT_NAMES[Z.sector]} SECTOR  -  ${enemies.filter(e => e.area === Z.sector).length} HOSTILES LEFT` : (bd < 60 && !Z.landed ? 'LAND ON THE PAD TO REFUEL FROM THE RESERVOIR  -  DESCEND THE SHAFT TO UNLOAD CARGO' : ''));
     drawMap();
   } else {
     const c = Z.ctl || {};
@@ -727,6 +743,7 @@ function updateCamsAndMeshes(dt, time) {
     caveToWorld(T.x, T.y, P); T.zOff *= Math.exp(-5 * dt); P.z = T.base.z + T.zOff;
   }
   heliModel.animate(H.rpm, dt, time);
+  for (const b of BASES) b.funnel.visible = camB < 0.5;
   for (const b of BASES) if (b.group) b.group.visible = b === T.base && inCave || Math.hypot(zCam.position.x - b.x, zCam.position.z - b.z) < 140;
   baseGroup.userData.ring.material.color.setHSL((time * 0.5) % 1, 1, 0.6);
   if (G.state === 'title') {
