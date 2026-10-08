@@ -75,7 +75,8 @@ function readInput() {
 // ---------------------------------------------------------------- renderer
 const canvas = $('gl');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const PR_MAX = params.has('res') ? +params.get('res') : Math.min(devicePixelRatio, 1.5);
+let pixRatio = PR_MAX; renderer.setPixelRatio(pixRatio);
 {
   const gl = renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info');
   $('gpuinfo').textContent = 'GPU: ' + (ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : 'unknown');
@@ -109,8 +110,8 @@ class Cloud {
   end() { this.geo.setDrawRange(0, this.n); this.geo.attributes.position.needsUpdate = true; this.geo.attributes.color.needsUpdate = true; }
 }
 function emit(arr, x, y, z, vx, vy, vz, life, r, g, b, grav = 0) {
-  if (arr.length > 1500) arr.shift();
-  arr.push({ x, y, z, vx, vy, vz, life, max: life, r, g, b, grav });
+  const p = { x, y, z, vx, vy, vz, life, max: life, r, g, b, grav };
+  if (arr.length >= 1500) arr[(Math.random() * arr.length) | 0] = p; else arr.push(p);
 }
 function stepParts(arr, dt) {
   for (let i = arr.length - 1; i >= 0; i--) {
@@ -601,6 +602,17 @@ function resize() {
   const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); zCam.aspect = w / h; zCam.updateProjectionMatrix();
 }
 addEventListener('resize', resize); resize();
+// dynamic resolution: step the render resolution down when frames run long (GPU-bound), back up with headroom
+const dynRes = { ms: 16.7, cool: 0 };
+function updateDynRes(frameMs) {
+  if (params.has('res') || frameMs > 250) return;
+  dynRes.ms += (frameMs - dynRes.ms) * 0.05; dynRes.cool -= frameMs;
+  if (dynRes.cool > 0) return;
+  let pr = pixRatio;
+  if (dynRes.ms > 19.5 && pr > 0.6) pr = Math.max(0.6, pr - 0.15);
+  else if (dynRes.ms < 14.5 && pr < PR_MAX) pr = Math.min(PR_MAX, pr + 0.1);
+  if (pr !== pixRatio) { pixRatio = pr; renderer.setPixelRatio(pr); resize(); dynRes.cool = 1500; }
+}
 
 const _u = new THREE.Vector3(), _f = new THREE.Vector3(), _r = new THREE.Vector3(), _w = new THREE.Vector3(), _m = new THREE.Matrix4(), _tgt = new THREE.Vector3();
 const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _yAx = new THREE.Vector3(0, 1, 0);
@@ -697,6 +709,7 @@ function updateCamsAndMeshes(dt, time) {
 let last = performance.now(), fpsAcc = 0, fpsN = 0;
 function frame(now) {
   requestAnimationFrame(frame);
+  updateDynRes(now - last);
   const dt = Math.min((now - last) / 1000, 0.05); last = now;
   fpsAcc += dt; fpsN++; if (fpsAcc > 1) { $('dbg').textContent = Math.round(fpsN / fpsAcc) + ' fps'; fpsAcc = 0; fpsN = 0; }
   const inp = readInput();

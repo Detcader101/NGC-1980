@@ -1,6 +1,6 @@
 {
   "name": "smoke",
-  "query": "?debug&auto",
+  "query": "?debug&auto&kb",
   "steps": [
     "waitFor 10000 window.__G && __G.G.state==='play'",
     "wait 1500",
