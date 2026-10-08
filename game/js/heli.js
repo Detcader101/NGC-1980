@@ -27,7 +27,7 @@ export function buildHeliMesh() {
   const M = (c, o = {}) => new THREE.MeshPhongMaterial({ color: c, flatShading: true, ...o });
   const olive = M(0x55613d), dark = M(0x2b2f2a), glass = M(0x6fd0ff, { emissive: 0x0e3048, shininess: 80 });
   const cab = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.55, 3.4), olive); cab.position.set(0, 0.1, 0.1);
-  const nose = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.85, 1.2, 8).rotateX(-Math.PI / 2).scale(1.25, 1, 1), glass); nose.position.set(0, 0.05, -2.15);
+  const nose = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.85, 1.2, 8).rotateX(-Math.PI / 2).scale(1.25, 1, 1), glass); nose.position.set(0, 0.05, -2.15); nose.name = 'nose';
   const roof = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.45, 1.6), olive); roof.position.set(0, 1.05, 0.2);
   const boom = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.38, 4.6, 6).rotateX(Math.PI / 2), olive); boom.position.set(0, 0.45, 3.9);
   const fin = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.2, 0.7), olive); fin.position.set(0, 1.0, 6.0); fin.rotation.x = -0.35;
@@ -214,4 +214,81 @@ export function createHeliInput({ keyDown, readPad, say }) {
     out.source = 'CALIBRATING'; out.coll = collKb; return out;
   }
   return api;
+}
+
+// --------------------------------------------------------------------------------------------- cockpit
+// First-person cockpit (pilot sits right, like a Huey): instrument panel with live gauges drawn to a canvas texture,
+// glare shield, door pillars and roof frame, plus the cyclic and collective levers moving with the pilot's inputs.
+// Everything sits in heli-local space, so it rides along with the airframe.
+export const EYE = new THREE.Vector3(0.42, 0.62, -0.95);
+export function buildCockpit() {
+  const g = new THREE.Group(); g.visible = false;
+  const M = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, ...o });
+  const frameM = M(0x2a2e28), panelM = M(0x1c1f1c), olive = M(0x4a5536);
+  const box = (w, h, d, m, x, y, z, rx = 0, ry = 0, rz = 0) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); o.rotation.set(rx, ry, rz); g.add(o); return o; };
+  // instrument panel + glare shield across the cabin, below the eye line
+  box(1.5, 0.38, 0.05, panelM, 0.22, 0.04, -1.97, -0.35);
+  box(1.66, 0.035, 0.16, frameM, 0.2, 0.25, -2.03, 0.05);
+  // pedestal / centre console, floor
+  box(0.34, 0.5, 0.7, panelM, 0, -0.18, -1.3);
+  box(1.7, 0.05, 2.2, olive, 0, -0.5, -0.9);
+  // door pillars, roof frame, centre post between the windscreens, overhead console
+  box(0.06, 1.4, 0.06, frameM, 0.95, 0.35, -1.75, 0.35, 0, -0.12); box(0.06, 1.4, 0.06, frameM, -0.95, 0.35, -1.75, 0.35, 0, 0.12);
+  box(0.05, 0.7, 0.05, frameM, 0, 0.75, -1.82, 0.45);
+  box(1.7, 0.06, 0.06, frameM, 0, 1.0, -1.45); box(0.06, 0.06, 1.6, frameM, 0.84, 1.0, -0.7); box(0.06, 0.06, 1.6, frameM, -0.84, 1.0, -0.7);
+  box(0.5, 0.08, 0.7, panelM, 0, 0.98, -0.95);
+  box(0.06, 1.0, 0.06, frameM, 0.84, 0.45, -0.1); box(0.06, 1.0, 0.06, frameM, -0.84, 0.45, -0.1);
+  // gauges
+  const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 256;
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  const gauges = new THREE.Mesh(new THREE.PlaneGeometry(1.36, 0.34), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
+  gauges.position.set(0.22, 0.045, -1.94); gauges.rotation.x = -0.35; g.add(gauges);
+  // cyclic between the pilot's knees, collective by the left hand
+  const stickPivot = new THREE.Group(); stickPivot.position.set(0.42, -0.45, -1.15); g.add(stickPivot);
+  const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.025, 0.55, 6), frameM); stick.position.y = 0.27; stickPivot.add(stick);
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.12, 0.06), M(0x111111)); grip.position.y = 0.56; stickPivot.add(grip);
+  const collPivot = new THREE.Group(); collPivot.position.set(0.12, -0.4, -0.75); g.add(collPivot);
+  const lever = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.6, 6).rotateX(Math.PI / 2), frameM); lever.position.z = -0.3; collPivot.add(lever);
+  const ctx = cv.getContext('2d'); let acc = 1;
+  function dial(cx, label, val, max, unit, ticks = 10) {
+    const cy = 128, r = 92;
+    ctx.fillStyle = '#0b0d0b'; ctx.beginPath(); ctx.arc(cx, cy, r + 8, 0, 6.283); ctx.fill();
+    ctx.strokeStyle = '#d8d8c8'; ctx.lineWidth = 3;
+    for (let i = 0; i <= ticks; i++) { const a = -Math.PI * 1.25 + i / ticks * Math.PI * 1.5; ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * r * 0.82, cy + Math.sin(a) * r * 0.82); ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); ctx.stroke(); }
+    const a = -Math.PI * 1.25 + Math.min(1, Math.max(0, val / max)) * Math.PI * 1.5;
+    ctx.strokeStyle = '#ffd040'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * r * 0.85, cy + Math.sin(a) * r * 0.85); ctx.stroke();
+    ctx.fillStyle = '#d8d8c8'; ctx.font = 'bold 22px Consolas, monospace'; ctx.textAlign = 'center';
+    ctx.fillText(label, cx, cy + 46); ctx.font = 'bold 26px Consolas, monospace'; ctx.fillText(unit, cx, cy - 34);
+  }
+  function horizon(cx, pitch, roll) {
+    const cy = 128, r = 96;
+    ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.283); ctx.clip();
+    ctx.translate(cx, cy); ctx.rotate(-roll); const off = pitch * 180;
+    ctx.fillStyle = '#3a78c8'; ctx.fillRect(-200, -400 + off, 400, 400); ctx.fillStyle = '#7a5428'; ctx.fillRect(-200, off, 400, 400);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; for (let p = -2; p <= 2; p++) if (p) { ctx.beginPath(); ctx.moveTo(-22, off - p * 30); ctx.lineTo(22, off - p * 30); ctx.stroke(); }
+    ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-200, off); ctx.lineTo(200, off); ctx.stroke();
+    ctx.restore();
+    ctx.strokeStyle = '#ffd040'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(cx - 50, cy); ctx.lineTo(cx - 16, cy); ctx.lineTo(cx, cy + 12); ctx.lineTo(cx + 16, cy); ctx.lineTo(cx + 50, cy); ctx.stroke();
+  }
+  return {
+    group: g,
+    update(H, ctl, dt, warn) {
+      // levers follow the pilot's hands every frame; the gauges repaint at ~20 Hz
+      stickPivot.rotation.set((ctl.cy || 0) * 0.3, 0, -(ctl.cx || 0) * 0.3); collPivot.rotation.x = (H.coll || 0) * 0.45;
+      acc += dt; if (acc < 0.05) return; acc = 0;
+      ctx.fillStyle = '#1c1f1c'; ctx.fillRect(0, 0, 1024, 256);
+      const att = H.attitude(), ias = Math.hypot(H.vel.x, H.vel.z) * 1.944;
+      dial(110, 'IAS kt', ias, 120, Math.round(ias));
+      horizon(315, att.pitch, att.roll);
+      dial(520, 'ALT m', Math.max(0, H.agl) % 100, 100, Math.max(0, Math.round(H.agl)));
+      dial(720, 'VSI', H.vel.y + 10, 20, (H.vel.y >= 0 ? '+' : '') + H.vel.y.toFixed(1));
+      dial(915, 'RPM / TQ', H.rpm, 1.1, Math.round(H.coll * 100) + '%');
+      // compass strip + warnings across the top
+      const hdg = ((H.heading() * 180 / Math.PI) + 360) % 360;
+      ctx.fillStyle = '#000'; ctx.fillRect(412, 2, 200, 26); ctx.fillStyle = '#d8d8c8'; ctx.font = 'bold 20px Consolas, monospace'; ctx.textAlign = 'center';
+      ctx.fillText(String(Math.round(hdg)).padStart(3, '0') + '°', 512, 22);
+      if (warn) { ctx.fillStyle = (performance.now() % 500) < 250 ? '#ff3020' : '#601008'; ctx.fillRect(20, 4, 170, 24); ctx.fillStyle = '#fff'; ctx.fillText(warn, 105, 22); }
+      tex.needsUpdate = true;
+    },
+  };
 }

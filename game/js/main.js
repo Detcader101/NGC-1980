@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { buildLevel } from './level.js';
 import { buildCaveMesh, makeTurret, makeTank, makePod, makeRope } from './cave3d.js';
 import { Sfx } from './audio.js';
-import { HELI, buildHeliMesh, createHeliSim, createHeliInput } from './heli.js';
+import { HELI, EYE, buildHeliMesh, buildCockpit, createHeliSim, createHeliInput } from './heli.js';
 
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -14,7 +14,7 @@ const sfx = new Sfx();
 
 // ---------------------------------------------------------------- input
 const keys = new Set();
-let chaseCam = params.has('chase'), bigMap = false;
+let chaseCam = params.has('chase'), cockpitCam = params.has('cockpit'), bigMap = false;
 const _cf = { x: 0, z: -1 };
 let keyboardOnly = params.has('kb');
 const FIRE_KEYS = ['KeyF', 'KeyX'];
@@ -27,7 +27,8 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyH') HI.toggleSas();
   if (e.code === 'KeyJ') HI.startCalibration();
   if (e.code === 'KeyM') { bigMap = !bigMap; setMapSize(); }
-  if (e.code === 'KeyC') { chaseCam = !chaseCam; Z.hd = Math.atan2(Z.facing.x, -Z.facing.y); say(chaseCam ? 'CHASE CAMERA' : 'FIXED CAMERA', 1.2); }
+  if (e.code === 'KeyV') { cockpitCam = !cockpitCam; say(cockpitCam ? 'COCKPIT VIEW' : (chaseCam ? 'CHASE CAMERA' : 'FIXED CAMERA'), 1.2); }
+  if (e.code === 'KeyC') { cockpitCam = false;  chaseCam = !chaseCam; Z.hd = Math.atan2(Z.facing.x, -Z.facing.y); say(chaseCam ? 'CHASE CAMERA' : 'FIXED CAMERA', 1.2); }
   if (e.code === 'KeyK') { keyboardOnly = !keyboardOnly; say(keyboardOnly ? 'KEYBOARD ONLY' : 'CONTROLLER ENABLED', 1.5); }
   if (e.code === 'KeyP' && (G.state === 'play' || G.state === 'paused')) { G.state = G.state === 'paused' ? 'play' : 'paused'; say(G.state === 'paused' ? 'PAUSED' : '', G.state === 'paused' ? 999 : 0); }
   if (['Enter', 'Space'].includes(e.code)) pressStart();
@@ -230,7 +231,8 @@ const baseGroup = new THREE.Group(); baseGroup.position.set(0, PAD_H, 0); zScene
 }
 
 // player ship (zarch)
-const heliModel = buildHeliMesh(), shipMesh = heliModel.group;
+const heliModel = buildHeliMesh(), shipMesh = heliModel.group, cockpit = buildCockpit(), heliNose = shipMesh.getObjectByName('nose');
+shipMesh.add(cockpit.group);
 zScene.add(shipMesh);
 const shadowMat = new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.4, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
 const shipShadow = new THREE.Mesh(new THREE.CircleGeometry(3.4, 20).rotateX(-Math.PI / 2), shadowMat); zScene.add(shipShadow);
@@ -615,7 +617,7 @@ function updateDynRes(frameMs) {
 addEventListener('resize', resize); resize();
 
 const _u = new THREE.Vector3(), _f = new THREE.Vector3(), _r = new THREE.Vector3(), _w = new THREE.Vector3(), _m = new THREE.Matrix4(), _tgt = new THREE.Vector3();
-const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _yAx = new THREE.Vector3(0, 1, 0), _zAx = new THREE.Vector3(0, 0, 1);
+const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _yAx = new THREE.Vector3(0, 1, 0), _zAx = new THREE.Vector3(0, 0, 1), _xAx = new THREE.Vector3(1, 0, 0);
 // camA is the 3D flight camera (fixed or chase); camS the side-on cave camera. zCam renders a blend of the two, so
 // diving into the shaft swings the view round to the 2.5D side view with no cut.
 const camA = new THREE.PerspectiveCamera(), camS = new THREE.PerspectiveCamera(), SIDE_FOV = 38, SIDE_VIEWH = 30 * CS;
@@ -629,6 +631,10 @@ function updateCamsAndMeshes(dt, time) {
   baseGroup.userData.ring.material.color.setHSL((time * 0.5) % 1, 1, 0.6);
   if (G.state === 'title') {
     const a = time * 0.15; camA.position.set(Math.cos(a) * 40, PAD_H + 14, Math.sin(a) * 40); camA.lookAt(0, PAD_H + 3, 0);
+  } else if (cockpitCam && !inCave && Z.alive) {
+    // pilot's eye, rigidly in the airframe (rotor vibration adds a hint of shake at high collective)
+    camA.position.copy(EYE).applyQuaternion(H.q).add(H.pos); camA.quaternion.copy(H.q).multiply(_q2.setFromAxisAngle(_xAx, -0.13));   // eyes slightly down onto the panel
+    const sh = 0.004 * H.rpm * (0.3 + H.coll); camA.position.x += (Math.random() - 0.5) * sh; camA.position.y += (Math.random() - 0.5) * sh;
   } else if (chaseCam && !inCave) {
     const k = 1 - Math.exp(-3 * dt); _cf.x = lerp(_cf.x, Z.facing.x, k); _cf.z = lerp(_cf.z, Z.facing.y, k);
     const m = Math.hypot(_cf.x, _cf.z) || 1; _cf.x /= m; _cf.z /= m;
@@ -682,7 +688,11 @@ function updateCamsAndMeshes(dt, time) {
     const gy = groundY(P.x, P.z), alt = P.y - gy;
     shipShadow.position.set(P.x, gy + 0.12, P.z); const sc = 1 + alt * 0.02; shipShadow.scale.set(sc, 1, sc); shadowMat.opacity = clamp(0.5 - alt * 0.006, 0.12, 0.5);
   }
-  reticle.visible = aimLine.visible = Z.alive && !inCave && G.state !== 'title';
+  const inCockpit = cockpitCam && !inCave && e < 0.01 && Z.alive && G.state !== 'title';
+  cockpit.group.visible = inCockpit; heliNose.visible = !inCockpit;
+  const near = inCockpit ? 0.06 : 0.5; if (zCam.near !== near) { zCam.near = near; zCam.updateProjectionMatrix(); }
+  if (inCockpit) cockpit.update(H, Z.ctl || {}, dt, G.fuel < 15 ? 'LOW FUEL' : (H.rpm < 0.85 && !H.landed ? 'LOW RPM' : (H.vrs > 0.4 ? 'VORTEX RING' : '')));
+  reticle.visible = Z.alive && !inCave && G.state !== 'title'; aimLine.visible = reticle.visible && !inCockpit;
   if (reticle.visible) {
     reticle.position.copy(P).addScaledVector(Z.aim, 16); reticle.quaternion.copy(zCam.quaternion);
     const a = aimLine.geometry.attributes.position; a.setXYZ(0, P.x + Z.aim.x * 3, P.y + Z.aim.y * 3, P.z + Z.aim.z * 3); a.setXYZ(1, reticle.position.x, reticle.position.y, reticle.position.z); a.needsUpdate = true; aimLine.geometry.computeBoundingSphere();
