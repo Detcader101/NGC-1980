@@ -3,7 +3,9 @@
 # the repo, and the icon is re-rendered from the game whenever the commit has changed since it was last built.
 $ErrorActionPreference = 'SilentlyContinue'
 $root = Split-Path -Parent $PSScriptRoot
-$port = 8765
+# main and experimental each get their own port so both can run at once (experimental lives in a git worktree)
+$branch = (git -C $root rev-parse --abbrev-ref HEAD) 2>$null
+$port = if ($branch -eq 'main') { 8765 } else { 8766 }
 $log = Join-Path $PSScriptRoot 'launcher.log'
 "$(Get-Date -Format s) launch" | Out-File $log
 
