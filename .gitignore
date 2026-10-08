@@ -1,0 +1,5 @@
+universal-modder-src/
+*.log
+node_modules/
+.DS_Store
+Thumbs.db
