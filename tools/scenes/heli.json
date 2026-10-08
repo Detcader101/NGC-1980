@@ -1,9 +1,12 @@
 {
   "name": "heli",
-  "query": "?debug&kb",
+  "query": "?debug&kb&peace",
   "steps": [
     "waitFor 10000 window.__G",
-    "wait 600", "key tap Enter", "wait 800",
+    "eval (window.__msgs=[], new MutationObserver(()=>{const t=document.getElementById('msg').textContent; if(t) __msgs.push(Math.round(performance.now())+' '+t)}).observe(document.getElementById('msg'),{childList:true,characterData:true,subtree:true}), 1)",
+    "wait 600",
+    "key tap Enter",
+    "wait 800",
     "shot 01-cold-on-pad",
     "wait 3500",
     "eval ({rpm:+__G.H.rpm.toFixed(2), landed:__G.H.landed})",
@@ -15,12 +18,20 @@
     "wait 1500",
     "eval ({coll:+__G.H.coll.toFixed(2), agl:+__G.H.agl.toFixed(1), vy:+__G.H.vel.y.toFixed(1), att:__G.H.attitude()})",
     "shot 03-hover",
-    "key down KeyW", "wait 700", "key up KeyW", "wait 2500",
+    "key down KeyW",
+    "wait 700",
+    "key up KeyW",
+    "wait 2500",
     "eval ({spd:+Math.hypot(__G.H.vel.x,__G.H.vel.z).toFixed(1), agl:+__G.H.agl.toFixed(1), att:__G.H.attitude(), alive:__G.Z.alive})",
     "shot 04-forward-flight",
-    "key down KeyE", "wait 800", "key up KeyE", "wait 300",
+    "key down KeyE",
+    "wait 800",
+    "key up KeyE",
+    "wait 300",
     "shot 05-pedal-turn",
-    "key tap KeyC", "wait 1200", "shot 06-chase",
+    "key tap KeyC",
+    "wait 1200",
+    "shot 06-chase",
     "eval ({hdg:__G.H.heading(), alive:__G.Z.alive, lives:__G.G.lives})",
     "eval (__G.H.reset(new __G.THREE.Vector3(0.3, 16, 0.4), 0, false, 1), __G.HI.setCollective(0.3), 1)",
     "waitFor 15000 __G.G.mode==='thrust' && __G.camB > 0.99",
@@ -28,6 +39,7 @@
     "key hold Space 400",
     "wait 1200",
     "shot 08-cave-flying",
-    "eval ({mode:__G.G.mode, alive:__G.T.alive, x:+__G.T.x.toFixed(1), y:+__G.T.y.toFixed(1), vy:+__G.T.vy.toFixed(1), lives:__G.G.lives})"
+    "eval ({mode:__G.G.mode, alive:__G.T.alive, x:+__G.T.x.toFixed(1), y:+__G.T.y.toFixed(1), vy:+__G.T.vy.toFixed(1), lives:__G.G.lives})",
+    "eval window.__msgs"
   ]
 }

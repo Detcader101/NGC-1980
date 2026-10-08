@@ -1,6 +1,6 @@
 {
   "name": "perf",
-  "query": "?debug&kb",
+  "query": "?debug&kb&peace",
   "steps": [
     "waitFor 10000 window.__G",
     "key tap Enter",

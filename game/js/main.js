@@ -284,7 +284,7 @@ function killPlayerZ(why) {
 
 function updateZarch(dt, inp) {
   const P = Z.pos;
-  if (enemies.length === 0) {
+  if (enemies.length === 0 && !params.has('peace')) {   // ?peace: no waves (automated tests)
     Z.waveT -= dt;
     if (Z.waveT <= 0) { Z.wave++; const n = Math.min(2 + Z.wave, 9); for (let i = 0; i < n; i++) spawnEnemy(); Z.waveT = 3; say('WAVE ' + Z.wave, 1.5); }
   }
