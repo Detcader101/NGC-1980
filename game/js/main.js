@@ -384,7 +384,7 @@ function refuelAtBase() {
 
 // ================================================================ THRUST
 const T_THRUST = 17, T_ROT = 3.4, ROPE = 4.2, PODM = 0.35, T_VIEWH = 30;
-const T = { lvl: null, face: 1, roll: 0, zOff: 0, x: 0, y: 0, vx: 0, vy: 0, ang: 0, landed: true, alive: true, deadT: 0, fireCd: 0, pod: null, bullets: [], tb: [], parts: [], turrets: [], tanks: [], cam: new THREE.Vector2(), beamOn: false, thrOn: 0, hadPod: false };
+const T = { lvl: null, face: 1, roll: 0, zOff: 0, q0: new THREE.Quaternion(), qLast: new THREE.Quaternion(), x: 0, y: 0, vx: 0, vy: 0, ang: 0, landed: true, alive: true, deadT: 0, fireCd: 0, pod: null, bullets: [], tb: [], parts: [], turrets: [], tanks: [], cam: new THREE.Vector2(), beamOn: false, thrOn: 0, hadPod: false };
 const caveGroup = new THREE.Group(); caveGroup.scale.setScalar(CS); zScene.add(caveGroup);
 const caveDyn = new THREE.Group(); caveGroup.add(caveDyn);
 let caveMesh = null;
@@ -414,6 +414,7 @@ function enterCave() {
   const L = T.lvl, P = Z.pos;
   G.mode = 'thrust';
   T.x = P.x / CS + CAVE_OX; T.y = (P.y - PAD_H) / CS + L.H; T.vx = Z.vel.x / CS; T.vy = Z.vel.y / CS;
+  T.vy = Math.max(T.vy, -5); T.vx = clamp(T.vx, -4, 4); T.q0.copy(shipMesh.quaternion);
   T.ang = Math.atan(Z.lean.x); T.zOff = P.z; T.landed = false; T.alive = true; T.thrOn = Z.throttle;
   T.face = Z.facing.x < 0 ? -1 : 1; T.roll = T.face > 0 ? 0 : Math.PI;
   say('GRAB THE POD  -  ESCAPE UP THE SHAFT', 3);
@@ -587,7 +588,7 @@ function updateHud() {
   $('pad').textContent = readPad() ? 'CONTROLLER' : (keyboardOnly ? 'KEYBOARD ONLY' : 'KEYBOARD');
   $('radar').style.display = G.mode === 'zarch' ? 'block' : 'none';
   if (G.mode === 'zarch') {
-    const alt = Z.pos.y - 0.9 - groundY(Z.pos.x, Z.pos.z), bd = Math.hypot(Z.pos.x, Z.pos.z);
+    const alt = Z.pos.y - 0.9 - (inHole(Z.pos.x, Z.pos.z) ? PAD_H : groundY(Z.pos.x, Z.pos.z)), bd = Math.hypot(Z.pos.x, Z.pos.z);
     $('alt').textContent = `ALT ${alt.toFixed(0)}m  VS ${Z.vel.y.toFixed(1)}  BASE ${bd.toFixed(0)}m`;
     $('hint').textContent = bd < 60 && !Z.landed ? 'LAND ON THE PAD TO REFUEL  -  DIVE INTO THE SHAFT FOR THE CAVE' : '';
     drawMap();
@@ -605,7 +606,7 @@ const _u = new THREE.Vector3(), _f = new THREE.Vector3(), _r = new THREE.Vector3
 const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _yAx = new THREE.Vector3(0, 1, 0);
 // camA is the 3D flight camera (fixed or chase); camS the side-on cave camera. zCam renders a blend of the two, so
 // diving into the shaft swings the view round to the 2.5D side view with no cut.
-const camA = new THREE.Object3D(), camS = new THREE.Object3D(), SIDE_FOV = 38, SIDE_VIEWH = 30 * CS;
+const camA = new THREE.PerspectiveCamera(), camS = new THREE.PerspectiveCamera(), SIDE_FOV = 38, SIDE_VIEWH = 30 * CS;
 let camB = 0;
 function updateCamsAndMeshes(dt, time) {
   const P = Z.pos, inCave = G.mode === 'thrust' && !!T.lvl;
@@ -640,8 +641,12 @@ function updateCamsAndMeshes(dt, time) {
   if (e <= 0) { zCam.position.copy(camA.position); zCam.quaternion.copy(camA.quaternion); }
   else {
     // arc the camera out in front of the cave face while it swings, rather than cutting through the rock
-    zCam.position.lerpVectors(camA.position, camS.position, e); zCam.position.z += Math.sin(e * Math.PI) * 25;
-    zCam.quaternion.slerpQuaternions(camA.quaternion, camS.quaternion, e);
+    // quadratic Bezier via a point above the cave front at surface height: the camera rises clear of the hills,
+    // then sinks straight down through the ground into the side view; it turns to face the cave early
+    _tgt.set(camS.position.x, PAD_H + 16, camS.position.z);
+    const a = (1 - e) * (1 - e), b = 2 * e * (1 - e), cc = e * e;
+    zCam.position.set(a * camA.position.x + b * _tgt.x + cc * camS.position.x, a * camA.position.y + b * _tgt.y + cc * camS.position.y, a * camA.position.z + b * _tgt.z + cc * camS.position.z);
+    zCam.quaternion.slerpQuaternions(camA.quaternion, camS.quaternion, smooth(0, 0.6, e));
   }
   const fov = lerp(62, SIDE_FOV, e); if (Math.abs(zCam.fov - fov) > 0.01) { zCam.fov = fov; zCam.updateProjectionMatrix(); }
   zScene.fog.color.copy(HORIZON).multiplyScalar(1 - 0.85 * e); zScene.fog.near = lerp(120, 200, e);
@@ -650,17 +655,18 @@ function updateCamsAndMeshes(dt, time) {
 
   shipShadow.visible = Z.alive && !inCave;
   if (inCave && T.alive) {
-    // the Thrust ship is the Zarch lander leaning in one axis: up = thrust direction, wings along the depth axis
-    const want = T.face > 0 ? 0 : Math.PI; T.roll = lerp(T.roll, want, 1 - Math.exp(-6 * dt));
-    _u.set(Math.sin(T.ang), Math.cos(T.ang), 0); _r.set(0, 0, 1); _w.crossVectors(_r, _u);
-    _q.setFromRotationMatrix(_m.makeBasis(_r, _u, _w)); _q2.setFromAxisAngle(_yAx, T.roll);
-    shipMesh.quaternion.copy(_q).multiply(_q2); shipMesh.position.copy(P);
+    // side view: the nose points along the thrust like the classic Thrust triangle, top of the ship faces the camera;
+    // blended from the 3D attitude while the camera swings so the ship visibly pitches into it
+    const s = Math.sin(T.ang), c = Math.cos(T.ang);
+    _q.setFromRotationMatrix(_m.makeBasis(_r.set(c, -s, 0), _u.set(0, 0, 1), _w.set(-s, -c, 0)));
+    shipMesh.quaternion.slerpQuaternions(T.q0, _q, e); T.qLast.copy(_q); shipMesh.position.copy(P);
     shipMesh.scale.setScalar(lerp(1, 1.1, e));
   } else if (Z.alive) {
     _u.set(Z.lean.x, 1, Z.lean.y).normalize(); _f.set(Z.facing.x, 0, Z.facing.y);
     _r.crossVectors(_f, _u).normalize(); _w.crossVectors(_u, _r).normalize().negate();
     shipMesh.quaternion.setFromRotationMatrix(_m.makeBasis(_r, _u, _w));
-    shipMesh.position.copy(P); shipMesh.scale.setScalar(1);
+    if (e > 0) shipMesh.quaternion.slerp(T.qLast, e);   // still un-pitching after climbing out of the shaft
+    shipMesh.position.copy(P); shipMesh.scale.setScalar(lerp(1, 1.1, e));
     const gy = groundY(P.x, P.z), alt = P.y - gy;
     shipShadow.position.set(P.x, gy + 0.12, P.z); const sc = 1 + alt * 0.02; shipShadow.scale.set(sc, 1, sc); shadowMat.opacity = clamp(0.5 - alt * 0.006, 0.12, 0.5);
   }
