@@ -150,6 +150,7 @@ export function createHeliSim(G) {   // G = gravity (m/s^2)
 // --------------------------------------------------------------------------------------------- input
 // Axis map for flight sticks: { roll, pitch, coll, yaw } axis indices + collective min/max raw values + yaw sign.
 const AXKEY = 'tz_heli_axes';
+const HAT_DIRS = [[0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0], [-1, 1]];   // up, then clockwise
 const loadAxes = () => { try { return JSON.parse(localStorage.getItem(AXKEY)) || null; } catch (e) { return null; } };
 export function createHeliInput({ keyDown, readPad, say }) {
   let axes = loadAxes() || { roll: 0, pitch: 1, coll: 2, collMin: 1, collMax: -1, yaw: 5, yawSign: 1, guess: true };
@@ -166,7 +167,7 @@ export function createHeliInput({ keyDown, readPad, say }) {
     },
     // returns { cx, cy, pedal, coll, sas, fire, winch, start, source }
     read(dt) {
-      const out = { cx: 0, cy: 0, pedal: 0, coll: 0, sas, fire: false, winch: false, start: false, source: 'KEYBOARD' };
+      const out = { cx: 0, cy: 0, pedal: 0, coll: 0, sas, fire: false, winch: false, start: false, hatX: 0, hatY: 0, source: 'KEYBOARD' };
       out.cx = (keyDown('KeyD', 'ArrowRight') ? 1 : 0) - (keyDown('KeyA', 'ArrowLeft') ? 1 : 0);
       out.cy = (keyDown('KeyS', 'ArrowDown') ? 1 : 0) - (keyDown('KeyW', 'ArrowUp') ? 1 : 0);
       out.pedal = (keyDown('KeyE') ? 1 : 0) - (keyDown('KeyQ') ? 1 : 0);
@@ -190,6 +191,11 @@ export function createHeliInput({ keyDown, readPad, say }) {
         if (b(0)) out.fire = true;
         if (b(1) || b(3)) out.winch = true;
         out.start = p.buttons.some(x => x && x.pressed);
+        // POV hat: DirectInput sticks report it as an axis (9 on most) stepping -1..1 in eighths, ~3.29 when centred;
+        // standard-mapped pads use buttons 12-15 instead
+        const hv = p.axes[9];
+        if (hv !== undefined && hv >= -1.05 && hv <= 1.05) [out.hatX, out.hatY] = HAT_DIRS[Math.round((hv + 1) / (2 / 7)) % 8];
+        if (b(12)) out.hatY = 1; if (b(13)) out.hatY = -1; if (b(14)) out.hatX = -1; if (b(15)) out.hatX = 1;
       }
       out.sas = sas;
       return out;

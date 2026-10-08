@@ -27,7 +27,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyH') HI.toggleSas();
   if (e.code === 'KeyJ') HI.startCalibration();
   if (e.code === 'KeyM') { bigMap = !bigMap; setMapSize(); }
-  if (e.code === 'KeyV') { cockpitCam = !cockpitCam; say(cockpitCam ? 'COCKPIT VIEW' : (chaseCam ? 'CHASE CAMERA' : 'FIXED CAMERA'), 1.2); }
+  if (e.code === 'KeyV') { cockpitCam = !cockpitCam; if (!cockpitCam && document.pointerLockElement) document.exitPointerLock(); say(cockpitCam ? 'COCKPIT VIEW' : (chaseCam ? 'CHASE CAMERA' : 'FIXED CAMERA'), 1.2); }
   if (e.code === 'KeyC') { cockpitCam = false;  chaseCam = !chaseCam; Z.hd = Math.atan2(Z.facing.x, -Z.facing.y); say(chaseCam ? 'CHASE CAMERA' : 'FIXED CAMERA', 1.2); }
   if (e.code === 'KeyK') { keyboardOnly = !keyboardOnly; say(keyboardOnly ? 'KEYBOARD ONLY' : 'CONTROLLER ENABLED', 1.5); }
   if (e.code === 'KeyP' && (G.state === 'play' || G.state === 'paused')) { G.state = G.state === 'paused' ? 'play' : 'paused'; say(G.state === 'paused' ? 'PAUSED' : '', G.state === 'paused' ? 999 : 0); }
@@ -78,6 +78,14 @@ function readInput() {
 
 // ---------------------------------------------------------------- renderer
 const canvas = $('gl');
+// cockpit free look: click the view to capture the mouse (Esc releases it and the head re-centres; middle click centres)
+const head = { yaw: 0, pitch: 0 };
+canvas.addEventListener('click', () => { if (cockpitCam && G.state === 'play' && !document.pointerLockElement) canvas.requestPointerLock?.(); });
+addEventListener('mousemove', e => {
+  if (document.pointerLockElement !== canvas) return;
+  head.yaw = clamp(head.yaw - e.movementX * 0.0025, -2.5, 2.5); head.pitch = clamp(head.pitch - e.movementY * 0.0025, -1.1, 0.8);
+});
+addEventListener('mousedown', e => { if (e.button === 1 && document.pointerLockElement === canvas) { head.yaw = head.pitch = 0; e.preventDefault(); } });
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
 const PR_MAX = params.has('res') ? +params.get('res') : Math.min(devicePixelRatio, 1.5);
 let pixRatio = PR_MAX; renderer.setPixelRatio(pixRatio);
@@ -285,11 +293,11 @@ const aimLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THR
 aimLine.renderOrder = 10; zScene.add(aimLine);
 const zParts = [], zBullets = [], enemies = [];
 const zPartCloud = new Cloud(zScene, 1600, 1.1, true), zBulCloud = new Cloud(zScene, 400, 2.2, true);
-const H = createHeliSim(GRAV);
+const H = createHeliSim(GRAV), _aimR = new THREE.Vector3();
 const HI = createHeliInput({ keyDown: kd, readPad, say: (t, s) => say(t, s) });
 const Z = {
   pos: new THREE.Vector3(PAD.x, PAD_H + 0.9, PAD.z), vel: new THREE.Vector3(), lean: new THREE.Vector2(), facing: new THREE.Vector2(0, -1),
-  aim: new THREE.Vector3(0, 0, -1), hd: 0, sector: -1, round: 0, throttle: 0, landed: true, alive: true, deadT: 0, fireCd: 0, wave: 0, waveT: 2,
+  aim: new THREE.Vector3(0, 0, -1), aimOff: new THREE.Vector2(), hd: 0, sector: -1, round: 0, throttle: 0, landed: true, alive: true, deadT: 0, fireCd: 0, wave: 0, waveT: 2,
 };
 const enemyMat = new THREE.MeshPhongMaterial({ color: 0xdd2222, emissive: 0x440808, flatShading: true });
 const enemyRing = new THREE.MeshBasicMaterial({ color: 0xff8844 });
@@ -358,7 +366,11 @@ function updateZarch(dt, inp) {
     const ev = H.step(dt, ctl, { groundY, fuel: G.fuel, water: terrainH(H.pos.x, H.pos.z) <= 0 });
     P.copy(H.pos); Z.vel.copy(H.vel); Z.landed = H.landed; Z.throttle = H.coll * H.rpm; Z.ctl = ctl;
     const fw = H.forward(), fl = Math.hypot(fw.x, fw.z); if (fl > 0.15) Z.facing.set(fw.x / fl, fw.z / fl);
-    Z.aim.copy(fw);
+    {
+      const k = 1 - Math.exp(-6 * dt);
+      Z.aimOff.x = lerp(Z.aimOff.x, -(ctl.hatX || 0) * 0.26, k); Z.aimOff.y = lerp(Z.aimOff.y, (ctl.hatY || 0) * 0.26, k);
+      Z.aim.copy(fw).applyAxisAngle(H.up(), Z.aimOff.x).applyAxisAngle(_aimR.set(1, 0, 0).applyQuaternion(H.q), Z.aimOff.y);
+    }
     G.fuel = Math.max(0, G.fuel - HELI.BURN * (0.15 + 0.85 * H.coll) * H.rpm * dt);
     if (G.fuel <= 0 && !H.landed) say('FUEL EXHAUSTED  -  AUTOROTATE!', 0.5);
     sfx.engine(H.rpm * (0.25 + 0.75 * H.coll));
@@ -750,7 +762,8 @@ function updateCamsAndMeshes(dt, time) {
     const a = time * 0.15; camA.position.set(Math.cos(a) * 40, PAD_H + 14, Math.sin(a) * 40); camA.lookAt(0, PAD_H + 3, 0);
   } else if (cockpitCam && !inCave && Z.alive) {
     // pilot's eye, rigidly in the airframe (rotor vibration adds a hint of shake at high collective)
-    camA.position.copy(EYE).applyQuaternion(H.q).add(H.pos); camA.quaternion.copy(H.q).multiply(_q2.setFromAxisAngle(_xAx, -0.13));   // eyes slightly down onto the panel
+    camA.position.copy(EYE).applyQuaternion(H.q).add(H.pos); camA.quaternion.copy(H.q).multiply(_q2.setFromAxisAngle(_yAx, head.yaw)).multiply(_q2.setFromAxisAngle(_xAx, -0.13 + head.pitch));   // eyes slightly down onto the panel, plus free look
+    if (document.pointerLockElement !== canvas) { const k = Math.exp(-5 * dt); head.yaw *= k; head.pitch *= k; }
     const sh = 0.004 * H.rpm * (0.3 + H.coll); camA.position.x += (Math.random() - 0.5) * sh; camA.position.y += (Math.random() - 0.5) * sh;
   } else if (chaseCam && !inCave) {
     const k = 1 - Math.exp(-3 * dt); _cf.x = lerp(_cf.x, Z.facing.x, k); _cf.z = lerp(_cf.z, Z.facing.y, k);
@@ -864,4 +877,4 @@ function frame(now) {
 const PROF = { sim: 0, prep: 0, render: 0 };
 buildCaves(); resetZarch(true);
 requestAnimationFrame(frame);
-if (params.has('debug')) { window.__G = { G, Z, T, H, HI, THREE, PROF, renderer, newGame, enemies, sectors, BASES, enterCave, respawnHome, exitCave, get camB() { return camB; } }; if (params.has('auto')) newGame(); if (params.has('thrust')) { newGame(); Z.pos.set(0, PAD_H - 1, 0); Z.vel.set(0, -4, 0); enterCave(BASES[+params.get('thrust') || 0]); } }
+if (params.has('debug')) { window.__G = { G, Z, T, H, HI, THREE, head, PROF, renderer, newGame, enemies, sectors, BASES, enterCave, respawnHome, exitCave, get camB() { return camB; } }; if (params.has('auto')) newGame(); if (params.has('thrust')) { newGame(); Z.pos.set(0, PAD_H - 1, 0); Z.vel.set(0, -4, 0); enterCave(BASES[+params.get('thrust') || 0]); } }
