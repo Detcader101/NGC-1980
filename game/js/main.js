@@ -78,7 +78,8 @@ function readInput() {
 // ---------------------------------------------------------------- renderer
 const canvas = $('gl');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const PR_MAX = params.has('res') ? +params.get('res') : Math.min(devicePixelRatio, 1.5);
+let pixRatio = PR_MAX; renderer.setPixelRatio(pixRatio);
 {
   const gl = renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info');
   $('gpuinfo').textContent = 'GPU: ' + (ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : 'unknown');
@@ -112,8 +113,8 @@ class Cloud {
   end() { this.geo.setDrawRange(0, this.n); this.geo.attributes.position.needsUpdate = true; this.geo.attributes.color.needsUpdate = true; }
 }
 function emit(arr, x, y, z, vx, vy, vz, life, r, g, b, grav = 0) {
-  if (arr.length > 1500) arr.shift();
-  arr.push({ x, y, z, vx, vy, vz, life, max: life, r, g, b, grav });
+  const p = { x, y, z, vx, vy, vz, life, max: life, r, g, b, grav };
+  if (arr.length >= 1500) arr[(Math.random() * arr.length) | 0] = p; else arr.push(p);
 }
 function stepParts(arr, dt) {
   for (let i = arr.length - 1; i >= 0; i--) {
@@ -411,7 +412,7 @@ function exitCave() {
   G.mode = 'zarch';
 }
 function resetThrustShip() {
-  const L = T.lvl; T.x = L.start.x; T.y = L.start.y; T.vx = T.vy = 0; T.ang = 0; T.w = 0; T.landed = true; T.onPad = true; T.alive = true; shipMesh.visible = true;
+  const L = T.lvl; T.x = L.start.x; T.y = L.padTop + 0.76; T.vx = T.vy = 0; T.ang = 0; T.w = 0; T.landed = true; T.onPad = true; T.alive = true; shipMesh.visible = true;
   if (T.pod.attached) { T.pod.attached = false; T.pod.x = L.orb.x; T.pod.y = L.orb.y; T.pod.vx = T.pod.vy = 0; }
   T.cam.set(T.x, T.y + 4);
 }
@@ -574,27 +575,42 @@ function drawMap() {
   radar.fillStyle = '#4ff'; radar.beginPath();
   radar.moveTo(X + fx * sz, Y + fz * sz); radar.lineTo(X - fx * sz - fz * sz * .6, Y - fz * sz + fx * sz * .6); radar.lineTo(X - fx * sz + fz * sz * .6, Y - fz * sz - fx * sz * .6); radar.fill();
 }
+const _hud = {};
+function setText(id, v) { if (_hud[id] !== v) { _hud[id] = v; $(id).textContent = v; } }
+function setStyle(id, k, v) { const key = id + k; if (_hud[key] !== v) { _hud[key] = v; $(id).style[k] = v; } }
 function updateHud() {
-  $('score').textContent = G.score; $('hi').textContent = G.hi;
-  $('lives').textContent = '▲'.repeat(Math.max(0, G.lives));
-  $('fuel').style.width = clamp(G.fuel, 0, 100) + '%';
-  $('modeTag').textContent = G.mode === 'zarch' ? 'ZARCH' : 'THRUST  ·  visit ' + G.visit;
-  $('pad').textContent = readPad() ? 'CONTROLLER' : (keyboardOnly ? 'KEYBOARD ONLY' : 'KEYBOARD');
-  $('radar').style.display = G.mode === 'zarch' ? 'block' : 'none';
+  setText('score', String(G.score)); setText('hi', String(G.hi));
+  setText('lives', '▲'.repeat(Math.max(0, G.lives)));
+  setStyle('fuel', 'width', clamp(G.fuel, 0, 100).toFixed(1) + '%');
+  setText('modeTag', G.mode === 'zarch' ? 'ZARCH' : 'THRUST  ·  visit ' + G.visit);
+  setText('pad', readPad() ? 'CONTROLLER' : (keyboardOnly ? 'KEYBOARD ONLY' : 'KEYBOARD'));
+  setStyle('radar', 'display', G.mode === 'zarch' ? 'block' : 'none');
   if (G.mode === 'zarch') {
     const alt = Z.pos.y - 0.9 - (inHole(Z.pos.x, Z.pos.z) ? PAD_H : groundY(Z.pos.x, Z.pos.z)), bd = Math.hypot(Z.pos.x, Z.pos.z);
     const ias = Math.hypot(Z.vel.x, Z.vel.z) * 1.944, hdg = ((H.heading() * 180 / Math.PI) + 360) % 360, c = Z.ctl || {};
-    $('alt').textContent = `COLL ${(H.coll * 100).toFixed(0)}%  RPM ${(H.rpm * 100).toFixed(0)}%  IAS ${ias.toFixed(0)}kt  VS ${Z.vel.y.toFixed(1)}  AGL ${Math.max(0, H.agl).toFixed(0)}m  HDG ${hdg.toFixed(0).padStart(3, '0')}  ${c.sas ? 'SAS' : 'MANUAL'}  [${c.source || ''}]${H.vrs > 0.4 ? '  VORTEX RING!' : ''}`;
-    $('hint').textContent = H.landed && H.rpm < 0.9 ? 'ROTOR SPOOLING...' : (bd < 60 && !Z.landed ? 'LAND ON THE PAD TO REFUEL  -  DESCEND INTO THE SHAFT FOR THE CAVE' : '');
+    setText('alt', `COLL ${(H.coll * 100).toFixed(0)}%  RPM ${(H.rpm * 100).toFixed(0)}%  IAS ${ias.toFixed(0)}kt  VS ${Z.vel.y.toFixed(1)}  AGL ${Math.max(0, H.agl).toFixed(0)}m  HDG ${hdg.toFixed(0).padStart(3, '0')}  ${c.sas ? 'SAS' : 'MANUAL'}  [${c.source || ''}]${H.vrs > 0.4 ? '  VORTEX RING!' : ''}`);
+    setText('hint', H.landed && H.rpm < 0.9 ? 'ROTOR SPOOLING...' : (bd < 60 && !Z.landed ? 'LAND ON THE PAD TO REFUEL  -  DESCEND INTO THE SHAFT FOR THE CAVE' : ''));
     drawMap();
   } else {
     const c = Z.ctl || {};
-    $('alt').textContent = `COLL ${(c.coll * 100 || 0).toFixed(0)}%  RPM ${(H.rpm * 100).toFixed(0)}%  VS ${T.vy.toFixed(1)}  ${c.sas ? 'SAS' : 'MANUAL'}  ${T.pod && T.pod.attached ? 'POD ON THE LINE' : ''}`;
-    $('hint').textContent = '';
+    setText('alt', `COLL ${(c.coll * 100 || 0).toFixed(0)}%  RPM ${(H.rpm * 100).toFixed(0)}%  VS ${T.vy.toFixed(1)}  ${c.sas ? 'SAS' : 'MANUAL'}  ${T.pod && T.pod.attached ? 'POD ON THE LINE' : ''}`);
+    setText('hint', '');
   }
 }
 function resize() {
   const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); zCam.aspect = w / h; zCam.updateProjectionMatrix();
+}
+// dynamic resolution: if frames run long (GPU-bound, e.g. a 4K screen) step the render resolution down, and back up
+// when there is headroom. Hysteresis + a cooldown keep it from hunting. Off with ?res=N (fixed ratio N).
+const dynRes = { ms: 16.7, cool: 0 };
+function updateDynRes(frameMs) {
+  if (params.has('res') || frameMs > 250) return;
+  dynRes.ms += (frameMs - dynRes.ms) * 0.05; dynRes.cool -= frameMs;
+  if (dynRes.cool > 0) return;
+  let pr = pixRatio;
+  if (dynRes.ms > 19.5 && pr > 0.6) pr = Math.max(0.6, pr - 0.15);
+  else if (dynRes.ms < 14.5 && pr < PR_MAX) pr = Math.min(PR_MAX, pr + 0.1);
+  if (pr !== pixRatio) { pixRatio = pr; renderer.setPixelRatio(pr); resize(); dynRes.cool = 1500; }
 }
 addEventListener('resize', resize); resize();
 
@@ -693,8 +709,10 @@ function updateCamsAndMeshes(dt, time) {
 let last = performance.now(), fpsAcc = 0, fpsN = 0;
 function frame(now) {
   requestAnimationFrame(frame);
+  const now0 = performance.now();
+  updateDynRes(now - last);
   const dt = Math.min((now - last) / 1000, 0.05); last = now;
-  fpsAcc += dt; fpsN++; if (fpsAcc > 1) { $('dbg').textContent = Math.round(fpsN / fpsAcc) + ' fps'; fpsAcc = 0; fpsN = 0; }
+  fpsAcc += dt; fpsN++; if (fpsAcc > 1) { $('dbg').textContent = `${Math.round(fpsN / fpsAcc)} fps  ·  res ${Math.round(pixRatio * 100)}%`; fpsAcc = 0; fpsN = 0; }
   const inp = readInput();
   if (inp.start && !padWasStart) { sfx.init(); pressStart(); }
   padWasStart = inp.start;
@@ -707,10 +725,15 @@ function frame(now) {
     else { $('fade').style.opacity = Math.max(0, 1 - tr.t / D); if (tr.t >= D) { G.state = 'play'; $('fade').style.opacity = 0; $('fadeText').textContent = ''; } }
     stepParts(zParts, dt);
   } else if (G.state === 'title') { stepParts(zParts, dt); }
+  const t1 = performance.now();
   updateCamsAndMeshes(dt, now / 1000);
   updateHud();
+  const t2 = performance.now();
   renderer.render(zScene, zCam);
+  const t3 = performance.now(), pk = 0.05;   // smoothed per-frame CPU cost: sim, scene/HUD prep, render submit
+  PROF.sim += ((t1 - now0) - PROF.sim) * pk; PROF.prep += ((t2 - t1) - PROF.prep) * pk; PROF.render += ((t3 - t2) - PROF.render) * pk;
 }
+const PROF = { sim: 0, prep: 0, render: 0 };
 buildCave(1); resetZarch(true);
 requestAnimationFrame(frame);
-if (params.has('debug')) { window.__G = { G, Z, T, H, HI, THREE, newGame, enemies, enterCave, exitCave, get camB() { return camB; } }; if (params.has('auto')) newGame(); if (params.has('thrust')) { newGame(); Z.pos.set(0, PAD_H - 1, 0); Z.vel.set(0, -4, 0); enterCave(); } }
+if (params.has('debug')) { window.__G = { G, Z, T, H, HI, THREE, PROF, renderer, newGame, enemies, enterCave, exitCave, get camB() { return camB; } }; if (params.has('auto')) newGame(); if (params.has('thrust')) { newGame(); Z.pos.set(0, PAD_H - 1, 0); Z.vel.set(0, -4, 0); enterCave(); } }

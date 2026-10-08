@@ -9,6 +9,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $branch = (git -C $root rev-parse --abbrev-ref HEAD) 2>$null
 $port = if ($branch -eq 'main') { 8765 } else { 8766 }
 $log = Join-Path $PSScriptRoot 'launcher.log'
+if ((Test-Path $log) -and (Get-Item $log).Length -gt 256KB) { Remove-Item $log }
 function Log($m) { "$(Get-Date -Format s) $m" | Out-File $log -Append -Encoding utf8 }
 
 # single instance per port

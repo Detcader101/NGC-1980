@@ -1,6 +1,6 @@
 {
   "name": "smoke",
-  "query": "?debug&auto",
+  "query": "?debug&auto&kb",
   "steps": [
     "waitFor 10000 window.__G && __G.G.state==='play'",
     "wait 1500",
@@ -10,7 +10,7 @@
     "eval ({mode:__G.G.mode, state:__G.G.state, pos:__G.Z.pos.toArray(), alive:__G.Z.alive, landed:__G.Z.landed, gpu:document.getElementById('gpuinfo').textContent, fps:document.getElementById('dbg').textContent})",
     "log helicopter build: park it hovering at y=40 with hover collective, then raise collective with Space and expect a climb.",
     "waitFor 10000 __G.Z.alive && __G.G.state==='play' && __G.G.mode==='zarch'",
-    "eval (__G.H.reset(new __G.THREE.Vector3(30, 40, 30), 0, false, 1), __G.HI.setCollective(0.47), window.__y0 = 40)",
+    "eval (__G.H.reset(new __G.THREE.Vector3(30, 40, 30), 0, false, 1), __G.HI.setCollective(0.6), window.__y0 = 40)",
     "key hold Space 1000",
     "eval ({y0: window.__y0, y1: __G.Z.pos.y, vy: __G.Z.vel.y, throttle: __G.Z.throttle, lives: __G.G.lives, fuel: __G.G.fuel})",
     "shot after-thrust",
