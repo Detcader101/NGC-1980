@@ -15,7 +15,7 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/ja
 
 function version() {
   const git = c => { try { return execSync(`git ${c}`, { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch { return ''; } };
-  return { commit: git('rev-parse --short HEAD') || 'nogit', dirty: !!git('status --porcelain -- game'), date: git('log -1 --format=%cd --date=format:%Y-%m-%d_%H:%M'), served: new Date().toISOString() };
+  return { root: ROOT, commit: git('rev-parse --short HEAD') || 'nogit', dirty: !!git('status --porcelain -- game'), date: git('log -1 --format=%cd --date=format:%Y-%m-%d_%H:%M'), served: new Date().toISOString() };
 }
 
 http.createServer((req, res) => {
