@@ -177,19 +177,22 @@ const baseUniform = BASES.map(b => new THREE.Vector4(b.x, b.z, b.h, b.kind === '
 
 const zScene = new THREE.Scene();
 const HORIZON = new THREE.Color(0xbfd9f2);
-zScene.fog = new THREE.Fog(HORIZON, 120, 380);
-const zCam = new THREE.PerspectiveCamera(62, 1, 0.5, 1200);
+// One draw distance for everything (the retro look and the fps lever): terrain grid, fog, far clip and sky dome all
+// end together, so nothing - trees, enemies, beacons - hangs in the sky past the edge of the ground.
+const DRAW = 250;
+zScene.fog = new THREE.Fog(HORIZON, DRAW * 0.5, DRAW);
+const zCam = new THREE.PerspectiveCamera(62, 1, 0.5, DRAW + 15);
 zScene.add(new THREE.HemisphereLight(0xcfe6ff, 0x4a5a34, 0.9));
 const sun = new THREE.DirectionalLight(0xfff0d0, 1.1); sun.position.set(0.5, 1, 0.3); zScene.add(sun);
 
-const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 24, 12), new THREE.ShaderMaterial({
+const sky = new THREE.Mesh(new THREE.SphereGeometry(DRAW * 0.97, 24, 12), new THREE.ShaderMaterial({
   side: THREE.BackSide, depthWrite: false, fog: false,
   vertexShader: 'varying vec3 vP; void main(){vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
   fragmentShader: 'varying vec3 vP; void main(){float h=normalize(vP).y; vec3 hz=vec3(.75,.85,.95), zn=vec3(.22,.42,.85); gl_FragColor=vec4(mix(hz,zn,smoothstep(0.,.55,h)),1.);}',
 }));
 sky.renderOrder = -10; zScene.add(sky);
 
-const TG = 2.5, TN = 170;
+const TG = 2.5, TN = Math.ceil(DRAW * 2.1 / TG);
 const terrainGeo = new THREE.PlaneGeometry(TG * TN, TG * TN, TN, TN); terrainGeo.rotateX(-Math.PI / 2);
 const terrain = new THREE.Mesh(terrainGeo, new THREE.ShaderMaterial({
   uniforms: { uFog: { value: HORIZON }, uSun: { value: new THREE.Vector3(.5, 1, .3) }, uBases: { value: baseUniform } },
@@ -225,7 +228,7 @@ const terrain = new THREE.Mesh(terrainGeo, new THREE.ShaderMaterial({
       { float d=length(vW.xz-vec2(${PAD.x.toFixed(1)},${PAD.z.toFixed(1)}));
         if(d<${(PAD.r + 2.5).toFixed(1)}){ vec3 pc=vec3(.5,.52,.58)*l; if(d<${PAD.r.toFixed(1)}){float r=d/${PAD.r.toFixed(1)}; pc=mix(vec3(.15,.16,.2),vec3(.95,.8,.1),step(.5,fract(r*4.)))*l;} c=pc; } }
       float fd=length((viewMatrix*vec4(vW,1.)).xyz);
-      gl_FragColor=vec4(mix(c,uFog,smoothstep(130.,370.,fd)),1.);
+      gl_FragColor=vec4(mix(c,uFog,smoothstep(${(DRAW * 0.5).toFixed(1)},${(DRAW * 0.97).toFixed(1)},fd)),1.);
     }`,
 }));
 terrain.frustumCulled = false; zScene.add(terrain);
@@ -248,7 +251,7 @@ terrain.frustumCulled = false; zScene.add(terrain);
 const baseGroup = new THREE.Group(); baseGroup.position.set(0, PAD_H, 0); zScene.add(baseGroup);
 {
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 90, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0x66ddff, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }));
-  beam.position.y = 45; baseGroup.add(beam);
+  beam.position.y = 45; baseGroup.add(beam); BASES[0].beam = beam;
   const ring = new THREE.Mesh(new THREE.TorusGeometry(8.7, 0.18, 6, 48), new THREE.MeshBasicMaterial({ color: 0xffee66 }));
   ring.rotation.x = Math.PI / 2; ring.position.set(PAD.x, 0.25, PAD.z); baseGroup.add(ring); baseGroup.userData.ring = ring;
   const mat = new THREE.MeshPhongMaterial({ color: 0x8a92a0, flatShading: true });
@@ -261,7 +264,7 @@ const baseGroup = new THREE.Group(); baseGroup.position.set(0, PAD_H, 0); zScene
 for (const b of BASES) if (b.kind === 'enemy') {
   const g = new THREE.Group(); g.position.set(b.x, b.h, b.z); zScene.add(g); b.surface = g;
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 90, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0xff4030, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }));
-  beam.position.y = 45; g.add(beam);
+  beam.position.y = 45; g.add(beam); b.beam = beam;
   const ring = new THREE.Mesh(new THREE.TorusGeometry(HOLE_R + 2.3, 0.18, 6, 48), new THREE.MeshBasicMaterial({ color: 0xff3020 })); ring.rotation.x = Math.PI / 2; ring.position.y = 0.25; g.add(ring);
   const mat = new THREE.MeshPhongMaterial({ color: 0x4a3a3a, flatShading: true });
   for (let i = 0; i < 6; i++) {
@@ -755,7 +758,11 @@ function updateCamsAndMeshes(dt, time) {
     caveToWorld(T.x, T.y, P); T.zOff *= Math.exp(-5 * dt); P.z = T.base.z + T.zOff;
   }
   heliModel.animate(H.rpm, dt, time);
-  for (const b of BASES) b.funnel.visible = camB < 0.5;
+  for (const b of BASES) {
+    b.funnel.visible = camB < 0.5;
+    const d = Math.hypot(zCam.position.x - b.x, zCam.position.z - b.z), f = 1 - smooth(DRAW * 0.45, DRAW * 0.85, d);
+    b.beam.visible = f > 0.01; b.beam.material.opacity = (b.kind === 'home' ? 0.35 : 0.3) * f;
+  }
   for (const b of BASES) if (b.group) b.group.visible = b === T.base && inCave || Math.hypot(zCam.position.x - b.x, zCam.position.z - b.z) < 140;
   baseGroup.userData.ring.material.color.setHSL((time * 0.5) % 1, 1, 0.6);
   if (G.state === 'title') {
@@ -798,7 +805,7 @@ function updateCamsAndMeshes(dt, time) {
     zCam.quaternion.slerpQuaternions(camA.quaternion, camS.quaternion, smooth(0, 0.6, e));
   }
   const fov = lerp(62, SIDE_FOV, e); if (Math.abs(zCam.fov - fov) > 0.01) { zCam.fov = fov; zCam.updateProjectionMatrix(); }
-  zScene.fog.color.copy(HORIZON).multiplyScalar(1 - 0.85 * e); zScene.fog.near = lerp(120, 200, e);
+  zScene.fog.color.copy(HORIZON).multiplyScalar(1 - 0.85 * e); zScene.fog.near = lerp(DRAW * 0.5, DRAW * 0.8, e);
   sky.position.copy(zCam.position);
   terrain.position.set(Math.round(zCam.position.x / TG) * TG, 0, Math.round(zCam.position.z / TG) * TG);
 

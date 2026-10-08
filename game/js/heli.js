@@ -229,7 +229,8 @@ export function createHeliInput({ keyDown, readPad, say }) {
 export const EYE = new THREE.Vector3(0.42, 0.62, -0.95);
 export function buildCockpit() {
   const g = new THREE.Group(); g.visible = false;
-  const M = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, ...o });
+  // interior fill light: the cabin is mostly lit from the windows, so give every surface a little self-light
+  const M = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, emissive: new THREE.Color(c).multiplyScalar(0.45), ...o });
   const frameM = M(0x2a2e28), panelM = M(0x1c1f1c), olive = M(0x4a5536);
   const box = (w, h, d, m, x, y, z, rx = 0, ry = 0, rz = 0) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); o.rotation.set(rx, ry, rz); g.add(o); return o; };
   // instrument panel + glare shield across the cabin, below the eye line
@@ -237,13 +238,38 @@ export function buildCockpit() {
   box(1.66, 0.035, 0.16, frameM, 0.2, 0.25, -2.03, 0.05);
   // pedestal / centre console, floor
   box(0.34, 0.5, 0.7, panelM, 0, -0.18, -1.3);
-  box(1.7, 0.05, 2.2, olive, 0, -0.5, -0.9);
+  box(1.7, 0.05, 1.75, olive, 0, -0.5, -0.33);   // floor (chin windows in front of it)
   // door pillars, roof frame, centre post between the windscreens, overhead console
   box(0.06, 1.4, 0.06, frameM, 0.95, 0.35, -1.75, 0.35, 0, -0.12); box(0.06, 1.4, 0.06, frameM, -0.95, 0.35, -1.75, 0.35, 0, 0.12);
   box(0.05, 0.7, 0.05, frameM, 0, 0.75, -1.82, 0.45);
   box(1.7, 0.06, 0.06, frameM, 0, 1.0, -1.45); box(0.06, 0.06, 1.6, frameM, 0.84, 1.0, -0.7); box(0.06, 0.06, 1.6, frameM, -0.84, 1.0, -0.7);
   box(0.5, 0.08, 0.7, panelM, 0, 0.98, -0.95);
   box(0.06, 1.0, 0.06, frameM, 0.84, 0.45, -0.1); box(0.06, 1.0, 0.06, frameM, -0.84, 0.45, -0.1);
+  // ---- the rest of the cabin, so free-look finds a whole cockpit: doors, rear wall, roof, seats, glass
+  const wallM = M(0x3d4630), seatM = M(0x2b2b26), padM = M(0x55503f);
+  for (const sx of [1, -1]) {
+    box(0.04, 0.55, 1.65, wallM, 0.86 * sx, -0.22, -0.92);           // lower door panel below the window
+    box(0.05, 0.05, 1.65, frameM, 0.86 * sx, 0.06, -0.92);            // window sill
+    box(0.04, 1.5, 0.62, wallM, 0.86 * sx, 0.25, 0.24);              // solid cabin wall behind the door
+    box(0.05, 1.5, 0.05, frameM, 0.86 * sx, 0.25, -1.72);             // door front frame
+    // seat: pan, back, headrest
+    box(0.5, 0.08, 0.5, padM, 0.42 * sx, -0.22, -0.45); box(0.5, 0.75, 0.08, padM, 0.42 * sx, 0.18, -0.17, -0.12);
+    box(0.28, 0.2, 0.08, seatM, 0.42 * sx, 0.66, -0.11, -0.12); box(0.46, 0.25, 0.4, seatM, 0.42 * sx, -0.38, -0.45);
+  }
+  box(1.7, 1.5, 0.05, wallM, 0, 0.25, 0.56);                          // rear bulkhead
+  box(0.6, 0.35, 0.02, M(0x101410), 0, 0.55, 0.53);                   // dark cargo-bay window in the bulkhead
+  box(1.72, 0.04, 1.45, wallM, 0, 1.02, -0.15);                       // roof lining (the front part is the greenhouse glass)
+  box(0.18, 0.3, 0.12, seatM, 0, 0.88, 0.1);                          // overhead circuit-breaker box
+  // co-pilot's cyclic, static, and a fire extinguisher by the door
+  const cs = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.025, 0.55, 6), frameM); cs.position.set(-0.42, -0.18, -1.15); g.add(cs);
+  const ext = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.35, 8), M(0xaa1810)); ext.position.set(-0.7, -0.3, 0.4); g.add(ext);
+  // glass: faint tint on the windscreen, door windows, greenhouse roof and chin windows (read as glass, barely block the view)
+  const glass = new THREE.MeshBasicMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.07, depthWrite: false, side: THREE.DoubleSide });
+  const pane = (w, h, x, y, z, rx = 0, ry = 0) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), glass); p.position.set(x, y, z); p.rotation.set(rx, ry, 0); p.renderOrder = 5; g.add(p); };
+  pane(1.7, 0.9, 0, 0.62, -1.88, -0.35);                              // windscreen
+  pane(1.65, 0.9, 0.87, 0.53, -0.92, 0, Math.PI / 2); pane(1.65, 0.9, -0.87, 0.53, -0.92, 0, Math.PI / 2);
+  pane(1.7, 0.55, 0, 1.0, -1.25, -Math.PI / 2 + 0.25);               // greenhouse
+  pane(1.6, 0.55, 0, -0.5, -1.48, -Math.PI / 2 + 0.3);               // chin windows
   // gauges
   const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 256;
   const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
