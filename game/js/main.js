@@ -332,7 +332,42 @@ function resetZarch(fromPad) {
     if (d < 90) { const k = 110 / Math.max(d, 1); e.mesh.position.x = dx * k; e.mesh.position.z = dz * k; }
   }
 }
+// Emergency landing: set down safely anywhere with an empty tank and a logistics team flies out a fuel drop.
+// It takes a while and only brings 25% - enough for a last-chance run home. A parachute crate drops beside you
+// on the surface for the last few seconds. Crashing (or getting shot) while waiting cancels it.
+const RESCUE_TIME = 25, RESCUE_FUEL = 25;
+const crate = (() => {
+  const g = new THREE.Group(); g.visible = false;
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(1.2, 1, 1.2), new THREE.MeshLambertMaterial({ color: 0x6b5a2e, emissive: 0x1a1508 })));
+  const chute = new THREE.Mesh(new THREE.SphereGeometry(2.2, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x553322, side: THREE.DoubleSide }));
+  chute.position.y = 4; g.add(chute); g.userData.chute = chute;
+  for (const [x, z] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 3.6, 3), new THREE.MeshBasicMaterial({ color: 0xdddddd })); l.position.set(x * 0.9, 2.2, z * 0.9); l.rotation.set(z * 0.25, 0, -x * 0.25); g.add(l); }
+  zScene.add(g); return g;
+})();
+function updateRescue(dt, landed, inCave) {
+  const R = G.rescue;
+  if (!R) {
+    if (landed && G.fuel < 0.5 && G.state === 'play') { G.rescue = { t: RESCUE_TIME, cave: inCave }; say('EMERGENCY LANDING  -  LOGISTICS TEAM DISPATCHED', 3); sfx.dock(); }
+    return;
+  }
+  R.t -= dt;
+  if (!R.cave && R.t < 6 && !crate.visible) {   // the drop: a crate on a chute lands a few metres off the nose
+    const f = H.forward(); R.cx = Z.pos.x + f.x * 7 + 3; R.cz = Z.pos.z + f.z * 7; crate.visible = true; crate.userData.chute.visible = true;
+  }
+  if (crate.visible) {
+    const gy = groundY(R.cx, R.cz), y = gy + 0.5 + Math.max(0, R.t) * 9;
+    crate.position.set(R.cx, y, R.cz); crate.rotation.y += dt * 0.3; crate.userData.chute.visible = R.t > 0;
+  }
+  if (R.t <= 0) {
+    G.fuel = Math.max(G.fuel, RESCUE_FUEL); G.rescue = null; sfx.refuel?.(); sfx.pickup();
+    say(`FUEL DROP DELIVERED  -  ${RESCUE_FUEL}%  -  MAKE IT BACK TO BASE`, 3.5);
+    setTimeout(() => { crate.visible = false; }, 8000);
+  }
+}
+function cancelRescue() { if (G.rescue) { G.rescue = null; crate.visible = false; } }
+
 function killPlayerZ(why) {
+  cancelRescue();
   if (!Z.alive) return;
   Z.alive = false; Z.deadT = 2.4; shipMesh.visible = false; shipShadow.visible = false;
   explode(zParts, Z.pos.x, Z.pos.y, Z.pos.z, 120, 28, false); sfx.boom(1.2); sfx.engine(0);
@@ -375,7 +410,8 @@ function updateZarch(dt, inp) {
       Z.aim.copy(fw).applyAxisAngle(H.up(), Z.aimOff.x).applyAxisAngle(_aimR.set(1, 0, 0).applyQuaternion(H.q), Z.aimOff.y);
     }
     G.fuel = Math.max(0, G.fuel - HELI.BURN * (0.15 + 0.85 * H.coll) * H.rpm * dt);
-    if (G.fuel <= 0 && !H.landed) say('FUEL EXHAUSTED  -  AUTOROTATE!', 0.5);
+    if (G.fuel <= 0 && !H.landed) say('FUEL EXHAUSTED  -  AUTOROTATE AND SET DOWN SAFELY', 0.5);
+    updateRescue(dt, H.landed, false);
     sfx.engine(H.rpm * (0.25 + 0.75 * H.coll));
     if (H.landed && Math.hypot(P.x - PAD.x, P.z - PAD.z) < PAD.r) {
       const fill = Math.min(G.res, 20 * dt, 100 - G.fuel); G.res -= fill; G.fuel += fill;
@@ -531,6 +567,7 @@ function shipPts() {
   return [[1.7 * f, 0.1], [-2.6 * f, 0.5], [-1.65, 1.0], [1.65, 1.0], [0.9 * f, -0.75], [-0.9 * f, -0.75]].map(([lx, ly]) => [T.x + lx * c + ly * s, T.y - lx * s + ly * c]);
 }
 function crashThrust(why) {
+  cancelRescue();
   if (!T.alive) return;
   T.alive = false; T.deadT = 2.2; shipMesh.visible = false;
   explode(T.parts, T.x, T.y, 0, 90, 14, true); sfx.boom(1); sfx.engine(0); say(why, 2);
@@ -598,6 +635,7 @@ function updateThrust(dt, inp) {
     if (T.y > L.H + 1) { exitCave(); return; }
   }
   if (!T.alive) return;
+  updateRescue(dt, T.landed, true);
   if (T.landed && T.onPad && T.base.kind === 'home') {
     const unload = Math.min(G.cargo, 30 * dt, RES_MAX - G.res); G.cargo -= unload; G.res += unload;
     const fill = Math.min(G.res, 25 * dt, 100 - G.fuel); G.res -= fill; G.fuel += fill;
@@ -657,6 +695,7 @@ function gameOver() {
 }
 function startTransition(label, swap) { G.state = 'trans'; G.tr = { t: 0, phase: 0, swap }; $('fadeText').textContent = label; }
 function newGame() {
+  cancelRescue();
   G.score = 0; G.lives = 3; G.fuel = 100; G.visit = 0; G.mode = 'zarch'; G.over = false; G.state = 'play';
   G.res = 150; G.cargo = 0; resetBases(); clearEnemies(); Z.wave = 0; Z.round = 0; Z.sector = -1; resetSectors(); zParts.length = 0; resetZarch(true); say('ROTOR SPOOLING  -  RAISE COLLECTIVE TO LIFT', 3);
   $('title').style.display = 'none'; $('title').querySelector('h1').textContent = 'THRUST / ZARCH'; say('');
@@ -721,12 +760,12 @@ function updateHud() {
     const hb = holeOf(Z.pos.x, Z.pos.z), alt = Z.pos.y - 0.9 - (hb ? hb.h : groundY(Z.pos.x, Z.pos.z)), bd = Math.hypot(Z.pos.x, Z.pos.z);
     const ias = Math.hypot(Z.vel.x, Z.vel.z) * 1.944, hdg = ((H.heading() * 180 / Math.PI) + 360) % 360, c = Z.ctl || {};
     setText('alt', `COLL ${(H.coll * 100).toFixed(0)}%  RPM ${(H.rpm * 100).toFixed(0)}%  IAS ${ias.toFixed(0)}kt  VS ${Z.vel.y.toFixed(1)}  AGL ${Math.max(0, hb ? Z.pos.y + HELI.SKID_Y - hb.h : H.agl).toFixed(0)}m  HDG ${hdg.toFixed(0).padStart(3, '0')}  ${c.sas ? 'SAS' : 'MANUAL'}  [${c.source || ''}]${H.vrs > 0.4 ? '  VORTEX RING!' : ''}`);
-    setText('hint', H.landed && H.rpm < 0.9 ? 'ROTOR SPOOLING...' : H.landed && Math.hypot(Z.pos.x - PAD.x, Z.pos.z - PAD.z) < PAD.r && G.res < 1 && G.fuel < 99 ? 'RESERVOIR EMPTY  -  LOOT FUEL FROM ENEMY BASES, UNLOAD IT IN THE HOME CAVE' : Z.sector >= 0 && sectors[Z.sector].state === 'active' ? `${SECT_NAMES[Z.sector]} SECTOR  -  ${enemies.filter(e => e.area === Z.sector).length} HOSTILES LEFT` : (bd < 60 && !Z.landed ? 'LAND ON THE PAD TO REFUEL FROM THE RESERVOIR  -  DESCEND THE SHAFT TO UNLOAD CARGO' : ''));
+    setText('hint', G.rescue ? `EMERGENCY LANDING  -  FUEL DROP IN ${Math.max(0, Math.ceil(G.rescue.t))}s` : H.landed && H.rpm < 0.9 && G.fuel > 0 ? 'ROTOR SPOOLING...' : H.landed && Math.hypot(Z.pos.x - PAD.x, Z.pos.z - PAD.z) < PAD.r && G.res < 1 && G.fuel < 99 ? 'RESERVOIR EMPTY  -  LOOT FUEL FROM ENEMY BASES, UNLOAD IT IN THE HOME CAVE' : Z.sector >= 0 && sectors[Z.sector].state === 'active' ? `${SECT_NAMES[Z.sector]} SECTOR  -  ${enemies.filter(e => e.area === Z.sector).length} HOSTILES LEFT` : (bd < 60 && !Z.landed ? 'LAND ON THE PAD TO REFUEL FROM THE RESERVOIR  -  DESCEND THE SHAFT TO UNLOAD CARGO' : ''));
     drawMap();
   } else {
     const c = Z.ctl || {};
     setText('alt', `COLL ${(c.coll * 100 || 0).toFixed(0)}%  RPM ${(H.rpm * 100).toFixed(0)}%  VS ${T.vy.toFixed(1)}  ${c.sas ? 'SAS' : 'MANUAL'}  ${T.pod && T.pod.attached ? 'POD ON THE LINE' : ''}`);
-    setText('hint', '');
+    setText('hint', G.rescue ? `EMERGENCY LANDING  -  FUEL RUN IN ${Math.max(0, Math.ceil(G.rescue.t))}s` : '');
   }
 }
 function resize() {
