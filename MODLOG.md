@@ -41,3 +41,16 @@ Plan (one commit per stage, each verified with a scene + screenshots):
   Keys: I, U, H, N, L, O. Test clicks via real mousemove+mousedown at the projected switch position.
 - Landing light: the terrain shader is unlit, so the light is drawn as an additive pool where the beam meets the ground.
 - Gotcha: D.hit() randomises damage ×0.7–1.3, so "destroy the tail rotor" must set hp = 0 directly (tail strike, tests).
+
+## Stage: readability + cave combat pass (2026-10-10)
+- Cockpit rebuilt to fit the cabin: windscreen runs glare shield -> roof beam (it used to lean forward and sit in front of
+  the panel), A-pillars/centre post on its edges, door glass is a shape that meets the pillar, panel/glare shield inside
+  the walls, exterior shell (cab/nose/roof/mast) hidden from inside. Annunciator: 2 rows of 5, full captions.
+  Eye pitch -0.22 so both instrument rows show; pedestal lowered so it doesn't hide the lower row.
+- HUD: bottom text block hidden in the cockpit, minimap moves top-right; hint sits between the fuel block and the map.
+- Reticle: dot + 4 hairlines built in pixels and scaled by distance (fixed screen size), 40 m out so it never sits on the heli.
+- Free look toggle T (off = mouse released, view eased to centre and held).
+- Cave: hat aims the door gun in 8 directions and auto-fires; else mouse cursor aims (click fires); else nose.
+  Base tiers N1..W4 -> tier+1 turrets, range 18, slower fire for light bases, cave hits 0.16. Winch reach 5.5, beam visible.
+- Gotcha: a `//` comment inserted mid-line by sed swallowed the rest of the statement (hit boxes lost userData).
+- Scenes: caveaim.json (new), cockpit.json (+free look), audit.json (cockpit look-around screenshots).

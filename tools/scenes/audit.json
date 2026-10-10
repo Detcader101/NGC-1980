@@ -1,0 +1,22 @@
+{
+  "name": "audit",
+  "query": "?debug&kb&peace&cockpit",
+  "steps": [
+    "waitFor 10000 window.__G",
+    "key tap Enter",
+    "eval (__G.H.reset(new __G.THREE.Vector3(30, 40, 60), 0.8, false, 1), __G.HI.setCollective(0.48), 1)",
+    "wait 1200",
+    "shot c0-front",
+    "eval (window.__hy=[0.9,-0.1], setInterval(()=>{__G.head.yaw=__hy[0]; __G.head.pitch=__hy[1];},5), 1)",
+    "wait 300", "shot c1-left",
+    "eval (__hy=[-1.2,-0.1],1)", "wait 300", "shot c2-right",
+    "eval (__hy=[0,0.7],1)", "wait 300", "shot c3-up",
+    "eval (__hy=[2.3,0],1)", "wait 300", "shot c4-back-left",
+    "eval (__hy=[-2.3,-0.3],1)", "wait 300", "shot c5-back-right",
+    "eval (__hy=[0.5,-1.0],1)", "wait 300", "shot c6-down-left",
+    "eval (__hy=[-0.6,-1.0],1)", "wait 300", "shot c7-down-right",
+    "eval (__hy=[0,0],1)",
+    "key tap KeyV", "wait 800", "shot z0-fixed",
+    "key tap KeyC", "wait 800", "shot z1-chase"
+  ]
+}

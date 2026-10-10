@@ -1,0 +1,25 @@
+{
+  "name": "caveaim",
+  "query": "?debug&kb&thrust=1",
+  "steps": [
+    "waitFor 10000 window.__G && __G.G.mode==='thrust'",
+    "wait 2500",
+    "expect __G.BASES[1].st.turrets.length === 2 && __G.BASES[4].st.turrets.length === 5",
+    "eval (__G.HI.setCollective(0.42), 1)",
+    "log hat up: gun points straight up and auto-fires",
+    "eval (window.__hat=[0,1], window.__rd=__G.HI.read, __G.HI.read=function(dt){const o=__rd.call(this,dt); if(window.__hat){o.hatX=__hat[0]; o.hatY=__hat[1];} return o;}, 1)",
+    "wait 500",
+    "expect __G.T.aimSrc==='hat' && Math.abs(__G.T.aimY-1)<1e-6 && __G.T.bullets.some(b=>b.vy>10 && Math.abs(b.vx)<1)",
+    "shot 01-hat-up",
+    "eval (__hat=[-1,-1], 1)",
+    "wait 400",
+    "expect __G.T.aimX < -0.6 && __G.T.aimY < -0.6",
+    "shot 02-hat-down-left",
+    "eval (__hat=null, 1)",
+    "log mouse aim: cursor up-right of the heli",
+    "eval (()=>{ const T=__G.T,b=T.base,p=new __G.THREE.Vector3(b.x+(T.x+6-32.5)*1.6, b.h-0.15+(T.y+6-T.lvl.H)*1.6, b.z).project(__G.zCam); dispatchEvent(new MouseEvent('mousemove',{clientX:(p.x+1)/2*innerWidth, clientY:(1-p.y)/2*innerHeight})); return 1; })()",
+    "wait 300",
+    "expect __G.T.aimSrc==='mouse' && __G.T.aimX > 0.5 && __G.T.aimY > 0.5",
+    "shot 03-mouse-aim"
+  ]
+}

@@ -29,6 +29,7 @@ addEventListener('keydown', e => {
   const sw = { KeyI: 'engine', KeyO: 'fire', KeyU: 'hyd', KeyL: 'radio', KeyN: 'light' }[e.code];
   if (sw) doSwitch(sw);
   if (e.code === 'KeyJ') HI.startCalibration();
+  if (e.code === 'KeyT') toggleFreeLook();
   if (e.code === 'KeyM') { bigMap = !bigMap; setMapSize(); }
   if (e.code === 'KeyV') { cockpitCam = !cockpitCam; if (!cockpitCam && document.pointerLockElement) document.exitPointerLock(); say(cockpitCam ? 'COCKPIT VIEW' : (chaseCam ? 'CHASE CAMERA' : 'FIXED CAMERA'), 1.2); }
   if (e.code === 'KeyC') { cockpitCam = false;  chaseCam = !chaseCam; Z.hd = Math.atan2(Z.facing.x, -Z.facing.y); say(chaseCam ? 'CHASE CAMERA' : 'FIXED CAMERA', 1.2); }
@@ -84,7 +85,8 @@ const canvas = $('gl');
 // cockpit switches: what the crosshair / cursor is over, and click to operate it
 const switchRay = new THREE.Raycaster(), mouseNdc = new THREE.Vector2();
 let switchHover = null;
-addEventListener('mousemove', e => { mouseNdc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); });
+let mouseAimT = -1e9;
+addEventListener('mousemove', e => { mouseNdc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); mouseAimT = performance.now(); });
 function pickSwitch() {
   if (!cockpit.group.visible) return null;
   switchRay.setFromCamera(document.pointerLockElement === canvas ? _ndc0 : mouseNdc, zCam);
@@ -99,9 +101,15 @@ addEventListener('mousedown', e => {
 }, { capture: true });
 // cockpit free look: click the view to capture the mouse (Esc releases it and the head re-centres; middle click centres)
 const head = { yaw: 0, pitch: 0 };
-canvas.addEventListener('click', () => { if (cockpitCam && G.state === 'play' && !document.pointerLockElement) canvas.requestPointerLock?.(); });
+let freeLook = true;   // T toggles: off releases the mouse and locks the view to the centre (the cursor then works the switches)
+function toggleFreeLook() {
+  freeLook = !freeLook;
+  if (freeLook) { if (cockpitCam && G.state === 'play') canvas.requestPointerLock?.(); say('FREE LOOK ON  -  MOUSE TO LOOK', 1.4); }
+  else { if (document.pointerLockElement) document.exitPointerLock(); say('FREE LOOK OFF  -  VIEW LOCKED TO CENTRE', 1.4); }
+}
+canvas.addEventListener('click', () => { if (cockpitCam && freeLook && G.state === 'play' && !document.pointerLockElement) canvas.requestPointerLock?.(); });
 addEventListener('mousemove', e => {
-  if (document.pointerLockElement !== canvas) return;
+  if (document.pointerLockElement !== canvas || !freeLook) return;
   head.yaw = clamp(head.yaw - e.movementX * 0.0025, -2.5, 2.5); head.pitch = clamp(head.pitch - e.movementY * 0.0025, -1.1, 0.8);
 });
 addEventListener('mousedown', e => { if (e.button === 1 && document.pointerLockElement === canvas) { head.yaw = head.pitch = 0; e.preventDefault(); } });
@@ -178,9 +186,11 @@ const rawH = (x, z) => 14 * Math.sin(x * .035 + 1.3) * Math.cos(z * .04) + 9 * M
 const CS = 1.6, CAVE_SINK = 0.15, CAVE_OX = 32.5, CAVE_DEPTH = 6, HOLE_R = 9, STRIP_X = 76, STRIP_Z = 9;
 // the home refuel pad sits beside the shaft on solid ground (no hole), clear of the cave strip
 const PAD = { x: 0, z: 30, r: 8.5 };
-const BASES = [{ kind: 'home', name: 'HOME BASE', x: 0, z: 0, h: PAD_H }];
-for (const [x, z, n] of [[0, -240, 'NORTH'], [240, 0, 'EAST'], [0, 240, 'SOUTH'], [-240, 0, 'WEST']])
-  BASES.push({ kind: 'enemy', name: n + ' BASE', x, z, h: clamp(Math.round(rawH(x, z)), 4, 16) });
+const BASES = [{ kind: 'home', name: 'HOME BASE', tier: 0, x: 0, z: 0, h: PAD_H }];
+// tier = how well defended the cave is: 1 light (2 turrets) .. 4 heavy (5 turrets, faster fire)
+const TIER_NAMES = ['', 'LIGHT', 'MEDIUM', 'STRONG', 'HEAVY'];
+for (const [x, z, n, tier] of [[0, -240, 'NORTH', 1], [240, 0, 'EAST', 2], [0, 240, 'SOUTH', 3], [-240, 0, 'WEST', 4]])
+  BASES.push({ kind: 'enemy', name: n + ' BASE', tier, x, z, h: clamp(Math.round(rawH(x, z)), 4, 16) });
 const stripW = (x, z, b) => smooth(0, 14, Math.hypot(Math.max(Math.abs(x - b.x) - STRIP_X, 0), Math.max(Math.abs(z - b.z) - STRIP_Z, 0)));
 const terrainH = (x, z) => {
   let h = rawH(x, z);
@@ -299,7 +309,7 @@ for (const b of BASES) {
 }
 
 // player ship (zarch)
-const heliModel = buildHeliMesh(), shipMesh = heliModel.group, cockpit = buildCockpit(), heliNose = shipMesh.getObjectByName('nose');
+const heliModel = buildHeliMesh(), shipMesh = heliModel.group, cockpit = buildCockpit(), heliShell = ['cab', 'nose', 'roof', 'mast'].map(n => shipMesh.getObjectByName(n));
 shipMesh.add(cockpit.group);
 zScene.add(shipMesh);
 const shadowMat = new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.4, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
@@ -307,11 +317,16 @@ const shipShadow = new THREE.Mesh(new THREE.CircleGeometry(3.4, 20).rotateX(-Mat
 
 const reticle = new THREE.Group();
 {
-  const m = new THREE.MeshBasicMaterial({ color: 0xff4466, transparent: true, opacity: 0.9, depthTest: false });
-  const ring = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.1, 24), m), dot = new THREE.Mesh(new THREE.CircleGeometry(0.2, 12), m);
-  reticle.add(ring, dot); reticle.renderOrder = 10; ring.renderOrder = dot.renderOrder = 10; zScene.add(reticle);
+  const m = new THREE.MeshBasicMaterial({ color: 0xff5a70, transparent: true, opacity: 0.95, depthTest: false });
+  // built in screen pixels and scaled by distance every frame, so it stays a crisp, fixed-size mark at any range
+  const dot = new THREE.Mesh(new THREE.CircleGeometry(2, 10), m); dot.renderOrder = 10; reticle.add(dot);
+  for (let i = 0; i < 4; i++) {   // hairlines with a gap round the dot
+    const l = new THREE.Mesh(new THREE.PlaneGeometry(2, 8), m); const a = i * Math.PI / 2;
+    l.position.set(Math.sin(a) * 9, Math.cos(a) * 9, 0); l.rotation.z = -a; l.renderOrder = 10; reticle.add(l);
+  }
+  reticle.renderOrder = 10; zScene.add(reticle);
 }
-const aimLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, -1)]), new THREE.LineBasicMaterial({ color: 0xff4466, transparent: true, opacity: 0.5, depthTest: false }));
+const aimLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, -1)]), new THREE.LineBasicMaterial({ color: 0xff5a70, transparent: true, opacity: 0.28, depthTest: false }));
 aimLine.renderOrder = 10; zScene.add(aimLine);
 const zParts = [], zBullets = [], enemies = [];
 const zPartCloud = new Cloud(zScene, 1600, 1.1, true), zBulCloud = new Cloud(zScene, 400, 2.2, true);
@@ -556,7 +571,7 @@ const CARGO_MAX = 100, RES_MAX = 300;
 function buildCaves() {
   let proto = null;
   BASES.forEach((b, i) => {
-    const L = b.L = buildLevel(i);
+    const L = b.L = buildLevel(b.tier);
     if (!proto) proto = buildCaveMesh(L, { depth: CAVE_DEPTH });
     const grp = b.group = new THREE.Group(); grp.scale.setScalar(CS); grp.position.set(b.x - CAVE_OX * CS, b.h - CAVE_SINK - L.H * CS, b.z); zScene.add(grp);
     const mesh = proto.clone(); grp.add(mesh);
@@ -592,14 +607,14 @@ function resetBases() {   // new game: restock every enemy base
 }
 // Fly into the shaft from the surface: the same ship carries on, locked to the cave plane.
 function enterCave(b) {
-  useCave(b);
+  useCave(b); T.caveT = 0;
   const L = T.lvl, P = Z.pos;
   G.mode = 'thrust';
   T.x = (P.x - b.x) / CS + CAVE_OX; T.y = (P.y - b.h + CAVE_SINK) / CS + L.H; T.vx = Z.vel.x / CS; T.vy = Z.vel.y / CS;
   T.vy = Math.max(T.vy, -5); T.vx = clamp(T.vx, -2, 2); T.guide = 1.2; T.q0.copy(shipMesh.quaternion);
   { const u = H.up(); T.ang = clamp(Math.atan2(u.x, u.y), -0.3, 0.3); } T.w = 0; T.zOff = P.z - b.z; T.landed = false; T.alive = true; T.thrOn = Z.throttle;
   T.face = Z.facing.x < 0 ? -1 : 1; T.yawF = -T.face * Math.PI / 2;
-  say(b.kind === 'home' ? 'HOME BASE  -  LAND ON THE BLUE PAD TO UNLOAD FUEL' : `${b.name}  -  LOOT THE FUEL, STEAL THE POD`, 3);
+  say(b.kind === 'home' ? 'HOME BASE  -  LAND ON THE BLUE PAD TO UNLOAD FUEL' : `${b.name} (${TIER_NAMES[b.tier]})  -  LOOT THE FUEL, STEAL THE POD`, 3);
 }
 // Climb out of the shaft: hand the ship back to the 3D flight model with its momentum.
 function exitCave() {
@@ -636,6 +651,23 @@ function los(ax, ay, bx, by) {
   return true;
 }
 
+// Door gun in the cave swivels: the POV hat points it in 8 directions and fires while held; otherwise it follows the mouse
+// cursor (click fires) while the mouse is in use, else it points along the nose.
+const _mray = new THREE.Raycaster();
+function caveAim(ctl) {
+  let ax = T.face * Math.cos(T.ang), ay = -T.face * Math.sin(T.ang);
+  T.hatFire = false; T.aimSrc = 'nose';
+  if (ctl.hatX || ctl.hatY) { const l = Math.hypot(ctl.hatX, ctl.hatY); ax = ctl.hatX / l; ay = ctl.hatY / l; T.hatFire = true; T.aimSrc = 'hat'; }
+  else if (!document.pointerLockElement && (mouseFire || performance.now() - mouseAimT < 3000)) {
+    _mray.setFromCamera(mouseNdc, zCam); const o = _mray.ray.origin, d = _mray.ray.direction, b = T.base;
+    const t = Math.abs(d.z) > 1e-4 ? (b.z - o.z) / d.z : -1;
+    if (t > 0) {
+      const dx = (o.x + d.x * t - b.x) / CS + CAVE_OX - T.x, dy = (o.y + d.y * t - b.h + CAVE_SINK) / CS + T.lvl.H - T.y, l = Math.hypot(dx, dy);
+      if (l > 0.8) { ax = dx / l; ay = dy / l; T.aimSrc = 'mouse'; }
+    }
+  }
+  T.aimX = ax; T.aimY = ay;
+}
 function updateThrust(dt, inp) {
   const L = T.lvl;
   if (!T.alive) { T.deadT -= dt; if (T.deadT <= 0 && !G.over) respawnHome(); stepParts(T.parts, dt); return; }
@@ -648,12 +680,11 @@ function updateThrust(dt, inp) {
   T.spin = driven ? ctl.coll * (1 - M.tail) : 0;   // no tail rotor: the airframe spins (visual) and the disc wanders
   T.thrOn = thr; T.beamOn = beam;
   sfx.engine(T.landed && thr < 0.05 ? 0 : thr);
-  T.fireCd -= dt;
-  if ((inp.fire || ctl.fire) && T.fireCd <= 0) {
-    T.fireCd = 0.18; sfx.shot();
-    // the gun points along the nose: horizontal, tipped by the disc tilt
-    const nx = T.face * Math.cos(T.ang), ny = -T.face * T.face * Math.sin(T.ang) * T.face;
-    T.bullets.push({ x: T.x + nx * 2, y: T.y + ny * 2, vx: nx * 24 + T.vx * .5, vy: ny * 24 + T.vy * .5, life: 1.4 });
+  T.fireCd -= dt; T.caveT += dt;
+  caveAim(ctl);
+  if ((inp.fire || ctl.fire || T.hatFire) && T.fireCd <= 0) {
+    T.fireCd = 0.15; sfx.shot();
+    T.bullets.push({ x: T.x + T.aimX * 2, y: T.y + T.aimY * 2, vx: T.aimX * 26 + T.vx * .5, vy: T.aimY * 26 + T.vy * .5, life: 1.4 });
   }
   const n = Math.ceil(dt / (1 / 240)), h = dt / n, pod = T.pod;
   for (let it = 0; it < n && T.alive; it++) {
@@ -714,9 +745,9 @@ function updateThrust(dt, inp) {
   G.fuel = Math.max(0, G.fuel - HELI.BURN * (0.15 + 0.85 * ctl.coll) * H.rpm * dt);
   if (beam && G.fuel > 0) {
     G.fuel = Math.max(0, G.fuel - 0.8 * dt);
-    const bx = T.x - Math.sin(T.ang) * 3.5, by = T.y - Math.cos(T.ang) * 3.5;
-    if (!pod.attached && Math.hypot(pod.x - bx, pod.y - by) < 4.5) { pod.attached = true; pod.len = Math.max(ROPE, Math.hypot(pod.x - T.x, pod.y - T.y)); pod.grace = 0; T.hadPod = true; addScore(500); sfx.pickup(); say('POD SECURED  -  GET OUT!', 2.5); }
-    for (const tk of T.tanks) if (tk.fuel > 0 && Math.hypot(tk.x - bx, tk.y - by) < 4.5) {
+    const bx = T.x - Math.sin(T.ang) * 3.5, by = T.y - Math.cos(T.ang) * 3.5, BR = 5.5;
+    if (!pod.attached && Math.hypot(pod.x - bx, pod.y - by) < BR) { pod.attached = true; pod.len = Math.max(ROPE, Math.hypot(pod.x - T.x, pod.y - T.y)); pod.grace = 0; T.hadPod = true; addScore(500); sfx.pickup(); say('POD SECURED  -  GET OUT!', 2.5); }
+    for (const tk of T.tanks) if (tk.fuel > 0 && Math.hypot(tk.x - bx, tk.y - by) < BR) {
       const toCargo = Math.min(tk.fuel, 30 * dt, CARGO_MAX - G.cargo), toTank = Math.min(tk.fuel - toCargo, 30 * dt - toCargo, 100 - G.fuel);
       const take = toCargo + Math.max(0, toTank); tk.fuel -= take; G.cargo += toCargo; G.fuel += Math.max(0, toTank);
       if (take > 0 && tk.fuel <= 0.01) say('TANK DRAINED  -  TAKE IT HOME', 1.5);
@@ -737,16 +768,16 @@ function updateThrust(dt, inp) {
     const dx = T.x - t.x, dy = T.y - t.y, d = Math.hypot(dx, dy);
     t.ang = Math.atan2(dy, dx);
     t.cd -= dt;
-    if (d < 22 && t.cd <= 0 && los(t.x, t.y, T.x, T.y)) {
-      t.cd = Math.max(0.9, 2.4 - BASES.indexOf(T.base) * 0.2) + rnd(0.6); sfx.enemyShot();
-      const lead = d / 11, ax = T.x + T.vx * lead * .5 - t.x, ay = T.y + T.vy * lead * .5 - t.y, al = Math.hypot(ax, ay) || 1;
-      T.tb.push({ x: t.x + ax / al * 1.2, y: t.y + ay / al * 1.2, vx: ax / al * 11, vy: ay / al * 11, life: 4 });
+    if (d < 18 && t.cd <= 0 && los(t.x, t.y, T.x, T.y)) {
+      t.cd = 3.1 - T.base.tier * 0.3 + rnd(0.8); sfx.enemyShot();
+      const lead = d / 10, ax = T.x + T.vx * lead * .4 - t.x, ay = T.y + T.vy * lead * .4 - t.y, al = Math.hypot(ax, ay) || 1;
+      T.tb.push({ x: t.x + ax / al * 1.2, y: t.y + ay / al * 1.2, vx: ax / al * 10, vy: ay / al * 10, life: 4 });
     }
   }
   for (let i = T.tb.length - 1; i >= 0; i--) {
     const b = T.tb[i]; b.life -= dt; b.x += b.vx * dt; b.y += b.vy * dt;
     let dead = b.life <= 0 || sol(b.x, b.y);
-    if (!dead && T.alive && Math.hypot(b.x - T.x, b.y - T.y) < 1.2) { dead = true; hurtHeli(0.22, 'HIT'); }
+    if (!dead && T.alive && Math.hypot(b.x - T.x, b.y - T.y) < 1.2) { dead = true; hurtHeli(0.16, 'HIT'); }
     if (dead) { T.tb[i] = T.tb[T.tb.length - 1]; T.tb.pop(); }
   }
   stepParts(T.parts, dt);
@@ -800,7 +831,7 @@ function drawMap() {
   for (const b of BASES) if (b.kind === 'enemy') {
     const X = px(b.x), Y = py(b.z); if (Math.hypot(X - cx, Y - cy) > lim) continue;
     radar.strokeStyle = '#f53'; radar.lineWidth = 2; radar.beginPath(); radar.arc(X, Y, bigMap ? 8 : 5, 0, 6.283); radar.stroke();
-    if (bigMap) { radar.fillStyle = '#f86'; radar.font = '13px monospace'; radar.fillText(b.name + (b.st && b.st.podTaken ? '  (POD TAKEN)' : ''), X + 12, Y + 4); }
+    if (bigMap) { radar.fillStyle = '#f86'; radar.font = '13px monospace'; radar.fillText(`${b.name}  ${TIER_NAMES[b.tier]}` + (b.st && b.st.podTaken ? '  (POD TAKEN)' : ''), X + 12, Y + 4); }
   }
   for (const e of enemies) dot(e.mesh.position.x, e.mesh.position.z, '#f44', bigMap ? 6 : 4);
   for (const b of zBullets) if (!b.own) dot(b.p.x, b.p.z, '#fa4', 2);
@@ -812,9 +843,16 @@ function drawMap() {
 const _hud = {};
 function setText(id, v) { if (_hud[id] !== v) { _hud[id] = v; $(id).textContent = v; } }
 function setStyle(id, k, v) { const key = id + k; if (_hud[key] !== v) { _hud[key] = v; $(id).style[k] = v; } }
-const crossEl = (() => { const e = document.createElement('div'); e.style.cssText = 'position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:#ffe080;box-shadow:0 0 4px #000;display:none'; $('hud').appendChild(e); return e; })();
+const crossEl = (() => {
+  const e = document.createElement('div'); e.style.cssText = 'position:absolute;left:50%;top:50%;width:25px;height:25px;margin:-12px 0 0 -12px;display:none';
+  e.innerHTML = '<svg width="25" height="25" viewBox="0 0 25 25" style="filter:drop-shadow(0 0 1px #000)"><circle cx="12.5" cy="12.5" r="1.3" fill="#ffe8a0"/><path d="M12.5 1v7M12.5 17v7M1 12.5h7M17 12.5h7" stroke="#ffe8a0" stroke-width="1" opacity=".85"/></svg>';
+  $('hud').appendChild(e); return e;
+})();
 const cautionEl = (() => { const e = document.createElement('div'); e.id = 'caution'; e.style.cssText = 'position:absolute;left:16px;bottom:100px;font-size:15px;letter-spacing:1px;font-weight:bold'; $('hud').appendChild(e); return e; })();
 function updateHud() {
+  {   // in the cockpit the instruments carry fuel / rpm / speed, so the bottom text block steps aside and the map moves up
+    const ck = cockpit.group.visible; setStyle('bot', 'display', ck ? 'none' : 'block'); setStyle('radar', 'bottom', ck && !bigMap ? 'auto' : ''); setStyle('radar', 'top', ck && !bigMap ? '64px' : '');
+  }
   crossEl.style.display = document.pointerLockElement === canvas && cockpit.group.visible ? 'block' : 'none';
   { const list = G.state === 'play' && !cockpit.group.visible ? D.cautions(G.fuel, H.rpm, G.mode === 'zarch' ? H.landed : T.landed) : [], blink = (performance.now() % 600) < 300;
     const html = list.map(c => `<span style="color:${c.warn ? (blink ? '#ff3a2a' : '#7a1810') : '#ffb020'};margin-right:12px">${c.t}</span>`).join('');
@@ -834,7 +872,8 @@ function updateHud() {
   } else {
     const c = Z.ctl || {};
     setText('alt', `COLL ${(c.coll * 100 || 0).toFixed(0)}%  RPM ${(H.rpm * 100).toFixed(0)}%  VS ${T.vy.toFixed(1)}  ${c.sas ? 'SAS' : 'MANUAL'}  ${T.pod && T.pod.attached ? 'POD ON THE LINE' : ''}`);
-    setText('hint', switchHover ? `${switchHover.toUpperCase()}  -  CLICK TO OPERATE` : G.rescue ? `EMERGENCY LANDING  -  FUEL RUN IN ${Math.max(0, Math.ceil(G.rescue.t))}s` : '');
+    const nearTank = T.tanks.some(t => t.fuel > 0 && Math.hypot(t.x - T.x, t.y - T.y) < 10) && G.cargo < CARGO_MAX;
+    setText('hint', switchHover ? `${switchHover.toUpperCase()}  -  CLICK TO OPERATE` : G.rescue ? `EMERGENCY LANDING  -  FUEL RUN IN ${Math.max(0, Math.ceil(G.rescue.t))}s` : nearTank && !T.beamOn ? 'HOVER OVER THE TANK AND HOLD S / R (WINCH) TO DRAIN IT' : G.cargo >= CARGO_MAX ? 'CARGO FULL  -  CLIMB OUT AND TAKE IT HOME' : T.caveT < 8 ? 'HAT OR MOUSE AIMS THE DOOR GUN' : '');
   }
 }
 function resize() {
@@ -877,7 +916,7 @@ function updateCamsAndMeshes(dt, time) {
   if (inCave) {   // keep Z.pos on the ship so the 3D camera keeps following it through the swing
     caveToWorld(T.x, T.y, P); T.zOff *= Math.exp(-5 * dt); P.z = T.base.z + T.zOff;
   }
-  heliModel.animate(H.rpm, dt, time);
+  heliModel.animate(H.rpm, dt, time, cockpit.group.visible);
   if (Z.alive && G.state === 'play' && (D.fire || D.hp.engine < 0.5) && Math.random() < (D.fire ? 0.9 : 0.35)) {
     const p = _wv0.set(0, 1.3, 1.4).applyQuaternion(shipMesh.quaternion).add(shipMesh.position), hot = D.fire;
     emit(zParts, p.x, p.y, p.z, rnd(-1, 1), rnd(2, 4), rnd(-1, 1), hot ? 0.6 : 1.4, hot ? 1 : .25, hot ? .45 : .25, hot ? .1 : .25, -1.5);
@@ -893,8 +932,8 @@ function updateCamsAndMeshes(dt, time) {
     const a = time * 0.15; camA.position.set(Math.cos(a) * 40, PAD_H + 14, Math.sin(a) * 40); camA.lookAt(0, PAD_H + 3, 0);
   } else if (cockpitCam && !inCave && Z.alive) {
     // pilot's eye, rigidly in the airframe (rotor vibration adds a hint of shake at high collective)
-    camA.position.copy(EYE).applyQuaternion(H.q).add(H.pos); camA.quaternion.copy(H.q).multiply(_q2.setFromAxisAngle(_yAx, head.yaw)).multiply(_q2.setFromAxisAngle(_xAx, -0.13 + head.pitch));   // eyes slightly down onto the panel, plus free look
-    if (document.pointerLockElement !== canvas) { const k = Math.exp(-5 * dt); head.yaw *= k; head.pitch *= k; }
+    camA.position.copy(EYE).applyQuaternion(H.q).add(H.pos); camA.quaternion.copy(H.q).multiply(_q2.setFromAxisAngle(_yAx, head.yaw)).multiply(_q2.setFromAxisAngle(_xAx, -0.22 + head.pitch));   // eyes down enough to take in both instrument rows, plus free look
+    if (document.pointerLockElement !== canvas || !freeLook) { const k = Math.exp(-6 * dt); head.yaw *= k; head.pitch *= k; }   // released or free look off: back to centre and stay there
     const sh = (0.004 * (0.3 + H.coll) + 0.03 * D.mods().vib) * H.rpm; camA.position.x += (Math.random() - 0.5) * sh; camA.position.y += (Math.random() - 0.5) * sh;
   } else if (chaseCam && !inCave) {
     const k = 1 - Math.exp(-3 * dt); _cf.x = lerp(_cf.x, Z.facing.x, k); _cf.z = lerp(_cf.z, Z.facing.y, k);
@@ -951,7 +990,7 @@ function updateCamsAndMeshes(dt, time) {
     shipShadow.position.set(P.x, gy + 0.12, P.z); const sc = 1 + alt * 0.02; shipShadow.scale.set(sc, 1, sc); shadowMat.opacity = clamp(0.5 - alt * 0.006, 0.12, 0.5);
   }
   const inCockpit = cockpitCam && !inCave && e < 0.01 && Z.alive && G.state !== 'title';
-  cockpit.group.visible = inCockpit; heliNose.visible = !inCockpit;
+  cockpit.group.visible = inCockpit; for (const o of heliShell) o.visible = !inCockpit;   // seen from inside, the outer shell only gets in the way
   const near = inCockpit ? 0.06 : 0.5; if (zCam.near !== near) { zCam.near = near; zCam.updateProjectionMatrix(); }
   {   // engine N2 runs on its own when it isn't clutched to the rotor (engine running, gearbox seized) or winds down
     const m = D.mods(), running = m.engineOk && G.fuel > 0;
@@ -968,10 +1007,13 @@ function updateCamsAndMeshes(dt, time) {
       avionics: D.hp.avionics, hover: switchHover,
     });
   }
-  reticle.visible = Z.alive && !inCave && G.state !== 'title'; aimLine.visible = reticle.visible && !inCockpit;
+  const caveAimOn = inCave && T.alive && T.aimX !== undefined && e > 0.9 && G.state === 'play';
+  reticle.visible = (Z.alive && !inCave && G.state !== 'title') || caveAimOn; aimLine.visible = reticle.visible && !inCockpit;
+  if (caveAimOn) _wv0.set(T.aimX, T.aimY, 0); else _wv0.copy(Z.aim);
   if (reticle.visible) {
-    reticle.position.copy(P).addScaledVector(Z.aim, 16); reticle.quaternion.copy(zCam.quaternion);
-    const a = aimLine.geometry.attributes.position; a.setXYZ(0, P.x + Z.aim.x * 3, P.y + Z.aim.y * 3, P.z + Z.aim.z * 3); a.setXYZ(1, reticle.position.x, reticle.position.y, reticle.position.z); a.needsUpdate = true; aimLine.geometry.computeBoundingSphere();
+    reticle.position.copy(P).addScaledVector(_wv0, caveAimOn ? 7 * CS * 0.7 : 40);   // far enough out that it never sits on the helicopter reticle.quaternion.copy(zCam.quaternion);
+    reticle.scale.setScalar(2 * reticle.position.distanceTo(zCam.position) * Math.tan(zCam.fov * Math.PI / 360) / innerHeight);
+    const a = aimLine.geometry.attributes.position, s0 = caveAimOn ? 2.2 : 3; a.setXYZ(0, P.x + _wv0.x * s0, P.y + _wv0.y * s0, P.z + _wv0.z * s0); a.setXYZ(1, reticle.position.x, reticle.position.y, reticle.position.z); a.needsUpdate = true; aimLine.geometry.computeBoundingSphere();
   }
   zPartCloud.begin(); drawParts(zParts, zPartCloud); zPartCloud.end();
   zBulCloud.begin(); for (const b of zBullets) zBulCloud.add(b.p.x, b.p.y, b.p.z, b.own ? .4 : 1, b.own ? 1 : .5, b.own ? 1 : .2); zBulCloud.end();
@@ -980,7 +1022,7 @@ function updateCamsAndMeshes(dt, time) {
     const pod = T.pod, zo = inCave ? T.zOff / CS : 0;
     podMesh.position.set(pod.x, pod.y, 0); podMesh.visible = T.base.kind === 'enemy' && !T.base.st.podTaken;
     if (BASES[0].resTank) BASES[0].resTank.userData.bar.scale.y = Math.max(0.01, G.res / RES_MAX);
-    beam3.visible = false;
+    beam3.visible = inCave && T.alive && T.beamOn && G.fuel > 0;
     if (beam3.visible) { beam3.position.set(T.x - Math.sin(T.ang) * 3.6, T.y - Math.cos(T.ang) * 3.6, zo); beam3.rotation.z = -T.ang; }
     rope.obj.visible = inCave && pod.attached;
     if (rope.obj.visible) rope.set(T.x, T.y, zo, pod.x, pod.y, 0);

@@ -27,6 +27,15 @@
     "eval (__hy=[0,0], 1)",
     "key tap KeyN",
     "wait 600",
-    "shot 04-landing-light"
+    "shot 04-landing-light",
+    "log free look toggle: T off locks the view to the centre, T on lets the mouse look again",
+    "eval (clearInterval(1), clearInterval(2), clearInterval(3), __G.head.yaw = 1.2, __G.head.pitch = -0.5, 1)",
+    "key tap KeyT",
+    "wait 1200",
+    "expect Math.abs(__G.head.yaw) < 0.02 && Math.abs(__G.head.pitch) < 0.02",
+    "eval document.getElementById('msg').textContent",
+    "key tap KeyT",
+    "eval document.getElementById('msg').textContent",
+    "expect document.getElementById('msg').textContent.startsWith('FREE LOOK ON')"
   ]
 }

@@ -15,7 +15,8 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
 #radar{position:absolute;right:16px;bottom:14px;width:150px;height:150px;border:1px solid #4aa;background:rgba(0,30,40,.45);border-radius:50%}
 #radar.big{position:fixed;inset:0;right:auto;bottom:auto;width:100%;height:100%;border:0;border-radius:0;background:rgba(0,20,30,.2);opacity:.5;pointer-events:none}
 #msg{position:absolute;left:0;right:0;top:22%;text-align:center;font-size:28px;color:#ff8;letter-spacing:3px;opacity:0;transition:opacity .3s}
-#hint{position:absolute;left:0;right:0;bottom:14px;text-align:center;font-size:15px;color:#cfc}
+#hint{position:absolute;left:330px;right:330px;bottom:14px;text-align:center;font-size:15px;color:#cfc}
+@media (max-width:1000px){#hint{left:16px;right:16px;bottom:130px}}
 #fade{position:absolute;inset:0;background:#000;opacity:0}
 #fadeText{position:absolute;left:0;right:0;top:46%;text-align:center;font-size:34px;letter-spacing:8px;color:#8ef;opacity:.9}
 #title{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,10,25,.55);text-align:center;pointer-events:auto}
@@ -23,7 +24,7 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
 #title p{margin:4px;font-size:16px;color:#bde}
 #title .go{margin-top:18px;font-size:22px;color:#ff8;animation:bl 1s infinite alternate}
 @keyframes bl{to{opacity:.3}}
-#dbg{position:absolute;left:16px;top:86px;font-size:12px;color:#7aa}
+#dbg{position:absolute;left:16px;top:100px;font-size:12px;color:#7aa}
 </style></head><body>
 <canvas id="gl"></canvas>
 <div id="hud">
@@ -37,7 +38,7 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
   <div id="title">
     <h1>THRUST / ZARCH</h1>
     <p>Fly the helicopter over the landscape &mdash; descend into a base's round shaft to drop into its cave.</p>
-    <p><b>HELICOPTER</b> &nbsp;W/S A/D cyclic &middot; Q/E pedals &middot; Space/Shift collective up, Ctrl/Z down &middot; F/X fire &middot; S/R winch (cave) &middot; H stability assist &middot; I engine on/off &middot; O fire extinguisher &middot; U hydraulic boost &middot; L call logistics (when landed) &middot; N landing light &middot; in the cockpit, click the pedestal switches &middot; C chase cam &middot; V cockpit (click to look around with the mouse, Esc to release) &middot; M map</p>
+    <p><b>HELICOPTER</b> &nbsp;W/S A/D cyclic &middot; Q/E pedals &middot; Space/Shift collective up, Ctrl/Z down &middot; F/X fire &middot; S/R winch (cave) &middot; in caves the POV hat aims and fires the door gun in 8 directions, or aim with the mouse and click &middot; H stability assist &middot; I engine on/off &middot; O fire extinguisher &middot; U hydraulic boost &middot; L call logistics (when landed) &middot; N landing light &middot; in the cockpit, click the pedestal switches &middot; C chase cam &middot; V cockpit (click to look around with the mouse, Esc to release, T free look on/off - off locks the view to the centre) &middot; M map</p>
     <p><b>FLIGHT STICK</b> &nbsp;stick = cyclic &middot; twist = pedals &middot; throttle = collective &middot; trigger = fire &middot; hat = nudge the gun aim &middot; J = calibrate axes &middot; K = keyboard-only toggle &middot; P pause</p>
     <p>Spool up on the home pad and raise the collective. Landing on the home pad refuels you from the base <b>reservoir</b>, which runs dry.</p>
     <p>Raid the four <b>enemy bases</b> (red rings): descend their shafts, winch fuel from their tanks into your cargo bladder and steal the pod.</p>
