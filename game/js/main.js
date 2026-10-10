@@ -407,7 +407,7 @@ function hurtHeli(amount, why, part) {
   sfx.hit?.() ?? sfx.boom(0.3);
   const m = D.mods();
   const msg = p === 'tail' && m.tail === 0 ? 'TAIL ROTOR SHOT AWAY  -  CUT THE ENGINE OR FLY FAST' : p === 'engine' && D.fire ? 'ENGINE FIRE  -  PRESS O TO EXTINGUISH' :
-    p === 'rotor' && m.lift === 0 ? 'MAIN ROTOR DESTROYED' : p === 'fuel' ? 'FUEL TANK HIT  -  LEAKING' : `${why}  -  ${name} HIT`;
+    p === 'rotor' && m.lift === 0 ? 'MAIN ROTOR DESTROYED' : p === 'fuel' && D.hp.fuel < 0.75 ? 'FUEL TANK HIT  -  LEAKING' : `${why}  -  ${name} HIT`;
   say(msg, 2);
 }
 function callLogistics() {
