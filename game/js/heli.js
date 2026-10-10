@@ -18,7 +18,7 @@ export const HELI = {
   TORQUE: 0.55,           // yaw rate (rad/s) of main-rotor torque reaction at full collective
   ROTOR_R: 3.8, SKID_Y: -1.15,
   SPOOL: 0.35,            // rpm gain per second when the engine drives the rotor
-  BURN: 2.2,              // fuel %/s at full collective (idle burns 15% of that)
+  BURN: 0.9,              // fuel %/s at full collective (idle burns 15% of that): ~3.5 min of hover per tank
 };
 
 // --------------------------------------------------------------------------------------------- model

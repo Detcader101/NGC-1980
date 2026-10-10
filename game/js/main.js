@@ -333,9 +333,9 @@ function resetZarch(fromPad) {
   }
 }
 // Emergency landing: set down safely anywhere with an empty tank and a logistics team flies out a fuel drop.
-// It takes a while and only brings 25% - enough for a last-chance run home. A parachute crate drops beside you
+// It takes a while and only brings half a tank - enough for a last-chance run home. A parachute crate drops beside you
 // on the surface for the last few seconds. Crashing (or getting shot) while waiting cancels it.
-const RESCUE_TIME = 25, RESCUE_FUEL = 25;
+const RESCUE_TIME = 25, RESCUE_FUEL = 50;
 const crate = (() => {
   const g = new THREE.Group(); g.visible = false;
   g.add(new THREE.Mesh(new THREE.BoxGeometry(1.2, 1, 1.2), new THREE.MeshLambertMaterial({ color: 0x6b5a2e, emissive: 0x1a1508 })));

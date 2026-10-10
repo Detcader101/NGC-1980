@@ -15,7 +15,7 @@
     "waitFor 10000 !__G.G.rescue",
     "wait 300",
     "eval ({fuel:__G.G.fuel, msg:document.getElementById('msg').textContent})",
-    "expect __G.G.fuel >= 24 && __G.G.fuel < 30 && __G.Z.alive && __G.G.lives === 3",
+    "expect __G.G.fuel >= 49 && __G.G.fuel < 55 && __G.Z.alive && __G.G.lives === 3",
     "shot delivered"
   ]
 }
