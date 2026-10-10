@@ -60,6 +60,8 @@ export function buildHeliMesh() {
 
 // --------------------------------------------------------------------------------------------- flight model
 const _v = new THREE.Vector3(), _vb = new THREE.Vector3(), _up = new THREE.Vector3(), _fw = new THREE.Vector3(), _dq = new THREE.Quaternion(), _e = new THREE.Euler();
+const SKID_PTS = [[0.85, 1.7], [-0.85, 1.7], [0.85, -1.7], [-0.85, -1.7]];
+const NOMODS = { engineOk: true, power: 1, xmsnOk: true, lift: 1, tail: 1, hyd: 1, hydOk: true, skidTol: 1, vib: 0 };
 const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 export function createHeliSim(G) {   // G = gravity (m/s^2)
@@ -85,30 +87,40 @@ export function createHeliSim(G) {   // G = gravity (m/s^2)
   function sub(h, ctl, env) {
     // ---- rotor rpm: governor spools to 100% with fuel; without, rpm bleeds off unless the descent drives it (autorotation)
     _vb.copy(H.vel).applyQuaternion(_dq.copy(H.q).invert());     // velocity in body axes
-    const driven = H.engine && env.fuel > 0;
-    if (driven) H.rpm += (1.0 - H.rpm) * HELI.SPOOL * 2.2 * h + (H.rpm < 1 ? HELI.SPOOL * 0.15 * h : 0);
-    else H.rpm += (-0.06 - 0.22 * ctl.coll + 0.05 * Math.max(0, -_vb.y)) * h;
+    // damage model hooks (see damage.js): engine/gearbox state, power, rotor lift, tail authority, hydraulics
+    const M = env.mods || NOMODS;
+    const driven = H.engine && env.fuel > 0 && M.engineOk && M.xmsnOk;
+    H.driven = driven;
+    if (driven) {   // governor holds 100% unless the (damaged) engine can't supply the collective: rpm droops
+      const tgt = Math.min(1, 1 - Math.max(0, ctl.coll - M.power) * 1.4);
+      H.rpm += (tgt - H.rpm) * HELI.SPOOL * 2.2 * h + (H.rpm < tgt ? HELI.SPOOL * 0.15 * h : 0);
+    } else H.rpm += (-0.06 - 0.22 * ctl.coll + 0.05 * Math.max(0, -_vb.y) - (M.xmsnOk ? 0 : 0.18)) * h;   // autorotation; a seized gearbox drags it down
     H.rpm = Math.min(1.05, Math.max(0, H.rpm));
-    const auth = H.rpm * H.rpm;
+    const auth = H.rpm * H.rpm * M.lift;
     H.coll = ctl.coll;
 
     // ---- angular: rate command + coupling torques
     const att = H.attitude();
     let wx = ctl.cy * HELI.RATE.pitch, wz = -ctl.cx * HELI.RATE.roll, wy = -ctl.pedal * HELI.RATE.yaw;
-    if (ctl.sas) {   // stability assist: hands-off it levels the disc and kills drift in the rates
+    wy *= M.tail;   // no tail rotor, no pedals
+    const torque = driven ? ctl.coll * HELI.TORQUE * auth * 2.6 : 0;   // main-rotor torque reaction only while the engine drives it
+    if (ctl.sas && M.hydOk) {   // stability assist: hands-off it levels the disc and kills drift in the rates
       const hands = 1 - Math.min(1, Math.hypot(ctl.cx, ctl.cy) * 2.5);
       wx += -att.pitch * 1.6 * hands; wz += -att.roll * 1.6 * hands;
-      wy += ctl.coll * HELI.TORQUE * 2.6 / (HELI.RESP * 0.8);   // auto pedal: exactly cancels the torque reaction in steady state
+      if (driven) wy += ctl.coll * HELI.TORQUE * 2.6 / (HELI.RESP * 0.8) * M.tail;   // auto pedal: cancels the torque reaction in steady state
     }
-    const k = HELI.RESP * auth * (H.landed ? 0.2 : 1);
+    const k = HELI.RESP * auth * M.hyd * (H.landed ? 0.2 : 1);
     H.w.x += ((wx - H.w.x) * k + (-_vb.z) * 0.012) * h;                    // flapback: forward speed pitches the nose up
     H.w.z += ((wz - H.w.z) * k) * h;
-    H.w.y += ((wy - H.w.y) * k * 0.8 - ctl.coll * HELI.TORQUE * auth * 2.6 - _vb.x * 0.035) * h;   // torque reaction, tail-fin weathervane
+    const lost = 1 - M.tail;   // without the tail rotor the torque wins fast: ~2 rad/s spin within ~2 s at hover power
+    H.w.y += ((wy - H.w.y) * k * 0.8 * M.tail - torque * (1 + 0.6 * lost) - _vb.x * 0.035 - H.w.y * 0.5 * lost) * h;   // torque reaction, tail-fin weathervane, airframe yaw damping
     if (H.landed) { H.w.x *= 0.5; H.w.z *= 0.5; }
     _dq.setFromEuler(_e.set(H.w.x * h, H.w.y * h, H.w.z * h, 'YXZ')); H.q.multiply(_dq).normalize();
 
     // ---- linear forces
-    const gy = env.groundY(H.pos.x, H.pos.z);
+    // ground under the skids: the highest of the four skid ends, so on a slope the uphill skid touches first
+    let gy = -1e9;
+    for (const [sx, sz] of SKID_PTS) { _v.set(sx, 0, sz).applyQuaternion(H.q); gy = Math.max(gy, env.groundY(H.pos.x + _v.x, H.pos.z + _v.z)); }
     H.agl = H.pos.y + HELI.SKID_Y - gy;
     const hs = Math.hypot(H.vel.x, H.vel.z);
     H.ge = 1 + 0.22 * Math.max(0, 1 - H.agl / (2 * HELI.ROTOR_R));                    // ground effect within a rotor diameter
@@ -131,12 +143,17 @@ export function createHeliSim(G) {   // G = gravity (m/s^2)
       _v.set(Math.cos(a) * r, 1.78, Math.sin(a) * r + 0.2).applyQuaternion(H.q).add(H.pos);
       if (_v.y < env.groundY(_v.x, _v.z)) return 'rotor';
     }
+    // tail strike (flaring too hard near the ground): the tail rotor takes it, the flight goes on
+    _v.set(0.12, 1.15, 6.15).applyQuaternion(H.q).add(H.pos);
+    const mishandled = H.vel.length() > 2 || H.attitude().pitch > 0.15;   // a careful lift-off or set-down on a slope just scrapes
+    if (_v.y < env.groundY(_v.x, _v.z) - 0.25 && mishandled) { if (!H.tailHit) { H.tailHit = true; return 'tailstrike'; } } else if (_v.y > env.groundY(_v.x, _v.z)) H.tailHit = false;
     if (H.pos.y + HELI.SKID_Y * _up.y <= gy) {
       if (env.water) return 'water';
-      const tilt = Math.acos(Math.min(1, _up.y));
-      if (H.vel.y < -4.5 || hs > 6 || tilt > 0.42) return 'crash';
+      const tilt = Math.acos(Math.min(1, _up.y)), tol = M.skidTol;
+      if (H.vel.y < -8 * tol || hs > 11 * tol || tilt > 0.7) return 'crash';
+      const hard = H.vel.y < -4.5 * tol || hs > 6 * tol || tilt > 0.42;   // survivable, but it breaks things
       H.landed = true; H.vel.set(0, 0, 0); H.w.set(0, H.w.y * 0.2, 0); settle(gy, 1);
-      return 'land';
+      return hard ? 'hardland' : 'land';
     }
     return null;
   }
