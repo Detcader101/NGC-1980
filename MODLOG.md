@@ -30,3 +30,14 @@ Plan (one commit per stage, each verified with a scene + screenshots):
   and 25 cm below ground.
 - Gotcha 3: cave "hard landing" branch accepted side-on wall hits at 25 cells/s; now needs |vx| < 6.
 - Scripted autopilots must flare like a pilot (target sink = 0.45·AGL); a fixed collective can't autorotate.
+
+### Stage 3 notes (cockpit) — verified with tools/scenes/cockpit.json + screenshots
+- Two-row panel: IAS, attitude, altitude, VSI, dual tach (NR yellow / N2 blue: split needles = engine not driving
+  the rotor); lower row fuel, torque, EGT (red line 760), XMSN oil psi, HYD psi, clock. Failing avionics drop
+  gauges to OFF flags.
+- Glare-shield annunciator: 10 lights, amber cautions, flashing red warnings (driven by damage.cautions()).
+- Pedestal switch panel: ENGINE, HYD BOOST, SAS, LDG LIGHT toggles + LOGISTICS and FIRE EXT push buttons.
+  Click with the crosshair (mouse captured) or the cursor; a switch hit consumes the click (no gunfire).
+  Keys: I, U, H, N, L, O. Test clicks via real mousemove+mousedown at the projected switch position.
+- Landing light: the terrain shader is unlit, so the light is drawn as an additive pool where the beam meets the ground.
+- Gotcha: D.hit() randomises damage ×0.7–1.3, so "destroy the tail rotor" must set hp = 0 directly (tail strike, tests).

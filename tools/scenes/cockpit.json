@@ -1,0 +1,32 @@
+{
+  "name": "cockpit",
+  "query": "?debug&kb&peace&cockpit",
+  "steps": [
+    "waitFor 10000 window.__G",
+    "key tap Enter",
+    "eval (__G.H.reset(new __G.THREE.Vector3(60, 45, 90), 0.8, false, 1), __G.HI.setCollective(0.48), 1)",
+    "wait 1500",
+    "eval (__G.D.hp.hyd = 0.1, __G.D.hp.fuel = 0.5, __G.D.hp.xmsn = 0.4, __G.D.hp.engine = 0.3, __G.D.fire = true, 1)",
+    "wait 800",
+    "shot 01-panel-warnings",
+    "eval (window.__hy=[0.35,-0.75], setInterval(()=>{__G.head.yaw=__hy[0]; __G.head.pitch=__hy[1];},5), 1)",
+    "wait 500",
+    "shot 02-pedestal-switches",
+    "log click the ENGINE switch with the real mouse path (mousemove + mousedown at its screen position)",
+    "eval (()=>{ const b=__G.cockpit.hitBoxes.find(h=>h.userData.sw==='engine'); const p=new __G.THREE.Vector3(); b.getWorldPosition(p); p.project(__G.zCam); const x=(p.x+1)/2*innerWidth, y=(1-p.y)/2*innerHeight; window.__sw0=__G.D.engineSwitch; dispatchEvent(new MouseEvent('mousemove',{clientX:x,clientY:y})); return [Math.round(x),Math.round(y)]; })()",
+    "wait 200",
+    "eval document.getElementById('hint').textContent",
+    "eval (()=>{ const ev=new MouseEvent('mousedown',{button:0,clientX:0,clientY:0,bubbles:true}); dispatchEvent(ev); return {sw:__G.D.engineSwitch, before:__sw0, fireFlag:false}; })()",
+    "expect __G.D.engineSwitch !== __sw0",
+    "shot 03-engine-switched",
+    "log fire extinguisher button by click",
+    "eval (()=>{ const b=__G.cockpit.hitBoxes.find(h=>h.userData.sw==='fire'); const p=new __G.THREE.Vector3(); b.getWorldPosition(p); p.project(__G.zCam); dispatchEvent(new MouseEvent('mousemove',{clientX:(p.x+1)/2*innerWidth, clientY:(1-p.y)/2*innerHeight})); return 1; })()",
+    "wait 200",
+    "eval (dispatchEvent(new MouseEvent('mousedown',{button:0})), dispatchEvent(new MouseEvent('mouseup',{button:0})), 1)",
+    "expect !__G.D.fire",
+    "eval (__hy=[0,0], 1)",
+    "key tap KeyN",
+    "wait 600",
+    "shot 04-landing-light"
+  ]
+}

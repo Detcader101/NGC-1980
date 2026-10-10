@@ -251,7 +251,6 @@ export function buildCockpit() {
   const frameM = M(0x2a2e28), panelM = M(0x1c1f1c), olive = M(0x4a5536);
   const box = (w, h, d, m, x, y, z, rx = 0, ry = 0, rz = 0) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); o.rotation.set(rx, ry, rz); g.add(o); return o; };
   // instrument panel + glare shield across the cabin, below the eye line
-  box(1.5, 0.38, 0.05, panelM, 0.22, 0.04, -1.97, -0.35);
   box(1.66, 0.035, 0.16, frameM, 0.2, 0.25, -2.03, 0.05);
   // pedestal / centre console, floor
   box(0.34, 0.5, 0.7, panelM, 0, -0.18, -1.3);
@@ -287,57 +286,134 @@ export function buildCockpit() {
   pane(1.65, 0.9, 0.87, 0.53, -0.92, 0, Math.PI / 2); pane(1.65, 0.9, -0.87, 0.53, -0.92, 0, Math.PI / 2);
   pane(1.7, 0.55, 0, 1.0, -1.25, -Math.PI / 2 + 0.25);               // greenhouse
   pane(1.6, 0.55, 0, -0.5, -1.48, -Math.PI / 2 + 0.3);               // chin windows
-  // gauges
-  const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 256;
+  // ---- instruments: two-row panel. Top row = flight instruments (straight ahead), lower row = engine & systems
+  // (glance down). Drawn to one canvas texture at ~20 Hz.
+  box(1.5, 0.56, 0.05, panelM, 0.22, -0.04, -1.97, -0.35);         // taller panel face behind the gauges
+  const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 416;
   const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
-  const gauges = new THREE.Mesh(new THREE.PlaneGeometry(1.36, 0.34), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
-  gauges.position.set(0.22, 0.045, -1.94); gauges.rotation.x = -0.35; g.add(gauges);
+  const gauges = new THREE.Mesh(new THREE.PlaneGeometry(1.36, 0.5525), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
+  gauges.position.set(0.22, -0.0325, -1.94); gauges.rotation.x = -0.35; g.add(gauges);
+  // caution / warning annunciator strip along the glare shield, right in the pilot's eye line
+  const acv = document.createElement('canvas'); acv.width = 1024; acv.height = 80;
+  const atex = new THREE.CanvasTexture(acv); atex.colorSpace = THREE.SRGBColorSpace;
+  const ann = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.086), new THREE.MeshBasicMaterial({ map: atex, toneMapped: false }));
+  ann.position.set(0.22, 0.272, -2.0); ann.rotation.x = -0.15; g.add(ann);
+  const actx = acv.getContext('2d');
+  const ANN = ['ENG FIRE', 'ENG OUT', 'TAIL ROTOR', 'XMSN', 'HYD PRESS', 'FUEL LEAK', 'LOW FUEL', 'LOW RPM', 'ROTOR DMG', 'AVIONICS'];
+  const ANN_SHORT = { 'TAIL ROTOR': 'T/ROTOR', 'HYD PRESS': 'HYD', 'FUEL LEAK': 'LEAK', 'LOW FUEL': 'FUEL LO', 'LOW RPM': 'RPM LO', 'ROTOR DMG': 'ROTOR', 'AVIONICS': 'AVNCS' };
+
+  // ---- switch panel on the centre pedestal (look down-left). Each switch has an invisible hit box for clicking.
+  const pcv = document.createElement('canvas'); pcv.width = 256; pcv.height = 512;
+  const ptex = new THREE.CanvasTexture(pcv); ptex.colorSpace = THREE.SRGBColorSpace;
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.32, 0.64), new THREE.MeshBasicMaterial({ map: ptex, toneMapped: false }));
+  plate.rotation.x = -Math.PI / 2; plate.position.set(0, 0.072, -1.3); g.add(plate);
+  const SW = [
+    { id: 'engine', label: 'ENGINE' }, { id: 'hyd', label: 'HYD BOOST' }, { id: 'sas', label: 'SAS' },
+    { id: 'light', label: 'LDG LIGHT' }, { id: 'radio', label: 'LOGISTICS', button: true }, { id: 'fire', label: 'FIRE EXT', button: true, red: true },
+  ];
+  const hitM = new THREE.MeshBasicMaterial({ visible: false }), switches = [];
+  SW.forEach((s, i) => {
+    const z = -1.56 + i * 0.1, piv = new THREE.Group(); piv.position.set(0.07, 0.075, z); g.add(piv);
+    const m = s.button ? new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.018, 10), M(s.red ? 0xcc1a10 : 0x2a6acc)) : new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.008, 0.05, 6), M(0xd0d0c8));
+    m.position.y = s.button ? 0.009 : 0.025; piv.add(m);
+    const hit = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.06, 0.09), hitM); hit.position.set(0, 0.1, z); hit.userData.sw = s.id; g.add(hit);
+    switches.push({ ...s, piv, hit, on: false, flash: 0 });
+  });
+  function drawPlate(hover) {
+    const c = pcv.getContext('2d'); c.fillStyle = '#20231f'; c.fillRect(0, 0, 256, 512);
+    c.strokeStyle = '#555c50'; c.lineWidth = 3; c.strokeRect(4, 4, 248, 504);
+    c.font = 'bold 22px Consolas, monospace'; c.textAlign = 'left';
+    switches.forEach((s, i) => {
+      const y = 48 + i * 80;
+      if (s.id === hover) { c.fillStyle = 'rgba(255,220,80,.18)'; c.fillRect(8, y - 34, 240, 66); }
+      c.fillStyle = '#e8e4d0'; c.fillText(s.label, 14, y);
+      c.font = '16px Consolas, monospace'; c.fillStyle = s.button ? '#9a9' : (s.on ? '#7f7' : '#a99');
+      c.fillText(s.button ? 'PUSH' : (s.on ? 'ON' : 'OFF'), 14, y + 22); c.font = 'bold 22px Consolas, monospace';
+    });
+    ptex.needsUpdate = true;
+  }
+
   // cyclic between the pilot's knees, collective by the left hand
   const stickPivot = new THREE.Group(); stickPivot.position.set(0.42, -0.45, -1.15); g.add(stickPivot);
   const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.025, 0.55, 6), frameM); stick.position.y = 0.27; stickPivot.add(stick);
   const grip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.12, 0.06), M(0x111111)); grip.position.y = 0.56; stickPivot.add(grip);
   const collPivot = new THREE.Group(); collPivot.position.set(0.12, -0.4, -0.75); g.add(collPivot);
   const lever = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.6, 6).rotateX(Math.PI / 2), frameM); lever.position.z = -0.3; collPivot.add(lever);
-  const ctx = cv.getContext('2d'); let acc = 1;
-  function dial(cx, label, val, max, unit, ticks = 10) {
-    const cy = 128, r = 92;
+  const ctx = cv.getContext('2d'); let acc = 1, plateKey = '';
+  function dial(cx, cy, r, label, val, max, unit, { ticks = 10, red = null, needle2 = null } = {}) {
     ctx.fillStyle = '#0b0d0b'; ctx.beginPath(); ctx.arc(cx, cy, r + 8, 0, 6.283); ctx.fill();
+    const ang = v => -Math.PI * 1.25 + Math.min(1, Math.max(0, v / max)) * Math.PI * 1.5;
+    if (red !== null) { ctx.strokeStyle = '#c02818'; ctx.lineWidth = r * 0.1; ctx.beginPath(); ctx.arc(cx, cy, r * 0.9, ang(red), ang(max)); ctx.stroke(); }
     ctx.strokeStyle = '#d8d8c8'; ctx.lineWidth = 3;
     for (let i = 0; i <= ticks; i++) { const a = -Math.PI * 1.25 + i / ticks * Math.PI * 1.5; ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * r * 0.82, cy + Math.sin(a) * r * 0.82); ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); ctx.stroke(); }
-    const a = -Math.PI * 1.25 + Math.min(1, Math.max(0, val / max)) * Math.PI * 1.5;
-    ctx.strokeStyle = '#ffd040'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * r * 0.85, cy + Math.sin(a) * r * 0.85); ctx.stroke();
-    ctx.fillStyle = '#d8d8c8'; ctx.font = 'bold 22px Consolas, monospace'; ctx.textAlign = 'center';
-    ctx.fillText(label, cx, cy + 46); ctx.font = 'bold 26px Consolas, monospace'; ctx.fillText(unit, cx, cy - 34);
+    const needle = (v, col, w) => { const a = ang(v); ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * r * 0.85, cy + Math.sin(a) * r * 0.85); ctx.stroke(); };
+    if (needle2 !== null) needle(needle2, '#7fd0ff', Math.max(3, r * 0.04));
+    needle(val, '#ffd040', Math.max(3, r * 0.055));
+    ctx.fillStyle = '#d8d8c8'; ctx.textAlign = 'center';
+    ctx.font = `bold ${Math.round(r * 0.24)}px Consolas, monospace`; ctx.fillText(label, cx, cy + r * 0.5);
+    ctx.font = `bold ${Math.round(r * 0.28)}px Consolas, monospace`; ctx.fillText(unit, cx, cy - r * 0.37);
   }
-  function horizon(cx, pitch, roll) {
-    const cy = 128, r = 96;
+  function off(cx, cy, r) {   // failed instrument: OFF flag
+    ctx.fillStyle = '#0b0d0b'; ctx.beginPath(); ctx.arc(cx, cy, r + 8, 0, 6.283); ctx.fill();
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(-0.4); ctx.fillStyle = '#d02818'; ctx.fillRect(-r * 0.5, -r * 0.14, r, r * 0.28);
+    ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.round(r * 0.22)}px Consolas, monospace`; ctx.textAlign = 'center'; ctx.fillText('OFF', 0, r * 0.08); ctx.restore();
+  }
+  function horizon(cx, cy, r, pitch, roll) {
     ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.283); ctx.clip();
-    ctx.translate(cx, cy); ctx.rotate(-roll); const off = pitch * 180;
-    ctx.fillStyle = '#3a78c8'; ctx.fillRect(-200, -400 + off, 400, 400); ctx.fillStyle = '#7a5428'; ctx.fillRect(-200, off, 400, 400);
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; for (let p = -2; p <= 2; p++) if (p) { ctx.beginPath(); ctx.moveTo(-22, off - p * 30); ctx.lineTo(22, off - p * 30); ctx.stroke(); }
-    ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-200, off); ctx.lineTo(200, off); ctx.stroke();
+    ctx.translate(cx, cy); ctx.rotate(-roll); const offy = pitch * 180;
+    ctx.fillStyle = '#3a78c8'; ctx.fillRect(-200, -400 + offy, 400, 400); ctx.fillStyle = '#7a5428'; ctx.fillRect(-200, offy, 400, 400);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; for (let p = -2; p <= 2; p++) if (p) { ctx.beginPath(); ctx.moveTo(-22, offy - p * 30); ctx.lineTo(22, offy - p * 30); ctx.stroke(); }
+    ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-200, offy); ctx.lineTo(200, offy); ctx.stroke();
     ctx.restore();
     ctx.strokeStyle = '#ffd040'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(cx - 50, cy); ctx.lineTo(cx - 16, cy); ctx.lineTo(cx, cy + 12); ctx.lineTo(cx + 16, cy); ctx.lineTo(cx + 50, cy); ctx.stroke();
   }
   return {
     group: g,
-    update(H, ctl, dt, warn) {
-      // levers follow the pilot's hands every frame; the gauges repaint at ~20 Hz
+    hitBoxes: switches.map(s => s.hit),
+    // st: { fuel, cautions:[{t,warn}], engineOn, hydOn, sasOn, lightOn, egt, oil, hydPsi, n2, avionics, hover }
+    update(H, ctl, dt, st = {}) {
+      // levers follow the pilot's hands every frame; switch levers follow their state
       stickPivot.rotation.set((ctl.cy || 0) * 0.3, 0, -(ctl.cx || 0) * 0.3); collPivot.rotation.x = (H.coll || 0) * 0.45;
+      const on = { engine: st.engineOn, hyd: st.hydOn, sas: st.sasOn, light: st.lightOn };
+      for (const s of switches) { if (!s.button) { s.on = !!on[s.id]; s.piv.rotation.x = s.on ? -0.55 : 0.55; } else s.piv.position.y = 0.075 - (s.flash > 0 ? 0.008 : 0); s.flash -= dt; }
+      const key = switches.map(s => +s.on).join('') + (st.hover || '');
+      if (key !== plateKey) { plateKey = key; drawPlate(st.hover); }
       acc += dt; if (acc < 0.05) return; acc = 0;
-      ctx.fillStyle = '#1c1f1c'; ctx.fillRect(0, 0, 1024, 256);
+      const flaky = (st.avionics ?? 1) < 0.4, dead = i => flaky && ((performance.now() / 700 + i * 1.7) % 3) < 1.2;   // failing avionics drop gauges in and out
+      ctx.fillStyle = '#1c1f1c'; ctx.fillRect(0, 0, 1024, 416);
+      // top row: flight instruments
       const att = H.attitude(), ias = Math.hypot(H.vel.x, H.vel.z) * 1.944;
-      dial(110, 'IAS kt', ias, 120, Math.round(ias));
-      horizon(315, att.pitch, att.roll);
-      dial(520, 'ALT m', Math.max(0, H.agl) % 100, 100, Math.max(0, Math.round(H.agl)));
-      dial(720, 'VSI', H.vel.y + 10, 20, (H.vel.y >= 0 ? '+' : '') + H.vel.y.toFixed(1));
-      dial(915, 'RPM / TQ', H.rpm, 1.1, Math.round(H.coll * 100) + '%');
-      // compass strip + warnings across the top
-      const hdg = ((H.heading() * 180 / Math.PI) + 360) % 360;
+      dead(0) ? off(110, 128, 92) : dial(110, 128, 92, 'IAS kt', ias, 120, Math.round(ias));
+      dead(1) ? off(315, 128, 92) : horizon(315, 128, 96, att.pitch, att.roll);
+      dead(2) ? off(520, 128, 92) : dial(520, 128, 92, 'ALT m', Math.max(0, H.agl) % 100, 100, Math.max(0, Math.round(H.agl)));
+      dead(3) ? off(720, 128, 92) : dial(720, 128, 92, 'VSI', H.vel.y + 10, 20, (H.vel.y >= 0 ? '+' : '') + H.vel.y.toFixed(1));
+      // dual tachometer: yellow = rotor (NR), blue = engine (N2); split needles mean the engine isn't driving the rotor
+      dead(4) ? off(915, 128, 92) : dial(915, 128, 92, 'NR / N2 %', H.rpm, 1.1, Math.round(H.rpm * 100), { red: 1.04, needle2: st.n2 ?? H.rpm });
+      // lower row: engine and systems
+      const fuel = st.fuel ?? 0;
+      dial(110, 330, 66, 'FUEL %', fuel, 100, Math.round(fuel), { ticks: 8 });
+      dial(270, 330, 66, 'TORQUE %', H.coll * H.rpm * 100, 110, Math.round(H.coll * H.rpm * 100), { ticks: 11, red: 100 });
+      dial(430, 330, 66, 'EGT °C', st.egt ?? 0, 900, Math.round(st.egt ?? 0), { ticks: 9, red: 760 });
+      dial(590, 330, 66, 'XMSN psi', st.oil ?? 0, 80, Math.round(st.oil ?? 0), { ticks: 8 });
+      dial(750, 330, 66, 'HYD psi', st.hydPsi ?? 0, 1200, Math.round(st.hydPsi ?? 0), { ticks: 6 });
+      // compass + clock
+      const hdg = ((H.heading() * 180 / Math.PI) + 360) % 360, t = new Date();
       ctx.fillStyle = '#000'; ctx.fillRect(412, 2, 200, 26); ctx.fillStyle = '#d8d8c8'; ctx.font = 'bold 20px Consolas, monospace'; ctx.textAlign = 'center';
       ctx.fillText(String(Math.round(hdg)).padStart(3, '0') + '°', 512, 22);
-      if (warn) { ctx.fillStyle = (performance.now() % 500) < 250 ? '#ff3020' : '#601008'; ctx.fillRect(20, 4, 170, 24); ctx.fillStyle = '#fff'; ctx.fillText(warn, 105, 22); }
+      ctx.fillStyle = '#000'; ctx.fillRect(860, 300, 130, 60); ctx.fillStyle = '#7fd07f'; ctx.font = 'bold 26px Consolas, monospace';
+      ctx.fillText(`${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`, 925, 340);
       tex.needsUpdate = true;
+      // annunciator: amber cautions, flashing red warnings
+      const lit = new Map((st.cautions || []).map(c => [c.t.startsWith('XMSN') ? 'XMSN' : c.t === 'ENG OFF' ? 'ENG OUT' : c.t === 'T/R DMG' ? 'TAIL ROTOR' : c.t, c]));
+      const blink = (performance.now() % 500) < 250, w = 1024 / ANN.length;
+      actx.fillStyle = '#0a0b0a'; actx.fillRect(0, 0, 1024, 80);
+      ANN.forEach((n, i) => {
+        const c = lit.get(n), x = i * w + 3;
+        actx.fillStyle = !c ? '#1d1f1c' : c.warn ? (blink ? '#ff2a1a' : '#5a0c06') : '#e8a010'; actx.fillRect(x, 5, w - 6, 70);
+        actx.fillStyle = c ? '#111' : '#5a5d56'; actx.font = 'bold 24px Consolas, monospace'; actx.textAlign = 'center'; actx.fillText(ANN_SHORT[n] || n, x + (w - 6) / 2, 50);
+      });
+      atex.needsUpdate = true;
     },
+    press(id) { const s = switches.find(q => q.id === id); if (s) s.flash = 0.15; },
   };
 }
