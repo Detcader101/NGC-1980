@@ -28,6 +28,10 @@ export function createWar(ctx) {
   };
   const _v = new THREE.Vector3(), _w = new THREE.Vector3();
   const store = side => side === 1 ? W.P : W.E;
+  // war sounds fall off with distance from the camera, so a battle across the map is a distant rumble
+  const ear = ctx.ear;
+  const hear = (x, y, z, range = 650) => Math.max(0, 1 - Math.hypot(x - ear.x, y - ear.y, z - ear.z) / range);
+  function boomAt(x, y, z, big) { const k = hear(x, y, z); if (k > 0.02) sfx.boom(big * (0.12 + 0.88 * k * k)); }
   const feed = (t, kind = 'info') => ctx.feed(t, kind);
 
   // ------------------------------------------------------------------------------------- islands and buildings
@@ -98,7 +102,7 @@ export function createWar(ctx) {
     const big = { hq: 2.6, factory: 3, fuel: 3.4, radar: 2.2, shipyard: 3.6, aa: 1.4 }[s.kind];
     fx.explode(s.x, s.y + s.h, s.z, big, { fire: s.kind === 'aa' ? 25 : 90, debris: Math.round(big * 5), color: 0x5a5650, crater: 2.4 });
     if (s.kind === 'fuel') { fx.explode(s.x + 5, s.y + 3, s.z + 4, 2.4, { fire: 120 }); setTimeout(() => fx.explode(s.x - 5, s.y + 3, s.z + 4, 2.8, { fire: 140 }), 350); }
-    sfx.boom(Math.min(1.4, big * 0.4));
+    boomAt(s.x, s.y, s.z, Math.min(1.4, big * 0.4));
     s.mesh.visible = false; s.rubble = buildRubble(s.r * 0.9); s.rubble.position.set(s.x, s.y, s.z); islandGroup.add(s.rubble);
     if (s.chimneys) for (const c of s.chimneys) c.off = true;
     if (s.kind !== 'aa') s.rebuild = 60;
@@ -156,7 +160,7 @@ export function createWar(ctx) {
   function sailShip(u, dt) {
     if (u.sinking !== undefined) {   // going down: list, settle, burn
       u.sinking += dt; u.speed *= Math.exp(-0.4 * dt); u.p.y = -u.sinking * 0.9; u.mesh.rotation.z = Math.min(0.35, u.sinking * 0.03) * (u.side === 1 ? 1 : -1); u.mesh.rotation.x = Math.min(0.12, u.sinking * 0.01);
-      if (Math.random() < 0.08) { toWorld(u, rnd(-10, 10), u.dims.DECK, rnd(-40, 40)); fx.explode(_v.x, _v.y, _v.z, rnd(1.2, 2.4), { debris: 4, color: 0x4a4440 }); sfx.boom(0.5); }
+      if (Math.random() < 0.08) { toWorld(u, rnd(-10, 10), u.dims.DECK, rnd(-40, 40)); fx.explode(_v.x, _v.y, _v.z, rnd(1.2, 2.4), { debris: 4, color: 0x4a4440 }); boomAt(_v.x, _v.y, _v.z, 0.5); }
       if (u.sinking > 18) { scene.remove(u.mesh); u.gone = true; }
     }
     let tgtYaw = u.yaw, want = 0;
@@ -230,7 +234,7 @@ export function createWar(ctx) {
       fx.add.spawn(u.p.x, u.p.y, u.p.z, rnd(-1, 1), rnd(0, 2), rnd(-1, 1), rnd(0.25, 0.5), 1.4, 0.4, 1, rnd(.4, .6), .1, 0.9, -1, 1); fx.trail(u.p.x, u.p.y, u.p.z, 1.3);
       const gy = Math.max(terrainH(u.p.x, u.p.z), 0, W.deckY(u.p.x, u.p.z));
       if (u.p.y < gy + 0.5) {
-        const wet = isWater(u.p.x, u.p.z) && W.deckY(u.p.x, u.p.z) < 0; fx.explode(u.p.x, gy, u.p.z, u.type === 'transport' ? 2.6 : 2, { fire: wet ? 0 : 45, oil: wet, debris: 9, color: u.side === 1 ? 0x2a3f55 : 0x992222 }); sfx.boom(0.9);
+        const wet = isWater(u.p.x, u.p.z) && W.deckY(u.p.x, u.p.z) < 0; fx.explode(u.p.x, gy, u.p.z, u.type === 'transport' ? 2.6 : 2, { fire: wet ? 0 : 45, oil: wet, debris: 9, color: u.side === 1 ? 0x2a3f55 : 0x992222 }); boomAt(u.p.x, gy, u.p.z, 0.9);
         blast(u.p.x, gy + 1, u.p.z, 6, 3, 0); u.dead = true;
       }
       return;
@@ -290,7 +294,7 @@ export function createWar(ctx) {
         u.cd = Math.max(0.8, 2.2 - W.time / 400) + rnd(0.8);
         const tv = u.target === 'player' ? pl.vel : u.target.v || _w.set(0, 0, 0), t = d / 55;
         _v.set(tx + tv.x * t * 0.6 + rnd(-3, 3), ty + tv.y * t * 0.6 + rnd(-2, 2), tz + tv.z * t * 0.6 + rnd(-3, 3)).sub(u.p).normalize().multiplyScalar(55);
-        shoot('b', 2, u.p.x, u.p.y - 0.8, u.p.z, _v.x, _v.y, _v.z, 3); sfx.enemyShot();
+        shoot('b', 2, u.p.x, u.p.y - 0.8, u.p.z, _v.x, _v.y, _v.z, 3); if (hear(u.p.x, u.p.y, u.p.z, 260) > 0) sfx.enemyShot();
       }
     } else {   // guard: orbit the home point
       const hx = u.home[0] + Math.cos(u.ph * 0.15 + u.id) * 70, hz = u.home[1] + Math.sin(u.ph * 0.15 + u.id) * 70;
@@ -362,12 +366,12 @@ export function createWar(ctx) {
   }
   function damage(t, dmg, side) {
     if (t.ship) {   // a ship's gun mount
-      t.hp -= dmg; if (t.hp <= 0 && !t.dead) { t.dead = true; t.mesh.getWorldPosition(_w); fx.explode(_w.x, _w.y + 1, _w.z, 1.4, { debris: 5 }); t.mesh.visible = false; t.rebuild = 45; sfx.boom(0.5); if (t.ship.side === 2) { ctx.addScore(300); feed(`${t.ship.type === 'carrier' ? 'KRAKEN' : 'BATTLESHIP'} GUN DESTROYED`, 'good'); } }
+      t.hp -= dmg; if (t.hp <= 0 && !t.dead) { t.dead = true; t.mesh.getWorldPosition(_w); fx.explode(_w.x, _w.y + 1, _w.z, 1.4, { debris: 5 }); t.mesh.visible = false; t.rebuild = 45; boomAt(_w.x, _w.y, _w.z, 0.5); if (t.ship.side === 2) { ctx.addScore(300); feed(`${t.ship.type === 'carrier' ? 'KRAKEN' : 'BATTLESHIP'} GUN DESTROYED`, 'good'); } }
       t.ship.hp -= dmg * 0.25; checkShip(t.ship); return;
     }
     if (t.dims) { t.hp -= dmg; t.lastHit = W.time; checkShip(t); return; }
     if (t.p) {   // aircraft
-      t.hp -= dmg; if (t.hp <= 0 && !t.dying) { t.dying = true; t.v.y = 3; fx.explode(t.p.x, t.p.y, t.p.z, 0.9, { debris: 3, color: t.side === 1 ? 0x2a3f55 : 0x992222 }); sfx.boom(0.5); if (t.side === 2) ctx.addScore(t.type === 'transport' ? 400 : 150); if (t.type === 'transport') { feed('ENEMY TRANSPORT SHOT DOWN', 'good'); if (t.target) t.target.lostT = W.time; } if (t.type === 'drone') feed('CAPTURE DRONE LOST', 'bad'); }
+      t.hp -= dmg; if (t.hp <= 0 && !t.dying) { t.dying = true; t.v.y = 3; fx.explode(t.p.x, t.p.y, t.p.z, 0.9, { debris: 3, color: t.side === 1 ? 0x2a3f55 : 0x992222 }); boomAt(t.p.x, t.p.y, t.p.z, 0.5); if (t.side === 2) ctx.addScore(t.type === 'transport' ? 400 : 150); if (t.type === 'transport') { feed('ENEMY TRANSPORT SHOT DOWN', 'good'); if (t.target) t.target.lostT = W.time; } if (t.type === 'drone') feed('CAPTURE DRONE LOST', 'bad'); }
       return;
     }
     t.hp -= dmg; t.I.lastHit = W.time; if (t.hp <= 0) killStruct(t);
@@ -375,7 +379,7 @@ export function createWar(ctx) {
   function checkShip(u) {
     if (u.hp > 0 || u.sinking !== undefined) return;
     u.sinking = 0; u.path = [];
-    for (let i = 0; i < 6; i++) setTimeout(() => { toWorld(u, rnd(-10, 10), u.dims.DECK, rnd(-u.dims.L / 2, u.dims.L / 2)); fx.explode(_v.x, _v.y, _v.z, rnd(2.5, 4), { debris: 10, color: 0x4a4440, oil: true }); sfx.boom(1.2); }, i * 450);
+    for (let i = 0; i < 6; i++) setTimeout(() => { toWorld(u, rnd(-10, 10), u.dims.DECK, rnd(-u.dims.L / 2, u.dims.L / 2)); fx.explode(_v.x, _v.y, _v.z, rnd(2.5, 4), { debris: 10, color: 0x4a4440, oil: true }); boomAt(_v.x, _v.y, _v.z, 1.2); }, i * 450);
     for (let i = 0; i < 4; i++) { const e = fx.burn(0, 0, 0, 60, 2.5, u.p); e.ox = rnd(-8, 8); e.oy = u.dims.DECK; e.oz = rnd(-40, 40); }
     for (let i = 0; i < 6; i++) fx.water.add({ x: u.p.x + rnd(-30, 30), y: 0.12, z: u.p.z + rnd(-30, 30), size: rnd(14, 26), grow: 0.25, a: 0.85, life: 300, tile: 3, fadeIn: 3 });
     if (u.type === 'battleship') { W.battleship = null; ctx.addScore(5000); feed('ENEMY BATTLESHIP SUNK', 'good'); }
@@ -412,7 +416,7 @@ export function createWar(ctx) {
       let done = b.life <= 0, hit = null;
       if (b.kind === 'flak') {
         if (b.life <= 0) {   // burst
-          fx.flak(x, y, z); sfx.flak?.();
+          fx.flak(x, y, z); if (hear(x, y, z, 300) > 0) sfx.flak?.();
           for (const t of targets(b.side)) if (t.p && !t.dims && t.p.distanceTo(b.p) < 8) damage(t, 1.2, b.side);
           if (b.side === 2 && pl.alive && !pl.inCave && pl.pos.distanceTo(b.p) < 7) ctx.hurtPlayer(0.13, 'FLAK');
         }
@@ -428,9 +432,9 @@ export function createWar(ctx) {
           const ship = dy > gy + 0.5 && y < dy + 1 ? W.shipAt(x, z) : null;   // landed on a deck: a direct hit
           if (ship && ship.side !== b.side && ship.sinking === undefined) damage(ship, { rocket: 5, bomb: 24, shell: 18 }[b.kind] || 0, b.side);
           if (b.kind === 'b' || b.kind === 'ciws') { if (hit) { damage(hit, b.kind === 'ciws' ? 0.5 : 1, b.side); fx.impact(x, y, z, 'metal'); } else fx.impact(x, floor, z, wet ? 'water' : 'ground'); }
-          else if (b.kind === 'rocket') { fx.explode(x, Math.max(y, floor), z, 1.1, { debris: 2 }); sfx.boom(0.45); if (hit) damage(hit, 4, b.side); blast(x, y, z, 6, 4, b.side); }
-          else if (b.kind === 'bomb') { fx.explode(x, Math.max(y, floor), z, 2.8, { debris: 8, crater: 3.6, fire: wet ? 0 : 20 }); sfx.boom(1.3); blast(x, Math.max(y, floor), z, 12, 20, b.side); }
-          else if (b.kind === 'shell') { fx.explode(x, Math.max(y, floor), z, 2.4, { debris: 5, crater: 3 }); sfx.boom(1); blast(x, Math.max(y, floor), z, 10, 16, b.side); }
+          else if (b.kind === 'rocket') { fx.explode(x, Math.max(y, floor), z, 1.1, { debris: 2 }); boomAt(x, y, z, 0.45); if (hit) damage(hit, 4, b.side); blast(x, y, z, 6, 4, b.side); }
+          else if (b.kind === 'bomb') { fx.explode(x, Math.max(y, floor), z, 2.8, { debris: 8, crater: 3.6, fire: wet ? 0 : 20 }); boomAt(x, y, z, 1.3); blast(x, Math.max(y, floor), z, 12, 20, b.side); }
+          else if (b.kind === 'shell') { fx.explode(x, Math.max(y, floor), z, 2.4, { debris: 5, crater: 3 }); boomAt(x, y, z, 1); blast(x, Math.max(y, floor), z, 10, 16, b.side); }
         }
       }
       if (done) { if (b.mesh) scene.remove(b.mesh); W.proj[i] = W.proj[W.proj.length - 1]; W.proj.pop(); }
@@ -631,7 +635,7 @@ export function createWar(ctx) {
         t.cd = 6 + rnd(3);
         const dx = tgt.x - _v.x + rnd(-14, 14), dz = tgt.z - _v.z + rnd(-14, 14), d = Math.hypot(dx, dz), T = 2 + d / 70;   // flight time: a high arc that clears the hills between
         shoot('shell', 2, _v.x, _v.y, _v.z, dx / T, (tgt.y + 6 - _v.y) / T + 0.5 * 9 * T, dz / T, T + 2);
-        fx.flash(_v.x + fwdX(b.yaw + t.mesh.rotation.y) * 8, _v.y + 1, _v.z + fwdZ(b.yaw + t.mesh.rotation.y) * 8, 2.5); fx.mix.spawn(_v.x, _v.y + 2, _v.z, 0, 3, 0, 3, 3, 9, .5, .5, .5, 0.5, -0.3, 1); sfx.boom(0.6);
+        fx.flash(_v.x + fwdX(b.yaw + t.mesh.rotation.y) * 8, _v.y + 1, _v.z + fwdZ(b.yaw + t.mesh.rotation.y) * 8, 2.5); fx.mix.spawn(_v.x, _v.y + 2, _v.z, 0, 3, 0, 3, 3, 9, .5, .5, .5, 0.5, -0.3, 1); boomAt(_v.x, _v.y, _v.z, 0.6);
       }
     }
   }

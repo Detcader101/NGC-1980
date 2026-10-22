@@ -427,7 +427,7 @@ function showEnd(title, why) {
   $('result').textContent = `${why}  -  SCORE ${G.score}`; if (document.pointerLockElement) document.exitPointerLock();
 }
 war = createWar({
-  scene: zScene, fx, sfx, terrainH, isWater, nav, ISLANDS, BASES, G: PSTORE, feed, addScore,
+  scene: zScene, fx, sfx, terrainH, isWater, nav, ISLANDS, BASES, G: PSTORE, feed, addScore, ear: zCam.position,
   carrierStart: seaSpot(-300, 280), enemyStart: seaSpot(300, -280),
   player: () => PL, hurtPlayer: (a, why) => hurtHeli(a, why), onOwner: islandOwnerChanged, onEnd: warOver,
 });
