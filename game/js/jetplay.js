@@ -277,12 +277,39 @@ export function createJetPlay(ctx) {
     if (P.blood >= 1 && P.gloc <= 0) { P.gloc = 4; say('', 0); }
     if (P.gloc > 0) { P.gloc -= dt; if (P.gloc <= 0) { P.blood = 0.6; say('YOU BLACKED OUT  -  EASE THE PULL', 2); } }
   }
+  // Look-ahead terrain check: after `delay` s of reaction the pilot rolls wings level and pulls (4 g, or what the wing
+  // can give at this speed; 3 g with the gear down) up to a 45° climb, trading speed for height. Fails if that path
+  // comes within the clearance of the ground (terrain, sea or deck). The clearance shrinks when you're already low, so
+  // level flight low over flat ground stays quiet; with the gear down only ground rising above you counts (not the
+  // runway or deck you're landing on). `rising`: only ground higher than what's under you now (the early TERRAIN call is
+  // about hills ahead; sinking towards flat ground is the sink-rate and ALTITUDE calls' job).
+  function escapeFails(delay, agl0, rising = false) {
+    const v = J.vel, vh = Math.hypot(v.x, v.z), V0 = Math.max(Math.hypot(vh, v.y), 1), hx = vh > 0.1 ? v.x / vh : 0, hz = vh > 0.1 ? v.z / vh : 0;
+    const nAv = clamp(J.qbar * 37.16 * 1.3 / (J.mass * 9.81), 1.2, J.gear > 0.5 ? 3 : 4), clr = clamp(agl0 * 0.5, 0, 12), wallOnly = J.gear > 0.5;
+    const yOff = 1.9, y0 = J.pos.y, g0 = ctx.groundY(J.pos.x, J.pos.z); let x = J.pos.x, y = y0, z = J.pos.z, gam = Math.atan2(v.y, vh), V = V0;
+    const dt = 0.2, T = delay + 9;
+    for (let t = dt; t <= T; t += dt) {
+      if (t > delay) gam = Math.min(gam + (nAv - Math.cos(gam)) * 9.81 / V * dt, Math.PI / 4);
+      const c = Math.cos(gam); x += hx * V * c * dt; z += hz * V * c * dt; y += V * Math.sin(gam) * dt;
+      V = Math.sqrt(Math.max(V0 * V0 - 2 * 9.81 * (y - y0), 900));
+      const gy = ctx.groundY(x, z);
+      if (y - yOff - gy < clr && (!wallOnly || gy > y0 - yOff - 2) && (!rising || gy > g0 + 8)) return true;
+      if (y - gy > 2500) return false;   // clear of anything this world has
+    }
+    return false;
+  }
   function warnings(dt) {
     const agl = J.pos.y - ctx.groundY(J.pos.x, J.pos.z) - 1.9, lb = J.fuel * LB, m = D.mods();
     P.warn = null;
     // ground collision: time to impact at the current descent, gear up or fast
     const tti = J.vel.y < -1 ? agl / -J.vel.y : 99;
-    if (!J.onGround && (tti < 3.5 || (agl < 60 && J.vel.y < -6)) && !(J.gear > 0.9 && J.vel.y > -6)) { P.warn = 'PULL UP'; sfx.betty('Pull up, pull up', 2.5); }
+    const sink = (tti < 3.5 || (agl < 60 && J.vel.y < -6)) && !(J.gear > 0.9 && J.vel.y > -6);
+    // terrain ahead (hills, mountain walls): fly the escape the pilot would fly and see if it clears
+    P.gcasT = (P.gcasT || 0) - dt;
+    if (P.gcasT <= 0 && !J.onGround) { P.gcasT = 0.1; P.gcas = escapeFails(1, agl) ? 2 : escapeFails(3, agl, true) ? 1 : 0; }
+    if (J.onGround) P.gcas = 0;
+    if (!J.onGround && (sink || P.gcas === 2)) { P.warn = 'PULL UP'; sfx.betty('Pull up, pull up', 2.5); }
+    else if (!J.onGround && P.gcas === 1) { P.warn = 'TERRAIN'; sfx.betty('Terrain, terrain', 4); }
     else if (!J.onGround && agl < 60 && J.gear < 0.5 && J.vel.y < -1.5) sfx.betty('Altitude, altitude', 4);
     if (lb < BINGO_LB && !J.onGround) sfx.betty('Bingo, bingo', 30);
     if (D.fire[0]) sfx.betty('Engine fire left, engine fire left', 6); if (D.fire[1]) sfx.betty('Engine fire right, engine fire right', 6);

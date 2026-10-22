@@ -136,3 +136,15 @@ jetplay.js (input, weapons, carrier ops, HUD data, cautions, g tolerance, ejecti
 - war.js projectiles now integrate gravity exactly (p += v dt + ½ g dt²) so bombs fall the same at any frame rate; the
   CCIP predictor does the same: pipper vs impact 0.2 m (was ~5 m from frame-rate integration error).
 - All scenes pass except damage.json's scripted lift-off, which is flaky on experimental as well (1 of 2 runs there).
+
+## 2026-10-22 — HORNET terrain warnings work with the real-world terrain
+- The old PULL UP looked only straight down (height over sink rate), so flying level into a mountainside was silent.
+  Now a look-ahead check (10 Hz) flies the escape the pilot would fly: a reaction delay, then a wings-level pull (4 g,
+  or what the wing gives at this speed; 3 g gear down) up to a 45° climb, trading speed for height, over the real
+  terrain/sea/deck heights. Fails with 1 s reaction: PULL UP (break-X, "Pull up, pull up"). Fails with 3 s reaction
+  against ground rising ahead: TERRAIN (HUD text, "Terrain, terrain"). Clearance shrinks when already low so level
+  flight low over flat ground stays quiet; gear down counts only ground above you (not the deck you're landing on).
+  The sink-rate PULL UP and ALTITUDE calls are unchanged.
+- tools/scenes/jetterrain.mjs: hands off at a 980 m peak 250 m below its top: TERRAIN 7.4 s and PULL UP 4.7 s before
+  impact; pulling on the PULL UP clears it; 11 s level at ~25 m over open sea: no warnings. jettrap/jet/infinite pass;
+  jetsystems passes (its G-LOC timing is flaky at headless ~10 fps).

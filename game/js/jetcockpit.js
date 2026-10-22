@@ -441,7 +441,8 @@ export function buildJetCockpit() {
       if (S.tgt.shoot && (performance.now() % 600) < 400) T('SHOOT', W / 2, H - 52, 'center', 22);
     }
     // warnings
-    if (S.warn && (performance.now() % 500) < 330) { c.lineWidth = 3; line(W / 2 - 60, H / 2 - 50, W / 2 + 60, H / 2 + 50); line(W / 2 + 60, H / 2 - 50, W / 2 - 60, H / 2 + 50); T(S.warn, W / 2, H / 2 + 80, 'center', 22); }
+    if (S.warn === 'TERRAIN') { if ((performance.now() % 700) < 450) T('TERRAIN', W / 2, H / 2 + 80, 'center', 20); }
+    else if (S.warn && (performance.now() % 500) < 330) { c.lineWidth = 3; line(W / 2 - 60, H / 2 - 50, W / 2 + 60, H / 2 + 50); line(W / 2 + 60, H / 2 - 50, W / 2 - 60, H / 2 + 50); T(S.warn, W / 2, H / 2 + 80, 'center', 22); }
     if (J.fuel * LB < S.bingo) T('BINGO', W / 2, H - 82, 'center', 18);
     if (J.limiter) T('AOA', W / 2 - 110, H / 2 - 62, 'center', 15);
     if (J.cat) T(J.cat.state === 'hold' ? 'CAT  -  MIL POWER TO LAUNCH' : 'CAT', W / 2, H - 112, 'center', 15);
