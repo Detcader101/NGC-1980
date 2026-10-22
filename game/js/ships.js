@@ -82,6 +82,22 @@ export function buildBattleship() {
   return { group: g, turrets, guns };
 }
 
+// ------------------------------------------------------------------------------------------- freighter
+// enemy supply ship: carries its islands' output to the KRAKEN
+export const FREIGHTER = { L: 46, W: 10, DECK: 3 };
+export function buildFreighter() {
+  const g = new THREE.Group(), { L, W, DECK } = FREIGHTER, hullM = M(0x3b3f44), dark = M(0x1e2124);
+  const sh = new THREE.Shape(); sh.moveTo(-W / 2, L / 2); sh.lineTo(W / 2, L / 2); sh.lineTo(W / 2, -L / 2 + 9); sh.lineTo(0, -L / 2 - 3); sh.lineTo(-W / 2, -L / 2 + 9); sh.closePath();
+  const hg = new THREE.ExtrudeGeometry(sh, { depth: DECK + 2.5, bevelEnabled: false }); hg.rotateX(Math.PI / 2); hg.translate(0, DECK, 0); g.add(new THREE.Mesh(hg, hullM));
+  box(W * 0.95, 0.6, L * 0.9, M(0x7a1e1a), 0, -0.2, 1, g);
+  const cols = [0xb8462e, 0x2e6fb8, 0xc8a030, 0x3c8a4a, 0x8a3c7a];
+  for (let i = 0; i < 6; i++) for (let k = 0; k < 2; k++) for (let h = 0; h < 1 + ((i + k) % 2); h++) box(3.9, 2.3, 5.6, M(cols[(i * 3 + k + h) % cols.length]), (k - 0.5) * 4.1, DECK + 1.15 + h * 2.35, -L / 2 + 10 + i * 5.9, g);
+  box(W * 0.85, 6, 6, M(0xd8d8d0), 0, DECK + 3, L / 2 - 6, g); box(W * 0.9, 1.2, 6.4, dark, 0, DECK + 5.2, L / 2 - 6, g);
+  cyl(0.9, 1.1, 4, dark, 0, DECK + 7, L / 2 - 3, g, 8);
+  const guns = []; { const m = buildGun(2, 0.55); m.position.set(0, DECK, -L / 2 + 4); g.add(m); guns.push(m); }
+  return { group: g, guns };
+}
+
 // ------------------------------------------------------------------------------------------- aircraft
 export function buildDrone() {   // player capture drone ("MANTA"): a flat quad-rotor carrying a command module
   const g = new THREE.Group(), body = M(0x2a3f55), team = M(TEAM[1], { emissive: 0x0b3355 });

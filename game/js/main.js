@@ -902,6 +902,7 @@ function updateFogImg() {
   for (let k = 0; k < fog.N * fog.N; k++) { const e = fog.enabled ? fog.exp[k] : 1, v = fog.enabled ? fog.vis[k] : 1; d[k * 4] = 4; d[k * 4 + 1] = 8; d[k * 4 + 2] = 16; d[k * 4 + 3] = (1 - e) * 240 + e * (1 - v) * 110; }
   fogCtx.putImageData(fogData, 0, 0);
 }
+const shipName = u => ({ battleship: 'BATTLESHIP', freighter: 'FREIGHTER' }[u.type] || (u.side === 1 ? 'ALBATROSS' : 'KRAKEN'));
 const KIND_TAG = { hq: 'HQ', fortress: 'C', fuel: 'F', factory: 'M', radar: 'R' };
 const OWN_COL = ['#e8e4d0', '#4cf', '#f54'];
 let mapView = null;
@@ -947,7 +948,7 @@ function drawMap() {
     if (u.dims) {
       radar.save(); radar.translate(X, Y); radar.rotate(-u.yaw); radar.fillStyle = u.sinking !== undefined ? '#555' : col;
       const l = Math.max(big ? 12 : 7, u.dims.L * half), w = Math.max(big ? 4 : 3, u.dims.W * half); radar.fillRect(-w / 2, -l / 2, w, l); radar.restore();
-      if (big) { radar.fillStyle = col; radar.font = 'bold 12px monospace'; radar.fillText(u.type === 'battleship' ? 'BATTLESHIP' : u.side === 1 ? 'ALBATROSS' : 'KRAKEN', X + 12, Y - 8); }
+      if (big) { radar.fillStyle = col; radar.font = 'bold 12px monospace'; radar.fillText(shipName(u), X + 12, Y - 8); }
     } else { radar.fillStyle = col; const sz = big ? (u.type === 'transport' ? 7 : 5) : 3; radar.fillRect(X - sz / 2, Y - sz / 2, sz, sz); }
   }
   // you: an arrow along the nose
@@ -1027,7 +1028,7 @@ function updateTags() {
     for (const u of war.units) {
       if (!u.dims || u.sinking !== undefined || (u.side === 2 && !fog.visibleAt(u.p.x, u.p.z))) continue;
       const d = Math.hypot(u.p.x - cx, u.p.z - cz); if (d > 520 || d < 60) continue;
-      put(u.p.x, u.dims.DECK + 30, u.p.z, `<b style="color:${OWN_COL[u.side]}">${u.type === 'battleship' ? 'BATTLESHIP' : u.side === 1 ? 'ALBATROSS' : 'KRAKEN'}</b>  <span style="color:#9ab">${Math.round(100 * u.hp / u.hpMax)}%  ${Math.round(d)}m</span>`, d);
+      put(u.p.x, u.dims.DECK + 30, u.p.z, `<b style="color:${OWN_COL[u.side]}">${shipName(u)}</b>  <span style="color:#9ab">${Math.round(100 * u.hp / u.hpMax)}%  ${Math.round(d)}m</span>`, d);
     }
   }
   for (let i = n; i < tagPool.length; i++) tagPool[i].style.display = 'none';
@@ -1126,7 +1127,7 @@ function updateCamsAndMeshes(dt, time) {
   for (const b of BASES) if (b.group) b.group.visible = b === T.base && inCave || Math.hypot(zCam.position.x - b.x, zCam.position.z - b.z) < 140;
   baseGroup.userData.ring.material.color.setHSL((time * 0.5) % 1, 1, 0.6);
   if (G.state === 'title') {
-    const a = time * 0.15; camA.position.set(HOME_B.x + Math.cos(a) * 40, PAD_H + 14, HOME_B.z + Math.sin(a) * 40); camA.lookAt(HOME_B.x, PAD_H + 3, HOME_B.z);
+    const a = time * 0.07, c = war.carrier.p; camA.position.set(c.x + Math.cos(a) * 95, 30, c.z + Math.sin(a) * 95); camA.lookAt(c.x, 8, c.z);   // the ALBATROSS on station
   } else if (cockpitCam && !inCave && Z.alive) {
     // pilot's eye, rigidly in the airframe (rotor vibration adds a hint of shake at high collective)
     camA.position.copy(EYE).applyQuaternion(H.q).add(H.pos); camA.quaternion.copy(H.q).multiply(_q2.setFromAxisAngle(_yAx, head.yaw)).multiply(_q2.setFromAxisAngle(_xAx, -0.22 + head.pitch));   // eyes down enough to take in both instrument rows, plus free look

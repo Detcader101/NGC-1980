@@ -8,7 +8,7 @@
 // shipyard to hold it back; once it launches it hunts your carrier. Lose the carrier and the war is lost; sink the
 // enemy carrier or take its HQ island (IRONHOLD) to win.
 import * as THREE from 'three';
-import { buildCarrier, buildBattleship, buildDrone, buildTransport, buildGunship, buildGun, buildStructure, buildRubble, CARRIER, BSHIP, TEAM } from './ships.js';
+import { buildCarrier, buildBattleship, buildFreighter, buildDrone, buildTransport, buildGunship, buildGun, buildStructure, buildRubble, CARRIER, BSHIP, FREIGHTER, TEAM } from './ships.js';
 
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -114,9 +114,9 @@ export function createWar(ctx) {
 
   // ------------------------------------------------------------------------------------- ships
   function makeShip(type, side, x, z, yaw) {
-    const m = type === 'carrier' ? buildCarrier(side) : buildBattleship();
-    const dims = type === 'carrier' ? CARRIER : BSHIP;
-    const u = { type, side, p: new THREE.Vector3(x, 0, z), v: new THREE.Vector3(), yaw, w: 0, speed: 0, max: type === 'carrier' ? 6 : 7.5, hp: type === 'carrier' ? 600 : 360, mesh: m.group, parts: m, dims, path: [], guns: [], wakeT: 0, launchT: 0 };
+    const m = type === 'carrier' ? buildCarrier(side) : type === 'freighter' ? buildFreighter() : buildBattleship();
+    const dims = type === 'carrier' ? CARRIER : type === 'freighter' ? FREIGHTER : BSHIP;
+    const u = { type, side, p: new THREE.Vector3(x, 0, z), v: new THREE.Vector3(), yaw, w: 0, speed: 0, max: { carrier: 6, freighter: 5, battleship: 7.5 }[type], hp: { carrier: 600, freighter: 70, battleship: 360 }[type], mesh: m.group, parts: m, dims, path: [], guns: [], wakeT: 0, launchT: 0 };
     u.hpMax = u.hp;
     u.guns = m.guns.map(g => ({ mesh: g, hp: 9, max: 9, dead: false, cd: rnd(1, 3), range: type === 'carrier' ? 150 : 130, ship: u }));
     if (m.turrets) u.turrets = m.turrets.map(t => ({ mesh: t, cd: rnd(2, 5) }));
@@ -136,6 +136,9 @@ export function createWar(ctx) {
         let hw = D.W / 2 * 0.97; if (lz < -D.L / 2 + 16) hw *= Math.max(0, (lz + D.L / 2 + 6) / 22);
         if (Math.abs(lx) < hw && lz > -D.L / 2 - 6 && lz < D.L / 2) best = Math.max(best, D.DECK + sink);
         if (Math.abs(lx - D.TOWER_X) < 2.9 && Math.abs(lz - D.TOWER_Z) < 9) best = Math.max(best, D.DECK + D.TOWER_H + sink);
+      } else if (u.type === 'freighter') {
+        if (Math.abs(lx) < D.W / 2 && Math.abs(lz) < D.L / 2 - 3) best = Math.max(best, D.DECK + 4.6 + sink);   // on the containers
+        if (Math.abs(lx) < 4.3 && Math.abs(lz - (D.L / 2 - 6)) < 3.2) best = Math.max(best, D.DECK + 6 + sink);
       } else {
         if (Math.abs(lx) < D.W / 2 && Math.abs(lz) < D.L / 2 - 6) best = Math.max(best, D.DECK + sink);
         if (Math.abs(lx) < 4.5 && Math.abs(lz - 4) < 10) best = Math.max(best, D.DECK + 14 + sink);
@@ -376,6 +379,7 @@ export function createWar(ctx) {
     for (let i = 0; i < 4; i++) { const e = fx.burn(0, 0, 0, 60, 2.5, u.p); e.ox = rnd(-8, 8); e.oy = u.dims.DECK; e.oz = rnd(-40, 40); }
     for (let i = 0; i < 6; i++) fx.water.add({ x: u.p.x + rnd(-30, 30), y: 0.12, z: u.p.z + rnd(-30, 30), size: rnd(14, 26), grow: 0.25, a: 0.85, life: 300, tile: 3, fadeIn: 3 });
     if (u.type === 'battleship') { W.battleship = null; ctx.addScore(5000); feed('ENEMY BATTLESHIP SUNK', 'good'); }
+    else if (u.type === 'freighter') { const salvage = Math.round(u.cargo * 0.5); W.P.mat += salvage; ctx.addScore(800); feed(`ENEMY FREIGHTER SUNK  -  ${salvage} MATERIEL SALVAGED`, 'good'); }
     else if (u.side === 2) { ctx.addScore(10000); feed('THE KRAKEN IS SINKING', 'good'); end('win', 'ENEMY CARRIER SUNK'); }
     else { feed('ALBATROSS IS SINKING', 'bad'); end('lose', 'OUR CARRIER WAS SUNK'); }
   }
@@ -498,7 +502,10 @@ export function createWar(ctx) {
       if (!I.owner) continue;
       const S = store(I.owner), pk = PROD_KIND[I.kind], prodOk = !pk || I.structs.some(s => s.kind === pk && !s.dead), hqOk = I.structs.some(s => s.kind === 'hq' && !s.dead);
       const P = PROD[I.kind];
-      if (prodOk && hqOk) { if (P.fuel) S.fuel = Math.min(S.fuelMax ?? 1e9, S.fuel + P.fuel * k); if (P.mat) S.mat += P.mat * k; }
+      if (prodOk && hqOk) {
+        if (I.owner === 2 && I.kind !== 'hq') I.stock = (I.stock || 0) + ((P.mat || 0) + (P.fuel || 0) * 0.5) * k;   // enemy outposts ship their output by freighter
+        else { if (P.fuel) S.fuel = Math.min(S.fuelMax ?? 1e9, S.fuel + P.fuel * k); if (P.mat) S.mat += P.mat * k; }
+      }
       if (I.owner === 2 && I.kind === 'factory' && prodOk) W.E.bship += 0.08 * k;
       // rebuild flattened buildings when the owner can pay for it and nobody has hit the island for a while
       for (const s of I.structs) if (s.dead && s.kind !== 'aa' && s.side === I.owner) {
@@ -558,7 +565,17 @@ export function createWar(ctx) {
     }
     // 5. a couple of guards over the carrier
     if (ec && guns.filter(g => !g.target && Math.hypot(g.home[0] - ec.p.x, g.home[1] - ec.p.z) < 200).length < 2 && E.mat >= 12 && guns.length < cap) { E.mat -= 12; W.spawnGunship(2); }
-    // 6. the battleship
+    // 6. supply: a freighter takes an island's stockpile to the KRAKEN (or IRONHOLD)
+    W.freightT -= 2;
+    if (W.freightT <= 0) {
+      W.freightT = 16;
+      const I = mine.filter(I => (I.stock || 0) >= 18 && !W.units.some(u => u.type === 'freighter' && u.from === I)).sort((a, b) => b.stock - a.stock)[0];
+      if (I) {
+        const [x, z] = nav.nearestWater(I.x, I.z), f = makeShip('freighter', 2, x, z, rnd(6.283));
+        f.cargo = I.stock; f.from = I; I.stock = 0; f.repath = 0;
+      }
+    }
+    // 7. the battleship
     if (E.bship >= 100 && !W.battleship) {
       E.bship = 0; const I = W.islands.find(I => I.name === 'IRONHOLD'), y = I.yard || I;
       const [wx, wz] = nav.nearestWater(y.x + (0 - y.x) * 0.2, y.z + (0 - y.z) * 0.2);
@@ -586,6 +603,18 @@ export function createWar(ctx) {
     let best = launchPoint(2), bd = Math.hypot(best[0] - x, best[2] - z);
     for (const I of W.islands) if (I.owner === 2 && I.structs.some(s => s.kind === 'hq' && !s.dead)) { const d = Math.hypot(I.pad.x - x, I.pad.z - z); if (d < bd) { bd = d; best = [I.pad.x, I.pad.h + 4, I.pad.z]; } }
     return best;
+  }
+  function freightDest() {
+    const ec = W.enemyCarrier; if (ec && ec.sinking === undefined) return [ec.p.x, ec.p.z];
+    const I = W.islands.find(I => I.name === 'IRONHOLD'); return nav.nearestWater(I.x - 150, I.z + 150);
+  }
+  function updateFreighters(dt) {
+    for (const u of W.units) {
+      if (u.type !== 'freighter' || u.sinking !== undefined || u.gone) continue;
+      const [dx, dz] = freightDest(), d = Math.hypot(dx - u.p.x, dz - u.p.z);
+      if (d < 75) { W.E.mat += u.cargo; scene.remove(u.mesh); u.gone = true; continue; }   // delivered
+      u.repath -= dt; if (u.repath <= 0 || !u.path.length) { u.repath = 12; u.path = nav.path(u.p.x, u.p.z, dx, dz); }
+    }
   }
   function updateBattleship(dt) {
     const b = W.battleship; if (!b || b.sinking !== undefined || !b.turrets) return;
@@ -618,9 +647,9 @@ export function createWar(ctx) {
     for (const u of W.units) scene.remove(u.mesh); W.units.length = 0;
     for (const p of W.proj) if (p.mesh) scene.remove(p.mesh); W.proj.length = 0;
     islandGroup.clear(); fx.emitters.length = 0;
-    for (const I of W.islands) { I.owner = I.owner0 ?? I.owner; I.lostT = -1e9; }
+    for (const I of W.islands) { I.owner = I.owner0 ?? I.owner; I.lostT = -1e9; I.stock = 0; }
     buildIslands();
-    W.E.fuel = 200; W.E.mat = 50; W.E.bship = 0; W.time = 0; W.over = null; W.raidT = 150; W.thinkT = 3; W.transT = 20; W.battleship = null;
+    W.E.fuel = 200; W.E.mat = 50; W.E.bship = 0; W.time = 0; W.over = null; W.raidT = 150; W.thinkT = 3; W.transT = 20; W.freightT = 30; W.battleship = null;
     W.carrier = makeShip('carrier', 1, ctx.carrierStart[0], ctx.carrierStart[1], ctx.carrierStart[2]);
     W.enemyCarrier = makeShip('carrier', 2, ctx.enemyStart[0], ctx.enemyStart[1], ctx.enemyStart[2]);
     for (const I of W.islands) ctx.onOwner(I, I.owner);
@@ -640,7 +669,7 @@ export function createWar(ctx) {
     updateGuns(dt, pl, peace);
     updateCapture(dt, pl);
     updateEconomy(dt);
-    updateBattleship(dt);
+    updateBattleship(dt); updateFreighters(dt);
     if (!peace) { W.thinkT -= dt; if (W.thinkT <= 0) { W.thinkT = 2; think(pl); } }
     // buildings animate
     for (const I of W.islands) for (const s of I.structs) {
@@ -652,7 +681,7 @@ export function createWar(ctx) {
     }
   };
   W.setVisibility = fog => {   // enemy aircraft and ships only where we can see; buildings once explored
-    for (const u of W.units) if (u.side === 2) u.mesh.visible = fog.visibleAt(u.p.x, u.p.z);
+    for (const u of W.units) if (u.side === 2) { u.mesh.visible = fog.visibleAt(u.p.x, u.p.z); if (u.mesh.visible && u.type === 'freighter' && !u.spotted) { u.spotted = true; feed('RADAR: ENEMY FREIGHTER SPOTTED  -  SINK IT TO CUT THEIR SUPPLY'); } }
     for (const I of W.islands) { const ex = fog.exploredAt(I.x, I.z) || fog.exploredAt(I.pad.x, I.pad.z); for (const s of I.structs) { s.mesh.visible = !s.dead && ex; if (s.rubble) s.rubble.visible = ex; } if (fog.visibleAt(I.pad.x, I.pad.z)) I.seen = I.owner; }
   };
   W.damage = damage; W.hitTest = hitTest; W.pickExpansion = pickExpansion;
