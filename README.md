@@ -13,6 +13,7 @@ The enemy carrier KRAKEN is out there doing the same, and whoever controls the m
 - **Economy.** Islands produce fuel and materiel. Spend materiel on capture drones, AA guns, spare helicopters and escort fighters.
 - **An enemy commander.** It sends transports to take islands, fortifies, raids your carrier, ships supplies by freighter, and builds a battleship in its factories that hunts the ALBATROSS. Bomb the factories to slow it down.
 - **Para-drop repair team.** Downed on land? Press L and home base sends a steel dropship from over the horizon. You fly it in from the flight deck with a real fixed-wing flight model (or let the autopilot), line up the jump run against the wind, jump on the green light, then steer the canopies down; whoever lands on dry ground runs over with fuel and fixes the helicopter. Enemy flak can bring the dropship down.
+- **SKY CARRIER.** Spend 300 materiel (5 on the map) and the ALBATROSS is refitted with four ducted lift fans and takes to the air. Land on her and press Tab to stand on the bridge: wheel, speed telegraph and lift lever, all slow and heavy. Send her anywhere from the map and she flies over the islands; flak can bring her down.
 - **Helicopter sim.** Collective, cyclic and pedals, flight-stick support with calibration, a working Huey cockpit, and a damage model where hits cause failures you can survive and repair.
 - **Effects that build up.** Smoke columns, fires, scorch marks, debris and oil slicks stay on the map.
 
@@ -38,7 +39,8 @@ Any static server works (for example `npx serve game`). On Windows, `game/start.
 | F / G / B | gun / rockets / bombs |
 | R | winch (pick up the pod in a cave) |
 | M | command map: click the sea to sail the carrier, click an island to select it |
-| 1-4 | send drone, build AA gun, spare helicopter, escort fighter |
+| 1-5 | send drone, build AA gun, spare helicopter, escort fighter, SKY CARRIER refit |
+| Tab | take / leave the SKY CARRIER helm (landed on her deck) |
 | V / C | cockpit view / chase camera |
 | H | stability assist on/off |
 | L | call logistics: para-drop repair team (on land) |

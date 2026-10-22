@@ -169,6 +169,8 @@ export function createDrop(ctx) {
       fx.splash?.(j.p.x, j.p.z, 0.6); feed('JUMPER IN THE WATER  -  THE ALBATROSS WILL FISH HIM OUT', 'bad');
       return;
     }
+    if (war.shipAt(j.p.x, j.p.z)) { j.state = 'aboard'; M.lost++; j.m.group.visible = false; feed('JUMPER CAME DOWN ON A SHIP  -  OUT OF THIS ONE', 'bad'); return; }
+    if (Math.hypot(j.p.x - M.target.x, j.p.z - M.target.z) > 300) { j.state = 'stranded'; M.lost++; feed('JUMPER DOWN TOO FAR AWAY TO WALK  -  WAITING FOR PICK-UP', 'bad'); return; }
     j.state = 'run'; j.t = 0; j.slow = fast;
     if (fast) say('HARD LANDING  -  BRAKE (S) JUST BEFORE TOUCHDOWN', 1.6);
     for (let i = 0; i < 4; i++) fx.mix.spawn(j.p.x, gy + 0.3, j.p.z, rnd(-1.5, 1.5), rnd(0.3, 1), rnd(-1.5, 1.5), rnd(0.8, 1.5), 0.4, 1.6, .5, .45, .35, 0.4, 0.5, 1.5, 0.3);

@@ -39,7 +39,7 @@ export function buildCarrier(side) {
   box(W * 0.86, 0.9, L * 0.92, M(0x7a1e1a), 0, -0.3, 2, g);                 // red boot-top at the waterline
   // island superstructure on the starboard side
   const tw = new THREE.Group(); tw.position.set(CARRIER.TOWER_X, DECK, CARRIER.TOWER_Z); g.add(tw);
-  box(5.5, 9, 18, hullM, 0, 4.5, 0, tw); box(5, 4, 10, hullM, 0, 11, -1, tw); box(5.6, 1.4, 8, darkM, 0, 9.6, -3.5, tw);   // bridge windows
+  box(5.5, 9, 18, hullM, 0, 4.5, 0, tw); box(5, 4, 10, hullM, 0, 11, -1, tw); const band = box(5.6, 1.4, 8, darkM, 0, 9.6, -3.5, tw);   // bridge windows
   box(0.4, 7, 0.4, darkM, 0, 16, -1, tw); box(3, 0.3, 0.3, darkM, 0, 18, -1, tw);
   const dish = new THREE.Group(); dish.position.set(0, 13.3, 2.5); tw.add(dish);
   box(3.2, 1.4, 0.25, darkM, 0, 0.6, 0, dish); cyl(0.2, 0.2, 1, darkM, 0, 0, 0, dish, 6);
@@ -53,7 +53,32 @@ export function buildCarrier(side) {
   // deck edge lights
   const lights = [];
   for (let i = 0; i < 10; i++) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.2, 0.4), new THREE.MeshBasicMaterial({ color: 0xffdd66 })); l.position.set(i % 2 ? W * 0.42 : -W * 0.42, DECK + 0.15, -L / 2 + 18 + Math.floor(i / 2) * 22); g.add(l); lights.push(l); }
-  return { group: g, guns, dish, lamp, lights, teamM };
+  return { group: g, guns, dish, lamp, lights, teamM, tower: tw, band };
+}
+// SKY CARRIER refit: four ducted lift fans on outriggers off the hull, hidden until the refit unfolds them.
+// parts.fans[i] = { arm, rotor, glow }; arm.scale.x animates the fold-out (0 = stowed).
+export const FAN_POS = [[-1, -38], [1, -38], [-1, 36], [1, 36]];
+export function addLiftFans(parts) {
+  const g = parts.group, { W, DECK } = CARRIER, steel = M(0x4d5660, { shininess: 40 }), dark = M(0x1c1f23);
+  const glowM = new THREE.MeshBasicMaterial({ color: 0x66ddff, transparent: true, opacity: 0.0 });
+  parts.fans = [];
+  for (const [sd, z] of FAN_POS) {
+    const arm = new THREE.Group(); arm.position.set(sd * W * 0.42, DECK - 2.5, z); g.add(arm);
+    const inner = new THREE.Group(); inner.scale.x = sd; arm.add(inner);   // build for the starboard side, mirror for port
+    box(12, 2.2, 5, steel, 6, 0, 0, inner); box(12, 0.5, 5.6, dark, 6, 1.3, 0, inner);
+    const fan = new THREE.Group(); fan.position.set(17, 0, 0); inner.add(fan);
+    const duct = new THREE.Mesh(new THREE.TorusGeometry(7.6, 1.0, 8, 32).rotateX(Math.PI / 2), steel); fan.add(duct);
+    const lip = new THREE.Mesh(new THREE.CylinderGeometry(8.2, 8.2, 2.4, 32, 1, true), steel); lip.material = steel.clone(); lip.material.side = THREE.DoubleSide; fan.add(lip);
+    const glow = new THREE.Mesh(new THREE.TorusGeometry(7.0, 0.25, 6, 32).rotateX(Math.PI / 2), glowM.clone()); glow.position.y = -1.1; fan.add(glow);
+    cyl(1.6, 1.6, 2.6, dark, 0, 0, 0, fan, 12);
+    for (const a of [0, Math.PI / 2]) { const st = box(15, 0.3, 0.5, dark, 0, -0.6, 0, fan); st.rotation.y = a; }   // stators
+    const rotor = new THREE.Group(); rotor.position.y = 0.4; fan.add(rotor);
+    for (let i = 0; i < 7; i++) { const b = box(6.8, 0.15, 1.1, M(0x8a939c), 4.6, 0, 0, rotor); b.rotation.x = 0.35; const piv = new THREE.Group(); piv.rotation.y = i / 7 * Math.PI * 2; rotor.add(piv); piv.add(b); }
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(7.4, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xbbccdd, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide })); disc.position.y = 0.45; fan.add(disc);
+    arm.scale.set(0.001, 0.001, 0.001); arm.visible = false;
+    parts.fans.push({ arm, rotor, glow, disc, sd, z });
+  }
+  return parts.fans;
 }
 
 // ------------------------------------------------------------------------------------------- battleship

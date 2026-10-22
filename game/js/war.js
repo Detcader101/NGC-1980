@@ -8,12 +8,13 @@
 // shipyard to hold it back; once it launches it hunts your carrier. Lose the carrier and the war is lost; sink the
 // enemy carrier or take its HQ island (IRONHOLD) to win.
 import * as THREE from 'three';
+import { addLiftFans, FAN_POS } from './ships.js';
 import { buildCarrier, buildBattleship, buildFreighter, buildDrone, buildTransport, buildGunship, buildTomcat, buildGun, buildStructure, buildRubble, CARRIER, BSHIP, FREIGHTER, TEAM } from './ships.js';
 
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const angDiff = (a, b) => { let d = (b - a) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return d; };
-export const COST = { drone: 40, aa: 30, heli: 60, escort: 30 };
+export const COST = { drone: 40, aa: 30, heli: 60, escort: 30, sky: 300 };
 export const SIDE_NAME = ['NEUTRAL', 'FRIENDLY', 'ENEMY'];
 const CAP_TIME = { heli: 6, drone: 9, transport: 10 };
 const PROD = { fuel: { fuel: 0.55 }, factory: { mat: 0.4 }, radar: {}, hq: { fuel: 0.3, mat: 0.3 }, fortress: { fuel: 0.6 } };
@@ -26,7 +27,7 @@ export function createWar(ctx) {
     islands: ctx.ISLANDS, units: [], proj: [], E: { fuel: 0, mat: 0, bship: 0 }, P: ctx.G, time: 0, over: null,
     carrier: null, enemyCarrier: null, battleship: null, thinkT: 0, raidT: 120, econT: 0, deckCache: null,
   };
-  const _v = new THREE.Vector3(), _w = new THREE.Vector3();
+  const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _skyAim = new THREE.Vector3();
   const store = side => side === 1 ? W.P : W.E;
   // war sounds fall off with distance from the camera, so a battle across the map is a distant rumble
   const ear = ctx.ear;
@@ -154,10 +155,132 @@ export function createWar(ctx) {
   W.surfVel = (x, z) => { const u = W.shipAt(x, z); return u && !u.sinking ? { vx: u.v.x, vz: u.v.z, w: u.w, cx: u.p.x, cz: u.p.z } : null; };
   W.orderCarrier = (x, z) => {
     const u = W.carrier; if (!u || u.sinking) return false;
+    if (u.sky && u.sky.up) { u.path = [[x, z]]; u.goal = [x, z]; u.sky.manual = false; return true; }   // it flies: straight there
     const [wx, wz] = nav.wet(x, z) ? [x, z] : nav.nearestWater(x, z);
     u.path = nav.path(u.p.x, u.p.z, wx, wz); u.goal = [wx, wz]; return true;
   };
+  // ---------------------------------------------------------------- SKY CARRIER
+  // The ALBATROSS refitted with four ducted lift fans. It flies like a building would: the helm, the speed telegraph
+  // and the lift lever all move slowly, and the ship answers them slowly - minutes of inertia, not seconds.
+  // sky.manual: someone is at the helm (main.js sets sky.tel / sky.helmIn / sky.lift each frame).
+  const SKY = { VMAX: 16, ACC: 0.3, DEC: 0.45, YAW: 0.06, YAW_ACC: 0.01, CLIMB: 3.2, V_ACC: 0.32, CEIL: 230, CRUISE: 70 };
+  W.upgradeCarrier = () => {
+    const u = W.carrier;
+    if (!u || u.sinking !== undefined) return 'NO CARRIER TO REFIT';
+    if (u.sky) return u.sky.up ? 'THE ALBATROSS ALREADY FLIES' : `REFIT UNDER WAY  -  ${Math.ceil(u.sky.refit)}s`;
+    if (W.P.mat < COST.sky) return `SKY CARRIER REFIT NEEDS ${COST.sky} MATERIEL`;
+    W.P.mat -= COST.sky; u.path = []; u.goal = null;
+    addLiftFans(u.parts);
+    u.sky = { refit: 24, up: false, deploy: 0, spin: 0, tel: 0, helmIn: 0, lift: 0, telV: 0, helmV: 0, liftV: 0, yawRate: 0, vy: 0, pitch: 0, roll: 0, manual: false, hold: 0, scrapeT: 0 };
+    feed('SKY CARRIER REFIT STARTED  -  LIFT FANS GOING ON THE ALBATROSS (24s)', 'good'); sfx.dock();
+    return 'SKY CARRIER REFIT  -  STAND CLEAR OF THE OUTRIGGERS';
+  };
+  function skyRefit(u, dt) {
+    const S = u.sky; u.speed *= Math.exp(-0.5 * dt); u.path = [];
+    S.refit -= dt;
+    const k = clamp(1 - S.refit / 8, 0, 1);   // the last 8 s: the outriggers fold out and the fans spin up
+    for (const f of u.parts.fans) { f.arm.visible = k > 0; const e = k * k * (3 - 2 * k); f.arm.scale.set(Math.max(0.001, e), Math.max(0.001, e), Math.max(0.001, e)); }
+    if (Math.random() < 0.3) { toWorld(u, rnd(-12, 12), CARRIER.DECK + 1, rnd(-50, 50)); fx.add.spawn(_v.x, _v.y, _v.z, rnd(-3, 3), rnd(2, 5), rnd(-3, 3), 0.3, 0.3, 0.1, 1, .9, .5, 1, 9); }   // welding sparks
+    if (S.refit <= 0) { S.up = true; S.hold = 40; feed('SKY CARRIER ALBATROSS  -  LIFT FANS ONLINE  -  TAKE THE HELM FROM THE DECK (TAB)', 'good'); sfx.alarm?.(); }
+  }
+  const lever = (cur, want, rate, dt) => cur + clamp(want - cur, -rate * dt, rate * dt);
+  function hullFloor(u) {   // the highest ground under the hull (sea = 0), sampled along and across it
+    let f = 0;
+    for (const lz of [-55, -25, 0, 25, 55]) for (const lx of [-12, 0, 12]) { toWorld(u, lx, 0, lz); f = Math.max(f, terrainH(_v.x, _v.z)); }
+    return f;
+  }
+  function flySky(u, dt) {
+    const S = u.sky;
+    S.spin = Math.min(1, S.spin + dt * 0.25);
+    // what the levers are asked to do: by the helmsman, or by the autopilot
+    let tel = 0, helm = 0, lift = 0;
+    if (S.manual) { tel = S.tel; helm = S.helmIn; lift = S.lift; }
+    else {
+      const ahead = Math.max(hullFloor(u), terrainH(u.p.x + fwdX(u.yaw) * 120, u.p.z + fwdZ(u.yaw) * 120), terrainH(u.p.x + fwdX(u.yaw) * 220, u.p.z + fwdZ(u.yaw) * 220));
+      const alt = u.path.length ? Math.max(SKY.CRUISE, ahead + 40) : Math.max(S.hold, ahead > 0.5 ? ahead + 30 : 0);
+      if (u.path.length) {
+        const [tx, tz] = u.path[0], d = Math.hypot(tx - u.p.x, tz - u.p.z);
+        if (d < 25 && u.speed < 2) { u.path.shift(); S.hold = u.p.y; }
+        else { const turn = angDiff(u.yaw, Math.atan2(-(tx - u.p.x), -(tz - u.p.z))); helm = clamp(turn * 3, -1, 1); tel = clamp(d / 260, 0, 1) * (Math.abs(turn) > 0.8 ? 0.3 : 1); }
+      }
+      lift = clamp((alt - u.p.y) * 0.06 - S.vy * 0.25, -1, 1);
+    }
+    // heavy levers: they travel slowly to where they are pushed
+    S.telV = lever(S.telV, tel, 0.25, dt); S.helmV = lever(S.helmV, helm, 0.4, dt); S.liftV = lever(S.liftV, lift, 0.5, dt);
+    // and the ship follows them slower still
+    const vWant = S.telV * SKY.VMAX;
+    u.speed += clamp(vWant - u.speed, -SKY.DEC * dt, SKY.ACC * dt);
+    const accel = u.speed - (S.lastV ?? u.speed); S.lastV = u.speed;
+    S.yawRate += clamp(S.helmV * SKY.YAW * clamp(0.35 + u.speed / 8, 0.35, 1) - S.yawRate, -SKY.YAW_ACC * dt, SKY.YAW_ACC * dt);
+    u.yaw += S.yawRate * dt; u.w = S.yawRate;
+    S.vy += clamp(S.liftV * SKY.CLIMB - S.vy, -SKY.V_ACC * dt, SKY.V_ACC * dt);
+    u.v.set(fwdX(u.yaw) * u.speed, S.vy, fwdZ(u.yaw) * u.speed);
+    u.p.x += u.v.x * dt; u.p.z += u.v.z * dt; u.p.y += S.vy * dt;
+    // ground and sea: the hull bottom is 4 m under the waterline mark; over land it scrapes
+    const floor = hullFloor(u), minY = floor > 0.5 ? floor + 4.5 : 0;
+    if (u.p.y < minY) {
+      const hit = Math.max(-S.vy, u.speed * 0.3);
+      u.p.y = minY; if (S.vy < 0) S.vy = 0;
+      if (floor > 0.5 && hit > 0.6) {
+        S.scrapeT -= dt; u.speed *= Math.exp(-0.6 * dt);
+        if (S.scrapeT <= 0) { S.scrapeT = 0.25; u.hp -= hit * 1.5; u.lastHit = W.time; toWorld(u, rnd(-12, 12), -3, rnd(-50, 50)); fx.impact(_v.x, _v.y, _v.z, 'ground'); fx.explode(_v.x, _v.y, _v.z, 0.8, { debris: 3, color: 0x4a4440 }); boomAt(_v.x, _v.y, _v.z, 0.4); if (u.side === 1 && Math.random() < 0.2) feed('THE ALBATROSS IS SCRAPING THE GROUND  -  MORE LIFT', 'bad'); checkShip(u); }
+      }
+    }
+    if (u.p.y > SKY.CEIL) { u.p.y = SKY.CEIL; S.vy = Math.min(0, S.vy); }
+    // a little tilt: nose down when it speeds up, bank into turns, a slow heave
+    S.pitch += (clamp(-accel / dt * 0.05, -0.05, 0.05) + Math.sin(W.time * 0.31) * 0.004 - S.pitch) * (1 - Math.exp(-1.2 * dt));
+    S.roll += (clamp(S.yawRate * u.speed * 0.05, -0.06, 0.06) + Math.sin(W.time * 0.23 + 1) * 0.005 - S.roll) * (1 - Math.exp(-1 * dt));
+    u.mesh.position.copy(u.p); u.mesh.rotation.set(S.pitch, u.yaw, S.roll, 'YXZ');
+    skyVisuals(u, dt);
+    if (u.parts.dish) u.parts.dish.rotation.y += dt * 1.6;
+    if (u.parts.lamp) u.parts.lamp.visible = (W.time % 1.4) < 0.15;
+    const hurt = 1 - u.hp / u.hpMax;
+    if (hurt > 0.25 && Math.random() < hurt * 0.5) { toWorld(u, rnd(-8, 8), u.dims.DECK + 1, rnd(-40, 40)); fx.trail(_v.x, _v.y, _v.z, 2 + hurt * 3); }
+  }
+  function skyVisuals(u, dt) {
+    const S = u.sky, lifting = 0.5 + 0.5 * clamp(S.liftV + 0.6, 0, 1);
+    for (const f of u.parts.fans) {
+      f.rotor.rotation.y += dt * (2 + 16 * S.spin * lifting) * f.sd;
+      f.disc.material.opacity = 0.12 * S.spin; f.glow.material.opacity = 0.35 + 0.5 * S.spin * lifting;
+    }
+    // downwash: spray off the sea (or dust off the land) under each fan when low, and the odd persistent ring of foam
+    S.washT = (S.washT || 0) - dt;
+    if (S.washT <= 0 && u.p.y < 60) {
+      S.washT = 0.08; const k = 1 - u.p.y / 60;
+      for (const [sd, z] of FAN_POS) {
+        toWorld(u, sd * (CARRIER.W * 0.42 + 17), 0, z);
+        const gx = _v.x, gz = _v.z, gy = Math.max(terrainH(gx, gz), 0), wet = gy <= 0.05;
+        for (let i = 0; i < 3; i++) if (Math.random() < k) {
+          const a = rnd(6.283), sp = rnd(10, 20) * k + 4;
+          if (wet) fx.mix.spawn(gx + Math.cos(a) * 6, 0.4, gz + Math.sin(a) * 6, Math.cos(a) * sp, rnd(0.5, 3), Math.sin(a) * sp, rnd(0.8, 1.5), 1.2, 5, .86, .92, .97, 0.45, 2, 1.2, 0.4);
+          else fx.mix.spawn(gx + Math.cos(a) * 6, gy + 0.5, gz + Math.sin(a) * 6, Math.cos(a) * sp, rnd(0.5, 2.5), Math.sin(a) * sp, rnd(1, 1.8), 1.2, 5, .55, .48, .36, 0.45, 1.5, 1.3, 0.4);
+        }
+        if (wet && Math.random() < 0.15 * k) fx.water.add({ x: gx, y: 0.1, z: gz, size: 5, grow: 14, a: 0.4 * k, life: 2.5, tile: 2, pow: 1.5 });
+      }
+    }
+    if (u.p.y < 1 && u.speed > 0.8 && (u.wakeT -= dt) <= 0) { u.wakeT = 0.3; toWorld(u, 0, 0, u.dims.L / 2 + 2); fx.wake(_v.x, _v.z, 1.6 + u.speed * 0.25); }
+  }
+  // shot down in the air: the fans die and it falls
+  function skyFall(u, dt) {
+    const S = u.sky; S.vy -= 9.8 * dt * 0.6; u.p.y += S.vy * dt; u.p.x += u.v.x * dt; u.p.z += u.v.z * dt; u.v.multiplyScalar(Math.exp(-0.3 * dt));
+    S.roll += dt * 0.08; S.pitch += dt * 0.03; u.mesh.position.copy(u.p); u.mesh.rotation.set(S.pitch, u.yaw, S.roll, 'YXZ');
+    for (const f of u.parts.fans) { f.rotor.rotation.y += dt * 2; f.glow.material.opacity = 0; }
+    if (Math.random() < 0.5) { toWorld(u, rnd(-12, 12), CARRIER.DECK, rnd(-50, 50)); fx.trail(_v.x, _v.y, _v.z, 4); fx.add.spawn(_v.x, _v.y, _v.z, 0, 2, 0, 0.6, 3, 1, 1, .5, .1, 0.9, -1.5, 1); }
+    const floor = hullFloor(u);
+    if (u.p.y <= Math.max(0, floor + 4)) {
+      S.falling = false;
+      if (floor > 0.5) { fx.explode(u.p.x, floor, u.p.z, 6, { debris: 30, fire: 90, crater: 10, color: 0x56616c }); boomAt(u.p.x, floor, u.p.z, 1.6); scene.remove(u.mesh); u.gone = true; }
+      else { u.p.y = 0; fx.splash?.(u.p.x, u.p.z, 6); fx.explode(u.p.x, 2, u.p.z, 5, { debris: 20, oil: true }); boomAt(u.p.x, 0, u.p.z, 1.6); }
+    }
+  }
   function sailShip(u, dt) {
+    if (u.sky) {
+      const S = u.sky;
+      if (u.sinking !== undefined && S.up && !S.fallen) { S.falling = true; S.fallen = true; S.up = false; }   // killed in the air: it falls
+      if (S.falling) { skyFall(u, dt); return; }
+      if (S.up && u.sinking === undefined) { flySky(u, dt); return; }
+      if (!S.up && !S.fallen && u.sinking === undefined) skyRefit(u, dt);
+    }
     if (u.sinking !== undefined) {   // going down: list, settle, burn
       u.sinking += dt; u.speed *= Math.exp(-0.4 * dt); u.p.y = -u.sinking * 0.9; u.mesh.rotation.z = Math.min(0.35, u.sinking * 0.03) * (u.side === 1 ? 1 : -1); u.mesh.rotation.x = Math.min(0.12, u.sinking * 0.01);
       if (Math.random() < 0.08) { toWorld(u, rnd(-10, 10), u.dims.DECK, rnd(-40, 40)); fx.explode(_v.x, _v.y, _v.z, rnd(1.2, 2.4), { debris: 4, color: 0x4a4440 }); boomAt(_v.x, _v.y, _v.z, 0.5); }
@@ -201,7 +324,7 @@ export function createWar(ctx) {
   }
   function launchPoint(side) {   // from the carrier deck if it is afloat, else the HQ pad
     const c = side === 1 ? W.carrier : W.enemyCarrier;
-    if (c && !c.sinking && c.sinking === undefined) return [c.p.x, CARRIER.DECK + 4, c.p.z];
+    if (c && !c.sinking && c.sinking === undefined) return [c.p.x, CARRIER.DECK + 4 + Math.max(0, c.p.y), c.p.z];
     const hq = W.islands.find(I => I.kind === 'hq' && I.owner0 === side); return [hq.pad.x, hq.pad.h + 4, hq.pad.z];
   }
   W.sendDrone = I => {
@@ -469,6 +592,7 @@ export function createWar(ctx) {
           fx.flak(x, y, z); if (hear(x, y, z, 300) > 0) sfx.flak?.();
           for (const t of targets(b.side)) if (t.p && !t.dims && t.p.distanceTo(b.p) < 8) damage(t, 1.2, b.side);
           if (b.side === 2 && pl.alive && !pl.inCave && pl.pos.distanceTo(b.p) < 7) ctx.hurtPlayer(0.13, 'FLAK');
+          const sc = W.carrier; if (b.side === 2 && sc && sc.sky && sc.sky.up && sc.p.y > 8) { const [lx, lz] = toLocal(sc, x, z); if (Math.abs(lx) < 34 && Math.abs(lz) < 66 && Math.abs(y - (sc.p.y + 4)) < 10) damage(sc, 2, 2); }
         }
       } else if (!done) {
         if (y < floor) done = true;
@@ -495,6 +619,7 @@ export function createWar(ctx) {
     const list = [];
     for (const u of W.units) if (u.side !== side && !u.dead && !u.dying && u.p && !u.dims) list.push(u);
     if (side === 2 && pl.alive && !pl.inCave) list.push({ p: pl.pos, v: pl.vel, player: true });
+    const sc = W.carrier; if (side === 2 && sc && sc.sky && sc.sky.up && sc.p.y > 8 && sc.sinking === undefined) list.push({ p: _skyAim.set(sc.p.x, sc.p.y + 4, sc.p.z), v: sc.v });
     return list;
   }
   function gunFire(g, gx, gy, gz, side, dt, foes, range) {
@@ -695,7 +820,7 @@ export function createWar(ctx) {
   W.visionSources = pl => {
     const s = [];
     if (pl.alive) s.push({ x: pl.pos.x, z: pl.pos.z, r: pl.inCave ? 60 : SIGHT.heli });
-    for (const u of W.units) if (u.side === 1 && !u.dead && !u.gone) s.push({ x: u.p.x, z: u.p.z, r: u.dims ? SIGHT.carrier : SIGHT.drone });
+    for (const u of W.units) if (u.side === 1 && !u.dead && !u.gone) s.push({ x: u.p.x, z: u.p.z, r: u.dims ? SIGHT.carrier * (1 + clamp(u.p.y / 120, 0, 0.8)) : SIGHT.drone });
     for (const I of W.islands) if (I.owner === 1) s.push({ x: I.x, z: I.z, r: I.kind === 'radar' && I.structs.some(q => q.kind === 'radar' && !q.dead) ? SIGHT.radar : SIGHT.island + I.r * 0.4 });
     return s;
   };
@@ -714,7 +839,7 @@ export function createWar(ctx) {
     W.time += dt;
     for (const u of W.units) { if (u.ext) continue; if (u.dims) sailShip(u, dt); else updateAir(u, dt, pl); }
     {   // ships keep clear of each other (a gentle shove when two hulls would overlap)
-      const sh = W.units.filter(u => u.dims && u.sinking === undefined);
+      const sh = W.units.filter(u => u.dims && u.sinking === undefined && !(u.sky && u.p.y > 12));
       for (let i = 0; i < sh.length; i++) for (let j = i + 1; j < sh.length; j++) {
         const a = sh[i], b = sh[j], dx = b.p.x - a.p.x, dz = b.p.z - a.p.z, d = Math.hypot(dx, dz) || 1, min = (a.dims.L + b.dims.L) * 0.42;
         if (d < min) { const k = Math.min(8, (min - d)) * dt / d; a.p.x -= dx * k; a.p.z -= dz * k; b.p.x += dx * k; b.p.z += dz * k; }
