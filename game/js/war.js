@@ -116,7 +116,7 @@ export function createWar(ctx) {
   function makeShip(type, side, x, z, yaw) {
     const m = type === 'carrier' ? buildCarrier(side) : type === 'freighter' ? buildFreighter() : buildBattleship();
     const dims = type === 'carrier' ? CARRIER : type === 'freighter' ? FREIGHTER : BSHIP;
-    const u = { type, side, p: new THREE.Vector3(x, 0, z), v: new THREE.Vector3(), yaw, w: 0, speed: 0, max: { carrier: 6, freighter: 5, battleship: 7.5 }[type], hp: { carrier: 600, freighter: 70, battleship: 360 }[type], mesh: m.group, parts: m, dims, path: [], guns: [], wakeT: 0, launchT: 0 };
+    const u = { type, side, p: new THREE.Vector3(x, 0, z), v: new THREE.Vector3(), yaw, w: 0, speed: 0, max: { carrier: 6, freighter: 5, battleship: 7.5 }[type], hp: { carrier: 600, freighter: 70, battleship: 420 }[type], mesh: m.group, parts: m, dims, path: [], guns: [], wakeT: 0, launchT: 0 };
     u.hpMax = u.hp;
     u.guns = m.guns.map(g => ({ mesh: g, hp: 9, max: 9, dead: false, cd: rnd(1, 3), range: type === 'carrier' ? 150 : 130, ship: u }));
     if (m.turrets) u.turrets = m.turrets.map(t => ({ mesh: t, cd: rnd(2, 5) }));
@@ -126,10 +126,10 @@ export function createWar(ctx) {
   function toLocal(u, x, z) { const dx = x - u.p.x, dz = z - u.p.z, c = Math.cos(u.yaw), s = Math.sin(u.yaw); return [dx * c - dz * s, dx * s + dz * c]; }
   function toWorld(u, lx, ly, lz, out = _v) { const c = Math.cos(u.yaw), s = Math.sin(u.yaw); return out.set(u.p.x + lx * c + lz * s, u.p.y + ly, u.p.z - lx * s + lz * c); }
   // deck height under (x, z) if it is over a ship (and the superstructure, so you can fly into it), else -1e9
-  W.deckY = (x, z) => {
+  W.deckY = (x, z, skipSide = 0) => {
     let best = -1e9;
     for (const u of W.units) {
-      if (!u.dims || u.sinking > 4) continue;
+      if (!u.dims || u.sinking > 4 || u.side === skipSide) continue;
       if (Math.abs(x - u.p.x) > 70 || Math.abs(z - u.p.z) > 70) continue;
       const [lx, lz] = toLocal(u, x, z), D = u.dims, sink = u.p.y;
       if (u.type === 'carrier') {
@@ -408,7 +408,7 @@ export function createWar(ctx) {
       else if (b.kind === 'shell') fx.add.spawn(x, y, z, 0, 0, 0, 0.06, 1.4, 0.8, 1, .8, .5, 1);
       else if (b.kind === 'flak') fx.add.spawn(x, y, z, 0, 0, 0, 0.04, 0.5, 0.3, 1, .9, .5, 1);
       if (b.mesh) { b.mesh.position.copy(b.p); b.mesh.lookAt(_w.copy(b.p).add(b.v)); }
-      const gy = Math.max(terrainH(x, z), 0), dy = W.deckY(x, z), floor = Math.max(gy, dy);
+      const gy = Math.max(terrainH(x, z), 0), dy = W.deckY(x, z, b.side), floor = Math.max(gy, dy);   // our own decks don't stop our rounds
       let done = b.life <= 0, hit = null;
       if (b.kind === 'flak') {
         if (b.life <= 0) {   // burst
@@ -425,6 +425,8 @@ export function createWar(ctx) {
         }
         if (done) {
           const wet = y < floor + 0.5 && isWater(x, z) && dy < 0;
+          const ship = dy > gy + 0.5 && y < dy + 1 ? W.shipAt(x, z) : null;   // landed on a deck: a direct hit
+          if (ship && ship.side !== b.side && ship.sinking === undefined) damage(ship, { rocket: 5, bomb: 24, shell: 18 }[b.kind] || 0, b.side);
           if (b.kind === 'b' || b.kind === 'ciws') { if (hit) { damage(hit, b.kind === 'ciws' ? 0.5 : 1, b.side); fx.impact(x, y, z, 'metal'); } else fx.impact(x, floor, z, wet ? 'water' : 'ground'); }
           else if (b.kind === 'rocket') { fx.explode(x, Math.max(y, floor), z, 1.1, { debris: 2 }); sfx.boom(0.45); if (hit) damage(hit, 4, b.side); blast(x, y, z, 6, 4, b.side); }
           else if (b.kind === 'bomb') { fx.explode(x, Math.max(y, floor), z, 2.8, { debris: 8, crater: 3.6, fire: wet ? 0 : 20 }); sfx.boom(1.3); blast(x, Math.max(y, floor), z, 12, 20, b.side); }
@@ -627,7 +629,7 @@ export function createWar(ctx) {
       const yaw = Math.atan2(-(tgt.x - _v.x), -(tgt.z - _v.z)) - b.yaw; t.mesh.rotation.y += angDiff(t.mesh.rotation.y, yaw) * Math.min(1, 2 * dt);
       if (t.cd <= 0) {
         t.cd = 6 + rnd(3);
-        const dx = tgt.x - _v.x + rnd(-14, 14), dz = tgt.z - _v.z + rnd(-14, 14), d = Math.hypot(dx, dz), T = Math.max(2, d / 80);   // flight time
+        const dx = tgt.x - _v.x + rnd(-14, 14), dz = tgt.z - _v.z + rnd(-14, 14), d = Math.hypot(dx, dz), T = 2 + d / 70;   // flight time: a high arc that clears the hills between
         shoot('shell', 2, _v.x, _v.y, _v.z, dx / T, (tgt.y + 6 - _v.y) / T + 0.5 * 9 * T, dz / T, T + 2);
         fx.flash(_v.x + fwdX(b.yaw + t.mesh.rotation.y) * 8, _v.y + 1, _v.z + fwdZ(b.yaw + t.mesh.rotation.y) * 8, 2.5); fx.mix.spawn(_v.x, _v.y + 2, _v.z, 0, 3, 0, 3, 3, 9, .5, .5, .5, 0.5, -0.3, 1); sfx.boom(0.6);
       }
