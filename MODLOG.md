@@ -115,3 +115,14 @@ jetplay.js (input, weapons, carrier ops, HUD data, cautions, g tolerance, ejecti
   bearing back. Minimap and the jet's AMPCD draw open sea, wild islands and the operating area's dashed outline.
 - Scene: infinite.mjs (jet 4 km out over wild islands, physics height on the island, helicopter lands on one).
 - Note: damage.json's scripted lift-off is timing-sensitive at low headless fps (flaky under load, passes on rerun).
+
+## 2026-10-22 — real-world terrain past the control zone (replaces the wild islands)
+- world.js: gradient-noise world (fixed seed): continents (7 km fBm), lowlands and hills, mountain belts (8 km mask) with
+  ridged multifractal ranges (2.4 km) peaking ~1.5 km, forests (fBm mask, gentle slopes, tree line ~360 m). Open sea for
+  ~0.5-2 km round the zone. Stats over 40 km: 55% land, 8.5% above 200 m, 3% above 450 m; 0.35 µs per height query.
+- terrainworker.js bakes 2 km @ 4 m (+ ~7-9k forest trees on a fixed jittered grid) and 8 km @ 16 m heightmaps from the
+  same function; the vertex shader takes the 4 m window where it reaches, else the 16 m one. Wild colours: rock on
+  steep faces and above ~200 m, snow caps above ~450 m. Jet view 1.1-2.6 km (far ring 24 m x 220), helicopter 600 m
+  outside the zone.
+- The zone is the CONTROL ZONE: outlined and labelled on the maps, no messages, no limits anywhere.
+- jetweapons.mjs gun test now flies hands-off: the scripted altitude hold moved the gun line tens of metres at 330 m.

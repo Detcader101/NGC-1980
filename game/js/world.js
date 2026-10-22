@@ -38,41 +38,40 @@ export function landMask(x, z) {
   for (const I of ISLANDS) { const d = Math.hypot(x - I.x, z - I.z) + w; if (d < I.r) m = Math.max(m, 1 - sm(I.r * 0.55, I.r, d)); }
   return m;
 }
-// Beyond the archipelago (the operating area, where the war is) the sea goes on forever, scattered with wild islands.
-// Each WCELL grid cell may hold one, picked by a hash of the cell: the same islands every run, no edge anywhere.
-export const WCELL = 460, WILD_MIN = BOUND + 160;
-const hash = (i, j, k) => { let h = Math.imul(i, 374761393) + Math.imul(j, 668265263) + Math.imul(k, 1274126177) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return (h >>> 0) / 4294967296; };
-const _wild = new Map();
-export function wildIsland(i, j) {
-  const key = i * 131072 + j; let I = _wild.get(key);
-  if (I === undefined) {
-    I = null;
-    if (hash(i, j, 1) < 0.42) {
-      const x = (i + 0.2 + 0.6 * hash(i, j, 2)) * WCELL, z = (j + 0.2 + 0.6 * hash(i, j, 3)) * WCELL, r = 45 + 140 * hash(i, j, 4) ** 1.5;
-      if (Math.max(Math.abs(x), Math.abs(z)) - r > WILD_MIN) I = { x, z, r, hs: 0.55 + 0.9 * hash(i, j, 5), seed: (hash(i, j, 6) * 4294967296) >>> 0 };
-    }
-    if (_wild.size > 50000) _wild.clear(); _wild.set(key, I);
-  }
-  return I;
+// Beyond the archipelago (the control zone, where the war is) the world goes on for ever: continents with coasts,
+// lowlands, forests and mountain ranges, from fixed-seed gradient noise (same world every run). It's open sea for a
+// kilometre or two round the zone, then the land starts. Everything here is pure maths, so the terrain worker
+// (terrainworker.js) bakes exactly what the physics collides with.
+export const inZone = (x, z) => Math.max(Math.abs(x), Math.abs(z)) <= BOUND;
+const PERM = (() => { const p = new Uint8Array(512), a = [...Array(256).keys()]; let s = 1234567; for (let i = 255; i > 0; i--) { s = (s * 1103515245 + 12345) >>> 0; const j = s % (i + 1); [a[i], a[j]] = [a[j], a[i]]; } for (let i = 0; i < 512; i++) p[i] = a[i & 255]; return p; })();
+const GX = [1, -1, 1, -1, 1.414, -1.414, 0, 0], GZ = [1, 1, -1, -1, 0, 0, 1.414, -1.414];
+export function noise(x, z) {   // 2D gradient noise, about -0.7..0.7
+  const xi = Math.floor(x), zi = Math.floor(z), xf = x - xi, zf = z - zi, X = xi & 255, Z = zi & 255;
+  const u = xf * xf * xf * (xf * (xf * 6 - 15) + 10), v = zf * zf * zf * (zf * (zf * 6 - 15) + 10);
+  const g = (h, dx, dz) => { h &= 7; return GX[h] * dx + GZ[h] * dz; };
+  const a = g(PERM[PERM[X] + Z], xf, zf), b = g(PERM[PERM[X + 1] + Z], xf - 1, zf), c = g(PERM[PERM[X] + Z + 1], xf, zf - 1), d = g(PERM[PERM[X + 1] + Z + 1], xf - 1, zf - 1);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
 }
-// wild islands whose land may reach within R of (x, z)
-export function wildIslandsNear(x, z, R) {
-  const out = [], i0 = Math.floor((x - R) / WCELL) - 1, i1 = Math.floor((x + R) / WCELL) + 1, j0 = Math.floor((z - R) / WCELL) - 1, j1 = Math.floor((z + R) / WCELL) + 1;
-  for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const I = wildIsland(i, j); if (I && Math.abs(I.x - x) < R + I.r + 25 && Math.abs(I.z - z) < R + I.r + 25) out.push(I); }
-  return out;
+export function fbm(x, z, oct) { let s = 0, a = 1, n = 0; for (let i = 0; i < oct; i++) { s += noise(x, z) * a; n += a; a *= 0.5; const t = x * 1.6 - z * 1.2; z = x * 1.2 + z * 1.6; x = t + 17.3; } return s / n; }
+function ridged(x, z, oct) {   // sharp crests: 1 - |noise|, squared, each octave weighted by the last (rugged on the ridges)
+  let s = 0, a = 1, w = 1, n = 0;
+  for (let i = 0; i < oct; i++) { let r = 1 - Math.abs(noise(x, z)) * 1.6; r = r < 0 ? 0 : r * r; s += r * a * w; n += a; w = Math.min(1, r * 1.8); a *= 0.5; const t = x * 1.7 - z * 1.1; z = x * 1.1 + z * 1.7; x = t - 9.1; }
+  return s / n;
 }
-export const outsideOps = (x, z) => Math.max(Math.abs(x), Math.abs(z)) > BOUND;
-export const islandH = (x, z) => {
-  let m = landMask(x, z), hs = 1;
-  if (Math.max(Math.abs(x), Math.abs(z)) > WILD_MIN - 220) {   // wild islands: only the 3x3 cells around can reach here
-    const ci = Math.floor(x / WCELL), cj = Math.floor(z / WCELL), w = wobble(x, z);
-    for (let i = ci - 1; i <= ci + 1; i++) for (let j = cj - 1; j <= cj + 1; j++) {
-      const I = wildIsland(i, j); if (!I) continue;
-      const d = Math.hypot(x - I.x, z - I.z) + w; if (d < I.r) { const k = 1 - sm(I.r * 0.55, I.r, d); if (k > m) { m = k; hs = I.hs; } }
-    }
-  }
-  return mix(SEA_FLOOR, hills(x, z) * 0.7 * hs + 9, m);
-};
+// how far outside the zone, and the land: <0 sea, >0 land
+function landness(x, z) { const d = Math.max(Math.abs(x), Math.abs(z)) - BOUND, near = sm(400, 2400, d); return { near, land: (fbm(x / 7000 + 31.7, z / 7000 - 12.3, 4) * 1.7 + 0.04) * near - (1 - near) * 0.5 }; }
+export function wildH(x, z) {
+  const { near, land } = landness(x, z);
+  if (land < -0.12) return SEA_FLOOR - 26 * near * Math.min(1, -land * 2);     // open sea, deepening offshore
+  const coast = sm(-0.02, 0.25, land);
+  const low = 2 + coast * (40 + 45 * fbm(x / 1900 + 3.1, z / 1900 - 8.4, 3)) + coast * hills(x, z) * 0.5;   // plains and hills
+  const belt = sm(-0.08, 0.24, fbm(x / 8000 - 7.1, z / 8000 + 3.3, 3));          // where the mountain ranges run
+  const r = ridged(x / 2400, z / 2400, 5), mtn = belt * coast * r * r * 1700;   // ranges, peaks past 1 km
+  return mix(SEA_FLOOR - 4, low + mtn, sm(-0.12, 0.0, land));
+}
+// forests: where the forest noise says so, on gentle slopes between the beach and the tree line (~360 m)
+export function forestAt(x, z, h, slopeY) { return h > 3.5 && h < 360 - 60 * noise(x / 300, z / 300) && slopeY > 0.82 && fbm(x / 1700 + 5.5, z / 1700 + 9.2, 3) > -0.08; }
+export const islandH = (x, z) => Math.max(Math.abs(x), Math.abs(z)) < BOUND + 300 ? mix(SEA_FLOOR, hills(x, z) * 0.7 + 9, landMask(x, z)) : wildH(x, z);
 export const islandAt = (x, z, pad = 0) => ISLANDS.find(I => Math.hypot(x - I.x, z - I.z) < I.r + pad);
 
 // the same, as GLSL (constants baked in: the islands never move)

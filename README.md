@@ -8,7 +8,7 @@ The enemy carrier KRAKEN is out there doing the same, and whoever controls the m
 
 ## What's in it
 
-- **Endless world.** The 17-island war zone is the operating area; past it the sea goes on forever with procedurally generated wild islands. Nothing stops you, command just suggests you turn back.
+- **Endless world.** The 17 islands are the CONTROL ZONE, where the war happens. Past it the world goes on for ever: open sea, then continents with coasts, forests and mountain ranges over a kilometre high, all perfectly flyable, just without objectives.
 - **Archipelago and fog of war.** You only see what your helicopter, carrier, drones and islands can see. Radar islands see further.
 - **Capture islands.** Silence the owner's AA guns, then land on the pad or send a drone. Fortress islands hide a cave: fly down the shaft, Thrust-style, and steal the pod.
 - **Economy.** Islands produce fuel and materiel. Spend materiel on capture drones, AA guns, spare helicopters and escort fighters.
