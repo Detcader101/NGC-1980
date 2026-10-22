@@ -1,6 +1,6 @@
 {
   "name": "dive",
-  "query": "?debug&auto&kb",
+  "query": "?debug&auto&kb&res=0.45",
   "steps": [
     "waitFor 10000 window.__G && __G.G.state==='play'",
     "wait 800",

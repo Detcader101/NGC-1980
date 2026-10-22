@@ -1,10 +1,10 @@
 {
   "name": "rescue",
-  "query": "?debug&kb&peace",
+  "query": "?debug&kb&peace&res=0.45",
   "steps": [
     "waitFor 10000 window.__G",
     "key tap Enter", "wait 500",
-    "eval (__G.H.reset(new __G.THREE.Vector3(60, 45, 90), 0.8, false, 1), __G.G.fuel = 0.3, window.__ap = setInterval(()=>{ const H=__G.H; __G.HI.setCollective(H.landed ? 0 : H.agl > 7 ? 0.25 : Math.min(0.9, 0.45 + Math.max(0, -H.vel.y) * 0.08)); }, 16), 1)",
+    "eval (__G.H.reset(new __G.THREE.Vector3(__G.HOME_B.x+36.0, 45, __G.HOME_B.z+54.0), 0.8, false, 1), __G.G.fuel = 0.3, window.__ap = setInterval(()=>{ const H=__G.H; __G.HI.setCollective(H.landed ? 0 : H.agl > 7 ? 0.25 : Math.min(0.9, 0.45 + Math.max(0, -H.vel.y) * 0.08)); }, 16), 1)",
     "waitFor 25000 __G.H.landed || !__G.Z.alive",
     "eval (clearInterval(__ap), {landed:__G.H.landed, alive:__G.Z.alive, rpm:+__G.H.rpm.toFixed(2), fuel:__G.G.fuel, rescue:!!__G.G.rescue, lives:__G.G.lives, hint:document.getElementById('hint').textContent})",
     "expect __G.Z.alive && __G.H.landed && !!__G.G.rescue",

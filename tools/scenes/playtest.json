@@ -1,6 +1,6 @@
 {
   "name": "playtest",
-  "query": "?debug&kb",
+  "query": "?debug&kb&res=0.45",
   "steps": [
     "waitFor 10000 window.__G",
     "wait 800",

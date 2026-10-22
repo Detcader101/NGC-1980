@@ -1,0 +1,19 @@
+{
+  "name": "fx",
+  "query": "?debug&kb&peace&res=0.45",
+  "steps": [
+    "waitFor 10000 window.__G",
+    "key tap Enter", "wait 1500",
+    "eval (__G.H.reset(new __G.THREE.Vector3(__G.HOME_B.x+20, 30, __G.HOME_B.z+60), 0, false, 1), __G.HI.setCollective(0.475), 1)",
+    "eval (()=>{ const B=__G.HOME_B, fx=__G.fx; for (let i=0;i<5;i++){ const x=B.x+5+i*9, z=B.z+20-i*6; fx.explode(x, __G.terrainH(x,z)+1, z, 1+i*0.5, {fire: 60, debris: 8}); } fx.explode(B.x+60, 1, B.z+150, 3, {oil:true}); return fx.emitters.length })()",
+    "wait 400",
+    "shot 01-blasts",
+    "wait 4000",
+    "shot 02-burning",
+    "eval ({add:__G.fx.add.n, mix:__G.fx.mix.n, emit:__G.fx.emitters.length, scorch:__G.fx.scorch.n, debris:__G.fx.debris.mesh.count, alive:__G.Z.alive})",
+    "expect __G.fx.emitters.length >= 5 && __G.fx.scorch.n >= 5",
+    "wait 8000",
+    "shot 03-later",
+    "expect __G.Z.alive"
+  ]
+}

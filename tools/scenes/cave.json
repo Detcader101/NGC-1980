@@ -1,6 +1,6 @@
 {
   "name": "cave",
-  "query": "?debug&thrust",
+  "query": "?debug&thrust&res=0.45",
   "steps": [
     "waitFor 10000 window.__G && __G.G.mode==='thrust'",
     "wait 1500",

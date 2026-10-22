@@ -1,6 +1,6 @@
 {
   "name": "loop",
-  "query": "?debug&kb&peace",
+  "query": "?debug&kb&peace&res=0.45",
   "steps": [
     "waitFor 10000 window.__G",
     "key tap Enter", "wait 4500",
@@ -27,10 +27,10 @@
     "waitFor 6000 !__G.T.alive",
     "waitFor 8000 __G.G.mode==='zarch' && __G.Z.alive",
     "eval ({mode:__G.G.mode, landed:__G.H.landed, pos:__G.H.pos.toArray().map(v=>+v.toFixed(1)), podBack:!__G.BASES[2].st.pod.attached, lives:__G.G.lives, cargo:__G.G.cargo})",
-    "expect __G.H.landed && Math.hypot(__G.H.pos.x, __G.H.pos.z - 30) < 9",
+    "expect __G.H.landed && Math.hypot(__G.H.pos.x - __G.PAD.x, __G.H.pos.z - __G.PAD.z) < 9",
     "waitFor 6000 __G.camB < 0.01",
     "shot respawned-home",
-    "eval (__G.G.cargo = 60, window.__r1 = __G.G.res, __G.H.reset(new __G.THREE.Vector3(0.3, 16, 0.3), 0, false, 1), __G.HI.setCollective(0.3), 1)",
+    "eval (__G.G.cargo = 60, window.__r1 = __G.G.res, __G.H.reset(new __G.THREE.Vector3(__G.HOME_B.x+0.18, 16, __G.HOME_B.z+0.18), 0, false, 1), __G.HI.setCollective(0.3), 1)",
     "waitFor 15000 __G.G.mode==='thrust' && __G.camB > 0.99",
     "eval (()=>{const L=__G.T.lvl; Object.assign(__G.T,{x:32.5, y:L.padTop+1.2, vx:0, vy:-1, ang:0, w:0, landed:false}); __G.HI.setCollective(0.2); return L.padTop})()",
     "wait 3000",

@@ -1,15 +1,15 @@
 {
   "name": "perf",
-  "query": "?debug&kb&peace",
+  "query": "?debug&kb&peace&res=0.45",
   "steps": [
     "waitFor 10000 window.__G",
     "key tap Enter",
-    "eval (__G.H.reset(new __G.THREE.Vector3(20, 30, 40), 0, false, 1), __G.HI.setCollective(0.47), 1)",
+    "eval (__G.H.reset(new __G.THREE.Vector3(__G.HOME_B.x+12.0, 30, __G.HOME_B.z+24.0), 0, false, 1), __G.HI.setCollective(0.47), 1)",
     "wait 3000",
     "eval (window.__ft=[], window.__lt=performance.now(), (function f(t){ __ft.push(t-__lt); __lt=t; if(__ft.length<300) requestAnimationFrame(f); })(performance.now()), 1)",
     "waitFor 30000 window.__ft.length>=300",
     "eval (()=>{const a=__ft.slice(10).sort((x,y)=>x-y); const avg=a.reduce((s,x)=>s+x,0)/a.length; return {avgMs:+avg.toFixed(2), fps:+(1000/avg).toFixed(1), p99Ms:+a[Math.floor(a.length*0.99)].toFixed(1), parts:__G.Z && 0}})()",
-    "eval (__G.Z.pos.y && (__G.H.reset(new __G.THREE.Vector3(0.3, 16, 0.4), 0, false, 1), __G.HI.setCollective(0.3)), 1)",
+    "eval (__G.Z.pos.y && (__G.H.reset(new __G.THREE.Vector3(__G.HOME_B.x+0.18, 16, __G.HOME_B.z+0.24), 0, false, 1), __G.HI.setCollective(0.3)), 1)",
     "waitFor 15000 __G.G.mode==='thrust' && __G.camB > 0.99",
     "eval (__G.HI.setCollective(0.5), window.__ft=[], window.__lt=performance.now(), (function f(t){ __ft.push(t-__lt); __lt=t; if(__ft.length<300) requestAnimationFrame(f); })(performance.now()), 1)",
     "waitFor 30000 window.__ft.length>=300",

@@ -59,6 +59,7 @@ export function buildHeliMesh() {
 }
 
 // --------------------------------------------------------------------------------------------- flight model
+const _yq = new THREE.Quaternion(), _Y = new THREE.Vector3(0, 1, 0);
 const _v = new THREE.Vector3(), _vb = new THREE.Vector3(), _up = new THREE.Vector3(), _fw = new THREE.Vector3(), _dq = new THREE.Quaternion(), _e = new THREE.Euler();
 const SKID_PTS = [[0.85, 1.7], [-0.85, 1.7], [0.85, -1.7], [-0.85, -1.7]];
 const NOMODS = { engineOk: true, power: 1, xmsnOk: true, lift: 1, tail: 1, hyd: 1, hydOk: true, skidTol: 1, vib: 0 };
@@ -122,7 +123,9 @@ export function createHeliSim(G) {   // G = gravity (m/s^2)
     let gy = -1e9;
     for (const [sx, sz] of SKID_PTS) { _v.set(sx, 0, sz).applyQuaternion(H.q); gy = Math.max(gy, env.groundY(H.pos.x + _v.x, H.pos.z + _v.z)); }
     H.agl = H.pos.y + HELI.SKID_Y - gy;
-    const hs = Math.hypot(H.vel.x, H.vel.z);
+    // a moving deck (carrier) under the skids: env.surfVel(x, z) -> { vx, vz, w, cx, cz } (velocity, yaw rate, centre)
+    const sv = env.surfVel ? env.surfVel(H.pos.x, H.pos.z) : null;
+    const hs = Math.hypot(H.vel.x - (sv ? sv.vx : 0), H.vel.z - (sv ? sv.vz : 0));   // speed over the surface
     H.ge = 1 + 0.22 * Math.max(0, 1 - H.agl / (2 * HELI.ROTOR_R));                    // ground effect within a rotor diameter
     H.etl = 1 + 0.12 * sstep(6, 16, hs);                                               // translational lift
     H.vrs = sstep(4, 9, -H.vel.y) * (1 - sstep(6, 12, hs));                             // vortex ring: sinking fast with no airspeed
@@ -133,7 +136,14 @@ export function createHeliSim(G) {   // G = gravity (m/s^2)
     _v.addScaledVector(_up, thrust); _v.y -= G;
     if (H.landed) {
       if (_v.y > 0.05 && thrust > G * 0.98) H.landed = false;   // lift-off
-      else { H.vel.multiplyScalar(Math.max(0, 1 - 8 * h)); H.vel.y = 0; settle(gy, h); return null; }
+      else {
+        if (sv) {   // ride the deck: move and turn with the ship
+          const a = sv.w * h, dx = H.pos.x - sv.cx, dz = H.pos.z - sv.cz, c = Math.cos(a), s = Math.sin(a);
+          H.pos.x = sv.cx + dx * c + dz * s + sv.vx * h; H.pos.z = sv.cz - dx * s + dz * c + sv.vz * h;
+          H.q.premultiply(_yq.setFromAxisAngle(_Y, a)); H.vel.set(sv.vx, 0, sv.vz);
+        } else { H.vel.multiplyScalar(Math.max(0, 1 - 8 * h)); H.vel.y = 0; }
+        settle(gy, h); return null;
+      }
     }
     H.vel.addScaledVector(_v, h); H.pos.addScaledVector(H.vel, h);
 
@@ -152,7 +162,7 @@ export function createHeliSim(G) {   // G = gravity (m/s^2)
       const tilt = Math.acos(Math.min(1, _up.y)), tol = M.skidTol;
       if (H.vel.y < -8 * tol || hs > 11 * tol || tilt > 0.7) return 'crash';
       const hard = H.vel.y < -4.5 * tol || hs > 6 * tol || tilt > 0.42;   // survivable, but it breaks things
-      H.landed = true; H.vel.set(0, 0, 0); H.w.set(0, H.w.y * 0.2, 0); settle(gy, 1);
+      H.landed = true; H.vel.set(sv ? sv.vx : 0, 0, sv ? sv.vz : 0); H.w.set(0, H.w.y * 0.2, 0); settle(gy, 1);
       return hard ? 'hardland' : 'land';
     }
     return null;

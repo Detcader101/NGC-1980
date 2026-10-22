@@ -1,11 +1,11 @@
 {
   "name": "caveaim",
-  "query": "?debug&kb&thrust=1",
+  "query": "?debug&kb&thrust=1&res=0.45",
   "steps": [
     "waitFor 10000 window.__G && __G.G.mode==='thrust'",
+    "eval (__G.HI.setCollective(0.42), __G.H.rpm = 1, 1)",
     "wait 2500",
     "expect __G.BASES[1].st.turrets.length === 2 && __G.BASES[4].st.turrets.length === 5",
-    "eval (__G.HI.setCollective(0.42), 1)",
     "log hat up: gun points straight up and auto-fires",
     "eval (window.__hat=[0,1], window.__rd=__G.HI.read, __G.HI.read=function(dt){const o=__rd.call(this,dt); if(window.__hat){o.hatX=__hat[0]; o.hatY=__hat[1];} return o;}, 1)",
     "wait 500",
