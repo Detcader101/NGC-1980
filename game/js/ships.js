@@ -108,11 +108,11 @@ export function buildTransport() {   // enemy twin-rotor transport that lands tr
   for (const x of [-1.1, 1.1]) for (const z of [-3, 3]) box(0.3, 0.8, 0.3, dark, x, -1.5, z, g);
   return { group: g, rotors };
 }
-export function buildGunship() {   // the enemy attack drone (the original red saucer, with a gun pod)
+export function buildGunship(side = 2) {   // attack drone (the original saucer, with a gun pod): red for the enemy, blue escorts for us
   const g = new THREE.Group();
-  const mat = new THREE.MeshPhongMaterial({ color: 0xdd2222, emissive: 0x440808, flatShading: true });
+  const mat = new THREE.MeshPhongMaterial({ color: side === 1 ? 0x2a8cdd : 0xdd2222, emissive: side === 1 ? 0x08263f : 0x440808, flatShading: true });
   g.add(new THREE.Mesh(new THREE.OctahedronGeometry(1.8).scale(1.4, 0.7, 1.4), mat));
-  g.add(new THREE.Mesh(new THREE.TorusGeometry(2.6, 0.12, 4, 20).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xff8844 })));
+  g.add(new THREE.Mesh(new THREE.TorusGeometry(2.6, 0.12, 4, 20).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: side === 1 ? 0x77eeff : 0xff8844 })));
   box(0.5, 0.5, 1.6, M(0x331111), 0, -0.9, -0.6, g);
   return { group: g };
 }

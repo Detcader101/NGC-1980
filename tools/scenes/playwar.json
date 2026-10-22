@@ -1,0 +1,23 @@
+{
+  "name": "playwar",
+  "query": "?debug&kb&res=0.45",
+  "steps": [
+    "waitFor 10000 window.__G",
+    "eval (window.__msgs=[], new MutationObserver(()=>{const t=document.getElementById('msg').textContent; if(t) __msgs.push(Math.round(performance.now()/1000)+' '+t)}).observe(document.getElementById('msg'),{childList:true,characterData:true,subtree:true}), 1)",
+    "key tap Enter", "wait 4000",
+    "eval (__G.war.orderCarrier(-120, 60), 1)",
+    "key hold Space 1400",
+    "wait 2500",
+    "eval ({agl:+__G.H.agl.toFixed(1), landed:__G.H.landed, alive:__G.Z.alive, coll:__G.H.coll})",
+    "shot 01-takeoff",
+    "key tap KeyC",
+    "key down KeyW", "wait 900", "key up KeyW",
+    "wait 6000",
+    "shot 02-flying",
+    "eval ({pos:__G.H.pos.toArray().map(v=>Math.round(v)), spd:+Math.hypot(__G.H.vel.x,__G.H.vel.z).toFixed(1), agl:+__G.H.agl.toFixed(1), alive:__G.Z.alive, dmg:JSON.stringify(__G.D.hp)})",
+    "wait 10000",
+    "shot 03-later",
+    "eval ({pos:__G.H.pos.toArray().map(v=>Math.round(v)), alive:__G.Z.alive, lives:__G.G.lives, units:__G.war.units.map(u=>u.type[0]+u.side).join(''), carrier:__G.war.carrier.p.toArray().map(Math.round), fps:document.getElementById('dbg').textContent})",
+    "eval window.__msgs"
+  ]
+}

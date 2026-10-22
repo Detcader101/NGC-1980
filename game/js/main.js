@@ -36,7 +36,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyJ') HI.startCalibration();
   if (e.code === 'KeyT') toggleFreeLook();
   if (e.code === 'KeyM') { bigMap = !bigMap; setMapSize(); if (bigMap && document.pointerLockElement) document.exitPointerLock(); }
-  if (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3') command(+e.code.slice(5));
+  if (['Digit1', 'Digit2', 'Digit3', 'Digit4'].includes(e.code)) command(+e.code.slice(5));
   if (e.code === 'KeyV') { cockpitCam = !cockpitCam; if (!cockpitCam && document.pointerLockElement) document.exitPointerLock(); say(cockpitCam ? 'COCKPIT VIEW' : (chaseCam ? 'CHASE CAMERA' : 'FIXED CAMERA'), 1.2); }
   if (e.code === 'KeyC') { cockpitCam = false;  chaseCam = !chaseCam; Z.hd = Math.atan2(Z.facing.x, -Z.facing.y); say(chaseCam ? 'CHASE CAMERA' : 'FIXED CAMERA', 1.2); }
   if (e.code === 'KeyK') { keyboardOnly = !keyboardOnly; say(keyboardOnly ? 'KEYBOARD ONLY' : 'CONTROLLER ENABLED', 1.5); }
@@ -344,7 +344,7 @@ for (const b of BASES) if (b.kind === 'enemy') {
   const g = new THREE.Group(); g.position.set(b.x, b.h, b.z); zScene.add(g); b.surface = g;
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 90, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0xff4030, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }));
   beam.position.y = 45; g.add(beam); b.beam = beam;
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(HOLE_R + 2.3, 0.18, 6, 48), new THREE.MeshBasicMaterial({ color: 0xff3020 })); ring.rotation.x = Math.PI / 2; ring.position.y = 0.25; g.add(ring);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(HOLE_R + 2.3, 0.18, 6, 48), new THREE.MeshBasicMaterial({ color: 0xff3020 })); ring.rotation.x = Math.PI / 2; ring.position.y = 0.25; g.add(ring); b.ring = ring;
   const mat = new THREE.MeshPhongMaterial({ color: 0x4a3a3a, flatShading: true });
   for (let i = 0; i < 6; i++) {
     const a = i / 6 * Math.PI * 2 + 0.3, m = new THREE.Mesh(new THREE.BoxGeometry(3.5 + (i % 2) * 2, 4 + (i % 3) * 2, 3.5), mat);
@@ -365,6 +365,22 @@ zScene.add(shipMesh);
 const shadowMat = new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.4, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
 const shipShadow = new THREE.Mesh(new THREE.CircleGeometry(3.4, 20).rotateX(-Math.PI / 2), shadowMat); zScene.add(shipShadow);
 
+// bomb sight: where a bomb dropped now would land
+const bombSight = (() => {
+  const g = new THREE.Group(), m = new THREE.MeshBasicMaterial({ color: 0xffd060, transparent: true, opacity: 0.8, depthTest: false });
+  g.add(new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 28).rotateX(-Math.PI / 2), m));
+  for (let i = 0; i < 4; i++) { const t = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 0.5).rotateX(-Math.PI / 2), m); const a = i * Math.PI / 2; t.position.set(Math.cos(a) * 1.25, 0, Math.sin(a) * 1.25); t.rotation.y = -a; g.add(t); }
+  for (const c of g.children) c.renderOrder = 11;
+  g.visible = false; zScene.add(g); return g;
+})();
+const _bs = new THREE.Vector3(), _bv = new THREE.Vector3();
+function updateBombSight(hide) {
+  bombSight.visible = false;
+  if (hide || !Z.alive || G.state !== 'play' || G.bombs <= 0 || H.landed || H.agl < 6) return;
+  _bs.copy(H.pos); _bs.y -= 1.7; _bv.copy(H.vel);
+  for (let i = 0; i < 200; i++) { _bv.y -= 9 * 0.04; _bs.addScaledVector(_bv, 0.04); const gy = groundY(_bs.x, _bs.z); if (_bs.y <= gy) { _bs.y = gy + 0.3; bombSight.visible = true; break; } }
+  if (bombSight.visible) { bombSight.position.copy(_bs); bombSight.scale.setScalar(clamp(_bs.distanceTo(zCam.position) * 0.04, 1.5, 9)); }
+}
 const reticle = new THREE.Group();
 {
   const m = new THREE.MeshBasicMaterial({ color: 0xff5a70, transparent: true, opacity: 0.95, depthTest: false });
@@ -397,6 +413,7 @@ function islandOwnerChanged(I, was) {
   const b = I.base; if (!b) return;
   baseUniform[BASES.indexOf(b)].w = I.owner === 2 ? 1 : 0;
   if (b.beam) b.beam.material.color.setHex(I.owner === 1 ? 0x66ddff : 0xff4030);
+  if (b.ring) b.ring.material.color.setHex(I.owner === 1 ? 0x33bbff : 0xff3020);
   if (!b.st || b.kind !== 'enemy') return;
   if (I.owner === 1) { for (const t of b.st.turrets) { t.alive = false; t.mesh.visible = false; } b.st.podTaken = true; }   // the garrison has surrendered
   else if (I.owner === 2 && was === 1) restockBase(b);
@@ -418,6 +435,7 @@ war = createWar({
 let selIsl = null;
 function command(n) {
   if (G.state !== 'play') return;
+  if (n === 4) { say(war.sendEscort(), 2); return; }
   if (n === 3) { if (G.mat < COST.heli) say('NOT ENOUGH MATERIEL FOR A HELICOPTER', 1.6); else { G.mat -= COST.heli; G.lives++; say('NEW HELICOPTER IN THE HANGAR', 1.6); sfx.dock(); } return; }
   if (!selIsl) { say('SELECT AN ISLAND ON THE MAP FIRST (M)', 1.8); return; }
   say(n === 1 ? war.sendDrone(selIsl) : war.orderAA(selIsl), 2);
@@ -526,8 +544,26 @@ function service(svc, dt) {
   if (fill > 0 || arming) Z.refuelling = true; else if (Z.refuelling) { Z.refuelling = false; say(G.res < 1 ? 'FUEL STORES EMPTY  -  TAKE FUEL ISLANDS OR LOOT ENEMY CAVES' : `${svc.name}  -  FUELLED AND ARMED`, 1.6); }
 }
 const _rk = new THREE.Vector3();
+// the advisor: every so often, the next thing worth doing
+const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+const bearing = (dx, dz) => COMPASS[Math.round(((Math.atan2(dx, -dz) * 180 / Math.PI + 360) % 360) / 45) % 8];
+function advise(dt) {
+  G.advT = (G.advT ?? 12) - dt; if (G.advT > 0) return; G.advT = 45;
+  const P = Z.pos, b = war.battleship;
+  if (b && b.sinking === undefined) { feed(`ADVISOR: THE BATTLESHIP IS ${Math.round(Math.hypot(b.p.x - P.x, b.p.z - P.z))}m ${bearing(b.p.x - P.x, b.p.z - P.z)}  -  BOMB IT (B) BEFORE IT REACHES THE ALBATROSS`, 'bad'); return; }
+  if (war.E.bship > 55) { feed(`ADVISOR: ENEMY BATTLESHIP ${Math.floor(war.E.bship)}% BUILT  -  BOMB THEIR FACTORIES AND THE IRONHOLD SHIPYARD`, 'bad'); return; }
+  let best = null, bd = 1e9;
+  for (const I of ISLANDS) if (I.owner !== 1 && !I.cave) { const d = Math.hypot(I.pad.x - P.x, I.pad.z - P.z) * (I.owner === 0 ? 1 : 1.6); if (d < bd) { bd = d; best = I; } }
+  if (best) {
+    const d = Math.round(Math.hypot(best.pad.x - P.x, best.pad.z - P.z)), dir = bearing(best.pad.x - P.x, best.pad.z - P.z);
+    feed(best.owner === 0 ? `ADVISOR: ${best.name} (${KIND_NAME[best.kind]}) IS UNCLAIMED, ${d}m ${dir}  -  LAND ON ITS PAD OR SEND A DRONE (M, 1)` : `ADVISOR: ${best.name} IS ENEMY-HELD, ${d}m ${dir}  -  SILENCE ITS GUNS, THEN LAND ON IT`);
+    return;
+  }
+  const f = ISLANDS.find(I => I.cave && I.owner === 2); if (f) feed(`ADVISOR: STEAL THE POD FROM THE CAVE UNDER ${f.name} TO TAKE IT`);
+}
 function updateZarch(dt, inp) {
   const P = Z.pos;
+  if (Z.alive) advise(dt);
   if (!Z.alive) {
     Z.deadT -= dt;
     if (Z.deadT <= 0 && !G.over) { G.fuel = 100; G.cargo = 0; D.reset(); G.rockets = ROCKETS_MAX; G.bombs = BOMBS_MAX; resetZarch(true); say(war.carrier && war.carrier.sinking === undefined ? 'NEW HELICOPTER ON THE ALBATROSS' : 'NEW HELICOPTER ON THE HOME PAD', 2); }
@@ -830,7 +866,7 @@ function startTransition(label, swap) { G.state = 'trans'; G.tr = { t: 0, phase:
 function newGame() {
   cancelRescue(); D.reset();
   G.score = 0; G.lives = 3; G.fuel = 100; G.visit = 0; G.mode = 'zarch'; G.over = false; G.state = 'play';
-  G.res = 250; G.mat = 90; G.rockets = ROCKETS_MAX; G.bombs = BOMBS_MAX; G.cargo = 0; selIsl = null; feedItems.length = 0;
+  G.res = 250; G.mat = 90; G.rockets = ROCKETS_MAX; G.bombs = BOMBS_MAX; G.cargo = 0; selIsl = null; feedItems.length = 0; G.advT = 12;
   fx.clear(); war.reset(); resetBases(); fog.reset(); fog.enabled = !params.has('nofog'); resetZarch(true);
   $('title').style.display = 'none'; $('title').querySelector('h1').textContent = 'THRUST / ZARCH'; $('result').textContent = '';
   say('ROTOR SPOOLING  -  RAISE COLLECTIVE TO LIFT', 3);
@@ -923,7 +959,7 @@ function drawMap() {
     radar.font = '14px monospace'; radar.textAlign = 'center'; radar.fillStyle = '#bfe';
     radar.fillText('CLICK THE SEA: SAIL THE ALBATROSS THERE   ·   CLICK AN ISLAND: SELECT IT   ·   M: CLOSE', W / 2, Hh - 70);
     radar.fillStyle = '#ff8';
-    radar.fillText(`1: CAPTURE DRONE (${COST.drone})   ·   2: AA GUN ON OUR ISLAND (${COST.aa})   ·   3: NEW HELICOPTER (${COST.heli})      MATERIEL ${Math.floor(G.mat)}`, W / 2, Hh - 46);
+    radar.fillText(`1: CAPTURE DRONE (${COST.drone})  ·  2: AA GUN ON OUR ISLAND (${COST.aa})  ·  3: NEW HELICOPTER (${COST.heli})  ·  4: ESCORT FIGHTER (${COST.escort})     MATERIEL ${Math.floor(G.mat)}`, W / 2, Hh - 46);
     radar.font = '12px monospace'; radar.fillStyle = '#8ab';
     radar.fillText('HQ  HEADQUARTERS     C  CAVE FORTRESS (STEAL ITS POD)     F  FUEL     M  MATERIEL (FACTORY)     R  RADAR     ▲ AA GUNS', W / 2, Hh - 24);
     if (selIsl) {
@@ -1159,7 +1195,7 @@ function updateCamsAndMeshes(dt, time) {
     const m = D.mods(), running = m.engineOk && G.fuel > 0;
     G.n2 = lerp(G.n2 || 0, running ? (H.driven ? H.rpm : 1) : 0, 1 - Math.exp(-1.2 * dt));
   }
-  updateLandingLight(inCave);
+  updateLandingLight(inCave); updateBombSight(inCave || e > 0.05);
   switchHover = inCockpit ? pickSwitch() : null;
   if (inCockpit) {
     const m = D.mods();

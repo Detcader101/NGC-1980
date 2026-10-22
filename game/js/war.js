@@ -13,7 +13,7 @@ import { buildCarrier, buildBattleship, buildDrone, buildTransport, buildGunship
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const angDiff = (a, b) => { let d = (b - a) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return d; };
-export const COST = { drone: 40, aa: 30, heli: 60 };
+export const COST = { drone: 40, aa: 30, heli: 60, escort: 30 };
 export const SIDE_NAME = ['NEUTRAL', 'FRIENDLY', 'ENEMY'];
 const CAP_TIME = { heli: 6, drone: 9, transport: 10 };
 const PROD = { fuel: { fuel: 0.55 }, factory: { mat: 0.4 }, radar: {}, hq: { fuel: 0.3, mat: 0.3 }, fortress: { fuel: 0.6 } };
@@ -76,6 +76,11 @@ export function createWar(ctx) {
   W.setOwner = (I, side, how) => {
     const was = I.owner; if (was === side) return;
     I.owner = side; I.cap = null;
+    {   // a burst of the new owner's colour over the pad
+      const c = side === 1 ? [0.3, 0.85, 1] : [1, 0.3, 0.15], p = I.pad;
+      for (let i = 0; i < 70; i++) { const a = rnd(6.283), sp = rnd(4, 16); fx.add.spawn(p.x, p.h + 1, p.z, Math.cos(a) * sp, rnd(8, 26), Math.sin(a) * sp, rnd(1, 2.2), rnd(0.5, 1.1), 0.2, c[0], c[1], c[2], 1, 9, 0.6); }
+      fx.water.add({ x: p.x, y: p.h + 0.3, z: p.z, size: 4, grow: 60, a: 0.8, life: 1, tile: 1, pow: 2 });
+    }
     for (const s of I.structs) {
       if (s.kind === 'aa') { if (!s.dead && s.side !== side) killStruct(s, true); continue; }
       s.side = side; recolor(s);
@@ -182,8 +187,8 @@ export function createWar(ctx) {
 
   // ------------------------------------------------------------------------------------- aircraft
   function makeAir(type, side, x, y, z, extra = {}) {
-    const m = type === 'drone' ? buildDrone() : type === 'transport' ? buildTransport() : buildGunship();
-    const hp = { drone: 5, transport: 7, gunship: 3 }[type];
+    const m = type === 'drone' ? buildDrone() : type === 'transport' ? buildTransport() : buildGunship(side);
+    const hp = { drone: 5, transport: 7, gunship: 3, escort: 4 }[type];
     const u = { type, side, p: new THREE.Vector3(x, y, z), v: new THREE.Vector3(), yaw: 0, hp, hpMax: hp, mesh: m.group, parts: m, r: type === 'transport' ? 4.5 : 3.2, cd: rnd(1, 2.5), ph: rnd(6.28), state: 'go', ...extra };
     m.group.position.copy(u.p); scene.add(m.group); W.units.push(u); return u;
   }
@@ -228,12 +233,13 @@ export function createWar(ctx) {
       return;
     }
     if (u.type === 'gunship') updateGunship(u, dt, pl);
+    else if (u.type === 'escort') updateEscort(u, dt, pl);
     else updateLander(u, dt);
     if (u.parts.rotors) for (const r of u.parts.rotors) r.rotation.y += dt * 30;
     if (u.parts.lamp) u.parts.lamp.visible = (W.time % 1) < 0.15;
     if (u.hp < u.hpMax * 0.5 && Math.random() < 0.4) fx.trail(u.p.x, u.p.y, u.p.z, 0.9);
-    u.mesh.position.copy(u.p); u.mesh.rotation.y = u.type === 'gunship' ? u.mesh.rotation.y + dt * 2 : u.yaw;
-    if (u.type !== 'gunship') { u.mesh.rotation.x = clamp(-u.v.dot(_w.set(fwdX(u.yaw), 0, fwdZ(u.yaw))) * 0.015, -0.3, 0.3); }
+    u.mesh.position.copy(u.p); u.mesh.rotation.y = u.type === 'gunship' || u.type === 'escort' ? u.mesh.rotation.y + dt * 2 : u.yaw;
+    if (u.type !== 'gunship' && u.type !== 'escort') { u.mesh.rotation.x = clamp(-u.v.dot(_w.set(fwdX(u.yaw), 0, fwdZ(u.yaw))) * 0.015, -0.3, 0.3); }
   }
   // drones (ours) and transports (theirs): fly to the island, land on the pad, hold it until it flips
   function updateLander(u, dt) {
@@ -263,7 +269,7 @@ export function createWar(ctx) {
       if (u.target && u.target !== 'player' && (u.target.dead || u.target.gone || (u.target.side !== undefined && u.target.side !== 1))) u.target = null;
       if (!u.target) {
         let best = null, bd = 160;
-        for (const o of W.units) if (o.side === 1 && !o.dead && (o.type === 'drone') && o.p.distanceTo(u.p) < bd) { best = o; bd = o.p.distanceTo(u.p); }
+        for (const o of W.units) if (o.side === 1 && !o.dead && !o.dying && (o.type === 'drone' || o.type === 'escort') && o.p.distanceTo(u.p) < bd) { best = o; bd = o.p.distanceTo(u.p); }
         if (best) u.target = best; else if (u.raid) u.target = u.raid.dead || u.raid.gone || u.raid.side !== 1 ? (u.raid = null) : u.raid;
       }
     }
@@ -288,6 +294,31 @@ export function createWar(ctx) {
       flyTo(u, hx, cruise(u.p.x, u.p.z, 26 + Math.sin(u.ph) * 4), hz, 12, dt);
     }
   }
+  // our escort fighters: fly in formation off the helicopter's wing and go after enemy aircraft that come near it
+  function updateEscort(u, dt, pl) {
+    const anchor = pl.alive && !pl.inCave ? pl.pos : (W.carrier && W.carrier.sinking === undefined ? W.carrier.p : null);
+    u.retarget = (u.retarget || 0) - dt;
+    if (u.retarget <= 0) {
+      u.retarget = 0.8; u.target = null; let bd = 190;
+      if (anchor) for (const o of W.units) if (o.side === 2 && o.p && !o.dims && !o.dead && !o.dying) { const d = o.p.distanceTo(anchor); if (d < bd) { bd = d; u.target = o; } }
+    }
+    if (u.target && (u.target.dead || u.target.dying)) u.target = null;
+    if (u.target) {
+      const t = u.target, a = u.ph * 0.7 + u.slot * 2;
+      flyTo(u, t.p.x + Math.cos(a) * 30, Math.max(cruise(u.p.x, u.p.z, 10), t.p.y + 3), t.p.z + Math.sin(a) * 30, 26, dt, 2);
+      u.cd -= dt; const d = t.p.distanceTo(u.p);
+      if (u.cd <= 0 && d < 100) { u.cd = 0.5 + rnd(0.3); const tt = d / 70; _v.set(t.p.x + t.v.x * tt - u.p.x, t.p.y + t.v.y * tt - u.p.y, t.p.z + t.v.z * tt - u.p.z).normalize().multiplyScalar(70); shoot('b', 1, u.p.x, u.p.y, u.p.z, _v.x, _v.y, _v.z, 1.8); }
+    } else if (anchor) {   // formation: off the helicopter's quarter
+      const a = u.slot * 2.1 + W.time * 0.25, ox = Math.cos(a) * 16, oz = Math.sin(a) * 16;
+      flyTo(u, anchor.x + ox, Math.max(cruise(u.p.x, u.p.z, 8), anchor.y + 5), anchor.z + oz, 30, dt, 1.8);
+    }
+  }
+  W.sendEscort = () => {
+    const n = W.units.filter(u => u.type === 'escort' && !u.dead && !u.dying).length;
+    if (n >= 3) return 'THREE ESCORTS ALREADY UP';
+    if (W.P.mat < COST.escort) return 'NOT ENOUGH MATERIEL';
+    W.P.mat -= COST.escort; const [x, y, z] = launchPoint(1); const u = makeAir('escort', 1, x, y + 3, z); u.slot = n; sfx.dock(); return 'ESCORT FIGHTER LAUNCHED  -  IT WILL JOIN YOU';
+  };
   W.spawnGunship = (side, near, raid) => {
     const [x, y, z] = near || launchPoint(2), u = makeAir('gunship', 2, x + rnd(-6, 6), y + 6, z + rnd(-6, 6));
     u.id = rnd(6.28); u.home = [x, z]; u.raid = raid || null; u.target = raid || null; return u;
