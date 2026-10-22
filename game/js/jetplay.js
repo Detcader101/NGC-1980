@@ -240,11 +240,6 @@ export function createJetPlay(ctx) {
       pilotG(dt); warnings(dt); service(dt);
     }
     effects(dt);
-    {   // the jet may range over the open sea past the islands; turn back before the hard edge
-      const lim = ctx.BOUND + 700, out = Math.max(Math.abs(J.pos.x), Math.abs(J.pos.z));
-      if (out > ctx.BOUND + 150) say(out > lim - 150 ? 'TURN BACK NOW  -  EDGE OF THE OPERATING AREA' : 'LEAVING THE ARCHIPELAGO  -  TURN BACK', 0.5);
-      for (const ax of ['x', 'z']) if (Math.abs(J.pos[ax]) > lim) { J.pos[ax] = Math.sign(J.pos[ax]) * lim; if (J.vel[ax] * J.pos[ax] > 0) J.vel[ax] *= -0.2; }
-    }
     // seeker tone
     if (P.mode === 'AA' && P.arm && J.stores.aam.some(Boolean) && !P.ejected) sfx.seeker(P.tgt && P.tgt.lock ? 2 : P.tgt && P.tgt.off < 0.3 ? 1 : 0); else sfx.seeker(0);
   };

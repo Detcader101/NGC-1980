@@ -104,3 +104,14 @@ jetplay.js (input, weapons, carrier ops, HUD data, cautions, g tolerance, ejecti
   low frame rates; hitTest() reuses war.js's _w (don't loop with it); the game starts with the ALBATROSS facing FORGE,
   so the carrier now turns into clear water before a launch; hold-to-eject must use real time, not sim time.
 - Scenes (headless, all pass): jet.mjs, jettrap.mjs, jetweapons.mjs, jetsystems.mjs; helicopter scenes still pass.
+
+## 2026-10-22 — infinite procedural world, no limits
+- world.js: wild islands outside the archipelago: one per 460 m cell with probability 0.42, placed/sized by an integer
+  hash of the cell (same every run), at least 160 m clear of the operating area; islandH() adds them (3x3 cells).
+- main.js: the terrain shader samples the baked core heightmap inside the operating area and, outside, a second
+  512x512 @ 8 m heightmap streamed around the camera (re-baked island by island when the camera moves 700 m, then
+  swapped; bilinear by hand in the vertex shader). Wild-island trees refill on each bake. Fog of war stops at the area.
+- No clamps for the helicopter or the jet. Leaving the area: one message + feed line, then a hint with the distance and
+  bearing back. Minimap and the jet's AMPCD draw open sea, wild islands and the operating area's dashed outline.
+- Scene: infinite.mjs (jet 4 km out over wild islands, physics height on the island, helicopter lands on one).
+- Note: damage.json's scripted lift-off is timing-sensitive at low headless fps (flaky under load, passes on rerun).

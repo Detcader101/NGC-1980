@@ -38,7 +38,41 @@ export function landMask(x, z) {
   for (const I of ISLANDS) { const d = Math.hypot(x - I.x, z - I.z) + w; if (d < I.r) m = Math.max(m, 1 - sm(I.r * 0.55, I.r, d)); }
   return m;
 }
-export const islandH = (x, z) => mix(SEA_FLOOR, hills(x, z) * 0.7 + 9, landMask(x, z));
+// Beyond the archipelago (the operating area, where the war is) the sea goes on forever, scattered with wild islands.
+// Each WCELL grid cell may hold one, picked by a hash of the cell: the same islands every run, no edge anywhere.
+export const WCELL = 460, WILD_MIN = BOUND + 160;
+const hash = (i, j, k) => { let h = Math.imul(i, 374761393) + Math.imul(j, 668265263) + Math.imul(k, 1274126177) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return (h >>> 0) / 4294967296; };
+const _wild = new Map();
+export function wildIsland(i, j) {
+  const key = i * 131072 + j; let I = _wild.get(key);
+  if (I === undefined) {
+    I = null;
+    if (hash(i, j, 1) < 0.42) {
+      const x = (i + 0.2 + 0.6 * hash(i, j, 2)) * WCELL, z = (j + 0.2 + 0.6 * hash(i, j, 3)) * WCELL, r = 45 + 140 * hash(i, j, 4) ** 1.5;
+      if (Math.max(Math.abs(x), Math.abs(z)) - r > WILD_MIN) I = { x, z, r, hs: 0.55 + 0.9 * hash(i, j, 5), seed: (hash(i, j, 6) * 4294967296) >>> 0 };
+    }
+    if (_wild.size > 50000) _wild.clear(); _wild.set(key, I);
+  }
+  return I;
+}
+// wild islands whose land may reach within R of (x, z)
+export function wildIslandsNear(x, z, R) {
+  const out = [], i0 = Math.floor((x - R) / WCELL) - 1, i1 = Math.floor((x + R) / WCELL) + 1, j0 = Math.floor((z - R) / WCELL) - 1, j1 = Math.floor((z + R) / WCELL) + 1;
+  for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const I = wildIsland(i, j); if (I && Math.abs(I.x - x) < R + I.r + 25 && Math.abs(I.z - z) < R + I.r + 25) out.push(I); }
+  return out;
+}
+export const outsideOps = (x, z) => Math.max(Math.abs(x), Math.abs(z)) > BOUND;
+export const islandH = (x, z) => {
+  let m = landMask(x, z), hs = 1;
+  if (Math.max(Math.abs(x), Math.abs(z)) > WILD_MIN - 220) {   // wild islands: only the 3x3 cells around can reach here
+    const ci = Math.floor(x / WCELL), cj = Math.floor(z / WCELL), w = wobble(x, z);
+    for (let i = ci - 1; i <= ci + 1; i++) for (let j = cj - 1; j <= cj + 1; j++) {
+      const I = wildIsland(i, j); if (!I) continue;
+      const d = Math.hypot(x - I.x, z - I.z) + w; if (d < I.r) { const k = 1 - sm(I.r * 0.55, I.r, d); if (k > m) { m = k; hs = I.hs; } }
+    }
+  }
+  return mix(SEA_FLOOR, hills(x, z) * 0.7 * hs + 9, m);
+};
 export const islandAt = (x, z, pad = 0) => ISLANDS.find(I => Math.hypot(x - I.x, z - I.z) < I.r + pad);
 
 // the same, as GLSL (constants baked in: the islands never move)

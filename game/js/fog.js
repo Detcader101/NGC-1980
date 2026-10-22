@@ -40,6 +40,7 @@ export function createFog(bound, N = 112) {
 // GLSL: darken a lit colour c at world xz by the fog of war (needs uFogT, uFogB, uTime)
 export const FOG_GLSL = `
 vec3 fogOfWar(vec3 c, vec2 p, float t){
+  if(max(abs(p.x),abs(p.y))>uFogB) return c;   // past the operating area: no war, no fog of war
   vec2 f=texture2D(uFogT,(p+uFogB)/(2.*uFogB)).rg;
   float cl=.5+.5*sin(p.x*.031+t*.21)*sin(p.y*.027-t*.16);
   vec3 unk=mix(vec3(.09,.11,.15),vec3(.15,.17,.22),cl);

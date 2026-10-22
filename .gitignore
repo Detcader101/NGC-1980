@@ -11,3 +11,6 @@ launcher/launcher.log
 launcher/icon-source.png
 launcher/.icon-commit
 launcher/.last-open
+
+# agent worktrees
+.claude/worktrees/
