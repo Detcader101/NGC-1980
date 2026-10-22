@@ -166,3 +166,60 @@ jetplay.js (input, weapons, carrier ops, HUD data, cautions, g tolerance, ejecti
 - Tests: tools/cavebench.mjs (pure node: ASCII maps, seed sweep, connectivity/width/floors/turret seats/determinism),
   tools/scenes/caves.mjs (enters all five caves, parks by the pod and on the pad, winches the pod).
 
+## 2026-10-22 — UH-1H "Huey" (flight model, cockpit, exterior, sound, systems)
+Files: game/js/hueyfm.js (flight model, pure), hueymodel.js (exterior), hueycockpit.js (3D cockpit), heli.js (now the
+glue: systems, cautions, HOTAS / pedals via hotas.js CTL, stability assist), audio.js (sfx.huey), main.js (heli parts
+only), tools/hueybench.mjs + hueypilot.mjs (node bench), scenes hueystart / hueyhover / hueyauto / hueycockpit / hueymodel.
+Sources (reused from the MC-Huey project's notes): Heffley NASA CR-3144 (trims, inertias, derivatives), Talbot NASA
+TM-73,254 (fuselage, stab bar, tail rotor), DCS UH-1H manual (limits, procedures), TM 55-1520-210-10 charts (autorotation).
+- World scale: real air and real gravity (9.81) for the Huey only - a helicopter fits the 1.3 km map at real speeds, and
+  the validated numbers are the in-game numbers. Real size too: 48 ft rotor, ~17.4 m long (the jet is real size as well).
+- Model: 2-blade teetering rotor (no hub moment: control = thrust tilt, so low g = no control), blade-element thrust with
+  Glauert inflow + first-order dynamic inflow, Johnson's empirical vortex-ring curve, Cheeseman-Bennett ground effect,
+  flapback / coning / transverse-flow flapping (CCW rotor: right roll in ETL), Bell stabilizer bar (gyro, 0.16 mixing,
+  3.3 s washout - Talbot), retreating blade stall and tip Mach drag, mast-bump stop. Tail rotor = fan (momentum) + part
+  of Talbot's T4 damping. T53: N1 lag/accel limit, free-turbine torque (2 - N2), PI governor with the droop compensator
+  and conditional integration, EMER, starter / light-off / hung start, EGT. Freewheel between engine and rotor.
+  Talbot fuselage, synchronized elevator (DCS/Talbot table), cambered fin, downwash on fuselage and stab. Skids: 6 spring
+  contacts, deadbeat skid friction on the effective mass (rotation included) relative to moving decks.
+- Bench (node tools/hueybench.mjs, 41 checks, all pass; 3629 kg / 8000 lb, SL) vs published:
+  | item | model | published |
+  |---|---|---|
+  | hover OGE torque | 36.5 psi (73%) | 32-40 psi (DCS), est 38.4 |
+  | hover collective / pitch / roll | 15.3° root / +4.2° / -1.1° (left skid low) | 14.5° / +4.0° / -1.1° (H) CONFIRMED |
+  | hover pedal / tail rotor pitch | 22% left / 7.2° | 1/4-1/3 left (DCS), 6.4° (H) |
+  | trims 0-120 kt (coll / pitch / tail) | max err 0.8° / 1.5° / 1.0° | Heffley cases 122-128 |
+  | power bucket | min 19.4 psi at 60 kt | Vy ~55-60 kt (TM) |
+  | IGE (1 m) vs OGE torque | -10% | ~10-20% (INFERRED) |
+  | climb at 50 psi, 60 kt | 11.6 m/s | 12.4 m/s (H, "max power") |
+  | retreating blade stall onset / reaches VNE | 132 kt / 128 kt at < 54 psi | ~120-130 kt (DCS), 124 kt red line |
+  | autorotation 70 kt, NR 100% | 9.8 m/s (1925 fpm), +4.1°, right pedal | ~8.6 m/s TM, +3.1° H, tail ~0° |
+  | full-down rpm at 70 kt | 334 rpm | 320-340 (DCS) |
+  | engine failure at 90 kt, 2 s | 272 rpm | decays toward ~280 (DCS) |
+  | collective +12% droop | 4.2 rpm | 3-5 rpm (DCS) |
+  | yaw damping Nr hover | -0.70 /s | -0.71 (H) ; Lp -1.08 vs -0.57, Mq -0.29 vs -0.19 (too damped, bar) |
+  | VRS: -10% collective from OGE hover | settles to ~3000 fpm | runs to ~2000 fpm in 1-2 s (DCS) |
+  | tail rotor lost: hover / 30 kt / 100 kt power reduced | spins 117°/s / spins / held at 12° sideslip | -10 manual procedures |
+  CONFIRMED = from the source; INFERRED (tuned, stated in hueyfm.js): CD0 0.0072, hub 0.12 m ahead of the CG, stall
+  angle, fin camber, Talbot N1 cut to 5.5 (with 13.95 the bare airframe is directionally unstable and a tail rotor loss
+  is never flyable), stab area (Heffley's 2.03 m2 not Talbot's 1.52), tail solidity (Heffley chord), idle gas power.
+- Systems (heli.js): battery / generator / inverter (DC volts, AC instruments), main fuel, governor AUTO/EMER, hydraulic
+  control, force trim (keyboard stick stays put), low rpm audio, starter, master caution; the 20 real UH-1H caution
+  captions + RPM and FIRE warning lights driven by the damage model. Spawn hot at flight idle with an automatic
+  throttle roll-on; I = one-key start (~10 s) / fuel cut; ?cold = cold and dark.
+- Input: CTL (hotas.js) stick = cyclic, throttle lever = collective (whichever moved last of lever / keys), rudder
+  pedals or twist = anti-torque, buttons = door gun / rockets / bombs / winch, hat = door gun. The old heli calibration
+  is retired: J opens the CTL controls panel. Stability assist (H, default on for keyboard): attitude command + hover
+  drift hold + yaw-rate command, the flight model untouched; a stick switches it off unless you ask for it.
+- Fuel: the game tank follows the T53 fuel flow x50 (a tank = ~3 min hover, ~5 min cruise).
+- Cave: same rotor and engine in axial flight (H.axial) -> thrust / weight; the model is drawn at 0.36 to fit shipPts.
+- Gotchas: the skid friction limit-cycled sideways (the deadbeat gain ignored the roll lever arm of a contact 1.84 m
+  under the CG) - use the effective mass at the point; 0/0 when a contact carries no load (NaN everywhere); governor
+  wind-up on the throttle roll-on (108% NR) - conditional integration + N2-rate term; idle power drove the rotor so a
+  practice autorotation never split the needles; the assist pre-set the wrong lift-off trim (forward/right instead of
+  aft/LEFT) and drifted the big rotor into the carrier's island (rotor strike) - spawn moved to the aft H spot;
+  scripted test pilots must hold rpm with the collective and stay out of the H-V avoid area (old scenes cut the engine
+  at 150 ft in a hover: not survivable in a real Huey); a scripted height hold that pulls collective with drooping
+  rpm over-pitches the rotor (a real Huey trait - the test now backs off below 95% NR).
+- Scenes updated for the real aircraft: rescue / damage (failures in a low hover over the flat apron), loop (cave hover
+  collective 0.385), dive (was already broken on main: pre-archipelago coordinates).
