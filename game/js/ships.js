@@ -177,7 +177,7 @@ export function buildDropship() {
   const g = new THREE.Group(), steel = M(0x6c747c, { shininess: 40 }), dark = M(0x2a2e33), glass = M(0x1a2a36, { emissive: 0x0a1820 }), team = M(TEAM[1], { emissive: 0x0a2a44 });
   const fus = new THREE.Mesh(new THREE.CylinderGeometry(2.1, 2.1, 20, 12).rotateX(Math.PI / 2), steel); fus.scale.y = 1.05; g.add(fus);
   const nose = new THREE.Mesh(new THREE.SphereGeometry(2.1, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(-Math.PI / 2), steel); nose.scale.set(1, 1, 1.5); nose.position.z = -10; g.add(nose);
-  box(3.2, 0.8, 1.6, glass, 0, 1.1, -11.2, g);   // cockpit glazing
+  const glazing = box(3.2, 0.8, 1.6, glass, 0, 1.1, -11.2, g);   // cockpit glazing (hidden from inside)
   // tail: tapers and sweeps up to the fin; the ramp is the flat underside
   const tg = new THREE.CylinderGeometry(0.7, 2.1, 9, 12, 1, false).rotateX(-Math.PI / 2); const tail = new THREE.Mesh(tg, steel); tail.position.set(0, 0.9, 14.3); tail.rotation.x = -0.2; g.add(tail);
   box(3, 0.25, 7, dark, 0, -1.2, 13.4, g).rotation.x = -0.32;
@@ -196,7 +196,7 @@ export function buildDropship() {
   }
   box(4.6, 1.4, 4.2, steel, 0, -1.9, -1, g);                                         // landing gear sponsons
   const lamp = box(0.3, 0.3, 0.3, new THREE.MeshBasicMaterial({ color: 0xff3020 }), 0, 2.4, 2, g);
-  return { group: g, props, lamp };
+  return { group: g, props, lamp, glazing };
 }
 // a paratrooper (repair crew) with a ram-air canopy that unfurls on opening
 export function buildJumper() {

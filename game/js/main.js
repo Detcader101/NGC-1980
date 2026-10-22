@@ -33,14 +33,15 @@ addEventListener('keydown', e => {
   if (e.repeat) return;
   if (G.state === 'paused') { menuKey(e); return; }
   if (e.code === 'Escape' && G.state === 'play') { openMenu(); return; }
-  if (e.code === 'KeyH') doSwitch('sas');
+  if (e.code === 'KeyH') { if (drop.flying) drop.toggleAP(); else doSwitch('sas'); }
   const sw = { KeyI: 'engine', KeyO: 'fire', KeyU: 'hyd', KeyL: 'radio', KeyN: 'light' }[e.code];
   if (sw) doSwitch(sw);
   if (e.code === 'KeyJ') HI.startCalibration();
   if (e.code === 'KeyT') toggleFreeLook();
   if (e.code === 'KeyM') { bigMap = !bigMap; setMapSize(); if (bigMap && document.pointerLockElement) document.exitPointerLock(); }
   if (['Digit1', 'Digit2', 'Digit3', 'Digit4'].includes(e.code)) command(+e.code.slice(5));
-  if (e.code === 'KeyV') { cockpitCam = !cockpitCam; if (!cockpitCam && document.pointerLockElement) document.exitPointerLock(); say(cockpitCam ? 'COCKPIT VIEW' : (chaseCam ? 'CHASE CAMERA' : 'FIXED CAMERA'), 1.2); }
+  if (e.code === 'KeyV' && drop.flying) drop.toggleView();
+  else if (e.code === 'KeyV') { cockpitCam = !cockpitCam; if (!cockpitCam && document.pointerLockElement) document.exitPointerLock(); say(cockpitCam ? 'COCKPIT VIEW' : (chaseCam ? 'CHASE CAMERA' : 'FIXED CAMERA'), 1.2); }
   if (e.code === 'KeyC') { cockpitCam = false;  chaseCam = !chaseCam; Z.hd = Math.atan2(Z.facing.x, -Z.facing.y); say(chaseCam ? 'CHASE CAMERA' : 'FIXED CAMERA', 1.2); }
   if (e.code === 'KeyK') { keyboardOnly = !keyboardOnly; say(keyboardOnly ? 'KEYBOARD ONLY' : 'CONTROLLER ENABLED', 1.5); }
   if (e.code === 'KeyP' && G.state === 'play') openMenu();
@@ -441,6 +442,7 @@ const drop = createDrop({
   onFuel: k => { G.fuel = Math.min(100, G.fuel + k); sfx.refuel?.(); },
   onRepaired: () => { const fixed = D.damaged(); D.fieldRepair(); sfx.pickup(); say(fixed ? 'FIELD REPAIR DONE  -  FLY HER HOME' : 'CREW DONE  -  FUEL ABOARD  -  FLY HER HOME', 3); },
   onFail: () => {}, onEnd: () => { G.rescue = null; },
+  setThrottle: v => HI.setCollective(v), takeStick: () => {}, releaseStick: () => HI.setCollective(G.heliColl ?? 0), head,
 });
 // commands (any time; the big map shows what is selected): 1 capture drone, 2 AA gun, 3 helicopter
 let selIsl = null;
@@ -584,7 +586,8 @@ function updateZarch(dt, inp) {
   } else {
     const ctl = HI.read(dt);
     drop.update(dt, ctl, H);
-    if (drop.controlling) { ctl.cx = ctl.cy = ctl.pedal = 0; ctl.fire = ctl.rocket = ctl.bomb = false; inp = { ...inp, fire: false }; }   // the stick flies the dropship / canopies
+    if (drop.controlling) { ctl.cx = ctl.cy = ctl.pedal = 0; ctl.fire = ctl.rocket = ctl.bomb = false; inp = { ...inp, fire: false }; ctl.coll = G.heliColl ?? 0; }   // the stick flies the dropship / canopies
+    else G.heliColl = ctl.coll;
     const ev = H.step(dt, ctl, { groundY, fuel: G.fuel, water: waterAt(H.pos.x, H.pos.z), surfVel: war.surfVel, mods: D.mods() });
     G.fuel = Math.max(0, G.fuel - D.update(dt));
     P.copy(H.pos); Z.vel.copy(H.vel); Z.landed = H.landed; Z.throttle = H.coll * H.rpm; Z.ctl = ctl;
@@ -597,7 +600,7 @@ function updateZarch(dt, inp) {
     G.fuel = Math.max(0, G.fuel - HELI.BURN * (0.15 + 0.85 * H.coll) * H.rpm * dt);
     if (G.fuel <= 0 && !H.landed) say('FUEL EXHAUSTED  -  AUTOROTATE AND SET DOWN SAFELY', 0.5);
     updateRescue(dt, H.landed, false);
-    sfx.engine(H.rpm * (0.25 + 0.75 * H.coll));
+    sfx.engine(drop.flying ? drop.engineLevel() : H.rpm * (0.25 + 0.75 * H.coll));
     const svc = H.landed ? serviceAt(P.x, P.z) : null; Z.svc = svc;
     if (svc) service(svc, dt);
     else if (ev === 'water') killPlayerZ('DITCHED IN THE WATER');
@@ -1274,7 +1277,7 @@ function updateCamsAndMeshes(dt, time) {
   }
   const inCockpit = cockpitCam && !inCave && e < 0.01 && Z.alive && G.state !== 'title' && !drop.camActive;
   cockpit.group.visible = inCockpit; for (const o of heliShell) o.visible = !inCockpit;   // seen from inside, the outer shell only gets in the way
-  const near = inCockpit ? 0.06 : 0.5; if (zCam.near !== near) { zCam.near = near; zCam.updateProjectionMatrix(); }
+  const near = inCockpit || drop.cockpitView ? 0.06 : 0.5; if (zCam.near !== near) { zCam.near = near; zCam.updateProjectionMatrix(); }
   {   // engine N2 runs on its own when it isn't clutched to the rotor (engine running, gearbox seized) or winds down
     const m = D.mods(), running = m.engineOk && G.fuel > 0;
     G.n2 = lerp(G.n2 || 0, running ? (H.driven ? H.rpm : 1) : 0, 1 - Math.exp(-1.2 * dt));
@@ -1341,6 +1344,7 @@ function frame(now) {
   const t1 = performance.now();
   updateCamsAndMeshes(dt, now / 1000);
   updateHud();
+  setStyle('bot', 'display', drop.flying ? 'none' : ''); setStyle('caution', 'display', drop.flying ? 'none' : '');
   const t2 = performance.now();
   fx.setView(zCam, renderer.domElement.height, zScene.fog);
   renderer.render(zScene, zCam);
