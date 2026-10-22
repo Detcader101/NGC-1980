@@ -278,12 +278,12 @@ export function createHueySim(GRAV = 9.81) {
     else H.n1 += (n1c > 0 ? (n1c - H.n1) * 0.22 * qk : -H.n1 * 0.12) * h;
     H.n1 = Math.max(0, H.n1);
     // power to the free turbine: steep in N1, damage and EMER take some away
-    const gas = H.run ? U.P_MAX * Math.max(0, (H.n1 - 0.655) / 0.345) ** 1.6 * M.power * (ctl.gov === 'EMER' ? 0.88 : 1) : 0;
+    const gas = H.run ? U.P_MAX * (Math.max(0, (H.n1 - 0.68) / 0.32) ** 1.6 + 0.006 * sstep(0.12, 0.6, H.n1)) * M.power * (ctl.gov === 'EMER' ? 0.88 : 1) : 0;   // idle ~16 kW: the rotor turns slowly at flight idle, the needles split in a practice autorotation (INFERRED)
     H.gasP = gas;
     const qe = gas / U.OMEGA * Math.max(0, 2 - H.n2);                // free-turbine torque at the mast falls with N2
     // freewheel: S = torque through the clutch; it can only drive the rotor
     const qLoad = H.qRotor + H.qTail + 300 * (H.omega / U.OMEGA) + (M.xmsnOk ? 0 : 9000) * Math.sign(H.omega);
-    const IR = U.I_ROTOR + U.I_TAIL_REF, IE = U.I_ENG_REF, qef = 60 * H.n2 + 400 * Math.max(0, H.n2 - 1.08);
+    const IR = U.I_ROTOR + U.I_TAIL_REF, IE = U.I_ENG_REF, qef = 60 * H.n2 + 450 * H.n2 * H.n2 + 400 * Math.max(0, H.n2 - 1.08);
     const nr = H.omega / U.OMEGA, engaged = H.n2 >= nr - 1e-4;
     let S = 0;
     if (engaged) { S = (IR * (qe - qef) + IE * qLoad) / (IR + IE); if (S < 0) S = 0; }   // locked: share the acceleration

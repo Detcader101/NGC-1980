@@ -40,7 +40,7 @@ export function createHeliSystems({ D, G, say }) {
     get fuelSw() { return D.engineSwitch; }, get hyd() { return D.hydBoost; },
     // hot (running at flight idle, throttle rolls on), or cold and dark
     reset(cold = false) {
-      Object.assign(S, { bat: !cold, gen: !cold, inv: !cold, gov: 'AUTO', trim: true, starterKey: false, starterLatch: false, grip: cold ? 0 : 0.18, beep: 0, quick: false, auto: cold ? null : 'rollon' });
+      Object.assign(S, { bat: !cold, gen: !cold, inv: !cold, gov: 'AUTO', trim: true, starterKey: false, starterLatch: false, grip: cold ? 0 : 0.18, beep: 0, quick: false, auto: cold ? null : 'rollon', volts: cold ? 0 : 28, engOilP: 0, xmsnOilP: 0 });
       if (cold) D.engineSwitch = false;
       S.mcSeen.clear(); S.masterCaution = false;
     },
@@ -151,10 +151,10 @@ export function createHeliInput({ keyDown, CTL, hwOn = () => true, say }) {
     if (mods && !mods.hydOk) return;   // the assist rides on the hydraulics
     const a = H.attitude(), pitch = a.pitch, roll = -a.roll, q = H.w.x, p = -H.w.z, r = -H.w.y;
     H.forward(_f); _f.y = 0; _f.normalize(); const u = H.vel.dot(_f), v = H.vel.x * -_f.z + H.vel.z * _f.x, spd = Math.hypot(H.vel.x, H.vel.z);
-    const hands = 1 - clamp(Math.hypot(c.cx, c.cy) * 3, 0, 1), slow = 1 - clamp((spd - 6) / 8, 0, 1), air = !H.landed;
+    const hands = 1 - clamp(Math.hypot(c.cx, c.cy) * 3, 0, 1), slow = 1 - clamp((spd - 4) / 6, 0, 1), air = !H.landed;
     // targets: stick deflection -> pitch / bank; hands-off and slow -> lean against the drift (hover hold)
     I.th = clamp(I.th + (air ? (u * 0.004 * hands * slow) * dt : 0), -0.1, 0.2);
-    const thT = clamp(I.th + c.cy * 0.33 + hands * slow * u * 0.03, -0.45, 0.4), phT = clamp(c.cx * 0.55 - hands * slow * v * 0.035 + I.ph, -0.6, 0.6);
+    const thT = clamp(I.th + c.cy * 0.33 + hands * slow * u * 0.05, -0.45, 0.4), phT = clamp(c.cx * 0.55 - hands * slow * v * 0.055 + I.ph, -0.6, 0.6);
     if (air) { I.lon = clamp(I.lon + (thT - pitch) * 0.6 * dt, -0.7, 0.7); I.lat = clamp(I.lat + (phT - roll) * 0.8 * dt, -0.7, 0.7); I.ph = clamp(I.ph - v * 0.002 * hands * slow * dt, -0.05, 0.05); }
     c.cy = clamp(I.lon + (thT - pitch) * 2.2 - q * 0.9, -1, 1);   // + aft
     c.cx = clamp(I.lat + (phT - roll) * 2.4 - p * 0.7, -1, 1);
@@ -162,7 +162,7 @@ export function createHeliInput({ keyDown, CTL, hwOn = () => true, say }) {
     const fast = clamp((spd - 15) / 20, 0, 1), rc = c.pedal * 0.8, beta = spd > 3 ? Math.atan2(v, Math.max(1, u)) : 0;
     if (air) I.ped = clamp(I.ped + ((rc - r) * 0.6 * (1 - fast) - beta * 0.2 * fast) * dt, -1, 1);
     c.pedal = clamp(I.ped + (rc - r) * 1.6 * (1 - fast * 0.6) + c.pedal * fast * 0.5 - beta * fast * 0.8, -1, 1);
-    if (!air) { I.lon = -0.08; I.lat = 0.05; }
+    if (!air) { I.lon = 0.1; I.lat = -0.15; I.th = 0.07; I.ph = -0.02; }   // on the skids: the Huey's hover trim (aft and LEFT cyclic, see the bench) ready for the lift-off
   }
   return api;
 }

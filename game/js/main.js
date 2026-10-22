@@ -544,7 +544,8 @@ function command(n) {
 // where a fresh helicopter starts: the carrier deck while it is afloat, else the home pad
 function spawnSpot() {
   const c = war && war.carrier;
-  if (c && c.sinking === undefined && !params.has('homepad')) { const lx = -3, lz = 26, cs = Math.cos(c.yaw), sn = Math.sin(c.yaw); return { x: c.p.x + lx * cs + lz * sn, z: c.p.z - lx * sn + lz * cs, y: CARRIER.DECK, yaw: c.yaw }; }
+  // the aft helicopter spot (H3): the Huey's 48 ft disc clears the island there
+  if (c && c.sinking === undefined && !params.has('homepad')) { const lx = -2, lz = 32, cs = Math.cos(c.yaw), sn = Math.sin(c.yaw); return { x: c.p.x + lx * cs + lz * sn, z: c.p.z - lx * sn + lz * cs, y: CARRIER.DECK, yaw: c.yaw }; }
   return { x: PAD.x, z: PAD.z, y: PAD_H, yaw: 0 };
 }
 function resetZarch(fromPad) {
@@ -635,7 +636,7 @@ function cancelRescue() { if (G.rescue) { G.rescue = null; crate.visible = false
 function killPlayerZ(why) {
   cancelRescue();
   if (!Z.alive) return;
-  Z.alive = false; Z.deadT = 2.4; shipMesh.visible = false; shipShadow.visible = false;
+  Z.alive = false; Z.deadT = 2.4; Z.lastDeath = { why, pos: H.pos.toArray().map(v => +v.toFixed(1)), t: performance.now() };   // for tests and post-mortems shipMesh.visible = false; shipShadow.visible = false;
   fx.explode(Z.pos.x, Z.pos.y, Z.pos.z, 2.4, { fire: 45, debris: 16, color: 0x55613d, oil: true }); sfx.boom(1.2); sfx.engine(0);
   say(why, 2);
   G.lives--; if (G.lives < 0) gameOver();
@@ -1234,7 +1235,7 @@ function updateHud() {
   }
   setText('pad', keyboardOnly ? 'KEYBOARD ONLY' : CTL.state.source && CTL.state.source !== 'NONE' ? `${CTL.state.source}${CTL.state.hasPedals ? ' + PEDALS' : ''}  ·  J CONTROLS` : readPad() ? 'CONTROLLER' : 'KEYBOARD');
   setStyle('radar', 'display', G.mode === 'zarch' ? 'block' : 'none');
-  setStyle('bot', 'width', G.craft === 'jet' ? '440px' : '300px'); setStyle('hint', 'left', G.craft === 'jet' ? '470px' : '');
+  setStyle('bot', 'width', '440px'); setStyle('hint', 'left', '470px');   // the Huey's numbers line is as long as the jet's
   if (G.craft === 'jet') {
     setText('alt', JP.hudLine());
     setText('hint', switchHover ? `${JP.cockpit.labelOf(switchHover)}  -  CLICK` : JP.hint());
