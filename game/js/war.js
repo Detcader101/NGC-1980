@@ -8,7 +8,7 @@
 // shipyard to hold it back; once it launches it hunts your carrier. Lose the carrier and the war is lost; sink the
 // enemy carrier or take its HQ island (IRONHOLD) to win.
 import * as THREE from 'three';
-import { buildCarrier, buildBattleship, buildFreighter, buildDrone, buildTransport, buildGunship, buildGun, buildStructure, buildRubble, CARRIER, BSHIP, FREIGHTER, TEAM } from './ships.js';
+import { buildCarrier, buildBattleship, buildFreighter, buildDrone, buildTransport, buildGunship, buildTomcat, buildGun, buildStructure, buildRubble, CARRIER, BSHIP, FREIGHTER, TEAM } from './ships.js';
 
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -194,9 +194,9 @@ export function createWar(ctx) {
 
   // ------------------------------------------------------------------------------------- aircraft
   function makeAir(type, side, x, y, z, extra = {}) {
-    const m = type === 'drone' ? buildDrone() : type === 'transport' ? buildTransport() : buildGunship(side);
+    const m = type === 'drone' ? buildDrone() : type === 'transport' ? buildTransport() : type === 'escort' ? buildTomcat(side) : buildGunship(side);
     const hp = { drone: 5, transport: 7, gunship: 3, escort: 4 }[type];
-    const u = { type, side, p: new THREE.Vector3(x, y, z), v: new THREE.Vector3(), yaw: 0, hp, hpMax: hp, mesh: m.group, parts: m, r: type === 'transport' ? 4.5 : 3.2, cd: rnd(1, 2.5), ph: rnd(6.28), state: 'go', ...extra };
+    const u = { type, side, p: new THREE.Vector3(x, y, z), v: new THREE.Vector3(), yaw: 0, hp, hpMax: hp, mesh: m.group, parts: m, r: type === 'transport' ? 4.5 : type === 'escort' ? 4 : 3.2, cd: rnd(1, 2.5), ph: rnd(6.28), state: 'go', ...extra };
     m.group.position.copy(u.p); scene.add(m.group); W.units.push(u); return u;
   }
   function launchPoint(side) {   // from the carrier deck if it is afloat, else the HQ pad
@@ -239,8 +239,8 @@ export function createWar(ctx) {
       }
       return;
     }
+    if (u.type === 'escort') { updateEscort(u, dt, pl); jetVisuals(u, dt); return; }
     if (u.type === 'gunship') updateGunship(u, dt, pl);
-    else if (u.type === 'escort') updateEscort(u, dt, pl);
     else updateLander(u, dt);
     if (u.parts.rotors) for (const r of u.parts.rotors) r.rotation.y += dt * 30;
     if (u.parts.lamp) u.parts.lamp.visible = (W.time % 1) < 0.15;
@@ -301,30 +301,79 @@ export function createWar(ctx) {
       flyTo(u, hx, cruise(u.p.x, u.p.z, 26 + Math.sin(u.ph) * 4), hz, 12, dt);
     }
   }
-  // our escort fighters: fly in formation off the helicopter's wing and go after enemy aircraft that come near it
+  // our escort fighters (Tomcats): real jets - they can't hover, so they fly top cover in a wide orbit over the
+  // helicopter and make gun runs on enemy aircraft near it: lead pursuit, a burst when the nose is on, overshoot,
+  // extend and come round again. Turn rate is limited, wings sweep back with speed and forward in hard turns.
+  function jetFly(u, tx, ty, tz, spd, dt) {
+    const want = Math.atan2(-(tx - u.p.x), -(tz - u.p.z));
+    const w = clamp(angDiff(u.yaw, want) * 1.8, -0.95, 0.95);
+    u.yaw += w * dt; u.turn = w;
+    u.speed += (spd - u.speed) * (1 - Math.exp(-0.7 * dt));
+    u.bank += (clamp(Math.atan(w * u.speed / 9.8), -1.35, 1.35) - u.bank) * (1 - Math.exp(-4 * dt));
+    let floor = 0; for (let k = 0; k <= 3; k++) floor = Math.max(floor, cruise(u.p.x + fwdX(u.yaw) * k * 30, u.p.z + fwdZ(u.yaw) * k * 30, 16));
+    const vy = clamp((Math.max(ty, floor) - u.p.y) * 0.7, -16, 18);
+    u.v.set(fwdX(u.yaw) * u.speed, vy, fwdZ(u.yaw) * u.speed); u.p.addScaledVector(u.v, dt);
+    u.pitch += (Math.atan2(vy, u.speed) - u.pitch) * (1 - Math.exp(-5 * dt));
+  }
   function updateEscort(u, dt, pl) {
     const anchor = pl.alive && !pl.inCave ? pl.pos : (W.carrier && W.carrier.sinking === undefined ? W.carrier.p : null);
     u.retarget = (u.retarget || 0) - dt;
     if (u.retarget <= 0) {
-      u.retarget = 0.8; u.target = null; let bd = 190;
-      if (anchor) for (const o of W.units) if (o.side === 2 && o.p && !o.dims && !o.dead && !o.dying) { const d = o.p.distanceTo(anchor); if (d < bd) { bd = d; u.target = o; } }
+      u.retarget = 0.8; let bd = 260, best = null;
+      if (anchor) for (const o of W.units) if (o.side === 2 && o.p && !o.dims && !o.dead && !o.dying) { const d = o.p.distanceTo(anchor); if (d < bd) { bd = d; best = o; } }
+      if (best !== u.target) { u.target = best; u.extendT = 0; }
     }
     if (u.target && (u.target.dead || u.target.dying)) u.target = null;
+    u.cd -= dt; u.extendT = (u.extendT || 0) - dt;
     if (u.target) {
-      const t = u.target, a = u.ph * 0.7 + u.slot * 2;
-      flyTo(u, t.p.x + Math.cos(a) * 30, Math.max(cruise(u.p.x, u.p.z, 10), t.p.y + 3), t.p.z + Math.sin(a) * 30, 26, dt, 2);
-      u.cd -= dt; const d = t.p.distanceTo(u.p);
-      if (u.cd <= 0 && d < 100) { u.cd = 0.5 + rnd(0.3); const tt = d / 70; _v.set(t.p.x + t.v.x * tt - u.p.x, t.p.y + t.v.y * tt - u.p.y, t.p.z + t.v.z * tt - u.p.z).normalize().multiplyScalar(70); shoot('b', 1, u.p.x, u.p.y, u.p.z, _v.x, _v.y, _v.z, 1.8); }
-    } else if (anchor) {   // formation: off the helicopter's quarter
-      const a = u.slot * 2.1 + W.time * 0.25, ox = Math.cos(a) * 16, oz = Math.sin(a) * 16;
-      flyTo(u, anchor.x + ox, Math.max(cruise(u.p.x, u.p.z, 8), anchor.y + 5), anchor.z + oz, 30, dt, 1.8);
+      const t = u.target, d = t.p.distanceTo(u.p), tt = d / 130;
+      const ax = t.p.x + t.v.x * tt, ay = t.p.y + t.v.y * tt, az = t.p.z + t.v.z * tt;
+      if (u.extendT > 0) jetFly(u, u.p.x + fwdX(u.yaw) * 200, t.p.y + 25, u.p.z + fwdZ(u.yaw) * 200, 62, dt);   // overshot: extend, then come round
+      else {
+        jetFly(u, ax, ay + 1, az, 58, dt);
+        if (d < 38) u.extendT = 2.2;
+      }
+      // guns: a burst while the nose is on the lead point
+      const cp = Math.cos(u.pitch), fx_ = fwdX(u.yaw) * cp, fy = Math.sin(u.pitch), fz = fwdZ(u.yaw) * cp;
+      const dx = ax - u.p.x, dy = ay - u.p.y, dz = az - u.p.z, dl = Math.hypot(dx, dy, dz) || 1;
+      if (u.cd <= 0 && d < 260 && d > 25 && (fx_ * dx + fy * dy + fz * dz) / dl > 0.985) {
+        u.cd = 0.07; const sp = 135;
+        shoot('b', 1, u.p.x + fx_ * 4, u.p.y + fy * 4, u.p.z + fz * 4, (dx / dl + rnd(-0.012, 0.012)) * sp + u.v.x * 0.3, (dy / dl + rnd(-0.012, 0.012)) * sp, (dz / dl + rnd(-0.012, 0.012)) * sp + u.v.z * 0.3, 2.2);
+        if (hear(u.p.x, u.p.y, u.p.z, 300) > 0 && Math.random() < 0.4) sfx.shot();
+      }
+    } else if (anchor) {   // top cover: a wide orbit over the helicopter, spaced round the circle
+      const c = Math.atan2(u.p.z - anchor.z, u.p.x - anchor.x) + 0.55, R = 120 + u.slot * 25;
+      jetFly(u, anchor.x + Math.cos(c) * R, Math.max(anchor.y, 0) + 40 + u.slot * 8, anchor.z + Math.sin(c) * R, 46, dt);
+    } else jetFly(u, u.p.x + fwdX(u.yaw + 0.5) * 100, 60, u.p.z + fwdZ(u.yaw + 0.5) * 100, 46, dt);
+  }
+  function jetVisuals(u, dt) {
+    const m = u.mesh, P = u.parts;
+    m.position.copy(u.p); m.rotation.set(u.pitch, u.yaw, u.bank, 'YXZ');
+    const sweep = clamp(0.3 + (u.speed - 32) / 30 * 0.85 - Math.abs(u.turn || 0) * 0.35, 0.3, 1.15);
+    u.sweep = (u.sweep ?? sweep) + (sweep - (u.sweep ?? sweep)) * (1 - Math.exp(-1.5 * dt));
+    P.wings[0].rotation.y = -u.sweep; P.wings[1].rotation.y = u.sweep;
+    m.updateMatrixWorld();
+    const burner = u.target && u.speed > 50;
+    for (const n of P.nozzles) {
+      _w.copy(n).applyMatrix4(m.matrixWorld);
+      fx.add.spawn(_w.x, _w.y, _w.z, -u.v.x * 0.1, 0, -u.v.z * 0.1, burner ? 0.16 : 0.08, burner ? 1.3 : 0.6, 0.2, 1, burner ? .55 : .7, burner ? .2 : .4, burner ? 0.95 : 0.5);
     }
+    if (Math.abs(u.bank) > 0.9 && u.speed > 45) for (const t of P.tips) { _w.copy(t).applyMatrix4(m.matrixWorld); fx.mix.spawn(_w.x, _w.y, _w.z, 0, 0, 0, 0.7, 0.25, 0.9, .95, .97, 1, 0.45, 0, 1); }   // wingtip vapour in hard turns
+    if (u.hp < u.hpMax * 0.5 && Math.random() < 0.4) fx.trail(u.p.x, u.p.y, u.p.z, 0.9);
+    // flyby roar when one passes close to the camera
+    u.roarT = (u.roarT || 0) - dt;
+    if (u.roarT <= 0) { const k = hear(u.p.x, u.p.y, u.p.z, 70); if (k > 0) { sfx.noiseBurst?.(600, 80, 1.6, 0.22 * k); u.roarT = 4; } }
   }
   W.sendEscort = () => {
     const n = W.units.filter(u => u.type === 'escort' && !u.dead && !u.dying).length;
     if (n >= 3) return 'THREE ESCORTS ALREADY UP';
     if (W.P.mat < COST.escort) return 'NOT ENOUGH MATERIEL';
-    W.P.mat -= COST.escort; const [x, y, z] = launchPoint(1); const u = makeAir('escort', 1, x, y + 3, z); u.slot = n; sfx.dock(); return 'ESCORT FIGHTER LAUNCHED  -  IT WILL JOIN YOU';
+    W.P.mat -= COST.escort; const [x, y, z] = launchPoint(1); const u = makeAir('escort', 1, x, y + 2, z); u.slot = n;
+    // off the catapult along the carrier's heading, with a puff of steam
+    const c = W.carrier && W.carrier.sinking === undefined ? W.carrier : null;
+    Object.assign(u, { yaw: c ? c.yaw : 0, speed: 42, bank: 0, pitch: 0.15, turn: 0 }); u.v.set(fwdX(u.yaw) * 42, 0, fwdZ(u.yaw) * 42);
+    for (let i = 0; i < 12; i++) fx.mix.spawn(x + rnd(-2, 2), y - 1, z + rnd(-2, 2), rnd(-2, 2), rnd(1, 4), rnd(-2, 2), rnd(1, 2), 1, 4, .95, .95, .95, 0.5, -0.5, 1.5, 0.5);
+    sfx.noiseBurst?.(900, 120, 1.2, 0.25); return 'TOMCAT LAUNCHED  -  TOP COVER INBOUND';
   };
   W.spawnGunship = (side, near, raid) => {
     const [x, y, z] = near || launchPoint(2), u = makeAir('gunship', 2, x + rnd(-6, 6), y + 6, z + rnd(-6, 6));
@@ -341,6 +390,7 @@ export function createWar(ctx) {
   }
   const bombGeo = new THREE.CapsuleGeometry(0.22, 0.7, 3, 6).rotateX(Math.PI / 2), bombMat = new THREE.MeshPhongMaterial({ color: 0x2d3326 });
   W.shoot = shoot;
+  W.addExternal = u => { W.units.push(u); return u; };   // a unit flown by another module (the dropship): it can be seen, shot at and gives sight
   W.fireBullet = (p, v) => shoot('b', 1, p.x, p.y, p.z, v.x, v.y, v.z, 1.8);
   W.fireRocket = (p, v) => { sfx.rocket?.(); return shoot('rocket', 1, p.x, p.y, p.z, v.x, v.y, v.z, 3); };
   W.dropBomb = (p, v) => { sfx.bombDrop?.(); return shoot('bomb', 1, p.x, p.y, p.z, v.x, v.y, v.z, 12); };
@@ -422,7 +472,7 @@ export function createWar(ctx) {
       const b = W.proj[i]; b.life -= dt;
       const grav = b.kind === 'bomb' || b.kind === 'shell' || b.kind === 'jb' ? 9 : b.kind === 'rocket' ? 1.2 : b.kind === 'flak' || b.kind === 'aam' ? 0 : 2.2;
       if (b.kind === 'aam') guide(b, dt);
-      _pp.copy(b.p); b.v.y -= grav * dt; b.p.addScaledVector(b.v, dt);
+      _pp.copy(b.p); b.v.y -= grav * dt; b.p.addScaledVector(b.v, dt); b.p.y += 0.5 * grav * dt * dt;   // exact under gravity at any frame rate (bombs land where the CCIP says)
       if (b.kind === 'aam' && b.tgt && !b.tgt.dead && !b.tgt.dying) {   // proximity fuse on the closest approach along this step (fast missile, big frames)
         const t = b.tgt, sx = b.p.x - _pp.x, sy = b.p.y - _pp.y, sz = b.p.z - _pp.z, L2 = sx * sx + sy * sy + sz * sz || 1;
         const k = clamp(((t.p.x - _pp.x) * sx + (t.p.y - _pp.y) * sy + (t.p.z - _pp.z) * sz) / L2, 0, 1);
@@ -694,7 +744,7 @@ export function createWar(ctx) {
   };
   W.update = (dt, pl, peace) => {
     W.time += dt;
-    for (const u of W.units) { if (u.dims) sailShip(u, dt); else updateAir(u, dt, pl); }
+    for (const u of W.units) { if (u.ext) continue; if (u.dims) sailShip(u, dt); else updateAir(u, dt, pl); }
     {   // ships keep clear of each other (a gentle shove when two hulls would overlap)
       const sh = W.units.filter(u => u.dims && u.sinking === undefined);
       for (let i = 0; i < sh.length; i++) for (let j = i + 1; j < sh.length; j++) {

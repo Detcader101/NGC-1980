@@ -14,6 +14,7 @@ The enemy carrier KRAKEN is out there doing the same, and whoever controls the m
 - **Economy.** Islands produce fuel and materiel. Spend materiel on capture drones, AA guns, spare helicopters and escort fighters.
 - **An enemy commander.** It sends transports to take islands, fortifies, raids your carrier, ships supplies by freighter, and builds a battleship in its factories that hunts the ALBATROSS. Bomb the factories to slow it down.
 - **HORNET carrier jet.** Land on the ALBATROSS and press 5: an F/A-18-style fighter on the catapult. Full 6-DOF flight model with a Hornet-like flight computer, a 3D cockpit with a conformal HUD and working displays, catapult launches, arrested landings, gun, AIM-9s and CCIP bombs, ejection. Built for a T.Flight HOTAS 4 and rudder pedals with toe brakes (any stick, pad or keyboard works).
+- **Para-drop repair team.** Downed on land? Press L and home base sends a steel dropship from over the horizon. You fly it in from the flight deck with a real fixed-wing flight model (or let the autopilot), line up the jump run against the wind, jump on the green light, then steer the canopies down; whoever lands on dry ground runs over with fuel and fixes the helicopter. Enemy flak can bring the dropship down.
 - **Helicopter sim.** Collective, cyclic and pedals, flight-stick support with calibration, a working Huey cockpit, and a damage model where hits cause failures you can survive and repair.
 - **Effects that build up.** Smoke columns, fires, scorch marks, debris and oil slicks stay on the map.
 
@@ -42,8 +43,9 @@ Any static server works (for example `npx serve game`). On Windows, `game/start.
 | 1-4 | send drone, build AA gun, spare helicopter, escort fighter |
 | V / C | cockpit view / chase camera |
 | H | stability assist on/off |
+| L | call logistics: para-drop repair team (on land) |
 | J | calibrate a flight stick |
-| P | pause |
+| Esc / P | menu: resume, call logistics, respawn on the carrier if stuck, quit |
 
 ### HORNET (jet)
 

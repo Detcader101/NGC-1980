@@ -11,6 +11,7 @@ import { createFog, FOG_GLSL, fogPatch } from './fog.js';
 import { createFx } from './fx.js';
 import { createControls } from './hotas.js';
 import { createJetPlay } from './jetplay.js';
+import { createDrop } from './drop.js';
 
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -35,6 +36,8 @@ addEventListener('keydown', e => {
   sfx.init();
   if (e.repeat) return;
   if (CTL.isOpen) return;   // the controls panel has the keyboard
+  if (G.state === 'paused') { menuKey(e); return; }
+  if (e.code === 'Escape' && G.state === 'play') { openMenu(); return; }
   if (G.craft === 'jet' && G.state === 'play') {   // flying the HORNET: its own switches (see jetplay.js)
     if (e.code === 'KeyJ') { CTL.toggle(); return; }
     if (e.code === 'KeyY') { swapToHeli(); return; }
@@ -42,17 +45,18 @@ addEventListener('keydown', e => {
     if (['KeyH', 'KeyI', 'KeyO', 'KeyU', 'KeyL', 'KeyN'].includes(e.code)) return;
   }
   if (e.code === 'KeyY' && G.state === 'play') say('5: TAKE A JET (LANDED ON THE ALBATROSS)', 1.6);
-  if (e.code === 'KeyH') doSwitch('sas');
+  if (e.code === 'KeyH') { if (drop.flying) drop.toggleAP(); else doSwitch('sas'); }
   const sw = { KeyI: 'engine', KeyO: 'fire', KeyU: 'hyd', KeyL: 'radio', KeyN: 'light' }[e.code];
   if (sw) doSwitch(sw);
   if (e.code === 'KeyJ') HI.startCalibration();
   if (e.code === 'KeyT') toggleFreeLook();
   if (e.code === 'KeyM') { bigMap = !bigMap; setMapSize(); if (bigMap && document.pointerLockElement) document.exitPointerLock(); }
   if (['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'].includes(e.code)) command(+e.code.slice(5));
-  if (e.code === 'KeyV') { cockpitCam = !cockpitCam; if (!cockpitCam && document.pointerLockElement) document.exitPointerLock(); say(cockpitCam ? 'COCKPIT VIEW' : (chaseCam ? 'CHASE CAMERA' : 'FIXED CAMERA'), 1.2); }
+  if (e.code === 'KeyV' && drop.flying) drop.toggleView();
+  else if (e.code === 'KeyV') { cockpitCam = !cockpitCam; if (!cockpitCam && document.pointerLockElement) document.exitPointerLock(); say(cockpitCam ? 'COCKPIT VIEW' : (chaseCam ? 'CHASE CAMERA' : 'FIXED CAMERA'), 1.2); }
   if (e.code === 'KeyC') { cockpitCam = false;  chaseCam = !chaseCam; Z.hd = Math.atan2(Z.facing.x, -Z.facing.y); say(chaseCam ? 'CHASE CAMERA' : 'FIXED CAMERA', 1.2); }
   if (e.code === 'KeyK') { keyboardOnly = !keyboardOnly; say(keyboardOnly ? 'KEYBOARD ONLY' : 'CONTROLLER ENABLED', 1.5); }
-  if (e.code === 'KeyP' && (G.state === 'play' || G.state === 'paused')) { G.state = G.state === 'paused' ? 'play' : 'paused'; say(G.state === 'paused' ? 'PAUSED' : '', G.state === 'paused' ? 999 : 0); }
+  if (e.code === 'KeyP' && G.state === 'play') openMenu();
   if (['Enter', 'Space'].includes(e.code)) pressStart();
 });
 addEventListener('keyup', e => keys.delete(e.code));
@@ -511,6 +515,7 @@ function warOver(result, why) {
   setTimeout(() => showEnd(result === 'win' ? 'VICTORY' : 'DEFEAT', why), 5000);
 }
 function showEnd(title, why) {
+  if (G.craft === 'jet') { JP.stow(); G.craft = 'heli'; }
   G.state = 'title'; G.mode = 'zarch'; $('title').style.display = 'flex'; $('title').querySelector('h1').textContent = title;
   $('result').textContent = `${why}  -  SCORE ${G.score}`; if (document.pointerLockElement) document.exitPointerLock();
 }
@@ -590,6 +595,15 @@ function drawJetMap(c, k) {
     if (u.dims) { c.save(); c.translate(u.p.x, u.p.z); c.rotate(-u.yaw); c.fillRect(-u.dims.W / 2, -u.dims.L / 2, u.dims.W, u.dims.L); c.restore(); } else c.fillRect(u.p.x - 6, u.p.z - 6, 12, 12);
   }
 }
+// the para-drop repair team (logistics on land): a dropship from the carrier, a jump run, canopies, a crew that runs over
+const drop = createDrop({
+  scene: zScene, fx, sfx, war, groundY, terrainH, isWater, say, feed,
+  home: () => { const s = spawnSpot(); return { x: s.x, z: s.z }; },
+  onFuel: k => { G.fuel = Math.min(100, G.fuel + k); sfx.refuel?.(); },
+  onRepaired: () => { const fixed = D.damaged(); D.fieldRepair(); sfx.pickup(); say(fixed ? 'FIELD REPAIR DONE  -  FLY HER HOME' : 'CREW DONE  -  FUEL ABOARD  -  FLY HER HOME', 3); },
+  onFail: () => {}, onEnd: () => { G.rescue = null; },
+  setThrottle: v => HI.setCollective(v), takeStick: () => {}, releaseStick: () => HI.setCollective(G.heliColl ?? 0), head,
+});
 // commands (any time; the big map shows what is selected): 1 capture drone, 2 AA gun, 3 helicopter
 let selIsl = null;
 function command(n) {
@@ -632,6 +646,7 @@ function updateRescue(dt, landed, inCave) {
     if (!landed) G.rescueHinted = false;
     return;
   }
+  if (!R.cave) { if (!R.drop) { R.drop = true; const sp = spawnSpot(); drop.start(Z.pos, { x: sp.x, y: sp.y, z: sp.z }); } return; }   // on land: the para-drop
   R.t -= dt;
   if (!R.cave && R.t < 6 && !crate.visible) {   // the drop: a crate on a chute lands a few metres off the nose
     const f = H.forward(); R.cx = Z.pos.x + f.x * 7 + 3; R.cz = Z.pos.z + f.z * 7; crate.visible = true; crate.userData.chute.visible = true;
@@ -673,12 +688,14 @@ function hurtHeli(amount, why, part) {
 }
 function callLogistics() {
   const landed = G.mode === 'zarch' ? H.landed : T.landed, alive = G.mode === 'zarch' ? Z.alive : T.alive;
-  if (G.rescue) { say(`LOGISTICS ALREADY INBOUND  -  ${Math.ceil(G.rescue.t)}s`, 1.5); return; }
+  if (G.rescue) { say(`LOGISTICS ALREADY INBOUND  -  ${rescueStatus()}`, 1.5); return; }
   if (!alive || !landed) { say('LAND FIRST TO CALL LOGISTICS', 1.5); return; }
+  if (G.mode === 'zarch' && Z.svc) { say(`ON ${Z.svc.name}  -  REPAIRS AND FUEL ARE AUTOMATIC HERE`, 1.8); return; }
   if (!D.damaged() && G.fuel >= RESCUE_FUEL) { say('NOTHING TO FIX  -  TANKS ABOVE HALF', 1.5); return; }
   G.rescue = { t: RESCUE_TIME, cave: G.mode !== 'zarch' }; say('LOGISTICS TEAM DISPATCHED  -  FUEL AND FIELD REPAIR', 2.5); sfx.dock();
 }
-function cancelRescue() { if (G.rescue) { G.rescue = null; crate.visible = false; } }
+function cancelRescue() { drop.cancel(); if (G.rescue) { G.rescue = null; crate.visible = false; } }
+const rescueStatus = () => G.rescue && G.rescue.drop ? drop.status() : G.rescue ? `${Math.max(0, Math.ceil(G.rescue.t))}s` : '';
 
 function killPlayerZ(why) {
   cancelRescue();
@@ -731,6 +748,9 @@ function updateZarch(dt, inp) {
     if (Z.deadT <= 0 && !G.over) { G.fuel = 100; G.cargo = 0; D.reset(); G.rockets = ROCKETS_MAX; G.bombs = BOMBS_MAX; resetZarch(true); say(war.carrier && war.carrier.sinking === undefined ? 'NEW HELICOPTER ON THE ALBATROSS' : 'NEW HELICOPTER ON THE HOME PAD', 2); }
   } else {
     const ctl = HI.read(dt);
+    drop.update(dt, ctl, H);
+    if (drop.controlling) { ctl.cx = ctl.cy = ctl.pedal = 0; ctl.fire = ctl.rocket = ctl.bomb = false; inp = { ...inp, fire: false }; ctl.coll = G.heliColl ?? 0; }   // the stick flies the dropship / canopies
+    else G.heliColl = ctl.coll;
     const ev = H.step(dt, ctl, { groundY, fuel: G.fuel, water: waterAt(H.pos.x, H.pos.z), surfVel: war.surfVel, mods: D.mods() });
     G.fuel = Math.max(0, G.fuel - D.update(dt));
     P.copy(H.pos); Z.vel.copy(H.vel); Z.landed = H.landed; Z.throttle = H.coll * H.rpm; Z.ctl = ctl;
@@ -743,7 +763,7 @@ function updateZarch(dt, inp) {
     G.fuel = Math.max(0, G.fuel - HELI.BURN * (0.15 + 0.85 * H.coll) * H.rpm * dt);
     if (G.fuel <= 0 && !H.landed) say('FUEL EXHAUSTED  -  AUTOROTATE AND SET DOWN SAFELY', 0.5);
     updateRescue(dt, H.landed, false);
-    sfx.engine(H.rpm * (0.25 + 0.75 * H.coll));
+    sfx.engine(drop.flying ? drop.engineLevel() : H.rpm * (0.25 + 0.75 * H.coll));
     const svc = H.landed ? serviceAt(P.x, P.z) : null; Z.svc = svc;
     if (svc) service(svc, dt);
     else if (ev === 'water') killPlayerZ('DITCHED IN THE WATER');
@@ -769,14 +789,14 @@ function updateZarch(dt, inp) {
       Z.fireCd = 0.14; sfx.shot();
       war.fireBullet(P.clone().addScaledVector(Z.aim, 3.2), Z.aim.clone().multiplyScalar(75).addScaledVector(Z.vel, 0.5));
     }
-    if ((kd('KeyG') || ctl.rocket) && Z.rkCd <= 0) {
+    if (((kd('KeyG') && !drop.controlling) || ctl.rocket) && Z.rkCd <= 0) {
       if (G.rockets > 0) {
         Z.rkCd = 0.2; G.rockets--; Z.rkSide = -(Z.rkSide || 1);
         const p0 = P.clone().add(_rk.set(1.15 * Z.rkSide, -0.55, -1).applyQuaternion(H.q));
         war.fireRocket(p0, Z.aim.clone().multiplyScalar(105).add(Z.vel)); fx.flash(p0.x, p0.y, p0.z, 0.35);
       } else { Z.rkCd = 1; say('ROCKETS EMPTY  -  REARM ON THE CARRIER OR A FRIENDLY PAD', 1.4); }
     }
-    if ((kd('KeyB') || ctl.bomb) && Z.bmCd <= 0) {
+    if (((kd('KeyB') && !drop.controlling) || ctl.bomb) && Z.bmCd <= 0) {
       if (G.bombs > 0) { Z.bmCd = 0.45; G.bombs--; war.dropBomb(P.clone().add(_rk.set(0, -1.7, 0)), Z.vel.clone()); }
       else { Z.bmCd = 1; say('BOMBS GONE  -  REARM ON THE CARRIER OR A FRIENDLY PAD', 1.4); }
     }
@@ -1034,6 +1054,77 @@ function newGame() {
 }
 function pressStart() { if (G.state === 'title') newGame(); }
 
+// Pause menu (Esc / P): resume, call a repair drop, or abandon the helicopter and start again on the carrier - the way
+// out of any stuck state (set down broken somewhere logistics can't help, wedged in a cave, out of fuel at sea).
+const menu = { items: [], sel: 0 };
+function menuItems() {
+  if (G.craft === 'jet') return [   // flying the Hornet: no logistics; 'respawn' writes the jet off and puts you back in the helicopter
+    { id: 'resume', label: 'RESUME' },
+    { id: 'logistics', label: 'CALL LOGISTICS', note: 'JETS ARE SERVICED ON THE ALBATROSS DECK', off: true },
+    { id: 'respawn', label: 'BACK TO THE ALBATROSS', note: `WRITES OFF THIS HORNET (${G.jets} LEFT IN THE HANGAR)  -  YOU GO BACK TO THE HELICOPTER`, off: G.over },
+    { id: 'quit', label: 'QUIT TO TITLE', note: 'ENDS THIS WAR' },
+  ];
+  const alive = G.mode === 'zarch' ? Z.alive : T.alive, landed = G.mode === 'zarch' ? H.landed : T.landed, home = war.carrier && war.carrier.sinking === undefined ? 'THE ALBATROSS' : 'THE HOME PAD';
+  const last = G.lives <= 0;
+  return [
+    { id: 'resume', label: 'RESUME' },
+    { id: 'logistics', label: 'CALL LOGISTICS', note: G.rescue ? `INBOUND  -  ${rescueStatus()}` : landed ? (G.mode === 'zarch' ? 'A DROPSHIP FLIES OUT A PARA REPAIR TEAM' : 'FUEL DROP AND FIELD REPAIR WHERE YOU ARE') : 'LAND FIRST', off: !alive || !landed || !!G.rescue },
+    { id: 'respawn', label: `RESPAWN ON ${home}`, note: last ? 'THIS IS YOUR LAST HELICOPTER  -  ABANDONING IT LOSES THE WAR' : `ABANDON THIS HELICOPTER  -  COSTS ONE (${G.lives} LEFT IN THE HANGAR)`, off: !alive || G.over },
+    { id: 'quit', label: 'QUIT TO TITLE', note: 'ENDS THIS WAR' },
+  ];
+}
+function openMenu() {
+  if (G.state !== 'play') return;
+  G.state = 'paused'; menu.sel = 0; if (document.pointerLockElement) document.exitPointerLock();
+  if (bigMap) { bigMap = false; setMapSize(); }
+  sfx.engine(0); say('', 0); renderMenu(); $('menu').classList.add('on');
+}
+function closeMenu() { $('menu').classList.remove('on'); if (G.state === 'paused') G.state = 'play'; menu.confirm = null; }
+function renderMenu() {
+  menu.items = menuItems();
+  $('menuSub').textContent = `SCORE ${G.score}  ·  HELICOPTERS ${Math.max(0, G.lives)}  ·  HORNETS ${G.jets}  ·  ${G.craft === 'jet' ? `JET FUEL ${Math.round(JP.J.fuel * 2.20462)} LB` : `FUEL ${Math.round(G.fuel)}%`}`;
+  const box = $('menuItems'); box.textContent = '';
+  menu.items.forEach((it, i) => {
+    const b = document.createElement('button'); b.disabled = !!it.off; b.className = i === menu.sel ? 'sel' : '';
+    const conf = menu.confirm === it.id;
+    b.innerHTML = (conf ? `${it.label}?  PRESS AGAIN TO CONFIRM` : it.label) + (it.note ? `<small>${it.note}</small>` : '');
+    b.onmouseenter = () => { if (!it.off) { menu.sel = i; for (const [k, c] of [...box.children].entries()) c.className = k === i ? 'sel' : ''; } };
+    b.onclick = () => { menu.sel = i; menuPick(); };
+    box.appendChild(b);
+  });
+}
+function menuKey(e) {
+  const n = menu.items.length;
+  if (e.code === 'Escape' || e.code === 'KeyP') { closeMenu(); return; }
+  if (['ArrowUp', 'KeyW', 'ArrowDown', 'KeyS'].includes(e.code)) {
+    const d = ['ArrowUp', 'KeyW'].includes(e.code) ? -1 : 1;
+    for (let k = 0; k < n; k++) { menu.sel = (menu.sel + d + n) % n; if (!menu.items[menu.sel].off) break; }
+    menu.confirm = null; renderMenu(); sfx.ui?.('select');
+  }
+  if (e.code === 'Enter' || e.code === 'Space') menuPick();
+}
+function menuPick() {
+  const it = menu.items[menu.sel]; if (!it || it.off) return;
+  sfx.ui?.('select');
+  if ((it.id === 'respawn' || it.id === 'quit') && menu.confirm !== it.id) { menu.confirm = it.id; renderMenu(); return; }
+  if (it.id === 'resume') closeMenu();
+  else if (it.id === 'logistics') { closeMenu(); callLogistics(); }
+  else if (it.id === 'respawn') { closeMenu(); abandonHeli(); }
+  else if (it.id === 'quit') { closeMenu(); quitToTitle(); }
+}
+// the crew is picked up and the airframe written off; a fresh helicopter waits on the carrier
+function abandonHeli() {
+  if (G.craft === 'jet') { JP.stow(); G.craft = 'heli'; G.jetDownT = 0; G.fuel = 100; D.reset(); resetZarch(true); feed('HORNET WRITTEN OFF', 'bad'); say('BACK ON THE ALBATROSS  -  IN THE HELICOPTER', 2.5); return; }
+  cancelRescue();
+  if (G.mode !== 'zarch' ? !T.alive : !Z.alive) return;
+  if (G.mode === 'zarch') fx.explode(Z.pos.x, Z.pos.y, Z.pos.z, 1.2, { debris: 4, color: 0x55613d });
+  G.lives--;
+  if (G.lives < 0) { Z.alive = false; T.alive = false; shipMesh.visible = false; shipShadow.visible = false; sfx.engine(0); say('LAST HELICOPTER ABANDONED', 2); gameOver(); return; }
+  respawnHome(); G.rockets = ROCKETS_MAX; G.bombs = BOMBS_MAX;
+  say(war.carrier && war.carrier.sinking === undefined ? 'CREW RECOVERED  -  NEW HELICOPTER ON THE ALBATROSS' : 'CREW RECOVERED  -  NEW HELICOPTER ON THE HOME PAD', 2.5);
+}
+function quitToTitle() { cancelRescue(); G.over = true; showEnd('THRUST / ZARCH', 'WAR ABANDONED'); }
+
 // ---------------------------------------------------------------- hud / render
 const radar = $('radar').getContext('2d');
 function setMapSize() {
@@ -1111,7 +1202,7 @@ function drawMap() {
       radar.save(); radar.translate(X, Y); radar.rotate(-u.yaw); radar.fillStyle = u.sinking !== undefined ? '#555' : col;
       const l = Math.max(big ? 12 : 7, u.dims.L * half), w = Math.max(big ? 4 : 3, u.dims.W * half); radar.fillRect(-w / 2, -l / 2, w, l); radar.restore();
       if (big) { radar.fillStyle = col; radar.font = 'bold 12px monospace'; radar.fillText(shipName(u), X + 12, Y - 8); }
-    } else { radar.fillStyle = col; const sz = big ? (u.type === 'transport' ? 7 : 5) : 3; radar.fillRect(X - sz / 2, Y - sz / 2, sz, sz); }
+    } else { radar.fillStyle = col; const sz = big ? (u.type === 'transport' ? 7 : u.type === 'dropship' ? 9 : 5) : u.type === 'dropship' ? 5 : 3; radar.fillRect(X - sz / 2, Y - sz / 2, sz, sz); }
   }
   // you: an arrow along the nose
   const X = px(Z.pos.x), Y = py(Z.pos.z), fx_ = Z.facing.x, fz = Z.facing.y, sz = big ? 9 : 5;
@@ -1238,7 +1329,7 @@ function updateHud() {
     const hb = holeOf(Z.pos.x, Z.pos.z), alt = Z.pos.y - 0.9 - (hb ? hb.h : groundY(Z.pos.x, Z.pos.z)), bd = Math.hypot(Z.pos.x - HOME_B.x, Z.pos.z - HOME_B.z);
     const ias = Math.hypot(Z.vel.x, Z.vel.z) * 1.944, hdg = ((H.heading() * 180 / Math.PI) + 360) % 360, c = Z.ctl || {};
     setText('alt', `COLL ${(H.coll * 100).toFixed(0)}%  RPM ${(H.rpm * 100).toFixed(0)}%  IAS ${ias.toFixed(0)}kt  VS ${Z.vel.y.toFixed(1)}  AGL ${Math.max(0, hb ? Z.pos.y + HELI.SKID_Y - hb.h : H.agl).toFixed(0)}m  HDG ${hdg.toFixed(0).padStart(3, '0')}  ${c.sas ? 'SAS' : 'MANUAL'}  [${c.source || ''}]${H.vrs > 0.4 ? '  VORTEX RING!' : ''}`);
-    setText('hint', switchHover ? `${switchHover.toUpperCase()}  -  CLICK TO OPERATE` : G.rescue ? `EMERGENCY LANDING  -  FUEL DROP IN ${Math.max(0, Math.ceil(G.rescue.t))}s` : H.landed && H.rpm < 0.9 && G.fuel > 0 ? 'ROTOR SPOOLING...' : padHint());
+    setText('hint', switchHover ? `${switchHover.toUpperCase()}  -  CLICK TO OPERATE` : G.rescue ? (G.rescue.drop ? drop.status() : `EMERGENCY LANDING  -  FUEL DROP IN ${Math.max(0, Math.ceil(G.rescue.t))}s`) : H.landed && H.rpm < 0.9 && G.fuel > 0 ? 'ROTOR SPOOLING...' : padHint());
     if (performance.now() - (Z.mapT || 0) > (bigMap ? 60 : 120)) { Z.mapT = performance.now(); drawMap(); }
   } else {
     const c = Z.ctl || {};
@@ -1310,6 +1401,8 @@ function updateCamsAndMeshes(dt, time) {
       else if (!freeLook || (document.pointerLockElement !== canvas && !h)) { const k = Math.exp(-6 * dt); head.yaw *= k; head.pitch *= k; }   // T (free look off) re-centres
       JP.cockpitCam(camA, dt, head);
     } else JP.chaseCam(camA, dt);
+  } else if (drop.camActive && !inCave) {
+    drop.camera(camA, dt);
   } else if (cockpitCam && !inCave && Z.alive) {
     // pilot's eye, rigidly in the airframe (rotor vibration adds a hint of shake at high collective)
     camA.position.copy(EYE).applyQuaternion(H.q).add(H.pos); camA.quaternion.copy(H.q).multiply(_q2.setFromAxisAngle(_yAx, head.yaw)).multiply(_q2.setFromAxisAngle(_xAx, -0.22 + head.pitch));   // eyes down enough to take in both instrument rows, plus free look
@@ -1378,16 +1471,16 @@ function updateCamsAndMeshes(dt, time) {
     const gy = groundY(P.x, P.z), alt = P.y - gy;
     shipShadow.position.set(P.x, gy + 0.12, P.z); const sc = 1 + alt * 0.02; shipShadow.scale.set(sc, 1, sc); shadowMat.opacity = clamp(0.5 - alt * 0.006, 0.12, 0.5);
   }
-  const inCockpit = cockpitCam && !inCave && e < 0.01 && Z.alive && G.state !== 'title' && G.craft === 'heli';
+  const inCockpit = cockpitCam && !inCave && e < 0.01 && Z.alive && G.state !== 'title' && G.craft === 'heli' && !drop.camActive;
   cockpit.group.visible = inCockpit; for (const o of heliShell) o.visible = !inCockpit;   // seen from inside, the outer shell only gets in the way
-  const near = inCockpit || jetCk ? 0.05 : 0.5; if (zCam.near !== near) { zCam.near = near; zCam.updateProjectionMatrix(); }
+  const near = inCockpit || jetCk || drop.cockpitView ? 0.05 : 0.5; if (zCam.near !== near) { zCam.near = near; zCam.updateProjectionMatrix(); }
   {   // engine N2 runs on its own when it isn't clutched to the rotor (engine running, gearbox seized) or winds down
     const m = D.mods(), running = m.engineOk && G.fuel > 0;
     G.n2 = lerp(G.n2 || 0, running ? (H.driven ? H.rpm : 1) : 0, 1 - Math.exp(-1.2 * dt));
   }
-  updateLandingLight(inCave || jet); updateBombSight(inCave || e > 0.05 || jet);
+  updateLandingLight(inCave || jet); updateBombSight(inCave || e > 0.05 || jet || drop.camActive);
   switchHover = inCockpit || jetCk ? pickSwitch() : null;
-  if (G.craft === 'jet') JP.render(dt, time, jetCk, switchHover);
+  if (G.craft === 'jet') { JP.render(dt, time, jetCk, switchHover); if (G.state !== 'play') { sfx.jet?.(0, 0, 0, false, false); sfx.seeker?.(0); sfx.jetGun?.(false); } }
   if (inCockpit) {
     const m = D.mods();
     cockpit.update(H, Z.ctl || {}, dt, {
@@ -1398,10 +1491,11 @@ function updateCamsAndMeshes(dt, time) {
     });
   }
   const caveAimOn = inCave && T.alive && T.aimX !== undefined && e > 0.9 && G.state === 'play';
-  reticle.visible = (Z.alive && !inCave && G.state !== 'title' && !jet) || caveAimOn; aimLine.visible = reticle.visible && !inCockpit;
+  reticle.visible = (Z.alive && !inCave && G.state !== 'title' && !jet && !drop.camActive) || caveAimOn; aimLine.visible = reticle.visible && !inCockpit;
   if (caveAimOn) _wv0.set(T.aimX, T.aimY, 0); else _wv0.copy(Z.aim);
   if (reticle.visible) {
-    reticle.position.copy(P).addScaledVector(_wv0, caveAimOn ? 7 * CS * 0.7 : 40);   // far enough out that it never sits on the helicopter reticle.quaternion.copy(zCam.quaternion);
+    reticle.position.copy(P).addScaledVector(_wv0, caveAimOn ? 7 * CS * 0.7 : 40);   // far enough out that it never sits on the helicopter
+    reticle.quaternion.copy(zCam.quaternion);   // always face the camera, so it never shows its edge
     reticle.scale.setScalar(2 * reticle.position.distanceTo(zCam.position) * Math.tan(zCam.fov * Math.PI / 360) / innerHeight);
     const a = aimLine.geometry.attributes.position, s0 = caveAimOn ? 2.2 : 3; a.setXYZ(0, P.x + _wv0.x * s0, P.y + _wv0.y * s0, P.z + _wv0.z * s0); a.setXYZ(1, reticle.position.x, reticle.position.y, reticle.position.z); a.needsUpdate = true; aimLine.geometry.computeBoundingSphere();
   }
@@ -1432,7 +1526,7 @@ function frame(now) {
   fpsAcc += rdt; fpsN++; if (fpsAcc > 1) { $('dbg').textContent = `${Math.round(fpsN / fpsAcc)} fps  ·  res ${Math.round(pixRatio * 100)}%`; fpsAcc = 0; fpsN = 0; }
   CTL.poll(dt);
   const inp = readInput();
-  if (inp.start && !padWasStart) { sfx.init(); pressStart(); }
+  if (inp.start && !padWasStart) { sfx.init(); if (G.state === 'paused') menuPick(); else pressStart(); }
   padWasStart = inp.start;
   if (G.msgT > 0) { G.msgT -= dt; if (G.msgT <= 0 && G.state !== 'paused') say(''); }
   if (G.state === 'play') {
@@ -1448,6 +1542,7 @@ function frame(now) {
   const t1 = performance.now();
   updateCamsAndMeshes(dt, now / 1000);
   updateHud();
+  setStyle('bot', 'display', drop.flying ? 'none' : ''); setStyle('caution', 'display', drop.flying ? 'none' : '');
   const t2 = performance.now();
   fx.setView(zCam, renderer.domElement.height, zScene.fog);
   renderer.render(zScene, zCam);
@@ -1457,4 +1552,4 @@ function frame(now) {
 const PROF = { sim: 0, prep: 0, render: 0 };
 buildCaves(); war.reset(); resetZarch(true); updateFogImg(); terrainStream(Z.pos.x, Z.pos.z);
 requestAnimationFrame(frame);
-if (params.has('debug')) { window.__G = { G, Z, T, H, HI, D, JP, CTL, view, islandH, HW, forest, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; } }; if (params.has('auto')) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); enterCave(b); } }
+if (params.has('debug')) { window.__G = { G, Z, T, H, HI, D, JP, CTL, view, islandH, HW, forest, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; } }; if (params.has('auto')) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); enterCave(b); } }

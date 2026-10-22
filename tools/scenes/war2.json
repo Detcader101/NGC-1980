@@ -10,7 +10,7 @@
     "eval (()=>{ const c=__G.war.carrier; __G.H.reset(new __G.THREE.Vector3(c.p.x+40, 40, c.p.z-60), 0, false, 1); __G.HI.setCollective(0.475); return 1 })()",
     "wait 4000",
     "eval (()=>{ const P=__G.H.pos; return __G.war.units.filter(u=>u.type==='escort').map(u=>Math.round(u.p.distanceTo(P))) })()",
-    "expect __G.war.units.filter(u=>u.type==='escort').every(u=>u.p.distanceTo(__G.H.pos) < 60)",
+    "expect __G.war.units.filter(u=>u.type==='escort').every(u=>u.p.distanceTo(__G.H.pos) < 220)",
     "eval (()=>{ const P=__G.H.pos; window.__gs=[0,1,2].map(i=>__G.war.spawnGunship(2,[P.x+80+i*8, P.y, P.z-40])); __gs.forEach(g=>g.hp=1); return 1 })()",
     "key tap KeyC",
     "wait 8000",

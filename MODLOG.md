@@ -126,3 +126,13 @@ jetplay.js (input, weapons, carrier ops, HUD data, cautions, g tolerance, ejecti
   outside the zone.
 - The zone is the CONTROL ZONE: outlined and labelled on the maps, no messages, no limits anywhere.
 - jetweapons.mjs gun test now flies hands-off: the scripted altitude hold moved the gun line tens of metres at 330 m.
+
+## 2026-10-22 — merged experimental (pause menu, para-drop dropship, Tomcat escorts) into main
+- Conflicts were all "both sides added here": imports, keydown (controls panel > pause menu > jet keys > H autopilot /
+  SAS), camera branches (jet, then dropship), cockpit/near-plane/reticle conditions (helicopter cockpit only when
+  neither the jet nor the dropship view is up), the debug bridge.
+- The pause menu knows about the jet: no logistics in the jet; RESPAWN becomes BACK TO THE ALBATROSS (writes the Hornet
+  off, no life lost); the jet's sounds stop while paused; showEnd() stows the jet.
+- war.js projectiles now integrate gravity exactly (p += v dt + ½ g dt²) so bombs fall the same at any frame rate; the
+  CCIP predictor does the same: pipper vs impact 0.2 m (was ~5 m from frame-rate integration error).
+- All scenes pass except damage.json's scripted lift-off, which is flaky on experimental as well (1 of 2 runs there).

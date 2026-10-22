@@ -202,7 +202,7 @@ export function createJetPlay(ctx) {
   function ccip() { return J.stores.bomb.some(Boolean) ? ccipFrom(JET.STATIONS.bomb[1]) : null; }
   function ccipFrom(st) {
     station(st, _p); _v.copy(J.vel);
-    for (let i = 0; i < 600; i++) { _v.y -= 9 * 0.04; _p.addScaledVector(_v, 0.04); if (_p.y <= ctx.groundY(_p.x, _p.z)) return _p.clone(); }
+    for (let i = 0; i < 600; i++) { _v.y -= 9 * 0.04; _p.addScaledVector(_v, 0.04); _p.y += 0.5 * 9 * 0.04 * 0.04; if (_p.y <= ctx.groundY(_p.x, _p.z)) return _p.clone(); }
     return null;
   }
 
