@@ -1,0 +1,40 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>HOTAS Test</title>
+<style>
+html,body{margin:0;height:100%;background:#020a14;font-family:Consolas,"Courier New",monospace;color:#9ff}
+#info{position:fixed;left:16px;bottom:12px;font-size:13px;line-height:1.5;white-space:pre;color:#bde;text-shadow:0 0 6px #0cf}
+</style></head><body>
+<div id="info"></div>
+<script type="module">
+// Dev page for game/js/hotas.js: shows the controls panel (C toggles it) and the processed state below it.
+// ?fake = simulated T.Flight Hotas 4 + T-Rudder (moving), for testing without hardware.
+import { createControls, ACTIONS } from '../js/hotas.js';
+if (location.search.includes('fake')) {
+  const B = n => Array.from({ length: n }, () => ({ pressed: false, value: 0 }));
+  const hotas = { id: 'T.Flight Hotas 4 (Vendor: 044f Product: b67c)', index: 1, connected: true, mapping: '', axes: [0, 0, 1, 0.1, 0.1, 0, 0, 0.1, 0, 3.2857], buttons: B(12) };
+  const ped = { id: 'T-Rudder (Vendor: 044f Product: b679)', index: 0, connected: true, mapping: '', axes: [-1, -1, 0], buttons: [] };
+  navigator.getGamepads = () => {
+    const t = performance.now() / 1000, s = Math.sin;
+    hotas.axes[0] = s(t); hotas.axes[1] = s(t * 0.7) * 0.6; hotas.axes[2] = 1 - 2 * (0.5 + 0.5 * s(t * 0.3)); hotas.axes[5] = s(t * 1.3) * 0.4;
+    hotas.axes[9] = Math.floor(t) % 3 ? 3.2857 : -1 + (Math.floor(t / 3) % 8) * 2 / 7;
+    hotas.buttons.forEach((b, i) => b.pressed = Math.floor(t * 2) % 12 === i);
+    ped.axes[2] = s(t * 0.9) * 0.8; ped.axes[1] = Math.max(-1, s(t * 0.5) * 2 - 1); ped.axes[0] = -1;
+    return [ped, hotas];
+  };
+}
+const msgs = [], C = createControls({ say: (t, s) => { msgs.unshift(t); msgs.length = Math.min(msgs.length, 4); } });
+window.C = C;
+addEventListener('keydown', e => { if (e.code === 'KeyC' && !e.repeat) C.toggle(); });
+const info = document.getElementById('info'), f = v => (v >= 0 ? '+' : '') + (+v).toFixed(2);
+let last = performance.now();
+(function frame(t) {
+  const S = C.poll(Math.min(0.1, (t - last) / 1000 || 0)); last = t;
+  const act = ACTIONS.filter(a => S.actions[a.id] && !a.setting).map(a => a.id).join(' ');
+  info.textContent = `C = CONTROLS PANEL      SOURCE ${S.source}   DEVICES ${S.devices.map(d => `${d.short} (${d.role})`).join(', ') || '-'}
+STICK ${S.stick ? f(S.stick.x) + ' ' + f(S.stick.y) : 'NONE'}   THROTTLE ${S.throttle === null ? 'NONE' : f(S.throttle)}   RUDDER ${f(S.rudder)} ${S.hasPedals ? '(PEDALS)' : '(TWIST)'}   ROCKER ${f(S.rocker)}   BRAKES ${f(S.brakeL)} ${f(S.brakeR)}   HAT ${S.hatX},${S.hatY}
+HELD ${act || '-'}   ${msgs[0] || ''}`;
+  requestAnimationFrame(frame);
+})(last);
+if (location.search.includes('open')) C.open();
+</script>
+</body></html>

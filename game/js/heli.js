@@ -179,7 +179,7 @@ export function createHeliSim(G) {   // G = gravity (m/s^2)
 const AXKEY = 'tz_heli_axes';
 const HAT_DIRS = [[0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0], [-1, 1]];   // up, then clockwise
 const loadAxes = () => { try { return JSON.parse(localStorage.getItem(AXKEY)) || null; } catch (e) { return null; } };
-export function createHeliInput({ keyDown, readPad, say }) {
+export function createHeliInput({ keyDown, readPad, say, readRudder = () => null }) {   // readRudder: rudder pedals (hotas.js) when bound
   let axes = loadAxes() || { roll: 0, pitch: 1, coll: 2, collMin: 1, collMax: -1, yaw: 5, yawSign: 1, guess: true };
   let collKb = 0, sas = true, sasForcedByUser = false, calib = null, padWasUsed = false;
   const dz = (v, d = 0.06) => Math.abs(v) < d ? 0 : Math.sign(v) * (Math.abs(v) - d) / (1 - d);
@@ -225,6 +225,7 @@ export function createHeliInput({ keyDown, readPad, say }) {
         if (hv !== undefined && hv >= -1.05 && hv <= 1.05) [out.hatX, out.hatY] = HAT_DIRS[Math.round((hv + 1) / (2 / 7)) % 8];
         if (b(12)) out.hatY = 1; if (b(13)) out.hatY = -1; if (b(14)) out.hatX = -1; if (b(15)) out.hatX = 1;
       }
+      const ru = readRudder(); if (ru !== null && ru !== undefined && !calib) { if (Math.abs(ru) > 0.001) out.pedal = ru; out.source += ' + PEDALS'; }
       out.sas = sas;
       return out;
     },

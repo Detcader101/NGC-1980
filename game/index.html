@@ -25,7 +25,7 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
 #title h2{margin:-6px 0 14px;font-size:22px;letter-spacing:12px;color:#ff8;text-shadow:0 0 10px #a60}
 #title .go{margin-top:18px;font-size:22px;color:#ff8;animation:bl 1s infinite alternate}
 @keyframes bl{to{opacity:.3}}
-#dbg{position:absolute;left:16px;top:122px;font-size:12px;color:#7aa}
+#dbg{position:absolute;left:16px;top:150px;font-size:12px;color:#7aa}
 #war{position:absolute;left:0;right:0;top:12px;text-align:center;font-size:15px;letter-spacing:1px;color:#bde;pointer-events:none}
 #feed{position:absolute;right:16px;top:64px;width:460px;text-align:right;font-size:14px;line-height:1.5;text-shadow:0 0 4px #000,0 0 6px #000}
 #weap{color:#fd8}
@@ -34,7 +34,7 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
 </style></head><body>
 <canvas id="gl"></canvas>
 <div id="hud">
-  <div id="tl"><div>SCORE <b id="score">0</b></div><div>HELICOPTERS <b id="lives"></b></div><div id="modeTag"></div><div id="weap"></div></div>
+  <div id="tl"><div>SCORE <b id="score">0</b></div><div>HELICOPTERS <b id="lives"></b></div><div>HORNETS <b id="jets"></b></div><div id="modeTag"></div><div id="weap"></div></div>
   <div id="war"></div><div id="feed"></div>
   <div id="tr">HI <b id="hi">0</b><br><span id="pad"></span></div>
   <div id="dbg"></div>
@@ -51,6 +51,7 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
     <p>The enemy's factories are building a <b>battleship</b> &mdash; bomb the factories and its shipyard to hold it back.</p>
     <p><b>M</b> command map: click the sea to sail the carrier there, click an island to select it &middot; <b>1</b> capture drone &middot; <b>2</b> AA gun on our island &middot; <b>3</b> new helicopter &middot; <b>4</b> escort fighter. Bombs land on the yellow ring. Land on the carrier or any friendly pad to refuel, repair and rearm.</p>
     <p><b>HELICOPTER</b> &nbsp;W/S A/D cyclic &middot; Q/E pedals &middot; Space/Shift collective up, Ctrl/Z down &middot; F/X door gun &middot; <b>G rockets &middot; B bombs</b> &middot; S/R winch (caves) &middot; hat or mouse aims the door gun in caves &middot; H stability assist &middot; I engine &middot; O extinguisher &middot; U hydraulics &middot; L logistics &middot; N light &middot; C chase cam &middot; V cockpit (T free look) &middot; P pause</p>
+    <p><b>HORNET JET</b> &nbsp;land the helicopter on the ALBATROSS, press <b>5</b>: a Hornet on the catapult &middot; throttle to MIL (80%) or afterburner and the cat fires &middot; W/S A/D stick &middot; Q/E rudder &middot; Shift/Space, Ctrl/Z throttle &middot; <b>G</b> gear &middot; <b>L</b> flaps &middot; <b>H</b> hook &middot; <b>O</b> speed brake &middot; . wheel brakes &middot; F/X gun &middot; <b>R</b> A/A missiles (again to fire) &middot; <b>B</b> A/G bombs, CCIP (again to drop) &middot; , master arm &middot; I engines &middot; U canopy &middot; hold Backspace: EJECT &middot; V cockpit / chase, mouse wheel zoom, hat looks around &middot; clickable cockpit switches &middot; land: gear, full flaps, hook, 8&deg; AoA, fly the ICLS needles &middot; Y on deck: back to the helicopter &middot; <b>J</b> controls &amp; HOTAS / pedal binding</p>
     <p><b>FLIGHT STICK</b> &nbsp;stick = cyclic &middot; twist = pedals &middot; throttle = collective &middot; trigger = gun &middot; button 3 = rockets &middot; button 5 = bombs &middot; hat = nudge aim &middot; J = calibrate &middot; K = keyboard only</p>
     <div class="go">PRESS ENTER / SPACE / TRIGGER</div>
     <p id="gpuinfo" style="color:#789;margin-top:20px"></p>

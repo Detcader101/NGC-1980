@@ -12,6 +12,7 @@ The enemy carrier KRAKEN is out there doing the same, and whoever controls the m
 - **Capture islands.** Silence the owner's AA guns, then land on the pad or send a drone. Fortress islands hide a cave: fly down the shaft, Thrust-style, and steal the pod.
 - **Economy.** Islands produce fuel and materiel. Spend materiel on capture drones, AA guns, spare helicopters and escort fighters.
 - **An enemy commander.** It sends transports to take islands, fortifies, raids your carrier, ships supplies by freighter, and builds a battleship in its factories that hunts the ALBATROSS. Bomb the factories to slow it down.
+- **HORNET carrier jet.** Land on the ALBATROSS and press 5: an F/A-18-style fighter on the catapult. Full 6-DOF flight model with a Hornet-like flight computer, a 3D cockpit with a conformal HUD and working displays, catapult launches, arrested landings, gun, AIM-9s and CCIP bombs, ejection. Built for a T.Flight HOTAS 4 and rudder pedals with toe brakes (any stick, pad or keyboard works).
 - **Helicopter sim.** Collective, cyclic and pedals, flight-stick support with calibration, a working Huey cockpit, and a damage model where hits cause failures you can survive and repair.
 - **Effects that build up.** Smoke columns, fires, scorch marks, debris and oil slicks stay on the map.
 
@@ -43,6 +44,24 @@ Any static server works (for example `npx serve game`). On Windows, `game/start.
 | J | calibrate a flight stick |
 | P | pause |
 
+### HORNET (jet)
+
+| Key | Action |
+|---|---|
+| 5 | on the ALBATROSS deck: a Hornet on the catapult (throttle to MIL or afterburner and the cat fires) |
+| W S A D / arrows, Q E | stick, rudder |
+| Shift / Space, Ctrl / Z | throttle (above 80% is MIL, above 84% afterburner) |
+| G / L / H / O | gear / flaps (AUTO, HALF, FULL) / hook / speed brake |
+| . | wheel brakes (toe brakes on the pedals) |
+| F / X / mouse, R, B | gun, A/A missiles (press again to fire), A/G bombs with CCIP (press again to drop) |
+| , / I / U / N | master arm / engines / canopy / lights |
+| hold Backspace | eject |
+| V, mouse wheel, hat | cockpit or chase view, zoom, look around |
+| J | controls panel: live view of every axis and button, bind and calibrate HOTAS / pedals |
+| Y | stopped on the deck: back to the helicopter |
+
+Cockpit switches are clickable (gear and hook handles, flaps, master arm, FCS CAS/DIRECT, engine cranks, fire lights, master caution, jettison, eject, DDI pages). To land: gear down, flaps FULL, hook down, fly the ICLS needles at 8° AoA (the green/amber/red indexer) into the wires.
+
 The in-game help screen has the full list.
 
 ## Tests
@@ -51,7 +70,10 @@ The in-game help screen has the full list.
 
 ```
 cd tools && npm install && node snap.mjs scenes/war.json
+node tools/jetbench.mjs             # the jet's flight model against published F/A-18C figures, in plain node
 ```
+
+Jet scenes: `jet.mjs` (launch, climb, turn), `jettrap.mjs` (arrested landing), `jetweapons.mjs` (AIM-9, gun, CCIP), `jetsystems.mjs` (damage, fire, DIRECT, G-LOC, ejection).
 
 ## Credits
 
