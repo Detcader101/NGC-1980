@@ -41,7 +41,7 @@ Any static server works (for example `npx serve game`). On Windows, `game/start.
 | V / C | cockpit view / chase camera |
 | H | stability assist on/off |
 | J | calibrate a flight stick |
-| P | pause |
+| Esc / P | menu: resume, call logistics, respawn on the carrier if stuck, quit |
 
 The in-game help screen has the full list.
 

@@ -30,6 +30,8 @@ addEventListener('keydown', e => {
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
   sfx.init();
   if (e.repeat) return;
+  if (G.state === 'paused') { menuKey(e); return; }
+  if (e.code === 'Escape' && G.state === 'play') { openMenu(); return; }
   if (e.code === 'KeyH') doSwitch('sas');
   const sw = { KeyI: 'engine', KeyO: 'fire', KeyU: 'hyd', KeyL: 'radio', KeyN: 'light' }[e.code];
   if (sw) doSwitch(sw);
@@ -40,7 +42,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyV') { cockpitCam = !cockpitCam; if (!cockpitCam && document.pointerLockElement) document.exitPointerLock(); say(cockpitCam ? 'COCKPIT VIEW' : (chaseCam ? 'CHASE CAMERA' : 'FIXED CAMERA'), 1.2); }
   if (e.code === 'KeyC') { cockpitCam = false;  chaseCam = !chaseCam; Z.hd = Math.atan2(Z.facing.x, -Z.facing.y); say(chaseCam ? 'CHASE CAMERA' : 'FIXED CAMERA', 1.2); }
   if (e.code === 'KeyK') { keyboardOnly = !keyboardOnly; say(keyboardOnly ? 'KEYBOARD ONLY' : 'CONTROLLER ENABLED', 1.5); }
-  if (e.code === 'KeyP' && (G.state === 'play' || G.state === 'paused')) { G.state = G.state === 'paused' ? 'play' : 'paused'; say(G.state === 'paused' ? 'PAUSED' : '', G.state === 'paused' ? 999 : 0); }
+  if (e.code === 'KeyP' && G.state === 'play') openMenu();
   if (['Enter', 'Space'].includes(e.code)) pressStart();
 });
 addEventListener('keyup', e => keys.delete(e.code));
@@ -874,6 +876,70 @@ function newGame() {
 }
 function pressStart() { if (G.state === 'title') newGame(); }
 
+// Pause menu (Esc / P): resume, call a repair drop, or abandon the helicopter and start again on the carrier - the way
+// out of any stuck state (set down broken somewhere logistics can't help, wedged in a cave, out of fuel at sea).
+const menu = { items: [], sel: 0 };
+function menuItems() {
+  const alive = G.mode === 'zarch' ? Z.alive : T.alive, landed = G.mode === 'zarch' ? H.landed : T.landed, home = war.carrier && war.carrier.sinking === undefined ? 'THE ALBATROSS' : 'THE HOME PAD';
+  const last = G.lives <= 0;
+  return [
+    { id: 'resume', label: 'RESUME' },
+    { id: 'logistics', label: 'CALL LOGISTICS', note: G.rescue ? `ALREADY INBOUND  -  ${Math.ceil(G.rescue.t)}s` : landed ? 'FUEL DROP AND FIELD REPAIR WHERE YOU ARE' : 'LAND FIRST', off: !alive || !landed || !!G.rescue },
+    { id: 'respawn', label: `RESPAWN ON ${home}`, note: last ? 'THIS IS YOUR LAST HELICOPTER  -  ABANDONING IT LOSES THE WAR' : `ABANDON THIS HELICOPTER  -  COSTS ONE (${G.lives} LEFT IN THE HANGAR)`, off: !alive || G.over },
+    { id: 'quit', label: 'QUIT TO TITLE', note: 'ENDS THIS WAR' },
+  ];
+}
+function openMenu() {
+  if (G.state !== 'play') return;
+  G.state = 'paused'; menu.sel = 0; if (document.pointerLockElement) document.exitPointerLock();
+  if (bigMap) { bigMap = false; setMapSize(); }
+  sfx.engine(0); say('', 0); renderMenu(); $('menu').classList.add('on');
+}
+function closeMenu() { $('menu').classList.remove('on'); if (G.state === 'paused') G.state = 'play'; menu.confirm = null; }
+function renderMenu() {
+  menu.items = menuItems();
+  $('menuSub').textContent = `SCORE ${G.score}  ·  HELICOPTERS ${Math.max(0, G.lives)}  ·  FUEL ${Math.round(G.fuel)}%`;
+  const box = $('menuItems'); box.textContent = '';
+  menu.items.forEach((it, i) => {
+    const b = document.createElement('button'); b.disabled = !!it.off; b.className = i === menu.sel ? 'sel' : '';
+    const conf = menu.confirm === it.id;
+    b.innerHTML = (conf ? `${it.label}?  PRESS AGAIN TO CONFIRM` : it.label) + (it.note ? `<small>${it.note}</small>` : '');
+    b.onmouseenter = () => { if (!it.off) { menu.sel = i; for (const [k, c] of [...box.children].entries()) c.className = k === i ? 'sel' : ''; } };
+    b.onclick = () => { menu.sel = i; menuPick(); };
+    box.appendChild(b);
+  });
+}
+function menuKey(e) {
+  const n = menu.items.length;
+  if (e.code === 'Escape' || e.code === 'KeyP') { closeMenu(); return; }
+  if (['ArrowUp', 'KeyW', 'ArrowDown', 'KeyS'].includes(e.code)) {
+    const d = ['ArrowUp', 'KeyW'].includes(e.code) ? -1 : 1;
+    for (let k = 0; k < n; k++) { menu.sel = (menu.sel + d + n) % n; if (!menu.items[menu.sel].off) break; }
+    menu.confirm = null; renderMenu(); sfx.ui?.('select');
+  }
+  if (e.code === 'Enter' || e.code === 'Space') menuPick();
+}
+function menuPick() {
+  const it = menu.items[menu.sel]; if (!it || it.off) return;
+  sfx.ui?.('select');
+  if ((it.id === 'respawn' || it.id === 'quit') && menu.confirm !== it.id) { menu.confirm = it.id; renderMenu(); return; }
+  if (it.id === 'resume') closeMenu();
+  else if (it.id === 'logistics') { closeMenu(); callLogistics(); }
+  else if (it.id === 'respawn') { closeMenu(); abandonHeli(); }
+  else if (it.id === 'quit') { closeMenu(); quitToTitle(); }
+}
+// the crew is picked up and the airframe written off; a fresh helicopter waits on the carrier
+function abandonHeli() {
+  cancelRescue();
+  if (G.mode !== 'zarch' ? !T.alive : !Z.alive) return;
+  if (G.mode === 'zarch') fx.explode(Z.pos.x, Z.pos.y, Z.pos.z, 1.2, { debris: 4, color: 0x55613d });
+  G.lives--;
+  if (G.lives < 0) { Z.alive = false; T.alive = false; shipMesh.visible = false; shipShadow.visible = false; sfx.engine(0); say('LAST HELICOPTER ABANDONED', 2); gameOver(); return; }
+  respawnHome(); G.rockets = ROCKETS_MAX; G.bombs = BOMBS_MAX;
+  say(war.carrier && war.carrier.sinking === undefined ? 'CREW RECOVERED  -  NEW HELICOPTER ON THE ALBATROSS' : 'CREW RECOVERED  -  NEW HELICOPTER ON THE HOME PAD', 2.5);
+}
+function quitToTitle() { cancelRescue(); G.over = true; showEnd('THRUST / ZARCH', 'WAR ABANDONED'); }
+
 // ---------------------------------------------------------------- hud / render
 const radar = $('radar').getContext('2d');
 function setMapSize() {
@@ -1242,7 +1308,7 @@ function frame(now) {
   const rdt = (now - last) / 1000, dt = Math.min(rdt, 0.1); last = now;   // the sims substep, so they keep real time down to 10 fps
   fpsAcc += rdt; fpsN++; if (fpsAcc > 1) { $('dbg').textContent = `${Math.round(fpsN / fpsAcc)} fps  ·  res ${Math.round(pixRatio * 100)}%`; fpsAcc = 0; fpsN = 0; }
   const inp = readInput();
-  if (inp.start && !padWasStart) { sfx.init(); pressStart(); }
+  if (inp.start && !padWasStart) { sfx.init(); if (G.state === 'paused') menuPick(); else pressStart(); }
   padWasStart = inp.start;
   if (G.msgT > 0) { G.msgT -= dt; if (G.msgT <= 0 && G.state !== 'paused') say(''); }
   if (G.state === 'play') {
@@ -1267,4 +1333,4 @@ function frame(now) {
 const PROF = { sim: 0, prep: 0, render: 0 };
 buildCaves(); war.reset(); resetZarch(true); updateFogImg();
 requestAnimationFrame(frame);
-if (params.has('debug')) { window.__G = { G, Z, T, H, HI, D, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; } }; if (params.has('auto')) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); enterCave(b); } }
+if (params.has('debug')) { window.__G = { G, Z, T, H, HI, D, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; } }; if (params.has('auto')) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); enterCave(b); } }
