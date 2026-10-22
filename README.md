@@ -47,7 +47,7 @@ Any static server works (for example `npx serve game`). On Windows, `game/start.
 | I | engine: cut the fuel (autorotate) / with the engine stopped, the one-key start |
 | PgUp / PgDn, Home | throttle twist grip (idle detent ... full open), starter (hold to 40% N1) |
 | U / N / O / L | hydraulic control, landing light, fire extinguisher, call logistics (on the ground) |
-| Esc / P | menu: resume, call logistics, respawn on the carrier if stuck, quit |
+| Esc / P | menu: resume, call logistics, respawn on the carrier if stuck, cockpit FOV slider, quit |
 
 The Huey spawns hot at flight idle and rolls the throttle on by itself. With `?cold` it starts cold and dark: BAT and MAIN FUEL on, throttle to the idle detent (PgUp), hold the starter (Home) to 40% N1 (light-off at ~12%), let it reach idle (~70% N1), then throttle full open to 6600 rpm. The cockpit switches (battery, generator, inverter, main fuel, governor AUTO/EMER, hydraulic control, force trim, low rpm audio, starter, master caution) are clickable. To autorotate: collective down to keep 324 rpm, 70 kt, flare at ~100 ft, cushion with the collective.
 

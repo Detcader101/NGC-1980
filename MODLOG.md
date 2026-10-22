@@ -223,3 +223,9 @@ TM-73,254 (fuselage, stab bar, tail rotor), DCS UH-1H manual (limits, procedures
   rpm over-pitches the rotor (a real Huey trait - the test now backs off below 95% NR).
 - Scenes updated for the real aircraft: rescue / damage (failures in a low hover over the flat apron), loop (cave hover
   collective 0.385), dive (was already broken on main: pre-archipelago coordinates).
+
+## 2026-10-22 — cockpit FOV slider
+- Pause menu (Esc / P): COCKPIT FOV, 40-100° vertical (default 70; was 62 in the helicopter, 74 in the jet), drag or
+  LEFT / RIGHT, stored in localStorage (tz_ckfov). Applies to the Huey cockpit, the Hornet cockpit (zoom = 0.4x of it)
+  and the dropship flight deck; chase cameras and the cave side view keep their own. The jet HUD is a physical
+  combiner in the cockpit model, so it stays conformal at any FOV. Scene: tools/scenes/fov.mjs.
