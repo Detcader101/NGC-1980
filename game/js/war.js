@@ -340,6 +340,7 @@ export function createWar(ctx) {
   }
   const bombGeo = new THREE.CapsuleGeometry(0.22, 0.7, 3, 6).rotateX(Math.PI / 2), bombMat = new THREE.MeshPhongMaterial({ color: 0x2d3326 });
   W.shoot = shoot;
+  W.addExternal = u => { W.units.push(u); return u; };   // a unit flown by another module (the dropship): it can be seen, shot at and gives sight
   W.fireBullet = (p, v) => shoot('b', 1, p.x, p.y, p.z, v.x, v.y, v.z, 1.8);
   W.fireRocket = (p, v) => { sfx.rocket?.(); return shoot('rocket', 1, p.x, p.y, p.z, v.x, v.y, v.z, 3); };
   W.dropBomb = (p, v) => { sfx.bombDrop?.(); return shoot('bomb', 1, p.x, p.y, p.z, v.x, v.y, v.z, 12); };
@@ -662,7 +663,7 @@ export function createWar(ctx) {
   };
   W.update = (dt, pl, peace) => {
     W.time += dt;
-    for (const u of W.units) { if (u.dims) sailShip(u, dt); else updateAir(u, dt, pl); }
+    for (const u of W.units) { if (u.ext) continue; if (u.dims) sailShip(u, dt); else updateAir(u, dt, pl); }
     {   // ships keep clear of each other (a gentle shove when two hulls would overlap)
       const sh = W.units.filter(u => u.dims && u.sinking === undefined);
       for (let i = 0; i < sh.length; i++) for (let j = i + 1; j < sh.length; j++) {

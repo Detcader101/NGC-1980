@@ -12,6 +12,7 @@ The enemy carrier KRAKEN is out there doing the same, and whoever controls the m
 - **Capture islands.** Silence the owner's AA guns, then land on the pad or send a drone. Fortress islands hide a cave: fly down the shaft, Thrust-style, and steal the pod.
 - **Economy.** Islands produce fuel and materiel. Spend materiel on capture drones, AA guns, spare helicopters and escort fighters.
 - **An enemy commander.** It sends transports to take islands, fortifies, raids your carrier, ships supplies by freighter, and builds a battleship in its factories that hunts the ALBATROSS. Bomb the factories to slow it down.
+- **Para-drop repair team.** Downed on land? Press L and a steel dropship flies out from the carrier. You fly the jump run against the wind, call the jumps, then steer the canopies down; whoever lands on dry ground runs over with fuel and fixes the helicopter. Enemy flak can bring the dropship down.
 - **Helicopter sim.** Collective, cyclic and pedals, flight-stick support with calibration, a working Huey cockpit, and a damage model where hits cause failures you can survive and repair.
 - **Effects that build up.** Smoke columns, fires, scorch marks, debris and oil slicks stay on the map.
 
@@ -40,6 +41,7 @@ Any static server works (for example `npx serve game`). On Windows, `game/start.
 | 1-4 | send drone, build AA gun, spare helicopter, escort fighter |
 | V / C | cockpit view / chase camera |
 | H | stability assist on/off |
+| L | call logistics: para-drop repair team (on land) |
 | J | calibrate a flight stick |
 | Esc / P | menu: resume, call logistics, respawn on the carrier if stuck, quit |
 
