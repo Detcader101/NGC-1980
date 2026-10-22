@@ -640,17 +640,17 @@ const caveToWorld = (x, y, out, b = T.base) => out.set(b.x + (x - CAVE_OX) * CS,
 const sol = (x, y) => { const L = T.lvl; if (x < 0 || x >= L.W || y < 0) return 1; if (y >= L.H) return 0; return L.solid[Math.floor(y) * L.W + Math.floor(x)]; };
 const isPad = (x, y) => { const L = T.lvl; if (x < 0 || x >= L.W || y < 0 || y >= L.H) return false; return L.pad[Math.floor(y) * L.W + Math.floor(x)] === 1; };
 
-// Build every base's cave once. Geometry is shared; each base keeps its own turrets/tanks/pod state, so a looted
+// Build every base's cave once: each base has its own procedurally generated cave (level.js, seeded by the base name,
+// so the same island always has the same cave) and its own turrets/tanks/pod state, so a looted
 // tank stays empty and a destroyed turret stays dead. The home cave is friendly: no turrets, a big reservoir tank and
 // a blue intake pad where carried fuel is pumped into the reservoir.
 const CARGO_MAX = 100;
 function buildCaves() {
-  let proto = null;
-  BASES.forEach((b, i) => {
-    const L = b.L = buildLevel(b.tier);
-    if (!proto) proto = buildCaveMesh(L, { depth: CAVE_DEPTH });
+  const t0 = performance.now();
+  BASES.forEach(b => {
+    const L = b.L = buildLevel(b.tier, b.name, { home: b.kind === 'home' });
     const grp = b.group = new THREE.Group(); grp.scale.setScalar(CS); grp.position.set(b.x - CAVE_OX * CS, b.h - CAVE_SINK - L.H * CS, b.z); zScene.add(grp);
-    const mesh = proto.clone(); grp.add(mesh);
+    const mesh = buildCaveMesh(L, { depth: CAVE_DEPTH }); grp.add(mesh);
     const dyn = new THREE.Group(); grp.add(dyn);
     b.st = { turrets: [], tanks: [], pod: null, podTaken: false };
     if (b.kind === 'home') {
@@ -665,6 +665,7 @@ function buildCaves() {
       b.st.pod = { x: L.orb.x, y: L.orb.y, vx: 0, vy: 0, attached: false };
     }
   });
+  PROF.caves = performance.now() - t0;
   useCave(BASES[0]);
 }
 function useCave(b) {   // point the shared cave state + effects at base b

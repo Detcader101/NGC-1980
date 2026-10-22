@@ -9,7 +9,7 @@ The enemy carrier KRAKEN is out there doing the same, and whoever controls the m
 ## What's in it
 
 - **Archipelago and fog of war.** You only see what your helicopter, carrier, drones and islands can see. Radar islands see further.
-- **Capture islands.** Silence the owner's AA guns, then land on the pad or send a drone. Fortress islands hide a cave: fly down the shaft, Thrust-style, and steal the pod.
+- **Capture islands.** Silence the owner's AA guns, then land on the pad or send a drone. Fortress islands hide a cave: fly down the shaft, Thrust-style, and steal the pod. Every cave is procedurally generated (the same island always has the same cave), and the heavier the fortress, the deeper and more twisted its cave and the more turrets guard it.
 - **Economy.** Islands produce fuel and materiel. Spend materiel on capture drones, AA guns, spare helicopters and escort fighters.
 - **An enemy commander.** It sends transports to take islands, fortifies, raids your carrier, ships supplies by freighter, and builds a battleship in its factories that hunts the ALBATROSS. Bomb the factories to slow it down.
 - **Helicopter sim.** Collective, cyclic and pedals, flight-stick support with calibration, a working Huey cockpit, and a damage model where hits cause failures you can survive and repair.
@@ -52,6 +52,10 @@ The in-game help screen has the full list.
 ```
 cd tools && npm install && node snap.mjs scenes/war.json
 ```
+
+`node tools/cavebench.mjs` checks the cave generator without a browser: it prints every island's cave as an ASCII map and
+sweeps hundreds of seeds per tier, checking that each cave is connected, wide enough to fly and has its pad, tanks and
+pod on solid floors. `scenes/caves.mjs` flies into every cave and screenshots it.
 
 ## Credits
 
