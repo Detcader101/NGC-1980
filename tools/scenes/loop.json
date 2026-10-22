@@ -13,7 +13,7 @@
     "shot enemy-cave",
     "eval ({base:__G.T.base.name, turrets:__G.T.turrets.length, tanks:__G.T.tanks.map(t=>t.fuel), alive:__G.T.alive})",
     "expect __G.T.base.kind==='enemy' && __G.T.turrets.length>0",
-    "eval (()=>{const t=__G.T.tanks[0]; Object.assign(__G.T,{x:t.x, y:t.y+3.4, vx:0, vy:0, ang:0, w:0, landed:false}); __G.HI.setCollective(0.47); for(const u of __G.T.turrets){u.alive=false;u.mesh.visible=false;} return [t.x,t.y]})()",
+    "eval (()=>{const t=__G.T.tanks[0]; Object.assign(__G.T,{x:t.x, y:t.y+3.4, vx:0, vy:0, ang:0, w:0, landed:false}); __G.HI.setCollective(0.385); for(const u of __G.T.turrets){u.alive=false;u.mesh.visible=false;} return [t.x,t.y]})()",
     "key down KeyR", "wait 2500", "key up KeyR",
     "eval ({cargo:+__G.G.cargo.toFixed(1), tank:+__G.T.tanks[0].fuel.toFixed(1), alive:__G.T.alive, y:+__G.T.y.toFixed(1)})",
     "shot winch-tank",

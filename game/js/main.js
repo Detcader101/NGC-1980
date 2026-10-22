@@ -699,7 +699,7 @@ function hueyHint() {   // what to do next, from the start sequence to the emerg
   const n1 = Math.round(H.n1 * 100);
   if (!H.run && H.n1 < 0.1 && !SY.auto && !H.starter) return D.hp.engine <= 0.05 ? 'ENGINE DEAD  -  AUTOROTATE, OR CALL LOGISTICS ON THE GROUND (L)' : !H.landed ? 'ENGINE OUT  -  COLLECTIVE DOWN, KEEP 324 RPM, 70 KT, FLARE AT ~100 FT, CUSHION WITH THE COLLECTIVE' : 'ENGINE OFF  -  I: QUICK START  ·  BY HAND: BAT, MAIN FUEL, THROTTLE TO IDLE (PGUP), HOLD STARTER (HOME) TO 40% N1';
   if (H.hung) return `HUNG START  -  N1 ${n1}%  -  HOLD THE STARTER (HOME) TO 40% N1`;
-  if (!H.run || H.starter) return `STARTING  -  N1 ${n1}%  EGT ${H.egt.toFixed(0)}°C${H.run ? '  -  LIGHT-OFF' : ''}${H.n1 > 0.4 ? '  -  RELEASE THE STARTER' : ''}`;
+  if (H.starter || SY.auto === 'crank' || (H.run && H.n1 < 0.6)) return `STARTING  -  N1 ${n1}%  EGT ${H.egt.toFixed(0)}°C${H.run ? '  -  LIGHT-OFF' : ''}${H.n1 > 0.4 ? '  -  RELEASE THE STARTER' : ''}`;
   if (H.landed && SY.grip < 0.95) return SY.auto === 'rollon' ? `THROTTLE ROLLING ON  -  NR ${Math.round(H.rpm * 100)}%` : 'FLIGHT IDLE  -  OPEN THE THROTTLE (PGUP) TO 6600 RPM';
   if (H.landed && H.rpm < 0.95) return `ROTOR COMING UP TO 324 RPM  -  NR ${Math.round(H.rpm * 100)}%`;
   if (H.landed) return '';

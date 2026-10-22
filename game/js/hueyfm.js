@@ -265,9 +265,10 @@ export function createHueySim(GRAV = 9.81) {
       if (ctl.gov === 'EMER') n1c = n1Grip;
       else {
         const e = (1 + (ctl.beep || 0)) - H.n2;
-        H.n1i = clamp(H.n1i + e * 2.2 * h, U.N1_IDLE, U.N1_MAX);
-        n1c = clamp(H.n1i + e * 5 + 0.04 * H.c.coll, U.N1_IDLE, Math.min(n1Grip, U.N1_MAX));
-        if (H.n1i > n1Grip) H.n1i = n1Grip;
+        H.dn2 = (H.dn2 || 0) + (((H.n2 - (H.n2p ?? H.n2)) / h) - (H.dn2 || 0)) * Math.min(1, h * 8); H.n2p = H.n2;   // N2 rate (smoothed)
+        const hi = Math.min(n1Grip, U.N1_MAX), raw = H.n1i + e * 5 - H.dn2 * 1.2 + 0.04 * H.c.coll;
+        n1c = clamp(raw, U.N1_IDLE, hi);
+        if (!((raw > hi && e > 0) || (raw < U.N1_IDLE && e < 0))) H.n1i = clamp(H.n1i + e * 2.2 * h, U.N1_IDLE, hi);   // conditional integration: no wind-up on a roll-on
       }
     }
     // gas producer: lag + acceleration limit (idle -> max ~3.5 s, INFERRED); the starter cranks it, a dead one spools down
@@ -334,7 +335,7 @@ export function createHueySim(GRAV = 9.81) {
     _Fb.x += u * (-F.D1 * au + L1t); _Fb.y += vv * (-F.D2 * Math.abs(vv) - F.Y1 * au); _Fb.z += w * (-F.D3 * Math.abs(w) - F.L1 * au);
     _Mb.y += F.M1 * w * au * sstep(5, 15, au); _Mb.z += -F.N1 * vv * u * sstep(3, 10, au);
     // yaw / roll damping of the boom swinging through the downwash and the cabin turning in the air (INFERRED)
-    _Mb.z += -2600 * _wb.z * (0.4 + wake); _Mb.x += -600 * _wb.x;
+    _Mb.z += -2600 * _wb.z * (0.4 + wake) - 850 * _wb.z * Math.abs(_wb.z); _Mb.x += -600 * _wb.x;   // + the boom's cross-flow drag when it spins (0.5 rho Cd D L^4 / 4)
     // synchronized elevator: incidence from the stick, in the rotor wash at low speed (nose-up pitch through transition)
     {
       cross(_wb, STAB, _t); _hv.copy(_vb).add(_t);

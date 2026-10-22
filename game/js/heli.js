@@ -121,7 +121,7 @@ export function createHeliInput({ keyDown, CTL, hwOn = () => true, say }) {
       kb.x = sas ? (kx ? clamp(kb.x + kx * 2.5 * dt, -1, 1) : kb.x - clamp(kb.x, -4 * dt, 4 * dt)) : mv(kb.x, kx, !!kx);
       kb.y = sas ? (ky ? clamp(kb.y + ky * 2.5 * dt, -1, 1) : kb.y - clamp(kb.y, -4 * dt, 4 * dt)) : mv(kb.y, ky, !!ky);
       kb.p = kp ? clamp(kb.p + kp * 3 * dt, -1, 1) : kb.p - clamp(kb.p, -4 * dt, 4 * dt);
-      out.cx = kb.x; out.cy = kb.y; out.pedal = kb.p;
+      out.cx = kb.x; out.cy = kb.y; out.pedal = kb.p; out.winch = keyDown('KeyR') || (!H && keyDown('KeyS', 'ArrowDown'));   // R (or S in the cave): winch
       // collective: keys (Shift / Space up, Ctrl / Z down) or the throttle lever, whichever moved last
       const up = keyDown('Space', 'ShiftLeft', 'ShiftRight'), dn = keyDown('ControlLeft', 'KeyZ');
       if (up || dn) { collSrc = 'kb'; collKb = clamp(collKb + ((up ? 1 : 0) - (dn ? 1 : 0)) * 0.4 * dt, 0, 1); }
@@ -137,7 +137,7 @@ export function createHeliInput({ keyDown, CTL, hwOn = () => true, say }) {
       }
       if (hw && Math.abs(st.rudder || 0) > 0.001) out.pedal = st.rudder;
       if (hw && st.hasPedals) out.source += ' + PEDALS';
-      if (hw) { const a = st.actions || {}; out.fire = !!a.fire; out.winch = !!(a.pickle || a.airbrake); out.rocket = !!a.missile; out.bomb = !!a.bomb; out.hatX = st.hatX || 0; out.hatY = st.hatY || 0; }
+      if (hw) { const a = st.actions || {}; out.fire = !!a.fire; out.winch = out.winch || !!(a.pickle || a.airbrake); out.rocket = !!a.missile; out.bomb = !!a.bomb; out.hatX = st.hatX || 0; out.hatY = st.hatY || 0; }
       out.raw = { cx: out.cx, cy: out.cy, pedal: out.pedal };
       if (sas && H) assist(out, H, dt, mods);
       out.sas = sas;

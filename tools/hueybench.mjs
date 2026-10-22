@@ -144,6 +144,9 @@ console.log('--- rotor speed, engine ---');
   check('cold start: light-off ~15% N1, idle, governed', lit > 0 && idle > lit && gov > idle && peak < 760, `light-off ${lit.toFixed(1)} s, idle ${idle.toFixed(1)} s, 6600 rpm ${gov.toFixed(1)} s, EGT peak ${peak.toFixed(0)}°C, still on skids ${S.landed}`, 'DCS procedure: 40% starter release, idle 68-72%');
   const Hs = FM.createHueySim(G); Hs.reset(new THREE.Vector3(0, 1.84, 0), 0, true, -1); let hung = false;
   for (let t = 0; t < 40; t += DT) { const k = { ...ctl0(), coll: 0, pedal: 0, throttle: 0.15, starter: t < 6 }; Hs.step(DT, k, land); if (Hs.hung) hung = true; }
+  const Ro = FM.createHueySim(G); Ro.reset(new THREE.Vector3(0, 0, 0), 0, true, 0); let grip = 0.18, mx = 0;
+  for (let t = 0; t < 15; t += DT) { grip = Math.min(1, grip + 0.4 * DT); Ro.step(DT, { ...ctl0(), coll: 0, pedal: 0, throttle: grip }, land); mx = Math.max(mx, Ro.rpm); }
+  check('throttle roll-on from flight idle: governed, no overspeed', mx < 1.02 && Ro.rpm > 0.985, `peak NR ${(mx * 100).toFixed(1)}%, then ${(Ro.rpm * 100).toFixed(1)}% at N1 ${(Ro.n1 * 100).toFixed(0)}%`, 'no overspeed past 339 rpm');
   check('starter released early: hung start', hung && Hs.n1 < 0.45, `N1 ${(Hs.n1 * 100).toFixed(0)}% EGT ${Hs.egt.toFixed(0)}°C`, '');
 }
 
