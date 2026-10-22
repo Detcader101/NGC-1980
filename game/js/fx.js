@@ -268,7 +268,7 @@ export function createFx(scene, { groundY, isWater, normalAt }) {
         if (e.follow) { e.x = e.follow.x + (e.ox || 0); e.y = e.follow.y + (e.oy || 0); e.z = e.follow.z + (e.oz || 0); if (e.follow.gone) e.follow = null; }
         if (e.kind === 'chimney') {
           if (e.off) continue;
-          e.acc += dt * 3 * e.s; while (e.acc > 1) { e.acc--; const g = rnd(.5, .62); fx.mix.spawn(e.x + rnd(-.3, .3), e.y, e.z + rnd(-.3, .3), rnd(-.3, .3), rnd(2, 3), rnd(-.3, .3), rnd(5, 9), 1, 6 * e.s, g, g, g * 1.03, 0.4, -0.15, 0.6, 1.3); }
+          e.acc += dt * 7 * e.s; while (e.acc > 1) { e.acc--; const g = rnd(.62, .78); fx.mix.spawn(e.x + rnd(-.3, .3), e.y, e.z + rnd(-.3, .3), rnd(-.3, .3), rnd(2, 3), rnd(-.3, .3), rnd(6, 10), 1.2, 7 * e.s, g, g, g * 1.03, 0.32, -0.12, 0.6, 1.3); }
           continue;
         }
         const burning = e.t > 0; e.t -= dt; if (!burning) e.smoulder -= dt;

@@ -57,7 +57,7 @@ export function fogPatch(mat, fog, timeUniform) {
       #else
         vFW = (modelMatrix * vec4(transformed, 1.)).xyz;
       #endif`);
-    sh.fragmentShader = 'varying vec3 vFW; uniform sampler2D uFogT; uniform float uFogB; uniform float uTime;\n' + FOG_GLSL + sh.fragmentShader.replace('#include <fog_fragment>', 'gl_FragColor.rgb = fogOfWar(gl_FragColor.rgb, vFW.xz, uTime);\n#include <fog_fragment>');
+    sh.fragmentShader = 'varying vec3 vFW; uniform sampler2D uFogT; uniform float uFogB; uniform float uTime;\n' + FOG_GLSL + '\n' + sh.fragmentShader.replace('#include <fog_fragment>', 'gl_FragColor.rgb = fogOfWar(gl_FragColor.rgb, vFW.xz, uTime);\n#include <fog_fragment>');
   };
   mat.customProgramCacheKey = () => 'fogwar';
   return mat;

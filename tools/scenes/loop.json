@@ -27,7 +27,7 @@
     "waitFor 6000 !__G.T.alive",
     "waitFor 8000 __G.G.mode==='zarch' && __G.Z.alive",
     "eval ({mode:__G.G.mode, landed:__G.H.landed, pos:__G.H.pos.toArray().map(v=>+v.toFixed(1)), podBack:!__G.BASES[2].st.pod.attached, lives:__G.G.lives, cargo:__G.G.cargo})",
-    "expect __G.H.landed && Math.hypot(__G.H.pos.x - __G.PAD.x, __G.H.pos.z - __G.PAD.z) < 9",
+    "expect __G.H.landed && __G.war.shipAt(__G.H.pos.x, __G.H.pos.z) === __G.war.carrier",
     "waitFor 6000 __G.camB < 0.01",
     "shot respawned-home",
     "eval (__G.G.cargo = 60, window.__r1 = __G.G.res, __G.H.reset(new __G.THREE.Vector3(__G.HOME_B.x+0.18, 16, __G.HOME_B.z+0.18), 0, false, 1), __G.HI.setCollective(0.3), 1)",

@@ -28,6 +28,17 @@ export class Sfx {
   enemyShot() { this.blip(300, 120, 0.2, 'sawtooth', 0.1); }
   pickup() { this.blip(400, 1200, 0.25, 'triangle', 0.2); }
   dock() { this.blip(200, 800, 0.6, 'sine', 0.25); }
+  rocket() { this.noiseBurst(2400, 300, 0.35, 0.25); this.blip(500, 1400, 0.25, 'sawtooth', 0.05); }
+  bombDrop() { this.blip(1600, 600, 0.9, 'sine', 0.05); }
+  flak() { this.noiseBurst(900, 120, 0.25, 0.18); }
+  alarm() { if (!this.ctx) return; const t = this.ctx.currentTime; if (t - (this._al || 0) < 3) return; this._al = t; this.blip(880, 660, 0.18, 'square', 0.08); setTimeout(() => this.blip(880, 660, 0.18, 'square', 0.08), 260); }
+  noiseBurst(f0, f1, dur, vol) {
+    if (!this.ctx) return; const c = this.ctx, t = c.currentTime;
+    const s = c.createBufferSource(); s.buffer = this.noise;
+    const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    const g = c.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    s.connect(f); f.connect(g); g.connect(this.master); s.start(t, Math.random()); s.stop(t + dur + 0.05);
+  }
   boom(big = 1) {
     if (!this.ctx) return; const c = this.ctx, t = c.currentTime;
     const s = c.createBufferSource(); s.buffer = this.noise;

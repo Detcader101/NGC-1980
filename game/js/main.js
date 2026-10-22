@@ -4,7 +4,9 @@ import { buildCaveMesh, makeTurret, makeTank, makePod, makeRope } from './cave3d
 import { Sfx } from './audio.js';
 import { createDamage, PARTS } from './damage.js';
 import { HELI, EYE, buildHeliMesh, buildCockpit, createHeliSim, createHeliInput } from './heli.js';
-import { BOUND, ISLANDS, islandH } from './world.js';
+import { BOUND, ISLANDS, islandH, createNav } from './world.js';
+import { createWar, COST } from './war.js';
+import { CARRIER } from './ships.js';
 import { createFog, FOG_GLSL, fogPatch } from './fog.js';
 import { createFx } from './fx.js';
 
@@ -33,7 +35,8 @@ addEventListener('keydown', e => {
   if (sw) doSwitch(sw);
   if (e.code === 'KeyJ') HI.startCalibration();
   if (e.code === 'KeyT') toggleFreeLook();
-  if (e.code === 'KeyM') { bigMap = !bigMap; setMapSize(); }
+  if (e.code === 'KeyM') { bigMap = !bigMap; setMapSize(); if (bigMap && document.pointerLockElement) document.exitPointerLock(); }
+  if (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3') command(+e.code.slice(5));
   if (e.code === 'KeyV') { cockpitCam = !cockpitCam; if (!cockpitCam && document.pointerLockElement) document.exitPointerLock(); say(cockpitCam ? 'COCKPIT VIEW' : (chaseCam ? 'CHASE CAMERA' : 'FIXED CAMERA'), 1.2); }
   if (e.code === 'KeyC') { cockpitCam = false;  chaseCam = !chaseCam; Z.hd = Math.atan2(Z.facing.x, -Z.facing.y); say(chaseCam ? 'CHASE CAMERA' : 'FIXED CAMERA', 1.2); }
   if (e.code === 'KeyK') { keyboardOnly = !keyboardOnly; say(keyboardOnly ? 'KEYBOARD ONLY' : 'CONTROLLER ENABLED', 1.5); }
@@ -175,9 +178,11 @@ function explode(arr, x, y, z, n, sp, is2d) {
 }
 
 // ---------------------------------------------------------------- game state
-const G = { light: false, n2: 0, res: 150, cargo: 0, state: 'title', mode: 'zarch', score: 0, hi: 0, lives: 3, fuel: 100, visit: 0, tr: null, msgT: 0, over: false };
+const ROCKETS_MAX = 16, BOMBS_MAX = 6;
+const G = { light: false, n2: 0, res: 250, mat: 90, rockets: ROCKETS_MAX, bombs: BOMBS_MAX, cargo: 0, state: 'title', mode: 'zarch', score: 0, hi: 0, lives: 3, fuel: 100, visit: 0, tr: null, msgT: 0, over: false };
 try { G.hi = +(localStorage.getItem('tz_hi') || 0); } catch (e) {}
 function addScore(n) { G.score += n; if (G.score > G.hi) { G.hi = G.score; try { localStorage.setItem('tz_hi', G.hi); } catch (e) {} } }
+let war = null;   // the island war (created once the world exists)
 function say(t, secs = 2) { const m = $('msg'); m.textContent = t; m.style.opacity = t ? 1 : 0; G.msgT = secs; }
 
 // ================================================================ ZARCH
@@ -192,6 +197,7 @@ const BASES = ISLANDS.filter(I => I.cave).sort((a, b) => a.tier - b.tier).map(I 
 const HOME_B = BASES[0], PAD_H = HOME_B.h;
 const PADS = ISLANDS.map(I => I.pad = I.cave ? { x: I.x, z: I.z + 30, h: I.base.h, r0: 12, r1: 34, r: PAD_R, isl: I } : { x: I.x, z: I.z, h: clamp(Math.round(islandH(I.x, I.z)), 3, 14), r0: 30, r1: 52, r: PAD_R, isl: I });
 const PAD = HOME_B.isl.pad;   // the home refuel pad
+const RES_MAX = 600;          // the fleet's fuel stores
 const stripW = (x, z, b) => smooth(0, 14, Math.hypot(Math.max(Math.abs(x - b.x) - STRIP_X, 0), Math.max(Math.abs(z - b.z) - STRIP_Z, 0)));
 const terrainH = (x, z) => {
   let h = islandH(x, z);
@@ -202,8 +208,9 @@ const terrainH = (x, z) => {
 };
 const holeOf = (x, z) => BASES.find(b => Math.hypot(x - b.x, z - b.z) < HOLE_R);
 const inHole = (x, z) => !!holeOf(x, z);
-const groundY = (x, z) => inHole(x, z) ? -1e4 : Math.max(terrainH(x, z), 0);
+const groundY = (x, z) => inHole(x, z) ? -1e4 : Math.max(terrainH(x, z), 0, war ? war.deckY(x, z) : -1e9);   // ship decks count as ground
 const isWater = (x, z) => terrainH(x, z) <= 0;
+const waterAt = (x, z) => isWater(x, z) && !(war && war.deckY(x, z) > -1e8);
 const baseUniform = BASES.map(b => new THREE.Vector4(b.x, b.z, b.h, b.kind === 'enemy' ? 1 : 0));
 const SIDE_COL = [new THREE.Color(0.8, 0.8, 0.74), new THREE.Color(0.2, 0.75, 1.0), new THREE.Color(0.95, 0.18, 0.1)];   // neutral, player, enemy
 const padUniform = PADS.map(p => SIDE_COL[p.isl.owner].clone());
@@ -309,7 +316,7 @@ const fx = createFx(zScene, { groundY: (x, z) => Math.max(terrainH(x, z), 0), is
 {
   let s = 12345; const r = () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296;
   const geo = new THREE.ConeGeometry(1.3, 5, 6); geo.translate(0, 2.5, 0);
-  const mesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ color: 0x1f7a2a, flatShading: true }), 3200);
+  const mesh = new THREE.InstancedMesh(geo, fogPatch(new THREE.MeshLambertMaterial({ color: 0x1f7a2a, flatShading: true }), fog, terrainUni.uTime), 3200);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(); let n = 0;
   for (let i = 0; i < 60000 && n < 3200; i++) {
     const x = (r() * 2 - 1) * BOUND, z = (r() * 2 - 1) * BOUND, h = terrainH(x, z);
@@ -371,8 +378,6 @@ const reticle = new THREE.Group();
 }
 const aimLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, -1)]), new THREE.LineBasicMaterial({ color: 0xff5a70, transparent: true, opacity: 0.28, depthTest: false }));
 aimLine.renderOrder = 10; zScene.add(aimLine);
-const zBullets = [], enemies = [];
-const zBulCloud = new Cloud(zScene, 400, 2.2, true);
 const D = createDamage();
 const H = createHeliSim(GRAV), _aimR = new THREE.Vector3();
 const HI = createHeliInput({ keyDown: kd, readPad, say: (t, s) => say(t, s) });
@@ -380,36 +385,54 @@ const Z = {
   pos: new THREE.Vector3(PAD.x, PAD_H + 0.9, PAD.z), vel: new THREE.Vector3(), lean: new THREE.Vector2(), facing: new THREE.Vector2(0, -1),
   aim: new THREE.Vector3(0, 0, -1), aimOff: new THREE.Vector2(), hd: 0, sector: -1, round: 0, throttle: 0, landed: true, alive: true, deadT: 0, fireCd: 0, wave: 0, waveT: 2,
 };
-const enemyMat = new THREE.MeshPhongMaterial({ color: 0xdd2222, emissive: 0x440808, flatShading: true });
-const enemyRing = new THREE.MeshBasicMaterial({ color: 0xff8844 });
-// The map is a 3x3 grid of sectors. The centre one holds the home base and is a safe zone (land, refuel, repair).
-// Flying into an uncleared sector launches that sector's wave; its ships stay and patrol there, so you can always
-// fall back home. Clear all eight and a new, tougher round begins.
-const SECT = (2 * BOUND) / 3;
-const SECT_NAMES = ['NORTH-WEST', 'NORTH', 'NORTH-EAST', 'WEST', 'HOME', 'EAST', 'SOUTH-WEST', 'SOUTH', 'SOUTH-EAST'];
-const sectorOf = (x, z) => clamp(Math.floor((x + BOUND) / SECT), 0, 2) + 3 * clamp(Math.floor((z + BOUND) / SECT), 0, 2);
-const HOME = sectorOf(HOME_B.x, HOME_B.z);
-const sectorCentre = i => [-BOUND + SECT * ((i % 3) + 0.5), -BOUND + SECT * (Math.floor(i / 3) + 0.5)];
-const sectors = Array.from({ length: 9 }, () => ({ state: 'idle' }));   // idle -> active -> cleared
-function resetSectors() { for (const sc of sectors) sc.state = 'idle'; sectors[HOME].state = 'cleared'; }
-function spawnEnemy(area) {
-  const [cx, cz] = sectorCentre(area);
-  const x = clamp(cx + rnd(-0.4, 0.4) * SECT, -BOUND, BOUND), zz = clamp(cz + rnd(-0.4, 0.4) * SECT, -BOUND, BOUND);
-  const g = new THREE.Group();
-  g.add(new THREE.Mesh(new THREE.OctahedronGeometry(1.8).scale(1.4, 0.7, 1.4), enemyMat));
-  g.add(new THREE.Mesh(new THREE.TorusGeometry(2.6, 0.12, 4, 20).rotateX(Math.PI / 2), enemyRing));
-  g.position.set(x, groundY(x, zz) + 28, zz); zScene.add(g);
-  enemies.push({ mesh: g, vel: new THREE.Vector3(), fireT: rnd(1, 3), ph: rnd(6.28), hp: 1, area });
+// ---------------------------------------------------------------- the island war (war.js)
+const nav = createNav(terrainH);
+const seaSpot = (x, z) => { const [wx, wz] = nav.nearestWater(x, z); return [wx, wz, Math.atan2(wx, wz)]; };   // facing the map centre
+const PSTORE = { get fuel() { return G.res; }, set fuel(v) { G.res = v; }, get mat() { return G.mat; }, set mat(v) { G.mat = v; }, get fuelMax() { return RES_MAX; } };
+const PL = { pos: Z.pos, vel: Z.vel, get alive() { return G.mode === 'zarch' ? Z.alive : T.alive; }, get landed() { return G.mode === 'zarch' && Z.alive && H.landed; }, get inCave() { return G.mode !== 'zarch'; } };
+const feedItems = [];
+function feed(t, kind = 'info') { feedItems.unshift({ t, kind, at: performance.now() }); feedItems.length = Math.min(feedItems.length, 6); }
+function islandOwnerChanged(I, was) {
+  padUniform[PADS.indexOf(I.pad)].copy(SIDE_COL[I.owner]);
+  const b = I.base; if (!b) return;
+  baseUniform[BASES.indexOf(b)].w = I.owner === 2 ? 1 : 0;
+  if (b.beam) b.beam.material.color.setHex(I.owner === 1 ? 0x66ddff : 0xff4030);
+  if (!b.st || b.kind !== 'enemy') return;
+  if (I.owner === 1) { for (const t of b.st.turrets) { t.alive = false; t.mesh.visible = false; } b.st.podTaken = true; }   // the garrison has surrendered
+  else if (I.owner === 2 && was === 1) restockBase(b);
 }
-function clearEnemies() { for (const e of enemies) zScene.remove(e.mesh); enemies.length = 0; }
+function warOver(result, why) {
+  if (G.over) return; G.over = true; say(result === 'win' ? `VICTORY  -  ${why}` : `DEFEAT  -  ${why}`, 6);
+  setTimeout(() => showEnd(result === 'win' ? 'VICTORY' : 'DEFEAT', why), 5000);
+}
+function showEnd(title, why) {
+  G.state = 'title'; G.mode = 'zarch'; $('title').style.display = 'flex'; $('title').querySelector('h1').textContent = title;
+  $('result').textContent = `${why}  -  SCORE ${G.score}`; if (document.pointerLockElement) document.exitPointerLock();
+}
+war = createWar({
+  scene: zScene, fx, sfx, terrainH, isWater, nav, ISLANDS, BASES, G: PSTORE, feed, addScore,
+  carrierStart: seaSpot(-300, 280), enemyStart: seaSpot(300, -280),
+  player: () => PL, hurtPlayer: (a, why) => hurtHeli(a, why), onOwner: islandOwnerChanged, onEnd: warOver,
+});
+// commands (any time; the big map shows what is selected): 1 capture drone, 2 AA gun, 3 helicopter
+let selIsl = null;
+function command(n) {
+  if (G.state !== 'play') return;
+  if (n === 3) { if (G.mat < COST.heli) say('NOT ENOUGH MATERIEL FOR A HELICOPTER', 1.6); else { G.mat -= COST.heli; G.lives++; say('NEW HELICOPTER IN THE HANGAR', 1.6); sfx.dock(); } return; }
+  if (!selIsl) { say('SELECT AN ISLAND ON THE MAP FIRST (M)', 1.8); return; }
+  say(n === 1 ? war.sendDrone(selIsl) : war.orderAA(selIsl), 2);
+}
+// where a fresh helicopter starts: the carrier deck while it is afloat, else the home pad
+function spawnSpot() {
+  const c = war && war.carrier;
+  if (c && c.sinking === undefined && !params.has('homepad')) { const lx = -3, lz = 26, cs = Math.cos(c.yaw), sn = Math.sin(c.yaw); return { x: c.p.x + lx * cs + lz * sn, z: c.p.z - lx * sn + lz * cs, y: CARRIER.DECK, yaw: c.yaw }; }
+  return { x: PAD.x, z: PAD.z, y: PAD_H, yaw: 0 };
+}
 function resetZarch(fromPad) {
-  H.reset(new THREE.Vector3(PAD.x, PAD_H - HELI.SKID_Y, PAD.z), 0, fromPad, fromPad ? 0 : 1); HI.setCollective(0);
-  Z.pos.set(PAD.x, PAD_H + (fromPad ? 0.9 : 2.5), PAD.z); Z.vel.set(0, fromPad ? 0 : 14, 0); Z.lean.set(0, 0); Z.landed = fromPad;
-  Z.alive = true; shipMesh.visible = true; shipShadow.visible = true; zBullets.length = 0;
-  for (const e of enemies) {
-    const dx = e.mesh.position.x - PAD.x, dz = e.mesh.position.z - PAD.z, d = Math.hypot(dx, dz);
-    if (d < 90) { const k = 110 / Math.max(d, 1); e.mesh.position.x = PAD.x + dx * k; e.mesh.position.z = PAD.z + dz * k; }
-  }
+  const sp = spawnSpot();
+  H.reset(new THREE.Vector3(sp.x, sp.y - HELI.SKID_Y, sp.z), sp.yaw, fromPad, fromPad ? 0 : 1); HI.setCollective(0);
+  Z.pos.copy(H.pos); Z.vel.set(0, 0, 0); Z.lean.set(0, 0); Z.landed = fromPad;
+  Z.alive = true; shipMesh.visible = true; shipShadow.visible = true;
 }
 // Emergency landing: set down safely anywhere with an empty tank and a logistics team flies out a fuel drop.
 // It takes a while and only brings half a tank - enough for a last-chance run home. A parachute crate drops beside you
@@ -487,33 +510,30 @@ function killPlayerZ(why) {
   G.lives--; if (G.lives < 0) gameOver();
 }
 
+// refuel / repair / rearm / unload cargo: on any friendly pad or our carrier's deck
+function serviceAt(x, z) {
+  const u = war.shipAt(x, z); if (u && u === war.carrier && u.sinking === undefined) return { name: 'ALBATROSS', deck: true };
+  for (const p of PADS) if (p.isl.owner === 1 && Math.hypot(x - p.x, z - p.z) < p.r + 1) return { name: p.isl.name, pad: p };
+  return null;
+}
+function service(svc, dt) {
+  const fill = Math.min(G.res, 20 * dt, 100 - G.fuel); G.res -= fill; G.fuel += fill;
+  if (G.cargo > 0) { const u = Math.min(G.cargo, 30 * dt, RES_MAX - G.res); G.cargo -= u; G.res += u; Z.unloaded = (Z.unloaded || 0) + u; if (G.cargo <= 0.01 && Z.unloaded > 0) { say(`FUEL UNLOADED  -  STORES ${Math.round(G.res)}`, 2); addScore(Math.round(Z.unloaded * 5)); Z.unloaded = 0; } }
+  if (D.damaged()) { D.repair(0.25 * dt); if (!D.damaged()) say('REPAIRS COMPLETE', 1.5); }
+  Z.rearmT = (Z.rearmT || 0) - dt;
+  const arming = G.rockets < ROCKETS_MAX || G.bombs < BOMBS_MAX;
+  if (arming && Z.rearmT <= 0) { Z.rearmT = 0.35; if (G.rockets < ROCKETS_MAX) G.rockets = Math.min(ROCKETS_MAX, G.rockets + 2); else G.bombs++; sfx.blip?.(700, 900, 0.05, 'square', 0.05); }
+  if (fill > 0 || arming) Z.refuelling = true; else if (Z.refuelling) { Z.refuelling = false; say(G.res < 1 ? 'FUEL STORES EMPTY  -  TAKE FUEL ISLANDS OR LOOT ENEMY CAVES' : `${svc.name}  -  FUELLED AND ARMED`, 1.6); }
+}
+const _rk = new THREE.Vector3();
 function updateZarch(dt, inp) {
   const P = Z.pos;
-  if (Z.alive && !params.has('peace')) {   // ?peace: no waves (automated tests)
-    const here = sectorOf(P.x, P.z);
-    if (here !== Z.sector) {
-      Z.sector = here;
-      const sc = sectors[here];
-      if (here === HOME) say('HOME SECTOR  -  SAFE ZONE', 1.6);
-      else if (sc.state === 'idle') {
-        sc.state = 'active'; Z.wave++;
-        const n = Math.min(2 + Z.round * 2 + Math.floor(Z.wave / 3), 10);
-        for (let i = 0; i < n; i++) spawnEnemy(here);
-        say(`${SECT_NAMES[here]} SECTOR  -  ${n} HOSTILES`, 2);
-      } else if (sc.state === 'cleared') say(`${SECT_NAMES[here]} SECTOR  -  CLEAR`, 1.2);
-    }
-  }
-  for (let i = 0; i < 9; i++) if (sectors[i].state === 'active' && !enemies.some(e => e.area === i)) {
-    sectors[i].state = 'cleared'; addScore(500); say(`${SECT_NAMES[i]} SECTOR CLEARED  +500`, 2);
-    if (sectors.every(sc => sc.state === 'cleared')) { Z.round++; resetSectors(); Z.sector = -1; say(`ALL SECTORS CLEAR  -  ROUND ${Z.round + 1} INCOMING`, 3); }
-  }
-  let lm = 0;
   if (!Z.alive) {
     Z.deadT -= dt;
-    if (Z.deadT <= 0 && !G.over) { G.fuel = 100; G.cargo = 0; D.reset(); resetZarch(true); }
+    if (Z.deadT <= 0 && !G.over) { G.fuel = 100; G.cargo = 0; D.reset(); G.rockets = ROCKETS_MAX; G.bombs = BOMBS_MAX; resetZarch(true); say(war.carrier && war.carrier.sinking === undefined ? 'NEW HELICOPTER ON THE ALBATROSS' : 'NEW HELICOPTER ON THE HOME PAD', 2); }
   } else {
     const ctl = HI.read(dt);
-    const ev = H.step(dt, ctl, { groundY, fuel: G.fuel, water: terrainH(H.pos.x, H.pos.z) <= 0, mods: D.mods() });
+    const ev = H.step(dt, ctl, { groundY, fuel: G.fuel, water: waterAt(H.pos.x, H.pos.z), surfVel: war.surfVel, mods: D.mods() });
     G.fuel = Math.max(0, G.fuel - D.update(dt));
     P.copy(H.pos); Z.vel.copy(H.vel); Z.landed = H.landed; Z.throttle = H.coll * H.rpm; Z.ctl = ctl;
     const fw = H.forward(), fl = Math.hypot(fw.x, fw.z); if (fl > 0.15) Z.facing.set(fw.x / fl, fw.z / fl);
@@ -526,11 +546,8 @@ function updateZarch(dt, inp) {
     if (G.fuel <= 0 && !H.landed) say('FUEL EXHAUSTED  -  AUTOROTATE AND SET DOWN SAFELY', 0.5);
     updateRescue(dt, H.landed, false);
     sfx.engine(H.rpm * (0.25 + 0.75 * H.coll));
-    if (H.landed && Math.hypot(P.x - PAD.x, P.z - PAD.z) < PAD.r) {
-      const fill = Math.min(G.res, 20 * dt, 100 - G.fuel); G.res -= fill; G.fuel += fill;
-      if (D.damaged()) { D.repair(0.25 * dt); if (!D.damaged()) say('REPAIRS COMPLETE', 1.5); }
-      if (fill > 0) Z.refuelling = true; else if (Z.refuelling) { Z.refuelling = false; say(G.res < 1 ? 'RESERVOIR EMPTY  -  LOOT ENEMY FUEL' : 'TANKS FULL', 1.6); }
-    }
+    const svc = H.landed ? serviceAt(P.x, P.z) : null; Z.svc = svc;
+    if (svc) service(svc, dt);
     else if (ev === 'water') killPlayerZ('DITCHED IN THE WATER');
     else if (ev === 'rotor') killPlayerZ('ROTOR STRIKE');
     else if (ev === 'tailstrike') { D.hp.tail = 0; say('TAIL STRIKE  -  TAIL ROTOR GONE', 2.2); sfx.boom(0.5); }
@@ -539,7 +556,7 @@ function updateZarch(dt, inp) {
     if (!Z.alive) return;
     // rotor downwash: dust (or spray over water) blown out radially under the disc
     if (H.agl < 12 && H.rpm > 0.5 && H.coll > 0.2) {
-      const gy = groundY(P.x, P.z), wet = isWater(P.x, P.z), k = (1 - H.agl / 12) * H.coll;
+      const gy = groundY(P.x, P.z), wet = waterAt(P.x, P.z), k = (1 - H.agl / 12) * H.coll;
       for (let i = 0; i < 4; i++) if (Math.random() < k) {
         const a = rnd(6.283), sp = rnd(8, 16);
         if (wet) fx.mix.spawn(P.x + Math.cos(a) * 2, gy + 0.3, P.z + Math.sin(a) * 2, Math.cos(a) * sp, rnd(0.5, 2.5), Math.sin(a) * sp, rnd(0.6, 1.1), 0.7, 3, .85, .92, .97, 0.4, 2, 1.4, 0.3);
@@ -549,55 +566,25 @@ function updateZarch(dt, inp) {
       if (wet && Z.washT <= 0 && k > 0.2) { Z.washT = 0.18; fx.water.add({ x: P.x, y: 0.1, z: P.z, size: 3, grow: 12, a: 0.45 * k, life: 1.1, tile: 1, pow: 1.5 }); }
     }
     for (const ax of ['x', 'z']) if (Math.abs(P[ax]) > BOUND) { P[ax] = Math.sign(P[ax]) * BOUND; Z.vel[ax] = 0; say('TURN BACK', 0.8); }
-    Z.fireCd -= dt;
+    // weapons: door gun (F / trigger), rocket pods (G / button 3), bombs (B / button 5)
+    Z.fireCd -= dt; Z.rkCd = (Z.rkCd || 0) - dt; Z.bmCd = (Z.bmCd || 0) - dt;
     if ((inp.fire || ctl.fire) && Z.fireCd <= 0) {
       Z.fireCd = 0.14; sfx.shot();
-      const bv = Z.aim.clone().multiplyScalar(75).addScaledVector(Z.vel, 0.5);
-      zBullets.push({ p: P.clone().addScaledVector(Z.aim, 3.2), v: bv, life: 1.8, own: true });
+      war.fireBullet(P.clone().addScaledVector(Z.aim, 3.2), Z.aim.clone().multiplyScalar(75).addScaledVector(Z.vel, 0.5));
+    }
+    if ((kd('KeyG') || ctl.rocket) && Z.rkCd <= 0) {
+      if (G.rockets > 0) {
+        Z.rkCd = 0.2; G.rockets--; Z.rkSide = -(Z.rkSide || 1);
+        const p0 = P.clone().add(_rk.set(1.15 * Z.rkSide, -0.55, -1).applyQuaternion(H.q));
+        war.fireRocket(p0, Z.aim.clone().multiplyScalar(105).add(Z.vel)); fx.flash(p0.x, p0.y, p0.z, 0.35);
+      } else { Z.rkCd = 1; say('ROCKETS EMPTY  -  REARM ON THE CARRIER OR A FRIENDLY PAD', 1.4); }
+    }
+    if ((kd('KeyB') || ctl.bomb) && Z.bmCd <= 0) {
+      if (G.bombs > 0) { Z.bmCd = 0.45; G.bombs--; war.dropBomb(P.clone().add(_rk.set(0, -1.7, 0)), Z.vel.clone()); }
+      else { Z.bmCd = 1; say('BOMBS GONE  -  REARM ON THE CARRIER OR A FRIENDLY PAD', 1.4); }
     }
     { const hb = holeOf(P.x, P.z); if (hb && P.y < hb.h - 0.5 && Z.vel.y < 0) { enterCave(hb); return; } }
     if (Math.abs(P.x) > BOUND || Math.abs(P.z) > BOUND) { H.pos.x = clamp(H.pos.x, -BOUND, BOUND); H.pos.z = clamp(H.pos.z, -BOUND, BOUND); }
-  }
-  for (let i = zBullets.length - 1; i >= 0; i--) {
-    const b = zBullets[i]; b.life -= dt; b.v.y -= GRAV * 0.25 * dt; b.p.addScaledVector(b.v, dt);
-    let dead = b.life <= 0 || b.p.y < groundY(b.p.x, b.p.z);
-    if (dead && b.life > 0) fx.impact(b.p.x, b.p.y, b.p.z, isWater(b.p.x, b.p.z) ? 'water' : 'ground');
-    if (!dead && b.own) {
-      for (const e of enemies) if (e.mesh.position.distanceTo(b.p) < 3.6) { e.hp--; dead = true; break; }
-    } else if (!dead && !b.own && Z.alive && b.p.distanceTo(P) < 2.6) { dead = true; hurtHeli(0.22, 'HIT'); }
-    if (dead) { zBullets[i] = zBullets[zBullets.length - 1]; zBullets.pop(); }
-  }
-  for (let i = enemies.length - 1; i >= 0; i--) {
-    const e = enemies[i], ep = e.mesh.position; e.ph += dt;
-    if (e.hp <= 0 && !e.dying) { e.dying = true; e.vel.y = 3; fx.explode(ep.x, ep.y, ep.z, 0.9, { debris: 3, color: 0x992222 }); sfx.boom(0.5); addScore(150); }
-    if (e.dying) {   // shot down: it falls trailing fire and smoke and blows up where it hits
-      e.vel.y -= 16 * dt; ep.addScaledVector(e.vel, dt); e.mesh.rotation.y += dt * 9; e.mesh.rotation.x += dt * 2;
-      fx.add.spawn(ep.x, ep.y, ep.z, rnd(-1, 1), rnd(0, 2), rnd(-1, 1), rnd(0.25, 0.5), 1.4, 0.4, 1, rnd(.4, .6), .1, 0.9, -1, 1);
-      fx.trail(ep.x, ep.y, ep.z, 1.3);
-      if (ep.y < groundY(ep.x, ep.z) + 0.5 || ep.y < -5) {
-        const wet = isWater(ep.x, ep.z); fx.explode(ep.x, Math.max(ep.y, groundY(ep.x, ep.z)), ep.z, 2, { fire: wet ? 0 : 40, oil: wet, debris: 9, color: 0x992222 }); sfx.boom(0.9);
-        zScene.remove(e.mesh); enemies.splice(i, 1);
-      }
-      continue;
-    }
-    const pSec = sectorOf(P.x, P.z), hunting = Z.alive && pSec === e.area && pSec !== HOME;
-    const [acx, acz] = sectorCentre(e.area);
-    const tx = hunting ? P.x : acx + Math.cos(e.ph * 0.3) * SECT * 0.3, tz = hunting ? P.z : acz + Math.sin(e.ph * 0.3) * SECT * 0.3;
-    const dx = tx - ep.x, dz = tz - ep.z, hd = Math.hypot(dx, dz) || 1, sp = (hunting ? 15 : 10) + Z.round * 2;
-    const near = hunting && hd < 40 ? -1 : 1;
-    const wantV = new THREE.Vector3((dx / hd) * sp * near + Math.cos(e.ph * 1.3) * 5, 0, (dz / hd) * sp * near + Math.sin(e.ph * 1.1) * 5);
-    wantV.y = (groundY(ep.x, ep.z) + 26 + Math.sin(e.ph) * 5 - ep.y) * 1.2;
-    e.vel.lerp(wantV, 1 - Math.exp(-1.5 * dt)); ep.addScaledVector(e.vel, dt);
-    ep.x = clamp(ep.x, -BOUND, BOUND); ep.z = clamp(ep.z, -BOUND, BOUND);
-    e.mesh.rotation.y += dt * 2;
-    e.fireT -= dt;
-    if (hunting && e.fireT <= 0 && hd < 100) {
-      e.fireT = Math.max(0.9, 2.4 - Z.round * 0.3) + rnd(1); sfx.enemyShot();
-      const t = ep.distanceTo(P) / 48, aim = P.clone().addScaledVector(Z.vel, t * 0.5);
-      aim.x += rnd(-5, 5); aim.z += rnd(-5, 5);
-      zBullets.push({ p: ep.clone(), v: aim.sub(ep).normalize().multiplyScalar(48), life: 3, own: false });
-    }
-    if (Z.alive && ep.distanceTo(P) < 3.2) { e.hp = 0; hurtHeli(0.5, 'RAMMED'); hurtHeli(0.45, 'RAMMED'); }
   }
 }
 
@@ -620,7 +607,7 @@ const isPad = (x, y) => { const L = T.lvl; if (x < 0 || x >= L.W || y < 0 || y >
 // Build every base's cave once. Geometry is shared; each base keeps its own turrets/tanks/pod state, so a looted
 // tank stays empty and a destroyed turret stays dead. The home cave is friendly: no turrets, a big reservoir tank and
 // a blue intake pad where carried fuel is pumped into the reservoir.
-const CARGO_MAX = 100, RES_MAX = 300;
+const CARGO_MAX = 100;
 function buildCaves() {
   let proto = null;
   BASES.forEach((b, i) => {
@@ -651,13 +638,12 @@ function useCave(b) {   // point the shared cave state + effects at base b
   caveGroup.add(podMesh, rope.obj, beam3, tPartCloud.obj, tBulCloud.obj);
   T.bullets.length = 0; T.tb.length = 0; T.parts.length = 0;
 }
-function resetBases() {   // new game: restock every enemy base
-  for (const b of BASES) if (b.kind === 'enemy') {
-    for (const t of b.st.turrets) { t.alive = true; t.mesh.visible = true; }
-    for (const t of b.st.tanks) { t.fuel = t.max; t.mesh.userData.bar.scale.y = 1; }
-    Object.assign(b.st.pod, { x: b.L.orb.x, y: b.L.orb.y, vx: 0, vy: 0, attached: false }); b.st.podTaken = false;
-  }
+function restockBase(b) {   // an enemy cave fortress gets its garrison, fuel and command pod back
+  for (const t of b.st.turrets) { t.alive = true; t.mesh.visible = true; }
+  for (const t of b.st.tanks) { t.fuel = t.max; t.mesh.userData.bar.scale.y = 1; }
+  Object.assign(b.st.pod, { x: b.L.orb.x, y: b.L.orb.y, vx: 0, vy: 0, attached: false }); b.st.podTaken = false;
 }
+function resetBases() { for (const b of BASES) if (b.kind === 'enemy') restockBase(b); }   // new game
 // Fly into the shaft from the surface: the same ship carries on, locked to the cave plane.
 function enterCave(b) {
   useCave(b); T.caveT = 0;
@@ -667,12 +653,12 @@ function enterCave(b) {
   T.vy = Math.max(T.vy, -5); T.vx = clamp(T.vx, -2, 2); T.guide = 1.2; T.q0.copy(shipMesh.quaternion);
   { const u = H.up(); T.ang = clamp(Math.atan2(u.x, u.y), -0.3, 0.3); } T.w = 0; T.zOff = P.z - b.z; T.landed = false; T.alive = true; T.thrOn = Z.throttle;
   T.face = Z.facing.x < 0 ? -1 : 1; T.yawF = -T.face * Math.PI / 2;
-  say(b.kind === 'home' ? 'HOME BASE  -  LAND ON THE BLUE PAD TO UNLOAD FUEL' : `${b.name} (${TIER_NAMES[b.tier]})  -  LOOT THE FUEL, STEAL THE POD`, 3);
+  say(b.kind === 'home' ? 'HOME BASE  -  LAND ON THE BLUE PAD TO UNLOAD FUEL' : b.isl.owner === 1 ? `${b.name}  -  OURS NOW, THE GARRISON HAS GONE` : `${b.name} (${TIER_NAMES[b.tier]})  -  STEAL THE POD TO TAKE THE ISLAND`, 3);
 }
 // Climb out of the shaft: hand the ship back to the 3D flight model with its momentum.
 function exitCave() {
   const had = T.pod.attached;
-  if (had) { addScore(1500); say('POD STOLEN  +1500', 2.5); sfx.dock(); T.base.st.podTaken = true; }
+  if (had) { addScore(1500); say('POD STOLEN  -  THE ISLAND IS OURS', 2.5); sfx.dock(); T.base.st.podTaken = true; war.setOwner(T.base.isl, 1, 'POD STOLEN'); }
   else say('BACK ON THE SURFACE', 1.5);
   T.pod.attached = false;
   caveToWorld(T.x, T.y, Z.pos); Z.vel.set(T.vx * CS, T.vy * CS, 0);
@@ -838,14 +824,17 @@ function updateThrust(dt, inp) {
 // ================================================================ flow
 function gameOver() {
   G.over = true;
-  setTimeout(() => { if (G.over) { G.state = 'title'; $('title').style.display = 'flex'; $('title').querySelector('h1').textContent = 'GAME OVER'; G.mode = 'zarch'; } }, 2500);
+  setTimeout(() => { if (G.over) showEnd('DEFEAT', 'NO HELICOPTERS LEFT'); }, 2500);
 }
 function startTransition(label, swap) { G.state = 'trans'; G.tr = { t: 0, phase: 0, swap }; $('fadeText').textContent = label; }
 function newGame() {
   cancelRescue(); D.reset();
   G.score = 0; G.lives = 3; G.fuel = 100; G.visit = 0; G.mode = 'zarch'; G.over = false; G.state = 'play';
-  G.res = 150; G.cargo = 0; resetBases(); clearEnemies(); Z.wave = 0; Z.round = 0; Z.sector = -1; resetSectors(); fx.clear(); resetZarch(true); say('ROTOR SPOOLING  -  RAISE COLLECTIVE TO LIFT', 3);
-  $('title').style.display = 'none'; $('title').querySelector('h1').textContent = 'THRUST / ZARCH'; say('');
+  G.res = 250; G.mat = 90; G.rockets = ROCKETS_MAX; G.bombs = BOMBS_MAX; G.cargo = 0; selIsl = null; feedItems.length = 0;
+  fx.clear(); war.reset(); resetBases(); fog.reset(); fog.enabled = !params.has('nofog'); resetZarch(true);
+  $('title').style.display = 'none'; $('title').querySelector('h1').textContent = 'THRUST / ZARCH'; $('result').textContent = '';
+  say('ROTOR SPOOLING  -  RAISE COLLECTIVE TO LIFT', 3);
+  feed('COMMAND: TAKE THE ISLANDS BEFORE THE ENEMY DOES  -  M FOR THE MAP'); feed('THE ENEMY CARRIER KRAKEN IS SOMEWHERE NORTH-EAST');
 }
 function pressStart() { if (G.state === 'title') newGame(); }
 
@@ -856,43 +845,107 @@ function setMapSize() {
   c.width = bigMap ? innerWidth : 150; c.height = bigMap ? innerHeight : 150;
 }
 addEventListener('resize', () => { if (bigMap) setMapSize(); });
+// The map: the sea and islands, the fog of war (black where never seen, dim where not watched now), islands as you
+// last saw them, your units always, enemy units only inside your sight. The big map (M) is the command screen.
+const landImg = (() => {
+  const N = 320, c = document.createElement('canvas'); c.width = c.height = N; const x = c.getContext('2d'), im = x.createImageData(N, N);
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const h = terrainH(-BOUND + (i + 0.5) * 2 * BOUND / N, -BOUND + (j + 0.5) * 2 * BOUND / N), k = (j * N + i) * 4;
+    let col;
+    if (h <= 0) { const d = clamp(-h / 10, 0, 1); col = [lerp(28, 8, d), lerp(92, 34, d), lerp(118, 78, d)]; }
+    else if (h < 2.5) col = [176, 164, 112];
+    else { const t = clamp((h - 6) / 28, 0, 1); col = [lerp(48, 120, t), lerp(118, 102, t), lerp(50, 80, t)]; }
+    im.data[k] = col[0]; im.data[k + 1] = col[1]; im.data[k + 2] = col[2]; im.data[k + 3] = 255;
+  }
+  x.putImageData(im, 0, 0); return c;
+})();
+const fogImg = document.createElement('canvas'); fogImg.width = fogImg.height = fog.N;
+const fogCtx = fogImg.getContext('2d'), fogData = fogCtx.createImageData(fog.N, fog.N);
+function updateFogImg() {
+  const d = fogData.data;
+  for (let k = 0; k < fog.N * fog.N; k++) { const e = fog.enabled ? fog.exp[k] : 1, v = fog.enabled ? fog.vis[k] : 1; d[k * 4] = 4; d[k * 4 + 1] = 8; d[k * 4 + 2] = 16; d[k * 4 + 3] = (1 - e) * 240 + e * (1 - v) * 110; }
+  fogCtx.putImageData(fogData, 0, 0);
+}
+const KIND_TAG = { hq: 'HQ', fortress: 'C', fuel: 'F', factory: 'M', radar: 'R' };
+const OWN_COL = ['#e8e4d0', '#4cf', '#f54'];
+let mapView = null;
 function drawMap() {
-  const W = radar.canvas.width, H = radar.canvas.height; radar.clearRect(0, 0, W, H);
-  const half = bigMap ? Math.min(W, H) * 0.45 / BOUND : 70 / 300, cx = W / 2, cy = H / 2;
-  const ox = bigMap ? 0 : Z.pos.x, oz = bigMap ? 0 : Z.pos.z, lim = bigMap ? 1e9 : 72;
+  const W = radar.canvas.width, Hh = radar.canvas.height; radar.clearRect(0, 0, W, Hh);
+  const big = bigMap, half = big ? Math.min(W, Hh - 120) * 0.47 / BOUND : 72 / 260, cx = W / 2, cy = big ? (Hh - 60) / 2 : Hh / 2;
+  const ox = big ? 0 : Z.pos.x, oz = big ? 0 : Z.pos.z;
   const px = x => cx + (x - ox) * half, py = z => cy + (z - oz) * half;
-  const dot = (x, z, c, sz) => { const X = px(x), Y = py(z); if (Math.hypot(X - cx, Y - cy) > lim) return; radar.fillStyle = c; radar.fillRect(X - sz / 2, Y - sz / 2, sz, sz); };
-  if (bigMap) {
-    radar.strokeStyle = '#4aa'; radar.lineWidth = 1; radar.strokeRect(px(-BOUND), py(-BOUND), 2 * BOUND * half, 2 * BOUND * half);
-    radar.font = '13px monospace';
-    for (let i = 0; i < 9; i++) {
-      const x0 = -BOUND + SECT * (i % 3), z0 = -BOUND + SECT * Math.floor(i / 3), st = sectors[i].state;
-      radar.fillStyle = i === HOME ? 'rgba(255,230,80,.08)' : st === 'cleared' ? 'rgba(60,255,120,.10)' : st === 'active' ? 'rgba(255,60,60,.14)' : 'rgba(0,0,0,0)';
-      radar.fillRect(px(x0), py(z0), SECT * half, SECT * half); radar.strokeRect(px(x0), py(z0), SECT * half, SECT * half);
-      radar.fillStyle = i === HOME ? '#ff8' : st === 'cleared' ? '#6f8' : st === 'active' ? '#f66' : '#8aa';
-      radar.fillText(i === HOME ? 'HOME  (SAFE)' : `${SECT_NAMES[i]}  ${st === 'idle' ? '?' : st === 'active' ? 'HOSTILE' : 'CLEAR'}`, px(x0) + 6, py(z0) + 16);
+  mapView = { half, cx, cy, ox, oz };
+  radar.save();
+  if (!big) { radar.beginPath(); radar.arc(cx, cy, 74, 0, 6.283); radar.clip(); }
+  else { radar.fillStyle = 'rgba(2,8,16,.88)'; radar.fillRect(0, 0, W, Hh); }
+  radar.imageSmoothingEnabled = true;
+  radar.drawImage(landImg, px(-BOUND), py(-BOUND), 2 * BOUND * half, 2 * BOUND * half);
+  radar.drawImage(fogImg, px(-BOUND), py(-BOUND), 2 * BOUND * half, 2 * BOUND * half);
+  if (big) { radar.strokeStyle = 'rgba(120,220,255,.35)'; radar.lineWidth = 1; radar.strokeRect(px(-BOUND), py(-BOUND), 2 * BOUND * half, 2 * BOUND * half); }
+  // islands, as last seen
+  for (const I of ISLANDS) {
+    if (!fog.exploredAt(I.x, I.z) && !fog.exploredAt(I.pad.x, I.pad.z)) continue;
+    const X = px(I.pad.x), Y = py(I.pad.z), own = I.seen, col = own < 0 ? '#999' : OWN_COL[own], r = big ? 10 : 5;
+    radar.strokeStyle = col; radar.fillStyle = col; radar.lineWidth = big ? 2.5 : 1.5;
+    radar.beginPath(); if (I.cave) radar.rect(X - r, Y - r, 2 * r, 2 * r); else radar.arc(X, Y, r, 0, 6.283); radar.stroke();
+    if (I.cap && fog.visibleAt(I.pad.x, I.pad.z)) { radar.strokeStyle = OWN_COL[I.cap.side]; radar.lineWidth = 3; radar.beginPath(); radar.arc(X, Y, r + 4, -1.571, -1.571 + 6.283 * I.cap.t); radar.stroke(); }
+    if (big) {
+      radar.font = 'bold 11px monospace'; radar.textAlign = 'center'; radar.fillText(KIND_TAG[I.kind], X, Y + 4);
+      radar.font = '12px monospace'; radar.textAlign = 'left';
+      const vis = fog.visibleAt(I.pad.x, I.pad.z), aa = vis && own > 0 ? war.aliveAA(I) : -1;
+      radar.fillText(`${I.name}${own < 0 ? '  ?' : ''}${aa > 0 ? '  ' + '▲'.repeat(aa) : ''}`, X + 14, Y + 4);
+      if (I === selIsl) { radar.strokeStyle = '#ff8'; radar.lineWidth = 2; radar.setLineDash([4, 4]); radar.beginPath(); radar.arc(X, Y, 18, 0, 6.283); radar.stroke(); radar.setLineDash([]); }
     }
   }
-  // refuel station (base pad): ring + label; pinned to the radar edge when out of range
-  let bx = px(PAD.x), by = py(PAD.z); const bd = Math.hypot(bx - cx, by - cy), pinned = bd > lim;
-  if (pinned) { bx = cx + (bx - cx) / bd * lim; by = cy + (by - cy) / bd * lim; }
-  radar.strokeStyle = '#ff0'; radar.fillStyle = '#ff0'; radar.lineWidth = 2;
-  radar.beginPath(); radar.arc(bx, by, bigMap ? 9 : 6, 0, 6.283); radar.stroke();
-  radar.beginPath(); radar.arc(bx, by, bigMap ? 3 : 2, 0, 6.283); radar.fill();
-  if (bigMap) { radar.font = '14px monospace'; radar.fillText('REFUEL / BASE', bx + 14, by + 5); }
-  if (pinned) { radar.font = 'bold 9px monospace'; radar.fillText('F', bx - 3, by + 3); }
-  for (const b of BASES) if (b.kind === 'enemy') {
-    const X = px(b.x), Y = py(b.z); if (Math.hypot(X - cx, Y - cy) > lim) continue;
-    radar.strokeStyle = '#f53'; radar.lineWidth = 2; radar.beginPath(); radar.arc(X, Y, bigMap ? 8 : 5, 0, 6.283); radar.stroke();
-    if (bigMap) { radar.fillStyle = '#f86'; radar.font = '13px monospace'; radar.fillText(`${b.name}  ${TIER_NAMES[b.tier]}` + (b.st && b.st.podTaken ? '  (POD TAKEN)' : ''), X + 12, Y + 4); }
+  // the carrier's course
+  const c = war.carrier;
+  if (c && c.path.length && c.sinking === undefined) {
+    radar.strokeStyle = 'rgba(80,200,255,.7)'; radar.lineWidth = big ? 2 : 1; radar.setLineDash([6, 5]); radar.beginPath(); radar.moveTo(px(c.p.x), py(c.p.z));
+    for (const [x, z] of c.path) radar.lineTo(px(x), py(z)); radar.stroke(); radar.setLineDash([]);
+    const [gx, gz] = c.path[c.path.length - 1]; radar.beginPath(); radar.arc(px(gx), py(gz), big ? 6 : 3, 0, 6.283); radar.stroke();
   }
-  for (const e of enemies) dot(e.mesh.position.x, e.mesh.position.z, '#f44', bigMap ? 6 : 4);
-  for (const b of zBullets) if (!b.own) dot(b.p.x, b.p.z, '#fa4', 2);
-  // player: triangle pointing along the nose
-  const X = px(Z.pos.x), Y = py(Z.pos.z), fx = Z.facing.x, fz = Z.facing.y, sz = bigMap ? 8 : 5;
-  radar.fillStyle = '#4ff'; radar.beginPath();
-  radar.moveTo(X + fx * sz, Y + fz * sz); radar.lineTo(X - fx * sz - fz * sz * .6, Y - fz * sz + fx * sz * .6); radar.lineTo(X - fx * sz + fz * sz * .6, Y - fz * sz - fx * sz * .6); radar.fill();
+  // units
+  for (const u of war.units) {
+    if (u.side === 2 && !fog.visibleAt(u.p.x, u.p.z)) continue;
+    const X = px(u.p.x), Y = py(u.p.z), col = u.side === 1 ? '#6ef' : '#f64';
+    if (u.dims) {
+      radar.save(); radar.translate(X, Y); radar.rotate(-u.yaw); radar.fillStyle = u.sinking !== undefined ? '#555' : col;
+      const l = Math.max(big ? 12 : 7, u.dims.L * half), w = Math.max(big ? 4 : 3, u.dims.W * half); radar.fillRect(-w / 2, -l / 2, w, l); radar.restore();
+      if (big) { radar.fillStyle = col; radar.font = 'bold 12px monospace'; radar.fillText(u.type === 'battleship' ? 'BATTLESHIP' : u.side === 1 ? 'ALBATROSS' : 'KRAKEN', X + 12, Y - 8); }
+    } else { radar.fillStyle = col; const sz = big ? (u.type === 'transport' ? 7 : 5) : 3; radar.fillRect(X - sz / 2, Y - sz / 2, sz, sz); }
+  }
+  // you: an arrow along the nose
+  const X = px(Z.pos.x), Y = py(Z.pos.z), fx_ = Z.facing.x, fz = Z.facing.y, sz = big ? 9 : 5;
+  radar.fillStyle = '#fff'; radar.beginPath();
+  radar.moveTo(X + fx_ * sz, Y + fz * sz); radar.lineTo(X - fx_ * sz - fz * sz * .6, Y - fz * sz + fx_ * sz * .6); radar.lineTo(X - fx_ * sz + fz * sz * .6, Y - fz * sz - fx_ * sz * .6); radar.fill();
+  radar.restore();
+  if (big) {
+    radar.font = '14px monospace'; radar.textAlign = 'center'; radar.fillStyle = '#bfe';
+    radar.fillText('CLICK THE SEA: SAIL THE ALBATROSS THERE   ·   CLICK AN ISLAND: SELECT IT   ·   M: CLOSE', W / 2, Hh - 70);
+    radar.fillStyle = '#ff8';
+    radar.fillText(`1: CAPTURE DRONE (${COST.drone})   ·   2: AA GUN ON OUR ISLAND (${COST.aa})   ·   3: NEW HELICOPTER (${COST.heli})      MATERIEL ${Math.floor(G.mat)}`, W / 2, Hh - 46);
+    radar.font = '12px monospace'; radar.fillStyle = '#8ab';
+    radar.fillText('HQ  HEADQUARTERS     C  CAVE FORTRESS (STEAL ITS POD)     F  FUEL     M  MATERIEL (FACTORY)     R  RADAR     ▲ AA GUNS', W / 2, Hh - 24);
+    if (selIsl) {
+      const I = selIsl, own = I.seen, info = [`${I.name}`, `${own < 0 ? 'UNKNOWN' : ['NEUTRAL', 'OURS', 'ENEMY'][own]}  ·  ${{ hq: 'HEADQUARTERS', fortress: 'CAVE FORTRESS', fuel: 'OIL - FUEL', factory: 'FACTORY - MATERIEL', radar: 'RADAR - LONG SIGHT' }[I.kind]}`];
+      if (fog.visibleAt(I.pad.x, I.pad.z) && own > 0) info.push(`AA GUNS ${war.aliveAA(I)}`);
+      info.push(I.cave ? 'TAKE IT: STEAL THE POD FROM ITS CAVE' : own === 1 ? 'PRESS 2 FOR AN AA GUN' : 'TAKE IT: SILENCE ITS GUNS, LAND ON THE PAD OR PRESS 1');
+      radar.textAlign = 'left'; radar.font = 'bold 15px monospace';
+      info.forEach((t, i) => { radar.fillStyle = i === 0 ? OWN_COL[Math.max(0, own)] : '#cde'; radar.fillText(t, 24, 90 + i * 22); });
+    }
+    radar.textAlign = 'left';
+  }
 }
+$('radar').addEventListener('mousedown', e => {
+  if (!bigMap || !mapView) return;
+  e.stopPropagation(); e.preventDefault();
+  const v = mapView, rc = $('radar').getBoundingClientRect(), mx = e.clientX - rc.left, my = e.clientY - rc.top;
+  const wx = v.ox + (mx - v.cx) / v.half, wz = v.oz + (my - v.cy) / v.half;
+  const I = ISLANDS.find(I => (fog.exploredAt(I.x, I.z) || fog.exploredAt(I.pad.x, I.pad.z)) && Math.hypot(v.cx + (I.pad.x - v.ox) * v.half - mx, v.cy + (I.pad.z - v.oz) * v.half - my) < 16);
+  if (I) { selIsl = I; sfx.blip?.(500, 700, 0.06, 'square', 0.06); return; }
+  if (war.orderCarrier(wx, wz)) { feed('ALBATROSS: COURSE SET'); sfx.blip?.(400, 300, 0.08, 'square', 0.06); }
+});
+$('radar').addEventListener('contextmenu', e => e.preventDefault());
 const _hud = {};
 function setText(id, v) { if (_hud[id] !== v) { _hud[id] = v; $(id).textContent = v; } }
 function setStyle(id, k, v) { const key = id + k; if (_hud[key] !== v) { _hud[key] = v; $(id).style[k] = v; } }
@@ -902,9 +955,52 @@ const crossEl = (() => {
   $('hud').appendChild(e); return e;
 })();
 const cautionEl = (() => { const e = document.createElement('div'); e.id = 'caution'; e.style.cssText = 'position:absolute;left:16px;bottom:100px;font-size:15px;letter-spacing:1px;font-weight:bold'; $('hud').appendChild(e); return e; })();
+// what the island pad under / near you is doing: capture progress, guns in the way, services
+function padHint() {
+  if (Z.svc) return G.res < 1 && G.fuel < 98 ? 'FUEL STORES EMPTY  -  TAKE FUEL ISLANDS OR LOOT ENEMY CAVES' : G.fuel < 97 || D.damaged() || G.rockets < ROCKETS_MAX || G.bombs < BOMBS_MAX ? `${Z.svc.name}  -  REFUELLING, REPAIRING, REARMING` : `${Z.svc.name}  -  READY  ·  M FOR THE MAP`;
+  for (const I of ISLANDS) {
+    if (I.owner === 1 || Math.hypot(Z.pos.x - I.pad.x, Z.pos.z - I.pad.z) > 45) continue;
+    if (I.cave) return I.owner === 2 ? `${I.name}  -  DESCEND THE SHAFT AND STEAL THE POD TO TAKE IT` : '';
+    const aa = war.aliveAA(I);
+    if (aa > 0) return `${I.name}  -  ${aa} AA GUN${aa > 1 ? 'S' : ''} DEFENDING  -  KNOCK ${aa > 1 ? 'THEM' : 'IT'} OUT FIRST`;
+    if (H.landed && I.cap && I.cap.side === 1) return `CAPTURING ${I.name}  ${Math.floor(I.cap.t * 100)}%`;
+    return `${I.name}  -  LAND ON THE PAD TO TAKE IT`;
+  }
+  return '';
+}
+// floating labels over nearby islands and ships, so you can read the war without the map
+const tagBox = (() => { const e = document.createElement('div'); e.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden'; $('hud').prepend(e); return e; })();
+const tagPool = [], _tv = new THREE.Vector3();
+const KIND_NAME = { hq: 'HEADQUARTERS', fortress: 'CAVE FORTRESS', fuel: 'FUEL', factory: 'FACTORY', radar: 'RADAR' };
+function updateTags() {
+  let n = 0;
+  const put = (x, y, z, html, d) => {
+    _tv.set(x, y, z).project(zCam); if (_tv.z > 1 || Math.abs(_tv.x) > 1.05 || Math.abs(_tv.y) > 1.05) return;
+    if (n >= tagPool.length) { const e = document.createElement('div'); e.style.cssText = 'position:absolute;left:0;top:0;width:240px;margin-left:-120px;text-align:center;font-size:12px;line-height:1.35;white-space:nowrap;text-shadow:0 0 3px #000,0 0 5px #000'; tagBox.appendChild(e); tagPool.push(e); }
+    const e = tagPool[n++]; if (e._h !== html) { e._h = html; e.innerHTML = html; }
+    e.style.display = 'block'; e.style.transform = `translate(${((_tv.x + 1) / 2 * innerWidth).toFixed(0)}px,${((1 - _tv.y) / 2 * innerHeight - 30).toFixed(0)}px)`; e.style.opacity = clamp(1.4 - d / 380, 0.25, 1).toFixed(2);
+  };
+  if (G.state === 'play' && G.mode === 'zarch' && !bigMap && camB < 0.05) {
+    const cx = zCam.position.x, cz = zCam.position.z;
+    for (const I of ISLANDS) {
+      const p = I.pad, d = Math.hypot(p.x - cx, p.z - cz); if (d > 430 || d < 25 || !fog.exploredAt(p.x, p.z)) continue;
+      const vis = fog.visibleAt(p.x, p.z), own = vis ? I.owner : I.seen, col = own < 0 ? '#aaa' : OWN_COL[own], aa = vis && own > 0 ? war.aliveAA(I) : 0;
+      const st = own < 0 ? 'UNKNOWN' : own === 1 ? (I.cap && I.cap.side === 2 ? '<span style="color:#f86">UNDER ATTACK</span>' : 'OURS') : own === 2 ? (I.cave ? 'ENEMY  ·  STEAL THE POD' : aa ? `ENEMY  ·  ${'▲'.repeat(aa)} AA` : 'ENEMY  ·  UNDEFENDED') : 'NEUTRAL  ·  LAND TO TAKE';
+      put(p.x, p.h + 22, p.z, `<b style="color:${col}">${I.name}</b>  <span style="color:#9ab">${KIND_NAME[I.kind]}  ${Math.round(d)}m</span><br><span style="color:#cde">${st}</span>`, d);
+    }
+    for (const u of war.units) {
+      if (!u.dims || u.sinking !== undefined || (u.side === 2 && !fog.visibleAt(u.p.x, u.p.z))) continue;
+      const d = Math.hypot(u.p.x - cx, u.p.z - cz); if (d > 520 || d < 60) continue;
+      put(u.p.x, u.dims.DECK + 30, u.p.z, `<b style="color:${OWN_COL[u.side]}">${u.type === 'battleship' ? 'BATTLESHIP' : u.side === 1 ? 'ALBATROSS' : 'KRAKEN'}</b>  <span style="color:#9ab">${Math.round(100 * u.hp / u.hpMax)}%  ${Math.round(d)}m</span>`, d);
+    }
+  }
+  for (let i = n; i < tagPool.length; i++) tagPool[i].style.display = 'none';
+}
 function updateHud() {
+  updateTags();
   {   // in the cockpit the instruments carry fuel / rpm / speed, so the bottom text block steps aside and the map moves up
-    const ck = cockpit.group.visible; setStyle('bot', 'display', ck ? 'none' : 'block'); setStyle('radar', 'bottom', ck && !bigMap ? 'auto' : ''); setStyle('radar', 'top', ck && !bigMap ? '64px' : '');
+    const ck = cockpit.group.visible; setStyle('bot', 'display', ck || bigMap ? 'none' : 'block');
+    for (const id of ['tl', 'hint', 'feed', 'war']) setStyle(id, 'display', bigMap ? 'none' : 'block');   // the command map has its own read-outs setStyle('radar', 'bottom', ck && !bigMap ? 'auto' : ''); setStyle('radar', 'top', ck && !bigMap ? '64px' : '');
   }
   crossEl.style.display = document.pointerLockElement === canvas && cockpit.group.visible ? 'block' : 'none';
   { const list = G.state === 'play' && !cockpit.group.visible ? D.cautions(G.fuel, H.rpm, G.mode === 'zarch' ? H.landed : T.landed) : [], blink = (performance.now() % 600) < 300;
@@ -913,15 +1009,26 @@ function updateHud() {
   setText('score', String(G.score)); setText('hi', String(G.hi));
   setText('lives', '▲'.repeat(Math.max(0, G.lives)));
   setStyle('fuel', 'width', clamp(G.fuel, 0, 100).toFixed(1) + '%');
-  setText('modeTag', (G.mode === 'zarch' ? 'ZARCH' : 'THRUST  ·  ' + (T.base ? T.base.name : '')) + `   RESERVOIR ${Math.round(G.res)}/${RES_MAX}  CARGO ${Math.round(G.cargo)}`);
+  setText('modeTag', `FUEL STORES ${Math.round(G.res)}/${RES_MAX}   MATERIEL ${Math.floor(G.mat)}${G.cargo > 0.5 ? '   CARGO ' + Math.round(G.cargo) : ''}`);
+  setText('weap', `ROCKETS ${G.rockets}   BOMBS ${G.bombs}`);
+  {   // the war at a glance
+    const n = [0, 0, 0]; for (const I of ISLANDS) n[I.owner]++;
+    const c = war.carrier, b = war.battleship, eb = war.E.bship;
+    const html = `<span style="color:#4cf">OURS ${n[1]}</span> &nbsp; <span style="color:#f54">ENEMY ${n[2]}</span> &nbsp; <span style="color:#ddd">FREE ${n[0]}</span>` +
+      ` &nbsp;·&nbsp; ALBATROSS <b style="color:${c && c.hp / c.hpMax < 0.4 ? '#f54' : '#9ff'}">${c ? Math.max(0, Math.round(100 * c.hp / c.hpMax)) : 0}%</b>` +
+      (b && b.sinking === undefined ? ` &nbsp;·&nbsp; <b style="color:#f54">BATTLESHIP AT SEA ${Math.round(100 * b.hp / b.hpMax)}%</b>` : ` &nbsp;·&nbsp; ENEMY BATTLESHIP <b style="color:${eb > 70 ? '#f54' : '#fb6'}">${Math.floor(eb)}%</b>`);
+    if (_hud.war !== html) { _hud.war = html; $('war').innerHTML = html; }
+    const now = performance.now(), fh = feedItems.filter(f => now - f.at < 14000).map(f => `<div style="color:${f.kind === 'good' ? '#7f9' : f.kind === 'bad' ? '#f86' : '#cde'};opacity:${Math.min(1, (14000 - (now - f.at)) / 2000).toFixed(2)}">${f.t}</div>`).join('');
+    if (_hud.feed !== fh) { _hud.feed = fh; $('feed').innerHTML = fh; }
+  }
   setText('pad', readPad() ? 'CONTROLLER' : (keyboardOnly ? 'KEYBOARD ONLY' : 'KEYBOARD'));
   setStyle('radar', 'display', G.mode === 'zarch' ? 'block' : 'none');
   if (G.mode === 'zarch') {
     const hb = holeOf(Z.pos.x, Z.pos.z), alt = Z.pos.y - 0.9 - (hb ? hb.h : groundY(Z.pos.x, Z.pos.z)), bd = Math.hypot(Z.pos.x - HOME_B.x, Z.pos.z - HOME_B.z);
     const ias = Math.hypot(Z.vel.x, Z.vel.z) * 1.944, hdg = ((H.heading() * 180 / Math.PI) + 360) % 360, c = Z.ctl || {};
     setText('alt', `COLL ${(H.coll * 100).toFixed(0)}%  RPM ${(H.rpm * 100).toFixed(0)}%  IAS ${ias.toFixed(0)}kt  VS ${Z.vel.y.toFixed(1)}  AGL ${Math.max(0, hb ? Z.pos.y + HELI.SKID_Y - hb.h : H.agl).toFixed(0)}m  HDG ${hdg.toFixed(0).padStart(3, '0')}  ${c.sas ? 'SAS' : 'MANUAL'}  [${c.source || ''}]${H.vrs > 0.4 ? '  VORTEX RING!' : ''}`);
-    setText('hint', switchHover ? `${switchHover.toUpperCase()}  -  CLICK TO OPERATE` : G.rescue ? `EMERGENCY LANDING  -  FUEL DROP IN ${Math.max(0, Math.ceil(G.rescue.t))}s` : H.landed && H.rpm < 0.9 && G.fuel > 0 ? 'ROTOR SPOOLING...' : H.landed && Math.hypot(Z.pos.x - PAD.x, Z.pos.z - PAD.z) < PAD.r && G.res < 1 && G.fuel < 99 ? 'RESERVOIR EMPTY  -  LOOT FUEL FROM ENEMY BASES, UNLOAD IT IN THE HOME CAVE' : Z.sector >= 0 && sectors[Z.sector].state === 'active' ? `${SECT_NAMES[Z.sector]} SECTOR  -  ${enemies.filter(e => e.area === Z.sector).length} HOSTILES LEFT` : (bd < 60 && !Z.landed ? 'LAND ON THE PAD TO REFUEL FROM THE RESERVOIR  -  DESCEND THE SHAFT TO UNLOAD CARGO' : ''));
-    drawMap();
+    setText('hint', switchHover ? `${switchHover.toUpperCase()}  -  CLICK TO OPERATE` : G.rescue ? `EMERGENCY LANDING  -  FUEL DROP IN ${Math.max(0, Math.ceil(G.rescue.t))}s` : H.landed && H.rpm < 0.9 && G.fuel > 0 ? 'ROTOR SPOOLING...' : padHint());
+    if (performance.now() - (Z.mapT || 0) > (bigMap ? 60 : 120)) { Z.mapT = performance.now(); drawMap(); }
   } else {
     const c = Z.ctl || {};
     setText('alt', `COLL ${(c.coll * 100 || 0).toFixed(0)}%  RPM ${(H.rpm * 100).toFixed(0)}%  VS ${T.vy.toFixed(1)}  ${c.sas ? 'SAS' : 'MANUAL'}  ${T.pod && T.pod.attached ? 'POD ON THE LINE' : ''}`);
@@ -1071,7 +1178,6 @@ function updateCamsAndMeshes(dt, time) {
     reticle.scale.setScalar(2 * reticle.position.distanceTo(zCam.position) * Math.tan(zCam.fov * Math.PI / 360) / innerHeight);
     const a = aimLine.geometry.attributes.position, s0 = caveAimOn ? 2.2 : 3; a.setXYZ(0, P.x + _wv0.x * s0, P.y + _wv0.y * s0, P.z + _wv0.z * s0); a.setXYZ(1, reticle.position.x, reticle.position.y, reticle.position.z); a.needsUpdate = true; aimLine.geometry.computeBoundingSphere();
   }
-  zBulCloud.begin(); for (const b of zBullets) zBulCloud.add(b.p.x, b.p.y, b.p.z, b.own ? .4 : 1, b.own ? 1 : .5, b.own ? 1 : .2); zBulCloud.end();
   beam3.visible = rope.obj.visible = false;
   if (T.lvl) {
     const pod = T.pod, zo = inCave ? T.zOff / CS : 0;
@@ -1090,7 +1196,7 @@ function updateCamsAndMeshes(dt, time) {
   }
 }
 
-let last = performance.now(), fpsAcc = 0, fpsN = 0;
+let last = performance.now(), fpsAcc = 0, fpsN = 0, fogT = 0;
 function frame(now) {
   requestAnimationFrame(frame);
   const now0 = performance.now();
@@ -1103,6 +1209,8 @@ function frame(now) {
   if (G.msgT > 0) { G.msgT -= dt; if (G.msgT <= 0 && G.state !== 'paused') say(''); }
   if (G.state === 'play') {
     if (G.mode === 'zarch') updateZarch(dt, inp); else updateThrust(dt, inp);
+    war.update(dt, PL, params.has('peace'));
+    fogT -= dt; if (fogT <= 0) { fogT = 0.25; fog.update(war.visionSources(PL)); war.setVisibility(fog); updateFogImg(); }
   } else if (G.state === 'trans') {
     const tr = G.tr; tr.t += dt; const D = 0.8;
     if (tr.phase === 0) { $('fade').style.opacity = Math.min(1, tr.t / D); if (tr.t >= D) { tr.swap(); tr.phase = 1; tr.t = 0; } }
@@ -1119,6 +1227,6 @@ function frame(now) {
   PROF.sim += ((t1 - now0) - PROF.sim) * pk; PROF.prep += ((t2 - t1) - PROF.prep) * pk; PROF.render += ((t3 - t2) - PROF.render) * pk;
 }
 const PROF = { sim: 0, prep: 0, render: 0 };
-buildCaves(); resetZarch(true);
+buildCaves(); war.reset(); resetZarch(true); updateFogImg();
 requestAnimationFrame(frame);
-if (params.has('debug')) { window.__G = { G, Z, T, H, HI, D, THREE, fx, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, zCam, PROF, renderer, newGame, enemies, sectors, BASES, enterCave, respawnHome, exitCave, get camB() { return camB; } }; if (params.has('auto')) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); enterCave(b); } }
+if (params.has('debug')) { window.__G = { G, Z, T, H, HI, D, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; } }; if (params.has('auto')) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); enterCave(b); } }

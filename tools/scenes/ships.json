@@ -1,0 +1,22 @@
+{
+  "name": "ships",
+  "query": "?debug&kb&peace&res=0.45&nofog",
+  "steps": [
+    "waitFor 10000 window.__G",
+    "key tap Enter", "wait 800",
+    "eval (()=>{ const k=__G.war.enemyCarrier; __G.H.reset(new __G.THREE.Vector3(k.p.x-60, 30, k.p.z+70), -0.7, false, 1); __G.HI.setCollective(0.475); return [k.p.x,k.p.z] })()",
+    "key tap KeyC", "wait 1500",
+    "shot 01-kraken",
+    "eval (()=>{ const W=__G.war; W.E.bship=100; W.E.mat=200; for(let i=0;i<30;i++) W.update(0.1, __G.PL, false); for(let i=0;i<20;i++) W.spawnGunship(2); return !!W.battleship })()",
+    "eval (()=>{ const b=__G.war.battleship; __G.H.reset(new __G.THREE.Vector3(b.p.x+50, 25, b.p.z+50), 0.8, false, 1); __G.HI.setCollective(0.475); return [b.p.x,b.p.z] })()",
+    "wait 1500",
+    "shot 02-battleship",
+    "eval (()=>{ const W=__G.war; const t=W.units.find(u=>u.type==='transport') || null; return W.units.map(u=>u.type).join(',') })()",
+    "eval (()=>{ const W=__G.war, I=__G.ISLANDS.find(i=>i.name==='FORGE'); const [x,y,z]=[I.pad.x, 40, I.pad.z+60]; W.sendDrone(I); __G.H.reset(new __G.THREE.Vector3(I.pad.x+30, 28, I.pad.z+45), 0.6, false, 1); __G.HI.setCollective(0.475); return 1 })()",
+    "wait 6000",
+    "shot 03-drone",
+    "eval (()=>{ const W=__G.war, I=__G.ISLANDS.find(i=>i.name==='ANVIL'); for(const s of I.structs) W.damage(s, 999, 1); __G.H.reset(new __G.THREE.Vector3(I.pad.x+40, 30, I.pad.z+50), 0.7, false, 1); return I.structs.map(s=>s.kind+':'+s.dead).join(' ') })()",
+    "wait 4000",
+    "shot 04-wrecked-island"
+  ]
+}

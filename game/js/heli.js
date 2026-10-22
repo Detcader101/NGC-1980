@@ -217,6 +217,7 @@ export function createHeliInput({ keyDown, readPad, say }) {
         }
         if (b(0)) out.fire = true;
         if (b(1) || b(3)) out.winch = true;
+        if (b(2)) out.rocket = true; if (b(4)) out.bomb = true;
         out.start = p.buttons.some(x => x && x.pressed);
         // POV hat: DirectInput sticks report it as an axis (9 on most) stepping -1..1 in eighths, ~3.29 when centred;
         // standard-mapped pads use buttons 12-15 instead

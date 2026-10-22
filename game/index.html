@@ -13,7 +13,7 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
 .bar{height:12px;border:1px solid #6df;margin:3px 0 6px}
 .bar i{display:block;height:100%;background:linear-gradient(90deg,#f52,#fd2,#4f6);width:100%}
 #radar{position:absolute;right:16px;bottom:14px;width:150px;height:150px;border:1px solid #4aa;background:rgba(0,30,40,.45);border-radius:50%}
-#radar.big{position:fixed;inset:0;right:auto;bottom:auto;width:100%;height:100%;border:0;border-radius:0;background:rgba(0,20,30,.2);opacity:.5;pointer-events:none}
+#radar.big{position:fixed;inset:0;right:auto;bottom:auto;width:100%;height:100%;border:0;border-radius:0;background:transparent}
 #msg{position:absolute;left:0;right:0;top:22%;text-align:center;font-size:28px;color:#ff8;letter-spacing:3px;opacity:0;transition:opacity .3s}
 #hint{position:absolute;left:330px;right:330px;bottom:14px;text-align:center;font-size:15px;color:#cfc}
 @media (max-width:1000px){#hint{left:16px;right:16px;bottom:130px}}
@@ -24,11 +24,17 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
 #title p{margin:4px;font-size:16px;color:#bde}
 #title .go{margin-top:18px;font-size:22px;color:#ff8;animation:bl 1s infinite alternate}
 @keyframes bl{to{opacity:.3}}
-#dbg{position:absolute;left:16px;top:100px;font-size:12px;color:#7aa}
+#dbg{position:absolute;left:16px;top:122px;font-size:12px;color:#7aa}
+#war{position:absolute;left:0;right:0;top:12px;text-align:center;font-size:15px;letter-spacing:1px;color:#bde;pointer-events:none}
+#feed{position:absolute;right:16px;top:64px;width:460px;text-align:right;font-size:14px;line-height:1.5;text-shadow:0 0 4px #000,0 0 6px #000}
+#weap{color:#fd8}
+#radar.big{pointer-events:auto;cursor:crosshair;opacity:1}
+#result{font-size:22px;color:#ff8;margin:6px 0 14px}
 </style></head><body>
 <canvas id="gl"></canvas>
 <div id="hud">
-  <div id="tl"><div>SCORE <b id="score">0</b></div><div>SHIPS <b id="lives"></b></div><div id="modeTag"></div></div>
+  <div id="tl"><div>SCORE <b id="score">0</b></div><div>HELICOPTERS <b id="lives"></b></div><div id="modeTag"></div><div id="weap"></div></div>
+  <div id="war"></div><div id="feed"></div>
   <div id="tr">HI <b id="hi">0</b><br><span id="pad"></span></div>
   <div id="dbg"></div>
   <div id="bot">FUEL<div class="bar"><i id="fuel"></i></div><span id="alt"></span></div>
@@ -37,12 +43,13 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
   <div id="fade"><div id="fadeText"></div></div>
   <div id="title">
     <h1>THRUST / ZARCH</h1>
-    <p>Fly the helicopter over the landscape &mdash; descend into a base's round shaft to drop into its cave.</p>
-    <p><b>HELICOPTER</b> &nbsp;W/S A/D cyclic &middot; Q/E pedals &middot; Space/Shift collective up, Ctrl/Z down &middot; F/X fire &middot; S/R winch (cave) &middot; in caves the POV hat aims and fires the door gun in 8 directions, or aim with the mouse and click &middot; H stability assist &middot; I engine on/off &middot; O fire extinguisher &middot; U hydraulic boost &middot; L call logistics (when landed) &middot; N landing light &middot; in the cockpit, click the pedestal switches &middot; C chase cam &middot; V cockpit (click to look around with the mouse, Esc to release, T free look on/off - off locks the view to the centre) &middot; M map</p>
-    <p><b>FLIGHT STICK</b> &nbsp;stick = cyclic &middot; twist = pedals &middot; throttle = collective &middot; trigger = fire &middot; hat = nudge the gun aim &middot; J = calibrate axes &middot; K = keyboard-only toggle &middot; P pause</p>
-    <p>Spool up on the home pad and raise the collective. Landing on the home pad refuels you from the base <b>reservoir</b>, which runs dry.</p>
-    <p>Raid the four <b>enemy bases</b> (red rings): descend their shafts, winch fuel from their tanks into your cargo bladder and steal the pod.</p>
-    <p>Bring the fuel home: descend the home shaft and land on the <b>blue intake pad</b> to pump it into the reservoir. The home sector is safe.</p>
+    <div id="result"></div>
+    <p><b>THE ISLAND WAR</b> &mdash; your carrier <b>ALBATROSS</b> against the enemy carrier <b>KRAKEN</b>. Islands give fuel (F), materiel (M) or radar sight (R) to whoever holds them. You only see what your helicopter, ships and islands can see.</p>
+    <p><b>TAKE ISLANDS</b>: knock out their AA guns, then land on the pad and hold it &mdash; or send a capture drone. Cave fortresses fall when you steal the pod from their cave. Sink the KRAKEN or take its headquarters IRONHOLD to win; lose the ALBATROSS and the war is lost.</p>
+    <p>The enemy's factories are building a <b>battleship</b> &mdash; bomb the factories and its shipyard to hold it back.</p>
+    <p><b>M</b> command map: click the sea to sail the carrier there, click an island to select it &middot; <b>1</b> capture drone &middot; <b>2</b> AA gun on our island &middot; <b>3</b> new helicopter. Land on the carrier or any friendly pad to refuel, repair and rearm.</p>
+    <p><b>HELICOPTER</b> &nbsp;W/S A/D cyclic &middot; Q/E pedals &middot; Space/Shift collective up, Ctrl/Z down &middot; F/X door gun &middot; <b>G rockets &middot; B bombs</b> &middot; S/R winch (caves) &middot; hat or mouse aims the door gun in caves &middot; H stability assist &middot; I engine &middot; O extinguisher &middot; U hydraulics &middot; L logistics &middot; N light &middot; C chase cam &middot; V cockpit (T free look) &middot; P pause</p>
+    <p><b>FLIGHT STICK</b> &nbsp;stick = cyclic &middot; twist = pedals &middot; throttle = collective &middot; trigger = gun &middot; button 3 = rockets &middot; button 5 = bombs &middot; hat = nudge aim &middot; J = calibrate &middot; K = keyboard only</p>
     <div class="go">PRESS ENTER / SPACE / TRIGGER</div>
     <p id="gpuinfo" style="color:#789;margin-top:20px"></p>
   </div>
