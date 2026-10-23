@@ -34,6 +34,7 @@ export const CARE = {
   QUIET: 12,                     // s without a known enemy close before casualties are moved to the CCP
   CCP: 13,                       // m from the pad, on the side away from the enemy
   REACH: 1.3,                    // m: the medic kneels this close (MEDINV BUDDY.treatRangeM 1.5)
+  JOBS: 3,                       // medics at work at once in a squad (the corpsman + two buddies; GAME)
 };
 // what a medic reaches for, in order (the first that applies to the worst region wins): MEDINV item ids
 const BLEED_ITEMS = { limb: ['tq_cat', 'tq_strap', 'cravat', 'dressing_battle', 'dressing_field'], trunk: ['quikclot', 'dressing_battle', 'dressing_field', 'chest_seal'] };
@@ -142,6 +143,7 @@ export function createFieldCare(o) {
   const doneWith = p => p.ext ? !p.M.action && (p.M.bleedRate() < 4 || !pickAid(p.M, [p.inv, null], { self: false, skill: 'corpsman' })) : p.rich ? !p.rich.M.action && p.cas?.treated : p.cas?.treated;
 
   FC.step = (B, dt) => {
+    if (FC.pause) return;   // (scenes: hold the corpsman back while the player works)
     const ext = o.patients ? o.patients(B) : [];
     for (const S of B.mar.squads) {
       const ms = S.members;
@@ -171,7 +173,11 @@ export function createFieldCare(o) {
           if (Array.isArray(c.cover) && d2(c.cover[0], c.cover[1], u.x, u.z) > 0.8) { const dx = c.cover[0] - u.x, dz = c.cover[1] - u.z, l = Math.hypot(dx, dz); u.crawl = { vx: dx / l * 0.25, vz: dz / l * 0.25, walk: false }; }
         }
         // a walking wounded on his way to the CCP (told to go when it went quiet)
-        if (c.walkCCP && !c.held && !c.medic) {
+        // (or to a helicopter that has come for the wounded: casevac.js sets toHuey)
+        if (c.toHuey && !c.held && !c.medic && (u.rich ? u.rich.canWalk() : c.conscious && u.body.hp.legL > 0 && u.body.hp.legR > 0)) {
+          const dx = c.toHuey[0] - u.x, dz = c.toHuey[1] - u.z, l = Math.hypot(dx, dz);
+          if (l > 3) u.crawl = { vx: dx / l * 1.0, vz: dz / l * 1.0, walk: true };
+        } else if (c.walkCCP && !c.held && !c.medic) {
           const P = ccp(B, S), dx = P.x - u.x, dz = P.z - u.z, l = Math.hypot(dx, dz);
           if (l < 2.5 || S.threat) { c.walkCCP = false; if (l < 3.5) c.atCCP = true; }
           else u.crawl = { vx: dx / l * 1.0, vz: dz / l * 1.0, walk: true };
@@ -180,81 +186,95 @@ export function createFieldCare(o) {
       // the player, when he is near this squad and bleeding (a corpsman comes to him)
       const cx = S.cx ?? (ms[0] && ms[0].x), cz = S.cz ?? (ms[0] && ms[0].z);
       for (const p of ext) if (cx !== undefined && d2(p.x, p.z, cx, cz) < CARE.PLAYER_RANGE && !p.M.dead && (p.M.bleedRate() > 6 || p.M.unconscious || p.M.action && p.careBy === S.id)) { p.careBy = S.id; cas.push(p); }
-      // ---- the medic: the corpsman (or a buddy when there is no corpsman and the squad isn't fighting)
-      let job = S.care;
-      if (job && (!job.medic.alive || !job.medic.able || (!job.p.ext && !job.p.alive) || (job.p.ext && !cas.includes(job.p) && job.phase !== 'treat'))) { if (job.p.cas) job.p.cas.medic = null; job = S.care = null; }
-      if (!job && cas.length) {
-        const doc = ms.find(m => m.role === 'doc' && m.alive && m.able);
+      // ---- the medics: the corpsman, and riflemen doing buddy aid (when the squad isn't in the thick of it, or the man
+      // is right next to them); up to CARE.JOBS at once so the squad keeps fighting
+      S.cares = (S.cares || []).filter(job => {
+        const ok = job.medic.alive && job.medic.able && (job.p.ext ? (cas.includes(job.p) || job.phase === 'treat') : job.p.alive);
+        if (!ok) { if (job.p.cas) job.p.cas.medic = null; job.medic.ai.paceV = undefined; }
+        return ok;
+      });
+      const busyM = new Set(S.cares.map(j => j.medic)), busyP = new Set(S.cares.map(j => j.p));
+      const doc = ms.find(m => m.role === 'doc' && m.alive && m.able);
+      if (cas.length && S.cares.length < CARE.JOBS) {
         // (a treated man is only looked at again if he has started bleeding again and there is something to do about it)
         const again = p => p.rich && p.rich.M.bleedRate() > 20 && !!pickAid(p.rich.M, [p.rich.inv, doc ? o.kitOf(doc) : null], { self: false, skill: doc ? 'corpsman' : 'rifleman' });
-        const order = cas.filter(p => !(p.cas && p.cas.held) && !(p.cas && p.cas.treated && !again(p))).sort((a, b) => urgency(b) - urgency(a));
+        const order = cas.filter(p => !busyP.has(p) && !(p.cas && p.cas.held) && !(p.cas && p.cas.treated && !again(p))).sort((a, b) => urgency(b) - urgency(a));
         for (const p of order) {
-          if (doc && d2(doc.x, doc.z, p.x, p.z) < CARE.DOC_RANGE) { job = { medic: doc, p, phase: 'go', skill: 'corpsman', t: 0 }; break; }
-          if (!doc && (quiet(S) || S.state === 'defend')) {
+          if (S.cares.length >= CARE.JOBS) break;
+          let job = null;
+          if (doc && !busyM.has(doc) && d2(doc.x, doc.z, p.x, p.z) < CARE.DOC_RANGE) job = { medic: doc, p, phase: 'go', skill: 'corpsman', t: 0 };
+          else {
             let best = null, bd = CARE.BUDDY_RANGE;
-            for (const m of ms) if (m.alive && m.able && m !== ms[0] && m.role !== 'mg') { const d = d2(m.x, m.z, p.x, p.z); if (d < bd) { bd = d; best = m; } }
-            if (best) { job = { medic: best, p, phase: 'go', skill: 'rifleman', t: 0 }; break; }
+            const calm = quiet(S) || S.state === 'defend';
+            for (const m of ms) if (m.alive && m.able && m !== ms[0] && m.role !== 'mg' && m.role !== 'doc' && !busyM.has(m)) { const d = d2(m.x, m.z, p.x, p.z); if (d < bd && (calm || d < 6)) { bd = d; best = m; } }
+            if (best) job = { medic: best, p, phase: 'go', skill: 'rifleman', t: 0 };
           }
+          if (job) { S.cares.push(job); busyM.add(job.medic); busyP.add(p); if (p.cas) p.cas.medic = job.medic.id; ev('medic', { id: job.medic.id, to: p.id, x: job.medic.x, y: job.medic.y, z: job.medic.z, doc: job.skill === 'corpsman', ext: !!p.ext }); }
         }
-        if (job) { S.care = job; if (job.p.cas) job.p.cas.medic = job.medic.id; ev('medic', { id: job.medic.id, to: job.p.id, x: job.medic.x, y: job.medic.y, z: job.medic.z, doc: job.skill === 'corpsman', ext: !!job.p.ext }); }
       }
-      // a treated casualty and a quiet squad: drag him to the CCP (the corpsman when he's free, else a buddy)
-      if (!job && quiet(S) && S.quietT > CARE.QUIET) {
-        const P = ccp(B, S);
-        const wait = cas.find(p => !p.ext && p.cas && p.cas.treated && !(p.rich && p.rich.M.action) && !p.cas.atCCP && !p.cas.held && d2(p.x, p.z, P.x, P.z) > 3);
-        // (walking wounded go by themselves)
-        for (const p of cas) if (!p.ext && p.cas && p.cas.treated && !p.cas.atCCP && !p.cas.held && !p.cas.walkCCP && (p.rich ? p.rich.canWalk() : p.cas.conscious && p.body.hp.legL > 0 && p.body.hp.legR > 0)) { p.cas.walkCCP = true; ev('walking', { id: p.id, x: p.x, y: p.y, z: p.z }); }
-        if (wait && !wait.cas.walkCCP) {
+      // a treated casualty and a quiet squad: to the CCP (walking wounded by themselves; the rest dragged by a buddy)
+      // (and a helicopter down for the wounded - casevac.js sets toHuey: the litter cases are carried to it, quiet or not)
+      const heli = cas.find(p => p.cas && p.cas.toHuey)?.cas.toHuey;
+      if ((quiet(S) && S.quietT > CARE.QUIET) || heli) {
+        const P = ccp(B, S), dest = p => p.cas.toHuey ? { x: p.cas.toHuey[0], z: p.cas.toHuey[1] } : P;
+        for (const p of cas) if (!heli && !p.ext && p.cas && p.cas.treated && !p.cas.atCCP && !p.cas.held && !p.cas.walkCCP && !busyP.has(p) && (p.rich ? p.rich.canWalk() : p.cas.conscious && p.body.hp.legL > 0 && p.body.hp.legR > 0)) { p.cas.walkCCP = true; ev('walking', { id: p.id, x: p.x, y: p.y, z: p.z }); }
+        const canWalk = p => p.rich ? p.rich.canWalk() : p.cas.conscious && p.body.hp.legL > 0 && p.body.hp.legR > 0;
+        const wait = cas.find(p => !p.ext && p.cas && (p.cas.treated || p.cas.toHuey) && !(p.rich && p.rich.M.action) && !(p.cas.atCCP && !p.cas.toHuey) && !p.cas.held && !p.cas.walkCCP && !(p.cas.toHuey && canWalk(p)) && !busyP.has(p) && d2(p.x, p.z, dest(p).x, dest(p).z) > 3.5);
+        if (wait && S.cares.length < CARE.JOBS) {
           let best = null, bd = 80;
-          for (const m of ms) if (m.alive && m.able && m !== ms[0]) { const d = d2(m.x, m.z, wait.x, wait.z); if (d < bd) { bd = d; best = m; } }
-          if (best) { job = S.care = { medic: best, p: wait, phase: 'fetch', skill: best.role === 'doc' ? 'corpsman' : 'rifleman', t: 0 }; }
+          for (const m of ms) if (m.alive && m.able && m !== ms[0] && !busyM.has(m)) { const d = d2(m.x, m.z, wait.x, wait.z); if (d < bd) { bd = d; best = m; } }
+          if (best) { S.cares.push({ medic: best, p: wait, phase: 'fetch', skill: best.role === 'doc' ? 'corpsman' : 'rifleman', t: 0 }); busyP.add(wait); }
         }
         for (const p of cas) if (p.cas && !p.cas.atCCP && d2(p.x, p.z, P.x, P.z) < 3.5) p.cas.atCCP = true;
       }
-      if (!job) continue;
-      // ---- carry out the job: override the medic's plan
-      const m = job.medic, a = m.ai, p = job.p; job.t += dt;
-      const d = d2(m.x, m.z, p.x, p.z), fight = !!S.threat && !quiet(S);
-      a.fire = null; a.aim = null; a.law && (a.law = null);
-      if (job.phase === 'go' || job.phase === 'fetch') {
-        // kneel on the far side of him from the enemy
-        const thr = S.threat || S.lastThreat; let tx = p.x, tz = p.z;
-        if (thr) { const ax = p.x - thr[0], az = p.z - thr[1], l = Math.hypot(ax, az) || 1; tx += ax / l * 0.9; tz += az / l * 0.9; }
-        a.move = [tx, tz]; a.face = Math.atan2(-(p.x - m.x), -(p.z - m.z));
-        a.pace = d > 14 ? (fight && a.supp < 0.6 ? 'rush' : 'run') : fight ? 'crawl' : 'walk';
-        a.stance = a.pace === 'crawl' ? 'prone' : 'stand'; a.paceV = undefined;
-        a.state = job.phase === 'go' ? `corpsman: to ${p.ext ? 'the player' : 'casualty ' + p.id}` : 'fetching a casualty';
-        if (d < CARE.REACH + (p.ext ? 0.2 : 0)) {
-          if (job.phase === 'go') { job.phase = 'treat'; ev('kneel', { id: m.id, to: p.id }); }
-          else { job.phase = 'drag'; if (p.cas) p.cas.held = m.id; FC.stats.dragged++; ev('drag', { id: m.id, to: p.id, x: p.x, y: p.y, z: p.z }); }
-        }
-        if (job.t > 90) { if (p.cas) p.cas.medic = null; S.care = null; }
-      } else if (job.phase === 'treat') {
-        a.move = d > CARE.REACH + 0.6 ? [p.x, p.z] : null; a.pace = 'walk'; a.face = Math.atan2(-(p.x - m.x), -(p.z - m.z));
-        a.stance = fight ? 'prone' : 'crouch'; a.state = `${job.skill === 'corpsman' ? 'corpsman' : 'buddy aid'}: treating`;
-        if (d > BUDDY.treatRangeM + 0.3) { if (p.ext ? p.M.action : p.rich?.M.action) (p.ext ? p.M : p.rich.M).cancelTreatment(); job.phase = 'go'; continue; }   // (he moved: follow him)
-        if (!p.ext && p.able && !(p.rich && p.rich.M.action)) { if (p.cas) p.cas.medic = null; S.care = null; ev('done', { id: m.id, to: p.id, x: p.x, y: p.y, z: p.z }); continue; }   // back on his feet
-        const busy = treat(m, p, dt, job.skill);
-        if (!busy || doneWith(p)) {
-          if (p.cas) { p.cas.treated = true; p.cas.medic = null; }
-          if (!p.ext) FC.stats.treated += p.rich ? 1 : 0;
-          ev('done', { id: m.id, to: p.id, ext: !!p.ext, x: p.x, y: p.y, z: p.z });
-          // cheap model: a man with enough of him left gets up and goes back to his fire team
-          if (!p.ext && !p.rich && p.body && p.body.alive && o.rtd && o.rtd(p, CARE.RTD)) { FC.stats.rtd++; }
-          if (p.ext) p.careBy = null;
-          S.care = null;
-        }
-      } else if (job.phase === 'drag') {
-        // backwards, the casualty by the vest's drag strap: MEDINV's drag speed for a loaded casualty
-        const P = ccp(B, S), dd = d2(m.x, m.z, P.x, P.z);
-        a.move = [P.x, P.z]; a.pace = 'walk'; a.paceV = drag0; a.stance = 'stand'; a.face = Math.atan2(-(p.x - m.x), -(p.z - m.z)); a.state = 'dragging a casualty';
-        if (p.cas && p.cas.held === m.id) {
-          const bx = m.x - p.x, bz = m.z - p.z, bl = Math.hypot(bx, bz) || 1;
-          if (bl > 1.0) o.drag(p, m.x - bx / bl * 1.0, m.z - bz / bl * 1.0, Math.atan2(bx, bz));
-        }
-        if (dd < 2.5 || S.threat || job.t > 240) { if (p.cas) { p.cas.held = null; p.cas.atCCP = dd < 4; } a.paceV = undefined; S.care = null; ev('dropped', { id: m.id, to: p.id, atCCP: dd < 4 }); }
-      }
+      S.care = S.cares[0] || null;   // (the first job, for hosts and benches that look at one)
+      for (const job of [...S.cares]) if (runJob(B, S, job, dt) === 'end') { const k = S.cares.indexOf(job); if (k >= 0) S.cares.splice(k, 1); }
     }
   };
+  // one medic's job for one step: 'end' when it is over
+  function runJob(B, S, job, dt) {
+    const m = job.medic, a = m.ai, p = job.p; job.t += dt;
+    const d = d2(m.x, m.z, p.x, p.z), fight = !!S.threat && !quiet(S);
+    a.fire = null; a.aim = null; if (a.law) a.law = null;
+    const end = () => { if (p.cas) p.cas.medic = null; a.paceV = undefined; return 'end'; };
+    if (job.phase === 'go' || job.phase === 'fetch') {
+      // kneel on the far side of him from the enemy
+      const thr = S.threat || S.lastThreat; let tx = p.x, tz = p.z;
+      if (thr) { const ax = p.x - thr[0], az = p.z - thr[1], l = Math.hypot(ax, az) || 1; tx += ax / l * 0.9; tz += az / l * 0.9; }
+      a.move = [tx, tz]; a.face = Math.atan2(-(p.x - m.x), -(p.z - m.z));
+      a.pace = d > 14 ? (fight && a.supp < 0.6 ? 'rush' : 'run') : fight ? 'crawl' : 'walk';
+      a.stance = a.pace === 'crawl' ? 'prone' : 'stand'; a.paceV = undefined;
+      a.state = job.phase === 'go' ? `${job.skill === 'corpsman' ? 'corpsman' : 'buddy aid'}: to ${p.ext ? 'the player' : 'casualty ' + p.id}` : 'fetching a casualty';
+      if (d < CARE.REACH + (p.ext ? 0.2 : 0)) {
+        if (job.phase === 'go') { job.phase = 'treat'; ev('kneel', { id: m.id, to: p.id }); }
+        else { job.phase = 'drag'; if (p.cas) p.cas.held = m.id; FC.stats.dragged++; ev('drag', { id: m.id, to: p.id, x: p.x, y: p.y, z: p.z }); }
+      }
+      if (job.t > 90) return end();
+    } else if (job.phase === 'treat') {
+      a.move = d > CARE.REACH + 0.6 ? [p.x, p.z] : null; a.pace = 'walk'; a.face = Math.atan2(-(p.x - m.x), -(p.z - m.z));
+      a.stance = fight ? 'prone' : 'crouch'; a.state = `${job.skill === 'corpsman' ? 'corpsman' : 'buddy aid'}: treating`;
+      if (d > BUDDY.treatRangeM + 0.3) { if (p.ext ? p.M.action : p.rich?.M.action) (p.ext ? p.M : p.rich.M).cancelTreatment(); job.phase = 'go'; return; }   // (he moved: follow him)
+      if (!p.ext && p.able && !(p.rich && p.rich.M.action)) { ev('done', { id: m.id, to: p.id, x: p.x, y: p.y, z: p.z }); return end(); }   // back on his feet
+      const busy = treat(m, p, dt, job.skill);
+      if (!busy || doneWith(p)) {
+        if (p.cas) p.cas.treated = true;
+        if (!p.ext) FC.stats.treated += p.rich ? 1 : 0;
+        ev('done', { id: m.id, to: p.id, ext: !!p.ext, x: p.x, y: p.y, z: p.z });
+        // cheap model: a man with enough of him left gets up and goes back to his fire team
+        if (!p.ext && !p.rich && p.body && p.body.alive && o.rtd && o.rtd(p, CARE.RTD)) { FC.stats.rtd++; }
+        if (p.ext) p.careBy = null;
+        return end();
+      }
+    } else if (job.phase === 'drag') {
+      // backwards, the casualty by the vest's drag strap: MEDINV's drag speed for a loaded casualty
+      const P = p.cas && p.cas.toHuey ? { x: p.cas.toHuey[0], z: p.cas.toHuey[1] } : ccp(B, S), dd = d2(m.x, m.z, P.x, P.z);   // (to the CCP, or the helicopter that came for him)
+      a.move = [P.x, P.z]; a.pace = 'walk'; a.paceV = drag0; a.stance = 'stand'; a.face = Math.atan2(-(p.x - m.x), -(p.z - m.z)); a.state = 'dragging a casualty';
+      if (p.cas && p.cas.held === m.id) {
+        const bx = m.x - p.x, bz = m.z - p.z, bl = Math.hypot(bx, bz) || 1;
+        if (bl > 1.0) o.drag(p, m.x - bx / bl * 1.0, m.z - bz / bl * 1.0, Math.atan2(bx, bz));
+      }
+      if (dd < 2.5 || (S.threat && !(p.cas && p.cas.toHuey)) || job.t > 240) { if (p.cas) { p.cas.held = null; p.cas.atCCP = dd < 4; } ev('dropped', { id: m.id, to: p.id, atCCP: dd < 4 }); return end(); }
+    }
+  }
   return FC;
 }

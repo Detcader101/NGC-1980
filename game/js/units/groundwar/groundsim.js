@@ -620,6 +620,16 @@ export function createGroundSim(o) {
   };
   // the war's projectiles are heard by the battles they pass near (the door gun draws the machines' attention)
   GS.hearWar = (x, y, z, side, loud = 350, src = 'player') => { for (const B of GS.battles) if (B.units.length && Math.hypot(B.I.x - x, B.I.z - z) < B.I.r + loud) { const s = { x, y, z, loud, side, kind: 'shot', src }; B.rw.hear(s); B.mar.hear(s); } };
+  // ngc/infdepth: the player's own rounds (marine.js's rifleman, game level like the rest): a segment against one unit,
+  // and a hit on it (the M16's M193 = 'm16', the M60's M80 = 'm60', the .45 = 'm16' at 0.6)
+  GS.unitT = unitT;
+  GS.hitUnit = (side, ammo, u, x, y, z, dir, hp) => {
+    const A = GW_AMMO[ammo] || GW_AMMO.m16, h = normalizeHit({ ...A, velocity: A.velocity, vel: [dir[0] * A.velocity, dir[1] * A.velocity, dir[2] * A.velocity], point: [x, y, z], side, weapon: ammo, src: 'player' });
+    const r = applyHit(u, h, hp ?? 60); GS.stats.hits[side]++;
+    ev('hit', { x, y, z, id: u.id, kind: u.kind, part: r.part, pen: r.pen, ammo, side, war: true });
+    if (u.B && u.kind !== 'marine') u.B.rw.nearMiss(u.id, 0.3);
+    return r;
+  };
   // ngc/infdepth: casualty evacuation. The wounded (alive, out of the fight) of side 1 within r of (x, z); evacuate(u)
   // takes one out of the battle (aboard a CH-46 or the player's Huey): he leaves the squad, alive.
   GS.casualties = (x, z, r) => GS.units.filter(u => u.kind === 'marine' && u.alive && !u.able && !u.evac && Math.hypot(u.x - x, u.z - z) < r);
