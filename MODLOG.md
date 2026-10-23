@@ -1183,3 +1183,88 @@ worldprev.mjs, structprev.mjs, worldperf.mjs, worldjet.mjs.
   on the road graph; civilians react to explosions and impacts only (not aircraft overhead); no night lighting; the
   zone villages are small (the islands are steep and mostly base). A Huey NaN was seen once at the very start of a run
   at load average ~70, with and without the world (not reproduced).
+
+## 2026-10-23 — NGC-1980 wave 2: THE GROUND WAR (branch ngc/rwwar)
+The RUNAWAY ground forces and the CH-46's Marines fight on the islands. Files (new): `game/js/units/groundwar/`
+groundsim.js (the battles as a pure simulation), groundwar.js (THREE + war glue), gwmap.js (per-island maps),
+marine.js + marineai.js (the 1980 Marine and his squad), marinefigure.js (INFANTRY's soldier model through the rotary
+FIGURES table), mbttrack.js (M1A2 / T-90M on trackfm + road routes), lcacmodel.js (seized LCAC);
+`tools/groundwarbench.mjs`; scenes `groundwar.mjs`, `groundaisim.json`.
+- **Architecture.** groundsim.js lifts runaway/sandbox.js's host loop into the archipelago, pure (node runs whole fights):
+  one BATTLE per island (a progressively baked height grid, 2 m, a few rows a frame; a world query rebuilt behind a stable
+  facade when its obstacles change; a RUNAWAY squad AI and a Marine squad AI over it), units (STRIDER / RW-7 / MBT sims,
+  Marine bodies), game-level projectiles with swept hits through the hit-info contract, blasts, the outside world through
+  hooks (`targetsFor`, `extSeg`, `extBlast`). groundwar.js does views, effects, sound, landings, squad proxies, the
+  commander's ground plans and the LCAC.
+- **Landings.** The rotary unload hook hands a transport over (`GW.landing`): each figure becomes a unit when it steps
+  off the ramp (the CH-46's figures ARE the soldier-model Marines, re-parented; the Osprey's troopers become STRIDERs),
+  in a squad with orders from the first man off (no one waits in the open). An Osprey carries its twelve-trooper payload
+  as eight STRIDERs (two squads of four, the link node with the coil carbine). Hot islands: the transport's LZ moves to
+  the flat ground farthest from the enemy (`GW.hotLZ`, re-checked in transit).
+- **Squads in the war.** A 'squad' proxy per landed group stays in W.units (`ext`, `noHit`, `ground`): war.js capture
+  (landed = two able men on the pad, or armour within 55 m of it, nobody of the other side within 70 m; 12 s for
+  machines, 9 for Marines), WASP targets, expansion checks. When war.js marks a lander dead on capture, the proxy turns
+  that into 'hold': the garrison stays and DEFENDS (and counter-attacks with 'take' if the island is lost).
+- **The Marine squad AI (marineai.js), the machines' ideas made human.** No data link: men spot for themselves and
+  shout contacts that reach the squad leader 1-2.6 s late and roughly placed; 0.6-2.2 s reaction on contact; walk 1.52,
+  run 2.74, rushes of 3-5 s at 4.5 m/s cover to cover; states move / contact / fight (base of fire + manoeuvre round the
+  flank with MORE cover, teams swap at irregular times, the reserve follows) / assault / defend (360 ring in cover) /
+  pinned / withdraw (morale from casualties, the SL's death, odds). Suppression decays at 0.15/s (machines 0.35).
+  Weapons by role: M16A1 aimed, the AR's bursts, an attached M60 (a reinforced squad), M203 lobs (M433 HEDP), M72 LAWs
+  (a LAW decision sticks until fired). Word gets round: the MG aims at STRIDER legs, riflemen at the sensor head.
+- **The Marine (marine.js).** FM 22-5 paces, stances with real transition times (stand -> prone 1.1 s), Tobler on grades,
+  foot.js body parts and HP; game rules: a trunk wound kills a third of the time (else down, WIA), the M1 helmet turns
+  40 % of head hits to a glance, a limb gone / half the body = down. Hit volume follows the stance (prone: a capsule).
+- **STRIDER shutdown (game rule).** A machine broken in two places (blind, weapon arm, a leg, the gut) shuts down after 3 s;
+  only the thorax killed outright before, so Marines crippled machines but never finished one.
+- **Seized MBTs on trackfm.** `createMBT(MBT.m1a2, { drive: createTrackDrive })` (mbt.js's documented factory). Parameter
+  sets in the M60A3 format: M1A2 SEPv3 66.8 t, 7 roadwheels, AGT1500 1,500 shp turbine (falling torque curve, slow spool),
+  X1100-3B 4F/2R automatic, hydrostatic pivot; T-90M 48 t, 6 roadwheels, V-92S2F 1,130 hp, 7F/1R auto. Bench: M1A2 69.3
+  km/h (published 67, C), 0-32 km/h 6.2 s (M1A1 quoted 7.2 s), T-90M 60.0 (60, C) 6.9 s; pivots ~18-22 deg/s; 0.03-0.07
+  ms per frame at 120 Hz; LOD swaps to the placeholder drive far from the camera and back without a jump. The driver
+  pivots in neutral (half brakes on a slope), parks on placement, never drives into the sea (`dry`), drives up out of it.
+  Road routes: Dijkstra over WORLD's roadGraph (`roadRoute`, benched on a junction) - the zone roads only exist on the
+  cave islands, so it is unused by the commander yet.
+- **RW-7s and the LCAC.** Hover tanks leave the KRAKEN over the sea (nav.path + a beach), come ashore and join the
+  island's machines (`squadai.addMember`), or form their own armour squad (squadai: an armour-only squad now leads
+  itself). The LCAC (26.4 x 14.3 m, two shrouded props, bow ramp, RUNAWAY sensor pod / IFF strips) carries one MBT,
+  picks the least-bad beach (most islands rise steeply out of 14 m of water), runs up it, drops the ramp, the tank
+  drives off, the craft backs off and goes home. Idle hover tanks are the mobile reserve (cross to the next fight).
+- **The commander's ground plans** (`GW.think`, called first in war.js's think): armour from 4 min (RW-7, 32) and 9 min
+  (MBT, 55) out of a budget the KRAKEN's vehicle deck fills (0.12 materiel / s) plus any surplus over 60; targets: a
+  fight in progress, a Marine-held island of ours without AA, a landing party that hasn't taken its pad, else a garrison.
+- **Damage both ways.** War rounds through `GW.segHit` (war.js updateProj): door gun / foot rifle = M60 ball, ciws = .50,
+  jb = 20 mm, rockets = 2.75 in (game HEAT; an RW-7's point defence shoots 55 % down), bombs via `GW.blast` (war.js
+  blast). WASP rounds and battleship shells hurt Marines. RW fire hits the player in any craft (`ctx.hurtPlayer` with the
+  hit point: body parts on foot; coilgun 0.7 / rifle 0.08 to the Huey), our AA sites (0.15 a rifle hit, 3.2 a coilgun),
+  aircraft low over the island (rifle fire barely scratches: 0.008 a hit; the machines only open up inside 170 m).
+- **LOD and fog.** A battle whose island is > 560 m from the camera thinks at 5 Hz and its STRIDERs move kinematically
+  (3.4 vs 15.5 ms CPU per simulated second for a 21-unit fight); views culled by distance (Marines in full soldier model
+  inside 140 m, the 6-mesh stand-in to 520 m); side-2 units and the LCAC only where `fog.visibleAt` (W.setVisibility).
+- **Sound.** runaway/rwaudio.js on the game's bus (sfx.ctx / sfx.master): servo whine, footfalls, fans, turbine /
+  diesel, coilgun, machine chirps, shots and blasts for both sides; loops go quiet 0.3 s after the war stops updating.
+- **Balance (groundwarbench, 8 seeds; the walker sims use Math.random so runs vary).** 13 Marines dug in vs an MV-22
+  load of 8 STRIDERs: the Marines hold 2-3 of 8 alone, losing ~5 killed and ~3-4 wounded and killing / crippling ~4
+  machines; with a helicopter's door gun (+ a rocket pair every 10 s) overhead they win 8/8 with ~0 losses (the bench
+  helicopter isn't shot at; in the game the machines fire back). War (groundaisim, 20 min, no player input): the
+  machines take CINDER (4 min) and BEACON (10 min), Marines take FORGE and ECHO, hover tanks wear down the FORGE garrison
+  over ~10 min and take it; an MBT arrives by ~15 min.
+- **Shared-file changes** (all commented GROUND WAR): war.js - import; `GW = createGroundWar(...)`, `W.ground`, `ROT.ground`;
+  targets() skips `noHit`; enemiesOf() skips `ground` (AA guns don't engage troops); blast(..., noGround) + `GW.blast`;
+  updateProj `GW.segHit` + no dust on a ground hit; W.update `GW.update`; think `GW.think` first; W.reset; setVisibility;
+  sendDrone may reinforce one of our islands the machines are on. rotary.js - unload -> `R.ground.landing` (2 lines),
+  hot LZ (2 lines), `u.reinforce` keeps a Sea Knight going to its own island, `R.FOOT`. squadai.js - 'air' target kind
+  (PRIO / THREAT), `addMember`, `removeSquad`, armour-only squads lead. FIGURES.marine is now the soldier model
+  (groundwar.js). Scenes ch46capture / mv22landing read the squad proxy. README lines.
+- **Tests.** groundwarbench 33/33; groundwar.mjs 10/10; mv22landing 4/4; ch46capture 4/4; smoke 5/5; war 5/5; war2
+  5/5; wasp 3/3; escorts 3/3; defencewar 5/5; world.mjs 4/4; runawaybench 48/48; tankbench 72/72.
+- **Gotchas.** A trailing `//` comment swallowed the rest of a declaration again (tmapM undefined): comments on their own
+  line. Rotary transports roll over lifting off the pitching KRAKEN when the war is stepped at 0.1 s (aisim.json's step;
+  pre-existing): balance runs step at 1/30 s. A CH-46 next to eight volleying machines took ~500 rifle hits a minute:
+  rifle damage to aircraft is now tiny and machines hold fire on aircraft past 170 m - the TALON the machines bring
+  with a captured island is what kills Sea Knights: knock it out first. Ground units' AI picked firing positions in the
+  sea (now pulled landward); the MBT rolled backwards off a beach in neutral (parks on placement, brakes on slopes).
+- **Untested / next.** Sound by ear; the player on foot in a firefight (hits route through foot.hurt, not exercised in
+  a scene); the player's own ground vehicles as targets (only the active craft is a war target); road routes in the
+  commander's plans (the zone roads are on cave islands only); MBT gun hits on our structures beyond AA sites; Marines
+  don't fire at aircraft; no Marine medics / casualty evacuation; strider models in far LOD are hidden (not posed).
