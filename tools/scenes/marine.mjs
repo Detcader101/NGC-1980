@@ -68,7 +68,7 @@ export default async function (h) {
   if (dr && part) await drag(h, dr, part);
   await h.expect("__G.marine.M.action && /dress/i.test(__G.marine.M.action.label + __G.marine.M.action.kind)", 'dressing dragged onto the leg: applying');
   await h.eval('(() => { const M = __G.marine.M; let t = 0; while (M.action && t < 120) { M.update(0.25, {}); t += 0.25; } return { t, bleed: Math.round(M.bleedRate()) }; })()');
-  await h.wait(500);
+  await h.wait(1800);   // the health screen re-renders (the used dressing leaves the list)
   const cr = await center(h, '.ngc-med .mi[data-id="cravat"]'), part2 = await center(h, `.ngc-med path[data-region="${leg}"]`);
   if (cr && part2) await drag(h, cr, part2);
   await h.eval('({ action: __G.marine.M.action && __G.marine.M.action.label })');

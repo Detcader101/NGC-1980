@@ -264,7 +264,8 @@ export function createMarine(ctx) {
     if (code === 'KeyH') { if (Mr.ui === 'health') closeScreens(); else if (!MS.dead) openScreen('health'); return true; }
     if (Mr.ui) return true;   // the screens have the keyboard
     if (MS.dead) return false;
-    const A = { KeyB: 'mode', KeyO: 'charge', KeyU: 'fa', KeyG: 'gl', PageUp: 'sightUp', PageDown: 'sightDown', BracketRight: null };
+    const A = { KeyB: 'mode', KeyO: 'charge', KeyU: 'fa', PageUp: 'sightUp', PageDown: 'sightDown', BracketRight: null };
+    if (code === 'KeyG') { if (R.carrier && R.carrier.gl) presses.push('gl'); else throwGrenade(); return true; }   // M203 on / off, or throw an M67
     if (code in A && A[code]) { presses.push(A[code]); return true; }
     if (code === 'KeyT') { presses.push(e?.shiftKey ? 'remedial' : 'ia'); return true; }
     if (code === 'KeyL') { presses.push(e?.shiftKey ? 'checkChamber' : 'checkMag'); return true; }
@@ -346,7 +347,7 @@ export function createMarine(ctx) {
     Mr.firedT += dt;
     for (const e of evs) handle(e);
     for (const e of MS.medEvents) medEvent(e);
-    incomingCracks();
+    incomingCracks(); stepGrenades(dt);
     // shock and bleeding: the vision effects, the strip
     Mr.hitFlash = Math.max(0, Mr.hitFlash - dt * 1.5);
   };
@@ -533,6 +534,40 @@ export function createMarine(ctx) {
     if (Mr.flashEl) Mr.flashEl.style.opacity = Mr.hitFlash.toFixed(2);
   };
   Mr.overlay = (renderer, cam) => { if (vmOn) vm.render(renderer, cam); };
+
+  // ================================================================ hand grenades (G): the M67 from the rig
+  // Game level: thrown at ~14 m/s along the view (a little lofted), 4.5 s fuse (FM 3-23.30: 4-5.5 s), bounces and
+  // rolls, then MEDINV's fragment table for anyone near (him too) and war.blast for the war's units.
+  const grenades = [], grenGeo = new THREE.SphereGeometry(0.045, 8, 6).scale(1, 1.25, 1), grenMat = new THREE.MeshLambertMaterial({ color: 0x4d5636 });
+  function throwGrenade() {
+    if (MS.dead || W.swim || W.ladder) return;
+    const it = I.find(MS.inv, o => o.id === 'm67');
+    if (!it) { say('NO GRENADES', 1.2); return; }
+    I.detach(it);
+    const cp = Math.cos(S.camPitch + 0.25), d = [-Math.sin(S.camYaw) * cp, Math.sin(S.camPitch + 0.25), -Math.cos(S.camYaw) * cp], v = 14;
+    const g = { x: S.eye.x + d[0] * 0.4, y: S.eye.y + 0.1, z: S.eye.z + d[2] * 0.4, vx: d[0] * v + (W.vx || 0), vy: d[1] * v, vz: d[2] * v + (W.vz || 0), fuse: 4.5, mesh: new THREE.Mesh(grenGeo, grenMat) };
+    scene.add(g.mesh); grenades.push(g); A()?.mech('pin'); say('FRAG OUT', 1);
+  }
+  Mr.throwGrenade = throwGrenade; Mr.grenades = grenades;
+  function stepGrenades(dt) {
+    for (let i = grenades.length - 1; i >= 0; i--) {
+      const g = grenades[i]; g.fuse -= dt;
+      g.vy -= 9.81 * dt; g.x += g.vx * dt; g.y += g.vy * dt; g.z += g.vz * dt;
+      const fl = surfH(g.x, g.z);
+      if (g.y < fl + 0.05) { g.y = fl + 0.05; if (g.vy < 0) g.vy = -g.vy * 0.3; g.vx *= 0.6; g.vz *= 0.6; if (Math.abs(g.vy) < 0.5) g.vy = 0; }
+      g.mesh.position.set(g.x, g.y, g.z); g.mesh.rotation.x += dt * 8;
+      if (g.fuse > 0) continue;
+      scene.remove(g.mesh); grenades.splice(i, 1); Mr.stats.booms = (Mr.stats.booms || 0) + 1; Mr.lastBoom = { x: g.x, y: g.y, z: g.z };
+      const wet = ctx.terrainH(g.x, g.z) < 0 && g.y < 0.3 && GR.deckH(g.x, g.z) < -1e8;
+      if (wet) fx.splash?.(g.x, g.z, 0.8); else fx.explode(g.x, g.y, g.z, 0.9, { debris: 3 });
+      war.blast(g.x, g.y, g.z, 8, 4, 1);
+      const d = dist(g.x, g.y, g.z);
+      A()?.explosion(d, 0, wet ? 0.4 : 1);
+      if (!wet && d < 30) for (const h of fragmentHits('M67', d, Math.random, { prone: S.stance === 'prone' })) hitMe({ ...h, source: 'M67 FRAG' });
+      if (!wet) for (const f of Mr.figures) { const fd = Math.hypot(f.x - g.x, f.z - g.z); if (f.alive && fd < 9 && fragmentHits('M67', fd, Math.random).length) figureDown(f, 'fragments'); }
+      fx.shake = Math.min(1.5, (fx.shake || 0) + Math.max(0, 0.8 - d / 30));
+    }
+  }
 
   // ================================================================ HUD
   Mr.hud = () => {

@@ -1218,7 +1218,8 @@ a vehicle or the Hornet on deck and you are an M16A1 rifleman of 1980 with the i
   every island pad (RUNAWAY caches on enemy islands); they ride the ship. F searches the nearest crate / pile / body;
   F on a friendly pad or the carrier deck rearms. Speed-reload magazines fall into a pile at his feet. RUNAWAY trooper
   figures (`marine.addFigure`, a start for the ground-war agent): hit twice (once in head or chest) they go down and
-  their seized kit is lootable.
+  their seized kit is lootable. G throws an M67 from the rig (14 m/s, 4.5 s fuse, bounces): MEDINV fragments for anyone near
+  (him too), war.blast for war units.
 - **Life**: bleeding out (or any medical death) ends the life with the game's rules (lives - 1, a new crew in the Huey
   after 3.5 s). His body stays where he fell (on a deck it rides the ship) with his kit. The next Marine out is fresh;
   getting in and out of crafts keeps the same man (kit and wounds).
@@ -1250,4 +1251,4 @@ a vehicle or the Hornet on deck and you are an M16A1 rifleman of 1980 with the i
 - **Untested / next**: real mouse / pointer lock feel and the gamepad map on hardware; buddy aid (MEDINV's BUDDY API is
   ready: the CH-46 squad could treat you); AI soldiers using createRifleman (the figures are static targets now); the
   medical sim pauses while you ride a craft; enemy small-arms fire from RUNAWAY ground units arrives once the ground-war
-  agent's units shoot `'b'` / their own kinds through hurtPlayer; grenades (M67) are items but not throwable yet.
+  agent's units shoot `'b'` / their own kinds through hurtPlayer; grenades are thrown straight off the rig (no cooking, no throw animation in the viewmodel).

@@ -49,4 +49,11 @@ export default async function (h) {
   await h.wait(500);
   await h.expect("/SEARCH YOUR BODY/.test(document.getElementById('hint').textContent)", 'the old body is lootable');
   await h.eval("(__G.marine.view = 'third', __G.marine.aim(__G.marine.S.yaw, -0.6), 1)"); await h.wait(900); await h.shot('the-body-on-deck');
+  // 6. an M67 from the rig at a RUNAWAY trooper 11 m forward on the deck (G)
+  await h.eval(`(() => { const c = __G.war.carrier, p = __G.GR.fromShip(c, -6, 8, 30, {}), q = __G.GR.fromShip(c, -6, 8, 19, {}); __G.foot.spawnAt({ x: p.x, y: __G.GR.deckH(p.x, p.z), z: p.z, yaw: c.yaw }); __G.marine.view = 'first'; __G.marine.aim(c.yaw, -0.05);
+      window.__tg2 = __G.marine.addFigure(q.x, __G.GR.deckH(q.x, q.z), q.z, c.yaw + Math.PI, { ship: c }); window.__m67 = __G.marine.I.findAll(__G.marine.inv, o => o.id === 'm67').length; return __m67; })()`);
+  await h.wait(400); await h.key('tap', 'KeyG'); await h.wait(700); await h.shot('frag-out');
+  await h.waitFor('__G.marine.stats.booms >= 1', 15000); await h.wait(300); await h.shot('frag-burst');
+  await h.eval('({ boom: __G.marine.lastBoom, tg: { alive: __tg2.alive, x: __tg2.x, z: __tg2.z }, left: __G.marine.I.findAll(__G.marine.inv, o => o.id === "m67").length, me: __G.marine.M.log.filter(e => e.type === "hit").length })');
+  await h.expect('__G.marine.I.findAll(__G.marine.inv, o => o.id === "m67").length === __m67 - 1 && !__tg2.alive', 'a grenade from the rig, thrown, burst: the trooper is down');
 }

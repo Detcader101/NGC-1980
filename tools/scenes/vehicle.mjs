@@ -9,7 +9,7 @@ export default async function (h) {
     S: () => __G.carC.sim,
     st: () => { const S = __G.carC.sim; return { craft: __G.G.craft, seat: __G.crafts.seat, x: +S.x.toFixed(1), y: +S.y.toFixed(2), z: +S.z.toFixed(1), yaw: +S.yaw.toFixed(2), v: +S.v.toFixed(2), kmh: +(Math.abs(S.v) * 3.6).toFixed(1), engine: S.engineOn, gear: S.gear, rpm: Math.round(S.rpm), surface: S.surface, water: +S.water.toFixed(2), hp: Math.round(S.hp), flooded: S.flooded, plat: S.plat ? S.plat.type : null, onGround: S.onGround, pitch: +S.pitch.toFixed(3), roll: +S.roll.toFixed(3) }; },
     toDoor: () => { const d = __G.crafts.toWorld(__G.carC, [-1.9, 0, -0.1]); return __G.foot.spawnAt({ x: d.x, y: __G.carC.sim.y + 0.5, z: d.z, yaw: d.yaw - Math.PI / 2 }); },
-    loc: () => { const c = __G.war.carrier, S = __G.carC.sim; const [x, z] = __G.GR.toLocal(c, S.x, S.z); return { x: +x.toFixed(2), z: +z.toFixed(2) }; },
+    loc: () => { const c = __G.war.carrier, S = __G.carC.sim; const s = __G.GR.toShip(c, S.x, S.y, S.z); return { x: +s.x.toFixed(2), z: +s.z.toFixed(2) };   /* the ship frame: heave, pitch and roll swing a parked car with her */ },
   }, 1)`);
   await h.expect('__G.carC.exists');
   await h.eval('__V.st()');

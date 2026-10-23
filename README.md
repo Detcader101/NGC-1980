@@ -115,6 +115,7 @@ and roll; the ALBATROSS island has a ladder on its port face up to the top deck,
 | B, PageUp / PageDown | fire mode (safe / semi / auto), sight aperture |
 | L, Shift+L | check the magazine, check the chamber (the HUD only knows what you checked) |
 | 1 2 3, mouse wheel | rifle / LAW / pistol, cycle (Shift+digit: the war commands) |
+| G | throw an M67 frag (4.5 s fuse; M203 on / off on the grenadier's rifle) |
 | N | bipod (M60) |
 | Tab (or I), H | GEAR screen, HEALTH screen (the mouse is released; Esc closes) |
 | F | search a crate, a pile of dropped kit or a body; on a friendly pad or the carrier deck: rearm and resupply |
