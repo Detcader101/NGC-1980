@@ -25,7 +25,7 @@ export const AXIS_FNS = [
   { id: 'rudder', label: 'RUDDER PEDALS', type: 'ctr', prompt: 'PUSH RIGHT PEDAL FORWARD, THEN FULL LEFT AND RIGHT' },
   { id: 'brakeL', label: 'LEFT TOE BRAKE', type: 'brk', prompt: 'PRESS LEFT TOE BRAKE FULLY, THEN RELEASE' },
   { id: 'brakeR', label: 'RIGHT TOE BRAKE', type: 'brk', prompt: 'PRESS RIGHT TOE BRAKE FULLY, THEN RELEASE' },
-  { id: 'rocker', label: 'THROTTLE ROCKER', type: 'ctr', prompt: 'ROCK THE ROCKER RIGHT FIRST, THEN BOTH WAYS' },
+  { id: 'rocker', label: 'THROTTLE ROCKER (FLARE R / CHAFF L)', type: 'ctr', prompt: 'ROCK THE ROCKER RIGHT FIRST, THEN BOTH WAYS' },
 ];
 const FN = Object.fromEntries(AXIS_FNS.map(f => [f.id, f]));
 const DZ = { roll: 0.04, pitch: 0.04, twist: 0.06, rudder: 0.06, rocker: 0.1 };
@@ -183,7 +183,9 @@ export function createControls({ say = () => {}, getPads, storage, now } = {}) {
       const sus = C.suspend || open || !!wig || !!bindBtn;
       for (const a of ACTIONS) {
         if (a.setting) { S.actions[a.id] = cfg[a.id]; S.pressed[a.id] = false; continue; }
-        const b = btnOf(a.id), d = b && byKey[b.dev], h = !!d && btnDown(d.pad.buttons[b.btn]);
+        // the HOTAS 4 throttle rocker doubles as the countermeasures switch (yaw comes from the pedals or the stick twist,
+        // so it is otherwise unused; the stick has no buttons 13 / 14): rock right = FLARES, rock left = CHAFF
+        const b = btnOf(a.id), d = b && byKey[b.dev], h = (!!d && btnDown(d.pad.buttons[b.btn])) || (a.id === 'flare' && S.rocker > 0.6) || (a.id === 'chaff' && S.rocker < -0.6);
         held[a.id] = h; S.actions[a.id] = !sus && h; S.pressed[a.id] = !sus && h && !prevHeld[a.id]; prevHeld[a.id] = h;
       }
       if (wig) stepWiggle(); if (bindBtn) stepBindBtn();
