@@ -245,7 +245,7 @@ function updateCamera(dt) {
     camera.quaternion.copy(_q).multiply(new THREE.Quaternion().setFromEuler(_e)); fovWanted = 70;
   } else if (view === 'gunner' && gunLook && VEH === 'm60') {
     turretPoint(TANK.GUNNER_EYE_T, camera.position); inside = true;
-    _e.set(cam.look[1] - 0.25, fm.out.heading + V.az + cam.look[0], 0, 'YXZ'); camera.quaternion.setFromEuler(_e); fovWanted = 70;
+    _e.set(cam.look[1] - 0.1, fm.out.heading + V.az + cam.look[0], 0, 'YXZ'); camera.quaternion.setFromEuler(_e); fovWanted = 75;
   } else if (view === 'gunner') {
     // the sight picture: along the sight line from the sight head; magnification by FOV
     turretPoint([0.55, 0.85, -0.9], camera.position);

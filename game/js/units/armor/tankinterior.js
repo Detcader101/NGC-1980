@@ -134,12 +134,19 @@ export function buildTankInterior() {
   // gunner's windows; in the sight he sees the full-screen sight picture).
   const GU = new THREE.Group(); GU.name = 'gunnerStation'; GU.visible = false;
   const ga = (geo, m, p = GU) => { const o = new THREE.Mesh(geo, m); p.add(o); return o; };
-  ga(box(1.3, 0.04, 1.5, 0.55, 0.95, -0.45), white);                       // turret roof
-  ga(box(0.04, 1.6, 1.5, 1.15, 0.2, -0.45), white);                        // right wall
-  { const fw = ga(box(1.2, 1.6, 0.04, 0.6, 0.2, -1.22), white); fw.rotation.y = -0.25; }   // front wall (cast curve: a slant)
-  ga(box(1.3, 1.6, 0.04, 0.55, 0.2, 0.35), grey);                          // behind: the commander's platform
-  ga(box(1.3, 0.04, 1.5, 0.55, -0.62, -0.45), olive);                      // turret basket floor at knee level (legs below)
-  ga(box(0.04, 1.6, 1.5, -0.25, 0.2, -0.45), grey).visible = false;
+  // the whole fighting compartment is one room: roof, curved cast walls (as flat slants), the bustle behind
+  ga(box(2.4, 0.04, 2.9, 0, 0.95, 0.1), white);                            // turret roof
+  ga(box(0.04, 1.6, 2.2, 1.2, 0.2, -0.1), white); ga(box(0.04, 1.6, 2.2, -1.2, 0.2, -0.1), white);   // side walls
+  { const fw = ga(box(1.3, 1.6, 0.04, 0.6, 0.2, -1.22), white); fw.rotation.y = -0.35; }   // front walls either side of the gun
+  { const fw = ga(box(1.3, 1.6, 0.04, -0.6, 0.2, -1.22), white); fw.rotation.y = 0.35; }
+  ga(box(0.9, 1.6, 0.04, 0, 0.2, -1.0), grey);                             // the gun shield's inner face round the trunnions
+  ga(box(2.4, 1.6, 0.04, 0, 0.2, 1.62), white);                            // bustle rear wall
+  ga(box(2.4, 0.04, 2.9, 0, -0.62, 0.1), olive);                           // turret basket floor at knee level (legs below)
+  // the bustle ready rack: rows of round bases (brass) facing the loader, the radio above
+  for (let r = 0; r < 2; r++) for (let k = 0; k < 7; k++) ga(new THREE.CylinderGeometry(0.06, 0.06, 0.02, 12).rotateX(Math.PI / 2).translate(-0.6 + k * 0.2, 0.15 + r * 0.16, 1.32), brass);
+  ga(box(1.6, 0.4, 0.3, 0, 0.23, 1.45), dark);
+  ga(box(0.8, 0.25, 0.25, 0.1, 0.62, 1.42), olive); label(GU, 'AN/VRC-12', 0.3, 0.05, 0.1, 0.62, 1.29, 0, Math.PI, '#d8d6c8', null, 40);
+  ga(box(0.36, 0.06, 0.36, -0.65, -0.15, 0.1), seatM);                     // loader's seat (folded down)
   // the M68's breech on the left, the recoil guard, the coax M240 with its ammunition box
   const breech = new THREE.Group(); breech.position.set(0, 0.38, -0.25); GU.add(breech);
   breech.add(new THREE.Mesh(box(0.44, 0.44, 0.52), metal), new THREE.Mesh(box(0.46, 0.14, 0.2, 0, 0.22, 0.12), dark), new THREE.Mesh(box(0.08, 0.3, 0.08, -0.26, 0, 0.1), dark));
@@ -201,7 +208,7 @@ export function buildTankInterior() {
     CU.add(new THREE.Mesh(new THREE.CircleGeometry(R, 24).rotateX(Math.PI / 2).translate(0, y1, 0), white));      // hatch underside
     CU.add(new THREE.Mesh(new THREE.CircleGeometry(R, 24).rotateX(-Math.PI / 2).translate(0, y0, 0), dark));      // looking down into the turret
     // the M85 receiver hung under the cupola roof, its feed tray and ammo can; the sight periscope ahead
-    CU.add(new THREE.Mesh(box(0.11, 0.12, 0.42, -0.25, 0.34, -0.14), dark), new THREE.Mesh(box(0.14, 0.11, 0.18, -0.36, 0.3, 0.06), olive));
+    CU.add(new THREE.Mesh(box(0.14, 0.11, 0.18, -0.34, 0.3, 0.06), olive));   // the .50 ammunition can (the receiver is the exterior mount, in the cupola)
     CU.add(new THREE.Mesh(box(0.1, 0.08, 0.08, 0.22, 0.31, -0.33), dark));
     CU.add(new THREE.Mesh(box(0.04, 0.04, 0.1, 0.3, -0.14, -0.24), red));   // the override handle
   }

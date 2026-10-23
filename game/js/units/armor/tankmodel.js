@@ -322,7 +322,7 @@ function decal(tex, w, h, pos, rotY = 0, rotX = 0) {
 export const TANK = {
   RING: M60A3.TURRET.RING, TRUNNION: M60A3.TURRET.TRUNNION, MUZZLE_FWD: M60A3.TURRET.MUZZLE_FWD,
   // crew eye points (hull frame / turret frame) for the interiors and cameras
-  DRIVER_EYE: [0, 1.62, -2.05], GUNNER_EYE_T: [0.52, 0.55, -0.62], COMMANDER_EYE_T: [0.6, 1.05, 0.3],
+  DRIVER_EYE: [0, 1.62, -2.05], GUNNER_EYE_T: [0.56, 0.62, -0.32], COMMANDER_EYE_T: [0.6, 1.05, 0.3],
 };
 export function buildM60A3Mesh(opts = {}) {
   const T = M60A3.TRACK, seed = opts.seed ?? 3.7, dirt = opts.dirt ?? 1;
@@ -464,7 +464,7 @@ export function buildM60A3Mesh(opts = {}) {
   cupola.add(new THREE.Mesh(merge(cp), paintM));
   for (let k = 0; k < 8; k++) { const a = k / 8 * TAU + Math.PI / 8; const vb = new THREE.Mesh(box(0.14, 0.08, 0.03), glass); vb.position.set(Math.sin(a) * 0.495, 0.17, -Math.cos(a) * 0.495); vb.rotation.y = -a; cupola.add(vb); glassIn.push(vb); }
   const cHatch = new THREE.Group(); cHatch.position.set(0, 0.4, 0.3); cupola.add(cHatch); cHatch.add(new THREE.Mesh(PT(cylY(0.38, 0.06, 14, 0, 0.0, -0.3)), paintM)); cHatch.name = 'cupolaHatch';
-  const mg50 = new THREE.Group(); mg50.position.set(0.0, 0.22, -0.42); cupola.add(mg50);
+  const mg50 = new THREE.Group(); mg50.position.set(-0.17, 0.33, -0.36); cupola.add(mg50);   // left of centre, over the vision blocks (M19)
   mg50.add(new THREE.Mesh(box(0.2, 0.2, 0.18, 0, 0, 0), steelP));
   mg50.add(new THREE.Mesh(cylZ(0.022, 0.9, 8, 0, 0.02, -0.5), black)); mg50.add(new THREE.Mesh(cylZ(0.032, 0.2, 8, 0, 0.02, -0.15), black));
   // ---- gun: mantlet / shield (pitches with the gun), tube with thermal shroud and bore evacuator, searchlight
