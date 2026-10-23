@@ -398,6 +398,7 @@ export function createSoldier(o = {}) {
     Object.assign(S.pos, { x, y, z }); Object.assign(S.vel, { x: 0, y: 0, z: 0 });
     S.yaw = S.wYaw = S.aimYaw = S.camYaw = yaw; S.pitch = S.wPitch = S.aimPitch = 0; S.wYawV = S.wPitchV = 0;
     S.stance = S.stanceFrom = S.stanceTo = stance; S.stanceT = 1; S.eyeH = BODY.eye[stance]; S.onGround = true; S.bipod = false;
+    S.eye.x = x; S.eye.y = y + S.eyeH; S.eye.z = z;
   };
   // the posture the third-person model needs (soldiermodel.js poseFromSoldier)
   S.pose = function (out = {}) {

@@ -257,7 +257,7 @@ function rangeView() {
       if (v.e === 'stuck') msg('the case is stuck: the extractor slipped (Shift+T: remedial action)', 3);
       if (v.e === 'cleared') msg('cleared', 1.2);
       if (v.e === 'beltBroken') msg('belt broken: runaway gun stopped', 2);
-      if (v.e === 'backblast') msg('BACKBLAST AREA CLEAR!', 1.5);
+      if (v.e === 'backblast') { msg('BACKBLAST AREA CLEAR!', 1.5); const bx = Math.sin(S.yaw), bz = Math.cos(S.yaw); for (let i = 1; i <= 4; i++) puff(S.eye.x + bx * i * 1.5, S.eye.y - 0.3 - i * 0.15, S.eye.z + bz * i * 1.5, 'soil', 1.6); }   // the dust cloud behind
       if (v.e === 'malf' && v.kind === 'runaway') msg('RUNAWAY GUN - T: break the belt', 3);
     }
   }
@@ -336,7 +336,7 @@ targets   E-type pop-ups 25-400 m in three lanes, steel gongs 100/200/300 m (rig
           a tank hulk at 150 m (M203 / LAW), a hitbox mannequin at 25 m (left), the hill (east) and a pond (west)`;
   if (Q.has('help')) $('help').classList.remove('hide');
   // ---------------------------------------------------------------- debug bridge
-  function aimAt(x, y, z) { const dx = x - S.eye.x, dy = y - S.eye.y, dz = z - S.eye.z; const yaw = Math.atan2(-dx, -dz), pitch = Math.atan2(dy, Math.hypot(dx, dz)); S.yaw = S.wYaw = S.aimYaw = S.camYaw = yaw; S.pitch = S.wPitch = S.aimPitch = S.camPitch = pitch; S.wYawV = S.wPitchV = 0; S.pendingYaw = 0; S.recPitch = S.recYaw = S.recPitchV = S.recYawV = 0; S.dzYaw = S.dzPitch = 0; }
+  function aimAt(x, y, z) { const dx = x - S.pos.x, dy = y - (S.pos.y + S.eyeH), dz = z - S.pos.z; const yaw = Math.atan2(-dx, -dz), pitch = Math.atan2(dy, Math.hypot(dx, dz)); S.yaw = S.wYaw = S.aimYaw = S.camYaw = yaw; S.pitch = S.wPitch = S.aimPitch = S.camPitch = pitch; S.wYawV = S.wPitchV = 0; S.pendingYaw = 0; S.recPitch = S.recYaw = S.recPitchV = S.recYawV = 0; S.dzYaw = S.dzPitch = 0; }
   function aimTarget(d, lane = 0, h = 0.55) { const T = range.targets.find(t => t.d === d && t.lane === lane); aimAt(T.x, groundY(T.x, T.z) + 0.25 + h, T.z); return [T.x, T.z]; }
   if (Q.get('at')) aimTarget(+Q.get('at'));
   if (Q.has('debug')) {

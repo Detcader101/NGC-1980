@@ -307,7 +307,7 @@ export function buildItemModel(fit) {
   else if (fit === 'case762') k.cyl(0.006, 0.006, 0.051, COL.brass, [0, 0, 0], 'z', 6);
   else if (fit === 'case45') k.cyl(0.006, 0.006, 0.023, COL.brass, [0, 0, 0], 'z', 6);
   else if (fit === 'case40') k.cyl(0.02, 0.02, 0.05, 0x7a7d76, [0, 0, 0], 'z', 8);
-  else if (fit === 'tube') k.cyl(0.039, 0.039, 0.89, COL.od, [0, 0, 0], 'z', 10);
+  else if (fit === 'tube' || fit === 'M72A2') k.cyl(0.039, 0.039, 0.89, COL.od, [0, 0, 0], 'z', 10);
   else k.box(0.03, 0.03, 0.03, 0x777777, [0, 0, 0]);
   return k.mesh(KITMAT.lambert(), 'item_' + fit);
 }
