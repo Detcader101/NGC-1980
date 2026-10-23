@@ -1267,3 +1267,11 @@ game/dev/c130-model.html; scenes c130.mjs, c130model.mjs. fixedwing.js is no lon
   the Hercules in the game (the dev page and the bench do it).
 - Next: a proper loadmaster figure and cargo-hold view (ramp jumps / heavy drops), CDS bundles for the repair kit,
   the INFANTRY agent's soldier swapped in for buildParatrooper, an engine-out checklist voice from the crew.
+- Fix after the FOUNDATION merge (branch ngc/dropfix): drop.json's "roll with D, the plane banks" check failed 1/5.
+  Not the input routing: the keys reach HI.read and drop.update unchanged (logged per frame: KEYBOARD source, cx ramps
+  to 1, the autopilot drops out, the roll command reaches 0.7). The merged game runs ~8 fps headless instead of ~10-19,
+  the frame step is capped at 0.1 s, so the scene's 1 s wall-clock key hold gave only ~0.7 s of flight (7 frames, two
+  of them spent on the keyboard ramp) and bank grows roughly with t squared from rest: 0.05-0.09 instead of > 0.1. The
+  same probe against the ngc/c130 build in the same session: 10 fps, 10 frames, bank 0.11. The scene now holds D and
+  waits for the hands-off recovery in game time (drop.state.t: 1 s and 2.5 s) instead of wall time; no game code
+  changed. Seen once: a jumper landed in the water (fuel 20, expect > 20) - drop scatter, not this bug.
