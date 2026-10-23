@@ -64,6 +64,50 @@ export default async function (h) {
     await h.eval(`(__G.foot.view = 'first', 1)`);
   }
 
+  const toFoot = async () => { if (await h.eval("__G.G.craft !== 'foot'")) { await h.key('tap', 'KeyY'); await h.wait(600); } };
+  if (want('house')) {
+    await toFoot();
+    // a zone village house: walk at its front door and be stopped by the wall
+    await h.eval(`(() => { const W = __WORLD, hs = []; for (const e of W.zone) for (const it of e.items) if (it.t === 'house' || it.t === 'cottage') hs.push(it);
+      const it = hs[0]; window.__house = it; const fx = Math.sin(it.yaw), fz = Math.cos(it.yaw);
+      __G.foot.spawnAt({ x: it.x + fx * (it.d / 2 + 2.2), y: it.y + 0.5, z: it.z + fz * (it.d / 2 + 2.2), yaw: it.yaw }); __G.foot.view = 'third';   // facing -front: at the house
+      return { n: hs.length, t: it.t, x: +it.x.toFixed(1), z: +it.z.toFixed(1), w: it.w, d: it.d }; })()`);
+    await h.wait(600);
+    await h.expect("__G.G.craft === 'foot'", 'on foot in the village');
+    await h.key('down', 'KeyW'); await h.wait(4500); await h.key('up', 'KeyW');
+    await h.eval(`(() => { const it = __house, W = __G.foot.W, fx = Math.sin(it.yaw), fz = Math.cos(it.yaw); window.__hd = (W.x - it.x) * fx + (W.z - it.z) * fz; return { front: +__hd.toFixed(2), halfDepth: it.d / 2, y: +W.y.toFixed(2), ground: W.onGround }; })()`);
+    await h.expect('__hd > __house.d / 2 + 0.2 && __hd < __house.d / 2 + 1.2', 'walking into a house: stopped at its wall');
+    await h.eval('(__G.foot.W.yaw = __house.yaw + 0.5, 1)'); await h.wait(1200); await h.shot('house-wall');
+  }
+
+  if (want('bridge')) {
+    await toFoot();
+    // a bridge in the wild lands: walk (sprint) over it end to end; the deck carries him (bridges are not in the terrain)
+    await h.eval(`(() => { const W = __WORLD; for (const [x, z] of [[1500, 0], [0, 1500], [-1500, 0], [0, -1500], [1500, 1500]]) W.roadGraph(x, z, 1200);
+      let best = null; for (const R of W.net.netState.roads) { let i0 = -1; for (let i = 0; i < R.xs.length; i++) { if (R.br[i] && i0 < 0) i0 = i; if (!R.br[i] && i0 >= 0) { const L = R.s[i] - R.s[i0], d = Math.hypot(R.xs[i0], R.zs[i0]); let low = 1e9; for (let k = i0; k < i; k++) low = Math.min(low, R.ys[k] - Math.max(0, __G.terrainH(R.xs[k], R.zs[k]))); if (L > 24 && L < 160 && low > -1 && (!best || d < best.d)) best = { R, i0, i1: i, L, d }; i0 = -1; } } }
+      if (!best) return null; const { R, i0, i1 } = best, a = Math.max(0, i0 - 2), b = Math.min(R.xs.length - 1, i1 + 2);
+      window.__br = { R, i0, i1, a, b, L: best.L, ex: R.xs[b], ez: R.zs[b], minUp: 1e9, wet: false };
+      const yaw = Math.atan2(-(R.xs[a + 1] - R.xs[a]), -(R.zs[a + 1] - R.zs[a]));
+      __G.foot.spawnAt({ x: R.xs[a], y: R.ys[a] + 0.3, z: R.zs[a], yaw }); __G.foot.view = 'third';
+      let span = 0; for (let k = i0; k < i1; k++) span = Math.max(span, R.ys[k] - Math.max(0, __G.terrainH(R.xs[k], R.zs[k])));
+      return { len: +best.L.toFixed(0), at: [+R.xs[i0].toFixed(0), +R.zs[i0].toFixed(0)], deckOverGround: +span.toFixed(1), type: R.type }; })()`);
+    await h.expect('!!window.__br', 'found a bridge in the wild lands');
+    await h.wait(2500);   // the terrain bake and the world chunk catch up with the soldier
+    // steer him along the road while he sprints: each tick, face the next road point
+    await h.eval(`(window.__brI = setInterval(() => { const B = __br, W = __G.foot.W, R = B.R; let k = B.a; for (let i = B.a; i <= B.b; i++) if (Math.hypot(R.xs[i] - W.x, R.zs[i] - W.z) < Math.hypot(R.xs[k] - W.x, R.zs[k] - W.z)) k = i;
+      const n = Math.min(B.b, k + 2); W.yaw = Math.atan2(-(R.xs[n] - W.x), -(R.zs[n] - W.z));
+      if (k > B.i0 && k < B.i1) { B.minUp = Math.min(B.minUp, W.y - Math.max(0, __G.terrainH(W.x, W.z))); B.onBridge = true; } if (W.swim || W.wade > 0) B.wet = true; }, 50), 1)`);
+    await h.key('down', 'KeyW'); await h.key('down', 'ShiftLeft');
+    await h.waitFor('Math.hypot(__G.foot.W.x - __br.ex, __G.foot.W.z - __br.ez) < 4', 60000);
+    await h.eval('({ minUpOverGround: +__br.minUp.toFixed(2), wet: __br.wet, onBridge: !!__br.onBridge })');
+    await h.wait(1);
+    await h.key('up', 'ShiftLeft'); await h.key('up', 'KeyW'); await h.eval('(clearInterval(__brI), 1)');
+    await h.expect('__br.onBridge && !__br.wet && __br.minUp > 1', 'walked over the bridge on its deck (never in the water or the valley)');
+    // back to the middle for a picture
+    await h.eval(`(() => { const B = __br, R = B.R, m = Math.round((B.i0 + B.i1) / 2); __G.foot.spawnAt({ x: R.xs[m], y: R.ys[m] + 0.3, z: R.zs[m], yaw: Math.atan2(-(R.xs[m + 1] - R.xs[m]), -(R.zs[m + 1] - R.zs[m])) + 2.4 }); return 1; })()`);
+    await h.wait(1500); await h.shot('bridge-deck');
+  }
+
   if (want('sea')) {
     await h.eval('(window.__cam = null, __G.G.craft !== "heli" && __G.toHeli(), 1)'); await h.wait(800); await h.waitFor('__G.H.landed', 8000);
     // from the HORNET at 600 m (its view reaches ~1.5 km): the swell and the whitecaps out to the horizon

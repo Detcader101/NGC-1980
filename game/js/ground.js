@@ -33,6 +33,7 @@ export const SURF = {
   sand:  { mu: 0.5,  crr: 0.18,  sink: 0.06, speed: 0.8 },
   mud:   { mu: 0.35, crr: 0.13,  sink: 0.08, speed: 0.7 },
   water: { mu: 0.45, crr: 0.15,  sink: 0.05, speed: 0.5 },   // the (sandy) bottom under shallow water: wading drag is the sim's
+  dirt:  { mu: 0.65, crr: 0.04,  sink: 0.02, speed: 1 },     // SEAWORLD: a dirt / gravel farm track (Wong: gravel road mu 0.6-0.7, crr 0.02-0.05)
   hole:  { mu: 0,    crr: 1,     sink: 0,    speed: 0 },
 };
 export const GRAV = 9.81;
@@ -41,7 +42,7 @@ export const GRAV = 9.81;
 export function createGround(ctx) {
   const { war, terrainH, holeOf, PADS, CARRIER } = ctx;
   const ISLANDS = ctx.ISLANDS;
-  const providers = [], extra = [];
+  const providers = [], extra = [], floors = [], sources = [];   // SEAWORLD: floors (piers, bridge decks) and collider sources (the world's buildings)
   const GR = { G: GRAV, SURF };
 
   // ------------------------------------------------------------------ static circles: island trees in a hash grid
@@ -79,8 +80,11 @@ export function createGround(ctx) {
       if (y + tall < bottom) return t;                          // under a flying carrier: the ground below
       return Infinity;                                          // a hull side or a superstructure: a wall
     }
-    return t;
+    // SEAWORLD: piers and bridge decks you are on or above (world/solid.js); under them, the ground below
+    let f = t; for (const fl of floors) { const v = fl(x, z, y, step); if (v !== null && v > f) f = v; }
+    return f;
   };
+  GR.addFloor = fn => { floors.push(fn); };   // fn(x, z, y, step) -> a surface height at or below y + step, or null
 
   // ------------------------------------------------------------------ ships: frames, decks, carrying
   const PF = createPlatforms({ deckY: (x, z) => war.deckY(x, z), shipAt: (x, z) => war.shipAt(x, z), alive: u => u.sinking === undefined || u.sinking < 4 ? war.units.includes(u) : false,
@@ -172,10 +176,14 @@ export function createGround(ctx) {
     }
     function box(u, lx, lz, hw, hl, y0, y1) { toWorld(u, lx, lz, _w); _sb.x = _w.x; _sb.z = _w.z; _sb.yaw = u.yaw; _sb.hw = hw; _sb.hl = hl; _sb.y0 = y0; _sb.y1 = y1; _sb.ok = true; }
     for (const c of extra) if (c.hl ? pushBox(o, c) : (o.y1 > (c.y0 ?? -1e9) && o.y0 < (c.y1 ?? 1e9) && pushCircle(o, c.x, c.z, c.r))) n++;
+    // SEAWORLD: the lived-in world's buildings, walls, hedges, parapets, poles (world/solid.js); o.crush (a tank) goes
+    // through the soft ones (field walls, hedges)
+    for (const src of sources) for (const c of src(o.x, o.z, o.r + 1)) { if (c.soft && o.crush) continue; if (c.hl !== undefined ? pushBox(o, c) : (o.y1 > c.y0 && o.y0 < c.y1 && pushCircle(o, c.x, c.z, c.r))) n++; }
     if (ctx.crafts) for (const b of ctx.crafts.bounds(skip)) if (pushBox(o, b)) n++;
     return n;
   };
   GR.addCollider = c => { extra.push(c); return c; };
+  GR.addColliderSource = fn => { sources.push(fn); };   // SEAWORLD: fn(x, z, r) -> boxes / circles near (x, z)
   GR.removeCollider = c => { const i = extra.indexOf(c); if (i >= 0) extra.splice(i, 1); };
   // third-person / chase cameras: pull the camera p {x, y, z} in along the line from the eye (ex, ey, ez) to in front of
   // the first thing in the way - the ground, a deck, a hull side, a craft's footprint (except `skip`'s)

@@ -39,7 +39,7 @@ export function createWorldLife(ctx) {
       const rd = new Map(); for (const id of roads) { const R = roadById(id); rd.set(R, new Set(Array.from({ length: R.xs.length - 1 }, (_, i) => i))); }
       const discs = []; for (const [, a] of netState.buckets) for (const s of a) if (s.disc && Math.hypot(s.ax - I.x, s.az - I.z) < I.r + 30 && !discs.includes(s)) discs.push(s);
       const c = buildGeo({ items, roads: rd, discs, x0: -1e9, z0: -1e9, x1: 1e9, z1: 1e9 }, terrainH, { lat: 2.5 });
-      const e = { I, x: I.x, z: I.z, sN: mk(c.near, M.zSolid), sF: mk(c.far, M.zSolid), gN: mk(c.gnear, M.zgNear), gF: mk(c.gfar, M.zgFar), wires: wiresOf(c.wires), dyn: c.dyn, items };
+      const e = { I, x: I.x, z: I.z, sN: mk(c.near, M.zSolid), sF: mk(c.far, M.zSolid), gN: mk(c.gnear, M.zgNear), gF: mk(c.gfar, M.zgFar), wires: wiresOf(c.wires), dyn: c.dyn, items, roads };   // SEAWORLD: roads kept for world/solid.js (bridge parapets)
       stats.zoneTris += c.near.tris + c.gnear.tris; zone.push(e);
     }
     stats.zoneMs = performance.now() - t0;
