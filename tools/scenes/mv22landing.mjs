@@ -33,8 +33,8 @@ export default async function (h) {
   await h.waitFor(`__u.rot.AI.phase === 'ground' || __u.dead`, 60000); await h.shot('03-touchdown');
   await h.eval(`({ off: Math.hypot(__u.p.x - __u.lz.x, __u.p.z - __u.lz.z), dead: __u.dead, sink: __u.rot.S.body.maxSink })`);
   await h.expect(`!__u.dead && Math.hypot(__u.p.x - __u.lz.x, __u.p.z - __u.lz.z) < 4`, 'Osprey landed on its LZ');
-  await h.waitFor(`__u.rot.squad.holding > 4 || __u.dead`, 40000); await h.shot('04-troopers');
-  await h.waitFor(`__I.owner === 2`, 60000);
+  await h.waitFor(`(__u.squadUnit && __u.squadUnit.hp > 4) || __u.rot.squad.holding > 4 || __u.dead`, 60000);   // (GROUND WAR: the troopers are STRIDERs in a squad proxy) await h.shot('04-troopers');
+  await h.waitFor(`__I.owner === 2`, 150000);
   await h.eval(`({ owner: __I.owner, feed: document.getElementById('feed').textContent.slice(0, 160) })`);
   await h.expect(`__I.owner === 2`, 'SANDBAR taken by the machine troopers');
   await h.shot('05-taken');

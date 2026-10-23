@@ -19,6 +19,8 @@ import * as THREE from 'three';
 import { DEF, DEF_WAR } from './tune.js';
 import { buildDefence } from './models.js';
 import { createDefenceSound } from './sound.js';
+// countermeasures (ngc/cmpolish): flares decoy missiles, chaff breaks radar locks, smoke blocks sight; the RWR picture
+import { CM, CM_RULES, stepCM, smokeBlocks, smokeStop, rwrBegin, rwrAdd, rwrPublish, resetCM } from './cm.js';
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
@@ -100,7 +102,7 @@ export function createDefence(env) {
   function los(ax, ay, az, bx, by, bz) {
     const L = Math.hypot(bx - ax, by - ay, bz - az), n = clamp(Math.ceil(L / DEF_WAR.losStep), 3, 50);
     for (let k = 1; k < n; k++) { const t = k / n, x = ax + (bx - ax) * t, y = ay + (by - ay) * t, z = az + (bz - az) * t; if (H(x, z) > y - DEF_WAR.losClear) return false; }
-    return true;
+    return !smokeBlocks(ax, ay, az, bx, by, bz);   // CM: thick smoke (M18 plumes) hides the target too
   }
   // where a ray from a toward dir first meets the ground (distance), up to maxL
   function rayGround(a, dir, maxL) {
@@ -172,7 +174,9 @@ export function createDefence(env) {
       D.d = Math.hypot(f.p.x - eye.x, f.p.y - eye.y, f.p.z - eye.z);
       D.losT -= dt; if (D.losT <= 0) { D.losT = 0.15; D.los = D.d < maxRange(T) * 1.15 && los(eye.x, eye.y, eye.z, f.p.x, f.p.y, f.p.z); }
       const wasLos = D.losWas; D.losWas = D.los;
-      if (D.los) { D.lockT = Math.min(D.lockT + dt, T.lock + (T.msl ? T.msl.lockExtra : 0) + 0.5); D.lostT = 0; }
+      if (D.jamT > 0) D.jamT -= dt;
+      if (D.los && D.jamT > 0 && f.player) { D.lockT = Math.min(D.lockT, T.lock * CM_RULES.chaff.keep); D.lostT = 0; }   // CM: chaff in the radar
+      else if (D.los) { D.lockT = Math.min(D.lockT + dt, T.lock + (T.msl ? T.msl.lockExtra : 0) + 0.5); D.lostT = 0; }
       else { if (wasLos) D.lockT = Math.min(D.lockT, T.lock * (T.lockKeep ?? 1)); D.lockT = Math.max(0, D.lockT - dt * 2); D.lostT += dt; if (D.lostT > 2.5) { D.tgt = null; D.key = null; D.mode = 'search'; } }
       // lead: gun rounds -> linear prediction, iterated once; missiles and the beam point straight at it
       const sp = T.gun ? T.gun.speed : 0;
@@ -201,6 +205,11 @@ export function createDefence(env) {
     if (T.beam) firing = lance(o, D, T, f, locked, err, dt) || firing;
     // ---- tells and animation
     animate(o, D, T, f, firing, dt, t);
+    // CM: the radar warning picture - every unit that sees and tracks the player (its bearing, how far the lock is)
+    if (f && f.player && D.los && D.d < maxRange(T) * 1.15) {
+      const pp = env.player().pos, L = T.lock + (T.msl ? T.msl.lockExtra : 0);
+      rwrAdd(D.type === 'talon' ? 'T' : D.type === 'lance' ? 'L' : 'A', Math.atan2(eye.x - pp.x, -(eye.z - pp.z)), D.d, clamp(D.lockT / L, 0, 1), D.lockT >= T.lock, firing || (!!D.beam && D.beam.st === 'charge'));
+    }
     // cockpit warning: the strongest lock on the player this frame
     if (f && f.player && D.los && D.d < DEF_WAR.lockToneRange) {
       const L = T.lock + (T.msl ? T.msl.lockExtra : 0), p = clamp(D.lockT / L, 0, 1);
@@ -310,6 +319,8 @@ export function createDefence(env) {
         m.losT = 0.2; const L = m.launcher, le = L.mesh.userData.pitch.getWorldPosition(_e);
         m.guided = alive && !L.dead && !(L.ship && L.ship.sinking !== undefined) && los(le.x, le.y, le.z, m.tp.x, m.tp.y, m.tp.z) && m.age < M.life;
       }
+      if (m.player && m.guided) decoy(m, pl);   // CM: flares and chaff in front of its nose
+      if (m.player && m.guided && pl) rwrAdd('M', Math.atan2(m.p.x - pl.pos.x, -(m.p.z - pl.pos.z)), m.p.distanceTo(pl.pos), 1, true, true);   // CM: on the warning scope
       const _p0x = m.p.x, _p0y = m.p.y, _p0z = m.p.z;
       if (m.guided && m.age > 0.25) {
         const d = Math.hypot(m.tp.x - m.p.x, m.tp.y - m.p.y, m.tp.z - m.p.z), tgo = Math.min(2.5, d / Math.max(30, m.spd));
@@ -347,10 +358,48 @@ export function createDefence(env) {
           else if (m.tgt) env.damage(m.tgt, M.dmg, m.side);
           else if (env.hitTest) { const h = env.hitTest(x, y, z, m.side, 5); if (h) env.damage(h, M.dmg * 0.5, m.side); }
         }
+        // CM: a decoyed missile bursting on its flare close to the player still throws fragments at him
+        if (m.decoy && pl && pl.alive && M.playerDmg && m.p.distanceTo(pl.pos) < 14) env.hurtPlayer && env.hurtPlayer(M.playerDmg * 0.35, 'MISSILE FRAGMENTS');
         scene.remove(m.mesh); missiles[i] = missiles[missiles.length - 1]; missiles.pop();
       }
     }
     if (warnLaunch) { warnMode = 3; warnP = 1; }
+  }
+
+  // ------------------------------------------------------------------ countermeasures (cm.js rules)
+  // flares: one roll per burning flare per missile guiding on the player, if the flare is in front of the missile's
+  // nose; chaff: one weaker roll per cloud. A decoyed missile steers at the decoy instead (and bursts there).
+  let decoyFeedT = -99;
+  function decoy(m, pl) {
+    const FR = CM_RULES.flare, CR = CM_RULES.chaff, was = m.cmSeen || 0;
+    let best = null, seen = was;
+    const tryIt = (o, p) => {
+      if (o.id <= was) return false;
+      if (o.id > seen) seen = o.id;
+      const dx = o.x - m.p.x, dy = o.y - m.p.y, dz = o.z - m.p.z, d = Math.hypot(dx, dy, dz) || 1;
+      if (d > FR.near || (dx * m.dir.x + dy * m.dir.y + dz * m.dir.z) / d < FR.cone) return false;
+      const close = pl && m.p.distanceTo(pl.pos) < FR.close;
+      return Math.random() < p * (close ? FR.pClose / FR.p : 1);
+    };
+    for (const f of CM.flares) if (f.age >= 0.15 && tryIt(f, FR.p)) { best = f; break; }
+    if (!best) for (const c of CM.chaff) if (c.age >= CR.bloom && tryIt(c, CR.p)) { best = c; break; }
+    m.cmSeen = seen;
+    if (!best) return;
+    m.player = false; m.tgt = null; m.decoy = best; m.tp = best; m.tv = { x: best.vx, y: best.vy, z: best.vz };   // the decoys carry x / y / z
+    CM.stats.decoyed++;
+    const t = env.time(); if (env.feed && t - decoyFeedT > 3) { decoyFeedT = t; env.feed(CM.flares.includes(best) ? 'MISSILE DECOYED  -  FLARE' : 'MISSILE DECOYED  -  CHAFF', 'good'); }
+  }
+  // chaff blooming near the player: every RUNAWAY radar tracking him keeps only a little of its lock and is jammed
+  function chaffBloom() {
+    const CR = CM_RULES.chaff, pl = env.player ? env.player() : null; if (!pl) return;
+    for (const c of CM.chaff) {
+      if (c.bloomed || c.age < CR.bloom) continue; c.bloomed = true;
+      if (Math.hypot(c.x - pl.pos.x, c.y - pl.pos.y, c.z - pl.pos.z) > 80) continue;
+      for (const o of units) {
+        const D = o.def; if (!D || D.side !== 2 || D.key !== 'P' || D.type === 'lance' || D.d > CR.range) continue;
+        D.lockT = Math.min(D.lockT, D.T.lock * CR.keep); D.jamT = CR.jam; D.salvo = 0; CM.stats.jammed++;
+      }
+    }
   }
 
   // ------------------------------------------------------------------ the LANCE
@@ -386,6 +435,7 @@ export function createDefence(env) {
     if (showLine || showBeam) {
       let L = rayGround(lens, _n, range); B.blocked = L < range ? 'ground' : '';
       const sm = smokeAlong(lens, _n, L), stop = smokeAlong.stop; if (stop < L) { L = stop; B.blocked = 'smoke'; } B.smoke = sm;
+      { const s2 = smokeStop(lens.x, lens.y, lens.z, _n.x, _n.y, _n.z, L); if (s2 < L) { L = s2; B.blocked = 'smoke'; } }   // CM: M18 plumes
       let onT = false;
       if (f) {   // does the beam pass through the target?
         const dx = f.p.x - lens.x, dy = f.p.y - lens.y, dz = f.p.z - lens.z, tt = dx * _n.x + dy * _n.y + dz * _n.z;
@@ -485,6 +535,7 @@ export function createDefence(env) {
   // ------------------------------------------------------------------ the frame
   function tick(dt) {
     if (!(dt > 0)) dt = 0;
+    stepCM(dt, fx, H); chaffBloom();   // CM: flares, chaff and smoke move; chaff blooms jam the radars tracking the player
     updateMissiles(dt);
     // beams of units that died mid-shot
     for (const o of units) {
@@ -493,12 +544,13 @@ export function createDefence(env) {
       if (!o.mesh.parent) units.delete(o);
     }
     snd.warn(warnMode, warnP); snd.laser(laserSt, laserP, laserK);
+    rwrPublish(warnMode, warnP, env.time()); rwrBegin();   // CM: the cockpits' radar warning picture for this frame
     warnMode = 0; warnP = 0; laserSt = 0; laserP = 0; laserK = 0;
   }
   function reset() {
     for (const m of missiles) scene.remove(m.mesh); missiles.length = 0;
     for (const o of units) if (o.def.beam) { const B = o.def.beam; scene.remove(B.g, B.spot, B.line); }
-    units.clear(); snd.silence();
+    units.clear(); snd.silence(); resetCM();
   }
-  return { pick, model, attach, refitCarrier, update, tick, reset, units, missiles, los, smokeAlong, DEF };
+  return { pick, model, attach, refitCarrier, update, tick, reset, units, missiles, los, smokeAlong, DEF, CM };
 }

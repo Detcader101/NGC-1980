@@ -14,7 +14,7 @@ export default async function (h) {
   await h.eval(`(() => { const I = __G.HOME_B.isl; __G.selIsl = I; __G.G.mat = 100; const p = I.pad, a = 2.2, x = p.x + Math.cos(a) * 12, z = p.z + Math.sin(a) * 12; __G.foot.spawnAt({ x, y: __G.terrainH(x, z) + 0.5, z, yaw: 0 }); __G.foot.view = 'third'; return { pad: [p.x, p.z], mat: __G.G.mat }; })()`);
   await h.wait(500);
   await h.eval('(window.__n0 = __G.pool.list.length, window.__m0 = __G.G.mat, 1)');
-  await h.key('tap', 'Digit7'); await h.wait(400);
+  await h.key('tap', 'Digit7'); await h.wait(200); await h.key('tap', 'Digit1'); await h.wait(400);
   await h.eval("({ msg: document.getElementById('msg').textContent, job: __DL.job(), mat: __G.G.mat })", 'ordered an M151');
   await h.expect("__DL.D().jobs.length === 1 && __DL.D().jobs[0].kind === 'ch46' && __G.G.mat === __m0 - 10", 'a CH-46 is on its way (10 materiel)');
   await h.eval('(window.__J = __DL.D().jobs[0], window.__JV = __J.V, 1)');
@@ -34,7 +34,7 @@ export default async function (h) {
   await h.key('tap', 'KeyY'); await h.wait(400);
   // the M35 by landing craft
   await h.eval('(window.__m1 = __G.G.mat, 1)');
-  await h.key('tap', 'Digit9'); await h.wait(400);
+  await h.key('tap', 'Digit7'); await h.wait(200); await h.key('tap', 'Digit2'); await h.wait(400);
   await h.eval("({ msg: document.getElementById('msg').textContent, job: __DL.D().jobs.map(j => j.kind), mat: __G.G.mat })", 'ordered an M35');
   await h.eval('(window.__L = __DL.D().jobs.find(j => j.kind === "lcm"), window.__LV = __L && __L.V, __L ? { beach: __L.beach.name, gx: Math.round(__L.gx), gz: Math.round(__L.gz), from: [Math.round(__L.x), Math.round(__L.z)] } : null)');
   await h.expect("__L && __G.G.mat === __m1 - 20 && __LV.slung", 'an LCM-8 is running an M35 in (20 materiel)');

@@ -29,10 +29,12 @@ The enemy carrier KRAKEN is out there doing the same, and whoever controls the m
 - **Ships that live and move.** The ALBATROSS is a 1980 Midway-class big deck in haze grey with a working deck: crew in coloured jerseys, tractors, Tilly, parked Hornets and Tomcats, an LSO team, the meatball, SPS-48 and SPS-49 turning, boiler smoke from the funnel. The enemy has a seized 2030s Ford-class supercarrier (the KRAKEN) refitted by the machines, the RW-9 LEVIATHAN railgun monitor and autonomous container ships. Every ship heaves, pitches and rolls with the sea state (`?sea=0..7`, default 4) and its speed, and the decks you land on move with them. Wakes, bow spray and smoke follow each ship's real track.
 - **Air defences you can read.** Our islands are guarded by the Soviet contingent's ZSU-23-4s, and command 2 builds M163 Vulcans; the ALBATROSS carries two white-domed close-in guns and two box missile launchers. The RUNAWAY field seized 8x8 gun-missile trucks and, on their strongholds, the RW-5 LANCE laser. Every one of them has to see you (terrain blocks it) and lock on before it fires, and shows it: radars stop and point, barrels spin up, lamps blink faster, the LANCE glows and paints you with an aiming line, and a lock and missile warning sounds in the cockpit. Missiles steer but turn at a capped rate and go dumb if you drop behind a hill; smoke stops the laser. Stay low.
 - **Get out and walk.** Land the Huey (or stop a Hornet on deck), press Y and climb out: walk the carrier's deck while she sails and turns (you stay where you stand), climb the island ladder to its roof, go over the side and swim to the stern ladder, walk onto an island pad and hold it. A placeholder Marine with an M16 for now; the real infantry, weapons, medical and inventory plug into slots (see [docs/ngc1980/FOUNDATION.md](docs/ngc1980/FOUNDATION.md)).
-- **Drive.** M151A2 MUTTs and M35A2 trucks wait at every friendly island's motor pool and on the ALBATROSS's deck park; walk up to a door and press Y. The real wheeled sim (tyres, suspension, gearbox, fording, rollovers) on the roads, bridges and fields of the lived-in world, through fords and on a carrier deck that sails and turns under you. Man the M151's pedestal M60 or the M35's ring-mount M2 and fire on the RUNAWAY; their fire punctures tyres, holes radiators and fuel tanks, sets the truck alight and wounds the Marine riding in it. Board six Marines into an M35 at a pad (B) and they take the next pad with you. Commandeer the 1980 Land Rovers, Hilux pickups, Beetles and Ladas parked in the towns (the traffic on the roads is the same cars). More from the motor pool: 7 = an M151 slung in under a CH-46 (10 materiel), 9 = an M35 landed on the island's beach by an LCM-8 (20).
+- **Drive.** M151A2 MUTTs and M35A2 trucks wait at every friendly island's motor pool and on the ALBATROSS's deck park; walk up to a door and press Y. The real wheeled sim (tyres, suspension, gearbox, fording, rollovers) on the roads, bridges and fields of the lived-in world, through fords and on a carrier deck that sails and turns under you. Man the M151's pedestal M60 or the M35's ring-mount M2 and fire on the RUNAWAY; their fire punctures tyres, holes radiators and fuel tanks, sets the truck alight and wounds the Marine riding in it. Board six Marines into an M35 at a pad (B) and they take the next pad with you. Commandeer the 1980 Land Rovers, Hilux pickups, Beetles and Ladas parked in the towns (the traffic on the roads is the same cars). More from the motor pool: 7 then 1 = an M151 slung in under a CH-46 (10 materiel), 7 then 2 = an M35 landed on the island's beach by an LCM-8 (20).
 - **AI rotorcraft that really fly.** The CH-46E Sea Knight (tandem rotors, differential collective, longitudinal cyclic trim), the RUNAWAY's seized MV-22B Osprey (tiltrotor: nacelles convert from helicopter to airplane mode inside the conversion corridor) and the RW-3 WASP (ducted fan) each have a physical flight model checked against published data, and an AI pilot that flies it through stick, collective, pedals and nacelles: deck launches from a moving carrier, terrain-following transits, decelerating approaches, touchdowns beside the pad. Marines run off the Sea Knight's ramp and take the pad; the Osprey's machine troopers march out in lock-step. WASPs strafe, snipe from a hover, lie in ambush behind hills and circle in eerie swarms. Watch them on `game/dev/rotary.html`.
 - **Armour: M60A3 TTS and M113A2** (on their test ground for now, `dev/tank.html`; they join the war in the next wave). A tracked-vehicle simulation with torsion-bar roadwheels, track-soil shear and sinkage on road, grass, sand, mud and bog, a real drivetrain (diesel, torque converter, cross-drive with pivot turns / controlled differential), steps, trenches, slopes, fording, and the M113 swims on its tracks. The tank has a stabilised turret, laser rangefinder and ballistic computer, day and thermal (TTS) sights, a loader, coax and .50; both have full crew interiors (driver's periscopes and gauges, gunner's station, commander's cupola, the M113's troop compartment) and synthesised engine, track and gun sound.
 - **Wheeled vehicles (NGC-1980).** M151A2 MUTT, M35A2 6x6 "deuce", Land Rover 109, Toyota Hilux, VW Beetle and Lada 2101, all drivable on one shared vehicle model: real tyres, suspension, gearboxes, transfer cases and diffs, engines that stall and drown, fording, rollovers, damage that punctures tyres and sets fuel tanks alight, 3D cabs with live gauges and synthesised engine sound. Test drive them on `game/dev/vehicle.html`.
+- **The ground war.** The islands are fought over on the ground. The Osprey's machine troopers come off the ramp as RW-1 STRIDERs (balancing bipeds that stumble when hit, fall, get up) in squads of four that bound, flank and suppress, take the pad and hold the islands the machines own; from four minutes in the enemy sends RW-7 hover tanks across the sea from the KRAKEN, and from nine a seized LCAC runs a seized M1A2 or T-90M (on the TANK track sim) up a beach. Your CH-46 lands a reinforced Marine squad (SL, three fire teams, an attached M60: M16s, an automatic rifleman, M203s and M72 LAWs, the INFANTRY agent's soldier model) that moves, gets down under fire, bounds by fire teams round the flank with more cover, aims for the STRIDERs' legs and sensor heads, and takes casualties (killed and wounded). Command 1 can now also send Marines to reinforce one of your islands the machines have landed on. The machines shoot back at you, your Huey, your AA sites and your Marines; your door gun, rockets, bombs and the Hornet's cannon hurt them, and a helicopter overhead decides a fight. Clear the LZ first: a Sea Knight landing next to a TALON or a squad of STRIDERs gets shot up.
+- **Armour: M60A3 TTS and M113A2**, playable on the islands (the M60 waits at the home island motor pool, the M113 on the ALBATROSS deck; 0 / 9 land another by LCM-8 on a friendly island's landing hard). Crew seats at the hatches (driver, gunner, commander, loader; the M113's driver, commander and 11 troop seats), the gunner's day and thermal sights full screen, rounds through the island war, RUNAWAY fire into the armour model (components, crew, fire, cook-off). The test ground is `dev/tank.html`. A tracked-vehicle simulation with torsion-bar roadwheels, track-soil shear and sinkage on road, grass, sand, mud and bog, a real drivetrain (diesel, torque converter, cross-drive with pivot turns / controlled differential), steps, trenches, slopes, fording, and the M113 swims on its tracks. The tank has a stabilised turret, laser rangefinder and ballistic computer, day and thermal (TTS) sights, a loader, coax and .50; both have full crew interiors (driver's periscopes and gauges, gunner's station, commander's cupola, the M113's troop compartment) and synthesised engine, track and gun sound.
 - **Effects that build up.** Smoke columns, fires, scorch marks, debris and oil slicks stay on the map.
 
 Win by sinking the KRAKEN or taking IRONHOLD. You lose if the ALBATROSS sinks or you run out of helicopters.
@@ -64,6 +66,7 @@ update it. The launcher lives in `%LOCALAPPDATA%\ThrustZarch` (log: `launcher.lo
 | W A S D or arrows | cyclic |
 | Q / E | pedals (anti-torque; the Huey needs some left pedal in the hover) |
 | F / G / B | gun / rockets / bombs |
+| Insert or ; / Delete or ' | M130 dispenser: a pair of flares (decoys a missile) / chaff (breaks a radar lock); HOTAS: bind FLARES / CHAFF in the J panel |
 | R | winch (pick up the pod in a cave) |
 | M | command map: click the sea to sail the carrier, click an island to select it |
 | 1-4, 6 | send drone, build AA gun, spare helicopter, Tomcat escort (CAP over the selected island, else over the ALBATROSS), SKY CARRIER refit |
@@ -76,6 +79,12 @@ update it. The launcher lives in `%LOCALAPPDATA%\ThrustZarch` (log: `launcher.lo
 | PgUp / PgDn, Home | throttle twist grip (idle detent ... full open), starter (hold to 40% N1) |
 | U / N / O / L | hydraulic control, landing light, fire extinguisher, call logistics (on the ground) |
 | Esc / P | menu: resume, call logistics, respawn on the carrier if stuck, cockpit FOV slider, quit |
+
+Radar warning: the Huey has an AN/APR-39 scope right of the pilot's instruments (a green strobe toward each radar painting
+you, longer as its lock builds) with LOCK / MISSILE / LASER lamps and the M130's FLARE / CHAFF counters; the Hornet has an
+RWR scope right of the UFC (threat letters: 8 the TALON truck, L the LANCE, W a WASP, A other guns, M a missile) and the
+lamps and ALE-39 counters left of it. Outside the cockpit a small scope with LOCK / MISSILE LAUNCH / LASER shows top left
+while anything tracks you. Flares and chaff rearm on the carrier and friendly pads.
 
 The Huey spawns hot at flight idle and rolls the throttle on by itself. With `?cold` it starts cold and dark: BAT and MAIN FUEL on, throttle to the idle detent (PgUp), hold the starter (Home) to 40% N1 (light-off at ~12%), let it reach idle (~70% N1), then throttle full open to 6600 rpm. The cockpit switches (battery, generator, inverter, main fuel, governor AUTO/EMER, hydraulic control, force trim, low rpm audio, starter, master caution) are clickable. To autorotate: collective down to keep 324 rpm, 70 kt, flare at ~100 ft, cushion with the collective.
 
@@ -90,6 +99,7 @@ The Huey spawns hot at flight idle and rolls the throttle on by itself. With `?c
 | . | wheel brakes (toe brakes on the pedals) |
 | F / X / mouse, R, B | gun, A/A missiles (press again to fire), A/G bombs with CCIP (press again to drop) |
 | , / I / U / N | master arm / engines / canopy / lights |
+| Insert or ; / Delete or ' | ALE-39: a pair of flares / two chaff (HOTAS: FLARES / CHAFF, default buttons 13 / 14 on a stick) |
 | hold Backspace | eject |
 | V, mouse wheel, hat | cockpit or chase view, zoom, look around |
 | J | controls panel: live view of every axis and button, bind and calibrate HOTAS / pedals |
@@ -143,6 +153,7 @@ Compressor stall (a bang, the RPM rolls back, TIT climbs, L / R INLET on the cau
 | L, Shift+L | check the magazine, check the chamber (the HUD only knows what you checked) |
 | 1 2 3, mouse wheel | rifle / LAW / pistol, cycle (Shift+digit: the war commands) |
 | G | throw an M67 frag (4.5 s fuse; M203 on / off on the grenadier's rifle) |
+| Shift+G (or ; / ') | throw an M18 smoke grenade: after ~1.5 s it pours coloured smoke for a minute; thick smoke hides you from the RUNAWAY guns' lock and stops the LANCE beam |
 | N | bipod (M60) |
 | Tab (or I), H | GEAR screen, HEALTH screen (the mouse is released; Esc closes) |
 | F | search a crate, a pile of dropped kit or a body; on a friendly pad or the carrier deck: rearm and resupply |
@@ -152,7 +163,25 @@ Compressor stall (a bang, the RPM rolls back, TIT climbs, L / R INLET on the cau
 | [ ] , mouse, LMB / F, R | change seat (driver, passengers, the M60 / M2 gunner, the M35's benches); the gunner lays the gun with the mouse (or the arrows), fires, reloads |
 | B | M35: six Marines board / dismount at a pad |
 | gamepad / HOTAS | vehicles: left stick or stick X / pedals steer, RT or the throttle lever = gas, LT or toe brakes = brake, A handbrake; gunner: right stick aims, RT fires |
-| 7 / 9 | motor pool: an M151A2 by CH-46 sling (10 materiel) / an M35A2 by LCM-8 to the beach (20), to the selected friendly island |
+| 7, then 1 / 2 | motor pool: an M151A2 by CH-46 sling (10 materiel) / an M35A2 by LCM-8 to the beach (20), to the selected friendly island |
+| 0 / 9 | an LCM-8 lands an M113A2 (30 materiel) / an M60A3 TTS (60) on the selected friendly island's landing hard (else the home island's) |
+
+### Armour (M60A3 TTS, M113A2)
+
+| Key | Action |
+|---|---|
+| Y, [ / ] | get in at a hatch (walk up to the hull side) / out; change seat (M60: driver, gunner, commander, loader; M113: driver, commander, troops) |
+| W / S, A / D | drive (from any seat: orders to the driver). Steering narrows with speed; Right Shift = full steer. S brakes, then reverses. At a standstill A / D pivot (M60) |
+| Space, Z, I, H | brake; low / high range; engine; hatch (head out / buttoned up; troops stand in the cargo hatch) |
+| V | the seat's view / chase (the mouse orbits; as gunner the turret lays on what the ring is on) |
+| mouse / arrows (Shift: fine) | gunner: lay the gun (the sight follows); commander: the .50 |
+| click / F, G, T, R | fire (main gun / .50), coax, lase, dump the computer |
+| Q | the loader's next round (SABOT, HEAT, HEP) |
+| O, N, U, B, E | day / thermal sight, TTS 3x / 8x, white / black hot, stabiliser, look up from the sight |
+| R, N, B (M113) | ramp, trim vane, bilge pumps (raise the vane and run the pumps before you swim) |
+| X | extinguisher (engine fire) |
+
+Gamepad: left stick steers, RT / LT drive / brake-reverse, right stick lays the turret, RB fire, LB coax, X lase, Y sight. HOTAS: pedals steer, the throttle lever drives, the stick is the gunner's power control handle, trigger / pickle fire / coax.
 
 Wounds: enemy rounds, flak, blasts and lasers hit body parts (MEDINV's wound model behind the M1 helmet and M69 vest);
 bleeding drains blood volume through the shock classes (tunnel vision, grey, unconsciousness). Treat yourself on the
@@ -248,6 +277,7 @@ Hercules scenes: `drop.json`, `dropflak.json`, `rescue.json` (the para-drop in t
 Huey scenes: `hueystart.json` (cold start), `hueyhover.json` (hover trim, forward flight), `hueyauto.json` (practice autorotation with power recovery), `hueycockpit.mjs`, `hueymodel.mjs` (screenshots).
 `node tools/tankbench.mjs` checks the M60A3 and M113A2 against published figures (speed, acceleration, gradient, side
 slope, step, trench, fording, swimming, turning, turret rates, stabiliser), every number tagged with its source.
+Armour in the game: `node tools/armorgamebench.mjs` (the AI driver, the island environment, riding a moving deck, trees pushed over) and `scenes/armorgame.mjs` (into the M60 at the hatch, road / off-road / hill, day and thermal sights hitting a RUNAWAY building, RUNAWAY fire into the armour, the M113 on the moving carrier deck and swimming off the landing hard, the LCM-8 delivery).
 Armour scenes: `tankmodel.mjs` (exterior; `VEH=m113` for the APC), `tankinterior.mjs` (crew stations, sight pictures),
 `tankdrive.mjs` (the obstacle lanes, a first-round hit at 1000 m), `tankm113.mjs` (ramp, troops, swimming),
 `tankaudio.mjs` (the synthesised sound, rendered offline).
@@ -258,7 +288,9 @@ free); arrows or mouse lay the gun, Space fires, F coax, T lase, G dump, 1 2 3 S
 thermal sight, [ ] TTS 3x / 8x, U white / black hot, E (gunner) look up from the sight, K searchlight, M or Space in
 the cupola fires the .50, H hatches; M113: R ramp, Y trim vane, J bilge pumps.
 
-**RUNAWAY ground forces (NGC-1980, not in the game yet).** The enemy's land army as standalone sims and models in
+**The ground war** (`game/js/units/groundwar/`): `node tools/groundwarbench.mjs` (33 checks: the Marine's paces, stances, wounds and hit volume; the M1A2 / T-90M on trackfm against their published speeds; road routes; whole fights of 13 Marines against 8 STRIDERs with and without a helicopter overhead; the cost of a far battle; `node tools/groundwarbench.mjs fight 3 [heli]` prints one fight in detail). Scenes `groundwar.mjs` (an Osprey lands STRIDERs who take SANDBAR, the Huey's guns thin them, a Sea Knight's Marines take it back, an RW-7 and an LCAC with an M1A2 come ashore) and `groundaisim.json` (twenty minutes of the war fast-forwarded, the ground forces counted).
+
+**RUNAWAY ground forces (NGC-1980; in the game through the ground war).** The enemy's land army as standalone sims and models in
 `game/js/units/runaway/`: the RW-1 STRIDER (a balancing biped that stumbles when hit, falls and gets back up), the
 RW-7 hover tank (fan-fed air cushion, drifts), seized M1A2 SEPv3 and T-90M tanks, and a squad AI (cover, bounds,
 flanking, suppression, retreat, combined arms). Try them in the sandbox `game/dev/runaway.html` (keys 1-6 pick a

@@ -14,6 +14,11 @@ import { createSquad, padSlots } from './squad.js';
 import { attitude } from './rb.js';
 import { stateOf } from './pilot.js';
 import { createRotorSound } from './rotorsound.js';
+import { smokeBlocks, rwrAdd } from '../../defence/cm.js';   // ngc/cmpolish: smoke hides targets; WASPs on the radar warning picture
+// ngc/cmpolish WASP balance (game values; scenes/waspbalance.mjs): 6 hp and a 2.2 m hit sphere (were the saucer's 3 and 2.8 m: the ALBATROSS's guns
+// killed them before they fired), aim error that grows with range (was a flat 0.025 rad: every pulse hit a hovering
+// Huey at 100 m), about a third of the hunters lie in ambush (was half)
+export const WASP_TUNE = { hp: 6, r: 2.2, aim: 0.03, aimPerM: 0.0006, ambush: 0.35 };   // live: war.rotary.waspTune (the balance scene sweeps it)
 
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
 const _v = new THREE.Vector3(), _att = {};
@@ -76,7 +81,7 @@ export function createRotary(ctx) {
   };
   function makeCH46(side, extra) {
     const sp = freeSpot('ch46', side), start = sp ? { x: sp.x, y: sp.y, z: sp.z, yaw: sp.hdg } : { ...homePad(side), yaw: 0 };
-    const I = extra.target, lz = chooseLZ(I, CH46_FOOT);
+    const I = extra.target, lz = (R.ground && R.ground.hotLZ(I, side, CH46_FOOT, chooseLZ)) || chooseLZ(I, CH46_FOOT);   // GROUND WAR hook: a hot island: land away from the fighting
     const u = { type: 'drone', kind: 'ch46', side, p: new THREE.Vector3(start.x, start.y + 2, start.z), v: new THREE.Vector3(), yaw: start.yaw, hp: 10, hpMax: 10, r: 7, cd: 0, ph: 0, state: 'go', landed: false, ...extra };
     const spot = sp ? [sp.lx, sp.lz] : null;
     const home = () => { const c = carrierOf(side); return c && spot ? deckSpot(c, spot[0], spot[1]) : homePad(side); };
@@ -85,7 +90,7 @@ export function createRotary(ctx) {
     u.lz = lz; u.rot = U; u.mesh = U.model.group;
     // the Marines become a ground unit of their own when they come off the ramp
     const unload = U.AI.hooks.unload;
-    U.AI.hooks.unload = (ai, dt) => { const done = unload(ai, dt); if (U.deployed && !u.squadUnit) { u.squadUnit = addSquad(U.squad, side, u.target, 9); U.squadExternal = true; } return done; };
+    U.AI.hooks.unload = (ai, dt) => { const done = unload(ai, dt); if (U.deployed && !u.squadUnit) { u.squadUnit = R.ground ? R.ground.landing(u, U, side, u.target) : addSquad(U.squad, side, u.target, 9);   /* GROUND WAR hook: the Marines fight as a squad */ U.squadExternal = true; } return done; };
     return u;
   }
   // RUNAWAY MV-22 with 12 machine troopers: off the KRAKEN (or IRONHOLD's pad), takes islands for the enemy commander
@@ -94,21 +99,21 @@ export function createRotary(ctx) {
     const u = { type: 'transport', kind: 'mv22', side, p: new THREE.Vector3(start.x, start.y + 2, start.z), v: new THREE.Vector3(), yaw: start.yaw, hp: 12, hpMax: 12, r: 7.5, cd: 0, ph: 0, state: 'go', landed: false, ...extra };
     const spot = sp ? [sp.lx, sp.lz] : null;
     const home = () => { const c = carrierOf(side); return c && spot ? deckSpot(c, spot[0], spot[1]) : homePad(side); };
-    u.lz = chooseLZ(u.target, MV22_FOOT);
+    u.lz = (R.ground && R.ground.hotLZ(u.target, side, MV22_FOOT, chooseLZ)) || chooseLZ(u.target, MV22_FOOT);   // GROUND WAR hook
     const U = createMV22Unit({ parent: scene, env, world, lz: () => u.lz, home, pad: u.target.pad, start, squad: 12,
       onParked: () => { u.dead = true; u.stowed = true; if (!U.squadExternal) U.squad.dispose(); } });
     u.rot = U; u.mesh = U.model.group;
     const unload = U.AI.hooks.unload;
-    U.AI.hooks.unload = (ai, dt) => { const done = unload(ai, dt); if (U.deployed && !u.squadUnit) { u.squadUnit = addSquad(U.squad, side, u.target, 10); U.squadExternal = true; } return done; };
+    U.AI.hooks.unload = (ai, dt) => { const done = unload(ai, dt); if (U.deployed && !u.squadUnit) { u.squadUnit = R.ground ? R.ground.landing(u, U, side, u.target) : addSquad(U.squad, side, u.target, 10);   /* GROUND WAR hook: the troopers come off the ramp as STRIDERs */ U.squadExternal = true; } return done; };
     return u;
   }
   // RW-3 WASP (replaces the saucer gunship): war.js's spawnGunship sets id / home / raid / target after this returns
-  const world2 = { ...world, los(ax, ay, az, bx, by, bz) { const d = Math.hypot(bx - ax, bz - az), n = Math.ceil(d / 8); for (let i = 1; i < n; i++) { const k = i / n; if (groundY(ax + (bx - ax) * k, az + (bz - az) * k) > ay + (by - ay) * k) return false; } return true; } };
+  const world2 = { ...world, los(ax, ay, az, bx, by, bz) { const d = Math.hypot(bx - ax, bz - az), n = Math.ceil(d / 8); for (let i = 1; i < n; i++) { const k = i / n; if (groundY(ax + (bx - ax) * k, az + (bz - az) * k) > ay + (by - ay) * k) return false; } return !smokeBlocks(ax, ay, az, bx, by, bz); } };   // CM: smoke too
   function makeWasp(side, x, y, z, extra) {
-    const u = { type: 'gunship', kind: 'wasp', side, p: new THREE.Vector3(x, y, z), v: new THREE.Vector3(), yaw: rnd(6.283), hp: 3, hpMax: 3, r: 2.8, cd: 0, ph: rnd(6.28), state: 'go', ...extra };
+    const u = { type: 'gunship', kind: 'wasp', side, p: new THREE.Vector3(x, y, z), v: new THREE.Vector3(), yaw: rnd(6.283), hp: WASP_TUNE.hp, hpMax: WASP_TUNE.hp, r: WASP_TUNE.r, cd: 0, ph: rnd(6.28), state: 'go', ...extra };
     const U = createWaspUnit({ parent: scene, env, world: world2, start: { x, y, z, yaw: u.yaw }, home: [x, z], id: Math.random(), speed: 90,
       fire: (p, d, U) => {   // game level: the war's rounds, cyan, a little spread
-        const e = 0.025; const b = ctx.shoot('b', side, p.x, p.y, p.z, (d.x + rnd(-e, e)) * 90, (d.y + rnd(-e, e)) * 90, (d.z + rnd(-e, e)) * 90, 2.2); b.col = [0.55, 0.95, 1];
+        const T = U.target, e = WASP_TUNE.aim + WASP_TUNE.aimPerM * (T ? Math.hypot(T.x - p.x, T.y - p.y, T.z - p.z) : 60); const b = ctx.shoot('b', side, p.x, p.y, p.z, (d.x + rnd(-e, e)) * 90, (d.y + rnd(-e, e)) * 90, (d.z + rnd(-e, e)) * 90, 2.2); b.col = [0.55, 0.95, 1];
         fx.add.spawn(p.x, p.y, p.z, 0, 0, 0, 0.08, 1.6, 1.2, 0.6, 0.95, 1, 1);
         if (ctx.hear(p.x, p.y, p.z, 260) > 0) ctx.sfx.blip?.(1800, 2600, 0.07, 'sawtooth', 0.04 * ctx.hear(p.x, p.y, p.z, 260));
       } });
@@ -136,7 +141,7 @@ export function createRotary(ctx) {
   function updateTransport(u, U, dt) {
     const S = U.S, I = u.target;
     // mission changes: target taken by us already before the Marines got there -> home with them aboard
-    if (!u.dying && I && I.owner === u.side && !U.deployed && !['rtb', 'descend2', 'parked'].includes(U.AI.phase)) {
+    if (!u.dying && I && I.owner === u.side && !u.reinforce && !U.deployed && !['rtb', 'descend2', 'parked'].includes(U.AI.phase)) {
       // the enemy commander re-tasks its Osprey to the next island; ours bring the Marines home
       const next = u.side === 2 && W.pickExpansion ? W.pickExpansion() : null;
       if (next && !next.cave) { u.target = next; u.lz = chooseLZ(next, MV22_FOOT); U.setPad && U.setPad(next.pad); if (['ground', 'descend'].includes(U.AI.phase)) U.AI.set('lift2'); else U.AI.set('transit'); }
@@ -216,7 +221,9 @@ export function createRotary(ctx) {
       if (u.retarget <= 0) {
         u.retarget = 1;
         const pd = pl.alive && !pl.inCave ? pl.pos.distanceTo(u.p) : 1e9;
-        if (pd < (u.target === 'player' ? 260 : 170)) u.target = 'player'; else if (u.target === 'player') u.target = null;
+        // ngc/cmpolish: an ambusher (WASP_TUNE.ambush of them) picks the player up further out when he is flying its way
+        const ambusher = (u.id || 0) > 6.283 * (1 - WASP_TUNE.ambush), closing0 = pd < 1e8 ? -((pl.pos.x - u.p.x) * pl.vel.x + (pl.pos.z - u.p.z) * pl.vel.z) / Math.max(1, pd) : 0;
+        if (pd < (u.target === 'player' ? 260 : 170) || (ambusher && pd < 320 && (closing0 > 4 || u.ambush))) u.target = 'player'; else if (u.target === 'player') u.target = null;
         if (u.target && u.target !== 'player' && (u.target.dead || u.target.gone || (u.target.side !== undefined && u.target.side === u.side))) u.target = null;
         if (!u.target) {
           let best = null, bd = 160;
@@ -227,14 +234,16 @@ export function createRotary(ctx) {
         const mates = W.units.filter(o => o.kind === 'wasp' && !o.dead && !o.dying && o.target === u.target && u.target);
         U.AI.o.slot = Math.max(0, mates.indexOf(u)); U.AI.o.slots = Math.max(1, mates.length); U.AI.o.home = u.home || U.AI.o.home;
         // some lie in wait instead of charging - when the player is coming their way
-        const closing = u.target === 'player' ? -((pl.pos.x - u.p.x) * pl.vel.x + (pl.pos.z - u.p.z) * pl.vel.z) / Math.max(1, pd) : 0;
-        u.ambush = u.target === 'player' && pd > 130 && closing > 4 && (u.id || 0) > 3.2;
+        u.ambush = u.target === 'player' && ambusher && pd > 120 && (closing0 > 4 || (u.ambush && closing0 > -2));   // lie in wait while he keeps coming
       }
       let tgt = null;
       if (u.target === 'player') { _tg.x = pl.pos.x; _tg.y = pl.pos.y; _tg.z = pl.pos.z; _tg.vx = pl.vel.x; _tg.vy = pl.vel.y; _tg.vz = pl.vel.z; tgt = _tg; }
       else if (u.target && u.target.p) { const t = u.target.p, v = u.target.v || t; _tg.x = t.x; _tg.y = t.y; _tg.z = t.z; _tg.vx = v === t ? 0 : v.x; _tg.vy = v === t ? 0 : v.y; _tg.vz = v === t ? 0 : v.z; tgt = _tg; }
       else if (u.target) { const s = u.target; _tg.x = s.x; _tg.y = s.y + (s.h || 2); _tg.z = s.z; _tg.vx = _tg.vy = _tg.vz = 0; tgt = _tg; }
       const others = W.units.filter(o => o.kind === 'wasp' && o !== u && !o.dead && o.p.distanceToSquared(u.p) < 900).map(o => ({ x: o.p.x, y: o.p.y, z: o.p.z, vx: o.v.x, vy: o.v.y, vz: o.v.z }));
+      if (u.target === 'player' && pl.alive && !pl.inCave) {   // CM: its sensor on the player shows on the radar warning picture (with line of sight)
+        const d = pl.pos.distanceTo(u.p); if (d < 260 && world2.los(u.p.x, u.p.y, u.p.z, pl.pos.x, pl.pos.y + 1, pl.pos.z)) rwrAdd('W', Math.atan2(u.p.x - pl.pos.x, -(u.p.z - pl.pos.z)), d, Math.max(0, 1 - d / 260), d < 130, U.firing > 0);
+      }
       U.update(dt, W.time, tgt, { reach: 110, ambush: u.ambush, peace: peace || (u.target === 'player' && !pl.alive), others, burstGap: Math.max(1.0, 2.4 - W.time / 400) });
     }
     const b = U.S.body; u.p.set(b.pos[0], b.pos[1], b.pos[2]); u.v.set(b.vel[0], b.vel[1], b.vel[2]); attitude(b.q, _att); u.yaw = _att.yaw;
@@ -299,6 +308,6 @@ export function createRotary(ctx) {
   };
   R.reset = () => { for (const s of R.squads) s.Q.dispose(); R.squads.length = 0; };
   R.snd = snd;
-  R.chooseLZ = chooseLZ; R.env = env; R.root = root;
+  R.chooseLZ = chooseLZ; R.env = env; R.root = root; R.FOOT = { ch46: CH46_FOOT, mv22: MV22_FOOT }; R.waspTune = WASP_TUNE;   // (FOOT: the GROUND WAR's hot-LZ choice)
   return R;
 }

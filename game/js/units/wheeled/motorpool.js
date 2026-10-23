@@ -124,7 +124,7 @@ export function createMotorPool(o) {
     parked.clear(); taken.clear(); guns.clear(); if (delivery) delivery.clear();
     for (const I of ISLANDS) I._wheeled = false;
     for (const I of ISLANDS) if (I.owner === 1 && I.pad) stockIsland(I);
-    const d0 = GR.deckSpot(0), d2 = GR.deckSpot(2);
+    const d0 = GR.deckSpot(0), d2 = GR.deckSpot(1);   // (deck park 3 is the armour's M113)
     if (d0) spawn('m151', d0, { home: 'deck' }); if (d2) spawn('m35', d2, { home: 'deck' });
   }
   // ---------------------------------------------------------------- deliveries (key 7 / 9): the delivery module flies / ships it in
@@ -133,7 +133,7 @@ export function createMotorPool(o) {
     if (G.mat < cost) { say(`AN ${T.label} NEEDS ${cost} MATERIEL`, 1.6); return null; }
     let I = o.selIsl && o.selIsl() && o.selIsl().owner === 1 ? o.selIsl() : null;
     if (!I) { const Z = o.Z; let bd = 1e9; for (const J of ISLANDS) if (J.owner === 1 && J.pad) { const d = Math.hypot(J.pad.x - Z.pos.x, J.pad.z - Z.pos.z); if (d < bd) { bd = d; I = J; } } }
-    const sp = (I && GR.motorPool(I, type === 'm35' ? 3.6 : 2.4)) || GR.deckSpot(1);
+    const sp = (I && GR.motorPool(I, type === 'm35' ? 3.6 : 2.4)) || null;
     if (!sp) { say('NOWHERE TO PUT A VEHICLE', 1.6); return null; }
     G.mat -= cost;
     if (delivery && I) return delivery.order(type, I, sp);   // a CH-46 slings the jeep in, an LCM-8 lands the truck (delivery.js)
