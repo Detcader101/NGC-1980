@@ -1414,3 +1414,45 @@ The AI escorts' Tomcat (units/air/tomcatfm.js on the parametric airframe) as a p
 - **Untested**: real HOTAS hardware (sweep buttons, hat trim); sound by ear (headless is muted); long sessions of
   combat against SHRIKEs in the player's Tomcat; the sky carrier with a Tomcat on deck; flat spins after an asymmetric
   flame-out are possible in the sim but not exercised.
+## 2026-10-23 — NGC-1980 wheeled vehicles (M151A2, M35A2, Land Rover 109, Hilux, Beetle, Lada 2101)
+Branch ngc/wheeled. Files: game/js/units/wheeled/ (tyre.js, vehiclefm.js, driver.js, vehicledamage.js, m151.js, m35.js,
+civilian.js, index.js, modelkit.js, m151model.js, m35model.js, civmodel.js, interior.js, wheeledaudio.js), dev test
+ground game/dev/vehicle.html + vehicle.js + vehicle-ground.js, tools/wheeledbench.mjs, scenes wheeledmodel / wheeledcockpit
+/ wheeleddrive / wheeledaudio. Not wired into main.js: FOUNDATION hooks it up (createWheeled, makeTerrainEnv).
+Sources: TM 9-2320-218-10 (M151A2), TM 9-2320-209-10 (M35A2), AMG / Jane's tables, period road tests and factory data for
+the civilians. Every bench row carries CONFIRMED / INFERRED / UNVERIFIED.
+- Sim (pure, no THREE): Pacejka-style magic formula on normalised combined slip with transient deflection states,
+  camber, load sensitivity, sliding-speed friction decay, sinkage and soil bulldozing, lateral plough (tripped rollovers);
+  9 SURFACES. Quarter car per wheel (unsprung mass, strut state, compliant tyre), sprung body about its own CG, roll-centre
+  jacking, camber / toe gain, ARBs, the M35's walking bogie. Drivetrain solved exactly as an LCP (clutch, gearbox,
+  transfer high/low, part-time / sprag / full front drive, open or locked diffs, brakes, rolling resistance, park brake
+  as friction rows). Engine: torque curve, idle control, governor, starter, stall, enrichment fuel use, drowned ignition,
+  hydrolock; coolant, oil, battery, air brakes; fording, buoyancy, hull contacts, env.collide spheres, aero.
+- Driver: auto (clutch launch controller, gears by road speed with 0.4 s up-shift hold, wheelspin feathering, hill
+  start, arcade reverse = brake held at a stop), semi, manual. AI: aiInput (pure pursuit), createFollower (road traffic
+  with bend / gap / end speed limits), createUnstick (stuck → back off 2 s → rush it again).
+- Damage: rifle / hmg / cannon / frag hits and blasts on tyres (puncture, blowout, flat), engine, oil, coolant, fuel
+  (leak → fire → wreck), battery, crew seats; events for the game layer. Wrecks seize (brakes on, engine locked).
+- Bench: node tools/wheeledbench.mjs, 65/65. Selected rows:
+  | item | model | reference |
+  |---|---|---|
+  | top speed M151 / M35 / Beetle / Lada | 106.6 / 85.4 / 116.9 / 146.2 km/h | 106 / 90 / 115 / 142 (TM, factory) |
+  | gradeability M151 / M35 loaded | 60% climbed / 60% in 1L | TM 60% both CONFIRMED |
+  | fording / with kit | M151 0.53 / 1.45 m; M35 0.76 / 1.74 m; drowns above intake | TM 21 / 60 in; 30 / 72 in |
+  | M151 SSF / tilt table / roll gradient | 1.12 / 41° / 6.5°/g | ~1.1 class; < atan(SSF); 4-7°/g |
+  | turning circle M151 / M35 / LR | 11.1 / 23.4 / 15.0 m | 10.9 / 21.9 / 14.3 m |
+  | M151 stop 32 / 80 km/h | 6.8 m / 45.6 m | MIL service-brake class |
+  | fuel M151 55 km/h / M35 50 km/h | 9.2 / 20.4 l/100 km (steady) | 13.3 / 34 mixed-use (range CONFIRMED) |
+  | tuck-in (lift + brake in a turn) | curvature +23% | the M151's known lift-off oversteer |
+  | trip order (sideways slide onto soil) | LR, M35 15 < Hilux 20 < M151 35 < Beetle, Lada 38 km/h | SSF order |
+- Gotchas: (1) bump-stop impulses with a massless strut launched cars off steps → quarter car with a compliant tyre.
+  (2) explicit gyroscopic term gained energy → integrate angular momentum. (3) a tyre probe crossing a sheer heightfield
+  face (a kerb as a cliff) found 10 cm of penetration in one step and fired 3-5 g kicks, and against a face the whole
+  vehicle mass sits behind the tyre spring so it bounced back elastically → tyre closure rate-limited by wheel speed,
+  hysteresis on steep-normal contacts (FOUNDATION: terrain with real cliffs needs env.collide, not just height).
+  (4) open diffs cross-axle: one spinning wheel per axle stops a 6x6; the AI now backs off and retries. (5) the dev
+  page runs fixed 60 Hz steps (15 per frame max) so slow SwiftShader frames don't change the physics. (6) SwiftShader
+  depth-fights long thin triangles: models are built from short segments. (7) winding a Land Rover to full lock at
+  35 km/h rolls it (0.9 g demand vs SSF ~0.85) — correct, the scenes steer gently.
+- Scenes (one browser at a time): wheeledmodel 6/6, wheeledcockpit 12/12, wheeleddrive 7/7, wheeledaudio 10/10,
+  smoke 5/5. Perf: near LOD ~0.3 ms per vehicle per 60 Hz frame, far LOD ~0.09 ms.
