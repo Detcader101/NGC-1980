@@ -1622,3 +1622,81 @@ and the chase-view cue), units/defence/brain.js (hooks), units/air/jumper.js (fi
   every stick: bind them in J); the flare / chaff numbers in a long real fight (only the scene's single engagements);
   WASPs' ambush on a real player (fast-forwarded only); performance with many plumes (each is a handful of spheres and
   ~14 puffs / s).
+
+## 2026-10-23 — NGC-1980 wave 2: the M60A3 TTS and M113A2 in the game (branch ngc/armorgame)
+Files (new, game/js/units/armor/): armorcraft.js (the craft adapter), armorworld.js (the trackfm environment on the real
+islands, pure), armordriver.js (an AI driver, pure), armorgunnery.js (rounds through war.js), armorsight.js (sight
+overlay + thermal render of the game scene), armordelivery.js + lcm8.js (the LCM-8 landing craft: model, sound, run-in,
+ramp, unloading), landinghard.js (landing hards, pure); tools/armorgamebench.mjs (20 checks), tools/scenes/armorgame.mjs
+(+ armorprobe.mjs, a scratch probe). Shared files: main.js only (blocks marked ARMOUR); vehicle.js, ground.js, war.js
+untouched (war.js's exported hitTest / damage / blast carry the gunnery).
+
+- **Crafts.** `createArmorCraft(ctx, 'm60' | 'm113')` on the FOUNDATION craft interface - richer than createVehicleCraft
+  because the tank sims are 6-DOF with turret, stations and component damage. Seats with doors at the hull sides (walk up,
+  Y): M60 driver / gunner / commander / loader; M113 driver / commander (.50) / 11 troop seats (by the ramp). Eyes from
+  tankinterior.js (driver periscopes with the live panel, the gunner's station, the M19 cupola, the M113 driver and
+  troop compartment); H opens the seat's hatch for the head-out eye (loader and the M113 commander start head out; the
+  troops stand in the cargo hatch). The gunner's M35E1 day (8x) and TTS (3x / 8x, WH / BH) sights are full-screen
+  views: the reticle overlay sits just above the WebGL canvas (under the HUD); the TTS re-renders the whole game scene
+  with heat materials (terrain through its own heat shader: cool sea, sun-warmed slopes; RUNAWAY machines hot) and the
+  green-phosphor post pass, through a new craft hook `renderView` in main.js's frame. V: chase view; as gunner the
+  turret lays on what the camera ring is on (a reticle shows where the gun is laid and its range).
+- **Controls.** From every seat W / S / A / D are orders to the driver (the crew drives; in the driver seat you drive):
+  steering narrowed with speed (Right Shift: full), S brakes then reverses, steering at a standstill pivots (M60) /
+  creeps round (M113), the park brake sets itself, Z low range. The mouse lays the gun as a position target turned into
+  power-control-handle rates (the inverse of the handle's ^1.6 shaping, so small corrections still drive) and holds in
+  space with the stabiliser. Gamepad: left stick / RT / LT drive, right stick lays, RB / LB / X / Y fire / coax / lase /
+  sight. HOTAS (CTL): pedals steer, throttle lever drives, the stick is the gunner's handle, trigger / pickle fire.
+- **The world (armorworld.js).** Terrain sampled on a 2 m lattice in a direct-mapped cache and interpolated with a
+  Catmull-Rom bicubic: slope-continuous (trackfm reads a 5 cm second difference as an edge) and 16 table reads a height
+  (the bench: within 0.0 cm of terrainH on smooth ground, no false edges). Ship decks (war.deckY) and the host's own
+  platforms (the LCM) win where higher; bridge decks from WORLD's roadAt().y near bridges; surfaces: decks, pads, hards
+  and tarmac paved, dirt roads dirt, beaches / sea bed sand, steep or high ground rock, wet hollows mud, grass / dirt
+  patches; water at sea level except over decks and inside a landing craft. Obstacles: trees (they give way: the M60
+  pushes over small ones - laid down in the instanced mesh), village houses (boxes from WORLD's zone items), island
+  buildings and AA sites, the cave shafts, every craft's footprint. The laser ranges terrain, decks, houses, crafts and
+  war targets. Deck riding: platform.js carry / settle on the hull origin (position, heading and velocity turn with the
+  deck) - bench: parked on a deck that sails 6 m/s and turns 45 degrees for 30 s, 0.0 cm slip.
+- **Weapons (game level).** Shot events fly on armorballistics (≤ 3 m sub-steps) and hit through war.hitTest /
+  war.damage / war.blast: SABOT 10 (+1.5 blast), HEAT 8 (+5 in 5 m), HEP 6 (+9 in 7 m), .50 1.0, 7.62 0.45 war units (an AA
+  site has 7 hp, an HQ 30). Muzzle flash, smoke and the blast's dust ring, tracers through fx.js, ArmorAudio on the game's
+  audio bus (sfx.ctx / master: engines by distance, the gun, impacts with sound delay).
+- **RUNAWAY fire into the sim.** hurt(amount, why, at, dir) becomes a ray in the hull frame into V.hit: a cannon round
+  (23 mm KE, pen 40: perforates the M113, scars the M60), a missile (HEAT 420), a shell's blast (HEP 55 from above), flak
+  fragments. Component knock-outs, crew wounds (the player's own position goes to the soldier's medical system, killed =
+  a crew lost), fires (Halon, X extinguisher), cook-off; catastrophic kills make a scorched, burning wreck (turret lifted)
+  and the crew bails out. Small arms and splinters can find the man with his head out of a hatch.
+- **Getting armour to the islands.** New war: the M60A3 at the top of the home island hard, the M113A2 on the ALBATROSS forward
+  deck park. 8 / 9 (30 / 60 materiel): an LCM-8 (22.4 m, two 12V71s, 9 kn loaded; modelled with its well, wing walls,
+  armoured coxswain's station, exhausts, mast lights, tyre fenders, hull number, ramp with cleats; twin-diesel sound)
+  motors in from the amphibious group, grounds, drops its ramp onto the concrete, the crew drives the vehicle off and up
+  (the AI driver, gun in the travel position), the ramp comes up and the boat backs off, turns and leaves.
+  Landing hards: the archipelago's coasts are cliffs (a 0.7-2.6 rise per metre in the first 26 m inland round the whole
+  home island), so planHards cuts a 1-in-5 concrete ramp on each island where the cut / fill is least (45 degree slopes,
+  kept off the pads, the structures, the shipyard, the village and roads) and main.js folds it into terrainH (the
+  renderer, soldier, war and tanks all agree); concrete strip, kerbs, marker posts and a sign drawn on top. 10 of 17
+  islands get one (HOME, IRONHOLD, NORTH ROCK, SOUTH REEF, CITADEL, PELICAN, LOOKOUT, BEACON, FORGE, SANDBAR); an island
+  without one gets its armour at home. The hard is also where an M113 drives into the sea to swim.
+- **AI hook.** `createTrackDriver(V)` (armordriver.js, pure): goTo / follow (pure pursuit, yaw-rate steering loop,
+  speed for turn and stop, pivots when facing away, backs off and retries when stuck, gives up after 3) -> the same
+  inputs a player gives, so AI armour obeys the sim. On a craft: `def.order(points, { speed, arrive })`,
+  `def.driver.state`. Bench: M60 and M113 drive 200 m and stop within 2.2 m, turn to a target behind, run a 60 m square,
+  give up against a wall. For the RUNAWAY ground war's seized MBTs on trackfm: give them a createTrackDriver and an env
+  from AW.env(self) (prep each frame), carry / settle for decks.
+- **Gotchas.** The M60's diesel catches at 160 rpm and dies under 380: a starter released the frame it "ran" never
+  started a parked tank at 120 Hz - crank until it is past stall speed. The gun's dig-in rule (a quarter of the gun per
+  dig) fired on house walls and on the LCM's raised ramp: refunded when the muzzle is above the terrain. The first LCM
+  plan ramped a tank into a 52 degree bank (GR.beach checks the beach point, not the climb): hence the hards. Sed and
+  long node one-liners are refused by the worktree guard: scripted edits go through files.
+- **Untested.** Real HOTAS / gamepad on the tank (code paths only); parked / AI armour as war targets (only the player's
+  craft is targeted, as for every craft); the M113's squad dismounting into the war; soldiers walking onto an LCM (it is
+  not a GR deck); bridge decks (no bridges in the control zone); performance with several tanks fighting at once.
+- **Performance.** A tank asleep (parked, engine off, at rest) costs nothing; asleep on a deck it is carried kinematically
+  (held at its deck height); a driven tank runs trackfm at 240 Hz, an idle / AI one at 120 Hz; nothing past 900 m is drawn,
+  the running gear stays still past 250 m. Headless (SwiftShader, load ~30): sim 1.8 -> ~2.6 ms, render 3.4 -> 4.7 ms a
+  frame with the M113 parked on deck in view.
+- **Tests (2026-10-23).** node tools/armorgamebench.mjs 20/20; node tools/tankbench.mjs 72/72; scenes/armorgame.mjs 18/18
+  (runs/2026-10-23_14-19-53-armorgame); smoke 5/5, war 5/5 (failed 4/5 while the M113 kept simulating on the deck at
+  4 fps: the carrier moved 2.2 m instead of 3 in 5 s of wall time - fixed by sleeping on decks), vehicle 14/14 (failed 13/17
+  while the M60 and M113 were parked in the test car's path - moved), jettrap 7/7, world 4/4; foot.mjs 10/12 (the island
+  roof ladder top and the medical slot check; the experimental base scored 6/18 on the same machine - load-dependent).
