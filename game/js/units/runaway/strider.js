@@ -37,12 +37,12 @@ export const STRIDER = {
   G: 9.81,
   MASS: 150,                    // kg (INFERRED: thin ceramic / composite body, 2.15 m tall)
   I_TORSO: 14,                  // kg m^2 about the hip for hit spin (INFERRED)
-  H: 2.15,                      // m, standing height to the top of the sensor head
-  PELVIS_H: 1.1,                // m, nominal pelvis height over the ground
+  H: 2.2,                       // m, standing height to the top of the sensor head
+  PELVIS_H: 1.2,                // m, nominal pelvis height over the ground
   COM_UP: 0.2,                  // m, CoM above the pelvis (heavy torso: power cell + coil capacitors)
   HIP_HALF: 0.13,               // m, hip joints either side of the pelvis
-  THIGH: 0.58, SHIN: 0.62,      // m, hip -> knee -> hock
-  HOCK_UP: 0.26, HOCK_BACK: 0.15,   // m, the hock above / behind the toe pad (metatarsal ~0.30 m)
+  THIGH: 0.52, SHIN: 0.58,      // m, hip -> knee -> hock
+  HOCK_UP: 0.4, HOCK_BACK: 0.17,    // m, the hock above / behind the toe pad (a long metatarsal, ~0.43 m: the reverse knee)
   FOOT_L: 0.30, FOOT_W: 0.14,   // m, toe pad (the support polygon)
   FOOT_FWD: 0.04,               // m, pad centre ahead of the contact reference
   STEP_W: 0.26,                 // m, nominal lateral distance between the feet
@@ -597,7 +597,7 @@ export function createStrider(opt = {}) {
     const tp = S.aimPitch * 0.3; T.f = rot(T.f, T.l, -tp); T.u = rot(u, T.l, -tp);
     add3(P.chest, pel, T.u, 0.42);
     // head: on a short neck, gyro-stabilised in WORLD yaw/pitch while up
-    add3(P.head, P.chest, T.u, 0.36); add3(P.head, P.head, T.f, 0.03);
+    add3(P.head, P.chest, T.u, 0.31); add3(P.head, P.head, T.f, 0.02);
     P.headYaw = S.headYaw; P.headPitch = S.headPitch;
     // legs
     for (let i = 0; i < 2; i++) {
