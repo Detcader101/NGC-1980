@@ -1183,3 +1183,87 @@ worldprev.mjs, structprev.mjs, worldperf.mjs, worldjet.mjs.
   on the road graph; civilians react to explosions and impacts only (not aircraft overhead); no night lighting; the
   zone villages are small (the islands are steep and mostly base). A Huey NaN was seen once at the very start of a run
   at load average ~70, with and without the world (not reproduced).
+## 2026-10-23 — NGC-1980: the C-130H / KC-130R Hercules replaces the MULE 1 dropship (para-drop)
+Files: game/js/units/air/c130fm.js (flight model, pure), c130model.js (exterior), c130cockpit.js (flight deck),
+c130audio.js (sound), jumper.js (1980 paratrooper + MC1-1); drop.js rewritten for them; ships.js buildDropship /
+buildJumper now delegate (same contract plus rig / canopyAnim); tools/c130bench.mjs; game/dev/c130.html (+ c130.js),
+game/dev/c130-model.html; scenes c130.mjs, c130model.mjs. fixedwing.js is no longer used (kept, unreferenced).
+- Decision, markings: a USMC KC-130R of VMGR-352 (tail code QB), 1980 gloss light gull grey with a white top, MARINES,
+  star-and-bar, BuNo 160021 (a KC-130R-range number used for flavour, not checked against a real airframe), pylon tanks
+  and refuelling pods. The Marines' own Hercules flying a Marine stick fits the carrier task force and the bible's
+  Marine infantry; the KC-130R is a C-130H airframe, so the C-130H data applies (it has T56-A-16s, same rating).
+- World scale (as the Hornet): air at 4x sea-level density, so forces, g and IAS are real and true speeds half
+  (K_EQ = 2). The props, the slipstream and the rotary damping run in the real-equivalent frame (real density
+  1.225 sigma, real TAS 2x world), so blade angles, prop thrust, roll rate and short-period damping match the real
+  aeroplane at the same IAS. Heights are not scaled: a climb gradient is real, so a world vertical speed is half the
+  real one; ground-run distances are a quarter (same forces, half the speed), the airborne part of a take-off is not
+  scaled. The bench converts all of this; the cockpit instruments show the world (IAS real, VSI and altimeter honest).
+- Flight model: 6DOF rigid body, C-130 mass / inertia (Roskam radii), lift curve with soft stall, flaps raising CL0
+  and CLmax, slipstream lift from the thrust coefficient (blown wing: power-on stall ~6 % lower, a dead engine rolls the
+  aeroplane towards it), drag polar + flaps / gear / ramp / para doors, stability derivatives that fade past the stall
+  (buffet, nose drop, a wing drop of ~10-20 deg), tricycle gear with tandem mains, tiller, anti-skid brakes, hull points.
+- Engines and props: each a shaft (J 260 kg m2) between T56 torque and the prop's blade-element torque (3 stations,
+  momentum inflow by bisection, tip loss, helical-Mach drag rise). ALPHA range: fuel from the lever, the governor holds
+  100 % by blade angle (with throttle anticipation), low pitch stop 23 deg; BETA range (ground): blade angle from the
+  lever down to -6.5 deg reverse, the fuel governor holds rpm; flight idle gate in the air. Condition levers RUN /
+  GND STOP / AIR START / FEATHER, feathering 92.5 deg, NTS (coarsens a prop driving its dead engine past -1,260 in-lb),
+  autofeather, air starts and ground starts, TIT, torque (in-lb), fuel flow. Overtorque is possible (lever full forward
+  at sea level reads ~21,000 in-lb, as on the real aircraft; the autopilot and the crew stay under 19,000).
+- Autopilot: heading by bank, height by pitch on a vertical-speed loop with auto-trim, speed by the four levers
+  (torque-limited), FLC climbs, rudder for sideslip and engine out; it keeps under the flap and para door limits.
+- tools/c130bench.mjs: 38 checks, all pass. Highlights vs published (CONFIRMED unless noted): max speed 318 KTAS at
+  20,000 ft (320, Wikipedia spec box); cruise at TIT 1010 C 295 KTAS (292); climb 1,676 fpm at 155,000 lb climb power
+  (1,830); Vs clean 155,000 lb 116 KIAS (~115 INFERRED from the ops card: 180 KIAS = power-off stall + 65); Vs 100 %
+  flaps 122,000 lb 87 KIAS (81-88 INFERRED from the 105 KIAS landing speed); Vs 50 % 96 KIAS (UNVERIFIED); take-off run
+  3,260 ft at 155,000 lb (3,586); to 50 ft ~4,000 ft (~5,160 Jane's, from memory: UNVERIFIED); 130 KIAS drop run with
+  50 % flaps trims at +1 deg AoA, ~5,400 in-lb; governor holds 98-102 % through a slam; NTS, feathering in ~4 s,
+  three-engine flight, Vmca ~88 KIAS (UNVERIFIED), air start, static thrust 65 kN at 19,600 in-lb (INFERRED),
+  reverse, roll 30 deg in 2.2 s at 130 KIAS (MIL-F-8785C class III guide, UNVERIFIED), landing roll ~800 ft with max
+  reverse + max braking (short: UNVERIFIED). Sources: Wikipedia C-130H spec box (USAF fact sheet, Frawley, Donald, Eden),
+  baseops.net C-130H ops limits card (T.O. 1C-130H-1: torque, TIT, rpm, blade angles, airspeed limits, quadrant
+  angles, weights), FM 3-21.38 (130-135 KIAS personnel drops), Lockheed Service News v26n3 (54H60).
+- Model: real span / length / height (scene asserts them), deep T56 nacelles, props that spin with blade angle and
+  feather, blur discs with the yellow tip ring, Fowler flaps (aft + down), ailerons, elevators, rudder, tandem mains
+  that retract straight up into the sponsons, steerable nose gear, ramp and upper cargo door lofted from the hole they
+  fill, plug para doors that slide up inside, air deflectors and jump platforms, jump lights, the hold (red troop
+  seats), crew in the windows. Wear in vertex colours (no textures): faded / touched-up panels, exhaust soot over the
+  wing behind each nacelle, grimy belly, oil streaks.
+- Flight deck: pilot / copilot flight instruments (ASI, ADI, altimeter, radar altimeter, HSI with a DZ course arrow
+  and DME, VSI, turn and slip, clock, g meter), the centre engine stack (TORQUE / TIT / RPM / FUEL FLOW x4), flaps, fuel,
+  hydraulics, glare shield master caution + 12 caution lights + jump light repeaters + AP; pedestal with the four power
+  levers (flight idle gate), flap lever, trim wheel and tab indicator, autopilot; overhead condition levers, fire
+  T-handles, starts, autofeather; a paratroop panel left of the pilot (jump lights OFF / RED / GREEN, alarm bell,
+  para doors, ramp: in reality the loadmaster works doors and ramp - a game liberty). Yokes and pedals move; copilot
+  and flight engineer in their seats. Clickable like the Huey / Hornet (hit boxes, yellow hover frame, label in the
+  hint line); drop.js listens itself (capture-phase mousedown), no main.js change.
+- The drop: entry 1.4 km out at 150 KIAS / ~750 ft on a jump run: a straight line through the release point (CARP,
+  where an unsteered jumper leaving at 130 KIAS lands on the helicopter, throw + drift computed like the predictor),
+  flown with a line-following autopilot (crabbing into the wind); the crew drops 50 % flaps, slows to 130 KIAS and
+  descends to ~550 ft AGL; red light inside 1 km (the loadmaster opens both para doors, a man stands in each), green
+  when the predicted landing point comes abeam the helicopter within 90 m (they steer the rest); jumps only above
+  400 ft and below 150 KIAS. An overshoot without the stick out flies a go-around: out past the start of the run,
+  480 m to the side, so the 180 deg turn rolls out on the line.
+  F (or the switch) turns the green on; the jumpmaster sends them alternately from the two doors, 0.6 s apart. Wind 1.5-4.5 m/s (inside the 13 kt training limit). Static line: canopy out
+  at ~2 s, open at 3.5 s; MC1-1 drive 4.1 m/s, descent 5.5 m/s, 360 in 9 s (real air for the canopies: the 4x density
+  is a trick for the aeroplanes), S = rear-riser slip, a hands-off jumper turns into the wind under 30 m; landing faster
+  than 7 m/s over the ground is a hard landing. Flak hits damage engines (fire: pull the handle; the crew feathers a
+  dead engine on autopilot).
+- Sound: four props' blade-passage tone (68 Hz at 100 %) with harmonics growing with torque, detuned a hair so they
+  beat (the Herc throb), T56 whine and howl, exhaust roar, wind; muffled on the flight deck, distance / air absorption
+  and Doppler outside; gains fall to zero by themselves when update() stops (pause).
+- Gotchas: a raycast for cockpit hover must update the camera matrix first (the aeroplane moves ~0.8 m a frame, the
+  switches are 0.9 m away); vertex-colour materials on meshes without a color attribute render black; the BETA fuel
+  governor needs to go to zero power or ground idle overspeeds; the overhead panel's text "up" must point aft (you read
+  it with your head tipped back); a ramp that rotates the wrong way hides inside the hold; the first prop iteration
+  (fixed-point inflow) found a different branch at static, bisection fixed it; flaps out at 195 KIAS when the crew
+  extended them before the autopilot slowed down (the AP now respects the flap / door limits).
+- Tests (headless, all pass on the last runs): node tools/c130bench.mjs 38/38; scenes drop.json 5/5, dropflak.json,
+  rescue.json, smoke.json 5/5, c130.mjs 5/5 (deck views, hover + real mouse click on condition lever 1 -> feathered,
+  autopilot height hold, drop-run autopilot red -> green, take-off), c130model.mjs (dimensions, wheel line).
+  drop.json's manual-flight check and rescue.json were flaky on the way (an autopilot weaving on the line, a red light
+  while still turning in, the helicopter's trimmed stick read as input): fixed, but they run at ~10 fps headless.
+- Untested: the sound (headless has no audio), a real HOTAS on the Hercules, an engine fire from real flak (the code
+  path runs only on hits; the bail-out path is tested), the ground start sequence in the game (bench only), landing
+  the Hercules in the game (the dev page and the bench do it).
+- Next: a proper loadmaster figure and cargo-hold view (ramp jumps / heavy drops), CDS bundles for the repair kit,
+  the INFANTRY agent's soldier swapped in for buildParatrooper, an engine-out checklist voice from the crew.

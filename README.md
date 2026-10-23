@@ -22,6 +22,7 @@ The enemy carrier KRAKEN is out there doing the same, and whoever controls the m
 - **HORNET carrier jet.** Land on the ALBATROSS and press 5: an F/A-18-style fighter on the catapult. Full 6-DOF flight model with a Hornet-like flight computer, a 3D cockpit with a conformal HUD and working displays, catapult launches, arrested landings, gun, AIM-9s and CCIP bombs, ejection. Built for a T.Flight HOTAS 4 and rudder pedals with toe brakes (any stick, pad or keyboard works).
 - **Tomcat escorts and the RUNAWAY air arm.** Press 4: an F-14A Tomcat goes to the ALBATROSS's bow catapult and an AI pilot flies its real flight model (swing wings, TF30s, mechanical stick) through stick, pedals and throttle: catapult shot, CAP over the ship or the island you selected, intercepts and dogfights with game-level missiles and the gun, bingo, the carrier pattern and an arrested landing (with wave-offs and bolters). The enemy answers with RW-4 SHRIKE fighter drones off the KRAKEN, an MQ-9 REAPER that hunts for the ALBATROSS and SHAHED drone salvos. Watch them alone on `game/dev/air.html`.
 - **Para-drop repair team.** Downed on land? Press L and home base sends a steel dropship from over the horizon. You fly it in from the flight deck with a real fixed-wing flight model (or let the autopilot), line up the jump run against the wind, jump on the green light, then steer the canopies down; whoever lands on dry ground runs over with fuel and fixes the helicopter. Enemy flak can bring the dropship down.
+- **Para-drop repair team: the KC-130 Hercules.** Downed on land? Press L and home base sends a Marine KC-130R from over the horizon with a repair team. Fly it in from a full 1980 flight deck (or let the crew and autopilot do it) on a real C-130H flight model: four T56 turboprops with governed propellers, beta, feathering and engine-out handling, Fowler flaps, the blown wing. Slow to 130 KIAS with 50% flaps, call the green light, and the stick goes out of both para doors under MC1-1 canopies that you steer down. Whoever lands on dry ground runs over with fuel and fixes the helicopter. Flak knocks out engines and can bring the Hercules down.
 - **SKY CARRIER.** Spend 300 materiel (6 on the map) and the ALBATROSS is refitted with four ducted lift fans and takes to the air. Land on her and press Tab to stand on the bridge: wheel, speed telegraph and lift lever, all slow and heavy. Send her anywhere from the map and she flies over the islands; flak can bring her down.
 - **UH-1H Huey.** A Bell UH-1H with a validated flight model (teetering two-blade rotor with the Bell stabilizer bar, translational lift, ground effect, vortex ring state, retreating blade stall, a T53 engine with governor and freewheel so autorotations work), a full 3D cockpit with live instruments and the real caution panel, an authentic (optional) start sequence, the two-blade "wop wop", and a damage model where hits cause failures you can survive and repair. Built for a T.Flight HOTAS 4 + T-Rudder pedals: stick = cyclic, throttle lever = collective, pedals (or twist) = anti-torque; keyboard works too with the stability assist.
 - **Ships that live and move.** The ALBATROSS is a 1980 Midway-class big deck in haze grey with a working deck: crew in coloured jerseys, tractors, Tilly, parked Hornets and Tomcats, an LSO team, the meatball, SPS-48 and SPS-49 turning, boiler smoke from the funnel. The enemy has a seized 2030s Ford-class supercarrier (the KRAKEN) refitted by the machines, the RW-9 LEVIATHAN railgun monitor and autonomous container ships. Every ship heaves, pitches and rolls with the sea state (`?sea=0..7`, default 4) and its speed, and the decks you land on move with them. Wakes, bow spray and smoke follow each ship's real track.
@@ -107,6 +108,19 @@ The Huey spawns hot at flight idle and rolls the throttle on by itself. With `?c
 
 Cockpit switches are clickable (gear and hook handles, flaps, master arm, FCS CAS/DIRECT, engine cranks, fire lights, master caution, jettison, eject, DDI pages). To land: gear down, flaps FULL, hook down, fly the ICLS needles at 8° AoA (the green/amber/red indexer) into the wires.
 
+### KC-130 Hercules (para-drop)
+
+| Key | Action |
+|---|---|
+| L (landed) | call logistics: the Hercules flies out the repair team |
+| H / V | autopilot (the crew flies the run, works flaps, doors and lights) / flight deck or chase view |
+| stick, Shift / Ctrl | yoke and the four power levers together |
+| F / X | green light: the stick jumps (the jumpmaster holds below 400 ft or above 150 KIAS) |
+| R / G / [ ] | flaps 0-50-100 / gear / elevator trim (on a stick) |
+| A D, S (under canopy) | steer the lead canopy, rear-riser slip; hands off and he steers himself |
+
+The flight deck is clickable: the four condition levers on the overhead (click: RUN -> FEATHER -> AIR START -> RUN, right click GND STOP), fire T-handles, engine starts, autofeather, gear and flap levers, autopilot, and the paratroop panel left of the pilot (jump lights OFF / RED / GREEN, alarm bell = everyone out now, para doors, ramp). A flak hit can set an engine on fire: pull its fire handle. `game/dev/c130.html` flies the aeroplane alone (`?start=air|runway|drop`) with a chase camera and telemetry; `game/dev/c130-model.html` is the model turntable.
+
 The in-game help screen has the full list.
 
 ### On foot: medical and inventory (NGC-1980, work in progress)
@@ -143,6 +157,7 @@ sight line, time of flight, speed), reload and malfunction drills, stamina on th
 ```
 cd tools && npm install && node snap.mjs scenes/war.json
 node tools/jetbench.mjs             # the jet's flight model against published F/A-18C figures, in plain node
+node tools/c130bench.mjs            # the C-130H flight model against published C-130H data (spec box, ops limits card, FM 3-21.38)
 node tools/hueybench.mjs            # the Huey's flight model against published UH-1H data (Heffley, Talbot, DCS / TM charts)
 node tools/medinvbench.mjs          # medical (ATLS shock timing, tourniquets, drugs, IV), kit weights, inventory grids
 node tools/ch46bench.mjs            # CH-46E tandem rotor: max speed, climb, hover ceilings, single engine, autorotation, SAS
@@ -169,6 +184,7 @@ zeroes, rates of fire, barrel heat, stoppages, recoil, march / run / sprint spee
 ACSM equations); `scenes/infantry.mjs`, `infantrydrills.mjs` and `infantrymodels.mjs` drive the range page.
 On foot and vehicles: `node tools/footbench.mjs` (soldier movement vs FM 22-5 cadences, ladders, swimming, moving decks), `node tools/boxcarbench.mjs` (the test car), scenes `foot.mjs` and `vehicle.mjs`.
 Rotary AI scenes: `ch46capture.mjs` (command 1: a Sea Knight takes SANDBAR), `mv22landing.mjs` (an Osprey lands machine troopers), `wasp.mjs` (a WASP raid), `rotarydev.mjs` (the dev page: model turntables and each aircraft's whole mission; `ROTARY=ch46|mv22|wasp`).
+Hercules scenes: `drop.json`, `dropflak.json`, `rescue.json` (the para-drop in the game), `c130.mjs` (flight deck, switches, engine out, drop run, take-off on the test page), `c130model.mjs` (exterior screenshots and dimensions).
 Huey scenes: `hueystart.json` (cold start), `hueyhover.json` (hover trim, forward flight), `hueyauto.json` (practice autorotation with power recovery), `hueycockpit.mjs`, `hueymodel.mjs` (screenshots).
 `node tools/tankbench.mjs` checks the M60A3 and M113A2 against published figures (speed, acceleration, gradient, side
 slope, step, trench, fording, swimming, turning, turret rates, stabiliser), every number tagged with its source.

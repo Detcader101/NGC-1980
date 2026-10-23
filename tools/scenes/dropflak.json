@@ -20,7 +20,7 @@
     "waitFor 30000 __G.drop.state && __G.drop.state.phase === 'run' && __G.drop.state.left === 3",
     "wait 1500",
     "eval (__G.war.damage(__G.drop.state.plane.u, 99, 2), __G.drop.state.plane.u.dying)",
-    "wait 300",
+    "waitFor 3000 __G.drop.state.left === 0",
     "expect __G.drop.state.left === 0 && __G.drop.state.jumpers.length === 3",
     "wait 1200",
     "shot 02-going-down",
