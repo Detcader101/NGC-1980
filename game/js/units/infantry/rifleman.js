@@ -140,7 +140,8 @@ export function createRifleman(o = {}) {
       while (P.alive && env.raycast && guard++ < 4) {
         const h = env.raycast(P.px, P.py, P.pz, P.x, P.y, P.z, P);
         if (!h) break;
-        if (h.body) { bodyHit(P, h); }
+        let skip = 0.02;
+        if (h.body) { skip = bodyHit(P, h); P.ignore = h.body.target; }   // a through-and-through resumes at the exit (hosts may also skip P.ignore)
         else {
           const r = impact(P, h.nx, h.ny, h.nz, h.material || 'soil', h.thickness ?? 1e9, rng);
           out('impact', { id: P.id, t: P.t, owner: P.owner, x: h.x, y: h.y, z: h.z, nx: h.nx, ny: h.ny, nz: h.nz, material: h.material || 'soil', result: r.result, round: P.round.key, v: r.v0, target: h.target || null, dist: P.dist });
@@ -148,8 +149,8 @@ export function createRifleman(o = {}) {
         }
         if (!P.alive) break;
         // continue the remaining segment from just past the hit point
-        const n = Math.hypot(P.vx, P.vy, P.vz) || 1, rem = Math.max(0, (1 - h.t)) * Math.hypot(P.x - P.px, P.y - P.py, P.z - P.pz);
-        P.px = h.x + P.vx / n * 0.02; P.py = h.y + P.vy / n * 0.02; P.pz = h.z + P.vz / n * 0.02;
+        const n = Math.hypot(P.vx, P.vy, P.vz) || 1, rem = Math.max(0, (1 - h.t) * Math.hypot(P.x - P.px, P.y - P.py, P.z - P.pz) - skip);
+        P.px = h.x + P.vx / n * skip; P.py = h.y + P.vy / n * skip; P.pz = h.z + P.vz / n * skip;
         P.x = P.px + P.vx / n * rem; P.y = P.py + P.vy / n * rem; P.z = P.pz + P.vz / n * rem;
       }
       // a supersonic round passing the listener: the crack (and its miss distance)
@@ -178,6 +179,7 @@ export function createRifleman(o = {}) {
     const pen = stopped ? 0 : penetration(P.round, P.v, MATERIALS.flesh), path = h.body.part === 'head' ? 180 : h.body.part.startsWith('arm') || h.body.part.startsWith('leg') ? 140 : 300;
     if (pen > path) { P.v *= 1 - path / pen; const n = Math.hypot(P.vx, P.vy, P.vz); P.vx *= P.v / n; P.vy *= P.v / n; P.vz *= P.v / n; P.pens++; }
     else P.alive = false;
+    return path / 1000 + 0.08;   // resume past the exit (the head sphere is 0.23 m across)
   }
 
   // ---------------------------------------------------------------- step
