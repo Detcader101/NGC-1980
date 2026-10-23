@@ -42,35 +42,32 @@ export function normalizeHit(o) {
   return h;
 }
 
-// Penetration estimate (mm RHA) when the shooter's ballistics did not give one. Energy density E / d^2 scaled by
-// projectile type; anchored to commonly quoted figures (all INFERRED orders of magnitude, not a terminal-ballistics
-// model): 5.56 M855 ~9 mm mild steel at 100 m, 7.62x51 ball ~8 mm RHA, .50 M2 AP ~20-25 mm RHA at 100 m,
-// 6.8x51 (XM7) ~12 mm, M72 LAW HEAT ~300 mm (TM 9-1340-214), 120 mm APFSDS ~600+ mm.
+// Penetration when the shooter did not give one: a GAME-TUNED value (arbitrary 'armour points', not real-world
+// terminal ballistics). Light rounds scratch machine plates, heavy rounds and launchers break them.
 export function estimatePen(h) {
   if (h.type === 'heat') return h.pen ?? 300;
   if (h.type === 'blast') return 0;
-  const d = Math.max(1, h.calibre), ed = h.energy / (d * d);   // J / mm^2
+  const d = Math.max(1, h.calibre), ed = h.energy / (d * d);
   const k = { ball: 0.14, ap: 0.24, frag: 0.08, coil: 0.3 }[h.type] ?? 0.14;
   return k * ed;
 }
 
-// Armour test for one plate: { residual: fraction of energy that gets through (0..1), defeated: bool }. Obliquity
-// thickens the plate (cos law, normal = outward plate normal), a partial overmatch lets some energy through.
+// Armour test for one plate (game rule): { residual: fraction of energy that gets through (0..1), defeated: bool }.
+// Obliquity thickens the plate, a partial overmatch lets some energy through.
 export function armourTest(h, mmRHA, normal) {
   let t = mmRHA;
   if (normal) { const c = Math.abs(h.direction.x * normal.x + h.direction.y * normal.y + h.direction.z * normal.z); t = mmRHA / Math.max(0.25, c); }
   if (t <= 0) return { residual: 1, defeated: true, t };
   const r = h.pen / t;
-  if (r >= 1) return { residual: Math.min(1, 0.35 + 0.65 * (r - 1) / r + 0.0), defeated: true, t };
-  return { residual: Math.max(0, (r - 0.6) / 0.4) * 0.15, defeated: false, t };   // near misses spall a little
+  if (r >= 1) return { residual: Math.min(1, 0.35 + 0.65 * (r - 1) / r), defeated: true, t };
+  return { residual: Math.max(0, (r - 0.6) / 0.4) * 0.15, defeated: false, t };   // near misses still jolt a little
 }
 
-// Damage the hit does to a machine part (hit points), after armour. Machines take damage from energy put into the
-// part (J -> hp at 1 hp per 120 J for internals), heavily reduced if the plate holds. Returns { dmg, pen, residual }.
+// Damage the hit does to a machine part (hit points), after armour (game rule: 1 hp per 120 J that gets through).
 export function machineDamage(h, armourMM, normal, hpPerJ = 1 / 120) {
   const a = armourTest(h, armourMM, normal);
   let e = h.energy * a.residual;
-  if (h.type === 'heat' && a.defeated) e = Math.max(e, 60000);   // the jet does the work, not the case
+  if (h.type === 'heat' && a.defeated) e = Math.max(e, 60000);
   if (h.type === 'blast') e = h.energy * 0.6;
   return { dmg: e * hpPerJ, pen: a.defeated, residual: a.residual, t: a.t };
 }
@@ -86,20 +83,23 @@ export function resolvePart(hgt, lat, H = 2.0) {
   return lat > 0 ? 'legL' : 'legR';
 }
 
-// Ammunition the sandbox and the AI use (published figures where real; CONFIRMED / INFERRED / UNVERIFIED tagged).
+// Ammunition the sandbox and the AI use. GAME-TUNED values (round classes for feel and balance, deliberately not
+// researched real-world performance): 'speed' drives travel time / drop, 'mass' x speed drives knock-back, 'pen' is
+// in the same arbitrary armour points as the STRIDER / tank plates. The INFANTRY agent's ballistics replace the 1980
+// rows in wave 2.
 export const AMMO = {
-  // 1980 task force
-  m193: { calibre: 5.56, mass: 0.00356, velocity: 991, type: 'ball' },   // M16A1, M193 55 gr at 991 m/s CONFIRMED (TM 9-1005-249-10)
-  m80: { calibre: 7.62, mass: 0.0095, velocity: 853, type: 'ball' },     // M60, M80 147 gr ~853 m/s CONFIRMED (FM 23-67)
-  m2ap: { calibre: 12.7, mass: 0.0459, velocity: 887, type: 'ap' },      // M2HB, M2 AP 708 gr ~887 m/s CONFIRMED (TM 9-1005-213-10)
-  m72: { calibre: 66, mass: 1.0, velocity: 145, type: 'heat', pen: 300 },// M72 LAW: 145 m/s, ~300 mm RHA CONFIRMED order (TM 9-1340-214-10)
-  m456: { calibre: 105, mass: 10.5, velocity: 1173, type: 'heat', pen: 400 }, // M60A3 M68 105 mm HEAT M456: 1173 m/s CONFIRMED, pen INFERRED
+  // 1980 task force (stand-ins for the sandbox dummies)
+  rifle: { calibre: 5.6, mass: 0.004, velocity: 900, type: 'ball' },
+  mg: { calibre: 7.6, mass: 0.009, velocity: 820, type: 'ball' },
+  hmg: { calibre: 12.7, mass: 0.045, velocity: 850, type: 'ap' },
+  law: { calibre: 66, mass: 1.0, velocity: 150, type: 'heat', pen: 300 },
+  tankgun: { calibre: 105, mass: 10, velocity: 1100, type: 'heat', pen: 400 },
   // RUNAWAY
-  xm7: { calibre: 6.8, mass: 0.00875, velocity: 914, type: 'ap' },      // seized XM7 rifle, 6.8x51 135 gr ~3000 ft/s INFERRED (SIG published 16" figure)
-  needle: { calibre: 4, mass: 0.004, velocity: 1600, type: 'coil' },     // RW coil carbine dart: fictional, 5.1 kJ (design value)
-  coil120: { calibre: 30, mass: 3.0, velocity: 2400, type: 'coil', pen: 650 },   // RW-7 main coilgun slug: fictional, 8.6 MJ (design value)
-  m829: { calibre: 120, mass: 4.6, velocity: 1555, type: 'ap', pen: 700 },      // M1A2 M256, M829A3 penetrator ~1555 m/s CONFIRMED (Army fact files), pen INFERRED
-  bm60: { calibre: 125, mass: 4.9, velocity: 1660, type: 'ap', pen: 600 },      // T-90M 2A46M-5, 3BM60 UNVERIFIED
-  pd: { calibre: 8, mass: 0.02, velocity: 1100, type: 'frag' },                 // RW-7 point-defence flechette burst (design value)
+  xm7: { calibre: 6.8, mass: 0.009, velocity: 900, type: 'ap' },      // seized rifle
+  needle: { calibre: 4, mass: 0.004, velocity: 1600, type: 'coil' },   // RW coil carbine dart (fictional)
+  coil120: { calibre: 30, mass: 3.0, velocity: 2400, type: 'coil', pen: 650 },   // RW-7 main coilgun slug (fictional)
+  mbt120: { calibre: 120, mass: 5, velocity: 1500, type: 'ap', pen: 650 },       // seized M1A2 main gun (game value)
+  mbt125: { calibre: 125, mass: 5, velocity: 1500, type: 'ap', pen: 600 },       // seized T-90M main gun (game value)
+  pd: { calibre: 8, mass: 0.02, velocity: 1100, type: 'frag' },                 // RW-7 point-defence burst (fictional)
 };
 export const hitFromAmmo = (id, o) => normalizeHit({ ...AMMO[id], weapon: id, ...o });

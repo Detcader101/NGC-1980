@@ -57,8 +57,8 @@ export const STRIDER = {
   LEAN_K: 160, LEAN_D: 22,      // torso lean servo (1/s^2, 1/s)
   CROUCH: 0.3,                  // m, pelvis drop at full crouch
   GETUP_T: 1.9, DOWN_T: 1.1,    // s
-  // armour (mm RHA equivalent, ceramic over composite) and hit points per part (INFERRED; tuned so the 1980 M16A1
-  // hurts limbs and the head, needs close range or many rounds for the core, M60 / M2 do real work, a LAW is overkill)
+  // armour (game armour points, see hit.js) and hit points per part: GAME-TUNED so rifles hurt limbs and the head and
+  // need many hits for the core, machine guns do real work, a rocket is overkill
   ARMOUR: { head: 3, thorax: 7, stomach: 6, armL: 4, armR: 4, legL: 5, legR: 5, weapon: 3 },
   HP: { head: 18, thorax: 60, stomach: 40, armL: 22, armR: 22, legL: 34, legR: 34, weapon: 14 },
 };
