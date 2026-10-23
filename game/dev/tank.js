@@ -349,6 +349,7 @@ function simStep(dt) {
   const evs = V.step(dt, env, inp);
   for (const e of evs) {
     if (e.type === 'shot') fireShot(e);
+    if (e.type === 'loaded') audio.loaded();
     else if (['stall', 'flooded', 'thrown', 'bellied', 'rollover', 'swimming', 'sinking', 'knockdown', 'lase', 'loaded', 'halon', 'bailout', 'start'].includes(e.type)) say(e.type.toUpperCase() + ' ' + (e.range ?? e.where ?? e.why ?? (e.on != null ? (e.on ? 'on' : 'off') : '') ?? ''));
     if (e.type === 'knockdown') { const t = TG.TREES.find(t => t.id === e.id); if (t && t.mesh) { t.mesh.rotation.z = 1.4; t.top = -1e9; } }
   }
