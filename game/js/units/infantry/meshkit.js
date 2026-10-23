@@ -118,7 +118,7 @@ export const KITMAT = {
 };
 // colour constants used across the infantry models
 export const COL = {
-  park: 0x2a2b2c, parkDark: 0x1a1b1c, parkWorn: 0x45464a, black: 0x121314, alu: 0x2e3032, furniture: 0x161718,
+  park: 0x45484c, parkDark: 0x2c2e31, parkWorn: 0x5a5c60, black: 0x161718, alu: 0x4a4d51, furniture: 0x303235,
   od: 0x575a3b, odDark: 0x43452d, odLight: 0x6b6e4a, brass: 0xb08d3c, copper: 0x9a5a33, steelBright: 0x6c6f74,
   skin: 0xc79a77, skinDark: 0x8a5d40, leather: 0x1c1712, rubber: 0x141414, webbing: 0x5a5c3c, canvas: 0x5f6143,
   yellow: 0xc9a227, red: 0x8a1c14, wood: 0x6b4a2c,
