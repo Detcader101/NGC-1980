@@ -356,7 +356,7 @@ export function buildAlbatross(side = 1, opts = {}) {
   // vehicles and deck clutter
   // (the port strip from z -6 to -36 is the vehicle park: ground.js DECK_SPOTS put the Marines' jeep and armour there)
   tractor(kit, 5.6, -1.5, 0.4); tractor(kit, 12.2, 38, Math.PI); tractor(kit, -10.6, -45, -0.25, 0xe8e8e2);
-  tilly(kit, 5.9, 12.5, 0.05); bowser(kit, 10.6, -38.5, 2.6); huffer(kit, 4.6, -16, 1.2); huffer(kit, 4.3, 46, -0.6);
+  tilly(kit, 5.9, 12.5, 0.05); bowser(kit, 11.4, -14.5, Math.PI); huffer(kit, 4.6, -16, 1.2); huffer(kit, 4.3, 46, -0.6);
   for (const [x, z] of [[4.2, -25], [6.4, 24], [12.4, 15.8], [-12.6, 2], [-12.4, -40]]) fireBottle(kit, x, z);
   for (let i = 0; i < 4; i++) kit.box(0.6, 0.15, 3.2, 0x2a2a2a, -13.0 + i * 0.7, DECK + 0.08, 6 + i * 0.4, 0, 0.1, 0);   // tow bars stacked at the edge
   // parked aircraft: two Hornets forward of the island (tails over the starboard edge), two Tomcats aft (oversweep)
@@ -441,7 +441,7 @@ export function buildAlbatross(side = 1, opts = {}) {
       // at the single-point refuel on the left side, ordnancemen (red) at the wing stations
       { x: 5.6, z: -50.6, yaw: 0.6, jersey: 'brown', hands: true }, { x: 8.4, z: -44.0, yaw: 2.4, jersey: 'blue', mode: 'kneel' }, { x: 6.8, z: -40.5, yaw: 2.4, jersey: 'purple', mode: 'kneel' },
       { x: 5.8, z: -35.6, yaw: 0.6, jersey: 'brown' }, { x: 6.0, z: -28.5, yaw: -2.0, jersey: 'red', mode: 'kneel' }, { x: 4.7, z: -26.4, yaw: -2.3, jersey: 'red', mode: 'talk' },
-      { x: 11.8, z: -36, yaw: 3.0, jersey: 'purple', mode: 'talk' }, { x: 4.8, z: -21, yaw: 0.6, jersey: 'green' },
+      { x: 11.6, z: -18.8, yaw: 3.0, jersey: 'purple', mode: 'talk' }, { x: 4.8, z: -21, yaw: 0.6, jersey: 'green' },
       // the island: flight-deck control, a safety officer, a medic, the tractor driver
       { x: 6.3, z: -3.8, yaw: 2.8, jersey: 'yellow', hands: true }, { x: 7.2, z: 1.2, yaw: -1.6, jersey: 'white' }, { x: 6.6, z: 3, yaw: -1.5, jersey: 'blue', mode: 'talk' },
       { x: 7.1, z: 9, yaw: -2.8, jersey: 'red' },
