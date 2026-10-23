@@ -14,3 +14,4 @@ launcher/.last-open
 
 # agent worktrees
 .claude/worktrees/
+tools/node_modules
