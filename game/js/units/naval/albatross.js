@@ -28,6 +28,12 @@ export function deckHalf(lz) {
   if (lz >= -40) return W / 2;
   return 4 + 10 * Math.sqrt(Math.max(0, (lz + 66) / 26));
 }
+// half-beam of the hull at the waterline (the bow wave hugs it)
+export function waterHalf(z) {
+  if (z < -60 || z > 57) return 0;
+  if (z < -18) { const t = Math.min(1, (-18 - z) / 42); return 10.6 * Math.sqrt(Math.max(0, 1 - t * t)) * (1 - 0.15 * t); }
+  return z > 30 ? 10.6 - (z - 30) / 27 * 2.6 : 10.6;
+}
 // height (above the waterline, ship frame) of what you stand on at (lx, lz), or -1e9 off the ship
 export function localDeck(lx, lz) {
   let h = -1e9;
@@ -243,9 +249,9 @@ function buildDeckGear(kit, glow) {
   for (const z of [-60, -64]) kit.rod([-2.5, DECK - 0.5, z], [-2.5, 4.2, z + 4.5], 0.12, HAZE_D, 5);
   // the bullnose fairlead at the stem, the jackstaff
   kit.cyl(0.55, 0.55, 0.5, HAZE_D, 0, DECK - 0.6, -65.6, Math.PI / 2, 0, 0, 10); kit.rod([0, DECK, -65.2], [0, DECK + 3.2, -65.2], 0.04, 0x2a2a2a, 4);
-  // starboard UNREP (underway replenishment) station: kingposts and a receiving sponson forward of the island
-  kit.box(2.0, 0.3, 6, HAZE, 13.4, 6.0, -15.5); for (const z of [-17.5, -13.5]) kit.rod([13.6, 6.1, z], [14.2, DECK + 6.5, z], 0.13, HAZE_D, 6);
-  kit.rod([14.2, DECK + 6.5, -17.5], [14.2, DECK + 6.5, -13.5], 0.08, HAZE_D, 4);
+  // starboard UNREP (underway replenishment) receiving station: a sponson at hangar-deck level with its highline posts
+  kit.box(2.4, 0.3, 6, HAZE, 13.4, 5.2, -15.5); for (const z of [-17.5, -13.5]) kit.rod([14.2, 5.3, z], [14.4, DECK - 0.6, z], 0.1, HAZE_D, 6);
+  kit.rail([[12.4, 5.35, -18.5], [14.6, 5.35, -18.5], [14.6, 5.35, -12.5], [12.4, 5.35, -12.5]], 0.9, HAZE_D, 1.0, 0.03);
   // the starboard boat pocket aft: a recess in the hangar side with the captain's gig and a motor whaleboat
   kit.box(0.14, 2.2, 9, 0x24282c, 12.26, 4.9, 44);
   for (const [z, c] of [[41.8, 0xd8d8d0], [46.4, 0x8b9095]]) { kit.add(new THREE.SphereGeometry(1, 8, 5, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), c, T(12.2, 5.0, z, 0, 0, 0, 0.9, 0.7, 2.0)); kit.box(1.4, 0.35, 3.4, 0x5a5f63, 12.2, 5.1, z); }
@@ -459,7 +465,7 @@ export function buildAlbatross(side = 1, opts = {}) {
   const parts = {
     group: g, guns, dish, lamp, lights: [], teamM: team, tower: tw, band, mounts, crew, sps48, jbd, hull, deck: g.getObjectByName('flightdeck'),
     jbdK: 0, funnel: new THREE.Vector3(ALB.TOWER_X + 0.1, DECK + 19, ALB.TOWER_Z + 6.6), bow: new THREE.Vector3(0, 1, -60), stern: new THREE.Vector3(0, 0, 57),
-    localDeck, deckHalf, motion: 'albatross', dims: ALB, fx: { wake: 1, smoke: 1 },
+    localDeck, deckHalf, waterHalf, motion: 'albatross', dims: ALB, fx: { wake: 1, smoke: 1 },
     setJBD(k, dt) { const want = Math.max(0, Math.min(1, k)); parts.jbdK = dt ? parts.jbdK + Math.max(-dt * 0.7, Math.min(dt * 0.7, want - parts.jbdK)) : want; jbd.rotation.x = -parts.jbdK * 0.95; },   // raised: the aft edge lifts about the forward hinge
     tick(dt, t, dist = 0, avoid = null) {
       sps48.rotation.y += dt * 1.57;

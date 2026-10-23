@@ -10,7 +10,7 @@
 // |z - 22| < 9, 13 m above the deck. dims = { L: 120, W: 28, DECK: 8, TOWER_X: 10.5, TOWER_Z: 22, TOWER_H: 13 }.
 import * as THREE from 'three';
 import { Kit, T, DEG, rng, hullMat, glowMat, canvasTex, DecalSheet, drawStreak, drawText, drawGlyphs } from './navkit.js';
-import { buildHull, deckHalf as albDeckHalf } from './albatross.js';
+import { buildHull, deckHalf as albDeckHalf, waterHalf } from './albatross.js';
 import { buildRAM, buildLaser } from './mounts.js';
 
 export const KRK = { L: 120, W: 28, DECK: 8, TOWER_X: 10.5, TOWER_Z: 22, TOWER_H: 13 };
@@ -222,7 +222,7 @@ export function buildKraken(opts = {}) {
   }
   return {
     group: g, guns, dish, lamp, lights: [], teamM: team, tower: tw, band, mounts, hull, deck: g.getObjectByName('flightdeck'),
-    bow: new THREE.Vector3(0, 1, -60), stern: new THREE.Vector3(0, 0, 57), localDeck, motion: 'kraken', dims: KRK, fx: { wake: 1.05, smoke: 0 },
+    bow: new THREE.Vector3(0, 1, -60), stern: new THREE.Vector3(0, 0, 57), localDeck, waterHalf, motion: 'kraken', dims: KRK, fx: { wake: 1.05, smoke: 0 },
     tick(dt, t) { for (const gun of guns) gun.userData.tick?.(dt); lamp.visible = (t % 1.1) < 0.5; },
   };
 }
