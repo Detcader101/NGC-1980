@@ -21,7 +21,7 @@ export const WHEELED = {
   lada: { spec: LADA, model: ['./civmodel.js', 'buildCivMesh'], interior: ['./interior.js', 'buildInterior'], variants: { colour: [0, 1, 2, 3, 4, 5] } },
 };
 export const WHEELED_IDS = Object.keys(WHEELED);
-export { createFollower, aiInput } from './driver.js';
+export { createFollower, aiInput, createUnstick } from './driver.js';
 export { LODS } from './vehiclefm.js';
 export { SURF, SURF_NAMES } from './tyre.js';
 

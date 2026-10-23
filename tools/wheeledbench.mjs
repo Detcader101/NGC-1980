@@ -413,5 +413,27 @@ head('interfaces for the host: terrain adapter, road traffic follower, level of 
   check('far LOD costs a fraction of the near one', pf < pn * 0.45, `M35 per 60 Hz frame: near ${fmt(pn, 3)} ms, far ${fmt(pf, 3)} ms`, '<= ~40% (fewer probes, 240 Hz)', 'INFERRED');
 }
 
+// ------------------------------------------------------------------------------------------------ 13. the bump course under AI
+head('an AI M35 through the dev ground bump course (washboard, logs, potholes, 20 cm kerb, twist ditch)');
+{
+  // regression: a probe crossing the kerb's sheer face fired a 5 g kick, the truck bounced back off the kerb elastically
+  // and could hang cross-axled on its open diffs. Five slightly different starts; the AI backs off and retries when stuck.
+  const { makeEnv, ZONES, heightAt } = await import('../game/dev/vehicle-ground.js');
+  const { aiInput, createUnstick } = await import('../game/js/units/wheeled/driver.js');
+  const env = makeEnv({ g: G }), times = []; let upright = true, maxKick = 0;
+  for (const [yaw, dx] of [[0, 0], [0.01, 0], [-0.01, 0], [0.03, -0.2], [-0.03, 0.2]]) {
+    const v = createWheeledSim('m35'), S = v.sim, U = createUnstick(), z = ZONES.bumps;
+    S.reset([z.x + dx, heightAt(z.x + dx, z.z), z.z], yaw, { running: true }); S.placeOnGround(env); v.driver.reset(S);
+    let t = 0; const hist = [];
+    for (; t < 150 && S.pos[2] > -160; t += DT) {
+      const c = v.driver.update(S, { ...U.update(S, aiInput(S, { x: -12.5, z: -400 }, 2.8)), range: 'L' }, DT); S.step(DT, c, env);
+      const sp = Math.hypot(S.vel[0], S.vel[2]); hist.push(sp); if (hist.length > 6) maxKick = Math.max(maxKick, (sp - hist.shift()) / (6 * DT) / G);   // speed GAINED over 0.1 s: the engine can't do 1 g; braking on a log is legit
+      if (S.up[1] < 0.5) upright = false;
+    }
+    times.push(t);
+  }
+  check('m35 crosses the bump course under AI from 5 starts', times.every(t => t < 120) && upright && maxKick < 2, `times ${times.map(t => fmt(t, 0)).join(' ')} s, upright ${upright}, worst speed gain ${fmt(maxKick, 2)} g over 0.1 s`, 'all < 120 s, no rollover, no speed gain > 2 g in 0.1 s (the bug: 3.5+ g kicks off the kerb; body sway over the bumps ~1.3 g at the CG)', 'INFERRED');
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

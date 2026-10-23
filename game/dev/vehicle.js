@@ -4,7 +4,7 @@
 // &s={variant json}&debug (window.__V bridge for headless scenes) &paused &res=0.5
 import * as THREE from 'three';
 import { WHEELED, WHEELED_IDS, createWheeledSim } from '../js/units/wheeled/index.js';
-import { aiInput } from '../js/units/wheeled/driver.js';
+import { aiInput, createUnstick } from '../js/units/wheeled/driver.js';
 import { lookFrom, merge as mergeGeo } from '../js/units/wheeled/modelkit.js';
 import { SURF_NAMES } from '../js/units/wheeled/tyre.js';
 import { heightAt, groundAt, waterAt, makeEnv, ZONES, POND_SHAPE, RAMP_LANES } from './vehicle-ground.js';
@@ -290,17 +290,17 @@ function frame(now) {
     readInput(dt);
     if (!paused) {
       acc += dt; let n = 0;
-      while (acc >= STEP && n < 8) {
+      while (acc >= STEP && n < 15) {
         acc -= STEP; n++;
         let inp = override || IN;
-        if (ai) { const a = aiInput(V.sim, ai.target, ai.speed); inp = { ...IN, ...a, ...(ai.extra || {}) }; }
+        if (ai) { const a = ai.un.update(V.sim, aiInput(V.sim, ai.target, ai.speed)); inp = { ...IN, ...a, ...(ai.extra || {}) }; }
         const ctl = V.driver.update(V.sim, inp, STEP);
         IN.shiftUp = IN.shiftDown = false;   // edge inputs act once per frame, not once per step
         for (const k of ['fwd', 'range', 'lock', 'ignition', 'starter', 'horn', 'kit']) if (inp[k] !== undefined) ctl[k] = inp[k];
         const evs = V.sim.step(STEP, ctl, env);
         for (const e of evs) { allEvents.push({ ...e, t: now }); if (!['scrape', 'impact', 'grind', 'lowAir'].includes(e.e)) feed(e.e + (e.wheel !== undefined ? ' ' + V.spec.wheels[e.wheel].id : '') + (e.seat ? ' ' + e.seat : '')); }
       }
-      if (n >= 8) acc = 0;   // far behind: drop time rather than spiral
+      if (n >= 15) acc = 0;   // far behind (dt is capped at 0.25 s = 15 steps): drop time rather than spiral
       if (allEvents.length > 300) allEvents.splice(0, 100);
       // dust, spray, exhaust
       const S = V.sim;
@@ -354,7 +354,7 @@ if (DEBUG) {
     get sim() { return V.sim; }, get driver() { return V.driver; }, get model() { return V.model; }, get interior() { return V.interior; }, get dmg() { return V.dmg; }, get id() { return V.id; }, get look() { return V.look; },
     get events() { return allEvents; }, get frames() { return frames; }, get input() { return IN; }, get audio() { return audio; },
     setVehicle: (id, v, zone) => setVehicle(id, v || {}, zone || null), teleport: (x, z, yaw) => { teleport(x, z, yaw); return true; }, zone: k => { const z = ZONES[k]; curZone = k; teleport(z.x, z.z, z.yaw); return true; },
-    drive: o => { override = o ? { ...IN, ...o } : null; return true; }, ai: (target, speed, extra) => { ai = target ? { target, speed, extra } : null; return true; },
+    drive: o => { override = o ? { ...IN, ...o } : null; return true; }, ai: (target, speed, extra) => { ai = target ? { target, speed, extra, un: createUnstick() } : null; return true; },
     cam: (m, o = {}) => { camMode = m; Object.assign(cam, o); return true; }, pause: p => { paused = p; return true; }, variant: v => { Object.assign(V.variant, v); V.model.setVariant?.(V.variant); return true; },
     render: () => renderer.render(scene, camera),
   };

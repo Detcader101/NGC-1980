@@ -45,7 +45,7 @@ export default async function (h) {
   await h.eval(`({ sink: __V.sim.wheels.map(w => +(w.ts.sink * 100).toFixed(0)), slip: __V.sim.wheels.map(w => +w.ts.kappa.toFixed(2)), x: __V.sim.pos[0] })`);
   // 7. damage: M151 on the road, a .50 burst through the fuel tank: leak, fire, wreck
   await h.eval(`(__V.drive(null), __V.setVehicle('m151', { top: 'canvas' }, 'road').then(() => 1))`); await h.wait(800);
-  await h.eval(`(__V.cam('orbit', { yaw: 0.9, pitch: 0.2, dist: 8 }), __V.drive({ throttle: 0, brake: 1 }), 1)`);
+  await h.eval(`(__V.cam('orbit', { yaw: 0.9, pitch: 0.2, dist: 8 }), __V.drive({ throttle: 0, brake: 0, handbrake: 1 }), 1)`);
   await h.eval(`(() => { const D = __V.dmg; D.setOccupant('front', true); let hits = []; for (let i = 0; i < 6; i++) hits.push(D.hit([-1.2, 0.5, 0.25 + i * 0.04], [1, 0, 0], 'hmg')); for (let i = 0; i < 3; i++) hits.push(D.hit([-0.2, 0.7, -2.2], [0, 0, 1], 'hmg')); D.state.fire = Math.max(D.state.fire, 0.15); return { hits, fuelLeak: D.state.fuelLeak, fire: D.state.fire }; })()`);
   await h.wait(3000); await st(); await h.shot('m151-fire');
   await h.eval(`(__V.dmg.state.fire = 1.45, 1)`); await h.wait(2500);

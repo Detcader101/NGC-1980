@@ -478,6 +478,9 @@ export function createVehicleSim(spec, opts = {}) {
         }
       }
       W.surf = surfIndex(surf); W.muScale = mu;
+      // the tyre can't close on the ground faster than the wheel moves: a probe crossing a sheer face (a heightfield
+      // step, a kerb modelled as a cliff) would otherwise find it 10 cm deep in one step and fire a 15 g impulse
+      if (pen > 0) { const vMax = Math.hypot(S.vel[0], S.vel[1], S.vel[2]) + Math.hypot(S.w[0], S.w[1], S.w[2]) * 3 + Math.abs(W.sv) + 1; pen = Math.min(pen, Math.max(0, W.penPrev || 0) + vMax * h + 0.004); }
       W.contact = pen > 0;
       // tyre vertical force: stiffness x deflection + damping, bottoming on the rim past ~60% of the section
       let N = 0;
@@ -485,6 +488,10 @@ export function createVehicleSim(spec, opts = {}) {
         const penDot = W.wasContact ? clamp((pen - W.penPrev) / h, -4, 4) : 0;
         const kt = k.kt * (1 - 0.75 * flat), bott = k.penMax * (1 - 0.6 * flat);
         N = kt * pen + k.ct * penDot + (pen > bott ? kt * 6 * (pen - bott) : 0);
+        // against a face (kerb, log, step: the normal well off vertical) the whole vehicle's mass is behind the tyre
+        // spring and its damping, sized for the unsprung mass, is nothing: the truck bounced back off a kerb as fast
+        // as it came. A tyre wrapping an edge loses most of that energy (hysteresis): weaker on the way out.
+        if (penDot < 0 && _n[1] < 0.94) N *= 1 - 0.65 * clamp((0.94 - _n[1]) / 0.3, 0, 1);
         N = clamp(N, 0, P.wheelLoad[W.i] * 15);
         onG++;
       }

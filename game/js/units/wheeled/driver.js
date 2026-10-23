@@ -146,13 +146,42 @@ export function aiInput(sim, target, vWant, out = {}) {
   out.handbrake = 0; return out;
 }
 
+// An AI driver who is stuck (asking for drive, not moving, wheels spinning: a cross-axle hang on open diffs, a kerb
+// taken too slowly) backs off a few metres and rushes it again, the way a driver would. Wraps an aiInput result:
+//   const U = createUnstick();  each step: U.update(sim, aiInput(sim, target, v))   (U.state: 'drive'|'back'|'rush')
+// Timing from sim._t, so it needs no dt. Gives up retrying after opts.tries attempts (then just keeps pushing).
+export function createUnstick(opts = {}) {
+  const o = { wait: 2.5, back: 2.2, rush: 4, tries: 4, ...opts };
+  const U = { state: 'drive', t0: 0, stuck: 0, last: null, tries: 0,
+    update(sim, inp) {
+      const t = sim._t ?? 0, dt = U.last === null ? 0 : Math.max(0, Math.min(0.2, t - U.last)); U.last = t;
+      const v = Math.abs(sim.speed);
+      if (U.state === 'drive') {
+        const spin = sim.wheels.some(w => w.contact !== false && Math.abs(w.ts?.kappa ?? 0) > 0.4);
+        U.stuck = inp.throttle > 0.25 && v < 0.3 && (spin || sim.eng.rpm > sim.spec.engine.idle * 1.8) ? U.stuck + dt : Math.max(0, U.stuck - dt * 2);
+        if (U.stuck > o.wait && U.tries < o.tries) { U.state = 'back'; U.t0 = t; U.stuck = 0; U.tries++; }
+        if (v > 3) U.tries = 0;
+      }
+      if (U.state === 'back') {   // brake held at a standstill = reverse (auto driver), then the brake pedal drives it back
+        inp.throttle = 0; inp.brake = 0.7; inp.steer = 0; inp.handbrake = 0;
+        if (t - U.t0 > o.back + 0.6) { U.state = 'rush'; U.t0 = t; }
+      } else if (U.state === 'rush') {   // forward again with a run at it
+        inp.brake = 0; inp.throttle = Math.max(inp.throttle, 0.75);
+        if (t - U.t0 > o.rush) U.state = 'drive';
+      }
+      return inp;
+    },
+  };
+  return U;
+}
+
 // Road traffic for the WORLD layer: follow a polyline of waypoints [{x, z, v?}] (v = speed limit m/s at that point).
 // Pure pursuit with a speed-dependent lookahead; slows for bends (lateral g budget), for the limit, for a vehicle or
 // person ahead (opts.gap(): metres to the obstacle on the path, or Infinity), and stops at the end (or loops).
 //   const F = createFollower(path, { speed: 14, loop: true, latG: 0.25 });  each frame: input = F.update(sim); driver.update(sim, input, dt)
 export function createFollower(path, opts = {}) {
   const o = { speed: 12, loop: false, latG: 0.25, lookahead: 4, stopDist: 4, gap: null, ...opts };
-  const F = { path, i: 0, done: false, input: {},
+  const F = { path, i: 0, done: false, input: {}, unstick: o.unstick === false ? null : createUnstick(),
     // nearest segment ahead of the vehicle (keeps the index moving forward)
     update(sim) {
       const px = sim.pos[0], pz = sim.pos[2], n = path.length;
@@ -181,6 +210,7 @@ export function createFollower(path, opts = {}) {
       const gap = o.gap ? o.gap(sim) : Infinity; if (gap < Infinity) vmax = Math.min(vmax, Math.max(0, (gap - 6) * 0.5));
       aiInput(sim, { x: tx, z: tz }, vmax, F.input);
       if (vmax < 0.3 && v < 1) { F.input.throttle = 0; F.input.brake = 0.4; F.input.handbrake = v < 0.2 ? 1 : 0; }
+      else if (F.unstick) F.unstick.update(sim, F.input);   // stuck on something: back off and have another go
       return F.input;
     },
   };

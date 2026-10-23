@@ -29,7 +29,8 @@ const POND = { cx: -45, cz: 140, rx: 26, rz: 17 };
 const RAMPS = [{ z0: 18, z1: 26, g: 0.2 }, { z0: 32, z1: 40, g: 0.4 }, { z0: 46, z1: 54, g: 0.6 }];
 
 // the bump course along z (going north = decreasing z): returns the bump height at (x, z) relative to the course floor
-function bumps(x, z) {
+function bumps(x, z) { const e = Math.min(x + 16, -9 - x); return e > 0 ? bumps0(x, z) * Math.min(1, e / 0.6) : 0; }   // faded out over 0.6 m at the sides: no cliff along the course edges
+function bumps0(x, z) {
   const t = -40 - z;   // distance along the course from its start
   if (t < 0 || t > 130 || x < -16 || x > -9) return 0;
   const lx = x + 12.5;   // lateral, 0 = centreline
