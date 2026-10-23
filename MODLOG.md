@@ -1700,3 +1700,21 @@ untouched (war.js's exported hitTest / damage / blast carry the gunnery).
   4 fps: the carrier moved 2.2 m instead of 3 in 5 s of wall time - fixed by sleeping on decks), vehicle 14/14 (failed 13/17
   while the M60 and M113 were parked in the test car's path - moved), jettrap 7/7, world 4/4; foot.mjs 10/12 (the island
   roof ladder top and the medical slot check; the experimental base scored 6/18 on the same machine - load-dependent).
+
+## 2026-10-23 — NAVAL polish (authenticity pass)
+- ALBATROSS: crew placed by role round each aircraft and station (plane captain brown at the nose, blue chockers at
+  the mains, purple fuel crew at the refuel point, red ordnancemen at the wing stations; green catapult crew, a yellow
+  catapult officer and a white safety PO by cat 1, all clear of the launch lane), a yellow director at the fantail.
+  1970s-80s details: the bridle arrester horn off the bow at the end of cat 1, bullnose and jackstaff, a starboard
+  UNREP receiving sponson at hangar-deck level, a boat pocket aft with the gig and a motor whaleboat. The fuel bowser
+  no longer sits under a parked Hornet; funnel smoke is a light oil-fired haze, not black.
+- Deck vehicle park: ground.js DECK_SPOTS moved from x 9 (under the parked Hornets) to the port strip forward of the
+  landing area (x -11.3, z -12 / -22 / -32), clear of the catapult lane; tow bars and the bow tractor moved off it.
+- KRAKEN: Ford-class plan - a broad blunt bow, both starboard elevators forward of the island (one was under the
+  island) plus the port one aft, the deck's underside and edge fascia wherever it overhangs the hull. The RW drones are
+  a proper tailless flying wing now (sawtooth trailing edge, lift fans in the roots, leading-edge seams).
+- LEVIATHAN: the port sensor fin is a small blade in the same language as the main one (was a box with a pole).
+- Sea: each hull has a bow wave (foam crests along its forward shoulders, attached to the ship, stronger with speed
+  and when the bow plunges); parts.waterHalf(z) gives the waterline half-beam for it.
+- Tests: navalbench 22/22; naval.mjs 5/5 (runs/2026-10-23_15-30-10-naval); smoke 5/5; jettrap 7/7; sky 6/8 - the
+  same two expects fail on experimental 651012c (runs/2026-10-23_15-33-06-sky), not a naval regression.

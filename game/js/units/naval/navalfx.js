@@ -118,8 +118,8 @@ export function createNavalFx(scene, fx) {
           T.smokeT = 0.12;
           const f = P.funnel, kk = P.fx.smoke * (0.4 + Math.min(1, u.speed / 6) * 0.8);
           W(u, f.x + rnd(-0.6, 0.6), f.y, f.z + rnd(-0.6, 0.6), _a);
-          const g = rnd(0.48, 0.6);
-          fx.mix.spawn(_a.x, _a.y, _a.z, rnd(-0.3, 0.3) + u.v.x * 0.3, rnd(2.5, 4), rnd(-0.3, 0.3) + u.v.z * 0.3, rnd(7, 12), 1.6, 9 * kk + 3, g, g * 0.97, g * 0.93, 0.22 * kk + 0.08, -0.12, 0.35, 1.4);
+          const g = rnd(0.6, 0.7);   // oil-fired boilers at cruise: a light grey-brown haze, not black smoke
+          fx.mix.spawn(_a.x, _a.y, _a.z, rnd(-0.3, 0.3) + u.v.x * 0.3, rnd(2.5, 4), rnd(-0.3, 0.3) + u.v.z * 0.3, rnd(7, 12), 1.6, 9 * kk + 3, g, g * 0.97, g * 0.93, 0.16 * kk + 0.06, -0.12, 0.35, 1.4);
         }
       }
     },
