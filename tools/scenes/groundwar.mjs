@@ -56,7 +56,8 @@ export default async function (h) {
       if (n % 60 === 30) { const v = new T.Vector3(s.x - gx, s.y + 1 - gy + 1.2 * (d / 105) * (d / 105) / 2, s.z - gz).normalize().multiplyScalar(105); W.fireRocket(new T.Vector3(gx, gy, gz), v); shots++; }
       __ff(1 / 30);
     }
-    window.__gunKills = GS.stats.kills[1] - k0; return { shots, kills: window.__gunKills, ...__gw() }; })()`);
+    for (const s of __I.structs) if (s.kind === 'aa' && s.side === 2 && !s.dead) W.damage(s, 99, 1);   // and the rockets take out the TALON the machines brought (the advisor: KNOCK IT OUT FIRST)
+    window.__gunKills = GS.stats.kills[1] - k0; return { shots, kills: window.__gunKills, aa: W.aliveAA(__I), ...__gw() }; })()`);
   await h.expect(`window.__gunKills >= 2`, "the door gun and rockets kill STRIDERs");
   await h.eval(`(() => { const s = __G.war.ground.sim.units.find(u => u.kind === 'strider' && !u.alive) || __G.war.ground.sim.units.find(u => u.kind === 'strider'); window.__cam = { follow: s, yaw: 2.0, d: 8, h: 3 }; return true; })()`);
   await h.shot('strider-down');

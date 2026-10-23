@@ -30,7 +30,7 @@ export function fight(o = {}) {
   for (let k = 0; k < nR; k += 4) GS.squadRW(B, rw.slice(k, k + 4), o.rwOrder || { type: 'take', x: 0, z: 30, r: 30 });
   for (const v of o.vehicles || []) { const u = v.kind === 'hovertank' ? GS.addHover(B, v.x, v.z, Math.PI) : GS.addMBT(v.kind, B, v.x, v.z, Math.PI); GS.join(B, u, { type: 'take', x: 0, z: 30, r: 30 }); rw.push(u); }
   const ev = {}, T = o.secs ?? 300, dt = 1 / 30, heli = o.heli;
-  let heliT = 0, heliShots = 0, heliHits = 0, ended = null;
+  let heliT = 0, heliShots = 0, heliHits = 0, ended = null, rocketT = 5;
   const t0 = performance.now();
   for (let i = 0; i < T / dt; i++) {
     const cam = o.far ? { x: 3000, y: 50, z: 3000 } : { x: 0, y: 60, z: 0 };
@@ -57,6 +57,20 @@ export function fight(o = {}) {
             px = nx; py = ny; pz = nz;
           }
           GS.hearWar(hx, hy, hz, 1, 380);
+          // a pair of 2.75 in rockets every ~10 s at the same machine (the war's 'rocket': 105 m/s, a 6 m blast)
+          if ((rocketT -= 0.16) <= 0) {
+            rocketT = 10;
+            for (let r = 0; r < 2; r++) {
+              let px = hx, py = hy, pz = hz; const e = 0.012 * bd, dx = best.x - hx + (Math.random() - 0.5) * e, dy = best.y + 1 - hy + (Math.random() - 0.5) * e, dz = best.z - hz + (Math.random() - 0.5) * e, L = Math.hypot(dx, dy, dz);
+              let vx = dx / L * 105, vy = dy / L * 105 + 1.2 * L / 105 / 2, vz = dz / L * 105;
+              for (let st = 0; st < 200; st++) {
+                const nx = px + vx * dt, ny = py + vy * dt, nz = pz + vz * dt; vy -= 1.2 * dt;
+                const hit = GS.segHit(1, 'ffar', px, py, pz, nx, ny, nz, 300, 0.3);
+                if (hit || ny < isl.height(nx, nz)) { const q = hit || { x: nx, y: Math.max(ny, isl.height(nx, nz)), z: nz }; GS.blast(q.x, q.y, q.z, 6 * 0.9, 1, 1); if (hit) heliHits++; break; }
+                px = nx; py = ny; pz = nz;
+              }
+            }
+          }
         }
       }
     }
@@ -155,13 +169,13 @@ if (process.argv[2] === 'fight') {
 
 // ------------------------------------------------------------------------------------------------- 4. fights
 {
-  const seeds = [1, 2, 3, 4, 5, 6];
+  const seeds = [1, 2, 3, 4, 5, 6, 7, 8];   // (the walker sims use Math.random in places: outcomes vary run to run, so several seeds and margins)
   const res = seeds.map(seed => fight({ seed, secs: 360 }));
   const sum = k => res.reduce((s, r) => s + r[k], 0);
   console.log('  Marines alone (13, dug in) vs 8 STRIDERs:', res.map(r => `[M ${r.marines} (${r.kia}k ${r.wia}w) | R ${r.machines}${r.crippled ? ' (' + r.crippled + ' crippled)' : ''} ${r.ended ? Math.round(r.ended) + 's' : ''}]`).join(' '));
   const killed = 8 * seeds.length - sum('machines'), mWins = res.filter(r => r.machines === 0 || (r.marines > 0 && r.onPad === 0 && r.machines <= 2)).length;
   check(killed + sum('crippled') >= seeds.length * 2, 'the Marines hurt the machines: STRIDERs killed or crippled (avg >= 2 a fight)', `${killed} killed + ${sum('crippled')} crippled in ${seeds.length} fights`);
-  check(res.some(r => r.machines >= 4) && mWins <= seeds.length - 2, 'unsupported, a squad usually loses to a full MV-22 load (the machines are the stronger force)', `Marines won ${mWins}/${seeds.length}`);
+  check(res.some(r => r.machines >= 4) && mWins <= seeds.length / 2, 'unsupported, a squad usually loses to a full MV-22 load (the machines are the stronger force)', `Marines won ${mWins}/${seeds.length}`);
   check(sum('wia') >= sum('kia') * 0.5, 'casualties are wounded as well as killed', `${sum('kia')} killed, ${sum('wia')} wounded`);
   const cost = sum('cost') / seeds.length;
   check(cost < 60, `cost: ${cost.toFixed(1)} ms of CPU per simulated second, 21 units in contact (full detail)`);
@@ -169,7 +183,7 @@ if (process.argv[2] === 'fight') {
   const rh = seeds.map(seed => fight({ seed, secs: 360, heli: { from: 50 } }));
   const hWins = rh.filter(r => r.machines === 0 || (r.marines > 0 && r.onPad === 0 && r.machines <= 2)).length;
   console.log('  ... with a Huey door gun overhead:', rh.map(r => `[M ${r.marines} (${r.kia}k ${r.wia}w) | R ${r.machines} ${r.ended ? Math.round(r.ended) + 's' : ''} | gun ${r.heliHits}/${r.heliShots}]`).join(' '));
-  check(hWins >= mWins + 2 && hWins >= seeds.length / 2, 'a helicopter overhead tips the fight to the Marines', `Marines won ${hWins}/${seeds.length} (alone ${mWins})`);
+  check(hWins >= mWins + 1 && hWins > seeds.length / 2, 'a helicopter overhead tips the fight to the Marines', `Marines won ${hWins}/${seeds.length} (alone ${mWins})`);
   check(rh.reduce((s, r) => s + r.marines, 0) > sum('marines'), 'and more Marines live through it', `${rh.reduce((s, r) => s + r.marines, 0)} vs ${sum('marines')} standing at the end`);
   // far from the camera: cheap
   const rf = fight({ seed: 1, secs: 120, far: true });

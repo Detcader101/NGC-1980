@@ -48,7 +48,7 @@ export const MAR_WPN = {
 };
 // damage a RUNAWAY round does to a Marine (HP on foot.js's body-part scale) and to the outside world (war.js units)
 // (hp: on a Marine; war: on an AA site or a vehicle; air: on an aircraft (a CH-46 on its LZ, a helicopter low over the fight); heli: the player's helicopter)
-export const RW_HURT = { xm7: { hp: 60, war: 0.15, air: 0.02, heli: 0.08 }, needle: { hp: 48, war: 0.12, air: 0.015, heli: 0.07 }, mg: { hp: 62, war: 0.15, air: 0.03, heli: 0.09 }, coil120: { hp: 600, war: 3.2, air: 2.5, heli: 0.7 }, mbt120: { hp: 600, war: 3.5, air: 3, heli: 0.8 }, mbt125: { hp: 600, war: 3.5, air: 3, heli: 0.8 }, pd: { hp: 30, war: 0.05, air: 0.03, heli: 0.05 } };
+export const RW_HURT = { xm7: { hp: 60, war: 0.15, air: 0.008, heli: 0.08 }, needle: { hp: 48, war: 0.12, air: 0.006, heli: 0.07 }, mg: { hp: 62, war: 0.15, air: 0.012, heli: 0.09 }, coil120: { hp: 600, war: 3.2, air: 2.5, heli: 0.7 }, mbt120: { hp: 600, war: 3.5, air: 3, heli: 0.8 }, mbt125: { hp: 600, war: 3.5, air: 3, heli: 0.8 }, pd: { hp: 30, war: 0.05, air: 0.03, heli: 0.05 } };
 const HEIGHT = { strider: 2.1, hovertank: 2.6, mbt: 2.4, marine: 1.8 };
 const NEAR = 560;      // m from the island's shore to the camera: inside = full simulation
 const AIR_RANGE = 170;   // m: machines open up on an aircraft only inside this
