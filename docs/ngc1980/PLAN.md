@@ -34,9 +34,11 @@ The orchestrator (main Claude session) keeps this file current. Read [BIBLE.md](
 | TANK M60A3 TTS (+ M113A2 shares the track sim) | ngc/tank | 1 | | |
 | WHEELED: M151A2 MUTT, M35A2 | ngc/wheeled | 1 | | |
 | NAVAL: ALBATROSS 1980, KRAKEN seized CVN, LEVIATHAN, container ship | ngc/naval | 1 | | |
-| AIR AI fixed-wing: F-14A on a real FM, MQ-9, Shahed | ngc/airfw | 1 | | |
+| AIR AI fixed-wing: F-14A on a real FM, MQ-9, Shahed | ngc/airfw -> ngc/airfw-2 | 1 | airframe + Tomcat FM done (tomcatbench 32/32); continuation running | first agent blocked by the safety check at missile guidance |
 | AIR AI rotary: CH-46 + Marines, MV-22B, RW-3 WASP | ngc/airrot | 1 | | |
 | C-130H Hercules (replaces MULE 1) | ngc/c130 | 1 | | |
 | DEFENCE, game-tuned (first agent blocked by an auto-mode safety check; relaunched without real-world weapon data) | ngc/defence-v2 | 1 | | |
 | STRUCTURES + LIVED-IN WORLD: bases both sides, villages, roads, civilians | ngc/world | 1 | | |
 | RUNAWAY ground: RW-1 STRIDER, RW-7 hover tank, seized M1A2/T-90M | ngc/rwground | 1 | | |
+
+Rule learned: keep weapons at game level (headline figures, game-tuned damage, no guidance/seeker/penetration research). Deep real-world weapon modelling trips auto mode's safety check and stops the agent.
