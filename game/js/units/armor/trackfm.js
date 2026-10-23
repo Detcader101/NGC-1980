@@ -61,7 +61,7 @@ export const SOILS = {
   dirt: { n: 0.2, kc: 16.43, kphi: 1724.69, c: 6.9, phi: 30, K: 0.015, roll: 0.01, color: '#7a6a4a' },     // lean clay 22% moisture (WES), cohesion cut from 68.95 (packed track) INFERRED
   grass: { n: 0.9, kc: 52.53, kphi: 1127.97, c: 4.83, phi: 20, K: 0.025, roll: 0.02, color: '#55703a' },    // sandy loam 11% (LLL, Michigan)
   sand: { n: 1.1, kc: 0.99, kphi: 1528.43, c: 1.04, phi: 28, K: 0.025, roll: 0.02, color: '#c8b27a' },      // dry sand (LLL)
-  mud: { n: 0.11, kc: 1.84, kphi: 103.27, c: 20.69, phi: 6, K: 0.04, roll: 0.03, color: '#4d3f2c' },        // heavy clay 40% (WES)
+  mud: { n: 0.5, kc: 5.27, kphi: 167.55, c: 20.69, phi: 11, K: 0.04, roll: 0.03, color: '#4d3f2c' },        // lean clay 32% moisture (WES)
   bog: { n: 0.5, kc: 0.8, kphi: 32.0, c: 3.0, phi: 4, K: 0.05, roll: 0.05, color: '#3b3a25' },              // saturated peat / muskeg, INFERRED (Wong's muskeg data are a different model)
   snow: { n: 1.6, kc: 4.37, kphi: 196.72, c: 1.03, phi: 19.7, K: 0.04, roll: 0.02, color: '#e8ecef' },      // snow (US, Wong)
 };
@@ -155,6 +155,8 @@ export function createTrackSim(P, opt = {}) {
   }
   for (const h of P.HULL.PROBES) env0.push({ b: h.p, n: h.n, t: [0, 0, 0], x: 1, side: -1, kind: 'hull', mu: h.mu ?? 0.5, name: h.name, j: [0, 0, 0] });
   for (const c of env0) { c.j = [0, 0, 0]; c.N = 0; c.d = 0; c.on = false; }
+  const gaps = [0, 1].map(() => Array.from({ length: (nW - 1) * 2 }, () => ({ j: [0, 0, 0], N: 0, kind: 'gap' })));
+  sim.gaps = gaps;
   sim.contacts = env0;
   // ---- buoyancy columns: P.HULL.COLS = [{ x, z, ax, az, y0, y1 }]: centre (x, z), half sizes, bottom / top heights
   const COLS = P.HULL.COLS || [];
@@ -233,16 +235,36 @@ export function createTrackSim(P, opt = {}) {
   const _p = [0, 0, 0], _v = [0, 0, 0], _r = [0, 0, 0];
   // depth of world point p inside the terrain measured along direction e (unit; the way the point must move to get out).
   // Heightfield marching with a bisection refine; e is the contact's inward normal (into the vehicle).
+  // depthAlong sets lastWall: false when the point is simply below a surface it can rise out of (use the terrain normal),
+  // true when it had to march out sideways (a step face / trench wall: use the contact's own normal)
+  let lastWall = false;
   function depthAlong(env, px, py, pz, ex, ey, ez, h0) {
+    lastWall = false;
     if (py >= h0) return 0;
     // flat-ground guess
     if (ey > 0.35) { const t0 = (h0 - py) / ey; if (t0 < 0.03 || py + t0 * ey >= env.height(px + t0 * ex, pz + t0 * ez) - 1e-3) return Math.min(t0, 1.2); }
+    lastWall = true;
     let lo = 0, hi = -1;
     for (let t = 0.06; t <= 1.2; t += 0.06) { if (py + t * ey >= env.height(px + t * ex, pz + t * ez)) { hi = t; break; } lo = t; }
     if (hi < 0) return 1.2;
     for (let k = 0; k < 4; k++) { const m = (lo + hi) / 2; if (py + m * ey >= env.height(px + m * ex, pz + m * ez)) hi = m; else lo = m; }
     return hi;
   }
+  // terrain normal at (x, z): env.normal if the host has one, else central differences over 0.25 m
+  // tnEdge: true where the ground has a kink (a step lip, a trench edge, a wall top): the second difference of the
+  // height over +-0.25 m exceeds 5 cm. There the surface normal means nothing and contacts use their own geometry.
+  const _tn = [0, 1, 0]; let tnEdge = false;
+  function terrainNormal(env, x, z, out = _tn) {
+    const e = 0.25, h0 = env.height(x, z), hx1 = env.height(x + e, z), hx0 = env.height(x - e, z), hz1 = env.height(x, z + e), hz0 = env.height(x, z - e);
+    tnEdge = Math.abs(hx1 + hx0 - 2 * h0) > 0.05 || Math.abs(hz1 + hz0 - 2 * h0) > 0.05;
+    if (env.normal) { env.normal(x, z, out); return out; }
+    const dx = (hx1 - hx0) / (2 * e), dz = (hz1 - hz0) / (2 * e);
+    const l = Math.hypot(dx, 1, dz); out[0] = -dx / l; out[1] = 1 / l; out[2] = -dz / l; return out;
+  }
+  // a soil edge (trench lip, bank) crumbles under a heavily loaded track: the bearing edge gives way by up to 0.3 m
+  // with the load it carries (I: a bearing failure of the edge; why trench ratings are well short of the track length).
+  // Concrete and rock edges stay sharp.
+  function edgeSink(soil, N) { return soil.hard ? 0 : 0.3 * clamp((N - 2e4) / 1.2e5, 0, 1); }
   function soilAt(env, x, z) { const id = env.surface ? env.surface(x, z) : 'dirt'; return SOILS[id] ? id : 'dirt'; }
 
   // shear force at a contact (Wong's exponential law on a 2-D shear displacement). Writes the world force into F,
@@ -274,12 +296,15 @@ export function createTrackSim(P, opt = {}) {
   const lastEv = {};
   // contact list for this substep (filled by the geometry pass, consumed by the force pass)
   const act = [];   // { c (wheel or envelope contact), px,py,pz (world contact point), n (world), N, side, kind, tauMax, K, damp, relax, linkDir (world unit) }
-  for (let i = 0; i < 160; i++) act.push({ c: null, p: [0, 0, 0], n: [0, 0, 0], t: [0, 0, 0], N: 0, side: 0, kind: '', tauMax: 0, K: 0, damp: 0, relax: 0, r: [0, 0, 0] });
+  for (let i = 0; i < 200; i++) act.push({ c: null, p: [0, 0, 0], n: [0, 0, 0], t: [0, 0, 0], N: 0, side: 0, kind: '', tauMax: 0, K: 0, damp: 0, relax: 0, r: [0, 0, 0] });
   let nAct = 0;
 
   function addAct(c, p, n, t, N, side, kind, soil, mu, relax) {
     const a = act[nAct++]; a.c = c; a.p[0] = p[0]; a.p[1] = p[1]; a.p[2] = p[2]; a.n[0] = n[0]; a.n[1] = n[1]; a.n[2] = n[2];
     a.t[0] = t[0]; a.t[1] = t[1]; a.t[2] = t[2]; a.N = N; a.side = side; a.kind = kind; a.relax = relax;
+    // the track conforms to what it bears on: links in contact move along the contact plane at track speed (an
+    // inclined run pressed flat on the ground becomes part of the bottom run; an idler pressed on a face climbs it)
+    if (kind === "track") { const tn = t[0] * n[0] + t[1] * n[1] + t[2] * n[2], px = t[0] - n[0] * tn, py = t[1] - n[1] * tn, pz = t[2] - n[2] * tn, pl = Math.hypot(px, py, pz); if (pl > 0.15) { a.t[0] = px / pl; a.t[1] = py / pl; a.t[2] = pz / pl; } }
     a.r[0] = p[0] - sim.pos[0]; a.r[1] = p[1] - sim.pos[1]; a.r[2] = p[2] - sim.pos[2];
     const S0 = SOILS[soil];
     if (kind === 'hull') { a.tauMax = N * mu * (S0.hard ? 1 : 0.8); a.K = 0.01; }
@@ -312,14 +337,15 @@ export function createTrackSim(P, opt = {}) {
       const x = s ? B2 : -B2, soil = SOILS[sim.soil[s]], sink = sim.sink[s], thrown = sim.dmg.thrown[s];
       const rad = thrown ? T.WHEEL_R : RW;
       for (const wh of sim.wheels[s]) {
-        // sample the wheel circle (track face) at 5 points along the hull's fore-aft axis; travel needed at each
-        let best = -1e9, bestA = 0, bh = 0;
+        // sample the wheel circle (track face) at 7 points along the hull's fore-aft axis; travel needed at each
+        let best = -1e9, bestA = 0, bh = 0, lift0 = 0;
         const hubY = RW;   // nominal hub height (s = 0)
-        for (let k = -2; k <= 2; k++) {
-          const a = k * 0.36 * rad, yb = hubY - Math.sqrt(rad * rad - a * a);
+        for (let k = -3; k <= 3; k++) {
+          const a = k * 0.25 * rad, yb = hubY - Math.sqrt(rad * rad - a * a);
           sim.toWorld([x, yb, wh.z + a], _p);
-          const gh = env.height(_p[0], _p[2]) - sink;
+          const gh = env.height(_p[0], _p[2]) - sink - (wh.edge ? edgeSink(soil, wh.N) : 0);
           const lift = (gh - _p[1]) / Math.max(0.35, up[1]);
+          if (k === 0) lift0 = lift;
           if (lift > best) { best = lift; bestA = a; bh = gh; }
         }
         wh.sPrev = wh.s;
@@ -336,15 +362,42 @@ export function createTrackSim(P, opt = {}) {
         const N = Math.max(0, Fs) * (wh.hp < 1 ? 0.5 + 0.5 * wh.hp : 1);
         wh.N = N; wh.on = N > 0; wh.a = bestA;
         if (!wh.on) continue;
-        // contact point and normal (from the contact toward the wheel centre: up and back when a kerb is ahead)
+        // contact point and normal: the terrain normal, except when the wheel bears on an edge ahead of or behind its
+        // lowest point (a kerb, a step, a trench lip): then the force runs from the edge through the hub (up and back)
         const ry = Math.sqrt(Math.max(0, rad * rad - bestA * bestA));
         const yb = hubY + sNew - ry;
         sim.toWorld([x, yb, wh.z + bestA], _p);
-        bodyToWorldDir([0, ry / rad, -bestA / rad], nW_);
+        wh.edge = bestA !== 0 && best - lift0 > 0.01;
+        if (wh.edge) bodyToWorldDir([0, ry / rad, -bestA / rad], nW_);
+        else { const tn = terrainNormal(env, _p[0], _p[2]); wh.edge = tnEdge; if (tnEdge) bodyToWorldDir([0, ry / rad, -bestA / rad], nW_); else { nW_[0] = tn[0]; nW_[1] = tn[1]; nW_[2] = tn[2]; } }
         bodyToWorldDir([0, 0, 1], tW);   // link motion on the bottom run for +omega: aft
         const xpatch = Math.max(0.15, wh.z - zFront + 0.2);
         { const a = addAct(wh, _p, nW_, tW, N, s, thrown ? 'wheel' : 'track', sim.soil[s], 1, 0); a.xp = sim.spr[s] >= 0 ? xpatch : Math.max(0.15, contactLen - xpatch + 0.4); }
         sideN[s] += N; sideCnt[s]++;
+      }
+      // the bottom run between adjacent roadwheels (two points per gap, 12 mm above the line of the wheel bottoms): on
+      // flat ground it carries nothing; over a ridge, a step lip or a trench edge the track itself bears on it and the
+      // links moving over the edge give traction there (how a tank rolls over the edge of a step)
+      if (!thrown) {
+        const Wh = sim.wheels[s];
+        for (let i = 0; i < Wh.length - 1; i++) for (let f = 0; f < 2; f++) {
+          const c = gaps[s][i * 2 + f], A = Wh[i], Bw = Wh[i + 1], fr = f ? 0.67 : 0.33;
+          const zb = A.z + (Bw.z - A.z) * fr, yb = A.s + (Bw.s - A.s) * fr + 0.012;
+          sim.toWorld([x, yb, zb], _p);
+          const gh0 = env.height(_p[0], _p[2]) - sink, tn = terrainNormal(env, _p[0], _p[2]), gh = gh0 - (tnEdge ? edgeSink(soil, c.N) : 0);
+          if (_p[1] >= gh) { c.N = 0; c.j[0] *= 0.9; c.j[1] *= 0.9; c.j[2] *= 0.9; continue; }
+          let d;
+          if (!tnEdge && tn[1] > 0.4) { nW_[0] = tn[0]; nW_[1] = tn[1]; nW_[2] = tn[2]; d = (gh - _p[1]) * tn[1]; }
+          else { nW_[0] = up[0]; nW_[1] = up[1]; nW_[2] = up[2]; d = (gh - _p[1]) * Math.max(0.3, up[1]); }   // an edge: square to the run
+          d = Math.min(d, 0.3);
+          pointVel(_p, _v);
+          const N = Math.max(0, T.RUN_K * d - T.RUN_C * (_v[0] * nW_[0] + _v[1] * nW_[1] + _v[2] * nW_[2]));
+          c.N = N; if (!N) continue;
+          _p[0] += nW_[0] * d; _p[1] += nW_[1] * d; _p[2] += nW_[2] * d;
+          bodyToWorldDir([0, 0, 1], tW);
+          const a = addAct(c, _p, nW_, tW, N, s, 'track', sim.soil[s], 1, 0); a.xp = sim.spr[s] >= 0 ? Math.max(0.15, zb - zFront + 0.2) : Math.max(0.15, contactLen - (zb - zFront) + 0.4);
+          sideN[s] += N;
+        }
       }
     }
     // ---- 2. rigid envelope (idler / sprocket arcs, runs) and hull probes
@@ -355,8 +408,16 @@ export function createTrackSim(P, opt = {}) {
       bodyToWorldDir(c.n, nW_);
       const sink = c.side >= 0 ? sim.sink[c.side] : 0;
       const gh = env.height(_p[0], _p[2]) - sink;
-      let d = 0, nx = -nW_[0], ny = -nW_[1], nz = -nW_[2];   // inward normal (direction to push the hull)
-      if (_p[1] < gh) d = depthAlong(env, _p[0], _p[1], _p[2], nx, ny, nz, gh);
+      let d = 0, nx = -nW_[0], ny = -nW_[1], nz = -nW_[2], onWall = false;   // inward normal (direction to push the hull)
+      if (_p[1] < gh) {
+        d = depthAlong(env, _p[0], _p[1], _p[2], nx, ny, nz, gh);
+        // pressed into a surface from above: push along the terrain normal, depth perpendicular to it; only a contact
+        // that met a wall (step face, trench side) keeps its own normal
+        // (an edge - a step lip, a trench edge - shows as a near-vertical finite-difference normal: there the line or arc
+        // of the track bears on the edge and the force is along the track's own normal)
+        onWall = true;
+        if (!lastWall) { const tn = terrainNormal(env, _p[0], _p[2]); if (!tnEdge && tn[1] > 0.4) { nx = tn[0]; ny = tn[1]; nz = tn[2]; d = (gh - _p[1]) * tn[1]; onWall = false; } }
+      }
       // obstacles (plan view), pushing horizontally out
       let od = 0, onx = 0, onz = 0, oid = null, obr = 0;
       for (const o of obsList) {
@@ -382,7 +443,8 @@ export function createTrackSim(P, opt = {}) {
       // contact point on the surface
       _p[0] += nx * d; _p[1] += ny * d; _p[2] += nz * d;
       nW_[0] = nx; nW_[1] = ny; nW_[2] = nz;
-      if (c.kind === 'run') { bodyToWorldDir(c.t, tW); const a = addAct(c, _p, nW_, tW, N, c.side, 'track', sim.soil[c.side], 1, 0); a.xp = 0.15; sideN[c.side] += N; }
+      // links bearing on a wall or an edge grip with their steel ends and guides, not the road pads: less friction (I)
+      if (c.kind === 'run') { bodyToWorldDir(c.t, tW); const a = addAct(c, _p, nW_, tW, N, c.side, 'track', sim.soil[c.side], onWall || od >= d ? (T.WALL_MU ?? 0.6) : 1, 0); a.xp = 0.15; sideN[c.side] += N; }
       else { const a = addAct(c, _p, nW_, [0, 0, 0], N, -1, 'hull', soilAt(env, _p[0], _p[2]), c.mu, 0); a.xp = 1; hullN += N; if (c.name === 'muzzle' && d > 0.05) once('gunDug', {}); }
     }
     sim.out.impact = maxImpact;
@@ -423,11 +485,13 @@ export function createTrackSim(P, opt = {}) {
 
     // ---- 5. final shear forces with the new sprocket speeds -> hull
     sideLat[0] = sideLat[1] = 0;
+    if (sim.debug) sim.dbg = {};   // per contact type: summed normal (xxN) and shear (xxF) forces of the last substep, world N
     let slipNum = [0, 0], slipDen = [0, 0];
     for (let i = 0; i < nAct; i++) {
       const a = act[i];
       // normal force
       Fc[0] = a.n[0] * a.N; Fc[1] = a.n[1] * a.N; Fc[2] = a.n[2] * a.N; addF(a.p, Fc);
+      if (sim.debug) { const k = (a.c && a.c.kind === "gap" ? "gap" : a.kind === "track" && a.c && a.c.k ? "wheel" : a.kind === "track" ? "run" : a.kind) + "N"; const D = sim.dbg[k] ||= [0, 0, 0]; D[0] += Fc[0]; D[1] += Fc[1]; D[2] += Fc[2]; }
       pointVel(a.p, _u);
       let relax = 0;
       if (a.kind === 'track') {
@@ -439,6 +503,7 @@ export function createTrackSim(P, opt = {}) {
         _u[0] -= tx * ut; _u[1] -= ty * ut; _u[2] -= tz * ut; relax = 2;
       } else relax = 0.5;   // hull: slow creep relaxation
       shear(a.c, a.N, a.n, _u, relax, a.tauMax, a.K, a.damp, dt, Fc, true);
+      if (sim.debug) { const k = (a.c && a.c.kind === "gap" ? "gap" : a.kind === "track" && a.c && a.c.k ? "wheel" : a.kind === "track" ? "run" : a.kind) + "F"; const D = sim.dbg[k] ||= [0, 0, 0]; D[0] += Fc[0]; D[1] += Fc[1]; D[2] += Fc[2]; }
       addF(a.p, Fc);
       if (a.side >= 0) { bodyToWorldDir([1, 0, 0], dW); sideLat[a.side] += Fc[0] * dW[0] + Fc[1] * dW[1] + Fc[2] * dW[2]; }
     }

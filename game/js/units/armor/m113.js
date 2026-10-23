@@ -16,7 +16,7 @@ export const M113A2 = {
   // combat weight 11,343 kg (AFVDB, C; FAS 24,728 lb = 11,216 kg, Wikipedia 11,740 kg - conflict). The brief's 12.3 t
   // is the combat weight plus a full squad: 11,343 + 11 x 95 = 12,388 kg. MASS here is without troops (see TROOPS).
   MASS: 11343, TROOPS: 11, TROOP_KG,
-  CG: [0, 0.98, -0.1],                       // engine front right, troops aft: CG slightly forward I
+  CG: [0, 0.98, 0.0],                         // engine forward, troops aft: about mid-track (the hull floats level with the vane up) I
   I: [24e3, 28e3, 9.5e3],                    // pitch, yaw, roll kg m2: 0.85 x box 4.86 x 2.69 x 1.85 m I
   FUEL_L: 360,                               // 95 US gal C
   AERO_CDA: 5.5,
@@ -31,7 +31,7 @@ export const M113A2 = {
     REAR: { z: 1.97, y: 0.44, r: 0.28, kind: 'idler' },
     RETURN: [],                              // no support rollers: the top run sags on the wheels U
     SPROCKET_R: 6 * IN / (2 * Math.sin(Math.PI / 10)),   // 0.2466 m pitch radius I
-    J_SPROCKET: 75, RUN_K: 1.5e6, RUN_C: 3e4, INTERNAL: 1.25,   // T130 rubber-bushed track: high internal losses I (tuned with 0-32 km/h)
+    J_SPROCKET: 75, RUN_K: 1.5e6, RUN_C: 3e4, INTERNAL: 0.9,    // T130 rubber-bushed track, I (tuned with top speed and 0-32 km/h)
   },
   SUSP: { K: 8.4e4, C: [1.4e4, 1.4e4, 0, 0, 1.4e4], REBOUND: 0.10, BUMP: 0.15, BUMP_K: 1.2e6, BUMP_C: 3e4 },   // I
   ENGINE: {
@@ -47,8 +47,8 @@ export const M113A2 = {
   TRANS: {
     // Allison TX100-1: 3 forward, 1 reverse (C), automatic shifting within the selected range; ratios not published -> I:
     // 3rd sets 64 km/h at the governor (C), 1st the 60 % gradient (C), 0-32 km/h in 11.0 s (FAS) checks the spacing.
-    ranges: { R: { ratio: -3.4 }, '1': { ratio: 3.3 }, '2': { ratio: 1.62 }, '3': { ratio: 1.0 }, '1-2': { auto: 2 }, '1-3': { auto: 3 } },
-    AUTO: ['1', '2', '3'], UP_RPM: 2550, DOWN_RPM: 1150,
+    ranges: { R: { ratio: -3.4 }, '1': { ratio: 4.0 }, '2': { ratio: 1.75 }, '3': { ratio: 1.0 }, '1-2': { auto: 2 }, '1-3': { auto: 3 } },
+    AUTO: ["1", "2", "3"], UP_RPM: 2350, DOWN_RPM: 1150,
     FINAL: 3.95,
     LOCKUP: { ranges: ['2', '3'], SR: 0.8, ON_RPM: 1500, OFF_RPM: 1250, CAP: 1100 },
     J_TURBINE: 0.6, TURB_DRAG: 0.12, CLUTCH_CAP: 6000, SHIFT_T: 0.45,

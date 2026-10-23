@@ -2,7 +2,7 @@
 // game/dev/tank.html. Axis-aligned features so the render grid can put exact edges on them:
 //   - a paved road (x -6..6) running north-south; the start area at z +40
 //   - obstacle lanes east of the road, all crossing z -40: A step 0.91 m (x 20..32), B trench 2.6 m wide x 2 m deep
-//     (x 36..48), C 60 % concrete ramp to a 4 m plateau (x 52..64), D 30 % side slope (x 68..84, rising to the east),
+//     (x 36..48), C 60 % concrete ramp to a 4 m plateau (x 52..64), D a ridge with 30 % faces (x 68..84, 2.4 m high),
 //     E 1.2 m step (x 88..100, too high), F 3.4 m trench (x 104..116, too wide)
 //   - soft ground west: mud (x -60..-30, z -40..0), bog (x -60..-30, z -80..-50), sand (x -60..-30, z 10..50)
 //   - water further west: a ford 1.2 m deep (x -100..-80) dropping into a 4 m deep lake (x -150..-100), banks 25 %
@@ -42,7 +42,7 @@ export function height(x, z) {
   const B = F.trenchB; if (x >= B.x[0] && x <= B.x[1] && z > B.z0 && z < B.z1) h = G0 - B.d;
   const Ft = F.trenchF; if (x >= Ft.x[0] && x <= Ft.x[1] && z > Ft.z0 && z < Ft.z1) h = G0 - Ft.d;
   const C = F.rampC; if (x >= C.x[0] && x <= C.x[1] && z < C.z0) { const d = C.z0 - z, up = C.rise / C.grade; h = G0 + (d < up ? d * C.grade : d < up + C.len ? C.rise : d < 2 * up + C.len ? C.rise - (d - up - C.len) * C.grade : 0); }
-  const D = F.sideD; if (x >= D.x[0] && z >= D.z[0] && z <= D.z[1]) h = G0 + Math.min(x - D.x[0], D.x[1] - D.x[0]) * D.grade;
+  const D = F.sideD; if (x >= D.x[0] && x <= D.x[1] && z >= D.z[0] && z <= D.z[1]) h = G0 + ((D.x[1] - D.x[0]) / 2 - Math.abs(x - (D.x[0] + D.x[1]) / 2)) * D.grade;   // a 30 % ridge: drive along either face
   // water: ford (1.2 m), lake (4 m), sloped banks
   const fd = F.ford, lk = F.lake, bk = F.bank;
   if (z > fd[2] && z < fd[3] && x < fd[1] + (G0 + 1.2) / bk && x > lk[0] - (G0 + 4) / bk) {
@@ -58,7 +58,7 @@ export function height(x, z) {
     h = Math.min(h, t);
   }
   // cross-country bumps
-  const bu = F.bumps; if (inside(x, z, bu[0], bu[1], bu[2], bu[3])) { const e = smooth(clamp(Math.min(x - bu[0], bu[1] - x, z - bu[2], bu[3] - z) / 10, 0, 1)); h += e * (0.32 * Math.sin(z * 0.45 + 0.7 * Math.sin(x * 0.11)) + 0.2 * Math.sin(z * 1.05 + x * 0.31) + 0.14 * Math.sin(x * 0.83 - z * 0.2)); }
+  const bu = F.bumps; if (inside(x, z, bu[0], bu[1], bu[2], bu[3])) { const e = smooth(clamp(Math.min(x - bu[0], bu[1] - x, z - bu[2], bu[3] - z) / 10, 0, 1)); h += e * (0.24 * Math.sin(z * 0.45 + 0.7 * Math.sin(x * 0.11)) + 0.1 * Math.sin(z * 1.05 + x * 0.31) + 0.08 * Math.sin(x * 0.83 - z * 0.2)); }
   return h;
 }
 export function surface(x, z) {
