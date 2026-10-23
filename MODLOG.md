@@ -1344,3 +1344,73 @@ a vehicle or the Hornet on deck and you are an M16A1 rifleman of 1980 with the i
   ready: the CH-46 squad could treat you); AI soldiers using createRifleman (the figures are static targets now); the
   medical sim pauses while you ride a craft; enemy small-arms fire from RUNAWAY ground units arrives once the ground-war
   agent's units shoot `'b'` / their own kinds through hurtPlayer; grenades are thrown straight off the rig (no cooking, no throw animation in the viewmodel).
+
+## 2026-10-23 — NGC-1980: the F-14A TOMCAT, flyable (branch ngc/tomcat)
+The AI escorts' Tomcat (units/air/tomcatfm.js on the parametric airframe) as a player craft at the HORNET's level.
+- **Getting one**: in the helicopter on the ALBATROSS deck press **8** (command 5 is still the HORNET): an F-14A on cat 1,
+  engines turning, tanks from the fleet stores, the 1980 CAP fit (2 AIM-9, 2 AIM-54, 2 AIM-7, 675 rounds). Two in the
+  hangar (`G.tomcats`, top-left TOMCATS line, pause menu), a new one 100 materiel. 8 again on deck: back to the cat.
+  Y on deck climbs out (it stays parked and rides the deck; Y at the boarding ladder, left side, climbs back in, either
+  seat). Command 4 (AI escorts, cat 2) is unchanged.
+- **Files**: crafttomcat.js (the craft adapter, like craftjet.js), units/air/tomcatplay.js (input, systems, weapons,
+  warnings, ejection, cameras), tomcatsys.js (pure: wing sweep controls, AFCS, start air), tomcatcockpit.js (both
+  cockpits), gaugekit.js (steam-gauge helpers), tomcatdamage.js, tomcatsound.js; game/dev/tomcat.html (cockpit / model
+  preview driven by sliders); tools/tomcatsysbench.mjs; scenes tomcat.mjs, tomcatcockpit.mjs, tomcatdev.mjs.
+- **Cockpit (1980, analog)**. Pilot: AVG-12 HUD (conformal ladder every 5°, dashed below the horizon, velocity vector,
+  the "W" waterline, heading scale, IAS / altitude boxes, Mach, g; modes T.O. / CRUISE / A/A / A/G / LDG auto-selected by
+  phase or by the panel buttons; LDG: the AoA E-bracket and ICLS needles; A/A: Sidewinder seeker circle, Sparrow /
+  Phoenix ASE circle with steering dot, target diamond, gun pipper with range bar, SHOOT). VDI (green contact-analog
+  horizon with a perspective ground grid, pitch lines, bank scale, heading strip, ICLS on approach) and HSD (compass rose,
+  TACAN needle and DME to the ALBATROSS, the selected island as the waypoint, ground track; or a TID repeat). Steam
+  gauges: AoA tape in units (15 = on speed, units = deg x 1.43, INFERRED from 10.5° = 15 u), airspeed with a Mach
+  window, counter-pointer altimeter, VSI, standby ADI, accelerometer with tell-tales, wing sweep indicator (position
+  needle, command bug, AUTO / MAN / EMER / OVER / STUCK window), flap / slat, TF30 RPM / TIT / FF / nozzle pairs, oil,
+  fuel (feed tapes, totaliser, BINGO), clock, ALR-45 threat scope, gear indicator with barber poles; MASTER CAUTION,
+  WHEELS, ALT LOW, LAUNCH, SWEEP, HOOK, ACM lights, L / R FIRE push-lights on the coaming, the AoA indexer, a 24-caption
+  caution / advisory panel on the right vertical console. Clickable: gear, hook, flaps, master arm, weapon select, HUD
+  modes, HSD mode, FIRE, ACM jettison, master caution, engine crank L / R, the throttle's sweep switch (FWD / AFT / AUTO),
+  the emergency sweep handle (guard), SAS / autopilot / ALT, lights, canopy, parking brake, the face curtain and lower
+  ejection handle. Stick, two throttles (MIL and AB detents marked), pedals with toe brakes and pedal shaker move.
+  RIO ([ / ]): DDD (pulse-doppler range / azimuth, STT gate), TID (tracks with numbers and velocity leaders, the hooked
+  track's data, range 0.5-8.6 nm), RWR repeat, weapon type / STT / TWS / LAUNCH lights, standby ASI / altimeter / clock,
+  side consoles (UHF, TACAN, IFF, data link, ECM, NAV), the hand control unit. In that seat the pilot (the AI's flight
+  director) flies the heading / altitude / speed you set with A D W S Shift Ctrl.
+- **Systems**: wing sweep AUTO (CADC program, the sim's), MAN (thumb switch, aft of the program only), EMER handle (any
+  sweep 20-68°), OVERSWEEP 75° on deck only, flaps down bring the wings to 20°, a dead CADC freezes them (EMER still
+  works), 15°/s or 7.5°/s on one hydraulic system. Pitch trim (; ' or the stick hat). AFCS: stab aug switch (off or shot
+  out = the airframe's DIRECT), autopilot ATTITUDE HOLD with control stick steering and ALTITUDE HOLD (drops out past 70°
+  bank, gear handle down, SAS loss: AUTO PILOT caution). TF30: crank needs air (deck start cart / cross-bleed /
+  windmill above 225 KEAS); compressor stalls come from the sim (high AoA, sideslip, slams, slow AB light-offs) with a
+  bang, the inlet caution, the HUD / hint cue; idle + nose down clears it, holding power flames it out. Keyboard stick:
+  ramps, and the "hand" stops pulling past 6.5 g (the jet has no limiter; HOTAS gets the raw stick). Fuel 2x real burn
+  (TCFG.FUEL_X, game), BINGO 3000 lb.
+- **Warnings: 1980 tones and lights, no voice** (decided: the F-14A had no voice warning system; the HORNET keeps
+  Betty): ALT LOW light + warbling radar-altimeter tone sinking below 60 m AGL; FIRE light + pulsed tone; MASTER CAUTION
+  light + a two-note chime per new caption; the ALR-45 launch warble and LAUNCH light for a RUNAWAY missile closing;
+  the rudder-pedal shaker from 20 units; the flashing WHEELS light (gear up, slow, low, descending) has no tone.
+- **Weapons, game level** (BIBLE): M61 as war.js jet rounds, AIM-9 off the seeker lock, AIM-7 only with the STT lock
+  (otherwise unguided), AIM-54 off any hooked TWS track; all war.fireMissile. Game ranges: SW 150-1100 m, SP 250-1700,
+  PH 450-3600; AWG-9 at game scale 4 km, ±65°. No guidance laws or Pk modelling.
+- **Damage** (tomcatdamage.js): L / R TF30 (fire + one bottle each, a damaged one stalls up to 3.4x as easily),
+  hydraulics, SAS, CADC, fuel (leaks), avionics (HUD / CRTs / radar flicker), gear, hook, airframe. Ejection: canopy,
+  RIO, then the pilot 0.4 s later; two chutes; rescue then back to the helicopter.
+- **Shared-file changes**: main.js (TOMCAT-commented: import, `isJet()` replacing `G.craft === 'jet'` in the T / V /
+  pad / draw-distance / menu paths, the tomcat cockpit in pickSwitch / click / wheel zoom / HUD visibility / g vignette,
+  `jetPlayCtx` shared by both jets, the craft registration, command 8 + Digit8, hangar counts, stow / toHeli / newGame,
+  debug bridge `tomcatC`); index.html (TOMCATS line); hotas.js (actions WING SWEEP FWD / AFT / AUTO, no default
+  buttons). war.js, craft.js, craftjet.js, jetplay.js untouched.
+- **Tests**: tomcatsysbench 32/32 (sweep modes, OVERSWEEP 75°, dead CADC, 3.2 / 6.3 s sweep times, ATT hold 0.04° /
+  30 s, CSS hold < 1°, ALT hold 2 m in a 30° bank, disengage rules, start air, windmill airstart light-off 1.9 s, stall
+  procedure, damage); jetbench 24/24, tomcatbench 32/32, airbench 28/28, jetfingerprint bit-identical.
+  Scene tomcat.mjs: 8 -> cat, keyboard throttles to MIL, the shot, stick / gear / flaps by keys, climb, the wings
+  sweeping with Mach (M 0.70 -> 26°, 0.80 -> 50°, 0.92 -> 61°: the CADC table), a 6.5 g turn (vapour), a double
+  compressor stall at 140 kt full power + rudder (the jet departs; idle + nose down clears both), the RIO's TID / DDD with
+  two SHRIKEs hooked and STT-locked, a 1-wire trap, Y out / Y in, oversweep on deck, a second launch and a two-seat
+  ejection, back to the helicopter. tomcatcockpit.mjs: close-ups on the dev page.
+- **Gotchas**: a scene that clears `carrier.path` before the launch holds the cat forever (the ship never turns into
+  clear water); headless frame rates make wall-clock key holds unreliable (wait for state instead); events read by a test
+  hook lag a frame; a box in front of a CRT plane by 3 mm hid the RIO's displays; assigning to a getter-only property
+  throws in modules.
+- **Untested**: real HOTAS hardware (sweep buttons, hat trim); sound by ear (headless is muted); long sessions of
+  combat against SHRIKEs in the player's Tomcat; the sky carrier with a Tomcat on deck; flat spins after an asymmetric
+  flame-out are possible in the sim but not exercised.

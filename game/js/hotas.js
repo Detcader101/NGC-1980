@@ -11,6 +11,8 @@ export const ACTIONS = [
   { id: 'bomb', label: 'DROP BOMB' }, { id: 'airbrake', label: 'SPEED BRAKE (HOLD)' }, { id: 'gear', label: 'LANDING GEAR' },
   { id: 'flaps', label: 'FLAPS CYCLE' }, { id: 'hook', label: 'TAIL HOOK' }, { id: 'view', label: 'COCKPIT / CHASE VIEW' },
   { id: 'zoom', label: 'ZOOM VIEW (HOLD)' }, { id: 'wheelbrake', label: 'WHEEL BRAKES (HOLD)' }, { id: 'eject', label: 'EJECT (HOLD 1S)' },
+  // TOMCAT: the wing sweep switch on the outboard throttle (no default buttons: bind them in the J panel)
+  { id: 'sweepfwd', label: 'WING SWEEP FWD (HOLD, TOMCAT)' }, { id: 'sweepaft', label: 'WING SWEEP AFT (HOLD, TOMCAT)' }, { id: 'sweepauto', label: 'WING SWEEP AUTO (TOMCAT)' },
   { id: 'lookhat', label: 'HAT = LOOK AROUND', setting: true },
 ];
 // axis functions: type ctr = centring (-1..1), thr = throttle (0..1), brk = toe brake (0..1 from its rest end)
