@@ -180,8 +180,8 @@ export function buildShilka(side = 1) {
   const radar = group(yaw, 0, 0.85, 1.25); radar.userData.part = true;
   cyl(radar, P.sovDark, 0.12, 0.16, 0.65, 0, 0.32, 0, 'y', 8);
   const dish = group(radar, 0, 0.82, 0); dish.userData.part = true;
-  { const d = new THREE.Mesh(new THREE.SphereGeometry(0.72, 14, 4, 0, Math.PI * 2, 0, 0.75), P.sovGreen); d.rotation.x = -Math.PI / 2; d.position.z = 0.42; dish.add(d); }
-  cyl(dish, P.steel, 0.025, 0.025, 0.55, 0, 0, -0.2, 'z', 4); cyl(dish, P.sovDark, 0.08, 0.08, 0.12, 0, 0, -0.48, 'z', 6);
+  { const d = new THREE.Mesh(new THREE.SphereGeometry(0.72, 14, 4, 0, Math.PI * 2, 0, 0.75), P.sovGreen); d.rotation.x = Math.PI / 2; d.position.z = -0.42; dish.add(d); }   // concave side forward
+  cyl(dish, P.steel, 0.025, 0.025, 0.5, 0, 0, -0.05, 'z', 4); cyl(dish, P.sovDark, 0.08, 0.08, 0.12, 0, 0, -0.32, 'z', 6);   // feed horn
   for (const sd of [-1, 1]) box(dish, P.steel, 0.03, 0.03, 0.5, sd * 0.32, 0, -0.1, 0, sd * 0.5);
   const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 4), lampMat(0xffaa22)); lamp.position.set(-0.9, 1.0, 0.9); yaw.add(lamp);
   return finish(g, { type: 'shilka', yaw, pitch, spin: [], radar, dish, muzzles, lamp, flashes, team, h: 3.1 });
@@ -233,7 +233,12 @@ export function buildSparrow(side = 1) {
     box(pitch, P.black, cw * 0.86, ch * 0.84, 0.04, x, y, 0.3 - L / 2 - 0.005);
     const cover = new THREE.Mesh(new THREE.BoxGeometry(cw * 0.8, ch * 0.78, 0.03), lam(0xece8de)); cover.position.set(x, y, 0.3 - L / 2 - 0.03); pitch.add(cover);
     cells.push({ cover, pos: V(x, y, 0.3 - L / 2 - 0.2) });
+    // the cell's back end: a blow-out plate in a rim
+    box(pitch, P.steel, cw * 0.9, ch * 0.88, 0.03, x, y, 0.3 + L / 2 + 0.01); box(pitch, P.black, cw * 0.7, ch * 0.66, 0.03, x, y, 0.3 + L / 2 + 0.025);
   }
+  box(pitch, P.yellow, W * 0.92, 0.05, 0.02, 0, 0.12 + H / 2 - 0.04, 0.3 + L / 2 + 0.03);                                // blast-area band
+  for (const sd of [-1, 1]) box(pitch, P.haze, 0.08, 0.16, L * 0.8, sd * (W / 2 + 0.04), 0.12 - H / 2 + 0.1, 0.3);     // side rails
+  cyl(yaw, P.black, 0.05, 0.05, 1.0, -0.62, 0.75, 0.55, 'y', 6);                                                       // umbilical cable up the arm
   const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 4), lampMat(0xffaa22)); lamp.position.set(0, 0.55, 2.0); pitch.add(lamp);
   return finish(g, { type: 'sparrow', yaw, pitch, spin: [], radar: null, dish: null, muzzles: [], cells, lamp, flashes: [], team, h: 2.4 }, { mudH: 0.01 });
 }

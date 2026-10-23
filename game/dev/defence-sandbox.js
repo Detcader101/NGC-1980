@@ -217,7 +217,7 @@ function step(dt) {
   fx.update(dt);
 }
 function frame(now) {
-  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now;   // the first rAF stamp can be older than 'last'
   if (!paused) step(dt);
   if (auto) cam.yaw += dt * 0.3;
   camera.position.set(Math.sin(cam.yaw) * Math.cos(cam.pitch), Math.sin(cam.pitch), Math.cos(cam.yaw) * Math.cos(cam.pitch)).multiplyScalar(cam.dist).add(cam.t);

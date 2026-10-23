@@ -146,6 +146,7 @@ export function createDefence(env) {
 
   // ------------------------------------------------------------------ per-unit update
   function update(o, dt, foes) {
+    if (!(dt > 0)) return;
     const D = o.def, T = D.T, ud = o.mesh.userData, t = env.time();
     o.mesh.updateMatrixWorld();
     const eye = eyeOf(o, _a);
@@ -482,6 +483,7 @@ export function createDefence(env) {
 
   // ------------------------------------------------------------------ the frame
   function tick(dt) {
+    if (!(dt > 0)) dt = 0;
     updateMissiles(dt);
     // beams of units that died mid-shot
     for (const o of units) {
