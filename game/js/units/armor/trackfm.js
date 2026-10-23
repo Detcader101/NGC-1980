@@ -137,12 +137,12 @@ export function createTrackSim(P, opt = {}) {
     const arc = (c, sideSign, n) => {
       const rr = c.r + T.THICK;
       for (let k = 0; k < n; k++) {
-        const a = (k + 0.5) / n * Math.PI * 0.62 + 0.05;     // ~3..115 deg from down
+        const a = (k + 0.5) / n * Math.PI * 0.84 + 0.05;     // ~3..155 deg from down: up past the centre, where a step corner meets it
         const ry = -Math.cos(a), rz = sideSign * Math.sin(a); // unit radius (y, z); sideSign -1 = forward (front arc)
         env0.push({ b: [x, c.y + ry * rr, c.z + rz * rr], n: [0, ry, rz], t: [0, rz, -ry], x: 0.2, side: s, kind: 'run', mu: 1 });
       }
     };
-    arc(front, -1, 6); arc(rear, +1, 6);
+    arc(front, -1, 8); arc(rear, +1, 8);
     // runs: front run from the front wheel's bottom-tangent to wheel 1's bottom, rear run from the last wheel to the rear wheel
     const run = (z0, y0, z1, y1, n) => {   // from (z0,y0) toward (z1,y1); link direction from front toward rear on the bottom
       const dz = z1 - z0, dy = y1 - y0, L = Math.hypot(dz, dy), tz = dz / L, ty = dy / L;

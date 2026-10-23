@@ -64,7 +64,7 @@ export function height(x, z) {
 export function surface(x, z) {
   const F = FEATURES;
   if (inside(x, z, ...F.road)) return 'paved';
-  for (const k of ['stepA', 'stepE']) { const A = F[k]; if (x >= A.x[0] - 2 && x <= A.x[1] + 2 && z < A.z + 6 && z > A.z - 30) return 'paved'; }
+  // (the step lanes are earth banks: a field obstacle course, not a concrete wall)
   const C = F.rampC; if (x >= C.x[0] && x <= C.x[1] && z < C.z0 + 4 && z > C.z0 - 30) return 'paved';
   if (inside(x, z, ...F.mud)) return 'mud';
   if (inside(x, z, ...F.bog)) return 'bog';
