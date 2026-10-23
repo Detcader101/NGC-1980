@@ -76,7 +76,9 @@ export const FRAGS = {
   M406: { name: '40mm M406 HE', dmg: 24, pen: 22, falloff: 10, count: 3000, tag: 'GAME', src: '' },
   ART:  { name: '105mm SHELL', dmg: 45, pen: 30, falloff: 25, count: 20000, tag: 'GAME', src: '' },
   RWB:  { name: 'RW CERAMIC BURST', dmg: 30, pen: 35, falloff: 10, count: 3000, tag: 'FICTION', src: '' },
+  M72:  { name: '66mm M72 ROCKET', dmg: 40, pen: 30, falloff: 4, count: 1500, tag: 'GAME', src: '' },
 };
+FRAGS.M433 = { ...FRAGS.M406, name: '40mm M433 HEDP' };   // keys used by the INFANTRY ballistics explosionInfo()
 
 // ---------------------------------------------------------------------------------------------------------- armour
 // Armour classes (GAME, Tarkov-style): a round with pen well above 10 x class goes through; well below, the armour

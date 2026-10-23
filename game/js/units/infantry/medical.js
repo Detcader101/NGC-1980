@@ -117,9 +117,19 @@ export const shockClass = loss => loss < MED.CLASS[0] ? 1 : loss < MED.CLASS[1] 
 // y up, z forward = where he faces; decides front / back / side / top for armour), side ('L'/'R' when only a limb
 // zone is given), kind ('bullet' | 'fragment' | 'blunt'), bleed (multiplier), source and rangeM (logs).
 // All damage numbers are GAME tuning (Tarkov-style), not a model of real terminal ballistics.
+// Also accepts the INFANTRY ballistics.js makeHitInfo() object as is: dmg there is a SCALE (rifle ball = 1, already
+// x v/mv), dir a world-space array (pass victimYaw, the soldier's three.js yaw, facing -z at yaw 0, to turn it into
+// the body frame) and part 'neck' is its own hitbox.
 export function normaliseHit(h, rng = Math.random) {
   const o = { kind: h.kind || 'bullet', ...h };
+  if (o.part === 'neck') { o.part = 'head'; o.zone = 'neck'; }
+  if (Array.isArray(o.dir)) {
+    const [x, y, z] = o.dir, yaw = o.victimYaw || 0, c = Math.cos(yaw), s = Math.sin(yaw);
+    o.dir = { x: x * c - z * s, y, z: -x * s - z * c };   // right = (cos, 0, -sin), forward = (-sin, 0, -cos)
+  }
+  if (o.dmg != null && o.dmg <= 3 && o.kind === 'bullet') { o.dmgScale = o.dmg; delete o.dmg; }   // INFANTRY scale
   const rd = o.round ? ROUNDS[o.round] : null;
+  if (!rd && o.dmgScale != null) o.dmg = 54 * o.dmgScale;   // an unknown round: scale a rifle ball
   if (rd) {
     const f = clamp((o.velocity ?? rd.v0) / rd.v0, 0, 1.2);
     o.dmg = o.dmg ?? rd.dmg * (0.55 + 0.45 * f);       // GAME: damage falls to ~55% as the round slows

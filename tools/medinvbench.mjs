@@ -148,6 +148,11 @@ function hpStats(hit, N = 300, armourIds = []) {
 }
 function stopRate(hit, ids, N = 1000) { let s = 0, cov = 0; for (let i = 0; i < N; i++) { const M = createMedical({ rng: mulberry32(7 + i) }); const r = M.hit({ ...hit }, ids.map(id => I.newItem(id))); if (r.layers.some(l => l.covered)) { cov++; if (!r.penetrated) s++; } } return cov ? s / cov : 0; }
 {
+  { // INFANTRY ballistics.js makeHitInfo() shape: dmg scale, world dir array, 'neck' hitbox
+    const a = normaliseHit({ kind: 'bullet', round: 'M193', velocity: 900, dmg: 0.91, dir: [0, 0, 1], part: 'neck', victimYaw: 0 }, mulberry32(1));
+    const b = normaliseHit({ kind: 'bullet', round: 'M193', velocity: 900, dmg: 0.91, dir: [0, 0, 1], part: 'thorax', victimYaw: Math.PI }, mulberry32(1));
+    check('accepts INFANTRY makeHitInfo(): neck, dmg scale, world dir', a.part === 'head' && a.zone === 'neck' && a.face === 'front' && b.face === 'back' && a.dmg > 40, `${a.part}/${a.zone} ${a.face}, turned: ${b.face}, ${a.dmg.toFixed(0)} dmg`, 'head/neck front, back', 'GAME', 'interface');
+  }
   const out = {};
   for (const [name, h] of [['M193 @100 m', { round: 'M193', velocity: approxVelocity('M193', 100) }], ['M193 @400 m', { round: 'M193', velocity: approxVelocity('M193', 400) }], ['M80 @100 m', { round: 'M80', velocity: approxVelocity('M80', 100) }], ['.45 ACP @10 m', { round: 'M1911', velocity: approxVelocity('M1911', 10) }], ['grenade fragment @5 m', fragmentHits('M67', 5, mulberry32(4))[0] || { kind: 'fragment', dmg: 15, pen: 14 }]]) {
     const th = hpStats({ ...h, part: 'thorax', zone: 'chest' }), lg = hpStats({ ...h, part: 'legL', zone: 'thigh' }); out[name] = { th, lg };

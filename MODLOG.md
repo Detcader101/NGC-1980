@@ -286,6 +286,9 @@ Pure modules in `game/js/units/infantry/` (no DOM, no THREE, node-testable) + HT
   z forward), kind 'bullet' | 'fragment' | 'blunt', source }. Returns { region, zone, face, penetrated, layers[{ cls,
   pPen, stopped }], hp, bleed, fracture, ptx, concussion } for hit markers and the feed. Grenades:
   `fragmentHits(FRAGS id, distM, rng, { prone })` -> hit-infos. Falls: `M.fall(impactSpeed, { plf })`.
+  The INFANTRY branch's `ballistics.js makeHitInfo()` object is accepted as is (checked in the bench): its `dmg` is
+  read as a scale, `part: 'neck'` becomes head/neck, and its world `dir` array is turned into the body frame when
+  the caller adds `victimYaw` (three.js yaw, facing -z at 0). Its `explosionInfo()` keys M433 / M72 exist in FRAGS.
 - Weapons <-> inventory: magazines are items. `I.weaponMag(w)`, `I.magPop(m)` -> round id (feed), `I.magCount`,
   `I.reload(inv, weapon)` -> { mag, old, dropped }, `I.countRounds(inv, cal)`, `ROUNDS[id]` (cal, v0, cartG, dmg,
   pen, bleed, tracer); weapon defs carry `weapon: { cal, rpm, modes, barrelIn, vMul, single }`; the M203 slot is `gl`.
