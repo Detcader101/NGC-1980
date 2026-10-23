@@ -242,7 +242,7 @@ export function buildC130Deck() {
     ohGauge(x, -0.18, 0.045, (c, W) => dialFace(c, W, { map: otMap, v0: 0, v1: 120, minor: 10, major: 40, bands: [[60, 85, '#2a8a3a']], reds: [100], ls: 0.2 }), (c, W, S) => { const e = S.eng[k]; e.oilT = (e.oilT ?? (e.run ? 75 : 20)) + ((e.run ? 70 + 10 * (e.shp / 4591) : 20) - (e.oilT ?? 20)) * 0.002; needle(c, W / 2, otMap(e.oilT), W * 0.42); hub(c, W / 2); });   // 60-85 C (OPS)
   });
   // the checklist: a card clipped by the pilot's side window, drawn from what the crew is doing (X.checklist)
-  const ckT = canvasTex(320, 420); { const o = plane(0.26, 0.34, new THREE.MeshLambertMaterial({ map: ckT.tex, emissive: 0xffffff, emissiveMap: ckT.tex, emissiveIntensity: 0.45 }), -1.36, 0.92, -10.95); o.rotation.set(-0.15, 0.95, 0); box(0.03, 0.02, 0.02, metal, -1.37, 1.09, -10.95); }
+  const ckT = canvasTex(320, 420); { const o = plane(0.26, 0.34, new THREE.MeshLambertMaterial({ map: ckT.tex, emissive: 0xffffff, emissiveMap: ckT.tex, emissiveIntensity: 0.45 }), -1.5, 0.72, -10.7); o.rotation.set(-0.35, 1.15, 0.1); box(0.03, 0.02, 0.02, metal, -1.5, 0.89, -10.7); }   // on the side wall by the pilot's left knee
   let ckKey = '';
   function drawChecklist(C) {
     const key = JSON.stringify(C); if (key === ckKey) return; ckKey = key;

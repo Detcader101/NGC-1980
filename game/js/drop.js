@@ -535,7 +535,9 @@ export function createDrop(ctx) {
       }
       if (camRef) {
         const d = camRef.position.distanceTo(S.pos), vr = d > 1 ? _v.subVectors(camRef.position, S.pos).dot(S.vel) / d : 0;
-        snd.update({ eng: S.eng, tas: S.tas, inside: deckView(), dist: d, vr });
+        // outside: each engine panned by where it is across the camera's view
+        const pans = deckView() ? null : C130M.ENG_X.map(x => { _w.set(x, C130M.ENG_Y, C130M.PROP_Z).applyQuaternion(S.q).add(S.pos).sub(camRef.position); _r.set(1, 0, 0).applyQuaternion(camRef.quaternion); return clamp(_w.dot(_r) / Math.max(5, _w.length()), -1, 1); });
+        snd.update({ eng: S.eng, tas: S.tas, inside: deckView(), dist: d, vr, pans });
       }
     }
     // finished? everyone is down (or lost) and nobody is still running
