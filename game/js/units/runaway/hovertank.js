@@ -33,16 +33,16 @@ export const RW7 = {
   CELL_PERIM: 10.2,             // m of skirt hem per cell (outer edges)
   CD_LEAK: 0.6,
   PMAX: 14000,                  // Pa fan stall pressure
-  QMAX: 260,                    // m^3/s per fan at zero back-pressure (big ducted fans: the hem stands ~0.3 m clear)
+  QMAX: 520,                    // m^3/s per fan at zero back-pressure (big ducted fans: the hem floats ~0.4 m clear)
   PLENUM_T: 0.03,               // s pressure lag
-  GAP_T: 0.32,                  // m hem clearance the ride control holds
+  GAP_T: 0.42,                  // m hem clearance the ride control holds
   SKIRT_Y: -0.55,               // skirt hem below the hull origin (origin = hull centre at the hem line + 0.55)
   SKIRT_K: 2.4e6, SKIRT_D: 1.6e5, SKIRT_MU: 0.45,
   VEC_MAX: 0.45,                // horizontal vectored force / weight (enough to hold and climb a 20° grade, barely)
   YAW_MAX: 0.75,                // rad/s commanded yaw-rate limit
   CDA: [7.5, 4.0, 18.0],        // drag area m^2: forward (x along -z), vertical, lateral
   TOP: 19,                      // m/s (~68 km/h) governed top speed
-  TURRET_MASS: 3800, TURRET_Y: 1.0, TURRET_OFF: 0.55,   // turret CoM is 0.55 m forward of the ring centre
+  TURRET_MASS: 3800, TURRET_Y: 0.83, TURRET_OFF: 0.55,   // turret CoM is 0.55 m forward of the ring centre
   RECOIL: 7200,                 // N s per coilgun shot (game value)
   ARMOUR: { front: 120, side: 60, rear: 40, top: 30, turret: 140, fan: 20, skirt: 5 },
   HP: { hull: 420, turret: 220, fan: 70, skirt: 60, weapon: 90, pd: 40 },
@@ -83,7 +83,8 @@ export function createHoverTank(opt = {}) {
     toWorld(l, o = [0, 0, 0]) { qrot(T.q, l, o); o[0] += T.p[0]; o[1] += T.p[1]; o[2] += T.p[2]; return o; },
     tilt() { const u = T.up(); return Math.acos(clamp(u[1], -1, 1)); },
     // the gun: muzzle and direction in world
-    muzzle(o = [0, 0, 0]) { const c = Math.cos(T.turretYaw), s = Math.sin(T.turretYaw), cp = Math.cos(T.gunPitch), L = 5.2; return T.toWorld([-s * cp * L, R.TURRET_Y + 0.25 + Math.sin(T.gunPitch) * L, -c * cp * L], o); },
+    // (turret ring 0.25 m left of the centreline, 0.2 m forward: the model matches)
+    muzzle(o = [0, 0, 0]) { const c = Math.cos(T.turretYaw), s = Math.sin(T.turretYaw), cp = Math.cos(T.gunPitch), L = 6.15; return T.toWorld([-0.25 - s * cp * L, R.TURRET_Y + 0.25 + Math.sin(T.gunPitch) * L, -0.2 - c * cp * L], o); },
     gunDir(o = [0, 0, 0]) { const c = Math.cos(T.turretYaw), s = Math.sin(T.turretYaw), cp = Math.cos(T.gunPitch); return qrot(T.q, [-s * cp, Math.sin(T.gunPitch), -c * cp], o); },
     // fire the coilgun (the caller spawns the slug): recoil kicks the hull back and up at the turret
     fire() {
@@ -158,7 +159,8 @@ export function createHoverTank(opt = {}) {
       const [cx, cz] = R.CELLS[i], front = cz < 0 ? 1 : -1, rightSide = cx > 0 ? 1 : -1;
       // active ride control: each fan also works against its own cell's gap error and heave rate (a bare cushion is
       // a lightly damped spring; the machine damps it - and holds the hem ~0.32 m clear)
-      const ride = 0.5 * (R.GAP_T - T.gap[i]) - 0.35 * T.gapRate[i];
+      if (i === 0) { const mg = (T.gap[0] + T.gap[1] + T.gap[2] + T.gap[3]) / 4; T.rideI = clamp((T.rideI || 0) + (R.GAP_T - mg) * h * 0.8, -0.25, 0.3); }
+      const ride = 0.5 * (R.GAP_T - T.gap[i]) - 0.35 * T.gapRate[i] + T.rideI;
       T.fanCmd[i] = clamp(liftCmd * (0.9 + ride - ep * front * 0.25 + er * rightSide * 0.25), 0, 1);
       const alive = T.fanHp[i] > 0 && T.alive ? 1 : 0;
       T.fan[i] += clamp(T.fanCmd[i] * alive - T.fan[i], -h / 0.15, h / 0.12);   // variable-pitch fan: quick response

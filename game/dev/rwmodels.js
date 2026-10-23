@@ -4,6 +4,10 @@
 import * as THREE from 'three';
 import { createStrider, flatEnv } from '../js/units/runaway/strider.js';
 import { buildStrider } from '../js/units/runaway/stridermodel.js';
+import { createHoverTank } from '../js/units/runaway/hovertank.js';
+import { buildHoverTank } from '../js/units/runaway/hovertankmodel.js';
+import { createMBT, MBT } from '../js/units/runaway/mbt.js';
+import { buildMBT } from '../js/units/runaway/mbtmodel.js';
 
 const Q = new URLSearchParams(location.search);
 const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(2, devicePixelRatio)); document.body.prepend(renderer.domElement);
@@ -22,8 +26,14 @@ async function addStrider(x, z, yaw, weapon) {
   const M = buildStrider({ weapon, tag: 'R1-0' + (units.length + 1) }); scene.add(M.group);
   units.push({ kind: 'strider', S, M, x, z, yaw });
 }
+function addHover(x, z, yaw) { const T = createHoverTank(); T.place(x, z, yaw, env); const M = buildHoverTank({ tag: 'RW7-0' + (units.length + 1) }); scene.add(M.group, M.shadow); units.push({ kind: 'hover', T, M }); }
+function addMBT(type, x, z, yaw) { const T = createMBT(MBT[type]); T.place(x, z, yaw, env); const M = buildMBT(type, { tag: type === 'm1a2' ? 'RW-A1 07' : 'RW-T9 03' }); scene.add(M.group); units.push({ kind: 'mbt', T, M }); }
 if (unit === 'strider') addStrider(0, 0, 0, Q.get('weapon') || 'xm7');
 if (unit === 'lineup') { addStrider(-1.2, 0, 0, 'xm7'); addStrider(1.2, 0, 0.6, 'coil'); }
+if (unit === 'hover') addHover(0, 0, 0);
+if (unit === 'm1' || unit === 'm1a2') addMBT('m1a2', 0, 0, 0);
+if (unit === 't90' || unit === 't90m') addMBT('t90m', 0, 0, 0);
+if (unit === 'all') { addMBT('m1a2', -9, 0, 0); addMBT('t90m', 0, 0, 0); addHover(9, 0, 0); addStrider(15, 2, 0, 'xm7'); addStrider(17, 0, 0, 'coil'); }
 const walk = +(Q.get('walk') || 0);
 
 const cam = { yaw: 0.6, pitch: 0.2, dist: 6, t: new THREE.Vector3(0, 1.1, 0) };
@@ -49,12 +59,16 @@ function step(dt) {
     if (u.kind === 'strider') {
       cmd.vx = 0; cmd.vz = -walk; cmd.run = walk > 1.7;
       u.S.step(dt, cmd, env); u.M.update(u.S, dt, time);
+    } else if (u.kind === 'hover') {
+      u.T.step(dt, { vx: 0, vz: -walk * 4, turret: u.T.yaw + (window.__RW?.turret || 0) }, env); u.M.update(u.T, dt, time, env.height(u.T.p[0], u.T.p[2]));
+    } else {
+      u.T.step(dt, { vx: 0, vz: -walk * 4, turret: u.T.yaw + (window.__RW?.turret || 0) }, env); u.M.update(u.T, dt, time);
     }
   }
 }
 function render() {
   if (auto) cam.yaw += 0.005;
-  const tgt = cam.t.clone(); if (follow && units[0] && walk) { tgt.x += units[0].S.c[0]; tgt.z += units[0].S.c[2]; }
+  const tgt = cam.t.clone(); if (follow && units[0] && walk) { const p = units[0].S ? units[0].S.c : units[0].T.p; tgt.x += p[0]; tgt.z += p[2]; }
   camera.position.set(Math.sin(cam.yaw) * Math.cos(cam.pitch), Math.sin(cam.pitch), Math.cos(cam.yaw) * Math.cos(cam.pitch)).multiplyScalar(cam.dist).add(tgt);
   camera.lookAt(tgt); renderer.render(scene, camera);
 }

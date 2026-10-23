@@ -23,7 +23,7 @@ export const MBT = {
     clearance: 0.48, trackW: 0.635, gauge: 3.0, contactL: 4.6, wheels: 7, wheelR: 0.32, sprocketAft: true,
     power: 1119000,                 // W (1500 hp gas turbine)
     vmax: 67 / 3.6, vrev: 30 / 3.6, // m/s governed road speed, reverse
-    turretRing: [0, 0.35], turretH: 0.85, gunL: 5.6, gunY: 2.05,   // turret ring centre (x, z local, z + aft), gun trunnion height
+    turretRing: [0, 0.35], turretH: 0.85, gunL: 4.25, gunY: 2.05, gunZ: -1.9,    // turret ring centre (x, z local, z + aft), gun trunnion height and its offset ahead of the ring
     traverse: 0.7, elev: [-0.17, 0.35],                             // rad/s, rad (game values)
     ammo: 'mbt120', reload: 6.5,
     armour: { front: 600, side: 120, rear: 60, turret: 650, top: 40 },   // game armour points
@@ -36,7 +36,7 @@ export const MBT = {
     clearance: 0.49, trackW: 0.58, gauge: 2.79, contactL: 4.27, wheels: 6, wheelR: 0.375, sprocketAft: true,
     power: 843000,                  // W (1130 hp diesel)
     vmax: 60 / 3.6, vrev: 4.8,
-    turretRing: [0, 0.1], turretH: 0.75, gunL: 6.0, gunY: 1.82,
+    turretRing: [0, 0.1], turretH: 0.75, gunL: 4.85, gunY: 1.82, gunZ: -1.45,
     traverse: 0.75, elev: [-0.1, 0.24],
     ammo: 'mbt125', reload: 7.0,
     armour: { front: 550, side: 110, rear: 50, turret: 600, top: 35 },
@@ -99,7 +99,7 @@ export function createMBT(P, opt = {}) {
       const y = drive.yaw + T.turretYaw, cp = Math.cos(T.gunPitch + drive.pitch);
       const [rx, rz] = P.turretRing, c = Math.cos(drive.yaw), s = Math.sin(drive.yaw);
       const bx = drive.p[0] + rx * c + rz * s, bz = drive.p[2] - rx * s + rz * c;
-      o[0] = bx - Math.sin(y) * cp * P.gunL; o[1] = drive.p[1] + P.gunY + Math.sin(T.gunPitch + drive.pitch) * P.gunL; o[2] = bz - Math.cos(y) * cp * P.gunL; return o;
+      const Lg = P.gunL - P.gunZ; o[0] = bx - Math.sin(y) * cp * Lg; o[1] = drive.p[1] + P.gunY + Math.sin(T.gunPitch + drive.pitch) * Lg; o[2] = bz - Math.cos(y) * cp * Lg; return o;
     },
     gunDir(o = [0, 0, 0]) { const y = drive.yaw + T.turretYaw, p = T.gunPitch + drive.pitch, cp = Math.cos(p); o[0] = -Math.sin(y) * cp; o[1] = Math.sin(p); o[2] = -Math.cos(y) * cp; return o; },
     fire() { if (T.reload > 0 || !T.alive || T.hp.gun <= 0) return false; T.reload = P.reload; T.events.push({ e: 'fire' }); return true; },

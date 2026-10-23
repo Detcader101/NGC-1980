@@ -34,6 +34,20 @@ export class Kit {
     for (let i = 0; i < p.count; i++) { const t = p.getY(i); p.setXYZ(i, p.getX(i) * (w0 + (w1 - w0) * t) + sx * t, t * h, p.getZ(i) * (d0 + (d1 - d0) * t) + sz * t); }
     return this.add(g, color, mat(x, y, z, r));
   }
+  // a vertical prism from a plan polygon [[x, z], ...] (any winding), between heights y0 and y0 + h; an optional
+  // inset makes the top face smaller (sloped sides): top = plan scaled toward its centroid by `topScale`
+  prism(plan, y0, h, color, topScale = 1, m) {
+    const cx = plan.reduce((s, p) => s + p[0], 0) / plan.length, cz = plan.reduce((s, p) => s + p[1], 0) / plan.length;
+    const area = plan.reduce((s, p, i) => { const q = plan[(i + 1) % plan.length]; return s + p[0] * q[1] - q[0] * p[1]; }, 0);
+    const P = area < 0 ? plan.slice().reverse() : plan, n = P.length, pos = [];
+    const bot = P.map(([x, z]) => [x, y0, z]), top = P.map(([x, z]) => [cx + (x - cx) * topScale, y0 + h, cz + (z - cz) * topScale]);
+    const tris = THREE.ShapeUtils.triangulateShape(P.map(([x, z]) => new THREE.Vector2(x, z)), []);
+    const tri = (a, b, c) => pos.push(...a, ...b, ...c);
+    for (const [a, b, c] of tris) { tri(top[a], top[c], top[b]); tri(bot[a], bot[b], bot[c]); }
+    for (let i = 0; i < n; i++) { const j = (i + 1) % n; tri(bot[i], top[i], top[j]); tri(bot[i], top[j], bot[j]); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals();
+    return this.add(g, color, m);
+  }
   cyl(r0, r1, len, seg, x, y, z, color, r) { return this.add(new THREE.CylinderGeometry(r1, r0, len, seg), color, mat(x, y, z, r)); }   // along y, r0 at -y
   sphere(rad, x, y, z, color, sx = 1, sy = 1, sz = 1, ws = 8, hs = 6) { return this.add(new THREE.SphereGeometry(rad, ws, hs).scale(sx, sy, sz), color, mat(x, y, z)); }
   oct(rad, x, y, z, color, sx = 1, sy = 1, sz = 1, r) { return this.add(new THREE.OctahedronGeometry(rad).scale(sx, sy, sz), color, mat(x, y, z, r)); }
