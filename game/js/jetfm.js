@@ -115,11 +115,12 @@ export function createJetSim(GRAV = 9.0) {
       A.trapWire = 0; A.dead = false; A.nInt = 0;
     },
     // ctl: { pitch (+aft), roll (+right), yaw (+right), throttle [l, r] 0..1, brakeL, brakeR 0..1 }
-    // env: { groundY(x,z), water(x,z), surfVel(x,z) -> {vx,vz,w,cx,cz}|null, carrier() -> {x,z,yaw,vx,vz,w,deck}|null, mods }
+    // env: { groundY(x,z) (sampled once per frame; a moving deck carries on at surfVel within it), water(x,z), surfVel(x,z) -> {vx,vy,vz,w,cx,cz}|null, carrier() -> {x,z,yaw,vx,vz,w,deck}|null, mods }
     step(dt, ctl, env) {
       A.events.length = 0;
       const n = Math.max(1, Math.ceil(dt / (1 / 240))), h = dt / n;
-      for (let i = 0; i < n && !A.dead; i++) sub(h, ctl, env);
+      tStep = 0;
+      for (let i = 0; i < n && !A.dead; i++) { sub(h, ctl, env); tStep += h; }
       return A.events;
     },
   };
@@ -265,9 +266,14 @@ export function createJetSim(GRAV = 9.0) {
 
   // ------------------------------------------------------------------ undercarriage
   const _sv = new THREE.Vector3(), _wp = new THREE.Vector3(), _ow = new THREE.Vector3(), _pv = new THREE.Vector3();
+  let tStep = 0;   // time into this frame step: a climbing deck (the SKY CARRIER) has moved on since groundY was sampled
+  function groundAt(env, x, z) {
+    const g = env.groundY(x, z); if (!tStep || !env.surfVel) return g;
+    const sv = env.surfVel(x, z); return sv && sv.vy ? g + sv.vy * tStep : g;
+  }
   function surfaceVel(env, x, z, out) {
     const sv = env.surfVel ? env.surfVel(x, z) : null;
-    return sv ? out.set(sv.vx + sv.w * (z - sv.cz), 0, sv.vz - sv.w * (x - sv.cx)) : out.set(0, 0, 0);
+    return sv ? out.set(sv.vx + sv.w * (z - sv.cz), sv.vy || 0, sv.vz - sv.w * (x - sv.cx)) : out.set(0, 0, 0);
   }
   function gearForces(h, ctl, env, m) {
     fromF(A.w, _ow).applyQuaternion(A.q);   // world angular velocity
@@ -277,7 +283,7 @@ export function createJetSim(GRAV = 9.0) {
     for (let i = 0; i < 3; i++) {
       const G = HORNET.GEAR[i];
       _r.set(G[0], G[1], G[2]).applyQuaternion(A.q); _wp.copy(_r).add(A.pos);
-      const gy = env.groundY(_wp.x, _wp.z), pen = gy - _wp.y;
+      const gy = groundAt(env, _wp.x, _wp.z), pen = gy - _wp.y;
       if (!gearDown || pen <= 0) { A.wow[i] = Math.max(0, A.wow[i] - 2 * h); continue; }
       if (env.water && env.water(_wp.x, _wp.z)) { die('water'); return true; }
       any = true;
@@ -313,7 +319,7 @@ export function createJetSim(GRAV = 9.0) {
   // airframe touching the ground: water = ditched, anything faster than a gentle scrape = crash
   function hull(env) {
     for (const P of HORNET.HULL) {
-      A.worldPoint(P, _wp); const gy = env.groundY(_wp.x, _wp.z);
+      A.worldPoint(P, _wp); const gy = groundAt(env, _wp.x, _wp.z);
       if (_wp.y >= gy) continue;
       if (env.water && env.water(_wp.x, _wp.z)) { die('water'); return; }
       const rel = surfaceVel(env, _wp.x, _wp.z, _sv).sub(A.vel).length();
@@ -325,11 +331,12 @@ export function createJetSim(GRAV = 9.0) {
 
   // ------------------------------------------------------------------ carrier: catapult and arresting gear
   function deckLocal(c, x, z) { const dx = x - c.x, dz = z - c.z, co = Math.cos(c.yaw), si = Math.sin(c.yaw); return [dx * co - dz * si, dx * si + dz * co]; }
+  const deckH = (c, x, z) => c.deckAt ? c.deckAt(x, z) : c.deck;   // the deck under (x, z): it heaves, pitches and rolls
   function deckWorld(c, lx, lz, out) { const co = Math.cos(c.yaw), si = Math.sin(c.yaw); return out.set(c.x + lx * co + lz * si, 0, c.z - lx * si + lz * co); }
   A.attachCat = env => {   // spot the jet on the catapult shuttle
     const c = env.carrier && env.carrier(); if (!c) return false;
     A.reset(0, 0, 0, c.yaw, { running: A.eng[0].run || A.eng[1].run });
-    deckWorld(c, DECKOPS.CAT_X, DECKOPS.CAT_Z0, A.pos); A.pos.y = c.deck + 1.92;
+    deckWorld(c, DECKOPS.CAT_X, DECKOPS.CAT_Z0, A.pos); A.pos.y = deckH(c, A.pos.x, A.pos.z) + 1.92;
     A.cat = { state: 'hold', t: 0, s: 0, v: 0 }; A.launchBar = true; A.flapSel = 1; A.onGround = true; return true;
   };
   function catapult(h, ctl, env) {
@@ -345,9 +352,9 @@ export function createJetSim(GRAV = 9.0) {
       C.v += (DECKOPS.CAT_V ** 2 / (2 * stroke) + T / A.mass * 0.6) * h; C.s += C.v * h;
       A.nz = 1; A.nx = (DECKOPS.CAT_V ** 2 / (2 * stroke)) / GRAV;
     }
-    deckWorld(c, DECKOPS.CAT_X, DECKOPS.CAT_Z0 - C.s, A.pos); A.pos.y = c.deck + 1.92 - (C.state === 'hold' ? 0.12 : 0);
+    deckWorld(c, DECKOPS.CAT_X, DECKOPS.CAT_Z0 - C.s, A.pos); A.pos.y = deckH(c, A.pos.x, A.pos.z) + 1.92 - (C.state === 'hold' ? 0.12 : 0);
     A.q.setFromEuler(_e.set(C.state === 'hold' ? -0.012 : 0.0, c.yaw, 0, 'YXZ'));
-    surfaceVel(env, A.pos.x, A.pos.z, A.vel); A.vel.x += fx * C.v; A.vel.z += fz * C.v; A.vel.y = 0;
+    surfaceVel(env, A.pos.x, A.pos.z, A.vel); A.vel.x += fx * C.v; A.vel.z += fz * C.v;   // vy: the deck's (a flying carrier climbs)
     A.w.set(0, 0, 0); A.wow = [0.12, 0.13, 0.13]; A.onGround = true;
     A.surf.stab += clamp(0.12 - A.surf.stab, -0.7 * h, 0.7 * h);   // trimmed nose-up for the rotation off the bow
     if (C.s >= DECKOPS.CAT_Z0 - DECKOPS.CAT_Z1) { A.cat = null; A.launchBar = false; A.onGround = false; A.w.y = 0.12; A.launchT = 2.5; ev('catend', { v: C.v }); }
@@ -359,7 +366,7 @@ export function createJetSim(GRAV = 9.0) {
     if (A.wire || A.hook < 0.95 || !env.carrier) return;
     const c = env.carrier(); if (!c) return;
     A.hookTip(_hk);
-    const [lx, lz] = deckLocal(c, _hk.x, _hk.z), [, plz] = deckLocal(c, prev.x, prev.z), above = _hk.y - c.deck;
+    const [lx, lz] = deckLocal(c, _hk.x, _hk.z), [, plz] = deckLocal(c, prev.x, prev.z), above = _hk.y - deckH(c, _hk.x, _hk.z);
     if (above > 0.45 || above < -1.5 || Math.abs(lx - DECKOPS.LAND_X) > 11) return;
     for (let k = 0; k < DECKOPS.WIRES.length; k++) {
       const wz = DECKOPS.WIRES[k];

@@ -23,6 +23,7 @@ The enemy carrier KRAKEN is out there doing the same, and whoever controls the m
 - **Para-drop repair team.** Downed on land? Press L and home base sends a steel dropship from over the horizon. You fly it in from the flight deck with a real fixed-wing flight model (or let the autopilot), line up the jump run against the wind, jump on the green light, then steer the canopies down; whoever lands on dry ground runs over with fuel and fixes the helicopter. Enemy flak can bring the dropship down.
 - **SKY CARRIER.** Spend 300 materiel (6 on the map) and the ALBATROSS is refitted with four ducted lift fans and takes to the air. Land on her and press Tab to stand on the bridge: wheel, speed telegraph and lift lever, all slow and heavy. Send her anywhere from the map and she flies over the islands; flak can bring her down.
 - **UH-1H Huey.** A Bell UH-1H with a validated flight model (teetering two-blade rotor with the Bell stabilizer bar, translational lift, ground effect, vortex ring state, retreating blade stall, a T53 engine with governor and freewheel so autorotations work), a full 3D cockpit with live instruments and the real caution panel, an authentic (optional) start sequence, the two-blade "wop wop", and a damage model where hits cause failures you can survive and repair. Built for a T.Flight HOTAS 4 + T-Rudder pedals: stick = cyclic, throttle lever = collective, pedals (or twist) = anti-torque; keyboard works too with the stability assist.
+- **Ships that live and move.** The ALBATROSS is a 1980 Midway-class big deck in haze grey with a working deck: crew in coloured jerseys, tractors, Tilly, parked Hornets and Tomcats, an LSO team, the meatball, SPS-48 and SPS-49 turning, boiler smoke from the funnel. The enemy has a seized 2030s Ford-class supercarrier (the KRAKEN) refitted by the machines, the RW-9 LEVIATHAN railgun monitor and autonomous container ships. Every ship heaves, pitches and rolls with the sea state (`?sea=0..7`, default 4) and its speed, and the decks you land on move with them. Wakes, bow spray and smoke follow each ship's real track.
 - **Effects that build up.** Smoke columns, fires, scorch marks, debris and oil slicks stay on the map.
 
 Win by sinking the KRAKEN or taking IRONHOLD. You lose if the ALBATROSS sinks or you run out of helicopters.
@@ -88,6 +89,15 @@ Cockpit switches are clickable (gear and hook handles, flaps, master arm, FCS CA
 
 The in-game help screen has the full list.
 
+### On foot: medical and inventory (NGC-1980, work in progress)
+
+The 1980 Marine gets Tarkov-style gear and a deep medical model (`game/js/units/infantry/`). Try it in the sandbox at
+`dev/medinv.html`: pack a rifleman, grenadier, M60 gunner or Navy corpsman, take hits, watch the bleeding and shock
+develop at x1 to x60, then treat him.
+
+- **Gear (Tab):** drag and drop between pockets, the LC-2 belt and its ALICE pouches, the M69 vest and the ALICE pack. **R** rotates while dragging, **Shift-drag** splits a stack, **Ctrl-click** quick-moves, double-click inspects or opens a container, right-click opens the menu (unload, fill from rig, reload, quick slot, drop). Drop rounds on a magazine to load it (stripper clips are faster than thumbing). Bodies and crates are searched item by item. Arrows and Enter (or a gamepad d-pad and A) work as a cursor.
+- **Health (H):** drag a dressing, tourniquet, splint, morphine syrette, IV (corpsman only) or canteen onto the body. Right-click a limb to tighten or remove a tourniquet. Blood volume follows the ATLS shock classes I-IV. A tourniquet is safe for 2 hours. The modern CAT tourniquet and QuikClot looted from the RUNAWAY's seized stocks are anachronisms that work far better than the 1980 strap-and-buckle.
+
 ## Tests
 
 `tools/` has a headless test harness: Puppeteer drives the game in software WebGL and takes screenshots. See [tools/README.md](tools/README.md).
@@ -96,7 +106,14 @@ The in-game help screen has the full list.
 cd tools && npm install && node snap.mjs scenes/war.json
 node tools/jetbench.mjs             # the jet's flight model against published F/A-18C figures, in plain node
 node tools/hueybench.mjs            # the Huey's flight model against published UH-1H data (Heffley, Talbot, DCS / TM charts)
+node tools/medinvbench.mjs          # medical (ATLS shock timing, tourniquets, drugs, IV), kit weights, inventory grids
 ```
+
+Medical and inventory scenes: `medinv.mjs` (hits, bleeding, a mouse-dragged tourniquet, gear, looting, inspect, death) and `medinv_ui.mjs` (rotate, split, menu, container window, quick move, cursor, corpsman IV, class IV vision).
+node tools/navalbench.mjs           # ship motion in a seaway: sea states, carrier pitch / heave / roll, turn heel, deck maths
+```
+
+Naval: `game/dev/ships.html` orbits each ship on a sea with sea-state, speed and turn sliders (`?ship=albatross|kraken|leviathan|container`). Scenes: `naval.mjs` (every ship in the game, the deck moving with the sea, crew clearing out from under a helicopter), `shipsdev.mjs` (the preview page from many angles, draw calls).
 
 Jet scenes: `jet.mjs` (launch, climb, turn), `jettrap.mjs` (arrested landing), `jetweapons.mjs` (AIM-9, gun, CCIP), `jetsystems.mjs` (damage, fire, DIRECT, G-LOC, ejection), `jetterrain.mjs` (TERRAIN and PULL UP at a mountain).
 `node tools/cavebench.mjs` checks the cave generator without a browser: it prints every island's cave as an ASCII map and

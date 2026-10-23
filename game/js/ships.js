@@ -1,60 +1,25 @@
-// Models for the island war: the two carriers, the enemy battleship, capture drones, enemy transports and the island
+// Models for the island war: the two carriers, the enemy battleship (LEVIATHAN) and supply ship (the naval ones are
+// built in units/naval/ and wrapped here under their old names), capture drones, enemy transports and the island
 // buildings. Low-poly, flat-shaded, built from primitives. Local frame: +y up, the bow / nose points along -z.
 import * as THREE from 'three';
 import { buildFactionStructure } from './world/structures.js';   // WORLD: faction structures
+import { buildAlbatross } from './units/naval/albatross.js';
+import { buildKraken } from './units/naval/kraken.js';
+import { buildLeviathan, LEV } from './units/naval/leviathan.js';
+import { buildContainerShip, BOX } from './units/naval/containership.js';
 
 const M = (c, o = {}) => new THREE.MeshPhongMaterial({ color: c, flatShading: true, shininess: 20, ...o });
-// a top-view outline drawn with y = local z; for a floor facing up after rotateX(-PI/2) the outline is mirrored in y
-const flipShape = sh => new THREE.Shape(sh.getPoints(8).map(p => new THREE.Vector2(p.x, -p.y)));
 const box = (w, h, d, m, x = 0, y = 0, z = 0, parent) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); parent && parent.add(b); return b; };
 const cyl = (rt, rb, h, m, x = 0, y = 0, z = 0, parent, seg = 10) => { const c = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), m); c.position.set(x, y, z); parent && parent.add(c); return c; };
 export const TEAM = { 0: 0xc8c8bc, 1: 0x33bbff, 2: 0xff3322 };
 
 // ------------------------------------------------------------------------------------------- carriers
 export const CARRIER = { L: 120, W: 28, DECK: 8, TOWER_X: 10.5, TOWER_Z: 6, TOWER_H: 17 };
-function deckTexture(side) {
-  const c = document.createElement('canvas'); c.width = 256; c.height = 1024; const x = c.getContext('2d');
-  x.fillStyle = '#3c4045'; x.fillRect(0, 0, 256, 1024);
-  for (let i = 0; i < 2600; i++) { const g = 50 + Math.random() * 18; x.fillStyle = `rgb(${g},${g + 2},${g + 5})`; x.fillRect(Math.random() * 256, Math.random() * 1024, 3, 2); }
-  const team = side === 1 ? '#33bbff' : '#ff4433';
-  x.strokeStyle = '#e8e8e0'; x.lineWidth = 4; x.setLineDash([26, 18]); x.beginPath(); x.moveTo(110, 60); x.lineTo(110, 980); x.stroke(); x.setLineDash([]);
-  x.strokeStyle = '#ffd040'; x.lineWidth = 5; x.strokeRect(14, 14, 228, 996);
-  for (const cy of [250, 520, 790]) {   // three helicopter spots
-    x.strokeStyle = team; x.lineWidth = 9; x.beginPath(); x.arc(110, cy, 70, 0, 6.283); x.stroke();
-    x.fillStyle = '#f0f0e8'; x.font = 'bold 90px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('H', 110, cy + 4);
-  }
-  x.fillStyle = team; x.font = 'bold 54px sans-serif'; x.save(); x.translate(205, 520); x.rotate(Math.PI / 2); x.fillText(side === 1 ? 'ALBATROSS' : 'KRAKEN', 0, 0); x.restore();
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
-}
+// The carriers are built in units/naval/: ALBATROSS (side 1), KRAKEN (side 2). buildCarrier keeps its name and return shape
+// { group, guns, dish, lamp, lights, teamM, tower, band } plus the new parts (mounts, crew, tick, localDeck).
 export function buildCarrier(side) {
-  const g = new THREE.Group(), { L, W, DECK } = CARRIER;
-  const hullM = M(side === 1 ? 0x56616c : 0x4f3c3a), darkM = M(0x26292d), teamM = M(TEAM[side], { emissive: side === 1 ? 0x0a2a44 : 0x440a06 });
-  // hull: a prism from the top-view outline (pointed bow, square stern), flared above the waterline
-  const sh = new THREE.Shape(); sh.moveTo(-W / 2, L / 2); sh.lineTo(W / 2, L / 2); sh.lineTo(W / 2, -L / 2 + 16); sh.lineTo(0, -L / 2 - 6); sh.lineTo(-W / 2, -L / 2 + 16); sh.closePath();
-  const hullGeo = new THREE.ExtrudeGeometry(sh, { depth: DECK + 4, bevelEnabled: false }); hullGeo.rotateX(Math.PI / 2); hullGeo.translate(0, DECK, 0);
-  const hull = new THREE.Mesh(hullGeo, hullM); hull.scale.set(0.86, 1, 0.97); g.add(hull);
-  const deckGeo = new THREE.ShapeGeometry(flipShape(sh)); deckGeo.rotateX(-Math.PI / 2);
-  { const uv = deckGeo.attributes.uv, p = deckGeo.attributes.position; for (let i = 0; i < uv.count; i++) uv.setXY(i, (p.getX(i) + W / 2) / W, 1 - (p.getZ(i) + L / 2 + 6) / (L + 6)); }
-  const deck = new THREE.Mesh(deckGeo, new THREE.MeshLambertMaterial({ map: deckTexture(side) })); deck.position.y = DECK + 0.02; g.add(deck);
-  box(W + 0.6, 0.5, L - 14, darkM, 0, DECK - 0.4, 6, g);                  // deck edge / gallery
-  box(W * 0.86, 0.9, L * 0.92, M(0x7a1e1a), 0, -0.3, 2, g);                 // red boot-top at the waterline
-  // island superstructure on the starboard side
-  const tw = new THREE.Group(); tw.position.set(CARRIER.TOWER_X, DECK, CARRIER.TOWER_Z); g.add(tw);
-  box(5.5, 9, 18, hullM, 0, 4.5, 0, tw); box(5, 4, 10, hullM, 0, 11, -1, tw); const band = box(5.6, 1.4, 8, darkM, 0, 9.6, -3.5, tw);   // bridge windows
-  box(0.4, 7, 0.4, darkM, 0, 16, -1, tw); box(3, 0.3, 0.3, darkM, 0, 18, -1, tw);
-  const dish = new THREE.Group(); dish.position.set(0, 13.3, 2.5); tw.add(dish);
-  box(3.2, 1.4, 0.25, darkM, 0, 0.6, 0, dish); cyl(0.2, 0.2, 1, darkM, 0, 0, 0, dish, 6);
-  box(5.7, 1.2, 0.3, teamM, 0, 7, 9.1, tw); box(5.7, 1.2, 0.3, teamM, 0, 7, -9.1, tw);   // team bands
-  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.35, 6, 4), new THREE.MeshBasicMaterial({ color: side === 1 ? 0x66ffff : 0xff6644 })); lamp.position.set(0, 19.6, -1); tw.add(lamp);
-  // CIWS / flak mounts at the four corners
-  const guns = [];
-  for (const [x, z] of [[-W / 2 + 2, -L / 2 + 22], [W / 2 - 2, -L / 2 + 22], [-W / 2 + 2, L / 2 - 6], [W / 2 - 2, L / 2 - 6]]) {
-    const m = buildGun(side, 0.8); m.position.set(x * 0.95, DECK, z); g.add(m); guns.push(m);
-  }
-  // deck edge lights
-  const lights = [];
-  for (let i = 0; i < 10; i++) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.2, 0.4), new THREE.MeshBasicMaterial({ color: 0xffdd66 })); l.position.set(i % 2 ? W * 0.42 : -W * 0.42, DECK + 0.15, -L / 2 + 18 + Math.floor(i / 2) * 22); g.add(l); lights.push(l); }
-  return { group: g, guns, dish, lamp, lights, teamM, tower: tw, band };
+  if (side === 1) return buildAlbatross(1, { buildTomcat });
+  return buildKraken();
 }
 // SKY CARRIER refit: four ducted lift fans on outriggers off the hull, hidden until the refit unfolds them.
 // parts.fans[i] = { arm, rotor, glow }; arm.scale.x animates the fold-out (0 = stowed).
@@ -83,47 +48,12 @@ export function addLiftFans(parts) {
 }
 
 // ------------------------------------------------------------------------------------------- battleship
-export const BSHIP = { L: 96, W: 16, DECK: 5 };
-export function buildBattleship() {
-  const g = new THREE.Group(), { L, W, DECK } = BSHIP;
-  const hullM = M(0x3e3a3a), darkM = M(0x1f1d1d), redM = M(0xcc2a1e, { emissive: 0x330806 });
-  const sh = new THREE.Shape(); sh.moveTo(-W / 2, L / 2 - 6); sh.quadraticCurveTo(0, L / 2 + 2, W / 2, L / 2 - 6); sh.lineTo(W / 2, -L / 2 + 22); sh.lineTo(0, -L / 2 - 4); sh.lineTo(-W / 2, -L / 2 + 22); sh.closePath();
-  const hg = new THREE.ExtrudeGeometry(sh, { depth: DECK + 3, bevelEnabled: false }); hg.rotateX(Math.PI / 2); hg.translate(0, DECK, 0);
-  g.add(new THREE.Mesh(hg, hullM));
-  const dg = new THREE.ShapeGeometry(flipShape(sh)); dg.rotateX(-Math.PI / 2); const deck = new THREE.Mesh(dg, M(0x6a5a48)); deck.position.y = DECK + 0.02; g.add(deck);
-  box(W * 0.95, 0.8, L * 0.9, M(0x7a1e1a), 0, -0.2, 0, g);
-  box(9, 6, 20, hullM, 0, DECK + 3, 4, g); box(7, 5, 10, hullM, 0, DECK + 8.5, 2, g); box(4, 7, 4, hullM, 0, DECK + 14, 1, g);
-  box(7.2, 1, 3, redM, 0, DECK + 10, -3.2, g);
-  cyl(1.6, 2, 7, darkM, 0, DECK + 9, 12, g, 8);   // funnel
-  const turrets = [];
-  for (const z of [-30, -18, 32]) {
-    const t = new THREE.Group(); t.position.set(0, DECK, z); g.add(t);
-    box(6.5, 2.6, 7, hullM, 0, 1.3, 0, t);
-    const barrels = new THREE.Group(); barrels.position.set(0, 1.6, z > 0 ? 3 : -3); t.add(barrels);
-    for (const x of [-1.4, 0, 1.4]) { const b = cyl(0.3, 0.35, 11, darkM, x, 0, 0, barrels, 6); b.rotation.x = Math.PI / 2; b.position.z = z > 0 ? 5.5 : -5.5; }
-    t.userData.barrels = barrels; t.userData.aft = z > 0; turrets.push(t);
-  }
-  const guns = [];
-  for (const [x, z] of [[-6, 16], [6, 16], [-6, -6], [6, -6]]) { const m = buildGun(2, 0.6); m.position.set(x, DECK, z); g.add(m); guns.push(m); }
-  return { group: g, turrets, guns };
-}
-
+export const BSHIP = LEV;   // RW-9 LEVIATHAN (units/naval/leviathan.js): { group, turrets, guns } + mounts, tick, localDeck
+export function buildBattleship() { return buildLeviathan(); }
 // ------------------------------------------------------------------------------------------- freighter
-// enemy supply ship: carries its islands' output to the KRAKEN
-export const FREIGHTER = { L: 46, W: 10, DECK: 3 };
-export function buildFreighter() {
-  const g = new THREE.Group(), { L, W, DECK } = FREIGHTER, hullM = M(0x3b3f44), dark = M(0x1e2124);
-  const sh = new THREE.Shape(); sh.moveTo(-W / 2, L / 2); sh.lineTo(W / 2, L / 2); sh.lineTo(W / 2, -L / 2 + 9); sh.lineTo(0, -L / 2 - 3); sh.lineTo(-W / 2, -L / 2 + 9); sh.closePath();
-  const hg = new THREE.ExtrudeGeometry(sh, { depth: DECK + 2.5, bevelEnabled: false }); hg.rotateX(Math.PI / 2); hg.translate(0, DECK, 0); g.add(new THREE.Mesh(hg, hullM));
-  box(W * 0.95, 0.6, L * 0.9, M(0x7a1e1a), 0, -0.2, 1, g);
-  const cols = [0xb8462e, 0x2e6fb8, 0xc8a030, 0x3c8a4a, 0x8a3c7a];
-  for (let i = 0; i < 6; i++) for (let k = 0; k < 2; k++) for (let h = 0; h < 1 + ((i + k) % 2); h++) box(3.9, 2.3, 5.6, M(cols[(i * 3 + k + h) % cols.length]), (k - 0.5) * 4.1, DECK + 1.15 + h * 2.35, -L / 2 + 10 + i * 5.9, g);
-  box(W * 0.85, 6, 6, M(0xd8d8d0), 0, DECK + 3, L / 2 - 6, g); box(W * 0.9, 1.2, 6.4, dark, 0, DECK + 5.2, L / 2 - 6, g);
-  cyl(0.9, 1.1, 4, dark, 0, DECK + 7, L / 2 - 3, g, 8);
-  const guns = []; { const m = buildGun(2, 0.55); m.position.set(0, DECK, -L / 2 + 4); g.add(m); guns.push(m); }
-  return { group: g, guns };
-}
-
+// enemy supply ship (an autonomous container ship): carries its islands' output to the KRAKEN
+export const FREIGHTER = BOX;   // the autonomous container ship (units/naval/containership.js): { group, guns } + mounts, tick, localDeck
+export function buildFreighter() { return buildContainerShip(); }
 // ------------------------------------------------------------------------------------------- aircraft
 export function buildDrone() {   // player capture drone ("MANTA"): a flat quad-rotor carrying a command module
   const g = new THREE.Group(), body = M(0x2a3f55), team = M(TEAM[1], { emissive: 0x0b3355 });

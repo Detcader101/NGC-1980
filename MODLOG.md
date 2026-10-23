@@ -230,6 +230,159 @@ TM-73,254 (fuselage, stab bar, tail rotor), DCS UH-1H manual (limits, procedures
   and the dropship flight deck; chase cameras and the cave side view keep their own. The jet HUD is a physical
   combiner in the cockpit model, so it stays conformal at any FOV. Scene: tools/scenes/fov.mjs.
 
+## 2026-10-23 — Huey sits on the flying SKY CARRIER deck (merge fix)
+- Root cause: the Huey's skid contact moved with the deck horizontally (surfVel vx/vz + yaw) but not vertically.
+  `war.surfVel` had no vy, and groundY is sampled once per frame before war.update moves the ship, so inside the
+  Huey's substeps a climbing deck stood still and then jumped up by vy*dt: the skids hopped (contacts 6/0/6...),
+  `H.landed` flickered, Tab could not take the helm. Second merge bug: the helm read the Huey's assisted stick, so
+  the stability assist turned W into a pitch hold and the telegraph went astern; it now reads `ctl.raw`.
+- Fix: `war.surfVel` returns vy (skyFall keeps u.v.y = S.vy); hueyfm / jetfm `surfaceVel` carry vy into the contact
+  relative velocity, and `groundAt` lifts a moving deck by vy * (time into the frame step) for skids, tail, nose
+  (jet: gear and hull); the jet's catapult keeps the deck's vy; spawnSpot uses DECK + c.p.y like deckY.
+- Checked: sky 8/8 (twice); a scratch scene climbing + turning + ahead, then descending: Huey stays at the same deck
+  spot and heading (±0.2 m, ±0.01 rad), lifts off, and the climbing deck catches it in a hover for a clean landing.
+  hueyhover, hueystart, hueyauto, rescue, smoke, loop, jettrap green; hueybench 41/41.
+## 2026-10-23 — NGC-1980 MEDICAL + INVENTORY (wave 1, branch ngc/medinv)
+Pure modules in `game/js/units/infantry/` (no DOM, no THREE, node-testable) + HTML overlay UIs + a sandbox.
+- `items.js`: the item database (about 90 items): 1980 USMC kit (M16A1, M16A1/M203, M60, M1911A1, M72A2, magazines,
+  M193 bandoliers, M67, M18 smoke, claymore, LC-2 belt and ALICE pouches, M69 vest, M1 helmet, ALICE packs, Unit One
+  bag, e-tool, P-38), 1980 medicine (field / battle dressing, cravat, strap-and-buckle tourniquet, wire ladder splint,
+  morphine syrette, APC, Lactated Ringer's IV, ammonia inhalant, 14G catheter), rations (MCI "C-rats", LRP), seized
+  modern loot (M4A1 RW refit, PMAGs, M855A1, plate carrier, ECH, CAT, QuikClot, SAM, Hyfin, fentanyl lozenge, IFAK,
+  2030s MRE) and RUNAWAY items (needle carbine, cells, carapace, MENDER nanite injector, sensor core). Crates and caches.
+  Decision: the MRE was adopted in 1975 but reached troops in 1983, so in 1980 the Marines eat C-rats; the MRE is loot.
+- `medical.js`: 7 regions with Tarkov HP (35/85/70/60/65) and blacked-out limbs (damage spills x0.7, stomach x1.5);
+  zones (cranium/face/neck, chest, abdomen/pelvis, upper arm/forearm/hand, thigh/shin/foot) decide vessels, bones and
+  armour coverage. Blood 70 ml/kg; bleeds light/heavy/arterial with flow at normal pressure, scaled by MAP (they slow in
+  shock), clotting (light ~4 min, heavy slowly, arterial not), control class tq/junctional/internal; ATLS classes I-IV
+  drive HR, BP, RR, mental state, consciousness (cerebral perfusion), vision, tremor and stamina. Haematocrit and
+  crystalloid (3:1 rule; IV pressure makes an uncontrolled bleed bleed faster), transcapillary refill, pneumothorax
+  (open / sealed / tension / decompressed / vented), fractures, pain + adrenaline, morphine PK (overdose worse in shock),
+  hydration and energy (bite after hours), tourniquet ischaemia (2 h safe, limb lost at 6 h), RW nanites.
+- DAMAGE AND ARMOUR ARE GAME-LEVEL (coordinator instruction, mid-task): rounds carry Tarkov-style dmg / pen / bleed,
+  armour has classes 1-6 (M69 and M1 = 2, seized soft armour 3, ECH 4, ceramic plates 5, RUNAWAY lattice 6) with
+  coverage per zone and face, durability and blunt damage; fragments are a simple falloff table. No real terminal
+  ballistics are modelled or researched; the medical side keeps its sourced depth. Bench section 4 checks feel only.
+- Treatments (times self / buddy): dressing 40/25 s (stops light, heavy x0.3, arterial x0.6, wrapper seals a sucking
+  chest wound), tourniquets roll success per application (CAT 97% leg, strap-and-buckle 30% leg / 85% arm, cravat
+  windlass 60% leg; +8% buddy), TIGHTEN re-rolls a windlass, a second TQ above the first; QuikClot (3 min pressure)
+  packs junctional wounds; splint / sling; morphine (absorption compressed ~10x for play, documented); IV is
+  CORPSMAN ONLY (decision); wound care with the Unit One bag (corpsman) restores a ruined limb to 50%; the inhalant
+  wakes a knocked-out man, not a shocked one; MENDER heals everything (a second dose within 10 min: seizure).
+- `inventory.js`: nested grids and named slots, rotation, stacks (split / merge), magazines with LIFO round segments
+  (tracers on top feed first), loading from loose rounds (0.9 s/rd) or stripper clips (0.3 s/rd), reload swaps the
+  fullest magazine in and the empty back where it came from, quick slots, search (items revealed one by one),
+  encumbrance from load / body mass + the Pandolf load-carriage equation, loadouts (rifleman, grenadier, mg,
+  corpsman, RW trooper body), loot tables, serialise / relink.
+- `invui.js` / `medui.js`: overlays in the game's style. The health screen draws the figure facing you (his right on
+  your left), wounds, tourniquet bands, splints, an M on the forehead after morphine. Also `createMedHud` (HUD strip)
+  and `createVisionFX` (vignette + canvas grayscale / blur + blackout + nanite tint).
+- Sandbox `game/dev/medinv.html` (?debug -> window.__MI, &manual stops real-time stepping, &seed=N).
+- Bench `tools/medinvbench.mjs`: 108 checks pass. Femoral artery untreated: class III 3:15, unconscious 5:34, dead
+  6:21 (lit. 3-5 min, INFERRED); carotid 2:02 / 3:56; brachial 6:33 / 12:55; heavy venous class III 17:14 and survives;
+  light ooze clots; ATLS HR/SBP/RR bands per class (CONFIRMED). Femoral bleed + self-aid at 0:15, survive 30 min:
+  CAT 98%, strap 29%, two straps (buddy) 62%, cravat 59%, cravat + tighten 87%. QuikClot on a groin bleed 91%.
+  Ringer's: 403 of 1000 ml left after an hour. Sealed sucking chest wound -> dead of tension at 20:22; decompressed
+  survives; vented seal no tension. Loads incl. 3.6 kg clothing: rifleman 29.8 kg (fighting 20.5), grenadier 28.7,
+  corpsman 30.6, M60 gunner 41.3 (FM 21-18: 22 kg fighting / 33 kg approach). Pandolf 75+30 kg at 1.34 m/s: 429 W.
+- Scenes: `tools/scenes/medinv.mjs` (10 expects) and `medinv_ui.mjs` (11 expects) drive the real UI with the mouse.
+- Gotchas: `pickW(obj, rng)` got the function, not a number (every hit landed on the cranium); the Unit One bag had
+  cat 'pack' so the pack main grid (deny pack) refused it and the loadout silently dropped it - loadouts now throw;
+  `dblclick` never fires when the DOM re-renders between the clicks (search ticking) - double-click is detected by
+  item uid in pointerdown; an ECG canvas inside innerHTML is recreated every refresh - it is now re-attached;
+  3-digit hex + alpha ('#4f6' + '18') is not a colour; a canvas arc after rect() needs a moveTo.
+
+### Interfaces for wave 2
+- INFANTRY (weapons) -> medical: `M.hit(hitInfo, I.armour(inv))`, hitInfo = { part | zone (+ side), round (ROUNDS
+  id) + velocity (m/s at impact) or dmg + pen directly, dir (travel direction in the victim's body frame: x right, y up,
+  z forward), kind 'bullet' | 'fragment' | 'blunt', source }. Returns { region, zone, face, penetrated, layers[{ cls,
+  pPen, stopped }], hp, bleed, fracture, ptx, concussion } for hit markers and the feed. Grenades:
+  `fragmentHits(FRAGS id, distM, rng, { prone })` -> hit-infos. Falls: `M.fall(impactSpeed, { plf })`.
+  The INFANTRY branch's `ballistics.js makeHitInfo()` object is accepted as is (checked in the bench): its `dmg` is
+  read as a scale, `part: 'neck'` becomes head/neck, and its world `dir` array is turned into the body frame when
+  the caller adds `victimYaw` (three.js yaw, facing -z at 0). Its `explosionInfo()` keys M433 / M72 exist in FRAGS.
+- Weapons <-> inventory: magazines are items. `I.weaponMag(w)`, `I.magPop(m)` -> round id (feed), `I.magCount`,
+  `I.reload(inv, weapon)` -> { mag, old, dropped }, `I.countRounds(inv, cal)`, `ROUNDS[id]` (cal, v0, cartG, dmg,
+  pen, bleed, tracer); weapon defs carry `weapon: { cal, rpm, modes, barrelIn, vMul, single }`; the M203 slot is `gl`.
+- Soldier sim (FOUNDATION / INFANTRY): call `M.update(dt, { exertion 0..1, moving })` every frame and read
+  `M.mods()`: speedMul, sprint, jump, crawlOnly, limp, aimSway (x), tremor (rad), reloadMul, adsTimeMul, weaponUse
+  ('both' | 'one' | 'none'), staminaRegenMul, staminaMaxMul, vision { tunnel, grey, blur, blackout, tint }, hearing,
+  breathing, heartRate, dead, unconscious. Load: `I.encumbrance(I.totalWeight(inv))` or `I.pandolfWatts(...)`.
+  Events from `M.update` (bleed, fracture, unconscious, death, treated ...) feed the HUD and sound.
+- UI: `createInvUI({ inv, med, parent, tabs: ['GEAR','HEALTH'], onTab, onUse?, onDrop?(item to the ground) })`,
+  `.open(loot?)` with a crate (`I.fillCrate`) or a dead soldier's inventory root; `createMedUI({ med, inv, parent,
+  by: () => ({ self, skill }) })`; `createMedHud(hudEl, M)`; `createVisionFX(hudEl, canvas)`. Both overlays close on
+  Esc and stop key propagation while open; FOUNDATION should bind Tab / H and release pointer lock.
+- Buddy aid: `patient.startTreatment({ item, region, by: { self: false, skill: medic.skill } })`; `patient.action`
+  is the progress (cancel when they move more than `BUDDY.treatRangeM` apart); `BUDDY.dragSpeed(medicMods,
+  casualtyKg, medicLoadKg)`, `carrySpeed`, `staminaDrainMul`.
+- Untested: in-game integration (no on-foot mode yet), gamepad on real hardware (only the button mapping is wired),
+  touch input, the UIs below 1280x720, save / load across sessions.
+## 2026-10-23 — NAVAL: ALBATROSS, KRAKEN, LEVIATHAN, container ship, ships that move with the sea
+Files: game/js/units/naval/ (albatross.js, kraken.js, leviathan.js, containership.js, deckcrew.js, mounts.js,
+navalfx.js, navkit.js, seamotion.js), game/dev/ships.html (+ ships-dev.js), tools/navalbench.mjs,
+tools/scenes/naval.mjs, tools/scenes/shipsdev.mjs. ships.js keeps buildCarrier / buildBattleship / buildFreighter and
+CARRIER / BSHIP / FREIGHTER as thin wrappers (the old builders are gone).
+- ALBATROSS (1980, Midway / Forrestal style, haze grey, hull number 44): flared hull with an enclosed hurricane bow,
+  black boot-top over red anti-fouling, waterline grime, hangar-deck openings under three deck-edge elevators (roller
+  doors part up, hangar lights), catwalks and safety nets, gun sponsons. Island: flag bridge, navigation bridge (the
+  helm.js bridge room sits inside it unchanged), pri-fly overhanging the deck, raked funnel with black uptakes and
+  boiler smoke, tripod mast with SPS-49 (rotating curved reflector), SPS-48 planar array (rotating), SPN-35 radome,
+  TACAN, ESM domes, yardarms, life-raft racks, hull number with shadow, rust weeping from the scuppers. Deck: textured
+  (non-skid patches, padeye grid, tyre rubber in the landing area, oil stains, catapult soot), landing-area lines on
+  x = -2.5, four wires (cross-deck pendants on supports) at the DECKOPS positions, catapult track + shuttle at the
+  launch bar of a spotted jet, a JBD that rises behind a jet on the cat, LSO platform with its team, Fresnel lens
+  (meatball + datums), deck-edge / centreline / drop lights. Lived in: 31 deck crew in 1980 jersey colours (idle,
+  walk, signal, kneel at wheels, LSO, talk, seated driver), a tractor lapping the fantail, MD-3A tractors, Tilly,
+  a fuel bowser, huffers, fire bottles, tow bars, two parked Hornets (baked from buildJetMesh, instanced) and two
+  parked Tomcats at real size with oversweep and added gear, chocks and chains. Crew clear out from under a helicopter
+  or jet coming down near them (war.js tickParts passes an avoid() in the ship frame).
+- KRAKEN (seized 2030s Ford-class): angled-deck sponson and starboard elevator bulges (a deck polygon), island far aft
+  with flat radar arrays, no funnel, four flush EMALS tracks, three AAG wires. RUNAWAY refit: sensor pods, cyan IFF
+  strip round the whole deck edge, glyphs over the old "82" and the painted-out stern name, a crystal sensor spire,
+  glowing conduits across the deck, autonomous deck tugs, cargo pallets, nine parked RW ducted-fan flying-wing drones
+  (instanced, glowing seams), heavier rust (months unmaintained). Mounts: 2 RAM (seized), 2 RUNAWAY lasers.
+  dims.TOWER_Z = 22 (its own; the ALBATROSS keeps 6).
+- LEVIATHAN (RW-9, replaces the battleship): 96 m wave-piercing tumblehome hull, ceramic upper works on dark
+  composite, cyan seams, asymmetric (sensor blade to starboard with flat arrays, a port-side sensor fin, power spine
+  with heat-sink fins off the centreline). Three railgun turrets (twin rails, glowing bore) that train and elevate to
+  the shot, kick back and flare cyan when they fire (war.js updateBattleship); four point-defence lasers whose beam
+  shows when they fire (war.js gunFire -> userData.fireBeam). Game-level visuals and behaviour only.
+- Container ship (replaces the freighter): Yara Birkeland-class autonomous electric feeder at real size (80 x 15 m):
+  deckhouse right forward with its windows plated over in ceramic, sensor mast with pods, no funnel, battery vents
+  and azimuth-pod hatches aft, 8 bays x 5 rows of 20 ft boxes from a fixed stow plan (one InstancedMesh, colour per
+  box), a few boxes swapped for glowing RUNAWAY cargo pods, lashing bridges, the name painted out, a forecastle laser.
+  FREIGHTER dims are now { L: 80, W: 15, DECK: 4 } (was 46 x 10 x 3): a bigger target.
+- Ship motion (seamotion.js, pure, node-tested): Bretschneider sea for the NATO sea state (Hs, Tp), 14 components,
+  cos^2 spread; each excites heave / pitch / roll through waterplane-averaged elevation and slope (sinc and
+  3(sin x - x cos x)/x^3 over an effective 0.7 L x 0.8 B waterplane, Smith depth attenuation), a damped oscillator per
+  DOF at the ENCOUNTER frequency, analytic steady state with integrated phases (stable at any frame rate); heel
+  outward in turns (tan phi = V r / g (KG - T/2) / GM) and a little trim with speed. Real-ship numbers per hull
+  (Midway, Ford, Yara Birkeland: CONFIRMED dimensions; natural periods and damping INFERRED); heave scaled to the
+  game hull (the carriers are 0.44 / 0.38 scale), angles not. Sea state: ?sea=0..7 (default 4 MODERATE), war.setSea(n).
+- tools/navalbench.mjs (22 checks, all pass): WMO / NATO Hs ranges, Hs of the discretised sea, ALBATROSS head-sea
+  pitch SA SS3 0.09° / SS4 0.39° / SS5 0.94° / SS6 1.67°, heave SS5 0.29 m, ramp vertical velocity SS5 1.8 m/s,
+  beam-sea roll 0.9°, roll damping grows with speed, encounter period head < following, the Ford pitches less than
+  the Midway, the 96 m monitor pitches 3.9° and the 80 m feeder rolls 4.8° in SS5, steady turn heel 4.7° at 30 kn /
+  1.5°/s, deck-height maths vs the YXZ rotation matrix. The bands are INFERRED from published CV seakeeping summaries;
+  the NATO mean Hs / modal periods per state are as recalled (Bales 1983 / STANAG 4194), UNVERIFIED offline.
+- deckY includes the motion: war.js deckY uses each builder's localDeck(lx, lz) (deck + superstructure in the ship
+  frame) through shipPointY(heave, pitch, roll) - the same attitude the mesh gets (placeShip). surfVel also returns
+  vy (the deck's vertical velocity), W.deckAt(u, x, z) gives the deck plane; jetfm's catapult and wire checks use it
+  (via jetplay's carrier().deckAt), main.js spawnSpot puts the helicopter on the moving deck. The sky carrier's tilt
+  goes into the same attitude.
+- Effects (navalfx.js): a per-ship foam ribbon mesh following the real track: the churned centre wake from the stern
+  and the two Kelvin arms (points the bow passed, pushed out at 19.47°), fading over ~29 s; bow spray at speed and in
+  bursts when the stem plunges; stern boil; boiler smoke from the ALBATROSS funnel (none for the nuclear KRAKEN or
+  the electric feeder). Replaces the old fx.wake decals for ships at sea.
+- Mounts API: parts.mounts = [{ kind: 'ciws' | 'sam' | 'ram' | 'laser' | 'railgun', pos: Vector3 (ship frame),
+  dir: Vector3 (outward), node: Object3D (the mount; its userData.yaw / pitch groups are what war.js turns),
+  gun: index into parts.guns (absent for the railgun turrets), arc: [yawMin, yawMax] (ALBATROSS only) }]. To fit a
+  full model, empty node's children and rebuild under userData.yaw / pitch, or swap parts.guns[i].
+- Gotchas: Kit.loft winding was inside out (hulls looked right from one side: you saw the far side's inner faces);
+  glow kits need the same push() as the hull kit (the mast lights floated off the island); a headless test camera
+  far from the helicopter leaves the sky dome and terrain window behind (naval.mjs parks the helicopter above it).
+
 ## 2026-10-23 — NGC-1980: faction structures and a lived-in world (ngc/world)
 Files: game/js/world/ (net.js, layout.js, models.js, kit.js, chunkgen.js, worldworker.js, gfx.js, life.js, ambient.js,
 structures.js, rng.js), game/dev/world.html (+ world-preview.js), tools/worldbench.mjs, tools/scenes/world.mjs,

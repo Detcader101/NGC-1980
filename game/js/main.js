@@ -642,7 +642,7 @@ function command(n) {
 function spawnSpot() {
   const c = war && war.carrier;
   // the aft helicopter spot (H3): the Huey's 48 ft disc clears the island there
-  if (c && c.sinking === undefined && !params.has('homepad')) { const lx = -2, lz = 32, cs = Math.cos(c.yaw), sn = Math.sin(c.yaw); return { x: c.p.x + lx * cs + lz * sn, z: c.p.z - lx * sn + lz * cs, y: CARRIER.DECK + Math.max(0, c.p.y), yaw: c.yaw }; }
+  if (c && c.sinking === undefined && !params.has('homepad')) { const lx = -2, lz = 32, cs = Math.cos(c.yaw), sn = Math.sin(c.yaw), x = c.p.x + lx * cs + lz * sn, z = c.p.z - lx * sn + lz * cs, dy = war.deckY(x, z); return { x, z, y: dy > -1e8 ? dy : CARRIER.DECK + Math.max(0, c.p.y), yaw: c.yaw }; }   // NAVAL: deckY moves with the sea
   return { x: PAD.x, z: PAD.z, y: PAD_H, yaw: 0 };
 }
 function resetZarch(fromPad) {
@@ -825,7 +825,8 @@ function updateZarch(dt, inp) {
   } else {
     const M = D.mods(), ctl = HI.read(dt, H, { trim: SY.trim, mods: M });
     drop.update(dt, ctl.raw ? { ...ctl, ...ctl.raw } : ctl, H);   // the raw stick (not the stability assist's output)
-    const atHelm = helm.active; helm.update(dt, ctl, { up: kd('Space', 'ShiftLeft'), down: kd('ControlLeft', 'KeyZ') });
+    const atHelm = helm.active; helm.update(dt, ctl.raw ? { ...ctl, ...ctl.raw } : ctl, {   // the raw stick: the assist would turn W into an attitude hold
+      up: kd('Space', 'ShiftLeft'), down: kd('ControlLeft', 'KeyZ') });
     if (atHelm && !helm.active) HI.setCollective(G.heliColl ?? 0);
     if (drop.controlling || helm.active) { ctl.cx = ctl.cy = ctl.pedal = 0; ctl.fire = ctl.rocket = ctl.bomb = false; inp = { ...inp, fire: false }; ctl.coll = G.heliColl ?? 0; }   // the stick flies the dropship / canopies / ship
     else G.heliColl = ctl.coll;
