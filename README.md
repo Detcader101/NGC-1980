@@ -30,6 +30,13 @@ node tools/serve.mjs          # http://127.0.0.1:8765/
 
 Any static server works (for example `npx serve game`). On Windows, `game/start.bat` does the same and opens the browser.
 
+**Desktop launchers (Windows + WSL).** `bash launcher/install.sh` (run in WSL) puts two icons on the Windows desktop:
+**Thrust Zarch** runs this checkout (`main`, port 8765) and **Thrust Zarch EXPERIMENTAL** runs the `experimental`
+worktree next to it (port 8766, the icon with the orange EXP band). Each click starts that build's server inside WSL
+(or reuses it) and opens the browser, so both builds can run side by side. Set up the experimental worktree once with
+`git worktree add --track -b experimental ../thrust-zarch-experimental origin/experimental`, and `git pull` there to
+update it. The launcher lives in `%LOCALAPPDATA%\ThrustZarch` (log: `launcher.log`).
+
 ## Controls
 
 | Key | Action |
