@@ -201,10 +201,12 @@ export function createGroundSim(o) {
         }
       }
     } else {
+      if (a.move && u.kind !== 'hovertank' && hAt(a.move[0], a.move[1]) < 0.6) a.move = landward(B, a.move);   // never a firing position in the sea
       const vehSp = a.run ? 12 : 7, [vx, vz] = u.kind === 'mbt' ? dry(u, B.rw.steerVel(u, vehSp), 7) : B.rw.steerVel(u, vehSp);
       const cmd = { vx, vz };
       if (a.face !== undefined && Math.hypot(vx, vz) < 1) cmd.face = a.face;
       if (a.aim) { const mz = s.muzzle(), dx = a.aim[0] - mz[0], dz = a.aim[2] - mz[2]; cmd.turret = Math.atan2(-dx, -dz); cmd.gun = Math.atan2(a.aim[1] - mz[1], Math.hypot(dx, dz)); if (u.kind === 'hovertank') cmd.aimAt = a.aim; }
+      if (u.kind === 'mbt' && hAt(u.x, u.z) < 0.3) { const dx = B.I.x - u.x, dz = B.I.z - u.z, d = Math.hypot(dx, dz) || 1; cmd.vx = dx / d * 4; cmd.vz = dz / d * 4; delete cmd.face; }   // wet tracks: drive up out of the water first
       vehicleStep(u, dt, cmd);
       if (!s.alive) return;
       const tg = a.aimId != null ? tmap.get(a.aimId) : null, gd = s.gunDir(), mz = s.muzzle();
@@ -221,6 +223,12 @@ export function createGroundSim(o) {
     const x = u.x + v[0] / l * look, z = u.z + v[1] / l * look;
     if (hAt(x, z) < (u.kind === 'mbt' ? 0.4 : 0.15)) { v[0] = 0; v[1] = 0; }
     return v;
+  }
+  // a point in the sea pulled in toward the island's middle until it is on dry ground
+  function landward(B, p) {
+    const I = B.I; let x = p[0], z = p[1];
+    for (let i = 0; i < 20 && hAt(x, z) < 0.6; i++) { x += (I.x - x) * 0.12; z += (I.z - z) * 0.12; }
+    return [x, z];
   }
   function vehicleStep(u, dt, cmd) {
     const s = u.sim;

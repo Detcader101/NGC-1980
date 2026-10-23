@@ -156,7 +156,7 @@ export function createTrackDrive(Pm, opt = {}) {
     return D.yaw;
   }
   D.place = (x, z, yaw, env) => {
-    sim.reset(x, z, yaw, env, { range: 'N', park: false, running: true });
+    sim.reset(x, z, yaw, env, { range: 'N', park: true, running: true });
     lite.place(x, z, yaw, env); sync(); return D;
   };
   D.setDetail = (full, env) => {
@@ -175,7 +175,7 @@ export function createTrackDrive(Pm, opt = {}) {
     ctl.park = false; ctl.fuelOn = true; ctl.starter = !sim.eng.running;
     if (thr > 0.02) { if (v < -0.6) { ctl.range = ctl.range; ctl.brake = 1; ctl.throttle = 0; } else { ctl.range = 'D'; ctl.throttle = Math.min(1, thr); ctl.brake = c.brake || 0; } }
     else if (thr < -0.02) { if (v > 0.6) { ctl.brake = 1; ctl.throttle = 0; } else { ctl.range = 'R'; ctl.throttle = Math.min(1, -thr); ctl.brake = c.brake || 0; } }
-    else if (Math.abs(c.steer || 0) > 0.1 && Math.abs(v) < 0.8) { ctl.range = 'N'; ctl.throttle = 0.35 + 0.45 * Math.abs(c.steer); ctl.brake = 0; }   // neutral steer: pivot in place on the engine
+    else if (Math.abs(c.steer || 0) > 0.1 && Math.abs(v) < 0.8) { ctl.range = 'N'; ctl.throttle = 0.35 + 0.45 * Math.abs(c.steer); ctl.brake = Math.abs(D.pitch) > 0.03 ? 0.5 : 0; }   // neutral steer (on a slope the brakes stay half on, or it would roll away): pivot in place on the engine
     else { ctl.throttle = 0; ctl.brake = Math.max(c.brake || 0, Math.abs(v) < 0.3 ? 1 : 0.35); }
     ctl.steer = c.steer || 0;
     const ev = sim.step(dt, env); for (const e of ev) D.events.push(e);
