@@ -13,7 +13,9 @@
 import * as THREE from 'three';
 import { SEA_GAME_SCALE } from './seamotion.js';
 
-export const SEA_N = 14, SEA_SHIPS = 6;
+// SEA_NV: the components the GPU draws - the largest by amplitude (8 of 14 carry ~90 % of the variance; the ships
+// and seaElevation use all 14, so the drawn surface is a hair smoother than the one they ride)
+export const SEA_N = 14, SEA_NV = 8, SEA_SHIPS = 6;
 // whitecap coverage (fraction of the surface) per sea state: roughly Monahan's W = 3.8e-6 U^3.4 for the usual wind of
 // each state (SS3 ~5 m/s ... SS7 ~20 m/s: 0.1 % ... 10 %), lifted at the low end so a moderate sea shows some
 const CAPS = [0, 0, 0.004, 0.02, 0.05, 0.1, 0.17, 0.26];
@@ -21,7 +23,7 @@ const capAt = ss => { const i = Math.min(6, Math.floor(ss)), f = ss - i; return 
 
 export function createSeaUniforms() {
   return {
-    uWave: { value: Array.from({ length: SEA_N }, () => new THREE.Vector4()) },   // (kx, kz, amplitude, clock phase)
+    uWave: { value: Array.from({ length: SEA_NV }, () => new THREE.Vector4()) },   // (kx, kz, amplitude, clock phase)
     uSeaP: { value: new THREE.Vector4(0.8, 0.05, 0.5, 0) },                      // (Hs game m, whitecap cover, 0..1 state, -)
     uSeaD: { value: new THREE.Vector2(0, -1) },                                    // main direction the waves travel
     uShipP: { value: Array.from({ length: SEA_SHIPS }, () => new THREE.Vector4()) }, // (x, z, cos yaw, sin yaw)
@@ -29,10 +31,10 @@ export function createSeaUniforms() {
   };
 }
 // once a frame: the sea's components and the ships near the camera
-const _near = [];
+const _near = [], _byA = [];
 export function updateSeaUniforms(U, sea, units, cam) {
-  const W = U.uWave.value, comps = sea.comps;
-  for (let i = 0; i < SEA_N; i++) {
+  const W = U.uWave.value, comps = _byA; _byA.length = 0; for (const c of sea.comps) _byA.push(c); _byA.sort((a, b) => b.a - a.a);
+  for (let i = 0; i < SEA_NV; i++) {
     const c = comps[i];
     if (!c) { W[i].set(0, 0, 0, 0); continue; }
     W[i].set(c.dx * c.kg, c.dz * c.kg, c.a * SEA_GAME_SCALE, c.ph % (Math.PI * 2));
@@ -54,16 +56,16 @@ export function updateSeaUniforms(U, sea, units, cam) {
 }
 
 // ---------------------------------------------------------------------------------------------- GLSL
-export const SEA_VS_DECL = `uniform vec4 uWave[${SEA_N}]; varying vec3 vSea;`;
+export const SEA_VS_DECL = `uniform vec4 uWave[${SEA_NV}]; varying vec3 vSea;`;
 // in: vec4 w (world position, w.y already the ground / sea floor), float h (raw height), CELL (grid spacing).
 // out: w.y displaced on the sea, vSea = (elevation, slope x, slope z)
 export const SEA_VS = `
       vSea=vec3(0.);
       if(h<=0.){
         float att=smoothstep(.3,7.,-h), e=0., sx=0., sz=0.;
-        for(int i=0;i<${SEA_N};i++){
+        for(int i=0;i<${SEA_NV};i++){
           vec4 c=uWave[i]; float kk=length(c.xy); if(kk<1e-5) continue;
-          float a=c.z*smoothstep(CELL*2.5,CELL*5.,6.2832/kk);     // the grid must carry the wave
+          float a=c.z*smoothstep(CELL*2.5,CELL*5.,6.2832/kk); if(a<1e-4) continue;   // the grid must carry the wave (the far ring skips most)
           float ph=c.w-dot(c.xy,w.xz), s=a*sin(ph);
           e+=a*cos(ph); sx+=s*c.x; sz+=s*c.y;
         }
@@ -73,6 +75,8 @@ export const SEA_FS_DECL = `uniform vec4 uSeaP; uniform vec2 uSeaD; uniform vec4
     float sHash(vec2 p){ p=mod(p,289.); return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
     float sNoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f); return mix(mix(sHash(i),sHash(i+vec2(1.,0.)),f.x),mix(sHash(i+vec2(0.,1.)),sHash(i+1.),f.x),f.y); }
     // foam round the ships' waterlines: 0..1
+    // the sun glint's sparkle mask (only asked where there is a glint)
+    float glitAt(vec2 p, float t, float sk){ return mix(1.,.45+1.*smoothstep(.45,.9,sNoise(p*1.3+vec2(t*.7,-t*.4))),smoothstep(.1,.4,sk)); }
     float hullFoam(vec2 p, float t){
       float f=0.;
       for(int i=0;i<${SEA_SHIPS};i++){
@@ -94,12 +98,12 @@ export const SEA_FS_NORMAL = `
         float sk=uSeaP.z, rk=mix(.25,1.15,smoothstep(0.,.5,sk));            // calm: glassy ripples; rough: a choppy face
         vec3 wn=normalize(vec3(-vSea.y+(cos(a1)*.12+cos(a3)*.07)*rk, 1., -vSea.z+(cos(a2)*.14+cos(a3)*.07)*rk));
         vec3 wg=normalize(vec3(-vSea.y*.15+(cos(a1)*.12+cos(a3)*.07)*rk, 1., -vSea.z*.15+(cos(a2)*.14+cos(a3)*.07)*rk));
-        float glit=mix(1.,.45+1.*smoothstep(.45,.9,sNoise(p*1.3+vec2(t*.7,-t*.4))),smoothstep(.1,.4,sk));`;
+`;
 export const SEA_FS_FOAM = `
         float crest=vSea.x/max(uSeaP.x*.55,.02), cov=uSeaP.y;
         vec2 wd=uSeaD, q=vec2(dot(p,wd),dot(p,vec2(-wd.y,wd.x)));
-        float n1=sNoise(p*.16+wd*t*.35), n2=sNoise(p*.7-wd*t*.6);
-        float cap=smoothstep(.2,.9,crest)*smoothstep(1.-cov*1.5,1.-cov*.9,n1*.6+n2*.4+crest*.1);
-        float streak=smoothstep(.7,.88,sNoise(vec2(q.x*.03-t*.25,q.y*.32)))*smoothstep(.7,1.,sk)*.35;
+        float cap=0., streak=0.;   // (branches: the noise only where it can show - SwiftShader pays for every pixel)
+        if(cov>0.&&crest>.2){ float n1=sNoise(p*.16+wd*t*.35), n2=sNoise(p*.7-wd*t*.6); cap=smoothstep(.2,.9,crest)*smoothstep(1.-cov*1.5,1.-cov*.9,n1*.6+n2*.4+crest*.1)*(.5+.5*n2); }
+        if(sk>.7) streak=smoothstep(.7,.88,sNoise(vec2(q.x*.03-t*.25,q.y*.32)))*smoothstep(.7,1.,sk)*.35;
         float surfW=1.4+3.5*sk, surf=(1.-smoothstep(0.,surfW,d))*(.55+.45*sin(d*8./(1.+sk*2.)-t*2.4+sin(a1)+vSea.x*2.));
-        float foam=clamp(max(max(surf,cap*(.5+.5*n2)),max(streak*(1.-smoothstep(150.,600.,length(cameraPosition.xz-p))),hullFoam(p,t))),0.,1.);`;
+        float foam=clamp(max(max(surf,cap),max(streak*(1.-smoothstep(150.,600.,length(cameraPosition.xz-p))),hullFoam(p,t))),0.,1.);`;

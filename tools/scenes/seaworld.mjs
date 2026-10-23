@@ -12,7 +12,11 @@ export default async function (h) {
   await h.eval(`(() => {
     const r = __G.renderer, orig = r.render.bind(r), T = __G.THREE, a = new T.Vector3(), b = new T.Vector3();
     const W = (u, l, out) => { const c = Math.cos(u.yaw), s = Math.sin(u.yaw); return out.set(u.p.x + l[0] * c + l[2] * s, u.p.y + l[1], u.p.z - l[0] * s + l[2] * c); };
-    r.render = (sc, cam) => { const C = window.__cam; if (C) { if (C.u) { W(C.u, C.p, a); W(C.u, C.t, b); } else { a.set(...C.wp); b.set(...C.wt); } cam.position.copy(a); cam.up.set(0, 1, 0); cam.lookAt(b); cam.updateMatrixWorld(); } orig(sc, cam); };
+    r.render = (sc, cam) => { const C = window.__cam; if (C) { if (C.u) { W(C.u, C.p, a); W(C.u, C.t, b); } else { a.set(...C.wp); b.set(...C.wt); } cam.position.copy(a); cam.up.set(0, 1, 0); cam.lookAt(b); cam.updateMatrixWorld(); } orig(sc, cam);
+      // the horizon check: when asked, the fraction of pure-black pixels in the top 60 % of the frame (the clear colour
+      // only shows where nothing - not even the sky dome - was drawn)
+      if (window.__wantBlk) { window.__wantBlk = false; const gl = r.getContext(), w = gl.drawingBufferWidth, hh = gl.drawingBufferHeight, px = new Uint8Array(w * hh * 4); gl.readPixels(0, 0, w, hh, gl.RGBA, gl.UNSIGNED_BYTE, px);
+        let n = 0, b = 0; for (let y = Math.floor(hh * 0.4); y < hh; y += 4) for (let x = 0; x < w; x += 4) { const k = (y * w + x) * 4; n++; if (px[k] + px[k + 1] + px[k + 2] < 12) b++; } window.__blk = b / n; } };
     // the terrain window, sky and fog follow the PLAYER's camera, so the helicopter waits 40 m above the shot
     window.__shot = (C) => { window.__cam = C; if (C.u) W(C.u, C.p, a); else a.set(...C.wp); if (__G.G.craft === "heli") __G.H.reset(a.clone().add(new T.Vector3(0, 40, 0)), 0, false, 1); __G.HI.setCollective(0.475); };
     window.__park = () => { __G.H.reset(new T.Vector3(__G.HOME_B.x + 18, 60, __G.HOME_B.z + 18), 0, false, 1); __G.HI.setCollective(0.475); };
@@ -126,6 +130,23 @@ export default async function (h) {
     await h.eval('(clearInterval(__mi), window.__cam = null, __mf)');
     await h.expect('__mf.locks > 0 && (__mf.shots > 0 || __mf.msl > 0 || __mf.beam > 0)', 'the KRAKEN mounts lock on and fire');
     await h.eval('(__G.toHeli(), 1)'); await h.wait(800);
+  }
+
+  if (want('horizon')) {
+    // the horizon from the deck and from altitude, chase and cockpit, and from a scripted camera far off the player (what
+    // used to clip the sky dome into a black dome): no pure-black pixels above the horizon
+    await h.eval('(window.__cam = null, __G.G.craft !== "heli" && __G.toHeli(), 1)'); await h.wait(800); await h.waitFor('__G.H.landed', 8000);
+    const blk = async (name) => { await h.wait(1200); await h.eval('(window.__wantBlk = true, 1)'); await h.wait(400); const v = await h.eval('window.__blk'); await h.shot('horizon-' + name); await h.expect(`window.__blk < 0.002`, `horizon ${name}: no black above the horizon (${(v * 100).toFixed(2)} %)`); };
+    await h.eval('(__G.cockpitCam = true, 1)'); await blk('deck-heli-cockpit');
+    await h.eval('(__G.cockpitCam = false, 1)'); await blk('deck-heli-chase');
+    await h.eval(`(window.__cam = { u: __G.war.carrier, p: [-180, 30, 160], t: [-400, 20, 400] }, 1)`); await blk('scripted-camera-180m-off');
+    await h.eval(`(window.__cam = { u: __G.war.carrier, p: [150, 120, -150], t: [600, 40, -600] }, 1)`); await blk('scripted-camera-high');
+    await h.eval('(window.__cam = null, 1)');
+    await h.key('tap', 'Digit5'); await h.wait(1500); await h.waitFor('__G.G.craft === "jet"', 8000);
+    await h.eval('(() => { const c = __G.war.carrier, J = __G.JP.J; J.cat = null; J.reset(c.p.x + 300, 0, c.p.z - 600, 2.4, { running: true, airborne: true, alt: 600, speed: 120 }); J.gearCmd = 0; J.gear = 0; __G.cockpitCam = false; __G.JP.snapChase(); return 1; })()');
+    await blk('jet-chase-600m');
+    await h.eval('(__G.cockpitCam = true, 1)'); await blk('jet-cockpit-600m');
+    await h.eval('(__G.cockpitCam = false, __G.toHeli(), 1)'); await h.wait(800);
   }
 
   if (want('sea')) {
