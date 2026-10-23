@@ -13,6 +13,8 @@ import { zoneItems } from './layout.js';
 import { buildGeo, CHUNK } from './chunkgen.js';
 import { worldMaterial, groundMaterial, geoFrom } from './gfx.js';
 import { createAmbient } from './ambient.js';
+import { buildPadDressing, buildShaftCollar, buildRWPylon } from './structures.js';
+import { structAngle, settlementsNear, nearestRoad } from './net.js';
 
 const NEAR_R = 520, FAR_MAX = 2300;
 export function createWorldLife(ctx) {
@@ -87,13 +89,63 @@ export function createWorldLife(ctx) {
     }
   }
 
+  // ---------------------------------------------------------------------------------- site dressing in the zone
+  // helipads (windsock, edge lights, ops shack), the collar over each cave shaft, RUNAWAY power pylons on machine-held
+  // islands; follows island ownership by polling (no hooks needed)
+  const sites = [];
+  for (const I of ISLANDS) {
+    const p = I.pad; if (!p) continue;
+    const site = { I, owner: -1, pylons: [], cables: null, fallT: 0 };
+    const pd = buildPadDressing(p.r || 8.5); pd.position.set(p.x, p.h, p.z); pd.rotation.y = structAngle(I) + Math.PI / 2; root.add(pd); site.pad = pd;
+    if (I.cave && I.base) {
+      const c = buildShaftCollar(9); c.position.set(I.x, I.base.h, I.z); root.add(c); site.collar = c;
+      // main.js's placeholder blocks round the shaft give way to the collar
+      const holder = I.base.surface || (I.base.beam && I.base.beam.parent);
+      if (holder) for (const o of holder.children) if (o.isMesh && o.geometry && o.geometry.type === 'BoxGeometry') o.visible = false;
+    }
+    // pylon line: an arc round the pad from the HQ's side to the production building's, away from the shaft
+    const a0 = I.cave ? Math.atan2(9, -17) : structAngle(I), a1 = I.cave ? Math.atan2(6, 19) : a0 + Math.PI, R = I.cave ? 27 : 35;
+    let da = a1 - a0; da = Math.atan2(Math.sin(da), Math.cos(da)); if (I.cave && da < 0) da += Math.PI * 2;
+    for (let k = 0; k < 5; k++) {
+      const a = a0 + da * (k + 0.5) / 5, x = p.x + Math.cos(a) * R, z = p.z + Math.sin(a) * R, y = terrainH(x, z);
+      if (y < 0.5) continue;
+      const py = buildRWPylon(); py.position.set(x, y, z); py.rotation.y = -a; py.visible = false; root.add(py); site.pylons.push(py);
+    }
+    const pts = []; for (let k = 0; k + 1 < site.pylons.length; k++) for (const [u, v, w] of site.pylons[k].userData.tops) { const A = site.pylons[k], B = site.pylons[k + 1]; const a = new THREE.Vector3(u, v, w).applyEuler(A.rotation).add(A.position), b = new THREE.Vector3(u, v, w).applyEuler(B.rotation).add(B.position), m = a.clone().lerp(b, 0.5); m.y -= 1.2; pts.push(a.x, a.y, a.z, m.x, m.y, m.z, m.x, m.y, m.z, b.x, b.y, b.z); }
+    if (pts.length) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); site.cables = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0x8ff4ff, transparent: true, opacity: 0.8 })); site.cables.visible = false; root.add(site.cables); }
+    sites.push(site);
+  }
+  function updateSites(dt, t) {
+    const wind = ctx.fx && ctx.fx.wind, wl = wind ? Math.hypot(wind.x, wind.y) : 0;
+    for (const s of sites) {
+      const own = s.I.owner;
+      if (own !== s.owner) {   // ownership changed (or first frame)
+        const first = s.owner < 0, was = s.owner; s.owner = own;
+        if (s.collar) s.collar.userData.setSide(own);
+        if (own === 2) { s.grow = first ? 99 : 0; for (const p of s.pylons) { p.visible = true; p.rotation.z = 0; p.userData.glowMat.color.setHex(0x8ff4ff); } s.fallT = 0; }
+        else if (was === 2) { s.fallT = 0.001; for (const p of s.pylons) p.userData.glowMat.color.setHex(0x1c2224); if (s.cables) s.cables.visible = false; }
+      }
+      if (own === 2 && s.grow < 99) {   // the machines string their power line across the island, pylon by pylon
+        s.grow += dt;
+        s.pylons.forEach((p, k) => { const f = Math.min(1, Math.max(0.01, (s.grow - k * 1.4) / 2.2)); p.scale.set(1, f, 1); });
+        if (s.grow > s.pylons.length * 1.4 + 2.5) s.grow = 99;
+      }
+      if (own === 2 && s.grow >= 99) { for (const p of s.pylons) p.scale.set(1, 1, 1); if (s.cables) { s.cables.visible = true; s.cables.material.opacity = 0.55 + 0.3 * Math.sin(t * 2.3 + s.I.id); } }
+      if (s.fallT > 0 && s.fallT < 4) { s.fallT += dt; s.pylons.forEach((p, k) => { if (k % 2 === 0) p.rotation.z = Math.min(1.35, s.fallT * s.fallT * 0.4) * (k % 4 ? 1 : -1); }); }   // wreckage: half of them topple
+      if (s.pad && wind) { const sock = s.pad.userData.sock; sock.rotation.y = Math.atan2(-wind.y, wind.x) - s.pad.rotation.y + Math.sin(t * 1.7 + s.I.id) * 0.15; sock.rotation.z = -(1 - Math.min(1, wl / 2.2)) * 1.1; }
+    }
+  }
+
   const ambient = createAmbient({ ...ctx, root, zone, chunks });
   const W = {
-    root, stats, zone, chunks, ambient,
+    root, stats, zone, chunks, ambient, sites,
+    net: { settlementsNear, netState, nearestRoad },   // for tests and tools
+    traffic: { setModel: (k, def) => ambient.setModel(k, def), get models() { return ambient.models; }, get cars() { return ambient.cars; } },
     update(dt, cam, playing = true) {
       const cx = cam.position.x, cz = cam.position.z;
       scanT -= dt; if (scanT <= 0) { scanT = 0.4; stream(cx, cz); lod(cx, cz); }
       prewarmT -= dt; if (prewarmT <= 0) { prewarmT = 1.5; prewarm(cx, cz); }
+      W.t = (W.t || 0) + dt; updateSites(dt, W.t);
       ambient.update(dt, cam, playing);
     },
     // ---- road queries for vehicles and AI traffic (net.js; see MODLOG "lived-in world")

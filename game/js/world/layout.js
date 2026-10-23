@@ -13,7 +13,7 @@ import { rawH, ISLANDS, BOUND } from '../world.js';
 // is flat under every building (physics included). Control zone: stone plinths down to the lowest corner (the zone's
 // terrain is main.js's, baked before any of this). E is set per layout run.
 const E = { hf: null, edge: null, pads: false };
-const WILD = () => ({ hf: ground0, edge: edgeDist0, pads: true });   // lazy: ground0 lives in net.js (an import cycle)
+const WILD = () => ({ hf: ground0, edge: edgeDist0, pads: true, steep: 6 });   // lazy: ground0 lives in net.js (an import cycle)
 const zoneCtx = hf => ({ hf, edge: edgeDist, pads: false });
 const CORN = [[-.5, -.5], [.5, -.5], [.5, .5], [-.5, .5], [0, 0]];
 // floor level and plinth for a w x d footprint at (x, z) turned by yaw; null if it would sit in the sea or on a cliff
@@ -23,7 +23,7 @@ export function footing(x, z, yaw, w, d, hf = E.hf, maxStep = 4.2) {
     const px = x + c * u * w + s * v * d, pz = z - s * u * w + c * v * d, h = hf(px, pz);
     lo = Math.min(lo, h); hi = Math.max(hi, h); sum += h;
   }
-  if (lo < 1.3 || hi - lo > (E.pads && hf === E.hf ? 6 : maxStep)) return null;
+  if (lo < 1.3 || hi - lo > (E.pads && hf === E.hf ? (E.steep || 6) : maxStep)) return null;
   if (E.pads && hf === E.hf) {   // a platform at the mean height (cut and fill balance), then a short plinth
     const y = Math.max(1.5, sum / CORN.length), hu = w / 2 + 0.8, hv = d / 2 + 0.8;
     let near = 1e9; for (const [u, v] of [[-1, -1], [1, -1], [1, 1], [-1, 1], [0, 1], [0, -1], [1, 0], [-1, 0]]) { const [px, pz] = toW(x, z, yaw, u * hu, v * hv); near = Math.min(near, E.edge(px, pz)); }
@@ -51,7 +51,7 @@ const cacheT = new Map();
 export function townItems(s, hf, extra = {}) {
   const key = s.id; if (cacheT.has(key)) return cacheT.get(key);
   if (!s.zone) prepArea(s.x, s.z, s.R + 80);   // every road, street and track that can pass our lots exists first
-  Object.assign(E, s.zone ? zoneCtx(hf) : WILD()); hf = E.hf; const edgeDist = E.edge;
+  Object.assign(E, s.zone && hf ? zoneCtx(hf) : WILD()); if (s.zone) E.steep = 9; hf = E.hf; const edgeDist = E.edge;   // zone villages are laid out by zoneNet with platforms too (hf null)
   const lay = s.zone ? s.layout : townOf(s), r = rng(s.seed ^ 0x2c1b3c6d), items = [], occ = new Occ(), PR = s.zone ? 9 : plazaR(s);
   const node = netState.nodes.get(s.id);
   occ.add(s.x, s.z, PR + 2);
@@ -107,6 +107,15 @@ export function townItems(s, hf, extra = {}) {
         sd += it ? w + r.range(4, 12) : 5;
       }
     }
+  }
+  // island villages are small and steep: fill in with cottages wherever the ground allows, facing the square
+  if (s.zone) for (let k = 0, n = 0; k < 90 && n < 12; k++) {
+    const a = r() * 6.283, d = PR + 10 + r() * s.R * 1.2, x = s.x + Math.cos(a) * d, z = s.z + Math.sin(a) * d, yaw = Math.atan2(s.x - x, s.z - z), cot = r() < 0.6;
+    const w = cot ? r.range(6.5, 8) : r.range(7.5, 9.5), dd = cot ? r.range(5, 6) : r.range(6.5, 8), rad = Math.hypot(w, dd) / 2;
+    if (!occ.free(x, z, rad + 1) || block(x, z, rad) || !clearOfRoads(x, z, yaw, w + 1, dd + 1, 1.0)) continue;
+    const f = footing(x, z, yaw, w, dd, hf); if (!f) continue;
+    const it = add({ t: cot ? 'cottage' : 'house', x, z, yaw, ...f, w, d: dd, floors: cot ? 1 : 2, wall: r.pick(PAL.walls), roof: r.pick(PAL.roofs), door: r.pick(PAL.doors), roofType: 'gable', seed: r() * 1e9 | 0 }, rad);
+    garden(it, r, items, occ, hf, block); n++;
   }
   // street furniture: phone box and post box by the square, lamps along town streets, a bus shelter on the way out
   if (s.size !== 'hamlet') {
@@ -210,7 +219,7 @@ export function zoneItems(hf) {
     const a0 = structAngle(I), slots = I.cave ? [[p.x - 17, p.z + 9], [p.x + 19, p.z + 6]] : [[p.x + Math.cos(a0) * 17, p.z + Math.sin(a0) * 17], [p.x - Math.cos(a0) * 18, p.z - Math.sin(a0) * 18]];
     const blocked = (x, z, rad = 0) => zoneReserved(I, x, z, rad) || slots.some(([sx, sz]) => Math.hypot(x - sx, z - sz) < 16 + rad);
     if (site.village) {
-      const V = site.village; V.layout = { streets: [], quay: site.quay };
+      const V = site.village;
       for (const it of townItems(V, hf, { blocked })) items.push(it);
     }
     // cottages round the rim of small islands, where the ground falls away from the apron

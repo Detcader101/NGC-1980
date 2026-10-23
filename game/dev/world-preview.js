@@ -9,6 +9,7 @@ import { ensure, settlementsNear, netState, farmsIn } from '../js/world/net.js';
 import { buildChunk, CHUNK, buildGeo } from '../js/world/chunkgen.js';
 import { zoneItems } from '../js/world/layout.js';
 import { worldMaterial, groundMaterial, geoFrom } from '../js/world/gfx.js';
+import { buildFactionStructure, buildPadDressing, buildShaftCollar, buildRWPylon } from '../js/world/structures.js';
 
 const P = new URLSearchParams(location.search), num = (k, d) => P.has(k) ? +P.get(k) : d;
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
@@ -43,12 +44,34 @@ if (['town', 'village', 'hamlet'].includes(focus)) {
 } else if (focus === 'zone') {
   const I = ISLANDS.find(I => I.name === (P.get('island') || 'HOME ISLAND')) || ISLANDS[0]; target = [I.x, I.z];
 }
+if (P.has('structs')) target = [0, 0];
 if (!target) target = [cx, cz];
 const [tx, tz] = target, ty = Math.max(0, islandH(tx, tz));
 
+// ---- faction structures: rows hq / fuel / depot / radar; columns: neutral, ours, ours damaged, ours destroyed,
+//      RUNAWAY, RUNAWAY damaged, RUNAWAY destroyed, retaken by us (shards round it)
+const STRUCTS = P.has('structs');
+const structs = [];
+if (STRUCTS) {
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(600, 400).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x3f8a32 })); scene.add(ground);
+  const pad = new THREE.Mesh(new THREE.CircleGeometry(8.5, 24).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x8a8c90 })); pad.position.set(-150, 0.05, 90); scene.add(pad);
+  const dress = buildPadDressing(); dress.position.set(-150, 0, 90); scene.add(dress); structs.push({ dress });
+  const collar = buildShaftCollar(); collar.position.set(-110, 0, 90); collar.userData.setSide(2); scene.add(collar);
+  const collar2 = buildShaftCollar(); collar2.position.set(-70, 0, 90); collar2.userData.setSide(1); scene.add(collar2);
+  for (let k = 0; k < 4; k++) { const p = buildRWPylon(); p.position.set(-30 + k * 18, 0, 90); scene.add(p); }
+  ['hq', 'fuel', 'factory', 'radar'].forEach((kind, row) => {
+    const cols = [[0, 'intact'], [1, 'intact'], [1, 'damaged'], [1, 'destroyed'], [2, 'intact'], [2, 'damaged'], [2, 'destroyed'], ['retaken', 'intact']];
+    cols.forEach(([side, cond], c) => {
+      const g = buildFactionStructure(kind, side === 'retaken' ? 2 : side); g.position.set(-150 + c * 40, 0, -75 + row * 42); scene.add(g); structs.push(g);
+      const ud = g.userData; ud.state.grow = 1;
+      if (side === 'retaken') ud.setSide(1);
+      if (cond === 'damaged') ud.onHp(0.4); if (cond === 'destroyed') ud.setState('destroyed');
+    });
+  });
+}
 // ---- terrain patch (colours like the game's terrain shader)
 const SIZE = num('size', 1200), RES = 4, N = Math.round(SIZE / RES);
-{
+if (!STRUCTS) {
   const geo = new THREE.PlaneGeometry(SIZE, SIZE, N, N).rotateX(-Math.PI / 2).translate(-(tx % RES), 0, -(tz % RES)).toNonIndexed(), p = geo.attributes.position, colA = new Float32Array(p.count * 3);
   const c = new THREE.Color();
   for (let i = 0; i < p.count; i++) { const x = p.getX(i) + tx, z = p.getZ(i) + tz; p.setY(i, Math.max(-14, islandH(x, z))); p.setX(i, x); p.setZ(i, z); }
@@ -75,7 +98,7 @@ if (focus === 'zone') {
     for (const d of [g[lod], gr[lod]]) { const mesh = new THREE.Mesh(geoFrom(d), mat); scene.add(mesh); tris += d.tris; }
     for (const d of [g[glod], gr[glod]]) { const mesh = new THREE.Mesh(geoFrom(d), gmat); scene.add(mesh); tris += d.tris; }
   }
-} else {
+} else if (!STRUCTS) {
   const c0 = Math.floor((tx - SIZE / 2) / CHUNK), c1 = Math.floor((tx + SIZE / 2) / CHUNK), d0 = Math.floor((tz - SIZE / 2) / CHUNK), d1 = Math.floor((tz + SIZE / 2) / CHUNK);
   for (let j = d0; j <= d1; j++) for (let i = c0; i <= c1; i++) {
     const c = buildChunk(i, j, islandH), d = c[lod];
@@ -97,6 +120,6 @@ addEventListener('wheel', e => { dist *= Math.exp(e.deltaY * 0.001); place(); })
 addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); });
 info.textContent = `${focus} ${n} at (${tx.toFixed(0)}, ${tz.toFixed(0)})  ${lod}: ${tris} tris in ${chunks} chunks, built in ${buildMs.toFixed(0)} ms`;
 window.__stats = { tris, chunks, buildMs, target };
-function frame() { requestAnimationFrame(frame); renderer.render(scene, cam); }
+function frame() { requestAnimationFrame(frame); const t = performance.now() / 1000; for (const s of structs) if (s.userData && s.userData.tick) s.userData.tick(1 / 60, t); renderer.render(scene, cam); }
 frame(); window.__ready = true;
 window.__view = (y, p, d, lx, lz) => { yaw = y * Math.PI / 180; pitch = p * Math.PI / 180; dist = d; if (lx !== undefined) { look.x = lx; look.z = lz; look.y = Math.max(0, islandH(lx, lz)) + 3; } place(); };

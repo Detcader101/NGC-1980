@@ -18,7 +18,7 @@ const CROPC = {
   wheat: [col(0xc9ad5c), col(0xb89c4c)], barley: [col(0xc2b878), col(0xb0a868)], pasture: [col(0x5f9a44), col(0x548c3c)],
   plough: [col(0x6e5038), col(0x5e4330)], hay: [col(0xa9ab5c), col(0xc4b86c)], potato: [col(0x3f6e34), col(0x5a4632)],
 };
-const WALLC = col(0x8d887c), HEDGE = col(0x2e5626), HEDGE2 = col(0x3a6a2e), TRUNK = col(0x5a4632), LEAF = [col(0x3a6e2c), col(0x4a7e34), col(0x2e5e28), col(0x56843a)];
+const WALLC = col(0x8d887c), HEDGE = col(0x2e5626), HEDGE2 = col(0x3a6a2e), TRUNK = col(0x5a4632), LEAF = [col(0x4f8a36), col(0x5e9a40), col(0x467e30), col(0x6aa048)];
 
 // ------------------------------------------------------------------------------------------- roads
 function roadRibbons(G, R, i0, i1, hf) {

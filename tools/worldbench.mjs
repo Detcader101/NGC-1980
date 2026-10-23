@@ -22,7 +22,7 @@ const probe = k => { const half = size / 2; return [cx - half + ((k * 7919) % 10
 if (DUMP) {   // a second process: generate the area in the opposite order (and with the far side first), print the ground
   for (let z = cz + size / 2; z >= cz - size / 2; z -= A.CELL / 2) for (let x = cx + size / 2; x >= cx - size / 2; x -= A.CELL / 2) A.ensure(x, z);
   const out = []; for (let k = 0; k < 20000; k++) { const [x, z] = probe(k); out.push(+world.islandH(x, z).toFixed(4)); }
-  process.stdout.write(JSON.stringify(out)); process.exit(0);
+  process.stdout.write(JSON.stringify(out), () => process.exit(0)); await new Promise(() => {});
 }
 let fails = 0; const check = (ok, msg) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) fails++; };
 

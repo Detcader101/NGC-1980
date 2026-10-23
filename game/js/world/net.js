@@ -410,6 +410,24 @@ export function zoneNet() {
       addDisc(q[0], q[1], q[2], 8, 'quay'); site.quay = { x: q[0], z: q[1], y: q[2], a: aa, road: rd.id };
       break;
     }
+    // a back street, the way that's freest of roads and the base
+    V.layout = { streets: [], quay: site.quay };
+    const used = S.nodes.get(V.id).roads.map(({ road, end }) => { const R = S.roads[road], i = end ? R.xs.length - 3 : 2; return Math.atan2(R.zs[i] - V.z, R.xs[i] - V.x); });
+    let bestA = null, bs = -1;
+    for (let t = 0; t < 16; t++) {
+      const a = t / 16 * Math.PI * 2; let m = 9; for (const d of used) m = Math.min(m, Math.abs(Math.atan2(Math.sin(a - d), Math.cos(a - d))));
+      let ok = 0; for (let d = 15; d <= 60; d += 15) { const x = V.x + Math.cos(a) * d, z = V.z + Math.sin(a) * d; if (rawH(x, z) > 2.5 && !zoneReserved(I, x, z, 10)) ok++; }
+      if (ok === 4 && m > bs) { bs = m; bestA = a; }
+    }
+    if (bestA !== null && bs > 0.7) {
+      const ex = V.x + Math.cos(bestA) * 60, ez = V.z + Math.sin(bestA) * 60, pts = route(V.x, V.z, ex, ez, { ds: 10, step: 5, wmax: 20, g: ROAD.street.g, water: 80, res: 5, smooth: 2 });
+      const pr = pts && profile(pts, 'street', V.y, undefined, { maxBridge: 0, pin0: 9 });
+      if (pr) { pr.kind = 'zone'; pr.town = V.id; const rd = addRoad(pr); site.roads.push(rd.id); V.layout.streets.push(rd.id); }
+    }
+    // the lots, levelled into the ground like the wild villages (main.js bakes islandH after this)
+    const p0 = padOf(I), a0 = structAngle(I), slots = I.cave ? [[p0.x - 17, p0.z + 9], [p0.x + 19, p0.z + 6]] : [[p0.x + Math.cos(a0) * 17, p0.z + Math.sin(a0) * 17], [p0.x - Math.cos(a0) * 18, p0.z - Math.sin(a0) * 18]];
+    site.blocked = (x, z, rad = 0) => zoneReserved(I, x, z, rad) || slots.some(([sx, sz]) => Math.hypot(x - sx, z - sz) < 16 + rad);
+    townItems(V, null, { blocked: site.blocked });
   }
 }
 
@@ -486,6 +504,11 @@ export function roadAt(x, z) {
   }
   const { s, t } = q, R = s.r;
   return { surface: R.surface, type: R.type, kind: R.kind, bridge: !!s.br, y: s.ay + (s.by - s.ay) * t, road: R.id, s: R.s[s.i] + t * Math.hypot(s.bx - s.ax, s.bz - s.az), heading: Math.atan2(s.bz - s.az, s.bx - s.ax), dist: q.e + s.hw, hw: s.hw };
+}
+// the nearest point on any road within maxD: { x, z, y, road (id), s (arc length), seg } or null
+export function nearestRoad(x, z, maxD = 60, filter = null) {
+  ensure(x, z); const p = nearestRoadPoint(x, z, maxD, filter); if (!p) return null;
+  const R = p.seg.r; return { x: p.x, z: p.z, y: p.y, road: R.id, s: R.s[p.seg.i] + p.t * Math.hypot(p.seg.bx - p.seg.ax, p.seg.bz - p.seg.az), R };
 }
 // the road graph round a point (ensures it is generated first): roads with their polylines and junctions, and nodes
 export function roadGraph(x, z, rad = 1500) {
