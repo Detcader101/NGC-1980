@@ -30,7 +30,7 @@ The orchestrator (main Claude session) keeps this file current. Read [BIBLE.md](
 | SKYFIX: Huey/jet held on a climbing sky deck; helm reads raw stick | ngc/skyfix | 1 | merged c5ec4f5 | sky 8/8 |
 | FOUNDATION: craft framework, on-foot, enter/exit, ground physics host | ngc/foundation | 1 | | owns main.js |
 | INFANTRY: soldier movement, weapons, ballistics, first-person viewmodels | ngc/infantry | 1 | | |
-| MEDICAL + INVENTORY | ngc/medinv | 1 | | |
+| MEDICAL + INVENTORY | ngc/medinv | 1 | merged 7a591ef | bench 109/109, scenes 10/10 + 11/11; next: wire into on-foot (needs foundation + infantry); polish: cramped item labels in small cells |
 | TANK M60A3 TTS (+ M113A2 shares the track sim) | ngc/tank | 1 | | |
 | WHEELED: M151A2 MUTT, M35A2 | ngc/wheeled | 1 | | |
 | NAVAL: ALBATROSS 1980, KRAKEN seized CVN, LEVIATHAN, container ship | ngc/naval | 1 | | |
