@@ -89,14 +89,14 @@ export function resolvePart(hgt, lat, H = 2.0) {
 // rows in wave 2.
 export const AMMO = {
   // 1980 task force (stand-ins for the sandbox dummies)
-  rifle: { calibre: 5.6, mass: 0.004, velocity: 900, type: 'ball' },
-  mg: { calibre: 7.6, mass: 0.009, velocity: 820, type: 'ball' },
-  hmg: { calibre: 12.7, mass: 0.045, velocity: 850, type: 'ap' },
+  rifle: { calibre: 5.6, mass: 0.004, velocity: 900, type: 'ball', pen: 6 },
+  mg: { calibre: 7.6, mass: 0.009, velocity: 820, type: 'ball', pen: 9 },
+  hmg: { calibre: 12.7, mass: 0.045, velocity: 850, type: 'ap', pen: 20 },
   law: { calibre: 66, mass: 1.0, velocity: 150, type: 'heat', pen: 300 },
   tankgun: { calibre: 105, mass: 10, velocity: 1100, type: 'heat', pen: 400 },
   // RUNAWAY
-  xm7: { calibre: 6.8, mass: 0.009, velocity: 900, type: 'ap' },      // seized rifle
-  needle: { calibre: 4, mass: 0.004, velocity: 1600, type: 'coil' },   // RW coil carbine dart (fictional)
+  xm7: { calibre: 6.8, mass: 0.009, velocity: 900, type: 'ap', pen: 9 },     // seized rifle
+  needle: { calibre: 4, mass: 0.004, velocity: 1600, type: 'coil', pen: 12 },  // RW coil carbine dart (fictional)
   coil120: { calibre: 30, mass: 3.0, velocity: 2400, type: 'coil', pen: 650 },   // RW-7 main coilgun slug (fictional)
   mbt120: { calibre: 120, mass: 5, velocity: 1500, type: 'ap', pen: 650 },       // seized M1A2 main gun (game value)
   mbt125: { calibre: 125, mass: 5, velocity: 1500, type: 'ap', pen: 600 },       // seized T-90M main gun (game value)

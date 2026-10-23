@@ -60,7 +60,7 @@ export const STRIDER = {
   GETUP_T: 1.9, DOWN_T: 1.1,    // s
   // armour (game armour points, see hit.js) and hit points per part: GAME-TUNED so rifles hurt limbs and the head and
   // need many hits for the core, machine guns do real work, a rocket is overkill
-  ARMOUR: { head: 3, thorax: 7, stomach: 6, armL: 4, armR: 4, legL: 7, legR: 7, weapon: 3 },
+  ARMOUR: { head: 4, thorax: 10, stomach: 8, armL: 5, armR: 5, legL: 8, legR: 8, weapon: 4 },   // rifles: head / arms only; MGs: legs too; launchers: anything
   HP: { head: 18, thorax: 60, stomach: 40, armL: 22, armR: 22, legL: 34, legR: 34, weapon: 14 },
 };
 
@@ -160,7 +160,7 @@ export function createStrider(opt = {}) {
     muzzle(out = [0, 0, 0]) { const P = S.pose(); return (out[0] = P.muzzle[0], out[1] = P.muzzle[1], out[2] = P.muzzle[2], out); },
     // aim error (rad, 1 sigma) from the body's state: stillness is the machine's accuracy
     aimError() {
-      if (!S.up) return 0.3;
+      if (!S.up) return S.mode === 'disabled' && S.alive ? 0.012 : 0.3;   // (a legless machine still shoots, prone)
       const sp = Math.hypot(S.v[0], S.v[2]);
       return 0.0012 + 0.004 * sp + 0.08 * S.stumble + 0.02 * Math.min(1, S.glitch.arms * 4) + (S.hp.armR <= 0 ? 0.05 : 0) + (S.hp.armL <= 0 ? 0.015 : 0);
     },

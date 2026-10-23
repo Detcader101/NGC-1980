@@ -186,7 +186,7 @@ export function sandboxIsland(seed = 1980) {
     const rr = 0.8 + r() * 1.6; obstacles.push({ kind: 'cyl', x, z, r: rr, h: 0.9 + rr * (0.6 + r() * 0.5), mat: 'rock', seed: r() });
   }
   // a pine wood on the north slope (concealment; trunks are thin)
-  for (let i = 0; i < 90; i++) { const x = -90 + r() * 120, z = -150 + r() * 70; if (dry(x, z, 2)) trees.push({ x, z, h: 7 + r() * 5, r: 1.4 + r() * 0.8 }); }
+  for (let i = 0; i < 90; i++) { const x = -165 + r() * 90, z = -70 + r() * 80; if (dry(x, z, 2)) trees.push({ x, z, h: 7 + r() * 5, r: 1.4 + r() * 0.8 }); }
   return { height, water: (x, z) => height(x, z) < 0.15, obstacles, trees, R,
     spawn: { rw: [[-40, -125], [0, -135], [40, -125]], tf: [[-60, 105], [0, 120], [55, 95]], pad: [0, 30] } };
 }

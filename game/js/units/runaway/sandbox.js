@@ -28,13 +28,15 @@ export const WPN = {
   law: { rpm: 6, mag: 1, reload: 7.0, spread: 0.012, range: 200, ammo: 'law', loud: 500, antiArmor: true },
   tankgun: { rpm: 7, mag: 1, reload: 0, spread: 0.002, range: 1200, ammo: 'tankgun', loud: 900, antiArmor: true },
 };
+// a crouched 1980 dummy shows its head and shoulders over the wall while it fires (and for a second after)
+const dummyH = d => d.kind === "vehicle" ? d.h : d.crouch ? (d.firing < 1.2 ? 1.5 : 1.15) : 1.8;
 const DUMMY = { inf: { h: 1.8, hp: 100, wpn: 'rifle' }, mg: { h: 1.8, hp: 100, wpn: 'mg' }, at: { h: 1.8, hp: 100, wpn: 'law' }, vehicle: { h: 3.0, hp: 500, wpn: 'tankgun' } };
 
 export function createSandbox(opt = {}) {
   const isl = opt.island || sandboxIsland(opt.seed ?? 1980), world = makeWorldQuery(isl), R = rng(opt.seed ?? 11);
   const env = { height: (x, z) => isl.height(x, z), normal: (x, z) => world.normal(x, z) };
   const ai = createSquadAI(world, { seed: opt.seed ?? 7 });
-  const B = { isl, world, env, ai, units: [], dummies: [], proj: [], events: [], time: 0, stats: { shots: { 1: 0, 2: 0 }, hits: { 1: 0, 2: 0 }, kills: { 1: 0, 2: 0 }, falls: 0, stumbles: 0, pd: 0 }, nextId: 1 };
+  const B = { isl, world, env, ai, units: [], dummies: [], proj: [], events: [], time: 0, stats: { shots: { 1: 0, 2: 0 }, hits: { 1: 0, 2: 0 }, kills: { 1: 0, 2: 0 }, falls: 0, stumbles: 0, pd: 0, end: { 1: {}, 2: {} } }, nextId: 1 };
   const gauss = () => { let u = 0; for (let i = 0; i < 6; i++) u += R(); return (u - 3) / Math.sqrt(0.5); };
 
   // ---------------------------------------------------------------------------------------- spawning
@@ -46,12 +48,12 @@ export function createSandbox(opt = {}) {
   };
   B.addHover = (x, z, yaw) => {
     const T = createHoverTank({ id: B.nextId }); T.place(x, z, yaw, env);
-    const m = { id: B.nextId++, kind: 'hovertank', side: 2, sim: T, eye: 2.6, vehicle: true, weapon: { range: 900, antiArmor: true, rpm: 11 }, mag: 1, cd: 0, rl: 0, coax: { mag: 60, cd: 0, rl: 0 }, h: 2.6 };
+    const m = { id: B.nextId++, kind: 'hovertank', side: 2, sim: T, eye: 2.6, gun: 1.6, vehicle: true, weapon: { range: 900, antiArmor: true, rpm: 11 }, mag: 1, cd: 0, rl: 0, coax: { mag: 60, cd: 0, rl: 0 }, h: 2.6 };
     sync(m); B.units.push(m); return m;
   };
   B.addMBT = (type, x, z, yaw) => {
     const T = createMBT(MBT[type], { id: B.nextId }); T.place(x, z, yaw, env);
-    const m = { id: B.nextId++, kind: 'mbt', mbtType: type, side: 2, sim: T, eye: 2.6, vehicle: true, weapon: { range: 1200, antiArmor: true, rpm: 9 }, mag: 1, cd: 0, rl: 0, coax: { mag: 100, cd: 0, rl: 0 }, h: MBT[type].H };
+    const m = { id: B.nextId++, kind: 'mbt', mbtType: type, side: 2, sim: T, eye: 2.6, gun: 2.0, vehicle: true, weapon: { range: 1200, antiArmor: true, rpm: 9 }, mag: 1, cd: 0, rl: 0, coax: { mag: 100, cd: 0, rl: 0 }, h: MBT[type].H };
     sync(m); B.units.push(m); return m;
   };
   B.addSquad = (members, order) => ai.addSquad({ id: 'S' + (ai.squads.length + 1), side: 2, members, order });
@@ -67,7 +69,7 @@ export function createSandbox(opt = {}) {
   function sync(m) {
     const s = m.sim;
     if (m.kind === 'strider') {
-      m.x = s.c[0]; m.z = s.c[2]; m.y = s.pos()[1]; m.yaw = s.yaw; m.headYaw = s.headYaw; m.alive = s.alive; m.up = s.up; m.blind = s.blind;
+      m.x = s.c[0]; m.z = s.c[2]; m.y = s.pos()[1]; m.yaw = s.yaw; m.headYaw = s.headYaw; m.alive = s.alive; m.up = s.up; m.blind = s.blind; m.prone = s.alive && s.mode === "disabled"; m.gun = s.muzzle()[1] - m.y;
       m.hp = Math.max(0, s.hp.thorax / STRIDER.HP.thorax); m.vx = s.v[0]; m.vz = s.v[2];
     } else if (m.kind === 'hovertank') {
       m.x = s.p[0]; m.z = s.p[2]; m.y = isl.height(s.p[0], s.p[2]); m.yaw = s.yaw; m.alive = s.alive; m.up = s.alive; m.hp = Math.max(0, s.hp.hull / RW7.HP.hull); m.vx = s.v[0]; m.vz = s.v[2];
@@ -121,11 +123,11 @@ export function createSandbox(opt = {}) {
       }
       if (s.stumble > 0.6 && !m._stum) { B.stats.stumbles++; m._stum = true; ev('stumble', { id: m.id }); } else if (s.stumble < 0.2) m._stum = false;
       const w = WPN[m.weaponName];
-      if (cadence(m, w, dt, a.fire && s.armed && s.up && a.aim)) {
+      if (cadence(m, w, dt, a.fire && s.armed && (s.up || m.prone) && a.aim)) {
         const mz = s.muzzle(), err = s.aimError() + a.supp * 0.01;
         // only fire if the weapon is actually on target (torso slew)
         const ad = s.aimDir(), tx = a.aim[0] - mz[0], ty = a.aim[1] - mz[1], tz = a.aim[2] - mz[2], tl = Math.hypot(tx, ty, tz);
-        if ((ad[0] * tx + ad[1] * ty + ad[2] * tz) / tl > 0.995) shoot(2, m.id, w, mz, a.aim, err);
+        if ((ad[0] * tx + ad[1] * ty + ad[2] * tz) / tl > 0.9993) { const p = shoot(2, m.id, w, mz, a.aim, err); const k = B.squadOf(m)?.know.get(a.aimId); p.meta = k?.seen ? "seen" : "blind"; p.err = err; }
         else m.cd = 0.05;
       }
     } else {
@@ -232,11 +234,12 @@ export function createSandbox(opt = {}) {
         if (t < 0 && m.alive) { const cx = m.x - ax, cz = m.z - az, L2 = (bx - ax) ** 2 + (bz - az) ** 2 || 1, k = clamp((cx * (bx - ax) + cz * (bz - az)) / L2, 0, 1), dd = Math.hypot(ax + (bx - ax) * k - m.x, az + (bz - az) * k - m.z); if (dd < 2.5 && !p.near?.has(m.id)) { (p.near ||= new Set()).add(m.id); ai.nearMiss(m.id, 0.12); } }
       } else for (const d of B.dummies) {
         if (!d.alive) continue;
-        let t = d.kind === 'vehicle' ? segBox(ax, ay, az, bx, by, bz, d.x, d.y + 1.4, d.z, d.yaw, 1.8, 1.4, 3.4) : segCyl(ax, ay, az, bx, by, bz, d.x, d.z, 0.32, d.y, d.y + (d.crouch ? 1.15 : 1.8));
+        let t = d.kind === 'vehicle' ? segBox(ax, ay, az, bx, by, bz, d.x, d.y + 1.4, d.z, d.yaw, 1.8, 1.4, 3.4) : segCyl(ax, ay, az, bx, by, bz, d.x, d.z, 0.32, d.y, d.y + dummyH(d));
         if (t >= 0 && t < hitT) { hitT = t; hitWhat = { dummy: d }; }
         if (t < 0) { const dd = Math.hypot((ax + bx) / 2 - d.x, (az + bz) / 2 - d.z); if (dd < 3 && !p.near?.has(d.id)) { (p.near ||= new Set()).add(d.id); d.supp = Math.min(1.2, d.supp + (p.ammo === 'coil120' ? 0.6 : 0.09)); } }
       }
       if (hitT <= 1) {
+        { const o = B.stats.end[p.side], k = (hitWhat.unit || hitWhat.dummy ? "target" : hitWhat.world.kind) + (p.meta ? "-" + p.meta : ""); o[k] = (o[k] || 0) + 1; }
         const hx = ax + (bx - ax) * hitT, hy = ay + (by - ay) * hitT, hz = az + (bz - az) * hitT, sp = Math.hypot(p.vx, p.vy, p.vz);
         const h = normalizeHit({ ...AMMO[p.ammo], velocity: sp, vel: [p.vx, p.vy, p.vz], point: [hx, hy, hz], side: p.side, weapon: p.ammo, src: p.src });
         if (hitWhat.unit) { const r = hitWhat.unit.sim.hit(h); B.stats.hits[p.side]++; ev('hit', { x: hx, y: hy, z: hz, id: hitWhat.unit.id, part: r.part, pen: r.pen, ammo: p.ammo }); ai.nearMiss(hitWhat.unit.id, 0.3); }
@@ -255,12 +258,12 @@ export function createSandbox(opt = {}) {
         B.proj.splice(i, 1); continue;
       }
       p.x = bx; p.y = by; p.z = bz;
-      if (p.life <= 0 || p.y < -20) B.proj.splice(i, 1);
+      if (p.life <= 0 || p.y < -20) { B.proj.splice(i, 1); const o = B.stats.end[p.side]; o.miss = (o.miss || 0) + 1; }
     }
   }
 
   // ---------------------------------------------------------------------------------------- the loop
-  B.targets = () => B.dummies.map(d => ({ id: d.id, side: 1, kind: d.kind, x: d.x, y: d.y, z: d.z, vx: d.vx, vz: d.vz, h: d.crouch ? 1.1 : d.h, alive: d.alive, firing: d.firing, cover: d.crouch ? 0.6 : 0 }));
+  B.targets = () => B.dummies.map(d => ({ id: d.id, side: 1, kind: d.kind, x: d.x, y: d.y, z: d.z, vx: d.vx, vz: d.vz, h: dummyH(d), alive: d.alive, firing: d.firing, cover: d.crouch ? 0.6 : 0 }));
   B.step = (dt) => {
     B.time += dt; B.events.length = 0;
     for (const m of B.units) sync(m);

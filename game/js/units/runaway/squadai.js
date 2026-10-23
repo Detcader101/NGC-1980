@@ -88,7 +88,7 @@ export function createSquadAI(world, opt = {}) {
         let vis = false;
         if (d < sight) {
           const ang = Math.atan2(-dx, -dz), off = Math.abs(((ang - (m.headYaw ?? m.yaw)) % (2 * Math.PI) + 3 * Math.PI) % (2 * Math.PI) - Math.PI);
-          if (off < fov || d < 25) vis = world.los(m.x, m.y + m.eye, m.z, t.x, t.y + t.h * 0.75, t.z) || world.los(m.x, m.y + m.eye, m.z, t.x, t.y + t.h * 0.3, t.z);
+          if (off < fov || d < 25) vis = world.los(m.x, m.y + m.eye, m.z, t.x, t.y + t.h * 0.92, t.z) || world.los(m.x, m.y + m.eye, m.z, t.x, t.y + t.h * 0.6, t.z) || world.los(m.x, m.y + m.eye, m.z, t.x, t.y + t.h * 0.3, t.z);
         }
         if (vis) {
           // detection builds faster close in, on movers and shooters, slower on targets in cover
@@ -186,7 +186,7 @@ export function createSquadAI(world, opt = {}) {
     const quiet = near.every(k => (k.firing ?? 99) > 2.5);
     if (S.ratio > AI_T.ASSAULT_RATIO && nearest < 70 && quiet) { if (S.state !== 'assault') setState(S, 'assault', `ratio ${S.ratio.toFixed(1)}`); return; }
     // flank when the fight stalls: contact for a while, the enemy count not falling, enough bodies to split
-    const striders = ms.filter(m => !m.vehicle);
+    const striders = ms.filter(m => !m.vehicle && m.up);
     if (S.state === 'contact' && S.contactT > 10 && nearest < 170 && near.length >= S.lastEnemyCount && striders.length >= 3 && S.threat) {
       const ax = cx - S.threat[0], az = cz - S.threat[1], d = Math.hypot(ax, az) || 1, base = Math.atan2(az, ax);
       // always their RIGHT: facing the enemy, right = clockwise seen from above (y up, x right, z toward the viewer)
@@ -194,7 +194,9 @@ export function createSquadAI(world, opt = {}) {
       let fx = S.threat[0] + Math.cos(a) * r, fz = S.threat[1] + Math.sin(a) * r;
       if (world.isWater(fx, fz)) { fx = (fx + S.threat[0]) / 2; fz = (fz + S.threat[1]) / 2; }
       S.flank = { x: fx, z: fz, t: 0 };
-      for (const m of ms) m.ai.flanker = !m.vehicle && m.ai.team === 1;
+      // the flankers: team 1's walkers that can walk (topped up from team 0 if short), never the link node
+      for (const m of ms) m.ai.flanker = !m.vehicle && m.up && m.ai.team === 1 && m.id !== S.leaderNow;
+      for (const m of striders) if (ms.filter(q => q.ai.flanker).length < 2 && !m.ai.flanker && m.id !== S.leaderNow) m.ai.flanker = true;
       setState(S, 'flank', 'stalled: flank right');
     }
     if (S.state === 'flank') {
@@ -260,13 +262,20 @@ export function createSquadAI(world, opt = {}) {
     // ---- targeting (every state): strict priority, fire on the squad's volley clock
     const tgt = pickTarget(S, m);
     if (tgt) {
-      a.aimId = tgt.id; a.aim = [tgt.px, (tgt.y ?? world.height(tgt.px, tgt.pz)) + tgt.h * 0.6, tgt.pz];
+      // aim centre mass, or at what shows over cover
+      const ty0 = (tgt.y ?? world.height(tgt.px, tgt.pz));
+      a.aimId = tgt.id; a.aim = [tgt.px, ty0 + tgt.h * 0.6, tgt.pz];
+      for (const k of [0.88, 0.97]) if (!world.los(m.x, m.y + (m.gun ?? m.eye), m.z, a.aim[0], a.aim[1], a.aim[2])) a.aim[1] = ty0 + tgt.h * k;
       const vol = ((AI.time - S.volley0) % (AI_T.VOLLEY_ON + AI_T.VOLLEY_OFF)) < AI_T.VOLLEY_ON;
       const canSee = tgt.seen || (AI.time - tgt.t < 1.2);
       const suppress = !canSee && tgt.conf > 0.5 && dist2(tgt.px, tgt.pz, m.x, m.z) < 140 && (S.state === 'contact' || S.state === 'flank' || S.state === 'defend');
-      const los = world.los(m.x, m.y + m.eye, m.z, a.aim[0], a.aim[1], a.aim[2]);
-      a.fire = vol && m.up && (canSee || suppress) && los && dist2(tgt.px, tgt.pz, m.x, m.z) < m.weapon.range;
-      a.note = (canSee ? 'engage ' : 'suppress ') + tgt.kind;
+      // aimed fire needs the shooter's own line from the muzzle; otherwise it is suppressive fire into the target's
+      // cover (rounds striking within 3.5 m keep its head down), at a third of the volley rate (machines ration it)
+      const clear = world.los(m.x, m.y + (m.gun ?? m.eye), m.z, a.aim[0], a.aim[1], a.aim[2]);
+      let ok = clear && canSee;
+      if (!ok && (suppress || canSee) && ((AI.time * 2.7 + m.id * 0.37) % 1) < 0.33) { const rc = world.raycast(m.x, m.y + (m.gun ?? m.eye), m.z, a.aim[0], a.aim[1], a.aim[2]); if (rc && rc.kind === 'obstacle') { const L = dist2(m.x, m.z, a.aim[0], a.aim[2]); ok = (1 - rc.t) * L < 3.5; } else if (!rc) ok = true; }
+      a.fire = vol && (m.up || m.prone) && ok && dist2(tgt.px, tgt.pz, m.x, m.z) < m.weapon.range;
+      a.note = (ok && canSee && clear ? 'engage ' : 'suppress ') + tgt.kind;
     }
     if (S.freeze > 0) { a.move = null; a.state = 'freeze'; a.fire = false; return; }
     // ---- movement by squad state
