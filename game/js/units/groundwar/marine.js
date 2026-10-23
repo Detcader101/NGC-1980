@@ -53,15 +53,20 @@ export function createMarine(o = {}) {
       const k = M.stanceTo === 'prone' ? 0.6 : 1;
       for (const p in M.hp) M.hp[p] = Math.max(0, M.hp[p] - h.hp * k / 7 * (p === 'head' ? 0.6 : 1));
       part = 'blast';
-    } else M.hp[part] = Math.max(0, M.hp[part] - h.hp);
+    } else {
+      // the M1 steel helmet turns some rounds (a glancing hit: a ringing head, not a hole) - game rule, seeded
+      M.headN = (M.headN || 0) + (part === 'head' ? 1 : 0);
+      const glance = part === 'head' && ((x => x - Math.floor(x))(Math.sin(M.seed * 7.13 + M.headN * 31.7) * 9631.17)) < 0.4;
+      M.hp[part] = Math.max(0, M.hp[part] - h.hp * (glance ? 0.3 : 1));
+    }
     const tot = Object.values(M.hp).reduce((s, v) => s + v, 0) / 440;
     const wasAble = M.able;
-    // a wound to the trunk kills about half the time (game rule; most hits put a man down rather than dead); the head
+    // a wound to the trunk kills about a third of the time (game rule; most hits put a man down rather than dead); the head
     // and a body shot to pieces always do (a seeded roll keeps runs repeatable)
     M.hits = (M.hits || 0) + 1;
     const roll = (x => x - Math.floor(x))(Math.sin(M.seed * 12.9898 + M.hits * 78.233) * 43758.5453);
     const trunk = M.hp.thorax <= 0 || M.hp.stomach <= 0;
-    if (trunk && !M.trunkRolled) { M.trunkRolled = true; M.trunkKia = roll < 0.45; }
+    if (trunk && !M.trunkRolled) { M.trunkRolled = true; M.trunkKia = roll < 0.3; }
     if (M.hp.head <= 0 || (trunk && (M.trunkKia || !wasAble)) || tot < 0.3) { M.alive = false; M.able = false; M.why = h.why || ''; M.events.push({ e: 'kia', part }); return { part, kia: true, wia: false }; }
     if (trunk || M.hp.legL <= 0 || M.hp.legR <= 0 || M.hp.armR <= 0 || tot < 0.55) { M.able = false; M.events.push({ e: 'wia', part }); return { part, kia: false, wia: wasAble }; }
     M.wounded = 1 - tot;
@@ -85,9 +90,10 @@ export function createMarine(o = {}) {
     let vx = c.vx || 0, vz = c.vz || 0; const vl = Math.hypot(vx, vz);
     if (vl > 0.05) {
       const ux = vx / vl, uz = vz / vl, gx = env.height(M.x + ux, M.z + uz) - env.height(M.x - ux, M.z - uz), grade = gx / 2;
-      vmax *= Math.min(1, Math.exp(-3.5 * Math.abs(grade + 0.05)) / Math.exp(-3.5 * 0.05));
+      const tob = Math.min(1, Math.exp(-3.5 * Math.abs(grade + 0.05)) / Math.exp(-3.5 * 0.05));   // Tobler: the same effort is a slower pace on a grade
       if (env.water && env.water(M.x + ux * 1.5, M.z + uz * 1.5)) vmax = 0;   // stays out of the sea
       if (vl > vmax) { vx = ux * vmax; vz = uz * vmax; }
+      vx *= tob; vz *= tob;
     }
     const dvx = vx - M.vx, dvz = vz - M.vz, dl = Math.hypot(dvx, dvz), am = MARINE.ACC * dt * (dl > 0 && vl < 0.05 ? 1.6 : 1);
     if (dl > am) { M.vx += dvx / dl * am; M.vz += dvz / dl * am; } else { M.vx = vx; M.vz = vz; }

@@ -34,7 +34,7 @@ export function fight(o = {}) {
   const t0 = performance.now();
   for (let i = 0; i < T / dt; i++) {
     const cam = o.far ? { x: 3000, y: 50, z: 3000 } : { x: 0, y: 60, z: 0 };
-    for (const e of GS.step(dt, { cam })) { ev[e.e] = (ev[e.e] || 0) + 1; if (e.e === 'hit' && e.side === 1 && e.kind === 'strider') { const k = 'h_' + e.ammo + '_' + e.part + (e.pen ? '+' : ''); ev[k] = (ev[k] || 0) + 1; } }
+    for (const e of GS.step(dt, { cam })) { ev[e.e] = (ev[e.e] || 0) + 1; if (e.e === 'kia' || e.e === 'wia') { const k = e.e + '_' + e.part; ev[k] = (ev[k] || 0) + 1; } if (e.e === 'hit' && e.side === 1 && e.kind === 'strider') { const k = 'h_' + e.ammo + '_' + e.part + (e.pen ? '+' : ''); ev[k] = (ev[k] || 0) + 1; } }
     // the helicopter: a slow orbit 220 m round the pad, 55 m up; the door gun fires ~6 rounds/s in bursts at the
     // nearest STRIDER in sight within 350 m (game rounds: 75 m/s tracer as war.js, swept against the units)
     if (heli && GS.time > (heli.from ?? 60)) {
@@ -94,14 +94,14 @@ if (process.argv[2] === 'fight') {
   // slope: Tobler's hiking function slows him uphill
   const hill = { height: (x, z) => -z * 0.25 };
   const mh = createMarine({ role: 'tl', env: hill }); for (let i = 0; i < 300; i++) mh.step(1 / 60, { vx: 0, vz: -1.52, stance: 'stand' }, hill);
-  check(mh.speed < 1.2 && mh.speed > 0.8, 'uphill 25 %: slower (Tobler)', mh.speed.toFixed(2) + ' m/s');
+  check(mh.speed < 0.8 && mh.speed > 0.5, 'uphill 25 %: Tobler pace 0.42 x flat', mh.speed.toFixed(2) + ' m/s');
   // wounds: a head shot kills, a leg hit puts him down, light hits slow him
   const h1 = createMarine({ role: 'tl', env, seed: 3 }); const r1 = h1.hit({ part: 'head', hp: 60 });
   const h2 = createMarine({ role: 'tl', env, seed: 3 }); h2.hit({ part: 'legL', hp: 60 }); const r2 = h2.hit({ part: 'legL', hp: 60 });
   const h3 = createMarine({ role: 'tl', env, seed: 3 }); const r3 = h3.hit({ part: 'armL', hp: 30 });
   check(r1.kia && r2.wia && !r3.kia && !r3.wia && h3.able, 'wounds: head = killed, leg gone = down, a graze = fights on');
   let kia = 0, wia = 0; for (let s = 0; s < 200; s++) { const q = createMarine({ role: 'tl', env, seed: s }); q.hit({ part: 'thorax', hp: 60 }); const r = q.hit({ part: 'thorax', hp: 60 }); if (r.kia) kia++; else if (!q.able) wia++; }
-  check(kia > 60 && kia < 120 && wia > 80, 'two rounds in the chest: about half killed, half down', `${kia} killed, ${wia} wounded of 200`);
+  check(kia > 40 && kia < 100 && wia > 100, 'two rounds in the chest: about a third killed, the rest down', `${kia} killed, ${wia} wounded of 200`);
   // the hit volume follows the stance
   const s1 = createMarine({ role: 'tl', env }); const tStand = s1.segHit(-5, 1.0, 0, 5, 1.0, 0);
   for (let i = 0; i < 120; i++) s1.step(1 / 60, { stance: 'prone' }, env); const tProne = s1.segHit(-5, 1.0, 0, 5, 1.0, 0), tLow = s1.segHit(-5, 0.2, 0, 5, 0.2, 0);
