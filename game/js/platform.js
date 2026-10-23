@@ -60,6 +60,9 @@ export function createPlatforms({ deckY, shipAt, alive = () => true, subY = null
     // jump is relative to the deck
     if (!ship && !onGround && o.plat && alive(o.plat) && deck > -1e8 && o.y > deck - 0.5 && o.y < deck + 8) ship = o.plat;
     if (!ship && o.ladder && o.ladder.ship && alive(o.ladder.ship)) ship = o.ladder.ship;   // on a ship's ladder
+    // SEAWORLD: standing hard against something taller on the deck (a parked aircraft's footprint, a lift's edge), the
+    // point under him can read its top: he is still on his ship
+    if (!ship && onGround && o.plat && alive(o.plat) && deck > o.y + 0.6 && shipAt(o.x, o.z) === o.plat) ship = o.plat;
     o.plat = ship || null;
     if (!ship) { o.loc = null; return; }
     toShip(ship, o.x, o.y, o.z, _w);

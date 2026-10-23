@@ -19,6 +19,9 @@ export default async function (h) {
         let n = 0, b = 0; for (let y = Math.floor(hh * 0.4); y < hh; y += 4) for (let x = 0; x < w; x += 4) { const k = (y * w + x) * 4; n++; if (px[k] + px[k + 1] + px[k + 2] < 12) b++; } window.__blk = b / n; } };
     // the terrain window, sky and fog follow the PLAYER's camera, so the helicopter waits 40 m above the shot
     window.__shot = (C) => { window.__cam = C; if (C.u) W(C.u, C.p, a); else a.set(...C.wp); if (__G.G.craft === "heli") __G.H.reset(a.clone().add(new T.Vector3(0, 40, 0)), 0, false, 1); __G.HI.setCollective(0.475); };
+    // foot2: the Marine turns through marine.aim and has its own view (the walker's yaw alone no longer steers him)
+    window.__face = y => (__G.marine && __G.marine.aim ? __G.marine.aim(y, 0) : (__G.foot.W.yaw = y));
+    window.__view = v => { if (__G.marine) __G.marine.view = v; __G.foot.view = v; };
     window.__park = () => { __G.H.reset(new T.Vector3(__G.HOME_B.x + 18, 60, __G.HOME_B.z + 18), 0, false, 1); __G.HI.setCollective(0.475); };
     return true; })()`);
   const parts = (process.env.PARTS || 'all').split(',');   // PARTS=sea,elevator,... to run some of them
@@ -49,10 +52,10 @@ export default async function (h) {
     await h.expect('Math.abs(__F.loc().on) < 0.15 && Math.abs(__F.loc().under - 4.25) < 0.02 && __G.foot.W.onGround && __F.loc().plat === "carrier"', 'the soldier rode the lift down to the hangar door');
     await h.expect('Math.abs(__G.war.carrier.parts.localDeck(18.9, -17) - 4.25 - 1.65) < 1.5', 'the Hornet came down with it (its footprint too)');
     await h.eval(`(__shot({ u: __G.war.carrier, p: [36, 9, -32], t: [16, 4, -17] }), 1)`); await h.wait(1200); await h.shot('lift-down');
-    await h.eval(`(__G.foot.view = 'third', __G.foot.W.yaw = __G.war.carrier.yaw + Math.PI * 0.85, 1)`); await h.wait(300);
+    await h.eval(`(__view('third'), __face(__G.war.carrier.yaw + Math.PI * 0.85), 1)`); await h.wait(300);
     await h.eval('(window.__cam = null, 1)'); await h.wait(1200); await h.shot('lift-down-third-person');
     // the hull is a wall from down here: walking inboard he stays on the platform
-    await h.eval('(__G.foot.W.yaw = __G.war.carrier.yaw + Math.PI / 2, 1)');
+    await h.eval('(__face(__G.war.carrier.yaw + Math.PI / 2), 1)');
     await h.key('down', 'KeyW'); await h.wait(2500); await h.key('up', 'KeyW');
     await h.eval('__F.loc()');
     await h.expect('__F.loc().x > 13.6 && Math.abs(__F.loc().under - 4.25) < 0.02 && Math.abs(__F.loc().on) < 0.15', 'the hull side stops him (no walking into the deck from below)');
@@ -60,12 +63,12 @@ export default async function (h) {
     await h.waitFor('__G.war.carrier.parts.lifts[0].y > 7.99', 25000); await h.wait(600);
     await h.expect('Math.abs(__F.loc().under - 8) < 0.02 && Math.abs(__F.loc().on) < 0.15 && __G.foot.W.onGround', 'and back up with it');
     // walking into a parked Hornet: it is solid
-    await h.eval('(__F.place(4.6, -31, -Math.PI / 2), __G.foot.view = "first", 1)'); await h.wait(500);
+    await h.eval('(__F.place(4.6, -31, -Math.PI / 2), __view("first"), 1)'); await h.wait(500);
     await h.key('down', 'KeyW'); await h.wait(3500); await h.key('up', 'KeyW');
     await h.eval('__F.loc()');
-    await h.expect('__F.loc().x < 9.2 && Math.abs(__F.loc().under - 8) < 0.01 && Math.abs(__F.loc().on) < 0.15', 'a parked Hornet stops a walker');
-    await h.eval(`(__G.foot.view = 'third', 1)`); await h.wait(900); await h.shot('walker-at-parked-hornet');
-    await h.eval(`(__G.foot.view = 'first', 1)`);
+    await h.expect('__F.loc().x < 7.2 && __F.loc().plat === "carrier" && Math.abs(__G.foot.W.y - __G.war.deckAt(__G.war.carrier, __G.foot.W.x, __G.foot.W.z)) < 0.15', 'a parked Hornet stops a walker');
+    await h.eval(`(__view('third'), 1)`); await h.wait(900); await h.shot('walker-at-parked-hornet');
+    await h.eval(`(__view('first'), 1)`);
   }
 
   const toFoot = async () => { if (await h.eval("__G.G.craft !== 'foot'")) { await h.key('tap', 'KeyY'); await h.wait(600); } };
@@ -74,14 +77,14 @@ export default async function (h) {
     // a zone village house: walk at its front door and be stopped by the wall
     await h.eval(`(() => { const W = __WORLD, hs = []; for (const e of W.zone) for (const it of e.items) if (it.t === 'house' || it.t === 'cottage') hs.push(it);
       const it = hs[0]; window.__house = it; const fx = Math.sin(it.yaw), fz = Math.cos(it.yaw);
-      __G.foot.spawnAt({ x: it.x + fx * (it.d / 2 + 2.2), y: it.y + 0.5, z: it.z + fz * (it.d / 2 + 2.2), yaw: it.yaw }); __G.foot.view = 'third';   // facing -front: at the house
+      __G.foot.spawnAt({ x: it.x + fx * (it.d / 2 + 2.2), y: it.y + 0.5, z: it.z + fz * (it.d / 2 + 2.2), yaw: it.yaw }); __view('third');   // facing -front: at the house
       return { n: hs.length, t: it.t, x: +it.x.toFixed(1), z: +it.z.toFixed(1), w: it.w, d: it.d }; })()`);
     await h.wait(600);
     await h.expect("__G.G.craft === 'foot'", 'on foot in the village');
     await h.key('down', 'KeyW'); await h.wait(4500); await h.key('up', 'KeyW');
     await h.eval(`(() => { const it = __house, W = __G.foot.W, fx = Math.sin(it.yaw), fz = Math.cos(it.yaw); window.__hd = (W.x - it.x) * fx + (W.z - it.z) * fz; return { front: +__hd.toFixed(2), halfDepth: it.d / 2, y: +W.y.toFixed(2), ground: W.onGround }; })()`);
     await h.expect('__hd > __house.d / 2 + 0.2 && __hd < __house.d / 2 + 1.2', 'walking into a house: stopped at its wall');
-    await h.eval('(__G.foot.W.yaw = __house.yaw + 0.5, 1)'); await h.wait(1200); await h.shot('house-wall');
+    await h.eval('(__face(__house.yaw + 0.5), 1)'); await h.wait(1200); await h.shot('house-wall');
   }
 
   if (want('bridge')) {
@@ -93,14 +96,14 @@ export default async function (h) {
       const a = Math.max(0, i0 - 2), b = Math.min(R.xs.length - 1, i1 + 2);
       window.__br = { R, i0, i1, a, b, L: best.L, ex: R.xs[b], ez: R.zs[b], minUp: 1e9, wet: false };
       const yaw = Math.atan2(-(R.xs[a + 1] - R.xs[a]), -(R.zs[a + 1] - R.zs[a]));
-      __G.foot.spawnAt({ x: R.xs[a], y: R.ys[a] + 0.3, z: R.zs[a], yaw }); __G.foot.view = 'third';
+      __G.foot.spawnAt({ x: R.xs[a], y: R.ys[a] + 0.3, z: R.zs[a], yaw }); __view('third');
       let span = 0; for (let k = i0; k < i1; k++) span = Math.max(span, R.ys[k] - Math.max(0, __G.terrainH(R.xs[k], R.zs[k])));
       return { len: +best.L.toFixed(0), at: [+R.xs[i0].toFixed(0), +R.zs[i0].toFixed(0)], deckOverGround: +span.toFixed(1), type: R.type }; })()`);
     await h.expect('!!window.__br', 'found a bridge in the wild lands');
     await h.wait(2500);   // the terrain bake and the world chunk catch up with the soldier
     // steer him along the road while he sprints: each tick, face the next road point
     await h.eval(`(window.__brI = setInterval(() => { const B = __br, W = __G.foot.W, R = B.R; let k = B.a; for (let i = B.a; i <= B.b; i++) if (Math.hypot(R.xs[i] - W.x, R.zs[i] - W.z) < Math.hypot(R.xs[k] - W.x, R.zs[k] - W.z)) k = i;
-      const n = Math.min(B.b, k + 2); W.yaw = Math.atan2(-(R.xs[n] - W.x), -(R.zs[n] - W.z));
+      const n = Math.min(B.b, k + 2); __face(Math.atan2(-(R.xs[n] - W.x), -(R.zs[n] - W.z)));
       { const q = __WORLD.roadAt(W.x, W.z); if (q && q.bridge) { B.onBridge = true; B.under = Math.max(B.under || 0, q.y - W.y); B.high = Math.max(B.high || 0, W.y - Math.max(0, __G.terrainH(W.x, W.z))); } } if (W.swim || W.wade > 0) B.wet = true; }, 50), 1)`);
     await h.key('down', 'KeyW'); await h.key('down', 'ShiftLeft');
     await h.waitFor('Math.hypot(__G.foot.W.x - __br.ex, __G.foot.W.z - __br.ez) < 4', 60000);
