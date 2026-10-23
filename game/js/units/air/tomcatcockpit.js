@@ -68,8 +68,8 @@ export function buildTomcatCockpit() {
   box(1.1, 1.0, 0.04, tubM, 0, 0.3, -3.3);                                     // aft bulkhead behind the RIO
   box(0.7, 0.5, 0.55, dark, 0, 0.0, -6.42);                                    // pilot's pedal well / under the panel
   // glare shield: a padded coaming over the panel, sloping down to the windscreen
-  const gs = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.04, 0.7), black); gs.position.set(0, 0.81, -6.47); gs.rotation.x = -0.07; g.add(gs);
-  box(0.98, 0.035, 0.04, black, 0, 0.83, -6.13);                               // lip toward the pilot
+  const hoodM = M(0x141618, { side: THREE.DoubleSide }); g.add(new THREE.Mesh(mkLoft([arch(-6.13, 0.84, 0.5, 0.76, 13), arch(-6.45, 0.82, 0.54, 0.75, 13), arch(-6.8, 0.79, 0.55, 0.73, 13)]), hoodM));   // the coaming, curved
+  tube(arch(-6.13, 0.845, 0.5, 0.76), 0.012, black, g, 'hoodLip');   // padded lip toward the pilot
 
   // ================================================================ windscreen, canopy (inside view; the model's shell is hidden)
   const glass = new THREE.MeshBasicMaterial({ color: 0xb8dcff, transparent: true, opacity: 0.06, depthWrite: false, side: THREE.DoubleSide });
@@ -175,7 +175,7 @@ export function buildTomcatCockpit() {
   })();
   box(0.026, 0.066, 0.012, black, -0.185, 0.93, -6.136);
   // caution / advisory panel on the right knee panel (a slanted face right of the main panel)
-  const KP = new THREE.Group(); KP.position.set(0.47, 0.42, -5.93); KP.rotation.set(-0.5, -0.55, 0); g.add(KP);
+  const KP = new THREE.Group(); KP.position.set(0.525, 0.56, -5.72); KP.rotation.set(0, -Math.PI / 2 + 0.25, 0); g.add(KP);
   box(0.24, 0.2, 0.03, dark, 0, 0, -0.016, KP);
   const caut = canvasTex(480, 400); plane(0.22, 0.183, new THREE.MeshBasicMaterial({ map: caut.tex, toneMapped: false }), 0, 0, 0.001, KP);
 
@@ -253,7 +253,7 @@ export function buildTomcatCockpit() {
     const boot = box(0.1, 0.09, 0.24, black, s * 0.19, -0.08, -6.2); boot.rotation.x = -0.35;
   }
   const handR = new THREE.Group(); grip.add(handR); box(0.075, 0.09, 0.075, glove, 0.0, -0.005, 0.01, handR); limb(V3(0.15, 0.48, -5.25), V3(0.03, 0.5, -5.7), 0.042, suit);
-  const handL = new THREE.Group(); thr[0].add(handL); handL.position.set(0.02, 0.0, 0.14); box(0.08, 0.09, 0.06, glove, 0, 0, 0, handL); limb(V3(-0.16, 0.48, -5.2), V3(-0.43, 0.58, -5.45), 0.042, suit);
+  const handL = new THREE.Group(); thr[0].add(handL); handL.position.set(0.02, 0.0, 0.14); box(0.07, 0.08, 0.06, glove, 0, 0, 0, handL); limb(V3(0.01, -0.02, 0.15), V3(-0.03, -0.27, 0.22), 0.04, suit, thr[0]);   // forearm back to the elbow
   const pilotSeatFig = [];   // nothing extra: the front seat is you
 
   // ================================================================ RIO's cockpit
@@ -563,7 +563,7 @@ export function buildTomcatCockpit() {
     if (!S.power || (S.flicker && Math.random() < 0.35)) { hud.tex.needsUpdate = true; return; }
     c.save(); c.strokeStyle = GRN; c.fillStyle = GRN; c.lineWidth = 3.2; c.shadowColor = 'rgba(80,255,110,.8)'; c.shadowBlur = 4;
     const line = (x0, y0, x1, y1) => { c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); };
-    const T = (t, x, y, a = 'center', sz = 17) => { c.font = `bold ${Math.round(sz * 1.2)}px ${MONO}`; c.textAlign = a; c.textBaseline = 'alphabetic'; c.fillText(t, x, y); };
+    const T = (t, x, y, a = 'center', sz = 17) => { c.font = `bold ${Math.round(sz * 1.65)}px ${MONO}`; c.textAlign = a; c.textBaseline = 'alphabetic'; c.fillText(t, x, y); };
     const mode = S.mode;
     // waterline: the 1980 "W"
     const wl = projLocal(_w.set(0, 0, -1)); if (wl) { const [x, y] = wl; line(x - 16, y, x - 8, y); line(x - 8, y, x - 4, y + 7); line(x - 4, y + 7, x, y); line(x, y, x + 4, y + 7); line(x + 4, y + 7, x + 8, y); line(x + 8, y, x + 16, y); }
@@ -584,11 +584,11 @@ export function buildTomcatCockpit() {
     // heading scale
     { const hd = (deg(A.heading()) + 360) % 360, cx = W / 2, y = 30; for (let a = Math.ceil((hd - 14) / 5) * 5; a <= hd + 14; a += 5) { const x = cx + (a - hd) * 11; line(x, y, x, y + (a % 10 ? 6 : 11)); if (a % 10 === 0) T(String(((a + 360) % 360) / 10 | 0).padStart(2, '0'), x, y - 4, 'center', 13); } line(cx, y + 14, cx - 5, y + 21); line(cx, y + 14, cx + 5, y + 21); }
     // airspeed (left) and altitude (right) as numbers; Mach and g under the speed
-    T(String(Math.round(A.eas * KT)), 62, H / 2 - 24, 'center', 19); c.strokeRect(30, H / 2 - 46, 64, 28);
-    const ftv = A.pos.y * FT; T(String(Math.round(ftv / 10) * 10), W - 64, H / 2 - 24, 'center', 19); c.strokeRect(W - 102, H / 2 - 46, 76, 28);
-    if (S.agl < 300) T(`${Math.round(S.agl * FT / 10) * 10} R`, W - 64, H / 2 + 2, 'center', 14);
-    T(`${A.mach.toFixed(2)}`, 62, H / 2 + 2, 'center', 14);
-    if (mode === 'A/A' || A.nz > 3) T(`${A.nz.toFixed(1)}G`, 62, H / 2 + 22, 'center', 14);
+    T(String(Math.round(A.eas * KT)), 72, H / 2 - 22, 'center', 19); c.strokeRect(26, H / 2 - 54, 92, 42);
+    const ftv = A.pos.y * FT; T(String(Math.round(ftv / 10) * 10), W - 76, H / 2 - 22, 'center', 19); c.strokeRect(W - 132, H / 2 - 54, 112, 42);
+    if (S.agl < 300) T(`${Math.round(S.agl * FT / 10) * 10} R`, W - 76, H / 2 + 14, 'center', 14);
+    T(`${A.mach.toFixed(2)}`, 72, H / 2 + 14, 'center', 14);
+    if (mode === 'A/A' || A.nz > 3) T(`${A.nz.toFixed(1)}G`, 72, H / 2 + 42, 'center', 14);
     T(mode, 50, H - 18, 'center', 13);
     // landing: AoA "E" bracket against the velocity vector (on speed = VV centred in it), ICLS needles
     if (mode === 'LDG' || (mode === 'T.O.' && !A.onGround && A.gear > 0.5)) {
