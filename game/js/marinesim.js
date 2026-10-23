@@ -73,8 +73,11 @@ export function createMarineSim(o = {}) {
   let wenv = null;
   const wrapEnv = GR => { if (!wenv || wenv._GR !== GR) { wenv = Object.create(GR); wenv._GR = GR; wenv.carry = () => {}; } return wenv; };
   // ---------------------------------------------------------------- placing him
+  // (foot.js places the walker - spawns, getting out of a craft - so W.place puts the soldier there too)
+  const wPlace = W.place;
+  W.place = (x, y, z, yaw = 0) => { wPlace(x, y, z, yaw); S.place(x, y, z, yaw, 'stand'); W.stance = 'stand'; W.pitch = 0; MS.syncPos(); };
   MS.place = (x, y, z, yaw = 0, stance = 'stand') => {
-    W.place(x, y, z, yaw); S.place(x, y, z, yaw, stance); W.stance = stance; W.pitch = 0;
+    W.place(x, y, z, yaw); if (stance !== 'stand') { S.place(x, y, z, yaw, stance); W.stance = stance; }
     MS.syncPos();
   };
   MS.syncPos = () => { const dx = W.x - S.pos.x, dy = W.y - S.pos.y, dz = W.z - S.pos.z; S.pos.x = W.x; S.pos.y = W.y; S.pos.z = W.z; S.eye.x += dx; S.eye.y += dy; S.eye.z += dz; };

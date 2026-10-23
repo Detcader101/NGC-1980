@@ -639,7 +639,7 @@ export function createWar(ctx) {
       if (d < r) damage(t, dmg * (1 - 0.6 * d / r), side);
     }
     const pl = ctx.player();
-    if (side !== 1 && pl.alive && !pl.inCave) { const d = pl.pos.distanceTo(_v.set(x, y, z)); if (d < r) ctx.hurtPlayer(0.12 + 0.3 * dmg / 20 * (1 - d / r), 'BLAST'); }
+    if (side !== 1 && pl.alive && !pl.inCave) { const d = pl.pos.distanceTo(_v.set(x, y, z)); if (d < r) ctx.hurtPlayer(0.12 + 0.3 * dmg / 20 * (1 - d / r), 'BLAST', null, null, 'blast'); }   // ngc/foot2: kind for the Marine's wounds
   }
   W.blast = blast;
   function updateProj(dt, pl) {
@@ -668,7 +668,7 @@ export function createWar(ctx) {
         if (b.life <= 0) {   // burst
           fx.flak(x, y, z); if (hear(x, y, z, 300) > 0) sfx.flak?.();
           for (const t of targets(b.side)) if (t.p && !t.dims && t.p.distanceTo(b.p) < 8) damage(t, 1.2, b.side);
-          if (b.side === 2 && pl.alive && !pl.inCave && pl.pos.distanceTo(b.p) < 7 + (pl.hitR || 2.6) - 2.6) ctx.hurtPlayer(0.13, 'FLAK');
+          if (b.side === 2 && pl.alive && !pl.inCave && pl.pos.distanceTo(b.p) < 7 + (pl.hitR || 2.6) - 2.6) ctx.hurtPlayer(0.13, 'FLAK', null, null, 'flak');
           const sc = W.carrier; if (b.side === 2 && sc && sc.sky && sc.sky.up && sc.p.y > 8) { const [lx, lz] = toLocal(sc, x, z); if (Math.abs(lx) < 34 && Math.abs(lz) < 66 && Math.abs(y - (sc.p.y + 4)) < 10) damage(sc, 2, 2); }
         }
       } else if (!done) {
@@ -681,7 +681,7 @@ export function createWar(ctx) {
         else {
           hit = hitTest(x, y, z, b.side, b.kind === 'rocket' ? 0.5 : b.kind === 'aam' ? 1.5 : 0);
           if (hit) done = true;
-          else if (b.side === 2 && b.kind !== 'shell' && pl.alive && !pl.inCave && segD2(_pp, b.p, pl.pos) < (pl.hitR || 2.6) ** 2) { ctx.hurtPlayer(0.2, 'HIT', _cpt, b.v); done = true; }   // FOUNDATION: swept (small targets), hit point for body parts
+          else if (b.side === 2 && b.kind !== 'shell' && pl.alive && !pl.inCave && segD2(_pp, b.p, pl.pos) < (pl.hitR || 2.6) ** 2) { ctx.hurtPlayer(0.2, 'HIT', _cpt, b.v, b.kind); done = true; }   // FOUNDATION: swept (small targets), hit point for body parts
         }
         if (done) {
           const wet = y < floor + 0.5 && isWater(x, z) && dy < 0;

@@ -245,6 +245,21 @@ export function createGround(ctx) {
     if (ctx.crafts) for (const b of ctx.crafts.bounds(skip)) if (pushBox(o, b)) n++;
     return n;
   };
+  // wave 2 (ngc/foot2): a round's path (x0..x1, short: one sim step) against the tree trunks -> the nearest fraction t
+  // along it and the trunk, or null (the Marine's rounds: a trunk is cover)
+  GR.treeHit = (x0, y0, z0, x1, y1, z1) => {
+    const i0 = Math.floor((Math.min(x0, x1) - 1) / CELL), i1 = Math.floor((Math.max(x0, x1) + 1) / CELL), j0 = Math.floor((Math.min(z0, z1) - 1) / CELL), j1 = Math.floor((Math.max(z0, z1) + 1) / CELL);
+    if ((i1 - i0 + 1) * (j1 - j0 + 1) > 64) return null;
+    const dx = x1 - x0, dz = z1 - z0, L2 = dx * dx + dz * dz || 1e-9;
+    let best = null;
+    for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const a = grid.get(key(i, j)); if (a) for (const t of a) {
+      const k = Math.max(0, Math.min(1, ((t.x - x0) * dx + (t.z - z0) * dz) / L2)), px = x0 + dx * k - t.x, pz = z0 + dz * k - t.z;
+      if (px * px + pz * pz > t.r * t.r) continue;
+      const y = y0 + (y1 - y0) * k; if (y < t.y - 0.5 || y > t.y + 5) continue;
+      if (!best || k < best.t) best = { t: k, tree: t };
+    } }
+    return best;
+  };
   GR.addCollider = c => { extra.push(c); return c; };
   GR.removeCollider = c => { const i = extra.indexOf(c); if (i >= 0) extra.splice(i, 1); };
   // third-person / chase cameras: pull the camera p {x, y, z} in along the line from the eye (ex, ey, ez) to in front of
