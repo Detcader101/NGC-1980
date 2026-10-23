@@ -121,7 +121,7 @@ export function createVehicleCraft(ctx, spec) {
   const deckV = { x: 0, z: 0 };
   V.afterWar = () => {
     if (!S.plat) { deckV.x = deckV.z = 0; return; }
-    GR.carry(S); const c = S.carried, dt = V._dt || 0.016; if (c) { deckV.x = c.dx / dt; deckV.z = c.dz / dt; }
+    GR.carry(S); const c = S.carried, dt = V._dt || 0.016; if (c) { deckV.x = c.dx / dt; deckV.z = c.dz / dt; S.shift?.(c); }
     GR.settle(S, S.onGround);
   };
   V.avatar = Z => {
@@ -156,9 +156,11 @@ export function createVehicleCraft(ctx, spec) {
     } else {   // chase: behind and above, swinging round with the vehicle; the mouse orbits
       const yaw = S.yaw + V.orbit.yaw, d = 7.5 + HL * 1.2, up = 1.6 + d * Math.sin(V.orbit.pitch);
       _cp.set(S.x + Math.sin(yaw) * d * Math.cos(V.orbit.pitch), S.y + up, S.z + Math.cos(yaw) * d * Math.cos(V.orbit.pitch));
+      { const g = GR.floor(_cp.x, _cp.z, _cp.y + 20, 50); if (g !== Infinity && _cp.y < g + 1.5) _cp.y = g + 1.5; }   // over a crest: look over it
       if (!V._chase) V._chase = _cp.clone(); else V._chase.lerp(_cp, 1 - Math.exp(-6 * dt));
       if (V._chase.distanceTo(_cp) > 30) V._chase.copy(_cp);
-      cam.position.copy(V._chase); const g = GR.floor(cam.position.x, cam.position.z, cam.position.y, 50); if (g !== Infinity && cam.position.y < g + 0.8) cam.position.y = g + 0.8;
+      cam.position.copy(V._chase); GR.clearView(S.x, S.y + 1.4, S.z, cam.position, V);
+      const g = GR.floor(cam.position.x, cam.position.z, cam.position.y, 50); if (g !== Infinity && cam.position.y < g + 0.8) cam.position.y = g + 0.8;
       cam.lookAt(S.x, S.y + 1.2, S.z);
       if (!view || !view.locked) V.orbit.yaw *= Math.exp(-1.5 * dt);
     }

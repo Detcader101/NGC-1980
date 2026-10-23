@@ -16,7 +16,7 @@
 //   length 3.37 m, width 1.63 m (CONFIRMED), fording 0.53 m without kit (21 in, CONFIRMED), top speed ~106 km/h (CONFIRMED),
 //   engine 72 hp gross (CONFIRMED) -> ~45 kW at the wheels (INFERRED), CdA 1.6 m2 (INFERRED, boxy with the top down),
 //   fuel 64 L (17 US gal, CONFIRMED).
-export const BOXCAR = { L: 3.37, W: 1.63, H: 1.8, WB: 2.16, TRACK: 1.34, MASS: 1107, POWER: 45000, TOP: 29.4, REV_TOP: 6, MAX_STEER: 0.6,
+export const BOXCAR = { L: 3.37, W: 1.63, H: 1.8, WB: 2.16, TRACK: 1.34, MASS: 1107, POWER: 45000, TOP: 29.4, REV_TOP: 6, MAX_STEER: 0.38, F_LOW: 7000, F_HIGH: 2200,
   FORD: 0.53, CDA: 1.6, FUEL: 64, RIDE: 0.42, HP: 100 };
 
 export function createBoxCar(P = BOXCAR) {
@@ -28,20 +28,21 @@ export function createBoxCar(P = BOXCAR) {
   const WHEELS = [[-P.TRACK / 2, -P.WB / 2], [P.TRACK / 2, -P.WB / 2], [-P.TRACK / 2, P.WB / 2], [P.TRACK / 2, P.WB / 2]];   // FL FR RL RR (x right, z aft)
   const _s = {}, _o = { x: 0, z: 0, r: 0, y0: 0, y1: 0, nx: 0, nz: 0 };
   const ev = (e, o) => S.events.push({ e, ...o });
-  S.place = (x, y, z, yaw = 0) => { Object.assign(S, { x, y, z, yaw, pitch: 0, roll: 0, v: 0, vy: 0, yawRate: 0, steer: 0, onGround: true, plat: null, loc: null }); };
+  S.place = (x, y, z, yaw = 0) => { Object.assign(S, { x, y, z, yaw, pitch: 0, roll: 0, v: 0, vy: 0, yawRate: 0, steer: 0, onGround: true, plat: null, loc: null }); S.wheelH.fill(y); };
+  S.shift = c => { for (let i = 0; i < 4; i++) S.wheelH[i] += c.dy; };   // the host carried us (a deck went up / down)
   S.reset = () => { Object.assign(S, { fuel: P.FUEL, hp: P.HP, dead: false, flooded: false, sunk: false, engineOn: false }); };
   // wheel contact point i in the world (with the current yaw)
   const wheelAt = (i, x, z, yaw, out) => { const c = Math.cos(yaw), s = Math.sin(yaw), [lx, lz] = WHEELS[i]; out.x = x + lx * c + lz * s; out.z = z - lx * s + lz * c; return out; };
   const _w = { x: 0, z: 0 };
   // ground under each wheel from height y; false if a wheel would go into a wall
-  function wheelsOk(x, z, yaw, y, env, out) {
-    for (let i = 0; i < 4; i++) { wheelAt(i, x, z, yaw, _w); const g = env.floor(_w.x, _w.z, y, 0.45, P.H); if (g === Infinity || g > y + 0.45) return false; out[i] = g; }
+  function wheelsOk(x, z, yaw, env, out, moved) {   // each wheel against its own last height: steps over 0.45 m (plus a 45-degree slope over the move) are walls
+    for (let i = 0; i < 4; i++) { wheelAt(i, x, z, yaw, _w); const r = S.wheelH[i], g = env.floor(_w.x, _w.z, r + 0.3, 0.45 + moved, P.H); if (g === Infinity || g > r + 0.45 + moved) return false; out[i] = g; }   // moved: extra rise allowed (0 when driving)
     return true;
   }
   const _gh = [0, 0, 0, 0];
   S.step = (dt, ctl, env) => {
     S.events.length = 0;
-    env.carry(S);
+    env.carry(S); if (S.carried) S.shift(S.carried);
     const n = Math.max(1, Math.ceil(dt / (1 / 60))), h = dt / n;
     for (let k = 0; k < n; k++) sub(h, ctl, env);
     env.settle(S, S.onGround);
@@ -61,7 +62,7 @@ export function createBoxCar(P = BOXCAR) {
     if (!live) thr = 0;
     // ---- the ground: surface, slope (from the four wheels)
     env.sample(S.x, S.z, _s); S.surface = _s.surface;
-    if (!wheelsOk(S.x, S.z, S.yaw, S.y + 0.2, env, _gh)) { for (let i = 0; i < 4; i++) _gh[i] = S.y; }
+    if (!wheelsOk(S.x, S.z, S.yaw, env, _gh, 0.6)) { for (let i = 0; i < 4; i++) _gh[i] = S.wheelH[i]; }
     for (let i = 0; i < 4; i++) S.wheelH[i] = _gh[i];
     const front = (_gh[0] + _gh[1]) / 2, rear = (_gh[2] + _gh[3]) / 2, left = (_gh[0] + _gh[2]) / 2, right = (_gh[1] + _gh[3]) / 2;
     const gy = (front + rear) / 2, pitchT = Math.atan2(front - rear, P.WB), rollT = Math.atan2(left - right, P.TRACK);
@@ -70,7 +71,8 @@ export function createBoxCar(P = BOXCAR) {
     let F = 0;
     if (thr > 0 && S.onGround) {
       const dir = S.gear === 'R' ? -1 : 1, top = dir > 0 ? P.TOP : P.REV_TOP;
-      if (Math.abs(S.v) < top) F += dir * Math.min(mu * N, thr * P.POWER / Math.max(Math.abs(S.v), 2.5));
+      const v = Math.abs(S.v), fGear = v < 3 ? P.F_LOW : v < 8 ? P.F_LOW + (P.F_HIGH - P.F_LOW) * (v - 3) / 5 : P.F_HIGH;   // low gears pull hard, high gears less (no gearbox model)
+      if (v < top) F += dir * thr * Math.min(mu * N, fGear, P.POWER / Math.max(v, 0.5));
     }
     F -= m * G * Math.sin(S.pitch);                                   // grade
     F -= 0.5 * 1.2 * P.CDA * S.v * Math.abs(S.v);                    // air
@@ -88,7 +90,7 @@ export function createBoxCar(P = BOXCAR) {
     // ---- move, with walls (a wheel can't climb more than 0.45 m) and obstacles
     const fx = -Math.sin(S.yaw), fz = -Math.cos(S.yaw);
     const nx = S.x + fx * S.v * h, nz = S.z + fz * S.v * h, nyaw = S.yaw - S.yawRate * h;
-    if (wheelsOk(nx, nz, nyaw, S.y + 0.2, env, _gh)) { S.x = nx; S.z = nz; S.yaw = nyaw; }
+    if (wheelsOk(nx, nz, nyaw, env, _gh, 0)) { S.x = nx; S.z = nz; S.yaw = nyaw; }
     else { const v = Math.abs(S.v); if (v > 3) ev('crash', { v }); S.v *= -0.15; }
     for (const s of [-1, 1]) {   // two circles along the body: nose and tail
       _o.x = S.x + fx * s * P.L * 0.28; _o.z = S.z + fz * s * P.L * 0.28; _o.r = P.W * 0.55; _o.y0 = S.y + 0.3; _o.y1 = S.y + P.H;

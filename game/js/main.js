@@ -969,9 +969,9 @@ const vehCtx = {
 const carC = crafts.register(createVehicleCraft(vehCtx, {
   id: 'boxcar', label: 'TEST CAR', sim: createBoxCar(), model: buildBoxCarMesh(), hitR: 2, exposed: 0.35, cyl: 4,
   seats: [
-    { id: 'driver', label: 'DRIVER', role: 'driver', eye: [-0.38, 1.62, 0.02], door: [-1.15, 0.9, -0.1], exit: [-1.6, 0, -0.1] },
-    { id: 'pass', label: 'PASSENGER', role: 'passenger', eye: [0.38, 1.62, 0.02], door: [1.15, 0.9, -0.1], exit: [1.6, 0, -0.1] },
-    { id: 'rear', label: 'REAR SEAT', role: 'passenger', eye: [0, 1.6, 0.95], door: [0, 0.9, 2.0], exit: [0, 0, 2.5] },
+    { id: 'driver', label: 'DRIVER', role: 'driver', eye: [-0.38, 1.5, 0.12], door: [-1.15, 0.9, -0.1], exit: [-1.6, 0, -0.1] },
+    { id: 'pass', label: 'PASSENGER', role: 'passenger', eye: [0.38, 1.5, 0.12], door: [1.15, 0.9, -0.1], exit: [1.6, 0, -0.1] },
+    { id: 'rear', label: 'REAR SEAT', role: 'passenger', eye: [0, 1.52, 1.0], door: [0, 0.9, 2.0], exit: [0, 0, 2.5] },
   ],
 }));
 crafts.setActive('heli');

@@ -31,7 +31,7 @@ export const SURF = {
   grass: { mu: 0.5,  crr: 0.06,  sink: 0.02, speed: 0.95 },
   sand:  { mu: 0.5,  crr: 0.18,  sink: 0.06, speed: 0.8 },
   mud:   { mu: 0.35, crr: 0.13,  sink: 0.08, speed: 0.7 },
-  water: { mu: 0.1,  crr: 0.3,   sink: 0,    speed: 0.5 },
+  water: { mu: 0.45, crr: 0.15,  sink: 0.05, speed: 0.5 },   // the (sandy) bottom under shallow water: wading drag is the sim's
   hole:  { mu: 0,    crr: 1,     sink: 0,    speed: 0 },
 };
 export const GRAV = 9.81;
@@ -174,6 +174,23 @@ export function createGround(ctx) {
   };
   GR.addCollider = c => { extra.push(c); return c; };
   GR.removeCollider = c => { const i = extra.indexOf(c); if (i >= 0) extra.splice(i, 1); };
+  // third-person / chase cameras: pull the camera p {x, y, z} in along the line from the eye (ex, ey, ez) to in front of
+  // the first thing in the way - the ground, a deck, a hull side, a craft's footprint (except `skip`'s)
+  GR.clearView = (ex, ey, ez, p, skip = null) => {
+    const dx = p.x - ex, dy = p.y - ey, dz = p.z - ez, boxes = ctx.crafts ? ctx.crafts.bounds(skip) : [];
+    let tHit = 1;
+    for (let t = 0.1; t <= 1.0001 && tHit === 1; t += 0.05) {
+      const x = ex + dx * t, y = ey + dy * t, z = ez + dz * t;
+      if (GR.floor(x, z, y, 0.2) > y - 0.15) { tHit = t; break; }
+      for (const b of boxes) {
+        if (y < b.y0 || y > b.y1) continue;
+        const c = Math.cos(b.yaw), s = Math.sin(b.yaw), qx = x - b.x, qz = z - b.z, lx = qx * c - qz * s, lz = qx * s + qz * c;
+        if (Math.abs(lx) < b.hw + 0.2 && Math.abs(lz) < b.hl + 0.2) { tHit = t; break; }
+      }
+    }
+    if (tHit < 1) { const k = Math.max(0.12, tHit - 0.08); p.x = ex + dx * k; p.y = ey + dy * k; p.z = ez + dz * k; }
+    return tHit < 1;
+  };
 
   // ------------------------------------------------------------------ spawn points
   // carrier deck parking spots (local; starboard, forward of the island, clear of the catapult and the landing area)
@@ -186,7 +203,7 @@ export function createGround(ctx) {
   };
   const _o = { x: 0, z: 0, r: 2.4 };
   GR.clearAt = (x, z, r = 2.4, skip = null) => { _o.x = x; _o.z = z; _o.r = r; _o.y0 = -1e9; _o.y1 = 1e9; return GR.collide(_o, skip) === 0 && Math.hypot(_o.x - x, _o.z - z) < 0.01; };
-  // beside the pad of island I, on flat dry ground, facing away from the pad
+  // beside the pad of island I, on flat dry ground, nose to the pad
   GR.motorPool = (I, r = 2.4) => {
     const p = I.pad; if (!p) return null;
     for (const d of [p.r + 7, p.r + 11, p.r + 15]) for (let k = 0; k < 12; k++) {
@@ -194,7 +211,7 @@ export function createGround(ctx) {
       if (holeOf(x, z) || terrainH(x, z) < 1) continue;
       const s = GR.sample(x, z); if (s.ny < 0.96) continue;
       if (!GR.clearAt(x, z, r + 1)) continue;
-      return { name: `${I.name} MOTOR POOL`, x, z, y: s.h, yaw: Math.atan2(-(x - p.x), -(z - p.z)) + Math.PI, plat: null };
+      return { name: `${I.name} MOTOR POOL`, x, z, y: s.h, yaw: Math.atan2(x - p.x, z - p.z), plat: null };   // parked facing the pad
     }
     return null;
   };

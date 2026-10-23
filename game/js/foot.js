@@ -335,20 +335,7 @@ export function createFootCraft(ctx) {
   F.fov = ckFov => ckFov;
   let bob = 0;
   // pull the over-the-shoulder camera in front of whatever is between it and the head (a parked helicopter, a wall)
-  function clearView(ex, ey, ez, p) {
-    const dx = p.x - ex, dy = p.y - ey, dz = p.z - ez, boxes = crafts.bounds(null);
-    let tHit = 1;
-    for (let t = 0.1; t <= 1.0001 && tHit === 1; t += 0.05) {
-      const x = ex + dx * t, y = ey + dy * t, z = ez + dz * t;
-      if (GR.floor(x, z, y, 0.2) > y - 0.15) { tHit = t; break; }
-      for (const b of boxes) {
-        if (y < b.y0 || y > b.y1) continue;
-        const c = Math.cos(b.yaw), s = Math.sin(b.yaw), qx = x - b.x, qz = z - b.z, lx = qx * c - qz * s, lz = qx * s + qz * c;
-        if (Math.abs(lx) < b.hw + 0.2 && Math.abs(lz) < b.hl + 0.2) { tHit = t; break; }
-      }
-    }
-    if (tHit < 1) { const k = Math.max(0.12, tHit - 0.08); p.set(ex + dx * k, ey + dy * k, ez + dz * k); }
-  }
+  const clearView = (ex, ey, ez, p) => GR.clearView(ex, ey, ez, p, null);
   F.camera = (cam, dt) => {
     const W = slots.soldier, sp = Math.hypot(W.vx, W.vz);
     bob += (W.onGround && sp > 0.3 ? 1 : -1) * dt * 3; bob = clamp(bob, 0, 1);
