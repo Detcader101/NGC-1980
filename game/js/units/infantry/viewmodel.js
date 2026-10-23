@@ -103,15 +103,23 @@ function evalTrack(track, p) {
 // ------------------------------------------------------------------------------------------------ arms and hands
 function sleeveMat() { return KITMAT.lambert(); }
 function buildHand(side) {   // a fist around a ~32 mm grip; grip axis = local y, grip centre at the origin, wrist toward +z
-  const s = side === 'L' ? -1 : 1, k = new Kit(), skin = CAMO.vary(COL.skin, 0.05, 0.02), knuckle = 0xb88a66;
-  k.box(0.026, 0.088, 0.072, skin, [s * 0.03, 0, 0.022]);                                                       // palm
-  for (let i = 0; i < 4; i++) { const y = 0.033 - i * 0.022, l = i === 3 ? 0.8 : 1;
-    k.box(0.05 * l, 0.019, 0.02, skin, [s * 0.006, y, -0.026]);                                                 // proximal phalanges across the front
-    k.box(0.02, 0.018, 0.034 * l, knuckle, [s * -0.024, y, -0.01]); }                                          // finger tips round the far side
-  k.box(0.02, 0.022, 0.055, skin, [s * -0.012, 0.055, 0.008], [0, 0, 0]);                                    // thumb over the top
-  k.box(0.03, 0.06, 0.05, skin, [s * 0.035, 0.0, 0.07]);                                                       // heel of the hand / wrist
+  const s = side === 'L' ? -1 : 1, k = new Kit(), skin = CAMO.vary(COL.skin, 0.05, 0.02), knuckle = 0xbb8c68, crease = 0x9c6c4c, nail = 0xd8b8a0;
+  k.box(0.024, 0.086, 0.07, skin, [s * 0.031, 0, 0.024]);                                                       // palm (on the near side of the grip)
+  k.box(0.012, 0.082, 0.06, skin, [s * 0.046, 0, 0.03]);                                                        // back of the hand
+  for (let i = 0; i < 4; i++) {
+    const y = 0.031 - i * 0.021, l = [0.95, 1, 0.97, 0.82][i];
+    k.box(0.016, 0.018, 0.016, knuckle, [s * 0.046, y, -0.012]);                                                // knuckle
+    k.box(0.046 * l, 0.017, 0.019, skin, [s * 0.012, y, -0.027]);                                             // proximal phalanx across the front of the grip
+    k.box(0.019, 0.016, 0.026 * l, skin, [s * -0.022, y, -0.012]);                                            // middle phalanx round the far side
+    k.box(0.006, 0.013, 0.012, nail, [s * -0.032, y, 0.004 * l]);                                             // nail
+    if (i < 3) k.box(0.05, 0.003, 0.02, crease, [s * 0.012, y - 0.0105, -0.027]);                             // the gap between fingers
+  }
+  k.box(0.022, 0.024, 0.04, skin, [s * 0.026, 0.05, 0.018], [0, 0, 0]);                                        // thumb, base
+  k.box(0.02, 0.02, 0.034, skin, [s * -0.004, 0.056, -0.004], [0, s * 0.35, 0]);                               // thumb over the top
+  k.box(0.008, 0.012, 0.012, nail, [s * -0.018, 0.064, -0.012]);
+  k.box(0.032, 0.058, 0.05, skin, [s * 0.036, 0.0, 0.072]);                                                    // heel of the hand / wrist
   const m = k.mesh(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide }), 'hand' + side);
-  const g = new THREE.Group(); g.add(m); g.userData.wrist = V3(s * 0.035, 0, 0.095); return g;
+  const g = new THREE.Group(); g.add(m); g.userData.wrist = V3(s * 0.036, 0, 0.097); return g;
 }
 function buildSegment(len, r0, r1, side, watch) {   // along -y from the joint; sleeve camo
   const k = new Kit(), cloth = CAMO.erdl(0.06, side === 'L' ? 3 : 5);
@@ -310,6 +318,7 @@ export function createViewmodel(o = {}) {
   vm.fov = (base, ads) => base / (1 + 0.18 * sstep(ads));
   vm.render = function (renderer, worldCam) {
     cam.fov = worldCam.fov; cam.aspect = worldCam.aspect; cam.updateProjectionMatrix();
+    if (vm.inspect) { cam.position.fromArray(vm.inspect.pos); cam.lookAt(vm.inspect.look[0], vm.inspect.look[1], vm.inspect.look[2]); } else { cam.position.set(0, 0, 0); cam.rotation.set(0, 0, 0); }   // debug: orbit the arms
     const ac = renderer.autoClear; renderer.autoClear = false; renderer.clearDepth(); renderer.render(scene, cam); renderer.autoClear = ac;
   };
   return vm;
