@@ -28,19 +28,20 @@ export const MV22 = {
   // twist ~ -40 deg over the blade (the real one is -47 deg, nonlinear; INFERRED linear fit), gimbal spring (INFERRED)
   R: 5.805, NB: 3, CHORD: 0.638, TWIST: -0.70, LOCK: 3.8, K_SPRING: 30000,
   OMEGA_H: 412 * Math.PI / 30, OMEGA_A: 333 * Math.PI / 30,   // 412 / 333 rpm (CONFIRMED)
-  PIVOT: [0.25, 7.0, -1.9], MAST: 1.9,               // nacelle pivot on the wing tip, hub 1.9 m out along the shaft (INFERRED); span 25.8 m with rotors (CONFIRMED 84 ft 7 in)
+  PIVOT: [0.05, 7.0, -1.9], MAST: 1.9,               // nacelle pivot on the wing tip, hub 1.9 m out along the shaft (INFERRED); span 25.8 m with rotors (CONFIRMED 84 ft 7 in)
   CG_H: 2.35,                                         // CG over the ground on the gear (INFERRED)
   NAC_MAX: 97.5 * D2R, NAC_RATE: 7.5 * D2R,           // 0..97.5 deg (CONFIRMED), 90 deg in ~12 s (CONFIRMED)
   // engines: 2 x Rolls-Royce AE 1107C (T406), 6,150 shp max each (CONFIRMED); cross-shafted
   P_ENG: 6150 * HP, I_ROT: 2 * 4200 + 2500,
-  // controls (INFERRED rigging): collective span 24 deg; differential collective +-3.5 deg; cyclic +-8 deg; diff cyclic +-6 deg
-  TH_SPAN: 24 * D2R, DIFF: 3.5 * D2R, CYC: 8 * D2R, DCYC: 6 * D2R,
-  // wing: 28.0 m2 (CONFIRMED), span 14 m (CONFIRMED 45 ft 10 in), incidence 3 deg, CLmax 1.45 clean / 1.85 flaps (INFERRED)
-  WING: { S: 28.0, b: 14.0, inc: 3 * D2R, a: 4.6, cl0: 0.15, clmax: 1.45, cd0: 0.009, e: 0.78, x: 0.0, z: -1.8, flapCl: 0.4, ail: 0.35 },
-  HT: { S: 8.9, x: -8.3, z: -1.2, a: 3.6, inc: 0, tau: 0.5, maxEl: 20 * D2R },   // horizontal tail (INFERRED)
+  // controls (INFERRED rigging): collective span 28 deg; differential collective +-3.5 deg; cyclic +-8 deg; diff cyclic +-6 deg
+  TH_SPAN: 28 * D2R, DIFF: 3.5 * D2R, CYC: 8 * D2R, DCYC: 6 * D2R,
+  // wing: 28.0 m2 (CONFIRMED), span 14 m (CONFIRMED 45 ft 10 in), incidence 3 deg; thick (23%) section with flaperons:
+  // CLmax 1.6 clean / ~2.0 flaperons drooped (INFERRED)
+  WING: { S: 28.0, b: 14.0, inc: 3 * D2R, a: 4.6, cl0: 0.15, clmax: 1.6, cd0: 0.009, e: 0.78, x: 0.0, z: -1.8, flapCl: 0.45, ail: 0.35 },
+  HT: { S: 8.9, x: -8.3, z: -1.2, a: 3.6, inc: -3 * Math.PI / 180, tau: 0.5, maxEl: 20 * D2R },   // horizontal tail (INFERRED)
   VT: { S: 11.4, x: -8.6, z: -2.2, a: 3.0, tau: 0.45, maxRud: 20 * D2R },        // twin fins (INFERRED)
-  FUS: { f: 3.0, fy: 30, fz: 40, Mw: 45, Nv: 60 },   // flat plate (INFERRED, tuned to 275 kt SL), side, plan; unstable pitch / yaw moments
-  DOWNLOAD: 0.11,                                     // wing area fraction x Cd seen by the downwash (INFERRED to ~10% download)
+  FUS: { f: 4.0, fy: 30, fz: 40, Mw: 45, Nv: 60 },   // flat plate (INFERRED, tuned to 275 kt SL), side, plan; unstable pitch / yaw moments
+  WASH: 1.45,                                         // downwash on the wing, x the rotors' induced velocity (INFERRED: gives the ~10% hover download)
   GEAR: [[5.3, 0, 2.35], [-0.9, -2.2, 2.35], [-0.9, 2.2, 2.35]],
   // published performance (CONFIRMED): max speed 275 kt SL (305 kt at 15,000 ft), stall 110 kt, climb 2,320-4,000 fpm,
   // ceiling 25,000 ft, disc loading 20.9 lb/ft2 at 47,500 lb, conversion ~12 s
@@ -60,7 +61,7 @@ export function createMV22Sim(G = 9.81) {
     nac: 90 * D2R, nacCmd: 90 * D2R, gear: 1, gearCmd: 1, flap: 1,
     // controls: tcl 0..1, lon (+aft), lat (+right), ped (+right), nac (deg command), gear (1 down), flap 0..1
     c: { tcl: 0, lon: 0, lat: 0, ped: 0 }, ias: 0, alpha: 0, beta: 0, agl: 0, landed: true, power: 0, torque: 0, events: [], dead: false, rho: 1.225, mods: null,
-    wingL: 0, download: 0, rpmCmd: 1,
+    wingL: 0, download: 0, rpmCmd: 1, kH: 1, thGov: 0.2,
     get rpm() { return S.omega / C.OMEGA_H; },
     reset(pos, yaw = 0, landed = true, env = null, nacDeg = 90) {
       S.body.reset(pos, yaw, landed, env); S.omega = C.OMEGA_H; S.dead = false; S.nac = S.nacCmd = nacDeg * D2R;
@@ -76,7 +77,9 @@ export function createMV22Sim(G = 9.81) {
     },
     attitude(out) { return attitude(S.body.q, out); },
     // the conversion corridor (INFERRED from the published XV-15 / V-22 corridor shape): KCAS limits per nacelle angle
-    corridor(nacDeg) { const n = clamp(nacDeg, 0, 97.5); return { min: n >= 60 ? (n > 90 ? -35 : 0) : 115 * (1 - n / 60) ** 0.7, max: Math.min(300, 110 + (90 - n) * 2.4) }; },
+    // the floor scales with the wing's flapped stall speed at this weight (the published 110 kt is a light, power-on figure)
+    get vStall() { return Math.sqrt(S.mass * G / (0.5 * S.rho * C.WING.S * (C.WING.clmax + C.WING.flapCl))) * KT * Math.sqrt(S.rho / 1.225); },
+    corridor(nacDeg) { const n = clamp(nacDeg, 0, 97.5), vs = S.vStall; return { min: n >= 75 ? (n > 90 ? -35 : 0) : vs * 0.95 * (1 - n / 75) ** 0.55, max: Math.min(300, 120 + (90 - n) * 2.3) }; },
   };
   const body = S.body = createBody({ mass: () => S.mass, I: C.I, gear: C.GEAR.map(at => ({ at, k: 500000, c: 60000, mu: 0.7 })) });
   // shaft axes for a nacelle angle (FRD): thrust (-Zs) from straight up (90) to straight ahead (0)
@@ -136,8 +139,13 @@ export function createMV22Sim(G = 9.81) {
     const sas = M.sasOk === false ? 0 : 1, sn = Math.sin(S.nac), cs = Math.cos(S.nac);
     const lon = c.lon - clamp(0.6 * wb[1], -0.2, 0.2) * sas, lat = c.lat - clamp(0.45 * wb[0], -0.2, 0.2) * sas, ped = c.ped - clamp(1.0 * wb[2], -0.25, 0.25) * sas;
     // collective: scheduled with the axial inflow at 0.75 R so the TCL keeps meaning thrust (INFERRED FCS schedule)
-    const ax_ = Math.max(0, u * cs - _vb[2] * sn), base = Math.atan2(ax_, 0.75 * S.omega * C.R) - 1.5 * D2R;
-    const th = base + C.TH_SPAN * c.tcl, rk = sn * sn, dif = C.DIFF * lat * (0.4 + 0.6 * rk);
+    const ax_ = Math.max(0, u * cs - _vb[2] * sn), base = Math.atan2(ax_, 0.75 * S.omega * C.R) - 5.5 * D2R;   // TCL 0 = no thrust even in edgewise flow
+    // helicopter share (kH): TCL -> collective, engines govern rpm. Airplane share: the collective governs rpm like a
+    // constant-speed propeller and the TCL commands engine power (XV-15 / V-22 practice, INFERRED gains)
+    const kH = S.kH = sstep(25 * D2R, 60 * D2R, S.nac), nr = S.omega / C.OMEGA_H, gerr = nr - S.rpmCmd;
+    if (kH > 0.995) S.thGov = base + C.TH_SPAN * c.tcl; else S.thGov = clamp(S.thGov + gerr * 1.6 * h, base - 0.15, base + 0.5);
+    const thAir = S.thGov + gerr * 0.9;
+    const th = kH * (base + C.TH_SPAN * c.tcl) + (1 - kH) * thAir, rk = sn * sn, dif = C.DIFF * lat * (0.4 + 0.6 * rk);
     inR.th75 = th - dif; inL.th75 = th + dif;
     inR.lon = inL.lon = -C.CYC * lon * rk;                          // stick aft: both discs aft (helicopter pitch)
     inR.lon += -C.DCYC * ped * rk; inL.lon += C.DCYC * ped * rk;    // pedal right: right disc aft, left forward (yaw)
@@ -150,13 +158,12 @@ export function createMV22Sim(G = 9.81) {
     const wake = (1 - sstep(8, 30, Math.abs(u))) * sn * sn, vi = 0.5 * (rR.vi + rL.vi);
     WR[0] = C.WING.x; WR[1] = C.WING.b / 4; WR[2] = C.WING.z; WL[0] = C.WING.x; WL[1] = -C.WING.b / 4; WL[2] = C.WING.z;
     const fl = C.WING.flapCl * S.flap, ail = C.WING.ail * clamp(lat, -1, 1) * (1 - 0.5 * rk);
-    const LR = surface(WR, _vb, wb, C.WING.S / 2, C.WING.a, C.WING.cl0 + fl - ail, C.WING.clmax + fl * 0.8, C.WING.cd0 + 0.02 * S.flap, C.WING.inc, 'z', 1, 1, 1.6 * vi * wake);
-    const LL = surface(WL, _vb, wb, C.WING.S / 2, C.WING.a, C.WING.cl0 + fl + ail, C.WING.clmax + fl * 0.8, C.WING.cd0 + 0.02 * S.flap, C.WING.inc, 'z', 1, 1, 1.6 * vi * wake);
+    let dl = 0; const LR = surface(WR, _vb, wb, C.WING.S / 2, C.WING.a, C.WING.cl0 + fl - ail, C.WING.clmax + fl * 0.8, C.WING.cd0 + 0.02 * S.flap, C.WING.inc, 'z', 1, 1, C.WASH * vi * wake);
+    dl += _f[2]; const LL = surface(WL, _vb, wb, C.WING.S / 2, C.WING.a, C.WING.cl0 + fl + ail, C.WING.clmax + fl * 0.8, C.WING.cd0 + 0.02 * S.flap, C.WING.inc, 'z', 1, 1, C.WASH * vi * wake);
     S.wingL = LR + LL;
-    // download: the wing under the rotors' wake in the hover (flat-plate drag of the part of the wing under the discs)
-    const wdl = 1.6 * vi * wake; S.download = 0.5 * S.rho * wdl * wdl * C.WING.S * C.DOWNLOAD * 4; body.F[2] += S.download;
+    dl += _f[2]; S.download = dl;   // read-out: the wings' force along +z (down): the hover download
     // tail: elevator on the H-tail, rudders on the twin fins; downwash from the wing on the tail
-    const el = clamp(-lon, -1, 1) * C.HT.maxEl * (1 - 0.3 * rk), rd = clamp(-ped, -1, 1) * C.VT.maxRud;
+    const el = clamp(-lon, -1, 1) * C.HT.maxEl * (1 - 0.3 * rk), rd = clamp(ped, -1, 1) * C.VT.maxRud;
     surface(HTP, _vb, wb, C.HT.S, C.HT.a, C.HT.a * C.HT.tau * el, 1.2, 0.008, C.HT.inc - 0.35 * Math.max(0, S.alpha), 'z');
     surface(VTP, _vb, wb, C.VT.S, C.VT.a, 0.008, 1, 0.008, 0, 'y', 1 - C.VT.a * C.VT.tau * rd);
     // fuselage
@@ -180,7 +187,8 @@ export function createMV22Sim(G = 9.81) {
     let qe = 0, live = 0;
     for (let i = 0; i < 2; i++) {
       const e = S.eng[i], ok = e.ok && (M['eng' + i] ?? true) && ctl['eng' + i] !== false;
-      const dem = ok ? clamp(S.govI + err * 8 + 0.2 * S.c.tcl - 0.1, 0.62, 1.03) : 0;
+      const demH = clamp(S.govI + err * 8 + 0.2 * S.c.tcl - 0.1, 0.62, 1.03), demA = 0.62 + 0.41 * clamp(S.c.tcl, 0, 1) ** 0.67;
+      const dem = ok ? S.kH * demH + (1 - S.kH) * demA : 0;
       e.n1 += clamp((dem - e.n1) * 1.8, -0.3, 0.12) * h;
       e.p = ok ? C.P_ENG * lapse * Math.max(0, (e.n1 - 0.6) / 0.4) ** 1.5 : 0;
       if (ok) live++; qe += e.p / C.OMEGA_H * Math.max(0, 2 - nr);

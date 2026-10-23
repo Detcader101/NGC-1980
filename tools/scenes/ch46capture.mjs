@@ -28,7 +28,7 @@ export default async function (h) {
   await h.waitFor(`(__u.rot.AI.phase === 'transit' && __u.rot.AI.cmd.dist < 300) || __u.dead`, 90000); await h.shot('03-transit');
   // the game draws terrain round the player (250 m): park the Huey on SANDBAR across the pad from the LZ to watch
   await h.eval(`(() => { const I = __I, a = Math.atan2(__u.lz.z - I.pad.z, __u.lz.x - I.pad.x) + Math.PI, x = I.pad.x + Math.cos(a) * 27, z = I.pad.z + Math.sin(a) * 27; __G.H.reset(new __G.THREE.Vector3(x, __G.terrainH(x, z) + 1.9, z), -a - Math.PI / 2, true, 1); __G.HI.setCollective(0); return [x, z]; })()`);
-  await h.eval(`(window.__cam = { mode: 'fixed', at: [__I.pad.x + Math.sin(Math.atan2(__u.lz.z - __I.pad.z, __u.lz.x - __I.pad.x)) * 40, __I.pad.h + 12, __I.pad.z - Math.cos(Math.atan2(__u.lz.z - __I.pad.z, __u.lz.x - __I.pad.x)) * 40], look: [(__I.pad.x + __u.lz.x) / 2, __I.pad.h + 3, (__I.pad.z + __u.lz.z) / 2] }, true)`);
+  await h.eval(`(() => { const I = __I, a = Math.atan2(__u.lz.z - I.pad.z, __u.lz.x - I.pad.x), b = a + Math.PI + 0.35; window.__cam = { mode: 'fixed', at: [I.pad.x + Math.cos(b) * 44, I.pad.h + 15, I.pad.z + Math.sin(b) * 44], look: [I.pad.x + Math.cos(a) * 9, I.pad.h + 2.5, I.pad.z + Math.sin(a) * 9] }; return true; })()`);
   await h.waitFor(`(__u.rot.AI.phase === 'transit' && __u.rot.AI.cmd.dist < 50) || __u.dead`, 90000); await h.shot('04-approach');
   await phase('ground'); await h.shot('05-touchdown');
   await h.eval(`({ phase: __u.rot.AI.phase, off: Math.hypot(__u.p.x - __u.lz.x, __u.p.z - __u.lz.z), sink: __u.rot.S.body.maxSink, landed: __u.rot.S.landed })`);
