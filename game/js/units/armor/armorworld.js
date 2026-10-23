@@ -198,14 +198,15 @@ export function createArmorWorld(o) {
         return obs;
       },
       // the laser rangefinder: distance to the first thing along the ray (terrain, a deck, a building, a war target)
-      raycast(p, d, max = 5000) {
+      raycast(p, d, max = 5000, terrainOnly = false) {   // terrainOnly: the ground and decks (camera aim, reticles)
         let s = 0, step = 0.75, prevAbove = true;
         const hg = houseGrid();
         while (s < max) {
           s += step; step = Math.min(6, step * 1.04);
           const x = p[0] + d[0] * s, y = p[1] + d[1] * s, z = p[2] + d[2] * s;
           const g = s < 120 ? E.height(x, z) : Math.max(H0(x, z), o.deckY ? o.deckY(x, z) : -1e9);
-          if (y < Math.max(g, SEA - 50)) { if (prevAbove) return s; }
+          if (y < Math.max(g, SEA)) { if (prevAbove) return s; }
+          if (terrainOnly) continue;
           if (o.hitTest && o.hitTest(x, y, z)) return s;
           const hb = hg.get(gk(Math.floor(x / CELL), Math.floor(z / CELL)));
           if (hb) for (const B of hb) if (y < B.top && inBox(B, x, z)) return s;

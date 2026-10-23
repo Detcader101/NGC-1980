@@ -1,0 +1,669 @@
+// armorcraft.js - the M60A3 TTS and the M113A2 as playable crafts in the GAME (wave 2). A richer adapter than
+// vehicle.js (FOUNDATION's createVehicleCraft): the tank sims (m60a3.js / m113.js on trackfm.js) are 6-DOF with a
+// turret, crew stations, sights and component damage, so this module hosts them directly on the craft interface
+// (craft.js): seats at the hatches, the interiors (tankinterior.js) with their eye points and head-out positions, the
+// gunner's day and thermal sights as full-screen views (armorsight.js), driving / gunnery from the keyboard, mouse,
+// gamepad and HOTAS (CTL), the island environment (armorworld.js: terrain, roads, bridges, decks, the sea, obstacles),
+// rounds through war.js (armorgunnery.js), RUNAWAY fire into the sim's V.hit (component damage, crew wounds, fire,
+// cook-off, wrecks), sound (armoraudio.js on the game's audio bus) and an AI driver hook (armordriver.js).
+//
+//   const m60C = crafts.register(createArmorCraft(ctx, 'm60'));   ctx: see below (main.js builds it once: armCtx)
+//   m60C.spawnAt({ x, z, yaw, plat })    m60C.stow()    m60C.driver -> the AI driver (goTo / follow / stop)
+//   m60C.renderView(renderer, scene, cam) -> true when it drew the frame itself (the TTS thermal picture)
+//
+// ctx = { scene, GR, crafts, war, fx, sfx, say, feed, keyDown, CTL, hwOn(), camZ(), crewHit(a, why, at), crewKilled(why),
+//         bail(def) (force the player out: a bail-out), AW (createArmorWorld), SG (createSight), ground(x, z), isWater(x, z) }
+//
+// Seats (craft-local frame: x right, y up from the ground under the hull, -z forward; door = where you climb on):
+//   M60A3: DRIVER (hatch in the glacis), GUNNER (right of the gun), COMMANDER (M19 cupola, right rear), LOADER (left)
+//   M113A2: DRIVER (front left), COMMANDER / .50 (cupola), 11 TROOP seats (in by the rear ramp)
+// From any seat W / S / A / D are orders to the driver (the crew drives; the player in the driver seat drives himself).
+import * as THREE from 'three';
+import { createM60A3 } from './m60a3.js';
+import { createM113 } from './m113.js';
+import { buildM60A3Mesh, TANK } from './tankmodel.js';
+import { buildM113Mesh } from './m113model.js';
+import { buildTankInterior, buildM113Interior, M113_EYES } from './tankinterior.js';
+import { ArmorAudio } from './armoraudio.js';
+import { ROUNDS } from './armorballistics.js';
+import { createTrackDriver } from './armordriver.js';
+import { createGunnery } from './armorgunnery.js';
+
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
+const D2R = Math.PI / 180;
+
+// RUNAWAY fire as rounds for the armour model (GAME LEVEL: what war.js's hurtPlayer reports, mapped onto the game
+// armour table - a cannon stream, a guided missile, a shell's blast, flak fragments)
+const RW_ROUNDS = {
+  gun: { id: 'RW23', name: 'RUNAWAY CANNON', short: 'CANNON', kind: 'KE', cal: 23, mv: 1000, drag: 3e-4, pen: 40 },
+  missile: { id: 'RWATGM', name: 'RUNAWAY MISSILE', short: 'MISSILE', kind: 'HEAT', cal: 130, mv: 300, drag: 1e-4, pen: 420 },
+  shell: { id: 'RWHE', name: 'HE SHELL', short: 'SHELL', kind: 'HEP', cal: 120, mv: 600, drag: 1e-4, pen: 55 },
+  frag: { id: 'FRAG', name: 'FRAGMENTS', short: 'FRAG', kind: 'BALL', cal: 14, mv: 900, drag: 1e-3, pen: 14 },
+};
+function roundFor(amount, why) {
+  const w = String(why || '').toUpperCase();
+  if (w.includes('MISSILE') || amount >= 0.5) return RW_ROUNDS.missile;
+  if (w.includes('FLAK')) return RW_ROUNDS.frag;
+  if (w.includes('BLAST') || w.includes('SHELL')) return amount >= 0.25 ? RW_ROUNDS.shell : RW_ROUNDS.frag;
+  return RW_ROUNDS.gun;
+}
+
+// ------------------------------------------------------------------------------------------------ per-type data
+const TYPES = {
+  m60: {
+    label: 'M60A3 TTS', short: 'M60A3', hitR: 3.3, sight: 190, cyl: 12, L: 6.95, W: 3.63, H: 3.2, chase: 13, steerFloor: 0.35, steerKmh: 40,
+    fwd: 'H', low: 'L', crew: ['driver', 'gunner', 'commander', 'loader'],
+    seats: [
+      { id: 'driver', label: 'DRIVER', role: 'driver', crew: 'driver', door: [-2.05, 1.2, -2.6], exit: [-2.75, 0, -2.6], hatch: 'driver' },
+      { id: 'gunner', label: 'GUNNER', role: 'gunner', crew: 'gunner', door: [2.05, 1.25, -0.6], exit: [2.75, 0, -0.6], hatch: null },
+      { id: 'commander', label: 'TANK COMMANDER', role: 'commander', crew: 'commander', door: [2.05, 1.25, 0.9], exit: [2.75, 0, 1.0], hatch: 'cupola' },
+      { id: 'loader', label: 'LOADER', role: 'loader', crew: 'loader', door: [-2.05, 1.25, 0.3], exit: [-2.75, 0, 0.3], hatch: 'loader' },
+    ],
+  },
+  m113: {
+    label: 'M113A2', short: 'M113A2', hitR: 2.7, sight: 160, cyl: 6, L: 4.86, W: 2.69, H: 2.5, chase: 10, steerFloor: 0.22, steerKmh: 30,
+    fwd: '1-3', low: '1-2', crew: ['driver', 'commander'],
+    seats: [
+      { id: 'driver', label: 'DRIVER', role: 'driver', crew: 'driver', door: [-1.55, 1.1, -1.6], exit: [-2.25, 0, -1.6], hatch: 'driver' },
+      { id: 'commander', label: 'COMMANDER  -  .50 CAL', role: 'commander', crew: 'commander', door: [1.55, 1.1, -0.4], exit: [2.25, 0, -0.4], hatch: 'cupola' },
+      ...Array.from({ length: 11 }, (_, i) => ({ id: 'troop' + i, label: `TROOP SEAT ${i + 1}`, role: 'troop', crew: i < 5 ? 'troopsL' : 'troopsR', troop: i, door: [0, 0.95, 2.95], exit: [(i % 3 - 1) * 0.7, 0, 3.75], hatch: 'cargo', reach: 2.2 })),
+    ],
+  },
+};
+
+export function createArmorCraft(ctx, type = 'm60', id = type) {
+  const { scene, crafts, war, fx, sfx, say, AW, SG, GR } = ctx, kd = ctx.keyDown, TY = TYPES[type], M60 = type === 'm60';
+  // ---------------------------------------------------------------- the vehicle, its model and interior
+  let V = null, fm = null;
+  const model = M60 ? buildM60A3Mesh() : buildM113Mesh();
+  const interior = M60 ? buildTankInterior() : buildM113Interior();
+  if (M60) { model.hull.add(interior.group); model.turret.add(interior.gunner); model.cupola.add(interior.commander); }
+  else { model.hull.add(interior.group); model.ramp.add(interior.rampIn); model.hatches.cargo.add(interior.cargoIn); }
+  model.group.visible = false; scene.add(model.group);
+  model.group.userData.heat = 0.42;
+  model.group.traverse(o => { if (o.name && /runningGear/.test(o.name)) o.userData.heat = 0.66; });
+  const origColors = []; model.group.traverse(o => { if (o.isMesh && o.material && o.material.color && !origColors.some(e => e[0] === o.material)) origColors.push([o.material, o.material.color.clone()]); });
+  const turretRest = M60 ? { y: model.turret.position.y, rz: model.turret.rotation.z, rx: model.turret.rotation.x } : null;
+
+  const D = {
+    id, label: TY.label, kind: 'ground', type, seats: TY.seats.map(s => ({ ...s })),
+    exists: false, dead: false, seat: 0, view: 'eye', station: false,
+    head: { yaw: 0, pitch: 0 }, orbit: { yaw: 0, pitch: 0.22 }, aim: { yaw: 0, pitch: 0, set: false },
+    hatch: { driver: 0, loader: 0, cupola: 0, cargo: 0 }, hatchWant: { driver: 0, loader: 1, cupola: 0, cargo: 0 },
+    asleep: false, still: 0, unattended: 0, lowRange: false, crank: 0, wreckT: 0, sunkT: 0, why: '',
+  };
+  const IN = { throttle: 0, brake: 0, steer: 0, range: 'N', park: true, starter: false, fuelOn: true,
+    trav: 0, elev: 0, fire: false, coax: false, lase: false, dump: false, ammo: 'M735', stab: true, power: true, sight: 'day', ttsMag: 8, ttsPolarity: 'wh',
+    cupTrav: 0, cupElev: 0, fire50: false, extinguish: false, mgTrav: 0, mgElev: 0, ramp: false, vane: false, pumps: false };
+  const env = AW.env(D), st = {};
+  const GN = createGunnery({
+    war, fx, ground: (x, z) => Math.max(ctx.ground(x, z), 0), isWater: ctx.isWater, audio: () => audio, ear: () => ctx.camZ().position,
+    solid: (x, y, z) => { const hb = AW.houses().get(Math.floor(x / 8) * 100003 + Math.floor(z / 8)); if (hb) for (const B of hb) { const c = Math.cos(B.yaw), s = Math.sin(B.yaw), dx = x - B.x, dz = z - B.z; if (y < B.top && Math.abs(dx * c - dz * s) < B.hx && Math.abs(dx * s + dz * c) < B.hz) return true; } return false; },
+    onHit: (t, R) => { if (crafts.active === D && R.cal >= 100) say(`TARGET HIT  -  ${R.short}${t.dead || t.dying || t.sinking !== undefined ? '  ·  DESTROYED' : ''}`, 1.4); },
+  });
+  D.gunnery = GN;
+  let audio = null;
+  function snd() { if (!audio && sfx.ctx) { audio = new ArmorAudio(sfx.ctx, sfx.master); audio.init(); } return audio; }
+  function newSim() {
+    V = M60 ? createM60A3() : createM113(); fm = V.fm; fm.h = 1 / 120;
+    D.V = V; D.fm = fm; D.IN = IN; D.driver = createTrackDriver(V); D.driver.hold();
+    IN.ammo = 'M735'; IN.sight = 'day'; IN.stab = true; IN.ramp = false; IN.vane = false; IN.pumps = false;
+  }
+  newSim();
+  // ---------------------------------------------------------------- frames and helpers
+  const _o = [0, 0, 0], _w = [0, 0, 0], _d = [0, 0, 0];
+  const heading = () => fm.attitude().heading;
+  D.present = () => D.exists;
+  D.frame = out => { fm.origin(_o); out.x = _o[0]; out.y = _o[1]; out.z = _o[2]; out.yaw = heading(); return out; };
+  const toHull = (wx, wy, wz, out) => { const R = fm.R; out[0] = R[0] * wx + R[3] * wy + R[6] * wz; out[1] = R[1] * wx + R[4] * wy + R[7] * wz; out[2] = R[2] * wx + R[5] * wy + R[8] * wz; return out; };
+  const fromHull = (bx, by, bz, out) => { const R = fm.R; out[0] = R[0] * bx + R[1] * by + R[2] * bz; out[1] = R[3] * bx + R[4] * by + R[5] * bz; out[2] = R[6] * bx + R[7] * by + R[8] * bz; return out; };
+  const dirYP = (d, o = {}) => { o.yaw = Math.atan2(-d[0], -d[2]); o.pitch = Math.asin(clamp(d[1], -1, 1)); return o; };
+  // world direction of a hull-relative azimuth (+ left) / elevation
+  const azelDir = (az, el, out) => fromHull(-Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el), out);
+  const seatOf = () => D.seats[D.seat];
+  const crewOk = k => { const c = V.armor.COMPS.find(c => c.id === k); return !c || c.hp > 0; };
+
+  // ---------------------------------------------------------------- spawning, entering, leaving
+  D.spawnAt = sp => {
+    newSim(); env.prep(sp.x, sp.z);
+    V.reset(sp.x, sp.z, sp.yaw ?? 0, env, { range: 'N', park: true, running: false, ramp: false });
+    st.plat = null; st.loc = null; AW.settle(fm, st);
+    D.exists = true; D.dead = false; D.asleep = false; D.still = 0; D.wreckT = 0; D.sunkT = 0; D.why = ''; D.lowRange = false; D.crank = 0;
+    for (const [m, c] of origColors) m.color.copy(c);
+    if (turretRest) { model.turret.position.y = turretRest.y; model.turret.rotation.z = turretRest.rz; model.turret.rotation.x = turretRest.rx; }
+    if (D.burn) { D.burn.t = 0; D.burn = null; }
+    model.group.visible = true; GN.clear();
+    return D;
+  };
+  D.stow = () => { D.exists = false; model.group.visible = false; D.driver.hold(); if (audio && audio.built) audio.out.gain.value = 0; };
+  D.enter = (seat = 0, from) => {
+    if (!D.exists) return false;
+    if (D.dead) { say(`THE ${TY.label} IS A WRECK${D.why ? '  -  ' + D.why : ''}`, 1.6); return false; }
+    D.seat = seat; D.view = 'eye'; D.station = false; D.head.yaw = D.head.pitch = 0; D.orbit.yaw = 0; D.aim.set = false; D.asleep = false; D.unattended = 0;
+    const s = D.seats[seat];
+    if (s.troop !== undefined && V.seats) V.seats[s.troop] = false;   // the player takes that seat on the bench
+    if (s.hatch) D.hatchWant[s.hatch] = s.role === 'loader' || (!M60 && s.role === 'commander') ? 1 : 0;
+    if (from === 'foot' && D.driver.state === 'driving') { /* the crew carries on driving until you take the wheel */ }
+    if (!fm.eng.running && !fm.eng.flooded) { D.crank = 4; IN.fuelOn = true; }   // the crew starts up
+    say(`${TY.label}  -  ${s.label}${!fm.eng.running ? '  ·  STARTING UP' : ''}  ·  ${hintShort(s)}`, 2.6);
+    sfx.ui?.('select');
+    return true;
+  };
+  D.setSeat = i => {
+    const s = D.seats[i]; if (!s) return false;
+    const was = seatOf(); if (was.troop !== undefined && V.seats) V.seats[was.troop] = true;
+    if (s.troop !== undefined && V.seats) V.seats[s.troop] = false;
+    D.seat = i; D.station = false; D.head.yaw = D.head.pitch = 0; D.aim.set = false;
+    if (s.hatch && s.role === 'loader') D.hatchWant.loader = 1;
+    if (s.hatch && !M60 && s.role === 'commander') D.hatchWant.cupola = 1;
+    return true;
+  };
+  D.canExit = () => {
+    if (D.dead) return '';
+    const v = Math.abs(fm.out.fwd);
+    if (v > 1.5 && !fm.water.afloat) return `STOP FIRST  -  ${Math.round(v * 3.6)} km/h`;
+    return '';
+  };
+  D.exit = () => {
+    const s = seatOf(); if (s.troop !== undefined && V.seats) V.seats[s.troop] = true;
+    IN.fire = IN.coax = IN.fire50 = false; IN.trav = IN.elev = IN.cupTrav = IN.cupElev = IN.mgTrav = IN.mgElev = 0;
+    if (D.driver.state !== 'driving') { IN.throttle = 0; IN.steer = 0; IN.brake = 1; }
+    D.hatchWant.driver = 0; D.unattended = 0; SG.draw(null);
+  };
+  D.exitSpots = () => {
+    const out = [], order = [D.seat, ...D.seats.map((_, i) => i).filter(i => i !== D.seat)];
+    fm.origin(_o);
+    for (const i of order) { const s = D.seats[i]; if (!s.exit || (i !== D.seat && s.troop !== undefined && i > 2)) continue; const w = crafts.toWorld(D, s.exit); if (w) out.push({ x: w.x, y: _o[1], z: w.z, yaw: w.yaw }); }
+    out.push({ x: _o[0], y: _o[1] + TY.H * 0.75, z: _o[2], yaw: heading() });   // afloat / boxed in: off the roof
+    return out;
+  };
+
+  // ---------------------------------------------------------------- reading the player
+  let thrLast = null, hwThr = false, padPrev = [];
+  const btn = (pad, i) => pad && pad.buttons[i] && (pad.buttons[i].pressed || pad.buttons[i].value > 0.5);
+  function padEdge(pad, i) { const b = btn(pad, i), e = b && !padPrev[i]; return e; }
+  function readDriving(dt, input) {
+    const s = seatOf(), driverSeat = s.role === 'driver';
+    const pad = input.pad && !input.keyboardOnly ? input.pad : null, cs = ctx.CTL && ctx.CTL.state, hw = ctx.hwOn ? ctx.hwOn() : true;
+    let fwd = kd('KeyW') || (driverSeat && kd('ArrowUp')), back = kd('KeyS') || (driverSeat && kd('ArrowDown'));
+    let steer = ((kd('KeyD') || (driverSeat && kd('ArrowRight'))) ? 1 : 0) - ((kd('KeyA') || (driverSeat && kd('ArrowLeft'))) ? 1 : 0);
+    let thr = fwd ? 1 : 0, brk = kd('Space') ? 1 : 0, rev = back, analog = false;
+    if (pad) {   // left stick steers, RT gas, LT brake / reverse, A brake
+      const ax = Math.abs(pad.axes[0] || 0) > 0.15 ? pad.axes[0] : 0; if (ax) { steer = ax; analog = true; }
+      const rt = pad.buttons[7] ? pad.buttons[7].value : 0, lt = pad.buttons[6] ? pad.buttons[6].value : 0;
+      if (rt > 0.05) thr = Math.max(thr, rt); if (lt > 0.05) rev = true;
+      if (btn(pad, 0)) brk = 1;
+    }
+    if (hw && cs && cs.source && cs.source !== 'NONE') {   // HOTAS: pedals (or the stick in the driver seat) steer, the throttle lever is the accelerator, toe brakes brake
+      if (driverSeat && cs.stick && Math.abs(cs.stick.x) > 0.05) { steer = cs.stick.x; analog = true; }
+      if (cs.hasPedals && Math.abs(cs.rudder) > 0.05) { steer = cs.rudder; analog = true; }
+      if (cs.throttle !== null && cs.throttle !== undefined) { if (thrLast === null) thrLast = cs.throttle; if (Math.abs(cs.throttle - thrLast) > 0.03 || hwThr) { hwThr = true; thrLast = cs.throttle; thr = Math.max(thr, cs.throttle); } }
+      const br = Math.max(cs.brakeL || 0, cs.brakeR || 0); if (br > 0.05) brk = Math.max(brk, br);
+    }
+    const any = thr > 0.02 || rev || Math.abs(steer) > 0.02 || brk > 0;
+    if (any && D.driver.state === 'driving') D.driver.hold();   // you take over from the AI driver
+    if (!any && D.driver.state === 'driving') return false;      // the AI keeps driving
+    if (!crewOk('driver')) { IN.throttle = 0; IN.brake = 0.3; IN.steer = 0; return true; }
+    // keyboard steering narrows with speed (a hard steer at speed skids the tracks and can throw one); Right Shift: full
+    const kmh = Math.abs(fm.out.fwd) * 3.6, steerMax = kd('ShiftRight') || analog ? 1 : Math.max(TY.steerFloor, 1 - kmh / TY.steerKmh);
+    const sm = (v, t, r) => v + clamp(t - v, -r * dt, r * dt);
+    const v = fm.out.fwd;
+    let wantThr = 0, wantRange = IN.range;
+    if (rev && !fwd && thr < 0.05) {
+      if (v > 0.6) { brk = 1; }                       // still rolling forward: brake first
+      else { wantRange = 'R'; wantThr = pad && pad.buttons[6] ? Math.max(0.5, pad.buttons[6].value) : 0.7; }
+    } else if (thr > 0.02) {
+      if (v < -0.6) brk = 1;                         // rolling back: brake first
+      else { wantRange = D.lowRange ? TY.low : TY.fwd; wantThr = thr; }
+    }
+    if (Math.abs(steer) > 0.05 && wantThr === 0 && Math.abs(v) < 1.5 && !brk) {   // steering at a standstill: pivot (M60, neutral) / creep round (M113)
+      if (M60) { wantRange = 'N'; wantThr = 0.5; } else { wantRange = D.lowRange ? TY.low : TY.fwd; wantThr = 0.35; }
+    }
+    IN.throttle = sm(IN.throttle, wantThr, wantThr > IN.throttle ? 1.6 : 4);
+    IN.steer = sm(IN.steer, clamp(steer, -1, 1) * steerMax, 3);
+    IN.brake = brk;
+    if (wantThr > 0) { IN.range = wantRange; IN.park = false; D.still = 0; }
+    else if (Math.abs(v) < 0.4) { D.still += dt; if (D.still > 0.8) { IN.park = true; IN.range = 'N'; } }
+    else D.still = 0;
+    return true;
+  }
+  // a power control handle / cupola command from the error to an aim direction (world yaw / pitch): rate = G x error,
+  // passed through the inverse of the handle's shaping (|i|^1.6) so small errors still drive
+  const handle = (err, G, max) => { const r = clamp(err * G / max, -1, 1); return Math.sign(r) * Math.pow(Math.abs(r), 1 / 1.6); };
+  function readTurret(dt, input) {
+    const s = seatOf(), pad = input.pad && !input.keyboardOnly ? input.pad : null, cs = ctx.CTL && ctx.CTL.state, hw = ctx.hwOn ? ctx.hwOn() : true;
+    IN.trav = IN.elev = 0; IN.cupTrav = IN.cupElev = 0; IN.mgTrav = IN.mgElev = 0; IN.fire = false; IN.coax = false; IN.fire50 = false;
+    const ka = (kd('ArrowRight') ? 1 : 0) - (kd('ArrowLeft') ? 1 : 0), ke = (kd('ArrowUp') ? 1 : 0) - (kd('ArrowDown') ? 1 : 0), slow = kd('ShiftLeft') ? 0.25 : 1;
+    let ra = ka * slow, re = ke * slow;
+    if (pad) { const x = pad.axes[2] || 0, y = pad.axes[3] || 0; if (Math.abs(x) > 0.15) ra = x * Math.abs(x); if (Math.abs(y) > 0.15) re = -y * Math.abs(y); }
+    if (hw && cs && cs.source === 'HOTAS' && cs.stick && s.role !== 'driver') { if (Math.abs(cs.stick.x) > 0.05) ra = cs.stick.x; if (Math.abs(cs.stick.y) > 0.05) re = -cs.stick.y; }   // the stick is the power control handle
+    const manual = ra !== 0 || re !== 0;
+    const trig = input.fire || (pad && btn(pad, 5)) || (hw && cs && cs.actions && cs.actions.fire);
+    const second = kd('KeyG') || (pad && btn(pad, 4)) || (hw && cs && cs.actions && cs.actions.pickle);
+    if (s.role === 'gunner' && M60) {
+      const cur = dirYP(V.sightDir(_d));
+      if (!D.aim.set || manual) { D.aim.yaw = cur.yaw; D.aim.pitch = cur.pitch; D.aim.set = true; }
+      if (manual) { IN.trav = ra; IN.elev = re; }
+      else { IN.trav = -handle(wrap(D.aim.yaw - cur.yaw), 6, V.hydP > 0.5 ? 22.5 * D2R : 2.2 * D2R); IN.elev = handle(D.aim.pitch - cur.pitch, 6, V.hydP > 0.5 ? 4 * D2R : 0.9 * D2R); }
+      // the gun's limits: let the aim come back inside them (+20 / -10 deg on the hull)
+      const lp = V.losEl; if ((lp >= 20 * D2R - V.fc.se - 1e-3 && D.aim.pitch > cur.pitch) || (lp <= -10 * D2R + 1e-3 && D.aim.pitch < cur.pitch)) D.aim.pitch = cur.pitch;
+      if (trig && !D.trigWas) { if (V.gun.state === 'ready') IN.fire = true; else say(V.gun.state === 'loading' ? `LOADER: ${ROUNDS[V.gun.round].short} - LOADING` : 'GUN EMPTY', 0.9); }
+      D.trigWas = trig;
+      IN.coax = !!second;
+      if (pad && padEdge(pad, 2)) IN.lase = true;
+      if (hw && cs && cs.pressed && cs.pressed.missile) IN.lase = true;
+      if (pad && padEdge(pad, 3)) toggleSight();
+    } else if (s.role === 'commander') {
+      // the cupola (.50): M60 on the turret, M113 on the hull roof
+      const az = M60 ? V.az + V.mg50.az : V.mg.az, el = M60 ? V.mg50.el : V.mg.el, cur = dirYP(azelDir(az, el, _d));
+      if (!D.aim.set || manual) { D.aim.yaw = cur.yaw; D.aim.pitch = cur.pitch; D.aim.set = true; }
+      const ta = manual ? ra : -handle(wrap(D.aim.yaw - cur.yaw), 5, M60 ? 0.6 : 0.8), te = manual ? re : handle(D.aim.pitch - cur.pitch, 5, M60 ? 0.4 : 0.5);
+      if (M60) { IN.cupTrav = clamp(ta, -1, 1); IN.cupElev = clamp(te, -1, 1); } else { IN.mgTrav = clamp(ta, -1, 1); IN.mgElev = clamp(te, -1, 1); }
+      const lim = M60 ? [-0.26, 1.05] : [-0.17, 0.9]; if ((el >= lim[1] - 1e-3 && D.aim.pitch > cur.pitch) || (el <= lim[0] + 1e-3 && D.aim.pitch < cur.pitch)) D.aim.pitch = cur.pitch;
+      IN.fire50 = !!trig;
+    }
+    if (pad) padPrev = pad.buttons.map(b => b && (b.pressed || b.value > 0.5));
+  }
+  function toggleSight() { IN.sight = IN.sight === 'day' ? 'tts' : 'day'; say(IN.sight === 'tts' ? `TTS THERMAL ${IN.ttsMag}X${V.ttsCool < 0.95 ? '  -  COOLING' : ''}` : 'M35E1 DAY SIGHT 8X', 1.1); }
+
+  // ---------------------------------------------------------------- the sim step (player or parked / AI)
+  const SHUT_T = 40;
+  function step(dt, active) {
+    fm.h = active || D.driver.state === 'driving' ? 1 / 240 : 1 / 120;
+    // the starter stays in until the engine runs up past its stall speed (it catches at ~160 rpm and dies under ~380)
+    if (D.crank > 0) { const up = fm.eng.running && fm.eng.w * 9.549 > fm.P.ENGINE.STALL_RPM + 80; D.crank -= dt; IN.starter = !up && !fm.eng.flooded; if (up || D.crank <= 0) { D.crank = 0; IN.starter = false; } } else IN.starter = false;
+    if (!active) {   // nobody in it: the AI driver, or parked with the crew (who shut down after a while)
+      if (D.driver.state === 'driving' || D.driver.state === 'arrived') { const a = D.driver.update(dt); Object.assign(IN, a); }
+      else { IN.throttle = 0; IN.steer = 0; IN.brake = Math.abs(fm.out.fwd) > 0.3 ? 1 : 0; if (Math.abs(fm.out.fwd) < 0.4) { IN.park = true; IN.range = 'N'; } }
+      IN.trav = IN.elev = IN.cupTrav = IN.cupElev = IN.mgTrav = IN.mgElev = 0; IN.fire = IN.coax = IN.fire50 = false;
+      D.unattended += dt; if (D.unattended > SHUT_T && fm.eng.running && D.driver.state !== 'driving') IN.fuelOn = false;
+    } else D.unattended = 0;
+    // the AI crew drives with the gun in the travel position (turret ahead, gun up, stabiliser off) so the barrel
+    // clears the ground over banks and down ramps; the player taking the gunner's seat gets the stabiliser back
+    const playerGunner = active && seatOf().role === 'gunner';
+    if (M60 && D.driver.state === 'driving' && !playerGunner) { IN.stab = false; IN.trav = clamp(V.losAz * 3, -1, 1); IN.elev = clamp((0.16 - V.losEl) * 5, -1, 1); D.travelLock = true; }
+    else if (D.travelLock && (playerGunner || D.driver.state !== 'driving')) { IN.stab = true; D.travelLock = false; }
+    if (!IN.fuelOn && !fm.eng.running && D.crank > 0) IN.fuelOn = true;
+    fm.origin(_o); env.prep(_o[0], _o[2]);
+    AW.carry(fm, st);
+    const evs = V.step(dt, env, IN);
+    AW.settle(fm, st);
+    IN.lase = false; IN.dump = false; IN.extinguish = false;
+    // the gun pushed into a house wall or a tree, not dug into the ground: the barrel is not bent (game; the sim's
+    // dig-in rule is for the muzzle ploughing into earth)
+    if (M60 && evs.some(e => e.type === 'gunDug')) {
+      V.muzzle(_w); if (_w[1] > env.height(_w[0], _w[2]) + 0.15) { const g = V.armor.COMPS.find(c => c.id === 'gun'); if (g) g.hp = Math.min(1, g.hp + 0.25); for (let i = evs.length - 1; i >= 0; i--) if (evs[i].type === 'component' && evs[i].id === 'gun') evs.splice(i, 1); }
+    }
+    for (const e of evs) onEvent(e, active);
+    // drowned / lost: the hull top under the sea for a while
+    fm.origin(_o);
+    if (_o[1] + TY.H * 0.8 < -0.3 && !D.dead) { D.sunkT += dt; if (D.sunkT > 4) wreck('SANK', false); } else D.sunkT = 0;
+  }
+  function onEvent(e, active) {
+    const tell = (t, s = 1.6, kind) => { if (active) say(t, s); else if (kind) ctx.feed?.(`${TY.short}: ${t}`, kind); };
+    switch (e.type) {
+      case 'shot': {
+        GN.fire(e, 1); const a = snd();
+        if (e.weapon === 'main') {
+          a?.mainGun(); const p = e.p, d = e.dir;
+          fx.flash(p[0], p[1], p[2], 0.9);
+          for (let i = 0; i < 5; i++) fx.mix.spawn(p[0] + d[0] * i * 1.4, p[1] + d[1] * i * 1.4, p[2] + d[2] * i * 1.4, d[0] * 4 + (Math.random() - 0.5) * 2, 1 + Math.random(), d[2] * 4 + (Math.random() - 0.5) * 2, 2 + Math.random() * 1.5, 1.6 + i * 0.4, 5 + i, 0.72, 0.7, 0.66, 0.65, -0.1, 1.2, 0.6);
+          fm.origin(_o); const g = ctx.ground(_o[0], _o[2]);
+          for (let i = 0; i < 8; i++) { const r = 5 + Math.random() * 6, sp = (Math.random() - 0.5) * 1.6; fx.mix.spawn(_o[0] + (d[0] * Math.cos(sp) - d[2] * Math.sin(sp)) * r, g + 0.5, _o[2] + (d[2] * Math.cos(sp) + d[0] * Math.sin(sp)) * r, (Math.random() - 0.5) * 3, 0.5 + Math.random(), (Math.random() - 0.5) * 3, 2.5 + Math.random() * 2, 1.4, 4.5, 0.55, 0.48, 0.36, 0.55, 0.3, 1.5, 0.6); }
+          fx.shake = Math.min(1.5, fx.shake + (active ? 0.5 : 0.1));
+          if (active) say(`FIRE  -  ${ROUNDS[e.round].name}`, 1);
+        } else { a?.mg(e.weapon); if (Math.random() < 0.5) fx.add.spawn(e.p[0] + e.dir[0] * 0.4, e.p[1] + e.dir[1] * 0.4, e.p[2] + e.dir[2] * 0.4, 0, 0, 0, 0.04, 0.6, 0.3, 1, 0.8, 0.45, 1); }
+        break;
+      }
+      case 'loaded': snd()?.loaded(); if (active && seatOf().role === 'gunner') say(`UP  -  ${ROUNDS[e.round].short} LOADED`, 0.9); break;
+      case 'lase': tell(e.range ? `RANGE ${e.range} m` : 'NO RETURN  -  MULTIPLE OR NONE', 1.2); break;
+      case 'stall': tell(fm.eng.flooded ? 'ENGINE DROWNED' : fm.eng.fuel <= 0 ? 'OUT OF FUEL' : 'ENGINE STALLED', 1.6); break;
+      case 'start': tell('ENGINE RUNNING', 1.0); break;
+      case 'flooded': tell(e.where === 'crew' ? 'WATER IN THE CREW COMPARTMENT' : 'WATER OVER THE AIR INTAKE  -  ENGINE DROWNED', 2.2, 'bad'); break;
+      case 'thrown': tell(`TRACK THROWN  -  ${e.side ? 'RIGHT' : 'LEFT'}  ·  MOBILITY KILL`, 2.4, 'bad'); break;
+      case 'bellied': tell('BELLIED  -  HIGH-CENTRED, BACK OFF', 2); break;
+      case 'rollover': tell('ROLLED OVER', 2.5, 'bad'); break;
+      case 'swimming': if (e.on) tell(M60 ? 'AFLOAT?!' : `SWIMMING${V.vane > 0.95 ? '' : '  -  RAISE THE TRIM VANE (N)'}${fm.water.pumps ? '' : '  ·  BILGE PUMPS OFF (B)'}`, 2.2); else tell('TRACKS ON THE BOTTOM', 1.2); break;
+      case 'sinking': tell('TAKING WATER  -  PUMPS / RAMP!', 2.2, 'bad'); break;
+      case 'knockdown': { const hd = heading(), T = AW.fell(e.id, -Math.sin(hd), -Math.cos(hd)); if (T) { snd()?.impact(true, 5); fx.mix.spawn(T.x, T.top - 2, T.z, 0, 1, 0, 1.4, 1.5, 4, 0.3, 0.32, 0.22, 0.5, 0.2, 1, 0.6); } break; }
+      case 'impact': if (e.speed > 3.5) { sfx.thump?.(Math.min(1, e.speed / 8)); if (active && e.speed > 6) ctx.crewHit?.((e.speed - 6) * 0.03, 'THROWN ABOUT', null); } break;
+      case 'halon': tell(`HALON  -  ${String(e.where).toUpperCase()} FIRE${V.fire && V.fire.where ? ' STILL BURNING' : ' OUT'}`, 1.8); break;
+      case 'bailout': wreck(e.why === 'cookoff' ? 'AMMUNITION COOK-OFF' : 'ON FIRE  -  CREW BAILED OUT', true); break;
+    }
+  }
+  D.update = (dt, input) => {
+    if (D.dead) { D.wreckT += dt; GN.update(dt); return; }
+    D.asleep = false;
+    const s = seatOf();
+    readDriving(dt, input);
+    if (D.driver.state === 'driving') Object.assign(IN, D.driver.update(dt));   // the AI drives on (the landing craft's ramp) until you touch the controls
+    readTurret(dt, input);
+    hatches(dt);
+    step(dt, true);
+    GN.update(dt);
+    if (s.role === 'troop' && V.seats) V.seats[s.troop] = false;
+  };
+  D.idle = dt => {
+    if (!D.exists) return;
+    GN.update(dt);
+    hatches(dt);
+    if (D.dead) { D.wreckT += dt; if (D.wreckT > 300 && !(st.plat)) { /* the wreck stays */ } if (D.asleep) return; }
+    // sleep: parked on land, engine off, at rest (wakes on entry, a hit, an order)
+    const cam = ctx.camZ(); fm.origin(_o);
+    const far = cam && Math.hypot(cam.position.x - _o[0], cam.position.z - _o[2]) > 900;
+    const rest = Math.hypot(fm.vel[0], fm.vel[1], fm.vel[2]) < 0.04 && Math.hypot(fm.w[0], fm.w[1], fm.w[2]) < 0.02;
+    if (D.driver.state !== 'driving' && !st.plat && ((!fm.eng.running && rest) || (far && rest) || D.dead)) { D.restT = (D.restT || 0) + dt; if (D.restT > 2) { D.asleep = true; return; } } else D.restT = 0;
+    D.asleep = false;
+    step(dt, false);
+  };
+  D.afterWar = () => { if (!D.exists || D.asleep) return; AW.carry(fm, st); AW.settle(fm, st); };
+  D.wake = () => { D.asleep = false; D.restT = 0; };
+  // an order for the crew (the AI driver): the landing craft, scripts, the RUNAWAY war's own machines use the same
+  D.order = (pts, o = {}) => { D.crankUp(); D.driver.follow(pts, o); return D.driver; };
+  D.crankUp = () => { D.wake(); D.unattended = 0; if (!fm.eng.running && !fm.eng.flooded) { D.crank = 5; IN.fuelOn = true; } };
+
+  // ---------------------------------------------------------------- damage: RUNAWAY fire into the armour model
+  const _ro = [0, 0, 0], _rd = [0, 0, 0];
+  D.hurt = (amount, why, at, dir) => {
+    if (D.dead || !D.exists) return;
+    D.wake();
+    const R0 = roundFor(amount, why), active = crafts.active === D, s = seatOf();
+    fm.origin(_o);
+    const rays = [];
+    if (at && dir && Math.hypot(dir.x, dir.y, dir.z) > 1) {
+      const l = Math.hypot(dir.x, dir.y, dir.z); rays.push([at.x - dir.x / l * 9, at.y - dir.y / l * 9, at.z - dir.z / l * 9, dir.x / l, dir.y / l, dir.z / l]);
+    } else {   // a blast or flak: fragments / the shell from above and around at a random point on the hull
+      const n = R0 === RW_ROUNDS.frag ? 3 : 1;
+      for (let k = 0; k < n; k++) {
+        const a = Math.random() * Math.PI * 2, e = 0.35 + Math.random() * 0.9, dx = Math.cos(a) * Math.cos(e), dy = -Math.sin(e), dz = Math.sin(a) * Math.cos(e);
+        fromHull((Math.random() - 0.5) * TY.W * 0.8, 1 + Math.random() * 1.6, (Math.random() - 0.5) * TY.L * 0.8, _w);
+        const tx = _o[0] + _w[0], ty = _o[1] + _w[1], tz = _o[2] + _w[2]; rays.push([tx - dx * 9, ty - dy * 9, tz - dz * 9, dx, dy, dz]);
+      }
+    }
+    let worst = null, perfor = false;
+    for (const r of rays) {
+      toHull(r[0] - _o[0], r[1] - _o[1], r[2] - _o[2], _ro); toHull(r[3], r[4], r[5], _rd);
+      const h = V.hit({ round: R0, range: 300, o: _ro.slice(), d: _rd.slice() });
+      if (h.result === 'miss') continue;
+      worst = h; if (h.result === 'perforated' || h.result === 'scab') perfor = true;
+      for (const e of h.events) crewEvent(e, active, s, amount, why, at);
+      if (h.kill && h.kill.K && !D.dead) { wreck(V.armor.cookoff ? 'AMMUNITION COOK-OFF' : 'KNOCKED OUT', true); return; }
+    }
+    // head out of a hatch: small arms and splinters find the man in it
+    if (active && s.hatch && D.hatch[s.hatch] > 0.5 && D.view === 'eye' && R0.cal < 30 && Math.random() < 0.3) ctx.crewHit?.(amount * 0.8, `${why}  -  HEAD OUT`, at);
+    if (active && worst && !D.dead) {
+      if (worst.result === 'ricochet') say(`${R0.short} - RICOCHET OFF THE ${String(worst.zone).toUpperCase()}`, 1.1);
+      else if (!perfor) say(`${R0.short} HIT  -  ${String(worst.zone).toUpperCase()} HELD`, 1.1);
+      sfx.hit?.() ?? sfx.thump?.(0.6);
+      fx.shake = Math.min(1.5, fx.shake + 0.25);
+    }
+    if (worst) { fx.impact(rays[0][0] + rays[0][3] * 9, rays[0][1] + rays[0][4] * 9, rays[0][2] + rays[0][5] * 9, 'metal'); }
+  };
+  const CREW_NAME = { driver: 'DRIVER', gunner: 'GUNNER', commander: 'COMMANDER', loader: 'LOADER', troopsL: 'TROOPS (LEFT BENCH)', troopsR: 'TROOPS (RIGHT BENCH)' };
+  const COMP_NAME = { engine: 'ENGINE', transmission: 'TRANSMISSION', trackL: 'LEFT TRACK', trackR: 'RIGHT TRACK', gun: 'MAIN GUN', breech: 'BREECH', turretDrive: 'TURRET DRIVE', computer: 'BALLISTIC COMPUTER', laser: 'RANGEFINDER', sightDay: 'DAY SIGHT', sightThermal: 'THERMAL SIGHT', radio: 'RADIO', cupola: 'CUPOLA', mg: '.50 CAL', fuelL: 'LEFT FUEL TANK', fuelR: 'RIGHT FUEL TANK', fuel: 'FUEL TANK', readyAmmo: 'READY RACK', hullAmmo: 'HULL RACK', floorAmmo: 'FLOOR AMMUNITION' };
+  function crewEvent(e, active, s, amount, why, at) {
+    if (e.type === 'crew') {
+      const mine = active && e.who === s.crew;
+      if (mine) { if (e.wound === 'killed') ctx.crewKilled?.(`${TY.short} ${CREW_NAME[e.who] || e.who} KILLED`); else ctx.crewHit?.(e.wound === 'serious' ? 0.5 : 0.15, `${why}  -  WOUNDED`, null); }
+      else if (active || crafts.active?.kind !== 'air') ctx.feed?.(`${TY.short}: ${CREW_NAME[e.who] || e.who} ${e.wound === 'killed' ? 'KILLED' : e.wound.toUpperCase() + ' WOUND'}`, 'bad');
+    } else if (e.type === 'component' && e.destroyed) { if (active) say(`${COMP_NAME[e.id] || e.id} KNOCKED OUT`, 2); else ctx.feed?.(`${TY.short}: ${COMP_NAME[e.id] || e.id} KNOCKED OUT`, 'bad'); }
+    else if (e.type === 'fire' && active) say(`FIRE  -  ${COMP_NAME[e.where] || e.where}${M60 && e.where !== 'engine' ? '  ·  HALON' : '  ·  X: EXTINGUISHER'}`, 2.2);
+    else if (e.type === 'hit' && e.result === 'perforated' && active) say(`PENETRATION  -  ${String(e.zone).toUpperCase()}`, 1.6);
+  }
+  function wreck(why, burn) {
+    if (D.dead) return;
+    D.dead = true; D.why = why; D.wreckT = 0; IN.fuelOn = false; IN.throttle = 0; IN.fire = IN.coax = IN.fire50 = false; D.driver.hold();
+    fm.origin(_o);
+    if (burn) {
+      const big = V.armor.cookoff;
+      fx.explode(_o[0], _o[1] + 2, _o[2], big ? 2.2 : 1.3, { fire: 90, debris: big ? 14 : 6, color: 0x3a3a2c, shake: 1 }); sfx.boom?.(big ? 1 : 0.7);
+      D.burnAt = { x: _o[0], y: _o[1] + 1.8, z: _o[2] }; D.burn = fx.burn(_o[0], _o[1] + 1.8, _o[2], 150, 1.3, D.burnAt);
+      for (const [m] of origColors) m.color.multiplyScalar(0.32);   // scorched
+      if (big && turretRest) { model.turret.position.y += 0.35; model.turret.rotation.z = 0.12 + Math.random() * 0.1; model.turret.rotation.x = -0.08; }   // the turret lifted off its ring
+    }
+    ctx.feed?.(`${TY.label} ${why}`, 'bad');
+    if (crafts.active === D) { say(`${TY.label}  -  ${why}  -  BAIL OUT!`, 3); setTimeout(() => { if (crafts.active === D) ctx.bail?.(D); }, 600); }
+  }
+  D.wreck = wreck;
+
+  // ---------------------------------------------------------------- what war.js sees
+  D.pl = {
+    alive: () => !D.dead, inCave: false, landed: () => fm.load[0] + fm.load[1] > 0.3 * fm.mass * 9.81 && Math.abs(fm.out.fwd) < 1,
+    hitR: TY.hitR, sight: TY.sight, capTime: 8, detect: () => fm.eng.running ? 0.85 : 0.6,
+  };
+  const deckV = { x: 0, z: 0 };
+  D.avatar = Z => {
+    fm.origin(_o);
+    Z.pos.set(_o[0], _o[1] + TY.H * 0.45, _o[2]);
+    const pv = st.plat && war.surfVel ? war.surfVel(_o[0], _o[2]) : null;
+    Z.vel.set(fm.vel[0] + (pv ? pv.vx : 0), fm.vel[1], fm.vel[2] + (pv ? pv.vz : 0));
+    const h = heading(); Z.facing.set(-Math.sin(h), -Math.cos(h));
+  };
+  const B = { x: 0, z: 0, yaw: 0, hl: TY.L / 2, hw: TY.W / 2, y0: 0, y1: 0, def: D };
+  D.bounds = () => { if (!D.exists) return null; fm.origin(_o); B.x = _o[0]; B.z = _o[2]; B.yaw = heading(); B.y0 = _o[1]; B.y1 = _o[1] + TY.H; return B; };
+
+  // ---------------------------------------------------------------- keys
+  D.key = code => {
+    const s = seatOf(), role = s.role;
+    switch (code) {
+      case 'KeyV': D.view = D.view === 'eye' ? 'chase' : 'eye'; D.aim.set = false; say(D.view === 'eye' ? `${s.label}'S VIEW` : 'CHASE VIEW  -  MOUSE ORBITS', 1); return true;
+      case 'KeyH': if (s.hatch) { D.hatchWant[s.hatch] = D.hatchWant[s.hatch] > 0.5 ? 0 : 1; say(D.hatchWant[s.hatch] ? (role === 'troop' ? 'CARGO HATCH OPEN  -  STANDING UP' : 'HATCH OPEN  -  HEAD OUT') : 'HATCH CLOSED  -  BUTTONED UP', 1.2); } return true;
+      case 'KeyI': if (fm.eng.running) { IN.fuelOn = false; say('ENGINE OFF', 1.2); } else { IN.fuelOn = true; D.crank = 5; say(fm.eng.flooded ? 'ENGINE DROWNED  -  IT WILL NOT START' : 'STARTER', 1.2); } return true;
+      case 'KeyZ': D.lowRange = !D.lowRange; say(D.lowRange ? `LOW RANGE (${TY.low})` : `HIGH RANGE (${TY.fwd})`, 1.2); return true;
+      case 'KeyX': if (V.fire && V.fire.where) { IN.extinguish = true; say('EXTINGUISHER', 1); return true; } return false;
+    }
+    if (M60) {
+      if (code === 'KeyQ' && (role === 'gunner' || role === 'loader' || role === 'commander')) { const L = ['M735', 'M456', 'M393'], n = L[(L.indexOf(IN.ammo) + 1) % 3]; IN.ammo = n; say(`LOADER: ${ROUNDS[n].name} NEXT  (${V.ammoCount(n)} LEFT)`, 1.4); return true; }
+      if (role === 'gunner') {
+        if (code === 'KeyT') { IN.lase = true; return true; }
+        if (code === 'KeyR') { IN.dump = true; say('COMPUTER DUMPED  -  BATTLESIGHT 1200', 1.1); return true; }
+        if (code === 'KeyO') { toggleSight(); return true; }
+        if (code === 'KeyN') { IN.ttsMag = IN.ttsMag === 8 ? 3 : 8; say(`TTS ${IN.ttsMag}X`, 0.9); return true; }
+        if (code === 'KeyU') { IN.ttsPolarity = IN.ttsPolarity === 'wh' ? 'bh' : 'wh'; say(IN.ttsPolarity === 'wh' ? 'WHITE HOT' : 'BLACK HOT', 0.9); return true; }
+        if (code === 'KeyB') { IN.stab = !IN.stab; say(`STABILISER ${IN.stab ? 'ON' : 'OFF'}`, 1); return true; }
+        if (code === 'KeyE') { D.station = !D.station; D.head.yaw = D.head.pitch = 0; say(D.station ? 'GUNNER\'S STATION' : 'SIGHT', 0.8); return true; }
+        if (code === 'KeyG') return true;
+      }
+    } else {
+      if (code === 'KeyR') { IN.ramp = !(V.rampWant > 0.5); say(IN.ramp ? 'RAMP DOWN' : 'RAMP UP', 1.1); return true; }
+      if (code === 'KeyN' && role !== 'troop') { IN.vane = !(V.vaneWant > 0.5); say(IN.vane ? 'TRIM VANE UP' : 'TRIM VANE STOWED', 1.1); return true; }
+      if (code === 'KeyB' && role !== 'troop') { IN.pumps = !V.pumpSwitch; say(`BILGE PUMPS ${IN.pumps ? 'ON' : 'OFF'}`, 1.1); return true; }
+    }
+    return ['KeyF', 'KeyG', 'KeyO', 'KeyU', 'KeyL', 'KeyE', 'KeyQ', 'KeyR', 'KeyN', 'KeyB', 'KeyC', 'Home', 'PageUp', 'PageDown'].includes(code);
+  };
+  function hintShort(s) { return s.role === 'driver' ? 'W / S DRIVE  ·  A / D STEER' : s.role === 'gunner' ? 'MOUSE LAYS THE GUN  ·  CLICK FIRES' : s.role === 'commander' ? 'MOUSE AIMS THE .50  ·  CLICK FIRES' : s.role === 'loader' ? 'Q PICKS THE NEXT ROUND' : 'R RAMP  ·  H CARGO HATCH'; }
+
+  // ---------------------------------------------------------------- mouse
+  const SENS = 0.0025;
+  D.look = (dx, dy) => {
+    const s = seatOf();
+    if (D.view === 'chase') { D.orbit.yaw -= dx * SENS; D.orbit.pitch = clamp(D.orbit.pitch + dy * SENS, -0.12, 1.2); return; }
+    if ((s.role === 'gunner' && !D.station) || s.role === 'commander') {
+      const k = s.role === 'gunner' ? sightFov() / 55 : 1;
+      if (!D.aim.set) return;
+      D.aim.yaw -= dx * SENS * k; D.aim.pitch = clamp(D.aim.pitch - dy * SENS * k, -0.6, 0.9);
+      if (s.role === 'commander' && D.hatch[s.hatch] > 0.5) { /* head out: the eye goes with the gun */ }
+      return;
+    }
+    D.head.yaw = clamp(D.head.yaw - dx * SENS, -2.6, 2.6); D.head.pitch = clamp(D.head.pitch - dy * SENS, -1.0, 0.9);
+  };
+  function sightFov() { return V.sight === 'tts' ? (V.ttsMag === 3 ? 13.5 : 5.0) : 6.0; }
+  const inSight = () => crafts.active === D && D.view === 'eye' && M60 && seatOf().role === 'gunner' && !D.station;
+  D.firstPerson = () => D.view === 'eye';
+  D.fov = ck => inSight() ? sightFov() : ck;
+
+  // ---------------------------------------------------------------- cameras
+  const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new THREE.Vector3(), _t = new THREE.Vector3(), _m = new THREE.Matrix4(), _up = new THREE.Vector3(), _cp = new THREE.Vector3();
+  const hullQ = q => q.set(fm.q.x, fm.q.y, fm.q.z, fm.q.w);
+  const hullPt = (b, out) => { fm.toWorld(b, _w); return out.set(_w[0], _w[1], _w[2]); };
+  const turPt = (p, out) => { V.turretPoint(p, _w); return out.set(_w[0], _w[1], _w[2]); };
+  const headOut = s => !!(s.hatch && D.hatch[s.hatch] > 0.6);
+  let insideCam = false;
+  D.camera = (cam, dt, view) => {
+    const s = seatOf(); insideCam = false;
+    const released = !view || !view.locked;
+    if (released && !(s.role === 'gunner' && !D.station) && s.role !== 'commander') { const k = Math.exp(-4 * dt); D.head.yaw *= k; D.head.pitch *= k; }
+    if (D.view === 'chase') { chase(cam, dt, view); return; }
+    hullQ(_q);
+    if (s.role === 'driver') {
+      const eye = M60 ? TANK.DRIVER_EYE : M113_EYES.driver, out = headOut(s);
+      hullPt(out ? [eye[0], eye[1] + (M60 ? 0.58 : 0.52), eye[2] + 0.05] : eye, cam.position); insideCam = !out;
+      cam.quaternion.copy(_q).multiply(_q2.setFromEuler(_e.set(D.head.pitch - (out ? 0.06 : 0.12), D.head.yaw, 0, 'YXZ')));
+    } else if (s.role === 'gunner') {
+      if (D.station) {
+        turPt(TANK.GUNNER_EYE_T, cam.position); insideCam = true;
+        cam.quaternion.copy(_q).multiply(_q2.setFromAxisAngle(_v.set(0, 1, 0), V.az)).multiply(_q2.setFromEuler(_e.set(D.head.pitch - 0.1, D.head.yaw, 0, 'YXZ')));
+      } else {   // the sight picture: along the sight line from the sight head, the hull's up
+        turPt([0.55, 0.85, -0.9], cam.position); insideCam = true;
+        V.sightDir(_d); _t.set(cam.position.x + _d[0], cam.position.y + _d[1], cam.position.z + _d[2]);
+        fromHull(0, 1, 0, _w); _up.set(_w[0], _w[1], _w[2]);
+        _m.lookAt(cam.position, _t, _up); cam.quaternion.setFromRotationMatrix(_m);
+      }
+    } else if (s.role === 'commander') {
+      const out = headOut(s);
+      if (M60) {
+        const cu = TANK.COMMANDER_EYE_T; turPt([cu[0], 1.09 + (out ? 0.55 : 0), cu[2]], cam.position); insideCam = !out;
+        cam.quaternion.copy(_q).multiply(_q2.setFromAxisAngle(_v.set(0, 1, 0), V.az + V.mg50.az)).multiply(_q2.setFromEuler(_e.set(V.mg50.el * (out ? 0.85 : 0.6) - 0.04, 0, 0, 'YXZ')));
+      } else {   // M113: standing in the cupola behind the M2's spade grips; the eye turns with the cupola
+        const pv = V.fm.P.MG.PIVOT, ca = Math.cos(V.mg.az), sa = Math.sin(V.mg.az);
+        hullPt(out ? [pv[0] + sa * 0.5, 2.4, pv[2] + ca * 0.5] : [pv[0] + sa * 0.35, 1.95, pv[2] + ca * 0.35], cam.position); insideCam = !out;
+        cam.quaternion.copy(_q).multiply(_q2.setFromAxisAngle(_v.set(0, 1, 0), V.mg.az)).multiply(_q2.setFromEuler(_e.set(V.mg.el * 0.8 - 0.06, 0, 0, 'YXZ')));
+      }
+    } else if (s.role === 'loader') {
+      const out = headOut(s);
+      turPt(out ? [-0.62, 1.55, 0.15] : [-0.6, 0.62, 0.05], cam.position); insideCam = !out;
+      cam.quaternion.copy(_q).multiply(_q2.setFromAxisAngle(_v.set(0, 1, 0), V.az)).multiply(_q2.setFromEuler(_e.set(D.head.pitch - 0.05, D.head.yaw, 0, 'YXZ')));
+    } else {   // M113 troops: on the bench by the ramp, or standing in the cargo hatch
+      const out = headOut(s), e = M113_EYES.troops;
+      hullPt(out ? [((s.troop % 2) ? 0.35 : -0.35), 2.45, 1.35] : e, cam.position); insideCam = !out;
+      cam.quaternion.copy(_q).multiply(_q2.setFromEuler(_e.set(D.head.pitch - 0.05, D.head.yaw + (out ? 0 : 0), 0, 'YXZ')));
+    }
+    if (insideCam || headOut(s)) { const sh = Math.min(0.012, Math.abs(fm.out.fwd) * 0.0009); cam.position.y += (Math.random() - 0.5) * sh; }
+  };
+  const _gp = [0, 0, 0];
+  function chase(cam, dt, view) {
+    const s = seatOf(), yaw = heading() + D.orbit.yaw, d = TY.chase, up = 2.2 + d * Math.sin(D.orbit.pitch);
+    fm.origin(_o);
+    _cp.set(_o[0] + Math.sin(yaw) * d * Math.cos(D.orbit.pitch), _o[1] + up, _o[2] + Math.cos(yaw) * d * Math.cos(D.orbit.pitch));
+    { const g = ctx.ground(_cp.x, _cp.z); if (_cp.y < g + 1.6) _cp.y = g + 1.6; }
+    if (!D._chase) D._chase = _cp.clone(); else D._chase.lerp(_cp, 1 - Math.exp(-7 * dt));
+    if (D._chase.distanceTo(_cp) > 30) D._chase.copy(_cp);
+    cam.position.copy(D._chase); GR?.clearView?.(_o[0], _o[1] + 2.2, _o[2], cam.position, D);
+    const g = ctx.ground(cam.position.x, cam.position.z); if (cam.position.y < g + 0.8) cam.position.y = g + 0.8;
+    cam.lookAt(_o[0], _o[1] + 2.0, _o[2]);
+    cam.quaternion.multiply(_q2.setFromAxisAngle(_v.set(1, 0, 0), 0.12));   // look a little over the vehicle
+    // the gunner (or the .50) in the chase view lays on what the camera centre is on
+    if ((s.role === 'gunner' && M60) || s.role === 'commander') {
+      cam.getWorldDirection(_v);
+      const sp = s.role === 'gunner' ? V.turretPoint([0.55, 0.85, -0.9], _gp) : fm.toWorld(M60 ? [0.6, 3.3, 0.2] : V.fm.P.MG.PIVOT, _gp);
+      const r = env.raycast([cam.position.x, cam.position.y, cam.position.z], [_v.x, _v.y, _v.z], 2500, true);
+      const tx = cam.position.x + _v.x * (r || 2500), ty = cam.position.y + _v.y * (r || 2500), tz = cam.position.z + _v.z * (r || 2500);
+      const dx = tx - sp[0], dy = ty - sp[1], dz = tz - sp[2], l = Math.hypot(dx, dy, dz) || 1;
+      D.aim.yaw = Math.atan2(-dx, -dz); D.aim.pitch = Math.asin(dy / l); D.aim.set = true; D.aimRange = r;
+    }
+    if (!view || !view.locked) D.orbit.yaw *= Math.exp(-1.2 * dt);
+  }
+
+  // ---------------------------------------------------------------- hatches, model, interiors, effects, sound
+  function hatches(dt) { for (const k in D.hatch) D.hatch[k] += clamp(D.hatchWant[k] - D.hatch[k], -dt / 0.8, dt / 0.8); }
+  const travel = [new Array(fm.wheels[0].length).fill(0), new Array(fm.wheels[1].length).fill(0)];
+  const fxT = { smoke: 0, dust: 0, wake: 0 };
+  const _sp = new THREE.Vector3();
+  let drew = false;
+  D.render = (dt, time, fp) => {
+    if (!D.exists) { model.group.visible = false; if (drew) { SG.draw(null); drew = false; } return; }
+    const active = crafts.active === D, s = seatOf();
+    fm.origin(_o);
+    model.group.visible = true; model.group.position.set(_o[0], _o[1], _o[2]); model.group.quaternion.set(fm.q.x, fm.q.y, fm.q.z, fm.q.w);
+    for (let i = 0; i < 2; i++) for (let k = 0; k < travel[i].length; k++) { const w = fm.wheels[i][k]; travel[i][k] = w.on ? w.s : Math.min(w.s, 0); }
+    const inside = active && D.view === 'eye' && insideCam;
+    if (M60) model.animate({ travel, trackPos: fm.trackPos, thrown: fm.dmg.thrown, az: V.az, el: V.el, recoil: V.gun.recoil, cupAz: V.mg50.az, mgEl: V.mg50.el, hatches: D.hatch, tts: V.power ? 1 : 0, light: 0, inside });
+    else model.animate({ travel, trackPos: fm.trackPos, thrown: fm.dmg.thrown, mgAz: V.mg.az, mgEl: V.mg.el, ramp: V.ramp, vane: V.vane, hatches: D.hatch, inside });
+    // interiors: only the station the player looks out of
+    if (M60) {
+      interior.group.visible = active && D.view === 'eye' && s.role === 'driver' && inside;
+      interior.gunner.visible = active && D.view === 'eye' && ((s.role === 'gunner' && D.station) || (s.role === 'loader' && inside));
+      interior.commander.visible = active && D.view === 'eye' && s.role === 'commander' && inside;
+      if (interior.group.visible || interior.gunner.visible || interior.commander.visible) interior.update(V, IN, dt);
+    } else {
+      interior.driver.visible = active && D.view === 'eye' && s.role === 'driver' && inside;
+      interior.troops.visible = active && D.view === 'eye' && (s.role === 'troop' || (inside && (s.role === 'driver' || s.role === 'commander')));
+      if (interior.driver.visible || interior.troops.visible) interior.update(V, IN, dt);
+    }
+    model.group.userData.heat = D.dead ? (D.wreckT < 150 ? 0.95 : 0.5) : fm.eng.running ? 0.5 : 0.4;
+    if (D.burnAt) { D.burnAt.x = _o[0]; D.burnAt.y = _o[1] + 1.8; D.burnAt.z = _o[2]; }
+    // exhaust, dust, wake
+    const e = fm.eng, load = e.running ? e.load * Math.min(1, e.w * 9.549 / 1500) : 0, v = Math.abs(fm.out.fwd);
+    fxT.smoke -= dt; fxT.dust -= dt; fxT.wake -= dt;
+    if (e.running && fxT.smoke <= 0) {
+      fxT.smoke = load > 0.3 ? 0.1 / load : 0.5;
+      fm.toWorld(M60 ? [(Math.random() < 0.5 ? -1 : 1) * 1.05, 2.0, 2.85] : [0.95, 1.7, -1.9], _w);
+      const g = load > 0.8 ? 0.27 : 0.42; fx.mix.spawn(_w[0], _w[1], _w[2], (Math.random() - 0.5) * 0.6, 0.8 + load, (Math.random() - 0.5) * 0.6, 1.5 + load, 0.35 + 0.4 * load, 1.6 + 2.5 * load, g, g, g * 0.98, 0.18 + 0.3 * load, -0.2, 0.8, 1.2);
+    }
+    const dry = fm.soil.some(x => x === 'dirt' || x === 'sand') && fm.water.depth < 0.1;
+    if (dry && v > 2.5 && fxT.dust <= 0) {
+      fxT.dust = 0.6 / v; const sd = Math.random() < 0.5 ? -1 : 1;
+      fm.toWorld([sd * fm.P.TRACK.GAUGE / 2, 0.35, fm.P.TRACK.REAR.z + 0.5], _w);
+      const sand = fm.soil[0] === 'sand'; fx.mix.spawn(_w[0], _w[1], _w[2], (Math.random() - 0.5) * 1.5, 0.6 + Math.random(), (Math.random() - 0.5) * 1.5, 2 + Math.random() * 1.5, 0.9 + v * 0.08, 3.5 + v * 0.2, sand ? 0.7 : 0.55, sand ? 0.64 : 0.48, sand ? 0.48 : 0.36, 0.42, 0.2, 1.4, 0.7);
+    }
+    if (fm.water.depth > 0.3 && v > 0.6 && fxT.wake <= 0) { fxT.wake = 0.25; fm.toWorld([0, 0, TY.L * 0.45], _w); fx.wake(_w[0], _w[2], fm.water.afloat ? 1.2 : 0.8); if (fm.water.afloat) fm.toWorld([0, 0.6, -TY.L * 0.5], _w), fx.mix.spawn(_w[0], 0.25, _w[2], (Math.random() - 0.5), 1.5, (Math.random() - 0.5), 0.8, 0.5, 1.6, 0.85, 0.92, 0.97, 0.5, 6, 0.8); }
+    if (D.dead && D.wreckT > 150 && Math.random() < 0.06) fx.trail(_o[0], _o[1] + 2, _o[2], 1.2);
+    // sound: the one you are in, or a running one you can hear
+    const cam = ctx.camZ(), dist = cam ? Math.hypot(cam.position.x - _o[0], cam.position.z - _o[2]) : 0;
+    const a = (active || (fm.eng.running && dist < 350) || D.crank > 0) ? snd() : audio;
+    if (a && a.built) { if (active || dist < 350) a.update(V, type, { inside: active && (inside || inSight()), cam: cam ? cam.position : null }); else a.out.gain.setTargetAtTime(0, a.ctx.currentTime, 0.2); }
+    // the sight / reticle overlay
+    if (active) { drawOverlay(cam); drew = true; } else if (drew && !(crafts.active && crafts.active.type)) { SG.draw(null); drew = false; } else drew = false;
+  };
+  function drawOverlay(cam) {
+    const s = seatOf();
+    if (inSight()) { SG.draw({ mode: V.sight === 'tts' ? 'tts' : 'day', fov: sightFov(), V, note: V.hydP < 0.5 ? 'TURRET POWER OFF  -  HANDWHEELS' : '' }); return; }
+    if (D.view === 'chase' && ((s.role === 'gunner' && M60) || s.role === 'commander')) {
+      // where the gun (or the .50) is laid: project its line's ground point onto the screen
+      const gd = s.role === 'gunner' ? V.gunDir(_d) : azelDir(M60 ? V.az + V.mg50.az : V.mg.az, M60 ? V.mg50.el : V.mg.el, _d);
+      const p0 = s.role === 'gunner' ? V.muzzle(_gp) : fm.toWorld(M60 ? [0.6, 3.3, 0.2] : V.fm.P.MG.PIVOT, _gp);
+      const r = env.raycast(p0, gd, 2500, true) || 1500;
+      _sp.set(p0[0] + gd[0] * r, p0[1] + gd[1] * r, p0[2] + gd[2] * r).project(cam);
+      const on = _sp.z < 1 && Math.abs(_sp.x) < 1.2 && Math.abs(_sp.y) < 1.2;
+      const lbl = s.role === 'gunner' ? `${ROUNDS[V.gun.round || V.next].short} ${V.gun.state === 'ready' ? 'READY' : V.gun.state === 'loading' ? 'LOADING' : 'EMPTY'}  ${Math.round(r)} m` : `.50  ${M60 ? V.mg50.ready : V.mg.ready}`;
+      SG.draw({ mode: 'chase', fov: cam.fov, aim: true, gun: on ? [(_sp.x + 1) / 2 * innerWidth, (1 - _sp.y) / 2 * innerHeight] : null, ready: s.role !== 'gunner' || V.gun.state === 'ready', label: lbl });
+      return;
+    }
+    SG.draw(null);
+  }
+  // the TTS thermal picture replaces the frame (main.js: renderView hook)
+  D.renderView = (renderer, scene, cam) => {
+    if (!inSight() || V.sight !== 'tts' || V.ttsCool < 0.95) return false;
+    SG.thermal(renderer, scene, cam, { pol: V.ttsPolarity === 'bh', time: performance.now() / 1000, tag: tagHeat });
+    return true;
+  };
+  function tagHeat() {   // war units and structures that carry no heat of their own: machines hot, ships warm
+    for (const u of war.units) if (u.mesh && u.mesh.userData.heat == null) u.mesh.userData.heat = u.side === 2 ? (u.dims ? 0.55 : 0.82) : u.dims ? 0.48 : 0.7;
+    for (const I of war.islands || []) for (const s of I.structs) if (s.mesh && s.mesh.userData.heat == null) s.mesh.userData.heat = s.kind === 'aa' ? 0.62 : s.side === 2 ? 0.66 : 0.46;
+  }
+  D.silence = () => { if (audio && audio.built) audio.out.gain.setTargetAtTime(0, audio.ctx.currentTime, 0.05); };
+
+  // ---------------------------------------------------------------- HUD
+  const KM = v => Math.round(Math.abs(v) * 3.6);
+  D.hud = () => {
+    const s = seatOf(), e = fm.eng;
+    const kill = V.armor ? (() => { const k = V.armor.COMPS.filter(c => c.hp <= 0 && c.kind !== 'crew').map(c => COMP_NAME[c.id] || c.id); return k.length ? k.slice(0, 2).join(', ') + ' OUT' : 'OK'; })() : 'OK';
+    const water = fm.water.afloat ? `  ·  AFLOAT ${(Math.abs(fm.out.fwd) * 3.6).toFixed(1)} km/h${fm.water.inside > 0.05 ? `  ·  WATER IN ${fm.water.inside.toFixed(1)} m³` : ''}` : fm.water.depth > 0.1 ? `  ·  FORDING ${fm.water.depth.toFixed(1)} m` : '';
+    const surf = st.plat ? (st.plat.type === 'carrier' ? 'ALBATROSS DECK' : st.plat.name || 'DECK') : (fm.soil[0] || '').toUpperCase();
+    let line = `${TY.label}  ·  ${s.label}  ·  ${KM(fm.out.fwd)} km/h ${fm.range}${IN.park ? ' P' : ''}  ·  ${e.running ? `${Math.round(e.w * 9.549)} RPM` : e.flooded ? 'ENGINE DROWNED' : 'ENGINE OFF'}  ·  ${surf}${water}  ·  ${D.dead ? D.why : kill}`;
+    if (M60) line += `  ·  TURRET ${String((Math.round(-V.az / D2R) % 360 + 360) % 360).padStart(3, '0')}°`;
+    const hint = D.dead ? 'KNOCKED OUT  -  Y TO GET OUT' : fm.eng.flooded ? 'ENGINE DROWNED  -  GET OUT' :
+      s.role === 'driver' ? `W / S DRIVE  ·  A / D STEER (R-SHIFT: FULL)  ·  SPACE BRAKE  ·  Z ${D.lowRange ? 'HIGH' : 'LOW'} RANGE  ·  H HATCH  ·  I ENGINE${M60 ? '' : '  ·  R RAMP  ·  N VANE  ·  B PUMPS'}  ·  V VIEW  ·  [ ] SEAT  ·  Y OUT` :
+      s.role === 'gunner' ? (D.view === 'chase' ? 'MOUSE: LAY THE GUN ON THE RING  ·  CLICK / F FIRE  ·  G COAX  ·  T LASE  ·  Q ROUND  ·  V SIGHT  ·  W A S D: DRIVER' : `MOUSE / ARROWS LAY  ·  CLICK / F FIRE  ·  G COAX  ·  T LASE  ·  R DUMP  ·  Q ROUND  ·  O DAY / TTS  ·  N 3X / 8X  ·  U WH / BH  ·  B STAB  ·  E LOOK UP  ·  W A S D: DRIVER`) :
+      s.role === 'commander' ? `MOUSE: THE .50  ·  CLICK / F FIRE  ·  H HATCH${M60 ? '  ·  Q ROUND' : '  ·  R RAMP  ·  N VANE  ·  B PUMPS'}  ·  V VIEW  ·  W A S D: DRIVER  ·  [ ] SEAT  ·  Y OUT` :
+      s.role === 'loader' ? 'Q NEXT ROUND (SABOT / HEAT / HEP)  ·  H HATCH  ·  V VIEW  ·  W A S D: DRIVER  ·  [ ] SEAT  ·  Y OUT' :
+      'R RAMP  ·  H STAND UP IN THE CARGO HATCH  ·  V VIEW  ·  W A S D: DRIVER  ·  [ ] SEAT  ·  Y OUT BY THE RAMP';
+    let weap;
+    if (M60) { const g = V.gun, r = V.racks, sum = k => Object.values(r[k]).reduce((a, b) => a + b, 0); weap = `${g.round ? ROUNDS[g.round].short + ' ' : ''}${g.state === 'ready' ? 'READY' : g.state === 'loading' ? 'LOADING' : 'EMPTY'}  ·  NEXT ${ROUNDS[IN.ammo].short} ${V.ammoCount(IN.ammo)}  ·  RACKS ${sum('readyAmmo')} / ${sum('hullAmmo')} / ${sum('floorAmmo')}  ·  COAX ${V.coax.ammo}  ·  .50 ${V.mg50.ready}/${V.mg50.ammo}${V.laser.range ? `  ·  RANGE ${V.laser.range}` : ''}`; }
+    else weap = `.50 CAL ${V.mg.ready}/${V.mg.ammo}  ·  TROOPS ${V.seats.filter(Boolean).length}  ·  RAMP ${V.ramp > 0.95 ? 'DOWN' : V.ramp < 0.05 ? 'UP' : '...'}  ·  VANE ${V.vane > 0.95 ? 'UP' : 'STOWED'}  ·  PUMPS ${fm.water.pumps ? 'ON' : 'OFF'}`;
+    return { line, hint, weap, fuel: e.fuel / fm.P.FUEL_L * 100, fuelLabel: 'DIESEL' };
+  };
+  D.menuNote = () => `${TY.short}  ${Math.round(fm.eng.fuel)} L DIESEL${M60 ? `  ·  ${V.ammoTotal()} ROUNDS` : ''}${D.dead ? '  ·  ' + D.why : ''}`;
+  return D;
+}

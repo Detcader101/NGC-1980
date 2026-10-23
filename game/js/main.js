@@ -22,6 +22,13 @@ import { createJetCraft } from './craftjet.js';
 import { createBoxCar } from './units/placeholder/boxcar.js';
 import { buildBoxCarMesh } from './units/placeholder/boxcarmodel.js';
 import { createWorldLife } from './world/life.js'; import { clearedAt } from './world/net.js';   // WORLD: the lived-in world (towns, roads, traffic, people, faction structures)
+// ARMOUR (wave 2): the M60A3 TTS and M113A2 as crafts on the island world, their sights, the LCM-8 delivery
+import { createArmorWorld } from './units/armor/armorworld.js';
+import { createArmorCraft } from './units/armor/armorcraft.js';
+import { createSight } from './units/armor/armorsight.js';
+import { createArmorDelivery } from './units/armor/armordelivery.js';
+import { planHards, hardsH } from './units/armor/landinghard.js';
+import { buildHardMesh } from './units/armor/lcm8.js';
 
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -63,7 +70,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyJ') HI.startCalibration();   // the controls panel: bind and calibrate HOTAS / pedals (hotas.js)
   if (e.code === 'KeyT' && (G.craft === 'heli' || G.craft === 'jet')) toggleFreeLook();
   if (e.code === 'KeyM') { bigMap = !bigMap; setMapSize(); if (bigMap && document.pointerLockElement) document.exitPointerLock(); }
-  if (['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7'].includes(e.code)) command(+e.code.slice(5));
+  if (['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'].includes(e.code)) command(+e.code.slice(5));   // ARMOUR: 8 / 9 land an M113A2 / M60A3
   if (e.code === 'Tab') { e.preventDefault(); toggleHelm(); }
   if (G.craft !== 'heli' && G.craft !== 'jet') { /* foot / vehicles: V and C belong to the craft (above) */ }
   else if (e.code === 'KeyV' && drop.flying) drop.toggleView();
@@ -244,13 +251,20 @@ const PADS = ISLANDS.map(I => I.pad = I.cave ? { x: I.x, z: I.z + 30, h: I.base.
 const PAD = HOME_B.isl.pad;   // the home refuel pad
 const RES_MAX = 600;          // the fleet's fuel stores
 const stripW = (x, z, b) => smooth(0, 14, Math.hypot(Math.max(Math.abs(x - b.x) - STRIP_X, 0), Math.max(Math.abs(z - b.z) - STRIP_Z, 0)));
-const terrainH = (x, z) => {
+const terrainH0 = (x, z) => {   // (ARMOUR: terrainH below is this plus the landing hards)
   let h = islandH(x, z);
   for (const b of BASES) h = lerp(b.h, h, smooth(BASE_R, 60, Math.hypot(x - b.x, z - b.z)));   // flat apron round the shaft
   for (const p of PADS) { const d = Math.hypot(x - p.x, z - p.z); if (d < p.r1) h = lerp(p.h, h, smooth(p.r0, p.r1, d)); }   // flat pads
   for (const b of BASES) h = lerp(Math.max(h, b.h), h, stripW(x, z, b));                      // ground over the cave
   return h;
 };
+// ARMOUR: a LANDING HARD on each island (landinghard.js): a concrete ramp at 1 in 5 from the sea bed up through the cliffs,
+// where an LCM-8 puts an M60A3 / M113A2 ashore and an M113 drives down to swim. Part of the terrain for everyone.
+const HARDS = planHards(ISLANDS, terrainH0, {
+  pads: PADS, holes: BASES, cleared: (x, z) => clearedAt(x, z),
+  keepOut: I => { if (I.name !== 'IRONHOLD') return []; const a = Math.atan2(-I.z, -I.x); for (let r = 20; r < I.r + 60; r += 2) { const x = I.x + Math.cos(a) * r, z = I.z + Math.sin(a) * r; if (terrainH0(x, z) < 2.5) return [{ x, z, r: 40 }]; } return []; },   // the RUNAWAY shipyard (war.js coastPoint)
+});
+const terrainH = (x, z) => hardsH(HARDS, x, z, terrainH0(x, z));
 const holeOf = (x, z) => BASES.find(b => Math.hypot(x - b.x, z - b.z) < HOLE_R);
 const inHole = (x, z) => !!holeOf(x, z);
 const groundY = (x, z) => inHole(x, z) ? -1e4 : Math.max(terrainH(x, z), 0, war ? war.deckY(x, z) : -1e9);   // ship decks count as ground
@@ -427,10 +441,15 @@ const TREES = [];
     const k = 0.7 + r() * 1.1; sc.set(k, k * (0.8 + r() * 0.6), k);
     m.compose(new THREE.Vector3(x, h, z), q, sc); mesh.setMatrixAt(n++, m); TREES.push({ x, z, y: h, r: 0.9 * k });   // (TREES: colliders for the ground host)
   }
-  mesh.count = n; zScene.add(mesh);
+  mesh.count = n; zScene.add(mesh); TREES.mesh = mesh;   // ARMOUR: the instances a tank pushes over (felled in place)
 }
 // forest trees out in the wild lands (scattered by the terrain worker on a fixed jittered grid: the same every time)
 const forest = (() => { const geo = new THREE.ConeGeometry(1.3, 5, 6); geo.translate(0, 2.5, 0); const t = new THREE.InstancedMesh(geo, fogPatch(new THREE.MeshLambertMaterial({ color: 0x1b6a26, flatShading: true }), fog, terrainUni.uTime), 9000); t.count = 0; t.frustumCulled = false; zScene.add(t); return t; })();
+{   // ARMOUR: the landing hards' concrete, kerbs, marker posts and signs (under the fog of war like the rest of the zone)
+  const fp = m => fogPatch(m, fog, terrainUni.uTime);
+  const mats = { concrete: fp(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide })), post: fp(new THREE.MeshLambertMaterial({ color: 0x8c8a84, flatShading: true })), red: fp(new THREE.MeshLambertMaterial({ color: 0xb02a20, flatShading: true })), white: fp(new THREE.MeshLambertMaterial({ color: 0xe8e8e0, flatShading: true })), sign: t => fp(new THREE.MeshLambertMaterial({ map: t, side: THREE.DoubleSide })) };
+  for (const h of HARDS) zScene.add(buildHardMesh(h, mats));
+}
 function fillForest(a) {
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), p = new THREE.Vector3(); let n = 0;
   for (let k = 0; k + 3 < a.length && n < 9000; k += 4) { const s = a[k + 3]; sc.set(s, s * (0.9 + (k % 7) * 0.06), s); m4.compose(p.set(a[k], a[k + 1] - 0.3, a[k + 2]), q, sc); forest.setMatrixAt(n++, m4); }
@@ -613,6 +632,7 @@ function command(n) {
   if (G.state !== 'play') return;
   if (n === 5) { launchJet(); return; }
   if (n === 7) { deliverVehicle(); return; }
+  if (n === 8 || n === 9) { deliverArmour(n === 9 ? 'm60' : 'm113'); return; }   // ARMOUR: by LCM-8 to a friendly beach
   if (n === 4) { say(war.sendEscort(selIsl), 2); return; }   // AIR: CAP over the selected island, else over the ALBATROSS
   if (n === 6) { say(war.upgradeCarrier(), 2.5); return; }
   if (n === 3) { if (G.mat < COST.heli) say('NOT ENOUGH MATERIEL FOR A HELICOPTER', 1.6); else { G.mat -= COST.heli; G.lives++; say('NEW HELICOPTER IN THE HANGAR', 1.6); sfx.dock(); } return; }
@@ -978,6 +998,23 @@ const carC = crafts.register(createVehicleCraft(vehCtx, {
     { id: 'rear', label: 'REAR SEAT', role: 'passenger', eye: [0, 1.52, 1.0], door: [0, 0.9, 2.0], exit: [0, 0, 2.5] },
   ],
 }));
+// --- ARMOUR (wave 2, units/armor/): the M60A3 TTS and the M113A2 on their tracked-vehicle sim. armorworld.js is their
+// ground (the terrain, roads and bridges, ship decks and the LCM-8, the sea, trees / houses / AA sites / crafts to push
+// against), armorcraft.js the craft (seats at the hatches, interiors, sights, gunnery through war.js, damage, sound).
+const AW = createArmorWorld({
+  terrainH, ships: () => war.units, deckY: (x, z) => war.deckY(x, z), shipAt: (x, z) => war.shipAt(x, z), shipAlive: u => war.units.includes(u) && !(u.sinking > 4),
+  roadAt: (x, z) => world.roadAt ? world.roadAt(x, z) : null, pads: PADS.filter(p => !p.isl.cave).map(p => ({ x: p.x, z: p.z, r: 26 })).concat(PADS.filter(p => p.isl.cave).map(p => ({ x: p.x, z: p.z, r: 20 }))),
+  holes: BASES.map(b => ({ x: b.x, z: b.z, r: HOLE_R })), trees: TREES, structs: function* () { for (const I of ISLANDS) if (I.structs) yield* I.structs; },
+  items: () => world.zone.flatMap(e => e.items), bounds: skip => crafts.bounds(skip), hitTest: (x, y, z) => war.hitTest(x, y, z, 1, 0.2),
+  onFell: (t, dx, dz, i) => {   // lay a pushed-over tree down along the push
+    const m4 = new THREE.Matrix4(), p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3(); TREES.mesh.getMatrixAt(i, m4); m4.decompose(p, q, s);
+    q.setFromAxisAngle(new THREE.Vector3(dz, 0, -dx).normalize(), 1.35); TREES.mesh.setMatrixAt(i, m4.compose(p, q, s)); TREES.mesh.instanceMatrix.needsUpdate = true;
+  },
+});
+const armCtx = { ...vehCtx, AW, SG: createSight({ canvas }), ground: (x, z) => Math.max(terrainH(x, z), war.deckY(x, z)), isWater, bail: def => { if (crafts.active === def) getInOut(); } };
+const m60C = crafts.register(createArmorCraft(armCtx, 'm60'));
+const m113C = crafts.register(createArmorCraft(armCtx, 'm113'));
+const armDelivery = createArmorDelivery({ scene: zScene, AW, terrainH, hards: HARDS, beach: (I, tw) => GR.beach(I, tw), blocked: (x, z) => !GR.clearAt(x, z, 2.5), fx, sfx, say, feed, camZ: () => zCam });
 crafts.setActive('heli');
 crafts.onSwitch = (from, to) => {
   if (to.kind === 'foot' || to.kind === 'ground') { if (bigMap) { bigMap = false; setMapSize(); } }   // a click captures the mouse (as in the cockpits)
@@ -1016,7 +1053,30 @@ function toHeli(msg) {
 // title screen / new game: everyone back in the hangar, the player in the helicopter
 function stowCrafts() { JP.stow(); jetC.park.on = false; if (foot.exists) foot.exit(); G.heliStowed = false; G.crewDownT = 0; crafts.setActive('heli'); crafts.silence(); }
 // a new war: the TEST CAR waits at the home island's motor pool (else on the carrier deck)
-function placeVehicles() { const sp = GR.motorPool(HOME_B.isl) || GR.deckSpot(0); if (sp) carC.spawnAt(sp); else carC.stow(); }
+function placeVehicles() {
+  const sp = GR.motorPool(HOME_B.isl) || GR.deckSpot(0); if (sp) carC.spawnAt(sp); else carC.stow();
+  // ARMOUR: the M60A3 waits at the home island's motor pool, the M113A2 on the ALBATROSS deck (both cold, parked)
+  armDelivery.clear();
+  const ts = GR.motorPool(HOME_B.isl, 4.6) || GR.deckSpot(2); if (ts) m60C.spawnAt(ts); else m60C.stow();
+  const as = GR.deckSpot(1) || GR.motorPool(HOME_B.isl, 3.6); if (as) m113C.spawnAt(as); else m113C.stow();
+}
+// ARMOUR: 8 / 9 - an LCM-8 from the amphibious group lands an M113A2 (30 materiel) / an M60A3 TTS (60) on the beach of the
+// selected friendly island (else the nearest one to you). The vehicle's crew drives it off and up the beach.
+const COST_ARMOUR = { m113: 30, m60: 60 };
+function deliverArmour(kind) {
+  const def = kind === 'm60' ? m60C : m113C, cost = COST_ARMOUR[kind];
+  if (crafts.active === def) { say(`YOU ARE IN THE ${def.label}`, 1.2); return; }
+  if (armDelivery.busy(def)) { say(`THE ${def.label} IS ALREADY ON ITS WAY IN`, 1.6); return; }
+  if (G.mat < cost) { say(`AN ${def.label} NEEDS ${cost} MATERIEL`, 1.6); return; }
+  let I = selIsl && selIsl.owner === 1 && !selIsl.cave ? selIsl : null;
+  if (!I) { let bd = 1e9; for (const J of ISLANDS) if (J.owner === 1) { const d = Math.hypot(J.pad.x - Z.pos.x, J.pad.z - Z.pos.z); if (d < bd) { bd = d; I = J; } } }
+  if (!I) { say('NO FRIENDLY ISLAND TO LAND ON', 1.6); return; }
+  const tw = war.carrier ? [war.carrier.p.x, war.carrier.p.z] : null;
+  let r = armDelivery.start(def, I, tw);
+  if (!r.ok && I !== HOME_B.isl) { const why = r.why; r = armDelivery.start(def, HOME_B.isl, tw); if (r.ok) feed(`${why}  -  LANDING AT HOME ISLAND INSTEAD`); }   // most islands are cliffs: the home beach always takes a boat
+  if (!r.ok) { say(r.why, 2); return; }
+  G.mat -= cost; say(`LCM-8 WITH AN ${def.label} INBOUND TO ${r.run.pl.beach.name}`, 2.5); sfx.dock();
+}
 // 7: the motor pool lands a vehicle at the selected friendly island (else the nearest one to you, else the carrier deck)
 const COST_VEH = 15;
 function deliverVehicle() {
@@ -1032,6 +1092,7 @@ function deliverVehicle() {
 function updateZarch(dt, inp) {
   inp.pad = G.craft === 'heli' || G.craft === 'jet' ? null : readPad(); inp.keyboardOnly = keyboardOnly;
   crafts.update(dt, inp);
+  armDelivery.update(dt);   // ARMOUR: landing craft under way
   if (G.crewDownT > 0) { G.crewDownT -= dt; if (G.crewDownT <= 0 && !G.over) toHeli(war.carrier && war.carrier.sinking === undefined ? 'NEW CREW  -  IN THE HELICOPTER ON THE ALBATROSS' : 'NEW CREW  -  ON THE HOME PAD'); }
 }
 function refuelAtBase() {
@@ -1802,11 +1863,11 @@ function frame(now) {
   { const hide = drop.flying || helm.active ? 'none' : ''; setStyle('bot', 'display', hide); setStyle('caution', 'display', hide); }
   const t2 = performance.now();
   fx.setView(zCam, renderer.domElement.height, zScene.fog);
-  renderer.render(zScene, zCam);
+  { const a = G.craft !== 'heli' && G.state !== 'title' ? crafts.active : null; if (!(a && a.renderView && a.renderView(renderer, zScene, zCam))) renderer.render(zScene, zCam); }   // ARMOUR: a craft may draw the frame itself (the TTS thermal sight)
   const t3 = performance.now(), pk = 0.05;   // smoothed per-frame CPU cost: sim, scene/HUD prep, render submit
   PROF.sim += ((t1 - now0) - PROF.sim) * pk; PROF.prep += ((t2 - t1) - PROF.prep) * pk; PROF.render += ((t3 - t2) - PROF.render) * pk;
 }
 const PROF = { sim: 0, prep: 0, render: 0 };
 buildCaves(); war.reset(); resetZarch(true); placeVehicles(); updateFogImg(); terrainStream(Z.pos.x, Z.pos.z);
 requestAnimationFrame(frame);
-if (params.has('debug')) { window.__G = { G, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, forest, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, carC, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); enterCave(b); } }
+if (params.has('debug')) { window.__G = { G, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, forest, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, carC, jetC, heliC, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); enterCave(b); } }
