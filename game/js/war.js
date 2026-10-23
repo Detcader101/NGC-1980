@@ -342,6 +342,7 @@ export function createWar(ctx) {
     if (u.sinking !== undefined) { a.roll += Math.min(0.35, u.sinking * 0.03) * (u.side === 1 ? 1 : -1); a.pitch -= Math.min(0.12, u.sinking * 0.01); }
     placeShip(u);
     if (u.sinking === undefined) nfx.ship(u, dt, ear);   // bow wave, wake, spray, funnel smoke
+    else if (u.sinking > 6) nfx.remove(u);
     if (u.parts.dish) u.parts.dish.rotation.y += dt * 1.6;
     if (u.parts.lamp) u.parts.lamp.visible = (W.time % 1.4) < 0.15;
     // damage smoke: the more hurt, the more it burns
