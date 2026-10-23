@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hercules Model</title>
+<script type="importmap">{"imports":{"three":"../vendor/three.module.min.js"}}</script>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#9db9d4;font:12px Consolas,monospace;color:#dff}
+canvas{display:block}
+#ui{position:fixed;right:0;top:0;bottom:0;width:250px;overflow:auto;background:rgba(0,15,30,.7);padding:8px}
+#ui label{display:flex;justify-content:space-between;align-items:center;gap:4px;margin:2px 0}
+#ui input[type=range]{width:120px}
+#ui.hide{display:none}
+#info{position:fixed;left:8px;top:6px;color:#023;text-shadow:0 0 3px #fff}
+</style></head><body>
+<div id="info">KC-130R turntable | drag: orbit, wheel: zoom, shift-drag: pan | ?ui=0 hides the panel | c130.html flies it</div><div id="ui"></div>
+<script type="module">
+// Turntable for the Hercules exterior model (and the paratrooper / MC1-1 canopy): sliders for every moving part.
+// Query: ?ui=0&cam=yaw,pitch,dist,tx,ty,tz&s={json state}
+import * as THREE from 'three';
+import { buildC130Mesh, C130M } from '../js/units/air/c130model.js';
+import { buildParatrooper, buildMC1Canopy } from '../js/units/air/jumper.js';
+const Q = new URLSearchParams(location.search);
+const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(devicePixelRatio); document.body.prepend(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x9db9d4);
+scene.add(new THREE.HemisphereLight(0xcfe6ff, 0x4a5a34, 0.9));
+const sun = new THREE.DirectionalLight(0xfff0d0, 1.2); sun.position.set(0.5, 1, 0.3); scene.add(sun);
+const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 800);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(120, 120).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x5f6a55 })); ground.position.y = C130M.GROUND; scene.add(ground);
+const grid = new THREE.GridHelper(120, 60, 0x6f7a65, 0x66705c); grid.position.y = C130M.GROUND + 0.01; scene.add(grid);
+const plane = buildC130Mesh(); scene.add(plane.group);
+// a paratrooper standing in the left door and one under canopy beside the aircraft
+const trooper = buildParatrooper(); trooper.group.position.set(-1.7, -1.45, 6.9); trooper.group.rotation.y = Math.PI / 2; scene.add(trooper.group);
+const flier = buildParatrooper(), canopy = buildMC1Canopy(); flier.group.position.set(-26, 2, 6); flier.group.add(canopy.group); scene.add(flier.group); flier.pose('canopy');
+const S = { eng: [0, 1, 2, 3].map(() => ({ N: 0, beta: 92.5 })), flap: 0, gear: 1, ramp: 0, door: [0, 0], ele: 0, ail: 0, rud: 0, steer: 0, wow: [0.1, 0.08, 0.08, 0.08, 0.08], jumpLight: 'off' };
+if (Q.get('s')) { const o = JSON.parse(Q.get('s')); Object.assign(S, o); }
+const cam = { yaw: 0.8, pitch: 0.3, dist: 55, t: new THREE.Vector3(0, 0, 0) };
+if (Q.get('cam')) { const [y, p, d, x, yy, z] = Q.get('cam').split(',').map(Number); Object.assign(cam, { yaw: y, pitch: p, dist: d }); cam.t.set(x || 0, yy || 0, z || 0); }
+let auto = false, inside = false;
+const ui = document.getElementById('ui'); if (Q.get('ui') === '0') ui.classList.add('hide'), document.getElementById('info').remove();
+const row = (label, el) => { const l = document.createElement('label'); l.textContent = label; l.appendChild(el); ui.appendChild(l); return el; };
+function slider(label, get, set, min, max, step = 0.01) { const r = document.createElement('input'); r.type = 'range'; r.min = min; r.max = max; r.step = step; r.value = get(); r.oninput = () => set(+r.value); row(label, r); }
+function toggle(label, get, set) { const c = document.createElement('input'); c.type = 'checkbox'; c.checked = get(); c.onchange = () => set(c.checked); row(label, c); }
+for (const [k, mn, mx] of [['flap', 0, 1], ['gear', 0, 1], ['ramp', 0, 1.25], ['ele', -0.4, 0.4], ['ail', -0.35, 0.35], ['rud', -0.6, 0.6], ['steer', -1, 1]]) slider(k, () => S[k], v => S[k] = v, mn, mx);
+slider('door L', () => S.door[0], v => S.door[0] = v, 0, 1); slider('door R', () => S.door[1], v => S.door[1] = v, 0, 1);
+for (let i = 0; i < 4; i++) { slider('rpm ' + (i + 1), () => S.eng[i].N, v => S.eng[i].N = v, 0, 1.05); slider('beta ' + (i + 1), () => S.eng[i].beta, v => S.eng[i].beta = v, -7, 92.5, 0.5); }
+toggle('inside (hide shell)', () => inside, v => inside = v); toggle('turntable', () => auto, v => auto = v);
+let drag = null;
+renderer.domElement.addEventListener('pointerdown', e => drag = { x: e.clientX, y: e.clientY, pan: e.shiftKey });
+addEventListener('pointerup', () => drag = null);
+addEventListener('pointermove', e => {
+  if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+  if (drag.pan) { const r = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0), u = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1); cam.t.addScaledVector(r, -dx * cam.dist * 0.0015).addScaledVector(u, dy * cam.dist * 0.0015); }
+  else { cam.yaw -= dx * 0.006; cam.pitch = Math.max(-1.5, Math.min(1.5, cam.pitch + dy * 0.006)); }
+});
+addEventListener('wheel', e => cam.dist *= Math.exp(e.deltaY * 0.001));
+function size() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+addEventListener('resize', size); size();
+let last = performance.now(), time = 0;
+function render(dt) {
+  if (auto) cam.yaw += dt * 0.3;
+  camera.position.set(Math.sin(cam.yaw) * Math.cos(cam.pitch), Math.sin(cam.pitch), Math.cos(cam.yaw) * Math.cos(cam.pitch)).multiplyScalar(cam.dist).add(cam.t);
+  camera.lookAt(cam.t); plane.animate(S, dt, time, inside); canopy.animate(time, 1, 0); renderer.render(scene, camera);
+}
+function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; time += dt; render(dt); requestAnimationFrame(frame); }
+requestAnimationFrame(frame);
+window.__P = { plane, S, cam, camera, scene, renderer, THREE, C130M, trooper, flier, canopy, render: () => render(0) };
+</script>
+</body></html>

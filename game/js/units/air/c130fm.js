@@ -46,7 +46,7 @@ export const C130 = {
   // inertia at 60 t: Roskam class (4-engine high-wing turboprop) radii of gyration Rx .25 Ry .38 Rz .45: INFERRED
   I60: [1.55e6, 1.95e6, 3.45e6],
   // engines (three body): T56 nacelle stations 190 in / 382 in from the centreline (UNVERIFIED), prop plane, axis height
-  ENG_X: [-9.70, -4.84, 4.84, 9.70], ENG_Y: 1.30, PROP_Z: -5.25, THRUST_ARM: 0.5,   // thrust line ~0.5 m above the CG (INFERRED)
+  ENG_X: [-9.70, -4.84, 4.84, 9.70], ENG_Y: 1.30, PROP_Z: -4.6, THRUST_ARM: 0.5,   // thrust line ~0.5 m above the CG (INFERRED)
   // T56-A-15: 4,591 shp (WIKI CONFIRMED), 13,820 rpm = 100 % (Allison), prop 1,021 rpm (reduction 13.54:1) CONFIRMED (LMSN)
   SHP_MAX: 4591, ENG_RPM: 13820, PROP_RPM: 1021, EXHAUST_N: 3100,   // residual jet thrust ~700 lbf at max: INFERRED (4910 eshp - 4591 shp)
   // 54H60 prop: 4 blades, 13 ft 6 in (WIKI/LMSN CONFIRMED); feather 92.5 deg, reverse -5..-8 deg, low pitch stop
@@ -62,7 +62,7 @@ export const C130 = {
   K: [5.2e5, 1.25e6, 1.25e6, 1.25e6, 1.25e6], DAMP: [6.5e4, 1.4e5, 1.4e5, 1.4e5, 1.4e5], STROKE: [0.42, 0.32, 0.32, 0.32, 0.32],
   // airframe points that must never touch the ground: nose, belly, ramp hinge, tail cone, prop tips, wing tips, fin
   HULL: [[0, -0.4, -13.55], [0, -1.85, -9], [0, -1.85, -3], [0, -1.85, 3], [0, -1.6, 7.0], [0, -0.9, 10.8], [0, 0.1, 15.6],
-    [-9.70, 1.30 - 2.06, -5.25], [-4.84, 1.30 - 2.06, -5.25], [4.84, 1.30 - 2.06, -5.25], [9.70, 1.30 - 2.06, -5.25],
+    [-9.70, 1.30 - 2.06, -4.6], [-4.84, 1.30 - 2.06, -4.6], [4.84, 1.30 - 2.06, -4.6], [9.70, 1.30 - 2.06, -4.6],
     [-20.2, 2.75, 0.9], [20.2, 2.75, 0.9], [0, 9.0, 15.0]],
   // airspeed limits, KIAS (OPS CONFIRMED): flaps 50 % 180 (flaps: 230 - %), flaps 100 % 145, gear 165, para doors 185,
   // ramp and door 150, max bank 60 / 45 with flaps
