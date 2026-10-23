@@ -26,6 +26,8 @@ export const DECKOPS = { CAT_X: -2.5, CAT_Z0: -6, CAT_Z1: -50, CAT_V: 38, LAND_X
 
 export const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 export const sstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+// the SAS stick-to-stabilator gearing: full authority below q0, falling off above it (the feel system)
+export const sasGearing = (FC, qb) => clamp((FC.q0 / Math.max(qb, 1)) ** (FC.gexp ?? 1), FC.gmin, 1);
 export function rhoAt(h) { return ATM.RHO0 * Math.exp(-Math.max(0, h) / ATM.H); }
 
 // ------------------------------------------------------------------------------------------------- aero (coefficients K)
@@ -123,11 +125,12 @@ export function createAirframe(P, GRAV = 9.0) {
       const up = e.run ? (e.n < E.idle ? E.upLo : E.upHi) : 0.07, dn = e.run ? E.dn : 0.06;
       e.n += clamp((ncmd - e.n) * 2.5, -dn, up) * h;
       if (E.abDelay) {   // afterburner zones light one after another (TF30: a second or more before full AB)
-        if (e.run && abCmd > 0 && e.n > 0.97) { e.abT = (e.abT || 0) + h; if (e.abT < E.abDelay) abCmd = 0; } else e.abT = 0;
+        if (e.run && abCmd > 0 && e.n > 0.97) { e.abT = (e.abT || 0) + h; if (e.abT < E.abDelay) abCmd = 0; } else { e.abT = 0; abCmd = 0; }
         if (abCmd > 0) e.ab += (abCmd - e.ab) * Math.min(1, E.abRate * h); else e.ab = Math.max(0, e.ab - 4 * h);
       } else if (e.run && abCmd > 0 && e.n > 0.97) e.ab += (abCmd - e.ab) * Math.min(1, 3 * h); else e.ab = Math.max(0, e.ab - 4 * h);
       const dry = Math.max(0, (e.n - 0.55) / 0.45) ** 2, sig = (A.rho / ATM.RHO0) ** 0.8, ram = 1 + 0.15 * M;
-      e.thrust = e.run || e.n > 0.5 ? (P.TMIL * dry + (P.TAB - P.TMIL) * e.ab) * sig * ram * Math.max(0.25, hp) : 0;
+      if (E.ramAB) e.thrust = e.run || e.n > 0.5 ? (P.TMIL * dry * ram + (P.TAB - P.TMIL) * e.ab * (1 + E.ramAB * M)) * sig * Math.max(0.25, hp) : 0;   // afterburner thrust rising faster with ram
+      else e.thrust = e.run || e.n > 0.5 ? (P.TMIL * dry + (P.TAB - P.TMIL) * e.ab) * sig * ram * Math.max(0.25, hp) : 0;
       e.ff = e.run ? E.ffIdle + E.ffMil * Math.max(0, (e.n - 0.6) / 0.4) ** 2 + E.ffAB * e.ab : 0;   // kg/s
       if (P.FUEL_X) e.ff *= P.FUEL_X;   // game fuel factor (AI sorties): 1 / unset = real
       A.fuel = Math.max(0, A.fuel - e.ff * h);
@@ -187,7 +190,7 @@ export function createAirframe(P, GRAV = 9.0) {
   // keeps the aircraft inside the envelope.
   function sasLaw(h, ctl, st, K, att) {
     const { a, b, V, qb } = st, p = A.w.x, q = A.w.y, r = A.w.z, cth = Math.cos(att.pitch);
-    const g = clamp(FC.q0 / Math.max(qb, 1), FC.gmin, 1);   // stick-to-stab gearing (feel / bobweight)
+    const g = sasGearing(FC, qb);   // stick-to-stab gearing (feel / bobweight)
     const de = (A.trim || 0) + ctl.pitch * K.LIM.stab * g + FC.kq * q * g;
     const da = ctl.roll * K.LIM.ail * clamp(FC.q0r / Math.max(qb, 1), FC.gminr, 1) - FC.kp * p;
     const rss = GRAV / Math.max(V, 12) * cth * Math.sin(att.roll) + p * Math.sin(a);   // turn-coordinated yaw rate
