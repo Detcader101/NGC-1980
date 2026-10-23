@@ -313,7 +313,9 @@ Every RUNAWAY unit takes `unit.sim.hit(hit)` and returns `{ part, dmg, pen }`.
   re-tasked) / regroup / defend (cover round the point, never leaves it). Perception: 10 Hz sensor sweeps in sectors,
   spotting builds with range / movement / firing / cover, terrain + obstacle LOS; sounds triangulated across members.
   Combined arms: striders hunt AT gunners near their vehicles; armour takes hull-down overwatch and backs out of any
-  known AT gunner's reach (215 m; the link spans squads).
+  known AT gunner's reach (M1 front to the gunner 150 m, RW-7 with point defence 180 m; the link spans squads);
+  armour picks firing positions on an arc round the threat with line of sight (hull-down preferred) and, with no shot
+  for 30 s while the walkers fight, accepts the risk and pushes in to 100 m (an ambush chance for a patient gunner).
 - Machine weaknesses (deliberate): kill the LINK NODE (member 0) -> 8 s without the link + 1.5 s freeze; synchronised
   volleys (2.4 s on / 0.9 s off: a window to move); exact bound timing; always flank right; strict threat priority
   (a loud MG or an AT gunner draws every rifle: decoys work); loud noises pull them.
@@ -332,7 +334,7 @@ suppressed. Free camera (drag + WASD/QE, F follow, G free), debug overlay (O: sq
 destinations, aim lines red when firing, cover normals, known contacts, threat axis, flank point, AI log), time
 scale, sound on click. `?debug` bridge `window.__RW` { B, start, run(secs), look, lookAt, follow, step, audio }.
 
-### Bench (node tools/runawaybench.mjs): 47 checks, all pass
+### Bench (node tools/runawaybench.mjs): 48 checks, all pass
 STRIDER: walk 1.65 / run 4.61 m/s; 20° slopes walking AND running, 8 headings x 60 s, 0 falls (max leg stretch 0.98);
 26° walking 0 falls; 8 machines roam the island 90 s (1.9 km, ground to 31°) 0 falls; push recovery 400 N s fore/aft,
 240 N s sideways standing, 300 N s any way walking; a 900 N s blow knocks it down and it is up in 3.6 s; 30 rifle
