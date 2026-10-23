@@ -44,7 +44,9 @@ export function soldierMods(M, out = {}) {
 }
 
 export function createMarineSim(o = {}) {
-  const rng = o.rng || mulberry32(o.seed || 1980);
+  // (a reseedable generator: tests make a wound roll repeatable with MS.reseed(n); ngc/infdepth)
+  let gen = o.rng || mulberry32(o.seed || 1980);
+  const rng = () => gen();
   const W = createWalker();
   const inv = o.inventory || I.loadout(o.loadout || 'rifleman');
   const B = createInvBridge(inv, { rng });
@@ -57,6 +59,7 @@ export function createMarineSim(o = {}) {
   // groundY: the floor the walker stands on (a wall reads as level ground: the walker stops him there, not the slope
   // code); move: none (the walker moves him); water from the walker's own wading / swimming
   let GRc = null;
+  const _rp = { x: 0, z: 0, r: 0.1, y0: 0, y1: 0, nx: 0, nz: 0 };   // (a probe for the weapon-rest test)
   const renv = {
     g: 9.81,   // people and bullets at real gravity (the game's jets use 9.0)
     groundY: (x, z) => { if (!GRc) return W.y; const f = GRc.floor(x, z, W.y + 0.3, 0.75); return f === Infinity || f < W.y - 3 ? W.y : f; },
@@ -64,11 +67,26 @@ export function createMarineSim(o = {}) {
     waterDepth: () => W.swim ? 2 : W.wade * 1.3,
     move: pos => ({ x: pos.x, z: pos.z }),
     // a ledge under the handguard (sandbags, a deck-edge coaming, a wall top): rested aim
-    restAt: (x, y, z, yaw) => { if (!GRc) return false; const fx = -Math.sin(yaw), fz = -Math.cos(yaw); for (const d of [0.45, 0.65]) { const f = GRc.floor(x + fx * d, z + fz * d, y + 0.1, 0.6); if (f !== Infinity && f > y - 0.25 && f < y + 0.08) return true; } return false; },
+    restAt: (x, y, z, yaw) => {
+      if (!GRc) return false; const fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+      for (const d of [0.45, 0.65]) { const f = GRc.floor(x + fx * d, z + fz * d, y + 0.1, 0.6); if (f !== Infinity && f > y - 0.25 && f < y + 0.08) { MS.restKind = 'ledge'; return true; } }
+      // ngc/infdepth: walls and windows (GR.collide: buildings, superstructures, rails, sandbag colliders, parked crafts):
+      // the top of a wall or a sill just under the handguard with nothing above it, or the side of a wall / a window
+      // frame right beside it (the handguard pressed against it, Arma style)
+      if (GRc.collide) {
+        const rx = Math.cos(yaw), rz = -Math.sin(yaw), hx = x + fx * 0.5, hz = z + fz * 0.5;
+        const hit = (px, pz, r, y0, y1) => { _rp.x = px; _rp.z = pz; _rp.r = r; _rp.y0 = y0; _rp.y1 = y1; _rp.nx = _rp.nz = 0; return GRc.collide(_rp, null) > 0; };
+        if (hit(hx, hz, 0.12, y - 0.3, y - 0.05) && !hit(hx, hz, 0.1, y + 0.03, y + 0.3)) { MS.restKind = 'wall'; return true; }
+        // (the side probes reach 0.4 m out: his own body keeps him ~0.3 m off a wall)
+        for (const s of [-1, 1]) if (hit(hx + rx * 0.28 * s, hz + rz * 0.28 * s, 0.12, y - 0.08, y + 0.2) && !hit(x + fx * 0.25, z + fz * 0.25, 0.08, y - 0.05, y + 0.1)) { MS.restKind = s < 0 ? 'left' : 'right'; return true; }
+      }
+      MS.restKind = null; return false;
+    },
     raycast: (x0, y0, z0, x1, y1, z1, P) => MS.raycast ? MS.raycast(x0, y0, z0, x1, y1, z1, P) : null,
     get atmos() { return MS.atmos; }, listener: MS.listener, dirt: 0,
   };
   MS.env = renv;
+  MS.reseed = s => { gen = mulberry32(s); };
   // the walker's world: the ground host, but the deck carry is done here (once per frame, propagated to the soldier)
   let wenv = null;
   const wrapEnv = GR => { if (!wenv || wenv._GR !== GR) { wenv = Object.create(GR); wenv._GR = GR; wenv.carry = () => {}; } return wenv; };
@@ -121,6 +139,13 @@ export function createMarineSim(o = {}) {
     const st = S.stanceT < 1 ? S.stanceTo : S.stance;
     intent.mx = (inp.move || [0, 0])[0]; intent.mz = (inp.move || [0, 0])[1]; intent.stance = st; intent.jump = jumped; intent.yaw = S.yaw;
     intent.vel.x = S.vel.x; intent.vel.z = S.vel.z;
+    // ngc/infdepth: a casualty in his hands (marinecare.js sets MS.burden = { v: MEDINV BUDDY drag / carry speed, drain }):
+    // no faster than that, and the effort comes out of his anaerobic reserve on top of the walking demand
+    if (MS.burden) {
+      const vl = Math.hypot(S.vel.x, S.vel.z), cap = MS.burden.v;
+      if (vl > cap) { const k = cap / vl; S.vel.x *= k; S.vel.z *= k; intent.vel.x = S.vel.x; intent.vel.z = S.vel.z; }
+      if (vl > 0.1) S.reserve = Math.max(0, S.reserve - (MS.burden.drain - 1) * 0.09 * h * Math.min(1, vl / Math.max(0.3, cap)));
+    }
     W.yaw = S.yaw; W.pitch = S.pitch;
     const eye0x = S.eye.x - S.pos.x, eye0y = S.eye.y - S.pos.y, eye0z = S.eye.z - S.pos.z;
     const wevs = W.step(h, intent, genv);

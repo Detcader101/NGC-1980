@@ -394,13 +394,16 @@ export function createWar(ctx) {
     const hq = W.islands.find(I => I.kind === 'hq' && I.owner0 === side); return [hq.pad.x, hq.pad.h + 4, hq.pad.z];
   }
   W.sendDrone = I => {
-    if (W.P.mat < COST.drone) return 'NOT ENOUGH MATERIEL';
+    // NGC-1980 ngc/infdepth hook: Marines back from the sickbay (casualty evacuation) fill seats: less materiel
+    const cost = COST.drone - (GW.CV ? GW.CV.poolCredit(COST.drone) : 0);
+    if (W.P.mat < cost) return 'NOT ENOUGH MATERIEL';
     const reinforce = I.owner === 1 && !I.cave && GW.presence(I, 2) > 0;   // NGC-1980 GROUND WAR hook: Marines to one of our islands the machines have landed on
     if (I.owner === 1 && !reinforce) return `${I.name} IS ALREADY OURS`;
     if (I.cave) return 'CAVE ISLANDS: STEAL THE POD FROM THE CAVE';
     if (W.units.filter(u => u.type === 'drone' && !u.dead).length >= 3) return 'THREE SEA KNIGHTS ALREADY OUT';
-    W.P.mat -= COST.drone; const [x, y, z] = launchPoint(1); makeAir('drone', 1, x, y, z, { target: I, reinforce });
-    sfx.dock(); return `SEA KNIGHT LAUNCHED  -  13 MARINES ${reinforce ? 'TO REINFORCE' : 'FOR'} ${I.name}`;
+    W.P.mat -= cost; const [x, y, z] = launchPoint(1); makeAir('drone', 1, x, y, z, { target: I, reinforce });
+    const back = GW.CV ? GW.CV.poolUse() : 0;   // (ngc/infdepth)
+    sfx.dock(); return `SEA KNIGHT LAUNCHED  -  13 MARINES${back ? ` (${back} BACK FROM THE SICKBAY)` : ''} ${reinforce ? 'TO REINFORCE' : 'FOR'} ${I.name}`;
   };
   W.orderAA = I => {
     if (I.owner !== 1) return 'GUNS CAN ONLY GO ON OUR ISLANDS';

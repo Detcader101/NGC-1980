@@ -1700,3 +1700,80 @@ untouched (war.js's exported hitTest / damage / blast carry the gunnery).
   4 fps: the carrier moved 2.2 m instead of 3 in 5 s of wall time - fixed by sleeping on decks), vehicle 14/14 (failed 13/17
   while the M60 and M113 were parked in the test car's path - moved), jettrap 7/7, world 4/4; foot.mjs 10/12 (the island
   roof ladder top and the medical slot check; the experimental base scored 6/18 on the same machine - load-dependent).
+
+## 2026-10-23 — NGC-1980 wave 2: INFANTRY DEPTH - buddy aid, the corpsman, casevac, AI Marines on the real sims, the grenade drill (branch ngc/infdepth)
+- **AI Marines on the real rifleman sim** (`units/groundwar/richmarine.js`, pure). Inside 120 m of the camera (up to 14
+  men; `GW_T.RICH_R / RICH_MAX`) a ground-war Marine is promoted from marine.js's kinematic body to INFANTRY's rifleman
+  (soldier.js inertia, load, Tobler, timed stance transitions, stamina; weapons.js magazines out of his own MEDINV rig
+  through invbridge.js, stoppages, SPORTS immediate action / remedial action, tactical reloads in lulls) and MEDINV's
+  medical sim. The squad AI still decides; its intent becomes the rifleman's input (move vector in his frame, walk /
+  run / sprint, one-shot stances, look deltas at a human turn rate, trigger pulls on the sights, the AR's selector on
+  AUTO and bursts). His rounds stay GAME-LEVEL: each rifleman `shot` (real muzzle, real swaying bore) becomes one of
+  groundsim's projectiles. M203 and LAW keep the cheap firing. Hits go to MEDINV (`RICH_HIT` table, game damage on
+  MEDINV's HP scale); a GAME rule decides "down": dead, unconscious, both arms out, shock class III, crawl only, a bleed
+  over 120 ml/min, a blacked chest or belly; once down he goes back in only with no tourniquet, no unsplinted fracture
+  and class I. Self aid (FM 21-11) from his own kit while conscious. Far away the cheap model runs; a man keeps his
+  medical state (and bleeds) wherever the camera is; a cheap man promoted while hurt gets MEDINV wounds of the same size.
+  **Cost: 1.3-1.9 ms of CPU per simulated second per rich Marine (0.04 ms per man per 1/30 s frame in a fight; 14 men
+  ~0.6 ms a frame).** Balance (`buddyaidbench cmp 4`, 4 fights, 13 vs 8 STRIDERs): cheap 32 KIA / 25 WIA, rich 24 / 15,
+  machines left 30 / 30 - the near men are not weaker than the far ones.
+- **Casualty care** (`units/groundwar/fieldcare.js`, pure, run by groundsim after the squad AI): the wounded call out
+  ("I'M HIT!", "CORPSMAN UP!"), crawl to a spot the enemy can't see; the squad's **Navy corpsman** (HM3, the 13th man off
+  every Sea Knight) goes to the worst casualty, rushing when far, crawling the last metres under fire, kneels on the far
+  side from the enemy and works with MEDINV's buddy-aid API (`startTreatment({ item, region, by: { self: false, skill:
+  'corpsman' } })`, buddy times x0.8, the casualty's own kit first, IV and needle decompression corpsman-only), takes
+  over a man's self aid; up to two riflemen do buddy aid at the same time (when the squad isn't in the thick of it).
+  Treatment choice follows 1980 doctrine (FM 21-11): field dressing and pressure first, a tourniquet for a spurting
+  artery or a limb bleeding through its dressing (the best one for that limb by MEDINV's success odds: a cravat windlass
+  beats the strap-and-buckle on a thigh), never on an ooze; then chest seals, needle, IV in shock, splints, morphine
+  (never in shock), salts. Once quiet, the walking wounded walk to the casualty collection point by the pad, litter cases
+  are dragged there by the drag strap at MEDINV's `BUDDY.dragSpeed` (0.97 m/s). Cheap model: GAME timers (dies of wounds
+  in 4-12 min untreated, 20-45 s corpsman / 40-80 s buddy treatment, back in the fight if half his body is left).
+- **The player's side** (`marinecare.js`): F by a wounded Marine opens HIS HEALTH screen with YOUR kit (buddy aid at
+  buddy times; walking away cancels: `BUDDY.treatRangeM`); Shift+F drags him (you back up at `BUDDY.dragSpeed` for your
+  wounds, his 80 kg + kit and your load; stamina drain x2.2), F lifts him into a fireman's carry (`BUDDY.carrySpeed`,
+  both arms and good legs; x3.5), Shift+F puts him down; F at the Huey's door loads him. Bleeding near a squad, the
+  corpsman (or a buddy) comes and treats you - stand still. A dead Marine's kit is searchable (his own rig if he died on
+  the rich model; else his role's loadout with the magazines he had left). The rifle is slung (viewmodel lowered) while
+  your hands are full.
+- **CASEVAC and the pool** (`units/groundwar/casevac.js`): land the Huey within 45 m of wounded and stay down - walking
+  wounded walk to the cabin, buddies carry the litter cases (~5 s each), six litters (UH-1H medevac fit). Land on the
+  ALBATROSS (or a friendly HQ pad): delivered to the sickbay. A Sea Knight that has put its stick down keeps its ramp
+  down while the island's wounded are carried aboard (up to 12, max 90 s), flies them home; lost with it if it goes
+  down. After 4 min (GAME) the evacuated are back in the pool: each fills a seat on the next Sea Knight (a 13th of its
+  materiel; war.js hook, feed "13 MARINES (2 BACK FROM THE SICKBAY)").
+- **First-person polish**: the **M67 / M18 drill** in the viewmodel (`units/infantry/throwvm.js`): rifle down to the
+  slung side, draw from the pouch, safety clip off and the pin pulled by the left forefinger (the ring stays on it), arm
+  cocked back, the off hand pointing at the target; HOLD G to cook (the spoon flies off, the fuse burns: thrown with
+  4.5 s less the cook, and too long it goes off in your hand), the overhand arc and follow-through (RMB: underhand lob,
+  8 m/s), the grenade leaves the hand where the hand is. **Weapon rest** on walls and windows: a wall top or sill under
+  the handguard with nothing over it, or a wall / frame beside it (GR.collide probes: buildings, superstructures, parked
+  crafts) - HUD "RESTED ON A WALL, RIGHT". **Breath in the camera**: the chest rises with each breath (deeper with the
+  oxygen debt), blown the head sways and drops on the exhale, a heart over 120 knocks the view each beat; less on the
+  sights. Lean (Q / E) was already there; checked in the scene (view rolls).
+- **Fixes on the way**: the player's rounds never reached the ground war (STRIDERs, hover tanks, MBTs, Marines - friendly
+  fire is real now: "CEASE FIRE!") - marine.js raycasts groundsim's hit volumes and hits go to `GS.hitUnit`; the war's
+  squad proxies (`noHit`) no longer stop the player's rounds as an invisible 3.6 m sphere; marine.mjs's leg-bleed check
+  is deterministic (`MS.reseed`, and it waits for an arterial bleed).
+- **Shared-file changes** (all commented ngc/infdepth): war.js (`W.sendDrone` cost less the pool credit, 3 lines);
+  marine.js (imports, raycast into the ground war + noHit, warHit gw branch, F / Shift+F, the throw drill replacing the
+  instant throw, care update / HUD hints, camera breath, rested label, the drag pose in third person); marinesim.js
+  (`MS.burden` speed cap + stamina, wall / window rest, `reseed`); viewmodel.js (`solveArm` exported); groundsim.js
+  (rich / care options off by default - the balance benches are unchanged -, `place`, `enrich`, `unitT`, `hitUnit`,
+  `casualties`, `evacuate`, bodies stay 7 min with care on); groundwar.js (rich + care on, corpsman role, names and
+  ranks, rich poses, the carried casualty, care news, CV); marine.js (ground war body: crawl / walking-wounded movement,
+  doc load), marineai.js (doc power); scenes groundwar.mjs (counts the evacuated) and marine.mjs (deterministic).
+- **Tests**: `buddyaidbench` 23/23; `buddyaid.mjs` 23/23 (run `tools/runs/2026-10-23_15-15-15-buddyaid`: the drill
+  phase by phase, the cooked throw, a dead Marine searched, drag, fireman's carry, the cravat on his thigh from your
+  kit, the corpsman at work, a Marine treating you, rested on the Huey's cabin, lean, casevac to the ALBATROSS, the pool);
+  marine 15/15, marinelife 11/11, groundwar 10/10, ch46capture 4/4, foot 12/12, smoke 5/5; benches medinv 109, infantry
+  90, marine all, groundwar 33/33.
+- **Gotchas**: (1) a trailing `//` comment swallowed a line again (groundsim's body removal) - comments on their own
+  line. (2) MEDINV's corpsman fixes nearly everything (wound care restores ruined limbs, salts wake the knocked out), so a
+  "down" man treated would always get up: the return-to-duty rule (no tourniquet, class I) is what makes casevac matter.
+  (3) A single care job per squad left the player bleeding while the corpsman was busy: up to three jobs. (4) Headless
+  frames are ~0.3 s: the drill's phases are frozen for the screenshots (`marine.freezeThrow`).
+- **Untested / next**: AI Marines throwing grenades and the third-person throw / drag hand poses (the body only kneels
+  and slings the rifle); voices for the callouts (text only); casevac by a dedicated CH-46 flight (only Sea Knights that
+  land anyway take the wounded); the Huey crew chief loading in the cabin (the wounded vanish at the door); a gamepad
+  binding for drag / carry; real mouse feel of cooking with G; the M18's colour choice (always the first in the rig).

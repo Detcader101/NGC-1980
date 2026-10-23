@@ -70,7 +70,7 @@ export default async function (h) {
   await h.eval(`__ff(20, 1 / 30, () => __G.war.ground.sim.units.filter(u => u.kind === 'marine').length >= 13)`);
   await h.eval(`(() => { __ff(20); const m = __G.war.ground.sim.units.find(u => u.kind === 'marine' && u.alive); window.__m = m; window.__cam = { follow: m, yaw: 0.8, d: 6, h: 1.6, ty: 0.8 }; return __gw(); })()`);
   await h.shot('marines-close');
-  await h.expect(`__G.war.ground.sim.units.filter(u => u.kind === 'marine').length === 13`, 'thirteen Marines came off the ramp');
+  await h.expect(`__G.war.ground.sim.units.filter(u => u.kind === 'marine').length + __G.war.ground.sim.stats.evac === 13`, 'thirteen Marines came off the ramp (ngc/infdepth: counting the wounded the Sea Knight took back out)');
   await h.eval(`(() => { __ff(30); window.__cam = { at: [__I.pad.x - 60, __I.pad.h + 45, __I.pad.z + 55], look: [__I.pad.x, __I.pad.h + 2, __I.pad.z] }; return __gw(); })()`);
   await h.shot('firefight-air');
   await h.eval(`(() => { const GS = __G.war.ground.sim; return { shots: GS.stats.shots, hits: GS.stats.hits, ...__gw() }; })()`);
