@@ -1227,7 +1227,7 @@ untouched (war.js's exported hitTest / damage / blast carry the gunnery).
   fragments. Component knock-outs, crew wounds (the player's own position goes to the soldier's medical system, killed =
   a crew lost), fires (Halon, X extinguisher), cook-off; catastrophic kills make a scorched, burning wreck (turret lifted)
   and the crew bails out. Small arms and splinters can find the man with his head out of a hatch.
-- **Getting armour to the islands.** New war: the M60A3 at the home island's motor pool, the M113A2 on the ALBATROSS's
+- **Getting armour to the islands.** New war: the M60A3 at the top of the home island hard, the M113A2 on the ALBATROSS forward
   deck park. 8 / 9 (30 / 60 materiel): an LCM-8 (22.4 m, two 12V71s, 9 kn loaded; modelled with its well, wing walls,
   armoured coxswain's station, exhausts, mast lights, tyre fenders, hull number, ramp with cleats; twin-diesel sound)
   motors in from the amphibious group, grounds, drops its ramp onto the concrete, the crew drives the vehicle off and up
@@ -1252,3 +1252,12 @@ untouched (war.js's exported hitTest / damage / blast carry the gunnery).
 - **Untested.** Real HOTAS / gamepad on the tank (code paths only); parked / AI armour as war targets (only the player's
   craft is targeted, as for every craft); the M113's squad dismounting into the war; soldiers walking onto an LCM (it is
   not a GR deck); bridge decks (no bridges in the control zone); performance with several tanks fighting at once.
+- **Performance.** A tank asleep (parked, engine off, at rest) costs nothing; asleep on a deck it is carried kinematically
+  (held at its deck height); a driven tank runs trackfm at 240 Hz, an idle / AI one at 120 Hz; nothing past 900 m is drawn,
+  the running gear stays still past 250 m. Headless (SwiftShader, load ~30): sim 1.8 -> ~2.6 ms, render 3.4 -> 4.7 ms a
+  frame with the M113 parked on deck in view.
+- **Tests (2026-10-23).** node tools/armorgamebench.mjs 20/20; node tools/tankbench.mjs 72/72; scenes/armorgame.mjs 18/18
+  (runs/2026-10-23_14-19-53-armorgame); smoke 5/5, war 5/5 (failed 4/5 while the M113 kept simulating on the deck at
+  4 fps: the carrier moved 2.2 m instead of 3 in 5 s of wall time - fixed by sleeping on decks), vehicle 14/14 (failed 13/17
+  while the M60 and M113 were parked in the test car's path - moved), jettrap 7/7, world 4/4; foot.mjs 10/12 (the island
+  roof ladder top and the medical slot check; the experimental base scored 6/18 on the same machine - load-dependent).
