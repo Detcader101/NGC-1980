@@ -27,6 +27,7 @@ The orchestrator (main Claude session) keeps this file current. Read [BIBLE.md](
 |---|---|---|---|---|
 | Rename, bible, plan | experimental | 0 | done | |
 | Merge main into experimental (sky carrier refit -> key 6) | experimental | 0 | done | |
+| SKYFIX: Huey/jet held on a climbing sky deck; helm reads raw stick | ngc/skyfix | 1 | merged c5ec4f5 | sky 8/8 |
 | FOUNDATION: craft framework, on-foot, enter/exit, ground physics host | ngc/foundation | 1 | | owns main.js |
 | INFANTRY: soldier movement, weapons, ballistics, first-person viewmodels | ngc/infantry | 1 | | |
 | MEDICAL + INVENTORY | ngc/medinv | 1 | | |
