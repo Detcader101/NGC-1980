@@ -97,8 +97,8 @@ export default async function (h) {
   // F: up into a fireman's carry (MEDINV BUDDY.carrySpeed), a few steps, then down again
   await h.key('tap', 'KeyF'); await h.wait(400);
   await h.expect(`__G.marine.care.hold && __G.marine.care.hold.mode === 'carry' && __G.marine.MS.burden.v > 0.3`, "F: a fireman's carry (both arms, good legs: MEDINV carrySpeed)");
-  await h.eval(`(() => { const W = __G.foot.W, S = __G.marine.S, rx = Math.cos(S.yaw), rz = -Math.sin(S.yaw), fx = -Math.sin(S.yaw), fz = -Math.cos(S.yaw); window.__cam = { at: [W.x + rx * 4 - fx * 2, W.y + 2.0, W.z + rz * 4 - fz * 2], look: [W.x, W.y + 1.2, W.z] }; return { v: __G.marine.MS.burden.v, kg: +__G.marine.care.hold.kg.toFixed(0) }; })()`);
-  await h.key('down', 'KeyS'); await h.wait(1500); await h.key('up', 'KeyS'); await h.wait(600); await h.shot('fireman-carry');
+  await h.eval(`(() => { const W = __G.foot.W, S = __G.marine.S, rx = Math.cos(S.yaw), rz = -Math.sin(S.yaw), fx = -Math.sin(S.yaw), fz = -Math.cos(S.yaw); window.__cam = { at: [W.x - fx * 3.6 + rx * 0.6, W.y + 1.9, W.z - fz * 3.6 + rz * 0.6], look: [W.x, W.y + 1.35, W.z] }; return { v: __G.marine.MS.burden.v, kg: +__G.marine.care.hold.kg.toFixed(0) }; })()`);
+  await h.key('down', 'KeyW'); await h.wait(1500); await h.key('up', 'KeyW'); await h.wait(600); await h.shot('fireman-carry');
   await h.eval(`(window.__cam = null, __G.marine.view = 'first', 1)`);
   await h.key('down', 'ShiftLeft'); await h.key('tap', 'KeyF'); await h.key('up', 'ShiftLeft'); await h.wait(300);
   await h.expect(`!__G.marine.care.hold`, 'Shift+F: he puts him down');
@@ -146,7 +146,7 @@ export default async function (h) {
   await h.eval(`(() => { const d = __G.crafts.toWorld(__G.heliC, [2.6, -1.84, -1.9]); __G.foot.spawnAt({ x: d.x, y: __G.terrainH(d.x, d.z), z: d.z, yaw: d.yaw + Math.PI / 2 }, { force: true }); return 1; })()`);
   await h.wait(500); await h.key('tap', 'KeyY'); await h.wait(800);
   await h.expect(`__G.G.craft === 'heli' && __G.PL.landed`, 'back in the Huey, on the ground on SANDBAR');
-  await h.eval(`(() => { const list = __GS.casualties(__G.H.pos.x, __G.H.pos.z, 45); for (const u of list) if (Math.hypot(u.x - __G.H.pos.x, u.z - __G.H.pos.z) > 30) __GS.place(u, __G.H.pos.x + 12, __G.H.pos.z + 8); window.__cam = { at: [__G.H.pos.x + 16, __G.H.pos.y + 5, __G.H.pos.z - 14], look: [__G.H.pos.x, __G.H.pos.y, __G.H.pos.z + 4] }; return __GS.casualties(__G.H.pos.x, __G.H.pos.z, 45).map(u => [u.name, u.rich ? u.rich.canWalk() : null]); })()`);
+  await h.eval(`(() => { const list = __GS.casualties(__G.H.pos.x, __G.H.pos.z, 45); for (const u of list) if (Math.hypot(u.x - __G.H.pos.x, u.z - __G.H.pos.z) > 30) __GS.place(u, __G.H.pos.x + 12, __G.H.pos.z + 8); window.__cam = { at: [__G.H.pos.x + 21, __G.H.pos.y + 3.5, __G.H.pos.z + 16], look: [__G.H.pos.x + 5, __G.H.pos.y - 0.5, __G.H.pos.z + 3] }; return __GS.casualties(__G.H.pos.x, __G.H.pos.z, 45).map(u => [u.name, u.rich ? u.rich.canWalk() : null]); })()`);
   await h.eval(`__ff(4)`); await h.wait(500); await h.shot('casevac-wounded-coming-to-the-huey');
   await h.eval(`__ff(90, 1 / 30, () => __G.war.ground.CV.huey.aboard.length >= 2)`);
   await h.eval(`({ aboard: __G.war.ground.CV.huey.aboard.length, left: __GS.casualties(__G.H.pos.x, __G.H.pos.z, 200).map(u => ({ n: u.name, d: +Math.hypot(u.x - __G.H.pos.x, u.z - __G.H.pos.z).toFixed(1), cas: u.cas && { held: u.cas.held, toHuey: !!u.cas.toHuey, medic: u.cas.medic, walk: u.rich && u.rich.canWalk() } })), evac: __GS.stats.evac })`);

@@ -44,7 +44,9 @@ export function soldierMods(M, out = {}) {
 }
 
 export function createMarineSim(o = {}) {
-  const rng = o.rng || mulberry32(o.seed || 1980);
+  // (a reseedable generator: tests make a wound roll repeatable with MS.reseed(n); ngc/infdepth)
+  let gen = o.rng || mulberry32(o.seed || 1980);
+  const rng = () => gen();
   const W = createWalker();
   const inv = o.inventory || I.loadout(o.loadout || 'rifleman');
   const B = createInvBridge(inv, { rng });
@@ -84,6 +86,7 @@ export function createMarineSim(o = {}) {
     get atmos() { return MS.atmos; }, listener: MS.listener, dirt: 0,
   };
   MS.env = renv;
+  MS.reseed = s => { gen = mulberry32(s); };
   // the walker's world: the ground host, but the deck carry is done here (once per frame, propagated to the soldier)
   let wenv = null;
   const wrapEnv = GR => { if (!wenv || wenv._GR !== GR) { wenv = Object.create(GR); wenv._GR = GR; wenv.carry = () => {}; } return wenv; };

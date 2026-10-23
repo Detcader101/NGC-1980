@@ -51,11 +51,13 @@ export function pickAid(M, invs, by) {
     const limb = r.startsWith('arm') || r.startsWith('leg'), lk = r.startsWith('arm') ? 'arm' : 'leg';
     // the item that works best on this limb (MEDINV's per-application success: a cravat windlass beats the strap on a
     // thigh, the strap is good on an arm), the casualty's own kit first when two are as good (doctrine)
-    const cands = [], light = sum[r].bleed === 'light';   // (an ooze gets a dressing, never a tourniquet)
+    // 1980 doctrine (FM 21-11, First Aid for Soldiers): a field dressing with pressure first; the tourniquet is for a
+    // spurting artery, or a limb still bleeding through its dressing. An ooze never gets one.
+    const cands = [], light = sum[r].bleed === 'light', dressFirst = sum[r].bleed === 'heavy' && !sum[r].bleeds.some(b => b.dressed);
     BLEED_ITEMS[limb ? 'limb' : 'trunk'].forEach((id, k) => invs.forEach((v, vi) => {
       if (!v) return; const tq = ITEMS[id].med?.tq; if (tq && light) return;
       const it = I.find(v, o => o.id === id && !o._gone && (o.uses ?? 1) > 0); if (!it) return;
-      const p = tq ? tq.p[lk] : 0.25 - k * 0.01;
+      const p = tq ? tq.p[lk] : (dressFirst ? 1.5 : 0.25) - k * 0.01;
       cands.push({ it, s: p - vi * 0.001 });
     }));
     cands.sort((a, b) => b.s - a.s);

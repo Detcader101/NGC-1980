@@ -642,7 +642,7 @@ export function createMarine(ctx) {
     scene.add(g.mesh); grenades.push(g); say(TH.cook > 0 ? `FRAG OUT  -  COOKED ${TH.cook.toFixed(1)} S` : 'FRAG OUT', 1); Mr.lastThrow = g; Mr.stats.throws = (Mr.stats.throws || 0) + 1;
     return g;
   }
-  const throwHint = () => !TH ? null : TH.phase === 'cook' ? `COOKING  ${TH.cook.toFixed(1)} S OF 4.5  -  LET GO OF G TO THROW` : TH.phase === 'ready' ? `PIN PULLED  -  LET GO OF G TO THROW, HOLD TO COOK${TH.kind === 'frag' ? '' : ''}  ·  RMB: UNDERHAND` : TH.phase === 'draw' || TH.phase === 'pin' ? (TH.kind === 'smoke' ? 'M18: PULLING THE PIN' : 'M67: PULLING THE PIN') : null;
+  const throwHint = () => !TH ? null : TH.phase === 'cook' ? `COOKING  ${TH.cook.toFixed(1)} S OF 4.5  -  LET GO OF G TO THROW` : TH.phase === 'ready' ? `PIN PULLED  -  LET GO OF G TO THROW, HOLD TO COOK${TH.kind === 'frag' ? '' : ''}  ·  RMB: UNDERHAND` : TH.phase === 'draw' || TH.phase === 'pin' ? (TH.kind === 'smoke' ? 'M18: PULLING THE PIN' : 'M67: SAFETY CLIP OFF, PULLING THE PIN') : null;
   function stepGrenades(dt) {
     for (let i = grenades.length - 1; i >= 0; i--) {
       const g = grenades[i]; g.fuse -= dt;
