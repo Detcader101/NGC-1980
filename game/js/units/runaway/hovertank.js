@@ -234,7 +234,10 @@ export function createHoverTank(opt = {}) {
     // the hull can't go through the ground (hard stop under the hem, in case the skirt springs are overrun)
     const gy = env.height(T.p[0], T.p[2]); if (T.p[1] < gy + 0.25) { T.p[1] = gy + 0.25; if (T.v[1] < 0) T.v[1] = 0; }
     // turret / gun slew
-    if (cmd.turret !== undefined) T.turretTgt = angDiff(yaw, cmd.turret);
+    if (cmd.aimAt) {   // a world point: solve turret yaw and gun elevation in the hull's own frame (pitch / roll included)
+      const o = T.toWorld([-0.25, R.TURRET_Y + 0.25, -0.2], [0, 0, 0]), l = qrot(qconj(T.q), [cmd.aimAt[0] - o[0], cmd.aimAt[1] - o[1], cmd.aimAt[2] - o[2]], [0, 0, 0]);
+      T.turretTgt = Math.atan2(-l[0], -l[2]); T.gunTgt = clamp(Math.atan2(l[1], Math.hypot(l[0], l[2])), -0.12, 0.35);
+    } else if (cmd.turret !== undefined) T.turretTgt = angDiff(yaw, cmd.turret);
     if (cmd.gun !== undefined) T.gunTgt = clamp(cmd.gun, -0.12, 0.35);
     T.turretYaw += clamp(angDiff(T.turretYaw, T.turretTgt), -0.9 * h, 0.9 * h);
     T.gunPitch += clamp(T.gunTgt - T.gunPitch, -0.5 * h, 0.5 * h);

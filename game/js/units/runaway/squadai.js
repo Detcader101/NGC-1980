@@ -228,7 +228,9 @@ export function createSquadAI(world, opt = {}) {
     const pr = PRIO[m.kind];
     for (const k of enemies(S, m)) {
       const d = dist2(k.px, k.pz, m.x, m.z); if (d > m.weapon.range * 1.15) continue;
-      let s = pr[k.kind] * k.conf / (1 + d / 90) * (k.firing < 3 ? 1.5 : 1) * (k.seen ? 1.6 : 0.7);
+      // (strict priority among what this machine can engage: its own sensors on it now count most)
+      const mine = m.ai.own.get(k.id), mineNow = mine && AI.time - mine.t < 1.5;
+      let s = pr[k.kind] * k.conf / (1 + d / 90) * (k.firing < 3 ? 1.5 : 1) * (mineNow ? 2.2 : k.seen ? 0.8 : 0.5);
       if (!m.weapon.antiArmor && k.kind === 'vehicle') s *= 0.2;
       // combined arms: striders hunt AT gunners that threaten their vehicles
       if (!m.vehicle && k.kind === 'at') for (const v of S.members) if (v.alive && v.vehicle && dist2(v.x, v.z, k.px, k.pz) < 220) { s *= 1.8; break; }
@@ -265,17 +267,20 @@ export function createSquadAI(world, opt = {}) {
     return best;
   }
   function vehiclePosition(S, m, wantX, wantZ, standoff, ref) {
-    // a hull-down spot vs the main threat near (wantX, wantZ), else the stand-off point itself
-    const thr = ref || S.threat; if (!thr) return [wantX, wantZ];
-    const ty = world.height(thr[0], thr[1]) + 1.6;
+    // a firing position for armour: on an arc round the threat at the stand-off range (and a little beyond), the one
+    // that sees the threat - hull-down if the ground offers it - nearest to where the vehicle is, never inside a
+    // known AT gunner's reach, never on ground too steep to sit on
+    const thr = S.threat || ref; if (!thr) return [wantX, wantZ];
+    const ty = world.height(thr[0], thr[1]) + 1.6, b0 = Math.atan2(wantZ - thr[1], wantX - thr[0]);
     let best = [wantX, wantZ], bs = -1e9;
-    for (let i = 0; i < 14; i++) {
-      const a = i / 14 * 2 * Math.PI, r = 8 + (i % 3) * 10, x = wantX + Math.cos(a) * r, z = wantZ + Math.sin(a) * r;
+    for (let i = -6; i <= 6; i++) for (const dr of [0, 40, 80, 130]) {
+      const a = b0 + i * 0.2, r = standoff + dr, x = thr[0] + Math.cos(a) * r, z = thr[1] + Math.sin(a) * r;
       if (world.isWater(x, z)) continue;
-      const n = world.normal(x, z); if (n[1] < Math.cos(0.38)) continue;   // too steep to sit on
-      const d = dist2(x, z, thr[0], thr[1]); if (d < standoff * 0.8) continue;
-      const hd = world.hullDown(x, z, thr[0], ty, thr[1], 1.3, m.kind === 'mbt' ? 2.5 : 2.2);
-      const s = (hd ? 5 : 0) + (world.los(x, world.height(x, z) + 2.4, z, thr[0], ty, thr[1]) ? 2 : -4) - dist2(x, z, m.x, m.z) / 25;
+      const n = world.normal(x, z); if (n[1] < Math.cos(m.kind === 'hovertank' ? 0.3 : 0.38)) continue;
+      const at = nearestAT(S, x, z); if (at && at.d < 215) continue;
+      const top = world.los(x, world.height(x, z) + (m.kind === 'mbt' ? 2.4 : 2.1), z, thr[0], ty, thr[1]);
+      const hd = top && world.hullDown(x, z, thr[0], ty, thr[1], 1.3, m.kind === 'mbt' ? 2.5 : 2.2);
+      const s = (hd ? 6 : 0) + (top ? 4 : -4) - dist2(x, z, m.x, m.z) / 30 - Math.abs(i) * 0.15;
       if (s > bs) { bs = s; best = [x, z]; }
     }
     return best;
@@ -410,7 +415,7 @@ export function createSquadAI(world, opt = {}) {
   // steering helper for hosts: turn a destination into a velocity around obstacles
   AI.steerVel = (m, speed) => {
     const a = m.ai; if (!a.move) return [0, 0];
-    const dx = a.move[0] - m.x, dz = a.move[1] - m.z, d = Math.hypot(dx, dz); if (d < 0.6) return [0, 0];
+    const dx = a.move[0] - m.x, dz = a.move[1] - m.z, d = Math.hypot(dx, dz); if (d < (m.vehicle ? 4 : 0.6)) return [0, 0];   // (a tank stops near the spot rather than circling it)
     const [ux, uz] = world.steer(m.x, m.z, dx, dz, m.vehicle ? 2.5 : 0.6, m.vehicle ? 10 : 5, m.kind === 'hovertank' ? 0.32 : m.kind === 'mbt' ? 0.45 : 0);
     const s = speed * Math.min(1, d / 3); return [ux * s, uz * s];
   };

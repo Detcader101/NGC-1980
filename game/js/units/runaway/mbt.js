@@ -129,7 +129,7 @@ export function createMBT(P, opt = {}) {
         st = clamp(-e * 2, -1, 1);
         const vt = (rev ? -1 : 1) * sp * Math.max(0, Math.cos(e));
         thr = clamp((vt - drive.speed) * 0.6, -1, 1); if (Math.abs(vt) < 0.3 && Math.abs(drive.speed) < 0.6) thr = 0;
-        cmd.brake = vt === 0 || Math.sign(vt) !== Math.sign(drive.speed) ? 0.6 : 0;
+        cmd.brake = vt === 0 || vt * drive.speed < 0 ? 0.6 : 0;   // (stopping, or reversing direction)
       }
       if (T.hp.engine <= 0) thr = 0; if (T.hp.tracks <= 0) { thr *= 0.0; st = 0; }
       drive.step(dt, { throttle: thr, steer: st, brake: cmd.brake || 0 }, env);

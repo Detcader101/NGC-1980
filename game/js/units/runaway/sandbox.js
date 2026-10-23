@@ -134,7 +134,7 @@ export function createSandbox(opt = {}) {
       const vehSp = a.run ? 12 : 7, [vx, vz] = ai.steerVel(m, vehSp);
       const cmd = { vx, vz };
       if (a.face !== undefined && Math.hypot(vx, vz) < 1) cmd.face = a.face;
-      if (a.aim) { const mz = s.muzzle(), dx = a.aim[0] - mz[0], dz = a.aim[2] - mz[2]; cmd.turret = Math.atan2(-dx, -dz); cmd.gun = Math.atan2(a.aim[1] - mz[1], Math.hypot(dx, dz)); }
+      if (a.aim) { const mz = s.muzzle(), dx = a.aim[0] - mz[0], dz = a.aim[2] - mz[2]; cmd.turret = Math.atan2(-dx, -dz); cmd.gun = Math.atan2(a.aim[1] - mz[1], Math.hypot(dx, dz)); if (m.kind === 'hovertank') cmd.aimAt = a.aim; }
       const evs = s.step(dt, cmd, env);
       for (const e of evs) if (e.e === 'destroyed') { B.stats.kills[1]++; ev('destroyed', { id: m.id, x: m.x, y: m.y + 1.5, z: m.z, kind: m.kind }); }
       if (!s.alive) return;
