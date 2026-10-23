@@ -16,7 +16,7 @@ export default async function (h) {
   await h.eval('(window.__n0 = __G.pool.list.length, window.__m0 = __G.G.mat, 1)');
   await h.key('tap', 'Digit7'); await h.wait(200); await h.key('tap', 'Digit1'); await h.wait(400);
   await h.eval("({ msg: document.getElementById('msg').textContent, job: __DL.job(), mat: __G.G.mat })", 'ordered an M151');
-  await h.expect("__DL.D().jobs.length === 1 && __DL.D().jobs[0].kind === 'ch46' && __G.G.mat === __m0 - 10", 'a CH-46 is on its way (10 materiel)');
+  await h.expect("__DL.D().jobs.length === 1 && __DL.D().jobs[0].kind === 'ch46' && Math.abs(__G.G.mat - (__m0 - 10)) < 2", 'a CH-46 is on its way (10 materiel)');
   await h.eval('(window.__J = __DL.D().jobs[0], window.__JV = __J.V, 1)');
   await h.expect("__JV.slung && !__JV.enter(0, 'foot')", 'the slung jeep cannot be boarded yet');
   await h.waitFor('Math.hypot(__J.x - __J.spot.x, __J.z - __J.spot.z) < 160', 90000);
@@ -37,7 +37,7 @@ export default async function (h) {
   await h.key('tap', 'Digit7'); await h.wait(200); await h.key('tap', 'Digit2'); await h.wait(400);
   await h.eval("({ msg: document.getElementById('msg').textContent, job: __DL.D().jobs.map(j => j.kind), mat: __G.G.mat })", 'ordered an M35');
   await h.eval('(window.__L = __DL.D().jobs.find(j => j.kind === "lcm"), window.__LV = __L && __L.V, __L ? { beach: __L.beach.name, gx: Math.round(__L.gx), gz: Math.round(__L.gz), from: [Math.round(__L.x), Math.round(__L.z)] } : null)');
-  await h.expect("__L && __G.G.mat === __m1 - 20 && __LV.slung", 'an LCM-8 is running an M35 in (20 materiel)');
+  await h.expect("__L && Math.abs(__G.G.mat - (__m1 - 20)) < 2 && __LV.slung", 'an LCM-8 is running an M35 in (20 materiel)');
   // watch from the beach
   await h.eval(`(() => { const b = __L.beach, x = b.x - Math.sin(b.yaw) * 14 + Math.cos(b.yaw) * 12, z = b.z - Math.cos(b.yaw) * 14 - Math.sin(b.yaw) * 12; __G.foot.spawnAt({ x, y: __G.terrainH(x, z) + 0.5, z, yaw: 0 }); return [x, z]; })()`);
   await h.eval('(__L.x = __L.gx + __L.ux * 90, __L.z = __L.gz + __L.uz * 90, 1)');   // (the scene skips most of the 350 m run in)

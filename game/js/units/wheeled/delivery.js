@@ -24,11 +24,33 @@ export function createDelivery(o) {
   let rotor = null;
   const lineMat = new THREE.LineBasicMaterial({ color: 0x2a2a26 });
   const D = { pool: null, jobs };
+  // a beach a truck can drive up: round the island every 2 degrees to the waterline, then 30 m inland that climbs less than
+  // ~1 in 4 and leans less than ~1 in 6 across (the M35's tilt-table margin, with a load, on wet sand), nothing in the way;
+  // the gentlest wins, the side facing the ALBATROSS preferred (as armordelivery.js picks the armour's beaches)
+  function landing(I) {
+    const c = war.carrier, a0 = c ? Math.atan2(c.p.z - I.z, c.p.x - I.x) : 0; let best = null;
+    for (let k = 0; k < 180; k++) {
+      const a = k * Math.PI / 90, cx = Math.cos(a), sz = Math.sin(a); let shore = -1;
+      for (let r = 8; r < (I.r || 80) + 160; r += 1) if (terrainH(I.x + cx * r, I.z + sz * r) < 0) { shore = r; break; }
+      if (shore < 0) continue;
+      let ok = true, worst = 0;
+      for (let q = 0; q <= 30 && ok; q += 2) {
+        const r = shore - q, x = I.x + cx * r, z = I.z + sz * r;
+        const along = Math.abs(terrainH(x + cx * 2, z + sz * 2) - terrainH(x - cx * 2, z - sz * 2)) / 4, across = Math.abs(terrainH(x - sz * 2.5, z + cx * 2.5) - terrainH(x + sz * 2.5, z - cx * 2.5)) / 5;
+        worst = Math.max(worst, along, across * 1.5); if (along > 0.25 || across > 0.16) ok = false;
+        if (q >= 8 && !GR.clearAt(x, z, 3)) ok = false;
+      }
+      if (!ok) continue;
+      const score = worst + Math.abs(Math.atan2(Math.sin(a - a0), Math.cos(a - a0))) * 0.05;
+      if (!best || score < best.score) { const bx = I.x + cx * (shore - 4), bz = I.z + sz * (shore - 4); best = { name: `${I.name} BEACH`, x: bx, z: bz, y: terrainH(bx, bz), yaw: Math.atan2(cx, sz), score, plat: null }; }
+    }
+    return best;
+  }
   // ---------------------------------------------------------------- orders
   D.order = (type, I, spot) => {
     const pool = D.pool; if (!pool) return false;
     if (type === 'm35') {
-      const beach = GR.beach(I);
+      const beach = landing(I) || GR.beach(I);
       if (!beach) { const V = pool.spawn(type, spot, { home: I }); feed(`MOTOR POOL: M35A2 AT ${spot.name}`, 'good'); return V; }
       const V = pool.spawn(type, beach, { home: I }); V.slung = true;
       const M = buildLCM8Mesh(); scene.add(M.group);
@@ -131,7 +153,7 @@ export function createDelivery(o) {
     const V = j.V, ix = -j.ux, iz = -j.uz;   // inland
     const x = j.gx + ix * 15.5, z = j.gz + iz * 15.5;   // off the end of the ramp (bow 11 m + ramp 2 m + half the truck)
     V.slung = false; V.spawnAt({ x, z, yaw: j.yaw, plat: null }, { running: true });
-    const pts = []; for (let d = 4; d <= 40; d += 4) { const px = x + ix * d, pz = z + iz * d; if (terrainH(px, pz) > 14) break; pts.push({ x: px, z: pz }); }
+    const pts = []; for (let d = 4; d <= 24; d += 4) { const px = x + ix * d, pz = z + iz * d; pts.push({ x: px, z: pz }); }
     if (pts.length > 1) V.auto = createFollower(pts, { speed: 3, latG: 0.2, stopDist: 2, unstick: false });
     say(`M35A2 COMING ASHORE AT ${j.beach.name}`, 2);
   }

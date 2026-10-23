@@ -37,7 +37,7 @@ export function createMotorPool(o) {
   const spec = t => createWheeledSim(t).spec;
   // ---------------------------------------------------------------- shared pieces
   const WO = createWorldObstacles({ terrainH: o.terrainH, zoneItems: () => (world && world.zone ? world.zone.flatMap(e => e.items || []) : []) });
-  const vehiclesNear = (V, x, z, r) => { const out = V._others || (V._others = []); out.length = 0; for (const U of list) { if (U === V || !U.exists) continue; const s = U.sim; if (Math.abs(s.pos[0] - x) < r + 8 && Math.abs(s.pos[2] - z) < r + 8) out.push(U.bounds()); } return out; };
+  const vehiclesNear = (V, x, z, r) => { const out = V._others || (V._others = []); out.length = 0; for (const U of list) { if (U === V || !U.exists) continue; const s = U.sim; if (Math.abs(s.pos[0] - x) < r + 8 && Math.abs(s.pos[2] - z) < r + 8) { const b = U.bounds(); if (b) out.push(b); } } return out; };
   const WENV = createWorldEnv({ GR, terrainH: o.terrainH, holes: o.holes || [], world: { roadAt, roadById, roadPoint, buildingsNear: (x, z, r) => WO.near(x, z, r), vehiclesNear,
     shipNear: (x, z, r) => war.units.some(u => u.dims && Math.abs(u.p.x - x) < r && Math.abs(u.p.z - z) < r) } });
   let ia = null;
