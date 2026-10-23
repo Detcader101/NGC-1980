@@ -83,7 +83,7 @@ function rangeView() {
   // ---------------------------------------------------------------- input
   const keys = new Set(), held = { ads: false, fire: false };
   let presses = [], mouseDX = 0, mouseDY = 0, third = Q.has('third'), scopeOn = true, trails = Q.has('trails'), dotOn = false, lastR = -1, rPending = null;
-  const toggleAds = Q.has('toggleads'), debugInput = {}, SENS = 0.0022;
+  const toggleAds = Q.has('toggleads'), debugInput = {}, SENS = 0.0022, DEADZONE = (+Q.get('deadzone') || 0) * Math.PI / 180;   // ?deadzone=<deg>: Arma-style aim deadzone
   addEventListener('keydown', e => {
     if (e.repeat) return; keys.add(e.code); audio.init();
     const map = { KeyB: 'mode', KeyY: 'charge', KeyU: 'fa', KeyK: 'checkMag', KeyJ: 'checkChamber', KeyL: 'inspect', KeyH: 'barrel', KeyG: 'gl', PageUp: 'sightUp', BracketRight: 'sightUp', PageDown: 'sightDown', BracketLeft: 'sightDown',
@@ -123,7 +123,7 @@ function rangeView() {
       move: [(k('KeyD') ? 1 : 0) - (k('KeyA') ? 1 : 0), (k('KeyW') ? 1 : 0) - (k('KeyS') ? 1 : 0)],
       look: [mouseDX * SENS / (1 + 0.3 * S.ads), -mouseDY * SENS / (1 + 0.3 * S.ads)],
       sprint: k('ShiftLeft') && !(S.ads > 0.5), holdBreath: k('ShiftLeft') && S.ads > 0.5, freeLook: k('AltLeft'),
-      lean: (k('KeyE') ? 1 : 0) - (k('KeyQ') ? 1 : 0), ads: held.ads, fire: held.fire, actions: [],
+      lean: (k('KeyE') ? 1 : 0) - (k('KeyQ') ? 1 : 0), ads: held.ads, fire: held.fire, actions: [], deadzone: DEADZONE,
     };
     mouseDX = mouseDY = 0;
     for (const p of presses) { if (p.startsWith('stance:')) inp.stance = p.slice(7); else if (p === 'bipod') inp.bipod = true; else if (p === 'jump') inp.jump = true; else inp.actions.push(p); }

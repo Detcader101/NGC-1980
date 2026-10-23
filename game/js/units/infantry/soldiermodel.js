@@ -233,6 +233,7 @@ function stancePose(st, p, out) {
   return out;
 }
 const _poseA = { e: {}, pos: [0, 0, 0] }, _poseB = { e: {}, pos: [0, 0, 0] };
+const _hR = new THREE.Vector3(), _hL = new THREE.Vector3(), _pR = new THREE.Vector3(), _pL = new THREE.Vector3(), _mw = new THREE.Vector3(), _pch = new THREE.Vector3();
 // arms: solve shoulder -> elbow -> hand to a target (all in WORLD space), elbow toward `pole`
 function ikArm(sk, side, target, pole) {
   const up = sk.bones['upperArm' + side], fo = sk.bones['forearm' + side];
@@ -292,18 +293,18 @@ export function poseSkeleton(sk, pose, dt = 0.016) {
     if (pose.weaponState) W.setState(pose.weaponState);
     g.updateMatrixWorld(true);
     // hands to the anchors (reload: the left hand goes to the magazine / pouch)
-    const act = pose.action, R = new THREE.Vector3(), L = new THREE.Vector3();
+    const act = pose.action, R = _hR, L = _hL;
     g.localToWorld(W.anchor(cls === 'law' ? 'grip' : 'grip', R));
     let fore = cls === 'mg' && prone > 0.5 ? 'stockTop' : 'fore';
     if (cls === 'gl') fore = 'magGrip';
     g.localToWorld(W.anchor(fore, L));
     if (cls === 'pistol') g.localToWorld(W.anchor('fore', L));
     if (act && act.p < 1 && /reload|speed|tactical|checkMag|ia|charge|barrel/.test(act.name)) {
-      const pouch = B.pelvis.localToWorld(_a.set(-0.1, 0.0, -0.17)), mw = g.localToWorld(W.anchor(act.name === 'charge' || act.name === 'ia' ? 'charging' : 'magwell', _b));
+      const pouch = B.pelvis.localToWorld(_pch.set(-0.1, 0.0, -0.17)), mw = g.localToWorld(W.anchor(act.name === 'charge' || act.name === 'ia' ? 'charging' : 'magwell', _mw));
       const w = Math.sin(Math.PI * act.p);
       L.lerp(act.p < 0.5 ? mw : pouch, w);
     }
-    const poleR = new THREE.Vector3(0.6, -1, 0.3).applyQuaternion(sk.root.getWorldQuaternion(_wq)), poleL = new THREE.Vector3(-0.5, -1, 0.1).applyQuaternion(_wq);
+    const poleR = _pR.set(0.6, -1, 0.3).applyQuaternion(sk.root.getWorldQuaternion(_wq)), poleL = _pL.set(-0.5, -1, 0.1).applyQuaternion(_wq);
     ikArm(sk, 'R', R, poleR); ikArm(sk, 'L', L, poleL);
     // hands follow the weapon's orientation (palm in), wrists straight-ish
     for (const sd of ['L', 'R']) { const hnd = B['hand' + sd]; hnd.parent.getWorldQuaternion(_pq); g.getWorldQuaternion(_wq); _q.setFromEuler(_e.set(-Math.PI / 2 + 0.3, 0, sd === 'L' ? 0.5 : -0.4, 'XYZ')); hnd.quaternion.copy(_pq.invert().multiply(_wq).multiply(_q)); }

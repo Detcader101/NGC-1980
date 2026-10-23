@@ -176,7 +176,7 @@ export function createViewmodel(o = {}) {
     let ap = [0, 0, -er, 0, 0, 0];
     if (gl && vm.model.sight.quad) { const qd = vm.model.sight.quad, el = W.sightElevation(); ap = [-qd.rear[0], -qd.rear[1], -er - 0.02, el, 0, 0]; }
     if (cls === 'law') ap = [0, 0, -er, 0, 0, 0];
-    const P = [0, 0, 0, 0, 0, 0];
+    const P = _P;
     for (let i = 0; i < 6; i++) P[i] = lerp(lerp(hip[i], ap[i], adsE), spr[i], low);
     // the gun follows the aim relative to the camera (deadzone, sway, recoil, free look) - on the sights the camera IS the aim
     const dyaw = wrapA(S.aimYaw - S.camYaw), dp = S.aimPitch - S.camPitch;
@@ -225,7 +225,7 @@ export function createViewmodel(o = {}) {
     }
     if (rotX) { _q.setFromEuler(_e.set(rotX[0], rotX[1], rotX[2], 'XYZ')); outQ.multiply(_q); }
   }
-  const _hp = V3(), _hq = new THREE.Quaternion(), _np = V3(), _nq = new THREE.Quaternion();
+  const _hp = V3(), _hq = new THREE.Quaternion(), _np = V3(), _nq = new THREE.Quaternion(), _wr = V3(), _P = [0, 0, 0, 0, 0, 0];
 
   // ---------------------------------------------------------------- per frame
   vm.update = function (dt, R) {
@@ -292,7 +292,7 @@ export function createViewmodel(o = {}) {
       a.hand.position.copy(_hp); a.hand.quaternion.copy(_hq);
       a.hand.updateMatrix();
       const wr = _b.copy(a.hand.userData.wrist).applyMatrix4(a.hand.matrix);
-      solveArm(a, wr.clone());
+      solveArm(a, _wr.copy(wr));
     }
     // muzzle flash
     flash.visible = vm.flashT > 0 && cls !== 'law';

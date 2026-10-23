@@ -67,8 +67,8 @@ export function buildRange(scene) {
   }
   // sandbag wall (rest for crouch / stand), the range tower, a brick wall and a tank hulk downrange
   const bag = CAMO.vary(0xa08f62, 0.12, 0.15);
-  for (let r = 0; r < 4; r++) for (let i = 0; i < 6; i++) statics.box(0.55, 0.16, 0.32, bag, [-20 + i * 0.56 + (r % 2) * 0.28, 0.08 + r * 0.17, -1.5], [0, 0, 0], 1);
-  R.solids.push({ min: [-20.3, 0, -1.66], max: [-16.7, 0.68, -1.34], material: 'sandbag', thickness: 320, rest: true });
+  for (let r = 0; r < 6; r++) for (let i = 0; i < 6; i++) statics.box(0.55, 0.16, 0.32, bag, [-20 + i * 0.56 + (r % 2) * 0.28, 0.08 + r * 0.17, -1.5], [0, 0, 0], 1);
+  R.solids.push({ min: [-20.3, 0, -1.66], max: [-16.7, 1.02, -1.34], material: 'sandbag', thickness: 320, rest: true });   // kneeling height: rest the rifle on it
   for (const [lx, lz] of [[-1.5, -1.5], [1.5, -1.5], [-1.5, 1.5], [1.5, 1.5]]) statics.box(0.2, 6, 0.2, COL.wood, [-24 + lx, 3, 6 + lz]);
   statics.box(3.6, 0.15, 3.6, COL.wood, [-24, 6, 6]); statics.box(3.4, 1.0, 3.4, 0xc8c2a8, [-24, 6.6, 6]); statics.box(3.8, 0.12, 3.8, 0x6a3a2a, [-24, 7.2, 6]);
   // brick wall at 60 m (cover test: rifles, pistol) and a hulk at 150 m (M203 / LAW target)
