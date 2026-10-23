@@ -73,10 +73,11 @@ export function createPlaceholderDrive(P) {
     const roll = CRR * N * Math.sign(v) * Math.min(1, Math.abs(v) * 2), grade = P.mass * G * Math.sin(g.pitch), air = 0.5 * 1.225 * CDA * v * Math.abs(v);
     const brake = br * grip * Math.sign(v) * Math.min(1, Math.abs(v) * 3);
     D.speed += (Ft - roll - grade - air - brake) / P.mass * dt;
-    if (!thr && Math.abs(D.speed) < 0.05 && Math.abs(grade) < grip * 0.6) D.speed = 0;
+    // (stopped, or braking at a crawl: the brakes hold it, on any grade the tracks can grip)
+    if ((!thr || br > 0.3) && Math.abs(D.speed) < (br > 0.3 ? 0.6 : 0.05) && Math.abs(grade) < grip * 0.8) D.speed = 0;
     // yaw: pivot at rest, falling turn rate with speed (lateral skid limit ~0.4 g)
     const wMax = Math.min(0.55, 0.4 * G / Math.max(1, Math.abs(v)));
-    D.yawRate += (st * wMax * (v < -0.3 ? -1 : 1) * -1 - D.yawRate) * Math.min(1, dt * 3);
+    D.yawRate += (st * wMax * (v < -1 ? -1 : 1) * -1 - D.yawRate) * Math.min(1, dt * 3);   // (steering reverses only when really backing)
     D.yaw += D.yawRate * dt;
     const fx = -Math.sin(D.yaw), fz = -Math.cos(D.yaw);
     D.p[0] += fx * D.speed * dt; D.p[2] += fz * D.speed * dt;

@@ -47,6 +47,7 @@ export const STRIDER = {
   FOOT_FWD: 0.04,               // m, pad centre ahead of the contact reference
   STEP_W: 0.26,                 // m, nominal lateral distance between the feet
   WALK: 1.6, RUN: 4.6,          // m/s
+  HZ: 240,                      // substep rate (the controller and the pendulum; 120 also passes the bench)
   ACC: 3.2,                     // m/s^2 commanded acceleration limit
   SWING_V: 11,                  // m/s top swing-foot speed
   A_LAT: 1.6,                   // m/s^2 cornering (the reference velocity's rate of turn = A_LAT / speed)
@@ -212,7 +213,7 @@ export function createStrider(opt = {}) {
     // env: { height(x, z), normal?(x, z) }
     step(dt, cmd, env) {
       // (events raised between steps - hits - come out with this step's)
-      const n = Math.max(1, Math.ceil(dt / (1 / 240))), h = dt / n;
+      const n = Math.max(1, Math.ceil(dt / (1 / S_.HZ))), h = dt / n;
       for (let i = 0; i < n; i++) sub(h, cmd, env);
       const out = S.events.slice(); S.events.length = 0; return out;
     },

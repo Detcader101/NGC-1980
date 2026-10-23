@@ -217,6 +217,12 @@ export function createSquadAI(world, opt = {}) {
   }
 
   // ------------------------------------------------------------------------------------------------- members
+  // the nearest AT gunner any friendly squad knows of (the data link spans squads)
+  function nearestAT(S, x, z) {
+    let best = null;
+    for (const O2 of AI.squads) if (O2.side === S.side && (O2 === S || O2.linkDown <= 0)) for (const k of O2.know.values()) if (k.kind === 'at' && k.conf > 0.2) { const d = dist2(k.px ?? k.x, k.pz ?? k.z, x, z); if (!best || d < best.d) best = { k: { ...k, px: k.px ?? k.x, pz: k.pz ?? k.z }, d }; }
+    return best;
+  }
   function pickTarget(S, m) {
     let best = null, bs = 0;
     const pr = PRIO[m.kind];
@@ -258,9 +264,9 @@ export function createSquadAI(world, opt = {}) {
     if (best) { best.taken = m.id; best.takenT = AI.time + 12; }
     return best;
   }
-  function vehiclePosition(S, m, wantX, wantZ, standoff) {
+  function vehiclePosition(S, m, wantX, wantZ, standoff, ref) {
     // a hull-down spot vs the main threat near (wantX, wantZ), else the stand-off point itself
-    const thr = S.threat; if (!thr) return [wantX, wantZ];
+    const thr = ref || S.threat; if (!thr) return [wantX, wantZ];
     const ty = world.height(thr[0], thr[1]) + 1.6;
     let best = [wantX, wantZ], bs = -1e9;
     for (let i = 0; i < 14; i++) {
@@ -316,7 +322,11 @@ export function createSquadAI(world, opt = {}) {
       const hx = ox - cx, hz = oz - cz, hl = Math.hypot(hx, hz) || 1, fx = hx / hl, fz = hz / hl;
       const rank = Math.ceil(n / 2), side = n % 2 ? 1 : -1;
       let sx = cx + fx * Math.min(12, hl) - fx * rank * 6 + -fz * side * rank * 7, sz = cz + fz * Math.min(12, hl) - fz * rank * 6 + fx * side * rank * 7;
-      if (m.vehicle) { sx = cx - fx * 30 + -fz * side * 12; sz = cz - fz * 30 + fx * side * 12; }
+      if (m.vehicle) {
+        sx = cx - fx * 30 + -fz * side * 12; sz = cz - fz * 30 + fx * side * 12;
+        // never roll into a known AT gunner's reach to keep station: stop short of it
+        const at = nearestAT(S, sx, sz); if (at && at.d < 215) { const ax = sx - at.k.px, az = sz - at.k.pz, al = Math.hypot(ax, az) || 1; sx = at.k.px + ax / al * 215; sz = at.k.pz + az / al * 215; }
+      }
       if (hl < 8 && st === 'advance') { sx = ox + Math.cos(n * 2.1) * (6 + n * 3); sz = oz + Math.sin(n * 2.1) * (6 + n * 3); }   // spread round the objective
       dest = [sx, sz]; a.state = st === 'regroup' ? 'regroup' : hl < 10 ? 'on objective' : 'advance';
       if (st === 'hold') { dest = dist2(m.x, m.z, cx, cz) > 25 ? [cx, cz] : null; a.state = 'hold'; }
@@ -329,12 +339,12 @@ export function createSquadAI(world, opt = {}) {
       if (m.vehicle) {
         // armour: stand off from AT, hull-down in overwatch behind the striders
         const thr = S.threat || [O.x ?? m.x, O.z ?? m.z];
-        const atNear = enemies(S, m).some(k => k.kind === 'at' && dist2(k.px, k.pz, m.x, m.z) < 160);
-        const standoff = atNear ? 190 : st === 'assault' ? 60 : 120;
-        const ax = m.x - thr[0], az = m.z - thr[1], al = Math.hypot(ax, az) || 1;
-        const wx = thr[0] + ax / al * Math.max(standoff, Math.min(al, 220)), wz = thr[1] + az / al * Math.max(standoff, Math.min(al, 220));
-        if (!a.vdest || AI.time - (a.vdestT || 0) > 6 || dist2(a.vdest[0], a.vdest[1], wx, wz) > 40) { a.vdest = vehiclePosition(S, m, wx, wz, standoff); a.vdestT = AI.time; }
-        dest = a.vdest; a.state = atNear ? 'stand-off (AT)' : 'overwatch';
+        const atK = nearestAT(S, m.x, m.z), atNear = atK && atK.d < 230;
+        const standoff = atNear ? 215 : st === 'assault' ? 60 : 120;
+        const ref = atNear ? [atK.k.px, atK.k.pz] : thr, ax = m.x - ref[0], az = m.z - ref[1], al = Math.hypot(ax, az) || 1;
+        const wx = ref[0] + ax / al * Math.max(standoff, Math.min(al, 230)), wz = ref[1] + az / al * Math.max(standoff, Math.min(al, 230));
+        if (!a.vdest || AI.time - (a.vdestT || 0) > 6 || dist2(a.vdest[0], a.vdest[1], wx, wz) > 40 || (atNear && !a.wasAT)) { a.vdest = vehiclePosition(S, m, wx, wz, standoff, atNear ? ref : null); a.vdestT = AI.time; }
+        dest = a.vdest; a.wasAT = !!atNear; a.state = atNear ? 'stand-off (AT)' : 'overwatch';
         if (tgt) a.face = Math.atan2(-(tgt.px - m.x), -(tgt.pz - m.z));
       } else if (st === 'assault') {
         const k = tgt || S.threat && { px: S.threat[0], pz: S.threat[1] };
