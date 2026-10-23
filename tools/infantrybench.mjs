@@ -271,6 +271,28 @@ console.log('=== RIFLEMAN (whole loop: shot -> projectile -> hit info) ===');
   check('a prone shot at a man at 100 m registers a hit', !!hit, hit ? `${hit.hit.part}, ${hit.hit.velocity.toFixed(0)} m/s, dmg ${hit.hit.dmg.toFixed(2)}` : 'miss: ' + ev.filter(e => e.e === 'impact').map(e => e.material + '@' + e.z.toFixed(0) + ' y' + e.y.toFixed(2)).join(), '');
   check('load includes weapons, ammo and kit', R.soldier.load > 18 && R.soldier.load < 30, `${R.soldier.load.toFixed(1)} kg`, '~20-25 kg fighting load', 'CONFIRMED FM 21-18 (<= 22 kg recommended)');
 }
+console.log('=== HITBOXES (soldiermodel.js: the shared skeleton, posed, raycast like a bullet) ===');
+{
+  const { register } = await import('node:module'), { pathToFileURL } = await import('node:url');
+  register('data:text/javascript,' + encodeURIComponent(`export async function resolve(s, c, n) { if (s === 'three') return { url: ${JSON.stringify(pathToFileURL(new URL('../game/vendor/three.module.min.js', import.meta.url).pathname).href)}, shortCircuit: true }; return n(s, c); }`));
+  const SM = await import('../game/js/units/infantry/soldiermodel.js');
+  const ray = (sk, from, to) => { const d = [to[0] - from[0], to[1] - from[1], to[2] - from[2]], L = Math.hypot(...d); return SM.raycastHitboxes(sk, ...from, d[0] / L, d[1] / L, d[2] / L, L + 1); };
+  const sk = SM.buildMarine({ seed: 1, weapon: null }); sk.root.position.set(0, 0, -25); sk.root.rotation.y = Math.PI;   // unarmed (arms down), facing the shooter at +z
+  SM.poseSkeleton(sk, SM.makePose({}), 0);
+  const P = (b, p) => { const v = sk.bones[b].localToWorld(new sk.bones[b].position.constructor(...p)); return [v.x, v.y, v.z]; };
+  const shots = { head: P('head', [0, 0.17, 0]), thorax: P('chest', [0, 0.06, 0]), stomach: P('spine', [0, 0.08, 0]), legL: P('thighL', [0, -0.25, 0]), legR: P('shinR', [0, -0.2, 0]) };
+  const got = Object.fromEntries(Object.entries(shots).map(([k, p]) => { const h = ray(sk, [p[0], p[1], 0], p); return [k, h ? h.part + (h.armour.length ? '+' + h.armour[0].item : '') : 'miss']; }));
+  check('standing Marine: shots land on the named parts', Object.entries(got).every(([k, v]) => v.startsWith(k)), JSON.stringify(got), '', 'contract');
+  check('helmet over the dome, flak vest over the trunk', /M1 helmet/.test(got.head) && /flak/.test(got.thorax), `${got.head}, ${got.thorax}`, '', 'contract');
+  { const ar = SM.buildMarine({ seed: 4, weapon: 'M16A1' }); ar.root.position.set(0, 0, -25); ar.root.rotation.y = Math.PI; SM.poseSkeleton(ar, SM.makePose({}), 0);
+    const sp = ar.bones.spine.localToWorld(new ar.bones.spine.position.constructor(0, 0.08, 0)), hh = ray(ar, [sp.x, sp.y, 0], [sp.x, sp.y, sp.z]);
+    check('at low ready the support arm covers the stomach', hh && hh.part === 'armL', hh ? hh.part : 'miss', 'armL', 'contract'); }
+  check('a miss beside him is a miss', !ray(sk, [0.8, 1.2, 0], [0.8, 1.2, -25]), 'no hit', '', 'contract');
+  const pr = SM.buildMarine({ seed: 2, weapon: 'M16A1' }); pr.root.position.set(0, 0, -25); pr.root.rotation.y = Math.PI;
+  SM.poseSkeleton(pr, SM.makePose({ stance: 'prone', stanceFrom: 'prone', stanceTo: 'prone', ads: 1 }), 0);
+  const ph = pr.bones.head.localToWorld(new pr.bones.head.position.constructor(0, 0.1, 0)), hp = ray(pr, [ph.x, ph.y, 0], [ph.x, ph.y, ph.z]);
+  check('prone Marine: a low shot from the front finds the head', hp && hp.part === 'head', hp ? `${hp.part} at ${ph.y.toFixed(2)} m` : 'miss', '', 'contract');
+}
 console.log('=== SYNTAX (every infantry module and the dev page parse as ES modules) ===');
 {
   const { execFileSync } = await import('node:child_process'), fs = await import('node:fs'), path = await import('node:path'), { fileURLToPath } = await import('node:url');
