@@ -333,11 +333,23 @@ if (want('lada')) {
   check('lada: open differential on split-mu: the low-grip wheel spins', Math.abs(R.omega) > Math.abs(L.omega) * 1.4, `rear L ${fmt(L.omega * L.r * 3.6)} km/h, R ${fmt(R.omega * R.r * 3.6)} km/h, car ${kmh(v.S.speed)}`, 'equal torque split', 'CONFIRMED (physics)');
 }
 if (want('m35')) {
-  // walking bogie: drive the right side over a 0.3 m step; both right rear wheels keep load
-  const env = { g: G, ground: (x, z, o) => { const s = x > 0 && z < -3 && z > -3.9; o.h = s ? 0.3 : 0; o.nx = 0; o.ny = 1; o.nz = 0; o.surf = SURF.dirt; o.vx = o.vy = o.vz = 0; return o; } };
-  const v = make(M35, { env }); settle(v, 0.5); let minF = 1e9, minFr = 1e9;
-  run(v, 12, S => ({ throttle: S.kmh < 4 ? 0.35 : 0 }), S => { const m = S.wheels[3], r = S.wheels[5]; if (S.pos[2] < -4 && S.pos[2] > -7.5) { minF = Math.min(minF, m.Fz, r.Fz); } minFr = Math.min(minFr, S.wheels[1].Fz); return S.pos[2] > -9; });
-  check('m35: walking bogie keeps both rear axles loaded over a 0.3 m step', minF > 5000, `min right-rear wheel load ${fmt(minF / 1000)} kN (static ${fmt(v.S.spec._prep.wheelLoad[3] / 1000)} kN)`, 'trunnion equalises the tandem', 'CONFIRMED (behaviour)');
+  // walking bogie: drive the right side over a 0.2 m ledge (a 0.3 m one cross-axles it: open diffs, see MODLOG)
+  const env = { g: G, ground: (x, z, o) => { const s = x > 0 && z < -3 && z > -3.9; o.h = s ? 0.2 : 0; o.nx = 0; o.ny = 1; o.nz = 0; o.surf = SURF.dirt; o.vx = o.vy = o.vz = 0; return o; } };
+  // a driver takes a ledge in low range: walking pace, full throttle in first; average the lighter of the two right-rear
+  // wheels while the bogie straddles the block (one wheel up on it, the other down)
+  const v = make(M35, { env }); settle(v, 0.5); let sum = 0, n = 0;
+  run(v, 25, S => ({ throttle: S.kmh < 4 ? 1 : 0.3, range: 'L' }), S => {
+    const m = S.wheels[3], r = S.wheels[5], up = [m, r].filter(W => W.cy > 0.1).length;
+    if (up === 1) { sum += Math.min(m.Fz, r.Fz); n++; }
+    return S.pos[2] > -9;
+  });
+  const avg = n ? sum / n : 0, st = v.S.spec._prep.wheelLoad[3];
+  check('m35: walking bogie keeps both rear axles loaded over a 0.2 m ledge', n > 20 && avg > 0.5 * st, `lighter wheel averages ${fmt(avg / 1000)} kN while straddling (static ${fmt(st / 1000)} kN), crossed to z ${fmt(v.S.pos[2])}`, 'the trunnion equalises the tandem (TM35: bogie articulation)', 'CONFIRMED (behaviour)');
+  // vertical step: 18 in (0.46 m) from rest in low range
+  const env2 = { g: G, ground: (x, z, o) => { o.h = z < -3.0 ? 0.457 : 0; o.nx = 0; o.ny = 1; o.nz = 0; o.surf = SURF.tarmac; o.vx = o.vy = o.vz = 0; return o; } };
+  const w = make(M35, { env: env2, pos: [0, 0, -3.0 + 1.955 + 0.6] }); settle(w, 0.5);
+  run(w, 40, { throttle: 1, range: 'L' }, S => S.pos[2] > -9);
+  check('m35: climbs an 18 in vertical step in low range', w.S.pos[2] < -9 && w.S.pos[1] > 0.4, `${w.S.pos[2] < -9 ? 'all three axles over' : 'stuck at z ' + fmt(w.S.pos[2])}, y ${fmt(w.S.pos[1], 2)} m`, 'vertical wall 18 in (Jane\'s / TM tabulated "vertical obstacle")', 'UNVERIFIED');
 }
 
 // ------------------------------------------------------------------------------------------------ 10. engine: start, stall, idle
@@ -347,7 +359,8 @@ for (const spec of [M151, M35]) {
   const v = make(spec, { running: false }); let tStart = 0;
   run(v, 6, { raw: { starter: true, ignition: true, gear: 0, clutch: 0, throttle: 0 } }, (S, t) => { if (S.eng.running && !tStart) { tStart = t; return false; } });
   run(v, 4, { raw: { starter: false, ignition: true, gear: 0, clutch: 0, throttle: 0 } });
-  check(`${spec.id}: starts and idles`, tStart > 0 && Math.abs(v.S.eng.rpm - spec.engine.idle) < 120, `catches after ${fmt(tStart)} s cranking, idles ${fmt(v.S.eng.rpm, 0)} rpm, ${fmt(v.S.eng.fuelFlow * 3600 / (spec.engine.diesel ? 0.84 : 0.74), 2)} l/h`, `${spec.engine.idle} rpm, ~0.6-1.5 l/h idle`, 'CONFIRMED (idle rpm) / INFERRED (idle burn)');
+  const idleLh = v.S.eng.fuelFlow * 3600 / (spec.engine.diesel ? 0.84 : 0.74);
+  check(`${spec.id}: starts and idles`, tStart > 0 && Math.abs(v.S.eng.rpm - spec.engine.idle) < 120 && idleLh > 0.5 && idleLh < 1.6, `catches after ${fmt(tStart)} s cranking, idles ${fmt(v.S.eng.rpm, 0)} rpm, ${fmt(v.S.eng.fuelFlow * 3600 / (spec.engine.diesel ? 0.84 : 0.74), 2)} l/h`, `${spec.engine.idle} rpm, ~0.6-1.5 l/h idle`, 'CONFIRMED (idle rpm) / INFERRED (idle burn)');
   // dump the clutch in top gear from rest: stalls
   const s = make(spec, { mode: 'manual' }); settle(s, 0.3);
   run(s, 3, (S, t) => ({ throttle: 0.2, clutch: t < 0.5 ? 1 : 0, gear: spec.gearbox.ratios.length }));

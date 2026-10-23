@@ -82,7 +82,7 @@ export const mfSlope = (C, E) => peakB(C, E) * C;
 
 // per-wheel tyre state
 export function tyreState() {
-  return { ux: 0, uy: 0, sink: 0, plow: 0, kappa: 0, alpha: 0, Fx: 0, Fy: 0, slide: 0, mu: 0, crr: 0, slipV: 0, pressure: 1, flat: 0 };
+  return { ux: 0, uy: 0, sink: 0, plow: 0, bull: 0, kappa: 0, alpha: 0, Fx: 0, Fy: 0, slide: 0, mu: 0, crr: 0, slipV: 0, pressure: 1, flat: 0 };
 }
 
 // One tyre step. T: tyre type; st: state; surf: SURFACES entry; Fz: normal load N; vx, vy: contact-patch velocity along the
@@ -136,17 +136,22 @@ export function tyreStep(T, st, surf, Fz, vx, vy, wr, gamma, dt) {
   // sinkage: static depth from ground pressure on soft soils, deeper with wheel spin, recovers while rolling freely.
   // dug in, the wheel bulldozes: extra rolling resistance ~ (z / r), and the effective radius drops (the sim lowers the contact)
   if (surf.sink > 0) {
-    const pz = Fz / (T.w * T.r * 0.9 * 1000) / Math.max(0.3, T.press * (1 - 0.7 * flat) / 200);  // kPa-ish ground pressure, normalised
-    const zs = surf.sink * clamp(0.25 + 0.35 * pz, 0.15, 1);                    // static sinkage
+    // mean ground pressure of a pneumatic tyre ~ its inflation pressure, a little more when overloaded (a soft or flat
+    // tyre floats better: the CTIS idea), normalised to 200 kPa
+    const pz = Math.max(0.25, T.press * (1 - 0.6 * flat) / 200) * (1 + 0.3 * (Fz / T.Fz0 - 1));
+    const zs = surf.sink * clamp(0.2 + 0.35 * pz, 0.15, 1);                     // static sinkage
     const spin = clamp(Math.abs(kappa) - 0.15, 0, 2);
     const target = Math.min(surf.sink * 1.6, zs + surf.sink * 0.9 * spin);
-    const rate = st.sink < target ? (0.15 + surf.kc * 20 * spin) : 0.05 + 0.02 * avx;   // digs in fast when spinning, climbs out slowly
+    const rate = st.sink < target ? (0.03 + surf.kc * 2 * spin) : 0.03 + 0.02 * avx;   // digs in while spinning (cm per second), climbs out while rolling
     st.sink += clamp(target - st.sink, -rate * dt, rate * dt);
     // side-slip rut: digs in while the tyre slides sideways (vy), fills / climbs out while rolling straight
     const lat = Math.max(0, Math.abs(vy) - 0.5);
     st.plow += (lat > 0 ? Math.min(surf.sink * 1.2, st.plow + 0.001) - st.plow : -st.plow) * Math.min(1, dt * (lat > 0 ? 5 * lat : 3 + avx * 0.5));
   } else { st.sink = Math.max(0, st.sink - 0.5 * dt); st.plow = 0; }
   // rolling resistance rises with speed (hysteresis; steeper for a bias-ply cross-country tread - Wong fig. 1.10 / 1.11)
-  st.crr = surf.crr * T.crr * (1 + avx / (xc ? 40 : 70)) * (1 + 9 * flat) + 0.55 * Math.min(0.35, st.sink / T.r);
+  st.crr = surf.crr * T.crr * (1 + avx / (xc ? 40 : 70)) * (1 + 9 * flat);
+  // a wheel dug in pushes soil ahead of it (compaction + bulldozing): a drag on the wheel through the soil wedge, not a
+  // brake on its rotation (vehiclefm applies bull x Fz against the travel at the contact)
+  st.bull = 0.55 * Math.min(0.35, st.sink / T.r);
   return st;
 }

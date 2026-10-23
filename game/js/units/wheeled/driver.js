@@ -69,7 +69,7 @@ export function createDriver(spec, mode = 'auto') {
           // what it takes to keep going: the slope (felt through the seat), rolling resistance and drag, in engine N m x ratio
           const need = (sim.massNow * 9.81 * (Math.max(0, Math.sin(sim.pitch)) + 0.025) + 0.6 * sim.spec.aero.CdA * vv * vv) * sim.wheels[0].r / (fin * rng * 0.9);
           const can = table(E.curve, rpm2) * (E.installed ?? 1) * r2;
-          if (want < n && rpmV(want) > up && c.clutch < 0.1 && thr > 0.05 && rpm2 > down * 1.03 && (thr < 0.9 || can > need * 1.15)) want++;
+          if (want < n && D.t - (D.lastDown ?? -9) > 3 && rpmV(want) > up && c.clutch < 0.1 && thr > 0.05 && rpm2 > down * 1.03 && (thr < 0.9 || can > need * 1.15)) want++;
           else if (want > 1 && rpm < down && rpmIn(want - 1) < top * 0.9 && (GB.synchro[want - 2] || Math.abs(wOut) < 0.5)) want--;
           else if (want > 1 && Math.abs(v) < 0.8 && brk > 0 && (GB.synchro[0] || Math.abs(wOut) < 0.5)) want = 1;
         }
@@ -80,14 +80,14 @@ export function createDriver(spec, mode = 'auto') {
       }
       // ---- the shift itself: clutch down, lift, move the lever, (blip), clutch out
       const shiftTime = diesel ? 0.75 : 0.42;
-      if (want !== c.gear && D.shift === 0) { D.shift = shiftTime; D.shiftTo = want; D.lastShift = D.t; }
+      if (want !== c.gear && D.shift === 0) { D.shift = shiftTime; D.shiftTo = want; D.lastShift = D.t; if (want < c.gear && want > 0) D.lastDown = D.t; }
       if (D.shift > 0) {
         D.shift -= dt;
         c.clutch = 1; c.throttle = 0;
         // move the lever halfway through (the box needs the clutch down first); blip for a downshift
         if (D.shift < shiftTime * 0.55) { c.gear = D.shiftTo; if (sim.gear !== D.shiftTo) c.gear = D.shiftTo; if (D.shiftTo > 0 && rpmIn(D.shiftTo) > rpm + 150) c.throttle = clamp((rpmIn(D.shiftTo) - rpm) / 1200, 0, 0.8); }
         if (D.shift <= 0) { D.shift = 0; D.rm = 0.35; }
-        c.brake = Math.abs(v) < 1.5 ? Math.max(brk, 0.7) : brk; return c;   // changing gear at a crawl: foot on the brake (hills)
+        c.brake = Math.abs(v) < 0.3 && Math.abs(sim.pitch) > 0.04 ? Math.max(brk, 0.7) : brk; return c;   // changing gear stopped on a hill: foot on the brake
       }
       // ---- automatic clutch: a launch that slips to a target rpm, locks once the shafts match, never lugs below stall
       const g = c.gear, ratio = ratioOf(g);

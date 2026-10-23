@@ -224,7 +224,11 @@ export function buildInterior(spec, model) {
   // gloved hands at ten to two, riding the rim
   const glove = mat(isCiv ? 0x7a5a40 : 0x3a3626, { vc: false }), sleeve = mat(isCiv ? 0x3a4a6a : 0x4a5232, { vc: false });
   const hands = [-1, 1].map(s => { const h = new THREE.Group(); const a = -Math.PI / 2 + s * 1.05;   /* local -z = the top of the rim (ten to two) */ h.position.set(Math.cos(a) * W0.r, 0.01, Math.sin(a) * W0.r); h.add(new THREE.Mesh(sphere(0.045, 0, 0, 0, 8, 6).scale(1, 0.75, 1.3), glove)); wheelG.add(h); return h; });
-  const arms = [-1, 1].map(() => { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.046, 1, 8).rotateX(Math.PI / 2), sleeve); g.add(m); return m; });
+  // arms: upper arm + forearm with an elbow that drops down and out (two tapered segments per side)
+  const seg = (r0, r1) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, 1, 7).rotateX(Math.PI / 2), sleeve); g.add(m); return m; };
+  const arms = [-1, 1].map(() => ({ up: seg(0.045, 0.038), fore: seg(0.036, 0.03) }));
+  const _el = V(), _sh = V();
+  const limb = (m, a, b) => { m.position.copy(a).add(b).multiplyScalar(0.5); m.scale.set(1, 1, a.distanceTo(b)); _sh.copy(b); g.localToWorld(_sh); m.lookAt(_sh); };
   // ---- pedals: clutch, brake, accelerator (pivot at the top, swing forward when pressed)
   const P0 = L0.pedals;
   const pedals = P0.x.map((x, i) => {
@@ -272,10 +276,11 @@ export function buildInterior(spec, model) {
       // arms from the shoulders to the hands
       g.updateMatrixWorld(true);
       for (let k = 0; k < 2; k++) {
-        const s = k ? 1 : -1; _a.set(eye[0] + s * 0.2, eye[1] - 0.3, eye[2] + 0.1);
-        hands[k].getWorldPosition(_b); g.worldToLocal(_b);
-        arms[k].position.copy(_a).add(_b).multiplyScalar(0.5); arms[k].scale.set(1, 1, _a.distanceTo(_b));
-        g.localToWorld(_b); arms[k].lookAt(_b);   // lookAt takes a world-space target
+        const s = k ? 1 : -1; _a.set(eye[0] + s * 0.19, eye[1] - 0.32, eye[2] + 0.06);   // shoulder
+        hands[k].getWorldPosition(_b); g.worldToLocal(_b);                               // hand
+        // elbow: a little past the middle, dropped and pushed out
+        _el.copy(_a).lerp(_b, 0.55); _el.y -= 0.14; _el.x += s * 0.1; _el.z += 0.04;
+        limb(arms[k].up, _a, _el); limb(arms[k].fore, _el, _b);
       }
       // gauge faces (only while someone looks)
       tDraw -= dt;

@@ -76,7 +76,9 @@ export const M151 = {
   },
   // hull contact points (model frame): belly, body corners, windscreen frame, the M60 pedestal; and obstacle spheres
   hull: [
-    [-0.55, 0.28, -1.55], [0.55, 0.28, -1.55], [-0.55, 0.30, 1.55], [0.55, 0.30, 1.55], [0, 0.26, 0],
+    // under the bumpers (approach 66 deg / departure 37 deg, TM: the jeep noses into ditches without touching), the sump and
+    // the diffs (0.24 m clearance), then the body corners, beltline, windscreen and the M60 post for rollovers
+    [-0.6, 0.42, -1.70], [0.6, 0.42, -1.70], [0, 0.31, -1.30], [-0.55, 0.40, 1.68], [0.55, 0.40, 1.68], [0, 0.25, ZF], [0, 0.25, ZR], [0, 0.27, 0],
     [-0.81, 0.55, -1.68], [0.81, 0.55, -1.68], [-0.81, 0.55, 1.68], [0.81, 0.55, 1.68],
     [-0.81, 1.02, -1.55], [0.81, 1.02, -1.55], [-0.81, 1.02, 1.62], [0.81, 1.02, 1.62], [-0.81, 0.98, 0], [0.81, 0.98, 0],
     [-0.72, 1.48, -0.52], [0.72, 1.48, -0.52], [0, 1.72, 0.45],

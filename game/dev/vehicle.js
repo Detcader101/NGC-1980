@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { WHEELED, WHEELED_IDS, createWheeledSim } from '../js/units/wheeled/index.js';
 import { aiInput } from '../js/units/wheeled/driver.js';
-import { lookFrom } from '../js/units/wheeled/modelkit.js';
+import { lookFrom, merge as mergeGeo } from '../js/units/wheeled/modelkit.js';
 import { SURF_NAMES } from '../js/units/wheeled/tyre.js';
 import { heightAt, groundAt, waterAt, makeEnv, ZONES, POND_SHAPE, RAMP_LANES } from './vehicle-ground.js';
 
@@ -53,8 +53,10 @@ function buildTerrain() {
   water.position.set(POND_SHAPE.cx, 0.0, POND_SHAPE.cz); water.renderOrder = 2; scene.add(water);
   // road markings: centre dashes and edge lines; distance boards every 50 m; grade signs at the ramps
   const white = new THREE.MeshLambertMaterial({ color: 0xe8e6da });
-  for (let z = -295; z < 195; z += 6) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.02, 3), white); m.position.set(0, heightAt(0, z) + 0.012, z); scene.add(m); }
-  for (const x of [-3.7, 3.7]) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, 495), white); m.position.set(x, heightAt(x, 0) + 0.01, -52.5); scene.add(m); }
+  { const parts = []; for (let z = -295; z < 195; z += 6) parts.push(new THREE.BoxGeometry(0.14, 0.02, 3).translate(0, heightAt(0, z) + 0.012, z)); scene.add(new THREE.Mesh(mergeGeo(parts), white)); }
+  // edge lines in 10 m pieces (one 495 m box is a pair of huge triangles whose depth leaks through nearer geometry)
+  const edgeG = new THREE.BoxGeometry(0.12, 0.02, 10);
+  { const parts = []; for (const x of [-3.7, 3.7]) for (let z = -295; z < 195; z += 10) parts.push(edgeG.clone().translate(x, heightAt(x, z + 5) + 0.01, z + 5)); scene.add(new THREE.Mesh(mergeGeo(parts), white)); }
   const sign = (text, x, z, col = '#f2efe2', bg = '#2a3a28') => {
     const cv = document.createElement('canvas'); cv.width = 256; cv.height = 128; const cx = cv.getContext('2d');
     cx.fillStyle = bg; cx.fillRect(0, 0, 256, 128); cx.strokeStyle = col; cx.lineWidth = 6; cx.strokeRect(6, 6, 244, 116);
@@ -70,16 +72,18 @@ function buildTerrain() {
   sign('FORD', -36, 110, '#f2efe2', '#20405a'); sign('BUMPS', -7.5, -36).rotation.y = 0; sign('SAND', -22, -66).rotation.y = Math.PI / 2; sign('MUD', -22, 6).rotation.y = Math.PI / 2; sign('25% SIDE', -88, 22);
   // cones along the road for speed
   const coneM = new THREE.MeshLambertMaterial({ color: 0xe06a20, flatShading: true });
-  for (let z = 140; z > -260; z -= 25) for (const x of [-4.6, 4.6]) { const cn = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.5, 8), coneM); cn.position.set(x, heightAt(x, z) + 0.25, z); scene.add(cn); }
-  // trees for depth cues
+  { const cones = []; for (let z = 140; z > -260; z -= 25) for (const x of [-4.6, 4.6]) cones.push(new THREE.ConeGeometry(0.18, 0.5, 8).translate(x, heightAt(x, z) + 0.25, z)); scene.add(new THREE.Mesh(mergeGeo(cones), coneM)); }
+  // trees for depth cues (merged: one draw call for the crowns, one for the trunks)
   const treeM = new THREE.MeshLambertMaterial({ color: 0x2f5a26, flatShading: true }), trunkM = new THREE.MeshLambertMaterial({ color: 0x4a3828 });
   let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const crowns = [], trunks = [];
   for (let i = 0; i < 160; i++) {
     const x = -135 + rnd() * 300, z = -200 + rnd() * 385; heightAt(x, z, o);
     if (o.surf !== 3 || Math.abs(x) < 12 || Math.abs(z - 100) < 12 || (x > 20 && x < 95 && z > 12 && z < 60) || (x > -125 && x < -80 && z > -65 && z < 25)) continue;
-    const s = 0.7 + rnd() * 0.8, t = new THREE.Mesh(new THREE.ConeGeometry(1.6 * s, 5 * s, 7), treeM), tr = new THREE.Mesh(new THREE.CylinderGeometry(0.15 * s, 0.2 * s, 1.4 * s, 6), trunkM);
-    const y = heightAt(x, z); t.position.set(x, y + 1.4 * s + 2.5 * s, z); tr.position.set(x, y + 0.7 * s, z); scene.add(t, tr);
+    const s = 0.7 + rnd() * 0.8, y = heightAt(x, z);
+    crowns.push(new THREE.ConeGeometry(1.6 * s, 5 * s, 7).translate(x, y + 1.4 * s + 2.5 * s, z)); trunks.push(new THREE.CylinderGeometry(0.15 * s, 0.2 * s, 1.4 * s, 6).translate(x, y + 0.7 * s, z));
   }
+  scene.add(new THREE.Mesh(mergeGeo(crowns), treeM), new THREE.Mesh(mergeGeo(trunks), trunkM));
 }
 buildTerrain();
 
@@ -119,6 +123,7 @@ async function placeholderModel(spec) {   // until a model module exists: a colo
   return { group: g, shell: [], animate(L) { L.wheels.forEach((w, i) => { wheels[i].position.y = 0.35 + w.dy; wheels[i].rotation.set(-w.spin, -w.steer, 0, 'YXZ'); }); }, setVariant() {} };
 }
 async function setVehicle(id, variant = {}, zone = null) {
+  override = null; ai = null;   // a new vehicle starts with the hands off the controls
   if (V.model) { scene.remove(V.model.group); }
   const keepPose = V.sim && !zone ? { pos: [...V.sim.pos], yaw: -V.sim.heading } : null;
   const w = createWheeledSim(id, { mode: Q.get('mode') || 'auto' });
@@ -278,7 +283,7 @@ let last = performance.now(), frames = 0, allEvents = [];
 function size() { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
 addEventListener('resize', size); size();
 function frame(now) {
-  const dt = Math.min(0.05, (now - last) / 1000); last = now; frames++;
+  const dt = Math.min(0.1, (now - last) / 1000); last = now; frames++;   // slow frames: the sim substeps inside step()
   if (V.sim) {
     readInput(dt);
     let inp = override || IN;
@@ -298,6 +303,18 @@ function frame(now) {
         else if (dust > 0 && (sp > 3 || W.ts.slipV > 1) && Math.random() < dust * Math.min(1, (sp + W.ts.slipV * 2) / 15)) emit(W.cx, W.cy + 0.2, W.cz, (Math.random() - 0.5) * 1.5 - S.vel[0] * 0.2, 0.5 + Math.random(), (Math.random() - 0.5) * 1.5 - S.vel[2] * 0.2, su === 4 ? 0xd8c08a : su === 5 ? 0x5a4632 : 0xb09a74, 2.2);
         else if (su === 5 && W.ts.slipV > 2 && Math.random() < 0.5) emit(W.cx, W.cy + 0.15, W.cz, (Math.random() - 0.5) * 2, 2 + Math.random() * 2, (Math.random() - 0.5) * 2, 0x3a2a1a, 0.9);
       }
+      // fire (engine bay or fuel tank), leaking coolant steam, the burnt-out wreck
+      const ds = V.dmg.state;
+      if (ds.fire > 0 || ds.wrecked) {
+        const c = V.spec.components[ds.fuelLeak > 0 && Math.random() < 0.5 ? 'fuelTank' : 'engine'] || V.spec.components.engine, k = ds.wrecked ? 0.5 : Math.min(1, ds.fire);
+        for (let n = 0; n < 3; n++) {
+          const p = S.worldPoint([c[0] + Math.random() * (c[3] - c[0]), c[4], c[2] + Math.random() * (c[5] - c[2])], [0, 0, 0]);
+          if (Math.random() < k) emit(p[0], p[1], p[2], (Math.random() - 0.5) * 0.6, 1.5 + Math.random() * 2, (Math.random() - 0.5) * 0.6, Math.random() < 0.5 ? 0xff7a20 : 0xffb040, 0.6);
+          if (Math.random() < k * 0.8) emit(p[0], p[1] + 0.4, p[2], (Math.random() - 0.5) * 0.5, 2 + Math.random(), (Math.random() - 0.5) * 0.5, 0x1a1816, 3.5);
+        }
+      }
+      if (ds.coolLeak > 0 && ds.coolant > 0.02 && S.eng.temp > 70 && Math.random() < 0.4) { const c = V.spec.components.radiator || V.spec.components.engine, p = S.worldPoint([(c[0] + c[3]) / 2, c[4], (c[2] + c[5]) / 2], [0, 0, 0]); emit(p[0], p[1], p[2], 0, 1.2, 0, 0xe8e8e8, 1.4); }
+      if (ds.wrecked !== V._charred) { V._charred = ds.wrecked; import('../js/units/wheeled/modelkit.js').then(m => m.charModel(V.model.group, ds.wrecked)); }
       if (S.eng.running && (S.eng.smoke > 0.15 || V.spec.engine.diesel && Math.random() < 0.15)) { const ex = S.worldPoint(V.spec.id === 'm35' ? [0.95, 2.45, -0.62] : [0.35, 0.3, V.spec.dims.L / 2], [0, 0, 0]); emit(ex[0], ex[1], ex[2], (Math.random() - 0.5) * 0.3, 0.8, (Math.random() - 0.5) * 0.3, S.eng.smoke > 0.15 ? 0x222222 : 0x8a8a8a, 1.8); }
       stepParticles(dt);
     }

@@ -258,3 +258,17 @@ export function lookFrom(sim, ctl = sim.lastCtl || {}) {
     dmg: sim.dmg ? sim.dmg.state : null,
   };
 }
+
+// a burnt-out wreck: every material of the model swapped for a charred version (cached per material), and back
+const _char = new WeakMap();
+export function charModel(group, on = true) {
+  group.traverse(o => {
+    if (!o.isMesh || !o.material || o.material.transparent) return;
+    if (on) {
+      if (o.userData._mat) return;
+      let c = _char.get(o.material);
+      if (!c) { c = o.material.clone(); c.color = new THREE.Color(0x2a2420).lerp(o.material.color, 0.12); c.emissive = new THREE.Color(0x000000); c.map = null; c.emissiveMap = null; _char.set(o.material, c); }
+      o.userData._mat = o.material; o.material = c;
+    } else if (o.userData._mat) { o.material = o.userData._mat; delete o.userData._mat; }
+  });
+}

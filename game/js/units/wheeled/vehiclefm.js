@@ -177,7 +177,7 @@ export function prepareSpec(spec) {
     const sFree = s0 + P.wheelLoad[i] / k;                   // extension where the spring would be free
     const cCrit = 2 * Math.sqrt(k * ms);
     const kbs = k * 6;
-    return { k, travel, s0, sFree, cb: a.zeta[0] * cCrit, cr: a.zeta[1] * cCrit, kbs, cbs: 2 * 0.45 * Math.sqrt(kbs * 3 * ms), T, r: T.r, yTop: T.r + a.bump - (a.sag ?? 0), arb: a.arb ?? 0 };
+    return { k, travel, s0, sFree, cb: a.zeta[0] * cCrit, cr: a.zeta[1] * cCrit, kbs, cbs: 2 * 0.15 * Math.sqrt(kbs * 3 * ms), T, r: T.r, yTop: T.r + a.bump - (a.sag ?? 0), arb: a.arb ?? 0 };
   });
   // inertia in body axes [x pitch, y yaw, z roll] from the box with a mass-distribution factor (INFERRED; spec.inertia
   // overrides, same order)
@@ -198,7 +198,7 @@ export function createVehicleSim(spec, opts = {}) {
   const _a = v3(), _b = v3(), _c = v3(), _d = v3(), _e = v3(), _f = v3(), _n = v3(), _p = v3(), _r = v3(), _v = v3(), _t = v3(), _ex = v3(), _ey = v3(), _gw = v3();
   // tyre probes along the lower arc, as fractions of the radius ahead (+) / behind (-) the contact; opts.probes = 1 turns
   // them off (cheap AI traffic far from the camera)
-  const PROBES = opts.probes ?? 5, PROBE_OFF = PROBES > 1 ? [0.5, -0.5, 0.87, -0.87] : [];
+  const PROBES = opts.probes ?? 9, PROBE_OFF = PROBES > 5 ? [0.25, -0.25, 0.5, -0.5, 0.7, -0.7, 0.87, -0.87] : PROBES > 1 ? [0.5, -0.5, 0.87, -0.87] : [];
   const gout2 = { h: 0, nx: 0, ny: 1, nz: 0, surf: 0, vx: 0, vy: 0, vz: 0 };
   const gout = { h: 0, nx: 0, ny: 1, nz: 0, surf: 0, vx: 0, vy: 0, vz: 0 }, cout = { depth: 0, nx: 0, ny: 1, nz: 0, vx: 0, vy: 0, vz: 0, mu: 0.5, id: null };
   const F = v3(), Tq = v3();   // force / torque accumulators (world)
@@ -209,7 +209,7 @@ export function createVehicleSim(spec, opts = {}) {
   }));
 
   const S = {
-    spec, pos: v3(), q: [0, 0, 0, 1], vel: v3(), w: v3(), cgw: v3(), cgb: [...spec.cg], massNow: spec.mass, I: [...P.I], loadKg: 0,
+    spec, pos: v3(), q: [0, 0, 0, 1], vel: v3(), w: v3(), L: v3(), cgw: v3(), cgb: [...spec.cg], massNow: spec.mass, I: [...P.I], loadKg: 0,
     wheels, solver,
     // drivetrain
     gear: 0, range: TC.low ? 'H' : 'H', fwd: false, lock: false, clutchEng: 1, shiftT: 0,
@@ -228,7 +228,7 @@ export function createVehicleSim(spec, opts = {}) {
       S.pos[0] = pos[0]; S.pos[1] = pos[1]; S.pos[2] = pos[2];
       qToR(S.q, R); bw(R, S.cgb, _a);
       S.cgw[0] = pos[0] + _a[0]; S.cgw[1] = pos[1] + _a[1]; S.cgw[2] = pos[2] + _a[2];
-      S.vel.fill(0); S.w.fill(0); solver.w.fill(0); S.events.length = 0;
+      S.vel.fill(0); S.w.fill(0); S.L.fill(0); solver.w.fill(0); S.events.length = 0;
       for (const W of wheels) { const k = P.wk[W.i]; W.s = W.sPrev = k.s0; W.ts = tyreState(); W.contact = W.wasContact = false; W.Fbx = 0; W.omega = 0; }
       const run = o.running !== false;
       Object.assign(S.eng, { rpm: run ? E.idle : 0, running: run, thr: 0, temp: o.temp ?? (run ? 82 : 20), boost: 0, crank: 0, misfire: 0, wet: 0, seized: false, hydrolock: false, smoke: 0 });
@@ -261,7 +261,7 @@ export function createVehicleSim(spec, opts = {}) {
       const q = mul(mul(qy, qx), qz); S.q[0] = q[0]; S.q[1] = q[1]; S.q[2] = q[2]; S.q[3] = q[3];
       qToR(S.q, R); bw(R, S.cgb, _a);
       S.cgw[0] = S.pos[0] + _a[0]; S.cgw[1] = y + _a[1]; S.cgw[2] = S.pos[2] + _a[2];
-      S.vel.fill(0); S.w.fill(0);
+      S.vel.fill(0); S.w.fill(0); S.L.fill(0);
       updatePose();
     },
     // payload (cargo, passengers): kg at a model-frame point; recomputes mass, CG and inertia (point-mass parallel axis)
@@ -274,7 +274,7 @@ export function createVehicleSim(spec, opts = {}) {
         I[0] += it.kg * (d[1] ** 2 + d[2] ** 2 + (sz[1] ** 2 + sz[2] ** 2) / 12); I[1] += it.kg * (d[0] ** 2 + d[2] ** 2 + (sz[0] ** 2 + sz[2] ** 2) / 12); I[2] += it.kg * (d[0] ** 2 + d[1] ** 2 + (sz[0] ** 2 + sz[1] ** 2) / 12); }
       // keep the model origin where it is: move the CG point
       qToR(S.q, R); bw(R, S.cgb, _a); const ox = S.cgw[0] - _a[0], oy = S.cgw[1] - _a[1], oz = S.cgw[2] - _a[2];
-      S.cgb = ncg; S.massNow = m; S.I = I; S.loadKg = m - m0;
+      S.cgb = ncg; S.massNow = m; S.I = I; S.loadKg = m - m0; S._LFromW();
       bw(R, S.cgb, _a); S.cgw[0] = ox + _a[0]; S.cgw[1] = oy + _a[1]; S.cgw[2] = oz + _a[2];
     },
     // the world position of a model-frame point (seats, muzzles, exhaust, dust emitters)
@@ -285,7 +285,7 @@ export function createVehicleSim(spec, opts = {}) {
     impulse(at, J) {
       S.vel[0] += J[0] / S.massNow; S.vel[1] += J[1] / S.massNow; S.vel[2] += J[2] / S.massNow;
       _a[0] = at[0] - S.cgw[0]; _a[1] = at[1] - S.cgw[1]; _a[2] = at[2] - S.cgw[2]; crossTo(_a, J, _b);
-      qToR(S.q, R); wb(R, _b, _c); _c[0] /= S.I[0]; _c[1] /= S.I[1]; _c[2] /= S.I[2]; bw(R, _c, _d); S.w[0] += _d[0]; S.w[1] += _d[1]; S.w[2] += _d[2];
+      S.L[0] += _b[0]; S.L[1] += _b[1]; S.L[2] += _b[2]; qToR(S.q, R); wFromL(R);
     },
     step(dt, ctl, env) {
       S.events.length = 0; S.lastCtl = ctl;
@@ -471,10 +471,12 @@ export function createVehicleSim(spec, opts = {}) {
       W.air = false; onG++;
       let Fs = k.k * (k.sFree - Math.max(s, 0)), Fd = -(sdot < 0 ? k.cb : k.cr) * sdot;
       // progressive bump stop (rubber) and, past it, the tyre carcass: both damped
-      if (s < 0.025) { Fs += k.kbs * (0.025 - s) + (s < 0 ? k.kbs * 2 * -s : 0); if (sdot < 0) Fd -= k.cbs * sdot; }
+      // progressive bump stop (rubber) and, past it, the tyre carcass: both damped; the crush is capped (a penalty spring
+      // fed a metre of penetration in one substep - a cliff edge in a heightfield - would launch the vehicle)
+      if (s < 0.025) { const sc = Math.max(s, -0.12); Fs += k.kbs * (0.025 - sc) + (sc < 0 ? k.kbs * 2 * -sc : 0); if (sdot < 0) Fd -= k.cbs * Math.max(sdot, -3); }
       W.Fs = Math.max(0, Fs);
       W.Fd = Fd;
-      W.nDotY = Math.max(0.35, dot(_n, Y));
+      W.nDotY = Math.max(0.6, dot(_n, Y));   // a kerb face pushes back, but never more than ~1.7 x the strut load
       // contact frame
       W.cx = Hx - Y[0] * s - _n[0] * r; W.cy = Hy - Y[1] * s - _n[1] * r; W.cz = Hz - Y[2] * s - _n[2] * r;
       W.nx = _n[0]; W.ny = _n[1]; W.nz = _n[2]; W.gvx = gvx; W.gvy = gvy; W.gvz = gvz; W.pt = pt;
@@ -510,7 +512,9 @@ export function createVehicleSim(spec, opts = {}) {
       // the strut and links carry Fs + Fd + Fjack along the body vertical; for a massless wheel the ground's normal
       // reaction N satisfies N (n . Y) = that, so a tilted contact (kerb, step, the front of the tyre on a slope kink)
       // pushes back as well as up
-      const Fz = Math.max(0, W.Fs + W.Fd + W.Fjack) / W.nDotY;
+      // (capped at ~10 x the static corner load: beyond that the tyre bottoms on the rim and the stops; no real contact
+      // transmits more, and a penalty contact that did would launch the vehicle off a kerb)
+      const Fz = Math.min(P.wheelLoad[W.i] * 10, Math.max(0, W.Fs + W.Fd + W.Fjack)) / W.nDotY;
       W.Fz = Fz;
       _n[0] = W.nx; _n[1] = W.ny; _n[2] = W.nz;
       // heading: body forward rotated by the steer angle (+ the axle's toe change with travel: a semi-trailing arm toes
@@ -547,6 +551,8 @@ export function createVehicleSim(spec, opts = {}) {
       // the ground's normal reaction through the contact (and the wheel centre)
       addF(_n[0] * Fz, _n[1] * Fz, _n[2] * Fz, W.cx, W.cy, W.cz);
       W.tq = -Fx * W.rEff;
+      // soil drag of a dug-in wheel (sinkage), opposing the travel along the heading
+      if (W.ts.bull > 0) { const fb = -W.ts.bull * Fz * Math.max(-1, Math.min(1, vx / 0.3)); addF(fb * _ex[0], fb * _ex[1], fb * _ex[2], W.cx, W.cy + W.rEff * 0.3, W.cz); }
       // wading: water drag on the wheel
       if (W.depthW > 0.05) { const dv = Math.min(1, W.depthW / (2 * k.r)), A = 2 * k.r * k.T.w * dv * 0.9, sp = Math.hypot(_v[0], _v[2]); if (sp > 0.05) { const f = 0.5 * RHO_W * 1.0 * A * sp; addF(-f * _v[0], 0, -f * _v[2], W.cx, W.cy + 0.3, W.cz); } }
     }
@@ -619,7 +625,7 @@ export function createVehicleSim(spec, opts = {}) {
       velAt(px, py, pz, _v); _v[0] -= gout.vx || 0; _v[1] -= gout.vy || 0; _v[2] -= gout.vz || 0;
       const vn = _v[0] * gout.nx + _v[1] * gout.ny + _v[2] * gout.nz;
       const kh = m * g * 12, ch = 2 * 0.6 * Math.sqrt(kh * m / 4);
-      const fn = Math.max(0, kh * depth - ch * vn);
+      const fn = Math.max(0, kh * Math.min(depth, 0.2) - ch * vn);   // penetration capped (heightfield cliffs)
       if (vn < -3) ev('scrape', { speed: -vn, at: [px, py, pz] }, 0.3);
       const tx = _v[0] - gout.nx * vn, ty = _v[1] - gout.ny * vn, tz = _v[2] - gout.nz * vn, vt = Math.hypot(tx, ty, tz);
       const mu = 0.55, ft = mu * fn / Math.max(vt, 0.25);
@@ -636,7 +642,7 @@ export function createVehicleSim(spec, opts = {}) {
       velAt(px, py, pz, _v); _v[0] -= hit.vx || 0; _v[1] -= hit.vy || 0; _v[2] -= hit.vz || 0;
       const vn = _v[0] * hit.nx + _v[1] * hit.ny + _v[2] * hit.nz;
       const kc = m * 400, cc = 2 * 0.5 * Math.sqrt(kc * m);
-      const fn = Math.max(0, kc * hit.depth - cc * vn);
+      const fn = Math.max(0, kc * Math.min(hit.depth, 0.25) - cc * vn);
       if (vn < -2) ev('impact', { speed: -vn, at: [px, py, pz], n: [hit.nx, hit.ny, hit.nz], id: hit.id, local: [c[0], c[1], c[2]] }, 0.25);
       const tx = _v[0] - hit.nx * vn, ty = _v[1] - hit.ny * vn, tz = _v[2] - hit.nz * vn, vt = Math.hypot(tx, ty, tz);
       const ft = (hit.mu ?? 0.4) * fn / Math.max(vt, 0.3);
@@ -669,29 +675,37 @@ export function createVehicleSim(spec, opts = {}) {
     // ---------------- integrate the body
     S._acc[0] = F[0] / m; S._acc[1] = F[1] / m + g; S._acc[2] = F[2] / m;
     S.vel[0] += F[0] / m * h; S.vel[1] += F[1] / m * h; S.vel[2] += F[2] / m * h;
-    wb(R, Tq, _a); wb(R, S.w, _b);
-    // Euler's equations in body axes (x right = pitch axis, y up = yaw, z back = roll): I dw = T - w x (I w)
-    const IP = S.I;
-    const gx = IP[0] * _b[0], gy = IP[1] * _b[1], gz = IP[2] * _b[2];
-    _c[0] = (_a[0] - (_b[1] * gz - _b[2] * gy)) / IP[0];
-    _c[1] = (_a[1] - (_b[2] * gx - _b[0] * gz)) / IP[1];
-    _c[2] = (_a[2] - (_b[0] * gy - _b[1] * gx)) / IP[2];
-    _b[0] += _c[0] * h; _b[1] += _c[1] * h; _b[2] += _c[2] * h;
-    bw(R, _b, S.w);
+    // rotation through the world angular momentum: L += T h, w = R I^-1 R^T L. The gyroscopic coupling comes out of the
+    // changing orientation exactly, and a tumbling body can't gain energy the way explicit Euler on w x (I w) does.
+    const L = S.L;
+    L[0] += Tq[0] * h; L[1] += Tq[1] * h; L[2] += Tq[2] * h;
+    wFromL(R);
     S.cgw[0] += S.vel[0] * h; S.cgw[1] += S.vel[1] * h; S.cgw[2] += S.vel[2] * h;
     const q = S.q, wx = S.w[0] * h * 0.5, wy = S.w[1] * h * 0.5, wz = S.w[2] * h * 0.5;
     const qx = q[0], qy = q[1], qz = q[2], qw = q[3];
     q[0] += wx * qw + wy * qz - wz * qy; q[1] += wy * qw + wz * qx - wx * qz; q[2] += wz * qw + wx * qy - wy * qx; q[3] += -wx * qx - wy * qy - wz * qz;
     const ql = Math.hypot(q[0], q[1], q[2], q[3]); q[0] /= ql; q[1] /= ql; q[2] /= ql; q[3] /= ql;
+    qToR(q, R); wFromL(R);   // w for the new orientation (the next substep's contact velocities)
     S.odometer += Math.abs(dot(S.vel, S.fwdv)) * h;
   }
+  // w (world) from the angular momentum and the inertia in body axes; a safety cap at 40 rad/s
+  function wFromL(Rm) {
+    wb(Rm, S.L, _b); _b[0] /= S.I[0]; _b[1] /= S.I[1]; _b[2] /= S.I[2];
+    const wl = Math.hypot(_b[0], _b[1], _b[2]); if (wl > 40) { const k = 40 / wl; _b[0] *= k; _b[1] *= k; _b[2] *= k; S.L[0] *= k; S.L[1] *= k; S.L[2] *= k; }
+    bw(Rm, _b, S.w);
+  }
+  // keep L consistent after w was set from outside (reset, impulses)
+  function LFromW(Rm) { wb(Rm, S.w, _b); _b[0] *= S.I[0]; _b[1] *= S.I[1]; _b[2] *= S.I[2]; bw(Rm, _b, S.L); }
+  S._LFromW = () => { qToR(S.q, R); LFromW(R); };
 
   // ---------------------------------------------------------------------------------------------- slow systems (per frame)
   function systems(dt, ctl, env) {
     const e = S.eng, rpm = e.rpm, C = spec.cooling;
     // fuel: indicated power / (indicated efficiency x heating value); idle burn comes from the friction it overcomes
     const w = rpm / RPM, Pind = Math.max(0, e.tqInd) * w;
-    const eta = E.etaInd[0] + (E.etaInd[1] - E.etaInd[0]) * clamp(e.thr, 0, 1);
+    // a carburettor runs rich at idle and light throttle (and part of the charge is wasted pumping); a diesel much less so
+    const enrich = E.diesel ? 0.85 + 0.15 * clamp(e.thr / 0.3, 0, 1) : 0.4 + 0.6 * clamp(e.thr / 0.35, 0, 1);
+    const eta = (E.etaInd[0] + (E.etaInd[1] - E.etaInd[0]) * clamp(e.thr, 0, 1)) * enrich;
     const LHV = E.diesel ? 42.8e6 : 43.5e6, dens = E.diesel ? 0.84 : 0.74;
     e.fuelFlow = e.running ? Pind / (eta * LHV) : 0;   // kg/s
     e.power = Math.max(0, (e.tqInd - e.fric)) * w;

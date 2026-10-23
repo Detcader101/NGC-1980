@@ -6,7 +6,7 @@
 //   sand      dunes x -75..-25, z -70..-15
 //   mud       a wallow x -75..-25, z 0..40, 0.3 m down
 //   slopes    three concrete ramps 20 / 40 / 60 % up to a 4 m plateau, x 25..75 (lanes z 18-26, 32-40, 46-54)
-//   bumps     x -16..-9, z -40..-170: washboard, staggered bumps, logs, potholes, a 25 cm kerb, a twist ditch
+//   bumps     x -16..-9, z -40..-170: washboard, staggered bumps, 13 cm logs, potholes, a 20 cm kerb, a twist ditch
 //   sideslope 25 % side slope x -120..-85, z -60..20 (drive along it, north-south)
 //   ford      a pond centre (-45, 140), 0.5 m shelf, 1.7 m deep middle, banks 1 in 6, entered from the crossroad
 export const SURF_ID = { tarmac: 0, wet: 1, dirt: 2, grass: 3, sand: 4, mud: 5, deck: 6, rock: 7, snow: 8 };
@@ -18,7 +18,7 @@ const inside = (x, z, x0, x1, z0, z1) => x >= x0 && x <= x1 && z >= z0 && z <= z
 export const ZONES = {
   road: { x: 0, z: 150, yaw: 0, label: 'road' }, dirt: { x: 45, z: -70, yaw: 0, label: 'dirt loop' }, sand: { x: -20, z: -45, yaw: Math.PI / 2, label: 'sand' },
   mud: { x: -20, z: 20, yaw: Math.PI / 2, label: 'mud' }, slope20: { x: 12, z: 22, yaw: -Math.PI / 2, label: '20% ramp' }, slope40: { x: 12, z: 36, yaw: -Math.PI / 2, label: '40% ramp' },
-  slope60: { x: 12, z: 50, yaw: -Math.PI / 2, label: '60% ramp' }, bumps: { x: -12.5, z: -30, yaw: 0, label: 'bump course' }, sideslope: { x: -102, z: 30, yaw: 0, label: '25% side slope' },
+  slope60: { x: 12, z: 50, yaw: -Math.PI / 2, label: '60% ramp' }, bumps: { x: -12.5, z: -30, yaw: 0, label: 'bump course' }, sideslope: { x: -102, z: 14, yaw: 0, label: '25% side slope' },
   ford: { x: -45, z: 108, yaw: Math.PI, label: 'ford' }, start: { x: 0, z: 60, yaw: 0, label: 'start' },
 };
 
@@ -35,9 +35,9 @@ function bumps(x, z) {
   const lx = x + 12.5;   // lateral, 0 = centreline
   if (t < 20) return 0.035 * (0.5 + 0.5 * Math.cos((t % 0.9) / 0.9 * Math.PI * 2));                                   // washboard
   if (t < 40) { const k = Math.floor((t - 20) / 3), u = ((t - 20) % 3) / 3, s = k % 2 ? 1 : -1; return lx * s > 0 ? 0.15 * Math.sin(Math.PI * Math.min(1, u * 2)) ** 2 * (u < 0.5 ? 1 : 0) : 0; }   // staggered bumps
-  if (t < 64) { const u = ((t - 40) % 4) - 2; return Math.abs(u) < 0.18 ? Math.sqrt(0.18 * 0.18 - u * u) : 0; }      // logs (r 0.18)
+  if (t < 64) { const u = ((t - 40) % 4) - 2; return Math.abs(u) < 0.13 ? Math.sqrt(0.13 * 0.13 - u * u) : 0; }      // logs (r 0.13, a 5 in log)
   if (t < 80) { const u = ((t - 64) % 4) - 2, d = Math.hypot(u, (lx - (Math.floor((t - 64) / 4) % 2 ? 0.7 : -0.7)) * 0.8); return d < 0.6 ? -0.18 * (1 - (d / 0.6) ** 2) : 0; }   // potholes
-  if (t < 100) return (t > 84 && t < 92) ? 0.25 : 0;                                                                   // a 25 cm kerb / step up and down
+  if (t < 100) return (t > 84 && t < 92) ? 0.20 : 0;                                                                   // a 20 cm kerb / step up and down
   if (t < 130) { const u = t - 100; const d = (u - 5 - lx * 1.2); const e = (u - 17 + lx * 1.2); return 0.4 * Math.max(0, 1 - (d / 2.2) ** 2) + 0.4 * Math.max(0, 1 - (e / 2.2) ** 2); }   // twist ditch: diagonal humps
   return 0;
 }
@@ -76,7 +76,7 @@ export function heightAt(x, z, out) {
   const rk = Math.max(road, cross);
   if (rk > 0) { h = h * (1 - rk) + rk * (0.02 - 0.0004 * (Math.abs(x) < 4 ? x * x : (z - 100) ** 2)); if (Math.abs(x) < 4 && z > -300 && z < 200 || Math.abs(z - 100) < 4 && Math.abs(x) < 150) surf = S.tarmac; else if (rk > 0.5) surf = S.dirt; }
   // the bump course strip (a dirt lane west of the road)
-  if (x > -17 && x < -8 && z < -38 && z > -172) { const k = sstep(-17, -16, x) * (1 - sstep(-9, -8, x)); h = h * (1 - k) + k * (0.02 + bumps(x, z)); if (x > -16 && x < -9) surf = S.dirt; }
+  if (x > -20 && x < -5 && z < -30 && z > -180) { const k = sstep(-20, -16, x) * (1 - sstep(-9, -5, x)) * (1 - sstep(-38, -30, z)) * sstep(-180, -172, z); h = h * (1 - k) + k * (0.02 + bumps(x, z)); if (x > -16 && x < -9 && z < -38 && z > -172) surf = S.dirt; }   // blended in x and z: no step at the ends
   if (out) out.surf = surf;
   return h;
 }
