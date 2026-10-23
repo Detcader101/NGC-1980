@@ -65,6 +65,7 @@ update it. The launcher lives in `%LOCALAPPDATA%\ThrustZarch` (log: `launcher.lo
 | W A S D or arrows | cyclic |
 | Q / E | pedals (anti-torque; the Huey needs some left pedal in the hover) |
 | F / G / B | gun / rockets / bombs |
+| Insert or ; / Delete or ' | M130 dispenser: a pair of flares (decoys a missile) / chaff (breaks a radar lock); HOTAS: bind FLARES / CHAFF in the J panel |
 | R | winch (pick up the pod in a cave) |
 | M | command map: click the sea to sail the carrier, click an island to select it |
 | 1-4, 6 | send drone, build AA gun, spare helicopter, Tomcat escort (CAP over the selected island, else over the ALBATROSS), SKY CARRIER refit |
@@ -77,6 +78,12 @@ update it. The launcher lives in `%LOCALAPPDATA%\ThrustZarch` (log: `launcher.lo
 | PgUp / PgDn, Home | throttle twist grip (idle detent ... full open), starter (hold to 40% N1) |
 | U / N / O / L | hydraulic control, landing light, fire extinguisher, call logistics (on the ground) |
 | Esc / P | menu: resume, call logistics, respawn on the carrier if stuck, cockpit FOV slider, quit |
+
+Radar warning: the Huey has an AN/APR-39 scope right of the pilot's instruments (a green strobe toward each radar painting
+you, longer as its lock builds) with LOCK / MISSILE / LASER lamps and the M130's FLARE / CHAFF counters; the Hornet has an
+RWR scope right of the UFC (threat letters: 8 the TALON truck, L the LANCE, W a WASP, A other guns, M a missile) and the
+lamps and ALE-39 counters left of it. Outside the cockpit a small scope with LOCK / MISSILE LAUNCH / LASER shows top left
+while anything tracks you. Flares and chaff rearm on the carrier and friendly pads.
 
 The Huey spawns hot at flight idle and rolls the throttle on by itself. With `?cold` it starts cold and dark: BAT and MAIN FUEL on, throttle to the idle detent (PgUp), hold the starter (Home) to 40% N1 (light-off at ~12%), let it reach idle (~70% N1), then throttle full open to 6600 rpm. The cockpit switches (battery, generator, inverter, main fuel, governor AUTO/EMER, hydraulic control, force trim, low rpm audio, starter, master caution) are clickable. To autorotate: collective down to keep 324 rpm, 70 kt, flare at ~100 ft, cushion with the collective.
 
@@ -91,6 +98,7 @@ The Huey spawns hot at flight idle and rolls the throttle on by itself. With `?c
 | . | wheel brakes (toe brakes on the pedals) |
 | F / X / mouse, R, B | gun, A/A missiles (press again to fire), A/G bombs with CCIP (press again to drop) |
 | , / I / U / N | master arm / engines / canopy / lights |
+| Insert or ; / Delete or ' | ALE-39: a pair of flares / two chaff (HOTAS: FLARES / CHAFF, default buttons 13 / 14 on a stick) |
 | hold Backspace | eject |
 | V, mouse wheel, hat | cockpit or chase view, zoom, look around |
 | J | controls panel: live view of every axis and button, bind and calibrate HOTAS / pedals |
@@ -144,6 +152,7 @@ Compressor stall (a bang, the RPM rolls back, TIT climbs, L / R INLET on the cau
 | L, Shift+L | check the magazine, check the chamber (the HUD only knows what you checked) |
 | 1 2 3, mouse wheel | rifle / LAW / pistol, cycle (Shift+digit: the war commands) |
 | G | throw an M67 frag (4.5 s fuse; M203 on / off on the grenadier's rifle) |
+| Shift+G (or ; / ') | throw an M18 smoke grenade: after ~1.5 s it pours coloured smoke for a minute; thick smoke hides you from the RUNAWAY guns' lock and stops the LANCE beam |
 | N | bipod (M60) |
 | Tab (or I), H | GEAR screen, HEALTH screen (the mouse is released; Esc closes) |
 | F | search a crate, a pile of dropped kit or a body; on a friendly pad or the carrier deck: rearm and resupply |

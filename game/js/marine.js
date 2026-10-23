@@ -22,6 +22,7 @@ import { ITEMS } from './units/infantry/items.js';
 import { fragmentHits, REGION } from './units/infantry/medical.js';
 import { createInvUI } from './units/infantry/invui.js';
 import { createMedUI, createMedHud, createVisionFX, FEEDTXT } from './units/infantry/medui.js';
+import { addSmoke } from './units/defence/cm.js';   // ngc/cmpolish: M18 smoke blocks sight lines and the LANCE beam
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const SENS = 0.0022;   // mouse: rad per pixel (as foot.js)
@@ -265,6 +266,7 @@ export function createMarine(ctx) {
     if (Mr.ui) return true;   // the screens have the keyboard
     if (MS.dead) return false;
     const A = { KeyB: 'mode', KeyO: 'charge', KeyU: 'fa', PageUp: 'sightUp', PageDown: 'sightDown', BracketRight: null };
+    if ((code === 'KeyG' && e?.shiftKey) || code === 'Semicolon' || code === 'Quote') { throwGrenade('smoke'); return true; }   // CM: M18 smoke (Shift+G, or the aircraft's countermeasure keys)
     if (code === 'KeyG') { if (R.carrier && R.carrier.gl) presses.push('gl'); else throwGrenade(); return true; }   // M203 on / off, or throw an M67
     if (code in A && A[code]) { presses.push(A[code]); return true; }
     if (code === 'KeyT') { presses.push(e?.shiftKey ? 'remedial' : 'ia'); return true; }
@@ -539,11 +541,20 @@ export function createMarine(ctx) {
   // Game level: thrown at ~14 m/s along the view (a little lofted), 4.5 s fuse (FM 3-23.30: 4-5.5 s), bounces and
   // rolls, then MEDINV's fragment table for anyone near (him too) and war.blast for the war's units.
   const grenades = [], grenGeo = new THREE.SphereGeometry(0.045, 8, 6).scale(1, 1.25, 1), grenMat = new THREE.MeshLambertMaterial({ color: 0x4d5636 });
-  function throwGrenade() {
+  // CM (ngc/cmpolish): kind 'smoke' throws an M18 from the rig instead: it pops after ~1.5 s and pours coloured smoke for
+  // its burn time (items.js: 60 s; FM 3-23.30: 50-90 s); cm.js turns the plume into sight-blocking spheres
+  const M18_COL = { green: [0.42, 0.62, 0.36], red: [0.78, 0.3, 0.26], yellow: [0.85, 0.78, 0.3], violet: [0.55, 0.38, 0.68] };
+  const smokeGeo = new THREE.CylinderGeometry(0.032, 0.032, 0.145, 10), smokeMat = new THREE.MeshLambertMaterial({ color: 0x5c6448 });
+  function throwGrenade(kind = 'frag') {
     if (MS.dead || W.swim || W.ladder) return;
-    const it = I.find(MS.inv, o => o.id === 'm67');
-    if (!it) { say('NO GRENADES', 1.2); return; }
+    const smoke = kind === 'smoke', it = I.find(MS.inv, o => smoke ? !!ITEMS[o.id]?.throwable?.smoke : o.id === 'm67');
+    if (!it) { say(smoke ? 'NO SMOKE GRENADES' : 'NO GRENADES', 1.2); return; }
     I.detach(it);
+    if (smoke) {
+      const T = ITEMS[it.id].throwable, cp = Math.cos(S.camPitch + 0.25), d = [-Math.sin(S.camYaw) * cp, Math.sin(S.camPitch + 0.25), -Math.cos(S.camYaw) * cp], v = 13;
+      const g = { smoke: T, x: S.eye.x + d[0] * 0.4, y: S.eye.y + 0.1, z: S.eye.z + d[2] * 0.4, vx: d[0] * v + (W.vx || 0), vy: d[1] * v, vz: d[2] * v + (W.vz || 0), fuse: T.fuseS ?? 1.5, burn: T.burnS ?? 60, mesh: new THREE.Mesh(smokeGeo, smokeMat) };
+      scene.add(g.mesh); grenades.push(g); A()?.mech('pin'); say(`SMOKE OUT  -  M18 ${String(T.smoke).toUpperCase()}`, 1.2); Mr.stats.smokes = (Mr.stats.smokes || 0) + 1; return g;
+    }
     const cp = Math.cos(S.camPitch + 0.25), d = [-Math.sin(S.camYaw) * cp, Math.sin(S.camPitch + 0.25), -Math.cos(S.camYaw) * cp], v = 14;
     const g = { x: S.eye.x + d[0] * 0.4, y: S.eye.y + 0.1, z: S.eye.z + d[2] * 0.4, vx: d[0] * v + (W.vx || 0), vy: d[1] * v, vz: d[2] * v + (W.vz || 0), fuse: 4.5, mesh: new THREE.Mesh(grenGeo, grenMat) };
     scene.add(g.mesh); grenades.push(g); A()?.mech('pin'); say('FRAG OUT', 1);
@@ -555,7 +566,13 @@ export function createMarine(ctx) {
       g.vy -= 9.81 * dt; g.x += g.vx * dt; g.y += g.vy * dt; g.z += g.vz * dt;
       const fl = surfH(g.x, g.z);
       if (g.y < fl + 0.05) { g.y = fl + 0.05; if (g.vy < 0) g.vy = -g.vy * 0.3; g.vx *= 0.6; g.vz *= 0.6; if (Math.abs(g.vy) < 0.5) g.vy = 0; }
-      g.mesh.position.set(g.x, g.y, g.z); g.mesh.rotation.x += dt * 8;
+      g.mesh.position.set(g.x, g.y, g.z); g.mesh.rotation.x += dt * (Math.hypot(g.vx, g.vz) > 0.3 ? 8 : 0);
+      if (g.smoke) {   // CM: an M18 - pops, then pours smoke until it burns out (the canister stays where it lies)
+        if (g.fuse <= 0 && !g.src) { g.src = addSmoke(g.x, g.y, g.z, { burn: g.burn, col: M18_COL[g.smoke.smoke] || M18_COL.green }); Mr.lastSmoke = g.src; sfx.noiseBurst?.(3000, 900, 0.5, 0.12 * Math.max(0.1, 1 - dist(g.x, g.y, g.z) / 60)); }
+        if (g.src) { g.src.x = g.x; g.src.y = g.y; g.src.z = g.z; }
+        if (g.fuse < -g.burn - 2) { scene.remove(g.mesh); grenades.splice(i, 1); }
+        continue;
+      }
       if (g.fuse > 0) continue;
       scene.remove(g.mesh); grenades.splice(i, 1); Mr.stats.booms = (Mr.stats.booms || 0) + 1; Mr.lastBoom = { x: g.x, y: g.y, z: g.z };
       const wet = ctx.terrainH(g.x, g.z) < 0 && g.y < 0.3 && GR.deckH(g.x, g.z) < -1e8;

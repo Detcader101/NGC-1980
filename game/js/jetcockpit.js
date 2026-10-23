@@ -11,6 +11,7 @@
 //   extinguish), master caution, canopy, lights, emergency jettison, eject handle, DDI page buttons.
 import * as THREE from 'three';
 import { KT, FT, LB, HORNET, DECKOPS } from './jetfm.js';
+import { drawRwr } from './units/defence/cm.js';   // ngc/cmpolish: the radar warning scope
 
 export const JEYE = new THREE.Vector3(0, 0.98, -4.35);
 const HUD = { z: -5.1, cy: 1.0, hw: 0.15, hh: 0.135, W: 600, H: 540 };   // ~22° wide from the eye
@@ -95,6 +96,9 @@ export function buildJetCockpit() {
   const ampcd = disp(0.155, 0.155, 380, 380, 0, -0.14), ufc = disp(0.2, 0.11, 400, 220, 0, 0.19);
   const ifei = disp(0.14, 0.08, 336, 192, -0.2, -0.205), stby = disp(0.14, 0.14, 300, 300, 0.205, -0.205);
   const caut = disp(0.1, 0.13, 200, 260, 0.41, 0.15), gearL = disp(0.08, 0.06, 160, 120, -0.41, -0.2);
+  // CM (ngc/cmpolish): the RWR azimuth scope right of the UFC (threat letters by bearing, ALR-style), and left of it the
+  // threat warning lamps (LOCK / LAUNCH / LASER) with the ALE-39 FLARE / CHAFF counters
+  const rwrD = disp(0.1, 0.1, 200, 200, 0.25, 0.215), thrD = disp(0.17, 0.1, 340, 200, -0.235, 0.215);
   // HUD combiner glass and its symbology
   const hud = canvasTex(HUD.W, HUD.H);
   const hudMesh = new THREE.Mesh(new THREE.PlaneGeometry(HUD.hw * 2, HUD.hh * 2), new THREE.MeshBasicMaterial({ map: hud.tex, transparent: true, depthWrite: false, toneMapped: false }));
@@ -178,11 +182,11 @@ export function buildJetCockpit() {
     c.fillStyle = '#2b3036'; c.fillRect(0, 0, W, H);
     c.strokeStyle = '#4b5258'; c.lineWidth = 3; c.strokeRect(4, 4, W - 8, H - 8);
     const bez = (cx, cy, s) => { c.fillStyle = '#16181b'; c.fillRect(px(cx - s / 2), py(cy + s / 2), s * 1000, s * 1000); c.strokeStyle = '#555c62'; c.strokeRect(px(cx - s / 2), py(cy + s / 2), s * 1000, s * 1000); };
-    bez(-0.255, 0.035, 0.19); bez(0.255, 0.035, 0.19); bez(0, -0.14, 0.19); bez(-0.2, -0.205, 0.155); bez(0.205, -0.205, 0.155); bez(0, 0.19, 0.22);
+    bez(-0.255, 0.035, 0.19); bez(0.255, 0.035, 0.19); bez(0, -0.14, 0.19); bez(-0.2, -0.205, 0.155); bez(0.205, -0.205, 0.155); bez(0, 0.19, 0.22); bez(0.25, 0.215, 0.115); bez(-0.235, 0.215, 0.18);
     c.fillStyle = '#e8e4d0'; c.font = `bold 12px ${FONT}`; c.textAlign = 'center';
     const lab = (t, x, y) => c.fillText(t, px(x), py(y));
     lab('MASTER ARM', -0.41, 0.175); lab('ARM', -0.41, 0.155); lab('SAFE', -0.41, 0.075); lab('MASTER', -0.41, 0.285); lab('CAUTION', -0.41, 0.205);
-    lab('LDG GEAR', -0.41, 0.0); lab('HOOK', 0.41, 0.0); lab('EMER', 0.41, 0.285); lab('JETT', 0.41, 0.205); lab('CAUTION', 0.41, 0.235);
+    lab('RWR', 0.25, 0.152); lab('LDG GEAR', -0.41, 0.0); lab('HOOK', 0.41, 0.0); lab('EMER', 0.41, 0.285); lab('JETT', 0.41, 0.205); lab('CAUTION', 0.41, 0.235);
     lab('IFEI', -0.2, -0.282); lab('STBY', 0.205, -0.282); lab('LEFT DDI', -0.255, -0.07); lab('RIGHT DDI', 0.255, -0.07); lab('AMPCD', 0, -0.245);
     c.font = `bold 11px ${FONT}`;
     ['RDR', 'SMS', 'FCS', 'ENG', 'HSI'].forEach((pg, i) => { lab(pg, -0.255 - 0.06 + i * 0.03, 0.035 + 0.102); lab(pg, 0.255 - 0.06 + i * 0.03, 0.035 + 0.102); });
@@ -451,10 +455,24 @@ export function buildJetCockpit() {
     c.restore(); hud.tex.needsUpdate = true;
   }
 
+  // CM: threat lamps + dispenser counters (redrawn only when something changes)
+  let thrKey = '';
+  function drawThreat(S) {
+    const R = S.rwr, d = S.cm, bl = (performance.now() % 400) < 220, pw = S.power !== false;
+    const lk = pw && R && R.locked && !R.launch, ln = pw && R && R.launch && bl, lz = pw && R && R.laser;
+    const k = `${lk}${ln}${lz}${pw}${d ? d.flare + ':' + d.chaff + ':' + d.queue.length : ''}`; if (k === thrKey) return; thrKey = k;
+    const c = thrD.ctx; c.fillStyle = '#0d0f11'; c.fillRect(0, 0, 340, 200);
+    const lampAt = (x, y, label, on, col, off) => { c.fillStyle = on ? col : off; c.fillRect(x, y, 104, 46); c.strokeStyle = '#000'; c.lineWidth = 3; c.strokeRect(x, y, 104, 46); txt(c, label, x + 52, y + 31, on ? '#111' : '#5a5d56', 20, 'center'); };
+    lampAt(6, 8, 'LOCK', lk, '#ffb020', '#2a2008'); lampAt(118, 8, 'LAUNCH', ln, '#ff3020', '#3a0a08'); lampAt(230, 8, 'LASER', lz, '#40e0ff', '#08262c');
+    c.fillStyle = '#020a04'; c.fillRect(6, 70, 328, 124); c.strokeStyle = '#3c4440'; c.strokeRect(6, 70, 328, 124);
+    if (pw && d) { txt(c, 'ALE-39', 170, 98, PAL.dim, 18, 'center'); txt(c, `FLR ${String(d.flare).padStart(2, '0')}`, 90, 150, d.flare ? PAL.fg : PAL.amb, 34, 'center'); txt(c, `CHF ${String(d.chaff).padStart(2, '0')}`, 250, 150, d.chaff ? PAL.fg : PAL.amb, 34, 'center'); if (d.queue.length) txt(c, 'DISPENSING', 170, 184, PAL.amb, 16, 'center'); }
+    thrD.tex.needsUpdate = true;
+  }
+
   // ---------------------------------------------------------------- per frame
   let t = 0, slot = 0, artKey = '', mcFlash = 0;
   return {
-    group: g, hitBoxes: hits, PAGES,
+    group: g, hitBoxes: hits, PAGES, cmState: () => thrKey,   // CM: lamp / counter state, for tests
     labelOf(id) { const h = hits.find(o => o.userData.sw === id); return h ? h.userData.label : id; },
     press(id) {
       if (id.startsWith('ddiL:')) page.L = id.slice(5); else if (id.startsWith('ddiR:')) page.R = id.slice(5);
@@ -488,6 +506,7 @@ export function buildJetCockpit() {
       if (S.hover) { const h = hits.find(o => o.userData.sw === S.hover); if (h) { h.updateWorldMatrix(true, false); g.updateWorldMatrix(true, false); hov.visible = true; hov.matrixAutoUpdate = false; h.geometry.computeBoundingBox(); const bb = h.geometry.boundingBox; hov.matrix.copy(g.matrixWorld).invert().multiply(h.matrixWorld).multiply(new THREE.Matrix4().makeScale(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z)); } }
       // displays: HUD every frame, the rest round-robin at ~15 Hz each
       drawHUD(J, S);
+      if (S.rwr) { drawThreat(S); if (slot % 2) { const f = J.forward(_w); drawRwr(rwrD.ctx, 200, S.rwr, Math.atan2(f.x, -f.z), t, 'alr', S.power !== false); rwrD.tex.needsUpdate = true; } }   // CM
       slot = (slot + 1) % 4;
       if (slot === 0) drawDDI(ddiL, 'L', S, J); else if (slot === 1) drawDDI(ddiR, 'R', S, J); else if (slot === 2) drawMap(S, J);
       else { drawIFEI(S, J); drawStby(S, J); drawCaut(S); drawGearLights(J); const k = `${S.mode}${S.arm}${S.ufc}`; if (k !== artKey) { artKey = k; drawUFC(S, J); } }

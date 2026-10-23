@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Paratrooper Poses</title>
+<script type="importmap">{"imports":{"three":"../vendor/three.module.min.js"}}</script>
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#9db9d4;font:12px Consolas,monospace}canvas{display:block}#info{position:fixed;left:8px;top:6px;color:#023;text-shadow:0 0 3px #fff}</style>
+</head><body><div id="info">C-130 jumpers (INFANTRY's Marine in the T-10 harness): stand, door, exit, canopy, plf, run, work | drag: orbit, wheel: zoom | ?cam=yaw,pitch,dist,tx,ty,tz</div>
+<script type="module">
+// Preview of units/air/jumper.js: every pose drop.js uses, side by side, and one man under his MC1-1.
+import * as THREE from 'three';
+import { buildParatrooper, buildMC1Canopy } from '../js/units/air/jumper.js';
+const Q = new URLSearchParams(location.search);
+const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(devicePixelRatio); document.body.prepend(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x9db9d4);
+scene.add(new THREE.HemisphereLight(0xcfe6ff, 0x4a5a34, 0.9));
+const sun = new THREE.DirectionalLight(0xfff0d0, 1.2); sun.position.set(0.5, 1, 0.8); scene.add(sun);
+scene.add(new THREE.Mesh(new THREE.PlaneGeometry(60, 60).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x5f6a55 })));
+const camera = new THREE.PerspectiveCamera(35, 1, 0.05, 400);
+const poses = ['stand', 'door', 'exit', 'canopy', 'plf', 'run', 'work'], men = [];
+poses.forEach((p, i) => {
+  const r = buildParatrooper({ seed: i % 4 }); r.pose(p === 'run' || p === 'work' ? 'stand' : p); r.setKit(p !== 'run');
+  if (p === 'run') { r.legs[0].rotation.x = 0.6; r.legs[1].rotation.x = -0.6; r.arms[0].rotation.x = -0.5; r.arms[1].rotation.x = 0.5; }
+  if (p === 'work') { r.body.rotation.x = 0.35; r.arms[0].rotation.x = -1.2; r.arms[1].rotation.x = -1.6; }
+  r.group.position.set((i - 3) * 1.4, p === 'canopy' ? 0.3 : 0, 0); r.group.rotation.y = 0.5; scene.add(r.group); men.push(r);
+});
+const flier = buildParatrooper({ seed: 1 }), canopy = buildMC1Canopy(); flier.group.add(canopy.group); flier.pose('canopy'); flier.group.position.set(9, 3, -6); scene.add(flier.group);
+window.__J = { men, flier };
+const cam = { yaw: 0.25, pitch: 0.12, dist: 12, t: new THREE.Vector3(0, 1.0, 0) };
+if (Q.get('cam')) { const [y, p, d, x, yy, z] = Q.get('cam').split(',').map(Number); Object.assign(cam, { yaw: y, pitch: p, dist: d }); cam.t.set(x || 0, yy || 0, z || 0); }
+let drag = null;
+renderer.domElement.addEventListener('pointerdown', e => drag = { x: e.clientX, y: e.clientY });
+addEventListener('pointerup', () => drag = null);
+addEventListener('pointermove', e => { if (!drag) return; cam.yaw -= (e.clientX - drag.x) * 0.006; cam.pitch = Math.max(-1.5, Math.min(1.5, cam.pitch + (e.clientY - drag.y) * 0.006)); drag.x = e.clientX; drag.y = e.clientY; });
+addEventListener('wheel', e => cam.dist *= Math.exp(e.deltaY * 0.001));
+function size() { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
+addEventListener('resize', size); size();
+let t = 0, last = performance.now();
+renderer.setAnimationLoop(now => {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now; t += dt;
+  canopy && flier && (flier.group.rotation.y = t * 0.2);
+  camera.position.set(Math.sin(cam.yaw) * Math.cos(cam.pitch), Math.sin(cam.pitch), Math.cos(cam.yaw) * Math.cos(cam.pitch)).multiplyScalar(cam.dist).add(cam.t);
+  camera.lookAt(cam.t); renderer.render(scene, camera);
+});
+</script></body></html>

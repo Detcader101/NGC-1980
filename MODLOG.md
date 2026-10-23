@@ -1541,3 +1541,84 @@ FIGURES table), mbttrack.js (M1A2 / T-90M on trackfm + road routes), lcacmodel.j
   a scene); the player's own ground vehicles as targets (only the active craft is a war target); road routes in the
   commander's plans (the zone roads are on cave islands only); MBT gun hits on our structures beyond AA sites; Marines
   don't fire at aircraft; no Marine medics / casualty evacuation; strider models in far LOD are hidden (not posed).
+## 2026-10-23 — NGC-1980 wave 2: countermeasures, cockpit warnings, C-130 jumpers, WASP balance (branch ngc/cmpolish)
+All game level (bible: "weapons stay at game level"): counters are game rules with game numbers, no seeker or radar
+physics. Files: game/js/units/defence/cm.js (new: the rules, the shared state, the dispensers, the RWR scope drawing
+and the chase-view cue), units/defence/brain.js (hooks), units/air/jumper.js (figure rewritten), units/air/rotary/rotary.js
+(WASP tune), game/dev/jumper.html, tools/scenes/countermeasures.mjs and waspbalance.mjs.
+- **Three counters, one per threat.** FLARES decoy missiles: every burning flare gets one roll against each missile
+  guiding on the player that has it within 60 deg of its nose and 160 m (62 %, 30 % once the missile is inside 45 m: late
+  flares rarely work); a decoyed missile steers at the flare and bursts there (inside 14 m it still throws 35 % of its
+  damage at you). CHAFF breaks a radar lock: when a cloud blooms within 80 m of the player, every RUNAWAY radar (TALON
+  guns and missiles, not the optical LANCE) tracking him within 320 m keeps a quarter of its lock and can't rebuild it
+  for 2.6 s (it also aborts a salvo); missiles get one 28 % roll at a cloud. SMOKE blocks sight: `cm.addSmoke` lays a
+  plume of spheres (one every 1.5 s, 2.5 -> 9 m radius over 6 s, drifting at 0.6 x the wind, 20 s each); the summed
+  chord x density along a line > 1 blocks the defence units' line of sight (lock, missile guidance), the LANCE beam
+  (on top of its own fx-puff test) and the WASPs' fire check. A plume blocks within ~2 s of the grenade popping.
+- **Dispensers** (`createDispenser`): the Huey's M130 (one 30-cartridge payload module on the left of the tail boom,
+  INFERRED placement: 18 flares + 12 chaff; a press drops a pair of flares or one chaff) and the Hornet's ALE-39 (30 + 30
+  in the aft fuselage; pairs). Keys Insert or ; = flares, Delete or ' = chaff; HOTAS actions FLARES / CHAFF (hotas.js
+  ACTIONS, stick defaults 12 / 13 zero-based, bindable in J). A pop and a candle hiss per cartridge; flares are a white-hot
+  core, a halo, sparks and the hanging white smoke arc; chaff a glitter of foil and a faint haze. Rearm a cartridge at a time
+  on the carrier deck and friendly pads (the Huey's `service()`, the Hornet's deck service); full again on a new
+  helicopter / new jet / new game. Counters in the weapons line.
+- **M18 smoke for the Marine**: Shift+G (or ; / ') throws an M18 from the rig (the items existed: green / red, 60 s burn);
+  it pops after 1.5 s and pours coloured smoke (half the puffs roll out low). The rifleman's and corpsman's loadouts carry
+  one M18 green (not the grenadier: his fighting load would pass the bench's 24 kg), resupply restocks one.
+- **Radar warning picture** (`RWR`, filled by brain.js every frame, published at the end of `defence.tick`): every unit
+  that sees and tracks the player (TALON 'T', LANCE 'L', other guns 'A', WASPs 'W' from rotary.js), its bearing, range
+  and lock fraction, every missile guiding on him ('M'). Huey: an AN/APR-39 style round scope right of the pilot's flight
+  instruments (green strobes toward each emitter, longer as the lock builds, the missile strobe flashing, a dot for the
+  laser) with LOCK (amber, any gun lock), MISSILE (red, flashing) and LASER (cyan) caption lamps and the M130 control
+  panel (FLARE / CHAFF windows, ARM lamp), all on DC power. Hornet: an RWR scope right of the UFC (ALR style: threat
+  letters by bearing, inner ring = locked / firing, a circle on locks, a diamond on the top threat) and left of the UFC
+  a LOCK / LAUNCH / LASER lamp row over the ALE-39 FLR / CHF counters. Outside the cockpits (chase / fixed views) a
+  small scope with LOCK / MISSILE LAUNCH / LASER / SEARCH and the counts shows top left while anything tracks you (1.5 s
+  hold). The lock / launch tones and the MISSILE LAUNCH feed line are the DEFENCE module's (unchanged); new feed lines
+  MISSILE DECOYED - FLARE / CHAFF.
+- **C-130 jumpers**: `buildParatrooper` is now INFANTRY's 17-bone Marine (soldiermodel.js `buildMarine`, no flak vest, no
+  rifle in hand) in the T-10 harness built on the bones: main lift webs and connectors, chest strap, the MC1-1 pack tray
+  with its stowed static line and yellow snap hook, the T-10 reserve with rip cord and D-rings, the saddle and leg straps,
+  the ALICE hung below the reserve, the M1950 weapons case down the left leg, the repair toolbox on its lowering line
+  under the canopy. Same contract for drop.js (unchanged): `body` is the spine (bends at the waist, legs stay), `arms` /
+  `legs` are the upper arm / thigh bones behind a small proxy, so drop.js's `.rotation.x` swings also bend the elbows and
+  knees (running looks like running). Poses stand / door / exit / canopy / plf. Each look (4 seeds x ERDL / OG-107) is
+  built once and cloned (the camouflage paint is per face; geometry and materials are shared). game/dev/jumper.html
+  shows every pose and one man under his MC1-1.
+- **WASP balance** (scenes/waspbalance.mjs, fast-forwarded in the real war; `war.rotary.waspTune` is live):
+  | | old (saucer numbers) | new |
+  |---|---|---|
+  | hit points / hit sphere | 3 / 2.8 m | 6 / 2.2 m |
+  | aim error | 0.025 rad flat | 0.03 + 0.0006 / m (0.09 rad at 100 m) |
+  | ambushers | 49 % by id, only picked the player up at 130-170 m: ~3 % lay in wait in practice | 35 %; they pick him up at 320 m when he flies their way: ~25 % lie in wait |
+  | 3 WASPs vs a hovering Huey | 100-170 hits / min (98 % of pulses) | 53-87 / min (50 %) |
+  | 3 WASPs vs a Huey circling at 25 m/s | 30-62 / min (55 %) | 26-33 / min (20-25 %) |
+  | 4-WASP raid on the ALBATROSS | mean life 14-16 s, 0-15 pulses | 13-19 s, 4-15 pulses |
+  The raid barely moves: the Sea Sparrow salvo (2 x 4 dmg) gets the first WASP at ~150 m whatever its hp (without the
+  missile boxes they live 27 s, without the close-in guns 19-25 s), and the WASPs' cyan pulses do nothing to a hull
+  anyway, so a raid on the carrier is a threat to what is on her deck. Not changed: the DEFENCE units' numbers
+  (defbalance.mjs keeps its checks). The door gun needs 6 hits now, an AIM-9 (9) still kills, the Marine's M193 ~27.
+  WASPs also show on the RWR (with line of sight) and smoke blocks their fire.
+- **Shared-file hooks**: main.js (import; `HUEY_CM_KEYS` / `cmH` / `cmPose` before `updateHeli`; Huey key routing one
+  line; HOTAS flare / chaff + `cmH.update` after the bomb code; `service()` rearms; three `cmH.reset()`; `heliPanel`
+  passes `rwr` / `cm`; the weapons line; the chase cue block in `updateHud`; `__G.cmH`, `__G.RWR`), hotas.js (two
+  ACTIONS + stick defaults), jetplay.js (dispenser, keys, buttons, service, weapons line, hudState), hueycockpit.js /
+  jetcockpit.js (the scopes, lamps, counters; `cmLamps` / `cmState()` for tests), marine.js (Shift+G smoke, the M18
+  throw and burn in `stepGrenades`), inventory.js (one line), invbridge.js (one line), rotary.js (tune, LOS, RWR).
+  war.js untouched (createDefence now owns the countermeasures).
+- **Tests**: countermeasures.mjs 13/13 (Huey: TALON on the APR-39 + LOCK lamp, missile on the picture, two flare pairs,
+  missile decoyed, chase cue up, chaff jams the lock; Hornet: LOCK lamp, two pairs, decoyed; Marine: smoke thrown,
+  LANCE loses sight, still hidden 4 s on). smoke 5/5, defencewar 5/5, drop.json 5/5, rescue.json 2/2 (one earlier run
+  lost the parked helicopter while the Hercules was inbound, before any jumper; passed twice since; cause not found),
+  dropflak 1/1, c130.mjs 5/5, wasp.mjs 3/3, jet.mjs 8/8, hueyhover.json 3/3, marine.mjs 15/15, aisim / playwar clean;
+  node: jetbench 24/24, jetfingerprint bit-identical, waspbench 13/13, waspmission 8/8, medinvbench 109/109, marinebench,
+  infantrybench 90/90, hotas self-test.
+- **Gotchas**: the RWR's LOCK lamp first followed the warning tone's mode 2 (the full missile lock, lock + lockExtra = 2.9 s
+  on a TALON) and stayed dark while the guns were already firing; it follows any gun lock now. A missile only showed on
+  the scope after its 0.25 s boost (it is added before the guidance step now). The test's first cockpit screenshot took
+  longer than the missile's flight at 3 fps headless: dispense first, photograph after. Setting the Marine's third-person
+  view before `foot.spawnAt` is undone by the spawn.
+- **Untested**: the sounds by ear (headless audio is muted); a real HOTAS on the new buttons (13 / 14 may not exist on
+  every stick: bind them in J); the flare / chaff numbers in a long real fight (only the scene's single engagements);
+  WASPs' ambush on a real player (fast-forwarded only); performance with many plumes (each is a handful of spheres and
+  ~14 puffs / s).

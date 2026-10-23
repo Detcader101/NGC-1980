@@ -1,90 +1,124 @@
 // 1980 US paratrooper (Marine force recon / Army airborne) and the MC1-1 steerable round canopy he jumps with.
-// The figure is deliberately a separate builder with a small rig contract, so the INFANTRY agent's soldier model can
-// replace it: drop.js only uses { group, body, legs[2], arms[2], pose(name, t), setKit(k) } from buildParatrooper().
+// The figure is INFANTRY's 17-bone Marine (units/infantry/soldiermodel.js: the shared skeleton, M1 helmet with the
+// Mitchell cover, ERDL or OG-107 utilities, ALICE belt and canteens) wearing the parachute harness, with the small rig
+// contract drop.js uses: { group, body, legs[2], arms[2], pose(name, t), setKit(k) } (ngc/cmpolish swapped the old
+// box figure for it; drop.js is unchanged).
 //
-// Kit (bible: M1 steel helmet, OG-107 / ERDL woodland, ALICE): M1 helmet with the ERDL-pattern cover and a chin strap,
-// ERDL leaf-pattern jungle utilities (or plain OG-107 sateen), black jump boots, the T-10 harness, the T-10 reserve on the
-// chest, the MC1-1 main in its pack tray on the back, the ALICE pack hung below the reserve, the M16A1 in its M1950
-// weapons case down the left side. Repair team: the ALICE carries the tools; the figure is 1.78 m tall.
+// Kit (bible: M1 steel helmet, OG-107 / ERDL woodland, ALICE): no flak vest for the jump, the T-10 harness (main lift
+// webs over the shoulders, chest strap, leg straps, the saddle), the T-10 reserve on the chest, the MC1-1 main in its
+// pack tray on the back, the ALICE pack hung below the reserve in front of the thighs, the M16A1 in its M1950 weapons
+// case down the left leg. Repair team: a toolbox below the reserve (it rides on the lowering line under the canopy).
 // Canopy (FM 3-21.220 / TM 10-1670-1: CONFIRMED): MC1-1 35 ft nominal diameter (10.7 m), 30 gores, olive drab nylon,
 // a TU-shaped cut-out of the rear gores for ~8 kt forward drive, two steering toggles on the rear risers; descent
 // ~18 ft/s at a 250 lb jumper (sea level), a 360 deg turn in ~9 s. Inflated diameter ~0.7 x nominal = 7.5 m (INFERRED);
 // lines 25 ft (7.6 m) from the skirt to the connector links (INFERRED from the T-10 family).
 // Frame: +y up, the jumper faces -z, origin between his feet.
 import * as THREE from 'three';
+import { buildMarine } from '../infantry/soldiermodel.js';
+import { Kit, KITMAT, CAMO, COL } from '../infantry/meshkit.js';
 
 const M = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, flatShading: true, ...o });
 const boxG = (w, h, d, x = 0, y = 0, z = 0) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
 const mesh = (geo, mat, parent, name) => { const m = new THREE.Mesh(geo, mat); if (name) m.name = name; parent && parent.add(m); return m; };
 const group = (parent, name, x = 0, y = 0, z = 0) => { const o = new THREE.Group(); o.name = name; o.position.set(x, y, z); parent && parent.add(o); return o; };
 
-// ERDL leaf pattern (green-dominant 1980 issue) as a small canvas texture shared by every jumper
-let erdlTex = null;
-function erdl() {
-  if (erdlTex) return erdlTex;
-  const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
-  x.fillStyle = '#6b7448'; x.fillRect(0, 0, 64, 64);
-  const blot = (col, n, s) => { x.fillStyle = col; for (let i = 0; i < n; i++) { x.beginPath(); const cx = Math.random() * 64, cy = Math.random() * 64; x.ellipse(cx, cy, s * (0.5 + Math.random()), s * (0.3 + Math.random() * 0.5), Math.random() * 3, 0, 7); x.fill(); } };
-  blot('#3f4a2b', 14, 6); blot('#7a6a45', 9, 4); blot('#1f2219', 10, 2.5);
-  erdlTex = new THREE.CanvasTexture(c); erdlTex.wrapS = erdlTex.wrapT = THREE.RepeatWrapping; erdlTex.colorSpace = THREE.SRGBColorSpace; erdlTex.magFilter = THREE.NearestFilter;
-  return erdlTex;
+// ------------------------------------------------------------------ the figure
+// Building a Marine paints every face (camouflage noise), so each look (seed x utilities) is built once as a template
+// and every jumper is a clone of it (geometry and materials shared).
+const TEMPLATES = new Map();
+const HARNESS = 0x4b4f33, TRAY = 0x4a5233, RESERVE = 0x56603c, METAL = 0x7a7e80, TOOL = 0x7c2c1c;
+function template(seed, og) {
+  const key = `${seed}:${og ? 1 : 0}`;
+  if (TEMPLATES.has(key)) return TEMPLATES.get(key);
+  const sk = buildMarine({ seed, camo: og ? 'og107' : 'erdl', vest: false, weapon: null, detail: 'low' }), B = sk.bones;
+  const put = (bone, name, build) => { const k = new Kit(); build(k); const m = k.mesh(KITMAT.lambert(), name); m.castShadow = false; B[bone].add(m); return m; };
+  const web = CAMO.od(HARNESS), od = CAMO.od(0x575a3b);
+  // chest: main lift webs over the shoulders down the front and back, the chest strap, the reserve's tie-down,
+  // the MC1-1 main pack tray on the back with its static line stowed across it
+  put('chest', 'harness', k => {
+    for (const s of [-1, 1]) {
+      k.box(0.05, 0.36, 0.014, web, [s * 0.095, 0.06, -0.122]); k.box(0.05, 0.3, 0.014, web, [s * 0.095, 0.08, 0.12]);
+      k.box(0.05, 0.014, 0.25, web, [s * 0.095, 0.245, 0]);                                   // over the shoulder
+      k.box(0.04, 0.03, 0.03, METAL, [s * 0.095, 0.17, -0.135]);                                // canopy release / connector
+    }
+    k.box(0.3, 0.035, 0.014, web, [0, 0.13, -0.128]);                                           // chest strap
+    k.box(0.4, 0.5, 0.2, TRAY, [0, 0.03, 0.22]); k.box(0.36, 0.06, 0.205, CAMO.od(0x3f4429), [0, 0.22, 0.22]);   // main pack + top flap
+    k.box(0.04, 0.4, 0.03, 0xd8d0b0, [0.12, 0.05, 0.33], [0, 0, 0.1]);                         // static line in its retainer bands
+    k.box(0.05, 0.05, 0.03, 0xffd040, [0.13, 0.27, 0.33]);                                     // static line snap hook (yellow)
+  });
+  // spine (stomach): the T-10 reserve on its D-rings, the rip-cord handle
+  put('spine', 'reserve', k => {
+    k.box(0.34, 0.2, 0.16, RESERVE, [0, 0.02, -0.2]); k.box(0.3, 0.03, 0.17, CAMO.od(0x4a5233), [0, 0.13, -0.2]);
+    k.box(0.06, 0.03, 0.03, METAL, [0.12, 0.02, -0.29]);                                      // rip cord grip
+    for (const s of [-1, 1]) k.box(0.03, 0.03, 0.05, METAL, [s * 0.16, 0.06, -0.13]);          // D-rings
+  });
+  // pelvis: the saddle and the ALICE pack hung below the reserve (H-harness), riding in front of the thighs
+  const alice = put('pelvis', 'alice', k => {
+    k.box(0.36, 0.05, 0.25, web, [0, -0.1, 0.02]);                                             // saddle
+    k.box(0.34, 0.34, 0.2, od, [0, -0.28, -0.27]); k.box(0.3, 0.08, 0.21, CAMO.od(0x4b4f33), [0, -0.12, -0.27], [-0.15, 0, 0]);   // ALICE + flap
+    for (const s of [-1, 1]) k.box(0.03, 0.22, 0.03, web, [s * 0.12, -0.05, -0.19]);           // its lowering line attachment
+  });
+  // thighs: leg straps; the M1950 weapons case down the outside of the left leg
+  for (const side of ['L', 'R']) put('thigh' + side, 'legstrap', k => {
+    k.cyl(0.092, 0.088, 0.04, web, [0, -0.06, 0], 'y', 8);
+    if (side === 'L') { k.box(0.1, 0.8, 0.13, CAMO.od(0x5a5d3c), [-0.12, -0.35, 0.0]); k.box(0.11, 0.04, 0.14, web, [-0.12, -0.05, 0]); k.box(0.11, 0.04, 0.14, web, [-0.12, -0.55, 0]); }
+  });
+  TEMPLATES.set(key, sk);
+  return sk;
 }
-let MATS = null;
-function mats() {
-  if (MATS) return MATS;
-  const t = erdl();
-  return MATS = {
-    erdl: new THREE.MeshLambertMaterial({ map: t, flatShading: true }), og: M(0x56603d), skin: M(0xc79b78), skin2: M(0x8a5f43),
-    helmet: new THREE.MeshLambertMaterial({ map: t, color: 0xb8c0a0, flatShading: true }), boot: M(0x161616), web: M(0x4d5634),
-    reserve: M(0x5a6440), pack: M(0x4a5233), metal: M(0x777b7e), black: M(0x1c1c1c), tool: M(0x7c2c1c), alice: M(0x4f5a38), strap: M(0x3a4128),
+const POSED = ['pelvis', 'spine', 'chest', 'neck', 'head', 'upperArmL', 'forearmL', 'handL', 'upperArmR', 'forearmR', 'handR', 'thighL', 'shinL', 'footL', 'thighR', 'shinR', 'footR'];
+let _n = 0;
+// a stand-in rotation with a settable x: drop.js swings legs / arms by `.rotation.x`; the knee and elbow follow
+function limb(upper, lower, kind) {
+  const rot = {
+    get x() { return upper.rotation.x; },
+    set x(v) {
+      upper.rotation.x = v;
+      if (kind === 'leg') lower.rotation.x = -0.12 - 0.9 * Math.max(0, -v) - 0.25 * Math.max(0, v);   // knee bends as the leg swings back
+      else lower.rotation.x = v < -2 ? 0.25 : v < -0.6 ? 0.5 : 0.35 + 0.6 * Math.max(0, v);           // elbows: bent running, straighter overhead
+    },
+    get y() { return upper.rotation.y; }, set y(v) { upper.rotation.y = v; },
+    get z() { return upper.rotation.z; }, set z(v) { upper.rotation.z = v; },
+    set(x, y, z) { upper.rotation.set(x, y, z); return rot; },
   };
+  return { rotation: rot, bone: upper };
 }
-
-// the figure: legs and arms pivot at hip and shoulder; body pivots at the hips (so it can tip into the exit position)
 export function buildParatrooper(o = {}) {
-  const K = mats(), shirt = o.og ? K.og : K.erdl, g = group(null, 'paratrooper');
-  const body = group(g, 'body', 0, 0.94, 0);   // hip pivot
-  const add = (geo, m, p = body, n) => mesh(geo, m, p, n);
-  // torso + harness
-  add(boxG(0.4, 0.58, 0.24, 0, 0.3, 0), shirt, body, 'torso');
-  for (const s of [-1, 1]) add(boxG(0.06, 0.62, 0.27, s * 0.12, 0.3, 0), K.web);                      // main lift webs
-  add(boxG(0.42, 0.06, 0.27, 0, 0.12, 0), K.web); add(boxG(0.42, 0.05, 0.27, 0, 0.42, 0), K.web);     // chest strap, waist band
-  add(boxG(0.06, 0.06, 0.06, 0, 0.2, -0.17), K.metal);                                                 // quick release box
-  // main pack tray on the back, reserve on the chest, ALICE below it, weapons case left
-  add(boxG(0.38, 0.52, 0.2, 0, 0.32, 0.22), K.pack, body, 'mainPack');
-  add(boxG(0.34, 0.2, 0.16, 0, 0.14, -0.21), K.reserve, body, 'reserve'); add(boxG(0.06, 0.03, 0.03, 0.12, 0.14, -0.3), K.metal);
-  const alice = add(boxG(0.36, 0.36, 0.2, 0, -0.18, -0.27), K.alice, body, 'alice'); add(boxG(0.3, 0.06, 0.04, 0, -0.06, -0.38), K.strap);
-  add(boxG(0.09, 0.85, 0.12, -0.26, -0.12, 0.02), K.web, body, 'weaponsCase');
-  // head: face, M1 helmet with the ERDL cover, chin strap; arms
-  const head = group(body, 'head', 0, 0.68, 0);
-  add(boxG(0.17, 0.2, 0.19, 0, 0, 0), K.skin, head); add(boxG(0.1, 0.04, 0.02, 0, -0.02, -0.1), K.skin2, head);
-  add(new THREE.SphereGeometry(0.16, 9, 5, 0, Math.PI * 2, 0, 1.5).scale(1, 0.85, 1.08).translate(0, 0.04, 0.0), K.helmet, head, 'helmet');
-  add(new THREE.CylinderGeometry(0.168, 0.172, 0.03, 10).translate(0, 0.03, 0.01), K.helmet, head);   // rim
-  for (const s of [-1, 1]) add(boxG(0.01, 0.16, 0.025, s * 0.09, -0.06, 0), K.web, head);
-  const arms = [], legs = [];
-  for (const s of [-1, 1]) {
-    const a = group(body, 'arm', s * 0.25, 0.53, 0);
-    add(boxG(0.12, 0.3, 0.13, 0, -0.15, 0), shirt, a); add(boxG(0.1, 0.28, 0.11, 0, -0.43, 0), shirt, a); add(boxG(0.09, 0.09, 0.1, 0, -0.62, 0), K.skin, a);
-    arms.push(a);
-    const l = group(g, 'leg', s * 0.11, 0.92, 0);
-    add(boxG(0.16, 0.44, 0.18, 0, -0.22, 0), shirt, l); add(boxG(0.14, 0.4, 0.15, 0, -0.62, 0), shirt, l);
-    add(boxG(0.14, 0.12, 0.27, 0, -0.86, -0.04), K.boot, l);
-    legs.push(l);
-  }
+  const seed = o.seed ?? (_n++ % 4), T = template(seed, !!o.og);
+  const root = T.root.clone(true); root.name = 'paratrooper';
+  const B = {}; root.traverse(c => { if (POSED.includes(c.name)) B[c.name] = c; });
   // repair kit: a toolbox strapped below the reserve (it rides on the lowering line after the canopy opens)
-  const kit = group(body, 'kit', 0, -0.42, -0.3); add(boxG(0.36, 0.18, 0.18, 0, 0, 0), K.tool, kit); add(boxG(0.3, 0.03, 0.04, 0, 0.1, 0), K.black, kit);
-  const rig = { group: g, body, head, arms, legs, kit, alice };
+  const kit = group(B.pelvis, 'kit', 0, -0.52, -0.32);
+  mesh(boxG(0.36, 0.18, 0.18), M(TOOL), kit); mesh(boxG(0.3, 0.03, 0.04, 0, 0.1, 0), M(0x1c1c1c), kit);
+  const line = mesh(boxG(0.01, 1, 0.01, 0, 0.5, 0), M(0xc8c8b8), kit, 'loweringLine'); line.visible = false;
+  const alice = root.getObjectByName('alice');
+  const arms = [limb(B.upperArmL, B.forearmL, 'arm'), limb(B.upperArmR, B.forearmR, 'arm')], legs = [limb(B.thighL, B.shinL, 'leg'), limb(B.thighR, B.shinR, 'leg')];
+  // body: the spine bends at the waist (the legs stay where they are), as the old figure's hip pivot did
+  const rig = { group: root, body: B.spine, head: B.head, arms, legs, kit, alice, bones: B };
   // poses: stand (in the hold), door (in the door, hands on the edges), exit (tight body position: chin down, elbows in,
-  // hands on the reserve, feet together), canopy (hands up on the toggles / risers, feet and knees together), run, work
+  // hands on the reserve, feet together), canopy (hands up on the toggles / risers, feet and knees together), plf
+  // (the parachute landing fall), run and work are animated by drop.js on top of 'stand'
+  const E = (b, x, y = 0, z = 0) => B[b].rotation.set(x, y, z);
   rig.pose = (name, t = 0) => {
-    body.rotation.set(0, 0, 0); head.rotation.set(0, 0, 0);
-    for (const l of legs) l.rotation.set(0, 0, 0);
-    for (const a of arms) a.rotation.set(0, 0, 0);
-    kit.position.set(0, -0.42, -0.3);
-    if (name === 'door') { arms[0].rotation.set(-0.3, 0, 1.2); arms[1].rotation.set(-0.3, 0, -1.2); legs[0].rotation.x = -0.25; body.rotation.x = 0.15; }
-    else if (name === 'exit') { body.rotation.x = 0.35; head.rotation.x = 0.4; arms[0].rotation.set(-1.6, 0, -0.3); arms[1].rotation.set(-1.6, 0, 0.3); legs[0].rotation.x = legs[1].rotation.x = 0.25; }
-    else if (name === 'canopy') { arms[0].rotation.set(0, 0, -2.75); arms[1].rotation.set(0, 0, 2.75); legs[0].rotation.x = legs[1].rotation.x = -0.12; kit.position.set(0, -2.4, -0.1); }
-    else if (name === 'plf') { body.rotation.x = 0.5; legs[0].rotation.x = legs[1].rotation.x = -0.9; arms[0].rotation.set(-2.4, 0, -0.4); arms[1].rotation.set(-2.4, 0, 0.4); }
+    for (const n of POSED) B[n].rotation.set(0, 0, 0);
+    B.pelvis.position.set(0, 0.98, 0);
+    kit.position.set(0, -0.52, -0.32); line.visible = false;
+    if (name === 'stand') { E('upperArmL', 0.1, 0, -0.08); E('upperArmR', 0.1, 0, 0.08); E('forearmL', 0.35); E('forearmR', 0.35); E('shinL', -0.05); E('shinR', -0.05); }
+    else if (name === 'door') {   // crouched in the door, both hands outside on the trailing edge, eyes on the horizon
+      E('upperArmL', -0.4, 0, -1.25); E('upperArmR', -0.4, 0, 1.25); E('forearmL', 0.5); E('forearmR', 0.5);
+      E('spine', -0.12); E('thighL', 0.35); E('shinL', -0.5); E('thighR', 0.15); E('shinR', -0.3); B.pelvis.position.y = 0.93; E('head', -0.15);
+    } else if (name === 'exit') {   // tight body: chin on the chest, elbows in, hands on the ends of the reserve, feet together, knees bent
+      E('spine', 0.35); E('chest', 0.1); E('head', 0.45);
+      E('upperArmL', -0.35, 0, -0.22); E('upperArmR', -0.35, 0, 0.22); E('forearmL', 1.5, 0, 0.35); E('forearmR', 1.5, 0, -0.35);
+      E('thighL', 0.25); E('thighR', 0.25); E('shinL', -0.35); E('shinR', -0.35);
+    } else if (name === 'canopy') {   // hands up on the toggles, feet and knees together, the kit down on its lowering line
+      E('upperArmL', 0, 0, -2.75); E('upperArmR', 0, 0, 2.75); E('forearmL', 0.35); E('forearmR', 0.35);
+      E('thighL', 0.12); E('thighR', 0.12); E('shinL', -0.18); E('shinR', -0.18); E('footL', 0.35); E('footR', 0.35);
+      kit.position.set(0, -2.4, -0.1); line.visible = true; line.scale.y = 1.9;
+    } else if (name === 'plf') {   // feet and knees together, rolling onto the side: thighs back, body over, arms over the head
+      E('spine', 0.5); E('thighL', -0.9); E('thighR', -0.9); E('shinL', -0.6); E('shinR', -0.6);
+      E('upperArmL', -2.4, 0, -0.4); E('upperArmR', -2.4, 0, 0.4); E('forearmL', 0.6); E('forearmR', 0.6); B.pelvis.position.y = 0.6;
+    }
   };
   rig.setKit = k => { kit.visible = !!k; };
   rig.pose('stand');

@@ -13,6 +13,7 @@ export const ACTIONS = [
   { id: 'zoom', label: 'ZOOM VIEW (HOLD)' }, { id: 'wheelbrake', label: 'WHEEL BRAKES (HOLD)' }, { id: 'eject', label: 'EJECT (HOLD 1S)' },
   // TOMCAT: the wing sweep switch on the outboard throttle (no default buttons: bind them in the J panel)
   { id: 'sweepfwd', label: 'WING SWEEP FWD (HOLD, TOMCAT)' }, { id: 'sweepaft', label: 'WING SWEEP AFT (HOLD, TOMCAT)' }, { id: 'sweepauto', label: 'WING SWEEP AUTO (TOMCAT)' },
+  { id: 'flare', label: 'FLARES (COUNTERMEASURES)' }, { id: 'chaff', label: 'CHAFF (COUNTERMEASURES)' },   // ngc/cmpolish: Huey M130, Hornet ALE-39
   { id: 'lookhat', label: 'HAT = LOOK AROUND', setting: true },
 ];
 // axis functions: type ctr = centring (-1..1), thr = throttle (0..1), brk = toe brake (0..1 from its rest end)
@@ -30,7 +31,7 @@ const FN = Object.fromEntries(AXIS_FNS.map(f => [f.id, f]));
 const DZ = { roll: 0.04, pitch: 0.04, twist: 0.06, rudder: 0.06, rocker: 0.1 };
 // default buttons (0-based): HOTAS 4 / generic stick, and a standard-mapped pad (6/7 are the triggers = throttle)
 const DEF_BTN = {
-  stick: { fire: 0, pickle: 1, missile: 2, airbrake: 3, bomb: 4, gear: 5, flaps: 6, hook: 7, view: 8, zoom: 9, wheelbrake: 10, eject: 11 },
+  stick: { fire: 0, pickle: 1, missile: 2, airbrake: 3, bomb: 4, gear: 5, flaps: 6, hook: 7, view: 8, zoom: 9, wheelbrake: 10, eject: 11, flare: 12, chaff: 13 },
   gamepad: { fire: 0, missile: 1, bomb: 2, gear: 3, airbrake: 4, pickle: 5, view: 8, hook: 9, zoom: 10, flaps: 11 },
 };
 
