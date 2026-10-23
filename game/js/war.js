@@ -699,6 +699,7 @@ export function createWar(ctx) {
       g.cd = side === 1 ? 0.12 : 0.2;
       const sp = 140, e = side === 1 ? 0.02 : 0.05;
       shoot('ciws', side, gx, gy, gz, (ax / al + rnd(-e, e)) * sp, (ay / al + rnd(-e, e)) * sp, (az / al + rnd(-e, e)) * sp, 0.6);
+      g.mesh?.userData?.fireBeam?.(bd);   // NAVAL: a laser mount shows its beam
     } else {
       g.cd = side === 1 ? 0.7 : 1.1 + rnd(0.6) - Math.min(0.5, W.time / 900);
       const err = (best.player ? 7 : 5) * (bd / 100);
@@ -874,7 +875,11 @@ export function createWar(ctx) {
       if (t.cd <= 0) {
         t.cd = 6 + rnd(3);
         const dx = tgt.x - _v.x + rnd(-14, 14), dz = tgt.z - _v.z + rnd(-14, 14), d = Math.hypot(dx, dz), T = 2 + d / 70;   // flight time: a high arc that clears the hills between
-        shoot('shell', 2, _v.x, _v.y, _v.z, dx / T, (tgt.y + 6 - _v.y) / T + 0.5 * 9 * T, dz / T, T + 2);
+        const vy0 = (tgt.y + 6 - _v.y) / T + 0.5 * 9 * T;
+        shoot('shell', 2, _v.x, _v.y, _v.z, dx / T, vy0, dz / T, T + 2);
+        // NAVAL: the rails elevate to the shot and kick back; a cyan flare at the muzzle
+        const ud = t.mesh.userData; if (ud.barrels) ud.barrels.rotation.x = Math.atan2(vy0, d / T); ud.fire?.();
+        for (let i = 0; i < 8; i++) fx.add.spawn(_v.x + fwdX(b.yaw + t.mesh.rotation.y) * 13, _v.y + 1, _v.z + fwdZ(b.yaw + t.mesh.rotation.y) * 13, rnd(-4, 4), rnd(-1, 4), rnd(-4, 4), rnd(0.15, 0.35), 2, 0.5, .55, .95, 1, 1);
         fx.flash(_v.x + fwdX(b.yaw + t.mesh.rotation.y) * 8, _v.y + 1, _v.z + fwdZ(b.yaw + t.mesh.rotation.y) * 8, 2.5); fx.mix.spawn(_v.x, _v.y + 2, _v.z, 0, 3, 0, 3, 3, 9, .5, .5, .5, 0.5, -0.3, 1); boomAt(_v.x, _v.y, _v.z, 0.6);
       }
     }

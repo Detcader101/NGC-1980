@@ -37,7 +37,7 @@ export function localDeck(lx, lz) {
 }
 
 // ------------------------------------------------------------------------------------------------- hull
-function hullRings() {
+export function hullRings(dhf = deckHalf) {
   const rings = [];
   const zs = [57, 54, 48, 40, 28, 12, -4, -18, -28, -36, -42, -48, -53, -57, -60, -62.5, -64.5, -66];
   for (const z of zs) {
@@ -45,7 +45,7 @@ function hullRings() {
     let hb = 10.6;
     if (z < -18) { const t = Math.min(1, (-18 - z) / 42); hb = 10.6 * Math.sqrt(Math.max(0, 1 - t * t)) * (1 - 0.15 * t); }
     if (z > 30) hb = 10.6 - (z - 30) / 27 * 2.6;
-    const dh = deckHalf(z), ystem = z < -60 ? (-60 - z) / 6 * 6.8 : -4.2;   // the stem rakes forward: hull starts higher
+    const dh = dhf(z), ystem = z < -60 ? (-60 - z) / 6 * 6.8 : -4.2;   // the stem rakes forward: hull starts higher
     const hh = z < -36 ? Math.max(hb + 0.6, dh - 1.2) : Math.min(12.2, dh - 1.8);   // hangar side (enclosed bow flares out to the deck)
     const yb = z < -60 ? ystem : -4.2;
     const pts = [
@@ -58,20 +58,21 @@ function hullRings() {
   }
   return rings;
 }
-function buildHull(kit) {
-  const rings = hullRings();
+export function buildHull(kit, dhf = deckHalf, C = { hull: HAZE, dark: HAZE_D }, fantail = true) {
+  const rings = hullRings(dhf);
   for (const sd of [1, -1]) {
     const R = rings.map(r => r.pts.map(([x, y]) => [x * sd, y, r.z]));
     if (sd < 0) R.reverse();
-    kit.loft(R, HAZE);
+    kit.loft(R, C.hull);
   }
   // transom (stern plate) at z = 57: the ring outline closed
   const st = rings[0].pts, outline = [...st.map(([x, y]) => [x, y]), ...st.slice().reverse().map(([x, y]) => [-x, y])];
-  kit.add(new THREE.ShapeGeometry(new THREE.Shape(outline.map(([x, y]) => new THREE.Vector2(x, y)))), HAZE_D, T(0, 0, 57));
+  kit.add(new THREE.ShapeGeometry(new THREE.Shape(outline.map(([x, y]) => new THREE.Vector2(x, y)))), C.dark, T(0, 0, 57));
+  if (!fantail) return rings;
   // fantail: the flight deck overhang aft of the transom, with the stern gallery under it
-  kit.box(W, 0.55, 3.2, HAZE, 0, DECK - 0.27, 58.4);
-  kit.box(W - 4, 1.6, 0.3, HAZE_D, 0, 6.3, 57.2);
-  for (let x = -12; x <= 12; x += 4) kit.box(0.25, 1.6, 2.8, HAZE_D, x, 6.6, 58.4);
+  kit.box(W, 0.55, 3.2, C.hull, 0, DECK - 0.27, 58.4);
+  kit.box(W - 4, 1.6, 0.3, C.dark, 0, 6.3, 57.2);
+  for (let x = -12; x <= 12; x += 4) kit.box(0.25, 1.6, 2.8, C.dark, x, 6.6, 58.4);
   // deck edge: a thin lip all round (the deck mesh sits on top)
   return rings;
 }
@@ -79,7 +80,7 @@ function buildHull(kit) {
 // ------------------------------------------------------------------------------------------------- island
 // in the tower's frame: origin (TOWER_X, DECK, TOWER_Z); the bridge room (helm.js) is x +-2.4, y 9-13, z -5.75..3.75
 function buildIsland(kit, glow, sheet) {
-  kit.push(T(ALB.TOWER_X, DECK, ALB.TOWER_Z));
+  kit.push(T(ALB.TOWER_X, DECK, ALB.TOWER_Z)); glow.push(T(ALB.TOWER_X, DECK, ALB.TOWER_Z));
   const H = HAZE, HD = HAZE_D;
   kit.box(4.9, 3.2, 17.3, H, 0.15, 1.6, 0.15);                       // O-3 / O-4 levels
   kit.box(4.7, 3.2, 16.5, H, 0.15, 4.8, 0.25);                       // O-5 / O-6
@@ -128,7 +129,7 @@ function buildIsland(kit, glow, sheet) {
   for (const [zz, y] of [[-4, 8.9], [2.5, 8.9], [-1, 12.9]]) { sheet.place(rs, new THREE.Matrix4().multiplyMatrices(kit.M, T(2.58, y - 1.6, zz, 0, Math.PI / 2, 0)), 1.6, 3.2); sheet.place(rs, new THREE.Matrix4().multiplyMatrices(kit.M, T(-2.53, y - 1.6, zz + 1, 0, -Math.PI / 2, 0)), 1.6, 3.2); }
   // red obstruction lights on the mast, the masthead light
   for (const [x, y, z] of [[0.1, 30.9, -1.0], [-3.2, 25.3, -1.0], [3.4, 25.3, -1.0]]) glow.box(0.18, 0.18, 0.18, 0xff2a1a, x, y, z);
-  kit.pop();
+  kit.pop(); glow.pop();
 }
 
 // ------------------------------------------------------------------------------------------------- deck texture

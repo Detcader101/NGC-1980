@@ -67,7 +67,7 @@ export class Kit {
     const pos = [];
     for (let r = 0; r < rings.length - 1; r++) for (let k = 0; k < rings[r].length - 1; k++) {
       const a = rings[r][k], b = rings[r][k + 1], cc = rings[r + 1][k + 1], d = rings[r + 1][k];
-      pos.push(...a, ...b, ...cc, ...a, ...cc, ...d);
+      pos.push(...a, ...cc, ...b, ...a, ...d, ...cc);   // outward = (ring k -> k+1) x (ring r -> r+1)
     }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     return this.add(g, c);

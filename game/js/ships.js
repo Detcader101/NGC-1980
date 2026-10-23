@@ -2,6 +2,9 @@
 // buildings. Low-poly, flat-shaded, built from primitives. Local frame: +y up, the bow / nose points along -z.
 import * as THREE from 'three';
 import { buildAlbatross } from './units/naval/albatross.js';
+import { buildKraken } from './units/naval/kraken.js';
+import { buildLeviathan, LEV } from './units/naval/leviathan.js';
+import { buildContainerShip, BOX } from './units/naval/containership.js';
 
 const M = (c, o = {}) => new THREE.MeshPhongMaterial({ color: c, flatShading: true, shininess: 20, ...o });
 // a top-view outline drawn with y = local z; for a floor facing up after rotateX(-PI/2) the outline is mirrored in y
@@ -30,7 +33,7 @@ function deckTexture(side) {
 // { group, guns, dish, lamp, lights, teamM, tower, band } plus the new parts (mounts, crew, tick, localDeck).
 export function buildCarrier(side) {
   if (side === 1) return buildAlbatross(1, { buildTomcat });
-  return buildCarrierOld(side);
+  return buildKraken();
 }
 function buildCarrierOld(side) {
   const g = new THREE.Group(), { L, W, DECK } = CARRIER;
@@ -89,8 +92,9 @@ export function addLiftFans(parts) {
 }
 
 // ------------------------------------------------------------------------------------------- battleship
-export const BSHIP = { L: 96, W: 16, DECK: 5 };
-export function buildBattleship() {
+export const BSHIP = LEV;   // RW-9 LEVIATHAN (units/naval/leviathan.js): { group, turrets, guns } + mounts, tick, localDeck
+export function buildBattleship() { return buildLeviathan(); }
+function buildBattleshipOld() {
   const g = new THREE.Group(), { L, W, DECK } = BSHIP;
   const hullM = M(0x3e3a3a), darkM = M(0x1f1d1d), redM = M(0xcc2a1e, { emissive: 0x330806 });
   const sh = new THREE.Shape(); sh.moveTo(-W / 2, L / 2 - 6); sh.quadraticCurveTo(0, L / 2 + 2, W / 2, L / 2 - 6); sh.lineTo(W / 2, -L / 2 + 22); sh.lineTo(0, -L / 2 - 4); sh.lineTo(-W / 2, -L / 2 + 22); sh.closePath();
@@ -116,8 +120,9 @@ export function buildBattleship() {
 
 // ------------------------------------------------------------------------------------------- freighter
 // enemy supply ship: carries its islands' output to the KRAKEN
-export const FREIGHTER = { L: 46, W: 10, DECK: 3 };
-export function buildFreighter() {
+export const FREIGHTER = BOX;   // the autonomous container ship (units/naval/containership.js): { group, guns } + mounts, tick, localDeck
+export function buildFreighter() { return buildContainerShip(); }
+function buildFreighterOld() {
   const g = new THREE.Group(), { L, W, DECK } = FREIGHTER, hullM = M(0x3b3f44), dark = M(0x1e2124);
   const sh = new THREE.Shape(); sh.moveTo(-W / 2, L / 2); sh.lineTo(W / 2, L / 2); sh.lineTo(W / 2, -L / 2 + 9); sh.lineTo(0, -L / 2 - 3); sh.lineTo(-W / 2, -L / 2 + 9); sh.closePath();
   const hg = new THREE.ExtrudeGeometry(sh, { depth: DECK + 2.5, bevelEnabled: false }); hg.rotateX(Math.PI / 2); hg.translate(0, DECK, 0); g.add(new THREE.Mesh(hg, hullM));
