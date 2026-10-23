@@ -320,13 +320,14 @@ export function createDefence(env) {
         m.guided = alive && !L.dead && !(L.ship && L.ship.sinking !== undefined) && los(le.x, le.y, le.z, m.tp.x, m.tp.y, m.tp.z) && m.age < M.life;
       }
       if (m.player && m.guided) decoy(m, pl);   // CM: flares and chaff in front of its nose
+      if (m.player && m.guided && pl) rwrAdd('M', Math.atan2(m.p.x - pl.pos.x, -(m.p.z - pl.pos.z)), m.p.distanceTo(pl.pos), 1, true, true);   // CM: on the warning scope
       const _p0x = m.p.x, _p0y = m.p.y, _p0z = m.p.z;
       if (m.guided && m.age > 0.25) {
         const d = Math.hypot(m.tp.x - m.p.x, m.tp.y - m.p.y, m.tp.z - m.p.z), tgo = Math.min(2.5, d / Math.max(30, m.spd));
         _d.set(m.tp.x + m.tv.x * tgo - m.p.x, m.tp.y + m.tv.y * tgo - m.p.y, m.tp.z + m.tv.z * tgo - m.p.z).normalize();
         const ang = Math.acos(clamp(m.dir.dot(_d), -1, 1)), max = M.turn * dt;
         if (ang > 1e-4) m.dir.lerp(_d, Math.min(1, max / ang)).normalize();
-        if (m.player) { warnLaunch = true; if (pl) rwrAdd('M', Math.atan2(m.p.x - pl.pos.x, -(m.p.z - pl.pos.z)), m.p.distanceTo(pl.pos), 1, true, true); }
+        if (m.player) warnLaunch = true;
       } else if (!m.guided) m.dir.y -= 2 * dt / Math.max(20, m.spd);   // unguided: it sags
       m.p.addScaledVector(m.dir, m.spd * dt);
       m.mesh.position.copy(m.p); m.mesh.lookAt(_e.copy(m.p).sub(m.dir));

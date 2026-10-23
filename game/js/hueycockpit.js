@@ -221,8 +221,8 @@ export function buildHueyCockpit() {
   // CM (ngc/cmpolish): right of the pilot's flight instruments, the AN/APR-39 radar warning scope (green strobes toward
   // each radar painting you, longer as its lock builds), three threat lamps, and the M130 dispenser's counters
   const rwrT = canvasTex(192, 192);
-  { const o = new THREE.Mesh(new THREE.CircleGeometry(0.043, 32), new THREE.MeshBasicMaterial({ map: rwrT.tex, toneMapped: false })); o.position.set(0.865, 0.125, 0.004); P.add(o);
-    const ring = new THREE.Mesh(new THREE.RingGeometry(0.043, 0.05, 32), ringM); ring.position.set(0.865, 0.125, 0.006); P.add(ring); }
+  { const o = new THREE.Mesh(new THREE.CircleGeometry(0.05, 32), new THREE.MeshBasicMaterial({ map: rwrT.tex, toneMapped: false })); o.position.set(0.865, 0.13, 0.004); P.add(o);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.05, 0.057, 32), ringM); ring.position.set(0.865, 0.13, 0.006); P.add(ring); }
   const lockL = lamp(P, 0.075, 0.024, 0.865, 0.052, 0.005, 'LOCK', '#ffaa18', '#2e2408');
   const mslL = lamp(P, 0.075, 0.024, 0.865, 0.024, 0.005, 'MISSILE', '#ff2a14', '#3a0e08');
   const lasL = lamp(P, 0.075, 0.024, 0.865, -0.004, 0.005, 'LASER', '#40e0ff', '#08262c');

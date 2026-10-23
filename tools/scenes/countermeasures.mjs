@@ -45,8 +45,8 @@ export default async function (h) {
   // the missile: wait for it, the MISSILE lamp, then two flare pairs
   await h.waitFor(`__G.war.defence.missiles.some(m => m.player)`, 40000);
   await h.eval(`(window.__m = __G.war.defence.missiles.find(m => m.player), window.__f0 = __G.cmH.flare, window.__d0 = ${CMS}.stats.decoyed, 1)`);
-  await h.key('tap', 'Semicolon');   // the launch tone: flares at once, then a second pair
   await h.expect(`__G.RWR.launch && __G.RWR.threats.some(o => o.kind === 'M')`, 'Huey: missile in the air on the warning picture');
+  await h.key('tap', 'Semicolon');   // the launch tone: flares at once, then a second pair
   await h.key('tap', 'Semicolon');
   await h.shot('huey-cockpit-missile');
   await h.eval('(__G.cockpitCam = false, 1)');
