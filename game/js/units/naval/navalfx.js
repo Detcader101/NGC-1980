@@ -64,7 +64,7 @@ export function createNavalFx(scene, fx) {
         const px = Math.cos(h.yaw), pz = -Math.sin(h.yaw);   // starboard unit vector at that time
         const fade = valid ? Math.max(0, 1 - h.age / life) : 0, vk = Math.min(1, h.v / 3.5);
         // centre wake: from the stern, widening and fading; strongest just behind the screws
-        const cw = (Wd * 0.32 + sS * 0.09) * k, ca = fade * fade * vk * 0.7 * Math.min(1, 0.35 + i * 0.25);
+        const cw = (Wd * 0.24 + sS * 0.05) * k, ca = fade * fade * vk * 0.55 * Math.min(1, 0.35 + i * 0.25);
         // Kelvin arms: points the bow passed, now pushed out by the wave crest at 19.5 deg; width grows a little
         const off = sB * KELVIN + Wd * 0.38, aw = (0.7 + sB * 0.02) * k, aa = fade * vk * 0.32 * Math.min(1, i * 0.5);
         const set = (strip, j, x, z, a, u0, v0) => { const o = ((strip * N + i) * 2 + j); pos[o * 3] = x; pos[o * 3 + 1] = 0.07 + strip * 0.004; pos[o * 3 + 2] = z; col[o * 4] = col[o * 4 + 1] = col[o * 4 + 2] = 1; col[o * 4 + 3] = a; uv[o * 2] = u0; uv[o * 2 + 1] = v0; };

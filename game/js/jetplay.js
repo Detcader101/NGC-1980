@@ -225,6 +225,7 @@ export function createJetPlay(ctx) {
     if (!P.alive) { P.deadT -= dt; updateChute(dt); return; }
     const c = P.autopilot ? P.autopilot(J, dt, P.ctl) : readControls(dt); buttons();   // autopilot: test hook
     if (J.cat) J.catClear = ctx.catClear();
+    war.carrier?.parts.setJBD?.(J.cat ? 1 : 0, dt);   // NAVAL: the jet blast deflector comes up behind a jet on the catapult
     // eject: hold the HOTAS eject button or Backspace for a second
     const held = ctx.keyDown('Backspace') || CTL.state.actions.eject, now = performance.now();   // real time: a hold is a human second
     if (!held) P.ejectHold = 0; else if (!P.ejectHold) P.ejectHold = now; else if (now - P.ejectHold > 900) eject();

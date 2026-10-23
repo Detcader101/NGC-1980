@@ -234,10 +234,15 @@ function buildDeckGear(kit, glow) {
   // deck fuel / service stations at the deck edge (purple-banded hose reels)
   for (const [x, z] of [[13.2, -30], [13.2, 36], [-13.2, 10]]) { kit.cyl(0.45, 0.45, 0.5, 0x5a2a74, x, DECK + 0.25, z, 0, 0, Math.PI / 2, 10); kit.box(0.8, 0.5, 0.9, HAZE_D, x, DECK + 0.25, z + 0.9); }
   // folding whip antennas on the deck edge (lowered for flight ops), and the bow anchors' hawse pipes
-  for (const [x, z] of [[14.3, 50], [14.3, 12], [-14.3, 20], [-14.3, -10]]) kit.rod([x, DECK - 0.3, z], [x + Math.sign(x) * 6.5, DECK - 0.1, z + 1], 0.05, 0xdadad2, 4);
+  for (const [x, z] of [[14.3, 50], [14.3, 12], [-14.3, 20], [-14.3, -10]]) kit.rod([x, DECK - 0.3, z], [x + Math.sign(x) * 4.5, DECK - 0.1, z + 0.7], 0.05, 0xdadad2, 4);
   for (const sd of [-1, 1]) { kit.cyl(0.55, 0.55, 0.6, BLACK, sd * 6.3, 4.6, -56.5, 0, 0, Math.PI / 2 - sd * 0.3, 10); kit.box(0.4, 1.6, 1.1, 0x1a1a1a, sd * 6.5, 3.4, -56.2, 0, 0, sd * -0.3); }
   // hangar-deck openings in the side under the elevators (dark), and the sponsons for the mounts
-  for (const E of ELEVATORS) { const sd = Math.sign(E.x0 + E.x1); kit.box(0.12, 2.6, E.z1 - E.z0 - 1, 0x121416, sd * 12.25, 5.4, (E.z0 + E.z1) / 2); kit.box(4.6, 0.6, E.z1 - E.z0, HAZE_D, sd * 13.0, DECK - 0.45, (E.z0 + E.z1) / 2); }
+  for (const E of ELEVATORS) { const sd = Math.sign(E.x0 + E.x1), zc = (E.z0 + E.z1) / 2, len = E.z1 - E.z0 - 1;
+    kit.box(0.12, 2.6, len, 0x23272b, sd * 12.25, 5.4, zc);                                                        // the hangar beyond (dim)
+    kit.box(0.16, 1.1, len, 0x5f676e, sd * 12.28, 6.15, zc); for (const y of [5.75, 6.05, 6.35]) kit.box(0.18, 0.04, len, 0x454c52, sd * 12.29, y, zc);   // roller door, part up
+    for (let z = E.z0 + 2; z < E.z1 - 1; z += 3) glow.box(0.05, 0.12, 0.9, 0xfff0c8, sd * 12.2, 5.5, z);   // hangar lights
+    kit.box(4.6, 0.6, E.z1 - E.z0, HAZE_D, sd * 13.0, DECK - 0.45, (E.z0 + E.z1) / 2);
+  }
 }
 // gun sponsons: [x, z] of the mount, and its outward direction; built below the deck edge
 const MOUNTS = [
@@ -386,9 +391,22 @@ export function buildAlbatross(side = 1, opts = {}) {
     mounts.push({ kind: M.kind, pos: new THREE.Vector3(M.x, M.y, M.z), dir: new THREE.Vector3(...M.out).normalize(), node: gun, gun: guns.length - 1, arc: [Math.atan2(-M.out[0], -M.out[2]) - 2.2, Math.atan2(-M.out[0], -M.out[2]) + 2.2] });
   }
   // the JBD panel behind the catapult (lowered; parts.setJBD(0..1) raises it)
-  const jbd = new THREE.Group(); jbd.position.set(-2.5, DECK + 0.04, 5.6); g.add(jbd);
-  { const k = new Kit({ wear: 0.02 }); k.box(9, 0.12, 2.4, 0x55595e, 0, 0.06, -1.2); for (let i = -4; i <= 4; i += 1) k.box(0.1, 0.16, 2.4, 0x3a3d40, i, 0.08, -1.2); jbd.add(k.mesh()); }
+  const jbd = new THREE.Group(); jbd.position.set(-2.5, DECK + 0.04, 3.2); g.add(jbd);
+  { const k = new Kit({ wear: 0.02 }); k.box(9, 0.12, 2.4, 0x55595e, 0, 0.06, 1.2); for (let i = -4; i <= 4; i += 1) k.box(0.1, 0.16, 2.4, 0x3a3d40, i, 0.08, 1.2); k.box(9, 0.05, 2.3, 0x2c2e30, 0, -0.01, 1.2); jbd.add(k.mesh()); }
 
+  // a tractor doing laps round the fantail (a blue shirt driving), the way decks are never still
+  const tug = { s: 0, seat: [0, DECK, 0, 0], path: [[2.6, 56.5], [-10.5, 56.5], [-10.5, 49.5], [2.6, 49.5]], v: 1.6, yaw: 0 };
+  { const k = new Kit({ wear: 0.02 }); tractor(k, 0, 0, 0); tug.mesh = k.mesh(); tug.mesh.position.y = 0; g.add(tug.mesh); }
+  tug.step = dt => {
+    const P = tug.path, n = P.length; let seg = 0, s = (tug.s = (tug.s + tug.v * dt));
+    const lens = P.map((a, i) => Math.hypot(P[(i + 1) % n][0] - a[0], P[(i + 1) % n][1] - a[1])), tot = lens.reduce((a, b) => a + b, 0);
+    s %= tot; while (s > lens[seg]) { s -= lens[seg]; seg++; }
+    const a = P[seg], b = P[(seg + 1) % n], k = s / lens[seg], x = a[0] + (b[0] - a[0]) * k, z = a[1] + (b[1] - a[1]) * k;
+    const want = Math.atan2(-(b[0] - a[0]), -(b[1] - a[1])); let d = want - tug.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); tug.yaw += d * Math.min(1, dt * 2.5);
+    tug.mesh.position.set(x, 0, z); tug.mesh.rotation.y = tug.yaw;
+    const c = Math.cos(tug.yaw), sn = Math.sin(tug.yaw); tug.seat = [x + 0.3 * sn, DECK + 1.05, z + 0.3 * c, tug.yaw];
+  };
+  tug.step(0);
   // deck crew
   let crew = null;
   if (opts.crew !== false) {
@@ -408,23 +426,25 @@ export function buildAlbatross(side = 1, opts = {}) {
       { x: -15.2, z: 42, yaw: Math.PI - 0.15, jersey: 'white', mode: 'lso', y: DECK - 0.22 }, { x: -14.6, z: 44.2, yaw: Math.PI + 0.2, jersey: 'white', y: DECK - 0.22 }, { x: -16.0, z: 44.8, yaw: Math.PI, jersey: 'white', mode: 'talk', y: DECK - 0.22 },
       // people walking the deck: along the street by the island, across the bow, round the fantail
       { mode: 'walk', jersey: 'blue', path: [[4.4, -48], [4.4, -6], [6.6, -4], [6.6, 16], [6.6, -4], [4.4, -6]], speed: 1.3 },
-      { mode: 'walk', jersey: 'yellow', path: [[3.8, 18], [3.8, 55], [-12, 56], [-12.5, 48], [3.8, 55]], speed: 1.1 },
+      { mode: 'walk', jersey: 'yellow', path: [[3.8, 18], [3.8, 46], [3.8, 18]], speed: 1.1 },
       { mode: 'walk', jersey: 'green', path: [[-12, -40], [-12, -6], [-12, -40]], speed: 1.4 },
       { mode: 'walk', jersey: 'purple', path: [[12.8, -34], [12.8, -12], [12.8, -34]], speed: 0.9 },
       { mode: 'walk', jersey: 'brown', path: [[12.6, 18], [12.6, 54], [12.6, 18]], speed: 1.2 },
     ];
     for (const p of C) { p.y ??= DECK; if (p.path) { p.x = p.path[0][0]; p.z = p.path[0][1]; } }
+    C.push({ mode: 'seated', jersey: 'blue', at: () => tug.seat });
     crew = createCrew(C, { seed: 21 }); g.add(crew.group);
   }
   // per-frame: radars, crew, JBD. dist = camera distance (skip the people when far); avoid(x, z) in the ship frame
   const parts = {
     group: g, guns, dish, lamp, lights: [], teamM: team, tower: tw, band, mounts, crew, sps48, jbd, hull, deck: g.getObjectByName('flightdeck'),
-    funnel: new THREE.Vector3(ALB.TOWER_X + 0.1, DECK + 19, ALB.TOWER_Z + 6.6), bow: new THREE.Vector3(0, 1, -60), stern: new THREE.Vector3(0, 0, 57),
+    jbdK: 0, funnel: new THREE.Vector3(ALB.TOWER_X + 0.1, DECK + 19, ALB.TOWER_Z + 6.6), bow: new THREE.Vector3(0, 1, -60), stern: new THREE.Vector3(0, 0, 57),
     localDeck, deckHalf, motion: 'albatross', dims: ALB, fx: { wake: 1, smoke: 1 },
-    setJBD(k) { jbd.rotation.x = -Math.max(0, Math.min(1, k)) * 1.05; },
+    setJBD(k, dt) { const want = Math.max(0, Math.min(1, k)); parts.jbdK = dt ? parts.jbdK + Math.max(-dt * 0.7, Math.min(dt * 0.7, want - parts.jbdK)) : want; jbd.rotation.x = -parts.jbdK * 0.95; },   // raised: the aft edge lifts about the forward hinge
     tick(dt, t, dist = 0, avoid = null) {
       sps48.rotation.y += dt * 1.57;
       for (const gun of guns) gun.userData.tick?.(dt);
+      if (dist < 450) tug.step(dt);
       if (crew) { const near = dist < 450; crew.group.visible = near; if (near) crew.update(dt, t, avoid); }
     },
   };

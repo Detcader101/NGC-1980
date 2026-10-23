@@ -68,7 +68,7 @@ export function createCrew(members, { seed = 5 } = {}) {
     for (let i = 0; i < n; i++) {
       const p = members[i]; p.ph += dt;
       let { x, z, yaw } = p, lean = 0, drop = 0, aL = 0, aR = 0, aLz = 0.06, aRz = 0.06, lL = 0, lR = 0;
-      const push = avoid && avoid(x, z);
+      const push = p.mode !== 'seated' && avoid && avoid(x, z);
       if (push) {   // clear the area: walk briskly away, crouched against the downwash
         const len = Math.hypot(push[0], push[1]) || 1, sp = 2.4 * dt;
         p.x += push[0] / len * sp; p.z += push[1] / len * sp; x = p.x; z = p.z;
@@ -98,6 +98,10 @@ export function createCrew(members, { seed = 5 } = {}) {
         case 'lso': {      // the pickle held up, eyes aft on the groove
           aR = 1.9 + Math.sin(p.ph * 0.7) * 0.08; aRz = 0.1; aL = -0.2; yaw += Math.sin(p.ph * 0.4) * 0.15; break;
         }
+        case 'seated': {   // driving a tractor: p.at() gives the seat (x, y, z, yaw) in the ship frame
+          const a = p.at(); x = p.x = a[0]; z = p.z = a[2]; yaw = a[3]; p.ySeat = a[1];
+          drop = 0.42; lL = 1.45; lR = 1.45; aL = 0.9 + Math.sin(p.ph * 1.3) * 0.05; aR = 0.9; aLz = aRz = 0.12; break;
+        }
         case 'talk': {
           aR = 0.6 + Math.max(0, Math.sin(p.ph * 1.7)) * 0.7; aRz = 0.25; aL = Math.sin(p.ph * 0.9) * 0.1; yaw += Math.sin(p.ph * 0.5) * 0.25; break;
         }
@@ -109,7 +113,7 @@ export function createCrew(members, { seed = 5 } = {}) {
           if (p.hands) { aL = -0.2; aR = -0.2; aLz = 0.5; aRz = 0.5; }   // hands on hips
         }
       }
-      pose(i, x, p.y, z, yaw, lean, drop, aL, aR, aLz, aRz, lL, lR);
+      pose(i, x, p.mode === 'seated' ? p.ySeat : p.y, z, yaw, lean, drop, aL, aR, aLz, aRz, lL, lR);
     }
     J.instanceMatrix.needsUpdate = B.instanceMatrix.needsUpdate = A.instanceMatrix.needsUpdate = L.instanceMatrix.needsUpdate = true;
   };
