@@ -74,25 +74,29 @@ export function createPilot(A, o = {}) {
   function terrainGuard(d, env, clear = 55) {
     if (!env.terrain) return d;
     const V = Math.max(A.tas, 30), y = A.pos.y, hz = Math.hypot(d.x, d.z) || 1, vh = Math.hypot(A.vel.x, A.vel.z) || 1;
-    const need = (dx, dz) => {   // climb angle needed along horizontal direction (dx, dz)
+    const cache = PL._nc || (PL._nc = new Map());
+    const need = (dx, dz) => {   // climb angle needed along horizontal direction (dx, dz); cached ~0.1 s per 3° of heading
+      const key = Math.round(Math.atan2(dx, dz) * 20), c = cache.get(key);
+      if (c && PL.t - c.t < 0.1 && Math.abs(c.y - y) < 4) return c.g;
       let g = -1;
       for (const s of [1, 2, 3.5, 5, 7, 10, 14]) {
         const L = V * s, f = env.terrain(A.pos.x + dx * L, A.pos.z + dz * L);
         g = Math.max(g, Math.atan2(f + clear - y, L));
       }
+      if (c) { c.t = PL.t; c.y = y; c.g = g; } else cache.set(key, { t: PL.t, y, g });
       return g;
     };
     let gNeed = Math.max(need(d.x / hz, d.z / hz), need(A.vel.x / vh, A.vel.z / vh) - 0.1);
     let hx = d.x / hz, hzz = d.z / hz, turned = false;
-    PL.avoidT = (PL.avoidT || 0) - 1 / 60;
-    if (gNeed > 0.4 || PL.avoidT > 0) {   // too steep to climb over: turn to a heading that clears and climb along it
-      if (PL.avoidT <= 0) {
+    const avoiding = PL.t < (PL.avoidUntil || 0);
+    if (gNeed > 0.4 || avoiding) {   // too steep to climb over: turn to a heading that clears and climb along it
+      if (!avoiding) {
         const h0 = Math.atan2(A.vel.x, -A.vel.z); let best = 9, bh = h0;
         for (const k of [0, 0.5, -0.5, 1, -1, 1.6, -1.6, 2.3, -2.3, Math.PI]) {
           const h = h0 + k, g = need(Math.sin(h), -Math.cos(h)) + Math.abs(k) * 0.03;
           if (g < best) { best = g; bh = h; }
         }
-        PL.avoidHdg = bh; PL.avoidT = 4;   // hold it a few seconds (no flip-flopping along a ridge)
+        PL.avoidHdg = bh; PL.avoidUntil = PL.t + 4;   // hold it a few seconds (no flip-flopping along a ridge)
       }
       hx = Math.sin(PL.avoidHdg); hzz = -Math.cos(PL.avoidHdg); gNeed = Math.max(need(hx, hzz), 0.22); turned = true; PL.terrainPull = 1;
     }
