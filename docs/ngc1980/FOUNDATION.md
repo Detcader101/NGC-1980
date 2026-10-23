@@ -305,3 +305,19 @@ steering in the sim, `controls` for the turret seats (gunner sight eye in `seats
 - Vehicles collide with each other through `bounds()` (pushed, no momentum exchange); no rollover in the test car.
 - Ejected Hornet pilots still go straight to the rescue; landing on foot after an ejection would be a small change
   in `craftjet.js` (`updateChute` -> `foot.spawnAt`).
+
+## 9. Wave 2: the Marine on this craft (ngc/foot2)
+
+- `foot.setMarine(createMarine(ctx))` (main.js does it): the real 1980 Marine (`marine.js` + pure `marinesim.js`,
+  `units/infantry/invbridge.js`) owns input, weapons, wounds, cameras, the first-person pass (`foot.overlay(renderer,
+  cam)` after the world render) and the HUD lines. `__G.marine` in debug: `.MS` (sim), `.R` rifleman, `.S` soldier,
+  `.M` medical, `.inv` rig, `.input({...})` / `.press(...actions)` (held / one-shot inputs for scenes), `.aim(yaw,
+  pitch)`, `.addFigure(x, y, z, yaw, { ship, side, kit })`, `.openScreen('gear' | 'health', loot)`, `.stats`.
+- War hits: `hurtPlayer(amount, why, at, dir, kind)`; `kind` is the war.js projectile kind (`'b'`, `'ciws'`, `'jb'`,
+  `'flak'`, `'blast'`); a new weapon that hurts soldiers should pass its kind (and the hit point for bullets) and add a
+  row to `INCOMING` in marine.js.
+- The Marine's rounds hit war.js units as spheres of `u.r`; a unit can supply its own `u.hitRay(x0, y0, z0, dx, dy, dz,
+  L) -> { dist, x, y, z, material?, thickness? } | null` (walkers, tanks: hull boxes, armour material).
+- Ground host additions: `GR.deckH(x, z)` (war.deckY with the ALBATROSS island's real levels), `GR.toShip(u, x, y, z)` /
+  `GR.fromShip(u, lx, ly, lz)` (the full ship frame with heave, pitch and roll), `GR.laddersOf(u)`, `GR.treeHit(...)`.
+  platform.js now carries in the full ship frame (decks that heave, pitch and roll; the sky carrier's climb).
