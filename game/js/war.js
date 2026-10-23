@@ -9,6 +9,7 @@
 // enemy carrier or take its HQ island (IRONHOLD) to win.
 import * as THREE from 'three';
 import { addLiftFans, FAN_POS } from './ships.js';
+import { createRotary } from './units/air/rotary/rotary.js';   // NGC-1980: CH-46 + Marines, MV-22, RW-3 WASP (physical AI rotorcraft)
 import { buildCarrier, buildBattleship, buildFreighter, buildDrone, buildTransport, buildGunship, buildTomcat, buildGun, buildStructure, buildRubble, CARRIER, BSHIP, FREIGHTER, TEAM } from './ships.js';
 
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
@@ -316,7 +317,11 @@ export function createWar(ctx) {
   }
 
   // ------------------------------------------------------------------------------------- aircraft
+  // NGC-1980 hook: the rotary module flies 'drone' (CH-46), 'transport' (MV-22) and 'gunship' (RW-3 WASP) physically
+  const ROT = createRotary({ W, scene, fx, sfx, terrainH, isWater, feed, addScore: ctx.addScore, shoot, blast, boomAt, hear });
+  W.rotary = ROT;
   function makeAir(type, side, x, y, z, extra = {}) {
+    { const ru = ROT.make(type, side, x, y, z, extra); if (ru) { W.units.push(ru); return ru; } }   // NGC-1980 hook
     const m = type === 'drone' ? buildDrone() : type === 'transport' ? buildTransport() : type === 'escort' ? buildTomcat(side) : buildGunship(side);
     const hp = { drone: 5, transport: 7, gunship: 3, escort: 4 }[type];
     const u = { type, side, p: new THREE.Vector3(x, y, z), v: new THREE.Vector3(), yaw: 0, hp, hpMax: hp, mesh: m.group, parts: m, r: type === 'transport' ? 4.5 : type === 'escort' ? 4 : 3.2, cd: rnd(1, 2.5), ph: rnd(6.28), state: 'go', ...extra };
@@ -331,9 +336,9 @@ export function createWar(ctx) {
     if (W.P.mat < COST.drone) return 'NOT ENOUGH MATERIEL';
     if (I.owner === 1) return `${I.name} IS ALREADY OURS`;
     if (I.cave) return 'CAVE ISLANDS: STEAL THE POD FROM THE CAVE';
-    if (W.units.filter(u => u.type === 'drone' && !u.dead).length >= 3) return 'THREE DRONES ALREADY OUT';
+    if (W.units.filter(u => u.type === 'drone' && !u.dead).length >= 3) return 'THREE SEA KNIGHTS ALREADY OUT';
     W.P.mat -= COST.drone; const [x, y, z] = launchPoint(1); makeAir('drone', 1, x, y, z, { target: I });
-    sfx.dock(); return `CAPTURE DRONE LAUNCHED  -  ${I.name}`;
+    sfx.dock(); return `SEA KNIGHT LAUNCHED  -  13 MARINES FOR ${I.name}`;
   };
   W.orderAA = I => {
     if (I.owner !== 1) return 'GUNS CAN ONLY GO ON OUR ISLANDS';
@@ -351,6 +356,7 @@ export function createWar(ctx) {
   }
   const cruise = (x, z, alt) => Math.max(terrainH(x, z), 0, W.deckY(x, z)) + alt;
   function updateAir(u, dt, pl) {
+    if (u.rot) { ROT.update(u, dt, pl, W.peace); return; }   // NGC-1980 hook: rotary units fly themselves (dying too)
     u.ph += dt;
     if (u.dying) {
       u.v.y -= 15 * dt; u.p.addScaledVector(u.v, dt); u.mesh.rotation.y += dt * 8; u.mesh.rotation.z += dt * 2;
@@ -399,7 +405,7 @@ export function createWar(ctx) {
       if (u.target && u.target !== 'player' && (u.target.dead || u.target.gone || (u.target.side !== undefined && u.target.side !== 1))) u.target = null;
       if (!u.target) {
         let best = null, bd = 160;
-        for (const o of W.units) if (o.side === 1 && !o.dead && !o.dying && (o.type === 'drone' || o.type === 'escort') && o.p.distanceTo(u.p) < bd) { best = o; bd = o.p.distanceTo(u.p); }
+        for (const o of W.units) if (o.side === 1 && !o.dead && !o.dying && (o.type === 'drone' || o.type === 'escort' || o.type === 'squad') && o.p.distanceTo(u.p) < bd) { best = o; bd = o.p.distanceTo(u.p); }
         if (best) u.target = best; else if (u.raid) u.target = u.raid.dead || u.raid.gone || u.raid.side !== 1 ? (u.raid = null) : u.raid;
       }
     }
@@ -561,7 +567,7 @@ export function createWar(ctx) {
     }
     if (t.dims) { t.hp -= dmg; t.lastHit = W.time; checkShip(t); return; }
     if (t.p) {   // aircraft
-      t.hp -= dmg; if (t.hp <= 0 && !t.dying) { t.dying = true; t.v.y = 3; fx.explode(t.p.x, t.p.y, t.p.z, 0.9, { debris: 3, color: t.side === 1 ? 0x2a3f55 : 0x992222 }); boomAt(t.p.x, t.p.y, t.p.z, 0.5); if (t.side === 2) ctx.addScore(t.type === 'transport' ? 400 : 150); if (t.type === 'transport') { feed('ENEMY TRANSPORT SHOT DOWN', 'good'); if (t.target) t.target.lostT = W.time; } if (t.type === 'drone') feed('CAPTURE DRONE LOST', 'bad'); }
+      t.hp -= dmg; if (t.hp <= 0 && !t.dying) { t.dying = true; t.v.y = 3; fx.explode(t.p.x, t.p.y, t.p.z, 0.9, { debris: 3, color: t.side === 1 ? 0x2a3f55 : 0x992222 }); boomAt(t.p.x, t.p.y, t.p.z, 0.5); if (t.side === 2) ctx.addScore(t.type === 'transport' ? 400 : 150); if (t.type === 'transport') { feed('ENEMY TRANSPORT SHOT DOWN', 'good'); if (t.target) t.target.lostT = W.time; } if (t.type === 'drone') feed('SEA KNIGHT DOWN', 'bad'); }
       return;
     }
     t.hp -= dmg; t.I.lastHit = W.time; if (t.hp <= 0) killStruct(t);
@@ -696,7 +702,7 @@ export function createWar(ctx) {
       for (const u of W.units) if (u.landed && u.target === I && !u.dead && !u.dying && u.side !== I.owner) {
         if (I.cave && u.side === 1) continue;
         if (I.kind === 'hq' && u.side === 2) continue;   // our HQ can't be taken by transports
-        if (!side || side === u.side) { side = u.side; rate += 1 / CAP_TIME[u.type]; who = who || u.type; }
+        if (!side || side === u.side) { side = u.side; rate += 1 / (u.capTime || CAP_TIME[u.type]); who = who || u.type; }   // squads carry their own capture time
       }
       const guarded = W.aliveAA(I) > 0;
       if (!side || guarded) { if (I.cap && (!side || guarded)) { I.cap.t = Math.max(0, I.cap.t - dt * 0.2); if (I.cap.t <= 0) I.cap = null; } if (side && guarded) I.capBlocked = W.time; continue; }
@@ -739,7 +745,7 @@ export function createWar(ctx) {
     for (const I of W.islands) {
       if (I.owner === 2 || I.kind === 'hq') continue;
       if (I.owner === 1 && W.aliveAA(I) > 0) continue;   // guarded: needs a raid first
-      if (W.units.some(u => u.type === 'transport' && u.target === I && !u.dead)) continue;
+      if (W.units.some(u => (u.type === 'transport' || (u.type === 'squad' && u.side === 2)) && u.target === I && !u.dead)) continue;   // a landing party there counts too
       if (W.time - (I.lostT ?? -1e9) < 100) continue;   // lost a transport there recently: wait for a raid to clear the way
       let danger = 0;   // our guns covering the pad
       for (const J of W.islands) for (const g of J.structs) if (g.kind === 'aa' && !g.dead && g.side === 1 && Math.hypot(g.x - I.pad.x, g.z - I.pad.z) < 160) danger++;
@@ -857,7 +863,7 @@ export function createWar(ctx) {
     return s;
   };
   W.reset = () => {
-    for (const u of W.units) scene.remove(u.mesh); W.units.length = 0;
+    for (const u of W.units) scene.remove(u.mesh); W.units.length = 0; ROT.reset();
     for (const p of W.proj) if (p.mesh) scene.remove(p.mesh); W.proj.length = 0;
     islandGroup.clear(); fx.emitters.length = 0;
     for (const I of W.islands) { I.owner = I.owner0 ?? I.owner; I.lostT = -1e9; I.stock = 0; }
@@ -868,7 +874,7 @@ export function createWar(ctx) {
     for (const I of W.islands) ctx.onOwner(I, I.owner);
   };
   W.update = (dt, pl, peace) => {
-    W.time += dt;
+    W.time += dt; W.peace = peace;
     for (const u of W.units) { if (u.ext) continue; if (u.dims) sailShip(u, dt); else updateAir(u, dt, pl); }
     {   // ships keep clear of each other (a gentle shove when two hulls would overlap)
       const sh = W.units.filter(u => u.dims && u.sinking === undefined && !(u.sky && u.p.y > 12));
@@ -878,6 +884,7 @@ export function createWar(ctx) {
       }
     }
     for (let i = W.units.length - 1; i >= 0; i--) if (W.units[i].dead || W.units[i].gone) { const u = W.units[i]; if (!u.gone) scene.remove(u.mesh); W.units.splice(i, 1); }
+    ROT.tick(dt);   // NGC-1980 hook: garrisons and fallen troops after their units are gone
     updateProj(dt, pl);
     updateGuns(dt, pl, peace);
     updateCapture(dt, pl);

@@ -49,7 +49,7 @@ export function createCH46Unit(o) {
     }
     U.ramp += Math.max(-dt / 2.5, Math.min(dt / 2.5, U.rampT - U.ramp));
     U.sync(dt, time);
-    squad.update(dt, time);
+    if (!U.squadExternal) squad.update(dt, time);
   };
   U.sync = (dt, time) => {
     const b = S.body, g = model.group;
