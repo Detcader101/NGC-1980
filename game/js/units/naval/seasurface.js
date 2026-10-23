@@ -56,28 +56,10 @@ export function updateSeaUniforms(U, sea, units, cam) {
 }
 
 // ---------------------------------------------------------------------------------------------- GLSL
-export const SEA_VS_DECL = `uniform vec4 uWave[${SEA_NV}]; varying vec3 vSea;`;
-// in: vec4 w (world position, w.y already the ground / sea floor), float h (raw height), CELL (grid spacing).
-// out: w.y displaced on the sea, vSea = (elevation, slope x, slope z)
-export const SEA_VS = `
-      vSea=vec3(0.);
-      if(h<=0.){
-        float att=smoothstep(.3,7.,-h), e=0., sx=0., sz=0.;
-        for(int i=0;i<${SEA_NV};i++){
-          vec4 c=uWave[i]; float kk=length(c.xy); if(kk<1e-5) continue;
-          float a=c.z*smoothstep(CELL*2.5,CELL*5.,6.2832/kk); if(a<1e-4) continue;   // the grid must carry the wave (the far ring skips most)
-          float ph=c.w-dot(c.xy,w.xz), s=a*sin(ph);
-          e+=a*cos(ph); sx+=s*c.x; sz+=s*c.y;
-        }
-        w.y=e*att; vSea=vec3(e*att,sx*att,sz*att);
-      }`;
-export const SEA_FS_DECL = `uniform vec4 uSeaP; uniform vec2 uSeaD; uniform vec4 uShipP[${SEA_SHIPS}], uShipD[${SEA_SHIPS}]; varying vec3 vSea;
-    float sHash(vec2 p){ p=mod(p,289.); return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
-    float sNoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f); return mix(mix(sHash(i),sHash(i+vec2(1.,0.)),f.x),mix(sHash(i+vec2(0.,1.)),sHash(i+1.),f.x),f.y); }
-    // foam round the ships' waterlines: 0..1
-    // the sun glint's sparkle mask (only asked where there is a glint)
-    float glitAt(vec2 p, float t, float sk){ return mix(1.,.45+1.*smoothstep(.45,.9,sNoise(p*1.3+vec2(t*.7,-t*.4))),smoothstep(.1,.4,sk)); }
-    float hullFoam(vec2 p, float t){
+export const SEA_VS_DECL = `uniform vec4 uWave[${SEA_NV}]; uniform vec4 uSeaP; uniform vec4 uShipP[${SEA_SHIPS}], uShipD[${SEA_SHIPS}]; varying vec3 vSea; varying float vHull;
+    // foam round the ships' waterlines, 0..1, per VERTEX (the fragment shader adds the noise: a per-pixel 6-ship
+    // loop was a quarter of the frame in software WebGL)
+    float hullFoam(vec2 p){
       float f=0.;
       for(int i=0;i<${SEA_SHIPS};i++){
         vec4 d=uShipD[i]; if(d.w<.5) continue;
@@ -87,10 +69,31 @@ export const SEA_FS_DECL = `uniform vec4 uSeaP; uniform vec2 uSeaD; uniform vec4
         float ou=max(abs(lx)-hw,abs(lz)-d.x);                          // metres outside the hull (roughly)
         float band=1.6+2.6*d.z+2.2*uSeaP.z, bow=smoothstep(-.3,-.95,lz/d.x)*(.4+d.z);
         float k=(1.-smoothstep(0.,band*(1.+bow),ou))*step(-.6,ou);
-        f=max(f,k*(.45+.55*sNoise(vec2(lx*.7,lz*.35+t*(1.+3.*d.z)))));
+        f=max(f,k);
       }
       return f;
     }`;
+// in: vec4 w (world position, w.y already the ground / sea floor), float h (raw height), CELL (grid spacing).
+// out: w.y displaced on the sea, vSea = (elevation, slope x, slope z)
+export const SEA_VS = `
+      vSea=vec3(0.); vHull=0.;
+      if(h<=0.){
+        vHull=hullFoam(w.xz);
+        float att=smoothstep(.3,7.,-h), e=0., sx=0., sz=0.;
+        for(int i=0;i<${SEA_NV};i++){
+          vec4 c=uWave[i]; float kk=length(c.xy); if(kk<1e-5) continue;
+          float a=c.z*smoothstep(CELL*2.5,CELL*5.,6.2832/kk); if(a<1e-4) continue;   // the grid must carry the wave (the far ring skips most)
+          float ph=c.w-dot(c.xy,w.xz), s=a*sin(ph);
+          e+=a*cos(ph); sx+=s*c.x; sz+=s*c.y;
+        }
+        w.y=e*att; vSea=vec3(e*att,sx*att,sz*att);
+      }`;
+export const SEA_FS_DECL = `uniform vec4 uSeaP; uniform vec2 uSeaD; varying vec3 vSea; varying float vHull;
+    float sHash(vec2 p){ p=mod(p,289.); return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+    float sNoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f); return mix(mix(sHash(i),sHash(i+vec2(1.,0.)),f.x),mix(sHash(i+vec2(0.,1.)),sHash(i+1.),f.x),f.y); }
+    // the sun glint's sparkle mask (only asked where there is a glint)
+    float glitAt(vec2 p, float t, float sk){ return mix(1.,.45+1.*smoothstep(.45,.9,sNoise(p*1.3+vec2(t*.7,-t*.4))),smoothstep(.1,.4,sk)); }
+`;
 // in: vec2 p (world xz), float d (depth), float t (time), vec3 V (to eye), vec3 L (sun), wc (water colour so far).
 // out: vec3 wn (the swell's normal: shading, fresnel), wg (glitter normal: the sun's specular - mostly ripple, so the
 // glint breaks up into sparkle instead of lighting whole wave faces), glit (sparkle mask), float foam (0..1)
@@ -106,4 +109,4 @@ export const SEA_FS_FOAM = `
         if(cov>0.&&crest>.2){ float n1=sNoise(p*.16+wd*t*.35), n2=sNoise(p*.7-wd*t*.6); cap=smoothstep(.2,.9,crest)*smoothstep(1.-cov*1.5,1.-cov*.9,n1*.6+n2*.4+crest*.1)*(.5+.5*n2); }
         if(sk>.7) streak=smoothstep(.7,.88,sNoise(vec2(q.x*.03-t*.25,q.y*.32)))*smoothstep(.7,1.,sk)*.35;
         float surfW=1.4+3.5*sk, surf=(1.-smoothstep(0.,surfW,d))*(.55+.45*sin(d*8./(1.+sk*2.)-t*2.4+sin(a1)+vSea.x*2.));
-        float foam=clamp(max(max(surf,cap),max(streak*(1.-smoothstep(150.,600.,length(cameraPosition.xz-p))),hullFoam(p,t))),0.,1.);`;
+        float foam=clamp(max(max(surf,cap),max(streak*(1.-smoothstep(150.,600.,length(cameraPosition.xz-p))),(vHull>.01?vHull*(.45+.55*sNoise(p*.6+vec2(t*.4,t*1.2))):0.))),0.,1.);`;
