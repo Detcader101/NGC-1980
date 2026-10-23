@@ -2,7 +2,7 @@
 # Installs the desktop launchers, run from WSL: copies the launcher to %LOCALAPPDATA%\ThrustZarch (a normal Windows
 # folder, so the icons show even when WSL is asleep), writes its config.json and creates two desktop shortcuts:
 #   Thrust Zarch               this checkout (main), port 8765
-#   Thrust Zarch EXPERIMENTAL  the experimental worktree next to it, port 8766
+#   NGC-1980 EXPERIMENTAL      the experimental worktree next to it (NGC-1980), port 8766
 #     (git worktree add --track -b experimental ../thrust-zarch-experimental origin/experimental)
 # Re-run it after moving the checkouts; it's safe to run again.
 set -euo pipefail
@@ -21,7 +21,7 @@ cat > "$dst/config.json" <<EOF
   "node": "$node",
   "builds": {
     "main": { "name": "Thrust Zarch", "root": "$main", "port": 8765, "icon": "thrust-zarch.ico" },
-    "experimental": { "name": "Thrust Zarch EXPERIMENTAL", "root": "$exp", "port": 8766, "icon": "thrust-zarch-exp.ico" }
+    "experimental": { "name": "NGC-1980 EXPERIMENTAL", "root": "$exp", "port": 8766, "icon": "thrust-zarch-exp.ico" }
   }
 }
 EOF
