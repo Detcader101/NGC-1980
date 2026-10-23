@@ -21,7 +21,7 @@ const ICON = {
   ak: [80, 40, `<path fill="${c}" d="M2 18l18-5h22v-3h18l2 3h16v3H62v4l-10 2h-6l-4 4h-4l-3 10h-6l3-10h-6l-14 4H4z"/><path fill="${k}" d="M44 20l8 0l-3 12q-6 2-9-1z"/>`],
   mg: [120, 40, `<path fill="${c}" d="M2 14h18l6-2h30v-3h20v3h20l2 2h20v3H98l-2 4H76l-6 2H52l-3 10h-6l2-10h-6l-16 5H2z"/><rect fill="${k}" x="58" y="20" width="14" height="10"/><path fill="${k}" d="M84 21l3 10 2 0-2-10z"/>`],
   pistol: [40, 20, `<path fill="${c}" d="M2 3h34v6H17l-2 2h-3l-3 8H3l3-8H2z"/><rect fill="${k}" x="9" y="6" width="3" height="2"/>`],
-  law: [80, 20, `<rect fill="${c}" x="2" y="6" width="74" height="8" rx="2"/><rect fill="${k}" x="2" y="5" width="6" height="10"/><rect fill="${k}" x="70" y="5" width="6" height="10"/><rect fill="${k}" x="30" y="3" width="6" height="3"/>`],
+  law: [80, 20, `<rect fill="#6b7350" x="2" y="6" width="74" height="8" rx="2"/><rect fill="${k}" x="2" y="5" width="6" height="10"/><rect fill="${k}" x="70" y="5" width="6" height="10"/><rect fill="${k}" x="30" y="3" width="6" height="3"/>`],
   rwgun: [80, 40, `<path fill="#e8ecef" d="M4 16l20-6h40l12 4-2 6H54l-8 6h-6l-4 10h-7l4-12H20L6 22z"/><path fill="${cy}" d="M26 13h30v2H26z"/>`],
   mag20: [20, 40, `<path fill="${c}" d="M4 3h12v30l-1 4H5l-1-4z"/><rect fill="${k}" x="6" y="6" width="8" height="2"/><rect fill="${brass}" x="6" y="1" width="8" height="3"/>`],
   mag30: [20, 40, `<path fill="${c}" d="M3 2h11l2 18q1 9 1 16H6q-1-7-2-16z"/><rect fill="${brass}" x="4" y="0" width="9" height="3"/>`],
@@ -82,8 +82,9 @@ const ICON = {
   injector: [20, 20, `<rect fill="#f4f6f8" x="3" y="7" width="13" height="6" rx="3"/><rect fill="${cy}" x="5" y="9" width="7" height="2"/><rect fill="#bcd" x="16" y="9.5" width="3" height="1"/>`],
   crate: [60, 40, `<rect fill="#7a6a48" x="2" y="4" width="56" height="32"/><path stroke="#5a4c30" d="M2 14h56M2 26h56"/>`],
 };
+ITEMS.ground = { id: 'ground', name: 'GROUND', short: 'GROUND', cat: 'crate', tags: ['crate'], static: true, w: 8, h: 6, kg: 0, stack: 1, era: '1980', icon: 'crate', grids: [{ w: 8, h: 7, label: '' }] };
 export function iconSVG(id, w, h, rot = 0) {
-  const d = ITEMS[id]; const [vw, vh, inner] = ICON[d?.icon] || ICON.box;
+  const d = ITEMS[id]; const [vw, vh, raw] = ICON[d?.icon] || ICON.box; const inner = raw.replace(/fill="(var\([^"]*\))"/g, 'style="fill:$1"');
   const W = rot ? h : w, H = rot ? w : h;   // the drawing box before rotation
   return `<svg class="ic${d?.era === 'rw' ? ' rw' : ''}" viewBox="0 0 ${vw} ${vh}" preserveAspectRatio="xMidYMid meet" style="width:${W}px;height:${H}px;${rot ? `transform:translate(-50%,-50%) rotate(90deg);position:absolute;left:50%;top:50%` : ''}">${inner}</svg>`;
 }
@@ -98,11 +99,12 @@ export const CSS = `
 .ngc-ov .wt{flex:1;display:flex;align-items:center;gap:10px;justify-content:flex-end;color:#bde}
 .ngc-ov .wt b{color:#fff;font-size:16px}.ngc-ov .wbar{width:180px;height:10px;border:1px solid #4aa;position:relative;background:rgba(0,30,40,.6)}
 .ngc-ov .wbar i{position:absolute;left:0;top:0;bottom:0}.ngc-ov .wbar u{position:absolute;top:-3px;bottom:-3px;border-left:1px solid #ff8a}
-.ngc-ov .help{padding:4px 16px;color:#6aa;font-size:11px;letter-spacing:.5px;border-top:1px solid #1a4a50;background:rgba(0,14,22,.7)}
+.ngc-ov .help{padding:3px 16px;color:#6aa;font-size:10.5px;letter-spacing:.5px;border-top:1px solid #1a4a50;background:rgba(0,14,22,.7)}
 .ngc-ov .help b{color:#ff8;font-weight:normal}
 .ngc-inv .bd{flex:1;display:flex;gap:14px;padding:10px 14px;min-height:0}
 .ngc-inv .col{display:flex;flex-direction:column;gap:8px;min-height:0;overflow:auto;scrollbar-width:thin;scrollbar-color:#2a6a70 transparent}
-.ngc-inv .col.eq{width:300px;flex:none}.ngc-inv .col.rig{flex:1}.ngc-inv .col.loot{width:380px;flex:none}
+.ngc-inv .col.eq{width:290px;flex:none}.ngc-inv .col.rig{flex:1}.ngc-inv .col.loot{width:360px;flex:none}
+.cat-weapon .ic{--ic:#a9ada2;--ik:#2c302a}
 .ngc-inv h4{margin:0 0 3px;font-size:12px;letter-spacing:2px;color:#ff8;font-weight:normal;display:flex;justify-content:space-between;border-bottom:1px solid #4aa5;padding-bottom:2px}
 .ngc-inv h4 span{color:#8ab;letter-spacing:0}
 .ngc-inv .sec{background:rgba(0,30,44,.45);border:1px solid #234c55;padding:6px 8px}
@@ -113,10 +115,12 @@ export const CSS = `
 .ngc-inv .slot .sl{position:absolute;left:4px;top:2px;font-size:10px;color:#4a8a90;letter-spacing:1px;pointer-events:none}
 .ngc-inv .it{position:absolute;border:1px solid #6a8a80;overflow:hidden;cursor:grab;transition:box-shadow .1s}
 .ngc-inv .it:hover{border-color:#cfe;box-shadow:0 0 8px #8ff6;z-index:2}
-.ngc-inv .it .nm{position:absolute;right:3px;top:1px;font-size:10px;color:#e8f4f0;text-shadow:0 0 2px #000,0 0 3px #000;pointer-events:none;letter-spacing:.3px;white-space:nowrap}
+.ngc-inv .it .nm{position:absolute;left:2px;right:3px;top:1px;text-align:right;overflow:hidden;text-overflow:clip;font-size:9.5px;color:#e8f4f0;text-shadow:0 0 2px #000,0 0 3px #000;pointer-events:none;letter-spacing:.3px;white-space:nowrap}
 .ngc-inv .it .ct{position:absolute;right:3px;bottom:1px;font-size:11px;color:#fff;text-shadow:0 0 2px #000,0 0 3px #000;pointer-events:none}
 .ngc-inv .it .era{position:absolute;left:2px;bottom:1px;font-size:8px;padding:0 2px;pointer-events:none}
 .ngc-inv .it .era.modern{color:#000;background:#fb4}.ngc-inv .it .era.rw{color:#003;background:#5ef}
+.ngc-inv .it .erac{position:absolute;left:0;bottom:0;border:5px solid transparent;border-left-color:#fb4;border-bottom-color:#fb4;pointer-events:none}.ngc-inv .it .erac.rw{border-left-color:#5ef;border-bottom-color:#5ef}
+.ngc-inv .slot.mini .nm,.ngc-inv .slot.mini .sl{display:none}
 .ngc-inv .it .bar{position:absolute;left:2px;right:2px;bottom:0;height:2px;background:#0006}.ngc-inv .it .bar i{display:block;height:100%;background:#8f8}
 .ngc-inv .it .q{position:absolute;left:3px;top:1px;font-size:10px;color:#ff8;pointer-events:none}
 .ngc-inv .it.unseen{background:rgba(20,30,34,.9)!important;cursor:default}.ngc-inv .it.unseen *{display:none}
@@ -139,11 +143,11 @@ export const CSS = `
 .ngc-inv .insp td b{color:#fff;font-weight:normal}.ngc-inv .insp .desc{color:#bde;margin:8px 0;font-size:12px;text-shadow:none}.ngc-inv .insp .src{color:#678;font-size:10px;margin-top:6px;text-shadow:none}
 .ngc-inv .split input{width:100%;accent-color:#3fd}.ngc-inv .btn{display:inline-block;padding:3px 12px;border:1px solid #3a8;background:rgba(0,40,60,.7);color:#9ff;cursor:pointer;letter-spacing:1px;margin-top:6px}
 .ngc-inv .btn:hover{background:#0a5a6a;color:#fff}
-.ngc-inv .quick{display:flex;gap:4px;justify-content:center;padding:6px;border-top:1px solid #1a4a50}
-.ngc-inv .qs{width:58px;height:46px;border:1px solid #2f6a74;background:rgba(0,16,24,.75);position:relative}.ngc-inv .qs .k{position:absolute;left:3px;top:1px;color:#ff8;font-size:11px}
+.ngc-inv .quick{display:flex;gap:3px}
+.ngc-inv .qs{width:36px;height:42px;border:1px solid #2f6a74;background:rgba(0,16,24,.75);position:relative}.ngc-inv .qs .k{position:absolute;left:3px;top:1px;color:#ff8;font-size:11px}
 .ngc-inv .qs .it{position:absolute;inset:0;cursor:pointer;border:none}
 .ngc-inv .srch{height:4px;background:#0006;margin:3px 0}.ngc-inv .srch i{display:block;height:100%;background:#ff8}
-.ngc-inv .status{position:absolute;left:50%;transform:translateX(-50%);bottom:64px;color:#ff8;font-size:14px;letter-spacing:2px;text-shadow:0 0 6px #a60;pointer-events:none}
+.ngc-inv .status{position:absolute;left:50%;transform:translateX(-50%);bottom:46px;color:#ff8;font-size:14px;letter-spacing:2px;text-shadow:0 0 6px #a60;pointer-events:none}
 .ngc-inv .cur{position:absolute;pointer-events:none;z-index:6;border:2px dashed #ff8;box-shadow:0 0 8px #ff8}
 .ngc-inv .ground{min-height:120px}
 `;
@@ -155,10 +159,9 @@ export const encColor = st => ({ LIGHT: '#4f6', 'FIGHTING LOAD': '#8f6', 'APPROA
 // ------------------------------------------------------------------------------------------------------- the UI
 export function createInvUI(opt) {
   injectCSS('ngc-inv-css', CSS);
-  const CELL = opt.cell || 38;
+  const CELL = opt.cell || 36;
   const root = document.createElement('div'); root.className = 'ngc-ov ngc-inv'; (opt.parent || document.body).appendChild(root);
-  const S = { inv: opt.inv, loot: null, open: false, drag: null, sel: null, cursor: null, wins: [], menu: null, status: '', statusT: 0, ground: I.newItem('crate_ammo') };
-  S.ground.id = 'crate_ammo'; S.ground.groundOnly = true;
+  const S = { inv: opt.inv, loot: null, open: false, drag: null, sel: null, cursor: null, wins: [], menu: null, status: '', statusT: 0, ground: I.newItem('ground') };
   const by = () => (opt.by ? opt.by() : { self: true, skill: opt.med?.skill || 'rifleman' });
   const D = it => ITEMS[it.id];
   const changed = () => { opt.onChange && opt.onChange(); render(); };
@@ -169,7 +172,7 @@ export function createInvUI(opt) {
     const d = D(it); const dm = I.dims(it);
     let ct = '';
     if (d.stack > 1) ct = it.n;
-    else if (d.mag) ct = `${I.magCount(it)}/${d.mag.cap}`;
+    else if (d.mag) ct = w < 50 ? I.magCount(it) : `${I.magCount(it)}/${d.mag.cap}`;
     else if (d.box) ct = I.magCount(it);
     else if (d.weapon && it.slots?.mag) ct = `${I.magCount(it.slots.mag)}`;
     else if (d.water) ct = `${(it.water / 1000).toFixed(2)} L`;
@@ -178,7 +181,7 @@ export function createInvUI(opt) {
     if (d.armour) bar = `<div class="bar"><i style="width:${(it.dur / d.armour.durMax * 100).toFixed(0)}%;background:${it.dur / d.armour.durMax > 0.5 ? '#8f8' : it.dur / d.armour.durMax > 0.25 ? '#fd2' : '#f52'}"></i></div>`;
     if (d.mag) bar = `<div class="bar"><i style="width:${(I.magCount(it) / d.mag.cap * 100).toFixed(0)}%;background:${'#fd6'}"></i></div>`;
     const q = S.inv.quick?.indexOf(it.uid); const qk = q >= 0 ? `<span class="q">${(q + 1) % 10}</span>` : '';
-    const era = d.era !== '1980' ? `<span class="era ${d.era}">${d.era === 'rw' ? 'RW' : 'SEIZED'}</span>` : '';
+    const era = d.era !== '1980' ? (w < 50 ? `<span class="erac ${d.era}"></span>` : `<span class="era ${d.era}">${d.era === 'rw' ? 'RW' : 'SEIZED'}</span>`) : '';
     const pw = w - 6, ph = h - 6;
     return `<div class="it cat-${d.cat}${it.unseen ? ' unseen' : ''}${S.sel === it ? ' sel' : ''}" data-uid="${it.uid}" style="${extra}width:${w}px;height:${h}px" title="">${iconSVG(it.id, Math.max(8, pw * (it.r ? 0.92 : 0.94)), Math.max(8, ph * 0.86), it.r)}<span class="nm">${esc(d.short || d.name)}</span>${ct !== '' ? `<span class="ct">${ct}</span>` : ''}${qk}${era}${bar}</div>`;
   }
@@ -187,9 +190,9 @@ export function createInvUI(opt) {
     const items = c.grids[g].map(o => { const dm = I.dims(o); return itemTile(o, dm.w * CELL - 1, dm.h * CELL - 1, `left:${o.x * CELL}px;top:${o.y * CELL}px;`); }).join('');
     return `<div class="gw"><div class="gl">${esc(label ?? gd.label ?? '')}</div><div class="grid" data-c="${c.uid}" data-g="${g}" style="width:${W + 1}px;height:${H + 1}px;background-size:${CELL}px ${CELL}px">${items}</div></div>`;
   }
-  function slotHTML(c, s, w, h, label) {
+  function slotHTML(c, s, w, h, label, cls = '') {
     const it = c.slots[s];
-    return `<div class="slot" data-c="${c.uid}" data-s="${s}" style="width:${w}px;height:${h}px">${it ? itemTile(it, w - 2, h - 2, 'left:0;top:0;') : `<span class="sl">${esc(label)}</span>`}</div>`;
+    return `<div class="slot ${cls}" data-c="${c.uid}" data-s="${s}" style="width:${w}px;height:${h}px">${it ? itemTile(it, w - 2, h - 2, 'left:0;top:0;') : `<span class="sl">${esc(label)}</span>`}</div>`;
   }
   const containerGrids = (c, labelPrefix = '') => (D(c).grids || []).map((_, g) => gridHTML(c, g, (labelPrefix && !g ? labelPrefix + ' ' : '') + (D(c).grids[g].label || ''))).join('');
   const secHead = (title, it) => `<h4>${esc(title)}<span>${it ? kg(I.weight(it)) : ''}</span></h4>`;
@@ -198,45 +201,47 @@ export function createInvUI(opt) {
     if (!S.open) return;
     const inv = S.inv, total = I.totalWeight(inv), enc = I.encumbrance(total, opt.bodyKg || 75);
     const tabs = (opt.tabs || ['GEAR']).map(t => `<span class="tab${t === 'GEAR' ? ' on' : ''}" data-tab="${t}">${t}</span>`).join('');
-    const eq = inv.slots;
-    // left: equipment
-    let left = `<div class="sec">${secHead('EQUIPMENT')}<div class="row">
-      ${slotHTML(inv, 'helmet', 2 * CELL + 6, 2 * CELL + 6, 'HELMET')}${slotHTML(inv, 'vest', 3 * CELL + 6, 2 * CELL + 6, 'BODY ARMOUR')}
-      ${slotHTML(inv, 'belt', 2 * CELL + 6, 2 * CELL + 6, 'LC-2 BELT')}${slotHTML(inv, 'pack', 3 * CELL + 6, 2 * CELL + 6, 'PACK')}</div></div>
-      <div class="sec">${secHead('WEAPONS')}<div class="row" style="flex-direction:column">${slotHTML(inv, 'primary', 6 * CELL + 30, 2 * CELL + 4, 'PRIMARY')}${slotHTML(inv, 'secondary', 6 * CELL + 30, 2 * CELL + 4, 'SLUNG / BACK')}
-      <div class="row">${slotHTML(inv, 'holster', 3 * CELL, CELL + 12, 'HOLSTER')}${weaponSlots(eq.primary)}</div></div></div>`;
-    left += `<div class="sec">${secHead('LOAD')}<div style="color:#bde">${esc(enc.state)} &middot; ${(enc.frac * 100).toFixed(0)}% OF BODY MASS<br>WALK x${enc.walkMul} &middot; SPRINT ${enc.canSprint ? 'x' + enc.sprintMul : 'NO'} &middot; STAMINA DRAIN x${enc.staminaDrainMul}<br>${['556', '45', '762n'].map(cal => { const n = I.countRounds(inv, cal); return n ? `${cal === '556' ? '5.56' : cal === '45' ? '.45' : '7.62'}: <b style="color:#fff">${n}</b> RDS` : ''; }).filter(Boolean).join(' &middot; ')}</div></div>`;
-    // centre: rig
-    let mid = `<div class="sec">${secHead('POCKETS', eq.pockets)}<div class="row">${eq.pockets ? containerGrids(eq.pockets) : ''}</div></div>`;
+    const eq = inv.slots, Q = 2 * CELL + 6, E = Math.round(CELL * 1.72);
+    // left: equipment, weapons, quick slots, load
+    const quick = (inv.quick || Array(10).fill(null)).map((u, i) => { if (i < 3) return ''; const it = I.quick(inv, i); return `<div class="qs" data-q="${i}"><span class="k">${(i + 1) % 10}</span>${it ? itemTile(it, 34, 40, 'left:0;top:0;') : ''}</div>`; }).join('');
+    const rounds = ['556', '45', '762n'].map(cal => { const n = I.countRounds(inv, cal); return n ? `${cal === '556' ? '5.56' : cal === '45' ? '.45' : '7.62'} <b style="color:#fff">${n}</b>` : ''; }).filter(Boolean).join(' &middot; ');
+    const left = `<div class="sec">${secHead('EQUIPMENT')}<div class="row">
+      ${slotHTML(inv, 'helmet', E, E, 'HELMET')}${slotHTML(inv, 'vest', E, E, 'ARMOUR')}${slotHTML(inv, 'belt', E, E, 'BELT')}${slotHTML(inv, 'pack', E, E, 'PACK')}</div></div>
+      <div class="sec">${secHead('WEAPONS')}<div class="row" style="flex-direction:column;gap:5px">${slotHTML(inv, 'primary', 6 * CELL + 30, 2 * CELL + 4, 'PRIMARY')}${slotHTML(inv, 'secondary', 6 * CELL + 30, CELL + 14, 'SLUNG / BACK')}
+      <div class="row" style="gap:5px">${slotHTML(inv, 'holster', 3 * CELL, CELL + 12, 'HOLSTER')}${weaponSlots(eq.primary)}${weaponSlots(eq.holster)}</div></div></div>
+      <div class="sec">${secHead('POCKETS', eq.pockets)}<div class="row" style="gap:5px">${eq.pockets ? containerGrids(eq.pockets) : ''}</div></div>
+      <div class="sec">${secHead('QUICK SLOTS')}<div class="quick">${quick}</div></div>
+      <div class="sec">${secHead('LOAD')}<div style="color:#bde;font-size:12px">${(enc.frac * 100).toFixed(0)}% OF BODY MASS &middot; WALK x${enc.walkMul}<br>SPRINT ${enc.canSprint ? 'x' + enc.sprintMul : 'NO'} &middot; STAMINA DRAIN x${enc.staminaDrainMul}<br>${rounds}</div></div>`;
+    // centre: pockets + vest, belt, pack
+    let mid = '';
     if (eq.belt) {
-      const b = eq.belt; let h = `<div class="sec">${secHead('LC-2 BELT', b)}<div class="row">`;
+      const b = eq.belt; let h = `<div class="sec">${secHead(D(b).name, b)}<div class="row" style="gap:10px">`;
       for (const s of Object.keys(D(b).slots)) {
         const p = b.slots[s];
-        h += `<div class="gw"><div class="gl">${esc(D(b).slots[s].label)}</div><div class="row" style="gap:3px">${slotHTML(b, s, (p ? Math.min(2, D(p).w) : 1) * CELL + 2, (p ? Math.min(2, D(p).h) : 2) * CELL + 2, '+')}${p?.grids ? `<div class="row" style="gap:3px">${D(p).grids.map((_, g) => gridHTML(p, g, '')).join('')}</div>` : ''}</div></div>`;
+        h += `<div class="gw"><div class="gl">${esc(D(b).slots[s].label)}</div><div class="row" style="gap:3px">${slotHTML(b, s, CELL + 2, CELL + 2, '+', 'mini')}${p?.grids ? D(p).grids.map((_, g) => gridHTML(p, g, '')).join('') : ''}</div></div>`;
       }
       mid += h + '</div></div>';
     }
-    if (eq.vest?.grids) mid += `<div class="sec">${secHead(D(eq.vest).name, eq.vest)}<div class="row">${containerGrids(eq.vest)}</div></div>`;
-    if (eq.pack) mid += `<div class="sec">${secHead(D(eq.pack).name, eq.pack)}<div class="row">${containerGrids(eq.pack)}</div></div>`;
+    mid += '<div class="row" style="gap:8px">';
+    if (eq.pack) { const p = eq.pack, G = D(p).grids; mid += `<div class="sec">${secHead(D(p).name, p)}<div class="row">${gridHTML(p, 0)}<div class="row" style="flex-direction:column;gap:2px">${G.slice(1).map((_, i) => gridHTML(p, i + 1)).join('')}</div></div></div>`; }
+    if (eq.vest?.grids) mid += `<div class="sec">${secHead(D(eq.vest).short, eq.vest)}<div class="row">${containerGrids(eq.vest)}</div></div>`;
+    mid += '</div>';
     // right: loot or ground
     let right = '';
     if (S.loot) {
       const L = S.loot, isBody = L.id === 'soldier', left0 = [...I.walk(L)].filter(o => o.unseen).length, tot = [...I.walk(L)].length;
       right += `<div class="sec">${secHead(isBody ? (L.name || 'BODY') : D(L).name, L)}${left0 ? `<div class="gl">SEARCHING... ${tot - left0}/${tot}</div><div class="srch"><i style="width:${((tot - left0) / Math.max(1, tot) * 100).toFixed(0)}%"></i></div>` : ''}`;
       if (isBody) {
-        right += `<div class="row">${['helmet', 'vest', 'belt', 'pack'].map(s => slotHTML(L, s, 2 * CELL + 6, 2 * CELL + 6, s.toUpperCase())).join('')}${slotHTML(L, 'primary', 6 * CELL + 6, 2 * CELL + 4, 'PRIMARY')}${slotHTML(L, 'holster', 3 * CELL, CELL + 12, 'HOLSTER')}</div>`;
+        right += `<div class="row">${['helmet', 'vest', 'belt', 'pack'].map(s => slotHTML(L, s, Q, Q, s.toUpperCase())).join('')}${slotHTML(L, 'primary', 6 * CELL + 6, 2 * CELL + 4, 'PRIMARY')}${slotHTML(L, 'holster', 3 * CELL, CELL + 12, 'HOLSTER')}</div>`;
         for (const c of I.containers(L)) if (c !== L) right += `<div class="gl" style="margin-top:6px">${esc(D(c).short)}</div><div class="row">${containerGrids(c)}</div>`;
       } else right += `<div class="row">${containerGrids(L)}</div>`;
       right += '</div>';
     } else {
-      right += `<div class="sec ground">${secHead('GROUND', S.ground)}<div class="gl">DRAG HERE TO DROP</div><div class="row">${gridHTML(S.ground, 0, '')}</div></div>`;
+      right += `<div class="sec ground">${secHead('GROUND')}<div class="gl">DRAG HERE TO DROP</div><div class="row">${gridHTML(S.ground, 0, '')}</div></div>`;
     }
-    const quick = (inv.quick || Array(10).fill(null)).map((u, i) => { if (i < 3) return ''; const it = I.quick(inv, i); return `<div class="qs" data-q="${i}"><span class="k">${(i + 1) % 10}</span>${it ? itemTile(it, 56, 44, 'left:0;top:0;') : ''}</div>`; }).join('');
-    const ep = enc.frac / 1.0;
-    root.innerHTML = `<div class="hd">${tabs}<div class="wt">${esc(enc.state)} <b>${total.toFixed(1)} KG</b><div class="wbar"><i style="width:${Math.min(100, ep * 100)}%;background:${encColor(enc.state)}"></i>${[0.33, 0.47, 0.8].map(f => `<u style="left:${f * 100}%"></u>`).join('')}</div></div></div>
+    root.innerHTML = `<div class="hd">${tabs}<div class="wt">${esc(enc.state)} <b>${total.toFixed(1)} KG</b><div class="wbar"><i style="width:${Math.min(100, enc.frac * 100)}%;background:${encColor(enc.state)}"></i>${[0.33, 0.47, 0.8].map(f => `<u style="left:${f * 100}%"></u>`).join('')}</div></div></div>
       <div class="bd"><div class="col eq">${left}</div><div class="col rig">${mid}</div><div class="col loot">${right}</div></div>
-      <div class="quick">${quick}</div>
-      <div class="help"><b>DRAG</b> MOVE &middot; <b>R</b> ROTATE WHILE DRAGGING &middot; <b>SHIFT-DRAG</b> SPLIT &middot; <b>CTRL-CLICK</b> QUICK MOVE &middot; <b>DOUBLE-CLICK</b> INSPECT / OPEN &middot; <b>RIGHT-CLICK</b> MENU &middot; <b>4-0</b> OVER AN ITEM: BIND QUICK SLOT &middot; DROP ON A MAGAZINE: LOAD &middot; <b>TAB / ESC</b> CLOSE</div>
+      <div class="help"><b>DRAG</b> MOVE &middot; <b>R</b> ROTATE WHILE DRAGGING &middot; <b>SHIFT-DRAG</b> SPLIT &middot; <b>CTRL-CLICK</b> QUICK MOVE &middot; <b>DOUBLE-CLICK</b> INSPECT / OPEN &middot; <b>RIGHT-CLICK</b> MENU &middot; <b>4-0</b> OVER AN ITEM: QUICK SLOT &middot; DROP ROUNDS ON A MAGAZINE: LOAD &middot; <b>ESC</b> CLOSE</div>
       <div class="status">${esc(S.statusT > 0 ? S.status : '')}</div>`;
     for (const w of S.wins) root.appendChild(w.el), w.refresh && w.refresh();
     if (S.cursor) drawCursor();
@@ -369,8 +374,8 @@ export function createInvUI(opt) {
     if (d.weapon) { add('CALIBRE', d.weapon.cal); if (d.weapon.rpm) add('RATE', d.weapon.rpm + ' RPM'); add('MODES', d.weapon.modes.join(' / ').toUpperCase()); if (it.slots?.mag) add('MAGAZINE', `${I.magCount(it.slots.mag)} / ${D(it.slots.mag).mag.cap}`); }
     if (d.mag) { add('CAPACITY', `${I.magCount(it)} / ${d.mag.cap}`); add('LOADING', `${d.mag.loadS} S / ROUND (THUMB)`); if (it.ammo?.length) add('ROUNDS', it.ammo.slice().reverse().map(([r, n]) => `${n} x ${ROUNDS[r].name}`).join('<br>')); }
     const rd = ROUNDS[d.round || d.box?.round];
-    if (rd) { add('ROUND', rd.name); add('BULLET', `${rd.bulletG} G @ ${rd.v0} M/S = ${Math.round(0.5 * rd.bulletG / 1000 * rd.v0 * rd.v0)} J`); add('WOUNDING', rd.fragV < 2000 ? `FRAGMENTS ABOVE ${rd.fragV} M/S` : `YAWS AFTER ${rd.neckCm} CM`); if (d.box) add('CONTENTS', `${I.magCount(it)} RDS${d.box.clip ? ` ON ${d.box.clip}-RD CLIPS` : ''}`); }
-    if (d.armour) { add('DURABILITY', `${it.dur.toFixed(0)} / ${d.armour.durMax}`); for (const L of d.armour.layers) add(MATS[L.mat].name, Object.entries(L.zones).map(([z, v]) => `${z.toUpperCase()} ${(v * 100).toFixed(0)}%`).join(', ') + `<br><span style="color:#8ab">${L.faces.join(' / ').toUpperCase()}</span>`); }
+    if (rd) { add('ROUND', rd.name); add('DAMAGE / PEN', `${rd.dmg} / ${rd.pen}`); add('CARTRIDGE', `${rd.cartG} G`); if (d.box) add('CONTENTS', `${I.magCount(it)} RDS${d.box.clip ? ` ON ${d.box.clip}-RD CLIPS` : ''}`); }
+    if (d.armour) { add('DURABILITY', `${it.dur.toFixed(0)} / ${d.armour.durMax}`); for (const L of d.armour.layers) add(`CLASS ${MATS[L.mat].cls} ${MATS[L.mat].name}`, Object.entries(L.zones).map(([z, v]) => `${z.toUpperCase()} ${(v * 100).toFixed(0)}%`).join(', ') + `<br><span style="color:#8ab">${L.faces.join(' / ').toUpperCase()}</span>`); }
     if (d.med) { const m = d.med; add('USE', m.kind.toUpperCase() + (m.who === 'corpsman' ? ' &middot; <span style="color:#f88">CORPSMAN ONLY</span>' : '')); if (m.time) { const t = v => typeof v === 'object' ? `ARM ${v.arm} S / LEG ${v.leg} S` : v + ' S'; add('TIME', `SELF ${t(m.time.self)} &middot; BUDDY ${t(m.time.buddy)}`); } if (m.mg) add('DOSE', m.mg + ' MG'); if (m.kcal) add('ENERGY', m.kcal + ' KCAL'); if (m.ml) add('VOLUME', m.ml + ' ML @ ' + m.mlPerMin + ' ML/MIN'); if (m.tq) add('SUCCESS', `ARM ${(m.tq.p.arm * 100).toFixed(0)}% &middot; LEG ${(m.tq.p.leg * 100).toFixed(0)}%`); if (it.uses > 1) add('USES LEFT', it.uses); }
     if (d.water) add('WATER', `${it.water} / ${d.water} ML`);
     if (d.grids) add('GRIDS', d.grids.map(g => `${g.w}x${g.h}${g.label ? ' ' + g.label : ''}`).join(', '));
@@ -424,17 +429,19 @@ export function createInvUI(opt) {
     if (e.button === 2) { e.preventDefault(); if (!it.unseen) menu(it, e.clientX, e.clientY); return; }
     if (e.button !== 0 || !canInteract(it)) return;
     S.sel = it;
+    const now = performance.now(); if (lastDown.uid === it.uid && now - lastDown.t < 450 && !e.target.closest('.win')) { lastDown.uid = -1; dbl(it, e); return; } lastDown = { uid: it.uid, t: now };
     if (e.ctrlKey) { quickMove(it); return; }
     const sx = e.clientX, sy = e.clientY, split = e.shiftKey;
     const mv = ev => { if (!S.drag && Math.hypot(ev.clientX - sx, ev.clientY - sy) > 4) startDrag(it, e, split); if (S.drag) updateGhost(ev); };
     const up = ev => { removeEventListener('pointermove', mv); removeEventListener('pointerup', up); if (S.drag) endDrag(ev); };
     addEventListener('pointermove', mv); addEventListener('pointerup', up);
   });
-  root.addEventListener('dblclick', e => {
-    const el = e.target.closest('.it'); if (!el || e.target.closest('.win')) return; const it = byUid(el.dataset.uid); if (!it || it.unseen) return;
+  // double-click by item uid (the DOM may be re-rendered between the clicks while a body is searched)
+  let lastDown = { uid: -1, t: 0 };
+  function dbl(it, e) {
     if (it.grids && !D(it).static && !D(it).fixed && !['pack', 'rig'].includes(D(it).cat)) openContainer(it, Math.min(e.clientX, innerWidth - 300), Math.min(e.clientY, innerHeight - 300));
     else inspect(it, Math.min(e.clientX, innerWidth - 440), Math.min(e.clientY - 40, innerHeight - 440));
-  });
+  }
   root.addEventListener('contextmenu', e => e.preventDefault());
   const onKey = e => {
     if (!S.open) return;

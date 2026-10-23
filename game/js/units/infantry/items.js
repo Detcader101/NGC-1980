@@ -167,7 +167,7 @@ D('claymore', { name: 'M18A1 CLAYMORE', short: 'CLAYMORE', cat: 'grenade', tags:
 // ---- carried gear and containers. `fixed` = part of the body (pockets), never dropped.
 // grids: [{ w, h, accept?: [tags], deny?: [tags], label }]; an empty accept list = anything that fits.
 D('pockets', { name: 'POCKETS (UTILITIES)', short: 'POCKETS', cat: 'container', tags: ['pockets'], fixed: true, kg: 0, icon: 'pouch',
-  grids: [{ w: 1, h: 1, label: 'COAT L' }, { w: 1, h: 1, label: 'COAT R' }, { w: 1, h: 2, label: 'COAT LOW L' }, { w: 1, h: 2, label: 'COAT LOW R' }, { w: 1, h: 2, label: 'CARGO L' }, { w: 1, h: 2, label: 'CARGO R' }],
+  grids: [{ w: 1, h: 1, label: 'CHEST L' }, { w: 1, h: 1, label: 'CHEST R' }, { w: 1, h: 2, label: 'COAT L' }, { w: 1, h: 2, label: 'COAT R' }, { w: 1, h: 2, label: 'CARGO L' }, { w: 1, h: 2, label: 'CARGO R' }],
   tag: 'INFERRED', src: 'ERDL / OG-107 utility coat (4 bellows pockets) and trousers (2 cargo)' });
 D('lc2_belt', { name: 'LC-2 BELT + SUSPENDERS', short: 'LC-2', cat: 'rig', tags: ['belt'], w: 3, h: 2, kg: 0.45, icon: 'belt2', tag: 'INFERRED', src: 'ALICE (belt ~0.2 kg, Y-suspenders ~0.25 kg)',
   // ALICE slide keepers: each keeper takes one pouch. Order = left to right around the waist.

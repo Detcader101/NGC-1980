@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Medical + Inventory Sandbox</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#000;font:13px/1.35 Consolas,"Courier New",monospace;color:#9ff;user-select:none}
+*{box-sizing:border-box}
+#top{position:fixed;left:0;right:0;top:0;height:42px;display:flex;align-items:center;gap:10px;padding:0 12px;background:rgba(0,20,32,.95);border-bottom:1px solid #2a6a70;z-index:100;text-shadow:0 0 4px #0cf5}
+#top .ttl{color:#fff;letter-spacing:3px;font-size:14px;margin-right:8px;white-space:nowrap}
+#top .tb{padding:3px 10px;border:1px solid #2f6a74;cursor:pointer;color:#7aa;letter-spacing:2px}
+#top .tb.on{color:#fff;border-color:#8ff;background:rgba(0,90,120,.6)}
+#top select,#top button,#panel select,#panel button,#panel input{font:12px Consolas,monospace;background:rgba(0,40,60,.8);color:#9ff;border:1px solid #3a8;padding:2px 6px}
+#top button:hover,#panel button:hover{background:#0a5a6a;color:#fff;cursor:pointer}
+#clock{color:#ff8;min-width:110px;text-align:right}
+#view{position:fixed;left:0;right:0;top:42px;bottom:0}
+#view .ngc-ov{position:absolute}
+#sandbox{position:absolute;inset:0;display:flex;gap:10px;padding:10px;background:radial-gradient(ellipse at 50% 40%,#04182a,#00060e)}
+#panel{width:270px;flex:none;display:flex;flex-direction:column;gap:8px;overflow:auto}
+.box{background:rgba(0,30,44,.5);border:1px solid #234c55;padding:6px 8px}
+.box h4{margin:0 0 5px;font-size:12px;letter-spacing:2px;color:#ff8;font-weight:normal;border-bottom:1px solid #4aa5;padding-bottom:2px}
+.box label{display:flex;justify-content:space-between;align-items:center;gap:6px;margin:3px 0}
+.box label select,.box label input[type=range]{width:150px}
+.box button{width:100%;margin-top:4px;padding:5px;letter-spacing:2px}
+#mid{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0}
+#vis{position:relative;flex:1;border:1px solid #234c55;overflow:hidden;min-height:200px}
+#vis canvas{position:absolute;inset:0;width:100%;height:100%}
+#vis .lbl{position:absolute;right:8px;top:6px;color:#bde;font-size:11px;letter-spacing:1px;z-index:6;text-shadow:0 0 3px #000}
+#chart{height:190px;border:1px solid #234c55;background:rgba(0,14,22,.8);position:relative}
+#chart canvas{width:100%;height:100%;display:block}
+#right{width:330px;flex:none;display:flex;flex-direction:column;gap:8px;overflow:auto}
+.kv{display:grid;grid-template-columns:1fr auto;gap:1px 8px;font-size:12px}.kv span{color:#6aa}.kv b{color:#fff;font-weight:normal}
+#log div{font-size:11px;color:#9cc}#log b{color:#ff8;font-weight:normal}
+#hitres{font-size:11px;color:#bde;min-height:28px}
+</style></head><body>
+<div id="top"><span class="ttl">MED + INV SANDBOX</span>
+  <span class="tb on" data-v="sandbox">SANDBOX</span><span class="tb" data-v="gear">GEAR</span><span class="tb" data-v="health">HEALTH</span>
+  <span style="flex:1"></span>
+  LOADOUT <select id="loadout"><option>rifleman</option><option>grenadier</option><option>mg</option><option>corpsman</option></select>
+  LOOT <select id="loot"><option value="">-</option><option value="crate_ammo">AMMO CRATE</option><option value="crate_med">MEDICAL CHEST</option><option value="rw_cache">RW CACHE</option><option value="rwbody">RW TROOPER BODY</option></select>
+  TIME <button data-sp="0">II</button><button data-sp="1">x1</button><button data-sp="10">x10</button><button data-sp="60">x60</button><span id="clock"></span>
+  <button id="restore">RESTORE</button>
+</div>
+<div id="view"><div id="sandbox">
+  <div id="panel">
+    <div class="box"><h4>INCOMING FIRE</h4>
+      <label>ROUND <select id="round"></select></label>
+      <label>RANGE <input type="range" id="range" min="0" max="600" value="100"><b id="rangev">100 m</b></label>
+      <label>BODY PART <select id="part"><option value="">RANDOM</option></select></label>
+      <label>ZONE <select id="zone"><option value="">RANDOM</option></select></label>
+      <label>FROM <select id="face"><option value="front">FRONT</option><option value="back">BEHIND</option><option value="side">SIDE</option><option value="top">ABOVE</option></select></label>
+      <label>ARMOUR <span><input type="checkbox" id="armour" checked> AS WORN</span></label>
+      <button id="fire">FIRE ONE ROUND</button><button id="burst">BURST OF 3</button>
+      <div id="hitres"></div></div>
+    <div class="box"><h4>BLAST / FALL</h4>
+      <label>GRENADE <select id="frag"></select></label>
+      <label>DISTANCE <input type="range" id="fdist" min="1" max="30" value="8"><b id="fdistv">8 m</b></label>
+      <label>PRONE <input type="checkbox" id="prone"></label>
+      <button id="blast">DETONATE</button>
+      <label>FALL <input type="range" id="fall" min="1" max="12" value="4"><b id="fallv">4 m</b></label>
+      <button id="dofall">JUMP</button></div>
+    <div class="box"><h4>ACTIVITY</h4>
+      <label>EXERTION <input type="range" id="ex" min="0" max="100" value="0"><b id="exv">REST</b></label>
+      <label>MOVING <input type="checkbox" id="moving"></label>
+      <label>MARINE IS A <select id="skill"><option value="rifleman">RIFLEMAN</option><option value="corpsman">CORPSMAN</option></select></label></div>
+  </div>
+  <div id="mid"><div id="vis"><canvas id="scene"></canvas><span class="lbl">WHAT HE SEES &middot; SWAY + TREMOR ON THE SIGHT</span></div><div id="chart"><canvas id="chartc"></canvas></div></div>
+  <div id="right"><div class="box"><h4>VITALS</h4><div class="kv" id="vk"></div></div><div class="box"><h4>MODIFIERS FOR THE SOLDIER SIM</h4><div class="kv" id="mods"></div></div><div class="box"><h4>EVENTS</h4><div id="log"></div></div></div>
+</div></div>
+<script type="module" src="./medinv.js"></script>
+</body></html>
