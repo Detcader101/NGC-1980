@@ -26,11 +26,17 @@ export function approach(st, tgt, o, world, out = {}) {
   const cruiseH = Math.max(floor, world.floorAlong(st.x, st.z, ux, uz, Math.min(d, 400)) + o.agl);
   const hDes = Math.max(Math.min(cruiseH, glide), floor);
   out.hDes = hDes;
-  out.vy = clamp((hDes - st.y) * o.kh, -o.vDesc, o.vClimb) + (tgt.vy || 0);
+  // descent limit: slow, steep descents put a rotor in its own wake (vortex ring) - below ~40 kt keep it under
+  // o.vDescSlow (the V-22's ~800 fpm below 40 KCAS rule; a good habit for the CH-46 too)
+  const vd = Math.hypot(st.vx - (tgt.vx || 0), st.vz - (tgt.vz || 0)) < 20 ? Math.min(o.vDesc, o.vDescSlow ?? 3.5) : o.vDesc;
+  out.vy = clamp((hDes - st.y) * o.kh, -vd, o.vClimb) + (tgt.vy || 0);
   // heading: along the track while far, the landing heading in the last part
   const trackHdg = Math.atan2(-out.vx + (tgt.vx || 0), -out.vz + (tgt.vz || 0));
   out.hdg = d > o.hdgDist ? (Vc > 3 ? trackHdg : null) : tgt.hdg;
   if (out.hdg === null || out.hdg === undefined) out.hdg = st.yaw;
+  // slow and pointing the wrong way (just off the deck): turn onto the track in the hover first, then go
+  const gs = Math.hypot(st.vx - (tgt.vx || 0), st.vz - (tgt.vz || 0)), herr = Math.abs(wrap(trackHdg - st.yaw));
+  if (d > o.hdgDist && gs < 12 && herr > 0.5) { out.hdg = trackHdg; out.vx = (tgt.vx0 ?? st.vx * 0.9); out.vz = (tgt.vz0 ?? st.vz * 0.9); out.ax = out.az = 0; out.turning = true; }
   out.speed = Vc;
   return out;
 }
@@ -50,7 +56,7 @@ export function createTransportAI(o, hooks) {
     // st: pilot.stateOf(); sim: { agl, landed, contacts }; world: { floorAlong, groundY }
     step(st, sim, dt, world) {
       AI.t += dt; AI.tAll += dt;
-      const c = AI.cmd; c.collFix = undefined; c.ground = false; c.pitch = undefined; c.roll = undefined;
+      const c = AI.cmd; c.collFix = undefined; c.ground = false; c.pitch = undefined; c.roll = undefined; const vyPrev = c.vy ?? 0;
       switch (AI.phase) {
         case 'spool': {   // engines to flight rpm, rotors spinning up on the deck
           AI.spot = AI.spot || { x: st.x, z: st.z, hdg: st.yaw };
@@ -98,6 +104,7 @@ export function createTransportAI(o, hooks) {
           if (AI.t > 1 && hooks.home && hooks.home()) AI.set('rtb');
         }
       }
+      c.vy = vyPrev + clamp((c.vy ?? 0) - vyPrev, -(o.vyRate ?? 1.5) * dt, (o.vyRate ?? 1.5) * dt);   // no steps in the climb / descent command
       return c;
     },
     goHome() { if (!['rtb', 'descend2', 'parked'].includes(AI.phase)) AI.set(AI.phase === 'ground' || AI.phase === 'spool' ? 'lift2' : 'rtb'); },

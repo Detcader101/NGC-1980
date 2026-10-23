@@ -12,7 +12,7 @@ import { clamp, wrap, sstep, attitude } from './rb.js';
 const D2R = Math.PI / 180, KT = 1.94384;
 // nacelle angle (deg) for a wanted airspeed (kt): helicopter at the hover, conversion through ~60-140 kt, airplane above
 // (as a fraction of the flapped wing stall speed at the present weight: the wing takes the load as the nacelles come down)
-const SCHED = [[0, 90], [0.25, 87], [0.55, 82], [0.8, 78], [0.95, 70], [1.08, 50], [1.2, 25], [1.32, 5], [1.4, 0]];
+const SCHED = [[0, 90], [0.25, 87], [0.55, 82], [0.8, 78], [1.0, 74], [1.12, 60], [1.22, 35], [1.3, 12], [1.36, 0]];
 const lerpT = (T, x) => { if (x <= T[0][0]) return T[0][1]; for (let i = 1; i < T.length; i++) if (x <= T[i][0]) { const [x0, y0] = T[i - 1], [x1, y1] = T[i]; return y0 + (y1 - y0) * (x - x0) / (x1 - x0); } return T[T.length - 1][1]; };
 export const nacFor = (kt, vs = 150) => lerpT(SCHED, kt / vs);
 
@@ -26,19 +26,28 @@ export function createTiltPilot(G, sim) {
     step(s, dt, cmd) {
       const c = P.ctl, I = P.i, g = 9.81, fx = -Math.sin(s.yaw), fz = -Math.cos(s.yaw);
       const V = Math.hypot(s.vx, s.vz), ias = sim.ias, nac = sim.nac / D2R;
-      // ---- nacelles: schedule on the wanted along-track speed, held in the corridor at the present airspeed
-      const vWant = Math.max(0, (cmd.vx ?? 0) * fx + (cmd.vz ?? 0) * fz) * KT, want = cmd.nac ?? nacFor(Math.max(vWant, cmd.speedHint ?? 0), sim.vStall);
+      // ---- the velocity error and the acceleration it asks for (heading frame)
+      const evx = (cmd.vx ?? 0) - s.vx, evz = (cmd.vz ?? 0) - s.vz, ef = evx * fx + evz * fz, er = evx * -fz + evz * fx;
+      const af = clamp(ef * G.kv, -G.aMax, G.aMax) + ((cmd.ax ?? 0) * fx + (cmd.az ?? 0) * fz), ar = clamp(er * G.kv, -G.aMax, G.aMax);
+      // ---- nacelles: a tiltrotor pilot accelerates and slows with the nacelle thumbwheel, attitude near level: the
+      // schedule for the present airspeed plus a lead from the acceleration wanted, held inside the corridor
+      // (slowing down from airplane mode: on power first - the nacelles only lead the slowdown once below 1.15 Vs)
+      const decLead = ias > 1.15 * sim.vStall ? -6 : -45;
+      const want = cmd.nac ?? nacFor(Math.max(0, ias + clamp(af * 20, decLead, 45)), sim.vStall);
       const cor = n => sim.corridor(n);
       let lo = 0; while (lo < 90 && cor(lo).min > ias - 8) lo += 2;                 // lowest nacelle the airspeed supports (8 kt margin)
       let hi = 97.5; while (hi > 0 && cor(hi).max < ias + 8) hi -= 2;               // highest the airspeed allows
       P.nacT = clamp(want, lo, Math.max(lo, hi)); c.nac = P.nacT;
-      const k = P.k = sstep(55, 85, nac);                                            // 1 = helicopter loops, 0 = airplane loops
-      // ---- helicopter: velocity -> attitude (as pilot.js), climb -> thrust lever
-      const evx = (cmd.vx ?? 0) - s.vx, evz = (cmd.vz ?? 0) - s.vz, ef = evx * fx + evz * fz, er = evx * -fz + evz * fx;
-      const af = clamp(ef * G.kv, -G.aMax, G.aMax) + ((cmd.ax ?? 0) * fx + (cmd.az ?? 0) * fz), ar = clamp(er * G.kv, -G.aMax, G.aMax);
-      if (k >= 0.5) { I.th = clamp(I.th - ef * G.trimI * dt, -0.25, 0.25); I.ph = clamp(I.ph + er * G.trimI * dt, -0.15, 0.15); }   // one set of integrators in charge at a time
-      const thH = clamp(I.th - Math.atan(af / g), -G.tilt, G.tilt * 0.8), phH = clamp(I.ph + Math.atan(ar / g), -G.tilt, G.tilt);
+      // 1 = helicopter loops, 0 = airplane loops: by nacelle angle, but helicopter-style until the wing can carry it
+      const k = P.k = Math.max(sstep(55, 85, nac), 1 - sstep(1.0 * sim.vStall, 1.22 * sim.vStall, ias));
+      // ---- helicopter: velocity -> attitude (as pilot.js) but less and less pitch as the nacelles take over the
+      // speed (near level by 70 deg), climb -> thrust lever
+      const kt_ = sstep(70, 88, nac), tl = 0.06 + (G.tilt - 0.06) * kt_;
+      // the pitch trim works on the speed while the rotors lift (nacelles up), on the climb (wing angle of attack) as
+      // the nacelles come down and the wing takes the weight
       const evy = (cmd.vy ?? 0) - s.vy;
+      if (k >= 0.5) { I.th = clamp(I.th + (-ef * G.trimI * kt_ + evy / Math.max(20, V) * A.aoaI * 20 * (1 - kt_)) * dt, -0.25 * kt_ - 0.05, 0.25 * kt_ + 0.2 * (1 - kt_) + 0.06); I.ph = clamp(I.ph + er * G.trimI * dt, -0.15, 0.15); }   // one set of integrators in charge at a time
+      const thH = clamp(I.th - Math.atan(af / g) * kt_ + (1 - kt_) * A.kvy * evy / Math.max(25, V), -tl - 0.05 * (1 - kt_), Math.max(tl * 0.8 + 0.04, I.th + 0.05)), phH = clamp(I.ph + Math.atan(ar / g), -G.tilt, G.tilt);
       if (k >= 0.5) I.tcl = clamp(I.tcl + evy * G.vz[1] * dt, 0, 1);
       const tclH = clamp(I.tcl + evy * G.vz[0], 0, 1);
       // ---- airplane: speed -> thrust lever, climb -> pitch (flight path + angle of attack), heading -> bank

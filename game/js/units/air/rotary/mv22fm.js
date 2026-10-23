@@ -40,7 +40,7 @@ export const MV22 = {
   WING: { S: 28.0, b: 14.0, inc: 3 * D2R, a: 4.6, cl0: 0.15, clmax: 1.6, cd0: 0.009, e: 0.78, x: 0.0, z: -1.8, flapCl: 0.45, ail: 0.35 },
   HT: { S: 8.9, x: -8.3, z: -1.2, a: 3.6, inc: -3 * Math.PI / 180, tau: 0.5, maxEl: 20 * D2R },   // horizontal tail (INFERRED)
   VT: { S: 11.4, x: -8.6, z: -2.2, a: 3.0, tau: 0.45, maxRud: 20 * D2R },        // twin fins (INFERRED)
-  FUS: { f: 4.0, fy: 30, fz: 40, Mw: 45, Nv: 60 },   // flat plate (INFERRED, tuned to 275 kt SL), side, plan; unstable pitch / yaw moments
+  FUS: { f: 3.55, fy: 30, fz: 40, Mw: 45, Nv: 60 },   // flat plate (INFERRED, tuned to 275 kt SL), side, plan; unstable pitch / yaw moments
   WASH: 1.45,                                         // downwash on the wing, x the rotors' induced velocity (INFERRED: gives the ~10% hover download)
   GEAR: [[5.3, 0, 2.35], [-0.9, -2.2, 2.35], [-0.9, 2.2, 2.35]],
   // published performance (CONFIRMED): max speed 275 kt SL (305 kt at 15,000 ft), stall 110 kt, climb 2,320-4,000 fpm,
@@ -79,7 +79,7 @@ export function createMV22Sim(G = 9.81) {
     // the conversion corridor (INFERRED from the published XV-15 / V-22 corridor shape): KCAS limits per nacelle angle
     // the floor scales with the wing's flapped stall speed at this weight (the published 110 kt is a light, power-on figure)
     get vStall() { return Math.sqrt(S.mass * G / (0.5 * S.rho * C.WING.S * (C.WING.clmax + C.WING.flapCl))) * KT * Math.sqrt(S.rho / 1.225); },
-    corridor(nacDeg) { const n = clamp(nacDeg, 0, 97.5), vs = S.vStall; return { min: n >= 75 ? (n > 90 ? -35 : 0) : vs * 0.95 * (1 - n / 75) ** 0.55, max: Math.min(300, 120 + (90 - n) * 2.3) }; },
+    corridor(nacDeg) { const n = clamp(nacDeg, 0, 97.5), vs = S.vStall; return { min: n >= 75 ? (n > 90 ? -35 : 0) : vs * 1.15 * (1 - n / 75) ** 0.55, max: Math.min(300, 120 + (90 - n) * 2.3) }; },
   };
   const body = S.body = createBody({ mass: () => S.mass, I: C.I, gear: C.GEAR.map(at => ({ at, k: 500000, c: 60000, mu: 0.7 })) });
   // shaft axes for a nacelle angle (FRD): thrust (-Zs) from straight up (90) to straight ahead (0)
@@ -142,10 +142,12 @@ export function createMV22Sim(G = 9.81) {
     const ax_ = Math.max(0, u * cs - _vb[2] * sn), base = Math.atan2(ax_, 0.75 * S.omega * C.R) - 5.5 * D2R;   // TCL 0 = no thrust even in edgewise flow
     // helicopter share (kH): TCL -> collective, engines govern rpm. Airplane share: the collective governs rpm like a
     // constant-speed propeller and the TCL commands engine power (XV-15 / V-22 practice, INFERRED gains)
+    // overspeed protection on the helicopter share: past +2% rotor speed the FCS adds collective (no windmilling runaway)
     const kH = S.kH = sstep(25 * D2R, 60 * D2R, S.nac), nr = S.omega / C.OMEGA_H, gerr = nr - S.rpmCmd;
-    if (kH > 0.995) S.thGov = base + C.TH_SPAN * c.tcl; else S.thGov = clamp(S.thGov + gerr * 1.6 * h, base - 0.15, base + 0.5);
+    S.osI = clamp((S.osI || 0) + (gerr > 0.02 ? (gerr - 0.02) * 1.5 : -0.3 * (S.osI || 0)) * h, 0, 0.3); const os = S.osI + Math.max(0, gerr - 0.02) * 1.2;
+    if (kH > 0.995) S.thGov = base + C.TH_SPAN * c.tcl + os; else S.thGov = clamp(S.thGov + gerr * 1.6 * h, base - 0.15, base + 0.5);
     const thAir = S.thGov + gerr * 0.9;
-    const th = kH * (base + C.TH_SPAN * c.tcl) + (1 - kH) * thAir, rk = sn * sn, dif = C.DIFF * lat * (0.4 + 0.6 * rk);
+    const th = kH * (base + C.TH_SPAN * c.tcl + os) + (1 - kH) * thAir, rk = sn * sn, dif = C.DIFF * lat * (0.4 + 0.6 * rk);
     inR.th75 = th - dif; inL.th75 = th + dif;
     inR.lon = inL.lon = -C.CYC * lon * rk;                          // stick aft: both discs aft (helicopter pitch)
     inR.lon += -C.DCYC * ped * rk; inL.lon += C.DCYC * ped * rk;    // pedal right: right disc aft, left forward (yaw)
@@ -172,12 +174,14 @@ export function createMV22Sim(G = 9.81) {
     body.M[1] += q0 * F.Mw * _vb[2] * Math.abs(u); body.M[2] += -q0 * F.Nv * _vb[1] * Math.abs(u) * 0.3;
     body.M[0] += -20000 * wb[0]; body.M[1] += -40000 * wb[1]; body.M[2] += -60000 * wb[2];   // airframe damping (INFERRED)
     body.integrate(h, env, G);
-    S.agl = body.agl; S.landed = body.landed;
+    S.agl = body.gearDown ? body.agl : Math.max(0, body.pos[1] - C.CG_H - env.groundY(body.pos[0], body.pos[2]));   // gear up: from the belly
+    S.landed = body.landed;
+    if (!body.gearDown && body.pos[1] - env.groundY(body.pos[0], body.pos[2]) < 1.6) { S.events.push(env.water && env.water(body.pos[0], body.pos[2]) ? 'water' : 'crash'); S.dead = 'belly'; }
     if (body.touch) { const t = body.touch; body.touch = null; S.events.push(t.vy < -4 || t.hs > 10 ? 'hardland' : 'land'); if (t.vy < -9 || (!body.gearDown && t.hs > 2)) { S.events.push('crash'); S.dead = 'crash'; } }
     if (body.wet && !env.floats) { S.events.push('water'); S.dead = 'water'; }
     S.attitude(_att); if (body.contacts && Math.abs(_att.roll) > 0.5) { S.events.push('crash'); S.dead = 'rollover'; }
     // a proprotor striking the ground (nacelles low near the ground)
-    if (S.nac < 60 * D2R && S.agl < 1.5 && Math.abs(_att.pitch) < 1 && body.contacts) { S.events.push('crash'); S.dead = 'proprotor strike'; }
+    if (S.nac < 60 * D2R && S.agl < 1.5 && S.omega > 0.3 * C.OMEGA_H && body.contacts) { S.events.push('crash'); S.dead = 'proprotor strike'; }
   }
   // engines on one cross-shaft: N2 governor to 412 rpm (helicopter, conversion) or 333 rpm (airplane mode below 30 deg)
   function drivetrain(h, ctl, M) {
@@ -187,14 +191,14 @@ export function createMV22Sim(G = 9.81) {
     let qe = 0, live = 0;
     for (let i = 0; i < 2; i++) {
       const e = S.eng[i], ok = e.ok && (M['eng' + i] ?? true) && ctl['eng' + i] !== false;
-      const demH = clamp(S.govI + err * 8 + 0.2 * S.c.tcl - 0.1, 0.62, 1.03), demA = 0.62 + 0.41 * clamp(S.c.tcl, 0, 1) ** 0.67;
+      const demH = clamp(S.govI + err * 8 + 0.2 * S.c.tcl - 0.1, 0.62, 1.0), demA = 0.62 + 0.38 * clamp(S.c.tcl, 0, 1) ** 0.67;   // N1 1.0 = 6,150 shp, the maximum rating
       const dem = ok ? S.kH * demH + (1 - S.kH) * demA : 0;
       e.n1 += clamp((dem - e.n1) * 1.8, -0.3, 0.12) * h;
       e.p = ok ? C.P_ENG * lapse * Math.max(0, (e.n1 - 0.6) / 0.4) ** 1.5 : 0;
       if (ok) live++; qe += e.p / C.OMEGA_H * Math.max(0, 2 - nr);
     }
     S.live = live;
-    const qLoad = rR.Q + rL.Q + 0.03 * C.P_ENG / C.OMEGA_H * nr;
+    const qLoad = rR.Q + rL.Q + 0.03 * C.P_ENG / C.OMEGA_H * nr + (ctl.rotorBrake ? 40000 * Math.min(1, S.omega) : 0);   // + the rotor brake for the fold
     S.omega = Math.max(0, S.omega + (qe - qLoad) / C.I_ROT * h);
     S.power = qe * S.omega; S.torque = S.power / (2 * C.P_ENG);
   }

@@ -70,10 +70,10 @@ console.log('--- performance ---');
   T.check('max level speed, sea level, full power', Math.abs(vmax - MV22.PUB.VMAX) <= 15, `${vmax} kt`, `${MV22.PUB.VMAX} kt`, 'CONFIRMED');
   // climb, airplane mode at the best-climb speed 154 KCAS (AOPA / Bell-Boeing figure), full power
   const A = mk({ kt: 154, nac: 0, gw: MV22.MTOW_V });
-  let pI = 0.1;   // speed on the pitch attitude, full power: a best-rate climb
-  const c = run(A.S, 40, () => { stateOf(A.S.body, A.st); const e = A.st.vf * KT - 154; pI = clamp(pI + e * 0.0015 * DT, -0.1, 0.4); const k = A.P.step(A.st, DT, { vx: 0, vz: -154 / KT, vy: 0, hdg: 0, agl: 600, nac: 0, pitch: clamp(pI + e * 0.01, -0.1, 0.45) }); k.tcl = 1; return k; }, sea(), keys(A), 8);
+  let pI = 0.1;   // speed on the pitch attitude, TCL 0.72 = ~81% power (max continuous ~5,000 shp an engine, INFERRED): a best-rate climb
+  const c = run(A.S, 40, () => { stateOf(A.S.body, A.st); const e = A.st.vf * KT - 154; pI = clamp(pI + e * 0.0015 * DT, -0.1, 0.4); const k = A.P.step(A.st, DT, { vx: 0, vz: -154 / KT, vy: 0, hdg: 0, agl: 600, nac: 0, pitch: clamp(pI + e * 0.01, -0.1, 0.45) }); k.tcl = 0.72; return k; }, sea(), keys(A), 8);
   const fpm = c.vy * FPM;
-  T.check('climb, airplane mode, 154 KCAS, full power, 52,600 lb', fpm >= MV22.PUB.ROC[0] * 0.9 && fpm <= MV22.PUB.ROC[1] * 1.15, `${fpm.toFixed(0)} fpm at ${c.kt.toFixed(0)} kt`, '2,320-4,000 fpm', 'CONFIRMED (154 KCAS: AOPA; weight INFERRED)');
+  T.check('climb, airplane mode, 154 KCAS, max continuous, 52,600 lb', fpm >= MV22.PUB.ROC[0] * 0.9 && fpm <= MV22.PUB.ROC[1] * 1.15, `${fpm.toFixed(0)} fpm at ${c.kt.toFixed(0)} kt`, '2,320-4,000 fpm', 'CONFIRMED (154 KCAS: AOPA; weight INFERRED)');
   // the wing's power-on stall with the nacelles down, at gross weight (published 110 kt)
   const S1 = createMV22Sim(); S1.payload = MV22.GROSS - (MV22.EMPTY + MV22.CREW + S1.fuelKg);
   T.check('flapped wing stall at 39,500 lb vs published stall speed', S1.vStall > 100 && S1.vStall < 150, `${S1.vStall.toFixed(0)} kt (wing alone)`, '110 kt published', 'CONFLICT: the published figure must include rotor lift / a light weight');
