@@ -27,6 +27,12 @@ import { createMBT, MBT } from '../runaway/mbt.js';
 import { AMMO, normalizeHit } from '../runaway/hit.js';
 import { WPN } from '../runaway/sandbox.js';
 import { rng } from '../runaway/rwworld.js';
+// ngc/infdepth: the near Marines on the real rifleman + medical sims, and casualty care (corpsman, buddy aid, CCP)
+import { createRichMarine, ROLE_KIT } from './richmarine.js';
+import { createFieldCare } from './fieldcare.js';
+import { partAt } from './marine.js';
+import { fragmentHits } from '../infantry/medical.js';
+import * as INV from '../infantry/inventory.js';
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 // GAME-LEVEL rounds the war's own weapons and the Marines fire into the ground war (hit.js format, game values)
@@ -50,15 +56,24 @@ export const MAR_WPN = {
 // (hp: on a Marine; war: on an AA site or a vehicle; air: on an aircraft (a CH-46 on its LZ, a helicopter low over the fight); heli: the player's helicopter)
 export const RW_HURT = { xm7: { hp: 60, war: 0.15, air: 0.008, heli: 0.08 }, needle: { hp: 48, war: 0.12, air: 0.006, heli: 0.07 }, mg: { hp: 62, war: 0.15, air: 0.012, heli: 0.09 }, coil120: { hp: 600, war: 3.2, air: 2.5, heli: 0.7 }, mbt120: { hp: 600, war: 3.5, air: 3, heli: 0.8 }, mbt125: { hp: 600, war: 3.5, air: 3, heli: 0.8 }, pd: { hp: 30, war: 0.05, air: 0.03, heli: 0.05 } };
 const HEIGHT = { strider: 2.1, hovertank: 2.6, mbt: 2.4, marine: 1.8 };
-const NEAR = 560;      // m from the island's shore to the camera: inside = full simulation
+// ngc/infdepth: what a round does to a Marine on the medical sim (MEDINV hit-info, GAME: the same damage scale as
+// RW_HURT.hp; pen against the 1980 M1955 / M69 vests, armour class 2 in MEDINV's table)
+const RICH_HIT = { xm7: { dmg: 60, pen: 40, bleed: 1.2 }, needle: { dmg: 48, pen: 36, bleed: 1.3 }, mg: { dmg: 62, pen: 42, bleed: 1.2 }, pd: { dmg: 30, pen: 22, bleed: 1 },
+  m16: { dmg: 55, pen: 30, bleed: 1.1 }, m60: { dmg: 70, pen: 38, bleed: 1.2 }, hmg: { dmg: 120, pen: 60, bleed: 1.5 }, cannon20: { dmg: 160, pen: 70, bleed: 1.6 } };
+const NEAR = 560;     // m from the island's shore to the camera: inside = full simulation
 const AIR_RANGE = 170;   // m: machines open up on an aircraft only inside this
 
 export function createGroundSim(o) {
   const { terrainH, islands } = o, hooks = o.hooks || {};
   const R = rng(o.seed ?? 1980), gauss = () => { let u = 0; for (let i = 0; i < 6; i++) u += R(); return (u - 3) / Math.sqrt(0.5); };
   const maps = createIslandMaps({ terrainH, islands });
-  const GS = { maps, battles: [], units: [], proj: [], events: [], time: 0, nextId: 1, stats: { shots: { 1: 0, 2: 0 }, hits: { 1: 0, 2: 0 }, kills: { 1: 0, 2: 0 }, kia: 0, wia: 0 }, cam: { x: 0, y: 0, z: 0 }, peace: false };
+  const GS = { maps, battles: [], units: [], proj: [], events: [], time: 0, nextId: 1, stats: { shots: { 1: 0, 2: 0 }, hits: { 1: 0, 2: 0 }, kills: { 1: 0, 2: 0 }, kia: 0, wia: 0, rtd: 0, dow: 0, evac: 0 }, cam: { x: 0, y: 0, z: 0 }, peace: false };
   const ev = (e, x) => { GS.events.push(Object.assign({ e, t: GS.time }, x)); };
+  // ngc/infdepth options: o.rich = { r (m from the camera), max (men) } puts the nearest Marines on the real rifleman and
+  // medical sims; o.care = true runs casualty care (fieldcare.js). Both off by default (the balance benches).
+  GS.richOpt = o.rich || null; GS.richCost = { ms: 0, steps: 0 };
+  const kitOf = u => u.kit || (u.kit = u.rich ? u.rich.inv : INV.loadout(ROLE_KIT[u.role] || 'rifleman'));
+  GS.kitOf = kitOf;
   // the ground the sims stand on: the island's baked grid where there is one, the live terrain elsewhere; walkers stay
   // out of the sea, the hovercraft rides over it
   const hAt = (x, z) => { const I = maps.at(x, z); return I && maps.has(I) ? maps.get(I).height(x, z) : terrainH(x, z); };
@@ -66,6 +81,19 @@ export function createGroundSim(o) {
   const envHover = { height: (x, z) => Math.max(hAt(x, z), 0) };
   const armorEnv = { height: hAt, surface: (x, z) => { const h = hAt(x, z); if (h < 1.2) return 'sand'; const e = 1, s = Math.hypot(hAt(x + e, z) - hAt(x - e, z), hAt(x, z + e) - hAt(x, z - e)) / 2; return s > 0.7 ? 'rock' : (Math.sin(x * 0.05) * Math.cos(z * 0.047) > 0.3 ? 'dirt' : 'grass'); }, water: (x, z) => (hAt(x, z) < 0 ? 0 : -Infinity) };
 
+  // ngc/infdepth: casualty care (wounded call out and crawl to cover, the corpsman, buddy aid, drags to the CCP)
+  function worldAt(x, z) { const I = maps.at(x, z); return I && maps.has(I) && maps.get(I).ready ? maps.get(I).world : null; }
+  function losAt(ax, ay, az, bx, by, bz) { const Wq = worldAt((ax + bx) / 2, (az + bz) / 2); return Wq ? Wq.los(ax, ay, az, bx, by, bz) : true; }
+  const careWorld = { height: hAt, isWater: (x, z) => hAt(x, z) < 0.15, los: losAt,
+    coverPoints: (x, z, r, out) => worldAt(x, z)?.coverPoints(x, z, r, out) || out,
+    coverScore: (cp, tx, ty, tz, c, s) => worldAt(cp.x, cp.z)?.coverScore(cp, tx, ty, tz, c, s) || { hidden: false, canFire: true, facing: 0 } };
+  const FC = o.care ? createFieldCare({ world: careWorld, R, ev, kitOf, patients: B => hooks.patients ? hooks.patients(B) : [],
+    kill: (u, why) => { u.body.alive = false; u.body.able = false; u.body.why = why; if (u.rich) u.rich.M.dead = true; GS.stats.kia++; GS.stats.dow++; u.richPrev = 'dead'; ev('kia', { id: u.id, x: u.x, y: u.y, z: u.z, part: 'wounds', dow: true, I: u.B?.I }); sync(u); },
+    rtd: (u, k) => { const M = u.body, tot = Object.values(M.hp).reduce((a, b) => a + b, 0) / 440; if (tot < k || M.hp.legL <= 0 || M.hp.legR <= 0 || M.hp.armR <= 0 || M.hp.thorax <= 0 || M.hp.stomach <= 0) return false; M.able = true; M.wounded = 1 - tot; GS.stats.rtd++; ev('rtd', { id: u.id, x: u.x, y: u.y, z: u.z }); sync(u); return true; },
+    drag: (u, x, z, yaw) => GS.place(u, x, z, yaw) }) : null;
+  GS.FC = FC;
+  // move a man (a dragged casualty, one the player carries): both models
+  GS.place = (u, x, z, yaw, y) => { const M = u.body; M.x = x; M.z = z; M.y = y ?? hAt(x, z); if (yaw !== undefined) M.yaw = yaw; M.vx = M.vz = 0; if (u.rich) { const S = u.rich.S; S.pos.x = x; S.pos.z = z; S.pos.y = M.y; S.vel.x = S.vel.z = 0; if (yaw !== undefined) S.yaw = S.aimYaw = S.wYaw = S.camYaw = yaw; } sync(u); };
   // ------------------------------------------------------------------------------------------------- battles
   GS.battle = I => {
     let B = GS.battles.find(b => b.I === I); if (B) return B;
@@ -95,7 +123,7 @@ export function createGroundSim(o) {
   };
   GS.addMarine = (B, role, x, z, yaw, o = {}) => {
     const body = createMarine({ id: GS.nextId, role, x, z, yaw, env: envLand, seed: o.seed });
-    const u = unit({ side: 1, kind: 'marine', role, body, laws: body.laws, gl: body.gl, able: true, h: 1.8, burst: 0, lawT: 0, seed: o.seed ?? GS.nextId });
+    const u = unit({ side: 1, kind: 'marine', role, body, laws: body.laws, gl: body.gl, able: true, h: 1.8, burst: 0, lawT: 0, seed: o.seed ?? GS.nextId, name: o.name });
     sync(u); inBattle(B, u); return u;
   };
   function sync(u) {
@@ -246,9 +274,17 @@ export function createGroundSim(o) {
   // ------------------------------------------------------------------------------------------------- Marines
   function driveMarine(B, u, dt, tmap) {
     const a = u.ai, M = u.body; if (!a) return;
-    const sp = MAR_T.SPEED[a.pace] || 1.5, [vx, vz] = dry(u, B.mar.steerVel(u, sp), 2);
-    for (const e of M.step(dt, { vx, vz, stance: a.stance, face: a.face }, envLand)) {
-      if (e.e === 'kia' || e.e === 'wia') { /* reported where the hit was applied */ }
+    const sp = a.paceV ?? MAR_T.SPEED[a.pace] ?? 1.5;   // (paceV: a casualty drag at MEDINV's drag speed)
+    let [vx, vz] = dry(u, B.mar.steerVel(u, sp), 2);
+    if (u.cas && u.cas.held) vx = vz = 0;   // being dragged / carried: moved by whoever has him
+    // ngc/infdepth: a man near the camera runs on the real rifleman + medical sims (richmarine.js)
+    if (u.richOn) { driveRich(B, u, dt, vx, vz, tmap); if (!M.alive || !M.able || GS.peaceMar) return; if (a.fire !== 'gl' && a.fire !== 'law') { u.burst = 0; return; } }
+    else {
+      const crawl = !M.able && u.crawl && !(u.cas && u.cas.held);   // a casualty crawling to cover (fieldcare.js)
+      for (const e of M.step(dt, crawl ? { vx: u.crawl.vx, vz: u.crawl.vz, stance: u.crawl.walk ? 'stand' : 'prone', crawl: u.crawl.walk ? 'walk' : 'crawl' } : { vx, vz, stance: a.stance, face: a.face }, envLand)) {
+        if (e.e === 'kia' || e.e === 'wia') { /* reported where the hit was applied */ }
+      }
+      if (u.rich) { u.rich.medAcc = (u.rich.medAcc || 0) + dt; if (u.rich.medAcc >= 0.5) { u.rich.medStep(u.rich.medAcc); u.rich.medAcc = 0; richState(u); } }   // (far: his wounds go on)
     }
     u.firedT += dt;
     if (!M.alive || !M.able || GS.peaceMar) return;
@@ -280,6 +316,72 @@ export function createGroundSim(o) {
     shoot(1, u, w.ammo, from, aim, spread, w.v, { loud: w.loud }); u.cd = 60 / w.rpm * (0.6 + R() * 0.9);
   }
 
+  // ------------------------------------------------------------------------------------------------- rich Marines
+  // ngc/infdepth: the near men on INFANTRY's rifleman and MEDINV's medical sims. The squad AI's intent drives the
+  // rifleman (richmarine.js); his shots become game-level projectiles here; his body is copied into marine.js's body so
+  // the AI, the hit volumes and the views see one man.
+  const _want = { fire: null, aim: null, supp: 0, gap: 1, burstS: 0.35, pause: 1.2, crawl: null };
+  function driveRich(B, u, dt, vx, vz, tmap) {
+    const a = u.ai, RM = u.rich, M = u.body, t0 = perfNow();
+    const w = a.fire && (a.fire === 'rifle' || a.fire === 'auto' || a.fire === 'mg') ? a.fire : null;
+    let aim = null;
+    if (a.aim) {   // lead a mover a little (people under-lead), as the cheap model
+      const tg = tmap.get(a.aimId), tof = Math.hypot(a.aim[0] - M.x, a.aim[2] - M.z) / 900, lead = tof * 0.7;
+      aim = tg ? [a.aim[0] + (tg.vx || 0) * lead, a.aim[1], a.aim[2] + (tg.vz || 0) * lead] : a.aim;
+    }
+    _want.fire = w && !GS.peaceMar ? w : null; _want.aim = aim; _want.supp = a.supp; _want.crawl = !M.able && u.crawl && !(u.cas && u.cas.held) ? u.crawl : null;
+    _want.gap = 60 / MAR_WPN.rifle.rpm * (0.6 + R() * 0.9); _want.burstS = w === 'mg' ? 0.6 + R() * 0.5 : 0.25 + R() * 0.25; _want.pause = 0.9 + R() * 1.3;
+    const shots = RM.step(dt, a, envLand, [vx, vz], _want); u.firedT += dt;
+    for (const s of shots) {
+      const ammo = s.weapon === 'M60' ? 'm60' : 'm16', A = MAR_WPN[ammo === 'm60' ? 'mg' : 'rifle'];
+      shoot(1, u, ammo, [s.x, s.y, s.z], [s.x + s.dir[0] * 300, s.y + s.dir[1] * 300 + 0.5 * 9.81 * (300 / s.v) ** 2, s.z + s.dir[2] * 300], 0, s.v, { loud: A.loud });
+    }
+    if (shots.length) u.firedT = 0;
+    // the body follows the soldier
+    const S = RM.S;
+    M.x = S.pos.x; M.z = S.pos.z; M.y = hAt(M.x, M.z); M.yaw = S.yaw; M.vx = S.vel.x; M.vz = S.vel.z; M.speed = S.speed;
+    M.stance = S.stance; M.stanceFrom = S.stanceFrom; M.stanceTo = S.stanceTo; M.stanceT = S.stanceT; M.gait = S.gaitPhase;
+    M.mags = Math.round(RM.roundsLeft() / 18);
+    richState(u);
+    GS.richCost.ms += perfNow() - t0; GS.richCost.steps++;
+  }
+  const perfNow = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  // MEDINV state -> the body's alive / able, with the war's events (kia, wia; rtd when treatment gets him back up)
+  function richState(u) {
+    const s = u.rich.state(), prev = u.richPrev || 'ok', M = u.body;
+    if (s === prev) return;
+    u.richPrev = s;
+    if (s === 'dead') { M.alive = false; M.able = false; M.why = u.rich.M.cause || ''; GS.stats.kia++; if (prev === 'ok') u.B?.mar.casualty(u.id, 'kia'); else GS.stats.dow++; ev('kia', { id: u.id, x: u.x, y: u.y, z: u.z, part: u.lastPart || 'wounds', dow: prev !== 'ok', I: u.B?.I }); }
+    else if (s === 'down') { M.able = false; GS.stats.wia++; u.B?.mar.casualty(u.id, 'wia'); ev('wia', { id: u.id, x: u.x, y: u.y, z: u.z, part: u.lastPart || '', I: u.B?.I }); }
+    else if (s === 'ok' && prev === 'down') { M.able = true; GS.stats.rtd++; ev('rtd', { id: u.id, x: u.x, y: u.y, z: u.z }); }
+    sync(u);
+  }
+  GS.richState = richState;
+  // promote the Marines nearest the camera (in a near battle) to the rich model, up to the cap; demote the ones that
+  // drift out of range (their medical state stays with them: a man keeps bleeding wherever the camera is)
+  function enrich(u) {
+    if (!u.rich) { u.rich = createRichMarine(u, { inventory: kitOf(u) }); u.kit = u.rich.inv; u.richPrev = u.body.able ? 'ok' : 'down'; carryWounds(u); }
+    u.rich.place(u.body.x, u.body.z, u.body.yaw, envLand); u.richOn = true;
+  }
+  GS.enrich = enrich;
+  // a man promoted while already hurt (cheap model): his part damage becomes MEDINV wounds of the same size
+  function carryWounds(u) {
+    const M = u.body, Md = u.rich.M;
+    for (const p in M.hp) { const lost = { head: 35, thorax: 85, stomach: 70, armL: 60, armR: 60, legL: 65, legR: 65 }[p] - M.hp[p]; if (lost > 2) Md.hit({ part: p, dmg: lost, pen: 99, kind: 'bullet', bleed: 1, source: 'EARLIER WOUND' }, []); }
+    if (!M.able && u.rich.state() === 'ok') Md.ko = Math.max(Md.ko, 40);   // (the cheap model had him down: keep him down a while)
+  }
+  function richLod() {
+    const O = GS.richOpt; if (!O) return;
+    const c = GS.cam, cand = [];
+    for (const u of GS.units) {
+      if (u.kind !== 'marine' || !u.alive) { if (u.richOn) u.richOn = false; continue; }
+      const d = Math.hypot(u.x - c.x, u.y - c.y, u.z - c.z);
+      if (u.B && u.B.near && d < (u.richOn ? O.r * 1.2 : O.r)) cand.push([d, u]); else if (u.richOn) u.richOn = false;
+    }
+    cand.sort((a, b) => a[0] - b[0]);
+    for (let i = 0; i < cand.length; i++) { const u = cand[i][1]; if (i < (O.max ?? 16)) { if (!u.richOn) enrich(u); } else u.richOn = false; }
+  }
+
   // ------------------------------------------------------------------------------------------------- targets
   const tgtCache = new Map();
   function targetsFor(B, side) {
@@ -302,6 +404,7 @@ export function createGroundSim(o) {
     const tR = peace ? [] : targetsFor(B, 2), tM = targetsFor(B, 1), tmapR = new Map(), tmapM = new Map();
     for (const t of tR) tmapR.set(t.id, t); for (const t of tM) tmapM.set(t.id, t);
     B.rw.update(dt, tR); B.mar.update(dt, tM);
+    if (FC) FC.step(B, dt);   // ngc/infdepth: casualty care takes medics and draggers off the squad's plan
     for (const u of B.units) {
       if (u.kind === 'marine') { driveMarine(B, u, dt, tmapM); if (u.ai) u.lastFire = u.ai.fire || u.lastFire; }
       else if (!u.dead || u.kind === 'strider') driveRW(B, u, dt, peace, tmapR);
@@ -325,8 +428,9 @@ export function createGroundSim(o) {
     GS.time += dt; GS.events.length = 0; if (ctx.cam) GS.cam = ctx.cam;
     const peace = !!ctx.peace; GS.peace = peace;
     maps.tick(ctx.bakeMs ?? 2);
+    for (const B of GS.battles) lod(B);
+    richLod();   // ngc/infdepth
     for (const B of GS.battles) {
-      lod(B);
       if (!B.units.length) continue;
       for (const u of B.units) sync(u);
       if (B.near) stepBattle(B, dt, peace);
@@ -339,7 +443,8 @@ export function createGroundSim(o) {
     for (let i = GS.units.length - 1; i >= 0; i--) {
       const u = GS.units[i]; if (u.alive) continue;
       u.deadT += dt;
-      if (u.deadT > (u.kind === 'marine' ? 120 : 150)) { GS.units.splice(i, 1); if (u.B) { const k = u.B.units.indexOf(u); if (k >= 0) u.B.units.splice(k, 1); } ev('remove', { id: u.id, u }); }
+      // (ngc/infdepth: with care on, a Marine's body stays 7 min: lootable)
+      if (u.deadT > (u.kind === 'marine' ? (o.care ? 420 : 120) : 150)) { GS.units.splice(i, 1); if (u.B) { const k = u.B.units.indexOf(u); if (k >= 0) u.B.units.splice(k, 1); } ev('remove', { id: u.id, u }); }
     }
     return GS.events;
   };
@@ -402,6 +507,21 @@ export function createGroundSim(o) {
   }
   // apply a hit-info to a unit; returns { part, pen, kia }
   function applyHit(u, h, hp) {
+    if (u.kind === 'marine' && u.rich) {   // ngc/infdepth: MEDINV decides (hit-info in, alive / down / back up out)
+      if (!u.body.alive) return { part: null };
+      const S = u.rich.S, hd = h.direction || { x: 0, y: 0, z: -1 };
+      if (h.type === 'blast' || h.type === 'frag' || !h.point) {
+        const dist = clamp((1 - Math.min(1, hp / 260)) * 9, 1, 12);
+        for (const f of fragmentHits(hp > 200 ? 'M72' : 'M406', dist, R, { prone: S.stance === 'prone' })) u.rich.hit({ ...f, source: h.weapon || 'BLAST' });
+        u.lastPart = 'blast';
+      } else {
+        const part = partAt(u.body, h.point), spec = RICH_HIT[h.weapon] || { dmg: hp, pen: 40, bleed: 1.2 };
+        u.rich.hit({ kind: 'bullet', part, dmg: hp > 300 ? hp : spec.dmg, pen: spec.pen, bleed: spec.bleed, dir: [hd.x, hd.y, hd.z], victimYaw: S.yaw, source: h.weapon });
+        u.lastPart = part;
+      }
+      richState(u);
+      return { part: u.lastPart, pen: true, kia: !u.body.alive };
+    }
     if (u.kind === 'marine') {
       if (!u.body.alive) return { part: null };
       const wasAble = u.body.able, r = u.body.hit({ point: h.point, hp, kind: h.type === 'blast' || h.type === 'frag' ? 'blast' : 'bullet', why: h.weapon });
@@ -500,6 +620,16 @@ export function createGroundSim(o) {
   };
   // the war's projectiles are heard by the battles they pass near (the door gun draws the machines' attention)
   GS.hearWar = (x, y, z, side, loud = 350, src = 'player') => { for (const B of GS.battles) if (B.units.length && Math.hypot(B.I.x - x, B.I.z - z) < B.I.r + loud) { const s = { x, y, z, loud, side, kind: 'shot', src }; B.rw.hear(s); B.mar.hear(s); } };
+  // ngc/infdepth: casualty evacuation. The wounded (alive, out of the fight) of side 1 within r of (x, z); evacuate(u)
+  // takes one out of the battle (aboard a CH-46 or the player's Huey): he leaves the squad, alive.
+  GS.casualties = (x, z, r) => GS.units.filter(u => u.kind === 'marine' && u.alive && !u.able && !u.evac && Math.hypot(u.x - x, u.z - z) < r);
+  GS.evacuate = u => {
+    u.evac = true; GS.stats.evac++;
+    const k = GS.units.indexOf(u); if (k >= 0) GS.units.splice(k, 1);
+    if (u.B) { const j = u.B.units.indexOf(u); if (j >= 0) u.B.units.splice(j, 1); }
+    if (u.squad && u.squad.members) { const j = u.squad.members.indexOf(u); if (j >= 0) u.squad.members.splice(j, 1); }
+    ev('evac', { id: u.id, x: u.x, y: u.y, z: u.z, u }); ev('remove', { id: u.id, u });
+  };
   GS.reset = () => { GS.battles.length = 0; GS.units.length = 0; GS.proj.length = 0; GS.events.length = 0; GS.time = 0; };
   GS.hAt = hAt; GS.envLand = envLand; GS.armorEnv = armorEnv;
   return GS;
