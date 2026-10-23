@@ -331,11 +331,12 @@ export function createJetSim(GRAV = 9.0) {
 
   // ------------------------------------------------------------------ carrier: catapult and arresting gear
   function deckLocal(c, x, z) { const dx = x - c.x, dz = z - c.z, co = Math.cos(c.yaw), si = Math.sin(c.yaw); return [dx * co - dz * si, dx * si + dz * co]; }
+  const deckH = (c, x, z) => c.deckAt ? c.deckAt(x, z) : c.deck;   // the deck under (x, z): it heaves, pitches and rolls
   function deckWorld(c, lx, lz, out) { const co = Math.cos(c.yaw), si = Math.sin(c.yaw); return out.set(c.x + lx * co + lz * si, 0, c.z - lx * si + lz * co); }
   A.attachCat = env => {   // spot the jet on the catapult shuttle
     const c = env.carrier && env.carrier(); if (!c) return false;
     A.reset(0, 0, 0, c.yaw, { running: A.eng[0].run || A.eng[1].run });
-    deckWorld(c, DECKOPS.CAT_X, DECKOPS.CAT_Z0, A.pos); A.pos.y = c.deck + 1.92;
+    deckWorld(c, DECKOPS.CAT_X, DECKOPS.CAT_Z0, A.pos); A.pos.y = deckH(c, A.pos.x, A.pos.z) + 1.92;
     A.cat = { state: 'hold', t: 0, s: 0, v: 0 }; A.launchBar = true; A.flapSel = 1; A.onGround = true; return true;
   };
   function catapult(h, ctl, env) {
@@ -351,7 +352,7 @@ export function createJetSim(GRAV = 9.0) {
       C.v += (DECKOPS.CAT_V ** 2 / (2 * stroke) + T / A.mass * 0.6) * h; C.s += C.v * h;
       A.nz = 1; A.nx = (DECKOPS.CAT_V ** 2 / (2 * stroke)) / GRAV;
     }
-    deckWorld(c, DECKOPS.CAT_X, DECKOPS.CAT_Z0 - C.s, A.pos); A.pos.y = c.deck + 1.92 - (C.state === 'hold' ? 0.12 : 0);
+    deckWorld(c, DECKOPS.CAT_X, DECKOPS.CAT_Z0 - C.s, A.pos); A.pos.y = deckH(c, A.pos.x, A.pos.z) + 1.92 - (C.state === 'hold' ? 0.12 : 0);
     A.q.setFromEuler(_e.set(C.state === 'hold' ? -0.012 : 0.0, c.yaw, 0, 'YXZ'));
     surfaceVel(env, A.pos.x, A.pos.z, A.vel); A.vel.x += fx * C.v; A.vel.z += fz * C.v;   // vy: the deck's (a flying carrier climbs)
     A.w.set(0, 0, 0); A.wow = [0.12, 0.13, 0.13]; A.onGround = true;
@@ -365,7 +366,7 @@ export function createJetSim(GRAV = 9.0) {
     if (A.wire || A.hook < 0.95 || !env.carrier) return;
     const c = env.carrier(); if (!c) return;
     A.hookTip(_hk);
-    const [lx, lz] = deckLocal(c, _hk.x, _hk.z), [, plz] = deckLocal(c, prev.x, prev.z), above = _hk.y - c.deck;
+    const [lx, lz] = deckLocal(c, _hk.x, _hk.z), [, plz] = deckLocal(c, prev.x, prev.z), above = _hk.y - deckH(c, _hk.x, _hk.z);
     if (above > 0.45 || above < -1.5 || Math.abs(lx - DECKOPS.LAND_X) > 11) return;
     for (let k = 0; k < DECKOPS.WIRES.length; k++) {
       const wz = DECKOPS.WIRES[k];

@@ -10,6 +10,9 @@
 import * as THREE from 'three';
 import { addLiftFans, FAN_POS } from './ships.js';
 import { buildCarrier, buildBattleship, buildFreighter, buildDrone, buildTransport, buildGunship, buildTomcat, buildGun, buildStructure, buildRubble, CARRIER, BSHIP, FREIGHTER, TEAM } from './ships.js';
+// NAVAL: ship motion in a seaway (heave / pitch / roll by sea state and speed) and the naval effects
+import { SHIPS as SHIP_MOTION, makeSea, createShipMotion, shipPointY, shipPointVY } from './units/naval/seamotion.js';
+import { createNavalFx } from './units/naval/navalfx.js';
 
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -28,6 +31,11 @@ export function createWar(ctx) {
     carrier: null, enemyCarrier: null, battleship: null, thinkT: 0, raidT: 120, econT: 0, deckCache: null,
   };
   const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _skyAim = new THREE.Vector3();
+  // NAVAL: the sea state (?sea=0..7, default 4 MODERATE; waves from the west-south-west) and the ships' wake / spray
+  const _sq = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
+  W.sea = makeSea(_sq && _sq.has('sea') ? +_sq.get('sea') : 4, -1.2, 11);
+  W.setSea = (ss, dir = W.sea.dir) => { W.sea = makeSea(ss, dir, 11); for (const u of W.units) if (u.mo) u.mo.setSea(W.sea); return W.sea.name; };
+  const nfx = createNavalFx(scene, fx);
   const store = side => side === 1 ? W.P : W.E;
   // war sounds fall off with distance from the camera, so a battle across the map is a distant rumble
   const ear = ctx.ear;
@@ -125,6 +133,9 @@ export function createWar(ctx) {
     u.hpMax = u.hp;
     u.guns = m.guns.map(g => ({ mesh: g, hp: 9, max: 9, dead: false, cd: rnd(1, 3), range: type === 'carrier' ? 150 : 130, ship: u }));
     if (m.turrets) u.turrets = m.turrets.map(t => ({ mesh: t, cd: rnd(2, 5) }));
+    if (m.dims) u.dims = m.dims;   // NAVAL: the builder's own dimensions (same contract numbers for the carriers)
+    u.mo = createShipMotion(SHIP_MOTION[m.motion || (type === 'carrier' ? (side === 1 ? 'albatross' : 'kraken') : type === 'freighter' ? 'container' : 'leviathan')], W.sea, (W.units.length + 1) * 31 + side);
+    u.att = { heave: 0, pitch: 0, roll: 0, vHeave: 0, vPitch: 0, vRoll: 0 };
     m.group.position.copy(u.p); m.group.rotation.y = yaw; scene.add(m.group); W.units.push(u); return u;
   }
   const fwdX = yaw => -Math.sin(yaw), fwdZ = yaw => -Math.cos(yaw);
@@ -137,6 +148,10 @@ export function createWar(ctx) {
       if (!u.dims || u.sinking > 4 || u.side === skipSide) continue;
       if (Math.abs(x - u.p.x) > 70 || Math.abs(z - u.p.z) > 70) continue;
       const [lx, lz] = toLocal(u, x, z), D = u.dims, sink = u.p.y;
+      if (u.parts.localDeck) {   // NAVAL: the builder knows its deck and superstructure; heave, pitch and roll included
+        const h = u.parts.localDeck(lx, lz); if (h < -1e8) continue;
+        const a = u.att; best = Math.max(best, shipPointY(sink, a.heave, a.pitch, a.roll, lx, h, lz)); continue;
+      }
       if (u.type === 'carrier') {
         let hw = D.W / 2 * 0.97; if (lz < -D.L / 2 + 16) hw *= Math.max(0, (lz + D.L / 2 + 6) / 22);
         if (Math.abs(lx) < hw && lz > -D.L / 2 - 6 && lz < D.L / 2) best = Math.max(best, D.DECK + sink);
@@ -152,7 +167,10 @@ export function createWar(ctx) {
     return best;
   };
   W.shipAt = (x, z) => W.units.find(u => u.dims && Math.abs(x - u.p.x) < 70 && Math.abs(z - u.p.z) < 70 && (() => { const [lx, lz] = toLocal(u, x, z); return Math.abs(lx) < u.dims.W / 2 && Math.abs(lz) < u.dims.L / 2 + 4; })());
-  W.surfVel = (x, z) => { const u = W.shipAt(x, z); return u && !u.sinking ? { vx: u.v.x, vy: u.v.y, vz: u.v.z, w: u.w, cx: u.p.x, cz: u.p.z } : null; };
+  // vy: the deck's vertical velocity there (heave + pitch + roll; the sky carrier's climb), for gear that wants it
+  W.surfVel = (x, z) => { const u = W.shipAt(x, z); if (!u || u.sinking) return null; const a = u.att, [lx, lz] = toLocal(u, x, z), h = u.parts.localDeck ? Math.max(0, u.parts.localDeck(lx, lz)) : u.dims.DECK; return { vx: u.v.x, vz: u.v.z, w: u.w, cx: u.p.x, cz: u.p.z, vy: u.v.y + (a ? shipPointVY(a.vHeave, a.pitch, a.roll, a.vPitch, a.vRoll, lx, h, lz) : 0) }; };
+  // the deck height of ship u under (x, z), moving with the sea (the jet's catapult and wires use it)
+  W.deckAt = (u, x, z) => { const [lx, lz] = toLocal(u, x, z), a = u.att, h = u.dims.DECK; return a ? shipPointY(u.p.y, a.heave, a.pitch, a.roll, lx, h, lz) : h + u.p.y; };
   W.orderCarrier = (x, z) => {
     const u = W.carrier; if (!u || u.sinking) return false;
     if (u.sky && u.sky.up) { u.path = [[x, z]]; u.goal = [x, z]; u.sky.manual = false; return true; }   // it flies: straight there
@@ -230,7 +248,7 @@ export function createWar(ctx) {
     // a little tilt: nose down when it speeds up, bank into turns, a slow heave
     S.pitch += (clamp(-accel / dt * 0.05, -0.05, 0.05) + Math.sin(W.time * 0.31) * 0.004 - S.pitch) * (1 - Math.exp(-1.2 * dt));
     S.roll += (clamp(S.yawRate * u.speed * 0.05, -0.06, 0.06) + Math.sin(W.time * 0.23 + 1) * 0.005 - S.roll) * (1 - Math.exp(-1 * dt));
-    u.mesh.position.copy(u.p); u.mesh.rotation.set(S.pitch, u.yaw, S.roll, 'YXZ');
+    Object.assign(u.att, { heave: 0, pitch: S.pitch, roll: S.roll, vHeave: 0, vPitch: 0, vRoll: 0 }); placeShip(u);
     skyVisuals(u, dt);
     if (u.parts.dish) u.parts.dish.rotation.y += dt * 1.6;
     if (u.parts.lamp) u.parts.lamp.visible = (W.time % 1.4) < 0.15;
@@ -263,7 +281,7 @@ export function createWar(ctx) {
   // shot down in the air: the fans die and it falls
   function skyFall(u, dt) {
     const S = u.sky; S.vy -= 9.8 * dt * 0.6; u.v.y = S.vy; u.p.y += S.vy * dt; u.p.x += u.v.x * dt; u.p.z += u.v.z * dt; u.v.multiplyScalar(Math.exp(-0.3 * dt));
-    S.roll += dt * 0.08; S.pitch += dt * 0.03; u.mesh.position.copy(u.p); u.mesh.rotation.set(S.pitch, u.yaw, S.roll, 'YXZ');
+    S.roll += dt * 0.08; S.pitch += dt * 0.03; Object.assign(u.att, { heave: 0, pitch: S.pitch, roll: S.roll }); placeShip(u);
     for (const f of u.parts.fans) { f.rotor.rotation.y += dt * 2; f.glow.material.opacity = 0; }
     if (Math.random() < 0.5) { toWorld(u, rnd(-12, 12), CARRIER.DECK, rnd(-50, 50)); fx.trail(_v.x, _v.y, _v.z, 4); fx.add.spawn(_v.x, _v.y, _v.z, 0, 2, 0, 0.6, 3, 1, 1, .5, .1, 0.9, -1.5, 1); }
     const floor = hullFloor(u);
@@ -273,7 +291,24 @@ export function createWar(ctx) {
       else { u.p.y = 0; fx.splash?.(u.p.x, u.p.z, 6); fx.explode(u.p.x, 2, u.p.z, 5, { debris: 20, oil: true }); boomAt(u.p.x, 0, u.p.z, 1.6); }
     }
   }
+  // the mesh follows the ship's attitude; the ship's own animation (radars, crew, mounts) runs when it is near
+  function placeShip(u) {
+    const a = u.att; u.mesh.position.set(u.p.x, u.p.y + a.heave, u.p.z); u.mesh.rotation.set(a.pitch, u.yaw, a.roll, 'YXZ');
+  }
+  const _pl = new THREE.Vector3();
+  function tickParts(u, dt) {
+    if (!u.parts.tick) return;
+    const d = Math.hypot(u.p.x - ear.x, u.p.y - ear.y, u.p.z - ear.z), pl = W._pl;
+    // deck crew clear out from under a helicopter or jet coming down close to them
+    let avoid = null;
+    if (pl && pl.alive && pl.pos && Math.abs(pl.pos.x - u.p.x) < 90 && Math.abs(pl.pos.z - u.p.z) < 90) {
+      const [hx, hz] = toLocal(u, pl.pos.x, pl.pos.z), hy = pl.pos.y - u.p.y - u.dims.DECK;
+      if (hy < 14 && hy > -2) avoid = (x, z) => { const dx = x - hx, dz = z - hz, r = Math.hypot(dx, dz); return r < 9 ? [dx || 0.1, dz] : null; };
+    }
+    u.parts.tick(dt, W.time, d, avoid);
+  }
   function sailShip(u, dt) {
+    tickParts(u, dt);
     if (u.sky) {
       const S = u.sky;
       if (u.sinking !== undefined && S.up && !S.fallen) { S.falling = true; S.fallen = true; S.up = false; }   // killed in the air: it falls
@@ -282,7 +317,7 @@ export function createWar(ctx) {
       if (!S.up && !S.fallen && u.sinking === undefined) skyRefit(u, dt);
     }
     if (u.sinking !== undefined) {   // going down: list, settle, burn
-      u.sinking += dt; u.speed *= Math.exp(-0.4 * dt); u.p.y = -u.sinking * 0.9; u.mesh.rotation.z = Math.min(0.35, u.sinking * 0.03) * (u.side === 1 ? 1 : -1); u.mesh.rotation.x = Math.min(0.12, u.sinking * 0.01);
+      u.sinking += dt; u.speed *= Math.exp(-0.4 * dt); u.p.y = -u.sinking * 0.9;
       if (Math.random() < 0.08) { toWorld(u, rnd(-10, 10), u.dims.DECK, rnd(-40, 40)); fx.explode(_v.x, _v.y, _v.z, rnd(1.2, 2.4), { debris: 4, color: 0x4a4440 }); boomAt(_v.x, _v.y, _v.z, 0.5); }
       if (u.sinking > 18) { scene.remove(u.mesh); u.gone = true; }
     }
@@ -301,13 +336,13 @@ export function createWar(ctx) {
     if (terrainH(bx, bz) > -3 && Math.abs(turn) < 0.6) u.speed = Math.max(0, u.speed - 2 * dt);
     u.v.set(fwdX(u.yaw) * u.speed, 0, fwdZ(u.yaw) * u.speed);
     u.p.addScaledVector(u.v, dt);
-    u.mesh.position.copy(u.p); u.mesh.position.y += Math.sin(W.time * 0.6 + u.p.x) * 0.15; u.mesh.rotation.y = u.yaw;
-    u.wakeT -= dt;
-    if (u.wakeT <= 0 && u.speed > 0.8 && u.sinking === undefined) {
-      u.wakeT = 0.3; toWorld(u, 0, 0, u.dims.L / 2 + 2); fx.wake(_v.x, _v.z, 1.6 + u.speed * 0.25);
-      for (const sd of [-1, 1]) { toWorld(u, sd * u.dims.W * 0.42, 0, -u.dims.L / 2 + 10); fx.wake(_v.x, _v.z, 0.8); }
-      toWorld(u, 0, 0.5, -u.dims.L / 2 - 4); for (let i = 0; i < 3; i++) fx.mix.spawn(_v.x + rnd(-2, 2), 0.6, _v.z + rnd(-2, 2), rnd(-3, 3), rnd(2, 4), rnd(-3, 3), rnd(0.6, 1.2), 0.8, 2.6, .9, .95, 1, 0.5, 9, 1);
-    }
+    // NAVAL: heave, pitch and roll in the seaway (and the list of a sinking ship); deckY() uses the same attitude
+    const a = u.att, mo = u.mo.step(dt, u.speed, u.yaw, u.w);
+    a.heave = mo.heave; a.pitch = mo.pitch; a.roll = mo.roll; a.vHeave = mo.vHeave; a.vPitch = mo.vPitch; a.vRoll = mo.vRoll;
+    if (u.sinking !== undefined) { a.roll += Math.min(0.35, u.sinking * 0.03) * (u.side === 1 ? 1 : -1); a.pitch -= Math.min(0.12, u.sinking * 0.01); }
+    placeShip(u);
+    if (u.sinking === undefined) nfx.ship(u, dt, ear);   // bow wave, wake, spray, funnel smoke
+    else if (u.sinking > 6) nfx.remove(u);
     if (u.parts.dish) u.parts.dish.rotation.y += dt * 1.6;
     if (u.parts.lamp) u.parts.lamp.visible = (W.time % 1.4) < 0.15;
     // damage smoke: the more hurt, the more it burns
@@ -665,6 +700,7 @@ export function createWar(ctx) {
       g.cd = side === 1 ? 0.12 : 0.2;
       const sp = 140, e = side === 1 ? 0.02 : 0.05;
       shoot('ciws', side, gx, gy, gz, (ax / al + rnd(-e, e)) * sp, (ay / al + rnd(-e, e)) * sp, (az / al + rnd(-e, e)) * sp, 0.6);
+      g.mesh?.userData?.fireBeam?.(bd);   // NAVAL: a laser mount shows its beam
     } else {
       g.cd = side === 1 ? 0.7 : 1.1 + rnd(0.6) - Math.min(0.5, W.time / 900);
       const err = (best.player ? 7 : 5) * (bd / 100);
@@ -840,7 +876,11 @@ export function createWar(ctx) {
       if (t.cd <= 0) {
         t.cd = 6 + rnd(3);
         const dx = tgt.x - _v.x + rnd(-14, 14), dz = tgt.z - _v.z + rnd(-14, 14), d = Math.hypot(dx, dz), T = 2 + d / 70;   // flight time: a high arc that clears the hills between
-        shoot('shell', 2, _v.x, _v.y, _v.z, dx / T, (tgt.y + 6 - _v.y) / T + 0.5 * 9 * T, dz / T, T + 2);
+        const vy0 = (tgt.y + 6 - _v.y) / T + 0.5 * 9 * T;
+        shoot('shell', 2, _v.x, _v.y, _v.z, dx / T, vy0, dz / T, T + 2);
+        // NAVAL: the rails elevate to the shot and kick back; a cyan flare at the muzzle
+        const ud = t.mesh.userData; if (ud.barrels) ud.barrels.rotation.x = Math.atan2(vy0, d / T); ud.fire?.();
+        for (let i = 0; i < 8; i++) fx.add.spawn(_v.x + fwdX(b.yaw + t.mesh.rotation.y) * 13, _v.y + 1, _v.z + fwdZ(b.yaw + t.mesh.rotation.y) * 13, rnd(-4, 4), rnd(-1, 4), rnd(-4, 4), rnd(0.15, 0.35), 2, 0.5, .55, .95, 1, 1);
         fx.flash(_v.x + fwdX(b.yaw + t.mesh.rotation.y) * 8, _v.y + 1, _v.z + fwdZ(b.yaw + t.mesh.rotation.y) * 8, 2.5); fx.mix.spawn(_v.x, _v.y + 2, _v.z, 0, 3, 0, 3, 3, 9, .5, .5, .5, 0.5, -0.3, 1); boomAt(_v.x, _v.y, _v.z, 0.6);
       }
     }
@@ -857,7 +897,7 @@ export function createWar(ctx) {
     return s;
   };
   W.reset = () => {
-    for (const u of W.units) scene.remove(u.mesh); W.units.length = 0;
+    for (const u of W.units) scene.remove(u.mesh); W.units.length = 0; nfx.sweep(W.units);
     for (const p of W.proj) if (p.mesh) scene.remove(p.mesh); W.proj.length = 0;
     islandGroup.clear(); fx.emitters.length = 0;
     for (const I of W.islands) { I.owner = I.owner0 ?? I.owner; I.lostT = -1e9; I.stock = 0; }
@@ -868,7 +908,7 @@ export function createWar(ctx) {
     for (const I of W.islands) ctx.onOwner(I, I.owner);
   };
   W.update = (dt, pl, peace) => {
-    W.time += dt;
+    W.time += dt; W._pl = pl;
     for (const u of W.units) { if (u.ext) continue; if (u.dims) sailShip(u, dt); else updateAir(u, dt, pl); }
     {   // ships keep clear of each other (a gentle shove when two hulls would overlap)
       const sh = W.units.filter(u => u.dims && u.sinking === undefined && !(u.sky && u.p.y > 12));
@@ -877,7 +917,7 @@ export function createWar(ctx) {
         if (d < min) { const k = Math.min(8, (min - d)) * dt / d; a.p.x -= dx * k; a.p.z -= dz * k; b.p.x += dx * k; b.p.z += dz * k; }
       }
     }
-    for (let i = W.units.length - 1; i >= 0; i--) if (W.units[i].dead || W.units[i].gone) { const u = W.units[i]; if (!u.gone) scene.remove(u.mesh); W.units.splice(i, 1); }
+    for (let i = W.units.length - 1; i >= 0; i--) if (W.units[i].dead || W.units[i].gone) { const u = W.units[i]; if (!u.gone) scene.remove(u.mesh); W.units.splice(i, 1); if (u.dims) nfx.remove(u); }
     updateProj(dt, pl);
     updateGuns(dt, pl, peace);
     updateCapture(dt, pl);
@@ -898,5 +938,6 @@ export function createWar(ctx) {
     for (const I of W.islands) { const ex = fog.exploredAt(I.x, I.z) || fog.exploredAt(I.pad.x, I.pad.z); for (const s of I.structs) { s.mesh.visible = !s.dead && ex; if (s.rubble) s.rubble.visible = ex; } if (fog.visibleAt(I.pad.x, I.pad.z)) I.seen = I.owner; }
   };
   W.damage = damage; W.hitTest = hitTest; W.pickExpansion = pickExpansion;
+  W.makeShip = makeShip;   // NAVAL: tests and the dev tools place ships with it
   return W;
 }

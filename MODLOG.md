@@ -318,3 +318,67 @@ Pure modules in `game/js/units/infantry/` (no DOM, no THREE, node-testable) + HT
   casualtyKg, medicLoadKg)`, `carrySpeed`, `staminaDrainMul`.
 - Untested: in-game integration (no on-foot mode yet), gamepad on real hardware (only the button mapping is wired),
   touch input, the UIs below 1280x720, save / load across sessions.
+## 2026-10-23 — NAVAL: ALBATROSS, KRAKEN, LEVIATHAN, container ship, ships that move with the sea
+Files: game/js/units/naval/ (albatross.js, kraken.js, leviathan.js, containership.js, deckcrew.js, mounts.js,
+navalfx.js, navkit.js, seamotion.js), game/dev/ships.html (+ ships-dev.js), tools/navalbench.mjs,
+tools/scenes/naval.mjs, tools/scenes/shipsdev.mjs. ships.js keeps buildCarrier / buildBattleship / buildFreighter and
+CARRIER / BSHIP / FREIGHTER as thin wrappers (the old builders are gone).
+- ALBATROSS (1980, Midway / Forrestal style, haze grey, hull number 44): flared hull with an enclosed hurricane bow,
+  black boot-top over red anti-fouling, waterline grime, hangar-deck openings under three deck-edge elevators (roller
+  doors part up, hangar lights), catwalks and safety nets, gun sponsons. Island: flag bridge, navigation bridge (the
+  helm.js bridge room sits inside it unchanged), pri-fly overhanging the deck, raked funnel with black uptakes and
+  boiler smoke, tripod mast with SPS-49 (rotating curved reflector), SPS-48 planar array (rotating), SPN-35 radome,
+  TACAN, ESM domes, yardarms, life-raft racks, hull number with shadow, rust weeping from the scuppers. Deck: textured
+  (non-skid patches, padeye grid, tyre rubber in the landing area, oil stains, catapult soot), landing-area lines on
+  x = -2.5, four wires (cross-deck pendants on supports) at the DECKOPS positions, catapult track + shuttle at the
+  launch bar of a spotted jet, a JBD that rises behind a jet on the cat, LSO platform with its team, Fresnel lens
+  (meatball + datums), deck-edge / centreline / drop lights. Lived in: 31 deck crew in 1980 jersey colours (idle,
+  walk, signal, kneel at wheels, LSO, talk, seated driver), a tractor lapping the fantail, MD-3A tractors, Tilly,
+  a fuel bowser, huffers, fire bottles, tow bars, two parked Hornets (baked from buildJetMesh, instanced) and two
+  parked Tomcats at real size with oversweep and added gear, chocks and chains. Crew clear out from under a helicopter
+  or jet coming down near them (war.js tickParts passes an avoid() in the ship frame).
+- KRAKEN (seized 2030s Ford-class): angled-deck sponson and starboard elevator bulges (a deck polygon), island far aft
+  with flat radar arrays, no funnel, four flush EMALS tracks, three AAG wires. RUNAWAY refit: sensor pods, cyan IFF
+  strip round the whole deck edge, glyphs over the old "82" and the painted-out stern name, a crystal sensor spire,
+  glowing conduits across the deck, autonomous deck tugs, cargo pallets, nine parked RW ducted-fan flying-wing drones
+  (instanced, glowing seams), heavier rust (months unmaintained). Mounts: 2 RAM (seized), 2 RUNAWAY lasers.
+  dims.TOWER_Z = 22 (its own; the ALBATROSS keeps 6).
+- LEVIATHAN (RW-9, replaces the battleship): 96 m wave-piercing tumblehome hull, ceramic upper works on dark
+  composite, cyan seams, asymmetric (sensor blade to starboard with flat arrays, a port-side sensor fin, power spine
+  with heat-sink fins off the centreline). Three railgun turrets (twin rails, glowing bore) that train and elevate to
+  the shot, kick back and flare cyan when they fire (war.js updateBattleship); four point-defence lasers whose beam
+  shows when they fire (war.js gunFire -> userData.fireBeam). Game-level visuals and behaviour only.
+- Container ship (replaces the freighter): Yara Birkeland-class autonomous electric feeder at real size (80 x 15 m):
+  deckhouse right forward with its windows plated over in ceramic, sensor mast with pods, no funnel, battery vents
+  and azimuth-pod hatches aft, 8 bays x 5 rows of 20 ft boxes from a fixed stow plan (one InstancedMesh, colour per
+  box), a few boxes swapped for glowing RUNAWAY cargo pods, lashing bridges, the name painted out, a forecastle laser.
+  FREIGHTER dims are now { L: 80, W: 15, DECK: 4 } (was 46 x 10 x 3): a bigger target.
+- Ship motion (seamotion.js, pure, node-tested): Bretschneider sea for the NATO sea state (Hs, Tp), 14 components,
+  cos^2 spread; each excites heave / pitch / roll through waterplane-averaged elevation and slope (sinc and
+  3(sin x - x cos x)/x^3 over an effective 0.7 L x 0.8 B waterplane, Smith depth attenuation), a damped oscillator per
+  DOF at the ENCOUNTER frequency, analytic steady state with integrated phases (stable at any frame rate); heel
+  outward in turns (tan phi = V r / g (KG - T/2) / GM) and a little trim with speed. Real-ship numbers per hull
+  (Midway, Ford, Yara Birkeland: CONFIRMED dimensions; natural periods and damping INFERRED); heave scaled to the
+  game hull (the carriers are 0.44 / 0.38 scale), angles not. Sea state: ?sea=0..7 (default 4 MODERATE), war.setSea(n).
+- tools/navalbench.mjs (22 checks, all pass): WMO / NATO Hs ranges, Hs of the discretised sea, ALBATROSS head-sea
+  pitch SA SS3 0.09° / SS4 0.39° / SS5 0.94° / SS6 1.67°, heave SS5 0.29 m, ramp vertical velocity SS5 1.8 m/s,
+  beam-sea roll 0.9°, roll damping grows with speed, encounter period head < following, the Ford pitches less than
+  the Midway, the 96 m monitor pitches 3.9° and the 80 m feeder rolls 4.8° in SS5, steady turn heel 4.7° at 30 kn /
+  1.5°/s, deck-height maths vs the YXZ rotation matrix. The bands are INFERRED from published CV seakeeping summaries;
+  the NATO mean Hs / modal periods per state are as recalled (Bales 1983 / STANAG 4194), UNVERIFIED offline.
+- deckY includes the motion: war.js deckY uses each builder's localDeck(lx, lz) (deck + superstructure in the ship
+  frame) through shipPointY(heave, pitch, roll) - the same attitude the mesh gets (placeShip). surfVel also returns
+  vy (the deck's vertical velocity), W.deckAt(u, x, z) gives the deck plane; jetfm's catapult and wire checks use it
+  (via jetplay's carrier().deckAt), main.js spawnSpot puts the helicopter on the moving deck. The sky carrier's tilt
+  goes into the same attitude.
+- Effects (navalfx.js): a per-ship foam ribbon mesh following the real track: the churned centre wake from the stern
+  and the two Kelvin arms (points the bow passed, pushed out at 19.47°), fading over ~29 s; bow spray at speed and in
+  bursts when the stem plunges; stern boil; boiler smoke from the ALBATROSS funnel (none for the nuclear KRAKEN or
+  the electric feeder). Replaces the old fx.wake decals for ships at sea.
+- Mounts API: parts.mounts = [{ kind: 'ciws' | 'sam' | 'ram' | 'laser' | 'railgun', pos: Vector3 (ship frame),
+  dir: Vector3 (outward), node: Object3D (the mount; its userData.yaw / pitch groups are what war.js turns),
+  gun: index into parts.guns (absent for the railgun turrets), arc: [yawMin, yawMax] (ALBATROSS only) }]. To fit a
+  full model, empty node's children and rebuild under userData.yaw / pitch, or swap parts.guns[i].
+- Gotchas: Kit.loft winding was inside out (hulls looked right from one side: you saw the far side's inner faces);
+  glow kits need the same push() as the hull kit (the mast lights floated off the island); a headless test camera
+  far from the helicopter leaves the sky dome and terrain window behind (naval.mjs parks the helicopter above it).
