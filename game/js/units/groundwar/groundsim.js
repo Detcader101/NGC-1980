@@ -298,7 +298,8 @@ export function createGroundSim(o) {
 
   // ------------------------------------------------------------------------------------------------- the battle loop
   function stepBattle(B, dt, peace) {
-    const tR = targetsFor(B, 2), tM = targetsFor(B, 1), tmapR = new Map(), tmapM = new Map();
+    // (peace: the machines see nothing to fight)
+    const tR = peace ? [] : targetsFor(B, 2), tM = targetsFor(B, 1), tmapR = new Map(), tmapM = new Map();
     for (const t of tR) tmapR.set(t.id, t); for (const t of tM) tmapM.set(t.id, t);
     B.rw.update(dt, tR); B.mar.update(dt, tM);
     for (const u of B.units) {
