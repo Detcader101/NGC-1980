@@ -105,7 +105,11 @@ export function buildTomcatModel(side = 1, { modex = 201 } = {}) {
       if (z < 0.1) p.setZ(i, -3.95 + (0.12 - y) * 0.55);                                                       // raked mouth: top lip forward
       else p.setXYZ(i, s * (1.55 + (Math.abs(x) - 1.55) * 0.62), -0.55 + (y + 0.57) * 0.62, -0.8);              // fair into the round nacelle
     }
-    ig.computeVertexNormals(); mesh(ig, [blackM, greyM], g, 'intake');
+    ig.computeVertexNormals(); mesh(ig, [darkM, greyM], g, 'intake');
+    // inside the mouth: the variable ramp (upper wall) and the dark duct; a lighter lip all round
+    mesh(slab([[1.08, -3.7, .04], [2.1, -3.7, .04], [2.1, -2.2, .04], [1.08, -2.2, .04]], (a, b, w) => [s * a, 0.02 + w - (b + 3.7) * 0.12, b]), M(0x5d6268), g, 'intakeRamp');
+    mesh(boxG(1.0, 1.1, 0.05, s * 1.59, -0.6, -2.4), blackM, g, 'intakeDuct');
+    tube([[s * 1.0, 0.12, -3.95], [s * 2.18, 0.12, -3.95], [s * 2.18, -1.26, -3.2], [s * 1.0, -1.26, -3.2], [s * 1.0, 0.12, -3.95]], 0.035, M(0xb4babf), g, 'intakeLip', 16);
     mesh(slab([[-3.9, 0.15, .05], [-3.2, -1.2, .05], [-1.0, -1.0, .05], [-1.0, 0.1, .05]], (a, b, w) => [s * (0.97 + w), b, a]), M(0x9aa0a5), g, 'splitter');
     // nacelle: round, from the intake back to the nozzle (white underneath via a second, lower half)
     mesh(cylZ(0.68, 0.64, 7.7, 14).translate(s * 1.55, -0.55, 2.95), greyM, g, 'nacelle');
@@ -122,6 +126,7 @@ export function buildTomcatModel(side = 1, { modex = 201 } = {}) {
   // flat deck between the nacelles ("pancake") and the tunnel underneath, beaver tail between the nozzles
   mesh(slab([[-1.0, -0.8, .22], [1.0, -0.8, .22], [1.6, 0.5, .26], [1.6, 6.4, .2], [0.85, 7.1, .2], [-0.85, 7.1, .2], [-1.6, 6.4, .2], [-1.6, 0.5, .26]], (a, b, w) => [a, 0.08 + w, b]), greyM, g, 'deck');
   mesh(slab([[-0.85, 5.6, .22], [0.85, 5.6, .22], [0.85, 7.9, .2], [0.55, 9.05, .14], [-0.55, 9.05, .14], [-0.85, 7.9, .2]], (a, b, w) => [a, -0.12 + w, b]), greyM, g, 'beaverTail');
+  mesh(cylZ(0.05, 0.04, 0.5, 6).translate(0, -0.1, 9.2), metalM, g, 'fuelDump');   // the fuel dump mast at the end of the beaver tail
   // speedbrakes: upper and lower panels on the beaver tail, hinged at their front edges
   const sbU = hinged(g, slab([[-0.5, 7.0, .03], [0.5, 7.0, .03], [0.45, 8.3, .03], [-0.45, 8.3, .03]], (a, b, w) => [a, -0.02 + w, b]), greyM, V(-0.5, -0.02, 7.0), V(0.5, -0.02, 7.0), 'speedbrakeUp');
   const sbL = [-1, 1].map(s => hinged(g, slab([[0.08, 7.0, .03], [0.5, 7.0, .03], [0.45, 8.2, .03], [0.1, 8.2, .03]], (a, b, w) => [s * a, -0.24 + w, b]), whiteM, V(-0.6, -0.24, 7.0), V(0.6, -0.24, 7.0), 'speedbrakeLow'));
@@ -159,6 +164,7 @@ export function buildTomcatModel(side = 1, { modex = 201 } = {}) {
     art.position.copy(V(...map(6.35, 1.2, 0.11)));   // texture u runs nose-ward as seen from outside, v up the fin
     art.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(V(0, 0, -s), V(s * Math.sin(CANT), Math.cos(CANT), 0), V(s * Math.cos(CANT), -Math.sin(CANT), 0)));
     surf['finTip' + S] = V(...map(TE(FH), FH, 0));
+    mesh(cylZ(0.09, 0.07, 0.9, 6).translate(...map(TE(FH) + 0.1, FH - 0.08, 0)), M(0x9ea4a9), g, 'finTipFairing');   // ECM / position light fairing
   }
 
   // ---- all-moving stabilators (differential for roll), pivots on the nacelle sides
@@ -200,9 +206,9 @@ export function buildTomcatModel(side = 1, { modex = 201 } = {}) {
   tube(arch(-6.2, 1.39, 0.61, 0.74), 0.035, frameM, ws, 'windscreenBow'); tube(arch(-6.84, 0.81, 0.57, 0.72), 0.025, frameM, ws, 'windscreenBase');
   const cg = new THREE.Group(); cg.name = 'canopy'; cg.position.set(...TCAT.CANOPY_HINGE); g.add(cg);
   const cv = new THREE.Group(); cv.position.set(...TCAT.CANOPY_HINGE).negate(); cg.add(cv);
-  const cr = [[-6.2, 1.38, .6, .74], [-5.6, 1.52, .62, .74], [-4.9, 1.55, .62, .74], [-4.2, 1.5, .61, .75], [-3.7, 1.36, .58, .76], [-3.35, 1.18, .5, .85], [-3.1, 1.05, .38, .95]];
+  const cr = [[-6.2, 1.38, .6, .74], [-5.6, 1.58, .64, .74], [-4.9, 1.64, .65, .74], [-4.2, 1.6, .64, .75], [-3.7, 1.44, .6, .76], [-3.35, 1.22, .5, .85], [-3.1, 1.05, .38, .95]];   // the big bubble over both cockpits
   mesh(loft(cr.map(c => arch(...c))), glassM, cv, 'canopyGlass');
-  tube(arch(-6.18, 1.39, 0.615, 0.74), 0.03, frameM, cv, 'canopyBow'); tube(arch(-4.85, 1.56, 0.625, 0.74), 0.028, frameM, cv, 'canopyMidBow');
+  tube(arch(-6.18, 1.39, 0.615, 0.74), 0.03, frameM, cv, 'canopyBow'); tube(arch(-4.85, 1.65, 0.655, 0.74), 0.028, frameM, cv, 'canopyMidBow');
   for (const s of [-1, 1]) tube(cr.map(([z, , hw, b]) => [s * (hw + 0.01), b + 0.01, z]), 0.035, frameM, cv, 'canopySill');
   // ---- two crew: pilot and RIO on GRU-7A seats, olive flight suits, white helmets, dark visors
   for (const [z, h] of [[-5.5, 0.02], [-4.2, 0.0]]) {
