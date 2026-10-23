@@ -111,7 +111,7 @@ export function createSandbox(opt = {}) {
     const a = m.ai, s = m.sim;
     if (m.kind === 'strider') {
       const sp = a.run ? 4.2 : 1.6, [vx, vz] = ai.steerVel(m, sp);
-      const cmd = { vx, vz, run: a.run, crouch: a.crouch, aim: a.aim || undefined };
+      const cmd = { vx, vz, run: a.run, crouch: a.crouch, aim: a.aim || undefined, look: a.aim ? undefined : a.look };
       if (!a.aim && a.move) { cmd.aimYaw = Math.atan2(-vx, -vz); if (Math.hypot(vx, vz) < 0.2) delete cmd.aimYaw; }
       const evs = s.step(dt, cmd, env);
       for (const e of evs) {
@@ -296,9 +296,9 @@ export function setupScenario(B, name) {
     B.addSquad(a, { type: 'take', x: 0, z: 90, r: 20 });
     placeDefenders(B, 14, true);
   } else if (name === 'flank') {
-    const a = sq(5, -10, -30);
+    const a = sq(4, -10, -30);   // an even fight against a dug-in section: assaulting does not pay, flanking does
     B.addSquad(a, { type: 'take', x: 0, z: 100, r: 20 });
-    placeDefenders(B, 4, false, true);
+    placeDefenders(B, 7, false, true);
   } else if (name === 'defend') {
     const a = sq(4, pad[0], pad[1]); a.push(B.addHover(pad[0] + 15, pad[1] - 25, 0));
     B.addSquad(a, { type: 'defend', x: pad[0], z: pad[1], r: 28 });

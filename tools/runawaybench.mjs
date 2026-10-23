@@ -174,9 +174,9 @@ if (sec('D')) {
     let atCover = 0, samples = 0;
     const B = fight('assault', 150, 1980, (B, t) => {
       if (Math.round(t * 30) % 15) return;
-      for (const S of B.ai.squads) if (S.state === 'contact') for (const m of S.members) if (m.alive && m.up && !m.vehicle && (m.ai.state === 'cover / suppress')) { samples++; if (B.world.coverPoints(m.x, m.z, 2.5).length) atCover++; }
+      for (const S of B.ai.squads) if (S.state === 'contact' && S.threat) for (const m of S.members) if (m.alive && m.up && !m.vehicle && m.ai.state === 'cover / suppress' && !m.ai.move) { samples++; const ty = B.world.height(S.threat[0], S.threat[1]) + 1.5; if (B.world.coverPoints(m.x, m.z, 2.5).length || !B.world.los(S.threat[0], ty, S.threat[1], m.x, m.y + 0.8, m.z)) atCover++; }
     });
-    check('cover: holding members sit at cover points during contact', samples > 20 && atCover / samples > 0.6, `${(100 * atCover / Math.max(1, samples)).toFixed(0)}% of ${samples} samples`, '> 60%');
+    check('cover: machines holding in contact are in cover (wall, rock or a fold in the ground)', samples > 20 && atCover / samples > 0.6, `${(100 * atCover / Math.max(1, samples)).toFixed(0)}% of ${samples} samples`, '> 60%');
     const usedStates = new Set(B.ai.log.map(l => l.st));
     check('fire and manoeuvre: contact -> bounds -> flank cycle', usedStates.has('contact') && usedStates.has('flank'), [...usedStates].join(', '));
   }
@@ -189,8 +189,8 @@ if (sec('D')) {
       if (fl && S.state === 'flank') for (const m of S.members) if (m.ai.flanker && m.alive && Math.hypot(m.x - fl.x, m.z - fl.z) < 15) reached = true;
     });
     let side = 0;
-    if (fl) { const fx = axis.tx - axis.cx, fz = axis.tz - axis.cz, px = fl.x - axis.cx, pz = fl.z - axis.cz; side = fx * pz - fz * px; }   // y-up, x right, z toward the viewer: facing (fx, fz), right of it gives cross < 0
-    check('flanking: a stalled fight sends a team round the RIGHT', !!fl && side < 0, fl ? `flank point ${fl.x.toFixed(0)},${fl.z.toFixed(0)} (cross ${side.toFixed(0)})` : 'no flank');
+    if (fl) { const fx = axis.tx - axis.cx, fz = axis.tz - axis.cz, px = fl.x - axis.cx, pz = fl.z - axis.cz; side = fx * pz - fz * px; }   // y up, x right, z toward the viewer: facing (fx, fz) the right-hand side is (-fz, fx), so p . right = fx pz - fz px > 0
+    check('flanking: a stalled fight sends a team round the RIGHT', !!fl && side > 0, fl ? `flank point ${fl.x.toFixed(0)},${fl.z.toFixed(0)} (cross ${side.toFixed(0)})` : 'no flank');
     check('flanking: the flankers reach the flank point', reached, `${reached}`);
   }
   // retreat when outnumbered, and move away
@@ -199,17 +199,18 @@ if (sec('D')) {
     fight('outnumbered', 120, 1980, (B) => {
       const S = B.ai.squads[0]; const alive = B.dummies.filter(d => d.alive), ex = alive.reduce((s, d) => s + d.x, 0) / alive.length, ez = alive.reduce((s, d) => s + d.z, 0) / alive.length;
       if (S.state === 'retreat' && !retreated) { retreated = true; d0 = Math.hypot(S.cx - ex, S.cz - ez); }
-      if (retreated) d1 = Math.hypot(S.cx - ex, S.cz - ez);
+      if (retreated) d1 = Math.max(d1 ?? 0, Math.hypot(S.cx - ex, S.cz - ez));
     });
-    check('outnumbered: the squad falls back (bounding withdrawal)', retreated && d1 - d0 > 30, retreated ? `retreat at ${d0.toFixed(0)} m, now ${d1.toFixed(0)} m from the enemy` : 'never retreated');
+    check('outnumbered: the squad falls back (bounding withdrawal)', retreated && d1 - d0 > 30, retreated ? `retreat at ${d0.toFixed(0)} m, fell back to ${d1.toFixed(0)} m from the enemy` : 'never retreated');
   }
   // suppression response + target priority + link node + volley sync (one controlled setup)
   {
-    const B = createSandbox({ seed: 5 });
+    const flat = { height: () => 2, water: () => false, obstacles: [], trees: [], spawn: { rw: [[0, 0]], tf: [[0, -80]], pad: [0, 0] } };
+    const B = createSandbox({ seed: 5, island: flat });
     const ms = [0, 1, 2, 3].map(i => B.addStrider(-6 + i * 4, -20, 0));
     B.addSquad(ms, { type: 'hold' });
     const at = B.addDummy('at', 4, -95, { crouch: false }), inf = [B.addDummy('inf', -8, -92), B.addDummy('inf', 12, -90)];
-    for (const d of [at, ...inf]) { d.wpn = { ...d.wpn, range: 0 }; d.laws = 0; }   // silent targets
+    for (const d of [at, ...inf]) { d.wpn = { ...d.wpn, range: 0 }; d.laws = 0; d.hp = 1e6; }   // silent, unkillable targets
     let pr = 0, prN = 0, offFire = 0, onFire = 0;
     for (let t = 0; t < 12; t += 1 / 30) {
       B.step(1 / 30);

@@ -68,7 +68,7 @@ export function createSquadAI(world, opt = {}) {
     sq.members.forEach((m, i) => { m.ai = { move: null, run: false, crouch: 0, face: undefined, aim: null, aimId: null, fire: false, state: 'idle', note: '', supp: 0, team: i % 2, dest: null, cover: null, own: new Map(), spot: new Map() }; byMember.set(m.id, { m, S }); });
     AI.squads.push(S); return S;
   };
-  AI.order = (id, order) => { const S = AI.squads.find(s => s.id === id); if (S) { S.order = order; S.patrolI = 0; if (S.state !== 'retreat') setState(S, 'advance'); } };
+  AI.order = (id, order) => { const S = AI.squads.find(s => s.id === id); if (S) { S.order = order; S.patrolI = 0; S.holdUntil = 0; if (S.state !== 'retreat') setState(S, 'advance'); } };
   AI.hear = (ev) => { AI.sounds.push({ ...ev, t: AI.time }); };
   AI.nearMiss = (id, k = 0.15) => { const e = byMember.get(id); if (e) e.m.ai.supp = clamp(e.m.ai.supp + k, 0, 1.2); };
 
@@ -80,7 +80,10 @@ export function createSquadAI(world, opt = {}) {
     const link = S.linkDown <= 0;
     for (const m of S.members) {
       if (!m.alive) continue;
-      const a = m.ai, sight = AI_T.SIGHT[m.kind] * (m.blind ? 0 : 1), fov = AI_T.FOV[m.kind] / 2;
+      // each sensor sweeps 10 times a second (staggered across the squad): spotting integrates over the sweep
+      const a = m.ai; a.lookAcc = (a.lookAcc ?? (m.id % 3) * 0.034) + dt; if (a.lookAcc < 0.1) continue;
+      const ldt = a.lookAcc; a.lookAcc = 0;
+      const sight = AI_T.SIGHT[m.kind] * (m.blind ? 0 : 1), fov = AI_T.FOV[m.kind] / 2;
       for (const t of targets) {
         if (!t.alive || t.side === S.side) continue;
         const dx = t.x - m.x, dz = t.z - m.z, d = Math.hypot(dx, dz);
@@ -93,8 +96,8 @@ export function createSquadAI(world, opt = {}) {
         if (vis) {
           // detection builds faster close in, on movers and shooters, slower on targets in cover
           const mv = Math.hypot(t.vx || 0, t.vz || 0), rate = (1.6 + 2.5 * Math.min(1, mv / 2) + (t.firing < 2 ? 3 : 0)) * (1 - 0.7 * (t.cover || 0)) * clamp(1.4 - d / sight, 0.15, 1.4) * (t.kind === 'vehicle' ? 2 : 1);
-          sp = Math.min(1.5, sp + rate * dt);
-        } else sp = Math.max(0, sp - dt * 0.5);
+          sp = Math.min(1.5, sp + rate * ldt);
+        } else sp = Math.max(0, sp - ldt * 0.5);
         a.spot.set(t.id, sp);
         if (vis && sp >= 1) {
           const k = { id: t.id, x: t.x, y: t.y, z: t.z, vx: t.vx || 0, vz: t.vz || 0, h: t.h, kind: t.kind, t: AI.time, conf: 1, err: 0, seen: true, by: m.id, firing: t.firing };
@@ -156,7 +159,7 @@ export function createSquadAI(world, opt = {}) {
     S.threat = tw ? [tx / tw, tz / tw] : null;
     // ---- retreat / regroup
     if (S.state === 'retreat') {
-      if (!near.length || dist2(cx, cz, S.rally[0], S.rally[1]) < 15 || S.stateT > 40) { setState(S, 'regroup', 'reached rally'); S.regroupT = 0; }
+      if (!near.length || dist2(cx, cz, S.rally[0], S.rally[1]) < 15 || S.stateT > 40) { setState(S, 'regroup', 'reached rally'); S.regroupT = 0; S.holdUntil = AI.time + 30; }   // (then hold at the rally: re-tasking is the commander's call)
       return;
     }
     if (O.type === 'retreat' || (near.length && S.ratio < AI_T.RETREAT_RATIO && O.type !== 'defend')) {
@@ -172,10 +175,19 @@ export function createSquadAI(world, opt = {}) {
       if (spread < 14 || S.regroupT > 12) setState(S, near.length ? 'contact' : 'advance', 'regrouped');
       return;
     }
+    // a flank in progress is a commitment: it runs its course (or its flankers go down)
+    if (S.state === 'flank') {
+      S.flank.t += AI_T.THINK;
+      const fl = ms.filter(m => m.ai.flanker && m.up), there = fl.length && fl.every(m => dist2(m.x, m.z, S.flank.x, S.flank.z) < 14);
+      if (!fl.length) { setState(S, 'contact', 'flankers lost'); S.contactT = -20; }
+      else if (S.flank.t > 40 || (there && S.flank.t > 12 && !near.length)) { setState(S, near.length ? 'contact' : 'advance', 'flank done: push on'); S.contactT = -25; }
+      return;
+    }
     if (!near.length) {
       const spread = Math.max(...ms.map(m => dist2(m.x, m.z, cx, cz)));
       if (spread > 45 && S.state !== 'advance') { setState(S, 'regroup', 'spread out'); S.regroupT = 0; S.rally = [cx, cz]; return; }
-      setState(S, O.type === 'defend' ? 'defend' : O.type === 'hold' ? 'hold' : 'advance'); S.contactT = 0; return;
+      const holdOn = (S.holdUntil ?? 0) > AI.time;
+      setState(S, O.type === 'defend' ? 'defend' : O.type === 'hold' || holdOn ? 'hold' : 'advance', holdOn ? 'holding at the rally' : ''); S.contactT = 0; return;
     }
     // ---- contact
     S.contactT += AI_T.THINK;
@@ -184,7 +196,7 @@ export function createSquadAI(world, opt = {}) {
     // assault when strong and the enemy is close and quiet
     const nearest = Math.min(...near.map(k => dist2(k.px, k.pz, cx, cz)));
     const quiet = near.every(k => (k.firing ?? 99) > 2.5);
-    if (S.ratio > AI_T.ASSAULT_RATIO && nearest < 70 && quiet) { if (S.state !== 'assault') setState(S, 'assault', `ratio ${S.ratio.toFixed(1)}`); return; }
+    if (S.ratio > AI_T.ASSAULT_RATIO && S.contactT > 12 && nearest < 70 && quiet) { if (S.state !== 'assault') setState(S, 'assault', `ratio ${S.ratio.toFixed(1)}`); return; }
     // flank when the fight stalls: contact for a while, the enemy count not falling, enough bodies to split
     const striders = ms.filter(m => !m.vehicle && m.up);
     if (S.state === 'contact' && S.contactT > 10 && nearest < 170 && near.length >= S.lastEnemyCount && striders.length >= 3 && S.threat) {
@@ -198,12 +210,6 @@ export function createSquadAI(world, opt = {}) {
       for (const m of ms) m.ai.flanker = !m.vehicle && m.up && m.ai.team === 1 && m.id !== S.leaderNow;
       for (const m of striders) if (ms.filter(q => q.ai.flanker).length < 2 && !m.ai.flanker && m.id !== S.leaderNow) m.ai.flanker = true;
       setState(S, 'flank', 'stalled: flank right');
-    }
-    if (S.state === 'flank') {
-      S.flank.t += AI_T.THINK;
-      const fl = ms.filter(m => m.ai.flanker && m.up);
-      if (!fl.length) { setState(S, 'contact', 'flankers lost'); S.contactT = -20; }
-      else if (S.flank.t > 40) { setState(S, 'contact', 'flank done: push on'); S.contactT = -25; }   // (and no new flank for a while)
     }
     S.lastEnemyCount = Math.max(S.lastEnemyCount * 0.9, near.length);
   }
@@ -234,6 +240,19 @@ export function createSquadAI(world, opt = {}) {
       let s = (sc.hidden ? 3 : 0) + (sc.canFire ? 2.2 : 0) + sc.facing - dMe / 18 - dAnchor / 14 + (dThr < 25 ? -3 : 0) + (dThr > m.weapon.range ? -2 : 0);
       if (s > bs) { bs = s; best = cp; }
     }
+    // no wall or rock that works: use the ground itself - a fold or crest that hides a crouched machine from the threat
+    // but lets it shoot standing (sampled on rings round the anchor)
+    if (!best || bs < 2) {
+      let tb = null, ts = -1e9;
+      for (let i = 0; i < 18; i++) {
+        const a = i * 2.4, r = 5 + (i % 6) * 4, x = anchorX + Math.cos(a) * r, z = anchorZ + Math.sin(a) * r;
+        if (world.isWater(x, z)) continue;
+        const y = world.height(x, z), hid = !world.los(thr[0], ty, thr[1], x, y + 0.75, z), shoot = world.los(x, y + 1.9, z, thr[0], ty, thr[1]);
+        const s = (hid ? 3 : 0) + (shoot ? 2.2 : 0) - dist2(x, z, m.x, m.z) / 18 - dist2(x, z, anchorX, anchorZ) / 14;
+        if (s > ts) { ts = s; const dx = x - thr[0], dz = z - thr[1], l = Math.hypot(dx, dz) || 1; tb = { x, z, y, h: 1.0, nx: dx / l, nz: dz / l, terrain: true }; }
+      }
+      if (tb && ts > bs && ts >= 3) return tb;
+    }
     if (best) { best.taken = m.id; best.takenT = AI.time + 12; }
     return best;
   }
@@ -259,6 +278,9 @@ export function createSquadAI(world, opt = {}) {
     const O = S.order, ms = alive(S), lead = ms[0];
     const n = ms.indexOf(m), cx = S.cx ?? m.x, cz = S.cz ?? m.z;
     a.fire = false; a.aim = null; a.aimId = null; a.face = undefined; a.run = false; a.crouch = 0;
+    // sensor scan: each machine owns a sector of the circle (the squad covers all round) and sweeps it in precise
+    // jumps - the head snaps 0.4 rad every 0.45 s, then holds dead still (uncanny, and readable)
+    { const N = S.members.length, base = S.threat ? Math.atan2(-(S.threat[0] - m.x), -(S.threat[1] - m.z)) : (S.scanBase ?? (S.scanBase = m.yaw)); const sector = base + (S.threat ? (n - (N - 1) / 2) * 0.35 : n * 2 * Math.PI / Math.max(1, N)); const k = Math.floor(AI.time / 0.45 + m.id) % 4; a.look = sector + [-0.6, -0.2, 0.2, 0.6][k]; }
     // ---- targeting (every state): strict priority, fire on the squad's volley clock
     const tgt = pickTarget(S, m);
     if (tgt) {
@@ -295,6 +317,7 @@ export function createSquadAI(world, opt = {}) {
       if (m.vehicle) { sx = cx - fx * 30 + -fz * side * 12; sz = cz - fz * 30 + fx * side * 12; }
       if (hl < 8 && st === 'advance') { sx = ox + Math.cos(n * 2.1) * (6 + n * 3); sz = oz + Math.sin(n * 2.1) * (6 + n * 3); }   // spread round the objective
       dest = [sx, sz]; a.state = st === 'regroup' ? 'regroup' : hl < 10 ? 'on objective' : 'advance';
+      if (st === 'hold') { dest = dist2(m.x, m.z, cx, cz) > 25 ? [cx, cz] : null; a.state = 'hold'; }
     } else if (st === 'retreat') {
       // bounding withdrawal: the team not moving covers (exact cadence)
       const moving = Math.floor(S.stateT / AI_T.BOUND_T) % 2 === a.team;
