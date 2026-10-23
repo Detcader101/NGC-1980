@@ -73,6 +73,24 @@ export function createTrackDriver(V, opt = {}) {
     if (last && dist < D.arrive) { if (D.loop) { D.i = 0; } else { D.stop(); return D.update(dt); } }
     let togo = dist; for (let k = D.i; k < D.route.length - 1; k++) togo += Math.hypot(D.route[k + 1][0] - D.route[k][0], D.route[k + 1][1] - D.route[k][1]);
     D.dist = togo;
+    // obstacles (opt.env: an armorworld env): something solid on the line to the look-ahead point -> aim past its side
+    if (opt.env && opt.env.obstacles) {
+      const lx = tx - p[0], lz = tz - p[2], L = Math.hypot(lx, lz) || 1, ux = lx / L, uz = lz / L, hw = opt.halfW || 1.8;
+      let worst = null;
+      for (const o of opt.env.obstacles(p[0], p[2], Math.min(L, 30)) || []) {
+        if (o.breakN && opt.push && o.breakN < opt.push) continue;   // small trees: push through them
+        if (String(o.id).startsWith('craft:' + (opt.selfId || '-'))) continue;
+        const r = o.kind === 'cyl' ? o.r : Math.hypot(o.hx, o.hz), ox = o.x - p[0], oz = o.z - p[2], t = ox * ux + oz * uz;
+        if (t < 0 || t > L + r) continue;
+        const side = ox * uz - oz * ux, need = r + hw + 1.2;   // + = the obstacle is to the right of the line
+        if (Math.abs(side) < need && (!worst || t < worst.t)) worst = { t, side, need, o };
+      }
+      if (worst) {   // a point beside it, on the side the line already passes
+        const s = worst.side > 0 ? -1 : 1, ox = worst.o.x, oz = worst.o.z;
+        tx = ox + uz * worst.need * s; tz = oz - ux * worst.need * s;   // n = (uz, -ux): the side away from it
+        D.avoiding = worst.o.id;
+      } else D.avoiding = null;
+    }
     const want = Math.atan2(-(tx - p[0]), -(tz - p[2]));   // heading to the target (same convention as fm heading)
     const err = wrap(want - hd); D.err = err;
     // ---- speed: slow for the turn and for the stop
@@ -83,7 +101,7 @@ export function createTrackDriver(V, opt = {}) {
     const narrow = clamp(1 - Math.abs(v) * 3.6 / (pivot ? 45 : 34), pivot ? 0.3 : 0.22, 1);
     let steer = clamp(-(wantRate * 1.5 + (wantRate - rate) * 2.2), -1, 1) * narrow;
     if (Math.abs(err) > 1.0 && Math.abs(v) < 2.5) {   // facing away: turn on the spot (pivot) or creep round
-      if (pivot) { inp.range = 'N'; inp.throttle = 0.45; inp.brake = 0; inp.steer = clamp(-Math.sign(err), -1, 1); return inp; }
+      if (pivot) { inp.range = "N"; inp.throttle = 0.45; inp.brake = 0; inp.steer = clamp(-Math.sign(err), -1, 1); if (Math.abs(fm.out.yawRate) < 0.03) D.stuckT += dt; if (D.stuckT > 4) { D.stuckT = 0; D.tries++; D.backT = 3; D.backSteer = 0; if (D.tries > 3) D.state = "stuck"; } return inp; }
       vs = 1.6; steer = -Math.sign(err);
     }
     inp.steer = steer;

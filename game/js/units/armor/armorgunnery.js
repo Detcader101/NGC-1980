@@ -53,7 +53,7 @@ export function createGunnery(o) {
     if (t) {
       const was = !!(t.dead || t.dying);
       war.damage(t, D.hit, s.side);
-      if (s.big) GN.stats.hits++;
+      if (s.big) { GN.stats.hits++; GN.stats.last = t.kind || t.type || (t.ship ? "ship gun" : "?"); }
       if (!was && (t.dead || t.dying || t.sinking !== undefined)) GN.stats.kills++;
       o.onHit?.(t, R, s);
     }

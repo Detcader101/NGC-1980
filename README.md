@@ -29,7 +29,7 @@ The enemy carrier KRAKEN is out there doing the same, and whoever controls the m
 - **Get out and walk.** Land the Huey (or stop a Hornet on deck), press Y and climb out: walk the carrier's deck while she sails and turns (you stay where you stand), climb the island ladder to its roof, go over the side and swim to the stern ladder, walk onto an island pad and hold it. A placeholder Marine with an M16 for now; the real infantry, weapons, medical and inventory plug into slots (see [docs/ngc1980/FOUNDATION.md](docs/ngc1980/FOUNDATION.md)).
 - **Drive.** A placeholder test car waits at the home island's motor pool (7 delivers it to a friendly island): get in at the driver's door, drive on terrain, pads and decks, ford shallow water (and drown the engine past 0.53 m).
 - **AI rotorcraft that really fly.** The CH-46E Sea Knight (tandem rotors, differential collective, longitudinal cyclic trim), the RUNAWAY's seized MV-22B Osprey (tiltrotor: nacelles convert from helicopter to airplane mode inside the conversion corridor) and the RW-3 WASP (ducted fan) each have a physical flight model checked against published data, and an AI pilot that flies it through stick, collective, pedals and nacelles: deck launches from a moving carrier, terrain-following transits, decelerating approaches, touchdowns beside the pad. Marines run off the Sea Knight's ramp and take the pad; the Osprey's machine troopers march out in lock-step. WASPs strafe, snipe from a hover, lie in ambush behind hills and circle in eerie swarms. Watch them on `game/dev/rotary.html`.
-- **Armour: M60A3 TTS and M113A2** (on their test ground for now, `dev/tank.html`; they join the war in the next wave). A tracked-vehicle simulation with torsion-bar roadwheels, track-soil shear and sinkage on road, grass, sand, mud and bog, a real drivetrain (diesel, torque converter, cross-drive with pivot turns / controlled differential), steps, trenches, slopes, fording, and the M113 swims on its tracks. The tank has a stabilised turret, laser rangefinder and ballistic computer, day and thermal (TTS) sights, a loader, coax and .50; both have full crew interiors (driver's periscopes and gauges, gunner's station, commander's cupola, the M113's troop compartment) and synthesised engine, track and gun sound.
+- **Armour: M60A3 TTS and M113A2**, playable on the islands (the M60 waits at the home island motor pool, the M113 on the ALBATROSS deck; 8 / 9 land another by LCM-8 on a friendly island's landing hard). Crew seats at the hatches (driver, gunner, commander, loader; the M113's driver, commander and 11 troop seats), the gunner's day and thermal sights full screen, rounds through the island war, RUNAWAY fire into the armour model (components, crew, fire, cook-off). The test ground is `dev/tank.html`. A tracked-vehicle simulation with torsion-bar roadwheels, track-soil shear and sinkage on road, grass, sand, mud and bog, a real drivetrain (diesel, torque converter, cross-drive with pivot turns / controlled differential), steps, trenches, slopes, fording, and the M113 swims on its tracks. The tank has a stabilised turret, laser rangefinder and ballistic computer, day and thermal (TTS) sights, a loader, coax and .50; both have full crew interiors (driver's periscopes and gauges, gunner's station, commander's cupola, the M113's troop compartment) and synthesised engine, track and gun sound.
 - **Effects that build up.** Smoke columns, fires, scorch marks, debris and oil slicks stay on the map.
 
 Win by sinking the KRAKEN or taking IRONHOLD. You lose if the ALBATROSS sinks or you run out of helicopters.
@@ -104,6 +104,24 @@ The Huey spawns hot at flight idle and rolls the throttle on by itself. With `?c
 | F / click, R | fire / reload (placeholder M16A1) |
 | I / H | vehicle engine / horn |
 | 7 | motor pool: a vehicle to the selected friendly island (15 materiel) |
+| 8 / 9 | an LCM-8 lands an M113A2 (30 materiel) / an M60A3 TTS (60) on the selected friendly island's landing hard (else the home island's) |
+
+### Armour (M60A3 TTS, M113A2)
+
+| Key | Action |
+|---|---|
+| Y, [ / ] | get in at a hatch (walk up to the hull side) / out; change seat (M60: driver, gunner, commander, loader; M113: driver, commander, troops) |
+| W / S, A / D | drive (from any seat: orders to the driver). Steering narrows with speed; Right Shift = full steer. S brakes, then reverses. At a standstill A / D pivot (M60) |
+| Space, Z, I, H | brake; low / high range; engine; hatch (head out / buttoned up; troops stand in the cargo hatch) |
+| V | the seat's view / chase (the mouse orbits; as gunner the turret lays on what the ring is on) |
+| mouse / arrows (Shift: fine) | gunner: lay the gun (the sight follows); commander: the .50 |
+| click / F, G, T, R | fire (main gun / .50), coax, lase, dump the computer |
+| Q | the loader's next round (SABOT, HEAT, HEP) |
+| O, N, U, B, E | day / thermal sight, TTS 3x / 8x, white / black hot, stabiliser, look up from the sight |
+| R, N, B (M113) | ramp, trim vane, bilge pumps (raise the vane and run the pumps before you swim) |
+| X | extinguisher (engine fire) |
+
+Gamepad: left stick steers, RT / LT drive / brake-reverse, right stick lays the turret, RB fire, LB coax, X lase, Y sight. HOTAS: pedals steer, the throttle lever drives, the stick is the gunner's power control handle, trigger / pickle fire / coax.
 
 Cockpit switches are clickable (gear and hook handles, flaps, master arm, FCS CAS/DIRECT, engine cranks, fire lights, master caution, jettison, eject, DDI pages). To land: gear down, flaps FULL, hook down, fly the ICLS needles at 8° AoA (the green/amber/red indexer) into the wires.
 
@@ -172,6 +190,7 @@ Rotary AI scenes: `ch46capture.mjs` (command 1: a Sea Knight takes SANDBAR), `mv
 Huey scenes: `hueystart.json` (cold start), `hueyhover.json` (hover trim, forward flight), `hueyauto.json` (practice autorotation with power recovery), `hueycockpit.mjs`, `hueymodel.mjs` (screenshots).
 `node tools/tankbench.mjs` checks the M60A3 and M113A2 against published figures (speed, acceleration, gradient, side
 slope, step, trench, fording, swimming, turning, turret rates, stabiliser), every number tagged with its source.
+Armour in the game: `node tools/armorgamebench.mjs` (the AI driver, the island environment, riding a moving deck, trees pushed over) and `scenes/armorgame.mjs` (into the M60 at the hatch, road / off-road / hill, day and thermal sights hitting a RUNAWAY building, RUNAWAY fire into the armour, the M113 on the moving carrier deck and swimming off the landing hard, the LCM-8 delivery).
 Armour scenes: `tankmodel.mjs` (exterior; `VEH=m113` for the APC), `tankinterior.mjs` (crew stations, sight pictures),
 `tankdrive.mjs` (the obstacle lanes, a first-round hit at 1000 m), `tankm113.mjs` (ramp, troops, swimming),
 `tankaudio.mjs` (the synthesised sound, rendered offline).

@@ -107,7 +107,7 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
   function snd() { if (!audio && sfx.ctx) { audio = new ArmorAudio(sfx.ctx, sfx.master); audio.init(); } return audio; }
   function newSim() {
     V = M60 ? createM60A3() : createM113(); fm = V.fm; fm.h = 1 / 120;
-    D.V = V; D.fm = fm; D.IN = IN; D.driver = createTrackDriver(V); D.driver.hold();
+    D.V = V; D.fm = fm; D.IN = IN; D.driver = createTrackDriver(V, { env, halfW: TY.W / 2, push: M60 ? 2.2e5 : 0 }); D.driver.hold();   // the M60 pushes through small trees
     IN.ammo = 'M735'; IN.sight = 'day'; IN.stab = true; IN.ramp = false; IN.vane = false; IN.pumps = false;
   }
   newSim();
@@ -293,7 +293,7 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
     // the gun pushed into a house wall or a tree, not dug into the ground: the barrel is not bent (game; the sim's
     // dig-in rule is for the muzzle ploughing into earth)
     if (M60 && evs.some(e => e.type === 'gunDug')) {
-      V.muzzle(_w); if (_w[1] > env.height(_w[0], _w[2]) + 0.15) { const g = V.armor.COMPS.find(c => c.id === 'gun'); if (g) g.hp = Math.min(1, g.hp + 0.25); for (let i = evs.length - 1; i >= 0; i--) if (evs[i].type === 'component' && evs[i].id === 'gun') evs.splice(i, 1); }
+      V.muzzle(_w); if (_w[1] > AW.terrain(_w[0], _w[2]) + 0.15) { const g = V.armor.COMPS.find(c => c.id === 'gun'); if (g) g.hp = Math.min(1, g.hp + 0.25); for (let i = evs.length - 1; i >= 0; i--) if (evs[i].type === 'component' && evs[i].id === 'gun') evs.splice(i, 1); }
     }
     for (const e of evs) onEvent(e, active);
     // drowned / lost: the hull top under the sea for a while

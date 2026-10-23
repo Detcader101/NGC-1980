@@ -83,7 +83,7 @@ export function createArmorDelivery(ctx) {
     AW.addPlatform(P);
     const run = { P, model, def, pl, I, state: 'inbound', t: 0, v: LCM8.SPEED, snd: null, wakeT: 0 };
     // the vehicle in the well, nose to the ramp
-    const [vx, vz] = toWorld(P, 0, -2.6);
+    const [vx, vz] = toWorld(P, 0, -1.2);   // (aft enough that the gun clears the raised ramp)
     def.spawnAt({ x: vx, z: vz, yaw: P.yaw, plat: P });
     DL.runs.push(run);
     ctx.feed?.(`LCM-8 INBOUND TO ${pl.beach.name} WITH THE ${def.label}`, 'good');

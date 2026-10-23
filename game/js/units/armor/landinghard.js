@@ -69,3 +69,12 @@ export function hardsH(hards, x, z, h) {
   }
   return h;
 }
+// is (x, z) on a hard's concrete (margin m: 0 = the core; more takes in the cut / fill slopes, for keeping trees off)
+export function onHard(hards, x, z, m = 0) {
+  for (const H of hards) {
+    if (x < H.bx0 || x > H.bx1 || z < H.bz0 || z > H.bz1) continue;
+    const dx = x - H.x, dz = z - H.z, u = dx * H.fx + dz * H.fz, lat = -dx * H.fz + dz * H.fx;
+    if (Math.abs(lat) <= H.w + m && u >= H.u0 - m && u <= H.u1 + 3 + m) return H;
+  }
+  return null;
+}

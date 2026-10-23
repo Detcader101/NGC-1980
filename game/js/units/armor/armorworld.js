@@ -156,6 +156,7 @@ export function createArmorWorld(o) {
       surface(x, z) {
         const h = E.height(x, z);
         if (src !== 'ground') return 'paved';   // non-skid steel decks, the bridge deck
+        if (o.paved && o.paved(x, z)) return 'paved';   // the landing hards' concrete
         if (o.pads) for (const p of o.pads) if (Math.abs(x - p.x) < p.r && Math.abs(z - p.z) < p.r && Math.hypot(x - p.x, z - p.z) < p.r) return 'paved';
         const r = AW.roadCell(x, z); if (r) return r.surface === 'tarmac' ? 'paved' : 'dirt';
         if (h < 2.2) return 'sand';                                    // the beaches and the sea bed
