@@ -229,3 +229,173 @@ TM-73,254 (fuselage, stab bar, tail rotor), DCS UH-1H manual (limits, procedures
   LEFT / RIGHT, stored in localStorage (tz_ckfov). Applies to the Huey cockpit, the Hornet cockpit (zoom = 0.4x of it)
   and the dropship flight deck; chase cameras and the cave side view keep their own. The jet HUD is a physical
   combiner in the cockpit model, so it stays conformal at any FOV. Scene: tools/scenes/fov.mjs.
+
+## 2026-10-23 — NGC-1980 AIR AI rotary: CH-46E + Marines, RUNAWAY MV-22B, RW-3 WASP (branch ngc/airrot)
+Three AI rotorcraft that fly physically: a pure-JS flight model, a node bench against published data, an AI pilot that
+works the controls (stick, collective / thrust lever, pedals, nacelles - never a position), a mission brain, an
+exterior model, synthesized sound, a dev page and in-game scenes. Files: game/js/units/air/rotary/* (all new),
+game/dev/rotary.html (+ rotary-dev.js, rotary-units.js), tools/{ch46bench,mv22bench,waspbench,rotarymission,
+waspmission,rotaryperf,rotarykit,runscenes}.mjs, scenes ch46capture / mv22landing / wasp / rotarydamage / rotarydev.
+
+### Shared core
+- rb.js: 6-DOF rigid body (FRD dynamics, three-style quaternion so meshes take it as is) with gear contacts: spring /
+  damper normal force and the Huey's deadbeat friction on the effective mass, relative to moving decks (surfVel).
+- rotor.js: the Huey's rotor concepts as a reusable disc, but thrust / torque from 8-10 blade-element strips with the
+  azimuth-mean tangential speed (reproduces CT = sigma a/2 (theta0 (1/3 + mu^2/2) ...) - checked: 0.00576 vs 0.00573 in
+  the Huey's hover) so the same code is a lifting rotor AND a proprotor in high axial inflow. Glauert inflow + lag,
+  Johnson's ring curve, Cheeseman-Bennett ground effect, external inflow (rotor interference), flapback / lateral
+  flapping signed by rotation sense, disc lag behind body rates, articulated hub moment (hinge offset) or gimbal spring.
+  Non-uniform inflow factor 1.12 (INFERRED).
+- pilot.js: layered autopilot - velocity -> attitude (+ learned trim, slewed at a pilot's pace) -> cyclic PD+I,
+  vertical speed PI on the collective, yaw rate on the pedals. transportai.js: the transport mission (spool on the
+  deck, lift off a moving deck, turn onto the track in the hover, terrain-following transit, a sqrt-profile approach
+  with deceleration feed-forward and a linear close-in, glide path, steep-approach speed limit, VRS descent limit below
+  ~40 kt, slewed climb commands, vertical descent, unload, RTB to the moving deck, park).
+
+### CH-46E Sea Knight (player transport, command 1: replaces the MANTA capture drone)
+- Tandem: pitch by DIFFERENTIAL COLLECTIVE (DCP), roll by lateral cyclic, yaw by DIFFERENTIAL LATERAL CYCLIC. The brief
+  said "differential collective for yaw" - on a tandem that is pitch; yaw is differential lateral cyclic (decision).
+  LCT (both discs forward with airspeed), overlap interference in the hover (+~10% induced power, Harris), the aft rotor
+  in the front rotor's wake in forward flight (fades as the wake passes below the higher aft rotor), counter-rotating
+  (front CCW, aft CW), unstable fuselage in pitch, aft-pylon weathercock, dual SAS. 2 x T58-GE-16 with N2 governor,
+  collective anticipator, torque topping (~105%, INFERRED), a 2,800 shp transmission limit (INFERRED: the D/F drive
+  train). Gear: fixed tricycle.
+- Bench (node tools/ch46bench.mjs, 21/21; CH-46E SL ISA):
+  | item | model | published |
+  |---|---|---|
+  | max level speed, 24,300 lb, 2,800 shp | 144 kt | 144 kt (CONFIRMED) |
+  | max climb, 24,300 lb, 75 kt | 1,799 fpm | 1,715 fpm (CONFIRMED; weight / speed INFERRED) |
+  | hover ceiling OGE / IGE, 24,300 lb | 6,000 / 9,000 ft | 5,750 / 9,500 ft (CONFIRMED; weight INFERRED) |
+  | hover OGE at mission weight (22,000 lb) | 2,298 shp, pitch +3.8 deg | - |
+  | aft rotor power > front in forward flight | 60 kt: 584 / 777 shp | qualitative (Stepniewski & Keys, Harris) CONFIRMED |
+  | one engine out, 70 kt, mission weight | +815 fpm | E upgrade bought single-engine capability (INFERRED) |
+  | autorotation 80 kt | NR 102%, 2,650 fpm | rpm limits 94-113% CONFIRMED; rate UNVERIFIED |
+  | SAS off at 100 kt | pitch diverges 4.2 deg in 6 s (0.6 with SAS) | tandems need SAS (qualitative) |
+  INFERRED (tuned / estimated, stated in ch46fm.js): flat-plate drag 5.6 m2 (to 144 kt), inertias, blade chord 18.25 in
+  (UNVERIFIED), twist, Lock, hinge offset, shaft tilt 4.5 deg, LCT schedule, interference factors, transmission limit.
+  Source conflict: 83 ft 4 in rotors-turning length gives 33.3 ft shaft spacing, the "16 ft overlap" figure 34 ft (used 33.3).
+- Mission (node tools/rotarymission.mjs): lifts off the ALBATROSS at 6 m/s, lands 1.2 m from its LZ mark at 0.19 m/s,
+  unloads, lands back on the moved deck at 0.20 m/s, min 29 m AGL en route, bank <= 17 deg, torque <= 105%.
+- In the war: the LZ is chosen beside the pad (18 m out, perpendicular to the HQ / production line, tail to the pad,
+  rotor discs and fuselage clear of every building, flat ground); the ramp lowers, 13 Marines run up the cabin, down the
+  ramp and out to a perimeter round the pad, kneel facing out; the squad is its own unit ('squad': capTime 9 s like the
+  drone, hp = men alive, hits drop them one by one, it fires back at game level) and holds the pad; the Sea Knight lifts
+  off once they're clear and flies home to its deck spot (or HOME ISLAND's pad if the carrier is gone or flying), parks
+  and is struck below. Below half hp an engine quits (abort, home on one engine); killed: both engines out, the AI
+  autorotates (40% of the time the aft rotor is lost - it falls), the wreck explodes, Marines aboard are lost. Taken
+  islands keep their Marines standing guard until the island falls again.
+- Model (ch46model.js): lofted fuselage at real size, cockpit glazing, crew in the cockpit, five-a-side windows, crew
+  door with the upper half swung up, hoist, sponsons + main wheels, twin nose wheels, forward pylon, roof tunnel, aft
+  pylon with trailing fin, T58 nacelles with soot, 3-blade articulated heads (blades flap into each tip-path plane,
+  droop at rest, blur discs), red troop seats, the ramp (lowers to the ground; crew chief appears), beacons / nav /
+  landing light, 1980 USMC markings: dark green, black MARINES, full-colour star and bar, "EM 05" (HMM-261, INFERRED),
+  BuNo, nose modex.
+
+### MV-22B Osprey (RUNAWAY, replaces the enemy twin-rotor transport)
+- Tiltrotor: two 3-blade gimballed proprotors (rotor.js discs) on nacelles 0-97.5 deg (CONFIRMED), 90 deg in ~12 s
+  (CONFIRMED), cross-shafted (either engine turns both, CONFIRMED). FCS mixing by nacelle angle: helicopter =
+  longitudinal cyclic (pitch), differential collective (roll), differential longitudinal cyclic (yaw); airplane =
+  elevator, flaperons, twin rudders. Thrust lever -> collective on an axial-inflow schedule in the helicopter share,
+  -> engine power with a collective prop governor in the airplane share; 412 rpm helicopter / conversion, 333 rpm
+  airplane (CONFIRMED two-speed rotor); FCS overspeed protection. Wing halves in the rotor wash (download), H-tail,
+  twin fins, retractable gear, proprotor ground strike. Conversion corridor INFERRED from the published XV-15 / V-22
+  shape, with the floor scaled to the wing's stall speed at the present weight.
+- Bench (node tools/mv22bench.mjs, 21/21):
+  | item | model | published |
+  |---|---|---|
+  | disc loading at 47,500 lb | 20.9 lb/ft2 | 20.9 (CONFIRMED) |
+  | hover OGE at 47,500 lb | 8,787 shp (71% of 2 x 6,150), FM 0.78, download 10.7% | FM ~0.78, download ~10-12% (INFERRED) |
+  | level trims hover .. 260 kt inside the corridor | all held, max pitch 8.1 deg | - |
+  | max level speed SL, 2 x 6,150 shp | 270 kt | 275 kt (CONFIRMED) |
+  | climb, airplane mode, 154 KCAS, MCP, 52,600 lb | 2,774 fpm | 2,320-4,000 fpm (CONFIRMED; 154 KCAS AOPA) |
+  | conversion 90 -> 0 | 11.9 s | ~12 s (CONFIRMED) |
+  | rotor speed heli / airplane | 412 / 333 rpm | 412 / 333 (CONFIRMED) |
+  | one engine out at 200 kt | level, both rotors at 333 rpm | cross-shaft (CONFIRMED) |
+  CONFLICT: the published 110 kt "stall speed" can't be the wing alone (W/S 158 lb/ft2 needs CL 3.8); the model's flapped
+  wing stalls at 137 kt at 39,500 lb. INFERRED: f = 3.55 m2 (to 275 kt), inertias, linear twist -40 deg (real -47
+  nonlinear), wing CLmax 1.6 / 2.05 flapped, wash factor, tail sizes, MCP ~5,000 shp.
+- Tilt pilot (tiltpilot.js): accelerates and slows with the nacelle angle (the thumbwheel), attitude near level; the
+  helicopter loops (speed by pitch, height by thrust lever) hand over to airplane loops (speed by thrust lever, climb
+  by pitch, turn by bank, zero sideslip) only once the wing has margin (1.0-1.22 x stall speed); one set of integrators
+  in charge at a time (bumpless); decelerating from airplane mode on power first. Mission (rotarymission.mjs): from the
+  KRAKEN 6.5 km out - converts to 0 deg / 206 KIAS, back to the hover, lands 1.6 m from its LZ at 0.24 m/s, unloads,
+  back to the moving KRAKEN at 0.24 m/s, 0 s outside the corridor, power <= 97%, min AGL 32 m.
+- In the war ('transport'): off the KRAKEN's bow spot (or IRONHOLD); 12 machine troopers march out in lock-step (one
+  shared gait phase) and stand round the pad sweeping their heads together (capTime 10 s as before); if the commander's
+  target is taken first it's re-tasked to the next island; it folds on the KRAKEN when it gets home (rotor brake,
+  nacelles down, blades fold back, wing swings fore-and-aft) and is struck below. Engine hits: it presses on
+  (cross-shaft); killed: it falls and explodes with the troopers aboard.
+- Model (mv22model.js): two-tone grey, primer patches, nacelles that tilt about the wing tips with spinners and three
+  twisted blades (fold), wing on its stow ring with flaperons, H-tail + twin fins / rudders, sponsons, retracting gear,
+  rear ramp, refuelling probe; RUNAWAY refit: a sensor ball under the chin with cyan lenses, cyan IFF strips and seams,
+  machine cores where the pilots sat, crude glyphs stencilled over MARINES.
+
+### RW-3 WASP (RUNAWAY ducted-fan attack drone, replaces the saucer gunship)
+- Physics (waspfm.js, a fictional machine: physics checks, not a spec sheet): shrouded-fan momentum theory with the wake
+  held at the exit (P = T^1.5 / sqrt(4 sigma rho A); fan share 1/(2 sigma)), climb inflow, edgewise momentum drag and
+  the nose-up lip moment (Fleming 2003, Abrego & Bulaga 2002), exit vanes below the CG, fan torque split for yaw, an
+  onboard stabiliser (open loop it diverges, as ducted fans do), three feet. The AI never tilts further than full power
+  can hold 1 g.
+- Bench (waspbench.mjs 13/13): hover 156 kW = FM 0.78 against the ducted ideal, 1.5x less than an open rotor (sqrt(2
+  sigma)), lip share 55% (from the fan's pressure jump), 60% power to hover, momentum drag 1 kN at 10 m/s -> 1.8 kN at
+  20, vanes trim nose-down with speed, holds 30 m/s at 41 deg, top speed 39 m/s at 52 deg, open loop diverges, lands.
+- Mind (waspai.js): guard with mechanical sensor sweeps (yaw steps); AMBUSH - finds low ground with terrain between it
+  and a target that's closing, hovers there still, springs when it's in reach; STRAFE - runs in on an offset line,
+  fires, overflies, breaks away and comes back from a new bearing; SNIPE - hovers at standoff and slides sideways; SWARM
+  - raid groups take evenly spaced slots on a ring round the target, turning in lock-step, breaking off one at a time;
+  predictive avoidance of the target and each other. Node (waspmission.mjs 8/8): a swarm of four round a circling Huey
+  for 2 min - no losses, >= 10 m from the target, >= 9.8 m apart, 39-58 s of firing windows each; the ambusher hides 9 s
+  behind the hills and springs at 40 s.
+- In the war ('gunship', same unit-list and damage semantics, hp 3): the old targeting rules (the player within
+  170 / 260 m, our transports / squads / escorts within 160 m, raid targets, guard home), swarm slots shared by WASPs on
+  one target, some lie in ambush when the player is coming their way. WEAPON AT GAME LEVEL (orchestrator's rule): bursts
+  of three of the war's own 'b' rounds at 90 m/s with spread, drawn cyan (one-line b.col hook in war.js updateProj).
+  Shot down: fans die, it tumbles and explodes.
+- Model (waspmodel.js): a lathed ceramic shroud with cyan seams round two counter-rotating fans, stators and two stages
+  of exit vanes (animated), a faceted sensor head offset to the left with three eyes and a sweeping scanner slit, a
+  sensor fin on the right, a segmented abdomen curling under into an articulated stinger (the emitter tracks its
+  target, flashes when it fires), three legs that fold.
+- Escort decision: the blue-saucer "escort" variant of buildGunship is retired - the Tomcats (fixed-wing agent) fly
+  escort, and a 1980 task force has no hover drones. ships.js keeps buildDrone / buildTransport / buildGunship as
+  wrappers that build the CH-46 / MV-22 / WASP.
+
+### Troops (figures.js, squad.js)
+- Stand-in soldiers, deliberately simple and SWAPPABLE: FIGURES[kind](opts) -> { group, pose(state, phase) }, states
+  run / walk / stand / kneel / aim / fall / dead / seated. 1980 Marine (M1 helmet with the leaf cover, ERDL utilities,
+  M1955 flak vest, ALICE pack + canteens, M16A1; four skin tones) and RUNAWAY machine trooper (ceramic plates, cyan
+  sensor slit, seized carbine with a cyan optic). 6 meshes each with one shared vertex-colour material. The INFANTRY
+  and RW-1 work can replace them by registering in FIGURES.
+
+### Sound (rotorsound.js)
+- A voice pool per type for the nearest aircraft, distance falloff like the war's sounds, Doppler on the tones. CH-46:
+  two 13.2 Hz blade-passage pulse trains gating noise bands, a hair apart (the beating tandem whop-whop), rotor thump,
+  T58 whine. MV-22: deep 20.6 Hz proprotor thrum that turns into a propeller drone as the nacelles come down, AE1107
+  whine. WASP: two detuned fan tones that beat, a slowly wavering formant, a sub hum, a chirp when it acquires a target.
+
+### Shared-file hooks
+- war.js: import createRotary; `const ROT = createRotary(...)` + `W.rotary`; makeAir first line (ROT.make), updateAir
+  first line (ROT.update - rotary units fly themselves, dying too), W.update `W.peace = peace` and `ROT.tick(dt)`,
+  W.reset `ROT.reset()`, updateCapture uses `u.capTime || CAP_TIME[u.type]`, gunship targeting includes 'squad',
+  pickExpansion skips islands with an enemy landing party on them, sendDrone / damage feed texts (SEA KNIGHT), the
+  b.col tracer colour. ships.js: three builders replaced by wrappers + three imports. main.js: ONE line - the command
+  map legend "1: SEA KNIGHT + 13 MARINES" (the advisor's "SEND A DRONE (M, 1)" line in main.js is left for FOUNDATION).
+- External placement: if a script / test moves a rotary unit's u.p, its flight model follows (jetweapons.mjs pins a
+  gunship ahead of the jet).
+
+### Gotchas
+- An inline `//` comment swallowed the rest of a line again (mv22bench) - keep comments off code lines in edits.
+- dt = 0 on a page's first update divided by zero in the gear friction (NaN everywhere): every sim's step() returns on
+  dt <= 0.
+- With the gear up the Osprey lost its AGL and water / ground detection (they came from the gear contacts): belly check.
+- Torque limiting by the needle pumped: rotor droop raises free-turbine torque. Limit on rotor power, slowly.
+- Tandem transition: a fast nose-down command = forward stick = more aft-rotor collective = 135% torque: attitude
+  commands slew at a pilot's pace.
+- The tiltrotor's hard part was the conversion, not the hover: accelerating by pitching (a helicopter habit) with the
+  nacelles already forward sank it; slowing from airplane mode by raising the nacelles at 190 kt windmilled the rotors
+  (122% rpm). Fixes: speed by nacelle angle, attitude near level, wing-load handover, slow on power first, an FCS
+  overspeed protection.
+- Ducted fans have huge momentum drag at high disc loading: the WASP needs ~40 deg of tilt for 30 m/s; it sank when the
+  pilot leant further than the thrust allowed (tilt limit from the fan model).
+- The game only draws terrain round the player (250 m): in-game scenes park the Huey near the action for screenshots.
+- The ALBATROSS's guns shred WASPs (hp 3, like the saucer) before they're in range; the wasp scene silences them to test
+  the weapon.

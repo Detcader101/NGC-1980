@@ -40,11 +40,13 @@ export function createCH46Unit(o) {
   const animS = { nr: 1, F: { tx: 0, ty: 0 }, A: { tx: 0, ty: 0 }, coll: 0, ramp: 0, run: true, n1: 0.9, cone: 0.06 };
   U.update = (dt, time) => {
     U.time = time;
-    if (!U.dead) {
+    // the pilot works at >= 30 Hz however long the frame (a 0.1 s frame = 3 control steps)
+    const nS = Math.max(1, Math.ceil(dt * 30 - 1e-6)), h = dt / nS;
+    for (let i = 0; i < nS && !U.dead; i++) {
       stateOf(S.body, st);
-      const cmd = AI.step(st, S, dt, o.world), c = flyCH46(S, P, st, cmd, dt);
+      const cmd = AI.step(st, S, h, o.world), c = flyCH46(S, P, st, cmd, h);
       if (!U.engines) { c.eng0 = c.eng1 = false; }
-      U.ev = S.step(dt, c, o.env);
+      U.ev = S.step(h, c, o.env) || U.ev;
       if (S.dead) U.dead = S.dead;
     }
     U.ramp += Math.max(-dt / 2.5, Math.min(dt / 2.5, U.rampT - U.ramp));

@@ -19,15 +19,16 @@ export function createWaspUnit(o) {
   // tgt: { x, y, z, vx, vy, vz } | null; ctx: { time, reach, ambush, peace }
   U.update = (dt, time, tgt, ctx = {}) => {
     U.target = tgt;
-    if (!U.dead) {
+    const nS = Math.max(1, Math.ceil(dt * 30 - 1e-6)); const h = dt / nS;   // the pilot works at >= 30 Hz however long the frame
+    for (let i = 0; i < nS && !U.dead; i++) {
       stateOf(S.body, st); me.x = st.x; me.y = st.y; me.z = st.z; me.vx = st.vx; me.vy = st.vy; me.vz = st.vz; me.yaw = st.yaw;
       const los = tgt ? o.world.los(st.x, st.y, st.z, tgt.x, tgt.y + 1, tgt.z) : false;
-      const cmd = AI.step(me, tgt, dt, o.world, { ...ctx, time, los });
-      cmd.tilt = waspTiltLimit(S, st, cmd); const c = P.step(st, dt, cmd);
-      U.ev = S.step(dt, { thr: c.coll, pitch: c.lon, roll: c.lat, yaw: c.ped }, o.env);
+      const cmd = AI.step(me, tgt, h, o.world, { ...ctx, time, los });
+      cmd.tilt = waspTiltLimit(S, st, cmd); const c = P.step(st, h, cmd);
+      U.ev = S.step(h, { thr: c.coll, pitch: c.lon, roll: c.lat, yaw: c.ped }, o.env);
       if (S.dead) U.dead = S.dead;
       // the weapon: bursts of three pulses, game level (the war decides what a hit does)
-      U.cd -= dt; U.firing = Math.max(0, U.firing - dt);
+      U.cd -= h; U.firing = Math.max(0, U.firing - h);
       if (AI.fire && los && !ctx.peace && U.cd <= 0 && tgt) {
         model.group.updateMatrixWorld(); _p.copy(model.MUZZLE); model.group.localToWorld(_p);
         const d = Math.hypot(tgt.x - _p.x, tgt.y - _p.y, tgt.z - _p.z), t = d / (o.speed ?? 90);

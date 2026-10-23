@@ -40,13 +40,14 @@ export function createMV22Unit(o) {
   const animS = { nr: 1, nac: Math.PI / 2, tR: { tx: 0, ty: 0 }, tL: { tx: 0, ty: 0 }, coll: 0, gear: 1, ramp: 0, flap: 1, el: 0, rud: 0, ail: 0, fold: 0, run: true };
   U.update = (dt, time) => {
     U.time = time;
-    if (!U.dead) {
+    const nS = Math.max(1, Math.ceil(dt * 30 - 1e-6)), h = dt / nS;   // the pilot works at >= 30 Hz however long the frame
+    for (let i = 0; i < nS && !U.dead; i++) {
       stateOf(S.body, st);
-      const cmd = AI.step(st, S, dt, o.world);
+      const cmd = AI.step(st, S, h, o.world);
       if (U.folding) { cmd.fold = U.fold > 0.45; }
-      const c = flyMV22(S, P, st, cmd, dt, S.agl);
+      const c = flyMV22(S, P, st, cmd, h, S.agl);
       if (U.folding) { c.eng0 = c.eng1 = false; c.rotorBrake = true; }   // shut down and brake the rotors for the fold
-      U.ev = S.step(dt, c, o.env);
+      U.ev = S.step(h, c, o.env) || U.ev;
       if (S.dead) U.dead = S.dead;
     }
     // stowing on the carrier: rotors spin down, nacelles to 0, blades fold, wing swings round (a real ~90 s, here 16 s)

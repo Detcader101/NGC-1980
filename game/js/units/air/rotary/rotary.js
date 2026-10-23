@@ -126,8 +126,11 @@ export function createRotary(ctx) {
   R.update = (u, dt, pl, peace) => {
     if (u.type === 'squad') return updateSquad(u, dt, pl, peace);
     const U = u.rot; R.time = W.time;
+    // placed from outside (a script, a test) since our last write: the flight model follows
+    if (u._lp && U.S && u.p.distanceToSquared(u._lp) > 0.25) { const b = U.S.body; b.pos[0] = u.p.x; b.pos[1] = u.p.y; b.pos[2] = u.p.z; b.vel[0] = u.v.x; b.vel[1] = u.v.y; b.vel[2] = u.v.z; }
     if (u.kind === 'ch46' || u.kind === 'mv22') updateTransport(u, U, dt);
     else if (u.kind === 'wasp') updateWasp(u, dt, pl, peace);
+    (u._lp || (u._lp = new THREE.Vector3())).copy(u.p);
     return true;
   };
   function updateTransport(u, U, dt) {
