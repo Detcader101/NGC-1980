@@ -109,6 +109,25 @@ export default async function (h) {
     await h.wait(1500); await h.shot('bridge-deck');
   }
 
+  if (want('mounts')) {
+    // the KRAKEN's new fit: TALON modules where the seized RAM launchers were, LANCE turrets aft. The scene runs in
+    // ?peace (enemy guns hold fire), so the mounts are driven directly against the helicopter hovering off her quarter.
+    await h.eval('(window.__cam = null, __G.G.craft !== "heli" && __G.toHeli(), 1)'); await h.wait(800);
+    await h.eval(`(() => { const K = __G.war.enemyCarrier; return { guns: K.guns.map(g => g.def && g.def.type), mounts: K.parts.mounts.filter(m => m.def).map(m => m.def) }; })()`);
+    await h.expect(`(() => { const t = __G.war.enemyCarrier.guns.map(g => g.def && g.def.type); return t.filter(x => x === 'talonm').length === 2 && t.filter(x => x === 'lancem').length === 2; })()`, 'KRAKEN: two TALON and two LANCE mounts');
+    await h.expect(`(() => { const W = __G.war; return W.units.filter(u => u.dims && u.side === 2).every(u => u.guns.every(g => g.def)); })()`, 'every RUNAWAY ship gun is a DEFENCE unit');
+    await h.eval(`(() => { const K = __G.war.enemyCarrier, c = Math.cos(K.yaw), s = Math.sin(K.yaw), lx = 60, lz = 10; __G.H.reset(new __G.THREE.Vector3(K.p.x + lx * c + lz * s, 45, K.p.z - lx * s + lz * c), 0, false, 1); __G.HI.setCollective(0.475);
+      window.__mf = { proj0: __G.war.proj.length, shots: 0, msl: 0, beam: 0, locks: 0 }; const D = __G.war.defence, foes = () => [{ player: true, p: __G.Z.pos, v: __G.Z.vel }];
+      window.__mi = setInterval(() => { for (const g of K.guns) { D.update(g, 1 / 30, foes()); if (g.def.mode === 'fire' || g.def.lockT > g.def.T.lock) __mf.locks++; if (g.def.beam && g.def.beam.visible) __mf.beam++; } __mf.msl = Math.max(__mf.msl, D.missiles.length); __mf.shots = Math.max(__mf.shots, __G.war.proj.length - __mf.proj0); }, 33); return 1; })()`);
+    await h.wait(5000);
+    await h.eval(`(__shot({ u: __G.war.enemyCarrier, p: [-46, 18, 78], t: [-12, 8, 52] }), 1)`); await h.wait(1500); await h.shot('kraken-mounts-aft');
+    await h.eval(`(__shot({ u: __G.war.enemyCarrier, p: [36, 16, -10], t: [14, 6, -36] }), 1)`); await h.wait(1500); await h.shot('kraken-talon-fwd');
+    await h.wait(4000);
+    await h.eval('(clearInterval(__mi), window.__cam = null, __mf)');
+    await h.expect('__mf.locks > 0 && (__mf.shots > 0 || __mf.msl > 0 || __mf.beam > 0)', 'the KRAKEN mounts lock on and fire');
+    await h.eval('(__G.toHeli(), 1)'); await h.wait(800);
+  }
+
   if (want('sea')) {
     await h.eval('(window.__cam = null, __G.G.craft !== "heli" && __G.toHeli(), 1)'); await h.wait(800); await h.waitFor('__G.H.landed', 8000);
     // from the HORNET at 600 m (its view reaches ~1.5 km): the swell and the whitecaps out to the horizon
