@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Air Units</title>
+<script type="importmap">{"imports":{"three":"../vendor/three.module.min.js"}}</script>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#8fb6d8;font:12px Consolas,monospace;color:#dff}
+canvas{display:block}
+#ui{position:fixed;right:0;top:0;bottom:0;width:250px;overflow:auto;background:rgba(0,15,30,.7);padding:8px}
+#ui label{display:flex;justify-content:space-between;align-items:center;gap:4px;margin:2px 0}
+#ui input[type=range]{width:120px}
+#ui.hide{display:none}
+#info{position:fixed;left:8px;top:6px;color:#023;text-shadow:0 0 3px #fff}
+#tele{position:fixed;left:8px;bottom:8px;white-space:pre;color:#e8fff0;background:rgba(0,20,10,.55);padding:6px 8px;line-height:1.35}
+#tele:empty{display:none}
+</style></head><body>
+<div id="info">?model=tomcat|shrike|reaper|shahed (drag: orbit, wheel: zoom) &middot; ?fly=sortie|fight|reaper|shahed (C: camera, T: time x1/x4, 1-9: follow unit)</div>
+<div id="ui"></div><div id="tele"></div>
+<script type="module" src="./air.js"></script>
+</body></html>

@@ -611,7 +611,7 @@ function command(n) {
   if (G.state !== 'play') return;
   if (n === 5) { launchJet(); return; }
   if (n === 7) { deliverVehicle(); return; }
-  if (n === 4) { say(war.sendEscort(), 2); return; }
+  if (n === 4) { say(war.sendEscort(selIsl), 2); return; }   // AIR: CAP over the selected island, else over the ALBATROSS
   if (n === 6) { say(war.upgradeCarrier(), 2.5); return; }
   if (n === 3) { if (G.mat < COST.heli) say('NOT ENOUGH MATERIEL FOR A HELICOPTER', 1.6); else { G.mat -= COST.heli; G.lives++; say('NEW HELICOPTER IN THE HANGAR', 1.6); sfx.dock(); } return; }
   if (!selIsl) { say('SELECT AN ISLAND ON THE MAP FIRST (M)', 1.8); return; }

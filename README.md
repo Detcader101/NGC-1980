@@ -18,6 +18,7 @@ The enemy carrier KRAKEN is out there doing the same, and whoever controls the m
 - **Economy.** Islands produce fuel and materiel. Spend materiel on capture drones, AA guns, spare helicopters and escort fighters.
 - **An enemy commander.** It sends transports to take islands, fortifies, raids your carrier, ships supplies by freighter, and builds a battleship in its factories that hunts the ALBATROSS. Bomb the factories to slow it down.
 - **HORNET carrier jet.** Land on the ALBATROSS and press 5: an F/A-18-style fighter on the catapult. Full 6-DOF flight model with a Hornet-like flight computer, a 3D cockpit with a conformal HUD and working displays, catapult launches, arrested landings, gun, AIM-9s and CCIP bombs, ejection. Built for a T.Flight HOTAS 4 and rudder pedals with toe brakes (any stick, pad or keyboard works).
+- **Tomcat escorts and the RUNAWAY air arm.** Press 4: an F-14A Tomcat goes to the ALBATROSS's bow catapult and an AI pilot flies its real flight model (swing wings, TF30s, mechanical stick) through stick, pedals and throttle: catapult shot, CAP over the ship or the island you selected, intercepts and dogfights with game-level missiles and the gun, bingo, the carrier pattern and an arrested landing (with wave-offs and bolters). The enemy answers with RW-4 SHRIKE fighter drones off the KRAKEN, an MQ-9 REAPER that hunts for the ALBATROSS and SHAHED drone salvos. Watch them alone on `game/dev/air.html`.
 - **Para-drop repair team.** Downed on land? Press L and home base sends a steel dropship from over the horizon. You fly it in from the flight deck with a real fixed-wing flight model (or let the autopilot), line up the jump run against the wind, jump on the green light, then steer the canopies down; whoever lands on dry ground runs over with fuel and fixes the helicopter. Enemy flak can bring the dropship down.
 - **SKY CARRIER.** Spend 300 materiel (6 on the map) and the ALBATROSS is refitted with four ducted lift fans and takes to the air. Land on her and press Tab to stand on the bridge: wheel, speed telegraph and lift lever, all slow and heavy. Send her anywhere from the map and she flies over the islands; flak can bring her down.
 - **UH-1H Huey.** A Bell UH-1H with a validated flight model (teetering two-blade rotor with the Bell stabilizer bar, translational lift, ground effect, vortex ring state, retreating blade stall, a T53 engine with governor and freewheel so autorotations work), a full 3D cockpit with live instruments and the real caution panel, an authentic (optional) start sequence, the two-blade "wop wop", and a damage model where hits cause failures you can survive and repair. Built for a T.Flight HOTAS 4 + T-Rudder pedals: stick = cyclic, throttle lever = collective, pedals (or twist) = anti-torque; keyboard works too with the stability assist.
@@ -56,7 +57,7 @@ update it. The launcher lives in `%LOCALAPPDATA%\ThrustZarch` (log: `launcher.lo
 | F / G / B | gun / rockets / bombs |
 | R | winch (pick up the pod in a cave) |
 | M | command map: click the sea to sail the carrier, click an island to select it |
-| 1-5 | send drone, build AA gun, spare helicopter, escort fighter, SKY CARRIER refit |
+| 1-4, 6 | send drone, build AA gun, spare helicopter, Tomcat escort (CAP over the selected island, else over the ALBATROSS), SKY CARRIER refit |
 | Tab | take / leave the SKY CARRIER helm (landed on her deck) |
 | V / C | cockpit view / chase camera |
 | H | stability assist on/off (on: the cyclic holds attitude, pedals hold heading; default for keyboard) |
@@ -145,6 +146,7 @@ node tools/navalbench.mjs           # ship motion in a seaway: sea states, carri
 
 Naval: `game/dev/ships.html` orbits each ship on a sea with sea-state, speed and turn sliders (`?ship=albatross|kraken|leviathan|container`). Scenes: `naval.mjs` (every ship in the game, the deck moving with the sea, crew clearing out from under a helicopter), `shipsdev.mjs` (the preview page from many angles, draw calls).
 
+Air AI: `node tools/airbench.mjs` (a Tomcat sortie cat -> CAP -> bingo -> trap off a fake carrier, wave-off and bolter, terrain, Tomcat vs SHRIKE), `node tools/tomcatbench.mjs` (the F-14A flight model vs published data), scenes `escorts.mjs`, `airfly.mjs`, `airmodels.mjs`.
 Jet scenes: `jet.mjs` (launch, climb, turn), `jettrap.mjs` (arrested landing), `jetweapons.mjs` (AIM-9, gun, CCIP), `jetsystems.mjs` (damage, fire, DIRECT, G-LOC, ejection), `jetterrain.mjs` (TERRAIN and PULL UP at a mountain).
 `node tools/cavebench.mjs` checks the cave generator without a browser: it prints every island's cave as an ASCII map and
 sweeps hundreds of seeds per tier, checking that each cave is connected, wide enough to fly and has its pad, tanks and

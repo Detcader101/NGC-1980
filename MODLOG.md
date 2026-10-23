@@ -695,3 +695,63 @@ API reference for wave 2: [docs/ngc1980/FOUNDATION.md](docs/ngc1980/FOUNDATION.m
   jettrap.mjs (now walks away from the parked Hornet to the Huey); regression results in the branch report.
 - Untested: real HOTAS / gamepad driving and walking (only keyboard in headless), pointer-lock mouse look in a real
   browser, the SKY CARRIER flying with a soldier on deck (bench only), many vehicles at once.
+## 2026-10-23 — NGC-1980 AIR (fixed wing): F-14A on a real flight model flown by an AI pilot; the RUNAWAY air arm
+Branch ngc/airfw (airframe, Tomcat FM, flight director) + ngc/airfw-2 (pilot, RUNAWAY aircraft, models, war hooks).
+- **Parametric airframe** (units/air/airframe.js): the Hornet's flight model generalised (aero table, engine schedule,
+  NDI or SAS control law, sweep / engine hooks). jetfm.js is now the Hornet's parameter set, bit-identical
+  (tools/jetfingerprint.mjs hashes every state float over 12 scenarios; jetbench 24/24).
+- **F-14A TOMCAT** (units/air/tomcatfm.js): CADC sweep 20-68° + oversweep (Heatblur table, 15°/s), TF30-P-412A (slow
+  spool, AB zones, compressor stalls at high AoA / sideslip / slams, 0.69 / 2.78 TSFC), mechanical stick + SAS (no
+  limiter). tools/tomcatbench.mjs 32/32: 1 g min 114 KEAS (~115-125), on-speed 124 KEAS (~130-135 at 51,800 lb), roll
+  145°/s at 350 KEAS, M 0.91 MIL / M 1.14 AB low level (M 1.2 Jane's), 6.5 g sustained at 343 KEAS, fuel flow 8,337 /
+  57,678 lb/h (8,500 / 58,000), cat end 187 KEAS, trap.
+- **AI pilot** (units/air/pilot.js) flies only stick, pedals and throttles through the flight director (fd.js):
+  - cat run-up and shot, climb-out (gear and flaps up on schedule), CAP orbit (lead-point guidance on a circle; turns
+    kept flat, no loops to reverse), radar contacts, intercept, dogfight: lead / pure / lag (high yo-yo) pursuit,
+    "bugout" extension (the Tomcat does not turn with a better turner), energy limit (no zooms below vmin), defensive
+    break into an attacker with guns jinks, missile break; game weapons in range bands with a gun snapshot cone;
+  - terrain look-ahead: the path is sampled out to 14 s, the climb angle raised to clear by 55 m, and if no sane climb
+    does, a clearing heading is held for a few seconds (no flip-flop along ridges); hard deck 140 m in fights, and a
+    dive-recovery check (pull-out height V^2(1-cos g)/(g(n-1)) + roll-out) that rolls level and pulls;
+  - recovery: bingo / winchester RTB; pattern (upwind, downwind, base) or straight in; final: carrot onto the extended
+    centreline + glideslope, gear / hook / flaps, speedbrake when fast; the last 700 m flown like the LSO wants: stick
+    for the 3.5° slope (vertical speed), throttle for on-speed EAS from the weight (aeroCoeffs at 10.5° AoA) trimmed on
+    AoA, bank for lineup; wave-off in close (lineup, glideslope, AoA, swinging deck), bolter (MIL on touchdown), go
+    round; trap and wire release. The 3 wire: the hook hangs 3.4 m under the CG at 7° nose up and a wire catches within
+    0.45 m of the deck, so the glideslope is aimed 20 m up the deck from the hook's touchdown point.
+- **RUNAWAY aircraft** (units/air/rwfm.js): RW-4 SHRIKE (FICTIONAL: blended delta drone, 39 kN dry, NDI 11 g, ~280°/s
+  roll, M 0.92 low level, 2 decoys, hp 2); MQ-9 REAPER on the airframe with a turboprop engineFn (671 kW TPE331,
+  eta 0.8, thrust = eta P / EAS; cruise 178 KEAS at 70%, slow flight 99 KEAS; GA-ASI: cruise ~170 kt) that orbits and
+  spots; SHAHED-style one-way drone as a point mass (bank-to-turn, lift / drag / prop thrust, rail booster; GAME
+  ~115 KEAS) with terrain-following cruise and a terminal dive.
+- **Weapons stay game level** (BIBLE rule): AIM-54 / AIM-7 / AIM-9 and the SHRIKE's missiles are all war.js 'aam'
+  projectiles (units/air/gameproj.js: the existing capped-turn-rate homing moved into a shared module, unchanged) with
+  game range bands; guns are war.js 'jb'; the SHAHED's warhead is a war.js blast. Decoys are a game rule: a missile
+  closing inside 350 m and again inside 150 m on an aircraft with decoys is drawn off 45% of the time.
+- **tools/airbench.mjs 28/28** (node): two full sorties off a fake ALBATROSS (with tower) sailing at 6 m/s and turning
+  during CAP: cat at 7 s, CAP at 20 s (r 430-490 m, 249 m), bingo at 295 s, 3 wire, 0 wave-offs, < 3.6 g, never below
+  110 m AGL outside the approach; a forced wave-off and a hook-skip bolter that both go round and trap; a 700 m ridge in
+  front of a low CAP point (cleared by 56 m); SHRIKE / REAPER / SHAHED checks; Tomcat vs SHRIKE: BVR 5 wins / 1 loss,
+  merge (AIM-9 + gun only, a 10-g drone) 3 / 3, nobody into the sea, every pursuit mode used; a Tomcat on CAP vs
+  SHAHED salvos at 70 m: 9/12 shot down, never below 80 m (dive limit: no dive steeper than one it can pull out of
+  above the 140 m hard deck; below 460 m no reversals through the vertical).
+- **Models** (house style, real size): TOMCAT (units/air/tomcatmodel.js) driven by the sim: swing wings, glove vanes,
+  slats, flaps, spoilers, differential stabs, rudders, speedbrakes, gear with launch bar, hook, canopy, two crew, TF30
+  nozzles + afterburner, AIM-54 / 7 / 9 on their stations, gull grey over white, fictional 1980 squadron VF-118 on the
+  ALBATROSS (tail code AB, modex 2xx), full-colour star-and-bar. SHRIKE, REAPER, SHAHED (units/air/rwmodel.js) with
+  RUNAWAY marks (cyan IFF strips, stencils over painted-out markings, a bolted-on sensor pod on the REAPER).
+- **In the war** (units/air/airwar.js; war.js hooks marked AIR): command 4 queues a Tomcat for the bow catapult (one at
+  a time, waits for open water ahead up to 20 s), CAP over the selected island or the ALBATROSS (main.js one-liner:
+  `war.sendEscort(selIsl)`), fights anything of the RUNAWAY's in the air, RTBs and traps (+15 materiel back); the enemy
+  launches SHRIKE pairs off the KRAKEN (answering our Tomcats, sweeps), a REAPER that finds the ALBATROSS and then SHAHED
+  salvos from its nearest island at her (or at our islands' buildings). The player is a target too (missiles, cannon).
+  Fuel runs 8x real for game-length sorties (~5 min CAP). Sounds (units/air/airsound.js, on the Sfx bus): TF30 roar with
+  AB crackle and Doppler for the three nearest jets, REAPER turboprop buzz, SHAHED moped drone.
+- **Gotchas**: ship heading vs flight heading convention (bow at -z: heading = -yaw; one sign error made every wave-off
+  turn the wrong way); FD.steer asked for all of the g as turn and none to hold the nose up in steep turns at low g
+  limits (now it keeps sqrt(n^2-1) for the turn); "push instead of rolling inverted" is wrong in a fight (option); the
+  catapult holds forever (burning all its fuel) if the lane-ahead check never clears; the dev page's carrier sat on an
+  island; the old kinematic escort code in war.js is gone.
+- **Untested**: hours of real play balance (SHRIKE / SHAHED pacing, materiel costs); the escorts with the sky carrier
+  airborne; Tomcats over the real mountains outside the zone (bench ridge only); many simultaneous sims on a slow GPU.
+- Scenes: escorts.mjs (new), airmodels.mjs, airfly.mjs (dev/air.html); jets.json and war2.json updated for real jets.
