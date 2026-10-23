@@ -1700,3 +1700,24 @@ untouched (war.js's exported hitTest / damage / blast carry the gunnery).
   4 fps: the carrier moved 2.2 m instead of 3 in 5 s of wall time - fixed by sleeping on decks), vehicle 14/14 (failed 13/17
   while the M60 and M113 were parked in the test car's path - moved), jettrap 7/7, world 4/4; foot.mjs 10/12 (the island
   roof ladder top and the medical slot check; the experimental base scored 6/18 on the same machine - load-dependent).
+
+## 2026-10-23 — armour polish: M60A3 TTS and M113A2 authenticity (branch ngc/tank-polish)
+- **M60A3 turret** re-lofted after Hunnicutt's drawings: the M60A1 / A3 "needle nose" (a long wedge in plan narrowing to
+  the gun shield, the roof sloping down to it, the chin undercut), full width ~2.8 m over the ring, and a long bustle that
+  overhangs the engine deck (its floor well above the ring) to a near-vertical rear plate: ~3.95 m of casting, plus the
+  rack. The AN/VSS-1 xenon searchlight is now the big box it is (0.82 x 0.7 m, 0.6 m lens) on brackets over the shield,
+  elevating with the gun; the shield wears its laced canvas dust cover; the M85 has its armoured mantlet in the M19's
+  front. Bustle rack rebuilt round the new rear plate (bedrolls, duffels, ammo cans, a water can, the tarp). The bustle's
+  armour plate, the ready rack and radio, and the gunner's / loader's room follow the longer bustle.
+- **Markings** were never visible: the bumper-code decals faced into the hull (wrong sign on their tilt - the M113's too).
+  Fixed; added the US Army registration on the glacis (subdued black) and the yellow NATO bridge-classification disc
+  (MLC 60) on the right front light guard. M113A2: M243 smoke dischargers on the roof corners, a tow cable.
+- **Driver's M27 periscopes**: slim olive bodies with a rubber brow pad, not black slabs crowding the windows.
+- **Start-up (TM order, game times)**: the MASTER switch gates the starter, turret power and the sights; the diesel cranks
+  ~2.5 s (AVDS) / 1.2 s (6V53) before it catches and has a run-up grace (it caught below its stall speed and died);
+  turret POWER builds hydraulic pressure, then the stabiliser's gyros run up for ~20 s (POWER mode until then: the sights
+  show STAB RUN-UP nn %); the TTS cooler as before. Dev page: ?cold, 0 MASTER, hold I START, 9 turret POWER. Bench check.
+- **Sound**: the AVDS's two cooling fans (a detuned pair: the beat is the M60's signature) and more fan roar; the 6V53's
+  Roots-blower scream; the starter motor's gear whine; a cough when the diesel catches; the transmission's clunk on a
+  range shift; brake squeal at low speed; the turret's hydraulic valve hiss while laying.
+- **Tests**: tankbench 73/73 (+ the start-up check), armorgamebench 20/20, tankaudio 4/4, tankmodel 2/2 (M60, M113).
