@@ -31,7 +31,7 @@ export const M113A2 = {
     REAR: { z: 1.97, y: 0.44, r: 0.28, kind: 'idler' },
     RETURN: [],                              // no support rollers: the top run sags on the wheels U
     SPROCKET_R: 6 * IN / (2 * Math.sin(Math.PI / 10)),   // 0.2466 m pitch radius I
-    J_SPROCKET: 75, RUN_K: 1.5e6, RUN_C: 3e4, INTERNAL: 0.9,    // T130 rubber-bushed track, I (tuned with top speed and 0-32 km/h)
+    J_SPROCKET: 75, RUN_K: 1.5e6, RUN_C: 6e4, INTERNAL: 0.9,    // T130 rubber-bushed track, I (tuned with top speed and 0-32 km/h)
   },
   SUSP: { K: 8.4e4, C: [1.4e4, 1.4e4, 0, 0, 1.4e4], REBOUND: 0.10, BUMP: 0.15, BUMP_K: 1.2e6, BUMP_C: 3e4 },   // I
   ENGINE: {
@@ -58,7 +58,7 @@ export const M113A2 = {
     STEER: { REF: "output", K: 0.8, PIVOT: false, CAP: 9000 },
   },
   HULL: {
-    CLEAR: 17.1 * IN, K: 1.4e6, C: 4e4,
+    CLEAR: 17.1 * IN, K: 1.4e6, C: 8e4,       // ~half critical (inelastic hits) I
     INTAKE_Y: 1.80, INTAKE_Z: -1.4,          // air inlet grille on the front deck, right I
     DECK_Y: 1.62, DECK_Z: -2.1,              // front edge of the deck: water over it pours in through the driver's hatch / grilles I
     PROBES: [], COLS: [],

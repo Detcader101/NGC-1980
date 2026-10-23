@@ -308,7 +308,7 @@ citing Foss / Jane's and Hunnicutt, armedconflicts.com), U = unverified, I = inf
 | 0-32 km/h | 10.3 s | not found (U ~15-20) | 9.2 s | 11.0 s (FAS, C) |
 | reverse | 17.1 km/h | 16 (FAS, C) | 19.0 km/h | - |
 | road range at 30 km/h | 500 km | 450-500 (C) | 446 km | 480 (C) |
-| gradient | climbs 60 % at 3.5 km/h, fails 75 % | 60 % (C) | 60 % at 2.3 km/h, fails 80 % | 60 % (C) |
+| gradient | climbs 60 % at 3.5 km/h, fails 85 % (pad friction) | 60 % (C) | 60 % at 2.3 km/h, fails 85 % | 60 % (C) |
 | side slope | holds 30 % parked (no creep) and driving | 30 % (C) | same | 30 % (C) |
 | vertical step | 0.91 m yes, 1.2 m no | 0.91 m (C) | 0.61 m yes, 0.85 m no | 0.61 m (C) |
 | trench (crawl) | 2.59 m yes; sim limit ~3.6 m | 2.59 m (C) | 1.68 m yes; sim limit ~2.8 m | 1.68 m (C) |
@@ -369,6 +369,9 @@ and ground) through a green-phosphor shader with scan lines, noise and WH / BH p
   laterals); full steer at top speed still skids and throws tracks, so the dev page narrows the keyboard steer with
   speed (Right Shift: no limit).
 - A cleared 2D overlay canvas was not re-composited in headless Chrome (a stale reticle in later shots): hide it instead.
+- The gun muzzle probe had the hull's stiffness: a tank that hit a bank at 47 km/h was thrown back at 28 km/h off its
+  own gun, and a 75 % slope "stopped" it only because the barrel jammed into the slope. The muzzle is a soft, lossy stop
+  now (the barrel bends; each dig-in costs the gun a quarter of its hp) and hull contacts are ~half critically damped.
 - The snap harness wraps evals in `const __r = ...`: a scene variable named __r breaks it.
 - A `//` comment pasted mid-line by sed swallowed the rest of the statement (again): use /* */ in one-liners.
 - Sensitivities, documented not hidden: a sharp CONCRETE 0.91 m wall is marginal for the M60 in the sim (face friction

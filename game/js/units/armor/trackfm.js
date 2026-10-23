@@ -153,7 +153,7 @@ export function createTrackSim(P, opt = {}) {
     run(front.z + 0.15, front.y - front.r * 0.75, zFront - 0.05, 0.0, 4);
     run(zRear + 0.05, 0.0, rear.z - 0.15, rear.y - rear.r * 0.75, 4);
   }
-  for (const h of P.HULL.PROBES) env0.push({ b: h.p, n: h.n, t: [0, 0, 0], x: 1, side: -1, kind: 'hull', mu: h.mu ?? 0.5, name: h.name, j: [0, 0, 0] });
+  for (const h of P.HULL.PROBES) env0.push({ b: h.p, n: h.n, t: [0, 0, 0], x: 1, side: -1, kind: 'hull', mu: h.mu ?? 0.5, name: h.name, j: [0, 0, 0], k: h.k, c: h.c });   // k, c: per-probe stiffness / damping (the gun muzzle is soft)
   for (const c of env0) { c.j = [0, 0, 0]; c.N = 0; c.d = 0; c.on = false; }
   const gaps = [0, 1].map(() => Array.from({ length: (nW - 1) * 2 }, () => ({ j: [0, 0, 0], N: 0, kind: 'gap' })));
   sim.gaps = gaps;
@@ -442,7 +442,7 @@ export function createTrackSim(P, opt = {}) {
       pointVel(_p, _v);
       const dn = -(_v[0] * nx + _v[1] * ny + _v[2] * nz);   // closing speed
       if (dn > 1.5) maxImpact = Math.max(maxImpact, dn);
-      const k = c.kind === 'hull' ? P.HULL.K : T.RUN_K, cd = c.kind === 'hull' ? P.HULL.C : T.RUN_C;
+      const k = c.k ?? (c.kind === 'hull' ? P.HULL.K : T.RUN_K), cd = c.c ?? (c.kind === 'hull' ? P.HULL.C : T.RUN_C);
       const N = Math.max(0, k * d + cd * dn);
       c.N = N;
       if (oid && od === d && oid.breakN && N > oid.breakN) { ev.push({ type: 'knockdown', id: oid.id }); oid.top = -1e9; }

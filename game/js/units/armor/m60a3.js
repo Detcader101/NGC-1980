@@ -41,7 +41,7 @@ export const M60A3 = {
     RETURN: [{ z: -1.45, y: 1.0 }, { z: 0.0, y: 1.02 }, { z: 1.45, y: 1.0 }],   // 3 support rollers per side C; positions I
     SPROCKET_R: 0.176 / (2 * Math.sin(Math.PI / 11)),          // pitch radius 0.3124 m, from pitch and teeth I
     J_SPROCKET: 320,                         // 2.4 t of track per side (r^2 m) + wheels + final drive, kg m2 I
-    RUN_K: 3e6, RUN_C: 6e4, INTERNAL: 1.0,
+    RUN_K: 3e6, RUN_C: 1.5e5, INTERNAL: 1.0,
   },
   SUSP: {
     K: 2.1e5,                                // N/m at the wheel: ~1.1 Hz heave, 0.2 m static deflection I
@@ -70,7 +70,7 @@ export const M60A3 = {
     STEER: { REF: 'input', K: 0.043, PIVOT: true, CAP: 6.5e4 },   // geared steer from the input, radius grows with range; ~30 deg/s pivot I
   },
   HULL: {
-    CLEAR: 0.463, K: 3e6, C: 9e4,
+    CLEAR: 0.463, K: 3e6, C: 2.3e5,          // hull contacts ~half critical: a collision is not elastic (restitution ~0.15) I
     INTAKE_Y: 1.42, INTAKE_Z: 2.2,           // engine air intake: 1.22 m (48 in) fording C, floods above ~1.4 m I
     DECK_Y: 1.55, DECK_Z: 2.4,
     PROBES: [],                               // filled below
@@ -103,7 +103,7 @@ export const M60A3 = {
   for (const s of [-1, 1]) for (const z of [-2.9, -1, 1, 2.9]) { add('fender', [s * 1.81, 1.32, z], [s, 0.1, 0]); add('roofEdge', [s * 1.7, 1.95, z], [s * 0.6, 0.8, 0]); }
   for (const s of [-1, 1]) for (const z of [-1.35, 0.9]) add('turret', [s * 1.25, 2.85, z], [s * 0.5, 0.85, 0]);
   add('turretTop', [0, 2.95, -0.2], [0, 1, 0]); add('cupola', [0.62, 3.28, 0.25], [0, 1, 0]); add('bustle', [0, 2.6, 1.55], [0, 0.3, 1]);
-  add('muzzle', [0, 2.36, -5.95], [0, 0, -1], 0.4);
+  add('muzzle', [0, 2.36, -5.95], [0, 0, -1], 0.4); P[P.length - 1].k = 2.5e5; P[P.length - 1].c = 1.2e5;   // the barrel bends in its cradle: a soft, lossy stop (I)
   // buoyancy columns: lower hull between the tracks, upper hull over them
   const C = M60A3.HULL.COLS;
   for (const z of [-2.2, 0, 2.2]) for (const x of [-0.55, 0.55]) { C.push({ x, z, ax: 0.55, az: 1.1, y0: c, y1: 1.0 }); C.push({ x: x * 1.36, z, ax: 0.75, az: 1.12, y0: 1.0, y1: 1.95 }); }
@@ -271,7 +271,11 @@ export function createM60A3(opt = {}) {
       range: drv ? inp.range ?? fm.ctl.range : 'N', park: inp.park ?? fm.ctl.park, starter: !!inp.starter, fuelOn: inp.fuelOn ?? fm.ctl.fuelOn,
     });
     T.sightDir(_prevW); _havePrev = true;   // the sight line in space before the hull moves (for the stabiliser)
-    for (const e of fm.step(dt, env)) ev.push(e);
+    for (const e of fm.step(dt, env)) {
+      ev.push(e);
+      // the gun driven into the ground or a wall: a bent or plugged barrel (game: a quarter of the gun's hp each time)
+      if (e.type === 'gunDug') { const g = comp('gun'); if (g && g.hp > 0) { g.hp = Math.max(0, g.hp - 0.25); ev.push({ type: 'component', id: 'gun', hp: g.hp, destroyed: g.hp <= 0, cause: 'dug in' }); } }
+    }
     // ---- electrics: generator with the engine, turret power from the batteries otherwise (game rates)
     const el = T.elec; el.gen = fm.eng.running && fm.eng.w * 9.549 > 1000;
     const draw = (T.power ? 0.0009 : 0) + (T.sight === 'tts' ? 0.0002 : 0);
