@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NGC-1980 Infantry Range</title>
+<script type="importmap">{"imports":{"three":"../vendor/three.module.min.js"}}</script>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#9fb4c4;font:12px Consolas,"Liberation Mono",monospace;color:#e8ecd8}
+canvas{display:block}
+#hud{position:fixed;left:10px;bottom:10px;pointer-events:none;text-shadow:0 0 3px #000,0 0 2px #000;line-height:1.35;white-space:pre}
+#log{position:fixed;right:10px;bottom:10px;width:330px;pointer-events:none;text-shadow:0 0 3px #000;white-space:pre;line-height:1.3;text-align:left}
+#bars{position:fixed;left:10px;top:10px;pointer-events:none}
+.bar{width:150px;height:5px;background:rgba(0,0,0,.45);margin:3px 0;border:1px solid rgba(0,0,0,.4)}
+.bar i{display:block;height:100%;background:#cfd8b0}
+#help{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(10,14,8,.86);padding:14px 18px;border:1px solid #556;white-space:pre;line-height:1.4;max-width:90vw}
+#help.hide,#hud.hide,#log.hide,#bars.hide{display:none}
+#scope{position:fixed;right:10px;top:10px;width:300px;height:200px;border:2px solid #222;border-radius:4px;background:#000;display:none}
+#scope.on{display:block}
+#scopeLbl{position:fixed;right:14px;top:212px;display:none;text-shadow:0 0 3px #000}
+#scopeLbl.on{display:block}
+#dot{position:fixed;left:50%;top:50%;width:4px;height:4px;margin:-2px 0 0 -2px;background:#f33;border-radius:2px;display:none;pointer-events:none}
+#dot.on{display:block}
+#msg{position:fixed;left:50%;top:62%;transform:translateX(-50%);text-shadow:0 0 4px #000;font-size:14px;pointer-events:none}
+</style></head><body>
+<div id="bars"><div class="bar"><i id="bStam"></i></div><div class="bar"><i id="bBreath"></i></div></div>
+<canvas id="scope"></canvas><div id="scopeLbl">SPOTTING SCOPE</div>
+<div id="dot"></div><div id="msg"></div>
+<div id="hud"></div><div id="log"></div>
+<div id="help" class="hide"></div>
+<script type="module" src="./infantry.js"></script>
+</body></html>
