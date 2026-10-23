@@ -63,6 +63,7 @@ export function createMV22Unit(o) {
     animS.gear = S.gear; animS.ramp = U.ramp; animS.flap = S.flap; animS.el = -S.c.lon; animS.rud = S.c.ped; animS.ail = S.c.lat; animS.fold = U.fold;
     model.animate(animS, dt, time);
   };
+  U.setPad = p => { o.pad = p; };
   U.dispose = () => { o.parent.remove(model.group); if (!U.squadExternal) squad.dispose(); };
   return U;
 }

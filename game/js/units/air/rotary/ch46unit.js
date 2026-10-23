@@ -59,6 +59,7 @@ export function createCH46Unit(o) {
     animS.cone = Math.min(0.12, 0.75 * Math.max(0, (S.rf.ct + S.ra.ct) / 2) / 0.058);   // coning ~ CT / sigma
     model.animate(animS, dt, time);
   };
+  U.setPad = p => { o.pad = p; };
   U.dispose = () => { o.parent.remove(model.group); squad.dispose(); };
   return U;
 }

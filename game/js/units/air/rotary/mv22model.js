@@ -34,7 +34,7 @@ function skinMat(z0, z1, qh, s) {
 
 export function buildMV22Mesh() {
   const g = new THREE.Group(); g.name = 'mv22';
-  const greyM = M(0x7d848a), grey2M = M(0x5f666c), darkM = M(0x31363b), primerM = M(0xc9c6bc, { shininess: 4 }), blackM = M(0x141516, { shininess: 6 });
+  const greyM = M(0x98a0a6), grey2M = M(0x7a8288), darkM = M(0x3a3f44), primerM = M(0xd2cfc4, { shininess: 4 }), blackM = M(0x141516, { shininess: 6 });
   const metalM = M(0x4d5256, { shininess: 50 }), tyreM = M(0x161616, { shininess: 4 }), bladeM = M(0x3e4348, { shininess: 25 }), tipM = M(0xd8d8d0);
   const cyanM = B(0x5ff2ff), cyanDim = B(0x1d6a74), sootM = M(0x34302c, { shininess: 4 });
   const glassM = new THREE.MeshPhongMaterial({ color: 0x7f9aa8, specular: 0xffffff, shininess: 90, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide });
@@ -89,11 +89,11 @@ export function buildMV22Mesh() {
   for (const s of [-1, 1]) {
     const piv = group(wing, 'nacelle', s * MV22M.PIVOT[0], MV22M.PIVOT[1] - 1.65, 0);   // pivot at the wing tip; local +y = along the shaft toward the rotor
     const nb = bucket();
-    nb.add(cylY(0.82, 0.78, 4.2, 16).translate(0, -0.6, 0), greyM); nb.add(sphG(0.8, 0, -2.7, 0, 1, 0.55, 1, 16, 8), grey2M);
+    nb.add(cylY(0.8, 0.76, 3.0, 16).translate(0, 0.1, 0), greyM); nb.add(sphG(0.78, 0, -1.4, 0, 1, 0.5, 1, 16, 8), grey2M);
     nb.add(cylY(0.72, 0.82, 0.6, 16).translate(0, 1.7, 0), grey2M);                     // gearbox fairing below the hub
     nb.add(boxG(0.5, 1.4, 0.06, 0, 0.2, 0.8), darkM);                                     // intake grille
-    nb.add(cylY(0.32, 0.36, 0.5, 10).translate(0, -3.0, 0.45), sootM);                    // exhaust (down in the hover, aft in cruise)
-    nb.add(boxG(0.05, 3.2, 0.05, s * 0.82, -0.6, 0), cyanM);                              // cyan seam
+    nb.add(cylY(0.32, 0.36, 0.5, 10).translate(0, -1.7, 0.4), sootM);                    // exhaust (down in the hover, aft in cruise)
+    nb.add(boxG(0.05, 2.6, 0.05, s * 0.8, 0.1, 0), cyanM);                                // cyan seam
     nb.flush(piv, 'nacelleParts');
     const hub = group(piv, 'hub', 0, MV22M.MAST, 0), spin = group(hub, 'spin');
     { const hb = bucket(); hb.add(new THREE.ConeGeometry(0.62, 1.1, 14).translate(0, 0.55, 0), grey2M); hb.add(cylY(0.62, 0.62, 0.3, 14), metalM); hb.flush(spin, 'spinner'); }

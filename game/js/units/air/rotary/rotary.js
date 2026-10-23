@@ -8,6 +8,7 @@
 // is flown physically by its flight model and AI (see ch46unit.js, mv22unit.js, waspunit.js).
 import * as THREE from 'three';
 import { createCH46Unit } from './ch46unit.js';
+import { createMV22Unit } from './mv22unit.js';
 import { createSquad, padSlots } from './squad.js';
 import { attitude } from './rb.js';
 import { stateOf } from './pilot.js';
@@ -62,10 +63,12 @@ export function createRotary(ctx) {
     return best || { x: p.x, y: p.h, z: p.z, hdg: 0, vx: 0, vz: 0 };
   }
   const CH46_FOOT = [[0, 0, 1.8], [0, -4.5, 1.6], [0, 4.5, 1.6], [0, -5.08, 7.62], [0, 5.08, 7.62]];
+  const MV22_FOOT = [[0, 0, 1.8], [0, -5.5, 1.6], [0, 5.5, 1.6], [-7.0, 0, 5.9], [7.0, 0, 5.9]];
 
   // ---- make: called from war.js makeAir(); returns a unit or null (= not ours, war builds it)
   R.make = (type, side, x, y, z, extra = {}) => {
     if (type === 'drone') return makeCH46(side, extra);
+    if (type === 'transport') return makeMV22(side, extra);
     return null;
   };
   function makeCH46(side, extra) {
@@ -82,6 +85,20 @@ export function createRotary(ctx) {
     U.AI.hooks.unload = (ai, dt) => { const done = unload(ai, dt); if (U.deployed && !u.squadUnit) { u.squadUnit = addSquad(U.squad, side, u.target, 9); U.squadExternal = true; } return done; };
     return u;
   }
+  // RUNAWAY MV-22 with 12 machine troopers: off the KRAKEN (or IRONHOLD's pad), takes islands for the enemy commander
+  function makeMV22(side, extra) {
+    const sp = freeSpot('mv22', side), start = sp ? { x: sp.x, y: sp.y, z: sp.z, yaw: sp.hdg } : { ...homePad(side), yaw: 0 };
+    const u = { type: 'transport', kind: 'mv22', side, p: new THREE.Vector3(start.x, start.y + 2, start.z), v: new THREE.Vector3(), yaw: start.yaw, hp: 12, hpMax: 12, r: 7.5, cd: 0, ph: 0, state: 'go', landed: false, ...extra };
+    const spot = sp ? [sp.lx, sp.lz] : null;
+    const home = () => { const c = carrierOf(side); return c && spot ? deckSpot(c, spot[0], spot[1]) : homePad(side); };
+    u.lz = chooseLZ(u.target, MV22_FOOT);
+    const U = createMV22Unit({ parent: scene, env, world, lz: () => u.lz, home, pad: u.target.pad, start, squad: 12,
+      onParked: () => { u.dead = true; u.stowed = true; if (!U.squadExternal) U.squad.dispose(); } });
+    u.rot = U; u.mesh = U.model.group;
+    const unload = U.AI.hooks.unload;
+    U.AI.hooks.unload = (ai, dt) => { const done = unload(ai, dt); if (U.deployed && !u.squadUnit) { u.squadUnit = addSquad(U.squad, side, u.target, 10); U.squadExternal = true; } return done; };
+    return u;
+  }
   function addSquad(Q, side, I, capTime) {
     const s = { type: 'squad', side, p: new THREE.Vector3(I.pad.x, I.pad.h + 1, I.pad.z), v: new THREE.Vector3(), yaw: 0, hp: Q.alive, hpMax: Q.alive, r: 7, cd: rnd(1, 3),
       target: I, landed: false, capTime, mesh: new THREE.Object3D(), squad: Q, rot: { squad: true } };
@@ -93,38 +110,51 @@ export function createRotary(ctx) {
   R.update = (u, dt, pl, peace) => {
     if (u.type === 'squad') return updateSquad(u, dt, pl, peace);
     const U = u.rot; R.time = W.time;
-    if (u.kind === 'ch46') updateTransport(u, U, dt);
+    if (u.kind === 'ch46' || u.kind === 'mv22') updateTransport(u, U, dt);
     return true;
   };
   function updateTransport(u, U, dt) {
     const S = U.S, I = u.target;
     // mission changes: target taken by us already before the Marines got there -> home with them aboard
-    if (!u.dying && I && I.owner === u.side && !U.deployed && U.AI.phase !== 'rtb' && U.AI.phase !== 'descend2' && U.AI.phase !== 'parked') { U.AI.goHome(); u.target = null; }
+    if (!u.dying && I && I.owner === u.side && !U.deployed && !['rtb', 'descend2', 'parked'].includes(U.AI.phase)) {
+      // the enemy commander re-tasks its Osprey to the next island; ours bring the Marines home
+      const next = u.side === 2 && W.pickExpansion ? W.pickExpansion() : null;
+      if (next && !next.cave) { u.target = next; u.lz = chooseLZ(next, MV22_FOOT); U.setPad && U.setPad(next.pad); if (['ground', 'descend'].includes(U.AI.phase)) U.AI.set('lift2'); else U.AI.set('transit'); }
+      else { U.AI.goHome(); u.target = null; }
+    }
     // damage: below half an engine quits (single-engine: abort, go home); dying = both out, autorotate down
-    if (!u.engHit && u.hp < u.hpMax * 0.5 && !u.dying) { u.engHit = true; S.eng[Math.random() < 0.5 ? 0 : 1].ok = false; if (!U.deployed) { U.AI.goHome(); } ctx.feed(`SEA KNIGHT ${u.side === 1 ? '' : ''}HIT  -  ONE ENGINE OUT${U.deployed ? '' : ', RETURNING'}`, 'bad'); }
+    if (!u.engHit && u.hp < u.hpMax * 0.5 && !u.dying) {
+      u.engHit = true; S.eng[Math.random() < 0.5 ? 0 : 1].ok = false;
+      if (u.kind === 'ch46') { if (!U.deployed) U.AI.goHome(); ctx.feed(`SEA KNIGHT HIT  -  ONE ENGINE OUT${U.deployed ? '' : ', RETURNING'}`, 'bad'); }   // the Osprey's cross-shaft keeps both rotors turning: it presses on
+    }
     if (u.dying && !u.crashing) startCrash(u, U);
     if (u.crashing) crashStep(u, U, dt); else U.update(dt, W.time);
     const b = S.body; u.p.set(b.pos[0], b.pos[1], b.pos[2]); u.v.set(b.vel[0], b.vel[1], b.vel[2]); attitude(b.q, _att); u.yaw = _att.yaw;
     if (U.dead && !u.crashed) crash(u, U);
     if (u.hp < u.hpMax * 0.6 && Math.random() < 0.5) fx.trail(u.p.x + rnd(-1, 1), u.p.y + 2.5, u.p.z + rnd(-1, 1), 1.2);
-    downwash(u, S.agl, (S.rf.T + S.ra.T) / 2, 7.62);
+    if (u.kind === 'ch46') downwash(u, S.agl, (S.rf.T + S.ra.T) / 2, 7.62); else if (S.nac > 1.2) downwash(u, S.agl, (S.rR.T + S.rL.T) / 2, 9);
   }
   // shot down: both engines out (or a rotor gone), the AI pilot autorotates for the ground, the wreck burns
   function startCrash(u, U) {
     u.crashing = true; u.crashT = 0; const S = U.S; S.eng[0].ok = S.eng[1].ok = false;
     u.catastrophic = Math.random() < 0.4; if (u.catastrophic) S.mods = { liftA: 0.2 };
-    if (!U.squadExternal) { U.squad.killAll(); ctx.feed(u.side === 1 ? 'SEA KNIGHT GOING DOWN  -  MARINES ABOARD' : 'ENEMY TRANSPORT GOING DOWN', u.side === 1 ? 'bad' : 'good'); }
+    if (!U.squadExternal) { U.squad.killAll(); ctx.feed(u.side === 1 ? 'SEA KNIGHT GOING DOWN  -  MARINES ABOARD' : 'ENEMY OSPREY GOING DOWN  -  TROOPERS ABOARD', u.side === 1 ? 'bad' : 'good'); }
   }
   const _st = {};
   function crashStep(u, U, dt) {
     const S = U.S, P = U.P; u.crashT += dt;
     // autorotation: collective holds rotor rpm, nose for ~70 kt, flare low, cushion at the bottom
     stateOf(S.body, _st);
-    const flare = S.agl < 25, cushion = S.agl < 5;
-    P.i.coll = Math.max(0, Math.min(1, P.i.coll + (S.rpm - 1.0) * 1.2 * dt));
-    const coll = cushion ? Math.min(1, P.i.coll + 0.4) : P.i.coll;
-    const fx_ = -Math.sin(_st.yaw), fz = -Math.cos(_st.yaw), vf = flare ? 0 : 36;
-    const c = P.step(_st, dt, { vx: fx_ * vf, vz: fz * vf, hdg: _st.yaw, collFix: coll, pitch: flare ? 0.25 : undefined });
+    const flare = S.agl < 25, cushion = S.agl < 5, fx_ = -Math.sin(_st.yaw), fz = -Math.cos(_st.yaw);
+    let c;
+    if (u.kind === 'ch46') {
+      P.i.coll = Math.max(0, Math.min(1, P.i.coll + (S.rpm - 1.0) * 1.2 * dt));
+      const coll = cushion ? Math.min(1, P.i.coll + 0.4) : P.i.coll, vf = flare ? 0 : 36;
+      c = P.step(_st, dt, { vx: fx_ * vf, vz: fz * vf, hdg: _st.yaw, collFix: coll, pitch: flare ? 0.25 : undefined });
+    } else {
+      const v = Math.hypot(_st.vx, _st.vz);
+      c = P.step(_st, dt, { vx: fx_ * v, vz: fz * v, vy: -8, hdg: _st.yaw, collFix: cushion ? 0.6 : 0.15 });
+    }
     c.eng0 = c.eng1 = false;
     const e = S.step(dt, c, env); U.sync(dt, W.time); if (!U.squadExternal) U.squad.update(dt, W.time);
     if (S.dead || e === 'land' || e === 'hardland' || e === 'crash' || u.crashT > 40 || (S.body.contacts && u.crashT > 2)) U.dead = U.dead || 'crash';

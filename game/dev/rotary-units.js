@@ -2,6 +2,8 @@
 import * as THREE from 'three';
 import { createCH46Unit } from '../js/units/air/rotary/ch46unit.js';
 import { buildCH46Mesh } from '../js/units/air/rotary/ch46model.js';
+import { createMV22Unit } from '../js/units/air/rotary/mv22unit.js';
+import { buildMV22Mesh } from '../js/units/air/rotary/mv22model.js';
 
 const f = (v, d = 0) => (+v).toFixed(d), deg = r => r * 180 / Math.PI;
 const tab = rows => rows.map(([k, v]) => `${k.padEnd(11)} ${v}`).join('\n');
@@ -35,5 +37,28 @@ export const UNITS = {
       };
     },
     turntable: turntableFor(() => buildCH46Mesh({ modex: 5 }), -1.8, { F: { tx: 0, ty: 0 }, A: { tx: 0, ty: 0 }, ramp: 1, run: true, n1: 0.9 }),
+  },
+  mv22: {
+    label: 'MV-22B Osprey (RUNAWAY)',
+    mission(scene, W) {
+      const lz = { ...W.lz(18), x: W.PAD.x - 18, hdg: Math.PI / 2 };
+      const U = createMV22Unit({ parent: scene, env: W.env, world: W.world, lz: () => lz, home: () => W.krakenSpot(-1, -36), pad: W.PAD, start: { ...W.krakenSpot(-1, -36), yaw: W.kraken.yaw }, squad: 12 });
+      return {
+        U, chase: 40, focus: () => U.model.group, homeDeck: () => W.kraken, squadCenter: () => { const c = {}; return U.squad.center(c) ? c : null; }, vel: () => ({ x: U.S.body.vel[0], z: U.S.body.vel[2] }), done: () => !!U.parked || !!U.dead,
+        update: (dt, t) => U.update(dt, t),
+        telemetry(t) {
+          const S = U.S, a = S.attitude({}), v = Math.hypot(S.body.vel[0], S.body.vel[2]), cor = S.corridor(S.nac * 180 / Math.PI);
+          const mode = S.nac > 80 * Math.PI / 180 ? 'HELICOPTER' : S.nac < 3 * Math.PI / 180 ? 'AIRPLANE' : 'CONVERSION';
+          return `<b>MV-22B OSPREY</b>  RUNAWAY refit  12 machine troopers\n` + tab([
+            ['time', f(t, 1) + ' s'], ['phase', `<b>${U.AI.phase}</b>`], ['mode', `<b>${mode}</b>`], ['nacelles', `${f(deg(S.nac))} deg (cmd ${f(U.P.nacT)})`], ['corridor', `${f(Math.max(0, cor.min))} - ${f(cor.max)} KIAS`],
+            ['KIAS', f(S.ias)], ['ground spd', f(v * 1.944) + ' kt'], ['alt / AGL', `${f(S.body.pos[1])} / ${f(S.agl, 1)} m`], ['climb', f(S.body.vel[1] * 196.85) + ' fpm'],
+            ['pitch/roll', `${f(deg(a.pitch), 1)} / ${f(deg(a.roll), 1)} deg`], ['alpha', f(deg(S.alpha), 1) + ' deg'], ['TCL', f(S.c.tcl * 100) + ' %'], ['stick', `${f(S.c.lon, 2)} / ${f(S.c.lat, 2)} ped ${f(S.c.ped, 2)}`],
+            ['rotor rpm', f(S.rpm * 412) + (S.kH < 0.5 ? ' (prop gov)' : ' (eng gov)')], ['power', f(S.power / 745.7) + ' shp'], ['wing lift', f(S.wingL / 1000) + ' kN'], ['gear / flaps', `${S.gear > 0.5 ? 'DOWN' : 'UP'} / ${f(S.flap * 100)}%`],
+            ['heli loops', f(U.P.k * 100) + ' %'], ['dist LZ', U.AI.cmd.dist ? f(U.AI.cmd.dist) + ' m' : '-'], ['squad', `${U.squad.alive} alive, ${U.squad.holding} holding`], ['fold', f(U.fold * 100) + ' %'],
+          ]);
+        },
+      };
+    },
+    turntable: turntableFor(() => buildMV22Mesh(), -2.22, { nac: Math.PI / 2, tR: { tx: 0, ty: 0 }, tL: { tx: 0, ty: 0 }, gear: 1, ramp: 1, flap: 1, fold: 0 }),
   },
 };

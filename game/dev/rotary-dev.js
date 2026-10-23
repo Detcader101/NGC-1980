@@ -33,13 +33,15 @@ let camMode = Q.get('cam') || 'chase', speed = +(Q.get('speed') || 1), paused = 
   pad.add(new THREE.Mesh(new THREE.RingGeometry(W.PAD.r - 0.6, W.PAD.r, 32).rotateX(-Math.PI / 2).translate(0, 0.01, 0), new THREE.MeshBasicMaterial({ color: 0xd8c040 })));
   for (const s of W.structs) { const b = new THREE.Mesh(new THREE.BoxGeometry(s.r * 1.4, s.h, s.r * 1.3), new THREE.MeshLambertMaterial({ color: 0x8a8a84 })); b.position.set(s.x, W.terrain(s.x, s.z) + s.h / 2, s.z); scene.add(b); }
 }
-const carrier = new THREE.Group(); scene.add(carrier);
-{
-  const d = W.deck, hull = new THREE.Mesh(new THREE.BoxGeometry(d.W, d.H + 3, d.L), new THREE.MeshLambertMaterial({ color: 0x56616c })); hull.position.y = (d.H - 3) / 2; carrier.add(hull);
+// the two carriers (ALBATROSS grey, KRAKEN rust-grey): a hull, the deck, the island, three helicopter spots
+const carriers = W.decks.map((d, i) => {
+  const carrier = new THREE.Group(); scene.add(carrier); const hc = i ? 0x4f3c3a : 0x56616c;
+  const hull = new THREE.Mesh(new THREE.BoxGeometry(d.W, d.H + 3, d.L), new THREE.MeshLambertMaterial({ color: hc })); hull.position.y = (d.H - 3) / 2; carrier.add(hull);
   const top = new THREE.Mesh(new THREE.PlaneGeometry(d.W, d.L).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x3c4045 })); top.position.y = d.H + 0.02; carrier.add(top);
-  const tw = new THREE.Mesh(new THREE.BoxGeometry(5.5, 17, 18), new THREE.MeshLambertMaterial({ color: 0x56616c })); tw.position.set(10.5, d.H + 8.5, 6); carrier.add(tw);
-  for (const z of [-35, -2, 31]) { const r = new THREE.Mesh(new THREE.RingGeometry(5.5, 6.2, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xd8d8d0 })); r.position.set(-2, d.H + 0.05, z); carrier.add(r); }
-}
+  const tw = new THREE.Mesh(new THREE.BoxGeometry(5.5, 17, 18), new THREE.MeshLambertMaterial({ color: hc })); tw.position.set(10.5, d.H + 8.5, 6); carrier.add(tw);
+  for (const z of [-35, -2, 31]) { const r = new THREE.Mesh(new THREE.RingGeometry(5.5, 6.2, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: i ? 0xff6a50 : 0xd8d8d0 })); r.position.set(-2, d.H + 0.05, z); carrier.add(r); }
+  return { carrier, d };
+});
 
 // ---- the aircraft under test
 const unit = VIEW === 'model' ? null : UNITS[AC].mission(scene, W);
@@ -76,7 +78,7 @@ function placeCamera(dt) {
   } else if (camMode === 'side') { _f.set(1, 0, 0).applyQuaternion(g.quaternion).setY(0).normalize(); cam.p.copy(_w).addScaledVector(_f, -unit.chase).add(_f.set(0, 4, 0)); }
   else if (camMode === 'lz') cam.p.set(W.PAD.x - 42, W.PAD.h + 11, W.PAD.z - 9);
   else if (camMode === 'squad') { const c = unit.squadCenter && unit.squadCenter(); if (c) { _w.set(c.x, c.y + 0.8, c.z); cam.p.set(c.x - 13, c.y + 5, c.z + 6); } }
-  else if (camMode === 'deck') { const [x, z] = W.toWorld(-12, 58); cam.p.set(x, W.deck.H + 14, z); }
+  else if (camMode === 'deck') { const d = unit.homeDeck ? unit.homeDeck() : W.deck, c = Math.cos(d.yaw), s = Math.sin(d.yaw), lx = -14, lz = 60; cam.p.set(d.x + lx * c + lz * s, d.H + 14, d.z - lx * s + lz * c); }
   else cam.p.set(Math.sin(cam.yaw) * Math.cos(cam.pitch), Math.sin(cam.pitch), Math.cos(cam.yaw) * Math.cos(cam.pitch)).multiplyScalar(cam.dist).add(_w);
   cam.t.lerp(_w, k); camera.position.lerp(cam.p, camMode === 'orbit' || camMode === 'lz' || camMode === 'deck' || camMode === 'squad' ? 1 : k);
   camera.lookAt(cam.t);
@@ -89,7 +91,7 @@ let simT = 0, last = performance.now(), acc = 0;
 const DT = 1 / 60;
 function step() { W.move(DT); simT += DT; unit.update(DT, simT); }
 if (unit) { const skip = +(Q.get('skip') || 0); while (simT < skip && !unit.done()) step(); }
-function syncCarrier() { carrier.position.set(W.deck.x, 0, W.deck.z); carrier.rotation.y = W.deck.yaw; }
+function syncCarrier() { for (const { carrier, d } of carriers) { carrier.position.set(d.x, 0, d.z); carrier.rotation.y = d.yaw; } }
 function frame(now) {
   const real = Math.min(0.1, (now - last) / 1000); last = now;
   if (unit && !paused) { acc += real * speed; let n = 0; while (acc >= DT && n < 40) { step(); acc -= DT; n++; } }

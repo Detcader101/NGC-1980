@@ -70,7 +70,7 @@ export function createMV22Sim(G = 9.81) {
       S.c.tcl = landed ? 0 : 0.5; S.c.lon = S.c.lat = S.c.ped = 0; S.events.length = 0;
     },
     step(dt, ctl, env) {
-      S.events.length = 0;
+      S.events.length = 0; if (!(dt > 0)) return null;   // a zero step (first frame) would divide by zero in the gear friction
       const n = Math.max(1, Math.ceil(dt / (1 / 120))), h = dt / n;
       for (let i = 0; i < n && !S.dead; i++) sub(h, ctl, env);
       return S.events[0] || null;
