@@ -84,6 +84,25 @@ Cockpit switches are clickable (gear and hook handles, flaps, master arm, FCS CA
 
 The in-game help screen has the full list.
 
+### Infantry (NGC-1980 Marine rifleman, dev range)
+
+`game/dev/infantry.html` is a firing range for the on-foot Marine of 1980 (M16A1 with M203, M60, M72 LAW, M1911A1):
+pop-up E-type targets at 25-400 m, steel gongs, a spotting scope that shows where each round landed (drop against your
+sight line, time of flight, speed), reload and malfunction drills, stamina on the hill, a pond to wade.
+`?view=model` shows the weapons and the Marine's postures. Press I on the range for the controls.
+
+| Key | Action |
+|---|---|
+| W A S D, Shift, Ctrl | move, sprint, walk toggle |
+| C / Z / X, Q / E, hold Alt | crouch (kneel) / prone / stand, lean, free look |
+| right mouse, left mouse, Shift on the sights | aim down the sights, fire, hold breath |
+| 1-4, G, B | M16A1 (+M203) / M60 / LAW / M1911, M203 on/off, fire mode |
+| R, R R | tactical reload (keeps the magazine), speed reload (drops it); LAW: extend, then arm |
+| T, Shift+T, Y, U | immediate action (SPORTS), remedial action, charging handle, forward assist |
+| K / J / L / H / N | check magazine / check chamber / inspect / M60 barrel change / bipod |
+| PgUp PgDn or [ ], arrows | sight setting (aperture, leaf, M203 quadrant), zeroing clicks |
+| F, Backspace, M, P, V | pick up a dropped magazine, reset targets, spotting scope, bullet trails, third person |
+
 ## Tests
 
 `tools/` has a headless test harness: Puppeteer drives the game in software WebGL and takes screenshots. See [tools/README.md](tools/README.md).
@@ -98,6 +117,9 @@ Jet scenes: `jet.mjs` (launch, climb, turn), `jettrap.mjs` (arrested landing), `
 `node tools/cavebench.mjs` checks the cave generator without a browser: it prints every island's cave as an ASCII map and
 sweeps hundreds of seeds per tier, checking that each cave is connected, wide enough to fly and has its pad, tanks and
 pod on solid floors. `scenes/caves.mjs` flies into every cave and screenshots it.
+`node tools/infantrybench.mjs` checks the infantry cores (flight of the rounds against the field-manual maximum ranges and
+zeroes, rates of fire, barrel heat, stoppages, recoil, march / run / sprint speeds and stamina against the Pandolf and
+ACSM equations); `scenes/infantry.mjs`, `infantrydrills.mjs` and `infantrymodels.mjs` drive the range page.
 Huey scenes: `hueystart.json` (cold start), `hueyhover.json` (hover trim, forward flight), `hueyauto.json` (practice autorotation with power recovery), `hueycockpit.mjs`, `hueymodel.mjs` (screenshots).
 
 ## Credits
