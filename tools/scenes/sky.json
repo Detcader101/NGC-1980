@@ -5,7 +5,7 @@
     "waitFor 10000 window.__G",
     "key tap Enter", "wait 1200",
     "log buy the SKY CARRIER refit (5) and watch the fans fold out",
-    "eval (__G.G.mat = 500, __G.command(5), {sky:!!__G.war.carrier.sky, mat:__G.G.mat})",
+    "eval (__G.G.mat = 500, __G.command(6), {sky:!!__G.war.carrier.sky, mat:__G.G.mat})",
     "expect !!__G.war.carrier.sky && __G.G.mat === 200",
     "eval (__G.war.carrier.sky.refit = 7, 1)",
     "key tap KeyC", "wait 4500",
