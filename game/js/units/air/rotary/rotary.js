@@ -87,12 +87,13 @@ export function createRotary(ctx) {
     const home = () => { const c = carrierOf(side); return c && spot ? deckSpot(c, spot[0], spot[1]) : homePad(side); };
     const U = createCH46Unit({ parent: scene, env, world, lz: () => u.lz, home, pad: I.pad, start, modex: 1 + Math.floor(rnd(30)), squad: 13,
       onParked: () => { u.dead = true; u.stowed = true; if (!U.squadExternal) U.squad.dispose(); } });
-    u.lz = lz; u.rot = U; u.mesh = U.model.group;
+    u.lz = lz; u.rot = U; u.mesh = U.model.group; U.AI.hooks.fouled = () => fouled(u);
     // the Marines become a ground unit of their own when they come off the ramp
     const unload = U.AI.hooks.unload;
     U.AI.hooks.unload = (ai, dt) => { const done = unload(ai, dt); if (U.deployed && !u.squadUnit) { u.squadUnit = R.ground ? R.ground.landing(u, U, side, u.target) : addSquad(U.squad, side, u.target, 9);   /* GROUND WAR hook: the Marines fight as a squad */ U.squadExternal = true; } return done; };
     return u;
   }
+  function fouled(u) { const z = u.lz; return !!z && W.units.some(o => o !== u && o.rot && o.rot.S && o.kind !== 'wasp' && !o.dead && Math.hypot(o.p.x - z.x, o.p.z - z.z) < 16 && o.p.y < z.y + 15); }
   // RUNAWAY MV-22 with 12 machine troopers: off the KRAKEN (or IRONHOLD's pad), takes islands for the enemy commander
   function makeMV22(side, extra) {
     const sp = freeSpot('mv22', side), start = sp ? { x: sp.x, y: sp.y, z: sp.z, yaw: sp.hdg } : { ...homePad(side), yaw: 0 };
@@ -102,7 +103,7 @@ export function createRotary(ctx) {
     u.lz = (R.ground && R.ground.hotLZ(u.target, side, MV22_FOOT, chooseLZ)) || chooseLZ(u.target, MV22_FOOT);   // GROUND WAR hook
     const U = createMV22Unit({ parent: scene, env, world, lz: () => u.lz, home, pad: u.target.pad, start, squad: 12,
       onParked: () => { u.dead = true; u.stowed = true; if (!U.squadExternal) U.squad.dispose(); } });
-    u.rot = U; u.mesh = U.model.group;
+    u.rot = U; u.mesh = U.model.group; U.AI.hooks.fouled = () => fouled(u);
     const unload = U.AI.hooks.unload;
     U.AI.hooks.unload = (ai, dt) => { const done = unload(ai, dt); if (U.deployed && !u.squadUnit) { u.squadUnit = R.ground ? R.ground.landing(u, U, side, u.target) : addSquad(U.squad, side, u.target, 10);   /* GROUND WAR hook: the troopers come off the ramp as STRIDERs */ U.squadExternal = true; } return done; };
     return u;
@@ -157,7 +158,35 @@ export function createRotary(ctx) {
     const b = S.body; u.p.set(b.pos[0], b.pos[1], b.pos[2]); u.v.set(b.vel[0], b.vel[1], b.vel[2]); attitude(b.q, _att); u.yaw = _att.yaw;
     if (U.dead && !u.crashed) crash(u, U);
     if (u.hp < u.hpMax * 0.6 && Math.random() < 0.5) fx.trail(u.p.x + rnd(-1, 1), u.p.y + 2.5, u.p.z + rnd(-1, 1), 1.2);
+    if (u.kind === 'ch46' && !u.crashing) doorGuns(u, U, dt);
     if (u.kind === 'ch46') downwash(u, S.agl, (S.rf.T + S.ra.T) / 2, 7.62); else if (S.nac > 1.2) downwash(u, S.agl, (S.rR.T + S.rL.T) / 2, 9);
+  }
+  // the CH-46's door gunners (M2 .50 cal, right crew door and left window): near the zone they engage enemies below
+  // within ~150 m on their own side of the aircraft, in short bursts (game level: the war's rounds)
+  const GUN_PHASES = ['transit', 'waveoff', 'hoverchk', 'descend', 'ground', 'lift2', 'lift'];
+  function doorGuns(u, U, dt) {
+    u.gT = (u.gT || 0) - dt; u.gB = (u.gB || 0) - dt;
+    if (u.gT <= 0) {   // look for a target a few times a second
+      u.gT = 0.4; u.gTgt = null;
+      if (GUN_PHASES.includes(U.AI.phase) && !(U.AI.phase === 'transit' && U.AI.cmd.dist > 450)) {
+        let bd = 150;
+        for (const o of W.units) if (o.side !== u.side && o.side !== 0 && o.p && !o.dead && !o.dying && !o.dims && o.p.y < u.p.y + 8) { const d = o.p.distanceTo(u.p); if (d < bd) { bd = d; u.gTgt = o; } }
+      }
+      if (!u.gTgt) { U.gunAim = null; U.gunFiring = false; }
+    }
+    const T = u.gTgt; if (!T || T.dead) { U.gunFiring = false; return; }
+    const g = U.model.group, side = (() => { _v.copy(T.p).sub(u.p); const c = Math.cos(u.yaw), s = Math.sin(u.yaw); return _v.x * c - _v.z * s; })();   // + = right of the nose
+    const gp = U.model.GUNS[side > 0 ? 0 : 1]; _v.copy(gp); g.localToWorld(_v);
+    const sx = _v.x, sy = _v.y, sz = _v.z, d = Math.hypot(T.p.x - sx, T.p.y - sy, T.p.z - sz), t = d / 100;
+    _v.set(T.p.x + (T.v ? T.v.x * t : 0) - sx, T.p.y + 0.8 - sy, T.p.z + (T.v ? T.v.z * t : 0) - sz).normalize();
+    (U.gunAim || (U.gunAim = new THREE.Vector3())).copy(_v);
+    if (u.gB <= 0) { u.gB = U.gunFiring ? rnd(1.2, 2.5) : rnd(0.6, 1.2); U.gunFiring = !U.gunFiring; }   // bursts
+    u.gC = (u.gC || 0) - dt;
+    if (U.gunFiring && u.gC <= 0) {
+      u.gC = 0.14; const e = 0.03 + d / 5000;
+      ctx.shoot('b', u.side, sx + _v.x * 1.9, sy + _v.y * 1.9, sz + _v.z * 1.9, (_v.x + rnd(-e, e)) * 100 + u.v.x, (_v.y + rnd(-e, e)) * 100 + u.v.y, (_v.z + rnd(-e, e)) * 100 + u.v.z, 1.6);
+      if (ctx.hear(sx, sy, sz, 260) > 0.05 && Math.random() < 0.6) ctx.sfx.blip?.(420, 120, 0.05, 'square', 0.06 * ctx.hear(sx, sy, sz, 260));
+    }
   }
   // shot down: both engines out (or a rotor gone), the AI pilot autorotates for the ground, the wreck burns
   function startCrash(u, U) {

@@ -18,7 +18,7 @@ export function createCH46Unit(o) {
   S.reset([o.start.x, o.start.y + CH46.CG_H + 0.05, o.start.z], o.start.yaw, true, o.env); P.reset(0);
   const model = buildCH46Mesh({ modex: o.modex }); o.parent.add(model.group);
   const squad = createSquad({ parent: o.parent, side: 1, n, kind: 'marine', groundY: (x, z) => o.env.groundY(x, z) });
-  const U = { S, P, model, squad, ramp: 0, rampT: 0, unloadT: 0, deployed: false, time: 0, engines: true, dead: false };
+  const U = { S, P, model, squad, ramp: 0, rampT: 0, unloadT: 0, deployed: false, time: 0, engines: true, dead: false, gunAim: null, gunFiring: false };   // gunAim: world direction the door gunners swing onto (set by the war)
   const AI = U.AI = createTransportAI(CH46_AI, {
     lz: o.lz, home: o.home,
     unload(ai, dt) {   // ramp down, Marines out (up the cabin, down the ramp, out to the pad), ramp up once they're clear
@@ -57,6 +57,7 @@ export function createCH46Unit(o) {
     const b = S.body, g = model.group;
     g.position.set(b.pos[0], b.pos[1], b.pos[2]); g.quaternion.set(b.q[0], b.q[1], b.q[2], b.q[3]);
     animS.nr = S.rpm; animS.F.tx = S.rf.tx; animS.F.ty = S.rf.ty; animS.A.tx = S.ra.tx; animS.A.ty = S.ra.ty; animS.coll = S.c.coll;
+    animS.gunAim = U.gunAim; animS.gunFiring = U.gunFiring;
     animS.ramp = U.ramp; animS.n1 = S.eng[0].n1; animS.light = AI.phase === 'descend' || AI.phase === 'descend2' || (AI.phase === 'transit' && AI.cmd.dist < 200);
     animS.cone = Math.min(0.12, 0.75 * Math.max(0, (S.rf.ct + S.ra.ct) / 2) / 0.058);   // coning ~ CT / sigma
     model.animate(animS, dt, time);
