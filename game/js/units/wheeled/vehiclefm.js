@@ -64,6 +64,7 @@ export function table(pts, x) {   // piecewise-linear [[x, y], ...]
   return pts[pts.length - 1][1];
 }
 const RPM = 60 / (2 * Math.PI);   // rad/s -> rpm
+export const LODS = { near: { probes: 9, sub: 1 / 600 }, mid: { probes: 5, sub: 1 / 480 }, far: { probes: 1, sub: 1 / 240 } };
 
 // ------------------------------------------------------------------------------------------------ small vector maths
 const v3 = (x = 0, y = 0, z = 0) => [x, y, z];
@@ -192,13 +193,14 @@ export function prepareSpec(spec) {
 export function createVehicleSim(spec, opts = {}) {
   prepareSpec(spec);
   const P = spec._prep, E = spec.engine, GB = spec.gearbox, TC = spec.transfer, NW = spec.wheels.length;
-  const SUB = opts.sub || 1 / 600;
+  let SUB = opts.sub || 1 / 600;
   const solver = createSolver(P.nNodes);
   const R = new Float64Array(9);
   const _a = v3(), _b = v3(), _c = v3(), _d = v3(), _e = v3(), _f = v3(), _n = v3(), _p = v3(), _r = v3(), _v = v3(), _t = v3(), _ex = v3(), _ey = v3(), _gw = v3();
   // tyre probes along the lower arc, as fractions of the radius ahead (+) / behind (-) the contact; opts.probes = 1 turns
   // them off (cheap AI traffic far from the camera)
-  const PROBES = opts.probes ?? 9, PROBE_OFF = PROBES > 5 ? [0.25, -0.25, 0.5, -0.5, 0.7, -0.7, 0.87, -0.87] : PROBES > 1 ? [0.5, -0.5, 0.87, -0.87] : [];
+  const PROBE_SETS = { 9: [0.25, -0.25, 0.5, -0.5, 0.7, -0.7, 0.87, -0.87], 5: [0.5, -0.5, 0.87, -0.87], 1: [] };
+  let PROBES = opts.probes ?? 9, PROBE_OFF = PROBE_SETS[PROBES > 5 ? 9 : PROBES > 1 ? 5 : 1];
   const gout2 = { h: 0, nx: 0, ny: 1, nz: 0, surf: 0, vx: 0, vy: 0, vz: 0 };
   const gout = { h: 0, nx: 0, ny: 1, nz: 0, surf: 0, vx: 0, vy: 0, vz: 0 }, cout = { depth: 0, nx: 0, ny: 1, nz: 0, vx: 0, vy: 0, vz: 0, mu: 0.5, id: null };
   const F = v3(), Tq = v3();   // force / torque accumulators (world)
@@ -297,6 +299,9 @@ export function createVehicleSim(spec, opts = {}) {
       updatePose();
       return S.events;
     },
+    // level of detail: 'near' (9 tyre probes, 600 Hz: the player / the camera's neighbours), 'mid' (5, 480 Hz), 'far'
+    // (1 probe, 240 Hz: AI traffic out of view; ~6x cheaper, smooth terrain only)
+    setLod(l) { const L = LODS[l] || LODS.near; SUB = L.sub; PROBES = L.probes; PROBE_OFF = PROBE_SETS[L.probes > 5 ? 9 : L.probes > 1 ? 5 : 1]; S.lod = l; },
     get rpm() { return S.eng.rpm; },
     get mass() { return S.massNow; },
   };

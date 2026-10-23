@@ -16,6 +16,7 @@ import { M151 } from '../game/js/units/wheeled/m151.js';
 import { M35 } from '../game/js/units/wheeled/m35.js';
 import { LANDROVER, HILUX, BEETLE, LADA } from '../game/js/units/wheeled/civilian.js';
 import { createDamage } from '../game/js/units/wheeled/vehicledamage.js';
+import { createWheeledSim, makeTerrainEnv, createFollower, WHEELED_IDS } from '../game/js/units/wheeled/index.js';
 
 const V = process.argv.includes('--v'), ONLY = (process.argv.indexOf('--only') > 0 ? process.argv[process.argv.indexOf('--only') + 1] : null);
 const G = 9.81, DT = 1 / 60, D2R = Math.PI / 180;
@@ -379,6 +380,35 @@ if (want('m151')) {
   const d = make(M151, { dmg: true }); settle(d, 0.3); d.S.dmg.state.coolant = 0.1; const evs = new Set();
   run(d, 600, S => ({ throttle: S.kmh < 70 ? 0.8 : 0.4 }), S => { S.events.forEach(e => evs.add(e.e)); });
   check('m151: radiator drained: overheats and seizes', evs.has('overheat') && (evs.has('seized') || d.S.dmg.state.engine < 0.5), `temp ${fmt(d.S.eng.temp, 0)} °C, engine ${fmt(d.S.dmg.state.engine * 100, 0)}%, events ${[...evs].join(' ')}`, 'overheat warning then engine damage', 'INFERRED');
+  // a fuel-tank burst: leak, then fire (hot engine), crew exposed, wreck within ~75 s unless put out
+  const f = make(M151, { dmg: true }); settle(f, 0.3); f.S.dmg.setOccupant('front', true); const fe = new Set();
+  for (let i = 0; i < 6; i++) f.S.dmg.hit([-1.2, 0.5, 0.25 + i * 0.04], [1, 0, 0], 'hmg');
+  f.S.events.forEach(e => fe.add(e.e));   // the hits' own events (leak, maybe fire at once)
+  f.S.eng.temp = 105;
+  run(f, 120, { throttle: 0.2 }, S => { S.events.forEach(e => fe.add(e.e)); return !S.dmg.state.wrecked; });
+  check('m151: .50 burst through the fuel tank: leak, fire, wreck', fe.has('fuelLeak') && fe.has('fire') && f.S.dmg.state.wrecked, `events ${[...fe].join(' ')}; fuel ${fmt(f.S.fuelL, 1)} L left, crew ${f.S.dmg.state.seats.filter(s => s.occupied).map(s => s.id + ' ' + fmt(s.hp * 100, 0) + '%').join(', ')}`, 'gasoline vehicles burn readily when the tank is holed', 'INFERRED');
+}
+
+// ------------------------------------------------------------------------------------------------ 12. wave-2 interfaces
+head('interfaces for the host: terrain adapter, road traffic follower, level of detail');
+{
+  // a lumpy terrain through makeTerrainEnv (numerical normals), a Lada following a 60 x 40 m loop of waypoints at 50 km/h
+  const env = makeTerrainEnv({ height: (x, z) => 0.3 * Math.sin(x / 9) * Math.cos(z / 11), surface: (x, z) => Math.abs(z) < 25 ? 'tarmac' : 'dirt', g: G });
+  const loop = []; for (let k = 0; k < 48; k++) { const a = k / 48 * Math.PI * 2; loop.push({ x: 60 * Math.cos(a), z: 40 * Math.sin(a) }); }
+  for (const [id, lod] of [['lada', 'near'], ['m35', 'far'], ['m151', 'far'], ['beetle', 'mid']]) {
+    const v = createWheeledSim(id, { lod }); v.sim.reset([60, 0, 0], Math.PI, { running: true }); v.sim.placeOnGround(env); v.driver.reset(v.sim);
+    const F = createFollower(loop, { speed: 14, loop: true, latG: 0.3 }); let maxErr = 0, dist = 0, t = 0;
+    for (let k = 0; k < 60 * 90; k++) {
+      v.sim.step(DT, v.driver.update(v.sim, F.update(v.sim), DT), env); t += DT;
+      const r = Math.hypot(v.sim.pos[0] / 60, v.sim.pos[2] / 40); if (t > 10) maxErr = Math.max(maxErr, Math.abs(r - 1) * 50);
+      dist += Math.abs(v.sim.speed) * DT;
+    }
+    check(`${id} (${lod} LOD) follows a road loop`, maxErr < 3 && dist > 600 && v.sim.up[1] > 0.9, `${fmt(dist, 0)} m in 90 s, max cross-track ~${fmt(maxErr, 1)} m, upright ${v.sim.up[1] > 0.9}`, 'traffic for the WORLD layer: stays on its lane, no spin-outs', 'INFERRED');
+  }
+  // the far LOD is cheap
+  const perf = (lod) => { const v = createWheeledSim('m35', { lod }); v.sim.reset([60, 0, 0], Math.PI); v.sim.placeOnGround(env); const t0 = performance.now(); for (let k = 0; k < 600; k++) v.sim.step(DT, v.driver.update(v.sim, { throttle: 0.5 }, DT), env); return (performance.now() - t0) / 600; };
+  const pn = perf('near'), pf = perf('far');
+  check('far LOD costs a fraction of the near one', pf < pn * 0.45, `M35 per 60 Hz frame: near ${fmt(pn, 3)} ms, far ${fmt(pf, 3)} ms`, '<= ~40% (fewer probes, 240 Hz)', 'INFERRED');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

@@ -137,3 +137,44 @@ export function aiInput(sim, target, vWant, out = {}) {
   else { out.throttle = clamp(-err * 0.3, 0, 1) * (err > 0.8 ? 1 : 0); out.brake = clamp(err * 0.35 + 0.1, 0, 1) * (err < 0.3 ? 1 : 0); }
   out.handbrake = 0; return out;
 }
+
+// Road traffic for the WORLD layer: follow a polyline of waypoints [{x, z, v?}] (v = speed limit m/s at that point).
+// Pure pursuit with a speed-dependent lookahead; slows for bends (lateral g budget), for the limit, for a vehicle or
+// person ahead (opts.gap(): metres to the obstacle on the path, or Infinity), and stops at the end (or loops).
+//   const F = createFollower(path, { speed: 14, loop: true, latG: 0.25 });  each frame: input = F.update(sim); driver.update(sim, input, dt)
+export function createFollower(path, opts = {}) {
+  const o = { speed: 12, loop: false, latG: 0.25, lookahead: 4, stopDist: 4, gap: null, ...opts };
+  const F = { path, i: 0, done: false, input: {},
+    // nearest segment ahead of the vehicle (keeps the index moving forward)
+    update(sim) {
+      const px = sim.pos[0], pz = sim.pos[2], n = path.length;
+      for (let k = 0; k < 4; k++) {   // advance past waypoints we've passed
+        const a = path[F.i], b = path[(F.i + 1) % n]; if (!b || (!o.loop && F.i >= n - 1)) break;
+        const sx = b.x - a.x, sz = b.z - a.z, t = ((px - a.x) * sx + (pz - a.z) * sz) / (sx * sx + sz * sz || 1);
+        if (t > 1) F.i = o.loop ? (F.i + 1) % n : Math.min(n - 1, F.i + 1); else break;
+      }
+      // lookahead point along the path
+      const v = Math.abs(sim.speed), L = o.lookahead + v * 0.9; let left = L, j = F.i, qx = px, qz = pz;
+      let tx = path[Math.min(n - 1, j + 1)].x, tz = path[Math.min(n - 1, j + 1)].z;
+      for (let k = 0; k < n && left > 0; k++) {
+        const a = k === 0 ? { x: qx, z: qz } : path[j % n], b = path[(j + 1) % n]; if (!o.loop && j + 1 >= n) { tx = path[n - 1].x; tz = path[n - 1].z; break; }
+        const d = Math.hypot(b.x - a.x, b.z - a.z); if (d >= left) { tx = a.x + (b.x - a.x) * left / d; tz = a.z + (b.z - a.z) * left / d; break; }
+        left -= d; tx = b.x; tz = b.z; j++;
+      }
+      // speed: limit, bends ahead (curvature over the next ~3 segments), the end of the path, the gap ahead
+      let vmax = path[F.i].v ?? o.speed;
+      for (let k = 1; k <= 3; k++) {
+        const a = path[(F.i + k - 1) % n], b = path[(F.i + k) % n], c = path[(F.i + k + 1) % n]; if (!o.loop && F.i + k + 1 >= n) break;
+        const a1 = Math.atan2(b.z - a.z, b.x - a.x), a2 = Math.atan2(c.z - b.z, c.x - b.x); let da = Math.abs(a2 - a1); if (da > Math.PI) da = 2 * Math.PI - da;
+        const seg = Math.hypot(c.x - b.x, c.z - b.z) || 1, R = seg / Math.max(1e-3, da);
+        vmax = Math.min(vmax, Math.sqrt(o.latG * 9.81 * R), b.v ?? Infinity);
+      }
+      if (!o.loop) { const end = path[n - 1], de = Math.hypot(end.x - px, end.z - pz); vmax = Math.min(vmax, Math.max(0, (de - o.stopDist) * 0.6)); F.done = de < o.stopDist + 1 && v < 0.5; }
+      const gap = o.gap ? o.gap(sim) : Infinity; if (gap < Infinity) vmax = Math.min(vmax, Math.max(0, (gap - 6) * 0.5));
+      aiInput(sim, { x: tx, z: tz }, vmax, F.input);
+      if (vmax < 0.3 && v < 1) { F.input.throttle = 0; F.input.brake = 0.4; F.input.handbrake = v < 0.2 ? 1 : 0; }
+      return F.input;
+    },
+  };
+  return F;
+}
