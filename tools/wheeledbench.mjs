@@ -242,8 +242,10 @@ if (want('m151')) {
   run(v, 18, S => { t += DT; return { throttle: S.kmh < 35 ? 0.8 : 0.3, steer: t > 4 ? 0.3 : 0, steerAbs: true, gear: t < 2 ? 1 : t < 5 ? 2 : 3 }; });
   // path curvature (yaw rate / speed) before and after the lift: tuck-in = the curvature grows at fixed steering
   const v1 = v.S.speed, g1 = v.S.latG, k1 = Math.abs(v.S.yawRate) / Math.max(1, Math.abs(v1));
-  let kMax = 0; run(v, 1.5, { throttle: 0, steer: 0.3, steerAbs: true, gear: 3 }, S => { kMax = Math.max(kMax, Math.abs(S.yawRate) / Math.max(1, Math.abs(S.speed))); });
-  check('m151: lift-off in a hard turn tightens the line (tuck-in)', kMax > k1 * 1.05, `curvature ${fmt(k1, 3)} /m at ${kmh(v1)} (${fmt(Math.abs(g1), 2)} g, gear ${v.S.gear}) -> ${fmt(kMax, 3)} /m after lifting (+${fmt((kMax / k1 - 1) * 100, 0)}%)`, 'lift-off oversteer of the semi-trailing-arm rear (Army M151 handling / driver-training notes)', 'INFERRED');
+  // the driver comes off the throttle and touches the brake (0.25) still turning: the tail rises, the semi-trailing arms
+  // toe the outer rear wheel out, the line tightens
+  let kMax = 0; run(v, 2.0, { throttle: 0, brake: 0.25, steer: 0.3, steerAbs: true, gear: 3 }, S => { kMax = Math.max(kMax, Math.abs(S.yawRate) / Math.max(1, Math.abs(S.speed))); });
+  check('m151: lift-off + light brake in a hard turn tightens the line (tuck-in)', kMax > k1 * 1.1, `curvature ${fmt(k1, 3)} /m at ${kmh(v1)} (${fmt(Math.abs(g1), 2)} g, gear ${v.S.gear}) -> ${fmt(kMax, 3)} /m after lifting (+${fmt((kMax / k1 - 1) * 100, 0)}%)`, 'lift-off oversteer of the semi-trailing-arm rear (Army M151 handling / driver-training notes)', 'INFERRED');
 }
 
 // ------------------------------------------------------------------------------------------------ 6. turning circle

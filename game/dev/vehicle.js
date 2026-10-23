@@ -344,7 +344,7 @@ if (DEBUG) {
   window.__V = {
     THREE, scene, camera, renderer, env, ZONES, heightAt, groundAt, waterAt,
     get sim() { return V.sim; }, get driver() { return V.driver; }, get model() { return V.model; }, get interior() { return V.interior; }, get dmg() { return V.dmg; }, get id() { return V.id; }, get look() { return V.look; },
-    get events() { return allEvents; }, get frames() { return frames; }, get input() { return IN; },
+    get events() { return allEvents; }, get frames() { return frames; }, get input() { return IN; }, get audio() { return audio; },
     setVehicle: (id, v, zone) => setVehicle(id, v || {}, zone || null), teleport: (x, z, yaw) => { teleport(x, z, yaw); return true; }, zone: k => { const z = ZONES[k]; curZone = k; teleport(z.x, z.z, z.yaw); return true; },
     drive: o => { override = o ? { ...IN, ...o } : null; return true; }, ai: (target, speed, extra) => { ai = target ? { target, speed, extra } : null; return true; },
     cam: (m, o = {}) => { camMode = m; Object.assign(cam, o); return true; }, pause: p => { paused = p; return true; }, variant: v => { Object.assign(V.variant, v); V.model.setVariant?.(V.variant); return true; },

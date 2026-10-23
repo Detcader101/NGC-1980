@@ -171,15 +171,27 @@ export function prepareSpec(spec) {
   P.axleLoad = loads;
   P.wheelLoad = spec.wheels.map(w => loads[w.axle] / spec.axles[w.axle].wheels.length);
   // springs: k from the ride frequency of the corner's sprung mass, preload so the static wheel sits at the model's ride height
+  // quarter cars: unsprung mass per wheel (axle.unsprung kg, else ~3.5% of the vehicle per independent wheel, ~4.5% per
+  // solid-axle wheel - hub, brake drum, wheel, tyre and the axle share: INFERRED), the spring carries the sprung corner
+  // load, the tyre (vertical stiffness kz) deflects statically so the wheel centre sits kz-deflection below its radius
   P.wk = spec.wheels.map((w, i) => {
-    const a = spec.axles[w.axle], T = TYRES[w.tyre], ms = P.wheelLoad[i] / g;
-    const k = a.k ?? ms * (2 * Math.PI * a.freq) ** 2;
+    const a = spec.axles[w.axle], T = TYRES[w.tyre];
+    const mu = a.unsprung ?? m * (a.solid ? 0.045 : 0.035);
+    const msp = Math.max(0.2 * P.wheelLoad[i] / g, P.wheelLoad[i] / g - mu);   // sprung mass on this corner
+    const k = a.k ?? msp * (2 * Math.PI * a.freq) ** 2;
     const travel = a.bump + a.droop, s0 = a.bump;          // extension at static ride (0 = full bump)
-    const sFree = s0 + P.wheelLoad[i] / k;                   // extension where the spring would be free
-    const cCrit = 2 * Math.sqrt(k * ms);
-    const kbs = k * 6;
-    return { k, travel, s0, sFree, cb: a.zeta[0] * cCrit, cr: a.zeta[1] * cCrit, kbs, cbs: 2 * 0.15 * Math.sqrt(kbs * 3 * ms), T, r: T.r, yTop: T.r + a.bump - (a.sag ?? 0), arb: a.arb ?? 0 };
+    const sFree = s0 + msp * g / k;                          // extension where the spring would be free
+    const cCrit = 2 * Math.sqrt(k * msp);
+    const kbs = k * 6, kt = T.kz, pen0 = P.wheelLoad[i] / kt;
+    return { k, travel, s0, sFree, cb: a.zeta[0] * cCrit, cr: a.zeta[1] * cCrit, kbs, cbs: 2 * 0.3 * Math.sqrt(kbs * mu),
+      mu, kt, ct: 2 * 0.12 * Math.sqrt(kt * mu), penMax: 0.6 * T.r * 0.42, pen0,
+      T, r: T.r, yTop: T.r - pen0 + a.bump, arb: a.arb ?? 0 };
   });
+  P.mUns = P.wk.reduce((s, k) => s + k.mu, 0);
+  // the body (sprung mass) and its own CG: the vehicle CG with the wheels taken out, so the static spring loads balance
+  const mb = m - P.mUns, cs = [cg[0] * m, cg[1] * m, cg[2] * m];
+  spec.wheels.forEach((w, i) => { cs[0] -= P.wk[i].mu * w.x; cs[1] -= P.wk[i].mu * (P.wk[i].r - P.wk[i].pen0); cs[2] -= P.wk[i].mu * w.z; });
+  P.cgS = [cs[0] / mb, cs[1] / mb, cs[2] / mb];
   // inertia in body axes [x pitch, y yaw, z roll] from the box with a mass-distribution factor (INFERRED; spec.inertia
   // overrides, same order)
   const [L, W, H] = spec.dims.box;
@@ -206,12 +218,12 @@ export function createVehicleSim(spec, opts = {}) {
   const F = v3(), Tq = v3();   // force / torque accumulators (world)
 
   const wheels = spec.wheels.map((w, i) => ({
-    id: w.id, i, spec: w, ts: tyreState(), s: P.wk[i].s0, sPrev: P.wk[i].s0, contact: false, wasContact: false, Fz: 0, Fs: 0, Fbx: 0, Fjack: 0, steer: 0, spin: 0, omega: 0,
+    id: w.id, i, spec: w, ts: tyreState(), s: P.wk[i].s0, sv: 0, penPrev: 0, N: 0, contact: false, wasContact: false, Fz: 0, Fs: 0, Fbx: 0, Fjack: 0, steer: 0, spin: 0, omega: 0,
     surf: 0, camber: 0, cx: 0, cy: 0, cz: 0, vx: 0, vy: 0, r: P.wk[i].r, rEff: P.wk[i].r, slide: 0, sinkVis: 0, air: true, depthW: 0, brakeT: 0,
   }));
 
   const S = {
-    spec, pos: v3(), q: [0, 0, 0, 1], vel: v3(), w: v3(), L: v3(), cgw: v3(), cgb: [...spec.cg], massNow: spec.mass, I: [...P.I], loadKg: 0,
+    spec, pos: v3(), q: [0, 0, 0, 1], vel: v3(), w: v3(), L: v3(), cgw: v3(), cgb: [...P.cgS], massNow: spec.mass, I: [...P.I], loadKg: 0,
     wheels, solver,
     // drivetrain
     gear: 0, range: TC.low ? 'H' : 'H', fwd: false, lock: false, clutchEng: 1, shiftT: 0,
@@ -231,7 +243,7 @@ export function createVehicleSim(spec, opts = {}) {
       qToR(S.q, R); bw(R, S.cgb, _a);
       S.cgw[0] = pos[0] + _a[0]; S.cgw[1] = pos[1] + _a[1]; S.cgw[2] = pos[2] + _a[2];
       S.vel.fill(0); S.w.fill(0); S.L.fill(0); solver.w.fill(0); S.events.length = 0;
-      for (const W of wheels) { const k = P.wk[W.i]; W.s = W.sPrev = k.s0; W.ts = tyreState(); W.contact = W.wasContact = false; W.Fbx = 0; W.omega = 0; }
+      for (const W of wheels) { const k = P.wk[W.i]; W.s = k.s0; W.sv = 0; W.penPrev = k.pen0; W.ts = tyreState(); W.contact = W.wasContact = false; W.Fbx = 0; W.omega = 0; }
       const run = o.running !== false;
       Object.assign(S.eng, { rpm: run ? E.idle : 0, running: run, thr: 0, temp: o.temp ?? (run ? 82 : 20), boost: 0, crank: 0, misfire: 0, wet: 0, seized: false, hydrolock: false, smoke: 0 });
       solver.w[0] = S.eng.rpm / RPM;
@@ -268,15 +280,15 @@ export function createVehicleSim(spec, opts = {}) {
     },
     // payload (cargo, passengers): kg at a model-frame point; recomputes mass, CG and inertia (point-mass parallel axis)
     setLoad(items) {
-      const m0 = spec.mass; let m = m0, cx = spec.cg[0] * m0, cy = spec.cg[1] * m0, cz = spec.cg[2] * m0;
+      const m0 = spec.mass - P.mUns, c0 = P.cgS; let m = m0, cx = c0[0] * m0, cy = c0[1] * m0, cz = c0[2] * m0;   // the body (sprung) part
       for (const it of items || []) { m += it.kg; cx += it.at[0] * it.kg; cy += it.at[1] * it.kg; cz += it.at[2] * it.kg; }
       const ncg = [cx / m, cy / m, cz / m], I = [...P.I];
-      I[0] += m0 * ((spec.cg[1] - ncg[1]) ** 2 + (spec.cg[2] - ncg[2]) ** 2); I[1] += m0 * ((spec.cg[0] - ncg[0]) ** 2 + (spec.cg[2] - ncg[2]) ** 2); I[2] += m0 * ((spec.cg[0] - ncg[0]) ** 2 + (spec.cg[1] - ncg[1]) ** 2);
+      I[0] += m0 * ((c0[1] - ncg[1]) ** 2 + (c0[2] - ncg[2]) ** 2); I[1] += m0 * ((c0[0] - ncg[0]) ** 2 + (c0[2] - ncg[2]) ** 2); I[2] += m0 * ((c0[0] - ncg[0]) ** 2 + (c0[1] - ncg[1]) ** 2);
       for (const it of items || []) { const d = [it.at[0] - ncg[0], it.at[1] - ncg[1], it.at[2] - ncg[2]], sz = it.size || [0.5, 0.5, 0.5];
         I[0] += it.kg * (d[1] ** 2 + d[2] ** 2 + (sz[1] ** 2 + sz[2] ** 2) / 12); I[1] += it.kg * (d[0] ** 2 + d[2] ** 2 + (sz[0] ** 2 + sz[2] ** 2) / 12); I[2] += it.kg * (d[0] ** 2 + d[1] ** 2 + (sz[0] ** 2 + sz[1] ** 2) / 12); }
       // keep the model origin where it is: move the CG point
       qToR(S.q, R); bw(R, S.cgb, _a); const ox = S.cgw[0] - _a[0], oy = S.cgw[1] - _a[1], oz = S.cgw[2] - _a[2];
-      S.cgb = ncg; S.massNow = m; S.I = I; S.loadKg = m - m0; S._LFromW();
+      S.cgb = ncg; S.massNow = m + P.mUns; S.I = I; S.loadKg = m - m0; S._LFromW();
       bw(R, S.cgb, _a); S.cgw[0] = ox + _a[0]; S.cgw[1] = oy + _a[1]; S.cgw[2] = oz + _a[2];
     },
     // the world position of a model-frame point (seats, muzzles, exhaust, dust emitters)
@@ -285,7 +297,7 @@ export function createVehicleSim(spec, opts = {}) {
     pointVel(p, out = v3()) { qToR(S.q, R); _t[0] = p[0] - S.cgb[0]; _t[1] = p[1] - S.cgb[1]; _t[2] = p[2] - S.cgb[2]; bw(R, _t, _a); crossTo(S.w, _a, out); out[0] += S.vel[0]; out[1] += S.vel[1]; out[2] += S.vel[2]; return out; },
     // push the body (impulse N s at a world point, world direction), e.g. from a collision with another vehicle or a blast
     impulse(at, J) {
-      S.vel[0] += J[0] / S.massNow; S.vel[1] += J[1] / S.massNow; S.vel[2] += J[2] / S.massNow;
+      const mb = S.massNow - P.mUns; S.vel[0] += J[0] / mb; S.vel[1] += J[1] / mb; S.vel[2] += J[2] / mb;
       _a[0] = at[0] - S.cgw[0]; _a[1] = at[1] - S.cgw[1]; _a[2] = at[2] - S.cgw[2]; crossTo(_a, J, _b);
       S.L[0] += _b[0]; S.L[1] += _b[1]; S.L[2] += _b[2]; qToR(S.q, R); wFromL(R);
     },
@@ -414,7 +426,7 @@ export function createVehicleSim(spec, opts = {}) {
   const rowW = new Int32Array(NW).fill(-1);
   function sub(h, ctl, env) {
     S._t += h;
-    const g = env.g ?? 9.81, m = S.massNow, cg = S.cgb;
+    const g = env.g ?? 9.81, m = S.massNow - P.mUns, cg = S.cgb;   // the body (sprung) mass; the wheels carry their own
     qToR(S.q, R);
     F[0] = 0; F[1] = -m * g; F[2] = 0; Tq[0] = Tq[1] = Tq[2] = 0;
     const X = [R[0], R[1], R[2]], Y = [R[3], R[4], R[5]], Z = [R[6], R[7], R[8]];
@@ -425,81 +437,80 @@ export function createVehicleSim(spec, opts = {}) {
     };
     const velAt = (px, py, pz, o) => { const rx = px - S.cgw[0], ry = py - S.cgw[1], rz = pz - S.cgw[2]; o[0] = S.vel[0] + S.w[1] * rz - S.w[2] * ry; o[1] = S.vel[1] + S.w[2] * rx - S.w[0] * rz; o[2] = S.vel[2] + S.w[0] * ry - S.w[1] * rx; return o; };
     const water = env.water;
-    // ---------------- suspension geometry and spring forces
+    // ---------------- suspension: a quarter car per wheel
+    // Each wheel has unsprung mass and a strut-travel state s (0 = full bump, travel = full droop) with its rate sv. The
+    // strut (spring, damper, bump and droop stops, anti-roll bar, the link "jacking" force) pushes the body up and the
+    // wheel down; the tyre is a stiff damped spring between the wheel and the ground. A kerb, a log or a ramp kink is met
+    // by the tyre deflecting and the wheel accelerating, not by an instant jump of the strut (which made bump-stop
+    // impulses launch vehicles off steps).
     const brakeScale = S.mods.brake * (spec.brakes.air ? clamp((S.airPsi - 15) / 55, 0, 1) : 1);
+    const ax = S._acc[0] * Y[0] + S._acc[1] * Y[1] + S._acc[2] * Y[2];   // body specific force along its vertical (last substep)
     let onG = 0;
     for (const W of wheels) {
-      const ws = W.spec, k = P.wk[W.i], T = k.T;
+      const ws = W.spec, k = P.wk[W.i];
       W.wasContact = W.contact;
-      // hardpoint: wheel centre at full bump (model frame), relative to the CG, to world
+      // hardpoint: wheel centre at full bump (model frame), relative to the CG, to world; the wheel centre C = H - Y s
       _a[0] = ws.x - cg[0]; _a[1] = k.yTop - cg[1]; _a[2] = ws.z - cg[2]; bw(R, _a, _b);
       const Hx = S.cgw[0] + _b[0], Hy = S.cgw[1] + _b[1], Hz = S.cgw[2] + _b[2];
-      // flat tyre: the tyre squashes towards the rim
+      const s = W.s, Cx = Hx - Y[0] * s, Cy = Hy - Y[1] * s, Cz = Hz - Y[2] * s;
+      W.Hx = Hx; W.Hy = Hy; W.Hz = Hz; W.Cx = Cx; W.Cy = Cy; W.Cz = Cz;
+      // flat tyre: on the rim, smaller and softer
       const flat = W.ts.flat;
-      W.rEff = k.r * (1 - 0.22 * flat) - W.ts.sink;
-      // ground under the wheel: the plane under the contact (exact on slopes), plus point probes along the tyre's lower
-      // arc ahead and behind (circle against the ground points), so a kerb, a step or a slope kink is met by the front of
-      // the tyre with a tilted contact normal instead of the strut bottoming out. The probe that lifts the wheel most wins.
-      const r = W.rEff, sx = Hx - Y[0] * (W.s + r), sz = Hz - Y[2] * (W.s + r);
+      const r = W.rEff = k.r * (1 - 0.22 * flat) - W.ts.sink;
+      // ground: the plane under the wheel (exact on slopes) and point probes along the lower arc (kerbs, steps, kinks);
+      // the deepest penetration of the tyre circle wins, its normal points from the ground point to the wheel centre
+      const sx = Cx - Y[0] * r, sz = Cz - Y[2] * r;
       env.ground(sx, sz, gout);
       _n[0] = gout.nx; _n[1] = gout.ny; _n[2] = gout.nz;
-      const nd = -(dot(_n, Y));   // n . d with d = -Y
-      const hp = _n[0] * (Hx - sx) + _n[1] * (Hy - gout.h) + _n[2] * (Hz - sz);   // hardpoint above the ground plane
-      let s = nd < -0.25 ? (r - hp) / nd : Infinity, surf = gout.surf, gvx = gout.vx || 0, gvy = gout.vy || 0, gvz = gout.vz || 0, pt = false, mu = gout.mu ?? 1;
-      if (PROBES > 1 && s < k.travel + 0.3) {
-        // heading on the ground (no steer needed for the probe offsets: the arc is short)
+      let pen = r - (_n[0] * (Cx - sx) + _n[1] * (Cy - gout.h) + _n[2] * (Cz - sz));
+      let surf = gout.surf, gvx = gout.vx || 0, gvy = gout.vy || 0, gvz = gout.vz || 0, pt = false, mu = gout.mu ?? 1;
+      if (PROBES > 1 && pen > -0.3) {
         const hx = -Z[0], hz = -Z[2], hl = Math.hypot(hx, hz) || 1, fx = hx / hl, fz = hz / hl;
         for (let p = 0; p < PROBE_OFF.length; p++) {
           const off = PROBE_OFF[p] * r, px = sx + fx * off, pz = sz + fz * off;
           env.ground(px, pz, gout2);
-          // circle (centre on the strut line) touching the ground point G: |H - Y s - G| = r, smaller root
-          const dx = Hx - px, dy = Hy - gout2.h, dz = Hz - pz, b = Y[0] * dx + Y[1] * dy + Y[2] * dz, c = dx * dx + dy * dy + dz * dz - r * r, disc = b * b - c;
-          if (disc < 0) continue;
-          const sp = b - Math.sqrt(disc);
-          if (sp < s - 0.002) {
-            s = sp; pt = true; surf = gout2.surf; mu = gout2.mu ?? 1; gvx = gout2.vx || 0; gvy = gout2.vy || 0; gvz = gout2.vz || 0;
-            // contact normal: from the ground point to the wheel centre
-            const cx_ = Hx - Y[0] * sp - px, cy_ = Hy - Y[1] * sp - gout2.h, cz_ = Hz - Y[2] * sp - pz, l = Math.hypot(cx_, cy_, cz_) || 1;
-            _n[0] = cx_ / l; _n[1] = cy_ / l; _n[2] = cz_ / l;
-            // on a smooth slope the point probe agrees with the plane: keep the true surface normal
+          const dx = Cx - px, dy = Cy - gout2.h, dz = Cz - pz, d = Math.hypot(dx, dy, dz) || 1, pp = r - d;
+          if (pp > pen + 0.002 && dy > 0) {
+            pen = pp; pt = true; surf = gout2.surf; mu = gout2.mu ?? 1; gvx = gout2.vx || 0; gvy = gout2.vy || 0; gvz = gout2.vz || 0;
+            _n[0] = dx / d; _n[1] = dy / d; _n[2] = dz / d;
             if (gout2.ny * _n[1] + gout2.nx * _n[0] + gout2.nz * _n[2] > 0.995) { _n[0] = gout2.nx; _n[1] = gout2.ny; _n[2] = gout2.nz; }
           }
         }
       }
       W.surf = surfIndex(surf); W.muScale = mu;
-      if (s >= k.travel) { W.contact = false; s = k.travel; }
-      else W.contact = true;
-      W.s = s;
-      const sdot = W.wasContact && W.contact ? clamp((s - W.sPrev) / h, -8, 8) : 0;
-      W.sPrev = s;
-      if (!W.contact) { W.Fs = 0; W.Fd = 0; W.Fz = 0; W.air = true; continue; }
-      W.air = false; onG++;
-      let Fs = k.k * (k.sFree - Math.max(s, 0)), Fd = -(sdot < 0 ? k.cb : k.cr) * sdot;
-      // progressive bump stop (rubber) and, past it, the tyre carcass: both damped
-      // progressive bump stop (rubber) and, past it, the tyre carcass: both damped; the crush is capped (a penalty spring
-      // fed a metre of penetration in one substep - a cliff edge in a heightfield - would launch the vehicle)
-      if (s < 0.025) { const sc = Math.max(s, -0.12); Fs += k.kbs * (0.025 - sc) + (sc < 0 ? k.kbs * 2 * -sc : 0); if (sdot < 0) Fd -= k.cbs * Math.max(sdot, -3); }
-      W.Fs = Math.max(0, Fs);
-      W.Fd = Fd;
-      W.nDotY = Math.max(0.6, dot(_n, Y));   // a kerb face pushes back, but never more than ~1.7 x the strut load
-      // contact frame
-      W.cx = Hx - Y[0] * s - _n[0] * r; W.cy = Hy - Y[1] * s - _n[1] * r; W.cz = Hz - Y[2] * s - _n[2] * r;
-      W.nx = _n[0]; W.ny = _n[1]; W.nz = _n[2]; W.gvx = gvx; W.gvy = gvy; W.gvz = gvz; W.pt = pt;
-      W.Hx = Hx; W.Hy = Hy; W.Hz = Hz;
+      W.contact = pen > 0;
+      // tyre vertical force: stiffness x deflection + damping, bottoming on the rim past ~60% of the section
+      let N = 0;
+      if (W.contact) {
+        const penDot = W.wasContact ? clamp((pen - W.penPrev) / h, -4, 4) : 0;
+        const kt = k.kt * (1 - 0.75 * flat), bott = k.penMax * (1 - 0.6 * flat);
+        N = kt * pen + k.ct * penDot + (pen > bott ? kt * 6 * (pen - bott) : 0);
+        N = clamp(N, 0, P.wheelLoad[W.i] * 15);
+        onG++;
+      }
+      W.penPrev = pen > 0 ? pen : 0;
+      W.N = N; W.pt = pt;
+      W.nx = _n[0]; W.ny = _n[1]; W.nz = _n[2]; W.gvx = gvx; W.gvy = gvy; W.gvz = gvz;
+      const rc = r - Math.max(0, pen);   // centre to the (deflected) contact
+      W.cx = Cx - _n[0] * rc; W.cy = Cy - _n[1] * rc; W.cz = Cz - _n[2] * rc;
+      W.air = !W.contact;
+      // strut: spring (preloaded for the sprung corner load), damper, progressive bump stop, droop stop
+      const sv = W.sv;
+      let Fs = Math.max(0, k.k * (k.sFree - s));
+      let Fd = -(sv < 0 ? k.cb : k.cr) * sv;
+      if (s < 0.025) { Fs += k.kbs * (0.025 - s) + (s < 0 ? k.kbs * 2 * -s : 0); if (sv < 0) Fd += k.cbs * -sv; }
+      if (s > k.travel) { Fs -= k.kbs * (s - k.travel); if (sv > 0) Fd -= k.cbs * sv; }   // droop (rebound) stop
+      W.Fs = Fs; W.Fd = Fd;
       // water at the wheel (fords: wet brakes, drag)
       W.depthW = water ? Math.max(0, (water(W.cx, W.cz) ?? -Infinity) - W.cy) : 0;
     }
     S.onGround = onG > 0;
-    // anti-roll bars and the walking bogie (shared spring), then the roll-centre load transfer (jacking)
+    // anti-roll bars, the walking bogie (one spring per side shared by both rear axles), the roll-centre link forces
     for (const a of spec.axles) {
       const [li, ri] = a.wheels, L = wheels[li], Rw = wheels[ri];
-      if (a.arb && L.contact && Rw.contact) { const d = (P.wk[li].travel - L.s) - (P.wk[ri].travel - Rw.s); L.Fs += a.arb * d; Rw.Fs -= a.arb * d; }
+      if (a.arb) { const d = Rw.s - L.s; L.Fs += a.arb * d; Rw.Fs -= a.arb * d; }   // the bar loads the compressed side
     }
-    if (spec.bogiePairs) for (const [i, j] of spec.bogiePairs) {   // trunnion: one leaf spring, centre pivot; equal loads
-      const A = wheels[i], B = wheels[j];
-      if (A.contact && B.contact) { const f = (A.Fs + B.Fs) / 2; A.Fs = B.Fs = f; }
-      else if (A.contact !== B.contact) { const W = A.contact ? A : B; W.Fs *= 0.5 + 0.5 * clamp(W.s / P.wk[W.i].travel, 0, 1); }   // beam on its stop
-    }
+    if (spec.bogiePairs) for (const [i, j] of spec.bogiePairs) { const A = wheels[i], B = wheels[j], f = (A.Fs + B.Fs) / 2; A.Fs = B.Fs = f; }
     for (const a of spec.axles) {
       const [li, ri] = a.wheels, L = wheels[li], Rw = wheels[ri], half = Math.abs(spec.wheels[ri].x - spec.wheels[li].x) / 2;
       for (const W of [L, Rw]) {
@@ -508,58 +519,61 @@ export function createVehicleSim(spec, opts = {}) {
         W.Fjack = a.solid ? -side * (L.Fbx + Rw.Fbx) * hrc / (2 * half) : -side * W.Fbx * hrc / half;
       }
     }
-    // ---------------- tyres
+    // ---------------- tyres, body forces, wheel travel
     for (const W of wheels) {
       const ws = W.spec, k = P.wk[W.i], a = spec.axles[ws.axle];
       const node = 4 + W.i;
       W.omega = solver.w[node];
-      if (!W.contact) { W.ts.Fx = W.ts.Fy = 0; W.Fbx *= 0.9; W.Fz = 0; W.slide = 0; W.tq = 0; continue; }
-      // the strut and links carry Fs + Fd + Fjack along the body vertical; for a massless wheel the ground's normal
-      // reaction N satisfies N (n . Y) = that, so a tilted contact (kerb, step, the front of the tyre on a slope kink)
-      // pushes back as well as up
-      // (capped at ~10 x the static corner load: beyond that the tyre bottoms on the rim and the stops; no real contact
-      // transmits more, and a penalty contact that did would launch the vehicle off a kerb)
-      const Fz = Math.min(P.wheelLoad[W.i] * 10, Math.max(0, W.Fs + W.Fd + W.Fjack)) / W.nDotY;
-      W.Fz = Fz;
-      _n[0] = W.nx; _n[1] = W.ny; _n[2] = W.nz;
-      // heading: body forward rotated by the steer angle (+ the axle's toe change with travel: a semi-trailing arm toes
-      // out as it droops, so a lift-off that raises the tail steers the rear out), flattened onto the ground plane
-      const toe = a.toeGain ? Math.sign(ws.x) * a.toeGain * (W.s - k.s0) : 0;
-      W.toe = toe;
-      const sd = Math.sin(W.steer + toe), cd = Math.cos(W.steer + toe);
-      _f[0] = X[0] * sd - Z[0] * cd; _f[1] = X[1] * sd - Z[1] * cd; _f[2] = X[2] * sd - Z[2] * cd;
-      const fn = dot(_f, _n); _ex[0] = _f[0] - _n[0] * fn; _ex[1] = _f[1] - _n[1] * fn; _ex[2] = _f[2] - _n[2] * fn; norm(_ex);
-      crossTo(_ex, _n, _ey);   // right
-      velAt(W.cx, W.cy, W.cz, _v); _v[0] -= W.gvx; _v[1] -= W.gvy; _v[2] -= W.gvz;
-      const vx = dot(_v, _ex), vy = dot(_v, _ey); W.vx = vx; W.vy = vy;
-      // camber against the road: independent wheels lean with the body plus their camber curve; solid axles stay square
-      let gam = 0;
-      if (!a.solid) {
-        const side = Math.sign(ws.x), gb = (a.camber0 ?? 0) + (a.camberGain ?? 0) * (W.s - k.s0);   // + = top outward
-        const cg_ = Math.cos(gb), sg = Math.sin(gb) * side;
-        _t[0] = Y[0] * cg_ + X[0] * sg; _t[1] = Y[1] * cg_ + X[1] * sg; _t[2] = Y[2] * cg_ + X[2] * sg;
-        gam = Math.asin(clamp(dot(_t, _ey), -1, 1));
+      const Fb = W.Fs + W.Fd + W.Fjack;   // strut + links: up on the body, down on the wheel
+      // the strut's line of action: the hardpoint axis through the wheel centre
+      addF(Y[0] * Fb, Y[1] * Fb, Y[2] * Fb, W.Cx, W.Cy, W.Cz);
+      let GY = 0;   // ground force on the wheel along the strut axis (goes into the wheel's travel)
+      if (!W.contact) { W.ts.Fx = W.ts.Fy = 0; W.Fbx *= 0.9; W.Fz = 0; W.slide = 0; W.tq = 0; }
+      else {
+        const Fz = W.N; W.Fz = Fz;
+        _n[0] = W.nx; _n[1] = W.ny; _n[2] = W.nz;
+        // heading: body forward rotated by the steer angle (+ the axle's toe change with travel: a semi-trailing arm toes
+        // out as it droops, so a lift-off that raises the tail steers the rear out), flattened onto the contact plane
+        const toe = a.toeGain ? Math.sign(ws.x) * a.toeGain * (W.s - k.s0) : 0;
+        W.toe = toe;
+        const sd = Math.sin(W.steer + toe), cd = Math.cos(W.steer + toe);
+        _f[0] = X[0] * sd - Z[0] * cd; _f[1] = X[1] * sd - Z[1] * cd; _f[2] = X[2] * sd - Z[2] * cd;
+        const fn = dot(_f, _n); _ex[0] = _f[0] - _n[0] * fn; _ex[1] = _f[1] - _n[1] * fn; _ex[2] = _f[2] - _n[2] * fn; norm(_ex);
+        crossTo(_ex, _n, _ey);   // right
+        velAt(W.cx, W.cy, W.cz, _v); _v[0] -= W.gvx; _v[1] -= W.gvy; _v[2] -= W.gvz;
+        const vx = dot(_v, _ex), vy = dot(_v, _ey); W.vx = vx; W.vy = vy;
+        // camber against the road: independent wheels lean with the body plus their camber curve; solid axles stay square
+        let gam = 0;
+        if (!a.solid) {
+          const side = Math.sign(ws.x), gb = (a.camber0 ?? 0) + (a.camberGain ?? 0) * (W.s - k.s0);   // + = top outward
+          const cg_ = Math.cos(gb), sg = Math.sin(gb) * side;
+          _t[0] = Y[0] * cg_ + X[0] * sg; _t[1] = Y[1] * cg_ + X[1] * sg; _t[2] = Y[2] * cg_ + X[2] * sg;
+          gam = Math.asin(clamp(dot(_t, _ey), -1, 1));
+        }
+        W.camber = gam;
+        const surf = SURFACES[W.surf] || SURFACES[0];
+        const sf = SCALED(W.depthW > 0.05 ? WET_OF(surf) : surf, W.muScale);
+        tyreStep(k.T, W.ts, sf, Fz, vx, vy, W.omega * W.rEff, gam, h);
+        const Fx = W.ts.Fx, Fy = W.ts.Fy;
+        W.slide = W.ts.slide;
+        // the ground's force on the wheel: normal + tyre plane forces (+ soil drag of a dug-in wheel). The part along the
+        // strut moves the wheel; the rest reaches the body through the links (a kerb face pushes the vehicle back)
+        let gx = _n[0] * Fz + Fx * _ex[0] + Fy * _ey[0], gy = _n[1] * Fz + Fx * _ex[1] + Fy * _ey[1], gz = _n[2] * Fz + Fx * _ex[2] + Fy * _ey[2];
+        if (W.ts.bull > 0) { const fb = -W.ts.bull * Fz * Math.max(-1, Math.min(1, vx / 0.3)); gx += fb * _ex[0]; gy += fb * _ex[1]; gz += fb * _ex[2]; }
+        GY = gx * Y[0] + gy * Y[1] + gz * Y[2];
+        addF(gx - Y[0] * GY, gy - Y[1] * GY, gz - Y[2] * GY, W.cx, W.cy, W.cz);
+        // the roll-centre bookkeeping: the lateral (body-x) tyre force feeds next substep's link force
+        W.Fbx = (Fx * _ex[0] + Fy * _ey[0]) * X[0] + (Fx * _ex[1] + Fy * _ey[1]) * X[1] + (Fx * _ex[2] + Fy * _ey[2]) * X[2];
+        W.tq = -Fx * W.rEff;
+        // wading: water drag on the wheel
+        if (W.depthW > 0.05) { const dv = Math.min(1, W.depthW / (2 * k.r)), A = 2 * k.r * k.T.w * dv * 0.9, sp = Math.hypot(_v[0], _v[2]); if (sp > 0.05) { const f = 0.5 * RHO_W * 1.0 * A * sp; addF(-f * _v[0], 0, -f * _v[2], W.cx, W.cy + 0.3, W.cz); } }
       }
-      W.camber = gam;
-      // water on the contact: aquaplaning-light (a ford's mud bed): grip drops with depth
-      const surf = SURFACES[W.surf] || SURFACES[0];
-      const sf = SCALED(W.depthW > 0.05 ? WET_OF(surf) : surf, W.muScale);
-      tyreStep(k.T, W.ts, sf, Fz, vx, vy, W.omega * W.rEff, gam, h);
-      const Fx = W.ts.Fx, Fy = W.ts.Fy;
-      W.slide = W.ts.slide;
-      const tx = Fx * _ex[0] + Fy * _ey[0], ty = Fx * _ex[1] + Fy * _ey[1], tz = Fx * _ex[2] + Fy * _ey[2];
-      // the tyre force is the external force and acts at the contact. The roll-centre geometry only decides how the
-      // resulting load transfer reaches the wheel: through the links (Fjack, no body roll; a net lift on an independent
-      // axle) or through the springs (body roll). Fbx (lateral along the body) feeds next substep's Fjack.
-      W.Fbx = tx * X[0] + ty * X[1] + tz * X[2];
-      addF(tx, ty, tz, W.cx, W.cy, W.cz);
-      // the ground's normal reaction through the contact (and the wheel centre)
-      addF(_n[0] * Fz, _n[1] * Fz, _n[2] * Fz, W.cx, W.cy, W.cz);
-      W.tq = -Fx * W.rEff;
-      // soil drag of a dug-in wheel (sinkage), opposing the travel along the heading
-      if (W.ts.bull > 0) { const fb = -W.ts.bull * Fz * Math.max(-1, Math.min(1, vx / 0.3)); addF(fb * _ex[0], fb * _ex[1], fb * _ex[2], W.cx, W.cy + W.rEff * 0.3, W.cz); }
-      // wading: water drag on the wheel
-      if (W.depthW > 0.05) { const dv = Math.min(1, W.depthW / (2 * k.r)), A = 2 * k.r * k.T.w * dv * 0.9, sp = Math.hypot(_v[0], _v[2]); if (sp > 0.05) { const f = 0.5 * RHO_W * 1.0 * A * sp; addF(-f * _v[0], 0, -f * _v[2], W.cx, W.cy + 0.3, W.cz); } }
+      // wheel travel (along -Y = extension): the strut pushes it out, the ground pushes it in; gravity cancels against the
+      // body's own fall, the body's acceleration along its vertical is felt as inertia
+      const acc = (Fb - GY) / k.mu + ax;
+      W.sv += acc * h; W.s += W.sv * h;
+      if (W.s < -0.15) { W.s = -0.15; if (W.sv < 0) W.sv = 0; }               // rim on the stops (should never happen)
+      if (W.s > k.travel + 0.04) { W.s = k.travel + 0.04; if (W.sv > 0) W.sv = 0; }
     }
     // ---------------- drivetrain (one exact solve per substep)
     const tE = engineTorque(h, ctl, env);
@@ -678,8 +692,14 @@ export function createVehicleSim(spec, opts = {}) {
       if (sp > 0.1) { const k = 0.5 * RHO_AIR * spec.aero.CdA * sp; F[0] -= k * vx; F[1] -= k * vy; F[2] -= k * vz; }
     }
     // ---------------- integrate the body
-    S._acc[0] = F[0] / m; S._acc[1] = F[1] / m + g; S._acc[2] = F[2] / m;
-    S.vel[0] += F[0] / m * h; S.vel[1] += F[1] / m * h; S.vel[2] += F[2] / m * h;
+    // the wheels ride with the body except along the struts: across the strut axis the whole mass (body + wheels, with
+    // the wheels' own weight component) is accelerated; along it only the sprung body (the wheels have their own travel)
+    {
+      const Mt = S.massNow, gy = -g * Y[1];   // gravity per kg: along Y gy, across Y (0, -g, 0) - gy Y
+      F[0] += P.mUns * (0 - gy * Y[0]); F[1] += P.mUns * (-g - gy * Y[1]); F[2] += P.mUns * (0 - gy * Y[2]);
+      const fy = F[0] * Y[0] + F[1] * Y[1] + F[2] * Y[2];
+      for (let c = 0; c < 3; c++) { const par = fy * Y[c], acc = par / m + (F[c] - par) / Mt; S._acc[c] = acc + (c === 1 ? g : 0); S.vel[c] += acc * h; }
+    }
     // rotation through the world angular momentum: L += T h, w = R I^-1 R^T L. The gyroscopic coupling comes out of the
     // changing orientation exactly, and a tumbling body can't gain energy the way explicit Euler on w x (I w) does.
     const L = S.L;

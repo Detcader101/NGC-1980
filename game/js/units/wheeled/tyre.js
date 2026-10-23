@@ -40,7 +40,8 @@ export const SURFACES = [
 export const SURF = Object.fromEntries(SURF_NAMES.map((n, i) => [n, i]));
 export const surfIndex = s => typeof s === 'number' ? (s | 0) : (SURF[s] ?? 0);
 
-// Tyre types. r: unloaded radius m; w: section width m; Fz0: rated load N; cK, cA: longitudinal / cornering stiffness per
+// Tyre types. kz: vertical stiffness N/m (static deflection ~ 8-12% of the section at the rated load: Wong fig. 1.30 /
+// Pacejka ch. 9; 6-ply bias light truck ~150-200 kN/m, 12-ply 11.00-20 ~500 kN/m - INFERRED); r: unloaded radius m; w: section width m; Fz0: rated load N; cK, cA: longitudinal / cornering stiffness per
 // unit load (1/unit slip, 1/rad); dK, dA: their fall with load (per unit Fz/Fz0 - 1); dMu: mu fall with load; cG: camber
 // thrust per unit load (1/rad); Lx, Ly: relaxation lengths m; crr: rolling resistance factor (x surface crr); press: kPa;
 // tread: 'xc' (military non-directional cross-country, NDT) or 'road'; I: wheel + tyre + hub polar inertia kg m2.
@@ -48,21 +49,23 @@ export const surfIndex = s => typeof s === 'number' ? (s | 0) : (SURF[s] ?? 0);
 // (bias truck tyres ~ 6-10 /rad, car radials ~ 15-20 /rad) and Pacejka ch. 4 - INFERRED within those ranges.
 export const TYRES = {
   // M151A2: 7.00-16 6-ply NDT bias, 0.38 m (TM 9-2320-218-10: tyre 7.00x16, 30 psi front / 30 rear cross-country) - CONFIRMED size
-  '7.00-16 NDT': { r: 0.381, w: 0.18, Fz0: 3600, cK: 13, cA: 9.5, dK: -0.15, dA: -0.25, dMu: -0.12, cG: 0.9, Lx: 0.30, Ly: 0.45, crr: 1.25, press: 205, tread: 'xc', I: 1.6 },
+  '7.00-16 NDT': { kz: 170e3, r: 0.381, w: 0.18, Fz0: 3600, cK: 13, cA: 9.5, dK: -0.15, dA: -0.25, dMu: -0.12, cG: 0.9, Lx: 0.30, Ly: 0.45, crr: 1.25, press: 205, tread: 'xc', I: 1.6 },
   // M35A2: 11.00-20 12-ply NDT single (TM 9-2320-209-10; 9.00-20 duals on early trucks) - CONFIRMED size
-  '11.00-20 NDT': { r: 0.546, w: 0.28, Fz0: 15000, cK: 11, cA: 7.0, dK: -0.15, dA: -0.25, dMu: -0.10, cG: 0.7, Lx: 0.45, Ly: 0.70, crr: 1.15, press: 310, tread: 'xc', I: 14 },
+  '11.00-20 NDT': { kz: 520e3, r: 0.546, w: 0.28, Fz0: 15000, cK: 11, cA: 7.0, dK: -0.15, dA: -0.25, dMu: -0.10, cG: 0.7, Lx: 0.45, Ly: 0.70, crr: 1.15, press: 310, tread: 'xc', I: 14 },
   // Land Rover Series III 109: 7.50-16 bias (owner's handbook) - CONFIRMED size
-  '7.50-16': { r: 0.400, w: 0.19, Fz0: 4500, cK: 13, cA: 9.0, dK: -0.15, dA: -0.25, dMu: -0.12, cG: 0.9, Lx: 0.32, Ly: 0.48, crr: 1.15, press: 230, tread: 'xc', I: 1.9 },
+  '7.50-16': { kz: 190e3, r: 0.400, w: 0.19, Fz0: 4500, cK: 13, cA: 9.0, dK: -0.15, dA: -0.25, dMu: -0.12, cG: 0.9, Lx: 0.32, Ly: 0.48, crr: 1.15, press: 230, tread: 'xc', I: 1.9 },
   // Toyota Hilux 4WD (RN36/38): 7.00-15 6PR (CONFIRMED size, Toyota brochure 1979-80)
-  '7.00-15': { r: 0.370, w: 0.18, Fz0: 4000, cK: 14, cA: 10.5, dK: -0.15, dA: -0.25, dMu: -0.12, cG: 0.9, Lx: 0.28, Ly: 0.42, crr: 1.05, press: 220, tread: 'road', I: 1.4 },
+  '7.00-15': { kz: 180e3, r: 0.370, w: 0.18, Fz0: 4000, cK: 14, cA: 10.5, dK: -0.15, dA: -0.25, dMu: -0.12, cG: 0.9, Lx: 0.28, Ly: 0.42, crr: 1.05, press: 220, tread: 'road', I: 1.4 },
   // VW Beetle 1200: 5.60-15 bias (155SR15 radial option) (VW owner's manual) - CONFIRMED size
-  '5.60-15': { r: 0.318, w: 0.145, Fz0: 3000, cK: 14, cA: 11, dK: -0.15, dA: -0.25, dMu: -0.12, cG: 1.0, Lx: 0.24, Ly: 0.36, crr: 1.0, press: 170, tread: 'road', I: 0.75 },
+  '5.60-15': { kz: 140e3, r: 0.318, w: 0.145, Fz0: 3000, cK: 14, cA: 11, dK: -0.15, dA: -0.25, dMu: -0.12, cG: 1.0, Lx: 0.24, Ly: 0.36, crr: 1.0, press: 170, tread: 'road', I: 0.75 },
   // Lada 2101: 155SR13 radial (VAZ factory data) - CONFIRMED size
-  '155SR13': { r: 0.287, w: 0.155, Fz0: 3200, cK: 18, cA: 15, dK: -0.15, dA: -0.25, dMu: -0.10, cG: 0.8, Lx: 0.20, Ly: 0.32, crr: 0.85, press: 180, tread: 'road', I: 0.65 },
+  '155SR13': { kz: 165e3, r: 0.287, w: 0.155, Fz0: 3200, cK: 18, cA: 15, dK: -0.15, dA: -0.25, dMu: -0.10, cG: 0.8, Lx: 0.20, Ly: 0.32, crr: 0.85, press: 180, tread: 'road', I: 0.65 },
 };
 
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
-const PLOW_K = 3.2;   // lateral bulldozing force per unit load at sqrt(rut depth / radius) = 1 (INFERRED: ~0.5-0.8 g extra in a 4-8 cm rut)
+// lateral bulldozing force per unit load at sqrt(rut depth / radius) = 1 (INFERRED: tuned so SSF ~1.1 vehicles trip at
+// NHTSA soil-trip lateral speeds, 25-45 km/h); mutable for experiments
+export const TYRE_TUNING = { plowK: 3.2 };
 // magic formula on normalised slip x (peak at x = 1, value 1 there): B solved per (C, E) once and cached
 const _B = new Map();
 function peakB(C, E) {
@@ -95,7 +98,10 @@ export function tyreStep(T, st, surf, Fz, vx, vy, wr, gamma, dt) {
   const dfz = Fz / T.Fz0 - 1;
   // friction: surface x tread x load sensitivity x flat (a tyre on the rim keeps ~45%)
   const tread = xc ? surf.tread : 1 / Math.max(0.9, surf.tread * 0.92);
-  const mu = surf.mu * tread * clamp(1 + T.dMu * dfz, 0.6, 1.15) * (1 - 0.55 * flat);
+  // rubber friction falls with sliding speed (Pacejka 2006 eq. 4.E23 form) and levels off: a locked-wheel skid on dry
+  // asphalt keeps ~75% of the peak (skid-mark friction 0.65-0.75 vs peak 0.85-1.0, Wong ch. 1.4; INFERRED shape)
+  const vSlide = Math.hypot(wr - vx, vy);
+  const mu = surf.mu * tread * clamp(1 + T.dMu * dfz, 0.6, 1.15) * (1 - 0.55 * flat) * (1 - 0.25 * clamp((vSlide - 0.5) / 8, 0, 1));
   const CK = Math.max(0.2, T.cK * (1 + T.dK * dfz)) * Fz * (1 - 0.5 * flat), CA = Math.max(0.2, T.cA * (1 + T.dA * dfz)) * Fz * (1 - 0.6 * flat);
   const Lx = T.Lx * (1 + flat), Ly = T.Ly * (1 + flat), avx = Math.abs(vx);
   // deflection states (transient slip); low-speed damping blends in below ~3 m/s
@@ -116,7 +122,7 @@ export function tyreStep(T, st, surf, Fz, vx, vy, wr, gamma, dt) {
     Fy = muy * Fz * mf(s, surf.Cy, surf.Ey) * ny / s;
   }
   // low-speed damping (the deflection spring would otherwise ring at standstill); fades out by 3 m/s
-  const lw = clamp(1 - avx / 3, 0, 1);
+  const lw = clamp(1 - Math.hypot(vx, vy) / 3, 0, 1);   // the contact speed, not just the rolling speed: a sideways slide is not "low speed"
   if (lw > 0) {
     const m = Fz / 9.81;  // the corner's share of the mass is close to Fz / g
     Fx += lw * 2 * 0.7 * Math.sqrt(CK / Lx * m) * sx * 0.5;
@@ -127,7 +133,7 @@ export function tyreStep(T, st, surf, Fz, vx, vy, wr, gamma, dt) {
   // pressure on the sidewall, Bekker / Wong ch. 2.5). The lateral resistance can then pass the friction limit - the
   // mechanism of the "tripped" rollover (most real rollovers, the M151's included). Grows with the side-slip sinkage.
   if (surf.sink > 0 && st.plow > 0.002) {
-    const cap = Fz * PLOW_K * Math.sqrt(st.plow / T.r) * (xc ? 1.1 : 1), vyl = Math.abs(vy);
+    const cap = Fz * TYRE_TUNING.plowK * Math.sqrt(st.plow / T.r) * (xc ? 1.1 : 1), vyl = Math.abs(vy);
     Fy += -Math.sign(vy) * cap * Math.min(1, vyl / 0.6);
   }
   st.Fx = Fx; st.Fy = Fy; st.kappa = kappa; st.alpha = Math.atan(tanA); st.mu = mu;

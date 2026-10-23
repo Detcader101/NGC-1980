@@ -69,7 +69,9 @@ export function createDriver(spec, mode = 'auto') {
           // what it takes to keep going: the slope (felt through the seat), rolling resistance and drag, in engine N m x ratio
           const need = (sim.massNow * 9.81 * (Math.max(0, Math.sin(sim.pitch)) + 0.025) + 0.6 * sim.spec.aero.CdA * vv * vv) * sim.wheels[0].r / (fin * rng * 0.9);
           const can = table(E.curve, rpm2) * (E.installed ?? 1) * r2;
-          if (want < n && D.t - (D.lastDown ?? -9) > 3 && rpmV(want) > up && c.clutch < 0.1 && thr > 0.05 && rpm2 > down * 1.03 && (thr < 0.9 || can > need * 1.15)) want++;
+          const upOk = want < n && D.t - (D.lastDown ?? -9) > 3 && rpmV(want) > up && c.clutch < 0.1 && thr > 0.05 && rpm2 > down * 1.03 && (thr < 0.9 || can > need * 1.15);
+          D.upT = upOk ? (D.upT || 0) + dt : 0;   // held for 0.4 s: a jolt over a kink is not a reason to change up
+          if (upOk && D.upT > 0.4) { want++; D.upT = 0; }
           else if (want > 1 && rpm < down && rpmIn(want - 1) < top * 0.9 && (GB.synchro[want - 2] || Math.abs(wOut) < 0.5)) want--;
           else if (want > 1 && Math.abs(v) < 0.8 && brk > 0 && (GB.synchro[0] || Math.abs(wOut) < 0.5)) want = 1;
         }

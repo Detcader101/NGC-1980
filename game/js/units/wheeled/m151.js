@@ -27,8 +27,8 @@ export const M151 = {
   // rc = roll-centre height above the ground (model frame y); camberGain rad per m of extension (+ = top outward in droop);
   // toeGain rad per m of extension (+ = toe-out in droop: the semi-trailing arm's geometry, ~1 deg per 5 cm, INFERRED).
   axles: [
-    { z: ZF, wheels: [0, 1], solid: false, freq: 1.45, bump: 0.085, droop: 0.095, zeta: [0.28, 0.42], rc: 0.10, camber0: 0, camberGain: 0.35, driven: 'F', final: 4.86, diff: 'open' },
-    { z: ZR, wheels: [2, 3], solid: false, freq: 1.60, bump: 0.085, droop: 0.110, zeta: [0.28, 0.42], rc: 0.30, camber0: 0, camberGain: 0.85, toeGain: 0.3, driven: 'R', final: 4.86, diff: 'open' },
+    { z: ZF, wheels: [0, 1], solid: false, freq: 1.7, bump: 0.085, droop: 0.095, zeta: [0.28, 0.42], rc: 0.10, camber0: 0, camberGain: 0.35, driven: 'F', final: 4.86, diff: 'open' },
+    { z: ZR, wheels: [2, 3], solid: false, freq: 1.85, bump: 0.085, droop: 0.110, zeta: [0.28, 0.42], rc: 0.30, camber0: 0, camberGain: 0.85, toeGain: 0.45, driven: 'R', final: 4.86, diff: 'open' },
   ],
   // 7.00-16 NDT on all four (TM CONFIRMED)
   wheels: [
