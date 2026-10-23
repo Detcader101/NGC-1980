@@ -229,3 +229,50 @@ TM-73,254 (fuselage, stab bar, tail rotor), DCS UH-1H manual (limits, procedures
   LEFT / RIGHT, stored in localStorage (tz_ckfov). Applies to the Huey cockpit, the Hornet cockpit (zoom = 0.4x of it)
   and the dropship flight deck; chase cameras and the cave side view keep their own. The jet HUD is a physical
   combiner in the cockpit model, so it stays conformal at any FOV. Scene: tools/scenes/fov.mjs.
+
+## 2026-10-23 — NGC-1980 air defence units (ngc/defence-v2)
+Files: game/js/units/defence/ (tune.js tunables, kit.js modelling + bake, models.js, brain.js behaviour, sound.js),
+game/dev/defence.html + defence-sandbox.js, tools/scenes/defence.mjs, defencewar.mjs, defbalance.mjs. war.js: small
+commented `DEFENCE hook` lines only (import, createDefence, addStruct model + attach, starting-garrison flag,
+makeShip carrier refit + attach, updateGuns update, W.update tick, W.reset reset). ships.js and main.js untouched.
+- Units (game units, game-design numbers; no real weapon performance data): M163 VADS (command 2 on our islands),
+  ZSU-23-4 (our starting guns: the Soviet contingent), ALBATROSS close-in gun (white dome) and 8-cell box launcher,
+  RW TALON seized 8x8 gun/missile truck (most enemy islands; RUNAWAY refit: ceramic sensor pod on the cab, cyan IFF
+  strips, machine stencil over a scraped number, old camo patches), RW-5 LANCE laser (enemy hq + fortress islands,
+  two on IRONHOLD). Real-world sizes (M113 hull 4.86 x 2.69 m, Shilka 6.5 m, the truck 9.6 m).
+- Models: primitives in a hierarchy, then baked (kit.js) into ONE vertex-coloured flat-shaded Lambert mesh per
+  moving part (hull / turret / cradle / barrels / radar). The bake weathers: per-face jitter, mud low down, chips,
+  rust streaks. Team colour stays a separate material (air-recognition panels), as war.js recolours by identity.
+  4-5k tris for the vehicles, 1-1.5k for the mounts and the LANCE; 9-36 draw calls each.
+- Behaviour (brain.js): search (radar spins) -> track (turret slews at a capped rate; with terrain line of sight a
+  lock builds over `lock` s; losing sight keeps `lockKeep` of it, then it bleeds away) -> fire. Guns lead with a
+  linear prediction and fire tracer bursts up close, airbursts (the old 'flak' round) further out, through war.js's
+  own projectiles (so all hit rules and player damage stay war.js's). Missiles are the module's own projectiles:
+  visible, steer at a capped turn rate, guided only while the launcher still sees the target, proximity fuse.
+  LANCE: charge (seams brighten, aiming line, rising hum) -> beam along the barrel (so a target crossing faster than
+  the turret slews slides out of it) -> burns only after a dwell -> spreads with range -> stopped by terrain and by
+  smoke (it sums the opacity of fx.mix puffs along the ray) -> cools (fins glow red, steam).
+- Tells: lamp blinks faster as the lock builds, steady when locked; rotary barrels spin up (with a whine) before
+  firing; Shilka's dish stops and points; cockpit warning for a lock on the player (beeps -> steady warble -> fast
+  high warble with a missile in the air) and a MISSILE LAUNCH feed line. Sounds synthesised (sound.js): bursts are
+  noise chopped at the gun's rate, single heavy rounds, motor whine, launch whoosh, the LANCE voice, steam vent.
+- Balance (scenes/defbalance.mjs; sandbox units 'legacy1'/'legacy2' run the old war.js gunFire rules). Open sky,
+  no hills (the player's worst case), hurtPlayer per minute on a circling stand-in, orbits close / mid / far:
+  | unit | close | mid | far |
+  |---|---|---|---|
+  | old enemy gun | 5.45 | 2.58 | 0.59 |
+  | TALON | 6.07 | 1.33 | 0.75 |
+  | LANCE | 2.45 | 1.67 | 0.87 |
+  Our side, kills/min of hp-12 stand-ins: old island gun 3.5, VADS 3.0, Shilka 2.8; the ALBATROSS's four mounts
+  together ~1.2x its old four (CIWS 6.7, launcher 2.0 each). Checks: enemy within 1.25x close / mid, 2x far (range
+  used to be nearly free; the missile and LANCE make it dangerous on purpose - that is what the hills are for).
+- Gotchas: the TALON's tracer outscored the old gun with fewer rounds, because the old gun led its tracer as if it
+  flew at flak speed (it missed a lot) - fixed with longer gaps between bursts; a missile with a 1.5 rad/s turn hits
+  a helicopter almost every time in open sky, so missiles are rare (20 s) and light, and line of sight is the
+  counter; the sandbox's first rAF stamp can be older than its start time (negative dt lit the muzzle flashes);
+  long trucks parked radially poked into the HQ / factory, so vehicles park along the gun ring.
+- Tests: defence.mjs PASS 11/11 (tools/runs/*-defence), defencewar.mjs PASS 5/5, defbalance.mjs PASS 4/4,
+  smoke 5/5, war 5/5, war2 6/6, dropflak 1/1.
+- Untested: the sounds by ear (the paths run without errors in a live AudioContext); the NAVAL agent's
+  carrier `userData.mounts` (the code reads { kind, pos, dir } and falls back to the old four deck spots); the sky
+  carrier as a missile / beam target in a real fight; performance on a mid-range GPU with every island garrisoned.
