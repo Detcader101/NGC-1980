@@ -382,6 +382,17 @@ waspmission,rotaryperf,rotarykit,runscenes}.mjs, scenes ch46capture / mv22landin
 - External placement: if a script / test moves a rotary unit's u.p, its flight model follows (jetweapons.mjs pins a
   gunship ahead of the jet).
 
+### Tests (2026-10-23, load average ~70 from 13 agents: headless runs at 3-15 fps)
+- node: ch46bench 21/21, mv22bench 21/21, waspbench 13/13, rotarymission 12/12, waspmission 8/8, rotaryperf (3 CH-46
+  + 2 MV-22 + 12 WASP = 0.39 ms of CPU per 60 fps frame).
+- scenes: ch46capture 4/4, mv22landing 4/4, wasp 3/3, rotarydamage 8/8, rotarydev 5/5 (all three missions + turntables),
+  smoke 5/5, war 5/5 (two earlier runs at 3 fps failed a carrier-moved-3-m-in-5-s and an 8 s heli capture check: game
+  time falls behind real time under load, before any rotary unit exists; passed on rerun), war2 6/6, jets 1/1,
+  jetweapons 7/7, ships / aisim / playwar run clean (no expects).
+- Untested: sound by ear (the graph builds; headless audio is muted); the CH-46 / Osprey launching from a pad when
+  their carrier is gone; a flying SKY CARRIER as home (falls back to the HQ pad); many simultaneous squads on one
+  island; the advisor text in main.js still says DRONE.
+
 ### Gotchas
 - An inline `//` comment swallowed the rest of a line again (mv22bench) - keep comments off code lines in edits.
 - dt = 0 on a page's first update divided by zero in the gear friction (NaN everywhere): every sim's step() returns on
