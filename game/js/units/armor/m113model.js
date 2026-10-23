@@ -103,6 +103,13 @@ export function buildM113Mesh(opts = {}) {
   const cHatch = new THREE.Group(); cHatch.position.set(0, 0.28, 0.3); cup.add(cHatch); cHatch.add(new THREE.Mesh(P(cylY(0.36, 0.05, 14, 0, 0, -0.3)), paintM));
   // antennas
   for (const [x, z] of [[-1.05, 1.9], [1.05, -0.9]]) { const a = new THREE.Mesh(cylY(0.011, 2.6, 4, 0, 1.3, 0), black); a.position.set(x, 1.85, z); a.rotation.x = 0.1; hull.add(a); hull.add(new THREE.Mesh(cylY(0.045, 0.1, 8, x, 1.9, z), steelP)); }
+  // M243 smoke grenade dischargers (4 tubes each) on the front corners of the roof - an M113A2 feature
+  for (const s of [-1, 1]) for (let k = 0; k < 4; k++) {
+    const tb = new THREE.Mesh(cylZ(0.042, 0.2, 8, 0, 0, 0), steelP); tb.position.set(s * (1.08 - (k % 2) * 0.09), 1.92 + Math.floor(k / 2) * 0.09, -1.35); tb.rotation.set(0.5, s * 0.6, 0); hull.add(tb);
+  }
+  // tow cable coiled along the left side of the roof, a pick and shovel on the right
+  hull.add(new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.02, 4, 14).rotateX(Math.PI / 2).translate(-0.85, 1.87, 1.3), steel));
+  hull.add(new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.02, 4, 14).rotateX(Math.PI / 2).translate(-0.85, 1.9, 1.3), steel));
   // jerry cans and a stowage rack on the rear corners
   for (const s of [-1, 1]) hull.add(new THREE.Mesh(box(0.33, 0.46, 0.17, s * 1.05, 1.4, 2.53), new THREE.MeshLambertMaterial({ color: 0x3e4a2e, flatShading: true })));
   const hullMesh = new THREE.Mesh(merge(parts), paintM); hullMesh.name = 'hullShell'; hull.add(hullMesh); shell.push(hullMesh);
