@@ -53,7 +53,15 @@ export function createTransportAI(o, hooks) {
     phase: 'spool', t: 0, cmd: {}, o, hooks, spot: null, err: 0, maxSink: 0, landedAt: null, log: [],
     set(p) { if (p !== AI.phase) { AI.log.push([+AI.tAll.toFixed(1), p]); AI.phase = p; AI.t = 0; } },
     tAll: 0,
-    // st: pilot.stateOf(); sim: { agl, landed, contacts }; world: { floorAlong, groundY }
+    // ngc/bugsweep: the landing spot's acceleration (a deck spot swings round as the carrier turns), filtered from its
+    // velocity (the deck moves once a frame, the pilot steps at 30 Hz) - fed forward so the pilot keeps over the spot
+    ta: { vx: 0, vz: 0, ax: 0, az: 0, ok: false },
+    track(tgt, dt) {
+      const T = AI.ta, vx = tgt.vx || 0, vz = tgt.vz || 0;
+      if (T.ok && dt > 0) { const k = Math.min(1, dt / 0.8); T.ax += (clamp((vx - T.vx) / dt, -3, 3) - T.ax) * k; T.az += (clamp((vz - T.vz) / dt, -3, 3) - T.az) * k; } else T.ax = T.az = 0;
+      T.vx = vx; T.vz = vz; T.ok = true; return T;
+    },
+    // st: pilot.stateOf(); sim: { agl, landed, body: { contacts } } (or sim.contacts); world: { floorAlong, groundY }
     step(st, sim, dt, world) {
       AI.t += dt; AI.tAll += dt;
       const c = AI.cmd; c.collFix = undefined; c.ground = false; c.pitch = undefined; c.roll = undefined; const vyPrev = c.vy ?? 0;
@@ -77,6 +85,7 @@ export function createTransportAI(o, hooks) {
           const tgt = AI.phase === 'transit' ? hooks.lz() : hooks.home && hooks.home();
           if (!tgt) { AI.set('hover'); break; }
           approach(st, tgt, o, world, c);
+          { const T = AI.track(tgt, dt); c.ax += T.ax; c.az += T.az; }
           const rel = Math.hypot(st.vx - (tgt.vx || 0), st.vz - (tgt.vz || 0));
           if (c.dist < o.stop + 1.5 && rel < 1.5 && Math.abs(st.y - (tgt.y + o.hover)) < 3) AI.set(AI.phase === 'transit' ? 'descend' : 'descend2');
           break;
@@ -84,17 +93,30 @@ export function createTransportAI(o, hooks) {
         case 'descend': case 'descend2': {   // vertical descent over the spot, slowing toward the ground
           const tgt = AI.phase === 'descend' ? hooks.lz() : hooks.home && hooks.home();
           if (!tgt) { AI.set('hover'); break; }
-          const agl = sim.agl;
-          hold(st, tgt, -clamp(0.25 + agl * 0.3, 0.3, 2.2), 0.22, c);
-          const off = Math.hypot(tgt.x - st.x, tgt.z - st.z);
+          const agl = sim.agl, off = Math.hypot(tgt.x - st.x, tgt.z - st.z), rel = Math.hypot(st.vx - (tgt.vx || 0), st.vz - (tgt.vz || 0));
+          // ngc/bugsweep: don't sink the last few metres while still sliding across the spot (a moving, turning deck):
+          // hold ~3 m until settled over it, then put it down. Touching a wheel while chasing the spot with the cyclic
+          // pivoted the aircraft about that wheel (dynamic rollover) - the Sea Knights / Ospreys rolled over on the deck
+          // On a deck, also wait (up to 25 s) for it to stop swinging round - a carrier in a turn heels outward while the
+          // aircraft banks inward to follow the spot (an LSO's quiescent period)
+          const T = AI.track(tgt, dt), settled = off < 2.5 && rel < 0.7 && (Math.hypot(T.ax, T.az) < 0.2 || AI.t > 25);
+          hold(st, tgt, settled || agl > 3.5 ? -clamp(0.25 + agl * 0.3, 0.3, 2.2) : clamp((3 - agl) * 0.6, -0.4, 0.8), 0.22, c);
+          c.ax = T.ax; c.az = T.az;
           if (off > 6 && agl > 2) AI.set(AI.phase === 'descend' ? 'transit' : 'rtb');   // blown off the spot: go round
-          if (sim.landed || sim.contacts >= 3) { AI.landedAt = { x: st.x, z: st.z, off, t: AI.tAll }; AI.spot = { x: st.x, z: st.z, hdg: st.yaw }; AI.set(AI.phase === 'descend' ? 'ground' : 'parked'); }
+          // down: on the wheels (or any wheel on, low): stop flying the spot, stick to neutral, collective down (ground /
+          // parked) - a pilot doesn't reposition with a wheel on the deck
+          // (the wheels on the deck are sim.body.contacts: the flight models have no sim.contacts, so this check never fired
+          // and the AI kept flying the spot with a wheel down until the sim called it landed - ngc/bugsweep)
+          const wheels = sim.body ? sim.body.contacts : (sim.contacts || 0);
+          if (sim.landed || wheels >= 3 || (wheels >= 1 && agl < 0.4)) { AI.landedAt = { x: st.x, z: st.z, off, t: AI.tAll }; AI.spot = { x: st.x, z: st.z, hdg: st.yaw }; AI.c0 = sim.c ? (sim.c.coll ?? sim.c.tcl ?? 0.35) : 0.35; AI.set(AI.phase === 'descend' ? 'ground' : 'parked'); }
           break;
         }
         case 'ground': case 'parked': {   // collective down, sit on the wheels; unload / stow
           const tgt = AI.phase === 'parked' ? hooks.home && hooks.home() : null;
           hold(st, { x: st.x, z: st.z, hdg: st.yaw, vx: tgt ? tgt.vx : 0, vz: tgt ? tgt.vz : 0 }, -0.5, 0, c);
-          c.collFix = Math.max(0, 0.35 - AI.t * 0.25); c.ground = true;
+          // collective down from where it was at touchdown (ngc/bugsweep: it used to drop to 0.35 at once - a hover needs
+          // ~0.5 - and the aircraft fell the rest of the way onto the wheels with one already down)
+          c.collFix = Math.max(0, Math.min(AI.c0 ?? 0.35, 0.7) - AI.t * 0.3); c.ground = true;
           if (AI.phase === 'ground' && AI.t > 1.5 && hooks.unload(AI, dt)) { AI.spot = { x: st.x, z: st.z, hdg: st.yaw }; AI.set('lift2'); }
           if (AI.phase === 'parked' && AI.t > 1.5 && hooks.parked) hooks.parked(AI);
           break;

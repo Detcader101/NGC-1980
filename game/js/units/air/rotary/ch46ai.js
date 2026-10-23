@@ -13,7 +13,10 @@ export const CH46_AI = {
 export function flyCH46(S, P, st, cmd, dt) {
   if (cmd.ground) {
     P.i.lon = P.i.lat = P.i.ped = 0; P.i.th = P.i.ph = 0; P.i.coll = cmd.collFix ?? 0;
-    return { coll: cmd.collFix ?? 0, lon: 0, lat: 0, ped: 0 };
+    // (ngc/bugsweep) the cyclic and pedals wash out from where they were flying instead of snapping to neutral: a
+    // snap with the rotor still carrying the weight tilted the thrust and dragged the wheels sideways on touchdown
+    const k = Math.exp(-dt / 0.8); P.ctl.lon *= k; P.ctl.lat *= k; P.ctl.ped *= k;
+    return { coll: cmd.collFix ?? 0, lon: P.ctl.lon, lat: P.ctl.lat, ped: P.ctl.ped };
   }
   if (S.body.contacts >= 2) {   // light on the wheels: no trim wind-up against the gear, pull pitch smoothly
     P.i.lon = P.i.lat = P.i.th = P.i.ph = 0; P.i.coll = Math.min(P.i.coll, S.c.coll + 0.04);
