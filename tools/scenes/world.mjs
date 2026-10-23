@@ -36,9 +36,9 @@ export default {
     await h.waitFor('__WORLD.stats.pending === 0 && __WORLD.ambient.stats.cars > 2', 40000); await h.wait(6000);
     await stats('road'); await h.shot('road-chase');
     // pull alongside the nearest car and watch it go by
-    await h.eval(`(() => { const H = __G.H.pos, c = __WORLD.ambient.cars.filter(c => !c.wreck).sort((a, b) => Math.hypot(a.x - H.x, a.z - H.z) - Math.hypot(b.x - H.x, b.z - H.z))[0]; if (!c) return null; const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw); window.__C = { x: c.x + fx * 45 - fz * 14, z: c.z + fz * 45 + fx * 14, tx: c.x, tz: c.z, kind: c.kind }; return __C; })()`);
+    await h.eval(`(() => { const H = __G.H.pos, c = __WORLD.ambient.cars.filter(c => !c.wreck).sort((a, b) => Math.hypot(a.x - H.x, a.z - H.z) - Math.hypot(b.x - H.x, b.z - H.z))[0]; if (!c) return null; const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw); window.__C = { x: c.x + fx * (25 + c.v * 2.2) - fz * 12, z: c.z + fz * (25 + c.v * 2.2) + fx * 12, tx: c.x, tz: c.z, kind: c.kind, v: c.v }; return __C; })()`);
     const C = await h.eval('__C');
-    if (C) { await hover(C.x, C.z, 9, face(C.x, C.z, C.tx, C.tz)); await h.wait(1800); await h.shot('road-car-chase'); await h.eval('(__G.cockpitCam = true, 1)'); await h.wait(1000); await h.shot('road-car-cockpit'); await h.eval('(__G.cockpitCam = false, 1)'); }
+    if (C) { await hover(C.x, C.z, 7, face(C.x, C.z, C.tx, C.tz)); await h.wait(900); await h.shot('road-car-chase'); await h.eval('(__G.cockpitCam = true, 1)'); await h.wait(1000); await h.shot('road-car-cockpit'); await h.eval('(__G.cockpitCam = false, 1)'); }
     // ---- a harbour
     await h.eval(`(() => { const W = __WORLD; const ss = W.net.settlementsNear(3600, 1200, 9000).filter(s => s.layout && s.layout.quay).sort((a, b) => Math.hypot(a.x - 3600, a.z - 1200) - Math.hypot(b.x - 3600, b.z - 1200)); const q = ss[0].layout.quay; window.__Q = { x: q.x, z: q.z, a: q.a }; return window.__Q; })()`);
     const Q = await h.eval('__Q');

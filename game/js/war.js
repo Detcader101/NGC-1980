@@ -65,13 +65,13 @@ export function createWar(ctx) {
       I.structs = []; I.cap = null; I.owner = I.owner0 ?? I.owner; I.owner0 = I.owner; I.seen = I.owner === 1 ? I.owner : -1; I.lastHit = -99;
       const p = I.pad;
       if (I.cave) {   // cave islands: HQ (+ a derrick on fortresses) beside the pad
-        addStruct(I, 'hq', p.x - 17, p.z + 9, I.owner, Math.PI);
-        if (I.kind === 'fortress') addStruct(I, 'fuel', p.x + 19, p.z + 6, I.owner, 0);
+        addStruct(I, 'hq', p.x - 17, p.z + 9, I.owner, Math.atan2(17, -9));   // WORLD: fronts face the pad
+        if (I.kind === 'fortress') addStruct(I, 'fuel', p.x + 19, p.z + 6, I.owner, Math.atan2(-19, -6));
         if (I.name === 'IRONHOLD') { const [x, z, a] = coastPoint(I, [0, 0]); I.yard = addStruct(I, 'shipyard', x, z, 2, -a + Math.PI / 2); }
       } else {
         const a0 = structAngle(I);   // WORLD: was random; seeded so the island's village can be laid out round it
-        addStruct(I, 'hq', p.x + Math.cos(a0) * 17, p.z + Math.sin(a0) * 17, I.owner, -a0);
-        addStruct(I, I.kind, p.x + Math.cos(a0 + Math.PI) * 18, p.z + Math.sin(a0 + Math.PI) * 18, I.owner, -a0);
+        addStruct(I, 'hq', p.x + Math.cos(a0) * 17, p.z + Math.sin(a0) * 17, I.owner, Math.atan2(-Math.cos(a0), -Math.sin(a0)));   // WORLD: fronts face the pad
+        addStruct(I, I.kind, p.x + Math.cos(a0 + Math.PI) * 18, p.z + Math.sin(a0 + Math.PI) * 18, I.owner, Math.atan2(Math.cos(a0), Math.sin(a0)));
       }
       const guns = I.owner === 0 ? 0 : I.name === 'IRONHOLD' ? 4 : I.kind === 'hq' ? 2 : I.owner === 2 ? 2 : 1;
       for (let k = 0; k < guns; k++) { const s = buildAA(I, I.owner); if (s) { s.building = 0; s.mesh.scale.setScalar(1); } }

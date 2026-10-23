@@ -135,19 +135,20 @@ function buildHQ(r) {
 function rwHQ(r) {
   const S = new Geo(), G = new Geo();
   hexPlinth(S, 0, 0, 7.5, 0.8, COMP);
-  slab(S, -1, 0, 7, 6, 11, 1.2, -0.6, 0.55, CER);                 // the main monolith, leaning
+  slab(S, -1, 0, 7, 6, 14, 1.2, -0.6, 0.55, CER);                 // the main monolith, leaning
   slab(S, 3.6, 1.4, 3.2, 3.6, 6.5, -0.5, 0.4, 0.6, COMP2, CER2); // a dark annex
   slab(S, -4.2, -2, 2.4, 2.4, 4.5, 0.4, 0.3, 0.5, CER2);
-  S.box(0.2, 11, -0.6, 2.4, 0.4, 2.0, COMP, 0);                   // sensor head
-  for (let i = 0; i < 3; i++) S.push(-0.5 + i * 0.7, 11.4, -0.6 + (i - 1) * 0.4).blob(0, 0.3, 0, 0.32, 0.32, 0.32, COMP2, DARK).pop();
+  S.box(0.2, 14, -0.6, 2.4, 0.4, 2.0, COMP, 0);                   // sensor head
+  for (let i = 0; i < 3; i++) S.push(-0.5 + i * 0.7, 14.4, -0.6 + (i - 1) * 0.4).blob(0, 0.3, 0, 0.32, 0.32, 0.32, COMP2, DARK).pop();
   for (const s of [-1, 1]) S.push(s * 2.6, 4, 0, 0, 0, s * 0.35).box(0, 0, 0, 0.12, 6, 2.6, COMP, 1).pop();   // fins
   // seams: up the monolith's edges and round the plinth
-  for (const [x, z] of [[-4.5, -3], [2.5, -3], [2.5, 3], [-4.5, 3]]) seam(G, [x, 0.8, z], [x * 0.55 + 0.2, 11, z * 0.55 - 0.6], 0.08);
+  for (const [x, z] of [[-4.5, -3], [2.5, -3], [2.5, 3], [-4.5, 3]]) seam(G, [x, 0.8, z], [x * 0.55 + 0.2, 14, z * 0.55 - 0.6], 0.08);
   for (let i = 0; i < 6; i++) { const a0 = i / 6 * Math.PI * 2, a1 = (i + 1) / 6 * Math.PI * 2; seam(G, [Math.cos(a0) * 7.6, 0.85, -Math.sin(a0) * 7.6], [Math.cos(a1) * 7.6, 0.85, -Math.sin(a1) * 7.6], 0.1); }
-  for (let i = 0; i < 3; i++) G.push(-0.5 + i * 0.7, 11.45, -0.27 + (i - 1) * 0.4).box(0, 0, 0, 0.12, 0.12, 0.12, WHITE, 0).pop();
+  for (let i = 0; i < 3; i++) G.push(-0.5 + i * 0.7, 14.45, -0.27 + (i - 1) * 0.4).box(0, 0, 0, 0.12, 0.12, 0.12, WHITE, 0).pop();
   const ruin = new Geo(); hexPlinth(ruin, 0, 0, 7.5, 0.6, DEADC);
   slab(ruin, -1, 0, 7, 6, 3.8, 0.4, -0.2, 0.75, DEADC); for (let i = 0; i < 7; i++) shard(ruin, -1 + (r() - 0.5) * 6, (r() - 0.5) * 5, 1.5 + r() * 3.5, 1 + r(), (r() - 0.5) * 0.8, r() * 6, i % 2 ? DEADC : COMP);
-  return { S, G, ruin };
+  const core = new Geo(); core.push(0, 0, 0).blob(0, 0, 0, 0.9, 1.5, 0.9, WHITE).pop();   // the node's core, floating over it
+  return { S, G, ruin, core, coreAt: [0.2, 17.5, -0.6] };
 }
 function buildFuel(r) {
   const H = new Geo(), mil = new Geo(), civ = new Geo(), dmg = new Geo();
@@ -164,17 +165,17 @@ function buildFuel(r) {
   H.push(6, 0, 5.5); H.box(0, 0, 0, 4.2, 2.8, 3.2, col(0xc8c0a8), 1); H.gable(0, 2.8, 0, 4.2, 3.2, 0.7, col(0x7d8288), col(0xc8c0a8), 0.2); H.quad([-0.6, 0, 1.62], [0.6, 0, 1.62], [0.6, 2.0, 1.62], [-0.6, 2.0, 1.62], col(0x2f5a3a)); H.pop();
   H.box(0, 0.6, -7.8, 3, 0.15, 0.6, WHITE, 0);   // sign board base
   // the pumpjack (nodding donkey) beside the farm: frame, samson post, motor; the walking beam is a separate part
-  H.push(-12, 0, 2); H.box(0, 0, 0, 1.6, 0.5, 6.5, STEEL, 1); for (const s of [-1, 1]) H.strut([s * 0.6, 0.5, 0.6], [0, 4.6, 0], 0.16, col(0x8a7a2a)); H.box(0, 0.5, -2.5, 1.3, 1.1, 1.4, col(0x3a5a3a), 1); H.cyl(0, 0, 3.0, 0.2, 1.0, 6, STEEL, 2); H.pop();
+  H.push(-3, 0, -11); H.box(0, 0, 0, 1.6, 0.5, 6.5, STEEL, 1); for (const s of [-1, 1]) H.strut([s * 0.6, 0.5, 0.6], [0, 4.6, 0], 0.16, col(0x8a7a2a)); H.box(0, 0.5, -2.5, 1.3, 1.1, 1.4, col(0x3a5a3a), 1); H.cyl(0, 0, 3.0, 0.2, 1.0, 6, STEEL, 2); H.pop();
   const beam = new Geo(); beam.box(-0.2, -0.25, 0, 0.4, 0.5, 6.0, col(0xd0a020), 0); beam.push(0, 0, 3.0).box(0, -1.4, 0.2, 0.5, 1.8, 0.8, col(0xd0a020), 1).pop(); beam.box(0, -1.2, -2.8, 0.6, 1.0, 0.9, DARK, 0);
   // military: guard post with sandbags, a fuel bowser, drums
-  sandbags(mil, 9.5, -8, 12.5, -8, 3, r); sandbags(mil, 12.5, -8, 12.5, -5, 3, r); deuce(mil, 12, 1, Math.PI, false); mil.push(12, 0, 1, Math.PI).cylX(0, 1.7, -1.0, 1.0, 4.0, 10, OD2, OD).pop(); drums(mil, -12, -6, 6, r); floodlight(mil, 10, 8);
-  civ.push(11, 0, 1, Math.PI).box(0, 0.5, 2.2, 2.2, 1.9, 1.7, col(0xe8e4d8), 1).cylX(0, 1.6, -0.8, 1.1, 4.4, 10, col(0xd8d8cc), WHITE).pop(); drums(civ, -12, -6, 4, r, col(0x2a5a8a));
+  sandbags(mil, 4, -12, 7, -12, 3, r); sandbags(mil, 7, -12, 7, -9, 3, r); deuce(mil, 6.5, -15, Math.PI / 2, false); mil.push(6.5, 0, -15, Math.PI / 2).push(0, 0, 0, Math.PI / 2).cylX(1.0, 1.7, 0, 1.0, 4.0, 10, OD2, OD).pop().pop(); drums(mil, -9, -10, 6, r); floodlight(mil, 10, 8);
+  civ.push(6.5, 0, -15, Math.PI / 2).box(0, 0.5, 2.2, 2.2, 1.9, 1.7, col(0xe8e4d8), 1).push(0, 0, 0, Math.PI / 2).cylX(0.8, 1.6, 0, 1.1, 4.4, 10, col(0xd8d8cc), WHITE).pop().pop(); drums(civ, -9, -10, 4, r, col(0x2a5a8a));
   dmg.cyl(-4.5, 1.5, -2.2, 2.33, 1.6, 12, CHAR, 0); dmg.box(6, 2.85, 5.5, 4.4, 0.08, 3.4, CHAR, 0);
   const ruin = new Geo();
   for (const [x, z, w, d] of [[0, -6.5, 17, 1.6], [0, 6.5, 17, 1.6], [-8.3, 0, 1.6, 11.4], [8.3, 0, 1.6, 11.4]]) berm(ruin, x, z, w + 1.2, d + 1.2, w - 0.4, d * 0.4, -0.3, 1.0, col(0x4a4434), col(0x3e3a2e));
   ruin.cyl(-4.5, 0, -2.2, 2.3, 1.6, 12, CHAR, 0); ruin.push(1.2, 1.4, -2.2, 0.6, 0, Math.PI / 2 - 0.15).cyl(0, -2.2, 0, 2.2, 4.4, 10, CHAR2, 0).pop(); ruin.cyl(-1.6, 0, 3.0, 2.3, 2.6, 12, CHAR, 0, 1.9);
-  ruin.push(6, 0, 5.5).box(0, 0, 0, 4.2, 1.2, 3.2, CHAR2, 1).pop(); ruin.push(-12, 0, 2, 0, 0, 0.5).box(0, 0, 0, 1.6, 0.5, 6.5, CHAR, 1).pop();
-  return { H, mil, civ, beam, beamAt: [-12, 4.6, 2], dmg, ruin, flagAt: null, bandAt: [0, 0.75, -7.85, 3], h: 8, r: 9, rw: rwFuel(r) };
+  ruin.push(6, 0, 5.5).box(0, 0, 0, 4.2, 1.2, 3.2, CHAR2, 1).pop(); ruin.push(-3, 0, -11, 0, 0, 0.5).box(0, 0, 0, 1.6, 0.5, 6.5, CHAR, 1).pop();
+  return { H, mil, civ, beam, beamAt: [-3, 4.6, -11], dmg, ruin, flagAt: null, bandAt: [0, 0.75, -7.85, 3], h: 8, r: 9, rw: rwFuel(r) };
 }
 function rwFuel(r) {
   const S = new Geo(), G = new Geo();
@@ -199,9 +200,9 @@ function buildDepot(r) {
   H.push(4, 0, 6.5); H.box(0, 0, 0, 8, 4, 5.5, col(0xa8a290), 1); H.gable(0, 4, 0, 8, 5.5, 1.2, col(0x7d8288), col(0xa8a290), 0.3); H.quad([-3, 0, 2.77], [0, 0, 2.77], [0, 3.2, 2.77], [-3, 3.2, 2.77], col(0xc8c4b0)); for (const x of [1.5, 3]) H.quad([x - 0.5, 1.2, 2.77], [x + 0.5, 1.2, 2.77], [x + 0.5, 2.2, 2.77], [x - 0.5, 2.2, 2.77], col(0x2b3846)); H.cyl(3, 4.6, -1.5, 0.15, 2.4, 5, DARK, 2); H.pop();
   crates(H, -9, 7, r, 9); crates(H, -5.5, 8.5, r, 6); H.box(-11, 0, 3, 1.2, 0.15, 1.2, WOODC, 1);
   // military: an M35, a forklift, drums, sandbags at the gate, a floodlight
-  deuce(mil, 10.5, -3, -0.2); mil.push(-1, 0, 8).box(0, 0.3, 0, 1.2, 1.1, 2.0, col(0xc8a020), 1).box(0, 1.4, 0.3, 1.0, 1.1, 0.06, DARK, 0).box(0, 0.2, 1.4, 1.0, 0.08, 1.0, STEEL, 0).pop();
+  deuce(mil, 0, -12, Math.PI / 2 - 0.1); mil.push(-1, 0, 8).box(0, 0.3, 0, 1.2, 1.1, 2.0, col(0xc8a020), 1).box(0, 1.4, 0.3, 1.0, 1.1, 0.06, DARK, 0).box(0, 0.2, 1.4, 1.0, 0.08, 1.0, STEEL, 0).pop();
   drums(mil, 9, 6, 6, r); sandbags(mil, -12, -8, -9, -8, 2, r); floodlight(mil, 11, 8);
-  civ.push(10.5, 0, -3, -0.2).box(0, 0.5, 1.6, 2.2, 1.8, 1.6, col(0x2a5a8a), 1).box(0, 0.6, -1.2, 2.4, 2.2, 4.0, col(0xd8d4c8), 1).pop();   // a box van
+  civ.push(0, 0, -12, Math.PI / 2 - 0.1).box(0, 0.5, 1.6, 2.2, 1.8, 1.6, col(0x2a5a8a), 1).box(0, 0.6, -1.2, 2.4, 2.2, 4.0, col(0xd8d4c8), 1).pop();   // a box van
   dmg.push(-5, 0, -1).box(0, 2.2, 0, 4.5, 0.9, 12.2, CHAR, 0).pop(); dmg.box(4, 4.05, 6.5, 8.3, 0.1, 5.8, CHAR, 0);
   const ruin = new Geo();
   ruin.push(-5, 0, -1).box(0, 0, 0, 6.2, 1.0, 12, CHAR, 1).pop(); ruin.push(3, 0, -2, 0.2).box(0, 0, 0, 6.2, 1.4, 10, CHAR2, 1).pop();
@@ -285,6 +286,7 @@ export function buildFactionStructure(kind, side) {
   rIntact.add(mesh(R.S)); const glow = new THREE.Mesh(geoFrom(R.G.build()), glowMat); rIntact.add(glow);
   let ring = null, arm = null;
   if (R.ring) { ring = new THREE.Group(); ring.position.set(...R.ringAt); ring.add(mesh(R.ring)); rIntact.add(ring); }
+  let core = null; if (R.core) { core = new THREE.Mesh(geoFrom(R.core.build()), glowMat); core.position.set(...R.coreAt); rIntact.add(core); }
   if (R.arm) { arm = new THREE.Group(); arm.position.set(...R.armAt); arm.add(mesh(R.arm)); rIntact.add(arm); }
   const rTeam = new THREE.Mesh(new THREE.CylinderGeometry(B.r * 0.95, B.r * 0.95, 0.2, 6, 1, true), team); rTeam.position.y = 0.95; rIntact.add(rTeam);   // a red band round the plinth: readable ownership
   // shards left round a site the machines lost
@@ -330,6 +332,7 @@ export function buildFactionStructure(kind, side) {
     if (beam && hIntact.visible && st.cond !== 'destroyed') beam.rotation.x = Math.sin(t * 1.4 + g.position.x) * 0.28;
     if (ant && hIntact.visible && st.cond !== 'damaged') ant.rotation.y += dt * 1.25;   // ~12 rpm
     if (ring && rIntact.visible) ring.rotation.y -= dt * 2.2;
+    if (core && rIntact.visible) { core.rotation.y += dt * 0.8; core.position.y = R.coreAt[1] + Math.sin(t * 1.3) * 0.4; }
     if (arm && rIntact.visible) arm.position.x = Math.sin(t * 0.7) * 4;
     if (rIntact.visible) {
       if (st.grow < 1) {   // growing out of the ground, seams blazing, sparks

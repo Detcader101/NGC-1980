@@ -360,7 +360,8 @@ export function ensure(x, z) {
 // Rules that match main.js / war.js: the landing pad (island centre, or 30 m south of a cave island's centre), its flat
 // apron, the cave apron and the ground over the cave, the HQ / production building slots (structAngle).
 export const padOf = I => I.cave ? { x: I.x, z: I.z + 30, r0: 12, r1: 34 } : { x: I.x, z: I.z, r0: 30, r1: 52 };
-export const structAngle = I => hash2(I.id, 77, 1) * Math.PI * 2;
+// on a cardinal direction (+-0.15 rad) from the pad, so the buildings sit between the AA slots on the diagonals
+export const structAngle = I => Math.floor(hash2(I.id, 77, 1) * 4) * Math.PI / 2 + (hash2(I.id, 78, 1) - 0.5) * 0.3;
 export function zoneReserved(I, x, z, pad = 0) {
   const p = padOf(I); if (Math.hypot(x - p.x, z - p.z) < p.r0 + 6 + pad) return true;
   if (I.cave) { if (Math.hypot(x - I.x, z - I.z) < 62 + pad) return true; if (Math.abs(x - I.x) < 90 + pad && Math.abs(z - I.z) < 24 + pad) return true; }
