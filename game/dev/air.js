@@ -78,8 +78,9 @@ if (FLY) {
   scene.add(new THREE.Mesh(tg, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true })));
   const terrain = (x, z) => Math.max(0, Math.abs(x) < 800 && Math.abs(z) < 800 ? islandH(x, z) : 0);
   const car = buildCarrier(1); scene.add(car.group);
-  const C = { x: -300, z: 280, yaw: Math.atan2(-300, 280) + Math.PI, speed: 5, w: 0 };
-  { const fx = -Math.sin(C.yaw), fz = -Math.cos(C.yaw); for (let d = 0; d < 900; d += 20) if (terrain(C.x + fx * d, C.z + fz * d) > -1 && terrain(C.x + fx * d, C.z + fz * d) > 0) { C.yaw += 0.6; } }
+  // the ALBATROSS in open water, steaming along the longest clear lane (as the game turns her into clear water to launch)
+  const C = { x: -350, z: -40, yaw: 0, speed: 5, w: 0 };
+  { let best = -1; for (let k = 0; k < 36; k++) { const y = k * Math.PI / 18; let d = 0; while (d < 1500 && islandH(C.x - Math.sin(y) * d, C.z - Math.cos(y) * d) < -2) d += 20; if (d > best) { best = d; C.yaw = y; } } }
   const loc = (x, z) => { const dx = x - C.x, dz = z - C.z, co = Math.cos(C.yaw), si = Math.sin(C.yaw); return [dx * co - dz * si, dx * si + dz * co]; };
   const deckAt = (x, z) => { const [lx, lz] = loc(x, z); let hw = CARRIER.W / 2 * 0.97, h = -1e9; if (lz < -CARRIER.L / 2 + 16) hw *= Math.max(0, (lz + CARRIER.L / 2 + 6) / 22); if (Math.abs(lx) < hw && lz > -CARRIER.L / 2 - 6 && lz < CARRIER.L / 2) h = CARRIER.DECK; if (Math.abs(lx - CARRIER.TOWER_X) < 2.9 && Math.abs(lz - CARRIER.TOWER_Z) < 9) h = CARRIER.DECK + CARRIER.TOWER_H; return h; };
   const env = {

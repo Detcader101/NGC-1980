@@ -8,6 +8,7 @@
 //                 propeller thrust); game-level effect when it arrives (a blast, as war.js does for bombs).
 // World scale as everywhere (jetfm.js): the air is 4x sea-level density, so forces and EAS are real, true speeds half.
 // Tags: CONFIRMED = published figure, INFERRED = derived / tuned, FICTIONAL = made up for the setting, GAME = tuned.
+import * as THREE from 'three';
 import { createAirframe, clamp, ATM, rhoAt } from './airframe.js';
 
 // --------------------------------------------------------------------------------------------- RW-4 SHRIKE (FICTIONAL)
@@ -101,8 +102,8 @@ export const SHAHED = { MASS: 200, S: 2.9, CD0: 0.06, K: 0.2, CLMAX: 1.0, P: 300
 export function createShahedSim(GRAV = 9.0) {
   const S = SHAHED;
   const D = {
-    pos: { x: 0, y: 0, z: 0 }, V: 30, gam: 0, hdg: 0, bank: 0, n: 1, eas: 0, t: 0, dead: false, thrust: 0,
-    vel: { x: 0, y: 0, z: 0 },
+    pos: new THREE.Vector3(), V: 30, gam: 0, hdg: 0, bank: 0, n: 1, eas: 0, t: 0, dead: false, thrust: 0,
+    vel: new THREE.Vector3(),
     // controls: wanted bank (rad, + right), wanted flight-path angle, throttle 0..1
     ctl: { bank: 0, gam: 0, thr: 1 },
     launch(x, y, z, hdg, gam = 0.35) { D.pos.x = x; D.pos.y = y; D.pos.z = z; D.hdg = hdg; D.gam = gam; D.V = 18; D.t = 0; D.dead = false; D.bank = 0; },
