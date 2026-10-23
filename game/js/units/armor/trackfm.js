@@ -217,18 +217,19 @@ export function createTrackSim(P, opt = {}) {
   const Tfric = rpm => E.FRICTION[0] + E.FRICTION[1] * rpm / 1000; // motoring friction + pumping, N m
   const C = P.CONV;
   // torque converter: impeller torque = (w_e / Kf(sr))^2 (Kf in (rad/s)/sqrt(N m)), turbine torque = TR(sr) x impeller
+  const _cv = [0, 0, 0, 1], cv = (a, b, c, d) => { _cv[0] = a; _cv[1] = b; _cv[2] = c; _cv[3] = d; return _cv; };
   function converter(we, wt) {
-    if (we < 1 && Math.abs(wt) < 1) return [0, 0, 0, 1];
+    if (we < 1 && Math.abs(wt) < 1) return cv(0, 0, 0, 1);
     if (wt <= we * 1.0) {   // driving
       const sr = we > 1e-3 ? clamp(wt / we, -1, 1) : 0;
       const tr = sr < C.COUPLING ? lerp(C.STALL_TR, 1, Math.max(0, sr) / C.COUPLING) : 1;
       const kf = C.KF * (sr < C.COUPLING ? 1 : 1 / Math.sqrt(Math.max(0.004, (1 - sr) / (1 - C.COUPLING))));
       const tp = (we / kf) ** 2 * (sr < 0 ? 1 + 0.5 * -sr : 1);
-      return [tp, tp * tr, sr, tr];
+      return cv(tp, tp * tr, sr, tr);
     }
     // overrun (vehicle drives the engine: engine braking through the converter), roughly symmetric, softer
     const sr = wt / Math.max(we, 1), kf = C.KF * C.OVERRUN / Math.sqrt(Math.max(0.004, (sr - 1) / (1 - C.COUPLING)));
-    const tp = -((wt / kf) ** 2); return [tp, tp, sr, 1];
+    const tp = -((wt / kf) ** 2); return cv(tp, tp, sr, 1);
   }
 
   // ---------------------------------------------------------------------------------------------- contact helpers
@@ -315,21 +316,26 @@ export function createTrackSim(P, opt = {}) {
     return a;
   }
 
+  // helpers shared by the substep (no per-call allocation): world angular velocity, point velocity, body -> world
+  const up = [0, 1, 0], _f3 = [0, 0, 0], ZERO3 = [0, 0, 0]; let wX = 0, wY = 0, wZ = 0;
+  const pointVel = (p, out) => { const rx = p[0] - sim.pos[0], ry = p[1] - sim.pos[1], rz = p[2] - sim.pos[2]; out[0] = sim.vel[0] + wY * rz - wZ * ry; out[1] = sim.vel[1] + wZ * rx - wX * rz; out[2] = sim.vel[2] + wX * ry - wY * rx; return out; };
+  const dw3 = (x, y, z, out) => { out[0] = R[0] * x + R[1] * y + R[2] * z; out[1] = R[3] * x + R[4] * y + R[5] * z; out[2] = R[6] * x + R[7] * y + R[8] * z; return out; };
+  const bodyToWorldDir = (b, out) => dw3(b[0], b[1], b[2], out);
+  const tw3 = (x, y, z, out) => { const dx = x - P.CG[0], dy = y - P.CG[1], dz = z - P.CG[2]; out[0] = sim.pos[0] + R[0] * dx + R[1] * dy + R[2] * dz; out[1] = sim.pos[1] + R[3] * dx + R[4] * dy + R[5] * dz; out[2] = sim.pos[2] + R[6] * dx + R[7] * dy + R[8] * dz; return out; };
+  const addF = (p, f) => { F[0] += f[0]; F[1] += f[1]; F[2] += f[2]; const rx = p[0] - sim.pos[0], ry = p[1] - sim.pos[1], rz = p[2] - sim.pos[2]; Tq[0] += ry * f[2] - rz * f[1]; Tq[1] += rz * f[0] - rx * f[2]; Tq[2] += rx * f[1] - ry * f[0]; };
+  const addF3 = (p, fx, fy, fz) => { _f3[0] = fx; _f3[1] = fy; _f3[2] = fz; addF(p, _f3); };
   function substep(dt, env) {
     const ctl = sim.ctl, ev = sim.events;
     const once = (type, e) => { if (sim.t - (lastEv[type] ?? -9) < 0.6) return; lastEv[type] = sim.t; e.type = type; ev.push(e); };   // rate-limited events
     quatToMat(sim.q, R);
-    const up = [R[1], R[4], R[7]];
+    up[0] = R[1]; up[1] = R[4]; up[2] = R[7];
     // world angular velocity
-    const wx = R[0] * sim.w[0] + R[1] * sim.w[1] + R[2] * sim.w[2], wy = R[3] * sim.w[0] + R[4] * sim.w[1] + R[5] * sim.w[2], wz = R[6] * sim.w[0] + R[7] * sim.w[1] + R[8] * sim.w[2];
-    const pointVel = (p, out) => { const rx = p[0] - sim.pos[0], ry = p[1] - sim.pos[1], rz = p[2] - sim.pos[2]; out[0] = sim.vel[0] + wy * rz - wz * ry; out[1] = sim.vel[1] + wz * rx - wx * rz; out[2] = sim.vel[2] + wx * ry - wy * rx; return out; };
-    const bodyToWorldDir = (b, out) => { out[0] = R[0] * b[0] + R[1] * b[1] + R[2] * b[2]; out[1] = R[3] * b[0] + R[4] * b[1] + R[5] * b[2]; out[2] = R[6] * b[0] + R[7] * b[1] + R[8] * b[2]; return out; };
+    wX = R[0] * sim.w[0] + R[1] * sim.w[1] + R[2] * sim.w[2]; wY = R[3] * sim.w[0] + R[4] * sim.w[1] + R[5] * sim.w[2]; wZ = R[6] * sim.w[0] + R[7] * sim.w[1] + R[8] * sim.w[2];
     F[0] = 0; F[1] = -sim.mass * G0; F[2] = 0; Tq[0] = Tq[1] = Tq[2] = 0;
-    const addF = (p, f) => { F[0] += f[0]; F[1] += f[1]; F[2] += f[2]; const rx = p[0] - sim.pos[0], ry = p[1] - sim.pos[1], rz = p[2] - sim.pos[2]; Tq[0] += ry * f[2] - rz * f[1]; Tq[1] += rz * f[0] - rx * f[2]; Tq[2] += rx * f[1] - ry * f[0]; };
     nAct = 0; sideN[0] = sideN[1] = 0; sideCnt[0] = sideCnt[1] = 0;
     let hullN = 0, maxImpact = 0;
     // soil under each track (at the track centre)
-    for (let s = 0; s < 2; s++) { sim.toWorld([s ? B2 : -B2, 0, 0], _p); sim.soil[s] = soilAt(env, _p[0], _p[2]); }
+    for (let s = 0; s < 2; s++) { tw3(s ? B2 : -B2, 0, 0, _p); sim.soil[s] = soilAt(env, _p[0], _p[2]); }
 
     // ---- 1. roadwheels (sprung)
     const rebound = S.REBOUND, bump = S.BUMP;
@@ -342,7 +348,7 @@ export function createTrackSim(P, opt = {}) {
         const hubY = RW;   // nominal hub height (s = 0)
         for (let k = -3; k <= 3; k++) {
           const a = k * 0.25 * rad, yb = hubY - Math.sqrt(rad * rad - a * a);
-          sim.toWorld([x, yb, wh.z + a], _p);
+          tw3(x, yb, wh.z + a, _p);
           const gh = env.height(_p[0], _p[2]) - sink - (wh.edge ? edgeSink(soil, wh.N) : 0);
           const lift = (gh - _p[1]) / Math.max(0.35, up[1]);
           if (k === 0) lift0 = lift;
@@ -366,11 +372,11 @@ export function createTrackSim(P, opt = {}) {
         // lowest point (a kerb, a step, a trench lip): then the force runs from the edge through the hub (up and back)
         const ry = Math.sqrt(Math.max(0, rad * rad - bestA * bestA));
         const yb = hubY + sNew - ry;
-        sim.toWorld([x, yb, wh.z + bestA], _p);
+        tw3(x, yb, wh.z + bestA, _p);
         wh.edge = bestA !== 0 && best - lift0 > 0.01;
-        if (wh.edge) bodyToWorldDir([0, ry / rad, -bestA / rad], nW_);
-        else { const tn = terrainNormal(env, _p[0], _p[2]); wh.edge = tnEdge; if (tnEdge) bodyToWorldDir([0, ry / rad, -bestA / rad], nW_); else { nW_[0] = tn[0]; nW_[1] = tn[1]; nW_[2] = tn[2]; } }
-        bodyToWorldDir([0, 0, 1], tW);   // link motion on the bottom run for +omega: aft
+        if (wh.edge) dw3(0, ry / rad, -bestA / rad, nW_);
+        else { const tn = terrainNormal(env, _p[0], _p[2]); wh.edge = tnEdge; if (tnEdge) dw3(0, ry / rad, -bestA / rad, nW_); else { nW_[0] = tn[0]; nW_[1] = tn[1]; nW_[2] = tn[2]; } }
+        dw3(0, 0, 1, tW);   // link motion on the bottom run for +omega: aft
         const xpatch = Math.max(0.15, wh.z - zFront + 0.2);
         { const a = addAct(wh, _p, nW_, tW, N, s, thrown ? 'wheel' : 'track', sim.soil[s], 1, 0); a.xp = sim.spr[s] >= 0 ? xpatch : Math.max(0.15, contactLen - xpatch + 0.4); }
         sideN[s] += N; sideCnt[s]++;
@@ -383,7 +389,7 @@ export function createTrackSim(P, opt = {}) {
         for (let i = 0; i < Wh.length - 1; i++) for (let f = 0; f < 2; f++) {
           const c = gaps[s][i * 2 + f], A = Wh[i], Bw = Wh[i + 1], fr = f ? 0.67 : 0.33;
           const zb = A.z + (Bw.z - A.z) * fr, yb = A.s + (Bw.s - A.s) * fr + 0.012;
-          sim.toWorld([x, yb, zb], _p);
+          tw3(x, yb, zb, _p);
           const gh0 = env.height(_p[0], _p[2]) - sink, tn = terrainNormal(env, _p[0], _p[2]), gh = gh0 - (tnEdge ? edgeSink(soil, c.N) : 0);
           if (_p[1] >= gh) { c.N = 0; c.j[0] *= 0.9; c.j[1] *= 0.9; c.j[2] *= 0.9; continue; }
           let d;
@@ -394,7 +400,7 @@ export function createTrackSim(P, opt = {}) {
           const N = Math.max(0, T.RUN_K * d - T.RUN_C * (_v[0] * nW_[0] + _v[1] * nW_[1] + _v[2] * nW_[2]));
           c.N = N; if (!N) continue;
           _p[0] += nW_[0] * d; _p[1] += nW_[1] * d; _p[2] += nW_[2] * d;
-          bodyToWorldDir([0, 0, 1], tW);
+          dw3(0, 0, 1, tW);
           const a = addAct(c, _p, nW_, tW, N, s, 'track', sim.soil[s], 1, 0); a.xp = sim.spr[s] >= 0 ? Math.max(0.15, zb - zFront + 0.2) : Math.max(0.15, contactLen - (zb - zFront) + 0.4);
           sideN[s] += N;
         }
@@ -445,7 +451,7 @@ export function createTrackSim(P, opt = {}) {
       nW_[0] = nx; nW_[1] = ny; nW_[2] = nz;
       // links bearing on a wall or an edge grip with their steel ends and guides, not the road pads: less friction (I)
       if (c.kind === 'run') { bodyToWorldDir(c.t, tW); const a = addAct(c, _p, nW_, tW, N, c.side, 'track', sim.soil[c.side], onWall || od >= d ? (T.WALL_MU ?? 0.6) : 1, 0); a.xp = 0.15; sideN[c.side] += N; }
-      else { const a = addAct(c, _p, nW_, [0, 0, 0], N, -1, 'hull', soilAt(env, _p[0], _p[2]), c.mu, 0); a.xp = 1; hullN += N; if (c.name === 'muzzle' && d > 0.05) once('gunDug', {}); }
+      else { const a = addAct(c, _p, nW_, ZERO3, N, -1, "hull", soilAt(env, _p[0], _p[2]), c.mu, 0); a.xp = 1; hullN += N; if (c.name === 'muzzle' && d > 0.05) once('gunDug', {}); }
     }
     sim.out.impact = maxImpact;
     if (maxImpact > 4) once('impact', { speed: maxImpact });
@@ -505,25 +511,25 @@ export function createTrackSim(P, opt = {}) {
       shear(a.c, a.N, a.n, _u, relax, a.tauMax, a.K, a.damp, dt, Fc, true);
       if (sim.debug) { const k = (a.c && a.c.kind === "gap" ? "gap" : a.kind === "track" && a.c && a.c.k ? "wheel" : a.kind === "track" ? "run" : a.kind) + "F"; const D = sim.dbg[k] ||= [0, 0, 0]; D[0] += Fc[0]; D[1] += Fc[1]; D[2] += Fc[2]; }
       addF(a.p, Fc);
-      if (a.side >= 0) { bodyToWorldDir([1, 0, 0], dW); sideLat[a.side] += Fc[0] * dW[0] + Fc[1] * dW[1] + Fc[2] * dW[2]; }
+      if (a.side >= 0) { dw3(1, 0, 0, dW); sideLat[a.side] += Fc[0] * dW[0] + Fc[1] * dW[1] + Fc[2] * dW[2]; }
     }
     for (let s = 0; s < 2; s++) sim.slip[s] = slipDen[s] > 0 ? slipNum[s] / slipDen[s] : 0;
     sim.hullLoad = hullN;
 
     // ---- 6. motion resistance (compaction + extra rolling) on the hull, opposing the ground speed along the hull
-    bodyToWorldDir([0, 0, -1], dW);
+    dw3(0, 0, -1, dW);
     const vf = sim.vel[0] * dW[0] + sim.vel[1] * dW[1] + sim.vel[2] * dW[2];
     for (let s = 0; s < 2; s++) {
       const so = SOILS[sim.soil[s]], Rt = resist[s] + so.roll * sideN[s];
       const f = -Rt * vf / (Math.abs(vf) + 0.15);
-      sim.toWorld([s ? B2 : -B2, 0, 0], _p); Fc[0] = dW[0] * f; Fc[1] = dW[1] * f; Fc[2] = dW[2] * f; addF(_p, Fc);
+      tw3(s ? B2 : -B2, 0, 0, _p); Fc[0] = dW[0] * f; Fc[1] = dW[1] * f; Fc[2] = dW[2] * f; addF(_p, Fc);
     }
     // aerodynamic drag (small)
     const vm = Math.hypot(sim.vel[0], sim.vel[1], sim.vel[2]);
     if (vm > 0.1) { const k = -0.5 * RHO_A * (P.AERO_CDA || 8) * vm; F[0] += k * sim.vel[0]; F[1] += k * sim.vel[1]; F[2] += k * sim.vel[2]; }
 
     // ---- 7. water: buoyancy + drag + track propulsion + ingress
-    water(dt, env, addF, pointVel, bodyToWorldDir, up);
+    water(dt, env);
 
     // ---- 8. integrate the rigid body (semi-implicit Euler)
     const im = 1 / sim.mass;
@@ -660,7 +666,8 @@ export function createTrackSim(P, opt = {}) {
 
   // ---------------------------------------------------------------------------------------------- water
   sim.waterTrq = [0, 0];
-  function water(dt, env, addF, pointVel, bodyToWorldDir, up) {
+  const _cp = [0, 0, 0];
+  function water(dt, env) {
     const wst = sim.water; sim.waterTrq[0] = sim.waterTrq[1] = 0;
     if (!env.water) { wst.depth = 0; wst.afloat = false; return; }
     const o = sim.origin(_r), wl = env.water(o[0], o[2]);
@@ -670,7 +677,7 @@ export function createTrackSim(P, opt = {}) {
     let buoy = 0, subVolTot = 0;
     for (const col of COLS) {
       // column bottom / top in world (centre line of the column)
-      sim.toWorld([col.x, col.y0, col.z], _p); const yb = _p[1]; sim.toWorld([col.x, col.y1, col.z], _v); const yt = _v[1];
+      tw3(col.x, col.y0, col.z, _p); const yb = _p[1]; tw3(col.x, col.y1, col.z, _v); const yt = _v[1];
       const wlc = env.water(_p[0], _p[2]);
       const hgt = col.y1 - col.y0, sub = clamp((wlc - yb) / Math.max(0.05, yt - yb), 0, 1);
       if (sub <= 0) continue;
@@ -678,24 +685,24 @@ export function createTrackSim(P, opt = {}) {
       subVolTot += vol;
       const fb = RHO_W * G0 * vol; buoy += fb;
       // buoyant force at the submerged centroid of the column
-      const cp = [_p[0] + (_v[0] - _p[0]) * sub * 0.5, _p[1] + (_v[1] - _p[1]) * sub * 0.5, _p[2] + (_v[2] - _p[2]) * sub * 0.5];
-      addF(cp, [0, fb, 0]);
+      const cp = _cp; cp[0] = _p[0] + (_v[0] - _p[0]) * sub * 0.5; cp[1] = _p[1] + (_v[1] - _p[1]) * sub * 0.5; cp[2] = _p[2] + (_v[2] - _p[2]) * sub * 0.5;
+      addF3(cp, 0, fb, 0);
       // hydrodynamic drag on the column (heave + surge + sway), quadratic
       pointVel(cp, _u);
       const fw = W.CD_V * 0.5 * RHO_W * 4 * col.ax * col.az;
       // horizontal drag on the projected areas
-      bodyToWorldDir([0, 0, -1], dW); bodyToWorldDir([1, 0, 0], tW);
+      dw3(0, 0, -1, dW); dw3(1, 0, 0, tW);
       const uf = _u[0] * dW[0] + _u[2] * dW[2], us = _u[0] * tW[0] + _u[2] * tW[2], subH = hgt * sub;
       // columns come in 2 layers (lower hull, upper hull) of 2 across: each carries its share of the frontal and side areas
       const kf = -0.5 * RHO_W * W.CD_X * (W.FRONT_W * 2 / COLS.length) * subH * Math.abs(uf) * uf, ks = -0.5 * RHO_W * W.CD_Y * col.az * subH * Math.abs(us) * us;
-      addF(cp, [dW[0] * kf + tW[0] * ks, -fw * Math.abs(_u[1]) * _u[1], dW[2] * kf + tW[2] * ks]);
+      addF3(cp, dW[0] * kf + tW[0] * ks, -fw * Math.abs(_u[1]) * _u[1], dW[2] * kf + tW[2] * ks);
     }
     // trim vane (M113): raised, it stands out ahead of the bow, keeps the bow wave off the deck and adds bow lift
     // (buoyancy of its foam-filled / planing surface + the trapped bow wave), INFERRED magnitude
     if (W.VANE && wst.vane) {
-      sim.toWorld([0, W.VANE_Y, W.VANE_Z], _p);
+      tw3(0, W.VANE_Y, W.VANE_Z, _p);
       const sub = clamp((env.water(_p[0], _p[2]) - _p[1]) / 0.6 + 0.5, 0, 1);
-      if (sub > 0) { const fb = RHO_W * G0 * W.VANE_VOL * sub; buoy += fb; addF(_p, [0, fb, 0]); }
+      if (sub > 0) { const fb = RHO_W * G0 * W.VANE_VOL * sub; buoy += fb; addF3(_p, 0, fb, 0); }
     }
     // afloat with hysteresis: buoyancy carries the vehicle and the tracks carry (almost) nothing
     const trackW = (sim.load[0] + sim.load[1]) / (sim.mass * G0);
@@ -704,20 +711,20 @@ export function createTrackSim(P, opt = {}) {
     // water taken aboard adds mass (sinking)
     // track propulsion (paddle): thrust from each track's slip through the water, a reaction torque on its sprocket.
     if (W.TRACK_CA) {
-      bodyToWorldDir([0, 0, -1], dW);
+      dw3(0, 0, -1, dW);
       const vfw = sim.vel[0] * dW[0] + sim.vel[2] * dW[2], wet = clamp(wst.depth / (P.HULL.CLEAR + 0.4), 0, 1);
       for (let s = 0; s < 2; s++) {
         if (sim.dmg.thrown[s]) continue;
         const vt = sim.spr[s] * T.SPROCKET_R, du = vt - vfw;
         const thrust = 0.5 * RHO_W * W.TRACK_CA * wet * du * Math.abs(du);
-        sim.toWorld([s ? B2 : -B2, 0.2, 0], _p);
-        addF(_p, [dW[0] * thrust, 0, dW[2] * thrust]);
+        tw3(s ? B2 : -B2, 0.2, 0, _p);
+        addF3(_p, dW[0] * thrust, 0, dW[2] * thrust);
         sim.waterTrq[s] = thrust * T.SPROCKET_R + W.TRACK_LOSS * wet * vt * Math.abs(vt) * T.SPROCKET_R;
       }
     }
     // ingress: deep fording floods the engine through its air intake; a swimmer leaks and its pumps clear it
     const intakeY = P.HULL.INTAKE_Y;
-    sim.toWorld([0, intakeY, P.HULL.INTAKE_Z || 1.5], _p);
+    tw3(0, intakeY, P.HULL.INTAKE_Z || 1.5, _p);
     // the intake swallows water only when held under (a splash over the grille is not enough): ~0.8 s of submersion
     const under = env.water(_p[0], _p[2]) - _p[1];
     wst.intakeT = Math.max(0, (wst.intakeT || 0) + (under > 0 ? dt * Math.min(3, 0.5 + under / 0.1) : -dt * 0.5));
@@ -725,7 +732,7 @@ export function createTrackSim(P, opt = {}) {
     const swimmer = !!W.SWIMS;
     const ready = swimmer && (!W.VANE || wst.vane);
     let leak = 0;
-    sim.toWorld([0, P.HULL.DECK_Y, (P.HULL.DECK_Z || 0)], _p);
+    tw3(0, P.HULL.DECK_Y, (P.HULL.DECK_Z || 0), _p);
     const over = env.water(_p[0], _p[2]) - _p[1];   // water over the lowest deck opening line
     if (over > 0) leak += (ready ? W.LEAK_OVER * 0.25 : W.LEAK_OVER) * Math.min(1, over / 0.3);
     if (subVolTot > 0) leak += swimmer ? W.LEAK : W.LEAK_FORD;
