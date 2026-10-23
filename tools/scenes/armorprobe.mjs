@@ -1,10 +1,11 @@
-// quick probe (not a test): the laser
+// quick probe (not a test): what the armour costs per frame on the title-free game start
 export default async function (h) {
-  await h.goto('?debug&auto&kb&peace&res=0.45');
-  await h.waitFor("window.__G && __G.G.state==='play' && __G.H.landed", 30000);
-  await h.eval(`(() => { const T = __G.terrainH; for (const I of __G.ISLANDS) for (const tg of (I.structs || [])) { if (tg.dead || tg.side !== 2 || tg.kind === 'aa' || tg.kind === 'shipyard') continue; const ty = tg.y + Math.max(2, tg.h * 0.8); for (const r of [240, 300, 360, 420]) for (let k = 0; k < 36; k++) { const a = k * Math.PI / 18, x = tg.x + Math.cos(a) * r, z = tg.z + Math.sin(a) * r, g = T(x, z); if (g < 2.5 || Math.hypot(T(x + 3, z) - T(x - 3, z), T(x, z + 3) - T(x, z - 3)) / 6 > 0.12 || __G.BASES.some(b => Math.hypot(b.x - x, b.z - z) < 25)) continue; let ok = true; for (let s = 6; s < r - tg.r && ok; s += 3) { const f = s / r, px = x + (tg.x - x) * f, pz = z + (tg.z - z) * f, py = g + 2.8 + (ty - g - 2.8) * f; if (py < Math.max(T(px, pz), 0) + 0.8) ok = false; } if (!ok) continue; window.__tgt = tg; __G.m60C.spawnAt({ x, z, yaw: Math.atan2(-(tg.x - x), -(tg.z - z)) }); return { at: [Math.round(x), Math.round(z), Math.round(g)], target: tg.kind, island: I.name, hp: tg.hp, d: r }; } } return null; })()`);
-  await h.wait(1000);
-  await h.eval(`(__G.crafts.control("m60", 1, "foot"), (() => { const t = __tgt, T = __G.m60C, p = T.V.turretPoint([0.55, 0.85, -0.9]), dx = t.x - p[0], dy = t.y + Math.max(2, t.h * 0.8) - p[1], dz = t.z - p[2], l = Math.hypot(dx, dy, dz); T.aim.yaw = Math.atan2(-dx, -dz); T.aim.pitch = Math.asin(dy / l); T.aim.set = true; return 1; })())`); await h.wait(3000); await h.eval(`(__G.m60C.IN.lase = true, 1)`); await h.wait(600); await h.eval(`({ laser: JSON.stringify(__G.m60C.V.laser), hyd: __G.m60C.V.hydP, msg: document.getElementById("msg").textContent, sd: __G.m60C.V.sightDir().map(v => +v.toFixed(3)), tp: __G.m60C.V.turretPoint([0.55, 0.75, -0.8]).map(v => +v.toFixed(1)) })`);
-  await h.eval(`(() => { const T = __G.m60C, t = __tgt, p = T.V.turretPoint([0.55, 0.75, -0.8]), q = [t.x, t.y + Math.max(2, t.h * 0.8), t.z], d = q.map((v, i) => v - p[i]), L = Math.hypot(...d), u = d.map(v => v / L); const E = __G.AW.env(T); E.prep(p[0], p[2]); return { L: +L.toFixed(1), full: E.raycast(p, u, 5000), terr: E.raycast(p, u, 5000, true), hit: !!__G.war.hitTest(q[0], q[1], q[2], 1, 0.2), hitObj: (() => { const o = __G.war.hitTest(q[0], q[1], q[2], 1, 0.2); return o && (o.kind || o.type); })() }; })()`);
+  await h.goto('?debug&kb&peace&res=0.45');
+  await h.waitFor('window.__G', 10000);
+  await h.key('tap', 'Enter'); await h.wait(4000);
+  const m = `(() => { const t0 = performance.now(), s0 = __G.war.time; return new Promise(r => setTimeout(() => r({ simPerWall: +((__G.war.time - s0) / ((performance.now() - t0) / 1000)).toFixed(2), prof: JSON.stringify(Object.fromEntries(Object.entries(__G.PROF).map(([k, v]) => [k, +v.toFixed(1)]))), fps: document.getElementById('dbg').textContent, m113: __G.m113C.asleep, m60: __G.m60C.asleep }), 4000)); })()`;
+  await h.eval(m);
+  await h.eval(`(__G.m113C.stow(), __G.m60C.stow(), 1)`);
+  await h.wait(1500);
+  await h.eval(m);
 }
-export async function more(h) {}

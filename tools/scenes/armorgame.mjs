@@ -16,6 +16,8 @@ export default async function (h) {
   }, 1)`);
   // ---- 1. into the M60 at the home island motor pool, drive
   await h.expect('__A.T().exists && !__A.T().dead');
+  await h.eval('(() => { const H = __G.HARDS.find(d => d.I === __G.HOME_B.isl), o = __A.T().fm.origin(); return { hardTop: H.at(H.u1 + 6).map(Math.round), m60: [o[0], o[2]].map(Math.round) }; })()');
+  await h.eval('(() => { const s = __G.GR.motorPool(__G.HOME_B.isl, 4.6); __A.T().spawnAt(s); return s.name; })()'); await h.wait(500);
   await h.key('tap', 'KeyY'); await h.wait(400);
   await h.eval('__A.toDoor(__A.T(), 0)'); await h.wait(500);
   await h.eval("document.getElementById('hint').textContent");
@@ -32,10 +34,11 @@ export default async function (h) {
   await h.eval('({ from: __p0, now: __A.st(__A.T()) })');
   await h.expect('Math.hypot(__A.st(__A.T()).x - __p0.x, __A.st(__A.T()).z - __p0.z) > 5');
   // the road: the crew drives to the lane and along it (the AI driver; any key takes over)
-  await h.eval(`(() => { const G = window.__WORLD.roadGraph(__G.HOME_B.isl.x, __G.HOME_B.isl.z, 200), R = G.roads.find(r => r.kind === 'zone') || G.roads[0]; const pts = []; for (let i = 4; i < R.xs.length; i += 2) pts.push([R.xs[i], R.zs[i]]); window.__road = pts; __A.T().order(pts, { speed: 5, arrive: 4 }); return pts.length; })()`);
+  await h.eval(`(() => { const G = window.__WORLD.roadGraph(__G.HOME_B.isl.x, __G.HOME_B.isl.z, 200), R = G.roads.find(r => r.kind === 'zone') || G.roads[0]; const pts = []; for (let i = 4; i < R.xs.length; i += 2) pts.push([R.xs[i], R.zs[i]]); window.__road = pts; window.__paved = 0; setInterval(() => { if (__A.T().fm.soil.includes('paved') && __A.T().fm.out.fwd > 1) __paved++; }, 200); __A.T().order(pts, { speed: 5, arrive: 4 }); return pts.length; })()`);
   await h.key('tap', 'KeyV'); await h.wait(300);
-  await h.waitFor(`__A.T().fm.soil.includes('paved') && Math.hypot(__A.T().fm.origin()[0] - __road[2][0], __A.T().fm.origin()[2] - __road[2][1]) < 12`, 60000);
+  await h.waitFor(`Math.hypot(__A.T().fm.origin()[0] - __road[2][0], __A.T().fm.origin()[2] - __road[2][1]) < 12`, 60000);
   await h.eval('__A.st(__A.T())'); await h.shot('m60-on-the-road-chase');
+  await h.expect('__paved > 5');   // driven on the tarmac lane (1 s of samples at > 3.6 km/h on paved)
   await h.waitFor(`__A.T().driver.state !== 'driving'`, 90000);
   await h.eval('({ st: __A.st(__A.T()), drv: __A.T().driver.state })');
   // a climb: up the home island's landing hard (1 in 5, concrete) and on up the hillside above it (grass, steeper)

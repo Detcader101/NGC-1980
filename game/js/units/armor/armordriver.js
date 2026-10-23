@@ -83,9 +83,9 @@ export function createTrackDriver(V, opt = {}) {
       for (const o of opt.env.obstacles(p[0], p[2], Math.min(L, 30)) || []) {
         if (o.breakN && opt.push && o.breakN < opt.push) continue;   // small trees: push through them
         if (String(o.id).startsWith('craft:' + (opt.selfId || '-'))) continue;
-        const r = o.kind === 'cyl' ? o.r : Math.hypot(o.hx, o.hz), ox = o.x - p[0], oz = o.z - p[2], t = ox * ux + oz * uz;
-        if (t < 0 || t > L + r) continue;
-        const side = ox * uz - oz * ux, need = r + hw + 1.2;   // + = the obstacle is to the right of the line
+        const r = o.kind === 'cyl' ? o.r : Math.max(o.hx, o.hz) * 0.85, ox = o.x - p[0], oz = o.z - p[2], t = ox * ux + oz * uz;
+        if (t < 0 || t > Math.min(L + r, 25)) continue;
+        const side = ox * uz - oz * ux, need = r + hw + 0.7;   // + = the obstacle is to the right of the line
         if (Math.abs(side) < need && (!worst || t < worst.t)) worst = { t, side, need, o };
       }
       if (worst) {   // a point beside it, on the side the line already passes

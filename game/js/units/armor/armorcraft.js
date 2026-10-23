@@ -352,12 +352,12 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
     // sleep: parked on land, engine off, at rest (wakes on entry, a hit, an order)
     const cam = ctx.camZ(); fm.origin(_o);
     const far = cam && Math.hypot(cam.position.x - _o[0], cam.position.z - _o[2]) > 900;
-    const rest = Math.hypot(fm.vel[0], fm.vel[1], fm.vel[2]) < 0.04 && Math.hypot(fm.w[0], fm.w[1], fm.w[2]) < 0.02;
-    if (D.driver.state !== 'driving' && !st.plat && ((!fm.eng.running && rest) || (far && rest) || D.dead)) { D.restT = (D.restT || 0) + dt; if (D.restT > 2) { D.asleep = true; return; } } else D.restT = 0;
+    const pk = st.plat ? 4 : 1, rest = Math.hypot(fm.vel[0], fm.vel[1], fm.vel[2]) < 0.04 * pk && Math.hypot(fm.w[0], fm.w[1], fm.w[2]) < 0.02 * pk;   // (a deck heaves: looser)
+    if (D.driver.state !== 'driving' && ((!fm.eng.running && rest) || (far && rest) || D.dead)) { D.restT = (D.restT || 0) + dt; if (D.restT > (st.plat ? 4 : 2)) { D.asleep = true; fm.origin(_o); env.prep(_o[0], _o[2]); D.restOff = _o[1] - env.height(_o[0], _o[2]); return; } } else D.restT = 0;   // (on a deck it sleeps too: afterWar carries it kinematically)
     D.asleep = false;
     step(dt, false);
   };
-  D.afterWar = () => { if (!D.exists || D.asleep) return; AW.carry(fm, st); AW.settle(fm, st); };
+  D.afterWar = () => { if (!D.exists || (D.asleep && !st.plat)) return; AW.carry(fm, st); if (D.asleep && st.plat) { fm.origin(_o); env.prep(_o[0], _o[2]); fm.pos[1] += env.height(_o[0], _o[2]) + (D.restOff || 0) - _o[1]; } AW.settle(fm, st); if (D.asleep && !st.plat) D.wake(); };   // asleep on a deck: carried as it lies; off the deck (it sank, the boat left): awake
   D.wake = () => { D.asleep = false; D.restT = 0; };
   // an order for the crew (the AI driver): the landing craft, scripts, the RUNAWAY war's own machines use the same
   D.order = (pts, o = {}) => { D.crankUp(); D.driver.follow(pts, o); return D.driver; };
@@ -575,7 +575,12 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
     if (!D.exists) { model.group.visible = false; if (drew) { SG.draw(null); drew = false; } return; }
     const active = crafts.active === D, s = seatOf();
     fm.origin(_o);
-    model.group.visible = true; model.group.position.set(_o[0], _o[1], _o[2]); model.group.quaternion.set(fm.q.x, fm.q.y, fm.q.z, fm.q.w);
+    {   // far away and nobody in it: hidden past 900 m (fog), the running gear left still past 250 m (cheap)
+      const cr = ctx.camZ(), dR = cr ? Math.hypot(cr.position.x - _o[0], cr.position.z - _o[2]) : 0;
+      if (!active && dR > 900) { model.group.visible = false; if (audio && audio.built) audio.out.gain.setTargetAtTime(0, audio.ctx.currentTime, 0.2); if (drew && !(crafts.active && crafts.active.type)) { SG.draw(null); drew = false; } return; }
+      if (!active && dR > 250 && D.asleep && !st.plat && D._posed) { model.group.visible = true; return; }
+    }
+    model.group.visible = true; model.group.position.set(_o[0], _o[1], _o[2]); model.group.quaternion.set(fm.q.x, fm.q.y, fm.q.z, fm.q.w); D._posed = D.asleep;
     for (let i = 0; i < 2; i++) for (let k = 0; k < travel[i].length; k++) { const w = fm.wheels[i][k]; travel[i][k] = w.on ? w.s : Math.min(w.s, 0); }
     const inside = active && D.view === 'eye' && insideCam;
     if (M60) model.animate({ travel, trackPos: fm.trackPos, thrown: fm.dmg.thrown, az: V.az, el: V.el, recoil: V.gun.recoil, cupAz: V.mg50.az, mgEl: V.mg50.el, hatches: D.hatch, tts: V.power ? 1 : 0, light: 0, inside });
