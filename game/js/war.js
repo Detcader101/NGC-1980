@@ -607,7 +607,7 @@ export function createWar(ctx) {
         if (b.kind === 'jb') {   // ~500 m/s: walk the segment travelled this frame so nothing is tunnelled through
           const n = Math.max(1, Math.ceil(_pp.distanceTo(b.p) / 2.5));
           for (let k = 1; k <= n && !hit && !done; k++) { _js.lerpVectors(_pp, b.p, k / n); if (_js.y < Math.max(terrainH(_js.x, _js.z), 0, W.deckY(_js.x, _js.z, b.side))) { done = true; b.p.copy(_js); } else hit = hitTest(_js.x, _js.y, _js.z, b.side, 0.4);
-            if (!hit && b.side === 2 && pl.alive && !pl.inCave && _js.distanceToSquared(pl.pos) < (pl.hitR || 2.6) ** 2) { ctx.hurtPlayer(0.15, 'CANNON'); done = true; } }   // AIR: SHRIKE cannon vs the player
+            if (!hit && b.side === 2 && pl.alive && !pl.inCave && _js.distanceToSquared(pl.pos) < (pl.hitR || 2.6) ** 2) { ctx.hurtPlayer(0.15, 'CANNON', _js, b.v, 'jb'); done = true; } }   // AIR: SHRIKE cannon vs the player
           if (hit) { done = true; b.p.copy(_js); }
         } else if (b.boom) { done = true; }
         else if (y < floor) done = true;
