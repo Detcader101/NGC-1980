@@ -12,6 +12,7 @@ import { addLiftFans, FAN_POS } from './ships.js';
 import { structAngle } from './world/net.js';   // WORLD: the HQ / production slots are seeded per island (the villages keep clear of them)
 import { createDefence } from './units/defence/brain.js';   // NGC-1980 DEFENCE: AA unit models + engagement logic
 import { createRotary } from './units/air/rotary/rotary.js';   // NGC-1980: CH-46 + Marines, MV-22, RW-3 WASP (physical AI rotorcraft)
+import { createGroundWar } from './units/groundwar/groundwar.js';   // NGC-1980 GROUND WAR: STRIDERs, RW-7s, seized MBTs and Marines fighting on the islands
 import { buildCarrier, buildBattleship, buildFreighter, buildDrone, buildTransport, buildGunship, buildTomcat, buildGun, buildStructure, buildRubble, CARRIER, BSHIP, FREIGHTER, TEAM } from './ships.js';
 // NAVAL: ship motion in a seaway (heave / pitch / roll by sea state and speed) and the naval effects
 import { SHIPS as SHIP_MOTION, makeSea, createShipMotion, shipPointY, shipPointVY, retuneSea, advanceSea, seaElevation } from './units/naval/seamotion.js';
@@ -385,6 +386,11 @@ export function createWar(ctx) {
   // NGC-1980 hook: the rotary module flies 'drone' (CH-46), 'transport' (MV-22) and 'gunship' (RW-3 WASP) physically
   const ROT = createRotary({ W, scene, fx, sfx, terrainH, isWater, feed, addScore: ctx.addScore, shoot, blast, boomAt, hear, ear });
   W.rotary = ROT;
+  // NGC-1980 GROUND WAR hook (units/groundwar/): the troops the transports land fight on the islands - STRIDERs off the
+  // MV-22s, the CH-46's Marines, RW-7 hover tanks over the sea and seized MBTs by landing craft. Squads stand in W.units
+  // as 'squad' proxies (capture, gunship targets, expansion); the war's rounds and blasts reach them through GW below.
+  const GW = createGroundWar({ W, scene, fx, sfx, terrainH, nav, feed, hear, boomAt, ear, addScore: ctx.addScore, player: ctx.player, hurtPlayer: (a, why, at, dir) => ctx.hurtPlayer(a, why, at, dir) });
+  W.ground = GW; ROT.ground = GW;
   function makeAir(type, side, x, y, z, extra = {}) {
     { const ru = ROT.make(type, side, x, y, z, extra); if (ru) { W.units.push(ru); return ru; } }   // NGC-1980 hook
     const m = type === 'drone' ? buildDrone() : type === 'transport' ? buildTransport() : type === 'escort' ? buildTomcat(side) : buildGunship(side);
@@ -399,11 +405,12 @@ export function createWar(ctx) {
   }
   W.sendDrone = I => {
     if (W.P.mat < COST.drone) return 'NOT ENOUGH MATERIEL';
-    if (I.owner === 1) return `${I.name} IS ALREADY OURS`;
+    const reinforce = I.owner === 1 && !I.cave && GW.presence(I, 2) > 0;   // NGC-1980 GROUND WAR hook: Marines to one of our islands the machines have landed on
+    if (I.owner === 1 && !reinforce) return `${I.name} IS ALREADY OURS`;
     if (I.cave) return 'CAVE ISLANDS: STEAL THE POD FROM THE CAVE';
     if (W.units.filter(u => u.type === 'drone' && !u.dead).length >= 3) return 'THREE SEA KNIGHTS ALREADY OUT';
-    W.P.mat -= COST.drone; const [x, y, z] = launchPoint(1); makeAir('drone', 1, x, y, z, { target: I });
-    sfx.dock(); return `SEA KNIGHT LAUNCHED  -  13 MARINES FOR ${I.name}`;
+    W.P.mat -= COST.drone; const [x, y, z] = launchPoint(1); makeAir('drone', 1, x, y, z, { target: I, reinforce });
+    sfx.dock(); return `SEA KNIGHT LAUNCHED  -  13 MARINES ${reinforce ? 'TO REINFORCE' : 'FOR'} ${I.name}`;
   };
   W.orderAA = I => {
     if (I.owner !== 1) return 'GUNS CAN ONLY GO ON OUR ISLANDS';
@@ -527,7 +534,7 @@ export function createWar(ctx) {
   function guide(b, dt) { homeAAM(b, dt); }
   // everything that can be hit, of the side opposite to `side`
   function* targets(side) {
-    for (const u of W.units) if (u.side !== side && !u.dead && !u.dying && !u.gone) yield u;
+    for (const u of W.units) if (u.side !== side && !u.dead && !u.dying && !u.gone && !u.noHit) yield u;   // (GROUND WAR: squad proxies are hit man by man, through GW)
     for (const I of W.islands) for (const s of I.structs) if (!s.dead && s.side !== side && s.side !== 0) yield s;
   }
   function hitTest(x, y, z, side, rad = 0) {
@@ -572,7 +579,7 @@ export function createWar(ctx) {
     else { feed('ALBATROSS IS SINKING', 'bad'); end('lose', 'OUR CARRIER WAS SUNK'); }
   }
   // explosion damage to everything of the other side in radius r (and to the player helicopter for enemy blasts)
-  function blast(x, y, z, r, dmg, side) {
+  function blast(x, y, z, r, dmg, side, noGround) {   // (noGround: the ground war's own blast, already applied to its units)
     for (const t of targets(side)) {
       let d;
       if (t.ship || t.dims) { const tp = t.ship ? t.mesh.getWorldPosition(_w) : t.p; d = Math.hypot(x - tp.x, z - tp.z); if (t.dims) { const [lx, lz] = toLocal(t, x, z); d = Math.hypot(Math.max(0, Math.abs(lx) - t.dims.W / 2), Math.max(0, Math.abs(lz) - t.dims.L / 2), Math.max(0, y - t.dims.DECK - 3)); } }
@@ -581,7 +588,8 @@ export function createWar(ctx) {
       if (d < r) damage(t, dmg * (1 - 0.6 * d / r), side);
     }
     const pl = ctx.player();
-    if (side !== 1 && pl.alive && !pl.inCave) { const d = pl.pos.distanceTo(_v.set(x, y, z)); if (d < r) ctx.hurtPlayer(0.12 + 0.3 * dmg / 20 * (1 - d / r), 'BLAST'); }
+    if (side !== 1 && pl.alive && !pl.inCave) { const d = pl.pos.distanceTo(_v.set(x, y, z)); if (d < r) ctx.hurtPlayer(0.12 + 0.3 * dmg / 20 * (1 - d / r), 'BLAST', null, null, 'blast'); }   // ngc/foot2: kind for the Marine's wounds
+    if (!noGround) GW.blast(x, y, z, r, dmg, side);   // NGC-1980 GROUND WAR hook: the troops and vehicles on the ground in reach
   }
   W.blast = blast;
   function updateProj(dt, pl) {
@@ -610,27 +618,28 @@ export function createWar(ctx) {
         if (b.life <= 0) {   // burst
           fx.flak(x, y, z); if (hear(x, y, z, 300) > 0) sfx.flak?.();
           for (const t of targets(b.side)) if (t.p && !t.dims && t.p.distanceTo(b.p) < 8) damage(t, 1.2, b.side);
-          if (b.side === 2 && pl.alive && !pl.inCave && pl.pos.distanceTo(b.p) < 7 + (pl.hitR || 2.6) - 2.6) ctx.hurtPlayer(0.13, 'FLAK');
+          if (b.side === 2 && pl.alive && !pl.inCave && pl.pos.distanceTo(b.p) < 7 + (pl.hitR || 2.6) - 2.6) ctx.hurtPlayer(0.13, 'FLAK', null, null, 'flak');
           const sc = W.carrier; if (b.side === 2 && sc && sc.sky && sc.sky.up && sc.p.y > 8) { const [lx, lz] = toLocal(sc, x, z); if (Math.abs(lx) < 34 && Math.abs(lz) < 66 && Math.abs(y - (sc.p.y + 4)) < 10) damage(sc, 2, 2); }
         }
       } else if (!done) {
-        if (b.kind === 'jb') {   // ~500 m/s: walk the segment travelled this frame so nothing is tunnelled through
+        if (GW.segHit(b, _pp)) done = true;   // NGC-1980 GROUND WAR hook: this frame's path against STRIDERs, RW-7s, MBTs (our rounds) or Marines (theirs)
+        else if (b.kind === 'jb') {   // ~500 m/s: walk the segment travelled this frame so nothing is tunnelled through
           const n = Math.max(1, Math.ceil(_pp.distanceTo(b.p) / 2.5));
           for (let k = 1; k <= n && !hit && !done; k++) { _js.lerpVectors(_pp, b.p, k / n); if (_js.y < Math.max(terrainH(_js.x, _js.z), 0, W.deckY(_js.x, _js.z, b.side))) { done = true; b.p.copy(_js); } else hit = hitTest(_js.x, _js.y, _js.z, b.side, 0.4);
-            if (!hit && b.side === 2 && pl.alive && !pl.inCave && _js.distanceToSquared(pl.pos) < (pl.hitR || 2.6) ** 2) { ctx.hurtPlayer(0.15, 'CANNON'); done = true; } }   // AIR: SHRIKE cannon vs the player
+            if (!hit && b.side === 2 && pl.alive && !pl.inCave && _js.distanceToSquared(pl.pos) < (pl.hitR || 2.6) ** 2) { ctx.hurtPlayer(0.15, 'CANNON', _js, b.v, 'jb'); done = true; } }   // AIR: SHRIKE cannon vs the player
           if (hit) { done = true; b.p.copy(_js); }
         } else if (b.boom) { done = true; }
         else if (y < floor) done = true;
         else {
           hit = hitTest(x, y, z, b.side, b.kind === 'rocket' ? 0.5 : b.kind === 'aam' ? 1.5 : 0);
           if (hit) done = true;
-          else if (b.side === 2 && b.kind !== 'shell' && pl.alive && !pl.inCave && segD2(_pp, b.p, pl.pos) < (pl.hitR || 2.6) ** 2) { ctx.hurtPlayer(0.2, 'HIT', _cpt, b.v); done = true; }   // FOUNDATION: swept (small targets), hit point for body parts
+          else if (b.side === 2 && b.kind !== 'shell' && pl.alive && !pl.inCave && segD2(_pp, b.p, pl.pos) < (pl.hitR || 2.6) ** 2) { ctx.hurtPlayer(0.2, 'HIT', _cpt, b.v, b.kind); done = true; }   // FOUNDATION: swept (small targets), hit point for body parts
         }
         if (done) {
           const wet = y < floor + 0.5 && isWater(x, z) && dy < 0;
           const ship = dy > gy + 0.5 && y < dy + 1 ? W.shipAt(x, z) : null;   // landed on a deck: a direct hit
           if (ship && ship.side !== b.side && ship.sinking === undefined) damage(ship, { rocket: 5, bomb: 24, shell: 18 }[b.kind] || 0, b.side);
-          if (b.kind === 'b' || b.kind === 'ciws' || b.kind === 'jb') { const q = b.p; if (hit) { damage(hit, b.kind === 'ciws' ? 0.5 : b.kind === 'jb' ? 1.4 : 1, b.side); fx.impact(q.x, q.y, q.z, 'metal'); } else fx.impact(q.x, Math.max(q.y, floor), q.z, wet ? 'water' : 'ground'); }
+          if (b.kind === 'b' || b.kind === 'ciws' || b.kind === 'jb') { const q = b.p; if (hit) { damage(hit, b.kind === 'ciws' ? 0.5 : b.kind === 'jb' ? 1.4 : 1, b.side); fx.impact(q.x, q.y, q.z, 'metal'); } else if (!b.gwHit) fx.impact(q.x, Math.max(q.y, floor), q.z, wet ? 'water' : 'ground'); }
           else if (b.kind === 'aam') { fx.explode(x, Math.max(y, floor), z, 1.3, { debris: 3 }); boomAt(x, y, z, 0.6); if (hit && !b.boom) damage(hit, 6, b.side); blast(x, y, z, 7, 3, b.side); }
           else if (b.kind === 'rocket') { fx.explode(x, Math.max(y, floor), z, 1.1, { debris: 2 }); boomAt(x, y, z, 0.45); if (hit) damage(hit, 4, b.side); blast(x, y, z, 6, 4, b.side); }
           else if (b.kind === 'bomb') { fx.explode(x, Math.max(y, floor), z, 2.8, { debris: 8, crater: 3.6, fire: wet ? 0 : 20 }); boomAt(x, y, z, 1.3); blast(x, Math.max(y, floor), z, 12, 20, b.side); }
@@ -643,7 +652,7 @@ export function createWar(ctx) {
   // AA guns (on islands and ships): lead the target, fire flak bursts; close in, a stream of tracer
   function enemiesOf(side, pl) {
     const list = [];
-    for (const u of W.units) if (u.side !== side && !u.dead && !u.dying && u.p && !u.dims) list.push(u);
+    for (const u of W.units) if (u.side !== side && !u.dead && !u.dying && u.p && !u.dims && !u.ground) list.push(u);   // (GROUND WAR: AA guns don't engage squads on the ground)
     if (side === 2 && pl.alive && !pl.inCave) list.push({ p: pl.pos, v: pl.vel, player: true, vis: pl.detect ?? 1 });
     const sc = W.carrier; if (side === 2 && sc && sc.sky && sc.sky.up && sc.p.y > 8 && sc.sinking === undefined) list.push({ p: _skyAim.set(sc.p.x, sc.p.y + 4, sc.p.z), v: sc.v });
     return list;
@@ -862,6 +871,7 @@ export function createWar(ctx) {
     for (const u of W.units) scene.remove(u.mesh); W.units.length = 0; nfx.sweep(W.units); ROT.reset();
     for (const p of W.proj) if (p.mesh) scene.remove(p.mesh); W.proj.length = 0;
     defence.reset();   // DEFENCE hook
+    GW.reset();   // NGC-1980 GROUND WAR hook
     islandGroup.clear(); fx.emitters.length = 0;
     for (const I of W.islands) { I.owner = I.owner0 ?? I.owner; I.lostT = -1e9; I.stock = 0; }
     buildIslands();
@@ -886,10 +896,11 @@ export function createWar(ctx) {
     updateProj(dt, pl);
     updateGuns(dt, pl, peace);
     defence.tick(dt);   // DEFENCE hook: missiles in flight, beams, the cockpit warning
+    GW.update(dt, pl, peace);   // NGC-1980 GROUND WAR hook: landings, the island battles, squad proxies, landing craft, views, sound
     updateCapture(dt, pl);
     updateEconomy(dt);
     updateBattleship(dt); updateFreighters(dt);
-    if (!peace) { W.thinkT -= dt; if (W.thinkT <= 0) { W.thinkT = 2; think(pl); W.air.think(pl); } }   // AIR: + the enemy air arm's plans
+    if (!peace) { W.thinkT -= dt; if (W.thinkT <= 0) { W.thinkT = 2; GW.think(pl); think(pl); W.air.think(pl); } }   // GROUND WAR: its ground plans first (armour is saved up for); AIR: + the enemy air arm's plans
     W.air.frame(dt, pl);   // AIR: launch queue, drone rails, engine sounds
     // buildings animate
     for (const I of W.islands) for (const s of I.structs) {
@@ -902,6 +913,7 @@ export function createWar(ctx) {
     }
   };
   W.setVisibility = fog => {   // enemy aircraft and ships only where we can see; buildings once explored
+    GW.setVisibility(fog);   // NGC-1980 GROUND WAR hook: STRIDERs, RW-7s, MBTs and landing craft only where we can see
     for (const u of W.units) if (u.side === 2) { u.mesh.visible = fog.visibleAt(u.p.x, u.p.z); if (u.mesh.visible && u.type === 'freighter' && !u.spotted) { u.spotted = true; feed('RADAR: ENEMY CONTAINER SHIP SPOTTED  -  SINK IT TO CUT THEIR SUPPLY'); } }
     for (const I of W.islands) { const ex = fog.exploredAt(I.x, I.z) || fog.exploredAt(I.pad.x, I.pad.z); for (const s of I.structs) { s.mesh.visible = (!s.dead || !!s.mesh.userData.setState) && ex; if (s.rubble) s.rubble.visible = ex; } if (fog.visibleAt(I.pad.x, I.pad.z)) I.seen = I.owner; }
   };

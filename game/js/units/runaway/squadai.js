@@ -47,13 +47,13 @@ export const AI_T = {
   FOV: { strider: 2.2, hovertank: 6.3, mbt: 3.2 },      // rad full cone (the hover tank's sensor mast sees all round)
   RETREAT_RATIO: 0.55, ASSAULT_RATIO: 2.4,
   POWER: { strider: 1.8, hovertank: 5, mbt: 6 },
-  THREAT: { inf: 1, mg: 1.6, at: 1.8, vehicle: 4 },
+  THREAT: { inf: 1, mg: 1.6, at: 1.8, vehicle: 4, air: 2 },   // (air: a helicopter low over the fight - GROUND WAR, wave 2)
 };
 // how much a member wants to shoot a target kind (strict priorities: machines are predictable)
 const PRIO = {
-  strider: { at: 3.2, mg: 2.4, inf: 1.6, vehicle: 0.35 },
-  hovertank: { vehicle: 3.5, at: 2.8, mg: 1.6, inf: 1.0 },
-  mbt: { vehicle: 3.5, at: 2.4, mg: 1.6, inf: 1.0 },
+  strider: { at: 3.2, mg: 2.4, inf: 1.6, vehicle: 0.35, air: 0.5 },
+  hovertank: { vehicle: 3.5, at: 2.8, mg: 1.6, inf: 1.0, air: 1.0 },
+  mbt: { vehicle: 3.5, at: 2.4, mg: 1.6, inf: 1.0, air: 0.6 },
 };
 
 export function createSquadAI(world, opt = {}) {
@@ -69,6 +69,9 @@ export function createSquadAI(world, opt = {}) {
     AI.squads.push(S); return S;
   };
   AI.order = (id, order) => { const S = AI.squads.find(s => s.id === id); if (S) { S.order = order; S.patrolI = 0; S.holdUntil = 0; if (S.state !== 'retreat') setState(S, 'advance'); } };
+  // GROUND WAR (wave 2): a unit joins a squad already in the field (a hover tank or an MBT landed as reinforcement)
+  AI.addMember = (id, m) => { const S = AI.squads.find(s => s.id === id); if (!S) return null; m.ai = { move: null, run: false, crouch: 0, face: undefined, aim: null, aimId: null, fire: false, state: 'idle', note: '', supp: 0, team: S.members.length % 2, dest: null, cover: null, own: new Map(), spot: new Map() }; S.members.push(m); byMember.set(m.id, { m, S }); return S; };
+  AI.removeSquad = id => { const i = AI.squads.findIndex(s => s.id === id); if (i < 0) return; for (const m of AI.squads[i].members) byMember.delete(m.id); AI.squads.splice(i, 1); };
   AI.hear = (ev) => { AI.sounds.push({ ...ev, t: AI.time }); };
   AI.nearMiss = (id, k = 0.15) => { const e = byMember.get(id); if (e) e.m.ai.supp = clamp(e.m.ai.supp + k, 0, 1.2); };
 
@@ -332,7 +335,7 @@ export function createSquadAI(world, opt = {}) {
       const hx = ox - cx, hz = oz - cz, hl = Math.hypot(hx, hz) || 1, fx = hx / hl, fz = hz / hl;
       const rank = Math.ceil(n / 2), side = n % 2 ? 1 : -1;
       let sx = cx + fx * Math.min(12, hl) - fx * rank * 6 + -fz * side * rank * 7, sz = cz + fz * Math.min(12, hl) - fz * rank * 6 + fx * side * rank * 7;
-      if (m.vehicle) {
+      if (m.vehicle && ms.some(q => !q.vehicle)) {   // (GROUND WAR: an armour-only squad leads itself instead of station-keeping on its own centroid)
         sx = cx - fx * 30 + -fz * side * 12; sz = cz - fz * 30 + fx * side * 12;
         // never roll into a known AT gunner's reach to keep station: stop short of it
         const at = nearestAT(S, sx, sz), sf = atSafe(m); if (at && at.d < sf) { const ax = sx - at.k.px, az = sz - at.k.pz, al = Math.hypot(ax, az) || 1; sx = at.k.px + ax / al * sf; sz = at.k.pz + az / al * sf; }

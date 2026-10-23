@@ -1,0 +1,22 @@
+{
+  "name": "groundaisim",
+  "query": "?debug&kb&res=0.45",
+  "steps": [
+    "waitFor 10000 window.__G",
+    "key tap Enter", "wait 1000",
+    "eval (__G.G.bench = true, window.__ff=(secs)=>{ const W=__G.war, GS=W.ground.sim; for(let i=0;i<secs*30;i++){ W.update(1/30, __G.PL, false); if(i%3===0) __G.fx.update(0.1);} const n=[0,0,0]; for(const I of __G.ISLANDS) n[I.owner]++; const g={}; for(const u of GS.units) if(u.alive && (u.kind!=='marine'||u.able)) { const k=u.kind+(u.B?'@'+u.B.I.name:'~sea'); g[k]=(g[k]||0)+1; } const u={}; for(const x of W.units) u[x.type+(x.side)]=(u[x.type+(x.side)]||0)+1; return {t:Math.round(W.time), isl:n, owners:__G.ISLANDS.filter(I=>!I.cave).map(I=>I.name.slice(0,4)+I.owner).join(' '), ground:g, kills:GS.stats.kills, kia:GS.stats.kia, wia:GS.stats.wia, lcacs:W.ground.lcacs.length, units:u, emat:Math.round(W.E.mat)}; }, 1)",
+    "eval __ff(120)",
+    "eval __ff(120)",
+    "eval (__G.war.sendDrone(__G.ISLANDS.find(I=>I.name==='FORGE')), __G.war.P.mat += 200, __ff(120))",
+    "eval (__G.war.sendDrone(__G.ISLANDS.find(I=>I.name==='ECHO')), __ff(120))",
+    "eval __ff(120)",
+    "shot 01-10min",
+    "eval (__G.war.sendDrone(__G.ISLANDS.find(I=>I.owner===2&&!I.cave)), __G.war.P.mat += 100, __ff(150))",
+    "eval __ff(150)",
+    "eval __ff(150)",
+    "eval __ff(150)",
+    "eval (__G.ISLANDS.map(I=>I.name+':'+I.owner+(I.cap?'/cap'+I.cap.side:'')).join(' '))",
+    "eval document.getElementById('feed').textContent",
+    "shot 02-20min"
+  ]
+}

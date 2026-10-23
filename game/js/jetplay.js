@@ -7,6 +7,7 @@ import { createJetSim, HORNET, DECKOPS, KT, FT, LB } from './jetfm.js';
 import { buildJetMesh, JET } from './jetmodel.js';
 import { buildJetCockpit, JEYE } from './jetcockpit.js';
 import { createJetDamage, JPARTS } from './jetdamage.js';
+import { createDispenser, RWR } from './units/defence/cm.js';   // ngc/cmpolish: ALE-39 flares / chaff, radar warning picture
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
@@ -14,7 +15,7 @@ const deg = r => r * 180 / Math.PI;
 const BINGO_LB = 1500;
 const KG_PER_UNIT = HORNET.FUEL_MAX / 100;   // fleet fuel stores: a full jet tank = 100 units (like a helicopter tank)
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _f = new THREE.Vector3(), _u = new THREE.Vector3();
-const _iq = new THREE.Quaternion(), _p = new THREE.Vector3(), _m = new THREE.Matrix4();
+const _iq = new THREE.Quaternion(), _p = new THREE.Vector3(), _m = new THREE.Matrix4(), _cmv = new THREE.Vector3();
 
 export function createJetPlay(ctx) {
   const { scene, war, fx, sfx, say, feed, CTL, GRAV } = ctx;
@@ -38,6 +39,10 @@ export function createJetPlay(ctx) {
     tgt: null, lockT: 0, contacts: [], gunCd: 0, firing: false, aamSide: 0, bombIdx: 0, cautions: [], mcSeen: new Set(), masterCaution: false,
     blood: 0, red: 0, gloc: 0, shake: 0, kick: 0, headZ: 0, view: 'cockpit', zoom: 0, ejectHold: 0, deadT: 0,
   };
+  // CM: the ALE-39 dispenser in the aft fuselage (headline: 60 cartridges, here 30 flares + 30 chaff); a press drops a
+  // pair of flares or two chaff, out of the bottom of the fuselage behind the main gear
+  P.cm = createDispenser({ name: 'ALE-39', flares: 30, chaff: 30, program: { flare: 2, chaff: 2 }, gap: 0.12, ports: [[-0.45, -0.95, 3.6], [0.45, -0.95, 3.6]], eject: { flare: [0, -1, 0.15], chaff: [0, -1, 0.1] }, sfx, say });
+  const cmPose = { get vel() { return J.vel; }, toWorld: (l, o) => { _cmv.set(l[0], l[1], l[2]).applyQuaternion(J.q).add(J.pos); o.x = _cmv.x; o.y = _cmv.y; o.z = _cmv.z; return o; }, dirWorld: (l, o) => { _cmv.set(l[0], l[1], l[2]).normalize().applyQuaternion(J.q); o.x = _cmv.x; o.y = _cmv.y; o.z = _cmv.z; return o; } };
   const env = {
     groundY: ctx.groundY, water: ctx.waterAt, surfVel: war.surfVel, mods: null,
     carrier: () => { const c = war.carrier; return c && c.sinking === undefined ? { x: c.p.x, z: c.p.z, yaw: c.yaw, deck: ctx.CARRIER.DECK + c.p.y, deckAt: war.deckAt ? (x, z) => war.deckAt(c, x, z) : null } : null; },   // NAVAL: deckAt = the deck moving with the sea
@@ -45,7 +50,7 @@ export function createJetPlay(ctx) {
 
   // ---------------------------------------------------------------- life cycle
   P.launch = () => {   // a fresh jet spotted on the catapult, engines turning, tanks full from the fleet stores
-    D.reset(); J.stores.aam = [true, true]; J.stores.bomb = [true, true, true, true]; J.gun = HORNET.GUN_MAX; J.dead = false;
+    D.reset(); P.cm.reset(); J.stores.aam = [true, true]; J.stores.bomb = [true, true, true, true]; J.gun = HORNET.GUN_MAX; J.dead = false;
     J.fuel = Math.min(HORNET.FUEL_MAX, Math.max(HORNET.FUEL_MAX * 0.35, ctx.takeFuel(100) * KG_PER_UNIT));
     for (const e of J.eng) { e.run = true; e.n = 0.68; e.egt = 430; }
     if (!J.attachCat(env)) return false;
@@ -103,12 +108,12 @@ export function createJetPlay(ctx) {
   // HOTAS buttons that are edges (keys come through P.key from main's keydown)
   function buttons() {
     const pr = CTL.state.pressed;
-    if (pr.gear) P.cmd('gear'); if (pr.flaps) P.cmd('flaps'); if (pr.hook) P.cmd('hook'); if (pr.missile) P.cmd('missile'); if (pr.bomb) P.cmd('bomb'); if (pr.pickle) P.cmd('pickle');
+    if (pr.gear) P.cmd('gear'); if (pr.flaps) P.cmd('flaps'); if (pr.hook) P.cmd('hook'); if (pr.missile) P.cmd('missile'); if (pr.bomb) P.cmd('bomb'); if (pr.pickle) P.cmd('pickle'); if (pr.flare) P.cmd('flare'); if (pr.chaff) P.cmd('chaff');
     if (pr.view) ctx.toggleView();
     J.brakeCmd = P.sbToggle || CTL.state.actions.airbrake ? 1 : 0;
   }
   P.key = code => {   // keyboard commands while flying the jet; returns true if the key was used
-    const m = { KeyG: 'gear', KeyH: 'hook', KeyL: 'flaps', KeyO: 'airbrake', KeyU: 'canopy', KeyN: 'lights', KeyI: 'engines', KeyR: 'missile', KeyB: 'bomb', Comma: 'arm', Enter: 'pickle' }[code];
+    const m = { KeyG: 'gear', KeyH: 'hook', KeyL: 'flaps', KeyO: 'airbrake', KeyU: 'canopy', KeyN: 'lights', KeyI: 'engines', KeyR: 'missile', KeyB: 'bomb', Comma: 'arm', Enter: 'pickle', Insert: 'flare', Semicolon: 'flare', Delete: 'chaff', Quote: 'chaff' }[code];
     if (!m) return false; P.cmd(m); return true;
   };
   P.cmd = (id) => {
@@ -134,6 +139,7 @@ export function createJetPlay(ctx) {
     else if (id === 'eject') { if (P.ejectArm > 0) eject(); else { P.ejectArm = 1.2; say('EJECT  -  CLICK THE HANDLE AGAIN', 1.2); } }
     else if (id === 'missile') { if (P.mode !== 'AA') { P.mode = 'AA'; say('A/A  -  AIM-9 SELECTED', 1); } else fireMissile(); }
     else if (id === 'bomb') { if (P.mode !== 'AG') { P.mode = 'AG'; say('A/G  -  MK-82 CCIP', 1); } else dropBomb(); }
+    else if (id === 'flare' || id === 'chaff') P.cm.press(id);   // CM
     else if (id === 'pickle') { if (P.mode === 'AA') fireMissile(); else if (P.mode === 'AG') dropBomb(); }
   };
   P.click = id => { if (id.startsWith('ddi') || id.startsWith('ampcd')) { cockpit.press(id); return; } P.cmd(id); };
@@ -239,6 +245,7 @@ export function createJetPlay(ctx) {
       gun(dt, inp.fire || CTL.state.actions.fire);
       radar(dt);
       pilotG(dt); warnings(dt); service(dt);
+      P.cm.update(dt, cmPose);   // CM: the queued flare / chaff program
     }
     effects(dt);
     // seeker tone
@@ -266,7 +273,8 @@ export function createJetPlay(ctx) {
     P.rearmT = (P.rearmT || 0) - dt;
     if (P.rearmT <= 0) { P.rearmT = 0.5; const s = J.stores; if (!s.aam[0] || !s.aam[1]) s.aam[s.aam[0] ? 1 : 0] = true; else { const i = s.bomb.indexOf(false); if (i >= 0) s.bomb[i] = true; else J.gun = Math.min(HORNET.GUN_MAX, J.gun + 30); } }
     if (D.damaged()) D.repair(0.2 * dt);
-    const full = J.fuel > HORNET.FUEL_MAX - 1 && J.stores.aam.every(Boolean) && J.stores.bomb.every(Boolean) && J.gun >= HORNET.GUN_MAX && !D.damaged();
+    P.cm.rearm(dt);   // CM
+    const full = P.cm.full() && J.fuel > HORNET.FUEL_MAX - 1 && J.stores.aam.every(Boolean) && J.stores.bomb.every(Boolean) && J.gun >= HORNET.GUN_MAX && !D.damaged();
     if (full && !P.serviced) { P.serviced = true; say('ALBATROSS DECK CREW  -  FUELLED AND ARMED  -  5: CAT  ·  Y: HELICOPTER', 3); }
   }
   // pilot g tolerance: above ~5 g blood drains from the head (grey-out, tunnel vision, then G-LOC for a few
@@ -380,7 +388,7 @@ export function createJetPlay(ctx) {
     st.ccip = P.mode === 'AG' ? ccip() : null;
     st.carrier = carrierInfo(); st.radar = { range: 2000, contacts: P.contacts };
     const I = ctx.selectedIsland(); st.wpt = I ? { name: I.name, brg: Math.atan2(I.pad.x - J.pos.x, -(I.pad.z - J.pos.z)), dist: Math.hypot(I.pad.x - J.pos.x, I.pad.z - J.pos.z) } : null;
-    st.cautions = P.cautions; st.masterCaution = P.masterCaution; st.fire = D.fire; st.lights = P.lights; st.pbrake = P.pbrake; st.warn = P.warn; st.hover = hover; st.drawMap = ctx.drawMap;
+    st.cautions = P.cautions; st.masterCaution = P.masterCaution; st.fire = D.fire; st.lights = P.lights; st.pbrake = P.pbrake; st.warn = P.warn; st.hover = hover; st.drawMap = ctx.drawMap; st.rwr = RWR; st.cm = P.cm;
     st.ufc = J.cat ? (J.cat.state === 'hold' ? 'CAT 1  HOLD' : 'CAT 1  SHOT') : J.wire ? `WIRE ${J.trapWire}` : null;
     return st;
   }
@@ -410,7 +418,7 @@ export function createJetPlay(ctx) {
     return `IAS ${Math.round(J.eas * KT)}kt  M${J.mach.toFixed(2)}  ALT ${Math.round(J.pos.y * FT)}ft  G ${J.nz.toFixed(1)}  AOA ${deg(J.alpha).toFixed(0)}°  THR ${thrPct}%${ab > 0.05 ? ' AB' : ''}  RPM ${Math.round(J.eng[0].n * 100)}/${Math.round(J.eng[1].n * 100)}  FUEL ${Math.round(J.fuel * LB)}lb  ` +
       `${J.gear > 0.99 ? 'GEAR DN' : J.gear > 0.01 ? 'GEAR ~' : 'GEAR UP'}  FLAPS ${['AUTO', 'HALF', 'FULL'][J.flapSel]}${J.hookCmd ? '  HOOK' : ''}${J.surf.brake > 0.1 ? '  SPDBRK' : ''}  ${J.cas ? 'CAS' : 'DIRECT'}  [${CTL.state.source === 'NONE' || !CTL.state.source ? 'KEYBOARD' : CTL.state.source}${CTL.state.hasPedals ? ' + PEDALS' : ''}]`;
   };
-  P.weapLine = () => `${P.mode}  ${P.arm ? 'ARM' : 'SAFE'}  AIM-9 ${J.stores.aam.filter(Boolean).length}  MK-82 ${J.stores.bomb.filter(Boolean).length}  GUN ${J.gun * 5}`;
+  P.weapLine = () => `${P.mode}  ${P.arm ? 'ARM' : 'SAFE'}  AIM-9 ${J.stores.aam.filter(Boolean).length}  MK-82 ${J.stores.bomb.filter(Boolean).length}  GUN ${J.gun * 5}  FLR ${P.cm.flare}  CHF ${P.cm.chaff}`;
   P.hint = () => {
     if (!P.alive) return P.ejected ? 'UNDER THE CANOPY  -  WAITING FOR RESCUE' : '';
     if (J.cat && J.cat.state === 'hold' && J.catClear === false) return 'CAT 1 HOLD  -  THE ALBATROSS IS TURNING INTO CLEAR WATER FOR THE LAUNCH';

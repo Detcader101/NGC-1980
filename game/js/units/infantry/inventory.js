@@ -324,6 +324,7 @@ export function loadout(name = 'rifleman') {
     for (const k of ['ammoL', 'ammoR']) for (let g = 0; g < 3; g++) placeIn(b.slots[k], g, mag20(), 0, 0);
     for (const k of ['ammoL', 'ammoR']) placeIn(b.slots[k], 3, newItem('m67'), 0, 0);
   }
+  if (name !== 'grenadier') put(s, 'm18_green');   // ngc/cmpolish: one M18 smoke for screening / marking (the grenadier's 40 mm load is heavy enough)
   if (name === 'grenadier') { slotIn(rifle, 'gl', newItem('r40_m406')); for (let i = 0; i < 6; i++) put(s, 'r40_m406'); }
   if (name === 'corpsman') {
     slotIn(s, 'holster', newItem('m1911a1')); slotIn(s.slots.holster, 'mag', newItem('mag_45', { fill: 'M1911', rounds: 7 }));

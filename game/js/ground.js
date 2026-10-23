@@ -19,6 +19,7 @@
 //   GR.addCollider(c)             -> extra static circles { x, z, r, y0, y1 } or boxes { x, z, yaw, hl, hw, y0, y1 }
 //   GR.G                          -> 9.81 (the ground units use real gravity, like the Huey)
 import { createPlatforms } from './platform.js';
+import { shipPointY } from './units/naval/seamotion.js';
 
 // surface table: tyre / boot friction coefficient mu and rolling-resistance coefficient crr for a pneumatic tyre.
 // INFERRED typical values (Wong, Theory of Ground Vehicles 4th ed. tables 1.2 / 2.1; SAE J2452 ranges):
@@ -53,7 +54,7 @@ export function createGround(ctx) {
   // ------------------------------------------------------------------ surface sampling
   const padAt = (x, z) => { for (const p of PADS) { const d = Math.hypot(x - p.x, z - p.z); if (d < (p.isl.cave ? 20 : 26)) return p; } return null; };
   GR.sample = (x, z, out = {}) => {
-    const t = terrainH(x, z), deck = war.deckY(x, z);
+    const t = terrainH(x, z), deck = deckH(x, z);
     out.plat = null; out.water = 0; out.nx = 0; out.ny = 1; out.nz = 0;
     if (holeOf(x, z)) { out.h = -1e4; out.surface = 'hole'; }
     else if (deck > -1e8 && deck >= Math.max(t, 0) - 0.05) { out.h = deck; out.surface = 'deck'; out.plat = war.shipAt(x, z) || null; }
@@ -73,7 +74,7 @@ export function createGround(ctx) {
   // below you, else the terrain / seabed. Walls (a superstructure, a shaft mouth) come back as +Infinity.
   GR.floor = (x, z, y, step = 0.45, tall = 1.8) => {
     if (holeOf(x, z)) return Infinity;   // the shafts are fenced: walk round them
-    const t = terrainH(x, z), deck = war.deckY(x, z);
+    const t = terrainH(x, z), deck = deckH(x, z);
     if (deck > -1e8) {
       if (deck <= y + step) return Math.max(deck, t);          // on it, or dropping onto it
       const u = war.shipAt(x, z), bottom = u ? u.p.y - 4 : deck - 12;   // hulls reach 4 m under the waterline
@@ -87,29 +88,73 @@ export function createGround(ctx) {
   GR.addFloor = fn => { floors.push(fn); };   // fn(x, z, y, step) -> a surface height at or below y + step, or null
 
   // ------------------------------------------------------------------ ships: frames, decks, carrying
-  const PF = createPlatforms({ deckY: (x, z) => war.deckY(x, z), shipAt: (x, z) => war.shipAt(x, z), alive: u => u.sinking === undefined || u.sinking < 4 ? war.units.includes(u) : false,
+  // wave 2 (ngc/foot2): the ALBATROSS island as NAVAL built it (units/naval/albatross.js buildIsland, tower frame:
+  // origin TOWER_X, DECK, TOWER_Z). war.deckY knows it only as one 17 m block; on foot it is a stack of levels you
+  // bump into from the deck and a walkable top deck (13.3 m up, reached by the ladder on its port face) with the
+  // pri-fly box, the funnel and the mast standing on it. Boxes in the ship frame: [x0, x1, z0, z1, y0, y1] (tower
+  // relative; y above the flight deck). KRAKEN (units/naval/kraken.js): one block 5.2 x 15.6 m, radar top 13.6 m.
+  const ALB_BOXES = [
+    [-2.3, 2.6, -8.5, 8.8, 0, 6.4],          // O-3 to O-6 levels
+    [-2.4, 2.5, -7.2, 6.0, 6.4, 9.0],        // O-7 flag bridge
+    [-2.65, 2.65, -6.15, 4.15, 9.0, 13.05],  // navigation bridge (helm.js inside) and its roof lip
+    [-3.4, 1.0, 0.3, 4.9, 13.15, 15.8],      // pri-fly, overhanging to port
+    [-2.0, 2.2, 4.1, 8.7, 6.4, 17.8],        // funnel
+    [-0.2, 0.4, -1.3, -0.7, 13.3, 28],       // mast
+    [-2.5, 2.6, -6.25, -6.05, 13.3, 14.3],   // top-deck rails: forward, starboard, port
+    [2.45, 2.65, -6.1, 0.4, 13.3, 14.3],
+    [-2.65, -2.45, -6.1, 0.3, 13.3, 14.3],
+  ];
+  const KRK_BOXES = [[-2.6, 2.6, -7.4, 8.2, 0, 13.65]];
+  const ALB_TOP = 13.33;   // the island top deck, above the flight deck
+  const isAlb = u => u.type === 'carrier' && u.side === 1;
+  // height above the waterline of what you stand on at ship-local (lx, lz) on the ALBATROSS island, or null when
+  // (lx, lz) is not over the island
+  function albIsland(D, lx, lz) {
+    const tx = lx - D.TOWER_X, tz = lz - D.TOWER_Z;
+    if (tx < -3.4 || tx > 2.9 || tz < -9 || tz > 9.2) return null;
+    let h = null;
+    if (tx >= -2.3 && tx <= 2.6 && tz >= -8.5 && tz <= 8.8) h = 9.0;                       // lower levels' roofs
+    if (tx >= -2.0 && tx <= 2.2 && tz >= 4.1 && tz <= 8.7) h = 17.8;                        // funnel
+    if (tx >= -2.65 && tx <= 2.65 && tz >= -6.15 && tz <= 4.15) h = ALB_TOP - 0.03;         // bridge roof
+    if (tx >= -2.5 && tx <= 2.65 && tz >= -6.15 && tz <= 0.4) h = ALB_TOP;                  // the top deck
+    if (tx >= -3.4 && tx <= 1.0 && tz >= 0.3 && tz <= 4.9) h = 15.8;                        // pri-fly roof
+    return h === null ? null : D.DECK + h;
+  }
+  // the deck under (x, z): war.deckY, with the ALBATROSS island replaced by its real levels
+  function deckH(x, z) {
+    const c = war.carrier;
+    if (c && c.dims && c.side === 1 && Math.abs(x - c.p.x) < 70 && Math.abs(z - c.p.z) < 70 && !(c.sinking > 4)) {
+      const [lx, lz] = toLocal(c, x, z), h = albIsland(c.dims, lx, lz);
+      if (h !== null) { const a = c.att; return a ? shipPointY(c.p.y, a.heave, a.pitch, a.roll, lx, h, lz) : c.p.y + h; }
+    }
+    return war.deckY(x, z);
+  }
+  GR.deckH = deckH;
+  const PF = createPlatforms({ deckY: deckH, shipAt: (x, z) => war.shipAt(x, z), alive: u => u.sinking === undefined || u.sinking < 4 ? war.units.includes(u) : false,
     subY: (u, lx, lz) => u.parts && u.parts.liftY ? u.parts.liftY(lx, lz) : null });   // SEAWORLD: the ALBATROSS's lifts carry
   const { toLocal, toWorld } = PF;
   const _w = { x: 0, z: 0 };
-  GR.toLocal = toLocal; GR.toWorld = toWorld;
+  GR.toLocal = toLocal; GR.toWorld = toWorld; GR.toShip = PF.toShip; GR.fromShip = PF.fromShip;
   GR.platVel = (x, z) => war.surfVel(x, z);
-  GR.carry = PF.carry; GR.settle = PF.settle;   // platform-relative motion (platform.js)
+  GR.carry = PF.carry; GR.settle = PF.settle;   // platform-relative motion (platform.js): the full deck motion
 
   // ------------------------------------------------------------------ ladders (ship-relative): stern and island
-  // { ship: 'carrier', lx, lz, yaw, y0, y1 } : the climber faces direction yaw (forward = (-sin, -cos)); y relative
-  // to the ship (p.y). The stern ladder comes up from the water, the island ladder up its port face to the roof.
+  // { ship: 'carrier', side?, lx, lz, yaw, y0, y1 } : the climber faces direction yaw (forward = (-sin, -cos)); y in the
+  // ship frame (above the waterline). The stern ladder comes up from the water (both carriers); the island ladder (the
+  // ALBATROSS only) up the island's port face, forward of the bridge wing, to its top deck (wave 2: NAVAL's model).
   const LADDERS = [
     { ship: 'carrier', name: 'STERN LADDER', lx: -7, lz: CARRIER.L / 2 + 0.3, yaw: 0, y0: -1.6, y1: CARRIER.DECK, w: 0.9, top: [0, -0.9] },
-    { ship: 'carrier', name: 'ISLAND LADDER', lx: CARRIER.TOWER_X - 3.15, lz: CARRIER.TOWER_Z + 4, yaw: -Math.PI / 2, y0: CARRIER.DECK, y1: CARRIER.DECK + CARRIER.TOWER_H, w: 0.9, top: [0.9, 0] },
+    { ship: 'carrier', side: 1, name: 'ISLAND LADDER', lx: CARRIER.TOWER_X - 2.75, lz: CARRIER.TOWER_Z - 6.6, yaw: -Math.PI / 2, y0: CARRIER.DECK, y1: CARRIER.DECK + ALB_TOP, w: 0.9, top: [1.0, 0.9] },
   ];
   GR.LADDERS = LADDERS;
-  const _lw = { x: 0, z: 0 };
-  // the world-space description of a ladder on ship u: base point, facing, top / bottom heights
+  GR.laddersOf = u => LADDERS.filter(L => L.ship === u.type && (L.side === undefined || L.side === u.side));
+  const _lw = { x: 0, y: 0, z: 0 };
+  // the world-space description of a ladder on ship u: base point, facing, top / bottom heights (deck motion included)
   GR.ladderWorld = (L, u, out = {}) => {
-    toWorld(u, L.lx, L.lz, _lw); const yaw = u.yaw + L.yaw;
-    out.x = _lw.x; out.z = _lw.z; out.yaw = yaw; out.fx = -Math.sin(yaw); out.fz = -Math.cos(yaw);
-    out.y0 = u.p.y + L.y0; out.y1 = u.p.y + L.y1; out.w = L.w; out.name = L.name; out.ship = u; out.L = L;
-    toWorld(u, L.lx + L.top[0], L.lz + L.top[1], _lw); out.tx = _lw.x; out.tz = _lw.z;
+    PF.fromShip(u, L.lx, L.y0, L.lz, _lw); const yaw = u.yaw + L.yaw;
+    out.x = _lw.x; out.z = _lw.z; out.y0 = _lw.y; out.yaw = yaw; out.fx = -Math.sin(yaw); out.fz = -Math.cos(yaw);
+    out.y1 = PF.fromShip(u, L.lx, L.y1, L.lz, _lw).y; out.w = L.w; out.name = L.name; out.ship = u; out.L = L;
+    PF.fromShip(u, L.lx + L.top[0], L.y1, L.lz + L.top[1], _lw); out.tx = _lw.x; out.tz = _lw.z;
     return out;
   };
   const _lad = {};
@@ -117,7 +162,7 @@ export function createGround(ctx) {
     for (const u of war.units) {
       if (!u.dims || u.sinking !== undefined || Math.abs(x - u.p.x) > 80 || Math.abs(z - u.p.z) > 80) continue;
       for (const L of LADDERS) {
-        if (L.ship !== u.type) continue;
+        if (L.ship !== u.type || (L.side !== undefined && L.side !== u.side)) continue;
         const w = GR.ladderWorld(L, u, _lad);
         const dx = x - w.x, dz = z - w.z, along = dx * w.fz - dz * w.fx, off = -(dx * w.fx + dz * w.fz);   // off: how far in front of the rungs
         if (Math.abs(along) < w.w / 2 + 0.15 && off > -0.2 && off < r + 0.45 && y > w.y0 - 0.6 && y < w.y1 + 0.2) return w;
@@ -153,7 +198,36 @@ export function createGround(ctx) {
     o.x += nx * pen; o.z += nz * pen; o.nx = nx; o.nz = nz; return true;
   }
   GR.pushBox = pushBox; GR.pushCircle = pushCircle;
-  const _sb = { x: 0, z: 0, yaw: 0, hl: 0, hw: 0, y0: 0, y1: 0 };
+  // circle o against axis-aligned boxes in a ship's own frame (offset ox, oz, oy): o is taken into the ship frame,
+  // pushed out there, and the push is turned back into the world (so a rolling ship's island leans with her)
+  const BS_BOXES = [[-4.5, 4.5, -10, 10, 0, 14]], FR_BOXES = [[-4.3, 4.3, -3.2, 3.2, 0, 6]];
+  const _sl = { x: 0, y: 0, z: 0 }, _sl2 = { x: 0, y: 0, z: 0 };
+  const _rails = [];
+  function shipBoxes(o, u, boxes, ox, oz, oy) {
+    const top = Math.min(o.y1, o.y0 + 4), ym = (o.y0 + top) / 2, hh = (top - o.y0) / 2;
+    PF.toShip(u, o.x, ym, o.z, _sl);
+    const lx0 = _sl.x, lz0 = _sl.z, ly = _sl.y; let lx = lx0, lz = lz0, n = 0, nlx = 0, nlz = 0;
+    for (const b of boxes) {
+      if (ly + hh < oy + b[4] || ly - hh > oy + b[5]) continue;
+      const x0 = ox + b[0], x1 = ox + b[1], z0 = oz + b[2], z1 = oz + b[3];
+      const qx = Math.max(x0, Math.min(x1, lx)), qz = Math.max(z0, Math.min(z1, lz));
+      const ex = lx - qx, ez = lz - qz, d = Math.hypot(ex, ez);
+      if (d >= o.r) continue;
+      if (d > 1e-6) { lx = qx + ex / d * o.r; lz = qz + ez / d * o.r; nlx = ex / d; nlz = ez / d; }
+      else {   // centre inside: out through the nearest face
+        const f = [lx - x0, x1 - lx, lz - z0, z1 - lz], k = f.indexOf(Math.min(...f));
+        if (k === 0) { lx = x0 - o.r; nlx = -1; nlz = 0; } else if (k === 1) { lx = x1 + o.r; nlx = 1; nlz = 0; } else if (k === 2) { lz = z0 - o.r; nlx = 0; nlz = -1; } else { lz = z1 + o.r; nlx = 0; nlz = 1; }
+      }
+      n++;
+    }
+    if (!n) return 0;
+    // back to the world: the push (lx - lx0, lz - lz0) made in the ship frame
+    PF.fromShip(u, lx, ly, lz, _sl2); const wx = _sl2.x, wz = _sl2.z;
+    PF.fromShip(u, lx0, ly, lz0, _sl2);
+    o.x += wx - _sl2.x; o.z += wz - _sl2.z;
+    const c = Math.cos(u.yaw), s = Math.sin(u.yaw); o.nx = nlx * c + nlz * s; o.nz = -nlx * s + nlz * c;
+    return n;
+  }
   GR.collide = (o, skip = null) => {
     let n = 0; o.y0 ??= -1e9; o.y1 ??= 1e9;
     // trees (trunks)
@@ -164,23 +238,41 @@ export function createGround(ctx) {
       if (!I.structs || Math.abs(o.x - I.x) > (I.r || 60) + 70 || Math.abs(o.z - I.z) > (I.r || 60) + 70) continue;
       for (const s of I.structs) if (!s.dead && o.y0 < s.y + Math.max(2, s.h * 2) && pushCircle(o, s.x, s.z, (s.kind === 'aa' ? 2.2 : s.r * 0.8))) n++;
     }
-    // ship superstructures: the carrier island, the battleship's citadel, the freighter's bridge
+    // ship superstructures, in the full ship frame (heave, pitch and roll): the carriers' islands as their models
+    // have them (wave 2), the battleship's citadel, the freighter's bridge
     for (const u of war.units) {
       if (!u.dims || Math.abs(o.x - u.p.x) > 70 || Math.abs(o.z - u.p.z) > 70) continue;
-      const D = u.dims, y = u.p.y; _sb.ok = false;
-      if (u.type === 'carrier') box(u, D.TOWER_X, D.TOWER_Z, 2.9, 9, y + D.DECK, y + D.DECK + D.TOWER_H);
-      else if (u.type === 'battleship') box(u, 0, 4, 4.5, 10, y + D.DECK, y + D.DECK + 14);
-      else if (u.type === 'freighter') box(u, 0, D.L / 2 - 6, 4.3, 3.2, y + D.DECK, y + D.DECK + 6);
-      if (_sb.ok && pushBox(o, _sb)) n++;
-      if (u.parts && u.parts.boxes) for (const b of u.parts.boxes()) { box(u, b.lx, b.lz, b.hw, b.hl, y + b.y0, y + b.y1); if (pushBox(o, _sb)) n++; }   // SEAWORLD: lift railings
+      const D = u.dims;
+      if (u.type === 'carrier') n += shipBoxes(o, u, isAlb(u) ? ALB_BOXES : KRK_BOXES, D.TOWER_X, D.TOWER_Z, D.DECK);
+      else if (u.type === 'battleship') n += shipBoxes(o, u, BS_BOXES, 0, 4, D.DECK);
+      else if (u.type === 'freighter') n += shipBoxes(o, u, FR_BOXES, 0, D.L / 2 - 6, D.DECK);
+      if (u.parts && u.parts.boxes) {   // SEAWORLD: the lift railings (ship-frame boxes that move with each lift)
+        const bs = u.parts.boxes(); _rails.length = bs.length;
+        bs.forEach((b, i) => { const a = _rails[i] ||= []; a[0] = b.lx - b.hw; a[1] = b.lx + b.hw; a[2] = b.lz - b.hl; a[3] = b.lz + b.hl; a[4] = b.y0; a[5] = b.y1; });
+        n += shipBoxes(o, u, _rails, 0, 0, 0);
+      }
     }
-    function box(u, lx, lz, hw, hl, y0, y1) { toWorld(u, lx, lz, _w); _sb.x = _w.x; _sb.z = _w.z; _sb.yaw = u.yaw; _sb.hw = hw; _sb.hl = hl; _sb.y0 = y0; _sb.y1 = y1; _sb.ok = true; }
     for (const c of extra) if (c.hl ? pushBox(o, c) : (o.y1 > (c.y0 ?? -1e9) && o.y0 < (c.y1 ?? 1e9) && pushCircle(o, c.x, c.z, c.r))) n++;
     // SEAWORLD: the lived-in world's buildings, walls, hedges, parapets, poles (world/solid.js); o.crush (a tank) goes
     // through the soft ones (field walls, hedges)
     for (const src of sources) for (const c of src(o.x, o.z, o.r + 1)) { if (c.soft && o.crush) continue; if (c.hl !== undefined ? pushBox(o, c) : (o.y1 > c.y0 && o.y0 < c.y1 && pushCircle(o, c.x, c.z, c.r))) n++; }
     if (ctx.crafts) for (const b of ctx.crafts.bounds(skip)) if (pushBox(o, b)) n++;
     return n;
+  };
+  // wave 2 (ngc/foot2): a round's path (x0..x1, short: one sim step) against the tree trunks -> the nearest fraction t
+  // along it and the trunk, or null (the Marine's rounds: a trunk is cover)
+  GR.treeHit = (x0, y0, z0, x1, y1, z1) => {
+    const i0 = Math.floor((Math.min(x0, x1) - 1) / CELL), i1 = Math.floor((Math.max(x0, x1) + 1) / CELL), j0 = Math.floor((Math.min(z0, z1) - 1) / CELL), j1 = Math.floor((Math.max(z0, z1) + 1) / CELL);
+    if ((i1 - i0 + 1) * (j1 - j0 + 1) > 64) return null;
+    const dx = x1 - x0, dz = z1 - z0, L2 = dx * dx + dz * dz || 1e-9;
+    let best = null;
+    for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const a = grid.get(key(i, j)); if (a) for (const t of a) {
+      const k = Math.max(0, Math.min(1, ((t.x - x0) * dx + (t.z - z0) * dz) / L2)), px = x0 + dx * k - t.x, pz = z0 + dz * k - t.z;
+      if (px * px + pz * pz > t.r * t.r) continue;
+      const y = y0 + (y1 - y0) * k; if (y < t.y - 0.5 || y > t.y + 5) continue;
+      if (!best || k < best.t) best = { t: k, tree: t };
+    } }
+    return best;
   };
   GR.addCollider = c => { extra.push(c); return c; };
   GR.addColliderSource = fn => { sources.push(fn); };   // SEAWORLD: fn(x, z, r) -> boxes / circles near (x, z)
@@ -221,7 +313,7 @@ export function createGround(ctx) {
     const cands = [...DECK_SPOTS, ...DECK_SPARE.map((s, i) => ({ name: `ALBATROSS DECK PARK ${DECK_SPOTS.length + i + 1}`, yaw: 0, ...s }))].filter(s => deckClear(u, s.lx, s.lz));
     if (!cands.length) return null;
     const s = cands[k % cands.length]; toWorld(u, s.lx, s.lz, _w);
-    return { name: s.name, x: _w.x, z: _w.z, y: u.p.y + CARRIER.DECK, yaw: u.yaw + s.yaw, plat: u };
+    return { name: s.name, x: _w.x, z: _w.z, y: deckH(_w.x, _w.z), yaw: u.yaw + s.yaw, plat: u };
   };
   const _o = { x: 0, z: 0, r: 2.4 };
   GR.clearAt = (x, z, r = 2.4, skip = null) => { _o.x = x; _o.z = z; _o.r = r; _o.y0 = -1e9; _o.y1 = 1e9; return GR.collide(_o, skip) === 0 && Math.hypot(_o.x - x, _o.z - z) < 0.01; };

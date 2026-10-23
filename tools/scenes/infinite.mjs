@@ -18,7 +18,7 @@ export default async function (h) {
   // a gentle lowland spot near the range for the helicopter
   await h.eval(`(() => { const M = __M; let best = null; for (let z = M.z - 1500; z <= M.z + 1500; z += 40) for (let x = M.x - 1500; x <= M.x + 1500; x += 40) { const y = __G.islandH(x, z); if (y < 15 || y > 90) continue; const s = Math.abs(__G.islandH(x + 6, z) - y) + Math.abs(__G.islandH(x, z + 6) - y); if (!best || s < best.s) best = { x, z, y, s }; } window.__L = best; return best; })()`);
   await h.expect('!!__L');
-  await h.eval('(__G.JP.autopilot = null, __G.JP.stow(), __G.G.craft = "heli", __G.cockpitCam = false, 1)');
+  await h.eval('(__G.JP.autopilot = null, __G.JP.stow(), __G.crafts ? __G.crafts.setActive("heli") : (__G.G.craft = "heli"), __G.cockpitCam = false, 1)');
   await h.eval(`(() => { const L = __L; __G.H.reset(new __G.THREE.Vector3(L.x, __G.groundY(L.x, L.z) + 1.2, L.z), 0.5, true, 1); return 1; })()`);
   await h.waitFor('__G.HW[0].busy === false && Math.abs(__G.HW[0].cx - __G.H.pos.x) < 400', 20000);
   await h.wait(2000); await h.shot('heli-meadow');

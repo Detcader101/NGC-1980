@@ -208,6 +208,17 @@ export function createFootCraft(ctx) {
     if ((name === 'viewmodel' || name === 'body') && impl && impl.group) { impl.group.visible = false; scene.add(impl.group); }
     return impl;
   };
+  // wave 2 (ngc/foot2): THE MARINE (marine.js: INFANTRY's rifleman, MEDINV's medical + inventory, on this craft's
+  // walker). When set, it owns input, weapons, wounds, cameras, the first-person pass and the HUD lines; this file
+  // keeps the craft plumbing (spawning, doors, deck carrying, what war.js sees, death -> lives).
+  let marine = null;
+  F.setMarine = m => {
+    marine = m; F.marine = m;
+    for (const k of ['viewmodel', 'body']) { const o = slots[k]; if (o && o.group) { o.group.visible = false; scene.remove(o.group); } slots[k] = null; }
+    slots.weapon = null; slots.medical = null; slots.inventory = null;
+    slots.soldier = m.W;
+    return m;
+  };
   // ---------------------------------------------------------------- life cycle
   F.present = () => F.exists;
   F.frame = out => { const W = slots.soldier; out.x = W.x; out.y = W.y; out.z = W.z; out.yaw = W.yaw; return out; };
@@ -228,14 +239,17 @@ export function createFootCraft(ctx) {
     GR.settle(W, true);
     F.exists = true; F.alive = true; F.deadT = 0; F.stance = 'stand';
     if (opts.fresh) { slots.medical?.reset?.(); slots.weapon?.reset?.(); slots.inventory?.reset?.(); }
+    marine?.spawned(!!opts.fresh);   // a new life gets a fresh Marine (kit, wounds); getting out of a craft keeps his state
     return true;
   };
   F.enter = () => F.exists;
-  F.exit = () => { F.exists = false; body.group.visible = false; arms.group.visible = false; shadow.visible = false; if (slots.body !== body && slots.body) slots.body.group.visible = false; if (slots.viewmodel !== arms && slots.viewmodel) slots.viewmodel.group.visible = false; };
+  F.exit = () => { F.exists = false; marine?.exit(); body.group.visible = false; arms.group.visible = false; shadow.visible = false; if (slots.body !== body && slots.body) slots.body.group.visible = false; if (slots.viewmodel !== arms && slots.viewmodel) slots.viewmodel.group.visible = false; };
   F.canExit = () => 'ON FOOT  -  STAND BY A DOOR AND PRESS Y TO GET IN';
   F.silence = () => {};
   // ---------------------------------------------------------------- input
-  F.key = code => {
+  const AIR_KEYS = ['KeyH', 'KeyI', 'KeyO', 'KeyU', 'KeyL', 'KeyN', 'KeyG', 'KeyB', 'KeyX', 'KeyF', 'KeyR', 'KeyQ', 'KeyE', 'Home', 'PageUp', 'PageDown'];
+  F.key = (code, e) => {
+    if (marine) return F.alive ? marine.key(code, e) || AIR_KEYS.includes(code) : false;
     if (!F.alive) return false;
     if (code === 'KeyC') { F.stance = F.stance === 'crouch' ? 'stand' : 'crouch'; return true; }
     if (code === 'KeyZ') { F.stance = F.stance === 'prone' ? 'stand' : 'prone'; return true; }
@@ -245,14 +259,22 @@ export function createFootCraft(ctx) {
     if (slots.medical && slots.medical.key && slots.medical.key(code)) return true;
     if (code === 'KeyI') { if (slots.inventory) slots.inventory.toggle?.(); else say('NO KIT YET  -  THE INVENTORY COMES WITH THE MEDINV MODULE', 1.6); return true; }
     // keys that mean something in an aircraft but nothing on foot: swallow them so they don't reach the heli
-    return ['KeyH', 'KeyI', 'KeyO', 'KeyU', 'KeyL', 'KeyN', 'KeyG', 'KeyB', 'KeyX', 'KeyF', 'KeyR', 'KeyQ', 'KeyE', 'Home', 'PageUp', 'PageDown'].includes(code);
+    return AIR_KEYS.includes(code);
   };
   const SENS = 0.0022;
-  F.look = (dx, dy) => { const W = slots.soldier; if (!F.alive) return; W.yaw -= dx * SENS; W.pitch = clamp(W.pitch - dy * SENS, -1.45, 1.45); };
+  F.look = (dx, dy) => { const W = slots.soldier; if (!F.alive) return; if (marine) { marine.look(dx, dy); return; } W.yaw -= dx * SENS; W.pitch = clamp(W.pitch - dy * SENS, -1.45, 1.45); };
   const intent = { mx: 0, mz: 0, sprint: false, stance: 'stand', jump: false, walk: false, speedK: 1 };
   let jumpWas = false, fireWas = false;
   F.update = (dt, input) => {
     const W = slots.soldier;
+    if (marine) {   // the Marine runs his own frame (marine.js); death by wounds / bleeding ends the life here
+      F._dt = dt;
+      if (!F.alive) F.deadT -= dt;
+      marine.update(dt, input);
+      if (!W.plat) F.platVel.x = F.platVel.z = 0;
+      if (F.alive && marine.isDead()) die(marine.cause());
+      return;
+    }
     if (!F.alive) { F.deadT -= dt; W.vx *= 0.9; W.vz *= 0.9; return; }
     const pad = input.pad && !input.keyboardOnly ? input.pad : null;
     let mx = (kd('KeyD') ? 1 : 0) - (kd('KeyA') ? 1 : 0), mz = (kd('KeyW', 'ArrowUp') ? 1 : 0) - (kd('KeyS', 'ArrowDown') ? 1 : 0);
@@ -292,6 +314,7 @@ export function createFootCraft(ctx) {
   // enemy gunners; the speed you keep when you step off a moving deck)
   F.afterWar = () => {
     const W = slots.soldier; if (!W.plat) return;
+    if (marine) { const c = marine.afterWar(), dt = F._dt || 0.016; if (c) { F.platVel.x = c.dx / dt; F.platVel.z = c.dz / dt; W.deckV = F.platVel; } return; }
     GR.carry(W); const c = W.carried, dt = F._dt || 0.016;
     if (c) { F.platVel.x = c.dx / dt; F.platVel.z = c.dz / dt; W.deckV = F.platVel; }
     GR.settle(W, W.onGround || !!W.ladder);
@@ -305,8 +328,9 @@ export function createFootCraft(ctx) {
     for (const p of parts) { const r = slots.medical.hit({ part: p, amount: hpTotal / parts.length, why, kind }); if (r && r.dead) { die(why); return; } }
     sfx.hit?.() ?? sfx.boom(0.15);
   }
-  F.hurt = (amount, why, at, dir) => {
+  F.hurt = (amount, why, at, dir, kind) => {
     if (!F.alive || ctx.invulnerable?.()) return;
+    if (marine) { marine.hurt(amount, why, at, dir, kind); if (marine.isDead()) die(marine.cause()); return; }   // kind: the war.js projectile
     const W = slots.soldier, hp = amount * HP_PER_WAR_UNIT;
     const part = hitZone(at, W.x, W.y, W.z, W.yaw, W.stance, W.tall);
     if (part) { hurtParts([part], hp, why, 'bullet'); if (F.alive) say(`${why}  -  ${BODY_PARTS.find(p => p.id === part).name}`, 1.4); }
@@ -315,6 +339,7 @@ export function createFootCraft(ctx) {
   function die(why) {
     if (!F.alive) return; F.alive = false; F.deadT = 3; F.lastWhy = why; F.view = 'third';
     say(`KILLED  -  ${why}`, 2.5); sfx.boom?.(0.2);
+    if (marine) { if (!marine.isDead()) { marine.MS.dead = true; marine.MS.cause = why; } if (F.exists) marine.onDeath(); }
     ctx.onDeath?.(why);
   }
   F.kill = why => die(why);
@@ -324,19 +349,20 @@ export function createFootCraft(ctx) {
     landed: () => slots.soldier.onGround && !slots.soldier.swim,
     hitR: () => ({ stand: 0.45, crouch: 0.4, prone: 0.35 })[slots.soldier.stance] || 0.45,
     sight: 110, capTime: 12,
-    detect: () => { const W = slots.soldier; return clamp(({ stand: 0.45, crouch: 0.32, prone: 0.18 })[W.stance] + (W.sprinting ? 0.12 : 0) + (F.firedT < 3 ? 0.25 : 0), 0.1, 1); },
+    detect: () => { const W = slots.soldier; if (marine) return clamp(marine.pl.detect(), 0.1, 1); return clamp(({ stand: 0.45, crouch: 0.32, prone: 0.18 })[W.stance] + (W.sprinting ? 0.12 : 0) + (F.firedT < 3 ? 0.25 : 0), 0.1, 1); },
   };
   F.avatar = Z => {
     const W = slots.soldier, ch = W.stance === 'prone' ? 0.25 : W.tall * 0.58;
     Z.pos.set(W.x, W.y + ch, W.z); Z.vel.set(W.vx + F.platVel.x, W.vy, W.vz + F.platVel.z); Z.facing.set(-Math.sin(W.yaw), -Math.cos(W.yaw));
   };
   // ---------------------------------------------------------------- views
-  F.firstPerson = () => F.view === 'first' && F.alive;
-  F.fov = ckFov => ckFov;
+  F.firstPerson = () => marine ? F.alive && marine.firstPerson() : F.view === 'first' && F.alive;
+  F.fov = ckFov => marine ? marine.fov(ckFov) : ckFov;
   let bob = 0;
   // pull the over-the-shoulder camera in front of whatever is between it and the head (a parked helicopter, a wall)
   const clearView = (ex, ey, ez, p) => GR.clearView(ex, ey, ez, p, null);
   F.camera = (cam, dt) => {
+    if (marine) { marine.camera(cam, dt); return; }
     const W = slots.soldier, sp = Math.hypot(W.vx, W.vz);
     bob += (W.onGround && sp > 0.3 ? 1 : -1) * dt * 3; bob = clamp(bob, 0, 1);
     const ph = W.stride / 1.5 * Math.PI * 2, amp = bob * clamp(sp / 3, 0, 1.6) * (W.stance === 'stand' ? 1 : 0.5);
@@ -359,7 +385,7 @@ export function createFootCraft(ctx) {
     for (const u of war.units) {
       if (!u.dims || !u.mesh || u.mesh.userData.ladders) continue;
       u.mesh.userData.ladders = true;
-      for (const L of GR.LADDERS) if (L.ship === u.type) u.mesh.add(buildLadder(L));
+      for (const L of GR.laddersOf(u)) u.mesh.add(buildLadder(L));
     }
   }
   function buildLadder(L) {
@@ -379,9 +405,16 @@ export function createFootCraft(ctx) {
     if (B) { B.group.visible = vis && !fp; if (B.group.visible) { B.group.position.set(W.x, W.y, W.z); B.group.rotation.y = W.yaw; B.animate(s, dt); } }
     if (V) { V.group.visible = vis && fp; if (V.group.visible) { V.update(dt, s); const cam = ctx.camera(); V.group.position.applyQuaternion(cam.quaternion).add(cam.position); V.group.quaternion.premultiply(cam.quaternion); } }
     shadow.visible = vis && !W.swim; if (shadow.visible) { const g = GR.floor(W.x, W.z, W.y + 0.1, 0.5); shadow.position.set(W.x, (g === Infinity ? W.y : g) + 0.04, W.z); }
+    marine?.render(dt, time, fp && F.alive, vis);
   };
+  F.overlay = (renderer, cam) => { if (F.exists) marine?.overlay(renderer, cam); };   // the first-person arms and weapon: their own pass (main.js, after the world)
   F.hud = () => {
     const W = slots.soldier;
+    if (marine) {   // the Marine's lines; a door in reach comes first
+      const h = marine.hud(), near = F.alive && !marine.ui ? crafts.nearestDoor(W.x, W.y + 1, W.z, 2.6) : null;
+      if (near) { h.hint = `Y: GET IN THE ${near.def.label}  (${crafts.seatName(near.def, near.seat)})`; h.tip = false; }
+      return h;
+    }
     const near = F.alive ? crafts.nearestDoor(W.x, W.y + 1, W.z, 2.6) : null;
     const st = W.swim ? 'SWIMMING' : W.ladder ? 'ON A LADDER' : W.stance === 'prone' ? 'PRONE' : W.stance === 'crouch' ? 'CROUCHED' : W.sprinting ? 'SPRINTING' : 'STANDING';
     const deck = W.plat ? (W.plat.type === 'carrier' ? (W.plat.side === 1 ? 'ALBATROSS' : 'KRAKEN') : W.plat.type.toUpperCase()) + ' ' : '';

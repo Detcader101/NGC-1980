@@ -117,6 +117,13 @@ export const CSS = `
 .ngc-inv .it:hover{border-color:#cfe;box-shadow:0 0 8px #8ff6;z-index:2}
 .ngc-inv .it .nm{position:absolute;left:2px;right:3px;top:1px;text-align:right;overflow:hidden;text-overflow:clip;font-size:9.5px;color:#e8f4f0;text-shadow:0 0 2px #000,0 0 3px #000;pointer-events:none;letter-spacing:.3px;white-space:nowrap}
 .ngc-inv .it .ct{position:absolute;right:3px;bottom:1px;font-size:11px;color:#fff;text-shadow:0 0 2px #000,0 0 3px #000;pointer-events:none}
+/* ngc/foot2 polish: readable labels in small cells - a dark backing behind the name and the count, one-cell items
+   wrap their name onto two tight lines instead of clipping it, counts never wrap */
+.ngc-inv .it .nm{left:auto;max-width:calc(100% - 3px);padding:0 2px;background:rgba(4,12,16,.62);border-radius:1px;text-overflow:ellipsis;letter-spacing:0}
+.ngc-inv .it .ct{white-space:nowrap;padding:0 2px;background:rgba(4,12,16,.62);border-radius:1px;line-height:12px}
+.ngc-inv .it.sm .nm{left:1px;right:1px;max-width:none;top:1px;font-size:8.5px;line-height:8.5px;white-space:normal;word-break:break-all;text-align:center;max-height:18px;overflow:hidden;padding:1px 1px 0}
+.ngc-inv .it.sm .ct{font-size:9px;letter-spacing:-0.4px;right:0;bottom:1px;padding:0 1px}
+.ngc-inv .it.sm .q{top:auto;bottom:1px;left:2px}
 .ngc-inv .it .era{position:absolute;left:2px;bottom:1px;font-size:8px;padding:0 2px;pointer-events:none}
 .ngc-inv .it .era.modern{color:#000;background:#fb4}.ngc-inv .it .era.rw{color:#003;background:#5ef}
 .ngc-inv .it .erac{position:absolute;left:0;bottom:0;border:5px solid transparent;border-left-color:#fb4;border-bottom-color:#fb4;pointer-events:none}.ngc-inv .it .erac.rw{border-left-color:#5ef;border-bottom-color:#5ef}
@@ -183,7 +190,7 @@ export function createInvUI(opt) {
     const q = S.inv.quick?.indexOf(it.uid); const qk = q >= 0 ? `<span class="q">${(q + 1) % 10}</span>` : '';
     const era = d.era !== '1980' ? (w < 50 ? `<span class="erac ${d.era}"></span>` : `<span class="era ${d.era}">${d.era === 'rw' ? 'RW' : 'SEIZED'}</span>`) : '';
     const pw = w - 6, ph = h - 6;
-    return `<div class="it cat-${d.cat}${it.unseen ? ' unseen' : ''}${S.sel === it ? ' sel' : ''}" data-uid="${it.uid}" style="${extra}width:${w}px;height:${h}px" title="">${iconSVG(it.id, Math.max(8, pw * (it.r ? 0.92 : 0.94)), Math.max(8, ph * 0.86), it.r)}<span class="nm">${esc(d.short || d.name)}</span>${ct !== '' ? `<span class="ct">${ct}</span>` : ''}${qk}${era}${bar}</div>`;
+    return `<div class="it cat-${d.cat}${w < 50 ? ' sm' : ''}${it.unseen ? ' unseen' : ''}${S.sel === it ? ' sel' : ''}" data-uid="${it.uid}" style="${extra}width:${w}px;height:${h}px" title="">${iconSVG(it.id, Math.max(8, pw * (it.r ? 0.92 : 0.94)), Math.max(8, ph * 0.86), it.r)}<span class="nm">${esc(d.short || d.name)}</span>${ct !== '' ? `<span class="ct">${ct}</span>` : ''}${qk}${era}${bar}</div>`;
   }
   function gridHTML(c, g, label) {
     const gd = D(c).grids[g]; const W = gd.w * CELL, H = gd.h * CELL;

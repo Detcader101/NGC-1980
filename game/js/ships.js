@@ -10,6 +10,8 @@ import { buildContainerShip, BOX } from './units/naval/containership.js';
 import { buildCH46Mesh } from './units/air/rotary/ch46model.js';
 import { buildMV22Mesh } from './units/air/rotary/mv22model.js';
 import { buildWaspMesh } from './units/air/rotary/waspmodel.js';
+import { buildC130Mesh } from './units/air/c130model.js';   // the para-drop Hercules (C-130 agent)
+import { buildParatrooper, buildMC1Canopy } from './units/air/jumper.js';
 
 const M = (c, o = {}) => new THREE.MeshPhongMaterial({ color: c, flatShading: true, shininess: 20, ...o });
 const box = (w, h, d, m, x = 0, y = 0, z = 0, parent) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); parent && parent.add(b); return b; };
@@ -105,48 +107,15 @@ export function buildTomcat(side = 1) {
 
 // ------------------------------------------------------------------------------------------- dropship
 // our four-engined steel transport (Hercules-like): high wing, upswept tail, rear ramp. Flies the repair team out.
-export function buildDropship() {
-  const g = new THREE.Group(), steel = M(0x6c747c, { shininess: 40 }), dark = M(0x2a2e33), glass = M(0x1a2a36, { emissive: 0x0a1820 }), team = M(TEAM[1], { emissive: 0x0a2a44 });
-  const fus = new THREE.Mesh(new THREE.CylinderGeometry(2.1, 2.1, 20, 12).rotateX(Math.PI / 2), steel); fus.scale.y = 1.05; g.add(fus);
-  const nose = new THREE.Mesh(new THREE.SphereGeometry(2.1, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(-Math.PI / 2), steel); nose.scale.set(1, 1, 1.5); nose.position.z = -10; g.add(nose);
-  const glazing = box(3.2, 0.8, 1.6, glass, 0, 1.1, -11.2, g);   // cockpit glazing (hidden from inside)
-  // tail: tapers and sweeps up to the fin; the ramp is the flat underside
-  const tg = new THREE.CylinderGeometry(0.7, 2.1, 9, 12, 1, false).rotateX(-Math.PI / 2); const tail = new THREE.Mesh(tg, steel); tail.position.set(0, 0.9, 14.3); tail.rotation.x = -0.2; g.add(tail);
-  box(3, 0.25, 7, dark, 0, -1.2, 13.4, g).rotation.x = -0.32;
-  box(0.35, 7.5, 5.2, steel, 0, 4.6, 17, g).rotation.x = 0.28;                       // fin
-  box(15, 0.3, 3.2, steel, 0, 1.9, 17.8, g);                                         // tailplane
-  box(40, 0.55, 4.6, steel, 0, 2.35, -1.5, g);                                       // high wing
-  for (const x of [-15, 15]) cyl(1.1, 1.1, 0.06, team, x, 2.66, -1.5, g, 16);       // roundels
-  box(0.35, 3.6, 2.8, team, 0, 4.6, 17.3, g);                                        // team flash on the fin
-  const props = [];
-  for (const x of [-12.5, -6.5, 6.5, 12.5]) {
-    const n = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.85, 5.2, 10).rotateX(Math.PI / 2), steel); n.position.set(x, 1.8, -3.2); g.add(n);
-    cyl(0.35, 0.6, 0.9, dark, x, 1.8, -6.1, g, 8).rotation.x = Math.PI / 2;
-    const pr = new THREE.Group(); pr.position.set(x, 1.8, -6.6); g.add(pr); props.push(pr);
-    pr.add(new THREE.Mesh(new THREE.CircleGeometry(2.3, 20), new THREE.MeshBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false })));
-    for (let k = 0; k < 4; k++) { const b = box(0.28, 2.2, 0.08, dark, 0, 0, 0, pr); b.geometry.translate(0, 1.1, 0); b.rotation.z = k * Math.PI / 2; }
-  }
-  box(4.6, 1.4, 4.2, steel, 0, -1.9, -1, g);                                         // landing gear sponsons
-  const lamp = box(0.3, 0.3, 0.3, new THREE.MeshBasicMaterial({ color: 0xff3020 }), 0, 2.4, 2, g);
-  return { group: g, props, lamp, glazing };
-}
-// a paratrooper (repair crew) with a ram-air canopy that unfurls on opening
+// The para-drop aeroplane: a Marine KC-130R Hercules (units/air/c130model.js). Returns the model (group, animate,
+// parts, shell) as built there; drop.js drives it from the C-130 flight model.
+export function buildDropship() { return buildC130Mesh(); }
+// A 1980 paratrooper with an MC1-1 canopy (units/air/jumper.js). Keeps the old contract for drop.js - { group, body,
+// canopy, legs, arms } - plus rig (pose / setKit: swap the figure for the infantry model by replacing buildParatrooper)
+// and canopyAnim(time, open 0..1, steer). The canopy hangs from the shoulders.
 export function buildJumper() {
-  const g = new THREE.Group(), kit = M(0x4c5636), skin = M(0xc89a74), dark = M(0x1d2018);
-  const body = new THREE.Group(); g.add(body);
-  box(0.46, 0.62, 0.3, kit, 0, 0.95, 0, body); box(0.4, 0.5, 0.26, dark, 0, 0.98, 0.25, body);   // torso, pack
-  box(0.26, 0.26, 0.26, skin, 0, 1.42, 0, body); box(0.32, 0.14, 0.32, kit, 0, 1.58, 0, body);   // head, helmet
-  const legs = [], arms = [];
-  for (const x of [-0.12, 0.12]) { const l = box(0.17, 0.66, 0.2, kit, x, 0, 0, body); l.geometry.translate(0, -0.33, 0); l.position.set(x, 0.66, 0); legs.push(l); }
-  for (const x of [-0.31, 0.31]) { const a = box(0.13, 0.56, 0.15, kit, x, 0, 0, body); a.geometry.translate(0, -0.26, 0); a.position.set(x, 1.24, 0); arms.push(a); }
-  box(0.34, 0.4, 0.16, M(0xa83a1c), 0.32, 0.55, 0, body);   // jerrycan / toolbox
-  const canopy = new THREE.Group(); canopy.position.y = 6.2; g.add(canopy);
-  const c1 = M(TEAM[1], { side: THREE.DoubleSide }), c2 = M(0xe8e8e0, { side: THREE.DoubleSide });
-  for (let i = 0; i < 7; i++) { const a = (i - 3) * 0.16, c = box(0.96, 0.42, 2.5, i % 2 ? c2 : c1, Math.sin(a) * 3.4, Math.cos(a) * 3.4 - 3.4, 0, canopy); c.rotation.z = -a; }
-  const lineMat = new THREE.LineBasicMaterial({ color: 0xdddddd, transparent: true, opacity: 0.6 });
-  const pts = []; for (const x of [-3.2, -1.1, 1.1, 3.2]) for (const z of [-1, 1]) { const a = x / 3.4 * 0.48; pts.push(0, -4.9, 0, Math.sin(a) * 3.3, Math.cos(a) * 3.3 - 3.6, z); }
-  const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); canopy.add(new THREE.LineSegments(lg, lineMat));
-  return { group: g, body, canopy, legs, arms };
+  const rig = buildParatrooper(), c = buildMC1Canopy(); rig.group.add(c.group);
+  return { group: rig.group, body: rig.body, canopy: c.group, legs: rig.legs, arms: rig.arms, rig, canopyAnim: c.animate };
 }
 
 // ------------------------------------------------------------------------------------------- buildings

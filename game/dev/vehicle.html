@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vehicle Test Ground</title>
+<script type="importmap">{"imports":{"three":"../vendor/three.module.min.js"}}</script>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#9db8cf;font:12px Consolas,"DejaVu Sans Mono",monospace;color:#e8f0e0}
+canvas{display:block}
+#tele{position:fixed;left:8px;top:8px;background:rgba(10,14,8,.62);padding:7px 9px;border-left:3px solid #8a9a50;white-space:pre;line-height:1.32;pointer-events:none;min-width:290px}
+#tele b{color:#d8e890}#tele .w{color:#ffcc55}#tele .r{color:#ff6a50}
+#help{position:fixed;right:8px;bottom:8px;background:rgba(10,14,8,.55);padding:6px 8px;white-space:pre;line-height:1.3;color:#cfd8c0;pointer-events:none}
+#bar{position:fixed;right:8px;top:8px;display:flex;gap:4px;flex-wrap:wrap;max-width:560px;justify-content:flex-end}
+#bar button,#bar select{font:12px Consolas,monospace;background:#2a3020;color:#dfe8c8;border:1px solid #586040;padding:3px 7px;cursor:pointer}
+#bar button.on{background:#5a6a30}
+#feed{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);text-align:center;color:#ffdd88;text-shadow:0 0 4px #000;pointer-events:none;white-space:pre}
+.hide{display:none!important}
+</style></head><body>
+<div id="tele"></div><div id="bar"></div><div id="feed"></div>
+<div id="help">W/S throttle / brake (hold S stopped: reverse)   A/D steer   SPACE handbrake
+Q/E gear down / up (semi, manual)   C clutch (manual)   M driver mode
+F front drive (4WD)   L range high / low   K diff lock   G fording kit
+I ignition / hold to crank   H horn   O lights   V camera   T variant
+1-6 vehicle   R reset here   Z zone   X hit (damage test)   P pause   N sound</div>
+<script type="module" src="./vehicle.js"></script>
+</body></html>

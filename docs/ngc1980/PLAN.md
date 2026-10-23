@@ -22,23 +22,29 @@ The orchestrator (main Claude session) keeps this file current. Read [BIBLE.md](
   war.js, new war roles (ground war on the islands).
 - **Wave 3**: lived-in polish, combined arms, balance, performance pass, full regression.
 
-## Board
+## Board (updated 2026-10-23 ~11:30)
 | Feature | Branch | Wave | Status | Notes |
 |---|---|---|---|---|
-| Rename, bible, plan | experimental | 0 | done | |
-| Merge main into experimental (sky carrier refit -> key 6) | experimental | 0 | done | |
-| SKYFIX: Huey/jet held on a climbing sky deck; helm reads raw stick | ngc/skyfix | 1 | merged c5ec4f5 | sky 8/8 |
-| FOUNDATION: craft framework, on-foot, enter/exit, ground physics host | ngc/foundation | 1 | | owns main.js |
-| INFANTRY: soldier movement, weapons, ballistics, first-person viewmodels | ngc/infantry | 1 | | |
-| MEDICAL + INVENTORY | ngc/medinv | 1 | merged 7a591ef | bench 109/109, scenes 10/10 + 11/11; next: wire into on-foot (needs foundation + infantry); polish: cramped item labels in small cells |
-| TANK M60A3 TTS (+ M113A2 shares the track sim) | ngc/tank | 1 | | |
-| WHEELED: M151A2 MUTT, M35A2 | ngc/wheeled | 1 | | |
-| NAVAL: ALBATROSS 1980, KRAKEN seized CVN, LEVIATHAN, container ship | ngc/naval | 1 | merged | navalbench 22/22; sky/jet/jettrap/naval/war/rescue/smoke/hueyhover pass; next: sea-state UI, wave surface, parked-aircraft collision, elevators, HUD strings BATTLESHIP->LEVIATHAN |
-| AIR AI fixed-wing: F-14A on a real FM, MQ-9, Shahed | ngc/airfw -> ngc/airfw-2 | 1 | airframe + Tomcat FM done (tomcatbench 32/32); continuation running | first agent blocked by the safety check at missile guidance |
-| AIR AI rotary: CH-46 + Marines, MV-22B, RW-3 WASP | ngc/airrot | 1 | | |
-| C-130H Hercules (replaces MULE 1) | ngc/c130 | 1 | | |
-| DEFENCE, game-tuned (first agent blocked by an auto-mode safety check; relaunched without real-world weapon data) | ngc/defence-v2 | 1 | | |
-| STRUCTURES + LIVED-IN WORLD: bases both sides, villages, roads, civilians | ngc/world | 1 | | |
-| RUNAWAY ground: RW-1 STRIDER, RW-7 hover tank, seized M1A2/T-90M | ngc/rwground | 1 | | |
+| Rename, bible, plan; main merged into experimental | experimental | 0 | done | sky refit on key 6 |
+| SKYFIX | ngc/skyfix | 1 | merged | sky 8/8 |
+| MEDICAL + INVENTORY | ngc/medinv | 1 | merged | bench 109/109 |
+| NAVAL | ngc/naval | 1 | merged | navalbench 22/22 |
+| DEFENCE (game-tuned) | ngc/defence-v2 | 1 | merged | first agent blocked by safety check |
+| INFANTRY | ngc/infantry | 1 | merged | bench 90/90 |
+| RUNAWAY ground | ngc/rwground | 1 | merged | bench 48/48 |
+| FOUNDATION | ngc/foundation | 1 | merged | foot.mjs 9/12, naval.mjs 3/5 (Y change), infinite 5/6 (H.reset snaps back): foot2 owns |
+| AIR fixed-wing | ngc/airfw -> airfw-2 | 1 | merged | airbench 28/28, tomcatbench 32/32, Hornet bit-identical |
+| AIR rotary | ngc/airrot | 1 | merged | ch46 21/21, mv22 21/21, wasp 13/13 |
+| TANK | ngc/tank | 1 | merged | tankbench 72/72 |
+| WORLD | ngc/world | 1 | merged | worldbench pass |
+| C-130 | ngc/c130 | 1 | merged | c130bench 38/38; drop.json 4/5 (stick routing since FOUNDATION): dropfix |
+| WHEELED | ngc/wheeled | 1 | running | |
+| On-foot integration (real Marine + medinv) | ngc/foot2 | 2 | running | + naval.mjs Y, H.reset fix |
+| Ground war (RUNAWAY + Marine squads in war.js) | ngc/rwwar | 2 | running | |
+| Armour in the game (M60A3, M113, landing craft) | ngc/armorgame | 2 | running | |
+| Sea + world follow-ups (waves, sea state, strings, elevators, colliders, enemy ship mounts) | ngc/seaworld2 | 2 | running | |
+| Flyable F-14A | ngc/tomcat | 2 | running | |
+| Dropship stick fix | ngc/dropfix | 2 | running | |
+| Next: wheeled in game; rotary/defence/C-130 follow-ups (soldier figures, WASP balance, RWR lamps, flares); wave 3 regression + perf + playtest | | 2-3 | queued | |
 
 Rule learned: keep weapons at game level (headline figures, game-tuned damage, no guidance/seeker/penetration research). Deep real-world weapon modelling trips auto mode's safety check and stops the agent.
