@@ -117,9 +117,12 @@ export function createWalker(P = SOLDIER) {
       if (Math.abs(S) < 1.2 && Math.abs(S - S2) < 0.3) sp *= Math.max(0.3, Math.min(1.1, Math.exp(-3.5 * (Math.abs(S + 0.05) - 0.05))));   // a drop off an edge is not a slope
     }
     const wx = (fx * mz + rx * mx) * k * sp, wz = (fz * mz + rz * mx) * k * sp;
-    const acc = (W.onGround || W.swim ? P.ACCEL : P.AIR) * h;
-    const dvx = wx - W.vx, dvz = wz - W.vz, dl = Math.hypot(dvx, dvz);
-    if (dl > 0) { const s = Math.min(1, acc / dl); W.vx += dvx * s; W.vz += dvz * s; }
+    if (I.vel && (W.onGround || W.swim)) { W.vx = I.vel.x; W.vz = I.vel.z; }   // wave 2: the Marine's body (soldier.js) decides the deck-relative velocity; this sim only resolves it against the world
+    else {
+      const acc = (W.onGround || W.swim ? P.ACCEL : P.AIR) * h;
+      const dvx = wx - W.vx, dvz = wz - W.vz, dl = Math.hypot(dvx, dvz);
+      if (dl > 0) { const s = Math.min(1, acc / dl); W.vx += dvx * s; W.vz += dvz * s; }
+    }
     // ---- jump (standing, on the ground, not wading deep)
     if (I.jump && first && W.onGround && W.stance === 'stand' && W.wade < 0.5 && !W.swim) { W.vy = P.JUMP_V; W.onGround = false; W.airT = 0; ev('jump'); }
     // ---- horizontal move: walls, steps, slopes; then push out of trees, buildings, crafts
