@@ -233,6 +233,8 @@ console.log('--- 6. inventory grids ---');
   check('quick slot 5: dressing auto-targets the bleeding arm, is used up', tgt === 'armL' && !I.find(s, o => o === dr), `${tgt}, gone=${!I.find(s, o => o === dr)}`, 'armL, gone', 'INFERRED');
   const crate = I.fillCrate('crate_med', mulberry32(3)); const n = [...I.walk(crate)].length; let t = 0; while (I.searchStep(crate, 0.1) > 0) t += 0.1;
   check('searching a medical chest reveals items one by one', crate.searched && t > n * 0.6, `${n} items in ${t.toFixed(1)} s`, `~${(n * 0.8).toFixed(1)} s`, 'INFERRED', 'Tarkov search pacing');
+  { const c = I.loadout('corpsman'); const bag = I.find(c, o => o.id === 'unit1_bag'); const n = bag ? [...I.walk(bag)].length : 0;
+    check('corpsman: stocked Unit One bag in the pack', bag && n >= 10 && I.findAll(c, o => o.id === 'morphine').length === 2, `${n} items, morphine x${I.findAll(c, o => o.id === 'morphine').length}`, '>= 10 items', 'INFERRED', 'UNIT1'); }
   const sp = BUDDY.dragSpeed(createMedical().mods(), 95, 25); check('buddy drag of a 95 kg casualty', sp >= 0.6 && sp <= 1.1, sp + ' m/s', '0.6-1.1 m/s', 'INFERRED', 'casualty-drag trials');
 }
 

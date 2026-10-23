@@ -290,6 +290,7 @@ export const serialize = root => JSON.stringify(root);
 export const deserialize = s => relink(typeof s === 'string' ? JSON.parse(s) : s);
 
 // ---------------------------------------------------------------------------------------------------------- loadouts
+const must = (e, what) => { if (e) throw new Error(`loadout: ${what}: ${e}`); };
 const put = (root, id, o = {}) => { const it = newItem(id, o); const r = autoStore(root, it); if (!r) throw new Error('loadout: no room for ' + id); return it; };
 const mag20 = () => newItem('mag_m16_20', { fill: 'M193', rounds: 20 });
 function belt(root, pouches) {
@@ -326,10 +327,10 @@ export function loadout(name = 'rifleman') {
   if (name === 'grenadier') { slotIn(rifle, 'gl', newItem('r40_m406')); for (let i = 0; i < 6; i++) put(s, 'r40_m406'); }
   if (name === 'corpsman') {
     slotIn(s, 'holster', newItem('m1911a1')); slotIn(s.slots.holster, 'mag', newItem('mag_45', { fill: 'M1911', rounds: 7 }));
-    const bag = newItem('unit1_bag'); placeIn(s.slots.pack, 0, bag, 0, 0);
+    const bag = newItem('unit1_bag'); must(placeIn(s.slots.pack, 0, bag, 0, 0), 'unit one bag');
     for (const id of ['dressing_battle', 'dressing_battle', 'dressing_field', 'dressing_field', 'cravat', 'cravat', 'tq_strap', 'morphine', 'morphine', 'ammonia', 'needle_14g', 'apc']) { const it = newItem(id); const f = findFree(bag, it); if (f) placeIn(bag, f.g, it, f.x, f.y, f.r); }
-    placeIn(s.slots.pack, 0, newItem('iv_lr'), 3, 0); placeIn(s.slots.pack, 0, newItem('iv_lr'), 4, 0);
-    placeIn(s.slots.pack, 0, newItem('splint_wire'), 0, 2);
+    must(placeIn(s.slots.pack, 0, newItem('iv_lr'), 3, 0), 'iv'); must(placeIn(s.slots.pack, 0, newItem('iv_lr'), 4, 0), 'iv');
+    must(placeIn(s.slots.pack, 0, newItem('splint_wire'), 3, 2), 'splint');
   }
   // pockets: dressing, compass / P-38; vest pockets: cravat, rifle cleaning gear omitted
   put(s, 'p38'); if (name !== 'corpsman') put(s, 'cravat');

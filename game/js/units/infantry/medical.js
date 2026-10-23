@@ -605,7 +605,7 @@ export function createMedical(opts = {}) {
     // shock
     const SH = [null, { sp: 1, sw: 0, tr: 0, reg: 1 }, { sp: 0.95, sw: 0.2, tr: 0.001, reg: 0.8 }, { sp: 0.75, sw: 0.6, tr: 0.004, reg: 0.5 }, { sp: 0.45, sw: 1.2, tr: 0.008, reg: 0.2 }][cls];
     o.speedMul *= SH.sp; o.aimSway += SH.sw; o.tremor += SH.tr; o.staminaRegenMul *= SH.reg; o.staminaMaxMul *= lerp(1, 0.4, smooth(0.15, 0.45, lf));
-    if (cls >= 3) o.sprint = false;
+    if (cls >= 3) { o.sprint = false; o.jump = false; }
     // pain, adrenaline, opioids
     o.aimSway += pain / 120; o.tremor += 0.0025 * smooth(25, 90, pain) + 0.0025 * M.adrenaline;
     if (pain > 85) { o.sprint = false; o.speedMul *= 0.85; }

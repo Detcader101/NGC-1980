@@ -313,7 +313,9 @@ export function createInvUI(opt) {
       const c = byUid(gEl.dataset.c), g = +gEl.dataset.g; if (!c) return null;
       const r = gEl.getBoundingClientRect(); const D0 = D(it);
       const gx = d.rot !== it.r ? d.gy : d.gx, gy = d.rot !== it.r ? d.gx : d.gy;
-      const x = Math.round((e.clientX - r.left - CELL / 2) / CELL - gx), y = Math.round((e.clientY - r.top - CELL / 2) / CELL - gy);
+      // anchor on the grabbed cell, then clamp into the grid so an overhang near an edge still snaps in
+      const gd = D(c).grids[g], iw = d.rot ? D0.h : D0.w, ih = d.rot ? D0.w : D0.h;
+      const x = Math.max(0, Math.min(gd.w - iw, Math.round((e.clientX - r.left - CELL / 2) / CELL - gx))), y = Math.max(0, Math.min(gd.h - ih, Math.round((e.clientY - r.top - CELL / 2) / CELL - gy)));
       const err = I.placeError(c, g, it, x, y, d.rot);
       return { kind: 'grid', el: gEl, c, g, x, y, err };
     }

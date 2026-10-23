@@ -153,14 +153,14 @@ D('bando_m193', { name: 'BANDOLIER 140 M193', short: 'BANDO', cat: 'ammo', tags:
   desc: 'Cotton bandolier, 14 ten-round stripper clips and the charger "spoon": loading from clips is three times faster than thumbing rounds.' });
 D('can_m193', { name: 'AMMO CAN M2A1 840 M193', short: 'M2A1', cat: 'ammo', tags: ['ammo', 'ammobox', 'heavy'], w: 3, h: 2, kg: 2.6, icon: 'can', box: { round: 'M193', n: 840, clip: 10, loadS: 0.3 }, tag: 'INFERRED', src: 'BAND (6 bandoliers; can 2.6 kg; full ~12.5 kg)' });
 D('can_m80', { name: 'AMMO CAN 200 M80 LINKED', short: 'M80 CAN', cat: 'ammo', tags: ['ammo', 'ammobox', 'heavy'], w: 3, h: 2, kg: 1.9, icon: 'can', box: { round: 'M80', n: 200, clip: 0, loadS: 0.4 }, tag: 'INFERRED', src: 'FM2367' });
-D('box_45', { name: '.45 ACP BOX 50', short: '.45 BOX', cat: 'ammo', tags: ['ammo', 'ammobox'], w: 1, h: 1, kg: 0.03, icon: 'box', box: { round: 'M1911', n: 50, clip: 0, loadS: 0.8 }, tag: 'INFERRED', src: '' });
+D('box_45', { name: '.45 ACP BOX 50', short: '.45 BX', cat: 'ammo', tags: ['ammo', 'ammobox'], w: 1, h: 1, kg: 0.03, icon: 'box', box: { round: 'M1911', n: 50, clip: 0, loadS: 0.8 }, tag: 'INFERRED', src: '' });
 D('box_m855a1', { name: 'M855A1 CARTON 120 (SEIZED)', short: 'M855A1', cat: 'ammo', tags: ['ammo', 'ammobox', 'modern'], w: 2, h: 1, kg: 0.1, era: 'modern', icon: 'box', box: { round: 'M855A1', n: 120, clip: 10, loadS: 0.3 }, tag: 'INFERRED', src: '' });
 
 // ---- grenades and explosives
 D('m67', { name: 'M67 FRAG GRENADE', short: 'M67', cat: 'grenade', tags: ['grenade', 'explosive'], kg: 0.4, icon: 'grenade', throwable: { fuseS: 4.5, frag: 'M67' }, tag: 'CONFIRMED', src: 'FM32330 (14 oz, 4-5.5 s fuse)',
   desc: 'Baseball grenade. 6.5 oz of Comp B in a steel body; fatal within 5 m, wounds to 15 m.' });
-D('m18_green', { name: 'M18 SMOKE (GREEN)', short: 'SMOKE G', cat: 'grenade', tags: ['grenade', 'smoke'], kg: 0.54, icon: 'smoke', throwable: { fuseS: 1.5, smoke: 'green', burnS: 60 }, tag: 'CONFIRMED', src: 'FM32330 (19 oz, 50-90 s)' });
-D('m18_red', { name: 'M18 SMOKE (RED)', short: 'SMOKE R', cat: 'grenade', tags: ['grenade', 'smoke'], kg: 0.54, icon: 'smoke', throwable: { fuseS: 1.5, smoke: 'red', burnS: 60 }, tag: 'CONFIRMED', src: 'FM32330' });
+D('m18_green', { name: 'M18 SMOKE (GREEN)', short: 'SMK G', cat: 'grenade', tags: ['grenade', 'smoke'], kg: 0.54, icon: 'smoke', throwable: { fuseS: 1.5, smoke: 'green', burnS: 60 }, tag: 'CONFIRMED', src: 'FM32330 (19 oz, 50-90 s)' });
+D('m18_red', { name: 'M18 SMOKE (RED)', short: 'SMK R', cat: 'grenade', tags: ['grenade', 'smoke'], kg: 0.54, icon: 'smoke', throwable: { fuseS: 1.5, smoke: 'red', burnS: 60 }, tag: 'CONFIRMED', src: 'FM32330' });
 D('claymore', { name: 'M18A1 CLAYMORE', short: 'CLAYMORE', cat: 'grenade', tags: ['explosive', 'mine'], w: 2, h: 2, kg: 1.6, icon: 'claymore', tag: 'CONFIRMED', src: 'FM2123 (3.5 lb mine + bandolier, firing device, wire)',
   desc: 'FRONT TOWARD ENEMY. 700 steel balls in a 60-degree fan, lethal to 50 m.' });
 
@@ -177,7 +177,7 @@ D('lc2_belt', { name: 'LC-2 BELT + SUSPENDERS', short: 'LC-2', cat: 'rig', tags:
 D('pouch_ammo', { name: 'SMALL ARMS AMMO CASE', short: 'AMMO CASE', cat: 'pouch', tags: ['pouch', 'pouch_ammo'], w: 2, h: 2, kg: 0.16, icon: 'pouch',
   grids: [{ w: 1, h: 2, accept: ['mag', 'grenade'], label: '' }, { w: 1, h: 2, accept: ['mag', 'grenade'], label: '' }, { w: 1, h: 2, accept: ['mag', 'grenade'], label: '' }, { w: 1, h: 1, accept: ['grenade'], label: 'SLEEVE' }],
   tag: 'CONFIRMED', src: 'ALICE (3 magazines, a grenade strapped to each side; we model one sleeve)', desc: 'LC-2 ammo case: three M16 magazines, a grenade in the side sleeve.' });
-D('pouch_aid', { name: 'FIRST AID / COMPASS CASE', short: 'AID CASE', cat: 'pouch', tags: ['pouch', 'pouch_aid'], kg: 0.04, icon: 'aidcase', grids: [{ w: 1, h: 1, accept: ['dressing', 'compass', 'medsmall'], label: '' }], tag: 'INFERRED', src: 'ALICE' });
+D('pouch_aid', { name: 'FIRST AID / COMPASS CASE', short: 'AID', cat: 'pouch', tags: ['pouch', 'pouch_aid'], kg: 0.04, icon: 'aidcase', grids: [{ w: 1, h: 1, accept: ['dressing', 'compass', 'medsmall'], label: '' }], tag: 'INFERRED', src: 'ALICE' });
 D('pouch_canteen', { name: 'CANTEEN COVER', short: 'COVER', cat: 'pouch', tags: ['pouch', 'pouch_canteen'], w: 1, h: 2, kg: 0.15, icon: 'pouch', grids: [{ w: 1, h: 2, accept: ['canteen'], label: '' }, { w: 1, h: 1, accept: ['tablets', 'medsmall'], label: 'POCKET' }], tag: 'INFERRED', src: 'ALICE (cover with an outer pocket for water purification tablets)' });
 D('pouch_etool', { name: 'E-TOOL CARRIER', short: 'E-TOOL C', cat: 'pouch', tags: ['pouch', 'pouch_etool'], w: 2, h: 2, kg: 0.2, icon: 'pouch', grids: [{ w: 2, h: 2, accept: ['etool'], label: '' }], tag: 'INFERRED', src: 'ALICE' });
 D('m69_vest', { name: 'M69 FRAG VEST', short: 'M69', cat: 'armour', tags: ['vest', 'armour'], w: 3, h: 3, kg: 3.9, icon: 'vest', tag: 'INFERRED', src: 'M69 (8.5 lb)',
@@ -192,7 +192,7 @@ D('alice_medium', { name: 'ALICE MEDIUM PACK', short: 'ALICE M', cat: 'pack', ta
   desc: 'Medium all-purpose lightweight individual carrying equipment pack. Rides on the suspenders without a frame.' });
 D('alice_large', { name: 'ALICE LARGE PACK + LC-1 FRAME', short: 'ALICE L', cat: 'pack', tags: ['pack'], w: 5, h: 5, kg: 3.6, icon: 'pack', tag: 'INFERRED', src: 'ALICE (large pack ~4.5 lb + frame ~3.5 lb)',
   grids: [{ w: 6, h: 7, deny: ['pack'], label: 'MAIN' }, { w: 2, h: 2, label: 'POCKET L' }, { w: 2, h: 2, label: 'POCKET C' }, { w: 2, h: 2, label: 'POCKET R' }, { w: 1, h: 2, label: 'SIDE L' }, { w: 1, h: 2, label: 'SIDE R' }] });
-D('unit1_bag', { name: 'UNIT ONE MEDICAL BAG', short: 'UNIT ONE', cat: 'pack', tags: ['medbag', 'pouch'], w: 3, h: 2, kg: 0.9, icon: 'medbag', tag: 'INFERRED', src: 'UNIT1',
+D('unit1_bag', { name: 'UNIT ONE MEDICAL BAG', short: 'UNIT ONE', cat: 'pouch', tags: ['medbag', 'pouch'], w: 3, h: 2, kg: 0.9, icon: 'medbag', tag: 'INFERRED', src: 'UNIT1',
   grids: [{ w: 4, h: 3, accept: ['med', 'medsmall', 'dressing'], label: 'MAIN' }],
   med: { kind: 'woundcare', who: 'corpsman', uses: 6, time: { self: 240, buddy: 120 }, hpTo: 0.5 },
   desc: 'The Navy corpsman\'s bag. With it a corpsman can clean, debride and dress a ruined limb so it works again ("wound care", 6 uses of supplies).' });
@@ -211,7 +211,7 @@ D('rw_carapace', { name: 'RW-1 CARAPACE SECTION', short: 'CARAPACE', cat: 'armou
 // ---- tools and misc
 D('etool', { name: 'ENTRENCHING TOOL', short: 'E-TOOL', cat: 'tool', tags: ['etool', 'tool'], w: 2, h: 2, kg: 1.1, icon: 'etool', tag: 'INFERRED', src: 'tri-fold e-tool ~2.5 lb' });
 D('bayonet_m7', { name: 'M7 BAYONET + M8A1 SCABBARD', short: 'M7', cat: 'tool', tags: ['bayonet', 'tool'], w: 1, h: 2, kg: 0.45, icon: 'knife', tag: 'INFERRED', src: '' });
-D('compass', { name: 'LENSATIC COMPASS', short: 'COMPASS', cat: 'tool', tags: ['compass', 'tool'], kg: 0.21, icon: 'compass', tag: 'INFERRED', src: '7.5 oz' });
+D('compass', { name: 'LENSATIC COMPASS', short: 'COMPAS', cat: 'tool', tags: ['compass', 'tool'], kg: 0.21, icon: 'compass', tag: 'INFERRED', src: '7.5 oz' });
 D('flashlight', { name: 'MX-991/U FLASHLIGHT', short: 'LIGHT', cat: 'tool', tags: ['tool'], w: 1, h: 2, kg: 0.45, icon: 'flashlight', tag: 'INFERRED', src: 'angle-head, 2 D cells' });
 D('p38', { name: 'P-38 CAN OPENER', short: 'P-38', cat: 'tool', tags: ['tool', 'p38'], kg: 0.005, icon: 'p38', tag: 'CONFIRMED', src: '1.5 in, ~5 g', desc: 'John Wayne. Opens a C-ration can in a minute; on your dog-tag chain.' });
 D('poncho', { name: 'PONCHO', short: 'PONCHO', cat: 'misc', tags: ['misc'], w: 2, h: 2, kg: 0.85, icon: 'cloth', tag: 'INFERRED', src: '' });
@@ -220,7 +220,7 @@ D('prc77', { name: 'AN/PRC-77 RADIO', short: 'PRC-77', cat: 'tool', tags: ['tool
 D('rw_core', { name: 'RW SENSOR CORE', short: 'CORE', cat: 'loot', tags: ['loot', 'rw', 'intel'], w: 1, h: 1, kg: 0.3, era: 'rw', icon: 'core', tag: 'FICTION', src: '', desc: 'Intel: the S-2 wants every one of these.' });
 
 // ---- water and food (hydration ml, energy kcal)
-D('canteen_1qt', { name: 'CANTEEN 1-QT', short: 'CANTEEN', cat: 'drink', tags: ['canteen', 'drink'], w: 1, h: 2, kg: 0.13, icon: 'canteen', water: 946, tag: 'INFERRED', src: 'plastic 1-qt canteen ~4.6 oz empty, 946 ml',
+D('canteen_1qt', { name: 'CANTEEN 1-QT', short: 'WATER', cat: 'drink', tags: ['canteen', 'drink'], w: 1, h: 2, kg: 0.13, icon: 'canteen', water: 946, tag: 'INFERRED', src: 'plastic 1-qt canteen ~4.6 oz empty, 946 ml',
   med: { kind: 'drink', sipMl: 250, time: { self: 6, buddy: 8 } } });
 D('canteen_2qt', { name: 'CANTEEN 2-QT BLADDER', short: '2QT', cat: 'drink', tags: ['drink'], w: 2, h: 2, kg: 0.25, icon: 'bladder', water: 1893, tag: 'INFERRED', src: 'collapsible 2-qt canteen',
   med: { kind: 'drink', sipMl: 250, time: { self: 6, buddy: 8 } } });
@@ -235,20 +235,20 @@ D('mre_seized', { name: 'MRE (SEIZED, 2030s)', short: 'MRE', cat: 'food', tags: 
 
 // ---- medical, 1980. med.kind drives medical.js; time.self / time.buddy in seconds (per limb class where given).
 // who: 'any' or 'corpsman' (corpsman-only skills). Effectiveness numbers are documented in medical.js.
-D('dressing_field', { name: 'FIELD FIRST AID DRESSING', short: 'DRESSING', cat: 'med', tags: ['med', 'dressing', 'medsmall'], kg: 0.06, icon: 'dressing', tag: 'INFERRED', src: 'FM2111 (4 x 7 in, plastic wrapper)',
+D('dressing_field', { name: 'FIELD FIRST AID DRESSING', short: 'DRSG', cat: 'med', tags: ['med', 'dressing', 'medsmall'], kg: 0.06, icon: 'dressing', tag: 'INFERRED', src: 'FM2111 (4 x 7 in, plastic wrapper)',
   med: { kind: 'dressing', who: 'any', uses: 1, time: { self: 40, buddy: 25 }, heavyMul: 0.3, arterialMul: 0.6, seal: true },
   desc: 'Pressure dressing with tails. Stops oozing, slows heavy bleeding. Its plastic wrapper, taped down on three sides, seals a sucking chest wound.' });
-D('dressing_battle', { name: 'BATTLE DRESSING, LARGE', short: 'BTL DRSG', cat: 'med', tags: ['med', 'dressing'], w: 1, h: 1, kg: 0.17, icon: 'dressing2', tag: 'INFERRED', src: 'UNIT1',
+D('dressing_battle', { name: 'BATTLE DRESSING, LARGE', short: 'BATTLE', cat: 'med', tags: ['med', 'dressing'], w: 1, h: 1, kg: 0.17, icon: 'dressing2', tag: 'INFERRED', src: 'UNIT1',
   med: { kind: 'dressing', who: 'any', uses: 1, time: { self: 50, buddy: 30 }, heavyMul: 0.2, arterialMul: 0.5, seal: true } });
 D('cravat', { name: 'CRAVAT (TRIANGULAR BANDAGE)', short: 'CRAVAT', cat: 'med', tags: ['med', 'medsmall'], kg: 0.06, icon: 'cravat', tag: 'INFERRED', src: 'FM2111 (improvised tourniquet with a stick windlass; sling; splint ties)',
   med: { kind: 'cravat', who: 'any', uses: 1, time: { self: 75, buddy: 45 }, tq: { p: { arm: 0.8, leg: 0.6 }, occl: [0.96, 1], fail: [0.3, 0.6], slipPerMin: 0.002, pain: 30 } },
   desc: 'Muslin triangle. On a bleeding limb: improvised tourniquet with a stick windlass. On a broken arm: sling and swathe.' });
-D('tq_strap', { name: 'TOURNIQUET, STRAP & BUCKLE', short: 'TQ STRAP', cat: 'med', tags: ['med', 'medsmall', 'tourniquet'], kg: 0.07, icon: 'tq', tag: 'INFERRED', src: 'WALTERS (issue strap tourniquets poor on the thigh), KRAGH',
+D('tq_strap', { name: 'TOURNIQUET, STRAP & BUCKLE', short: 'STRAP', cat: 'med', tags: ['med', 'medsmall', 'tourniquet'], kg: 0.07, icon: 'tq', tag: 'INFERRED', src: 'WALTERS (issue strap tourniquets poor on the thigh), KRAGH',
   med: { kind: 'tourniquet', who: 'any', uses: 1, time: { self: { arm: 120, leg: 45 }, buddy: 30 }, tq: { p: { arm: 0.85, leg: 0.3 }, occl: [0.96, 1], fail: [0.2, 0.5], slipPerMin: 0.004, pain: 25 } },
   desc: 'The 1960s issue tourniquet: a web strap through a friction buckle. Fine on an arm. On a thigh it rarely closes the femoral artery.' });
 D('splint_wire', { name: 'SPLINT, WIRE LADDER', short: 'SPLINT', cat: 'med', tags: ['med', 'splint'], w: 1, h: 3, kg: 0.4, icon: 'splint', tag: 'INFERRED', src: 'UNIT1, FM2111',
   med: { kind: 'splint', who: 'any', uses: 1, time: { self: 120, buddy: 60 }, quality: 0.6 } });
-D('morphine', { name: 'MORPHINE SYRETTE 16 MG', short: 'MORPHINE', cat: 'med', tags: ['med', 'medsmall', 'opioid'], kg: 0.02, icon: 'syrette', tag: 'UNVERIFIED', src: 'UNIT1 (1/4 grain = 16 mg morphine syrette)',
+D('morphine', { name: 'MORPHINE SYRETTE 16 MG', short: 'MORPH', cat: 'med', tags: ['med', 'medsmall', 'opioid'], kg: 0.02, icon: 'syrette', tag: 'UNVERIFIED', src: 'UNIT1 (1/4 grain = 16 mg morphine syrette)',
   med: { kind: 'opioid', who: 'any', uses: 1, time: { self: 10, buddy: 8 }, mg: 16, route: 'im' },
   desc: 'Squeeze-tube syrette. Pin the empty to the casualty\'s collar and mark an M on the forehead with the time. Two is a lot. Three can stop his breathing.' });
 D('apc', { name: 'APC TABLETS', short: 'APC', cat: 'med', tags: ['med', 'medsmall'], stack: 10, kg: 0.001, icon: 'pills', tag: 'INFERRED', src: 'aspirin-phenacetin-caffeine, the corpsman\'s cure-all',
@@ -256,7 +256,7 @@ D('apc', { name: 'APC TABLETS', short: 'APC', cat: 'med', tags: ['med', 'medsmal
 D('iv_lr', { name: 'LACTATED RINGER\'S 1000 ML + IV SET', short: 'IV LR', cat: 'med', tags: ['med'], w: 1, h: 2, kg: 1.12, icon: 'ivbag', tag: 'INFERRED', src: 'UNIT1 (plastic bags replaced glass bottles in the 1970s)',
   med: { kind: 'iv', who: 'corpsman', uses: 1, time: { self: 240, buddy: 120 }, ml: 1000, mlPerMin: 70 },
   desc: 'Crystalloid. Restores volume, not red cells: only a third stays in the vessels after an hour, and pushing the pressure back up makes an uncontrolled bleed bleed faster.' });
-D('ammonia', { name: 'AMMONIA INHALANT', short: 'AMMONIA', cat: 'med', tags: ['med', 'medsmall'], stack: 10, kg: 0.002, icon: 'ampoule', tag: 'INFERRED', src: 'UNIT1',
+D('ammonia', { name: 'AMMONIA INHALANT', short: 'SALTS', cat: 'med', tags: ['med', 'medsmall'], stack: 10, kg: 0.002, icon: 'ampoule', tag: 'INFERRED', src: 'UNIT1',
   med: { kind: 'inhalant', who: 'any', uses: 1, time: { self: 3, buddy: 4 } }, desc: 'Smelling salts: rouse a man who fainted or got his bell rung. Useless against shock.' });
 D('needle_14g', { name: '14G CATHETER (DECOMPRESSION)', short: '14G', cat: 'med', tags: ['med', 'medsmall'], kg: 0.01, icon: 'needle', tag: 'UNVERIFIED', src: 'needle thoracostomy by corpsmen in 1980 is not well documented',
   med: { kind: 'decompress', who: 'corpsman', uses: 1, time: { self: 60, buddy: 25 } }, desc: '2nd intercostal space, mid-clavicular line, over the top of the third rib. Corpsmen only.' });
@@ -265,7 +265,7 @@ D('needle_14g', { name: '14G CATHETER (DECOMPRESSION)', short: '14G', cat: 'med'
 D('tq_cat', { name: 'CAT TOURNIQUET (GEN 7)', short: 'CAT', cat: 'med', tags: ['med', 'medsmall', 'tourniquet', 'modern'], kg: 0.077, era: 'modern', icon: 'cat', tag: 'CONFIRMED', src: 'CATMFR, WALTERS (100% occlusion in volunteers)',
   med: { kind: 'tourniquet', who: 'any', uses: 1, time: { self: { arm: 30, leg: 25 }, buddy: 18 }, tq: { p: { arm: 0.99, leg: 0.97 }, occl: [1, 1], fail: [0.5, 0.8], slipPerMin: 0, pain: 30 } },
   desc: 'Combat Application Tourniquet, black, windlass and clip. One-handed. It will not exist for another 25 years.' });
-D('quikclot', { name: 'QUIKCLOT COMBAT GAUZE', short: 'QUIKCLOT', cat: 'med', tags: ['med', 'medsmall', 'modern'], kg: 0.03, era: 'modern', icon: 'gauze', tag: 'INFERRED', src: 'QCMFR (pack + 3 min pressure)',
+D('quikclot', { name: 'QUIKCLOT COMBAT GAUZE', short: 'QCLOT', cat: 'med', tags: ['med', 'medsmall', 'modern'], kg: 0.03, era: 'modern', icon: 'gauze', tag: 'INFERRED', src: 'QCMFR (pack + 3 min pressure)',
   med: { kind: 'hemostatic', who: 'any', uses: 1, time: { self: 210, buddy: 190 }, arterial: 0.9, heavy: 1.0 },
   desc: 'Kaolin gauze. Pack it into the wound to the bone and hold pressure for three minutes. Works where a tourniquet can\'t: neck, armpit, groin.' });
 D('sam_splint', { name: 'SAM SPLINT 36 IN', short: 'SAM', cat: 'med', tags: ['med', 'splint', 'modern'], w: 1, h: 2, kg: 0.113, era: 'modern', icon: 'sam', tag: 'CONFIRMED', src: 'SAMMFR (first made 1985)',
