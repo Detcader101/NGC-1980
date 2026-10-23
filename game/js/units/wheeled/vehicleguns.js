@@ -50,7 +50,7 @@ export function createGunRounds({ scene, war, fx, terrainH, GR, audio = () => nu
   lines.frustumCulled = false; scene.add(lines);
   const _v = new THREE.Vector3();
   const api = {
-    rounds: R, hits: 0, fired: 0,
+    rounds: R, hits: 0, fired: 0, log: [],   // log: the last impacts { x, y, z, where, hit } (tests)
     fire(p, vx, vy, vz, spec, tracer) { if (R.length >= MAX) R.shift(); R.push({ x: p[0], y: p[1], z: p[2], vx, vy, vz, t: 0, spec, tracer }); api.fired++; },
     report(spec, p) { const A = audio(); if (A) A.shot({ weapon: spec.sound, dist: 0 }); },
     update(dt) {
@@ -74,6 +74,7 @@ export function createGunRounds({ scene, war, fx, terrainH, GR, audio = () => nu
           if (b.t <= 2.6) {
             if (hit) { war.damage(hit, b.spec.dmg, 1); api.hits++; }
             fx.impact(hx, hy, hz, where);
+            api.log.push({ x: +hx.toFixed(1), y: +hy.toFixed(1), z: +hz.toFixed(1), where, hit: hit ? (hit.kind || hit.type || 'unit') : null }); if (api.log.length > 24) api.log.shift();
           }
           R.splice(i, 1); continue;
         }

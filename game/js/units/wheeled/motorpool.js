@@ -15,6 +15,7 @@ import { createWheeledCraft, TYPES, buildModel } from './wheeledcraft.js';
 import { createWorldEnv } from './wheeledenv.js';
 import { createWorldObstacles } from './wheeledworld.js';
 import { createGunRounds } from './vehicleguns.js';
+import { createDelivery } from './delivery.js';
 import { WheeledAudio } from './wheeledaudio.js';
 import { InfantryAudio } from '../infantry/infantryaudio.js';
 import { bakeModel } from './wheeledbake.js';
@@ -37,9 +38,11 @@ export function createMotorPool(o) {
   // ---------------------------------------------------------------- shared pieces
   const WO = createWorldObstacles({ terrainH: o.terrainH, zoneItems: () => (world && world.zone ? world.zone.flatMap(e => e.items || []) : []) });
   const vehiclesNear = (V, x, z, r) => { const out = V._others || (V._others = []); out.length = 0; for (const U of list) { if (U === V || !U.exists) continue; const s = U.sim; if (Math.abs(s.pos[0] - x) < r + 8 && Math.abs(s.pos[2] - z) < r + 8) out.push(U.bounds()); } return out; };
-  const WENV = createWorldEnv({ GR, terrainH: o.terrainH, holes: o.holes || [], world: { roadAt, roadById, roadPoint, buildingsNear: (x, z, r) => WO.near(x, z, r), vehiclesNear } });
+  const WENV = createWorldEnv({ GR, terrainH: o.terrainH, holes: o.holes || [], world: { roadAt, roadById, roadPoint, buildingsNear: (x, z, r) => WO.near(x, z, r), vehiclesNear,
+    shipNear: (x, z, r) => war.units.some(u => u.dims && Math.abs(u.p.x - x) < r && Math.abs(u.p.z - z) < r) } });
   let ia = null;
   const infAudio = () => { if (!ia && sfx.ctx && sfx.master) { ia = new InfantryAudio(sfx.ctx, sfx.master); ia.init(); } return ia; };
+  const delivery = o.noDelivery ? null : createDelivery({ scene, war, GR, fx, sfx, say, feed, terrainH: o.terrainH, camZ: o.camZ });
   const guns = createGunRounds({ scene, war, fx, terrainH: o.terrainH, GR, audio: infAudio });
   // a cache of built models (they are heavy: ~30 meshes, canvases for the gauges) for cars that come and go
   const MODELS = new Map();
@@ -118,7 +121,7 @@ export function createMotorPool(o) {
   }
   function newGame() {
     for (const V of [...list]) { if (crafts.active === V) crafts.setActive('heli'); remove(V); }
-    parked.clear(); guns.clear();
+    parked.clear(); taken.clear(); guns.clear(); if (delivery) delivery.clear();
     for (const I of ISLANDS) I._wheeled = false;
     for (const I of ISLANDS) if (I.owner === 1 && I.pad) stockIsland(I);
     const d0 = GR.deckSpot(0), d2 = GR.deckSpot(2);
@@ -133,7 +136,7 @@ export function createMotorPool(o) {
     const sp = (I && GR.motorPool(I, type === 'm35' ? 3.6 : 2.4)) || GR.deckSpot(1);
     if (!sp) { say('NOWHERE TO PUT A VEHICLE', 1.6); return null; }
     G.mat -= cost;
-    if (o.delivery && I) { o.delivery.order(type, I, sp, V2 => V2); return true; }
+    if (delivery && I) return delivery.order(type, I, sp);   // a CH-46 slings the jeep in, an LCM-8 lands the truck (delivery.js)
     const V = spawn(type, sp, { home: I || 'deck' });
     feed(`MOTOR POOL: ${T.label} AT ${sp.name}`, 'good'); say(`${T.label} WAITING AT ${sp.name}`, 2.2); sfx.dock?.();
     return V;
@@ -163,18 +166,18 @@ export function createMotorPool(o) {
     say(`${V.label} COMMANDEERED  -  THE DRIVER RUNS FOR IT`, 2.2); feed(`COMMANDEERED A ${V.label}`, 'good');
   }
   // ---------------------------------------------------------------- parked town cars
-  const parked = new Map();   // key -> V
+  const parked = new Map(), taken = new Set();   // key -> V; spots whose car you drove off (not refilled)
   let parkT = 0;
   function updateParked(cx, cz) {
     for (const c of WO.parkedCars(cx, cz, PARK_R)) {
-      if (parked.has(c.key) || parked.size >= MAX_PARKED) continue;
+      if (parked.has(c.key) || taken.has(c.key) || parked.size >= MAX_PARKED) continue;
       if (Math.hypot(c.x - cx, c.z - cz) > PARK_R) continue;
       const V = spawn(c.kind, { x: c.x, y: c.y, z: c.z, yaw: c.yaw, plat: null }, { colour: c.paint, owner: 'civ' });
       if (V) { V.parkKey = c.key; parked.set(c.key, V); }
     }
     for (const [k, V] of parked) {
       const d = Math.hypot(V.sim.pos[0] - cx, V.sim.pos[2] - cz);
-      if (V.owner === 'player') { if (d > 2500) { parked.delete(k); remove(V); } else parked.delete(k); continue; }   // yours now
+      if (V.owner === 'player') { parked.delete(k); taken.add(k); continue; }   // yours now: the spot stays empty
       if (d > UNPARK_R && crafts.active !== V) { parked.delete(k); remove(V); }
     }
   }
@@ -314,7 +317,7 @@ export function createMotorPool(o) {
     }
   }
   // ---------------------------------------------------------------- islands taken: their motor pool gets a jeep
-  let isleT = 0;
+  let isleT = 0, gcT = 3;
   function updateIslands(dt) {
     isleT -= dt; if (isleT > 0) return; isleT = 2;
     for (const I of ISLANDS) if (I.owner === 1 && I.pad && !I._wheeled) { stockIsland(I, ['m151']); feed(`MOTOR POOL: AN M151 AT ${I.name}`, 'good'); }
@@ -337,17 +340,23 @@ export function createMotorPool(o) {
   }
   // ---------------------------------------------------------------- per frame
   const pool = {
-    list, ctx, WENV, WO, guns, spawn, remove, newGame, deliver, stockIsland, takeover, giveBack, parked,
+    list, ctx, WENV, WO, guns, delivery, spawn, remove, newGame, deliver, stockIsland, takeover, giveBack, parked,
     first: type => list.find(V => V.type === type && V.exists) || null,
+    // tests / tools: a driver.js follower at the wheel of V (pts [{x, z, v?}]), and a path along a WORLD road
+    autopilot: (V, pts, speed = 10) => { V.auto = pts ? createFollower(pts, { speed, latG: 0.3, stopDist: 3, unstick: false }) : null; return !!V.auto; },
+    roadPath: (id, s0, s1, lat = 1.4, step = 6) => { const R = roadById(id), q = {}, out = [], dir = s1 >= s0 ? 1 : -1; for (let s_ = s0; dir * (s1 - s_) >= 0; s_ += dir * step) { roadPoint(R, s_, lat * dir, q); out.push({ x: q.x, z: q.z, y: q.y, bridge: q.bridge }); } return out; },
     update(dt, playing = true) {
-      guns.update(dt);
-      if (!playing) { mute(); return; }
+      if (!playing) { mute(); delivery?.silence(); return; }   // the pause menu, the title: everything quiet and still
+      guns.update(dt); if (delivery) delivery.update(dt);
       const cam = o.camZ(), Z = o.Z, cx = Z ? Z.pos.x : cam.position.x, cz = Z ? Z.pos.z : cam.position.z;
       parkT -= dt; if (parkT <= 0) { parkT = 1; try { updateParked(cx, cz); } catch (e) { console.warn('parked cars', e); } }
       try { updateTraffic(dt, cx, cz); } catch (e) { console.warn('traffic', e); }
       updateService(dt); updateIslands(dt); updateAudio(dt);
       for (const V of list) if (V.capBoost > 0) V.capBoost -= dt;
+      // cars you left far behind, burnt-out traffic: gone (the military vehicles stay where you left them)
+      gcT -= dt; if (gcT <= 0) { gcT = 3; for (const V of [...list]) { if (crafts.active === V || !V.T.civ || V.parkKey && parked.get(V.parkKey) === V || V.traffic) continue; const d = Math.hypot(V.sim.pos[0] - cx, V.sim.pos[2] - cz); if (d > (V.owner === 'player' ? 3000 : 700)) remove(V); } }
     },
   };
+  if (delivery) delivery.pool = pool;
   return pool;
 }

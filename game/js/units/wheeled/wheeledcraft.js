@@ -29,7 +29,7 @@ export const TYPES = {
   m151: { label: 'M151A2 MUTT', mil: true, variant: { top: 'off', mount: 'm60', screen: 'up' }, cost: 10,
     gun: { seat: 'gunner', spec: GUN.M60, pivot: [0, 1.40, 0.62], muzzle: [0, 0.04, -1.02], eye: [0, 0.30, 0.72], elev: [-0.28, 0.75], stand: [0, 0.45, 1.05] } },
   m35: { label: 'M35A2', mil: true, variant: { ring: true, cover: 'bows', seats: 'down' }, cost: 20, troops: ['troop0', 'troop3', 'troop6', 'troop8', 'troop11', 'troop14'],
-    gun: { seat: 'ring', spec: GUN.M2, ring: [0.48, 2.62, -0.95], arm: [0, 0.12, -0.52], muzzle: [0, 0.07, -1.45], eye: [0, 0.42, 0.95], elev: [-0.22, 1.0], stand: [0.48, 1.42, -0.42] } },
+    gun: { seat: 'ring', spec: GUN.M2, ring: [0.48, 2.62, -0.95], arm: [0, 0.12, -0.52], muzzle: [0, 0.07, -1.45], eye: [0, 0.55, 1.1], elev: [-0.22, 1.0], stand: [0.48, 1.42, -0.42] } },
   landrover: { label: 'LAND ROVER 109', civ: true }, hilux: { label: 'TOYOTA HILUX', civ: true },
   beetle: { label: 'VW BEETLE', civ: true }, lada: { label: 'LADA 2101', civ: true },
 };
@@ -120,6 +120,8 @@ export function createWheeledCraft(ctx, type, o = {}) {
     S.reset([sp.x, y, sp.z], sp.yaw ?? 0, { running: !!opt.running, fuel: opt.fuel });
     V.P.plat = sp.plat || null; V.P.loc = null; V.deckLevel = sp.plat ? y : undefined;
     ctx.WENV.frame(V); S.placeOnGround(env); D.reset(S);
+    if (spec.brakes.air) S.airPsi = spec.brakes.air.max;   // parked with its air tanks up (an M35 that has to wait for air won't hold on a slope)
+    V.auto = null;   // a test autopilot ends with a teleport
     dmg.repair('all'); V.wrecked = false; V.exists = true; V.acc = 0; V.asleep = false; V.sleepT = 0; V.crank = 0; V.burnFx = null;
     if (V.model) charModel(V.model.group, false);
     // settle onto the springs for a moment, then onto the deck
@@ -141,6 +143,7 @@ export function createWheeledCraft(ctx, type, o = {}) {
   V.enter = (seat = 0, from) => {
     if (!V.exists) return false;
     if (V.wrecked) { say(`THE ${T.label} IS A BURNT-OUT WRECK`, 1.6); return false; }
+    if (V.slung) { say(`THE ${T.label} IS STILL ON ITS WAY`, 1.6); return false; }
     if (S.depth > spec.dims.H * 0.8) { say(`THE ${T.label} IS UNDER WATER`, 1.5); return false; }
     V.wake(); V.seat = seat; V.head.yaw = V.head.pitch = 0; V.orbit.yaw = 0; V.view = 'first';
     occupy(seatOf(seat).sid);
@@ -194,6 +197,7 @@ export function createWheeledCraft(ctx, type, o = {}) {
     // the wheel: an analogue input sets it; the keys turn it at a hand's rate, quicker back to the centre
     if (analog) V.steer = clamp(steerT, -1, 1);
     else { const rate = (Math.abs(steerT) > 0.01 ? 2.2 : 3.2) * (Math.sign(steerT) !== Math.sign(V.steer) && V.steer !== 0 ? 1.6 : 1); V.steer += clamp(steerT - V.steer, -rate * dt, rate * dt); }
+    if (thr < 0.05 && brk < 0.05 && Math.abs(S.speed) < 0.3) hand = 1;   // stopped with no pedal: the parking brake holds it (released as you pull away)
     inp.throttle = thr; inp.brake = brk; inp.steer = V.steer; inp.handbrake = hand; padSteer = steerT;
     inp.horn = kd('KeyH');
     if (V.crank > 0) { inp.ignition = true; inp.starter = !S.eng.running; V.crank -= dt; if (S.eng.running || V.crank <= 0) { V.crank = 0; inp.starter = false; } }
@@ -219,17 +223,21 @@ export function createWheeledCraft(ctx, type, o = {}) {
     ctx.rideTick?.(dt, V);
   };
   V.idle = dt => {
-    if (!V.exists) return;
+    if (!V.exists || V.slung) return;   // slung under a helicopter / in a landing craft: delivery.js places it
     if (occ && crafts.active !== V) occupy(null);   // the player left without exit() (a new crew in the helicopter)
     V.trigger = false;
     if (V.traffic) {   // WORLD traffic run by the real sim (motorpool.js): the follower drives
       const a = V.traffic.F.update(S);
-      inp.throttle = a.throttle; inp.brake = a.brake; inp.steer = a.steer; inp.handbrake = a.handbrake; inp.starter = false; inp.ignition = true;
+      inp.throttle = a.throttle; inp.brake = a.brake; inp.steer = a.steer; inp.handbrake = a.handbrake; inp.ignition = true; inp.starter = !S.eng.running && !V.wrecked;   // stalled: crank it again
+      inp.horn = (V.traffic.blocked || 0) > 6 && (V.traffic.blocked % 7) < 2;   // held up: a toot
+    } else if (V.auto) {   // a driver.js follower at the wheel (a delivery driving off the beach)
+      const a = V.auto.update(S); inp.throttle = a.throttle; inp.brake = a.brake; inp.steer = a.steer; inp.handbrake = a.handbrake; inp.ignition = true; inp.starter = !S.eng.running;
+      if (V.auto.done) { V.auto = null; inp.ignition = false; }
     } else { inp.throttle = 0; inp.brake = Math.abs(S.speed) > 0.3 ? 0.6 : 0; inp.handbrake = 1; inp.starter = false; }
     if (V.asleep) { carryOnly(); return; }
     physics(dt);
     // asleep when parked and still: no physics until something wakes it (the player, a hit, a blast, a bump)
-    const still = !V.traffic && !S.eng.running && Math.abs(S.speed) < 0.05 && Math.hypot(S.w[0], S.w[1], S.w[2]) < 0.03 && S.onGround && !(dmg.state.fire > 0);
+    const still = !V.traffic && !V.auto && !S.eng.running && Math.abs(S.speed) < 0.05 && Math.hypot(S.w[0], S.w[1], S.w[2]) < 0.03 && S.onGround && !(dmg.state.fire > 0);
     V.sleepT = still ? V.sleepT + dt : 0;
     if (V.sleepT > 1.2) { V.asleep = true; for (const W of S.wheels) W.omega = 0; }
   };
@@ -307,6 +315,14 @@ export function createWheeledCraft(ctx, type, o = {}) {
     return out.set(g.pivot[0], g.pivot[1], g.pivot[2]);
   }
   const gunQ = q => q.setFromEuler(_e.set(V.aim.pitch, V.aim.yaw, 0, 'YXZ'));
+  // lay the gun on a world point (tests, and the start of an AI gunner): yaw / pitch in the vehicle's frame from the pivot
+  V.aimAt = (x, y, z) => {
+    if (!V.gun) return false; const g = T.gun;
+    bodyQ(_q); _q2.copy(_q).invert(); gunPivot(_p);
+    _v.set(x - S.pos[0], y - S.pos[1], z - S.pos[2]).applyQuaternion(_q2).sub(_p);
+    V.aim.yaw = Math.atan2(-_v.x, -_v.z); gunPivot(_p); _v.set(x - S.pos[0], y - S.pos[1], z - S.pos[2]).applyQuaternion(_q2).sub(_p);
+    V.aim.pitch = clamp(Math.atan2(_v.y, Math.hypot(_v.x, _v.z)), g.elev[0], g.elev[1]); return true;
+  };
   const muz = [0, 0, 0], dir = [0, 0, 0], carrierV = [0, 0, 0];
   function gunStep(dt) {
     if (!V.gun) return;
@@ -351,7 +367,7 @@ export function createWheeledCraft(ctx, type, o = {}) {
   };
   const _b = { def: V };
   V.bounds = () => {
-    if (!V.exists) return null;
+    if (!V.exists || V.slung) return null;
     const c = -S.heading, cx = S.pos[0] + S.fwdv[0] * -zc, cz = S.pos[2] + S.fwdv[2] * -zc;
     return Object.assign(_b, { x: cx, z: cz, yaw: c, hl: HL, hw: HW, y0: S.pos[1] - 0.2, y1: S.pos[1] + HT, def: V });
   };
@@ -396,7 +412,7 @@ export function createWheeledCraft(ctx, type, o = {}) {
       const s = seatOf(V.seat), e = s.eye || [0, 1.5, 0], base = s.face ? -s.face * Math.PI / 2 : 0;
       _v.set(e[0], e[1], e[2]).applyQuaternion(_q); cam.position.set(S.pos[0] + _v.x, S.pos[1] + _v.y, S.pos[2] + _v.z);
       if (!view || !view.locked) { const k = Math.exp(-4 * dt); V.head.yaw *= k; V.head.pitch *= k; }
-      cam.quaternion.copy(_q).multiply(_q2.setFromEuler(_e.set(V.head.pitch - 0.06, base + V.head.yaw, 0, 'YXZ')));
+      cam.quaternion.copy(_q).multiply(_q2.setFromEuler(_e.set(V.head.pitch - (s.role === 'driver' ? (T.civ ? 0.16 : type === 'm35' ? 0.24 : 0.3) : 0.08), base + V.head.yaw, 0, 'YXZ')));   // the driver looks down a little: road and gauges
       const sh = Math.min(0.015, Math.abs(S.speed) * 0.001) * (S.wheels[0].surf <= 1 || S.wheels[0].surf === 6 ? 0.3 : 1); cam.position.y += (Math.random() - 0.5) * sh;
       return;
     }

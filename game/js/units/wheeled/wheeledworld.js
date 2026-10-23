@@ -3,13 +3,15 @@
 //
 //   const WO = createWorldObstacles({ terrainH, zoneItems: () => [...items] });
 //   WO.near(x, z, r) -> { boxes: [{ x, z, yaw, hl, hw, y0, y1, id }], circles: [{ x, z, r, y0, y1, id }] }   (ground host style)
-//   WO.parkedCars(x, z, r) -> [{ key, x, z, yaw, kind (civ id), paint }]   the drivable garden cars (world/parked.js)
+//   WO.parkedCars(x, z, r) -> [{ key, x, z, yaw, kind (civ id), paint }]   real cars parked in the towns: on the verge of
+//                             their streets (kerbside, by a position hash) and the drivable garden cars (world/parked.js)
 //
 // Footprints from the layout items (w x d where the item has them; the church, filling station, sheds and street furniture
 // from chunkgen.js / models.js sizes), indexed in 32 m cells. Wild settlements and farms are indexed the first time a
 // vehicle comes within reach of them (their items are cached by layout.js; the main thread generated them anyway, their
 // building platforms are in the terrain).
-import { settlementsNear, farmsIn } from '../../world/net.js';
+import { settlementsNear, farmsIn, roadGraph, roadPoint, netState } from '../../world/net.js';
+import { hash2 } from '../../world/rng.js';
 import { townItems, farmItems } from '../../world/layout.js';
 import { isDrivableCar, drivableCarKind, drivableCarPaint } from '../../world/parked.js';
 
@@ -49,9 +51,34 @@ export function createWorldObstacles({ terrainH, zoneItems = () => [] }) {
   }
   // the control zone's villages and cottages: once
   let zoneDone = false;
-  function ensureZone() { if (zoneDone) return; zoneDone = true; for (const it of zoneItems()) addItem(it); }
+  function ensureZone() { if (zoneDone) return; zoneDone = true; for (const it of zoneItems()) addItem(it); for (const site of netState.zoneSites || []) if (site.village) kerbside(site.village); }
+  // kerbside parking: every ~16 m along the streets inside a town, on the verge (clear of the traffic lane and of the
+  // buildings), one spot in three taken, the car and its paint from the position hash; none on bridges or by the square
+  function kerbside(S) {
+    const g = roadGraph(S.x, S.z, S.R + 20), PR = S.size === 'hamlet' ? 7 : S.size === 'village' ? 12 : 16, q = {};
+    for (const R of g.roads) {
+      if (R.type === 'dirt') continue;
+      for (let sd = 8; sd < R.len - 8; sd += 16) {
+        roadPoint(R, sd, 0, q); const dc = Math.hypot(q.x - S.x, q.z - S.z);
+        if (dc > S.R * 0.95 || dc < PR + 5 || q.bridge) continue;
+        for (const side of [-1, 1]) {
+          const hs = hash2(Math.round(q.x), Math.round(q.z), side > 0 ? 4431 : 4433); if (hs > 0.3) continue;
+          roadPoint(R, sd, side * (R.hw + 1.0), q); const x = q.x, z = q.z;
+          const key = 'k' + Math.round(x * 2) + ',' + Math.round(z * 2); if (carKeys.has(key)) continue;
+          const yaw = Math.atan2(-q.dx, -q.dz) + (hs < 0.15 ? Math.PI : 0);
+          if (blocked(x, z, 2.6) || Math.abs(terrainH(x + 1.5, z) - terrainH(x - 1.5, z)) > 0.25 || Math.abs(terrainH(x, z + 1.5) - terrainH(x, z - 1.5)) > 0.25) continue;
+          carKeys.add(key); cars.push({ key, x, z, y: terrainH(x, z), yaw, kind: CIV[Math.floor(hash2(Math.round(x), Math.round(z), 4437) * 4)], paint: Math.floor(hash2(Math.round(x), Math.round(z), 4439) * 6) });
+        }
+      }
+    }
+  }
+  function blocked(x, z, r) {   // a building / tree / post within r
+    const a = grid.get(CK(Math.floor(x / CELL), Math.floor(z / CELL))) || [];
+    for (const o of a) { if (o.c) { if (Math.hypot(o.x - x, o.z - z) < o.r + r) return true; continue; } const c = Math.cos(o.yaw), s_ = Math.sin(o.yaw), dx = x - o.x, dz = z - o.z, u = dx * c - dz * s_, v = dx * s_ + dz * c; if (Math.abs(u) < o.hw + r && Math.abs(v) < o.hl + r) return true; }
+    return false;
+  }
   function ensureWild(x, z, r) {
-    for (const s of settlementsNear(x, z, r + 50)) { const k = 's' + s.id; if (done.has(k) || s.zone) continue; done.add(k); for (const it of townItems(s)) addItem(it); }
+    for (const s of settlementsNear(x, z, r + 50)) { const k = 's' + s.id; if (done.has(k) || s.zone) continue; done.add(k); for (const it of townItems(s)) addItem(it); kerbside(s); }
     for (const f of farmsIn(x - r, z - r, x + r, z + r)) { const k = 'f' + f.id; if (done.has(k)) continue; done.add(k); for (const it of farmItems(f)) addItem(it); }
   }
   let lastWildX = 1e12, lastWildZ = 1e12;

@@ -80,13 +80,15 @@ export function createWorldEnv(o) {
       V.bridgeRoad = null;
       if (V.onBridge !== null && world.roadAt) { const r = world.roadAt(x, z); if (r && r.bridge && r.road >= 0) { V.bridgeRoad = r; r.y += LIFT[r.type] ?? 0.12; } }
       // the carrier island levels are not ground for a vehicle on the flight deck: remember the deck level here
-      const d = GR.deckH(x, z); if (d > -1e8 && Math.abs(d - y) < 3) V.deckLevel = d;
+      // a ship's deck within reach? (the deck queries cost a walk over the war's ships: only then)
+      V.shipNear = world.shipNear ? world.shipNear(x, z, 140) : true;
+      const d = V.shipNear ? GR.deckH(x, z) : -1e9; if (d > -1e8 && Math.abs(d - y) < 3) V.deckLevel = d;
     },
     forVehicle(V) {
       const yNow = () => V.sim.pos[1];
       const height = (x, z) => {
         const t = terr(x, z).h, y = yNow();
-        const d = GR.deckH(x, z);
+        const d = V.shipNear ? GR.deckH(x, z) : -1e9;
         if (d > -1e8 && d >= t - 0.05) {
           if (d < y + 2.5 && d > y - 3) { V._deck = true; return d; }
           if (d >= y + 2.5 && V.deckLevel !== undefined && Math.abs(V.deckLevel - y) < 3) { V._deck = true; return V.deckLevel; }   // the island block: a wall (collide), not a step
@@ -104,7 +106,7 @@ export function createWorldEnv(o) {
       const surface = (x, z) => V._deck ? S_DECK : surfAt(x, z);
       const water = (x, z) => {
         const t = terr(x, z).h; if (t >= 0) return -Infinity;
-        if (GR.deckH(x, z) > -1e8) return -Infinity;
+        if (V.shipNear && GR.deckH(x, z) > -1e8) return -Infinity;
         return 0;
       };
       const co = { x: 0, z: 0, r: 0, y0: 0, y1: 0, nx: 0, nz: 0 }, tg = { h: 0, gx: 0, gz: 0 };
