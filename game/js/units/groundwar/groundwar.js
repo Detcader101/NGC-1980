@@ -25,6 +25,7 @@ FIGURES.marine = o => buildMarineFigure({ ...o, detail: 'full' });
 export const GW_T = {
   HOVER_AT: 240, HOVER_COST: 32, HOVER_GAP: 70,     // s from the start / materiel / s between launches
   MBT_AT: 540, MBT_COST: 55, MBT_GAP: 150,
+  DECK_RATE: 0.12,                                  // materiel / s of armour the KRAKEN's vehicle deck readies (game)
   STRIDERS: 8, SQUAD: 4,                            // per MV-22 load; per squad
   CAP_RW: 12, CAP_MAR: 9,                           // s to take a pad (the war's CAP_TIME for the old troops: 10 / 9)
   DRAW: { strider: 700, hovertank: 1100, mbt: 1100, marine: 520, marineFull: 140 },
@@ -43,7 +44,7 @@ export function createGroundWar(ctx) {
     const I = B.I, out = [];
     if (side === 2) {
       const P = pl();
-      if (P.alive && !P.inCave && Math.hypot(P.pos.x - I.x, P.pos.z - I.z) < I.r + 260) {
+      if (P.alive && !P.inCave && Math.hypot(P.pos.x - I.x, P.pos.z - I.z) < I.r + 260 && !(P.landed && terrainH(P.pos.x, P.pos.z) < 0)) {   // (not the player sitting on a ship's deck out at sea)
         const k = plKind(P), gy = Math.max(terrainH(P.pos.x, P.pos.z), 0), agl = P.pos.y - gy;
         if (k !== 'air' || agl < 110) out.push({ id: 'player', side: 1, kind: k === 'air' && agl < 4 && P.landed ? 'vehicle' : k, x: P.pos.x, y: k === 'air' ? P.pos.y - 1.5 : gy, z: P.pos.z, vx: P.vel.x, vz: P.vel.z, h: k === 'inf' ? 1.7 : 3, alive: true, firing: GW.playerFiredT, cover: k === 'inf' ? 1 - (P.detect ?? 1) : 0 });
       }
@@ -174,7 +175,7 @@ export function createGroundWar(ctx) {
         case 'thud': if (near(e.x, e.z, 300)) for (let i = 0; i < 6; i++) fx.mix.spawn(e.x + rnd(-1, 1), e.y - 0.6, e.z + rnd(-1, 1), rnd(-2, 2), rnd(0, 1), rnd(-2, 2), rnd(0.8, 1.6), 0.8, 2.5, .55, .5, .42, 0.4, 0.5, 1.5, 0.3); break;
         case 'destroyed': destroyedFx(e); break;
         case 'remove': dropView(e.id); break;
-        case 'arrived': if (e.kind === 'hovertank' && e.I) note(e.I, 'RW-7 HOVER TANK COMING ASHORE'); break;
+        case 'arrived': if (e.I) { const u = GS.units.find(q => q.id === e.id); if (u) attachProxy(u, e.I); if (e.kind === 'hovertank') note(e.I, 'RW-7 HOVER TANK COMING ASHORE'); } break;
       }
     }
   }
@@ -226,7 +227,7 @@ export function createGroundWar(ctx) {
       if (up.length) { let x = 0, z = 0, y = 0; for (const u of up) { x += u.x; y += u.y; z += u.z; } P.p.set(x / up.length, y / up.length + 1, z / up.length); }
       P.hp = P.hpMax = Math.max(1, up.length);
       // capture: two men (machines) able on the pad, nobody of the other side near it, the island not ours yet
-      const onPad = up.filter(u => Math.hypot(u.x - I.pad.x, u.z - I.pad.z) < I.pad.r + 12).length;
+      const onPad = up.filter(u => Math.hypot(u.x - I.pad.x, u.z - I.pad.z) < I.pad.r + (u.vehicle ? (P.landed ? 75 : 55) : (P.landed ? 18 : 12))).length;   // (armour holds the pad from the apron's edge: the guns cover it)
       P.target = I;
       P.landed = P.formed && I.owner !== P.side && onPad >= Math.min(2, up.length) && !contested(I, P.side) && !(I.kind === 'hq' && P.side === 2) && !(I.cave && P.side === 1);
       // the island changed hands: hold it (ours now) or take it back (lost)
@@ -251,6 +252,8 @@ export function createGroundWar(ctx) {
       const L = GW.landings[i], Q = L.Q;
       Q.update(dt, W.time);
       let pending = 0;
+      // the Osprey's cabin holds twelve troopers' worth (its payload, 1.8 t): eight STRIDERs - the rest of the seats stay empty
+      if (L.side === 2 && !L.trimmed) { L.trimmed = true; Q.figs.slice(GW_T.STRIDERS).forEach(F => { F.st = 'gone'; F.gw = true; F.f.group.visible = false; F.f = { group: new THREE.Object3D(), pose() {} }; }); }
       for (const F of Q.figs) {
         if (F.st === 'aboard' || F.st === 'queue' || F.st === 'path') { pending++; continue; }
         if (F.st !== 'run' || F.gw) continue;
@@ -302,6 +305,15 @@ export function createGroundWar(ctx) {
     const lz = chooseLZ({ pad: { x: best.x, z: best.z, h: best.h }, structs: I.structs }, foot, [0, 5, 9, 13]);
     return lz;
   };
+  // armour arriving on its own (a hover tank off the sea, an MBT off the landing craft) joins the island's landing party
+  // for the war's purposes (capture, expansion), or becomes one
+  function attachProxy(u, I) {
+    let P = GW.proxies.find(p => p.home === I && p.side === u.side && !p.wiped);
+    if (!P) { P = makeProxy(u.side, I); P.formed = true; P.holding = I.owner === u.side; }
+    if (!P.members.includes(u)) P.members.push(u);
+    if (u.squad && !P.squads.includes(u.squad)) P.squads.push(u.squad);
+  }
+  GW.attachProxy = attachProxy;
   // tests / debug: put a squad straight on an island
   GW.addSquad = (side, I, n, x, z, o = {}) => {
     const B = GS.battle(I), P = makeProxy(side, I), units = [];
@@ -396,7 +408,7 @@ export function createGroundWar(ctx) {
           L.view.group.remove(L.cargo.group);
           const u = GS.addMBT(L.type, null, x, z, L.yaw, { tag: '' }); u.adoptView = L.cargo; u.goal = L.I;
           GS.join(GS.battle(L.I), u, L.I.owner === 2 ? { type: 'defend', x: L.I.pad.x, z: L.I.pad.z, r: 30 } : { type: 'take', x: L.I.pad.x, z: L.I.pad.z, r: 30 });
-          L.mbt = u; note(L.I, `SEIZED ${L.type === 'm1a2' ? 'M1A2' : 'T-90M'} COMING ASHORE`);
+          L.mbt = u; attachProxy(u, L.I); note(L.I, `SEIZED ${L.type === 'm1a2' ? 'M1A2' : 'T-90M'} COMING ASHORE`);
         }
         if (L.mbt && (L.t > 14 || Math.hypot(L.mbt.x - L.x, L.mbt.z - L.z) > 30)) { L.phase = 'back'; L.t = 0; }
       } else if (L.phase === 'back') {
@@ -422,7 +434,9 @@ export function createGroundWar(ctx) {
     // the ground arm saves up: when armour is due it takes a share of the materiel as it comes in (the air arm would
     // otherwise spend every point on WASPs), and pays for the launch out of that
     const wantH = t >= GW_T.HOVER_AT && hovers < Math.min(4, 1 + Math.floor(t / 420)), wantM = t >= GW_T.MBT_AT && mbts < Math.min(3, Math.floor(t / 540));
-    if ((wantH || wantM) && GW.bank < GW_T.MBT_COST) { const take = Math.min(E.mat, 2); E.mat -= take; GW.bank += take; }
+    // (the KRAKEN's own vehicle deck: a steady armour budget, plus any surplus the commander has lying about - the air
+    // arm and the expansion keep first call on the materiel)
+    if ((wantH || wantM) && GW.bank < GW_T.MBT_COST) { const take = Math.max(0, Math.min(E.mat - 60, 4)); E.mat -= take; GW.bank += take + GW_T.DECK_RATE * 2; }
     if (wantH && GW.hoverT <= 0 && GW.bank >= GW_T.HOVER_COST) {
       const I = pickGroundTarget(true); if (I && GW.launchHover(I)) { GW.bank -= GW_T.HOVER_COST; GW.hoverT = GW_T.HOVER_GAP; feed(`RADAR: RW-7 HOVER TANK LEAVING THE KRAKEN  -  HEADING FOR ${I.name}`, 'bad'); }
     }

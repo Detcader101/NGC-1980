@@ -95,7 +95,7 @@ export function createRotary(ctx) {
     const spot = sp ? [sp.lx, sp.lz] : null;
     const home = () => { const c = carrierOf(side); return c && spot ? deckSpot(c, spot[0], spot[1]) : homePad(side); };
     u.lz = (R.ground && R.ground.hotLZ(u.target, side, MV22_FOOT, chooseLZ)) || chooseLZ(u.target, MV22_FOOT);   // GROUND WAR hook
-    const U = createMV22Unit({ parent: scene, env, world, lz: () => u.lz, home, pad: u.target.pad, start, squad: R.ground ? R.ground.T.STRIDERS : 12,
+    const U = createMV22Unit({ parent: scene, env, world, lz: () => u.lz, home, pad: u.target.pad, start, squad: 12,
       onParked: () => { u.dead = true; u.stowed = true; if (!U.squadExternal) U.squad.dispose(); } });
     u.rot = U; u.mesh = U.model.group;
     const unload = U.AI.hooks.unload;
