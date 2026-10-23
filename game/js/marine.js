@@ -34,6 +34,15 @@ const INCOMING = {
   b:    { kind: 'bullet', dmg: 50, pen: 34, bleed: 1.2, source: 'RW-3 WASP CANNON' },        // the WASP's cyan bolts
   ciws: { kind: 'bullet', dmg: 95, pen: 55, bleed: 1.5, source: 'CANNON' },
   jb:   { kind: 'bullet', dmg: 95, pen: 55, bleed: 1.5, source: '20 MM CANNON' },
+  // the ground war's RUNAWAY rounds (groundsim.js p.ammo; ngc/bugsweep - they arrived without a kind and were treated as
+  // fragments): seized rifles, coil carbines, a seized MBT's coax, and a main-gun slug that passes through him (GAME values)
+  xm7:     { kind: 'bullet', dmg: 64, pen: 44, bleed: 1.2, source: 'STRIDER RIFLE (6.8 MM)' },
+  needle:  { kind: 'bullet', round: 'RWN', source: 'RW NEEDLE CARBINE' },
+  mg:      { kind: 'bullet', round: 'M80', source: 'TANK MACHINE GUN' },
+  pd:      { kind: 'bullet', dmg: 30, pen: 20, bleed: 1.0, source: 'POINT-DEFENCE BURST' },
+  coil120: { kind: 'bullet', dmg: 400, pen: 400, bleed: 3, source: 'COILGUN SLUG' },
+  mbt120:  { kind: 'bullet', dmg: 400, pen: 400, bleed: 3, source: '120 MM TANK ROUND' },
+  mbt125:  { kind: 'bullet', dmg: 400, pen: 400, bleed: 3, source: '125 MM TANK ROUND' },
 };
 const MECH = { magOut: 'magOut', magIn: 'magIn', slap: 'slap', chargeBack: 'chargeBack', chargeFwd: 'chargeFwd', boltRelease: 'boltRelease', fa: 'fa', selector: 'selector', click: 'click', coverOpen: 'coverOpen', coverClose: 'coverClose', beltOn: 'beltOn', barrelLatch: 'barrelLatch', barrelOut: 'barrelOut', barrelIn: 'barrelIn', open: 'open', close: 'close', insert: 'insert', extend: 'extend', arm: 'arm', pin: 'pin', deadTrigger: 'deadTrigger', safeTrigger: 'click' };
 const MALF = { feed: 'FAILURE TO FEED', stovepipe: 'STOVEPIPE', extract: 'FAILURE TO EXTRACT', double: 'DOUBLE FEED', dud: 'DUD ROUND', oob: 'BOLT NOT IN BATTERY', runaway: 'RUNAWAY GUN', misfire: 'MISFIRE' };

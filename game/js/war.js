@@ -384,7 +384,7 @@ export function createWar(ctx) {
   // NGC-1980 GROUND WAR hook (units/groundwar/): the troops the transports land fight on the islands - STRIDERs off the
   // MV-22s, the CH-46's Marines, RW-7 hover tanks over the sea and seized MBTs by landing craft. Squads stand in W.units
   // as 'squad' proxies (capture, gunship targets, expansion); the war's rounds and blasts reach them through GW below.
-  const GW = createGroundWar({ W, scene, fx, sfx, terrainH, nav, feed, hear, boomAt, ear, addScore: ctx.addScore, player: ctx.player, hurtPlayer: (a, why, at, dir) => ctx.hurtPlayer(a, why, at, dir) });
+  const GW = createGroundWar({ W, scene, fx, sfx, terrainH, nav, feed, hear, boomAt, ear, addScore: ctx.addScore, player: ctx.player, hurtPlayer: (a, why, at, dir, kind) => ctx.hurtPlayer(a, why, at, dir, kind) });   // (ngc/bugsweep: + kind, the round, for the Marine's wounds)
   W.ground = GW; ROT.ground = GW;
   function makeAir(type, side, x, y, z, extra = {}) {
     { const ru = ROT.make(type, side, x, y, z, extra); if (ru) { W.units.push(ru); return ru; } }   // NGC-1980 hook
