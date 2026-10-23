@@ -85,7 +85,10 @@ export function createAirWar(W, ctx, H) {
     W.P.mat -= H.COST_ESCORT;
     const modex = ++AW.modex > 212 ? (AW.modex = 201) : AW.modex;
     const A = createTomcatSim(9, { fuelX: AIR.FUEL_X, seed: modex }), model = buildTomcatModel(1, { modex });
-    const name = `VICTORY ${modex}`, P = createPilot(A, { side: 1, name, onSay: (m) => { if (/^(BINGO|RTB|TRAPPED|WAVEOFF|BOLTER|BREAK|MISSILE)/.test(m)) feed(`${name}: ${m}`); } });
+    const name = `VICTORY ${modex}`, P = createPilot(A, { side: 1, name, onSay: (m) => {   // the radio calls worth a line in the feed
+      const call = /^RTB  BINGO/.test(m) ? 'BINGO  -  RTB' : /^RTB  WINCHESTER/.test(m) ? 'WINCHESTER  -  RTB' : /^WAVEOFF  BOLTER/.test(m) ? 'BOLTER  -  GOING AROUND' : /^WAVEOFF/.test(m) ? 'WAVE OFF  -  GOING AROUND' : null;
+      if (call) feed(`${name}: ${call}`);
+    } });
     A.reset(c.p.x, CARRIER.DECK + c.p.y, c.p.z, c.yaw, { running: true }); A.lights = true;
     addSimUnit('escort', 1, A, P, model, { name, cap: I && I.pad ? I : null, queued: true, decoys: 6 }, true);
     P.state = 'queued';

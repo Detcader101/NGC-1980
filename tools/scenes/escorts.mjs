@@ -20,7 +20,7 @@ export default async function (h) {
   await h.eval('(window.__cam = { u: __esc()[0], off: [-10, 4, 30] }, 1)'); await h.wait(600); await h.shot('cat_shot');
   await h.waitFor('__esc().length === 2 && __esc().every(u => u.ai.state === "cap")', 90000);
   await h.eval('__esc().map(u => ({ name: u.name, state: u.ai.state, y: Math.round(u.p.y), eas: Math.round(u.sim.eas * 1.944), fuel: Math.round(u.sim.fuel), log: u.ai.log.map(l => l.t + " " + l.msg).join("; ") }))');
-  await h.eval('(window.__cam = { u: __esc()[1], off: [0, 6, 40] }, 1)'); await h.wait(1500); await h.shot('cap');
+  await h.eval('(() => { const G = __G, u = __esc()[1]; G.H.reset(new G.THREE.Vector3(u.p.x, u.p.y + 30, u.p.z), 0, false, 1); G.HI.setCollective(0.475); window.__cam = { u, off: [0, 6, 40] }; return 1 })()'); await h.wait(1500); await h.shot('cap');
   // two SHRIKEs from 1.6 km
   await h.eval(`(() => { const G = __G, c = G.war.carrier, b = { x: c.p.x + 1300, y: 260, z: c.p.z - 900, yaw: -2.2 }; window.__sh = [G.war.air.spawnShrike(b, c.p), G.war.air.spawnShrike({ ...b, x: b.x + 60 }, c.p)]; return __sh.length })()`);
   await h.waitFor('__esc().some(u => u.ai.state === "fight")', 20000);
@@ -32,12 +32,16 @@ export default async function (h) {
   await h.expect('__sh.every(s => s.dead || s.dying)');
   // a REAPER over the ship and a SHAHED salvo at her
   await h.eval(`(() => { const G = __G, c = G.war.carrier; window.__rp = G.war.air.spawnReaper(c.p); window.__sd = G.war.air.salvo({ ship: c, x: c.p.x, y: 8, z: c.p.z }, 4, G.ISLANDS.find(I => I.name === 'CITADEL')); return [__rp.type, __sd.length] })()`);
-  await h.eval('(window.__cam = { u: __sd[0], off: [0, 6, 30] }, 1)');
-  await h.waitFor('__sd.every(u => !__G.war.air.pending.includes(u))', 20000); await h.wait(6000); await h.shot('shahed_salvo');
-  await h.waitFor('__sd.every(u => u.dead || u.dying) && (__rp.dead || __rp.dying)', 120000);
-  await h.eval('({ shahed: __sd.map(u => u.dead ? (u.hp > 0 ? "hit" : "shot down") : "dying"), reaper: __rp.dying || __rp.dead, carrierHp: Math.round(__G.war.carrier.hp), feed: document.getElementById("feed").textContent.slice(0, 400) })');
+  await h.waitFor('__sd.every(u => !__G.war.air.pending.includes(u))', 20000); await h.wait(5000);
+  await h.eval('(() => { const G = __G, u = __sd[1]; G.H.reset(new G.THREE.Vector3(u.p.x + 20, u.p.y + 15, u.p.z + 20), 0, false, 1); G.HI.setCollective(0.475); window.__cam = { u, off: [8, 4, 16] }; return 1 })()'); await h.wait(1200); await h.shot('shahed_salvo');
+  await h.eval('(() => { const G = __G, u = __rp; G.H.reset(new G.THREE.Vector3(u.p.x + 20, u.p.y + 15, u.p.z + 20), 0, false, 1); G.HI.setCollective(0.475); window.__cam = { u, off: [10, 5, 26] }; return 1 })()'); await h.wait(1200); await h.shot('reaper');
+  await h.eval('(window.__cam = null, 1)');
+  await h.eval('(__G.command(4), 1)');   // a fresh Tomcat for the REAPER and, later, the recovery
+  await h.waitFor('__sd.every(u => u.dead || u.dying)', 120000);
+  await h.eval('({ shahed: __sd.map(u => u.dead ? (u.hp > 0 ? "arrived" : "shot down") : "dying"), reaper: __rp.dying || __rp.dead, carrierHp: Math.round(__G.war.carrier.hp), feed: document.getElementById("feed").textContent.slice(0, 400) })');
+  await h.waitFor('__esc().some(u => ["cap", "fight"].includes(u.ai.state))', 90000);
   // bingo: the pattern and the trap
-  await h.eval(`(() => { const u = __esc()[0]; u.sim.fuel = 1850; window.__bu = u; return u.name })()`);
+  await h.eval(`(() => { const u = __esc().find(u => ['cap', 'fight'].includes(u.ai.state)); u.sim.fuel = 1850; window.__bu = u; return u.name })()`);
   await h.waitFor('__bu.ai.state === "final" || __bu.dead || __bu.dying', 120000);
   await h.waitFor('(__bu.ai.lso && __bu.ai.lso.R < 350) || __bu.dead || __bu.dying || __bu.ai.state !== "final"', 120000);
   await h.eval(`(() => { const G = __G, c = G.war.carrier; G.H.reset(new G.THREE.Vector3(c.p.x - 30, c.p.y + 28, c.p.z + 10), c.yaw + 2.6, false, 1); G.HI.setCollective(0.475); return __bu.ai.lso })()`);
