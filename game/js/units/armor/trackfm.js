@@ -625,12 +625,14 @@ export function createTrackSim(P, opt = {}) {
     // steering. 'input': steer speed difference from the turbine (cross-drive: pivots in neutral; radius grows with range)
     //           'output': difference proportional to the output speed (controlled differential: fixed radius, no pivot)
     const SX = X.STEER, capS = SX.CAP;
-    // brake / lock that holds both tracks together (released as the steer comes in)
-    if (!(SX.FREE_DIFF)) con(0, 0, 1, -1, capS * (1 - ast) + 1);
-    if (ast > 0.01) {
-      // target: omegaL - omegaR = ss * k * (turbine or mean output)
-      if (SX.REF === 'input') { if (inGear || SX.PIVOT) con(0, -ss * SX.K, 1, -1, capS * ast); }
-      else con(0, 0, 1 - ss * SX.K / 2, -1 - ss * SX.K / 2, capS * ast);
+    // one steer constraint: omegaL - omegaR = st * K * (turbine or mean output). A part-pulled T-bar or lateral slips the
+    // steer clutch / brake, which gives a proportionally wider turn; st = 0 holds the tracks together (straight running).
+    // (Two opposing clutch constraints - a steer brake easing off while a steer clutch comes in - cancel each other at
+    // half travel: the lower half of the T-bar did nothing.)
+    if (!SX.FREE_DIFF) {
+      if (SX.REF === 'input') con(0, (inGear || SX.PIVOT) ? -st * SX.K : 0, 1, -1, capS);
+      else { const se = st * Math.abs(st);   // laterals: a squared response (a feathered steer brake slips; full pull = the geared ratio)
+        con(0, 0, 1 - se * SX.K / 2, -1 - se * SX.K / 2, capS); }
     }
     // service brakes (+ the inner track's steer brake on laterals: X.STEER.BRAKE_STEER) and the parking brake
     const brk = clamp(ctl.brake, 0, 1) * X.BRAKE * sim.dmg.brakes, pk = ctl.park ? X.BRAKE * 0.8 : 0;

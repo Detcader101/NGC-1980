@@ -67,7 +67,7 @@ export const M60A3 = {
     LOCKUP: { ranges: ['H'], SR: 0.8, ON_RPM: 1500, OFF_RPM: 1250, CAP: 3200 },   // converter lock-up in high (research note: "converter with lock-up", U)
     J_TURBINE: 2.2, TURB_DRAG: 0.4, CLUTCH_CAP: 2.4e4, SHIFT_T: 0.7,
     BRAKE: 7.5e4,                            // N m per sprocket: ~0.6 g stop I
-    STEER: { REF: 'input', K: 0.055, PIVOT: true, CAP: 6.5e4 },   // geared steer from the input, radius grows with range I
+    STEER: { REF: 'input', K: 0.043, PIVOT: true, CAP: 6.5e4 },   // geared steer from the input, radius grows with range; ~30 deg/s pivot I
   },
   HULL: {
     CLEAR: 0.463, K: 3e6, C: 9e4,

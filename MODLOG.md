@@ -258,7 +258,7 @@ No shared files touched (main.js, audio.js, war.js untouched): wave 2 plugs thes
   track pressure (plastic: sinks fast, recovers slowly) plus slip sinkage; compaction resistance; internal track
   resistance R_in = W (222 + 3 V) N (Wong).
 - Drivetrain: engine, converter turbine and two sprockets as rotating bodies joined by torque-limited constraints solved
-  with sequential impulses: range clutch, converter lock-up, steer lock + steer clutch (cross-drive: steer speed from the
+  with sequential impulses: range clutch, converter lock-up, one proportional steer constraint (cross-drive: steer speed from the
   input, pivot in neutral; controlled differential: steer ratio on the output, no pivot), brakes, park brake, downshift
   inhibitor, automatic shifting (TX100). Diesel with an all-speed governor on a net torque curve, injection lag,
   starter, stall, fuel burn incl. fan power; Trilok converter (capacity factor + torque ratio). The ground's pull on each
@@ -361,6 +361,10 @@ and ground) through a green-phosphor shader with scan lines, noise and WH / BH p
 - Sinkage computed from the instantaneous load fed back through the dampers into a period-2 limit cycle (730 / 300 kN
   alternating): low-pass the load and measure damper rates over the unsunk ground.
 - The side-slope lane had no eastern bound and raised a 4.8 m wall across the bump course; it is a bounded ridge now.
+- Steering first used a steer brake easing off against a steer clutch coming in: at half travel their torques cancelled
+  and the lower half of the T-bar did nothing. One proportional steer constraint now (squared response on the M113's
+  laterals); full steer at top speed still skids and throws tracks, so the dev page narrows the keyboard steer with
+  speed (Right Shift: no limit).
 - A cleared 2D overlay canvas was not re-composited in headless Chrome (a stale reticle in later shots): hide it instead.
 - The snap harness wraps evals in `const __r = ...`: a scene variable named __r breaks it.
 - A `//` comment pasted mid-line by sed swallowed the rest of the statement (again): use /* */ in one-liners.

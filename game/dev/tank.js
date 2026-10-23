@@ -140,7 +140,10 @@ function readInput(dt) {
   const k = c => keys.has(c), o = c => once.has(c);
   const sm = (v, t, r) => v + Math.max(-r * dt, Math.min(r * dt, t - v));
   IN.throttle = sm(IN.throttle, k('KeyW') ? 1 : 0, 2.5); IN.brake = k('KeyS') ? 1 : 0;
-  IN.steer = sm(IN.steer, (k('KeyD') ? 1 : 0) - (k('KeyA') ? 1 : 0), 3);
+  // keyboard steering assist: full T-bar / laterals at a crawl, narrowing with speed (a key is all or nothing; a hard
+  // steer at speed skids the tank and can throw a track). Right Shift held = no limit.
+  const kv = Math.abs(fm.out.fwd) * 3.6, steerMax = k('ShiftRight') ? 1 : Math.max(VEH === 'm113' ? 0.22 : 0.35, 1 - kv / (VEH === 'm113' ? 30 : 40));
+  IN.steer = sm(IN.steer, ((k('KeyD') ? 1 : 0) - (k('KeyA') ? 1 : 0)) * steerMax, 3);
   if (VEH === 'm113') { if (o('KeyZ')) IN.range = 'R'; if (o('KeyX')) IN.range = 'N'; if (o('KeyC')) IN.range = '1-2'; if (o('KeyV')) IN.range = '1-3'; }
   else { if (o('KeyZ')) IN.range = 'R'; if (o('KeyX')) IN.range = 'N'; if (o('KeyC')) IN.range = 'L'; if (o('KeyV')) IN.range = 'H'; }
   if (IN.throttle > 0.05 && IN.range !== 'N') IN.park = false;
