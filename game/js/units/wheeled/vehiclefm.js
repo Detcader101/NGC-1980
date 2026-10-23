@@ -583,8 +583,9 @@ export function createVehicleSim(spec, opts = {}) {
     solver.w[0] += tE * h / E.inertia;
     for (const W of wheels) solver.w[4 + W.i] += (W.tq || 0) * h / P.wk[W.i].T.I;
     solver.clear();
-    // engine friction (Coulomb: a stopped engine stays stopped)
-    solver.row(0, 1, -1, 0, -1, 0, -S.eng.fric * h, S.eng.fric * h);
+    // engine friction (Coulomb: a stopped engine stays stopped); a seized or hydrolocked engine is locked solid
+    const fe = S.eng.seized || S.eng.hydrolock ? Infinity : S.eng.fric * h;
+    solver.row(0, 1, -1, 0, -1, 0, -fe, fe);
     // clutch
     const ped = clamp(ctl.clutch ?? 0, 0, 1);
     S.clutchEng = clamp((1 - ped - 0.08) / 0.62, 0, 1);   // free play at the top, bites through the middle
@@ -621,6 +622,7 @@ export function createVehicleSim(spec, opts = {}) {
     for (const W of wheels) {
       const ws = W.spec, k = P.wk[W.i];
       let Tb = brk * (ws.front ? spec.brakes.front : spec.brakes.rear) * (W.depthW > 0.2 || S._wetBrakes > 0 ? 0.5 : 1);
+      if (S.dmg && S.dmg.state.wrecked) Tb += (ws.front ? spec.brakes.front : spec.brakes.rear) * 0.6;   // a burnt-out wreck: seized drums, tyres on the rims
       if (hb && spec.brakes.park === 'rear' && !ws.front) Tb += hb * spec.brakes.parkT;
       const Trr = W.contact ? W.ts.crr * W.Fz * W.rEff : 0.5;
       W.brakeT = Tb;

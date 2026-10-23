@@ -18,7 +18,10 @@ export function createDriver(spec, mode = 'auto') {
   const D = {
     mode, ctl: { throttle: 0, brake: 0, clutch: 0, steer: 0, handbrake: 0, gear: 0, range: 'H', fwd: false, lock: false, ignition: true, starter: false, horn: false, kit: false },
     steer: 0, shift: 0, shiftTo: 0, hold: 0, lastShift: 0, reverse: false, revHold: 0, t: 0, launch: 0, rm: 0, acc: 0, v0: null, le: 0,
-    reset(sim) { D.ctl.gear = sim.gear; D.shift = 0; D.reverse = sim.gear < 0; D.steer = 0; D.ctl.range = sim.range; D.ctl.fwd = sim.fwd; },
+    reset(sim) {
+      D.ctl.gear = sim.gear; D.shift = 0; D.shiftTo = 0; D.reverse = sim.gear < 0; D.steer = 0; D.ctl.range = sim.range; D.ctl.fwd = sim.fwd;
+      D.le = 0; D.rm = 0; D.upT = 0; D.acc = 0; D.v0 = null; D.revHold = 0; D.lastShift = D.t; D.lastDown = -9; D.ctl.clutch = 1; D.ctl.throttle = 0; D.ctl.brake = 0;
+    },
     update(sim, input, dt) {
       const c = D.ctl; D.t += dt;
       // the driver's feel for the acceleration (smoothed dv/dt)
@@ -72,7 +75,7 @@ export function createDriver(spec, mode = 'auto') {
           const upOk = want < n && D.t - (D.lastDown ?? -9) > 3 && rpmV(want) > up && c.clutch < 0.1 && thr > 0.05 && rpm2 > down * 1.03 && (thr < 0.9 || can > need * 1.15);
           D.upT = upOk ? (D.upT || 0) + dt : 0;   // held for 0.4 s: a jolt over a kink is not a reason to change up
           if (upOk && D.upT > 0.4) { want++; D.upT = 0; }
-          else if (want > 1 && rpm < down && rpmIn(want - 1) < top * 0.9 && (GB.synchro[want - 2] || Math.abs(wOut) < 0.5)) want--;
+          else if (want > 1 && Math.min(rpm, rpmV(want)) < down && rpmV(want - 1) < top * 0.9 && (GB.synchro[want - 2] || Math.abs(wOut) < 0.5)) want--;   // judged by road speed too: a slipping clutch or spinning wheels keep the revs up
           else if (want > 1 && Math.abs(v) < 0.8 && brk > 0 && (GB.synchro[0] || Math.abs(wOut) < 0.5)) want = 1;
         }
       } else {
@@ -88,6 +91,9 @@ export function createDriver(spec, mode = 'auto') {
         c.clutch = 1; c.throttle = 0;
         // move the lever halfway through (the box needs the clutch down first); blip for a downshift
         if (D.shift < shiftTime * 0.55) { c.gear = D.shiftTo; if (sim.gear !== D.shiftTo) c.gear = D.shiftTo; if (D.shiftTo > 0 && rpmIn(D.shiftTo) > rpm + 150) c.throttle = clamp((rpmIn(D.shiftTo) - rpm) / 1200, 0, 0.8); }
+        // a non-synchro gear (the M35's first, reverse) only goes in with the box stopped: clutch down, brake, wait
+        const noSyn = D.shiftTo < 0 || (D.shiftTo > 0 && !GB.synchro[D.shiftTo - 1]);
+        if (noSyn && Math.abs(wOut) > 0.4 && sim.gear !== D.shiftTo) { D.shift = Math.max(D.shift, 0.05); c.gear = sim.gear || 0; c.brake = Math.max(brk, 0.8); return c; }
         if (D.shift <= 0) { D.shift = 0; D.rm = 0.35; }
         c.brake = Math.abs(v) < 0.3 && Math.abs(sim.pitch) > 0.04 ? Math.max(brk, 0.7) : brk; return c;   // changing gear stopped on a hill: foot on the brake
       }

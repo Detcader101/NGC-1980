@@ -282,17 +282,25 @@ async function toggleSound(force) {
 let last = performance.now(), frames = 0, allEvents = [];
 function size() { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
 addEventListener('resize', size); size();
+// the driver, AI and physics run at a fixed 60 Hz whatever the render rate (a slow software-GL frame steps several times)
+const STEP = 1 / 60; let acc = 0;
 function frame(now) {
-  const dt = Math.min(0.1, (now - last) / 1000); last = now; frames++;   // slow frames: the sim substeps inside step()
+  const dt = Math.min(0.25, (now - last) / 1000); last = now; frames++;
   if (V.sim) {
     readInput(dt);
-    let inp = override || IN;
-    if (ai) { const a = aiInput(V.sim, ai.target, ai.speed); inp = { ...IN, ...a, ...(ai.extra || {}) }; }
     if (!paused) {
-      const ctl = V.driver.update(V.sim, inp, dt);
-      for (const k of ['fwd', 'range', 'lock', 'ignition', 'starter', 'horn', 'kit']) if (inp[k] !== undefined) ctl[k] = inp[k];
-      const evs = V.sim.step(dt, ctl, env);
-      for (const e of evs) { allEvents.push({ ...e, t: now }); if (!['scrape', 'impact', 'grind', 'lowAir'].includes(e.e)) feed(e.e + (e.wheel !== undefined ? ' ' + V.spec.wheels[e.wheel].id : '') + (e.seat ? ' ' + e.seat : '')); }
+      acc += dt; let n = 0;
+      while (acc >= STEP && n < 8) {
+        acc -= STEP; n++;
+        let inp = override || IN;
+        if (ai) { const a = aiInput(V.sim, ai.target, ai.speed); inp = { ...IN, ...a, ...(ai.extra || {}) }; }
+        const ctl = V.driver.update(V.sim, inp, STEP);
+        IN.shiftUp = IN.shiftDown = false;   // edge inputs act once per frame, not once per step
+        for (const k of ['fwd', 'range', 'lock', 'ignition', 'starter', 'horn', 'kit']) if (inp[k] !== undefined) ctl[k] = inp[k];
+        const evs = V.sim.step(STEP, ctl, env);
+        for (const e of evs) { allEvents.push({ ...e, t: now }); if (!['scrape', 'impact', 'grind', 'lowAir'].includes(e.e)) feed(e.e + (e.wheel !== undefined ? ' ' + V.spec.wheels[e.wheel].id : '') + (e.seat ? ' ' + e.seat : '')); }
+      }
+      if (n >= 8) acc = 0;   // far behind: drop time rather than spiral
       if (allEvents.length > 300) allEvents.splice(0, 100);
       // dust, spray, exhaust
       const S = V.sim;

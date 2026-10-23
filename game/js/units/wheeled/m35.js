@@ -21,11 +21,13 @@ export const M35 = {
   cg: [0, 1.05, ZB - 0.42 * WB],
   dims: { L: 22 * FT + 4 * IN, W: 8 * FT, H: 9 * FT + 4 * IN, Hcab: 7 * FT + 10 * IN, wheelbase: WB, bogie: BOGIE, track: TRACK, clearance: 11.5 * IN, bedY: 1.30, box: [6.7, 2.44, 2.0] },
   // leaf springs: front semi-elliptic with shock absorbers; rear tandem on inverted leaf springs over a trunnion (walking
+  // bogie: one axle drops as the other climbs, so each rear wheel has a long droop - 0.24 m - INFERRED from the bogie's
+  // articulation;
   // bogie, no shock absorbers) - TM20 CONFIRMED layout; rates, travel, damping and roll centres INFERRED.
   axles: [
     { z: ZF, wheels: [0, 1], solid: true, freq: 1.75, bump: 0.09, droop: 0.08, zeta: [0.25, 0.35], rc: 0.78, driven: 'F', final: 6.72, diff: 'open' },
-    { z: Z1, wheels: [2, 3], solid: true, bogie: 'rear', freq: 2.0, bump: 0.11, droop: 0.13, zeta: [0.10, 0.12], rc: 0.72, driven: 'R', final: 6.72, diff: 'open' },
-    { z: Z2, wheels: [4, 5], solid: true, bogie: 'rear', freq: 2.0, bump: 0.11, droop: 0.13, zeta: [0.10, 0.12], rc: 0.72, driven: 'R', final: 6.72, diff: 'open' },
+    { z: Z1, wheels: [2, 3], solid: true, bogie: 'rear', freq: 2.0, bump: 0.11, droop: 0.24, zeta: [0.10, 0.12], rc: 0.72, driven: 'R', final: 6.72, diff: 'open' },
+    { z: Z2, wheels: [4, 5], solid: true, bogie: 'rear', freq: 2.0, bump: 0.11, droop: 0.24, zeta: [0.10, 0.12], rc: 0.72, driven: 'R', final: 6.72, diff: 'open' },
   ],
   bogiePairs: [[2, 4], [3, 5]],        // the trunnion: one spring per side shared by both rear axles
   wheels: [
