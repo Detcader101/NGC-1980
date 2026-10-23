@@ -169,3 +169,30 @@ export function buildMC1Canopy() {
   animate(0, 1, 0);
   return { group: g, dome, lines, animate, anim };
 }
+
+// The door bundle: an A-21 cargo bag (canvas, webbing, ~0.9 x 0.6 x 0.55 m, up to 500 lb) under a G-14 cargo
+// parachute (34 ft nominal, olive drab, no steering; ~28 ft/s with a full load: TM 10-1670-1, CONFIRMED order of
+// magnitude). The jumpmaster pushes it out of the door first on the green light; the team's tools ride in it.
+// Frame: origin at the bottom of the bag, the canopy above. animate(time, open 0..1) like the MC1-1.
+export function buildDoorBundle() {
+  const g = group(null, 'doorBundle'), bag = group(g, 'a21');
+  const canvasM = M(0x5d6440), web = M(0x3b4128), metal = M(0x7a7d80);
+  mesh(boxG(0.9, 0.55, 0.6, 0, 0.275, 0), canvasM, bag, 'bag');
+  for (const x of [-0.25, 0.25]) mesh(boxG(0.05, 0.57, 0.62, x, 0.275, 0), web, bag);       // webbing round the bag
+  mesh(boxG(0.92, 0.05, 0.62, 0, 0.45, 0), web, bag); mesh(boxG(0.12, 0.06, 0.12, 0, 0.58, 0), metal, bag);   // the quick release on top
+  // G-14: a plain round dome, 24 gores, alternate panels slightly different olive (cargo chutes are patched and re-used)
+  const dome = group(g, 'g14', 0, 6.8, 0), R = 3.6, H = 2.2, N = 24, rings = 5, pos = [[], []];
+  const P = (k, j) => { const a = k / N * Math.PI * 2, polar = j / rings * Math.PI * 0.5 * 1.08, r = R * Math.sin(polar) * (j === rings ? 0.92 : 1); return [Math.sin(a) * r, H * Math.cos(polar), Math.cos(a) * r]; };
+  for (let k = 0; k < N; k++) for (let j = 0; j < rings; j++) { const a = P(k, j), b = P(k + 1, j), c = P(k + 1, j + 1), d = P(k, j + 1); pos[k % 2].push(...a, ...b, ...c, ...a, ...c, ...d); }
+  [M(0x596036, { side: THREE.DoubleSide }), M(0x666b44, { side: THREE.DoubleSide })].forEach((m, i) => { const ge = new THREE.BufferGeometry(); ge.setAttribute('position', new THREE.Float32BufferAttribute(pos[i], 3)); ge.computeVertexNormals(); mesh(ge, m, dome); });
+  const lp = []; for (let k = 0; k < N; k++) { const s = P(k, rings); lp.push(s[0], s[1] + 6.8, s[2], 0, 0.62, 0); }
+  const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3));
+  const lines = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0xc8c8b8, transparent: true, opacity: 0.5 })); g.add(lines);
+  const canopy = group(g, 'canopy'); canopy.add(dome); canopy.add(lines);
+  const animate = (time, open = 1) => {
+    const o = Math.max(0.05, Math.min(1, open)), w = o * o * (3 - 2 * o), br = 1 + 0.03 * Math.sin(time * 2.7) * w;
+    dome.scale.set((0.12 + 0.88 * w) * br, 0.6 + 0.4 * w + 0.6 * (1 - w), (0.12 + 0.88 * w) * br); lines.scale.set(0.15 + 0.85 * w, 1, 0.15 + 0.85 * w);
+  };
+  animate(0, 1);
+  return { group: g, bag, canopy, animate };
+}

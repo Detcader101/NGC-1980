@@ -201,16 +201,21 @@ export function buildC130Deck() {
   const OH = new THREE.Group(); OH.position.set(0, 1.8, -11.0); OH.rotation.x = Math.PI / 2 - 0.42; g.add(OH);
   box(1.2, 0.9, 0.06, panelM, 0, 0, -0.04, OH);
   const ohArt = canvasTex(1024, 768); plane(1.2, 0.9, canvasMat(ohArt, 0.5), 0, 0, 0.0, OH);
-  const OX = [-0.18, -0.06, 0.06, 0.18];
+  const OX = [-0.18, -0.06, 0.06, 0.18], OIL_X = [0.385, 0.435, 0.485, 0.535];
   {
     const c = ohArt.ctx, X = x => (x + 0.6) / 1.2 * 1024, Y = y => (0.45 - y) / 0.9 * 768; c.fillStyle = '#1e2122'; c.fillRect(0, 0, 1024, 768);
     const lab = (t, x, y, s = 16, col = '#d8d6cc') => txt(c, t, X(x), Y(y), col, s);
     c.strokeStyle = '#3a3f42'; c.lineWidth = 3; c.strokeRect(X(-0.32), Y(-0.06), 0.64 / 1.2 * 1024, 0.38 / 0.9 * 768); lab('ENGINE CONDITION', 0, -0.09, 16, '#9a9d98');
-    ['RUN', 'GND STOP', 'AIR START', 'FEATHER'].forEach((t, i) => lab(t, -0.38, -0.39 + i * 0.075, 11));
+    ['RUN', 'GND STOP', 'AIR START', 'FEATHER'].forEach((t, i) => lab(t, -0.27, -0.39 + i * 0.075, 10));
     OX.forEach((x, k) => lab(String(k + 1), x, -0.42, 15));
     c.fillStyle = '#121314'; for (const x of OX) c.fillRect(X(x) - 5, Y(-0.12), 10, Y(-0.4) - Y(-0.12));
     lab('FIRE EMERGENCY', 0, 0.2, 15, '#e05040'); OX.forEach((x, k) => lab('ENG ' + (k + 1), x, 0.0, 11));
     lab('ENGINE START', 0, 0.37, 14, '#9a9d98'); lab('AUTOFEATHER', 0.42, 0.37, 12, '#9a9d98'); lab('ARM', 0.42, 0.33, 11);
+    // the flight engineer's side: electrics, GTC and bleed air (left), engine oil (right)
+    c.strokeRect(X(-0.58), Y(-0.06), 0.22 / 1.2 * 1024, 0.38 / 0.9 * 768); lab('GTC / AIR', -0.47, -0.09, 13, '#9a9d98');
+    lab('BATTERY', -0.47, -0.37, 11); lab('GTC START', -0.47, -0.27, 11); lab('BLEED AIR', -0.47, -0.17, 11); lab('GTC RPM', -0.47, 0.1, 10, '#9a9d98');
+    c.strokeRect(X(0.34), Y(-0.06), 0.24 / 1.2 * 1024, 0.38 / 0.9 * 768); lab('ENGINE OIL', 0.46, -0.09, 13, '#9a9d98');
+    lab('PRESS', 0.46, -0.355, 9); lab('TEMP', 0.46, -0.235, 9); OIL_X.forEach((x, k) => lab(String(k + 1), x, -0.42, 10));
     ohArt.tex.needsUpdate = true;
   }
   const COND_POS = { run: 0, stop: 1, airstart: 2, feather: 3 };
@@ -225,6 +230,29 @@ export function buildC130Deck() {
   const fireLamps = OX.map((x, k) => lamp(OH, 0.05, 0.022, x, 0.13, 0.004, 'FIRE', '#ff2010', '#300806', '#fff'));
   const startB = OX.map((x, k) => { const b = cyl(0.016, 0.016, 0.012, M(0x2a62c8), x, 0.3, 0.006, OH, Math.PI / 2, 0, 12); hit('start' + k, 0.05, 0.05, 0.04, x, 0.3, 0.015, OH, 'ENGINE START ' + (k + 1)); return b; });
   toggle('af', OH, 0.42, 0.28, 'AUTOFEATHER ARM');
+  toggle('bat', OH, -0.47, -0.33, 'BATTERY'); toggle('gtc', OH, -0.47, -0.23, 'GTC (APU)  START / STOP'); toggle('bleed', OH, -0.47, -0.13, 'GTC BLEED AIR VALVE');
+  // small round gauges on the overhead: GTC rpm, oil pressure and oil temperature per engine
+  const ohG = [];
+  const ohGauge = (x, y, d, face, dyn) => { const t = canvasTex(96, 96), o = new THREE.Mesh(new THREE.CircleGeometry(d / 2, 24), new THREE.MeshBasicMaterial({ map: t.tex, toneMapped: false, color: 0xe2e2e2 })); o.position.set(x, y, 0.004); OH.add(o);
+    const bg = document.createElement('canvas'); bg.width = bg.height = 96; face(bg.getContext('2d'), 96); ohG.push({ ...t, bg, dyn, W: 96 }); };
+  const opMap = lin(0, -140, 100, 140), otMap = lin(0, -140, 120, 140), gtcMap = lin(0, -140, 110, 140);
+  ohGauge(-0.47, 0.2, 0.09, (c, W) => dialFace(c, W, { map: gtcMap, v0: 0, v1: 110, minor: 10, major: 50, bands: [[95, 105, '#2a8a3a']], labels: [[0, '0'], [50, '50'], [100, '100']], ls: 0.22 }), (c, W, S) => { needle(c, W / 2, gtcMap(S.gtc.N * 100), W * 0.4); hub(c, W / 2); });
+  OIL_X.forEach((x, k) => {
+    ohGauge(x, -0.3, 0.045, (c, W) => dialFace(c, W, { map: opMap, v0: 0, v1: 100, minor: 10, major: 50, bands: [[50, 60, '#2a8a3a']], ls: 0.2 }), (c, W, S) => { const e = S.eng[k]; needle(c, W / 2, opMap(55 * Math.min(1, e.N / 0.35) * (e.N > 0.05 ? 1 : 0)), W * 0.42); hub(c, W / 2); });   // 50-60 psi (OPS)
+    ohGauge(x, -0.18, 0.045, (c, W) => dialFace(c, W, { map: otMap, v0: 0, v1: 120, minor: 10, major: 40, bands: [[60, 85, '#2a8a3a']], reds: [100], ls: 0.2 }), (c, W, S) => { const e = S.eng[k]; e.oilT = (e.oilT ?? (e.run ? 75 : 20)) + ((e.run ? 70 + 10 * (e.shp / 4591) : 20) - (e.oilT ?? 20)) * 0.002; needle(c, W / 2, otMap(e.oilT), W * 0.42); hub(c, W / 2); });   // 60-85 C (OPS)
+  });
+  // the checklist: a card clipped by the pilot's side window, drawn from what the crew is doing (X.checklist)
+  const ckT = canvasTex(320, 420); { const o = plane(0.26, 0.34, new THREE.MeshLambertMaterial({ map: ckT.tex, emissive: 0xffffff, emissiveMap: ckT.tex, emissiveIntensity: 0.45 }), -1.36, 0.92, -10.95); o.rotation.set(-0.15, 0.95, 0); box(0.03, 0.02, 0.02, metal, -1.37, 1.09, -10.95); }
+  let ckKey = '';
+  function drawChecklist(C) {
+    const key = JSON.stringify(C); if (key === ckKey) return; ckKey = key;
+    const c = ckT.ctx; c.fillStyle = '#e8e2c8'; c.fillRect(0, 0, 320, 420); c.fillStyle = '#c8bf98'; c.fillRect(0, 0, 320, 44);
+    txt(c, 'KC-130R CHECKLIST', 160, 14, '#222', 15); txt(c, (C && C.title) || 'CRUISE', 160, 33, '#7a1010', 15);
+    (C && C.items || []).forEach(([t, done, val], i) => { const y = 64 + i * 26; c.fillStyle = '#333'; c.font = 'bold 13px ' + SANS; c.textAlign = 'left'; c.fillText(t, 10, y);
+      c.textAlign = 'right'; c.fillStyle = done ? '#1a6a20' : '#888'; c.fillText(done ? (val || 'CHECK') : '. . . . .', 310, y); if (done) { c.strokeStyle = '#1a6a20'; c.lineWidth = 2; c.beginPath(); c.moveTo(6, y - 4); c.lineTo(9, y); c.lineTo(15, y - 10); c.stroke(); } });
+    ckT.tex.needsUpdate = true;
+  }
+  drawChecklist(null);
 
   // ---------------------------------------------------------------- pilot's side console: the paratroop panel
   const SC = new THREE.Group(); SC.position.set(-1.28, 0.42, -10.85); SC.rotation.set(-Math.PI / 2, 0, 0.35); g.add(SC);   // face up, tipped toward the pilot
@@ -378,6 +406,7 @@ export function buildC130Deck() {
       if (id.startsWith('fire')) return `ENGINE ${k + 1} FIRE HANDLE  -  PULL: FUEL OFF, FEATHER, AGENT`;
       if (id.startsWith('start')) return `ENGINE ${k + 1} START  (CONDITION LEVER AT RUN)`;
       return {
+        bat: `BATTERY  -  ${S.battery ? 'ON' : 'OFF'}`, gtc: `GTC  -  ${S.gtc.cmd ? (S.gtc.N > 0.95 ? 'ON SPEED' : 'STARTING ' + Math.round(S.gtc.N * 100) + ' %') : 'OFF'}`, bleed: `GTC BLEED AIR  -  ${S.bleedValve ? 'OPEN' : 'CLOSED'}`,
         gear: `LANDING GEAR  -  ${S.gearCmd ? 'DOWN' : 'UP'}  (G)`, flap: `FLAP LEVER  -  ${Math.round(S.flapSel * 100)} %  (CLICK STEPS 0 / 50 / 100)`, mc: 'MASTER CAUTION  -  RESET',
         ap: `AUTOPILOT  -  ${X.ap ? 'ENGAGED' : 'OFF'}  (H)`, apAlt: 'ALTITUDE HOLD (WITH THE AUTOPILOT)', af: `AUTOFEATHER  -  ${S.autoFeatherArm ? 'ARMED' : 'OFF'}`,
         jump: `JUMP LIGHTS  -  ${(X.jumpLight || 'off').toUpperCase()}  (CLICK: OFF / RED / GREEN · F = GREEN)`, bell: 'ALARM BELL  -  BAIL OUT: THE STICK GOES NOW',
@@ -400,6 +429,9 @@ export function buildC130Deck() {
       const c = X.ctl || { pitch: 0, roll: 0, yaw: 0 };
       for (const y of yokes) { y.col.rotation.x = clamp(c.pitch || 0, -1, 1) * 0.18; y.wheel.rotation.z = -clamp(c.roll || 0, -1, 1) * 1.1; }
       for (const pr of pedals) { pr[0].position.z = -11.55 + clamp(c.yaw || 0, -1, 1) * 0.06; pr[1].position.z = -11.55 - clamp(c.yaw || 0, -1, 1) * 0.06; }
+      setToggle('bat', S.battery ? 1 : -1); setToggle('gtc', S.gtc.cmd ? 1 : -1); setToggle('bleed', S.bleedValve ? 1 : -1);
+      for (const G of ohG) { G.ctx.drawImage(G.bg, 0, 0); G.dyn(G.ctx, G.W, S); G.tex.needsUpdate = true; }
+      drawChecklist(X.checklist);
       setToggle('ap', X.ap ? 1 : -1); setToggle('apAlt', X.ap ? 1 : -1); setToggle('af', S.autoFeatherArm ? 1 : -1);
       setToggle('jump', X.jumpSwitch === 'green' ? 1 : X.jumpSwitch === 'red' ? -1 : 0);
       setToggle('doorL', S.doorCmd[0] ? 1 : -1); setToggle('doorR', S.doorCmd[1] ? 1 : -1); setToggle('ramp', S.rampCmd ? 1 : -1);

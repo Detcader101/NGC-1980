@@ -84,6 +84,9 @@ export function click(id, alt = false) {
   else if (id === 'flap') S.flapSel = S.flapSel >= 1 ? 0 : S.flapSel + 0.5;
   else if (id === 'ap' || id === 'apAlt') { ap = !ap; apHold = { track: S.heading, alt: S.pos.y, kias: S.kias }; }
   else if (id === 'af') S.autoFeatherArm = !S.autoFeatherArm;
+  else if (id === 'bat') S.battery = !S.battery;
+  else if (id === 'gtc') S.gtc.cmd = !S.gtc.cmd;
+  else if (id === 'bleed') S.bleedValve = !S.bleedValve;
   else if (id === 'jump') jumpSwitch = { off: 'red', red: 'green', green: 'off' }[jumpSwitch];
   else if (id === 'doorL') S.doorCmd[0] = S.doorCmd[0] ? 0 : 1;
   else if (id === 'doorR') S.doorCmd[1] = S.doorCmd[1] ? 0 : 1;
