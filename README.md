@@ -21,6 +21,7 @@ The enemy carrier KRAKEN is out there doing the same, and whoever controls the m
 - **Para-drop repair team.** Downed on land? Press L and home base sends a steel dropship from over the horizon. You fly it in from the flight deck with a real fixed-wing flight model (or let the autopilot), line up the jump run against the wind, jump on the green light, then steer the canopies down; whoever lands on dry ground runs over with fuel and fixes the helicopter. Enemy flak can bring the dropship down.
 - **SKY CARRIER.** Spend 300 materiel (6 on the map) and the ALBATROSS is refitted with four ducted lift fans and takes to the air. Land on her and press Tab to stand on the bridge: wheel, speed telegraph and lift lever, all slow and heavy. Send her anywhere from the map and she flies over the islands; flak can bring her down.
 - **UH-1H Huey.** A Bell UH-1H with a validated flight model (teetering two-blade rotor with the Bell stabilizer bar, translational lift, ground effect, vortex ring state, retreating blade stall, a T53 engine with governor and freewheel so autorotations work), a full 3D cockpit with live instruments and the real caution panel, an authentic (optional) start sequence, the two-blade "wop wop", and a damage model where hits cause failures you can survive and repair. Built for a T.Flight HOTAS 4 + T-Rudder pedals: stick = cyclic, throttle lever = collective, pedals (or twist) = anti-torque; keyboard works too with the stability assist.
+- **Armour: M60A3 TTS and M113A2** (on their test ground for now, `dev/tank.html`; they join the war in the next wave). A tracked-vehicle simulation with torsion-bar roadwheels, track-soil shear and sinkage on road, grass, sand, mud and bog, a real drivetrain (diesel, torque converter, cross-drive with pivot turns / controlled differential), steps, trenches, slopes, fording, and the M113 swims on its tracks. The tank has a stabilised turret, laser rangefinder and ballistic computer, day and thermal (TTS) sights, a loader, coax and .50; both have full crew interiors (driver's periscopes and gauges, gunner's station, commander's cupola, the M113's troop compartment) and synthesised engine, track and gun sound.
 - **Effects that build up.** Smoke columns, fires, scorch marks, debris and oil slicks stay on the map.
 
 Win by sinking the KRAKEN or taking IRONHOLD. You lose if the ALBATROSS sinks or you run out of helicopters.
@@ -99,6 +100,17 @@ Jet scenes: `jet.mjs` (launch, climb, turn), `jettrap.mjs` (arrested landing), `
 sweeps hundreds of seeds per tier, checking that each cave is connected, wide enough to fly and has its pad, tanks and
 pod on solid floors. `scenes/caves.mjs` flies into every cave and screenshots it.
 Huey scenes: `hueystart.json` (cold start), `hueyhover.json` (hover trim, forward flight), `hueyauto.json` (practice autorotation with power recovery), `hueycockpit.mjs`, `hueymodel.mjs` (screenshots).
+`node tools/tankbench.mjs` checks the M60A3 and M113A2 against published figures (speed, acceleration, gradient, side
+slope, step, trench, fording, swimming, turning, turret rates, stabiliser), every number tagged with its source.
+Armour scenes: `tankmodel.mjs` (exterior; `VEH=m113` for the APC), `tankinterior.mjs` (crew stations, sight pictures),
+`tankdrive.mjs` (the obstacle lanes, a first-round hit at 1000 m), `tankm113.mjs` (ramp, troops, swimming),
+`tankaudio.mjs` (the synthesised sound, rendered offline).
+
+**Armour test ground** (`game/dev/tank.html`, `?veh=m113` for the APC): W/S accelerator / brake, A/D steer, Z X C V
+range R N L H (M113: R N 1-2 1-3), P park brake, I engine; Tab cycles the views (chase, driver, gunner, commander,
+free); arrows or mouse lay the gun, Space fires, F coax, T lase, G dump, 1 2 3 SABOT HEAT HEP, B stabiliser, O day /
+thermal sight, [ ] TTS 3x / 8x, U white / black hot, E (gunner) look up from the sight, K searchlight, M or Space in
+the cupola fires the .50, H hatches; M113: R ramp, Y trim vane, J bilge pumps.
 
 ## Credits
 

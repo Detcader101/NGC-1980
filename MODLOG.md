@@ -229,3 +229,154 @@ TM-73,254 (fuselage, stab bar, tail rotor), DCS UH-1H manual (limits, procedures
   LEFT / RIGHT, stored in localStorage (tz_ckfov). Applies to the Huey cockpit, the Hornet cockpit (zoom = 0.4x of it)
   and the dropship flight deck; chase cameras and the cave side view keep their own. The jet HUD is a physical
   combiner in the cockpit model, so it stays conformal at any FOV. Scene: tools/scenes/fov.mjs.
+
+## 2026-10-23 — NGC-1980 armour: M60A3 TTS and M113A2 (track sim, models, interiors, sound, test ground)
+Files (all new): game/js/units/armor/ trackfm.js (the tracked-vehicle sim, pure), m60a3.js (M60A3 parameters + the
+tank: turret, stabiliser, fire control, racks, loader, crew, electrics, fire, armour zones), m113.js (M113A2 parameters +
+the APC: ramp, trim vane, bilge pumps, M2HB, 11 seats), armorballistics.js (game-level shells and armour), tankmodel.js
+(M60A3 exterior + the shared running-gear kit), m113model.js, tankinterior.js (M60 driver / gunner / cupola, M113 driver
+/ troop compartment), armoraudio.js, testground.js (the test ground, pure: used by the bench and the dev page);
+game/dev/tank.html + tank.js; tools/tankbench.mjs; scenes tankmodel / tankinterior / tankdrive / tankm113 / tankaudio.
+No shared files touched (main.js, audio.js, war.js untouched): wave 2 plugs these in through the interface below.
+
+**The sim (trackfm.js), per 1/240 s substep** (AI vehicles can run 1/120: `createTrackSim(P, { substep: 1/120 })`):
+- 6-DOF rigid hull (CG, diagonal inertia, quaternion). Hull frame: origin on the ground at static ride height, centre of
+  the track contact; x right, y up, z AFT (forward -z, like the jet).
+- Roadwheels: massless, on preloaded torsion bars (the rebound stop is a stiff spring, so a hanging wheel touches down
+  without a force step), dampers on the stations that have shocks, bump stops. Travel = where the ground puts the wheel
+  circle, sampled at 7 points (a kerb lifts the wheel before its centre reaches it). Between adjacent wheels the bottom
+  run is two more contacts (it bears on ridges and step lips). Idler and sprocket arcs (to 155° from down) and the
+  inclined front / rear runs are rigid contacts; hull probes for high-centring, rollovers and the gun digging in.
+- Contact normal = the terrain normal; a contact that meets a wall or an edge (kink in the height field: second
+  difference > 5 cm) uses its own geometry. Soil edges crumble under a heavily loaded track (up to 0.3 m).
+- Track-ground shear: Wong's exponential law on a 2-D shear-displacement state per contact, relaxed as fresh links
+  arrive (steady state = Wong's drawbar-pull / slip curve; at standstill a stiff spring: parks on a 30 % slope with zero
+  creep). The links in contact move along the contact plane at track speed (the track conforms). Longitudinal and
+  lateral slip, skid steer and pivots all come from this one law.
+- Soils (SOILS): Bekker n, kc, kphi, cohesion, friction angle (Wong table 2.3: LLL sandy loam = grass, dry sand, WES lean
+  clay 32 % = mud, lean clay 22 % = dirt, snow) + an INFERRED bog; rubber pads on paved / rock. Sinkage from a low-passed
+  track pressure (plastic: sinks fast, recovers slowly) plus slip sinkage; compaction resistance; internal track
+  resistance R_in = W (222 + 3 V) N (Wong).
+- Drivetrain: engine, converter turbine and two sprockets as rotating bodies joined by torque-limited constraints solved
+  with sequential impulses: range clutch, converter lock-up, steer lock + steer clutch (cross-drive: steer speed from the
+  input, pivot in neutral; controlled differential: steer ratio on the output, no pivot), brakes, park brake, downshift
+  inhibitor, automatic shifting (TX100). Diesel with an all-speed governor on a net torque curve, injection lag,
+  starter, stall, fuel burn incl. fan power; Trilok converter (capacity factor + torque ratio). The ground's pull on each
+  sprocket is implicit (stiff soil stays stable).
+- Water: buoyant hull columns, quadratic drag, paddle thrust from track slip through the water (and its torque back on
+  the sprockets), the M113's trim vane (bow lift), intake flooding after ~0.8 s under (stalls the engine), leaks through
+  the deck line, bilge pumps; water aboard adds mass (sinking). Events: stall, start, flooded, thrown, bellied, rollover,
+  swimming, sinking, knockdown, impact, gunDug.
+
+**INTERFACE FOR FOUNDATION (wave 2)**
+- Create: `createM60A3(opt)` / `createM113(opt)` (vehicle with crew systems) or `createTrackSim(P, opt)` (bare chassis).
+  `V.reset(x, z, yaw, env, { range, park, speed, running, cold, vane, pumps, ramp })` sits it on the ground (plane fit
+  under the track corners). `V.step(dt, env, input)` returns this frame's events. Pose for rendering: `V.fm.origin()`
+  (hull frame origin, world) + `V.fm.q` (quaternion {x,y,z,w}, three.js convention); `V.fm.pos` is the CG.
+- env (what the host provides): `height(x, z)` REQUIRED; `surface(x, z)` -> 'paved'|'rock'|'dirt'|'grass'|'sand'|'mud'|
+  'bog'|'snow' (default dirt); `water(x, z)` -> water level or -Infinity; `normal(x, z, out)` optional;
+  `obstacles(x, z, r)` -> [{ kind: 'cyl', x, z, r, top, id, breakN } | { kind: 'box', x, z, hx, hz, yaw, top, id,
+  breakN }] (things with breakN get pushed over: event 'knockdown'); `raycast(o, d, max)` -> distance (laser).
+  Moving decks are not supported yet.
+- Inputs (M60A3): throttle, brake, steer (-1..1, + right), range ('R','N','L','H'), park, starter, fuelOn; trav, elev
+  (power control handle, + right / up), fire, coax, lase, dump, ammo ('M735'|'M456'|'M393'), stab, power, sight
+  ('day'|'tts'), ttsMag (3|8), ttsPolarity ('wh'|'bh'); commander: cupTrav, cupElev, fire50; extinguish.
+  (M113): the same driving inputs with ranges 'R','N','1','1-2','1-3'; mgTrav, mgElev, fire50; ramp, vane, pumps,
+  dismount / mount (seat index, 'all', 'any').
+- Shots come out as events `{ type: 'shot', weapon: 'main'|'coax'|'mg50', round, p, dir, v0, vel }`: the host flies
+  them with armorballistics `newShot` / `stepShot` (the model the computer's tables use) and reports hits with
+  `V.hit({ round, range, o, d })` (a ray in the hull frame; returns the result + events: crew wounds, component damage,
+  fire, cook-off, kill state M / F / K). Recoil is applied to the hull by the tank itself.
+- Models: `buildM60A3Mesh()` / `buildM113Mesh()` -> { group, hull, turret, cupola, ..., animate(state), setInside(bool) };
+  state from the sim: travel = fm.wheels[s][i].s, trackPos = fm.trackPos, az / el / recoil / cupAz / mgEl, hatches,
+  ramp / vane. Interiors: `buildTankInterior()` (add .group to the hull, .gunner to model.turret, .commander to
+  model.cupola) / `buildM113Interior()` (add .group to the hull, .rampIn to model.ramp, .cargoIn to the cargo hatch);
+  eyes: TANK.DRIVER_EYE, TANK.GUNNER_EYE_T, TANK.COMMANDER_EYE_T, M113_EYES. Sound: `new ArmorAudio(sfx.ctx, sfx.master)`,
+  `.update(V, 'm60'|'m113', { inside, cam })` per frame, `.mainGun()`, `.mg(weapon)`, `.loaded()`, `.impact(big, dist)`.
+  The dev page (game/dev/tank.js) is the reference host: cameras, sights, thermal view, shells, hits, sound.
+- Cost: ~1.0 ms per 1/60 s frame for an M60A3 at 240 Hz on rough ground (0.55 ms at 120 Hz), M113 0.4 ms; no
+  allocation in the substep loops.
+
+**Bench (node tools/tankbench.mjs: 63 checks, all pass).** C = in a source read for this work (AFVDB, FAS, Wikipedia
+citing Foss / Jane's and Hunnicutt, armedconflicts.com), U = unverified, I = inferred, GAME = game balance.
+| item | M60A3 sim | published | M113A2 sim | published |
+|---|---|---|---|---|
+| top speed, road | 48.7 km/h | 48 (C) | 63.6 km/h | 64 (C) |
+| 0-32 km/h | 10.3 s | not found (U ~15-20) | 9.2 s | 11.0 s (FAS, C) |
+| reverse | 17.1 km/h | 16 (FAS, C) | 19.0 km/h | - |
+| road range at 30 km/h | 500 km | 450-500 (C) | 446 km | 480 (C) |
+| gradient | climbs 60 % at 3.5 km/h, fails 75 % | 60 % (C) | 60 % at 2.3 km/h, fails 80 % | 60 % (C) |
+| side slope | holds 30 % parked (no creep) and driving | 30 % (C) | same | 30 % (C) |
+| vertical step | 0.91 m yes, 1.2 m no | 0.91 m (C) | 0.61 m yes, 0.85 m no | 0.61 m (C) |
+| trench (crawl) | 2.59 m yes; sim limit ~3.6 m | 2.59 m (C) | 1.68 m yes; sim limit ~2.8 m | 1.68 m (C) |
+| fording | 1.2 m dry, floods at 1.6 m | 1.22 m (C) | swims | 1.02 m / swims (C) |
+| swimming | - | - | 5.5 km/h, 32 cm freeboard | 5.8 km/h (C) |
+| turning | pivots 39°/s (dirt) | pivot (C) | 8.0 m circle, no pivot | 7.9 m (C) |
+| ground pressure | 0.867 kg/cm2 | 0.852 (C) | 0.557 empty / 0.61 with troops | 0.55 (C) |
+| traverse / elevation | 16.2 s for 360°, 3.9°/s, +20/-10° | 16 s, 4°/s, +20/-10° (C) | - | - |
+| stabiliser on the move | 2.3 mrad on vs 44 off at 23 km/h | two-axis; Pk >70 % with, ~0 without (C, qualitative) | - | - |
+| soft ground | grass 44, sand 42, mud 27 km/h (sinks 24 cm), bog: bellied | - (I) | 43 / 41 / 32, bog: bellied | - (I) |
+INFERRED parameters (stated in the files): gear ratios (CD-850-6A: L 5.1, H 1.26, R 3.62, final 4.4; TX100: 4.0 / 1.75 /
+1.0, R 3.4, final 3.95), converter capacity and stall ratios, steer ratios (the M113's tuned to its 7.9 m circle),
+torsion bar rates (~1.1 Hz heave), track masses and inertias, the M113 track's internal-resistance factor, buoyancy
+columns, paddle coefficient (tuned to 5.8 km/h), the soil-to-surface mapping and the bog.
+
+**Weapons are GAME-LEVEL** (the coordinator's instruction mid-wave): headline muzzle velocities only (M735 1501, M456
+1173, M393 732, 7.62 853, .50 887 m/s), a game drag, game penetration values and game armour thicknesses per zone
+(layered: track skirts and fenders use up part of a round's value). The computer is a simple range (superelevation from
+the same flight model) + lead (tracking rate x time of flight, capped at 25 mils) solution, applied by offsetting the
+gun from the sight line (the gunner keeps the reticle on the target). Decisions: the coax is the M240 (standardised with
+the M60A3 around 1979: Wikipedia, FAS); hydraulics are fire-resistant with Halon (two shots; crew compartment automatic,
+engine manual); 63 rounds in three racks (13 ready in the bustle at 7.5 s a round, 26 in the hull at 13 s, 24 on the
+floor at 11 s; the loader slows when wounded, when the hull pitches, and the commander loads if he is dead); combat weight
+52,617 kg (sources conflict 51.4-52.6 t).
+
+**Models and interiors.** M60A3 at real size (lofted hull and needle-nose turret, fenders with stowage boxes, headlight
+guards, TTS housing with doors, M19 cupola with the M85, xenon searchlight, thermal-sleeved M68 with bore evacuator,
+bustle rack with bedrolls, smoke dischargers, antennas, spare track blocks, jerry cans, tow cable), MERDC Summer Verdant
+painted per face from a 3-D noise, mud low down, dust on top, stencilled bumper codes and the turret number. The
+running-gear kit (both vehicles): wheels ride trailing torsion arms with the sim's travel, shocks stretch, sprocket /
+idler / wheels spin with the track, and the links (80 on the M60, 63 on the M113, instanced) follow the real belt round
+the circles (support rollers, sag). M113: aluminium box with glacis, plywood trim vane (folds / raises), ramp with door,
+cargo hatch, cupola with M2HB, front sprocket, no support rollers. Interiors are closed rooms seen only through the
+vision devices (the exterior lofts are back faces from inside): driver (periscopes, live gauges, warning lights, T-bar,
+pedals, selector, park brake, hull rack), gunner (full-screen M35E1 day / TTS thermal sight pictures with mil reticle,
+range, round, READY, mode; E looks up into the fighting compartment: breech that recoils, power control handles that
+move, M21 panel with a live range readout and lamps, handwheels, bustle ready rack), commander (cupola with eight vision
+blocks, turns with the .50), M113 driver (four periscopes, laterals that pull, selector, gauges, bilge lamps) and troop
+compartment (two benches, eleven seated infantrymen in OG-107 and M1 helmets with M16A1s, the ramp opens to the world,
+dome lights, radio). The TTS view re-renders the scene in heat greys (hot hulks, engine decks and running gear, cool sky
+and ground) through a green-phosphor shader with scan lines, noise and WH / BH polarity.
+
+**Gotchas found on the way.**
+- The first frame's rAF timestamp can be earlier than the load-time performance.now(): dt < 0 ran the sim backwards into
+  NaN (and crept the smoothed inputs). Clamp dt >= 0 on the page and refuse dt <= 0 in sim.step.
+- Contact normals along the hull's tilted up axis gave a FREE horizontal force whenever the hull pitched (2.7 kN of thrust
+  at the M113's 1.3° nose-down trim): top speed depended on the CG position. Use the terrain normal; geometry normals
+  only at walls and edges.
+- A finite-difference normal over a step lip looks like a 51° slope (passes a steepness test) and pushes the hull back:
+  detect kinks by the second difference instead.
+- Inclined track runs with a link direction fixed in the hull dragged when pressed flat on the ground (the cos of the run
+  angle): project the link direction onto the contact plane at track speed.
+- Sinkage computed from the instantaneous load fed back through the dampers into a period-2 limit cycle (730 / 300 kN
+  alternating): low-pass the load and measure damper rates over the unsunk ground.
+- The side-slope lane had no eastern bound and raised a 4.8 m wall across the bump course; it is a bounded ridge now.
+- A cleared 2D overlay canvas was not re-composited in headless Chrome (a stale reticle in later shots): hide it instead.
+- The snap harness wraps evals in `const __r = ...`: a scene variable named __r breaks it.
+- A `//` comment pasted mid-line by sed swallowed the rest of the statement (again): use /* */ in one-liners.
+- Sensitivities, documented not hidden: a sharp CONCRETE 0.91 m wall is marginal for the M60 in the sim (face friction
+  must lift the nose against the rear pivot; earth banks with crumbling lips are fine, so the test ground's steps are
+  earth banks), and both vehicles bridge trenches ~1.4-1.6x their ratings at a crawl (rigid track, firm far wall; the
+  ratings carry field margins).
+
+**Tests and runs.** node tools/tankbench.mjs 63/63. Scenes (from tools/, CHROME_PATH=... node snap.mjs scenes/<s>):
+tankmodel.mjs 2/2 (VEH=m113 too), tankinterior.mjs 2/2 (driver, sight pictures, gunner station, cupola),
+tankdrive.mjs 8/8 (step, trench, 60 % ramp, ridge, mud, ford, laser range, a first-round SABOT hit at 1000 m),
+tankm113.mjs 4/4 (ramp, vane, troops, swims at ~5.9 km/h), tankaudio.mjs 4/4 (offline render: louder under load,
+muffled highs inside, the gun, the 6V53).
+
+**Untested / not done.** A HOTAS / gamepad on the tank (keyboard + mouse on the dev page); moving decks (landing craft);
+the hatch-open driver view; AI driving; damage drawn on the model (burning, a thrown track off its wheels); night (the
+searchlight lights nothing yet); terrain heat in the TTS beyond a flat grey; sound on real speakers (only measured
+offline). Next step (wave 2): FOUNDATION hosts V.step / the model / the interior on the island terrain (height, surface
+from the terrain classes, water at 0), shells through war.js, enter / exit at the hatches; then AI tank and APC drivers.
