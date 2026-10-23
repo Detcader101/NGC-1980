@@ -159,7 +159,7 @@ node tools/seabench.mjs             # the live sea: fractional sea states, phase
 node tools/worldsolidbench.mjs      # the lived-in world as colliders: houses stop a walker, field walls, bridge decks and parapets
 ```
 
-Sea and world: `seaworld.mjs` (`PARTS=lift,house,bridge,mounts,sea`): the ALBATROSS's lift carrying a spotted Hornet and a soldier, a parked Hornet stopping a walker, a village house wall, a bridge crossed on its deck, the KRAKEN's TALON and LANCE mounts firing, sea states 1 / 4 / 7 from the deck, from 100 m and from a Hornet at 600 m.
+Sea and world: `seaworld.mjs` (`PARTS=lift,house,bridge,mounts,horizon,sea`): the ALBATROSS's lift carrying a spotted Hornet and a soldier, a parked Hornet stopping a walker, a village house wall, a bridge crossed on its deck, the KRAKEN's TALON and LANCE mounts firing, no black above the horizon from six views (deck / 600 m, chase / cockpit, scripted cameras), sea states 1 / 4 / 7 from the deck, from 100 m and from a Hornet at 600 m.
 
 Naval: `game/dev/ships.html` orbits each ship on a sea with sea-state, speed and turn sliders (`?ship=albatross|kraken|leviathan|container`). Scenes: `naval.mjs` (every ship in the game, the deck moving with the sea, crew clearing out from under a helicopter), `shipsdev.mjs` (the preview page from many angles, draw calls).
 

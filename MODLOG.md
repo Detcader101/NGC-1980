@@ -1233,10 +1233,21 @@ tools/worldsolidbench.mjs, tools/scenes/seaworld.mjs. Changed: seamotion.js, nav
   LEVIATHAN TALONs forward / LANCEs aft, the container ship a TALON on the forecastle. DEF.talonm / lancem: hp 9 (the
   old ship guns), the ship LANCE's beam a little weaker (dps 2.6, player 0.2). The units behave exactly as on the islands
   (see, lock with tells, fire); the brain's LANCE checks now go by T.beam, not the type name.
+- **The black dome on the horizon (root cause).** The sky dome (radius 0.97 x the draw distance) and the terrain windows
+  were centred on zCam in updateCamsAndMeshes. Any camera moved after that - every test scene's scripted camera patches
+  renderer.render to move the camera - sat off-centre, the far side of the dome fell beyond the far plane (draw + 15 m)
+  and was clipped, and the black clear colour showed as a dome above the horizon (the terrain grid also ended short).
+  Now sky, fine grid and far ring are centred on the rendering camera in their onBeforeRender. seaworld 'horizon' part:
+  deck and 600 m, chase and cockpit, two scripted cameras: < 0.2 % pure black above the horizon (without the fix the
+  high scripted camera shows 100 %).
+- **Cost.** Software WebGL pays per pixel: the first version's per-pixel six-ship hull-foam loop cost ~25 % of a frame over
+  the sea; the foam is now found per vertex (the pixel only adds the noise), the noise for whitecaps / streaks / glint
+  only runs where it can show, and the GPU draws the 8 largest of the 14 components.
 - **Names** (HUD, feed, advisor, map, title help, the Hornet's target box): LEVIATHAN, CONTAINER SHIP, SEA KNIGHT,
   MV-22 OSPREY, RW-3 WASP, TOMCAT ESCORT; the map legend lists the ships.
-- **Tests.** seabench 15/15, worldsolidbench 9/9, navalbench 22/22, footbench, boxcarbench pass. seaworld.mjs 19/19
-  (lift: soldier and Hornet ride it down and up, the hull is a wall from below, a parked Hornet stops a walker; a village
+- **Tests.** seabench 15/15, worldsolidbench 9/9, navalbench 22/22, footbench, boxcarbench pass. seaworld.mjs 25/25
+  (lift: soldier and Hornet ride it down and up, the hull is a wall from below, a parked Hornet stops a walker; the
+  horizon from six views; a village
   house wall stops a walker; a wild-lands bridge is crossed on its deck 12 m over the valley; the KRAKEN's TALON and
   LANCE mounts lock and fire; SS 1 / 4 / 7 from the deck, 100 m and a Hornet at 600 m). Regression results and fps in
   the branch report.
