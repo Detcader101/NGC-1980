@@ -499,6 +499,11 @@ export function createTrackSim(P, opt = {}) {
     // range selection: shifts take X.SHIFT_T seconds with the range clutch slipping in
     let want = ctl.range; if (!X.ranges[want] && want !== 'N') want = 'N';
     if (X.AUTO && X.ranges[want] && X.ranges[want].auto) want = autoShift(want);
+    // downshift inhibitor: a range that would over-speed the engine (or a reversal while rolling) is held off
+    if (want !== sim.range && X.ranges[want]) {
+      const wm = (sim.spr[0] + sim.spr[1]) / 2, tw = wm * rangeRatio(want);
+      if (tw * RPM > E.CUTOFF * 1.05 || tw * RPM < -E.CUTOFF * 0.3) want = sim.range;
+    }
     if (want !== sim.range) { sim.range = want; sim.shiftT = 0; }
     sim.shiftT += dt;
     const inGear = sim.range !== 'N' && sim.dmg.trans > 0.05;
@@ -616,10 +621,20 @@ export function createTrackSim(P, opt = {}) {
       // horizontal drag on the projected areas
       bodyToWorldDir([0, 0, -1], dW); bodyToWorldDir([1, 0, 0], tW);
       const uf = _u[0] * dW[0] + _u[2] * dW[2], us = _u[0] * tW[0] + _u[2] * tW[2], subH = hgt * sub;
-      const kf = -0.5 * RHO_W * W.CD_X * (W.FRONT_W / COLS.length) * subH * Math.abs(uf) * uf, ks = -0.5 * RHO_W * W.CD_Y * (2 * col.az) * subH * Math.abs(us) * us;
+      // columns come in 2 layers (lower hull, upper hull) of 2 across: each carries its share of the frontal and side areas
+      const kf = -0.5 * RHO_W * W.CD_X * (W.FRONT_W * 2 / COLS.length) * subH * Math.abs(uf) * uf, ks = -0.5 * RHO_W * W.CD_Y * col.az * subH * Math.abs(us) * us;
       addF(cp, [dW[0] * kf + tW[0] * ks, -fw * Math.abs(_u[1]) * _u[1], dW[2] * kf + tW[2] * ks]);
     }
-    const afloat = buoy > 0.97 * (sim.mass + wst.inside * RHO_W) * G0 * 0.98 && (sim.load[0] + sim.load[1]) < 0.05 * sim.mass * G0;
+    // trim vane (M113): raised, it stands out ahead of the bow, keeps the bow wave off the deck and adds bow lift
+    // (buoyancy of its foam-filled / planing surface + the trapped bow wave), INFERRED magnitude
+    if (W.VANE && wst.vane) {
+      sim.toWorld([0, W.VANE_Y, W.VANE_Z], _p);
+      const sub = clamp((env.water(_p[0], _p[2]) - _p[1]) / 0.6 + 0.5, 0, 1);
+      if (sub > 0) { const fb = RHO_W * G0 * W.VANE_VOL * sub; buoy += fb; addF(_p, [0, fb, 0]); }
+    }
+    // afloat with hysteresis: buoyancy carries the vehicle and the tracks carry (almost) nothing
+    const trackW = (sim.load[0] + sim.load[1]) / (sim.mass * G0);
+    const afloat = wst.afloat ? trackW < 0.15 : buoy > 0.9 * sim.mass * G0 && trackW < 0.04;
     if (afloat !== wst.afloat) { wst.afloat = afloat; sim.events.push({ type: 'swimming', on: afloat }); }
     // water taken aboard adds mass (sinking)
     // track propulsion (paddle): thrust from each track's slip through the water, a reaction torque on its sprocket.
@@ -638,7 +653,10 @@ export function createTrackSim(P, opt = {}) {
     // ingress: deep fording floods the engine through its air intake; a swimmer leaks and its pumps clear it
     const intakeY = P.HULL.INTAKE_Y;
     sim.toWorld([0, intakeY, P.HULL.INTAKE_Z || 1.5], _p);
-    if (!sim.eng.flooded && env.water(_p[0], _p[2]) > _p[1]) { sim.eng.flooded = true; sim.events.push({ type: 'flooded', where: 'engine' }); }
+    // the intake swallows water only when held under (a splash over the grille is not enough): ~0.8 s of submersion
+    const under = env.water(_p[0], _p[2]) - _p[1];
+    wst.intakeT = Math.max(0, (wst.intakeT || 0) + (under > 0 ? dt * Math.min(3, 0.5 + under / 0.1) : -dt * 0.5));
+    if (!sim.eng.flooded && wst.intakeT > (W.INTAKE_T || 0.8)) { sim.eng.flooded = true; sim.events.push({ type: 'flooded', where: 'engine' }); }
     const swimmer = !!W.SWIMS;
     const ready = swimmer && (!W.VANE || wst.vane);
     let leak = 0;
@@ -650,8 +668,8 @@ export function createTrackSim(P, opt = {}) {
     wst.ingress = leak; wst.bilge = pump;
     wst.inside = clamp(wst.inside + (leak - pump) * dt, 0, W.MAX_INSIDE || 20);
     if (wst.inside > (W.FLOOD_CREW || 2) && !wst.crewFlood) { wst.crewFlood = true; sim.events.push({ type: 'flooded', where: 'crew' }); }
-    if (leak > pump && wst.afloat && !wst.sinkWarn) { wst.sinkWarn = true; sim.events.push({ type: 'sinking' }); }
-    if (leak <= pump) wst.sinkWarn = false;
+    if (wst.inside > 0.3 && leak > pump && !wst.sinkWarn) { wst.sinkWarn = true; sim.events.push({ type: 'sinking' }); }
+    if (wst.inside < 0.05) wst.sinkWarn = false;
   }
   sim.water.drain = function (dt) { if (this.inside > 0) this.inside = Math.max(0, this.inside - (this.pumps ? W.PUMP || 0.01 : 0.002) * dt - 0.004 * dt); };
 
