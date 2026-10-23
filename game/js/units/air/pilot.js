@@ -379,7 +379,9 @@ export function createPilot(A, o = {}) {
     const anc = PL.anchor || (env.anchor && env.anchor()) || A.pos;
     switch (PL.state) {
       case 'cat': {
-        FD.ctl.pitch = 0; FD.ctl.roll = 0; FD.ctl.yaw = 0; FD.thr = PL.stateT > 0.6 ? 1 : 0.3; FD.setThrottle(FD.thr);
+        FD.ctl.pitch = 0; FD.ctl.roll = 0; FD.ctl.yaw = 0;
+        if (A.catClear === false) PL.runT = 0; else PL.runT = (PL.runT || 0) + dt;   // tensioned and waiting for the shooter: idle
+        FD.thr = PL.runT > 0.6 ? 1 : 0.3; FD.setThrottle(FD.thr);
         if (!A.cat) set('climb');
         break;
       }
