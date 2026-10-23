@@ -1,6 +1,7 @@
 // Models for the island war: the two carriers, the enemy battleship, capture drones, enemy transports and the island
 // buildings. Low-poly, flat-shaded, built from primitives. Local frame: +y up, the bow / nose points along -z.
 import * as THREE from 'three';
+import { buildAlbatross } from './units/naval/albatross.js';
 
 const M = (c, o = {}) => new THREE.MeshPhongMaterial({ color: c, flatShading: true, shininess: 20, ...o });
 // a top-view outline drawn with y = local z; for a floor facing up after rotateX(-PI/2) the outline is mirrored in y
@@ -25,7 +26,13 @@ function deckTexture(side) {
   x.fillStyle = team; x.font = 'bold 54px sans-serif'; x.save(); x.translate(205, 520); x.rotate(Math.PI / 2); x.fillText(side === 1 ? 'ALBATROSS' : 'KRAKEN', 0, 0); x.restore();
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
+// The carriers are built in units/naval/: ALBATROSS (side 1). buildCarrier keeps its name and return shape
+// { group, guns, dish, lamp, lights, teamM, tower, band } plus the new parts (mounts, crew, tick, localDeck).
 export function buildCarrier(side) {
+  if (side === 1) return buildAlbatross(1, { buildTomcat });
+  return buildCarrierOld(side);
+}
+function buildCarrierOld(side) {
   const g = new THREE.Group(), { L, W, DECK } = CARRIER;
   const hullM = M(side === 1 ? 0x56616c : 0x4f3c3a), darkM = M(0x26292d), teamM = M(TEAM[side], { emissive: side === 1 ? 0x0a2a44 : 0x440a06 });
   // hull: a prism from the top-view outline (pointed bow, square stern), flared above the waterline

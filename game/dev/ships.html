@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Naval Preview</title>
+<script type="importmap">{"imports":{"three":"../vendor/three.module.min.js"}}</script>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#8fb6d8;font:12px Consolas,monospace;color:#dff}
+canvas{display:block}
+#ui{position:fixed;right:0;top:0;bottom:0;width:260px;overflow:auto;background:rgba(0,15,30,.7);padding:8px}
+#ui label{display:flex;justify-content:space-between;align-items:center;gap:4px;margin:3px 0}
+#ui input[type=range]{width:130px}
+#ui select{width:140px}
+#ui div{white-space:pre;margin-top:8px}
+#ui.hide{display:none}
+#info{position:fixed;left:8px;top:6px;color:#023;text-shadow:0 0 3px #fff}
+</style></head><body>
+<div id="info">drag: orbit, wheel: zoom, shift-drag: pan | ?ship=albatross|kraken|leviathan|container &amp;sea=0..7 &amp;ui=0</div><div id="ui"></div>
+<script type="module" src="./ships-dev.js"></script>
+</body></html>

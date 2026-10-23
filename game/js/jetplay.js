@@ -40,7 +40,7 @@ export function createJetPlay(ctx) {
   };
   const env = {
     groundY: ctx.groundY, water: ctx.waterAt, surfVel: war.surfVel, mods: null,
-    carrier: () => { const c = war.carrier; return c && c.sinking === undefined ? { x: c.p.x, z: c.p.z, yaw: c.yaw, deck: ctx.CARRIER.DECK + c.p.y } : null; },
+    carrier: () => { const c = war.carrier; return c && c.sinking === undefined ? { x: c.p.x, z: c.p.z, yaw: c.yaw, deck: ctx.CARRIER.DECK + c.p.y, deckAt: war.deckAt ? (x, z) => war.deckAt(c, x, z) : null } : null; },   // NAVAL: deckAt = the deck moving with the sea
   };
 
   // ---------------------------------------------------------------- life cycle

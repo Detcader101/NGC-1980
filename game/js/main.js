@@ -640,7 +640,7 @@ function command(n) {
 function spawnSpot() {
   const c = war && war.carrier;
   // the aft helicopter spot (H3): the Huey's 48 ft disc clears the island there
-  if (c && c.sinking === undefined && !params.has('homepad')) { const lx = -2, lz = 32, cs = Math.cos(c.yaw), sn = Math.sin(c.yaw); return { x: c.p.x + lx * cs + lz * sn, z: c.p.z - lx * sn + lz * cs, y: CARRIER.DECK + Math.max(0, c.p.y), yaw: c.yaw }; }
+  if (c && c.sinking === undefined && !params.has('homepad')) { const lx = -2, lz = 32, cs = Math.cos(c.yaw), sn = Math.sin(c.yaw), x = c.p.x + lx * cs + lz * sn, z = c.p.z - lx * sn + lz * cs, dy = war.deckY(x, z); return { x, z, y: dy > -1e8 ? dy : CARRIER.DECK + Math.max(0, c.p.y), yaw: c.yaw }; }   // NAVAL: deckY moves with the sea
   return { x: PAD.x, z: PAD.z, y: PAD_H, yaw: 0 };
 }
 function resetZarch(fromPad) {
