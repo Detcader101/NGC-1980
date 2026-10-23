@@ -8,7 +8,7 @@ export default async function (h) {
   // helpers: the soldier in the carrier's frame
   await h.eval(`(window.__F = {
     W: () => __G.foot.W,
-    loc: () => { const c = __G.war.carrier, W = __G.foot.W; const [x, z] = __G.GR.toLocal(c, W.x, W.z); return { x: +x.toFixed(2), z: +z.toFixed(2), y: +(W.y - c.p.y).toFixed(2) }; },
+    loc: () => { const c = __G.war.carrier, W = __G.foot.W; const s = __G.GR.toShip(c, W.x, W.y, W.z); return { x: +s.x.toFixed(2), z: +s.z.toFixed(2), y: +s.y.toFixed(2) }; },
     state: () => { const W = __G.foot.W, c = __G.war.carrier; return { craft: __G.G.craft, x: +W.x.toFixed(1), y: +W.y.toFixed(2), z: +W.z.toFixed(1), plat: W.plat ? W.plat.type : null, swim: W.swim, ladder: !!W.ladder, stance: W.stance, surface: W.surface, onGround: W.onGround, ship: [+c.p.x.toFixed(1), +c.p.z.toFixed(1), +c.yaw.toFixed(3)], alive: __G.foot.alive }; },
     place: (lx, lz, yawRel) => { const c = __G.war.carrier, w = __G.GR.toWorld(c, lx, lz); return __G.foot.spawnAt({ x: w.x, y: c.p.y + 8, z: w.z, yaw: c.yaw + yawRel }); },
   }, 1)`);
@@ -32,12 +32,12 @@ export default async function (h) {
   await h.expect('Math.abs(__F.loc().x - __l1.x) < 1 && __G.foot.W.plat === __G.war.carrier');
   await h.shot('walking-the-deck-under-way');
   // 4. the island ladder: walk into it, climb to the roof
-  await h.eval('(__F.place(5.6, 10, -Math.PI / 2), 1)');   // facing +x (starboard), the ladder on the island's port face
+  await h.eval('(__F.place(5.2, -0.6, -Math.PI / 2), 1)');   // facing +x (starboard), the ladder on the island's port face
   await h.key('down', 'KeyW'); await h.waitFor('__G.foot.W.ladder || __G.foot.W.y > __G.war.carrier.p.y + 20', 20000);
   await h.eval('__F.state()');
-  await h.waitFor('__G.foot.W.y > __G.war.carrier.p.y + 24.5 && !__G.foot.W.ladder', 60000); await h.key('up', 'KeyW');
+  await h.waitFor('__G.foot.W.y > __G.war.carrier.p.y + 21 && !__G.foot.W.ladder', 60000); await h.key('up', 'KeyW');
   await h.eval('({ loc: __F.loc(), state: __F.state() })');
-  await h.expect('Math.abs(__F.loc().y - 25) < 0.2 && __G.foot.W.onGround');
+  await h.expect('Math.abs(__F.loc().y - 21.33) < 0.2 && __G.foot.W.onGround');
   await h.eval("(__G.foot.W.yaw = __G.war.carrier.yaw + Math.PI * 0.75, __G.foot.W.pitch = -0.35, 1)"); await h.wait(800);
   await h.shot('on-the-island-roof');
   // 5. over the side: off the port deck edge into the sea, swim aft to the stern ladder, climb back aboard
@@ -62,7 +62,7 @@ export default async function (h) {
   await h.eval("({ kind: __G.PL.kind, hitR: __G.PL.hitR, detect: __G.PL.detect, sight: __G.PL.sight, capTime: __G.PL.capTime, landed: __G.PL.landed, alive: __G.PL.alive })");
   await h.expect("__G.PL.kind === 'foot' && __G.PL.hitR < 0.4 && __G.PL.detect < 0.25 && __G.PL.landed && __G.PL.capTime === 12");
   await h.eval("(__G.foot.stance = 'stand', 1)"); await h.waitFor("__G.foot.W.stance === 'stand' && __G.foot.W.eye > 1.5", 10000);
-  await h.eval("(() => { const W = __G.foot.W; __G.hurtPlayer(0.05, 'HIT', { x: W.x, y: W.y + 1.65, z: W.z }, { x: 50, y: 0, z: 0 }); __G.hurtPlayer(0.05, 'HIT', { x: W.x, y: W.y + 0.4, z: W.z }, null); return { ...__G.foot.slots.medical.hp, alive: __G.foot.alive, hud: __G.foot.slots.medical.hudLine() }; })()");
+  await h.eval("(() => { const W = __G.foot.W; __G.foot.slots.medical.reset(); __G.hurtPlayer(0.05, 'HIT', { x: W.x, y: W.y + 1.65, z: W.z }, { x: 50, y: 0, z: 0 }); __G.hurtPlayer(0.05, 'HIT', { x: W.x, y: W.y + 0.4, z: W.z }, null); return { ...__G.foot.slots.medical.hp, alive: __G.foot.alive, hud: __G.foot.slots.medical.hudLine() }; })()");
   await h.expect('__G.foot.slots.medical.hp.head < 35 && __G.foot.slots.medical.hp.thorax === 85 && (__G.foot.slots.medical.hp.legL < 65 || __G.foot.slots.medical.hp.legR < 65) && __G.foot.alive');
   await h.eval("(__G.foot.view = 'first', 1)");
   // 7. back to the Huey (on the deck), get in by the pilot's door, take off

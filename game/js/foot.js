@@ -359,7 +359,7 @@ export function createFootCraft(ctx) {
     for (const u of war.units) {
       if (!u.dims || !u.mesh || u.mesh.userData.ladders) continue;
       u.mesh.userData.ladders = true;
-      for (const L of GR.LADDERS) if (L.ship === u.type) u.mesh.add(buildLadder(L));
+      for (const L of GR.laddersOf(u)) u.mesh.add(buildLadder(L));
     }
   }
   function buildLadder(L) {
