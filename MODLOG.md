@@ -229,3 +229,16 @@ TM-73,254 (fuselage, stab bar, tail rotor), DCS UH-1H manual (limits, procedures
   LEFT / RIGHT, stored in localStorage (tz_ckfov). Applies to the Huey cockpit, the Hornet cockpit (zoom = 0.4x of it)
   and the dropship flight deck; chase cameras and the cave side view keep their own. The jet HUD is a physical
   combiner in the cockpit model, so it stays conformal at any FOV. Scene: tools/scenes/fov.mjs.
+
+## 2026-10-23 — Huey sits on the flying SKY CARRIER deck (merge fix)
+- Root cause: the Huey's skid contact moved with the deck horizontally (surfVel vx/vz + yaw) but not vertically.
+  `war.surfVel` had no vy, and groundY is sampled once per frame before war.update moves the ship, so inside the
+  Huey's substeps a climbing deck stood still and then jumped up by vy*dt: the skids hopped (contacts 6/0/6...),
+  `H.landed` flickered, Tab could not take the helm. Second merge bug: the helm read the Huey's assisted stick, so
+  the stability assist turned W into a pitch hold and the telegraph went astern; it now reads `ctl.raw`.
+- Fix: `war.surfVel` returns vy (skyFall keeps u.v.y = S.vy); hueyfm / jetfm `surfaceVel` carry vy into the contact
+  relative velocity, and `groundAt` lifts a moving deck by vy * (time into the frame step) for skids, tail, nose
+  (jet: gear and hull); the jet's catapult keeps the deck's vy; spawnSpot uses DECK + c.p.y like deckY.
+- Checked: sky 8/8 (twice); a scratch scene climbing + turning + ahead, then descending: Huey stays at the same deck
+  spot and heading (±0.2 m, ±0.01 rad), lifts off, and the climbing deck catches it in a hover for a clean landing.
+  hueyhover, hueystart, hueyauto, rescue, smoke, loop, jettrap green; hueybench 41/41.

@@ -124,12 +124,14 @@ export function createHueySim(GRAV = 9.81) {
       H.c.coll = landed ? 0 : 0.42; H.c.lon = H.c.lat = 0; H.c.ped = landed ? 0 : -0.25;
     },
     // ctl: { coll 0..1, cx +right, cy +aft, pedal +right (-1..1), throttle grip 0 cutoff..1 open, starter, gov 'AUTO'|'EMER', beep }
-    // env: { groundY(x,z), water(x,z) | water bool, surfVel(x,z) -> {vx,vz,w,cx,cz}|null, mods, fuel (0..100) }
+    // env: { groundY(x,z), water(x,z) | water bool, surfVel(x,z) -> {vx,vy,vz,w,cx,cz}|null, mods, fuel (0..100) }
+    // groundY is sampled once per frame (a ship moves after this step); a moving deck carries on at surfVel within it
     // returns the first event of the frame: 'crash' | 'rotor' | 'water' | 'land' | 'hardland' | 'tailstrike' | null
     step(dt, ctl, env) {
       H.events.length = 0;
       const n = Math.max(1, Math.ceil(dt / (1 / 240))), h = dt / n;
-      for (let i = 0; i < n && !H.dead; i++) sub(h, ctl, env);
+      tStep = 0;
+      for (let i = 0; i < n && !H.dead; i++) { sub(h, ctl, env); tStep += h; }
       const prio = ['water', 'rotor', 'crash', 'tailstrike', 'hardland', 'land'];
       for (const p of prio) if (H.events.some(e => e.e === p)) return p;
       return null;
@@ -374,8 +376,13 @@ export function createHueySim(GRAV = 9.81) {
 
   // ------------------------------------------------------------------------------------- skids
   const slip = U.SKIDS.map(() => [0, 0]);
-  let wasDown = false;
-  function surfaceVel(env, x, z, out) { const sv = env.surfVel ? env.surfVel(x, z) : null; return sv ? out.set(sv.vx + sv.w * (z - sv.cz), 0, sv.vz - sv.w * (x - sv.cx)) : out.set(0, 0, 0); }
+  let wasDown = false, tStep = 0;   // tStep: time into this frame step
+  // the ground under (x, z) now: a deck that climbs or sinks (the SKY CARRIER) has moved on since groundY was sampled
+  function groundAt(env, x, z) {
+    const g = env.groundY(x, z); if (!tStep || !env.surfVel) return g;
+    const sv = env.surfVel(x, z); return sv && sv.vy ? g + sv.vy * tStep : g;
+  }
+  function surfaceVel(env, x, z, out) { const sv = env.surfVel ? env.surfVel(x, z) : null; return sv ? out.set(sv.vx + sv.w * (z - sv.cz), sv.vy || 0, sv.vz - sv.w * (x - sv.cx)) : out.set(0, 0, 0); }
   function settleSkids(env) {   // after a reset on the ground: stand level on the skids at the highest ground below them
     H.settle = false;
     let g = -1e9; for (const [x, y] of U.SKIDS) { H.worldPoint([x, y, U.SKID_Z], _p); g = Math.max(g, env.groundY(_p.x, _p.z)); }
@@ -395,7 +402,7 @@ export function createHueySim(GRAV = 9.81) {
     for (let i = 0; i < U.SKIDS.length; i++) {
       const [sx, sy] = U.SKIDS[i];
       fromF(_t.set(sx, sy, U.SKID_Z), _r).applyQuaternion(H.q); _p.copy(_r).add(H.pos);
-      const gy = env.groundY(_p.x, _p.z), pen = gy - _p.y; gmin = Math.min(gmin, -pen);
+      const gy = groundAt(env, _p.x, _p.z), pen = gy - _p.y; gmin = Math.min(gmin, -pen);
       if (pen <= 0) { slip[i][0] = slip[i][1] = 0; continue; }
       const wet = typeof env.water === 'function' ? env.water(_p.x, _p.z) : !!env.water;
       if (wet) { ev('water'); H.dead = 'water'; return; }
@@ -423,10 +430,10 @@ export function createHueySim(GRAV = 9.81) {
     const W = m * GRAV;
     H.landed = n >= 2 && nsum > 0.08 * W && H.vel.distanceTo(surfaceVel(env, H.pos.x, H.pos.z, _sv)) < 2.5;
     // the tail stinger and the nose: a scrape on lift-off, a strike if it is mishandled
-    H.worldPoint(U.TAIL_SKID, _p); const gT = env.groundY(_p.x, _p.z);
+    H.worldPoint(U.TAIL_SKID, _p); const gT = groundAt(env, _p.x, _p.z);
     if (_p.y < gT - 0.25) { const mis = H.vel.length() > 2 || H.attitude().pitch > 0.15; if (mis && !H.tailHit) { H.tailHit = true; ev('tailstrike'); } H.pos.y += Math.min(0.05, gT - 0.25 - _p.y); if (H.vel.y < 0) H.vel.y *= 0.5; }
     else if (_p.y > gT) H.tailHit = false;
-    H.worldPoint(U.NOSE, _p); if (_p.y < env.groundY(_p.x, _p.z) - 0.3) { ev('crash'); H.dead = 'crash'; }
+    H.worldPoint(U.NOSE, _p); if (_p.y < groundAt(env, _p.x, _p.z) - 0.3) { ev('crash'); H.dead = 'crash'; }
   }
   function rotorStrike(env) {   // the blade tips (on the tip-path plane) touching the ground
     if (H.omega < 3) return;

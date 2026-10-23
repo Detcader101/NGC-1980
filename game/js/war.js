@@ -152,7 +152,7 @@ export function createWar(ctx) {
     return best;
   };
   W.shipAt = (x, z) => W.units.find(u => u.dims && Math.abs(x - u.p.x) < 70 && Math.abs(z - u.p.z) < 70 && (() => { const [lx, lz] = toLocal(u, x, z); return Math.abs(lx) < u.dims.W / 2 && Math.abs(lz) < u.dims.L / 2 + 4; })());
-  W.surfVel = (x, z) => { const u = W.shipAt(x, z); return u && !u.sinking ? { vx: u.v.x, vz: u.v.z, w: u.w, cx: u.p.x, cz: u.p.z } : null; };
+  W.surfVel = (x, z) => { const u = W.shipAt(x, z); return u && !u.sinking ? { vx: u.v.x, vy: u.v.y, vz: u.v.z, w: u.w, cx: u.p.x, cz: u.p.z } : null; };
   W.orderCarrier = (x, z) => {
     const u = W.carrier; if (!u || u.sinking) return false;
     if (u.sky && u.sky.up) { u.path = [[x, z]]; u.goal = [x, z]; u.sky.manual = false; return true; }   // it flies: straight there
@@ -262,7 +262,7 @@ export function createWar(ctx) {
   }
   // shot down in the air: the fans die and it falls
   function skyFall(u, dt) {
-    const S = u.sky; S.vy -= 9.8 * dt * 0.6; u.p.y += S.vy * dt; u.p.x += u.v.x * dt; u.p.z += u.v.z * dt; u.v.multiplyScalar(Math.exp(-0.3 * dt));
+    const S = u.sky; S.vy -= 9.8 * dt * 0.6; u.v.y = S.vy; u.p.y += S.vy * dt; u.p.x += u.v.x * dt; u.p.z += u.v.z * dt; u.v.multiplyScalar(Math.exp(-0.3 * dt));
     S.roll += dt * 0.08; S.pitch += dt * 0.03; u.mesh.position.copy(u.p); u.mesh.rotation.set(S.pitch, u.yaw, S.roll, 'YXZ');
     for (const f of u.parts.fans) { f.rotor.rotation.y += dt * 2; f.glow.material.opacity = 0; }
     if (Math.random() < 0.5) { toWorld(u, rnd(-12, 12), CARRIER.DECK, rnd(-50, 50)); fx.trail(_v.x, _v.y, _v.z, 4); fx.add.spawn(_v.x, _v.y, _v.z, 0, 2, 0, 0.6, 3, 1, 1, .5, .1, 0.9, -1.5, 1); }
