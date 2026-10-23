@@ -100,6 +100,15 @@ sweeps hundreds of seeds per tier, checking that each cave is connected, wide en
 pod on solid floors. `scenes/caves.mjs` flies into every cave and screenshots it.
 Huey scenes: `hueystart.json` (cold start), `hueyhover.json` (hover trim, forward flight), `hueyauto.json` (practice autorotation with power recovery), `hueycockpit.mjs`, `hueymodel.mjs` (screenshots).
 
+**RUNAWAY ground forces (NGC-1980, not in the game yet).** The enemy's land army as standalone sims and models in
+`game/js/units/runaway/`: the RW-1 STRIDER (a balancing biped that stumbles when hit, falls and gets back up), the
+RW-7 hover tank (fan-fed air cushion, drifts), seized M1A2 SEPv3 and T-90M tanks, and a squad AI (cover, bounds,
+flanking, suppression, retreat, combined arms). Try them in the sandbox `game/dev/runaway.html` (keys 1-6 pick a
+fight, F follows a unit, O toggles the AI overlay, click for sound) and on the turntable `game/dev/rwmodels.html?unit=strider|hover|m1|t90|all`.
+`node tools/runawaybench.mjs` checks locomotion on 20° slopes, push recovery, hover physics, the tanks' dimensions and
+the squad behaviours in plain node; scenes `runaway.mjs`, `runawaycloseup.mjs`, `runawaylive.mjs`, `rwmodels.mjs`,
+`striderfall.mjs` photograph them.
+
 ## Credits
 
 Built by Jason with Claude (Anthropic) as an AI pair-programmer. Uses [three.js](https://threejs.org) (MIT), vendored in `game/vendor/`.

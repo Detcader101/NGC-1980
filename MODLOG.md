@@ -229,3 +229,166 @@ TM-73,254 (fuselage, stab bar, tail rotor), DCS UH-1H manual (limits, procedures
   LEFT / RIGHT, stored in localStorage (tz_ckfov). Applies to the Huey cockpit, the Hornet cockpit (zoom = 0.4x of it)
   and the dropship flight deck; chase cameras and the cave side view keep their own. The jet HUD is a physical
   combiner in the cockpit model, so it stays conformal at any FOV. Scene: tools/scenes/fov.mjs.
+
+## 2026-10-23 — NGC-1980 wave 1: RUNAWAY ground forces (RW-1 STRIDER, RW-7 hover tank, seized M1A2 SEPv3 / T-90M, squad AI)
+Branch `ngc/rwground`. New files only (no main.js / war.js changes this wave):
+`game/js/units/runaway/` hit.js (hit-info contract), strider.js + stridermodel.js, hovertank.js + hovertankmodel.js,
+mbt.js + mbtmodel.js, squadai.js, rwworld.js (world query + sandbox island), sandbox.js (pure battle host), rwaudio.js,
+rwkit.js (model kit); `game/dev/runaway.html` (+ runaway.js, the sandbox), `game/dev/rwmodels.html` (+ rwmodels.js,
+turntable); `tools/runawaybench.mjs`; scenes `runaway.mjs`, `runawaycloseup.mjs`, `runawaylive.mjs`, `rwmodels.mjs`,
+`striderfall.mjs`. Weapons are GAME-TUNED throughout (ammo classes and armour points in hit.js, no real-world
+weapon-performance data); the depth is in locomotion, hover physics, models, sound and squad behaviour.
+
+### RW-1 STRIDER (strider.js, stridermodel.js)
+- A 2.2 m, 150 kg digitigrade machine soldier (design values). Body = 3D variable-height linear inverted pendulum
+  over a centre of pressure that can only sit inside the support polygon (one toe pad 0.30 x 0.14 m, or the hull of
+  both). Stepping by divergent-component-of-motion control (Englsberger 2015 / Pratt 2006 capture point) WITH step
+  timing adaptation: every substep it searches the remaining step time (longest first) for a foothold that (1) the
+  swing leg reaches in 3D (a foothold below the hip on a grade costs reach), (2) the stance leg is still long enough
+  for, (3) the swing foot can get to (11 m/s). Hurried steps = the STUMBLE; no reachable foothold = the FALL.
+- Fall: rigid pendulum about the support edge (theta'' = g / L sin theta), impact, lie, then the get-up: feet plant
+  under the hips, fold (no rise), one fast swing through 75 %, a dead stop, a slow mechanical finish. A shot-off leg
+  = down for good, still armed (shoots prone). Rifle hits to the sensor head blind it (sound only).
+- Hits (hit-info contract): momentum pushes the CoM and spins the torso; energy past the armour damages the part AND
+  glitches its servos (a stance leg sags and loses its ankle control) - a machine-gun burst into the stance leg while
+  running knocks it off its stride. Game armour: rifles get through the head and arms only, MGs the legs too,
+  launchers anything.
+- Uncanny traits (measured in the bench): the body glides level (1.3 cm bob vs ~5 cm human), the sensor head is
+  gyro-stabilised in space (0.00° yaw wander walking) and snaps between scan positions, the torso + weapon slew at a
+  hard 7 rad/s and stop dead, a recovering machine keeps its weapon on target while its legs scramble.
+- Gait: walk 1.6 m/s at 100 steps/min, run 4.6 m/s at 210 steps/min (quick, scuttling; no flight phase). On grades
+  the step period shortens and the body lowers; uphill the top speed falls (a power limit). The hips face the actual
+  travel (facing the command while the body lags it made the feet cross in turns); the command turns with a bounded
+  lateral acceleration (tight turns are taken slower).
+- Model: thigh forward, shin back to a raised hock, a long metatarsal down to a clawed toe pad; ceramic plates over
+  dark composite, pale cyan seams, an off-centre lens cluster on a wedge sensor pod, a sensor mast on the left
+  shoulder, armoured right shoulder; seized XM7 (coyote, optic, suppressor) with a RUNAWAY sensor puck and IFF strip,
+  or the RW coil carbine. ~13 draw calls per machine (rigid merged segments posed from S.pose(); the IK lives in the
+  sim so the bench checks it).
+
+### RW-7 hover tank (hovertank.js, hovertankmodel.js)
+- 16.5 t, 7.8 x 3.9 m, rigid body 6 DOF. Four ducted lift fans each feed a skirt cell: plenum pressure from the fan
+  curve Q = Qmax n (1 - p/pmax) against the hem leakage Q = perimeter x gap x Cd x sqrt(2p/rho), plus the cell's
+  volume pumping; lift = p x area along the hull normal. The cushion is a soft spring that follows the ground; an
+  active ride control (per fan) damps heave and holds the hem 0.42 m clear (lift = weight at 6.3 kPa, fans 77 %).
+- Thrust vectoring 0.45 g in the hull plane (enough to hold and climb 20°), no grip: a hard turn at 16 m/s drifts
+  45° between nose and travel. PI station keeping holds it across a 20° slope. The turret's offset weight rocks the
+  hull when it slews (3.3°) and the PI trim works it off; the coilgun's recoil kicks the hull back 0.44 m/s.
+  A dead fan sags its corner and grounds that cell's skirt, the hull still flies. Vehicles steer along the contour
+  where the ground is steeper than they can climb (rwworld steer maxGrade).
+- Point defence: an incoming rocket / shell within 45 m gets a flechette burst (55 %, 1.4 s cycle) - a game rule.
+- Model: low faceted ceramic hull floating over a thin flared skirt (the gap shows), glowing fan rings under deck
+  grilles (rotors spin), off-centre wedge turret with a coilgun of rails and lit coil collars, sensor mast with a
+  sweeping head, PD dome aft, underglow, dust.
+
+### Seized MBTs (mbt.js, mbtmodel.js)
+| | hull | with gun fwd | width | height | mass | road speed (placeholder drive) |
+|---|---|---|---|---|---|---|
+| M1A2 SEPv3 | 7.93 m | 9.77 m | 3.66 m | 2.44 m | 66.8 t | 67.0 km/h, 16 km/h on 20° |
+| T-90M | 6.86 m | 9.63 m | 3.78 m | 2.23 m (2.22 pub.) | 48 t | 60.0 km/h, 17 km/h on 20° |
+
+Commonly published overall figures; models built to them (7 / 6 road wheels, skirts, CROWS / CITV / doghouse on the
+M1, Relikt chevron + glacis V + bustle slat cage on the T-90M), weathered, RUNAWAY refit (ceramic sensor pod on the
+roof, cyan IFF strips, glyph blocks painted over the national markings). The drive is a PLACEHOLDER (power-limited
+traction, grip, rolling / grade / air resistance, skid-steer yaw limit, attitude from the four track ends) behind the
+interface wave 2 fills with the TANK agent's `trackfm.js`: `createMBT(P, { drive: factory })`, factory(P) returns
+`{ place(x, z, yaw, env), step(dt, {throttle, steer, brake}, env), p, yaw, pitch, roll, speed, yawRate, wheelSpin }`.
+
+### Hit-info contract (hit.js) - for the INFANTRY agent's ballistics
+`{ calibre mm, mass kg, velocity m/s, energy J, direction {x,y,z}, part, point {x,y,z}, type 'ball'|'ap'|'heat'|'frag'|
+'blast'|'coil', pen (armour points, optional), impulse N s (optional), side, weapon, src }`; normalizeHit() accepts
+`dir`/`direction` as object or array, `vel` (vector), `caliber`. Parts follow the infantry zones (head, thorax,
+stomach, armL, armR, legL, legR; machines add weapon; vehicles front / side / rear / top / turret / fan).
+Every RUNAWAY unit takes `unit.sim.hit(hit)` and returns `{ part, dmg, pen }`.
+
+### World query (rwworld.js) and the squad AI (squadai.js)
+- `makeWorldQuery({ height, water, obstacles })` -> height, normal, isWater, los, raycast, coverPoints, coverScore,
+  hullDown, steer(maxGrade); `bakeHeight(fn)` grids an analytic height function (the sandbox got 4x faster).
+- AI: `createSquadAI(world)`; `addSquad({ id, side, members, order })`; `order(id, { type: take|defend|patrol|hold|
+  retreat, x, z, r })`; `hear(sound)`; `nearMiss(id)`; `update(dt, targets)`; outputs `m.ai = { move, run, crouch,
+  face, aim, aimId, fire, look, state }`. Squad states: advance (wedge, armour 30 m behind) -> contact (to cover:
+  walls, rocks, or a fold in the ground that hides a crouched body but lets it fire standing) -> bounds (fire teams,
+  exact 6 s cadence) -> flank (a stalled fight: a team goes round the RIGHT at 75°) -> assault (strong, close, the
+  enemy quiet, after 12 s) / retreat (strength ratio < 0.55: bounding withdrawal to a rally, then hold until
+  re-tasked) / regroup / defend (cover round the point, never leaves it). Perception: 10 Hz sensor sweeps in sectors,
+  spotting builds with range / movement / firing / cover, terrain + obstacle LOS; sounds triangulated across members.
+  Combined arms: striders hunt AT gunners near their vehicles; armour takes hull-down overwatch and backs out of any
+  known AT gunner's reach (215 m; the link spans squads).
+- Machine weaknesses (deliberate): kill the LINK NODE (member 0) -> 8 s without the link + 1.5 s freeze; synchronised
+  volleys (2.4 s on / 0.9 s off: a window to move); exact bound timing; always flank right; strict threat priority
+  (a loud MG or an AT gunner draws every rifle: decoys work); loud noises pull them.
+
+### Sound (rwaudio.js)
+`new RwAudio(ctx, dest)`: servo whine bank following the nearby striders' joint activity, footfalls (thump + toe tick,
+harder when running / stumbling), hover fan roar + blade-pass tone + whistle, M1 turbine / T-90 diesel + track clatter,
+coilgun charge whine and crack (snap, falling zap, sub thump), machine 'speech' (FM chirp phrases on squad decisions;
+LINK LOST is a broken, glitching phrase), gunfire for both sides, blasts, ricochet pings off ceramic.
+
+### Sandbox (game/dev/runaway.html)
+430 m island (central ridge to 24 m with 20-30° flanks, a farm plain with dry-stone walls, roofless crofts, boulders,
+a pine wood, a pad). Scenarios 1-6: assault, combined (two strider squads + RW-7 + M1A2), flank, outnumbered, defend,
+patrol, vs 1980 DUMMIES (rifle / MG / AT launcher / an M60-ish tank stand-in) that spot, shoot back and get
+suppressed. Free camera (drag + WASD/QE, F follow, G free), debug overlay (O: squad + member states, link node,
+destinations, aim lines red when firing, cover normals, known contacts, threat axis, flank point, AI log), time
+scale, sound on click. `?debug` bridge `window.__RW` { B, start, run(secs), look, lookAt, follow, step, audio }.
+
+### Bench (node tools/runawaybench.mjs): 47 checks, all pass
+STRIDER: walk 1.65 / run 4.61 m/s; 20° slopes walking AND running, 8 headings x 60 s, 0 falls (max leg stretch 0.98);
+26° walking 0 falls; 8 machines roam the island 90 s (1.9 km, ground to 31°) 0 falls; push recovery 400 N s fore/aft,
+240 N s sideways standing, 300 N s any way walking; a 900 N s blow knocks it down and it is up in 3.6 s; 30 rifle
+rounds into the thorax do not stop it; an MG burst into the stance leg makes it stumble; rifle -> blind, rocket ->
+destroyed, leg off -> disabled but armed; deterministic. RW-7: 10 checks (above). MBTs: dimensions, speed, grade.
+AI over three seeds: cover 100 %, flanks right 3/3 and the flankers get there 3/3, retreats 3/3, AT-gunner priority
+100 %, no fire in the volley gap, suppression -> cover, link loss -> freeze, armour stands off known AT (199 / 173 /
+205 m), defend radius held, ~22 ms CPU per simulated second for a 10 v 10 fight.
+
+### Gotchas found on the way
+- Starting from rest by lifting a foot straight away throws the CoM sideways: weight shift first (the DCM moved over
+  the stance pad, and pushed forward so the first step goes forward, not back).
+- The pad centre sits ahead of the foot reference: unaccounted, every step leaked speed (stops drifted backwards).
+- Fixed step timing can't recover pushes: the stance leg runs out of length mid-step (all velocity along the leg was
+  killed by the inextensible-leg constraint). Joint foothold + timing search fixed falls from 60 N s pushes.
+- Turning: hips facing the command while the body lagged made the feet cross over; face the actual travel.
+- Uphill the height servo lagged a ramp by 0.36 m (velocity feed-forward from grad(h).v fixed it), and the 2D reach
+  ignored the foothold being below the hip (3D reach + feet set down within reach).
+- RW-7: shared scratch vectors overwritten inside the cell loop (forward / right became cell positions: a 3° crab on
+  a straight line); fan saturation at the hover point left no trim authority (fan headroom: Qmax up).
+- Events raised by hit() between steps were cleared by the next step(): leg-shot falls never reached the host.
+- Perception cone + no scanning = squads blind on their flank: sector scanning by the sensor heads.
+- Assault on the strength ratio of what was SEEN (one defender) = suicide; armour in the squad centroid made the
+  walkers wait for tanks that waited for them (centroid of walkers only); an MBT crept backwards on a slope at the
+  brake / grade balance and its steering flipped sign at -0.3 m/s.
+
+### Proposed wave-2 integration (war.js / main.js; nothing changed this wave)
+1. `war.js`: import `createSquadAI` (squadai.js), `makeWorldQuery, bakeHeight` (rwworld.js), the sims and models.
+   Build the world once in createWar: `makeWorldQuery({ height: bakeHeight(terrainH, 1300, 1.5), water: isWater,
+   obstacles })` with obstacles from every island's structs (box from `mesh.userData.r / h`) + AA guns (cyl r 2.8).
+2. Lift sandbox.js's host loop into a ground host inside war.js (same adapters: sync / driveUnit / projectiles):
+   RUNAWAY ground squads live in `W.ground = { ai, units, proj }`, updated in `W.update` after the air units. Models go
+   in islandGroup; `W.setVisibility` hides them outside the fog like other enemy units.
+3. Commander (`think`, after step 2 'expand'): when a transport (MV-22B in wave 2) lands at island I, unload a squad
+   (4 STRIDERs; from 600 s also an RW-7; from 900 s a seized MBT off the KRAKEN) and `ai.order(id, { type: 'take',
+   x: I.pad.x, z: I.pad.z, r: 30 })`; owned islands get `{ type: 'defend', ... }`; squads that retreated are re-tasked
+   when `S.holdUntil` passes. `updateCapture`: an RW squad with >= 2 machines up within `pad.r + 10` counts as a
+   capturer at `CAP_TIME.squad = 12`; the existing rule (live enemy AA blocks capture) stays.
+4. Targets for the AI each frame: the player's infantry / vehicles (INFANTRY, TANK, WHEELED agents: kind inf / mg /
+   at / vehicle), player AA guns and structs as 'vehicle', the player's helicopter when below 60 m as 'vehicle'.
+5. Damage both ways: player projectiles (`W.proj` 'b' -> AMMO.mg, 'jb' -> AMMO.hmg, 'rocket' -> heat pen 300,
+   'bomb' -> blast) get sandbox.projStep's segment tests against RW ground units and call `unit.sim.hit()`; RW ground
+   fire goes through `W.shoot` with a hit callback into `W.damage` for structs / aircraft and into the infantry
+   agent's damage API for soldiers (same hit-info).
+6. Sound: `new RwAudio(sfx.ctx, sfx.master)`, listener = camera, `loops()` with the units near the camera, events from
+   the ground host.
+7. Performance: squads > 600 m from the camera step at 5 Hz with their walkers moved kinematically along the AI's
+   path (no balance sim); full sims within 600 m.
+
+### Untested / known gaps
+- Nothing runs inside the real game yet (wave 2). The 1980 side in the sandbox is dummies, not the INFANTRY / TANK
+  agents' units; their hit-info field names are matched by convention (the infantry file was not committed yet).
+- The MBT drive is a placeholder; no suspension, no track slip. MBT guns / coax fire at game rates.
+- STRIDER running has no flight phase; striders do not climb over walls (they path round them); no crouch-walk.
+- No pathfinding (local steering only): a squad can get stuck behind a long wall or a cliff; tanks can be cornered
+  against steep ground.
+- The hover tank's fan / vectoring numbers are design values; no water running (it is a hovercraft, but the sandbox
+  keeps it ashore).
+- Audio was only checked for errors and a running context headless (no ears on it).
