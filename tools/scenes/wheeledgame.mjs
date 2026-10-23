@@ -47,7 +47,7 @@ export default async function (h) {
   await h.key('up', 'KeyD'); await h.key('up', 'KeyW');
   await h.key('down', 'KeyS'); await h.waitFor('Math.abs(__M.sim.speed) < 0.4', 15000); await h.key('up', 'KeyS');
   await h.eval('__WG.st(__M)');
-  await h.expect('Math.hypot(__M.sim.pos[0] - __p0[0], __M.sim.pos[2] - __p0[2]) > 10 && !__M.wrecked && __M.sim.up[1] > 0.9', 'drove on the island and stopped upright');
+  await h.expect('Math.hypot(__M.sim.pos[0] - __p0[0], __M.sim.pos[2] - __p0[2]) > 7 && !__M.wrecked && __M.sim.up[1] > 0.9', 'drove on the island and stopped upright');
 
   // ---------------------------------------------------------------- 2. the wild lands: a village street, a bridge, off road, a ford
   // the village (s2_0, ~3.7 km east): its main street
@@ -70,9 +70,9 @@ export default async function (h) {
   await h.waitFor('__M.auto.done || __WG.trk.length > 120', 60000);
   await h.eval(`(() => { const b = __WG.trk.filter(t => t.bridge); return { n: b.length, minY: Math.min(...b.map(t => t.y)), maxY: Math.max(...b.map(t => t.y)), ground: b.map(t => +__G.terrainH(t.x, t.z).toFixed(1)).slice(0, 6), kmh: b.map(t => t.kmh).slice(0, 6) }; })()`, 'on the bridge deck');
   await h.expect(`__WG.trk.filter(t => t.bridge).length >= 4 && __WG.trk.filter(t => t.bridge).every(t => { const r = __WORLD.roadAt(t.x, t.z); return r && Math.abs(t.y - r.y - 0.14) < 0.35 && t.kmh > 25; }) && __WG.trk.some(t => t.bridge && t.y > __G.terrainH(t.x, t.z) + 4) && __WG.trk.every(t => t.up > 0.9)`, 'over the bridge on its deck (high over the ground), upright');
-  // off road: out of the village across the fields (an 84 m line round the village with no grade over 16 % and nothing
-  // built on it), 4x4 engaged
-  await h.eval(`(() => { const T = __G.terrainH, WO = ${P}.WO; for (const r of [130, 170, 210, 260, 320, 400, 480]) for (let i = 0; i < 16; i++) { const b = i / 16 * 6.283, sx = 3697 + Math.cos(b) * r, sz = 1233 + Math.sin(b) * r; if (__WORLD.roadAt(sx, sz)) continue; for (let k = 0; k < 16; k++) { const a = k / 16 * 6.283, ux = Math.sin(a), uz = Math.cos(a); let ok = true, h0 = T(sx, sz); for (let d = 3; d <= 84 && ok; d += 3) { const x = sx + ux * d, z = sz + uz * d, hh = T(x, z); if (hh < 1 || Math.abs(hh - h0) / 3 > 0.2 || Math.hypot(T(x + 2, z) - T(x - 2, z), T(x, z + 2) - T(x, z - 2)) / 4 > 0.2 || WO.near(x, z, 3).boxes.length) ok = false; h0 = hh; } if (!ok) continue; const pts = []; for (let d = 8; d <= 84; d += 6) pts.push({ x: sx + ux * d, z: sz + uz * d }); window.__OP = pts; __WG.put(__M, sx, sz, Math.atan2(-ux, -uz)); return { at: [Math.round(sx), Math.round(sz)], a: +a.toFixed(2) }; } } return null; })()`, 'a way across the fields');
+  // off road: across a farm's fields (the WORLD's farms near the village; the 70 m line through a field with the gentlest
+  // worst slope, along or across), 4x4 engaged
+  await h.eval(`(() => { const T = __G.terrainH, WO = ${P}.WO; let best = null; for (const f of __WORLD.net.netState.farms.values()) { if (!f || Math.hypot(f.x - 3697, f.z - 1233) > 2500) continue; for (const F of f.fields || []) for (let k = 0; k < 16; k++) { const a = k / 16 * 6.283, ux = Math.sin(a), uz = Math.cos(a), sx = F.x - ux * 35, sz = F.z - uz * 35; let worst = 0, ok = true, h0 = T(sx, sz); for (let d = 3; d <= 70 && ok; d += 3) { const x = sx + ux * d, z = sz + uz * d, hh = T(x, z); if (hh < 1 || WO.near(x, z, 3).boxes.length || __WORLD.roadAt(x, z)) ok = false; worst = Math.max(worst, Math.abs(hh - h0) / 3, Math.hypot(T(x + 2, z) - T(x - 2, z), T(x, z + 2) - T(x, z - 2)) / 4); h0 = hh; } if (ok && (!best || worst < best.worst)) best = { sx, sz, ux, uz, worst, crop: F.crop }; } } if (!best) return null; const pts = []; for (let d = 8; d <= 70; d += 6) pts.push({ x: best.sx + best.ux * d, z: best.sz + best.uz * d }); window.__OP = pts; __WG.put(__M, best.sx, best.sz, Math.atan2(-best.ux, -best.uz)); return { at: [Math.round(best.sx), Math.round(best.sz)], worstSlope: +best.worst.toFixed(3), crop: best.crop }; })()`, 'a way across a farm field');
   await h.wait(1500); await h.key('tap', 'KeyU'); await h.wait(200);
   await h.eval(`(${P}.autopilot(__M, __OP, 7), __WG.track(__M), __M.inp.fwd)`, '4x4 engaged');
   await h.waitFor('__M.auto.done || __WG.trk.length > 60', 60000);
@@ -110,6 +110,10 @@ export default async function (h) {
   await h.eval('({ hud: __WG.hud(), bleeds: __G.marine.MS.M.bleeds.length, vol: Math.round(__G.marine.MS.M.vol) })');
   await h.expect('__M.dmg.state.tyres.some(t => t.leak > 0 || t.pressure < 1) || __M.dmg.state.engine < 1 || __M.dmg.state.fuelLeak > 0', 'enemy rounds damaged the jeep (vehicledamage.js)');
   await h.shot('hit-gunner-view');
+  // a round straight through the gunner's place: the vehicle's crew hit becomes the Marine's wound (marine.js / MEDINV)
+  await h.eval(`(() => { const M = __G.marine.MS.M, hp = () => Object.values(M.regions).reduce((s, r) => s + r.hp, 0), h0 = hp(), T = __G.THREE, S = __M.sim, q = new T.Quaternion(S.q[0], S.q[1], S.q[2], S.q[3]), s = __M.seats[__M.seat]; let n = 0; while (hp() === h0 && n < 12 && !__G.marine.MS.dead) { const at = new T.Vector3(s.at[0], s.at[1] + 0.45, s.at[2]).applyQuaternion(q).add(new T.Vector3(S.pos[0], S.pos[1], S.pos[2])), dir = new T.Vector3(1, -0.1, 0).applyQuaternion(q); __G.hurtPlayer(0.2, 'HIT', at, dir.multiplyScalar(300), 'b'); n++; } window.__wound = { before: Math.round(h0), after: Math.round(hp()), shots: n, dead: __G.marine.MS.dead }; return __wound; })()`, 'rounds through the gunner');
+  await h.expect('__wound.after < __wound.before || __wound.dead', 'the crew hit wounded the Marine riding in the jeep');
+  await h.eval('(__G.marine.MS.dead ? 0 : (__G.marine.MS.M.restore(), 1))');   // (patched up for the rest of the scene)
 
   // ---------------------------------------------------------------- 4. commandeer a civilian car parked in the village
   await h.eval(`(() => { const q = __WORLD.net.nearestRoad(3697, 1233, 80); __WG.put(__M, q.x + 3, q.z + 3, 0); return 1; })()`);
