@@ -145,7 +145,7 @@ export function buildM60(o = {}) {
   { const kc = new Kit(); kc.box(0.06, 0.018, 0.16, P, [0, 0.0, 0.08]); if (hi) { kc.box(0.022, 0.012, 0.03, PD, [0, 0.012, 0.15]); for (let i = 0; i < 3; i++) kc.box(0.062, 0.003, 0.004, PD, [0, 0.009, 0.03 + i * 0.04]); }
     parts.cover = part(kc, 'cover', G, [0, -0.035, 0.0]); }
   // rear sight leaf (folds down = battle sight)
-  { const kl = new Kit(); kl.box(0.016, 0.035, 0.003, PD, [0, 0.0175, 0]); const leaf = part(kl, 'leaf', G, [0, -0.02, -0.01]);
+  { const kl = new Kit(); for (const sx of [-1, 1]) kl.box(0.003, 0.034, 0.003, PD, [sx * 0.0075, 0.017, 0]); kl.box(0.018, 0.003, 0.003, PD, [0, 0.0335, 0]); const leaf = part(kl, 'leaf', G, [0, -0.02, -0.01]);   // a frame; the slide carries the peep
     const peep = new THREE.Mesh(plate([[-0.007, -0.004], [0.007, -0.004], [0.007, 0.008], [-0.007, 0.008]], [[0, 0.002, 0.0022]], 0.0015), apertureMat()); peep.name = 'slide'; peep.position.set(0, 0.018, 0); leaf.add(peep); parts.leaf = leaf; }
   { const kh = new Kit(); kh.box(0.012, 0.012, 0.03, P, [0, 0, 0]); kh.box(0.03, 0.01, 0.012, P, [0.012, 0, 0.0]); parts.cocking = part(kh, 'cocking', G, [0.045, -0.095, 0.02]); }
   // the barrel group: barrel, gas cylinder, bipod, carrying handle, front sight, flash hider (comes off in a change)
@@ -268,7 +268,7 @@ function finish(G, parts, anchors, sight, key, sub) {
     if (p.glBarrel) p.glBarrel.position.z = -0.2 - 0.1 * (st.glOpen || 0);
     if (p.quadArm) { p.quadArm.rotation.x = -(st.quad || 0); p.quadArm.visible = st.quadUp !== false; }
     if (p.cover) p.cover.rotation.x = -1.2 * (st.cover || 0);
-    if (p.leaf) { p.leaf.rotation.x = -1.4 * (1 - (st.leaf ?? 0)); const s = p.leaf.getObjectByName('slide'); if (s) s.position.y = 0.012 + (st.leafSlide || 0); }
+    if (p.leaf) { p.leaf.rotation.x = -1.4 * (1 - (st.leaf ?? 0)); const s = p.leaf.getObjectByName('slide'); if (s) s.position.y = 0.018 + 0 * (st.leafSlide || 0); }   // the peep stays on the drawn line of sight (the sim raises the bore)
     if (p.cocking) p.cocking.position.z = 0.02 + 0.09 * (st.charge || 0);
     if (p.bipod) { const a = st.bipod || 0; for (const l of p.bipod.children) { l.rotation.x = -1.45 * (1 - a) + 0.12 * a; l.rotation.z = l.userData.side * 0.25 * a; } }
     if (p.handle) p.handle.rotation.z = -1.5 * (1 - (st.handle ?? 1));

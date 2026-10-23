@@ -278,10 +278,21 @@ yet (FOUNDATION wires it in wave 2). Contract for FOUNDATION / MEDINV / RUNAWAY:
   twang) + reverb tail; distant shots arrive late, darker and quieter with an echo off the treeline; a passing
   supersonic round cracks before its report; steel gongs ring after time of flight + the sound's return;
   mechanics, footsteps by surface with gear rattle, breathing from the soldier's breath phase / depth, heartbeat.
-- **Bench** `tools/infantrybench.mjs`: 84 checks (flight, sights, cover table, rates of fire, barrel schedule, stoppages,
-  SPORTS, recoil, sway order, march / run / sprint / rush / recovery times, Pandolf, Tobler, injuries, the whole
-  shot -> hit loop, every module parses). Tags: CONFIRMED (field manual / primary source), INFERRED, UNVERIFIED, GAME.
+- **Bench** `tools/infantrybench.mjs`: 90 checks (flight, sights, cover table, rates of fire, barrel schedule, stoppages,
+  SPORTS, recoil, sway order, march / run / sprint / rush / recovery times, heart-rate recovery, Pandolf, Tobler,
+  injuries, the whole shot -> hit loop, hitboxes on the posed skeleton, every module parses).
+- **Scenes** (`tools/scenes/`, all on `dev/infantry.html?debug&fixed`, which steps the sim synchronously through
+  `__I.advance(sec, input)`): `infantry` (100 / 300 m shots, drop vs the sight line), `infantrydrills` (reloads frame by
+  frame, bolt lock, SPORTS, M203 quadrant, M60 bipod + barrel change, LAW, M1911, third person), `infantryviews` (every
+  placement, lean, free look, rest and bipod on the sandbags, the aim deadzone), `infantrysights` (one sight picture per
+  weapon + spotting scope), `infantryhits` (mannequin parts and armour layers), `infantrymalf` (press check, stuck case ->
+  double feed -> rod, runaway M60), `infantrymove` (blown on the hill, wading / swimming, gait cycles in third person),
+  `infantryaudio` (offline render: a shot 340 m away arrives 1.0 s late, 8x quieter, darker; crack before report; echo;
+  gong after time of flight + sound), `infantryhands` (orbit the arms), `infantrymodels` (weapons and postures). Tags: CONFIRMED (field manual / primary source), INFERRED, UNVERIFIED, GAME.
 - Gotchas: (1) a `//` comment appended inside a one-line `if (...) { ... }` swallowed the brace again (weaponmodels):
   the bench now parses every module. (2) Inner `function key()` shadowed the `key` parameter of `createWeapon`.
   (3) Targets lined up in a lane hid each other: they are staggered across the lane by distance. (4) The M16A1 has no
-  elevation knob on the left (that is the A2): an early model put one right in the sight picture.
+  elevation knob on the left (that is the A2): an early model put one right in the sight picture. (5) A through-and-through
+  restarted inside the same hitbox and hit it again: rounds now resume past the exit. (6) Low ready pivoted on the rear
+  sight (the stock stood up beside the face): it pivots on the butt in the shoulder pocket. (7) The 1980 range kit with every
+  weapon weighed 49 kg, over the 45 kg no-sprint limit: correct, so the range kit is lighter.

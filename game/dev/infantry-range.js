@@ -7,7 +7,7 @@ import { Kit, KITMAT, CAMO, COL, noise3 } from '../js/units/infantry/meshkit.js'
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v)), sstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 export const DISTS = [25, 50, 100, 150, 200, 250, 300, 350, 400];
-const LANE_X = [-6, 0, 6], STAGGER = [-2.2, -1.6, -1.0, -0.4, 0.2, 0.8, 1.4, 2.0, 2.6];
+const LANE_X = [-8, 0, 8], STAGGER = [-3.0, -2.4, -1.8, -1.2, -0.4, 0.6, 1.8, 3.0, 4.4];   // wide enough that no target hides another, even from prone
 const POND = { x: -55, z: -70, r: 16, d: 1.7 };
 // ------------------------------------------------------------------------------------------------ terrain
 export function groundY(x, z) {

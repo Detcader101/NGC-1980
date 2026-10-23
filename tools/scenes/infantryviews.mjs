@@ -32,10 +32,10 @@ export default async function (h) {
   await A("(__I.press('slot1'), __I.advance(2.5), __I.aimTarget(100))");
   await shots('freelook', "(__I.advance(0.1, { freeLook: true }), __I.input({ look: [-0.7, 0.05] }), __I.advance(0.1), __I.advance(0.5))");
   // resting on the sandbag wall (kneeling), then the M60's bipod on it
-  await A("(__I.clear(), __I.teleport(-18.5, -0.9, 0, 'crouch'), __I.aimTarget(100, -6), __I.advance(0.8, { ads: true }))");
+  await A("(__I.clear(), __I.teleport(-18.5, -0.9, 0, 'crouch'), __I.aimTarget(100, -8), __I.advance(0.8, { ads: true }))");
   await h.expect('__I.S.rested');
   await shots('rested_sandbags', '__I.advance(0.2, { ads: true })');
-  await A("(__I.press('slot2'), __I.advance(3.5, { ads: false }), __I.aimTarget(200, -6), __I.advance(0.6, { ads: true }), __I.input({ bipod: true }), __I.advance(0.4, { ads: true }))");
+  await A("(__I.press('slot2'), __I.advance(3.5, { ads: false }), __I.aimTarget(200, -8), __I.advance(0.6, { ads: true }), __I.input({ bipod: true }), __I.advance(0.4, { ads: true }))");
   await h.expect('__I.S.bipod');
   await shots('m60_bipod_on_wall', '__I.advance(0.3, { ads: true })');
   // the Arma aim deadzone: the weapon moves first, the view follows at the edge
