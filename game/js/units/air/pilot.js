@@ -1,0 +1,404 @@
+// AI pilot for the airframe sims (units/air/airframe.js). It flies the real flight model only through the stick,
+// pedals and throttles (via the flight director, fd.js) - no steering by hand of god. Pure: no THREE scene, no DOM, no
+// game imports; runs in node (tools/airbench.mjs) and in the game (units/air/airwar.js).
+//
+// Behaviour, as a state machine:
+//   cat       on the catapult: run up (MIL / AB), wait for the shot
+//   climb     off the bow: hold ~9° nose up wings level, gear up, flaps up, climb to the CAP altitude
+//   cap       orbit the anchor (the ALBATROSS or an ordered point); radar search; commit on a contact
+//   fight     intercept and dogfight: lead / pure / lag pursuit, overshoot avoidance (lag + yo-yo), defensive break
+//             turns into an attacker, weapons (game-level missiles and the gun)
+//   rtb       bingo fuel or winchester: back to the ship, into the pattern (upwind, downwind, base)
+//   final     carrot guidance onto the extended centreline and the 3.5° glideslope, then the LSO's last 700 m:
+//             stick for the glideslope, throttle for on-speed AoA (15 units), lineup by bank
+//   waveoff   out of parameters in close (lineup, height, a turning deck): full power, climb straight ahead, go round
+//   bolter    touched down, no wire: power is already up (MIL on touchdown), off the bow and round again
+//   trapped   on the wire: MIL until it holds, then idle; 'recovered' once stopped and the wire lets go
+//   patrol    (drones) orbit a point and spot; 'strike' fly to a point and dive on it
+// Everything airborne goes through terrain look-ahead: the predicted path is sampled against the ground (the game has
+// real mountains outside the archipelago), the climb angle raised to clear it, and if no climb will do, a heading that
+// clears is chosen; inside a few seconds of impact it rolls wings level and pulls.
+import * as THREE from 'three';
+import { createFD } from './fd.js';
+import { DECKOPS, aeroCoeffs } from './airframe.js';
+
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const wrap = a => { a = (a + Math.PI) % (2 * Math.PI); if (a < 0) a += 2 * Math.PI; return a - Math.PI; };
+const D2R = Math.PI / 180;
+const _d = new THREE.Vector3(), _t = new THREE.Vector3(), _r = new THREE.Vector3(), _f = new THREE.Vector3(), _a = new THREE.Vector3(), _q = new THREE.Vector3();
+
+// per-type behaviour numbers (EAS in m/s; the game's air is 4x denser, so true speeds are about half: see jetfm.js)
+// Weapons are game-level: a kind, the range band and nose cone it is fired in, how long the projectile lives.
+export const PILOTS = {
+  TOMCAT: {
+    climbEAS: 150, capEAS: 128, corner: 170, fightTop: 200, gmax: 6.5, gfight: 7.2, aoaApp: 10.5 * D2R, capAlt: 240, capR: 520,
+    radar: 1700, leash: 1900, bingo: 1900, patAlt: 110, gs: 3.5 * D2R, landX: -4.5, catX: 4.5, abFight: true,
+    weapons: [   // game ranges for a 1.3 km map: long shots with the AIM-54 / AIM-7, the AIM-9 close, then the gun
+      { w: 'aim54', rmin: 650, rmax: 1500, cone: 0.35, life: 10, v0: 25, every: 4 },
+      { w: 'aim7', rmin: 380, rmax: 1000, cone: 0.3, life: 8, v0: 20, every: 3 },
+      { w: 'aim9', rmin: 130, rmax: 520, cone: 0.45, life: 6, v0: 15, every: 2 },
+    ],
+    gun: { range: 330, cone: 0.035, speed: 520, burst: 0.45, rest: 0.5 },
+  },
+  SHRIKE: {
+    climbEAS: 160, capEAS: 140, corner: 165, fightTop: 210, gmax: 9, gfight: 11, capAlt: 200, capR: 450,
+    radar: 1400, leash: 2200, bingo: 0, abFight: false, aggressive: true,
+    weapons: [{ w: 'aam', rmin: 150, rmax: 600, cone: 0.4, life: 6, v0: 15, every: 4 }],
+    gun: { range: 280, cone: 0.04, speed: 480, burst: 0.4, rest: 0.8 },
+  },
+  REAPER: { climbEAS: 52, capEAS: 50, corner: 60, fightTop: 70, gmax: 2.5, gfight: 2.5, capAlt: 260, capR: 300, radar: 0, leash: 0, bingo: 0, weapons: [], gun: null },
+};
+
+export function createPilot(A, o = {}) {
+  const T = { ...(PILOTS[A.P.name] || PILOTS.TOMCAT), ...o };
+  const FD = createFD(A, { gmax: T.gmax, grav: o.grav });
+  const DK = A.P.DECK || DECKOPS;
+  const PL = {
+    A, FD, T, side: o.side ?? 1, name: o.name || A.P.name, state: o.state || 'cap', t: 0, stateT: 0,
+    tgt: null, threat: null, anchor: null, wp: 0, log: [], lastFire: -99, gunT: 0, gunRest: 0, fired: {},
+    trapped: null, recovered: false, waveoffs: 0, bolters: 0, kills: 0, why: '', tdT: -1, terrainPull: 0, minAGL: 1e9,
+  };
+  const say = (msg) => { PL.log.push({ t: +PL.t.toFixed(1), msg }); if (PL.log.length > 60) PL.log.shift(); if (o.onSay) o.onSay(msg, PL); };
+  const set = (s, why) => { if (PL.state !== s) { PL.state = s; PL.stateT = 0; PL.wp = 0; say(`${s.toUpperCase()}${why ? '  ' + why : ''}`); } };
+  PL.set = set;
+  A.landX = T.landX ?? DK.LAND_X; A.catX = T.catX ?? DK.CAT_X;
+
+  // ------------------------------------------------------------------ geometry helpers
+  const deck = (c, x, z) => { const dx = x - c.x, dz = z - c.z, co = Math.cos(c.yaw), si = Math.sin(c.yaw); return [dx * co - dz * si, dx * si + dz * co]; };
+  const world = (c, lx, lz, out) => { const co = Math.cos(c.yaw), si = Math.sin(c.yaw); return out.set(c.x + lx * co + lz * si, 0, c.z - lx * si + lz * co); };
+  const hdgOf = v => Math.atan2(v.x, -v.z);
+  const eas = () => A.eas;
+
+  // terrain look-ahead: raise the climb angle of direction d (unit, world) so the path clears the ground by `clear`;
+  // if no sane climb clears it, swing the heading to one that does. Returns the (possibly modified) d.
+  function terrainGuard(d, env, clear = 55) {
+    if (!env.terrain) return d;
+    const V = Math.max(A.tas, 30), y = A.pos.y, hz = Math.hypot(d.x, d.z) || 1, vh = Math.hypot(A.vel.x, A.vel.z) || 1;
+    const need = (dx, dz) => {   // climb angle needed along horizontal direction (dx, dz)
+      let g = -1;
+      for (const s of [1, 2, 3.5, 5, 7, 10, 14]) {
+        const L = V * s, f = env.terrain(A.pos.x + dx * L, A.pos.z + dz * L);
+        g = Math.max(g, Math.atan2(f + clear - y, L));
+      }
+      return g;
+    };
+    let gNeed = Math.max(need(d.x / hz, d.z / hz), need(A.vel.x / vh, A.vel.z / vh) - 0.1);
+    let hx = d.x / hz, hzz = d.z / hz, turned = false;
+    PL.avoidT = (PL.avoidT || 0) - 1 / 60;
+    if (gNeed > 0.4 || PL.avoidT > 0) {   // too steep to climb over: turn to a heading that clears and climb along it
+      if (PL.avoidT <= 0) {
+        const h0 = Math.atan2(A.vel.x, -A.vel.z); let best = 9, bh = h0;
+        for (const k of [0, 0.5, -0.5, 1, -1, 1.6, -1.6, 2.3, -2.3, Math.PI]) {
+          const h = h0 + k, g = need(Math.sin(h), -Math.cos(h)) + Math.abs(k) * 0.03;
+          if (g < best) { best = g; bh = h; }
+        }
+        PL.avoidHdg = bh; PL.avoidT = 4;   // hold it a few seconds (no flip-flopping along a ridge)
+      }
+      hx = Math.sin(PL.avoidHdg); hzz = -Math.cos(PL.avoidHdg); gNeed = Math.max(need(hx, hzz), 0.22); turned = true; PL.terrainPull = 1;
+    }
+    const gam = Math.asin(clamp(d.y, -1, 1));
+    if (gNeed > gam || turned) {
+      const g = Math.min(Math.max(gNeed, turned ? 0.22 : gam), 0.6); d.set(hx * Math.cos(g), Math.sin(g), hzz * Math.cos(g)); PL.terrainPull = Math.max(PL.terrainPull, 0.5);
+    }
+    // close to impact on the present path: roll level and pull now
+    const tImp = A.vel.y < -1 ? (y - env.terrain(A.pos.x + A.vel.x * 2, A.pos.z + A.vel.z * 2) - 15) / -A.vel.y : 99;
+    if (tImp < 3) { d.set(hx * 0.8, 0.6, hzz * 0.8).normalize(); PL.terrainPull = 2; }
+    return d;
+  }
+  // fly toward direction d with terrain protection; speed target in EAS
+  function fly(d, dt, env, { speed, ab = false, g = T.gmax, k = 1.6, guard = true, free = false } = {}) {
+    PL.terrainPull = 0;
+    if (!free) {   // outside a fight, turns are flat: at most ~60° of heading change asked for at once (no loops to reverse)
+      const vh = Math.hypot(A.vel.x, A.vel.z), dh = Math.hypot(d.x, d.z);
+      if (vh > 5 && dh > 1e-3) {
+        const h0 = Math.atan2(A.vel.x, -A.vel.z), dw = wrap(Math.atan2(d.x, -d.z) - h0), lim = 1.0;
+        if (Math.abs(dw) > lim) { const h = h0 + Math.sign(dw) * lim; d.set(Math.sin(h) * dh, d.y, -Math.cos(h) * dh); }
+      }
+    }
+    if (guard) terrainGuard(d, env);
+    if (PL.terrainPull) { speed = Math.max(speed ?? 0, T.climbEAS); ab = true; if (PL.terrainPull >= 1) g = Math.max(g, Math.min(T.gfight, 5)); }   // climbing for the terrain: power up
+    FD.steer(d, dt, { gmax: g, k: PL.terrainPull ? Math.max(k, 2) : k, eas: speed ?? null, ab });
+    const agl = A.pos.y - (env.terrain ? env.terrain(A.pos.x, A.pos.z) : 0); if ((PL.state === 'cap' || PL.state === 'fight' || PL.state === 'rtb' || PL.state === 'patrol') && !A.onGround) PL.minAGL = Math.min(PL.minAGL, agl);
+  }
+  const dirTo = (x, y, z, maxG = 0.45, out = _d) => FD.dirTo(x, y, z, out, maxG);
+
+  // ------------------------------------------------------------------ launch
+  PL.launch = env => {   // spot on the catapult (bow cat 2) and run up
+    if (!A.attachCat(env)) return false;
+    for (const e of A.eng) { e.run = true; if (e.n < 0.68) e.n = 0.68; }
+    A.hookCmd = 0; A.flapSel = 1; set('cat'); return true;
+  };
+  PL.spawnAir = (state = 'cap') => { set(state); FD.reset(); FD.thr = 0.8; FD.ti = 0.8; };
+
+  // ------------------------------------------------------------------ the combat brain
+  function pickTarget(env) {
+    if (!env.foes || !T.radar) return null;
+    const anc = PL.anchor; let best = null, bs = 1e9;
+    for (const f of env.foes(PL.side)) {
+      if (f.dead || f.dying || f.gone) continue;
+      const d = f.p.distanceTo(A.pos); if (d > T.radar) continue;
+      const da = anc ? Math.hypot(f.p.x - anc.x, f.p.z - anc.z) : 0;
+      if (anc && da > T.leash && d > 500) continue;   // outside the CAP's patch and not on top of us: let it go
+      const score = d + da * 0.5 - (f.air ? 400 : 0);
+      if (score < bs) { bs = score; best = f; }
+    }
+    return best;
+  }
+  // a foe whose nose is on us, close: the one to break against
+  function pickThreat(env) {
+    if (!env.foes) return null; let best = null, bd = 900;
+    for (const f of env.foes(PL.side)) {
+      if (!f.air || f.dead || f.dying) continue;
+      _t.copy(A.pos).sub(f.p); const d = _t.length(); if (d > bd) continue;
+      const fv = f.v.length(); if (fv < 5) continue;
+      if (_t.dot(f.v) / (d * fv) > Math.cos(32 * D2R)) { best = f; bd = d; }
+    }
+    if (env.missiles) for (const m of env.missiles(PL.side)) if (m.tgt === PL.unit || m.tgt === A) { const d = m.p.distanceTo(A.pos); if (d < 700 && d < bd) { best = m; bd = d; } }
+    return best;
+  }
+  function weapons(dt, env) {
+    const t = PL.tgt; if (!t || !env.fire) return;
+    _t.copy(t.p).sub(A.pos); const R = _t.length(); A.forward(_f); const ata = Math.acos(clamp(_f.dot(_t) / R, -1, 1));
+    // missiles: one of the right kind for the range, a few seconds apart, not at the same target while one is in flight
+    if (PL.t - PL.lastFire > 1.2) for (const W of T.weapons) {
+      if (R < W.rmin || R > W.rmax || ata > W.cone || PL.t - (PL.fired[W.w] ?? -99) < W.every) continue;
+      if (env.inFlight && env.inFlight(t) > 0) break;
+      const st = A.stores.find(s => s.on && s.w === W.w); if (!st) continue;
+      st.on = false; PL.lastFire = PL.fired[W.w] = PL.t;
+      env.fire(W.w, A, st, t, W); say(`FOX ${W.w === 'aim54' ? 'THREE' : W.w === 'aim7' ? 'ONE' : 'TWO'} ${W.w.toUpperCase()}  ${R.toFixed(0)} m`);
+      break;
+    }
+    // gun: lead the target by the bullet's time of flight, bursts while the pipper is on
+    const G = T.gun; PL.gunT -= dt; PL.gunRest -= dt;
+    if (G && A.gun > 0 && R < G.range && PL.gunRest <= 0) {
+      const tof = R / G.speed; _a.copy(t.p).addScaledVector(t.v, tof).sub(A.pos); _a.y += 0.5 * 9 * tof * tof;
+      const err = Math.acos(clamp(_f.dot(_a) / _a.length(), -1, 1));
+      if (err < G.cone || PL.gunT > 0) {
+        if (PL.gunT <= 0) PL.gunT = G.burst;
+        PL.gunAcc = (PL.gunAcc || 0) + dt;
+        while (PL.gunAcc > 0.05 && A.gun > 0) { PL.gunAcc -= 0.05; A.gun--; env.fire('gun', A, null, t, G); }
+        if (PL.gunT - dt <= 0) PL.gunRest = G.rest;
+      }
+    }
+  }
+  function fight(dt, env) {
+    const t = PL.tgt, th = PL.threat;
+    if (th && th !== t || (th && th === t && PL.defT > 0)) {   // defensive: break into the attacker (or across a missile) at max g
+      PL.mode = 'break'; PL.defT = Math.max(PL.defT || 0, 0);
+      _t.copy(th.p).sub(A.pos).normalize();
+      _d.copy(_t).addScaledVector(A.vel, -_t.dot(A.vel) / A.vel.lengthSq());   // the part of the line of sight across our path
+      if (_d.lengthSq() < 1e-4) _d.set(-A.vel.z, 0, A.vel.x);
+      _d.normalize(); A.forward(_f); _d.multiplyScalar(2).add(_f.normalize()).normalize(); _d.y = Math.min(_d.y, 0.15);
+      fly(_d.normalize(), dt, env, { speed: T.corner, ab: T.abFight, g: T.gfight, k: 4, free: true });
+      return;
+    }
+    if (!t) return;
+    _t.copy(t.p).sub(A.pos); const R = _t.length(), los = _t.divideScalar(R);
+    const V = Math.max(A.tas, 1), closure = -((t.v.x - A.vel.x) * los.x + (t.v.y - A.vel.y) * los.y + (t.v.z - A.vel.z) * los.z);
+    A.forward(_f); const ata = Math.acos(clamp(_f.dot(los), -1, 1));
+    const tv = t.v.length(), aspect = tv > 3 ? Math.acos(clamp(t.v.dot(los) / tv, -1, 1)) : 0;   // 0 = we are on its tail
+    let mode;
+    if (R > 900) mode = 'intercept';
+    else if (R < 260 && closure > 25 && ata > 0.6) mode = 'lag';   // about to overshoot: lag and go up (high yo-yo)
+    else if (R < T.gun?.range * 1.3 && ata < 0.5) mode = 'lead';
+    else mode = 'pure';
+    PL.mode = mode;
+    if (mode === 'intercept') {   // collision-course lead on a far target
+      const tgo = R / Math.max(40, closure + 30);
+      _a.copy(t.p).addScaledVector(t.v, Math.min(6, tgo) * 0.7);
+    } else if (mode === 'lead') {
+      const tof = R / (T.gun ? T.gun.speed : 400); _a.copy(t.p).addScaledVector(t.v, tof * 1.2); _a.y += 0.5 * 9 * tof * tof;
+    } else if (mode === 'lag') {
+      _a.copy(t.p).addScaledVector(t.v, -1.0); _a.y += 60;
+    } else _a.copy(t.p);
+    _d.copy(_a).sub(A.pos).normalize();
+    // keep the fight off the deck: never dive into the last 70 m
+    const agl = A.pos.y - (env.terrain ? env.terrain(A.pos.x, A.pos.z) : 0);
+    if (agl < 120 && _d.y < 0) _d.y *= clamp((agl - 70) / 50, 0, 1);
+    const sp = mode === 'intercept' ? T.fightTop : T.corner;
+    fly(_d.normalize(), dt, env, { speed: sp, ab: T.abFight && (A.eas < T.corner - 10 || mode === 'intercept' && R > 1200), g: mode === 'lead' ? Math.min(T.gfight, 5) : T.gfight, k: mode === 'lead' ? 2.5 : 3, free: R < 1200 });
+    void aspect; void V;
+  }
+
+  // ------------------------------------------------------------------ carrier recovery
+  // pattern waypoints in deck coordinates (lx starboard, lz aft of the ship's centre), heights above the deck
+  const PATTERN = [[-60, -750, 1], [-480, -300, 1], [-480, 1250, 0.9]];
+  function recover(dt, env) {
+    const c = env.carrier && env.carrier();
+    if (!c) { orbit(dt, env, PL.anchor || A.pos, T.capEAS); return; }
+    const [lx, lz] = deck(c, A.pos.x, A.pos.z), aimZ = DK.WIRES[2] - A.P.HOOK_TIP[2] - (T.hookLead ?? 20);   // the hook hangs ~3.4 m under the CG at ~7° nose up and a wire catches it within 0.45 m of the deck: aiming the CG's glideslope this far up the deck takes the 3 wire
+    const R = lz - aimZ, hdgS = -c.yaw, hdgA = hdgOf(A.vel), herr = wrap(hdgA - hdgS);   // ship's bow along -z: heading -yaw
+    const patH = c.deck + T.patAlt;
+    if (PL.state === 'rtb') {
+      // straight in when already behind the ship, roughly lined up; else round the pattern
+      if (R > 1300 && R < 3200 && Math.abs(lx - A.landX) < R * 0.45 && Math.abs(herr) < 1.0) { set('final', 'STRAIGHT IN'); return; }
+      if (PL.wp === 0) PL.wp = R < 600 ? 1 : 3;   // ahead or abeam: upwind first; behind: direct to the base turn
+      const w = PATTERN[Math.min(PL.wp, 3) - 1];
+      world(c, w[0], w[1], _t); _t.y = c.deck + T.patAlt * w[2];
+      // the ship moves: aim where the waypoint will be
+      _t.x += (c.vx || 0) * 8; _t.z += (c.vz || 0) * 8;
+      dirTo(_t.x, _t.y, _t.z, 0.25);
+      fly(_d, dt, env, { speed: PL.wp >= 3 ? 118 : 130, g: 3 });
+      if (Math.hypot(_t.x - A.pos.x, _t.z - A.pos.z) < 300) { if (PL.wp >= 3) set('final', 'BASE'); else PL.wp++; }
+      return;
+    }
+    // ---- final: dirty up, carrot onto the centreline, then the LSO controller
+    if (A.gearCmd === 0 && A.eas < 140) { A.gearCmd = 1; say('GEAR DOWN'); }
+    if (!A.hookCmd) { A.hookCmd = 1; say('HOOK DOWN'); }
+    if (A.flapSel < 2 && A.eas < 112) { A.flapSel = 2; say('FLAPS FULL'); }
+    const clos = Math.max(15, A.tas - (c.speed || 0));   // closure along the deck
+    const yGS = c.deck + A.P.REST_H + Math.tan(T.gs) * Math.max(0, R), yDes = Math.min(yGS, patH + 10);
+    const dirty = A.surf.flap > 0.85 && A.gear > 0.95;
+    // lateral and vertical errors, relative velocity in deck axes
+    const co = Math.cos(c.yaw), si = Math.sin(c.yaw), rvx = A.vel.x - (c.vx || 0), rvz = A.vel.z - (c.vz || 0);
+    const vlat = rvx * co - rvz * si, vlong = rvx * si + rvz * co;   // + starboard, + aft
+    const latErr = lx - A.landX, hErr = A.pos.y - yGS;
+    PL.lso = { R, latErr, hErr, aoa: A.alpha / D2R, eas: A.eas };
+    // wave-off: out of parameters in close, or the deck is swinging
+    if (R < 320 && R > 15) {
+      const tol = R < 120 ? 1 : 1.6;
+      if (Math.abs(latErr) > 5 * tol || Math.abs(hErr) > 5 * tol || Math.abs(c.w || 0) > 0.03 || !dirty || A.alpha > 15 * D2R || A.alpha < 5 * D2R) {
+        PL.why = `R ${R.toFixed(0)} lat ${latErr.toFixed(1)} h ${hErr.toFixed(1)} aoa ${(A.alpha / D2R).toFixed(1)} dirty ${dirty}`;
+        PL.waveoffs++; set('waveoff', PL.why); return;
+      }
+    }
+    if (R < -10 && !A.onGround) { PL.waveoffs++; set('waveoff', 'OVERFLEW THE DECK'); return; }
+    if (R > 700 || Math.abs(latErr) > 40 || Math.abs(herr) > 0.3) {
+      if (R < 450) { PL.waveoffs++; set('waveoff', `NOT LINED UP  lat ${latErr.toFixed(0)} hdg ${(herr / D2R).toFixed(0)}°`); return; }
+      // carrot: a point on the centreline ahead of us, at the glideslope height
+      const L = clamp(R * 0.3, 220, 500), zC = Math.max(aimZ, lz - L);
+      world(c, A.landX, zC, _t); _t.x += (c.vx || 0) * (L / clos); _t.z += (c.vz || 0) * (L / clos);
+      _d.set(_t.x - A.pos.x, 0, _t.z - A.pos.z).normalize();
+      const vy = -Math.tan(T.gs) * clos + 0.2 * (yDes - A.pos.y), gam = Math.asin(clamp(vy / Math.max(A.tas, 20), -0.2, 0.15));
+      _d.multiplyScalar(Math.cos(gam)); _d.y = Math.sin(gam);
+      FD.steer(_d, dt, { gmax: 2.5, k: 1.2 });
+      speedOnFinal(dt, dirty);
+      return;
+    }
+    // the last 700 m: stick flies the glideslope (vertical speed), throttle holds the AoA, bank holds the lineup
+    const vyDes = -Math.tan(T.gs) * clos + 0.25 * (yGS - A.pos.y);
+    FD.ctl.pitch = FD.pitchFor(Math.cos(A.attitude().pitch) + 0.12 * (vyDes - A.vel.y), dt);
+    const rollCmd = clamp(-latErr * 0.012 - vlat * 0.05, -0.35, 0.35);
+    FD.ctl.roll = clamp((rollCmd - A.attitude().roll) * 1.5 - A.w.x * 0.2, -1, 1);
+    FD.ctl.yaw = clamp(A.beta * 3 + herr * 0, -0.6, 0.6);
+    speedOnFinal(dt, dirty);
+    void vlong;
+  }
+  // on-speed: the EAS that gives the approach AoA at this weight, flaps full, gear down (what the AoA indexer shows)
+  const _cfg = { flap: 1, lef: 0.85, gear: 1, brake: 0, stab: 0, rud: 0, stores: 0 }, _co = {};
+  function vApproach() {
+    const K = A.P.aeroAt ? A.P.aeroAt(A) : A.P.aero; _cfg.stores = A.P.storeDrag(A);
+    const CL = aeroCoeffs(K, T.aoaApp, 0, 0.2, _cfg, _co).CL;
+    return Math.sqrt(2 * A.mass * 9 * Math.cos(T.gs) / (1.225 * A.P.S * CL));
+  }
+  // throttle: speed while configuring, then on-speed held by EAS with the AoA as the fine trim; the TF30 spools slowly,
+  // so the integrator is generous and the AoA term leads
+  function speedOnFinal(dt, dirty) {
+    const va = vApproach(), want = dirty ? va : Math.max(va + 12, Math.min(A.eas, 112) - 4);
+    const e = want - A.eas, aerr = dirty ? A.alpha - T.aoaApp : 0;
+    PL.thrI = clamp((PL.thrI ?? 0.6) + (e * 0.02 + aerr * 0.6) * dt, 0.05, 0.79);
+    FD.thr = clamp(PL.thrI + e * 0.04 + aerr * 2.5, 0, 0.95); FD.setThrottle(FD.thr); PL.vapp = va;
+  }
+  // wave-off: power up, wings level, stop the sink and climb gently on AoA (never past on-speed + 3°: a slow TF30
+  // is still spooling), then up and away along the deck heading and round the pattern
+  function waveoff(dt, env) {
+    const c = env.carrier && env.carrier();
+    FD.setThrottle(1); FD.thr = 1; PL.thrI = 0.79;
+    if (PL.stateT < 6 || A.eas < 105) {
+      const vyDes = PL.stateT < 2 ? 0.5 : 3;
+      let n = Math.cos(A.attitude().pitch) + 0.1 * (vyDes - A.vel.y);
+      if (A.alpha > T.aoaApp + 3 * D2R) n = Math.min(n, A.nz - 0.15);
+      FD.ctl.roll = FD.rollFor(0); FD.ctl.pitch = FD.pitchFor(clamp(n, 0.6, 1.6), dt); FD.ctl.yaw = clamp(A.beta * 3, -0.6, 0.6);
+    } else {
+      FD.dirHdg(c ? -c.yaw : hdgOf(A.vel), 0.12, _d);
+      fly(_d, dt, env, { g: 2.5, k: 1.2 }); FD.setThrottle(1);
+    }
+    if (PL.stateT > 4 && A.flapSel === 2 && A.vel.y > 1) A.flapSel = 1;
+    if (A.eas > 100 && A.flapSel === 1 && PL.stateT > 6) A.gearCmd = 0;
+    if (c && A.pos.y > c.deck + 60 && PL.stateT > 8 && A.eas > 105) { A.flapSel = 0; A.gearCmd = 0; A.hookCmd = 0; set('rtb', 'PATTERN'); PL.wp = 1; }
+  }
+
+  // ------------------------------------------------------------------ orbit / CAP
+  function orbit(dt, env, anc, speed, R = T.capR, alt = T.capAlt) {
+    const a = Math.atan2(A.pos.z - anc.z, A.pos.x - anc.x), d = Math.hypot(A.pos.x - anc.x, A.pos.z - anc.z);
+    const dir = PL.orbitDir || 1, lead = d > R * 1.6 ? 0 : 0.55;
+    const tx = d > R * 1.6 ? anc.x : anc.x + Math.cos(a + dir * lead) * R, tz = d > R * 1.6 ? anc.z : anc.z + Math.sin(a + dir * lead) * R;
+    const floor = env.terrain ? Math.max(env.terrain(anc.x, anc.z), 0) : 0;
+    dirTo(tx, Math.max(anc.y || 0, floor) + alt, tz, 0.3);
+    fly(_d, dt, env, { speed, g: 3.5 });
+  }
+
+  // ------------------------------------------------------------------ per frame
+  PL.update = (dt, env) => {
+    PL.t += dt; PL.stateT += dt; PL.defT = (PL.defT || 0) - dt;
+    if (A.dead) { if (PL.state !== 'dead') set('dead', A.dead); return A.step(0, FD.ctl, env); }
+    // think: targets, threats, fuel
+    PL.thinkT = (PL.thinkT || 0) - dt;
+    const airborne = ['climb', 'cap', 'fight', 'patrol'].includes(PL.state);
+    if (PL.thinkT <= 0) {
+      PL.thinkT = 0.25;
+      if (airborne && T.radar) {
+        const t = pickTarget(env); if (t !== PL.tgt) { PL.tgt = t; if (t) say(`CONTACT ${t.type || ''} ${t.p.distanceTo(A.pos).toFixed(0)} m`); }
+        const th = pickThreat(env); if (th && th !== PL.threat) { PL.defT = 2.5; say('BREAK'); } PL.threat = th;
+        if ((PL.tgt || PL.threat) && PL.state !== 'climb') set('fight');
+        if (!PL.tgt && !PL.threat && PL.state === 'fight') set('cap');
+      }
+      const wpnLeft = !T.weapons.length || A.stores.some(s => s.on) || (T.gun && A.gun > 0);
+      if (T.bingo && airborne && A.fuel < T.bingo) { PL.tgt = null; PL.threat = null; set('rtb', `BINGO ${A.fuel.toFixed(0)} kg`); }
+      else if (T.bingo && airborne && !wpnLeft && PL.state !== 'climb') { PL.tgt = null; set('rtb', 'WINCHESTER'); }
+    }
+    const anc = PL.anchor || (env.anchor && env.anchor()) || A.pos;
+    switch (PL.state) {
+      case 'cat': {
+        FD.ctl.pitch = 0; FD.ctl.roll = 0; FD.ctl.yaw = 0; FD.thr = PL.stateT > 0.6 ? 1 : 0.3; FD.setThrottle(FD.thr);
+        if (!A.cat) set('climb');
+        break;
+      }
+      case 'climb': {
+        if (A.gearCmd && A.vel.y > 1.5 && PL.stateT > 1.5) { A.gearCmd = 0; say('GEAR UP'); }
+        if (A.flapSel && A.eas > 95 && PL.stateT > 3) { A.flapSel = 0; say('FLAPS UP'); }
+        const gam = PL.stateT < 4 ? 0.16 : 0.22, hdg = PL.stateT < 6 ? hdgOf(A.vel) : Math.atan2(anc.x - A.pos.x, -(anc.z - A.pos.z));
+        FD.dirHdg(PL.stateT < 6 ? hdg : hdgOf(A.vel) + clamp(wrap(hdg - hdgOf(A.vel)), -0.6, 0.6), gam, _d);
+        fly(_d, dt, env, { speed: T.climbEAS, ab: PL.stateT < 6, g: 3 });
+        const floor = env.terrain ? Math.max(0, env.terrain(anc.x, anc.z)) : 0;
+        if (A.pos.y > Math.max(anc.y || 0, floor) + T.capAlt * 0.75 && PL.stateT > 6) set('cap');
+        break;
+      }
+      case 'cap': orbit(dt, env, anc, T.capEAS); break;
+      case 'patrol': orbit(dt, env, anc, T.capEAS); break;
+      case 'fight': fight(dt, env); weapons(dt, env); break;
+      case 'strike': {
+        const s = PL.strike; if (!s) { set('patrol'); break; }
+        dirTo(s.x, s.y, s.z, 0.8); fly(_d, dt, env, { speed: T.fightTop, g: T.gmax, guard: Math.hypot(s.x - A.pos.x, s.z - A.pos.z) > 400 });
+        break;
+      }
+      case 'rtb': case 'final': recover(dt, env); break;
+      case 'waveoff': waveoff(dt, env); break;
+      case 'bolter': {
+        FD.setThrottle(1); FD.thr = 1; FD.ctl.roll = FD.rollFor(0); FD.ctl.pitch = A.onGround ? 0.25 : FD.pitchFor(1.4, dt);
+        if (!A.onGround && PL.stateT > 1) { PL.bolters++; set('waveoff', 'BOLTER'); }
+        break;
+      }
+      case 'trapped': {
+        FD.ctl.pitch = 0; FD.ctl.roll = 0; FD.ctl.yaw = 0;
+        const t = A.wire && A.wire.held === 0 ? 0.8 : 0; FD.setThrottle(t); FD.ctl.brakeL = FD.ctl.brakeR = A.wire ? 0 : 1;
+        if (!A.wire && A.onGround && PL.stateT > 1.5 && !PL.recovered) { PL.recovered = true; say('RECOVERED'); }
+        break;
+      }
+    }
+    const ev = A.step(dt, FD.ctl, env);
+    for (const e of ev) {
+      if (e.e === 'catshot') say('CAT SHOT');
+      else if (e.e === 'catend') say(`AIRBORNE  ${(A.eas * 1.944).toFixed(0)} KEAS`);
+      else if (e.e === 'trap') { PL.trapped = e; set('trapped', `${e.wire} WIRE`); }
+      else if (e.e === 'touchdown' && (PL.state === 'final' || PL.state === 'trapped')) { PL.tdT = PL.t; if (!PL.td) PL.td = { vy: A.vel.y, eas: A.eas }; }
+      else if (e.e === 'overstress') say(`OVER-G ${e.g.toFixed(1)}`);
+      else if (e.e === 'compstall') say('COMPRESSOR STALL');
+    }
+    // touched down on the deck with no wire: bolter (power is already coming up)
+    if (PL.state === 'final' && A.onGround && PL.tdT > 0 && PL.t - PL.tdT > 0.35 && !A.wire) set('bolter');
+    if (PL.state === 'final' && A.onGround) { FD.setThrottle(0.8); }   // MIL on touchdown, as the Navy flies it
+    return ev;
+  };
+  return PL;
+}
