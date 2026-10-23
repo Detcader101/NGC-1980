@@ -304,3 +304,13 @@ game/dev/c130-model.html; scenes c130.mjs, c130model.mjs. fixedwing.js is no lon
   it with your head tipped back); a ramp that rotates the wrong way hides inside the hold; the first prop iteration
   (fixed-point inflow) found a different branch at static, bisection fixed it; flaps out at 195 KIAS when the crew
   extended them before the autopilot slowed down (the AP now respects the flap / door limits).
+- Tests (headless, all pass on the last runs): node tools/c130bench.mjs 38/38; scenes drop.json 5/5, dropflak.json,
+  rescue.json, smoke.json 5/5, c130.mjs 5/5 (deck views, hover + real mouse click on condition lever 1 -> feathered,
+  autopilot height hold, drop-run autopilot red -> green, take-off), c130model.mjs (dimensions, wheel line).
+  drop.json's manual-flight check and rescue.json were flaky on the way (an autopilot weaving on the line, a red light
+  while still turning in, the helicopter's trimmed stick read as input): fixed, but they run at ~10 fps headless.
+- Untested: the sound (headless has no audio), a real HOTAS on the Hercules, an engine fire from real flak (the code
+  path runs only on hits; the bail-out path is tested), the ground start sequence in the game (bench only), landing
+  the Hercules in the game (the dev page and the bench do it).
+- Next: a proper loadmaster figure and cargo-hold view (ramp jumps / heavy drops), CDS bundles for the repair kit,
+  the INFANTRY agent's soldier swapped in for buildParatrooper, an engine-out checklist voice from the crew.
