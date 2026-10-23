@@ -173,12 +173,12 @@ function readInput(dt) {
 const shots = [];
 const tracerGeo = new THREE.CylinderGeometry(0.03, 0.03, 1, 4).rotateX(Math.PI / 2);
 const tracerMat = new THREE.MeshBasicMaterial({ color: 0xffc070 }), mgTracerMat = new THREE.MeshBasicMaterial({ color: 0xff6040 });
-const puffs = [];
-const puffGeo = new THREE.SphereGeometry(1, 8, 6);
-function puff(p, size, color, life = 1.2, rise = 0.6) {
-  const m = new THREE.Mesh(puffGeo, new THREE.MeshLambertMaterial({ color, transparent: true, opacity: 0.8, depthWrite: false }));
-  m.position.set(...p); m.scale.setScalar(size * 0.3); scene.add(m); m.userData.heat = color === 0xffd080 ? 1 : 0.5;
-  puffs.push({ m, t: 0, life, size, rise });
+const puffs = [], fxT = { smoke: 0, dust: 0 };
+const puffTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 2, 32, 32, 31); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.5, 'rgba(255,255,255,0.55)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();   // soft round puff
+function puff(p, size, color, life = 1.2, rise = 0.6, alpha = 0.8) {
+  const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: puffTex, color, transparent: true, opacity: alpha, depthWrite: false })); m.scale.setScalar(size * 0.6);
+  m.position.set(...p); scene.add(m); m.userData.heat = color === 0xffd080 ? 1 : 0.5;
+  puffs.push({ m, t: 0, life, size, rise, alpha });
 }
 const holes = new THREE.Group(); scene.add(holes);
 const stats = { shots: 0, hits: 0, last: null, impacts: [] };
@@ -366,7 +366,23 @@ function simStep(dt) {
     if (e.type === 'knockdown') { const t = TG.TREES.find(t => t.id === e.id); if (t && t.mesh) { t.mesh.rotation.z = 1.4; t.top = -1e9; } }
   }
   stepShots(dt);
-  for (let i = puffs.length - 1; i >= 0; i--) { const p = puffs[i]; p.t += dt; const f = p.t / p.life; p.m.scale.setScalar(p.size * (0.3 + f)); p.m.position.y += p.rise * dt; p.m.material.opacity = 0.8 * (1 - f); if (f >= 1) { scene.remove(p.m); puffs.splice(i, 1); } }
+  // diesel smoke under load (AVDS: the rear deck louvres; 6V53: the stack on the right front), dust off dry tracks
+  {
+    const e = fm.eng, load = e.running ? e.load * Math.min(1, e.w * 9.549 / 1500) : 0;
+    fxT.smoke -= dt; fxT.dust -= dt;
+    if (load > 0.35 && fxT.smoke <= 0) {
+      fxT.smoke = 0.12 / load;
+      const src = VEH === 'm113' ? [0.95, 1.6, -1.9] : [(Math.random() < 0.5 ? -1 : 1) * 1.05, 2.0, 2.85];
+      const w = fm.toWorld(src); puff(w, 0.35 + 0.5 * load, load > 0.8 ? 0x4a4a46 : 0x77746c, 1.8, 1.4, 0.18 + 0.2 * load);
+    }
+    const v = Math.abs(fm.out.fwd), dry = fm.soil.some(s => s === 'dirt' || s === 'sand');
+    if (dry && v > 3 && fxT.dust <= 0 && fm.water.depth < 0.1) {
+      fxT.dust = 0.5 / v;
+      const side = Math.random() < 0.5 ? -1 : 1, rear = fm.P.TRACK.REAR.z + 0.4, w = fm.toWorld([side * fm.P.TRACK.GAUGE / 2, 0.3, rear]);
+      puff(w, 0.8 + v * 0.1, fm.soil[0] === 'sand' ? 0xb8a77a : 0x8f7f60, 2.5, 0.35, 0.35);
+    }
+  }
+  for (let i = puffs.length - 1; i >= 0; i--) { const p = puffs[i]; p.t += dt; const f = p.t / p.life; p.m.scale.setScalar(p.size * (0.6 + 2 * f)); p.m.position.y += p.rise * dt; p.m.material.opacity = p.alpha * (1 - f); if (f >= 1) { scene.remove(p.m); puffs.splice(i, 1); } }
   time += dt;
 }
 function syncModel() {

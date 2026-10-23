@@ -30,6 +30,7 @@ export default async function (h) {
   await lane('mud', -45, 8, 0, 20, 6, [2.3, 0.25, 14], '__res.v > 4');
   await h.eval('({ sink: __T.fm.sink, soil: __T.fm.soil })');
   await lane('ford-12', -72, 0, 1.5708, 6, 5.5, [0.9, 0.12, 14], '__T.fm.water.depth > 0.6 && !__T.fm.eng.flooded');
+  await lane('dust-run', 40, 20, 0, 32, 9, [0.5, 0.2, 16], '__res.v > 18');
   await h.eval('(__T.input(null), 1)');
   // ---- gunnery: from the start line, lay on the 1000 m panel, lase, fire SABOT
   await h.eval(`(() => { __T.reset(0, 40, 0, { range: 'N' }); __T.step(120); const t = __T.TG.TARGETS.find(t => t.id === 'panel1000'); __T.aimAt(t.x, 0.5 + 1.2, t.z);

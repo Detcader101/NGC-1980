@@ -162,7 +162,7 @@ export function sprocketGeo(rp, teeth, width = 0.26) {
 export function linkGeos(pitch, w, o = {}) {
   const t = o.t ?? 0.035, steel = [], rubber = [], bright = [];
   const L = pitch * 0.94;
-  steel.push(box(w * 0.98, t, L * 0.86, 0, 0, 0));                                  // shoe body
+  steel.push(box(w * 0.98, t, pitch * 0.9, 0, 0, 0));                               // shoe body (shoes nearly touch)
   for (const s of [-1, 1]) { bright.push(box(0.05, t * 1.3, pitch * 0.32, s * (w / 2 + 0.02), 0, pitch * 0.5)); }   // end connectors at the pin line
   bright.push(box(w * 0.94, t * 0.6, pitch * 0.18, 0, 0.004, pitch * 0.5));          // pin / bushing tube
   if (o.pads) for (const s of [-1, 1]) rubber.push(box(w * 0.42, 0.022, L * 0.64, s * w * 0.24, -t / 2 - 0.011, 0));
