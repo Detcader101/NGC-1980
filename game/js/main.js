@@ -96,6 +96,19 @@ const THR_AXIS = params.has('throttle') ? +params.get('throttle') : -1;
 const dz = v => Math.abs(v) < 0.12 ? 0 : Math.sign(v) * (Math.abs(v) - 0.12) / 0.88;
 let padWasStart = false;
 
+// On foot only a standard game controller drives the soldier: the HOTAS stick, throttle and rudder pedals are flight
+// controls and never move, aim or fire the infantryman (they stay bound for the aircraft and vehicles).
+function readGamepad() {
+  if (keyboardOnly) return null;
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [], devs = (CTL.state && CTL.state.devices) || [];
+  for (const p of pads) {
+    if (!p || !p.connected || p.mapping !== 'standard') continue;
+    if (/044f|thrustmaster|t\.?flight|hotas|throttle|rudder|pedal|joystick/i.test(p.id)) continue;
+    if (devs.some(d => d.index === p.index && d.role && d.role !== 'gamepad')) continue;
+    return p;
+  }
+  return null;
+}
 function readPad() {
   if (keyboardOnly) return null;
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
@@ -1127,7 +1140,7 @@ function deliverVehicle() {
 }
 // the per-frame entry for the surface: the active craft flies / drives / walks, the parked ones idle (craft.js)
 function updateZarch(dt, inp) {
-  inp.pad = G.craft === 'heli' || isJet() ? null : readPad(); inp.keyboardOnly = keyboardOnly;
+  inp.pad = G.craft === 'heli' || isJet() ? null : G.craft === 'foot' ? readGamepad() : readPad(); inp.keyboardOnly = keyboardOnly;   // on foot: a game controller only, never the HOTAS
   crafts.update(dt, inp);
   armDelivery.update(dt);   // ARMOUR: landing craft under way
   if (G.crewDownT > 0) { G.crewDownT -= dt; if (G.crewDownT <= 0 && !G.over) toHeli(war.carrier && war.carrier.sinking === undefined ? 'NEW CREW  -  IN THE HELICOPTER ON THE ALBATROSS' : 'NEW CREW  -  ON THE HOME PAD'); }
