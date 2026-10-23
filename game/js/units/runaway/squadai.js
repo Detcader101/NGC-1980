@@ -143,7 +143,9 @@ export function createSquadAI(world, opt = {}) {
     const lead = ms[0].id;
     if (S.leaderNow !== undefined && S.leaderNow !== lead) { S.linkDown = AI_T.LINK_DOWN; S.freeze = AI_T.FREEZE; AI.log.push({ t: AI.time, sq: S.id, st: 'LINK LOST', note: 'node ' + S.leaderNow + ' down' }); }
     S.leaderNow = lead;
-    const cx = ms.reduce((s, m) => s + m.x, 0) / ms.length, cz = ms.reduce((s, m) => s + m.z, 0) / ms.length;
+    // the squad's centre is its walkers' (the armour keeps station on them, not the other way round)
+    const core = ms.some(m => !m.vehicle) ? ms.filter(m => !m.vehicle) : ms;
+    const cx = core.reduce((s, m) => s + m.x, 0) / core.length, cz = core.reduce((s, m) => s + m.z, 0) / core.length;
     S.cx = cx; S.cz = cz;
     const en = enemies(S);
     let own = 0, theirs = 0;
@@ -170,7 +172,7 @@ export function createSquadAI(world, opt = {}) {
       setState(S, 'retreat', `outnumbered ${S.ratio.toFixed(2)}`); S.boundT = 0; return;
     }
     if (S.state === 'regroup') {
-      const spread = Math.max(...ms.map(m => dist2(m.x, m.z, cx, cz)));
+      const spread = Math.max(...core.map(m => dist2(m.x, m.z, cx, cz)));
       S.regroupT = (S.regroupT || 0) + AI_T.THINK;
       if (spread < 14 || S.regroupT > 12) setState(S, near.length ? 'contact' : 'advance', 'regrouped');
       return;
@@ -184,7 +186,7 @@ export function createSquadAI(world, opt = {}) {
       return;
     }
     if (!near.length) {
-      const spread = Math.max(...ms.map(m => dist2(m.x, m.z, cx, cz)));
+      const spread = Math.max(...core.map(m => dist2(m.x, m.z, cx, cz)));
       if (spread > 45 && S.state !== 'advance') { setState(S, 'regroup', 'spread out'); S.regroupT = 0; S.rally = [cx, cz]; return; }
       const holdOn = (S.holdUntil ?? 0) > AI.time;
       setState(S, O.type === 'defend' ? 'defend' : O.type === 'hold' || holdOn ? 'hold' : 'advance', holdOn ? 'holding at the rally' : ''); S.contactT = 0; return;

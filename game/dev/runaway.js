@@ -108,15 +108,16 @@ const FX = (() => {
   const trMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
   const tracers = new THREE.InstancedMesh(trGeo, trMat, 600); tracers.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(600 * 3), 3); tracers.frustumCulled = false; g.add(tracers);
   // particles (sparks, dust, smoke, flashes): one Points cloud, CPU-updated
-  const NP = 4000, pos = new Float32Array(NP * 3), colA = new Float32Array(NP * 3), sizeA = new Float32Array(NP), vel = new Float32Array(NP * 3), life = new Float32Array(NP), life0 = new Float32Array(NP), grow = new Float32Array(NP), drag = new Float32Array(NP), grav = new Float32Array(NP), size0 = new Float32Array(NP);
-  const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); pg.setAttribute('color', new THREE.BufferAttribute(colA, 3)); pg.setAttribute('size', new THREE.BufferAttribute(sizeA, 1));
+  const NP = 4000, pos = new Float32Array(NP * 3), colA = new Float32Array(NP * 3), sizeA = new Float32Array(NP), alphaA = new Float32Array(NP), alpha0 = new Float32Array(NP), vel = new Float32Array(NP * 3), life = new Float32Array(NP), life0 = new Float32Array(NP), grow = new Float32Array(NP), drag = new Float32Array(NP), grav = new Float32Array(NP), size0 = new Float32Array(NP);
+  const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); pg.setAttribute('color', new THREE.BufferAttribute(colA, 3)); pg.setAttribute('size', new THREE.BufferAttribute(sizeA, 1)); pg.setAttribute('alpha', new THREE.BufferAttribute(alphaA, 1));
   const pm = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, vertexColors: true,
     uniforms: { scale: { value: 600 } },
-    vertexShader: 'attribute float size; varying vec3 vC; varying float vA; void main(){ vC = color; vec4 mv = modelViewMatrix * vec4(position,1.); gl_PointSize = size * 300. / -mv.z; vA = size > 0. ? 1. : 0.; gl_Position = projectionMatrix * mv; }',
-    fragmentShader: 'varying vec3 vC; varying float vA; void main(){ vec2 d = gl_PointCoord - .5; float r = dot(d,d); if (r > .25 || vA < .5) discard; gl_FragColor = vec4(vC, 1. - r * 3.); }' });
+    vertexShader: 'attribute float size; attribute float alpha; varying vec3 vC; varying float vA; void main(){ vC = color; vec4 mv = modelViewMatrix * vec4(position,1.); gl_PointSize = size * 300. / -mv.z; vA = size > 0. ? alpha : 0.; gl_Position = projectionMatrix * mv; }',
+    fragmentShader: 'varying vec3 vC; varying float vA; void main(){ vec2 d = gl_PointCoord - .5; float r = dot(d,d); if (r > .25 || vA < .01) discard; gl_FragColor = vec4(vC, vA * (1. - r * 4.)); }' });
   const pts = new THREE.Points(pg, pm); pts.frustumCulled = false; g.add(pts);
   let pi = 0;
-  const spawn = (x, y, z, vx, vy, vz, s, l, r, gg, b, o = {}) => { const i = pi++ % NP; pos.set([x, y, z], i * 3); vel.set([vx, vy, vz], i * 3); colA.set([r, gg, b], i * 3); size0[i] = s; sizeA[i] = s; life[i] = life0[i] = l; grow[i] = o.grow ?? 0; drag[i] = o.drag ?? 1; grav[i] = o.grav ?? 0; };
+  // (a: peak opacity - dust and smoke are thin, sparks are solid; everything fades out over its life)
+  const spawn = (x, y, z, vx, vy, vz, s, l, r, gg, b, o = {}) => { const i = pi++ % NP; pos.set([x, y, z], i * 3); vel.set([vx, vy, vz], i * 3); colA.set([r, gg, b], i * 3); size0[i] = s; sizeA[i] = s; life[i] = life0[i] = l; grow[i] = o.grow ?? 0; drag[i] = o.drag ?? 1; grav[i] = o.grav ?? 0; alpha0[i] = o.a ?? (o.grow ? 0.45 : 1); alphaA[i] = alpha0[i]; };
   // beams (coilgun, PD): short-lived additive lines
   const beams = [];
   const beam = (a, b, color, w, t) => { const d = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]), L = d.length(); const m = new THREE.Mesh(new THREE.BoxGeometry(w, w, L).translate(0, 0, -L / 2), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false })); m.position.set(a[0], a[1], a[2]); m.lookAt(a[0] - d.x, a[1] - d.y, a[2] - d.z); g.add(m); beams.push({ m, t, t0: t }); };
@@ -167,20 +168,20 @@ const FX = (() => {
           break;
         }
         case 'pd': beam(e.from, [e.x, e.y, e.z], 0xd8fbff, 0.08, 0.08); if (e.ok) flash(e.x, e.y, e.z, 1.2, 0xffffff, 0.1); break;
-        case 'step': if ((e.v || 0) > 1.4 || e.stumble > 0.4) for (let i = 0; i < 3; i++) spawn(e.x, e.y + 0.05, e.z, (R() - .5) * 1.2, R() * 0.6, (R() - .5) * 1.2, 0.35, 0.9, 0.62, 0.58, 0.47, { grow: 0.8, drag: 0.9 }); break;
+        case 'step': if ((e.v || 0) > 1.4 || e.stumble > 0.4) for (let i = 0; i < 2; i++) spawn(e.x, e.y + 0.05, e.z, (R() - .5) * 1.2, R() * 0.5, (R() - .5) * 1.2, 0.22, 0.7, 0.62, 0.58, 0.47, { grow: 0.7, drag: 0.9, a: 0.3 }); break;
         case 'thud': for (let i = 0; i < 14; i++) spawn(e.x, e.y - 0.8, e.z, (R() - .5) * 3, R() * 1.2, (R() - .5) * 3, 0.6, 1.5, 0.6, 0.57, 0.46, { grow: 1, drag: 0.9 }); break;
       }
     },
-    dust(x, y, z, k) { if (R() < k) spawn(x + (R() - .5) * 4, y + 0.1, z + (R() - .5) * 7, (R() - .5) * 5, R() * 1.2, (R() - .5) * 5, 0.8, 1.3, 0.64, 0.6, 0.5, { grow: 1.4, drag: 0.92 }); },
+    dust(x, y, z, k) { if (R() < k) spawn(x + (R() - .5) * 4, y + 0.1, z + (R() - .5) * 7, (R() - .5) * 6, R() * 1.0, (R() - .5) * 6, 0.7, 1.2, 0.66, 0.62, 0.52, { grow: 1.2, drag: 0.93, a: 0.22 }); },
     update(dt) {
       for (let i = 0; i < NP; i++) {
         if (life[i] <= 0) { if (sizeA[i]) sizeA[i] = 0; continue; }
         life[i] -= dt; const f = Math.pow(drag[i], dt * 60);
         vel[i * 3] *= f; vel[i * 3 + 1] = vel[i * 3 + 1] * f - grav[i] * dt; vel[i * 3 + 2] *= f;
         pos[i * 3] += vel[i * 3] * dt; pos[i * 3 + 1] += vel[i * 3 + 1] * dt; pos[i * 3 + 2] += vel[i * 3 + 2] * dt;
-        sizeA[i] = life[i] > 0 ? size0[i] * (1 + grow[i] * (1 - life[i] / life0[i]) * 3) * Math.min(1, life[i] / life0[i] * 3) : 0;
+        const lf = life[i] / life0[i]; sizeA[i] = life[i] > 0 ? size0[i] * (1 + grow[i] * (1 - lf) * 3) : 0; alphaA[i] = alpha0[i] * Math.min(1, lf * 2.5) * Math.min(1, (1 - lf) * 12 + 0.2);
       }
-      pg.attributes.position.needsUpdate = true; pg.attributes.size.needsUpdate = true; pg.attributes.color.needsUpdate = true;
+      pg.attributes.position.needsUpdate = true; pg.attributes.size.needsUpdate = true; pg.attributes.color.needsUpdate = true; pg.attributes.alpha.needsUpdate = true;
       for (let i = beams.length - 1; i >= 0; i--) { const b = beams[i]; b.t -= dt; b.m.material.opacity = Math.max(0, b.t / b.t0); if (b.t <= 0) { g.remove(b.m); b.m.geometry.dispose(); beams.splice(i, 1); } }
       for (let i = flashes.length - 1; i >= 0; i--) { const f = flashes[i]; f.t -= dt; f.m.material.opacity = Math.max(0, f.t / f.t0); f.m.scale.setScalar(f.s * (1.4 - 0.4 * f.t / f.t0)); if (f.t <= 0) { g.remove(f.m); flashes.splice(i, 1); } }
     },
@@ -332,7 +333,7 @@ window.__RW = {
   get B() { return B; }, THREE, scene, camera, cam, views, FX,
   start, step(n = 1) { for (let i = 0; i < n; i++) for (const e of B.step(STEP)) { FX.event(e); } syncViews(STEP * n); },
   // advance the sim by `secs` without rendering every step (fast-forward), then render once
-  run(secs) { const n = Math.round(secs / STEP); for (let i = 0; i < n; i++) { const evs = B.step(STEP); if (i > n - 60) for (const e of evs) FX.event(e); } syncViews(STEP); FX.projectiles(B.proj); FX.update(0.03); drawOverlay(); renderer.render(scene, camera); return { t: B.time, stats: B.stats }; },
+  run(secs) { const n = Math.round(secs / STEP); for (let i = 0; i < n; i++) { const evs = B.step(STEP); if (i > n - 90) { for (const e of evs) FX.event(e); FX.update(STEP); } } syncViews(STEP); FX.projectiles(B.proj); drawOverlay(); renderer.render(scene, camera); return { t: B.time, stats: B.stats }; },
   look(x, y, z, yaw, pitch) { cam.p.set(x, y, z); cam.yaw = yaw; cam.pitch = pitch; follow = null; updateCamera(0); drawOverlay(); renderer.render(scene, camera); },
   lookAt(tx, ty, tz, dist, yaw, pitch) { const f = [-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch)]; cam.p.set(tx - f[0] * dist, ty - f[1] * dist, tz - f[2] * dist); cam.yaw = yaw; cam.pitch = pitch; follow = null; updateCamera(0); drawOverlay(); renderer.render(scene, camera); },
   follow(id) { follow = B.units.find(m => m.id === id) || null; },
