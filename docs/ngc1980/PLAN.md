@@ -37,6 +37,6 @@ The orchestrator (main Claude session) keeps this file current. Read [BIBLE.md](
 | AIR AI fixed-wing: F-14A on a real FM, MQ-9, Shahed | ngc/airfw | 1 | | |
 | AIR AI rotary: CH-46 + Marines, MV-22B, RW-3 WASP | ngc/airrot | 1 | | |
 | C-130H Hercules (replaces MULE 1) | ngc/c130 | 1 | | |
-| DEFENCES: M163 VADS, ZSU-23-4, Pantsir-S1, RW-5 lance | ngc/defence | 1 | | |
+| DEFENCE, game-tuned (first agent blocked by an auto-mode safety check; relaunched without real-world weapon data) | ngc/defence-v2 | 1 | | |
 | STRUCTURES + LIVED-IN WORLD: bases both sides, villages, roads, civilians | ngc/world | 1 | | |
 | RUNAWAY ground: RW-1 STRIDER, RW-7 hover tank, seized M1A2/T-90M | ngc/rwground | 1 | | |
