@@ -136,7 +136,11 @@ function buildIsland(kit, glow, sheet) {
 // canvas px: x -> (x + 14) * 512 / 28, z -> (z + 66) * 2304 / 126
 const DT_W = 512, DT_H = 2304, PXM = DT_H / 126;
 const px = x => (x + 14) * DT_W / 28, pz = z => (z + 66) * PXM;
-export const ELEVATORS = [{ x0: 8.6, x1: 14, z0: -24, z1: -10 }, { x0: 8.6, x1: 14, z0: 17, z1: 30 }, { x0: -14, x1: -8.6, z0: -38, z1: -25 }];
+// SEAWORLD: the three deck-edge elevators are platforms OUTBOARD of the deck edge (as on the real Midway / Forrestal
+// carriers): flush with the flight deck when up, down at the hangar-deck door (y 4.25) when lowered. Aircraft are real
+// size on this 0.44-scale ship, so a Hornet on a lift overhangs its ends a little (as they do).
+export const ELEVATORS = [{ x0: 14, x1: 23, z0: -24, z1: -10 }, { x0: 14, x1: 23, z0: 17, z1: 30 }, { x0: -23, x1: -14, z0: -38, z1: -25 }];
+export const LIFT_UP = DECK, LIFT_DOWN = 4.25;
 function deckTexture() {
   return canvasTex(DT_W, DT_H, (x, w, h) => {
     const r = rng(42);
@@ -168,12 +172,12 @@ function deckTexture() {
     // JBD (jet blast deflector) outline behind the catapult start
     x.strokeStyle = '#d8b21e'; x.lineWidth = 3; x.strokeRect(px(-7), pz(3.2), px(2) - px(-7), pz(5.6) - pz(3.2));
     for (let xx = -7; xx < 2; xx += 0.9) line(xx, 3.2, xx + 0.6, 5.6, 'rgba(216,178,30,0.5)', 2);
-    // elevators: yellow-black hazard edges
+    // deck-edge elevators (SEAWORLD: outboard platforms now): a yellow-black hazard strip on the deck edge where each
+    // lift meets the deck, and a dashed line 2 m in (stand clear while it moves)
     for (const E of ELEVATORS) {
-      x.fillStyle = 'rgba(70,72,76,0.6)'; x.fillRect(px(E.x0), pz(E.z0), px(E.x1) - px(E.x0), pz(E.z1) - pz(E.z0));
-      for (let k = 0; ; k++) { const t = k * 18; if (t > 2 * (px(E.x1) - px(E.x0) + pz(E.z1) - pz(E.z0))) break; }
-      x.lineWidth = 6; x.setLineDash([14, 14]); x.strokeStyle = '#d8b21e'; x.strokeRect(px(E.x0) + 3, pz(E.z0) + 3, px(E.x1) - px(E.x0) - 6, pz(E.z1) - pz(E.z0) - 6);
-      x.lineDashOffset = 14; x.strokeStyle = '#151515'; x.strokeRect(px(E.x0) + 3, pz(E.z0) + 3, px(E.x1) - px(E.x0) - 6, pz(E.z1) - pz(E.z0) - 6); x.setLineDash([]); x.lineDashOffset = 0;
+      const sd = Math.sign(E.x0 + E.x1), xa = sd > 0 ? 13.1 : -14, xb = sd > 0 ? 14 : -13.1;
+      for (let z = E.z0, k = 0; z < E.z1; z += 0.9, k++) { x.fillStyle = k % 2 ? '#151515' : '#d8b21e'; x.fillRect(px(xa), pz(z), px(xb) - px(xa), pz(Math.min(E.z1, z + 0.9)) - pz(z)); }
+      line(sd * 12, E.z0, sd * 12, E.z1, '#d8b21e', 3, [10, 10]); line(sd * 12, E.z0, sd * 14, E.z0, '#d8b21e', 3); line(sd * 12, E.z1, sd * 14, E.z1, '#d8b21e', 3);
     }
     // taxi lines: yellow, round the island and out to the parking spots
     x.strokeStyle = '#c9a51c'; x.lineWidth = 3;
@@ -241,13 +245,14 @@ function buildDeckGear(kit, glow) {
     kit.box(0.12, 2.6, len, 0x23272b, sd * 12.25, 5.4, zc);                                                        // the hangar beyond (dim)
     kit.box(0.16, 1.1, len, 0x5f676e, sd * 12.28, 6.15, zc); for (const y of [5.75, 6.05, 6.35]) kit.box(0.18, 0.04, len, 0x454c52, sd * 12.29, y, zc);   // roller door, part up
     for (let z = E.z0 + 2; z < E.z1 - 1; z += 3) glow.box(0.05, 0.12, 0.9, 0xfff0c8, sd * 12.2, 5.5, z);   // hangar lights
-    kit.box(4.6, 0.6, E.z1 - E.z0, HAZE_D, sd * 13.0, DECK - 0.45, (E.z0 + E.z1) / 2);
+    for (const z of [E.z0 + 0.5, E.z1 - 0.5]) kit.box(1.4, 3.9, 0.35, HAZE_D, sd * 13.25, (LIFT_DOWN + DECK) / 2 - 0.2, z);   // SEAWORLD: the lift guide posts
+    kit.box(1.8, 0.25, E.z1 - E.z0, HAZE_D, sd * 13.1, LIFT_DOWN - 0.4, (E.z0 + E.z1) / 2);                               // the hangar-deck sill
   }
 }
 // gun sponsons: [x, z] of the mount, and its outward direction; built below the deck edge
 const MOUNTS = [
   { kind: 'ciws', x: 16.3, z: -29, y: DECK - 1.0, out: [1, 0, -0.3] },     // fwd starboard: Phalanx
-  { kind: 'sam', x: -16.5, z: -30, y: DECK - 1.4, out: [-1, 0, -0.4] },     // fwd port: Sea Sparrow Mk 25
+  { kind: 'sam', x: -16.5, z: -20.5, y: DECK - 1.4, out: [-1, 0, -0.4] },   // fwd port: Sea Sparrow Mk 25 (SEAWORLD: aft of the port lift)
   { kind: 'ciws', x: -16.3, z: 50, y: DECK - 1.0, out: [-1, 0, 0.4] },      // aft port: Phalanx
   { kind: 'sam', x: 16.5, z: 51, y: DECK - 1.4, out: [1, 0, 0.5] },         // aft starboard: Sea Sparrow
 ];
@@ -310,6 +315,41 @@ function instanced(geo, list, y) {
   const m = new THREE.InstancedMesh(geo, hullMat(), list.length);
   list.forEach(([x, z, yaw], i) => m.setMatrixAt(i, T(x, DECK + y, z, 0, yaw, 0)));
   m.instanceMatrix.needsUpdate = true; m.frustumCulled = false; return m;
+}
+// SEAWORLD: parked aircraft are solid. A height field of the baked geometry (the highest point over each 0.5 m cell of
+// its plan, in its own frame) goes into the deck: war.js deckY sees the aircraft's top there, so the HORNET's hull and
+// gear checks and the Huey's skids meet it, and a soldier or a vehicle finds a wall (ground.js floor: a rise > a step).
+const _fpCache = new Map();
+export function heightField(geo, cell = 0.5) {
+  if (_fpCache.has(geo)) return _fpCache.get(geo);
+  geo.computeBoundingBox(); const bb = geo.boundingBox, x0 = bb.min.x - cell, z0 = bb.min.z - cell;
+  const nx = Math.ceil((bb.max.x - x0) / cell) + 2, nz = Math.ceil((bb.max.z - z0) / cell) + 2, h = new Float32Array(nx * nz).fill(-1e9);
+  const P = geo.attributes.position.array, I = geo.index ? geo.index.array : null, nt = (I ? I.length : P.length / 3) / 3;
+  const put = (x, z, y) => { const i = Math.floor((x - x0) / cell), j = Math.floor((z - z0) / cell); if (i >= 0 && j >= 0 && i < nx && j < nz && y > h[j * nx + i]) h[j * nx + i] = y; };
+  for (let t = 0; t < nt; t++) {
+    const a = (I ? I[3 * t] : 3 * t) * 3, b = (I ? I[3 * t + 1] : 3 * t + 1) * 3, c = (I ? I[3 * t + 2] : 3 * t + 2) * 3;
+    const ax = P[a], ay = P[a + 1], az = P[a + 2], bx = P[b], by = P[b + 1], bz = P[b + 2], cx = P[c], cy = P[c + 1], cz = P[c + 2];
+    // the edges (thin and vertical triangles: fins, gear legs), then the cells whose centres the triangle covers
+    for (const [px, py, pz, qx, qy, qz] of [[ax, ay, az, bx, by, bz], [bx, by, bz, cx, cy, cz], [cx, cy, cz, ax, ay, az]]) {
+      const n = Math.ceil(Math.hypot(qx - px, qz - pz) / (cell * 0.5)) + 1;
+      for (let k = 0; k <= n; k++) { const f = k / n; put(px + (qx - px) * f, pz + (qz - pz) * f, py + (qy - py) * f); }
+    }
+    const d = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz); if (Math.abs(d) < 1e-6) continue;
+    const i0 = Math.floor((Math.min(ax, bx, cx) - x0) / cell), i1 = Math.floor((Math.max(ax, bx, cx) - x0) / cell);
+    const j0 = Math.floor((Math.min(az, bz, cz) - z0) / cell), j1 = Math.floor((Math.max(az, bz, cz) - z0) / cell);
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const x = x0 + (i + 0.5) * cell, z = z0 + (j + 0.5) * cell;
+      const l1 = ((bz - cz) * (x - cx) + (cx - bx) * (z - cz)) / d, l2 = ((cz - az) * (x - cx) + (ax - cx) * (z - cz)) / d, l3 = 1 - l1 - l2;
+      if (l1 >= -0.02 && l2 >= -0.02 && l3 >= -0.02) put(x, z, l1 * ay + l2 * by + l3 * cy);
+    }
+  }
+  const fp = { x0, z0, nx, nz, cell, h, r: Math.hypot(Math.max(-bb.min.x, bb.max.x), Math.max(-bb.min.z, bb.max.z)) + cell };
+  _fpCache.set(geo, fp); return fp;
+}
+// the top of a footprint at a point in its own frame (or -1e9)
+export function fpTop(fp, x, z) {
+  const i = Math.floor((x - fp.x0) / fp.cell), j = Math.floor((z - fp.z0) / fp.cell);
+  return i < 0 || j < 0 || i >= fp.nx || j >= fp.nz ? -1e9 : fp.h[j * fp.nx + i];
 }
 // chocks (yellow) at the main wheels and tie-down chains of a parked aircraft (in its own frame: mains at +-mx, mz)
 function chocks(kit, x, z, yaw, mx, mz, nz) {
@@ -435,16 +475,81 @@ export function buildAlbatross(side = 1, opts = {}) {
     C.push({ mode: 'seated', jersey: 'blue', at: () => tug.seat });
     crew = createCrew(C, { seed: 21 }); g.add(crew.group);
   }
+  // ---- SEAWORLD: the deck-edge elevators. Each lift is a group (the platform, its railings, whatever is parked on it)
+  // that travels between the flight deck (LIFT_UP) and the hangar door (LIFT_DOWN) at ~0.42 m/s (9 s a trip; the real
+  // ones take ~15 s for twice the height). A console at the deck edge just forward of each lift runs it.
+  const lifts = ELEVATORS.map((E, i) => {
+    const sd = Math.sign(E.x0 + E.x1), cx = (E.x0 + E.x1) / 2, cz = (E.z0 + E.z1) / 2, w = E.x1 - E.x0, len = E.z1 - E.z0;
+    const grp = new THREE.Group(); grp.name = `lift-${i + 1}`; grp.position.y = LIFT_UP; g.add(grp);
+    const k = new Kit({ wear: 0.03, seed: 50 + i });
+    k.box(w, 0.42, len, DECKC, cx, -0.2, cz);                                                         // the platform
+    for (let z = E.z0 + 1.2; z < E.z1; z += 2.4) k.box(w - 0.4, 0.5, 0.25, HAZE_D, cx, -0.66, z);   // girders under it
+    for (let z = E.z0, n = 0; z < E.z1 - 0.01; z += 0.9, n++) k.box(0.5, 0.03, Math.min(0.9, E.z1 - z), n % 2 ? BLACK : YELLOW, sd > 0 ? E.x1 - 0.25 : E.x0 + 0.25, 0.015, z + Math.min(0.9, E.z1 - z) / 2);   // hazard edge
+    for (const z of [E.z0 + 0.25, E.z1 - 0.25]) for (let x = E.x0, n = 0; x < E.x1 - 0.01; x += 0.9, n++) k.box(Math.min(0.9, E.x1 - x), 0.03, 0.5, n % 2 ? BLACK : YELLOW, x + Math.min(0.9, E.x1 - x) / 2, 0.015, z);
+    for (let x = E.x0 + 1.6; x < E.x1 - 1; x += 1.6) for (let z = E.z0 + 1.6; z < E.z1 - 1; z += 1.6) k.box(0.12, 0.02, 0.12, 0x202224, x, 0.01, z);   // padeyes
+    // stanchions and chains on the three open edges (they stay up: the deck side is the only way on or off)
+    const xo = sd > 0 ? E.x1 - 0.1 : E.x0 + 0.1;
+    k.rail([[sd > 0 ? E.x0 + 0.6 : E.x1 - 0.6, 0, E.z0 + 0.1], [xo, 0, E.z0 + 0.1], [xo, 0, E.z1 - 0.1], [sd > 0 ? E.x0 + 0.6 : E.x1 - 0.6, 0, E.z1 - 0.1]], 1.0, 0xb8a020, 1.5, 0.035);
+    const mesh = k.mesh(); mesh.name = `lift-${i + 1}-platform`; grp.add(mesh);
+    // the console on the deck edge (amber lamp: flashing while the lift moves)
+    const con = { lx: sd * 13.2, lz: E.z0 - 1.4 };
+    kit.box(0.55, 1.05, 0.45, HAZE_D, con.lx, DECK + 0.52, con.lz); kit.box(0.45, 0.3, 0.05, BLACK, con.lx, DECK + 0.9, con.lz + 0.24);
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 4), new THREE.MeshBasicMaterial({ color: 0x5a3a08 })); lamp.position.set(con.lx, DECK + 1.15, con.lz); g.add(lamp);
+    return { i, E, sd, cx, cz, y: LIFT_UP, target: LIFT_UP, v: 0.42, grp, lamp, con, moving: false, riders: [] };
+  });
+  // a Hornet spotted on the forward starboard lift, lengthwise (aircraft are real size: it overhangs the ends)
+  const L1 = lifts[0], liftJet = new THREE.Mesh(hornetGeo(), hullMat()); liftJet.name = 'lift-hornet';
+  liftJet.position.set(L1.cx + 0.2, 2.05, L1.cz); L1.grp.add(liftJet);
+  { const k = new Kit({ wear: 0 }); chocks(k, L1.cx + 0.2, L1.cz, 0, 1.6, 0.6, -4.6); const m = k.mesh(); m.position.y = -DECK; L1.grp.add(m); }
+  // everything parked, as footprints in the ship frame: { x, z, c, s (heading), fp, base() (y of the geometry origin) }
+  const parked = [];
+  const park = (geo, x, z, yaw, base) => parked.push({ x, z, c: Math.cos(yaw), s: Math.sin(yaw), fp: heightField(geo), base });
+  for (const [x, z, yw] of hornets) park(hornetGeo(), x, z, yw, () => DECK + 2.05);
+  if (opts.buildTomcat) for (const [x, z, yw] of cats) park(tomcatGeo(opts.buildTomcat), x, z, yw, () => DECK);
+  park(hornetGeo(), L1.cx + 0.2, L1.cz, 0, () => L1.y + 2.05);
+  // the deck with the lifts and the parked aircraft in it (war.js deckY: parts.localDeck)
+  // (0.3 m inboard of the platform too: the deck stops at 0.985 of its half width, and nobody falls through the seam)
+  const liftAt = (lx, lz) => { for (const L of lifts) if ((L.sd > 0 ? lx > L.E.x0 - 0.3 && lx < L.E.x1 : lx > L.E.x0 && lx < L.E.x1 + 0.3) && lz > L.E.z0 && lz < L.E.z1) return L; return null; };
+  const deckWith = (lx, lz) => {
+    let h = localDeck(lx, lz);
+    const L = liftAt(lx, lz); if (L && L.y > h) h = L.y;
+    for (const p of parked) {
+      const dx = lx - p.x, dz = lz - p.z; if (dx * dx + dz * dz > p.fp.r * p.fp.r) continue;
+      const t = fpTop(p.fp, dx * p.c - dz * p.s, dx * p.s + dz * p.c); if (t > -1e8) { const y = p.base() + t; if (y > h) h = y; }
+    }
+    return h;
+  };
+  // the railings as walls for walkers and vehicles (ground.js collide: ship-frame boxes, y in the ship frame)
+  const railBoxes = lifts.map(L => [
+    { L, lx: L.sd > 0 ? L.E.x1 - 0.1 : L.E.x0 + 0.1, lz: L.cz, hw: 0.12, hl: (L.E.z1 - L.E.z0) / 2, h: 1.05 },
+    { L, lx: L.cx, lz: L.E.z0 + 0.1, hw: (L.E.x1 - L.E.x0) / 2, hl: 0.12, h: 1.05 },
+    { L, lx: L.cx, lz: L.E.z1 - 0.1, hw: (L.E.x1 - L.E.x0) / 2, hl: 0.12, h: 1.05 },
+  ]).flat();
+  const _boxes = [];
+
   // per-frame: radars, crew, JBD. dist = camera distance (skip the people when far); avoid(x, z) in the ship frame
   const parts = {
     group: g, guns, dish, lamp, lights: [], teamM: team, tower: tw, band, mounts, crew, sps48, jbd, hull, deck: g.getObjectByName('flightdeck'),
     jbdK: 0, funnel: new THREE.Vector3(ALB.TOWER_X + 0.1, DECK + 19, ALB.TOWER_Z + 6.6), bow: new THREE.Vector3(0, 1, -60), stern: new THREE.Vector3(0, 0, 57),
-    localDeck, deckHalf, motion: 'albatross', dims: ALB, fx: { wake: 1, smoke: 1 },
+    localDeck: deckWith, deckHalf, motion: 'albatross', dims: ALB, fx: { wake: 1, smoke: 1 },
+    // SEAWORLD: the hull at the waterline (sea.js hull foam), how far out the ship reaches (the lifts: war.js shipAt)
+    waterline: { hl: 61, hw: 10.6 }, halfW: 23.2,
+    // the lifts: lift(i, 'up' | 'down' | 'toggle'), liftAt(lx, lz) -> the lift there or null, liftY(lx, lz) -> its
+    // platform height (platform.js carries anyone standing on it up and down) or null, consoles for the player
+    lifts, parked, liftAt,
+    lift(i, cmd = 'toggle') { const L = lifts[i]; if (!L) return null; L.target = cmd === 'up' ? LIFT_UP : cmd === 'down' ? LIFT_DOWN : (L.target === LIFT_UP ? LIFT_DOWN : LIFT_UP); return L.target === LIFT_UP ? 'up' : 'down'; },
+    liftY(lx, lz) { const L = liftAt(lx, lz); return L ? L.y : null; },
+    boxes() { _boxes.length = 0; for (const b of railBoxes) { b.y0 = b.L.y; b.y1 = b.L.y + b.h; _boxes.push(b); } return _boxes; },
     setJBD(k, dt) { const want = Math.max(0, Math.min(1, k)); parts.jbdK = dt ? parts.jbdK + Math.max(-dt * 0.7, Math.min(dt * 0.7, want - parts.jbdK)) : want; jbd.rotation.x = -parts.jbdK * 0.95; },   // raised: the aft edge lifts about the forward hinge
     tick(dt, t, dist = 0, avoid = null) {
       sps48.rotation.y += dt * 1.57;
       for (const gun of guns) gun.userData.tick?.(dt);
       if (dist < 450) tug.step(dt);
+      for (const L of lifts) {   // SEAWORLD: the lifts travel; the console lamp flashes amber while one moves
+        const d = L.target - L.y; L.moving = Math.abs(d) > 1e-4;
+        if (L.moving) L.y += Math.sign(d) * Math.min(Math.abs(d), L.v * dt);
+        L.grp.position.y = L.y; L.lamp.material.color.setHex(L.moving && (t % 0.8) < 0.4 ? 0xffb020 : 0x5a3a08);
+      }
       if (crew) { const near = dist < 450; crew.group.visible = near; if (near) crew.update(dt, t, avoid); }
     },
   };

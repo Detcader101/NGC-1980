@@ -1183,6 +1183,90 @@ worldprev.mjs, structprev.mjs, worldperf.mjs, worldjet.mjs.
   on the road graph; civilians react to explosions and impacts only (not aircraft overhead); no night lighting; the
   zone villages are small (the islands are steep and mostly base). A Huey NaN was seen once at the very start of a run
   at load average ~70, with and without the world (not reproduced).
+## 2026-10-23 — NGC-1980 wave 2: SEAWORLD (the live sea, the lifts, solid villages, RUNAWAY ship mounts; ngc/seaworld2)
+Files: game/js/units/naval/seasurface.js (GLSL + uniforms), seaweather.js, game/js/world/solid.js, tools/seabench.mjs,
+tools/worldsolidbench.mjs, tools/scenes/seaworld.mjs. Changed: seamotion.js, navalfx.js, albatross.js, defence/
+(models, brain, tune), ground.js, platform.js, world/life.js (zone roads kept), main.js, war.js, index.html, jetplay.js.
+- **One live sea.** seamotion.js: makeSea takes a fractional sea state (Hs, Tp interpolated between the NATO rows) and
+  keeps each component's random draws, so retuneSea() moves the same sea to another state without the waves jumping
+  (integer states give exactly the old numbers: navalbench 22/22 unchanged). advanceSea() is the sea's clock (main.js
+  calls war.tickSea every frame but in the pause menu, the title screen too). The surface is drawn at the ALBATROSS's
+  0.44 scale in height AND wavelength (steepness stays real) with the real periods; then k_game U_game = k U_real, so a
+  carrier's encounter frequency is exactly its motion model's, and each ship now reads its phases off the surface at its
+  position (step(.., x, z)): the ships ride the waves you see (seabench: position phases == encounter integration to
+  1e-12 over 60 s; a ship at rest heaves with the drawn surface, r = 0.70; the waterplane averaging takes the rest).
+- **The surface** (seasurface.js, plugged into main.js's terrain shader where the ground is below sea level): the 14
+  wave components displace the sea VERTICES and give the slope per vertex (no per-pixel wave sums); a grid only carries
+  waves longer than 5 cells (the 24 m far ring shows the long swell only, never aliasing; the jet's long view works);
+  waves die out over the last metres of depth (the coast stays put). Fragment: the swell's normal shades and Fresnels,
+  a separate mostly-ripple "glitter" normal with a sparkle mask carries the sun (a glint on whole wave faces looked like
+  white blobs), whitecaps on the crests (coverage per state roughly Monahan's W(U) for the state's wind, lifted at the
+  low end: 0.4 % SS2 ... 26 % SS7), wind-aligned foam streaks at 6-7, surf whose band widens and pulses with the swell,
+  foam round each of the six nearest ships' waterline (thicker at the bow and with speed; parts.waterline per hull), a
+  darker greyer sea when rough. The wake ribbons ride the waves (navalfx seaY).
+- **SEA STATE slider and WEATHER DRIFT** in the pause menu (all three variants), remembered per browser (tz_sea,
+  tz_seadrift); ?sea= wins and leaves the drift off unless ?seadrift. Drift (seaweather.js): a new target every 3-7 min
+  within +-2 of your choice, at most one state per 4 min, the main direction veers up to 25 deg, a feed line when the
+  rounded state changes ("WEATHER: THE SEA IS GETTING UP - SEA STATE 5 ROUGH"). Over 4 h: 2.4 .. 4.9 round SS4.
+- **ALBATROSS deck-edge lifts.** The three ELEVATORS are now platforms OUTBOARD of the deck edge (real Midway /
+  Forrestal practice; the old ones were painted inside the deck), 9 m x 13-14 m, flush with the flight deck when up,
+  down at the hangar-deck door (y 4.25) when lowered, 0.42 m/s; railings, guide posts, a sill, hazard strips on the deck
+  edge, a console forward of each with a lamp that flashes amber while it moves. U at a console (or standing / parked on
+  the lift) runs it, on foot or in a vehicle (before the craft's key: foot / vehicles swallow U). A Hornet is spotted on
+  lift 1 (lengthwise; real-size aircraft overhang a 0.44-scale lift as they do). The forward port Sea Sparrow sponson moved
+  to z -20.5 (it sat where the port lift goes). platform.js subY: whoever stands on a lift goes up and down with it.
+- **Parked aircraft are solid.** heightField() rasterises the baked geometry (edges + covered cell centres, 0.5 m) into
+  a plan of tops; the ALBATROSS's localDeck includes them (and the lifts), so war.js deckY sees them: the Hornet's hull
+  points / gear (airframe.js) and the Huey's skids meet them, walkers and vehicles find a wall (GR.floor). Deck spots for
+  vehicles must be clear (a car footprint); spare spots port-side forward and aft of the island.
+- **The world is solid** (world/solid.js, through new ground.js hooks GR.addColliderSource / GR.addFloor and the existing
+  addSurface): houses, cottages, terraces, halls, the church (nave, porch, chancel, tower, churchyard wall), filling
+  station kiosk and canopy posts, barns, Dutch-barn posts, silos, boat sheds, garages, sheds, lighthouses + keeper's
+  cottage, masts + huts, phone / post boxes, bus shelters, memorials, parked cars, tractors, wood piles, garden trees,
+  power poles, field walls and hedges (segment by segment with the same gate gap chunkgen leaves), bridge parapets.
+  Walls / hedges are `soft` (o.crush in GR.collide skips them: for the tanks). Piers and jetties (deck + T head) and
+  BRIDGE DECKS (roadAt().y + the ribbon lift) are floors for anyone at or above them; underneath you are under them.
+  Roads are 'road' / 'dirt' surfaces (new SURF.dirt: mu 0.65, crr 0.04, INFERRED Wong). Built per 400 m chunk from the
+  same seeded generators the worker draws (chunkContent / zone items), 27 ms for a town chunk, once, in a 16 m grid.
+- **RUNAWAY ship mounts** (DEFENCE, game level): defence.refitShip(parts) replaces the RAM launchers and RW lasers on
+  NAVAL's parts.mounts: KRAKEN 2 TALON modules (on a deck pedestal: buildTalon(side, { mount: true })) + 2 LANCE,
+  LEVIATHAN TALONs forward / LANCEs aft, the container ship a TALON on the forecastle. DEF.talonm / lancem: hp 9 (the
+  old ship guns), the ship LANCE's beam a little weaker (dps 2.6, player 0.2). The units behave exactly as on the islands
+  (see, lock with tells, fire); the brain's LANCE checks now go by T.beam, not the type name.
+- **Authentic sea states (polish).** Each state looks like its WMO code 3700 / Douglas description and the Beaufort
+  wind that raises it: 0 a mirror with one hard sun glint, 1 ripples, 2 glassy wavelets that never break, 3 scattered
+  white horses, 4 fairly frequent, 5 many, 6 foam crests everywhere and the first streaks, 7 well-marked streaks along
+  the wind. Whitecap coverage per state from Monahan and O'Muircheartaigh's W = 3.84e-6 U^3.41 for the state's Beaufort
+  wind (0.06 % at Bf 3 to 8 % at Bf 8), about 3x so it reads at game distances; the shader's foam threshold is that
+  coverage turned into a noise quantile (an inverse-normal fit), so the coverage is what the table says, not a guess.
+  The sun's glitter is a fine sparkle (it lit whole wave faces in white patches before).
+- **The black dome on the horizon (root cause).** The sky dome (radius 0.97 x the draw distance) and the terrain windows
+  were centred on zCam in updateCamsAndMeshes. Any camera moved after that - every test scene's scripted camera patches
+  renderer.render to move the camera - sat off-centre, the far side of the dome fell beyond the far plane (draw + 15 m)
+  and was clipped, and the black clear colour showed as a dome above the horizon (the terrain grid also ended short).
+  Now sky, fine grid and far ring are centred on the rendering camera in their onBeforeRender. seaworld 'horizon' part:
+  deck and 600 m, chase and cockpit, two scripted cameras: < 0.2 % pure black above the horizon (without the fix the
+  high scripted camera shows 100 %).
+- **Cost.** Software WebGL pays per pixel: the first version's per-pixel six-ship hull-foam loop cost ~25 % of a frame over
+  the sea; the foam is now found per vertex (the pixel only adds the noise), the noise for whitecaps / streaks / glint
+  only runs where it can show, and the GPU draws the 8 largest of the 14 components.
+- **Names** (HUD, feed, advisor, map, title help, the Hornet's target box): LEVIATHAN, CONTAINER SHIP, SEA KNIGHT,
+  MV-22 OSPREY, RW-3 WASP, TOMCAT ESCORT; the map legend lists the ships.
+- **Tests.** seabench 15/15, worldsolidbench 9/9, navalbench 22/22, footbench, boxcarbench pass. seaworld.mjs 25/25
+  (lift: soldier and Hornet ride it down and up, the hull is a wall from below, a parked Hornet stops a walker; the
+  horizon from six views; a village
+  house wall stops a walker; a wild-lands bridge is crossed on its deck 12 m over the valley; the KRAKEN's TALON and
+  LANCE mounts lock and fire; SS 1 / 4 / 7 from the deck, 100 m and a Hornet at 600 m). Regression results and fps in
+  the branch report.
+- **Gotchas.** A trailing `//` comment inside a scene's eval swallowed the rest of the expression again (the page then
+  sat in a never-ending evaluate); `out` is a GLSL keyword; the deck stops at 0.985 of its half width, so a soldier walked
+  off the lift through a 0.2 m seam into the sea (the lift's footprint reaches 0.3 m inboard); deck-relative heights in
+  tests must use deckY (the ships really move now).
+- **Untested / next.** Swimmers and wading soldiers still float at y = 0 (the waves pass through them: GR could offer
+  W.seaY); fx splashes / rotor-wash rings sit at y = 0; the KRAKEN's own elevators and the parked RW drones are not solid
+  yet; the hangar itself is not modelled (the lift stops at its door); LANCE / TALON balance on ships against a real
+  player in a war (driven directly in the test); wheeled / tracked vehicles over bridges (the floor hook is generic, only
+  a walker was tested); whether the weather feed lines are too chatty (one per state change, ~6 min apart).
 ## 2026-10-23 — NGC-1980: the C-130H / KC-130R Hercules replaces the MULE 1 dropship (para-drop)
 Files: game/js/units/air/c130fm.js (flight model, pure), c130model.js (exterior), c130cockpit.js (flight deck),
 c130audio.js (sound), jumper.js (1980 paratrooper + MC1-1); drop.js rewritten for them; ships.js buildDropship /

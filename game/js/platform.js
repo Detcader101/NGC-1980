@@ -17,7 +17,9 @@
 // deck spot at any frame rate and any ship motion; a sim then only has to model motion relative to the deck.
 // wave 2 (ngc/foot2): the carried point is held in the FULL ship frame, so a soldier standing 20 m up the island while
 // she rolls 2 degrees is swung sideways with it, and the heave / pitch lift is exact (it used to be position + yaw only).
-export function createPlatforms({ deckY, shipAt, alive = () => true }) {
+// subY(u, lx, lz) (optional, SEAWORLD): the height of a moving part of ship u's deck at a ship-frame point (a deck-edge
+// lift), or null - whoever stands on it is carried up and down with it too
+export function createPlatforms({ deckY, shipAt, alive = () => true, subY = null }) {
   const toLocal = (u, x, z) => { const dx = x - u.p.x, dz = z - u.p.z, c = Math.cos(u.yaw), s = Math.sin(u.yaw); return [dx * c - dz * s, dx * s + dz * c]; };
   const toWorld = (u, lx, lz, out = { x: 0, z: 0 }) => { const c = Math.cos(u.yaw), s = Math.sin(u.yaw); out.x = u.p.x + lx * c + lz * s; out.z = u.p.z - lx * s + lz * c; return out; };
   // ship frame <-> world: R = Ry(yaw) Rx(pitch) Rz(roll) about the waterline centre lifted by the heave
@@ -45,7 +47,8 @@ export function createPlatforms({ deckY, shipAt, alive = () => true }) {
   PF.carry = o => {
     const u = o.plat, L = o.loc; o.carried = null;
     if (!u || !L || !alive(u)) { o.plat = null; o.loc = null; return; }
-    fromShip(u, L.x, L.y, L.z, _w);
+    let lift = 0; if (L.ly != null && subY) { const y = subY(u, L.x, L.z); if (y != null) lift = y - L.ly; }   // SEAWORLD: on a lift
+    fromShip(u, L.x, L.y + lift, L.z, _w);
     const dx = _w.x - L.wx, dz = _w.z - L.wz, dy = _w.y - L.wy, dyaw = u.yaw - L.syaw;
     o.x += dx; o.z += dz; o.y += dy; o.yaw += dyaw;
     o.carried = { dx, dy, dz, dyaw };
@@ -57,10 +60,14 @@ export function createPlatforms({ deckY, shipAt, alive = () => true }) {
     // jump is relative to the deck
     if (!ship && !onGround && o.plat && alive(o.plat) && deck > -1e8 && o.y > deck - 0.5 && o.y < deck + 8) ship = o.plat;
     if (!ship && o.ladder && o.ladder.ship && alive(o.ladder.ship)) ship = o.ladder.ship;   // on a ship's ladder
+    // SEAWORLD: standing hard against something taller on the deck (a parked aircraft's footprint, a lift's edge), the
+    // point under him can read its top: he is still on his ship
+    if (!ship && onGround && o.plat && alive(o.plat) && deck > o.y + 0.6 && shipAt(o.x, o.z) === o.plat) ship = o.plat;
     o.plat = ship || null;
     if (!ship) { o.loc = null; return; }
     toShip(ship, o.x, o.y, o.z, _w);
     o.loc ||= {}; o.loc.x = _w.x; o.loc.y = _w.y; o.loc.z = _w.z; o.loc.wx = o.x; o.loc.wy = o.y; o.loc.wz = o.z; o.loc.syaw = ship.yaw;
+    o.loc.ly = subY ? subY(ship, _w.x, _w.z) : null;
   };
   return PF;
 }

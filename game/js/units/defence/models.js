@@ -246,9 +246,11 @@ export function buildSparrow(side = 1) {
 // =========================================================================== RW TALON: seized modern 8x8 gun / missile truck
 // A 2020s self-propelled gun-missile system on an 8x8 truck, brought back and refitted by the RUNAWAY: a white sensor
 // pod bolted on the cab, cyan IFF strips, a crude machine stencil sprayed over the old markings. 9.6 m long.
-export function buildTalon(side = 2) {
+// SEAWORLD: opts.mount = the same combat module on a ship's deck pedestal (no truck): the KRAKEN, the container ship
+export function buildTalon(side = 2, opts = {}) {
   const g = new THREE.Group(), team = teamMat(side), body = group(g); body.userData.part = true;
   const iff = basic(0x7ff6ff), Wt = 2.55;
+  if (!opts.mount) {
   // chassis rails, wheels on four axles, mudguards
   for (const sd of [-1, 1]) box(body, P.rwDark, 0.18, 0.32, 9.0, sd * 0.5, 1.0, 0.2);
   for (const z of [-3.35, -1.85, 1.55, 2.95]) for (const sd of [-1, 1]) {
@@ -287,8 +289,14 @@ export function buildTalon(side = 2) {
   box(body, P.rwDark, 0.5, 0.05, 0.05, 0.9, 1.25, 4.3); for (let k = 0; k < 4; k++) box(body, P.steel, 0.45, 0.04, 0.04, 0.9, 0.45 + k * 0.22, 4.3);   // ladder
   for (const sd of [-1, 1]) box(body, P.red, 0.2, 0.08, 0.03, sd * 1.05, 1.4, 4.22);
   { const pnl = box(body, team, 1.0, 0.02, 0.8, 0, 2.76, -1.0); pnl.userData.keep = true; }
+  } else {   // a deck pedestal: armoured drum, cable trunk, a RUNAWAY sensor box, IFF band, deck plate with bolts
+    cyl(body, P.rwDark, 1.25, 1.4, 0.25, 0, 0.12, 0, 'y', 12); cyl(body, P.rwGreen, 0.95, 1.1, 0.9, 0, 0.7, 0, 'y', 12);
+    for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; cyl(body, P.steel, 0.05, 0.05, 0.08, Math.cos(a) * 1.3, 0.27, Math.sin(a) * 1.3, 'y', 5); }
+    box(body, P.rwDark, 0.35, 0.7, 0.4, 0, 0.55, 1.15); box(body, P.ceramic, 0.4, 0.3, 0.35, 0.85, 0.85, 0.5);
+    { const s2 = cyl(body, iff, 1.11, 1.11, 0.05, 0, 1.0, 0, 'y', 12); s2.userData.keep = true; }
+  }
   // combat module: rotating base, central body with the tracking radar face, a gun pair and a missile pack each side
-  const yaw = group(g, 0, 1.7, 2.3); yaw.userData.part = true;
+  const yaw = group(g, 0, opts.mount ? 1.15 : 1.7, opts.mount ? 0 : 2.3); yaw.userData.part = true;
   cyl(yaw, P.rwDark, 1.0, 1.05, 0.3, 0, 0.15, 0, 'y', 14);
   box(yaw, P.rwGreen, 1.5, 1.4, 2.2, 0, 1.0, 0.2); box(yaw, P.rwDark, 1.3, 0.1, 1.9, 0, 1.75, 0.25);
   for (const sd of [-1, 1]) box(yaw, P.rwDark, 0.04, 0.8, 1.4, sd * 0.77, 1.0, 0.35);
@@ -390,5 +398,6 @@ export function buildLance(side = 2) {
   return finish(g, { type: 'lance', yaw, pitch, spin: [], radar: null, dish: null, muzzles: [V(0, 0, -4.0)], lens: V(0, 0, -4.0), vents, lamp, flashes: [], team, glow, finM, h: 4.0 }, { mudH: 0.6 });
 }
 
-export const BUILD = { vads: buildVADS, shilka: buildShilka, ciws: buildCIWS, sparrow: buildSparrow, talon: buildTalon, lance: buildLance };
+export const BUILD = { vads: buildVADS, shilka: buildShilka, ciws: buildCIWS, sparrow: buildSparrow, talon: buildTalon, lance: buildLance,
+  talonm: side => buildTalon(side, { mount: true }), lancem: side => buildLance(side) };   // SEAWORLD: ship mounts (game level, bible section 3)
 export function buildDefence(type, side) { const m = BUILD[type](side); m.userData.defType = type; return m; }
