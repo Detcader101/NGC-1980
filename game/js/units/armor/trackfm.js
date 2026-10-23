@@ -5,7 +5,7 @@
 // - A 6-DOF rigid hull (CG, diagonal inertia, quaternion attitude, body rates).
 // - Running gear: per roadwheel a torsion-bar spring (preloaded, linear rate), a damper on the stations that have
 //   shock absorbers, rebound and bump stops. The wheel is massless: its travel is wherever the ground puts it, found by
-//   sampling the ground under the wheel circle (5 points), so a wheel rolls up a kerb instead of popping. The idler,
+//   sampling the ground under the wheel circle (7 points), so a wheel rolls up a kerb instead of popping. The idler,
 //   the sprocket and the inclined front and rear track runs are rigid contacts sampled along the track envelope: they
 //   are what meets a step face or the far wall of a trench, and the track links moving over them pull the vehicle up.
 // - Track-ground shear (Wong, "Theory of Ground Vehicles" 3rd ed. 2001, ch. 2.4): shear stress develops with shear
@@ -19,7 +19,8 @@
 //   friction angle phi and shear modulus K per surface (SOILS, values from Wong's table 2.3). Hard surfaces (road, rock)
 //   use rubber-pad friction instead. Internal track resistance from Wong: R_in = W (222 + 3 V) N, W in t, V in km/h.
 // - Drivetrain as four rotating bodies (engine, torque-converter turbine, left and right sprockets) joined by
-//   torque-limited constraints solved with sequential impulses: range clutch, steer brake, steer clutch, service brakes.
+//   torque-limited constraints solved with sequential impulses: range clutch, converter lock-up, one proportional steer
+//   constraint (speed difference = steer x ratio x turbine or output speed), service and parking brakes.
 //   That covers a cross-drive (geared steer, pivot in neutral: CD-850) and a controlled differential (no pivot: M113).
 //   Diesel with an all-speed governor and a net torque curve; a Trilok torque converter (capacity factor + torque ratio).
 //   The ground load on each sprocket is treated implicitly (its slope with sprocket speed), so stiff soil is stable.
@@ -35,16 +36,21 @@
 //   env.water?(x, z)          -> water surface height (m) or -Infinity where there is no water.
 //   env.obstacles?(x, z, r)   -> array of obstacles near (x, z) within r: { kind: 'cyl', x, z, r, top, id, breakN? } or
 //                                { kind: 'box', x, z, hx, hz, yaw, top, id, breakN? } (plan-view shapes with a top
-//                                height). breakN = force (N) above which it gives way (a tree) -> event 'knockdown'.
+//                                height). breakN = force (N) above which it gives way (a tree) -> event 'knockdown'
+//                                (once per id; the sim never edits the host's objects - lay the tree down yourself).
 //                                Called once per step with the hull's bounding radius; may return the same array.
-//   env.wind?                 -> unused here (ballistics read it).
+//   env.normal?(x, z, out)    -> terrain unit normal into out (else central differences of height).
+//   env.raycast?(o, d, max)   -> distance along a ray (the tank's laser rangefinder; read by m60a3.js, not here).
+//   sim.payload               -> extra mass (kg) the host carries: troops, cargo. sim.water.extraLeak: host openings (m3/s).
 // World axes are three.js: x east, y up, z south. Body axes: x right, y up, z AFT (forward is -z), like the jet.
 // The hull frame origin is on the ground plane at static ride height, half way along the track contact, on the centre
 // line; params give everything in that frame and CG is an offset in it. sim.pos is the CG; sim.origin() the hull frame.
 //
 // Controls (sim.ctl): throttle 0..1 (accelerator: governor setting), brake 0..1 (service brake), steer -1..1 (T-bar or
 // laterals; + = right), range: one of P.TRANS.ranges names ('R', 'N', 'L', 'H', ...), park (bool), starter (bool),
-// fuelOn (bool). M113 automatic ranges: '1'..'3' are upper limits of the automatic shift.
+// fuelOn (bool). M113: '1', '2', '3' hold a gear; '1-2' and '1-3' shift automatically up to that gear.
+// Steering in reverse: the cross-drive (steer speed from the input) yaws the same way forward or back; the controlled
+// differential (steer on the output) reverses like a car - both as the real transmissions do.
 // Output per step: an array of events { type, ... } (see EVENTS below).
 
 export const G0 = 9.81, RHO_W = 1000, RHO_A = 1.225, KMH = 3.6, RPM = 30 / Math.PI;
@@ -100,7 +106,8 @@ export function quatFromYPR(yaw, pitch = 0, roll = 0) {   // three.js 'YXZ' orde
 // { type: 'swimming', on: bool }          afloat (buoyancy carries the vehicle) / grounded again
 // { type: 'sinking' }                     taking water faster than the pumps clear it while afloat
 // { type: 'knockdown', id }               pushed over an obstacle that has breakN
-// { type: 'impact', speed, where }        hull struck the ground / an obstacle hard (m/s into the contact)
+// { type: 'impact', speed }               a wheel bottomed hard or the hull / track struck something (m/s; <= 1 per 0.6 s)
+// { type: 'start' }                       the engine caught on the starter
 // { type: 'gunDug' }                      the gun muzzle went into the ground (barrel obstruction)
 
 // ------------------------------------------------------------------------------------------------- the sim
@@ -153,7 +160,7 @@ export function createTrackSim(P, opt = {}) {
     run(front.z + 0.15, front.y - front.r * 0.75, zFront - 0.05, 0.0, 4);
     run(zRear + 0.05, 0.0, rear.z - 0.15, rear.y - rear.r * 0.75, 4);
   }
-  for (const h of P.HULL.PROBES) env0.push({ b: h.p, n: h.n, t: [0, 0, 0], x: 1, side: -1, kind: 'hull', mu: h.mu ?? 0.5, name: h.name, j: [0, 0, 0], k: h.k, c: h.c });   // k, c: per-probe stiffness / damping (the gun muzzle is soft)
+  for (const h of P.HULL.PROBES) env0.push({ b: h.p.slice(), n: h.n.slice(), t: [0, 0, 0], x: 1, side: -1, kind: 'hull', mu: h.mu ?? 0.5, name: h.name, j: [0, 0, 0], k: h.k, c: h.c });   // k, c: per-probe stiffness / damping (the gun muzzle is soft)
   for (const c of env0) { c.j = [0, 0, 0]; c.N = 0; c.d = 0; c.on = false; }
   const gaps = [0, 1].map(() => Array.from({ length: (nW - 1) * 2 }, () => ({ j: [0, 0, 0], N: 0, kind: 'gap' })));
   sim.gaps = gaps;
@@ -186,14 +193,19 @@ export function createTrackSim(P, opt = {}) {
     sim.sink.fill(0); sim.loadF.fill(P.MASS * G0 / 2); sim.slipF.fill(0);
     sim.vel.fill(0); sim.w.fill(0); sim.spr.fill(0); sim.turb = 0;
     if (o.speed) { const fx = -R[2], fz = -R[8]; sim.vel[0] = fx * o.speed; sim.vel[2] = fz * o.speed; sim.spr[0] = sim.spr[1] = o.speed / T.SPROCKET_R; }
-    for (const side of sim.wheels) for (const w of side) { w.s = w.sPrev = 0; w.j.fill(0); }
-    for (const c of env0) c.j.fill(0);
+    for (const side of sim.wheels) for (const w of side) { w.s = w.sPrev = 0; w.j.fill(0); w.raw = undefined; w.ds = 0; w.N = 0; w.on = false; w.edge = false; }
+    for (const c of env0) { c.j.fill(0); c.N = 0; c.on = false; }
+    for (const side of gaps) for (const c of side) { c.j.fill(0); c.N = 0; }
     const run = o.running ?? true;
     Object.assign(sim.eng, { running: run, w: run ? E.IDLE / RPM : 0, flooded: false, inj: 0 });
-    sim.ctl.range = o.range ?? 'N'; sim.range = sim.ctl.range; sim.ctl.park = o.park ?? !o.speed; sim.ctl.throttle = 0; sim.ctl.brake = 0; sim.ctl.steer = 0;
-    if (o.speed && X.ranges[sim.ctl.range]) { sim.turb = sim.spr[0] * rangeRatio(sim.ctl.range); sim.eng.w = Math.max(sim.eng.w, sim.turb * 1.05); }
-    Object.assign(sim.water, { afloat: false, inside: 0, ingress: 0, sunk: false });
+    sim.ctl.range = o.range ?? 'N'; sim.ctl.park = o.park ?? !o.speed; sim.ctl.throttle = 0; sim.ctl.brake = 0; sim.ctl.steer = 0;
+    // an automatic selector ('1-3') starts in its first gear
+    sim.range = X.ranges[sim.ctl.range]?.auto ? X.AUTO[0] : sim.ctl.range; sim.autoGear = 1; sim.shiftT = 10; sim.lockup = false;
+    if (o.speed && X.ranges[sim.range]) { sim.turb = sim.spr[0] * rangeRatio(sim.range); sim.eng.w = Math.max(sim.eng.w, sim.turb * 1.05); }
+    Object.assign(sim.water, { afloat: false, inside: 0, ingress: 0, sunk: false, depth: 0, intakeT: 0, crewFlood: false, sinkWarn: false });
     sim.dmg.thrown = [false, false]; Object.assign(sim.state, { rolled: false, bellied: false, rollT: 0, belT: 0, throwT: [0, 0] });
+    sim.load.fill(0); sim.slip.fill(0); knocked.clear();
+    for (const k in lastEv) delete lastEv[k];
     sim.t = 0; sim.events.length = 0;
     return sim;
   };
@@ -209,7 +221,7 @@ export function createTrackSim(P, opt = {}) {
     const fx = -R[2], fy = -R[5], fz = -R[8];
     return { heading: Math.atan2(-fx, -fz), pitch: Math.asin(clamp(fy, -1, 1)), roll: Math.atan2(R[3], R[4]) };
   };
-  function rangeRatio(name) { const r = X.ranges[name]; return r ? r.ratio * X.FINAL : 0; }   // turbine / sprocket
+  function rangeRatio(name) { const r = X.ranges[name]; return r && r.ratio != null ? r.ratio * X.FINAL : 0; }   // turbine / sprocket (0 for N and auto selectors)
   sim.rangeRatio = rangeRatio;
 
   // ---------------------------------------------------------------------------------------------- engine maps
@@ -294,7 +306,7 @@ export function createTrackSim(P, opt = {}) {
   const F = [0, 0, 0], Tq = [0, 0, 0], Fc = [0, 0, 0], nW_ = [0, 0, 0], dW = [0, 0, 0], tW = [0, 0, 0], linkV = [0, 0, 0];
   const sideD = [0, 0], sideF0 = [0, 0], sideN = [0, 0], sideLat = [0, 0], sideCnt = [0, 0];
   let obsList = [];
-  const lastEv = {};
+  const lastEv = {}, knocked = new Set();   // rate-limited event times; obstacles this vehicle has pushed over (ids)
   // contact list for this substep (filled by the geometry pass, consumed by the force pass)
   const act = [];   // { c (wheel or envelope contact), px,py,pz (world contact point), n (world), N, side, kind, tauMax, K, damp, relax, linkDir (world unit) }
   for (let i = 0; i < 200; i++) act.push({ c: null, p: [0, 0, 0], n: [0, 0, 0], t: [0, 0, 0], N: 0, side: 0, kind: '', tauMax: 0, K: 0, damp: 0, relax: 0, r: [0, 0, 0] });
@@ -355,7 +367,7 @@ export function createTrackSim(P, opt = {}) {
           if (lift > best) { best = lift; bestA = a; bh = gh; }
         }
         wh.sPrev = wh.s;
-        if (wh.hp <= 0) { wh.on = false; wh.s = 0; continue; }
+        if (wh.hp <= 0) { wh.on = false; wh.s = 0; wh.N = 0; continue; }
         if (best < -rebound) { wh.on = false; wh.s = -rebound; wh.raw = -rebound + sink; wh.N = 0; wh.ds = 0; continue; }
         const sNew = best, raw = best + sink;   // the damper sees the motion over the unsunk ground (sinkage is plastic)
         wh.ds = clamp((raw - (wh.raw ?? raw)) / dt, -2.5, 2.5); wh.raw = raw; wh.s = sNew;
@@ -427,6 +439,7 @@ export function createTrackSim(P, opt = {}) {
       // obstacles (plan view), pushing horizontally out
       let od = 0, onx = 0, onz = 0, oid = null, obr = 0;
       for (const o of obsList) {
+        if (knocked.has(o.id)) continue;
         if (_p[1] > o.top) continue;
         if (o.kind === 'cyl') { const dx = _p[0] - o.x, dz = _p[2] - o.z, dd = Math.hypot(dx, dz); if (dd < o.r && o.r - dd > od) { od = o.r - dd; onx = dd > 1e-6 ? dx / dd : 1; onz = dd > 1e-6 ? dz / dd : 0; oid = o; } }
         else if (o.kind === 'box') {
@@ -445,7 +458,7 @@ export function createTrackSim(P, opt = {}) {
       const k = c.k ?? (c.kind === 'hull' ? P.HULL.K : T.RUN_K), cd = c.c ?? (c.kind === 'hull' ? P.HULL.C : T.RUN_C);
       const N = Math.max(0, k * d + cd * dn);
       c.N = N;
-      if (oid && od === d && oid.breakN && N > oid.breakN) { ev.push({ type: 'knockdown', id: oid.id }); oid.top = -1e9; }
+      if (oid && od === d && oid.breakN && N > oid.breakN && !knocked.has(oid.id)) { knocked.add(oid.id); ev.push({ type: 'knockdown', id: oid.id }); }   // host data untouched: the host lays it down
       // contact point on the surface
       _p[0] += nx * d; _p[1] += ny * d; _p[2] += nz * d;
       nW_[0] = nx; nW_[1] = ny; nW_[2] = nz;
@@ -673,9 +686,10 @@ export function createTrackSim(P, opt = {}) {
     const wst = sim.water; sim.waterTrq[0] = sim.waterTrq[1] = 0;
     if (!env.water) { wst.depth = 0; wst.afloat = false; return; }
     const o = sim.origin(_r), wl = env.water(o[0], o[2]);
+    if (wl == null || !(wl > -1e8)) { wst.depth = 0; if (wst.afloat) sim.events.push({ type: 'swimming', on: false }); wst.afloat = false; wst.intakeT = Math.max(0, (wst.intakeT || 0) - dt * 0.5); wst.drain(dt); return; }
     // depth of water over the hull frame origin (ground at static ride) -> fording depth
     wst.depth = Math.max(0, wl - o[1]);
-    if (!(wl > -1e8) || wst.depth <= 0) { if (wst.afloat) sim.events.push({ type: 'swimming', on: false }); wst.afloat = false; wst.drain(dt); return; }
+    if (wst.depth <= 0) { if (wst.afloat) sim.events.push({ type: 'swimming', on: false }); wst.afloat = false; wst.intakeT = Math.max(0, (wst.intakeT || 0) - dt * 0.5); wst.drain(dt); return; }
     let buoy = 0, subVolTot = 0;
     for (const col of COLS) {
       // column bottom / top in world (centre line of the column)
@@ -729,7 +743,7 @@ export function createTrackSim(P, opt = {}) {
     tw3(0, intakeY, P.HULL.INTAKE_Z || 1.5, _p);
     // the intake swallows water only when held under (a splash over the grille is not enough): ~0.8 s of submersion
     const under = env.water(_p[0], _p[2]) - _p[1];
-    wst.intakeT = Math.max(0, (wst.intakeT || 0) + (under > 0 ? dt * Math.min(3, 0.5 + under / 0.1) : -dt * 0.5));
+    wst.intakeT = clamp((wst.intakeT || 0) + (under > 0 ? dt * Math.min(3, 0.5 + under / 0.1) : -dt * 0.5), 0, 2 * (W.INTAKE_T || 0.8));
     if (!sim.eng.flooded && wst.intakeT > (W.INTAKE_T || 0.8)) { sim.eng.flooded = true; sim.events.push({ type: 'flooded', where: 'engine' }); }
     const swimmer = !!W.SWIMS;
     const ready = swimmer && (!W.VANE || wst.vane);
@@ -738,11 +752,13 @@ export function createTrackSim(P, opt = {}) {
     const over = env.water(_p[0], _p[2]) - _p[1];   // water over the lowest deck opening line
     if (over > 0) leak += (ready ? W.LEAK_OVER * 0.25 : W.LEAK_OVER) * Math.min(1, over / 0.3);
     if (subVolTot > 0) leak += swimmer ? W.LEAK : W.LEAK_FORD;
+    if (wst.extraLeak && wst.depth > 0.6) leak += wst.extraLeak;   // host-set openings (an open ramp, a hatch)
     const pump = wst.pumps && wst.inside > 0 ? W.PUMP : 0;
     wst.ingress = leak; wst.bilge = pump;
     wst.inside = clamp(wst.inside + (leak - pump) * dt, 0, W.MAX_INSIDE || 20);
     if (wst.inside > (W.FLOOD_CREW || 2) && !wst.crewFlood) { wst.crewFlood = true; sim.events.push({ type: 'flooded', where: 'crew' }); }
-    if (wst.inside > 0.3 && leak > pump && !wst.sinkWarn) { wst.sinkWarn = true; sim.events.push({ type: 'sinking' }); }
+    if (wst.afloat && wst.inside > 0.3 && leak > pump && !wst.sinkWarn) { wst.sinkWarn = true; sim.events.push({ type: 'sinking' }); }
+    if (wst.inside < 0.5 * (W.FLOOD_CREW || 2)) wst.crewFlood = false;
     if (wst.inside < 0.05) wst.sinkWarn = false;
   }
   sim.water.drain = function (dt) { if (this.inside > 0) this.inside = Math.max(0, this.inside - (this.pumps ? W.PUMP || 0.01 : 0.002) * dt - 0.004 * dt); };
@@ -753,7 +769,8 @@ export function createTrackSim(P, opt = {}) {
     if (!(dt > 0)) return sim.events.length = 0, sim.events;   // never run backwards (or on NaN)
     sim.events.length = 0;
     // mass grows with the water inside (sinking)
-    sim.mass = P.MASS + sim.water.inside * RHO_W + (sim.eng.fuel - (P.FUEL_L ?? 0)) * 0.84;
+    sim.mass = P.MASS + (sim.payload || 0) + sim.water.inside * RHO_W + (sim.eng.fuel - (P.FUEL_L ?? 1000)) * 0.84;   // payload: troops, cargo (host)
+    dt = Math.min(dt, 0.1);   // a hitch never runs more than 0.1 s of physics in one call
     const n = Math.max(1, Math.round(dt / sim.h)), h = dt / n;
     for (let i = 0; i < n; i++) substep(h, env);
     // outputs

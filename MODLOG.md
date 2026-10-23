@@ -300,7 +300,7 @@ No shared files touched (main.js, audio.js, war.js untouched): wave 2 plugs thes
 - Cost: ~1.0 ms per 1/60 s frame for an M60A3 at 240 Hz on rough ground (0.55 ms at 120 Hz), M113 0.4 ms; no
   allocation in the substep loops.
 
-**Bench (node tools/tankbench.mjs: 65 checks, all pass).** C = in a source read for this work (AFVDB, FAS, Wikipedia
+**Bench (node tools/tankbench.mjs: 72 checks, all pass, incl. 7 state-hygiene checks from a code review).** C = in a source read for this work (AFVDB, FAS, Wikipedia
 citing Foss / Jane's and Hunnicutt, armedconflicts.com), U = unverified, I = inferred, GAME = game balance.
 | item | M60A3 sim | published | M113A2 sim | published |
 |---|---|---|---|---|
@@ -373,13 +373,18 @@ and ground) through a green-phosphor shader with scan lines, noise and WH / BH p
   own gun, and a 75 % slope "stopped" it only because the barrel jammed into the slope. The muzzle is a soft, lossy stop
   now (the barrel bends; each dig-in costs the gun a quarter of its hp) and hull contacts are ~half critically damped.
 - The snap harness wraps evals in `const __r = ...`: a scene variable named __r breaks it.
+- A fresh-eyes code review found state that survived reset() (the intake-flood timer re-flooded a reset tank in a
+  puddle; rate-limited events stayed silent; damper rates jolted the first step), probes shared between tank instances
+  (every tank's muzzle probe followed the last-stepped gun), an M113 automatic range that went NaN at speed, troop mass
+  baked in, knockdowns that relied on mutating the host's objects, an engine fire that never burned, machine guns
+  firing below their rate. All fixed; the probes are now bench checks (state hygiene).
 - A `//` comment pasted mid-line by sed swallowed the rest of the statement (again): use /* */ in one-liners.
 - Sensitivities, documented not hidden: a sharp CONCRETE 0.91 m wall is marginal for the M60 in the sim (face friction
   must lift the nose against the rear pivot; earth banks with crumbling lips are fine, so the test ground's steps are
   earth banks), and both vehicles bridge trenches ~1.4-1.6x their ratings at a crawl (rigid track, firm far wall; the
   ratings carry field margins).
 
-**Tests and runs.** node tools/tankbench.mjs 65/65. Scenes (from tools/, CHROME_PATH=... node snap.mjs scenes/<s>):
+**Tests and runs.** node tools/tankbench.mjs 72/72. Scenes (from tools/, CHROME_PATH=... node snap.mjs scenes/<s>):
 tankmodel.mjs 2/2 (VEH=m113 too), tankinterior.mjs 2/2 (driver, sight pictures, gunner station, cupola),
 tankdrive.mjs 9/9 (step, trench, 60 % ramp, ridge, mud, ford, laser range, a first-round SABOT hit at 1000 m, a
 stabilised hit on the move at ~1000 m),

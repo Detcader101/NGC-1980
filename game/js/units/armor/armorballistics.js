@@ -107,7 +107,7 @@ export function rng(seed = 1) { let a = seed >>> 0; return () => { a = (a + 0x6D
 // Effective thickness = zone thickness / cos(angle), capped at 3x; a glancing hit (> 75 deg) usually skips off.
 // Perforation: the components and crew within reach behind the hit point (a few sample points along the path, a
 // little spread) take damage. Returns { result, zone, eff, pen, events }.
-export function resolveHit(armor, hit, state = { az: 0 }, rand = armor.rand || Math.random) {
+export function resolveHit(armor, hit, state = { az: 0 }, rand = armor.rand || Math.random) {   // rand: every roll of this hit (deterministic tests pass their own)
   const R = typeof hit.round === 'string' ? ROUNDS[hit.round] : hit.round, ev = [], heavy = R.cal >= 100;
   // plates in layers: a perforated outer plate (track skirt, fender, stowage) uses up part of the round's value and the
   // rest goes on to the next plate along the path
@@ -122,7 +122,7 @@ export function resolveHit(armor, hit, state = { az: 0 }, rand = armor.rand || M
     else if (R.kind === 'HEP') out.result = P.soft ? 'perforated' : P.t <= R.pen ? 'scab' : 'defeated';
     else out.result = pen > eff ? 'perforated' : 'defeated';
     ev.push({ type: 'hit', result: out.result, zone: P.zone, round: R.id, eff: Math.round(eff), pen: Math.round(pen) });
-    if (heavy && P.ext) damage(armor, P.ext, 0.5 + rand() * 0.6, ev, R);
+    if (heavy && P.ext) damage(armor, P.ext, 0.5 + rand() * 0.6, ev, R, rand);
     if (out.result !== 'perforated' || !P.outer) break;
     pen -= eff; if (R.kind === 'HEP') pen = 0;
     o = [tr.p[0] + hit.d[0] * 0.05, tr.p[1] + hit.d[1] * 0.05, tr.p[2] + hit.d[2] * 0.05];
@@ -136,18 +136,18 @@ export function resolveHit(armor, hit, state = { az: 0 }, rand = armor.rand || M
   for (let i = 1; i <= n; i++) {
     const s = reach * i / n, j = spread * s;
     const p = [tr.p[0] + hit.d[0] * s + (rand() - 0.5) * j, tr.p[1] + hit.d[1] * s + (rand() - 0.5) * j, tr.p[2] + hit.d[2] * s + (rand() - 0.5) * j];
-    for (const C of armor.COMPS) if (!hitIds.has(C.id) && inComp(armor, C, p, state)) { hitIds.add(C.id); damage(armor, C, (heavy ? 0.9 : 0.25) * (0.6 + 0.8 * rand()), ev, R); }
+    for (const C of armor.COMPS) if (!hitIds.has(C.id) && inComp(armor, C, p, state)) { hitIds.add(C.id); damage(armor, C, (heavy ? 0.9 : 0.25) * (0.6 + 0.8 * rand()), ev, R, rand); }
   }
   return out;
 }
 
 // damage a component and report: crew wounds, component state, fire, ammunition cook-off (game probabilities)
-function damage(armor, C, amount, ev, R) {
+function damage(armor, C, amount, ev, R, rand = Math.random) {
   if (typeof C === 'string') C = armor.COMPS.find(c => c.id === C); if (!C) return;
   const before = C.hp; C.hp = Math.max(0, C.hp - amount);
   if (C.kind === 'crew') { if (before > 0) ev.push({ type: 'crew', who: C.id, wound: C.hp <= 0 ? 'killed' : C.hp < 0.4 ? 'serious' : 'light' }); return; }
   if (C.hp < before) ev.push({ type: 'component', id: C.id, hp: +C.hp.toFixed(2), destroyed: C.hp <= 0 && before > 0 });
-  const r = armor.rand();
+  const r = rand();
   if (C.kind === 'ammo' && R.cal >= 100 && r < (R.kind === 'HEAT' ? 0.6 : 0.4)) { ev.push({ type: 'cookoff', rack: C.id }); armor.cookoff = true; }
   else if ((C.kind === 'fuel' && r < 0.35) || (C.kind === 'engine' && r < 0.15) || (C.kind === 'hydraulic' && r < 0.08)) ev.push({ type: 'fire', where: C.id });
 }

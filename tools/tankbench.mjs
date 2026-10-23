@@ -216,6 +216,55 @@ function gun() {
   check('Game armour table: M113 side stops 7.62, not .50 AP at 100 m', s762.result !== 'perforated' && s50.result === 'perforated', `7.62 ${s762.result}, .50 ${s50.result}`, 'designed against 7.62 and splinters (WP)', 'C (qualitative) / GAME');
 }
 
+// =================================================================================================== state hygiene (code review)
+function hygiene() {
+  console.log('\n--- state hygiene: resets, instances, host data ---');
+  // a flooded engine, reset onto dry land, then a puddle: no re-flood (the intake timer is reset and capped)
+  {
+    const deep = { height: (x, z) => z < -8 ? -2 : 0, surface: () => 'dirt', water: () => 0.0 };
+    const T = createM60A3(); T.reset(0, 0, 0, deep); run(T, deep, 25, speedHold(1.5, 'm60'));
+    const flooded1 = T.fm.eng.flooded;
+    const puddle = { height: (x, z) => z < -8 ? -0.3 : 0, surface: () => 'dirt', water: () => 0.0 };
+    T.reset(0, 0, 0, puddle); let ev2 = false; run(T, puddle, 15, speedHold(1.5, 'm60'), (T, t, ev) => { if (ev.some(e => e.type === 'flooded')) ev2 = true; });
+    check('Reset after flooding: a puddle does not re-flood', flooded1 && !ev2 && !T.fm.eng.flooded, `first ${flooded1 ? 'flooded' : 'dry'}, then ${ev2 ? 'FLOODED again' : 'dry'}`, 'clean reset', 'I');
+  }
+  // rate-limited events fire again after a reset
+  {
+    const env = flat('dirt'), T = createM60A3(); let n = 0;
+    for (let k = 0; k < 2; k++) { T.reset(0, 0, 0, env, { drop: 1.5 }); run(T, env, 2, { park: true }, (T, t, ev) => { n += ev.filter(e => e.type === 'impact').length; }); }
+    check('Impact events after a reset', n === 2, `${n} impacts from 2 drops`, '2', 'I');
+  }
+  // two tanks: each muzzle probe follows its own gun
+  {
+    const env = flat('paved'), A = createM60A3(), B = createM60A3(); A.reset(0, 0, 0, env); B.reset(20, 0, 0, env);
+    run(A, env, 3, { trav: 1, park: true }); run(B, env, 0.5, { park: true });
+    const pa = A.fm.contacts.find(c => c.name === 'muzzle').b, pb = B.fm.contacts.find(c => c.name === 'muzzle').b;
+    check('Two tanks: separate gun muzzle probes', pa !== pb && Math.abs(pa[0] - pb[0]) > 1, `A x ${pa[0].toFixed(2)}, B x ${pb[0].toFixed(2)}`, 'independent', 'I');
+  }
+  // env.water returning null / undefined means no water
+  {
+    const T = createM113(), env = { height: () => 0, water: () => null }; T.reset(0, 0, 0, env); run(T, env, 1, { park: true });
+    const T2 = createM113(), env2 = { height: () => 0, water: () => undefined }; T2.reset(0, 0, 0, env2); run(T2, env2, 1, { park: true });
+    check('env.water null / undefined = dry', T.fm.water.depth === 0 && T2.fm.water.depth === 0 && Number.isFinite(T2.fm.pos[1]), `depth ${T.fm.water.depth} / ${T2.fm.water.depth}`, '0', 'I');
+  }
+  // M113 reset at speed in an automatic range; troops dismounting lighten it
+  {
+    const env = flat('paved'), V = createM113(); V.reset(0, 0, 0, env, { speed: 10, range: '1-3' }); run(V, env, 1, { throttle: 0.5, range: '1-3', park: false });
+    check('M113 reset at speed in 1-3', Number.isFinite(V.fm.turb) && Number.isFinite(V.fm.eng.w) && V.fm.out.fwd > 5, `v ${(V.fm.out.fwd * KMH).toFixed(1)} km/h`, 'no NaN', 'I');
+    const m0 = V.fm.mass; run(V, env, 12, { ramp: true, park: true, throttle: 0 }); run(V, env, 0.2, { dismount: 'all', park: true }); run(V, env, 0.2, { park: true });
+    check('M113 mass follows the troops', m0 - V.fm.mass > 1000, `${m0.toFixed(0)} -> ${V.fm.mass.toFixed(0)} kg`, '-11 x 95 kg', 'I');
+  }
+  // a tree from a host that returns copies: one knockdown, and the tank drives through
+  {
+    const tree = { kind: 'cyl', x: 0, z: -12, r: 0.25, top: 9, id: 'oak', breakN: 2e5 };
+    const env = { height: () => 0, surface: () => 'dirt', obstacles: () => [{ ...tree }] };
+    const T = createM60A3(); T.reset(0, 0, 0, env); let n = 0;
+    run(T, env, 15, speedHold(2.5, 'm60'), (T, t, ev) => { n += ev.filter(e => e.type === 'knockdown').length; });
+    check('Knockdown once (host returns copies)', n === 1 && T.fm.origin()[2] < -16, `${n} knockdown, z ${T.fm.origin()[2].toFixed(1)}`, '1, drives on', 'I');
+  }
+}
+
+if (!ONLY || ONLY === 'hygiene') hygiene();
 if (!ONLY || ONLY === 'm60') mobility('m60');
 if (!ONLY || ONLY === 'm113') mobility('m113');
 if (!ONLY || ONLY === 'turret') turret();

@@ -88,7 +88,7 @@ export const M60A3 = {
     EL_MAX: 20 * Math.PI / 180, EL_MIN: -10 * Math.PI / 180,   // C
     MANUAL_TRAV: 2.2 * Math.PI / 180, MANUAL_ELEV: 0.9 * Math.PI / 180,   // handwheels, I
     SERVO_TAU: 0.07, ACC: 60 * Math.PI / 180,   // hydraulic servo lag and acceleration limit I
-    STAB_GAIN: 0.95, STAB_DRIFT: 0.0006,     // stabiliser: fraction of hull motion cancelled, slow drift rad/s (game)
+    STAB_GAIN: 0.95,                         // stabiliser: fraction of the hull's rotation cancelled each frame (game)
     RECOIL_LEN: 0.30,                        // m U
   },
 };
@@ -195,7 +195,7 @@ export function createM60A3(opt = {}) {
     // turret / gun: relative to the hull. az + = left (three.js y). The SIGHT line is what the gunner lays; the gun sits
     // above / beside it by the computer's offsets (superelevation, lead).
     az: 0, el: 0, azRate: 0, elRate: 0, losAz: 0, losEl: 0, stab: true, power: true, hydP: 0,
-    stabErr: [0, 0],          // sight-line error from imperfect stabilisation (rad, inertial)
+
     sight: 'day', ttsMag: 8, ttsPolarity: 'wh', ttsCool: 0,   // TTS cooler: needs ~ 60 s after power-on (game)
     laser: { range: null, t: 0, ready: true, returns: 0, fault: false },
     fc: { range: 1200, ammo: 'M735', se: 0, lead: 0, track: 0, solved: false, battlesight: true },
@@ -221,7 +221,7 @@ export function createM60A3(opt = {}) {
     out[0] = R[0] * x + R[1] * y + R[2] * z; out[1] = R[3] * x + R[4] * y + R[5] * z; out[2] = R[6] * x + R[7] * y + R[8] * z; return out;
   }
   T.gunDir = (out = [0, 0, 0]) => turretDir(T.az, T.el, out);
-  T.sightDir = (out = [0, 0, 0]) => turretDir(T.losAz + T.stabErr[0], T.losEl + T.stabErr[1], out);
+  T.sightDir = (out = [0, 0, 0]) => turretDir(T.losAz, T.losEl, out);
   // hull-frame point of the turret, rotated by az (turret frame point p relative to the ring centre)
   T.turretPoint = (p, out = [0, 0, 0]) => {
     const c = Math.cos(T.az), s = Math.sin(T.az), r = TU.RING;
@@ -256,7 +256,7 @@ export function createM60A3(opt = {}) {
   }
 
   // ---- main step
-  const _d = [0, 0, 0], _p = [0, 0, 0], _prevW = [0, 0, -1]; let _havePrev = false;
+  const _d = [0, 0, 0], _p = [0, 0, 0], _prevW = [0, 0, -1];
   T.step = (dt, env, inp = {}) => {
     ev.length = 0; T.time += dt;
     // crew and component states drive the systems
@@ -270,7 +270,7 @@ export function createM60A3(opt = {}) {
       throttle: drv ? inp.throttle ?? fm.ctl.throttle : 0, brake: drv ? inp.brake ?? 0 : 0.3, steer: drv ? inp.steer ?? 0 : 0,
       range: drv ? inp.range ?? fm.ctl.range : 'N', park: inp.park ?? fm.ctl.park, starter: !!inp.starter, fuelOn: inp.fuelOn ?? fm.ctl.fuelOn,
     });
-    T.sightDir(_prevW); _havePrev = true;   // the sight line in space before the hull moves (for the stabiliser)
+    T.sightDir(_prevW);   // the sight line in space before the hull moves (for the stabiliser)
     for (const e of fm.step(dt, env)) {
       ev.push(e);
       // the gun driven into the ground or a wall: a bent or plugged barrel (game: a quarter of the gun's hp each time)
@@ -311,15 +311,13 @@ export function createM60A3(opt = {}) {
     let dHa = Math.atan2(-bx, -bz) - T.losAz; dHa = Math.atan2(Math.sin(dHa), Math.cos(dHa));
     const dHe = Math.asin(Math.max(-1, Math.min(1, by))) - T.losEl;
     const maxA = TU.TRAVERSE * 1.5 * Math.max(0.2, hydraulic) * dt, maxE = (stab ? 0.6 : TU.ELEV_RATE) * dt;   // the stabiliser may drive the gun faster than the handle (game)
-    const dA = lim(T.cmdAz * dt + (_havePrev ? k * dHa : 0), maxA), dE = lim(T.cmdEl * dt + (_havePrev ? k * dHe : 0), maxE);
+    const dA = lim(T.cmdAz * dt + k * dHa, maxA), dE = lim(T.cmdEl * dt + k * dHe, maxE);
     T.azRate = dA / dt; T.elRate = dE / dt;
     // sight line (hull relative) moves with the drives; the gun follows with the computer's offsets
     T.losAz += dA; T.losEl += dE;
     T.losAz = ((T.losAz + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
     if (T.losEl > TU.EL_MAX - T.fc.se) { T.losEl = TU.EL_MAX - T.fc.se; T.elRate = Math.min(0, T.elRate); }
     if (T.losEl < TU.EL_MIN) { T.losEl = TU.EL_MIN; T.elRate = Math.max(0, T.elRate); }
-    // residual stabilisation error (what the gunner sees as the reticle shaking): the part of the hull motion the
-    // stabiliser misses, decaying as the loop catches up
     // tracking rate for the lead (inertial traverse rate, smoothed over ~1 s)
     T.fc.track += ((stab ? T.cmdAz : T.azRate + hullYaw) - T.fc.track) * Math.min(1, dt / 1.0);
     T.az = T.losAz + (T.fc.solved ? T.fc.lead : 0); T.el = T.losEl + (T.fc.solved || T.fc.battlesight ? T.fc.se : 0);
@@ -347,10 +345,10 @@ export function createM60A3(opt = {}) {
       ev.push({ type: 'shot', weapon: 'main', round, p, dir, v0: R0.mv, vel: fm.vel.slice() });
       // recoil impulse on the hull at the trunnion (game: a rocking shove)
       fm.impulse(T.turretPoint([0, 0.38, -1.05]), [-dir[0] * 14000, -dir[1] * 14000, -dir[2] * 14000]);
-      if (T.fc.solved && !T.fc.keep) { /* the solution stays for follow-up shots at the same range */ }
+      // (the computer's solution stays set for follow-up shots at the same range until the next lase or dump)
     }
     // ---- coax M240 (750 rounds/min, game) along the gun
-    const cx = T.coax; cx.t = Math.max(0, cx.t - dt); cx.firing = !!inp.coax && cx.ammo > 0 && gun && pwr;
+    const cx = T.coax; cx.firing = !!inp.coax && cx.ammo > 0 && gun && pwr; cx.t = cx.firing ? cx.t - dt : Math.max(0, cx.t - dt);   // keep the leftover time while firing (true cyclic rate)
     while (cx.firing && cx.t <= 0 && cx.ammo > 0) {
       cx.t += 60 / 750; cx.ammo--;
       const dir = T.gunDir([0, 0, 0]), p = T.turretPoint([0.42, 0.38, -1.25]);
@@ -359,7 +357,7 @@ export function createM60A3(opt = {}) {
     // ---- commander's cupola and the .50 (M85: 450 rounds/min low rate, game)
     const m = T.mg50, cmd = T.crew.commander > 0;
     if (cmd) { m.az += -(inp.cupTrav || 0) * 0.6 * dt; m.el = Math.max(-0.26, Math.min(1.05, m.el + (inp.cupElev || 0) * 0.4 * dt)); }
-    m.t = Math.max(0, m.t - dt); m.firing = !!inp.fire50 && cmd && m.ready > 0 && hp('cupola') > 0;
+    m.firing = !!inp.fire50 && cmd && m.ready > 0 && hp('cupola') > 0; m.t = m.firing ? m.t - dt : Math.max(0, m.t - dt);
     while (m.firing && m.t <= 0 && m.ready > 0) {
       m.t += 60 / 450; m.ready--; m.ammo--;
       const dir = turretDir(T.az + m.az, m.el, [0, 0, 0]), p = T.turretPoint([0.6 + Math.sin(-m.az) * 0.1, 1.35, 0.1]);
@@ -373,7 +371,7 @@ export function createM60A3(opt = {}) {
       F.t += dt;
       if (F.halonDue != null && F.t > F.halonDue && F.halon > 0) { F.halon--; ev.push({ type: 'halon', where: F.where }); F.where = Math.random() < 0.8 ? null : F.where; F.halonDue = null; F.t = 0; }
       if (F.where && F.t > 25 && !T.bailed) { T.bailed = true; ev.push({ type: 'bailout' }); }
-      if (F.where === 'engine') fm.dmg.engine = Math.max(0, fm.dmg.engine - dt * 0.01);
+      if (F.where === 'engine') { const ce = comp('engine'); if (ce) ce.hp = Math.max(0, ce.hp - dt * 0.01); }   // (fm.dmg.engine follows the component each step)
     }
     if (inp.extinguish && F.where && F.halon > 0) { F.halon--; ev.push({ type: 'halon', where: F.where }); F.where = Math.random() < 0.85 ? null : F.where; F.t = 0; }
     return ev;
@@ -391,13 +389,16 @@ export function createM60A3(opt = {}) {
     const r = resolveHit(T.armor, h, { az: T.az });
     for (const e of r.events) {
       if (e.type === 'fire' && !T.fire.where) { T.fire.where = e.where; T.fire.t = 0; T.fire.halonDue = e.where === 'engine' ? null : 0.3; }
-      if (e.type === 'cookoff') { T.fire.where = 'ammo'; T.bailed = true; }
+      if (e.type === 'cookoff') { T.fire.where = 'ammo'; T.fire.t = 0; T.fire.halonDue = null; if (!T.bailed) { T.bailed = true; r.events.push({ type: 'bailout', why: 'cookoff' }); } }
       if (e.type === 'component' && e.id === 'trackL') fm.dmg.thrown[0] = e.hp <= 0 || fm.dmg.thrown[0];
       if (e.type === 'component' && e.id === 'trackR') fm.dmg.thrown[1] = e.hp <= 0 || fm.dmg.thrown[1];
     }
     r.kill = killState(T.armor);
     return r;
   };
-  T.reset = (x, z, yaw, env, o) => { fm.reset(x, z, yaw, env, o); T.az = T.losAz = 0; T.el = T.losEl = 0; T.azRate = T.elRate = 0; T.hydP = 1; T.ttsCool = o?.cold ? 0 : 1; return T; };
+  T.reset = (x, z, yaw, env, o) => {
+    fm.reset(x, z, yaw, env, o); T.az = T.losAz = 0; T.el = T.losEl = 0; T.azRate = T.elRate = 0; T.cmdAz = T.cmdEl = 0; T.hydP = 1; T.ttsCool = o?.cold ? 0 : 1;
+    T.fc.track = 0; T.laser.range = null; T.laser.t = 0; T.mg50.az = T.mg50.el = 0; T.gun.recoil = 0; solve(1200, true); return T;
+  };
   return T;
 }

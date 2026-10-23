@@ -91,8 +91,8 @@ export const M113A2 = {
 }
 
 export function createM113Sim(opt) {
-  const P = { ...M113A2, MASS: M113A2.MASS + (opt?.troops ?? M113A2.TROOPS) * TROOP_KG };
-  return createTrackSim(P, opt);
+  // the troops are a payload on top of the combat weight: the wrapper updates fm.payload as they mount and dismount
+  const sim = createTrackSim(M113A2, opt); sim.payload = (opt?.troops ?? M113A2.TROOPS) * TROOP_KG; return sim;
 }
 
 // ======================================================================================================= armour (game)
@@ -159,15 +159,17 @@ export function createM113(opt = {}) {
     // ramp, vane, pumps
     if (inp.ramp !== undefined) V.rampWant = inp.ramp ? 1 : 0;
     if (inp.vane !== undefined) V.vaneWant = inp.vane ? 1 : 0;
-    if (inp.pumps !== undefined) fm.water.pumps = !!inp.pumps;
+    if (inp.pumps !== undefined) V.pumpSwitch = !!inp.pumps;
+    fm.water.pumps = !!V.pumpSwitch && V.elec.batt > 0.05;   // electric bilge pumps: no battery, no pumping
     const pwr = V.elec.batt > 0.05;
     if (pwr) V.ramp += Math.max(-dt / 8, Math.min(dt / 8, V.rampWant - V.ramp));
     V.vane += Math.max(-dt / 6, Math.min(dt / 6, V.vaneWant - V.vane));
     fm.water.vane = V.vane > 0.95;
     // an open ramp lets water in when afloat / fording deep (game): treat as a big leak via the deck line
-    fm.water.rampOpen = V.ramp > 0.05;
+    // an open ramp in deep water floods the troop compartment: an extra leak the sim counts with the others
+    fm.water.extraLeak = V.ramp > 0.05 ? 0.3 * V.ramp : 0;
+    fm.payload = V.seats.filter(Boolean).length * TROOP_KG;
     for (const e of fm.step(dt, env)) ev.push(e);
-    if (fm.water.rampOpen && fm.water.depth > 0.6) { fm.water.inside = Math.min(14, fm.water.inside + dt * 0.3 * V.ramp); }
     const el = V.elec; el.gen = fm.eng.running && fm.eng.w * 9.549 > 900;
     el.batt = Math.max(0, Math.min(1, el.batt + (el.gen ? 0.004 : -(fm.water.pumps ? 0.0006 : 0.0001)) * dt)); el.volts = el.gen ? 28 : 22 + 3 * el.batt;
     // the commander's M2HB on its cupola (manual traverse, game rates)
@@ -187,6 +189,6 @@ export function createM113(opt = {}) {
     return ev;
   };
   V.hit = h => { const r = resolveHit(V.armor, h, { az: 0 }); for (const e of r.events) if (e.type === 'fire' && !V.fire.where) V.fire.where = e.where; r.kill = killState(V.armor); return r; };
-  V.reset = (x, z, yaw, env, o) => { fm.reset(x, z, yaw, env, o); V.ramp = V.rampWant = o?.ramp ? 1 : 0; V.vane = V.vaneWant = o?.vane ? 1 : 0; fm.water.vane = V.vane > 0.95; fm.water.pumps = !!o?.pumps; return V; };
+  V.reset = (x, z, yaw, env, o) => { fm.reset(x, z, yaw, env, o); V.ramp = V.rampWant = o?.ramp ? 1 : 0; V.vane = V.vaneWant = o?.vane ? 1 : 0; fm.water.vane = V.vane > 0.95; V.pumpSwitch = !!o?.pumps; fm.water.pumps = V.pumpSwitch; fm.payload = V.seats.filter(Boolean).length * TROOP_KG; return V; };
   return V;
 }
