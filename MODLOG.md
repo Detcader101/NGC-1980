@@ -277,6 +277,9 @@ No shared files touched (main.js, audio.js, war.js untouched): wave 2 plugs thes
   'bog'|'snow' (default dirt); `water(x, z)` -> water level or -Infinity; `normal(x, z, out)` optional;
   `obstacles(x, z, r)` -> [{ kind: 'cyl', x, z, r, top, id, breakN } | { kind: 'box', x, z, hx, hz, yaw, top, id,
   breakN }] (things with breakN get pushed over: event 'knockdown'); `raycast(o, d, max)` -> distance (laser).
+  `makeArmorEnv({ height, seaLevel, paved, forest, obstacles, raycast })` (armorenv.js) builds this from the game's own
+  terrain: sand on the sea bed and beach band, rock on steep or high ground, mud in wet coastal hollows, grass / dirt
+  patches, paved where the host says (pads, roads, decks); water at the sea level.
   Moving decks are not supported yet.
 - Inputs (M60A3): throttle, brake, steer (-1..1, + right), range ('R','N','L','H'), park, starter, fuelOn; trav, elev
   (power control handle, + right / up), fire, coax, lase, dump, ammo ('M735'|'M456'|'M393'), stab, power, sight
