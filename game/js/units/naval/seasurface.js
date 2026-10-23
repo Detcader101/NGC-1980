@@ -7,7 +7,7 @@
 //   far ring carries only the long swell, never aliasing), and the waves die out over the last few metres of depth
 //   (the coast stays where it is).
 // - FRAGMENT: the swell's slope lights the water; whitecaps break on the crests, more and bigger with the sea state
-//   (Monahan-style coverage, exaggerated to read at game distances), wind streaks of foam at 6-7; surf on the beaches
+//   (WMO / Douglas / Beaufort descriptions, Monahan coverage: see CAPS), wind streaks of foam at 6-7; surf on the beaches
 //   widens and pulses with the swell; foam hugs every ship's waterline (thicker at the bow and with speed).
 // Cost: ~14 cos/sin per sea VERTEX (not per pixel), one value-noise pair per sea pixel, a 6-ship loop with an early out.
 import * as THREE from 'three';
@@ -16,15 +16,30 @@ import { SEA_GAME_SCALE } from './seamotion.js';
 // SEA_NV: the components the GPU draws - the largest by amplitude (8 of 14 carry ~90 % of the variance; the ships
 // and seaElevation use all 14, so the drawn surface is a hair smoother than the one they ride)
 export const SEA_N = 14, SEA_NV = 8, SEA_SHIPS = 6;
-// whitecap coverage (fraction of the surface) per sea state: roughly Monahan's W = 3.8e-6 U^3.4 for the usual wind of
-// each state (SS3 ~5 m/s ... SS7 ~20 m/s: 0.1 % ... 10 %), lifted at the low end so a moderate sea shows some
-const CAPS = [0, 0, 0.004, 0.02, 0.05, 0.1, 0.17, 0.26];
+// The look of each state follows the WMO sea-state code 3700 / Douglas descriptions and the Beaufort wind that raises
+// that sea (WMO / Met Office sea criteria):
+//   0 CALM (GLASSY)   mirror; the sun a single hard glint                                         (Bf 0)
+//   1 CALM (RIPPLED)  ripples like scales, no crests                                              (Bf 1)
+//   2 SMOOTH          small wavelets, glassy crests that do not break                             (Bf 2)
+//   3 SLIGHT          large wavelets, crests begin to break: scattered white horses               (Bf 3-4)
+//   4 MODERATE        small waves getting longer, fairly frequent white horses                    (Bf 4-5)
+//   5 ROUGH           moderate waves, many white horses, some spray                               (Bf 5-6)
+//   6 VERY ROUGH      large waves, white foam crests everywhere, foam starts to blow in streaks   (Bf 6-7)
+//   7 HIGH            the sea heaps up, foam from breaking waves blown in well-marked streaks     (Bf 7-8)
+// Whitecap coverage: Monahan and O'Muircheartaigh W = 3.84e-6 U^3.41 for the Beaufort wind of the state (Bf 3 ~4.4 m/s
+// 0.06 %, Bf 4 ~6.7 0.25 %, Bf 5 ~9.3 0.8 %, Bf 6 ~12.3 2 %, Bf 7 ~15.5 4 %, Bf 8 ~19 8 %), about 3x so it reads at game
+// distances (a crest's foam patch outlasts the instantaneous whitecap the formula measures).
+const CAPS = [0, 0, 0, 0.004, 0.012, 0.03, 0.07, 0.17];
+// the noise level a crest's foam must beat for coverage c: the foam noise (n1 .6 + n2 .4 of two value noises) is about
+// normal, mean .5, sd .13; the crests that can break are ~30 % of the surface (Acklam's inverse normal, short form)
+const zOf = p => { const t = Math.sqrt(-2 * Math.log(Math.min(p, 1 - p))), z = t - (2.515517 + 0.802853 * t + 0.010328 * t * t) / (1 + 1.432788 * t + 0.189269 * t * t + 0.001308 * t * t * t); return p < 0.5 ? -z : z; };
+const capTh = c => c <= 0 ? 2 : 0.5 + 0.13 * zOf(Math.max(1e-4, 1 - Math.min(0.95, c / 0.3)));
 const capAt = ss => { const i = Math.min(6, Math.floor(ss)), f = ss - i; return CAPS[i] + (CAPS[i + 1] - CAPS[i]) * f; };
 
 export function createSeaUniforms() {
   return {
     uWave: { value: Array.from({ length: SEA_NV }, () => new THREE.Vector4()) },   // (kx, kz, amplitude, clock phase)
-    uSeaP: { value: new THREE.Vector4(0.8, 0.05, 0.5, 0) },                      // (Hs game m, whitecap cover, 0..1 state, -)
+    uSeaP: { value: new THREE.Vector4(0.8, 2, 0.5, 0) },                        // (Hs game m, whitecap cover, 0..1 state, -)
     uSeaD: { value: new THREE.Vector2(0, -1) },                                    // main direction the waves travel
     uShipP: { value: Array.from({ length: SEA_SHIPS }, () => new THREE.Vector4()) }, // (x, z, cos yaw, sin yaw)
     uShipD: { value: Array.from({ length: SEA_SHIPS }, () => new THREE.Vector4()) }, // (half length, half beam, speed 0..1, on)
@@ -40,7 +55,7 @@ export function updateSeaUniforms(U, sea, units, cam) {
     W[i].set(c.dx * c.kg, c.dz * c.kg, c.a * SEA_GAME_SCALE, c.ph % (Math.PI * 2));
   }
   const ssK = sea.ss / 7;
-  U.uSeaP.value.set(sea.hs * SEA_GAME_SCALE, capAt(sea.ss), ssK, 0);
+  U.uSeaP.value.set(sea.hs * SEA_GAME_SCALE, capTh(capAt(sea.ss)), ssK, 0);   // y: the whitecap threshold (2 = none)
   U.uSeaD.value.set(-Math.sin(sea.dir), -Math.cos(sea.dir));
   // ships: the nearest few afloat
   _near.length = 0;
@@ -92,21 +107,21 @@ export const SEA_FS_DECL = `uniform vec4 uSeaP; uniform vec2 uSeaD; varying vec3
     float sHash(vec2 p){ p=mod(p,289.); return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
     float sNoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f); return mix(mix(sHash(i),sHash(i+vec2(1.,0.)),f.x),mix(sHash(i+vec2(0.,1.)),sHash(i+1.),f.x),f.y); }
     // the sun glint's sparkle mask (only asked where there is a glint)
-    float glitAt(vec2 p, float t, float sk){ return mix(1.,.45+1.*smoothstep(.45,.9,sNoise(p*1.3+vec2(t*.7,-t*.4))),smoothstep(.1,.4,sk)); }
+    float glitAt(vec2 p, float t, float sk){ return mix(1.,.3+1.1*smoothstep(.55,.9,sNoise(p*3.1+vec2(t*1.3,-t*.9))),smoothstep(.1,.4,sk)); }   // glitter: fine sparkle, not patches
 `;
 // in: vec2 p (world xz), float d (depth), float t (time), vec3 V (to eye), vec3 L (sun), wc (water colour so far).
 // out: vec3 wn (the swell's normal: shading, fresnel), wg (glitter normal: the sun's specular - mostly ripple, so the
 // glint breaks up into sparkle instead of lighting whole wave faces), glit (sparkle mask), float foam (0..1)
 export const SEA_FS_NORMAL = `
-        float sk=uSeaP.z, rk=mix(.25,1.15,smoothstep(0.,.5,sk));            // calm: glassy ripples; rough: a choppy face
+        float sk=uSeaP.z, rk=mix(.05,1.15,smoothstep(0.,.5,sk));            // SS0 a mirror, SS1 ripples, rough: a choppy face
         vec3 wn=normalize(vec3(-vSea.y+(cos(a1)*.12+cos(a3)*.07)*rk, 1., -vSea.z+(cos(a2)*.14+cos(a3)*.07)*rk));
         vec3 wg=normalize(vec3(-vSea.y*.15+(cos(a1)*.12+cos(a3)*.07)*rk, 1., -vSea.z*.15+(cos(a2)*.14+cos(a3)*.07)*rk));
 `;
 export const SEA_FS_FOAM = `
-        float crest=vSea.x/max(uSeaP.x*.55,.02), cov=uSeaP.y;
+        float crest=vSea.x/max(uSeaP.x*.55,.02), th=uSeaP.y;
         vec2 wd=uSeaD, q=vec2(dot(p,wd),dot(p,vec2(-wd.y,wd.x)));
         float cap=0., streak=0.;   // (branches: the noise only where it can show - SwiftShader pays for every pixel)
-        if(cov>0.&&crest>.2){ float n1=sNoise(p*.16+wd*t*.35), n2=sNoise(p*.7-wd*t*.6); cap=smoothstep(.2,.9,crest)*smoothstep(1.-cov*1.5,1.-cov*.9,n1*.6+n2*.4+crest*.1)*(.5+.5*n2); }
+        if(th<1.5&&crest>.2){ float n1=sNoise(p*.16+wd*t*.35), n2=sNoise(p*.7-wd*t*.6); cap=smoothstep(.2,.9,crest)*smoothstep(th,th+.05,n1*.6+n2*.4)*(.55+.45*n2); }
         if(sk>.7) streak=smoothstep(.7,.88,sNoise(vec2(q.x*.03-t*.25,q.y*.32)))*smoothstep(.7,1.,sk)*.35;
         float surfW=1.4+3.5*sk, surf=(1.-smoothstep(0.,surfW,d))*(.55+.45*sin(d*8./(1.+sk*2.)-t*2.4+sin(a1)+vSea.x*2.));
         float foam=clamp(max(max(surf,cap),max(streak*(1.-smoothstep(150.,600.,length(cameraPosition.xz-p))),(vHull>.01?vHull*(.45+.55*sNoise(p*.6+vec2(t*.4,t*1.2))):0.))),0.,1.);`;

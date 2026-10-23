@@ -1233,6 +1233,13 @@ tools/worldsolidbench.mjs, tools/scenes/seaworld.mjs. Changed: seamotion.js, nav
   LEVIATHAN TALONs forward / LANCEs aft, the container ship a TALON on the forecastle. DEF.talonm / lancem: hp 9 (the
   old ship guns), the ship LANCE's beam a little weaker (dps 2.6, player 0.2). The units behave exactly as on the islands
   (see, lock with tells, fire); the brain's LANCE checks now go by T.beam, not the type name.
+- **Authentic sea states (polish).** Each state looks like its WMO code 3700 / Douglas description and the Beaufort
+  wind that raises it: 0 a mirror with one hard sun glint, 1 ripples, 2 glassy wavelets that never break, 3 scattered
+  white horses, 4 fairly frequent, 5 many, 6 foam crests everywhere and the first streaks, 7 well-marked streaks along
+  the wind. Whitecap coverage per state from Monahan and O'Muircheartaigh's W = 3.84e-6 U^3.41 for the state's Beaufort
+  wind (0.06 % at Bf 3 to 8 % at Bf 8), about 3x so it reads at game distances; the shader's foam threshold is that
+  coverage turned into a noise quantile (an inverse-normal fit), so the coverage is what the table says, not a guess.
+  The sun's glitter is a fine sparkle (it lit whole wave faces in white patches before).
 - **The black dome on the horizon (root cause).** The sky dome (radius 0.97 x the draw distance) and the terrain windows
   were centred on zCam in updateCamsAndMeshes. Any camera moved after that - every test scene's scripted camera patches
   renderer.render to move the camera - sat off-centre, the far side of the dome fell beyond the far plane (draw + 15 m)
