@@ -23,7 +23,8 @@ export function createDevWorld() {
     water: (x, z) => !deckAt(x, z) && terrain(x, z) < 0,
     surfVel: (x, z) => { const d = deckAt(x, z); return d ? { ...velOf(d), w: d.w, cx: d.x, cz: d.z } : null; },
   };
-  const world = { groundY: env.groundY, floorAlong(x, z, ux, uz, L) { let m = env.groundY(x, z); for (let s = 10; s <= L; s += 10) m = Math.max(m, env.groundY(x + ux * s, z + uz * s)); return m; } };
+  const world = { groundY: env.groundY, floorAlong(x, z, ux, uz, L) { let m = env.groundY(x, z); for (let s = 10; s <= L; s += 10) m = Math.max(m, env.groundY(x + ux * s, z + uz * s)); return m; },
+    los(ax, ay, az, bx, by, bz) { const d = Math.hypot(bx - ax, bz - az), n = Math.ceil(d / 6); for (let i = 1; i < n; i++) { const k = i / n; if (env.groundY(ax + (bx - ax) * k, az + (bz - az) * k) > ay + (by - ay) * k) return false; } return true; } };
   // buildings beside the pad (on the line through it, like war.js puts the HQ and the factory)
   const structs = [{ kind: 'hq', x: PAD.x, z: PAD.z - 17, r: 7, h: 12 }, { kind: 'factory', x: PAD.x, z: PAD.z + 18, r: 8, h: 9 }];
   const spotOn = (d, lx, lz) => { const [x, z] = toWorldD(d, lx, lz), v = velOf(d); return { x, y: d.H, z, hdg: d.yaw, vx: v.vx - d.w * (z - d.z) * 0, vz: v.vz }; };

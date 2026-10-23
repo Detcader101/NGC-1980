@@ -12,7 +12,7 @@
 // Weapon release is decided here but kept at game level (the war's 'b' rounds, like the old saucer's gun).
 import { clamp, wrap } from './rb.js';
 
-export const WASP_PILOT = { kv: 0.9, aMax: 7, tilt: 0.6, th: [1.6, 0.7, 0.25], ph: [1.6, 0.7, 0.25], vz: [0.07, 0.06], coll0: 0.55, psi: [2.0, 1.6], r: [0.9, 0.6], trimI: 0.012, rate: 1.4 };
+export const WASP_PILOT = { kv: 0.9, aMax: 9, tilt: 0.9, th: [1.6, 0.7, 0.25], ph: [1.6, 0.7, 0.25], vz: [0.07, 0.06], coll0: 0.55, psi: [2.0, 1.6], r: [0.9, 0.6], trimI: 0.012, rate: 1.4 };
 const TAU = Math.PI * 2;
 const hdgTo = (dx, dz) => Math.atan2(-dx, -dz);
 
@@ -96,6 +96,16 @@ export function createWaspAI(o = {}) {
           break;
         }
       }
+      // keep clear: of the target (14 m) and of the rest of the swarm (10 m) - a firm push away, eerily precise
+      // (judged on where both will be in 1.2 s as well as now: momentum carries a ducted fan a long way)
+      const push = (q, r) => {
+        for (const la of [0, 1.2]) {
+          const ax = me.x + me.vx * la - (q.x + (q.vx || 0) * la), ay = me.y + me.vy * la - (q.y + (q.vy || 0) * la), az = me.z + me.vz * la - (q.z + (q.vz || 0) * la), dd = Math.hypot(ax, ay, az) || 1e-3;
+          if (dd < r) { const k = (r - dd) * 3.2 / dd; c.vx += ax * k; c.vy += ay * k * 0.6; c.vz += az * k; }
+        }
+      };
+      push(tgt, 16);
+      if (ctx.others) for (const q of ctx.others) if (q !== me && q.x !== undefined) push(q, 15);
       // never into the ground
       const fl = floorAhead(Math.sign(c.vx) * Math.min(1, Math.abs(c.vx) / 10) || 0, Math.sign(c.vz) * Math.min(1, Math.abs(c.vz) / 10) || 0, 40);
       if (me.y < fl + 5) c.vy = Math.max(c.vy, (fl + 7 - me.y) * 1.2);
@@ -107,4 +117,11 @@ export function createWaspAI(o = {}) {
     },
   };
   return AI;
+}
+
+// tilt limit from the thrust available: never lean further than full power can still hold 1 g (+ margin when sinking).
+// The ducted fan's thrust also falls with the axial inflow (fast and tilted), which the fan model includes.
+export function waspTiltLimit(S, st, cmd, G = 9.81) {
+  const Tmax = S.flowFor(S.P_MAX ?? 260e3, S.rho, 0).T, need = S.mass * G * (1.12 + Math.max(0, (cmd.vy ?? 0) - st.vy) * 0.04);
+  return clamp(Math.acos(clamp(need / Tmax, 0, 0.99)), 0.12, 0.9);
 }

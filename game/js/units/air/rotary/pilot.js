@@ -38,7 +38,7 @@ export function createPilot(G) {
       const kv = cmd.kv ?? G.kv, aM = cmd.aMax ?? G.aMax;
       let af = clamp(ef * kv, -aM, aM) + ((cmd.ax ?? 0) * fx + (cmd.az ?? 0) * fz), ar = clamp(er * kv, -aM, aM) + ((cmd.ax ?? 0) * -fz + (cmd.az ?? 0) * fx);
       const tl = cmd.tilt ?? G.tilt;
-      I.th = clamp(I.th - ef * G.trimI * dt, -0.25, 0.25); I.ph = clamp(I.ph + er * G.trimI * dt, -0.15, 0.15);
+      const tl0 = Math.max(0.25, G.tilt); I.th = clamp(I.th - ef * G.trimI * dt, -tl0, 0.25); I.ph = clamp(I.ph + er * G.trimI * dt, -0.15, 0.15);
       let thT = clamp(I.th - Math.atan(af / g), -tl, tl * 0.8), phT = clamp(I.ph + Math.atan(ar / g), -tl, tl);
       if (cmd.pitch !== undefined) thT = cmd.pitch;
       if (cmd.roll !== undefined) phT = cmd.roll;
