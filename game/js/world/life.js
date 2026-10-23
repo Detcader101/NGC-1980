@@ -14,7 +14,7 @@ import { buildGeo, CHUNK } from './chunkgen.js';
 import { worldMaterial, groundMaterial, geoFrom } from './gfx.js';
 import { createAmbient } from './ambient.js';
 import { buildPadDressing, buildShaftCollar, buildRWPylon } from './structures.js';
-import { structAngle, settlementsNear, nearestRoad } from './net.js';
+import { structAngle, settlementsNear, nearestRoad, settlementOf } from './net.js';
 
 const NEAR_R = 520, FAR_MAX = 2300;
 export function createWorldLife(ctx) {
@@ -80,8 +80,11 @@ export function createWorldLife(ctx) {
     for (const e of zone) { const d = Math.hypot(e.x - cx, e.z - cz) - e.I.r, near = d < NEAR_R; show(e, near, !near && d < R); }
     stats.chunks = n; stats.tris = tris;
   }
-  // keep the main thread's road network a step ahead of the camera, so physics never waits on a whole cell
-  let prewarmT = 0;
+  // keep the main thread's road network a step ahead of the camera, so physics never waits on a whole cell. The
+  // settlement candidates round the zone (the bulk of a cold first cell) are worked through a few per frame at start.
+  let prewarmT = 0, sIdx = 0;
+  const SR = 11, sCells = (2 * SR + 1) ** 2;
+  function prewarmSettlements() { for (let k = 0; k < 12 && sIdx < sCells; k++, sIdx++) settlementOf((sIdx % (2 * SR + 1)) - SR, Math.floor(sIdx / (2 * SR + 1)) - SR); }
   function prewarm(cx, cz) {
     for (const [dx, dz] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
       const x = cx + dx * CELL, z = cz + dz * CELL; if (Math.max(Math.abs(x), Math.abs(z)) < BOUND + 300) continue;
@@ -147,6 +150,7 @@ export function createWorldLife(ctx) {
       scanT -= dt; if (scanT <= 0) { scanT = 0.4; stream(cx, cz); lod(cx, cz); }
       // only near the wild lands (physics in the zone never needs them); one cell at a time
       prewarmT -= dt; if (prewarmT <= 0) { prewarmT = 1.5; if (Math.max(Math.abs(cx), Math.abs(cz)) > BOUND - 150) prewarm(cx, cz); }
+      if (sIdx < sCells) prewarmSettlements();
       W.t = (W.t || 0) + dt; updateSites(dt, W.t);
       ambient.update(dt, cam, playing);
       stats.ms += (performance.now() - t0 - stats.ms) * 0.05;   // smoothed main-thread cost per frame

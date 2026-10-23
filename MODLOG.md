@@ -233,7 +233,7 @@ TM-73,254 (fuselage, stab bar, tail rotor), DCS UH-1H manual (limits, procedures
 ## 2026-10-23 — NGC-1980: faction structures and a lived-in world (ngc/world)
 Files: game/js/world/ (net.js, layout.js, models.js, kit.js, chunkgen.js, worldworker.js, gfx.js, life.js, ambient.js,
 structures.js, rng.js), game/dev/world.html (+ world-preview.js), tools/worldbench.mjs, tools/scenes/world.mjs,
-worldprev.mjs, structprev.mjs, worldperf.mjs.
+worldprev.mjs, structprev.mjs, worldperf.mjs, worldjet.mjs.
 - **Settlements and roads (net.js, pure, seeded).** Wild lands: one settlement candidate per 1.6 km cell (hamlet 70 m,
   village 135 m, town 210 m radius; harbour towns on the coast), linked by a relaxed relative-neighbourhood graph
   (tarmac between villages and towns, lanes to hamlets, dirt between hamlets). Each road is routed by dynamic
@@ -295,7 +295,8 @@ worldprev.mjs, structprev.mjs, worldperf.mjs.
 - **Hooks.** main.js (4 lines marked WORLD): import, createWorldLife after createWar, world.update after
   updateCamsAndMeshes, clearedAt() keeps the zone trees off the villages. war.js: structAngle (HQ / production slots
   seeded per island, were random), ud.attach / setSide / onHp / setState / tick when present, dead faction structures
-  stay visible as their ruin. terrainworker.js: far bake on rawH, forest trees skip clearedAt(). ships.js: delegate.
+  stay visible as their ruin, fronts face the pad and sit on a cardinal direction between the AA slots on the diagonals.
+  terrainworker.js: far bake on rawH, forest trees skip clearedAt(). ships.js: delegate.
 - **Numbers.** worldbench (9 km square 3.6 km east of the zone): 18 settlements, 26 farms / 89 fields, 125 km of road,
   7 bridges, steepest grade 14 %; a new cell costs 10-20 ms on the main thread (the first, cold, ~240 ms; prewarmed only
   near the wild lands); a 2 km x 4 m terrain bake 54 ms with roads vs 43 raw; chunk build in the worker 5-50 ms; a town
