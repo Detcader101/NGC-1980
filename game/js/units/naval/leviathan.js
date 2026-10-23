@@ -17,10 +17,10 @@ const CER = 0xcfd2cd, CER_D = 0xa9ada9, COMP = 0x23272c, COMP_L = 0x353a40, CYAN
 
 // half-width of the deck at z (bow -z): the wave-piercing bow narrows to a point, a rounded stern
 export function deckHalf(lz) {
-  if (lz < -44 || lz > 47) return 0;
-  if (lz < -10) return 6.4 * Math.pow((lz + 44) / 34, 0.6);
-  if (lz > 38) return 6.4 * Math.sqrt(Math.max(0, 1 - ((lz - 38) / 9.5) ** 2) * 0.7 + 0.3);
-  return 6.4;
+  if (lz < -38 || lz > 47) return 0;
+  if (lz < -6) return 6.0 * Math.pow((lz + 38) / 32, 0.55);
+  if (lz > 38) return 6.0 * Math.sqrt(Math.max(0, 1 - ((lz - 38) / 9.5) ** 2) * 0.7 + 0.3);
+  return 6.0;
 }
 export function localDeck(lx, lz) {
   let h = -1e9;
@@ -29,20 +29,27 @@ export function localDeck(lx, lz) {
   return h;
 }
 function hull(kit, glow) {
-  const zs = [47, 45, 40, 30, 15, 0, -10, -20, -28, -34, -39, -42, -44, -46, -48];
+  // the stern slopes back (z 47 -> 48.6), the wave-piercing bow runs out 12 m ahead of the deck: its stem rakes BACK
+  // from the forefoot at the waterline (z -50) up to the deck's point (z -38)
+  const zs = [48.6, 47, 45, 40, 30, 15, 0, -10, -20, -28, -34, -37.9, -40, -42, -44, -46, -48, -50];
   const rings = zs.map(z => {
-    const dh = Math.max(0.05, deckHalf(Math.max(-44, z)));
-    let wl = Math.min(8.0, dh * 1.24 + 0.2);                     // waterline wider than the deck: tumblehome
-    if (z < -10) wl = 8.0 * Math.pow(Math.max(0, (z + 48) / 38), 0.7);
-    if (z > 40) wl = Math.min(wl, 7.4);
-    const top = z < -44 ? DECK * Math.max(0, (z + 48) / 4) * 0.6 : DECK;   // the stem rakes back from the waterline
-    return [[0, -3.6], [wl * 0.75, -3.6], [wl * 0.98, -1.6], [wl, 0], [wl * 0.97, 0.9], [dh + (wl - dh) * 0.35, top * 0.62], [Math.max(0.05, dh), top]].map(([x, y]) => [x, y, z]);
+    const dh = Math.max(0.05, deckHalf(Math.max(-38, Math.min(47, z))));
+    let wl = Math.min(7.2, dh * 1.2 + 0.1);                       // waterline wider than the deck: tumblehome
+    if (z < -6) wl = 7.2 * Math.pow(Math.max(0, (z + 50) / 44), 0.65);
+    if (z > 40) wl = Math.min(wl, 6.8);
+    const top = z < -38 ? DECK * Math.max(0, (z + 50) / 12) : z > 47 ? 4.2 : DECK;
+    const yb = z < -40 ? -3.4 * Math.max(0, (z + 50) / 10) : z > 47 ? -1.4 : -3.4;
+    const pts = [[0, yb], [wl * 0.7, yb], [wl * 0.96, Math.min(-1.5, top * 0.1)], [wl, Math.min(0, top * 0.3)], [wl * 0.97, Math.min(0.9, top * 0.5)], [dh + (wl - dh) * 0.4, top * 0.6], [dh + (wl - dh) * 0.15, top * 0.86], [Math.max(0.05, dh), top]];
+    if (z < -38) for (const p of pts) p[0] = Math.min(p[0], wl * 0.97 * (1 - Math.max(0, p[1]) / Math.max(0.1, top) * 0.7));
+    return pts.map(([x, y]) => [x, y, z]);
   });
   const grime = null;
   for (const sd of [1, -1]) { let R = rings.map(r => r.map(([x, y, z]) => [x * sd, y, z])); if (sd < 0) R.reverse(); kit.loft(R, COMP); }
   // transom
-  const st = rings[0], ol = [...st.map(p => [p[0], p[1]]), ...st.slice().reverse().map(p => [-p[0], p[1]])];
-  kit.add(new THREE.ShapeGeometry(new THREE.Shape(ol.map(([x, y]) => new THREE.Vector2(x, y)))), COMP_L, T(0, 0, 47));
+  const st = rings[0], ol0 = [...st.map(p => [p[0], p[1]]), ...st.slice().reverse().map(p => [-p[0], p[1]])];
+  const ol = ol0; kit.add(new THREE.ShapeGeometry(new THREE.Shape(ol.map(([x, y]) => new THREE.Vector2(x, y)))), COMP_L, T(0, 0, 48.6));
+  // the sloped stern deck between the transom top and the deck edge
+  { const a = deckHalf(46.9), b = st[7][0], q = [a, DECK, 47, -a, DECK, 47, -b, 4.2, 48.6, a, DECK, 47, -b, 4.2, 48.6, b, 4.2, 48.6]; kit.add(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(q, 3)), CER_D); }
   // the deck: ceramic plates with dark seams between (a flat polygon, then strips)
   const pts = [];
   for (let z = 47; z >= -44; z -= 1) pts.push([deckHalf(z), z]);
@@ -83,7 +90,7 @@ function railTurret(z) {
 
 export function buildLeviathan() {
   const g = new THREE.Group(); g.name = 'LEVIATHAN';
-  const kit = new Kit({ wear: 0.02, seed: 4, grime: (x, y, z, c, r) => { if (y < 0.5 && y > -0.6) c.setHex(0x101214); if (y > 0.5 && r() < 0.2) c.multiplyScalar(0.93 + r() * 0.05); } });
+  const kit = new Kit({ wear: 0.02, seed: 4, grime: (x, y, z, c, r) => { if (c.r < 0.2 && y > 3.3 && y < DECK - 0.05 && Math.abs(x) > 3.5) c.setHex(CER_D); if (y < 0.5 && y > -0.6) c.setHex(0x101214); if (y > 0.5 && r() < 0.2) c.multiplyScalar(0.93 + r() * 0.05); } });
   const glow = new Kit({ wear: 0 }), sheet = new DecalSheet(512, 4, 4);
   hull(kit, glow);
   // the sensor blade: a tall faceted prism leaning aft, standing to starboard of the centreline

@@ -96,8 +96,8 @@ function buildIsland(kit, glow, sheet) {
   kit.box(1.1, 0.15, 8, HD, -3.0, 6.4, 1); kit.rail([[-3.55, 6.45, -3], [-3.55, 6.45, 5]], 1.0, HD, 1, 0.03);
   // funnel: aft, raked, with the black-topped uptakes
   kit.push(T(0.1, 0, 6.4, -6 * DEG));
-  kit.box(4.2, 8.2, 4.6, H, 0, 13.2, 0); kit.box(4.4, 1.1, 4.8, BLACK, 0, 17.8, 0.1);
-  for (const [x, z] of [[-0.9, -0.8], [0.9, -0.8], [0, 0.9]]) kit.cyl(0.45, 0.45, 0.8, 0x101010, x, 18.6, z, 0, 0, 0, 8);
+  kit.box(4.2, 8.2, 4.6, H, 0, 13.2, 0); kit.box(4.3, 0.55, 4.7, BLACK, 0, 17.55, 0.05);
+  for (const [x, z] of [[-0.9, -0.8], [0.9, -0.8], [0, 0.9]]) kit.cyl(0.45, 0.5, 1.0, 0x1a1a1a, x, 18.2, z, 0, 0, 0, 8);
   kit.box(4.3, 0.3, 4.7, HD, 0, 16.6, 0);
   kit.pop();
   // island top deck and the mast: a tripod with yardarms, TACAN at the top
@@ -234,7 +234,7 @@ function buildDeckGear(kit, glow) {
   // deck fuel / service stations at the deck edge (purple-banded hose reels)
   for (const [x, z] of [[13.2, -30], [13.2, 36], [-13.2, 10]]) { kit.cyl(0.45, 0.45, 0.5, 0x5a2a74, x, DECK + 0.25, z, 0, 0, Math.PI / 2, 10); kit.box(0.8, 0.5, 0.9, HAZE_D, x, DECK + 0.25, z + 0.9); }
   // folding whip antennas on the deck edge (lowered for flight ops), and the bow anchors' hawse pipes
-  for (const [x, z] of [[14.3, 50], [14.3, 12], [-14.3, 20], [-14.3, -10]]) kit.rod([x, DECK - 0.3, z], [x + Math.sign(x) * 4.5, DECK - 0.1, z + 0.7], 0.05, 0xdadad2, 4);
+  for (const [x, z] of [[14.3, 50], [14.3, 12], [-14.3, 20], [-14.3, -10]]) kit.rod([x, DECK - 0.3, z], [x + Math.sign(x) * 4.5, DECK - 0.1, z + 0.7], 0.04, 0x8d9294, 4);
   for (const sd of [-1, 1]) { kit.cyl(0.55, 0.55, 0.6, BLACK, sd * 6.3, 4.6, -56.5, 0, 0, Math.PI / 2 - sd * 0.3, 10); kit.box(0.4, 1.6, 1.1, 0x1a1a1a, sd * 6.5, 3.4, -56.2, 0, 0, sd * -0.3); }
   // hangar-deck openings in the side under the elevators (dark), and the sponsons for the mounts
   for (const E of ELEVATORS) { const sd = Math.sign(E.x0 + E.x1), zc = (E.z0 + E.z1) / 2, len = E.z1 - E.z0 - 1;
