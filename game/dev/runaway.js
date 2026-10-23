@@ -324,13 +324,14 @@ function tick(dtReal) {
   drawOverlay();
   renderer.render(scene, camera);
 }
-function frame(now) { const dt = (now - last) / 1000; last = now; tick(dt); requestAnimationFrame(frame); }
+let frames = 0;
+function frame(now) { const dt = (now - last) / 1000; last = now; tick(dt); frames++; requestAnimationFrame(frame); }
 start(scenario, seed);
 if (Q.get('follow')) follow = B.units.find(m => m.id === +Q.get('follow')) || null;
 requestAnimationFrame(frame);
 // ?debug bridge for headless scenes (tools/scenes/runaway*.mjs)
 window.__RW = {
-  get B() { return B; }, THREE, scene, camera, cam, views, FX,
+  get B() { return B; }, get audio() { return audio; }, get frames() { return frames; }, THREE, scene, camera, cam, views, FX,
   start, step(n = 1) { for (let i = 0; i < n; i++) for (const e of B.step(STEP)) { FX.event(e); } syncViews(STEP * n); },
   // advance the sim by `secs` without rendering every step (fast-forward), then render once
   run(secs) { const n = Math.round(secs / STEP); for (let i = 0; i < n; i++) { const evs = B.step(STEP); if (i > n - 90) { for (const e of evs) FX.event(e); FX.update(STEP); } } syncViews(STEP); FX.projectiles(B.proj); drawOverlay(); renderer.render(scene, camera); return { t: B.time, stats: B.stats }; },

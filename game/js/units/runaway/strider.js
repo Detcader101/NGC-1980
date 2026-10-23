@@ -548,6 +548,7 @@ export function createStrider(opt = {}) {
   function fallStep(h, env) {
     const F = S.fall;
     F.thd += (G / F.L * Math.sin(F.th)) * h; F.th += F.thd * h;
+    for (let j = 0; j < 2; j++) { S.lean[j] *= Math.max(0, 1 - h * 6); S.leanV[j] = 0; }   // (the torso lean folds into the fall)
     // a dead / leg-shot machine crumples: the pendulum shortens as the knees go
     if (F.why === 'dead' || F.why === 'leg') F.L = Math.max(F.L0 * 0.55, F.L - h * 1.4);
     const gy = env.height(F.px + F.dir[0] * F.L * Math.sin(F.th), F.pz + F.dir[1] * F.L * Math.sin(F.th));
@@ -575,11 +576,20 @@ export function createStrider(opt = {}) {
   function getupStep(h, env) {
     const F = S.fall; S.getup += h / S_.GETUP_T;
     // the unnatural profile: a fast swing through 75%, a dead stop, then a slow mechanical finish
-    const u = S.getup, k = u < 0.35 ? 0.75 * sstep(u / 0.35) : u < 0.55 ? 0.75 : 0.75 + 0.25 * sstep((u - 0.55) / 0.45);
-    if (F.th0 === undefined) { F.th0 = F.th; F.Lg = F.L; }
+    // fold the legs in (no rise), one fast swing through 75%, a dead stop, a slow mechanical finish
+    const u = S.getup, k = u < 0.2 ? 0 : u < 0.45 ? 0.75 * sstep((u - 0.2) / 0.25) : u < 0.62 ? 0.75 : 0.75 + 0.25 * sstep((u - 0.62) / 0.38);
+    if (F.th0 === undefined) {
+      // the feet plant under the hips (not back where it tripped): the body then swings up over them like a sit-up,
+      // legs folded tight, and stands. Re-express the lying body as a pendulum about that new pivot.
+      const pel = S.pose().pelvis, dir = F.dir, gy = env.height(pel[0], pel[2]);
+      F.px = pel[0] - dir[0] * 0.15; F.pz = pel[2] - dir[1] * 0.15; F.py = gy;
+      const hx = S.c[0] - F.px, hz = S.c[2] - F.pz, hl = Math.hypot(hx, hz) || 1e-3;
+      F.dir = [hx / hl, hz / hl]; F.L = Math.hypot(hl, S.c[1] - F.py); F.th = Math.atan2(hl, S.c[1] - F.py);
+      F.th0 = F.th; F.Lg = F.L;
+    }
     const L1 = S_.PELVIS_H + S_.COM_UP - 0.05;
     F.th = F.th0 * (1 - k); F.L = F.Lg + (L1 - F.Lg) * k;
-    setFallPose(); S.servo = u < 0.35 || u > 0.55 ? 1.2 : 0;
+    setFallPose(); S.servo = u < 0.45 || u > 0.62 ? 1.2 : 0;
     if (S.getup >= 1) {
       // stand back up over the pivot, feet under the hips
       const x = F.px, z = F.pz; S.mode = 'stand'; S.fall = null;
@@ -625,18 +635,29 @@ export function createStrider(opt = {}) {
       if (S.mode === 'stand' || S.mode === 'walk') {
         toe = [ft.x, ft.y, ft.z]; hock = hockOf(ft, [0, 0, 0]); n = ft.n;
       } else {
-        // fallen / getting up: legs tuck in body frame, the pivot side stays near the ground
-        const g = S.mode === 'getup' ? clamp(S.getup * 1.2, 0, 1) : 0;
-        const bend = S.mode === 'getup' ? 0.35 + 0.5 * (1 - g) : S.alive ? 0.25 : 0.55;
+        // fallen: legs tucked in the body frame (never below the ground); getting up: the feet are planted at the pivot
+        // and the legs fold under the rising body, pushing it up (tucked again where they cannot reach)
+        const bend = S.alive ? 0.25 : 0.55;
         toe = add3([0, 0, 0], L.hip, u, -(S_.PELVIS_H - 0.05) * (1 - bend * 0.5)); add3(toe, toe, f, 0.15 + bend * 0.25);
-        hock = add3([0, 0, 0], toe, u, S_.HOCK_UP); add3(hock, hock, f, -S_.HOCK_BACK);
+        const gy = P.ground;
+        if (toe[1] < gy) toe[1] = gy;
+        hock = add3([0, 0, 0], toe, u, S_.HOCK_UP); add3(hock, hock, f, -S_.HOCK_BACK); if (hock[1] < gy + 0.08) hock[1] = gy + 0.08;
         n = u;
+        if (S.mode === 'getup' && S.fall) {
+          const F = S.fall, [plx, plz] = leftOf(F.yaw), [pfx, pfz] = fwdOf(F.yaw), side = i === 0 ? 1 : -1;
+          const ft = [F.px + plx * side * S_.STEP_W / 2, gy, F.pz + plz * side * S_.STEP_W / 2];
+          const hk = [ft[0] - pfx * S_.HOCK_BACK, gy + S_.HOCK_UP, ft[2] - pfz * S_.HOCK_BACK];
+          const reachK = Math.hypot(hk[0] - L.hip[0], hk[1] - L.hip[1], hk[2] - L.hip[2]) / (S_.THIGH + S_.SHIN);
+          const w = clamp((1.15 - reachK) / 0.3, 0, 1) * clamp(S.getup * 5, 0, 1);   // blend from tucked to planted (the fold phase)
+          for (let k = 0; k < 3; k++) { toe[k] += (ft[k] - toe[k]) * w; hock[k] += (hk[k] - hock[k]) * w; }
+          L.footF = [pfx, 0, pfz]; n = [0, 1, 0];
+        }
       }
       // knees bend forward (and a touch outward)
       const hint = [f[0] + l[0] * s * 0.15, f[1] + l[1] * s * 0.15, f[2] + l[2] * s * 0.15];
       const r = ik2(L.hip, hock, S_.THIGH, S_.SHIN, hint, L.ik || (L.ik = {}));
       L.knee = r.mid; L.hock = r.end; L.toe = toe; L.n = n; L.stretch = r.stretch; L.lift = ft.lift;
-      L.footF = [-Math.sin(ft.yaw), 0, -Math.cos(ft.yaw)];
+      if (S.mode !== 'getup') L.footF = [-Math.sin(ft.yaw), 0, -Math.cos(ft.yaw)];
     }
     // weapon: held at the right shoulder, pointing along the aim (world), stabilised against walking sway
     const G2 = P.gun, ad = S.aimDir([0, 0, 0]);
