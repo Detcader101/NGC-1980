@@ -146,7 +146,7 @@ export function resupply(root) {
   for (let i = mags; i < 7; i++) { const m = I.newItem('mag_m16_20', { fill: 'M193', rounds: 18 }); I.magPush(m, 'M196', 2); if (!I.autoStore(root, m)) break; added++; }
   if (added) got.push(`${added} NEW MAGAZINES`);
   if (!root.slots.secondary) { const law = I.newItem('m72a2'); if (!I.slotError(root, 'secondary', law)) { I.slotIn(root, 'secondary', law); got.push('M72 LAW'); } }
-  const want = { dressing_field: 2, cravat: 1 };
+  const want = { dressing_field: 2, cravat: 1, m18_green: 1 };   // ngc/cmpolish: an M18 smoke back in the rig
   for (const [id, n] of Object.entries(want)) { const have = I.findAll(root, o => o.id === id).length; for (let i = have; i < n; i++) if (I.autoStore(root, I.newItem(id))) got.push(ITEMS[id].short); }
   return got;
 }

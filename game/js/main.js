@@ -18,6 +18,7 @@ import { createCraftHost } from './craft.js';
 import { createGround } from './ground.js';
 import { createFootCraft } from './foot.js';
 import { createMarine } from './marine.js';   // wave 2 (ngc/foot2): the 1980 Marine on foot
+import { createDispenser, createRwrCue, RWR } from './units/defence/cm.js';   // ngc/cmpolish: flares / chaff, radar warning
 import { createVehicleCraft } from './vehicle.js';
 import { createJetCraft } from './craftjet.js';
 import { createBoxCar } from './units/placeholder/boxcar.js';
@@ -60,6 +61,7 @@ addEventListener('keydown', e => {
     if (e.code === 'KeyH') { if (drop.flying) drop.toggleAP(); else doSwitch('sas'); }
     const sw = { KeyI: 'engine', KeyO: 'fire', KeyU: 'hyd', KeyL: 'radio', KeyN: 'light' }[e.code];
     if (sw) doSwitch(sw);
+    const cmk = HUEY_CM_KEYS[e.code]; if (cmk && G.mode === 'zarch' && Z.alive && !drop.controlling && !helm.active) cmH.press(cmk);   // CM: M130 flares / chaff
   }
   if (e.code === 'KeyJ') HI.startCalibration();   // the controls panel: bind and calibrate HOTAS / pedals (hotas.js)
   if (e.code === 'KeyT' && (G.craft === 'heli' || G.craft === 'jet')) toggleFreeLook();
@@ -745,9 +747,9 @@ function service(svc, dt, piloted = true) {
   if (G.cargo > 0) { const u = Math.min(G.cargo, 30 * dt, RES_MAX - G.res); G.cargo -= u; G.res += u; Z.unloaded = (Z.unloaded || 0) + u; if (G.cargo <= 0.01 && Z.unloaded > 0) { say(`FUEL UNLOADED  -  STORES ${Math.round(G.res)}`, 2); addScore(Math.round(Z.unloaded * 5)); Z.unloaded = 0; } }
   if (D.damaged()) { D.repair(0.25 * dt); if (!D.damaged()) say('REPAIRS COMPLETE', 1.5); }
   Z.rearmT = (Z.rearmT || 0) - dt;
-  const arming = G.rockets < ROCKETS_MAX || G.bombs < BOMBS_MAX;
+  const cmLoading = cmH.rearm(dt), arming = G.rockets < ROCKETS_MAX || G.bombs < BOMBS_MAX;   // CM: the M130 reloads too
   if (arming && Z.rearmT <= 0) { Z.rearmT = 0.35; if (G.rockets < ROCKETS_MAX) G.rockets = Math.min(ROCKETS_MAX, G.rockets + 2); else G.bombs++; if (piloted) sfx.blip?.(700, 900, 0.05, 'square', 0.05); }
-  if (fill > 0 || arming) Z.refuelling = true; else if (Z.refuelling) { Z.refuelling = false; say(G.res < 1 ? 'FUEL STORES EMPTY  -  TAKE FUEL ISLANDS OR LOOT ENEMY CAVES' : `${svc.name}  -  FUELLED AND ARMED`, 1.6); }
+  if (fill > 0 || arming || cmLoading) Z.refuelling = true; else if (Z.refuelling) { Z.refuelling = false; say(G.res < 1 ? 'FUEL STORES EMPTY  -  TAKE FUEL ISLANDS OR LOOT ENEMY CAVES' : `${svc.name}  -  FUELLED AND ARMED`, 1.6); }
 }
 const _rk = new THREE.Vector3();
 // the advisor: every so often, the next thing worth doing
@@ -781,6 +783,7 @@ function heliPanel(hover) {   // everything the cockpit shows (hueycockpit.js)
     nr: H.rpm, n2: H.n2, n1: H.n1, torque: H.torque, egt: H.egt, engOilP: SY.engOilP, engOilT: SY.engOilT, xmsnOilP: SY.xmsnOilP, xmsnOilT: SY.xmsnOilT,
     fuelLb: G.fuel / 100 * 1358, fuelPct: G.fuel, volts: SY.volts, amps: SY.amps, ac: SY.ac, hydPsi: m.hydOk ? 1000 * Math.min(1, H.rpm * 1.5) : 0,
     throttle: SY.grip, cautions: SY.cautions, masterCaution: SY.masterCaution, rpmWarn: SY.rpmWarn, fire: D.fire, hover, avionics: D.hp.avionics, vrs: H.vrs, stall: H.stall,
+    rwr: RWR, cm: cmH,   // CM: the APR-39 scope, threat lamps and the M130 counters
   }), Object.assign(_hp.sw, { bat: SY.bat, gen: SY.gen, inv: SY.inv, engine: D.engineSwitch, gov: SY.gov, hyd: D.hydBoost, trim: SY.trim, light: G.light, sas: HI.sas, lowrpm: SY.lowRpmAudio, starter: H.starter }),
     Object.assign(_hp.ctl, { cx: H.c.lat, cy: H.c.lon, pedal: H.c.ped, coll: H.c.coll }), _hp;
 }
@@ -812,6 +815,13 @@ function hueySound(piloted = true) {   // blade slap, turbine, low rotor rpm hor
 // the Huey on the surface. piloted: you fly it (HI controls, weapons, logistics, the helm, the advisor, the avatar Z);
 // parked: nobody aboard - collective down, cyclic centred, engine left running at flight idle, the skids ride the deck
 // or sit on the pad (it still refuels on a friendly pad), and it can still be lost (a ditching, a crash).
+// CM (ngc/cmpolish): the Huey's M130 flare / chaff dispenser (units/defence/cm.js): one 30-cartridge payload module on
+// the left side of the tail boom (INFERRED placement), 18 flares + 12 chaff; a press drops a pair of flares or one chaff
+const HUEY_CM_KEYS = { Insert: 'flare', Semicolon: 'flare', Delete: 'chaff', Quote: 'chaff' };
+const cmH = createDispenser({ name: 'M130', flares: 18, chaff: 12, program: { flare: 2, chaff: 1 }, gap: 0.22, ports: [[-0.62, 0.15, 3.0]], eject: { flare: [-0.55, -0.8, 0.25], chaff: [-0.8, -0.5, 0.2] }, sfx, say: (t, s) => say(t, s) });
+const _cmQ = new THREE.Vector3();
+const cmPose = { vel: null, toWorld: (l, o) => { _cmQ.set(l[0], l[1], l[2]).applyQuaternion(H.q).add(H.pos); o.x = _cmQ.x; o.y = _cmQ.y; o.z = _cmQ.z; return o; }, dirWorld: (l, o) => { _cmQ.set(l[0], l[1], l[2]).normalize().applyQuaternion(H.q); o.x = _cmQ.x; o.y = _cmQ.y; o.z = _cmQ.z; return o; } };
+Object.defineProperty(cmPose, 'vel', { get: () => H.vel });
 const _parkCtl = { cx: 0, cy: 0, pedal: 0, coll: 0, sas: false, fire: false, winch: false, rocket: false, bomb: false, hatX: 0, hatY: 0, source: 'PARKED' };
 function updateHeli(dt, inp, piloted) {
   const P = H.pos;
@@ -819,7 +829,7 @@ function updateHeli(dt, inp, piloted) {
   if (!Z.alive) {
     Z.deadT -= dt;
     if (Z.deadT <= 0 && !G.over) {
-      G.fuel = 100; G.cargo = 0; D.reset(); G.rockets = ROCKETS_MAX; G.bombs = BOMBS_MAX;
+      G.fuel = 100; G.cargo = 0; D.reset(); G.rockets = ROCKETS_MAX; G.bombs = BOMBS_MAX; cmH.reset();
       const deck = war.carrier && war.carrier.sinking === undefined;
       if (piloted) { resetZarch(true); say(deck ? 'NEW HELICOPTER ON THE ALBATROSS' : 'NEW HELICOPTER ON THE HOME PAD', 2); }
       else { spotHeli(); feed(deck ? 'NEW HELICOPTER SPOTTED ON THE ALBATROSS' : 'NEW HELICOPTER ON THE HOME PAD', 'good'); }
@@ -903,6 +913,9 @@ function updateHeli(dt, inp, piloted) {
     if (G.bombs > 0) { Z.bmCd = 0.45; G.bombs--; war.dropBomb(P.clone().add(_rk.set(0, -2.3, 0)), Z.vel.clone()); }
     else { Z.bmCd = 1; say('BOMBS GONE  -  REARM ON THE CARRIER OR A FRIENDLY PAD', 1.4); }
   }
+  // CM: the M130 dispenser - HOTAS buttons (J binds them), then the queued program leaves the tail boom
+  if (!drop.controlling && !helm.active) { const pr = CTL.state.pressed || {}; if (pr.flare) cmH.press('flare'); if (pr.chaff) cmH.press('chaff'); }
+  cmH.update(dt, cmPose);
   { const hb = holeOf(P.x, P.z); if (hb && P.y < hb.h - 0.5 && Z.vel.y < 0) { enterCave(hb); return; } }
 }
 
@@ -1018,7 +1031,7 @@ function spotHeli() { G.heliStowed = false; const z = Z.pos.clone(), v = Z.vel.c
 function toHeli(msg) {
   if (foot.exists) foot.exit();
   JP.active && !JP.alive && JP.stow();
-  G.heliStowed = false; G.fuel = 100; G.cargo = 0; D.reset(); G.rockets = ROCKETS_MAX; G.bombs = BOMBS_MAX; G.crewDownT = 0;
+  G.heliStowed = false; G.fuel = 100; G.cargo = 0; D.reset(); G.rockets = ROCKETS_MAX; G.bombs = BOMBS_MAX; G.crewDownT = 0; cmH.reset();
   resetZarch(true); crafts.setActive('heli'); crafts.onSwitch(null, heliC);
   if (msg) say(msg, 2.5);
 }
@@ -1290,7 +1303,7 @@ function startTransition(label, swap) { G.state = 'trans'; G.tr = { t: 0, phase:
 function newGame() {
   cancelRescue(); D.reset(); stowCrafts(); G.jets = 2; G.jetDownT = 0;
   G.score = 0; G.lives = 3; G.fuel = 100; G.visit = 0; G.mode = 'zarch'; G.over = false; G.state = 'play';
-  G.res = 250; G.mat = 90; G.rockets = ROCKETS_MAX; G.bombs = BOMBS_MAX; G.cargo = 0; selIsl = null; feedItems.length = 0; G.advT = 12;
+  G.res = 250; G.mat = 90; G.rockets = ROCKETS_MAX; G.bombs = BOMBS_MAX; G.cargo = 0; cmH.reset(); selIsl = null; feedItems.length = 0; G.advT = 12;
   fx.clear(); war.reset(); resetBases(); fog.reset(); fog.enabled = !params.has('nofog'); resetZarch(true); placeVehicles();
   $('title').style.display = 'none'; $('title').querySelector('h1').textContent = 'THRUST / ZARCH'; $('result').textContent = '';
   say('ROTOR SPOOLING  -  RAISE COLLECTIVE TO LIFT', 3);
@@ -1518,6 +1531,7 @@ const crossEl = (() => {
   $('hud').appendChild(e); return e;
 })();
 const gfxEl = (() => { const e = document.createElement('div'); e.style.cssText = 'position:absolute;inset:0;pointer-events:none;display:none'; $('hud').prepend(e); return e; })();
+const rwrCue = createRwrCue($('hud'));   // CM: radar warning scope + LOCK / MISSILE LAUNCH / LASER words, outside views
 const cautionEl = (() => { const e = document.createElement('div'); e.id = 'caution'; e.style.cssText = 'position:absolute;left:16px;bottom:100px;font-size:15px;letter-spacing:1px;font-weight:bold'; $('hud').appendChild(e); return e; })();
 // what the island pad under / near you is doing: capture progress, guns in the way, services
 function padHint() {
@@ -1581,7 +1595,12 @@ function updateHud() {
   setText('lives', '▲'.repeat(Math.max(0, G.lives))); setText('jets', `${G.jets} IN THE HANGAR${JP.active && JP.alive ? (G.craft === 'jet' ? '  ·  1 FLYING' : '  ·  1 ON DECK') : ''}`);
   setStyle('fuel', 'width', clamp(ch ? ch.fuel ?? 0 : G.fuel, 0, 100).toFixed(1) + '%'); setText('fuelLbl', ch ? ch.fuelLabel || 'FUEL' : 'FUEL');
   setText('modeTag', `FUEL STORES ${Math.round(G.res)}/${RES_MAX}   MATERIEL ${Math.floor(G.mat)}${G.cargo > 0.5 ? '   CARGO ' + Math.round(G.cargo) : ''}`);
-  setText('weap', ch ? ch.weap || '' : `ROCKETS ${G.rockets}   BOMBS ${G.bombs}`);
+  setText('weap', ch ? ch.weap || '' : `ROCKETS ${G.rockets}   BOMBS ${G.bombs}   FLARES ${cmH.flare}   CHAFF ${cmH.chaff}`);
+  {   // CM: the radar warning cue in the chase / outside views (the cockpits have their own scopes and lamps)
+    const air = G.state === 'play' && G.mode === 'zarch' && (G.craft === 'heli' || (G.craft === 'jet' && JP.alive && !JP.ejected)), inside = cockpit.group.visible || JP.cockpit.group.visible;
+    const f = G.craft === 'jet' ? JP.J.forward(_cmQ) : H.forward();
+    rwrCue.update(air && !inside && !bigMap, Math.atan2(f.x, -f.z), performance.now() / 1000, G.craft === 'jet' ? JP.cm : cmH);
+  }
   {   // the war at a glance
     const n = [0, 0, 0]; for (const I of ISLANDS) n[I.owner]++;
     const c = war.carrier, b = war.battleship, eb = war.E.bship;
@@ -1819,4 +1838,4 @@ function frame(now) {
 const PROF = { sim: 0, prep: 0, render: 0 };
 buildCaves(); war.reset(); resetZarch(true); placeVehicles(); updateFogImg(); terrainStream(Z.pos.x, Z.pos.z);
 requestAnimationFrame(frame);
-if (params.has('debug')) { window.__G = { G, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, forest, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, carC, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); enterCave(b); } }
+if (params.has('debug')) { window.__G = { G, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, forest, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, carC, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, cmH, RWR }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); enterCave(b); } }

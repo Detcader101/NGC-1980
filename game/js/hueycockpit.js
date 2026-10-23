@@ -12,7 +12,8 @@
 // - Cyclic, collective with the throttle twist grip, pedals (both seats, linked) move with the applied controls; the
 //   pilot's gloved hands ride the cyclic and the collective, legs go to the pedals.
 import * as THREE from 'three';
-import { CAPTIONS } from './heli.js';   // circular, but only read inside buildHueyCockpit (after both modules ran)
+import { CAPTIONS } from './heli.js';
+import { drawRwr } from './units/defence/cm.js';   // ngc/cmpolish: the radar warning scope   // circular, but only read inside buildHueyCockpit (after both modules ran)
 
 export const HUEY_EYE = new THREE.Vector3(0.55, 0.16, -1.95), HUEY_EYE_PITCH = -0.16;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -217,6 +218,26 @@ export function buildHueyCockpit() {
   const rpmL = lamp(P, 0.06, 0.03, 0.47, 0.232, 0.005, 'RPM', '#ff2a14', '#3a0e08');
   const mcL = lamp(P, 0.075, 0.03, 0.645, 0.232, 0.005, 'MASTER|CAUTION', '#ffaa18', '#2e2408');
   const rpmL2 = lamp(P, 0.06, 0.03, -0.555, 0.232, 0.005, 'RPM', '#ff2a14', '#3a0e08');
+  // CM (ngc/cmpolish): right of the pilot's flight instruments, the AN/APR-39 radar warning scope (green strobes toward
+  // each radar painting you, longer as its lock builds), three threat lamps, and the M130 dispenser's counters
+  const rwrT = canvasTex(192, 192);
+  { const o = new THREE.Mesh(new THREE.CircleGeometry(0.043, 32), new THREE.MeshBasicMaterial({ map: rwrT.tex, toneMapped: false })); o.position.set(0.865, 0.125, 0.004); P.add(o);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.043, 0.05, 32), ringM); ring.position.set(0.865, 0.125, 0.006); P.add(ring); }
+  const lockL = lamp(P, 0.075, 0.024, 0.865, 0.052, 0.005, 'LOCK', '#ffaa18', '#2e2408');
+  const mslL = lamp(P, 0.075, 0.024, 0.865, 0.024, 0.005, 'MISSILE', '#ff2a14', '#3a0e08');
+  const lasL = lamp(P, 0.075, 0.024, 0.865, -0.004, 0.005, 'LASER', '#40e0ff', '#08262c');
+  const cmT = canvasTex(240, 150); plane(0.088, 0.055, new THREE.MeshBasicMaterial({ map: cmT.tex, toneMapped: false }), 0.865, -0.06, 0.004, P);
+  let cmKey = '';
+  function drawCm(S) {   // M130 dispenser control panel: counters and the ARM lamp (flat paint, white stencils)
+    const d = S.cm, pw = S.volts > 18, k = d ? `${pw}${d.flare}${d.chaff}${d.queue.length > 0}` : '-';
+    if (k === cmKey) return; cmKey = k; const c = cmT.ctx;
+    c.fillStyle = '#1e2122'; c.fillRect(0, 0, 240, 150); c.strokeStyle = '#4a4f52'; c.lineWidth = 4; c.strokeRect(2, 2, 236, 146);
+    txt(c, 'M130  DISPENSER', 120, 22, '#d8d6cc', 19);
+    const win = (x, label, n) => { c.fillStyle = '#060606'; c.fillRect(x - 46, 44, 92, 50); txt(c, pw && d ? String(n).padStart(2, '0') : '', x, 70, '#ffb02a', 38, 'center'); txt(c, label, x, 112, '#d8d6cc', 17); };
+    win(62, 'FLARE', d ? d.flare : 0); win(178, 'CHAFF', d ? d.chaff : 0);
+    c.fillStyle = pw ? (d && d.queue.length ? '#ffe070' : '#3b8a3a') : '#1a2a1a'; c.fillRect(100, 124, 40, 18); txt(c, 'ARM', 120, 134, '#111', 13);
+    cmT.tex.needsUpdate = true;
+  }
 
   // ---------------------------------------------------------------- switches and hit boxes
   const hitM = new THREE.MeshBasicMaterial({ visible: false }), hits = [], hitsOf = {}, sw = {}, push = {}, pt = {};
@@ -566,7 +587,8 @@ export function buildHueyCockpit() {
   let lastS = null;
   const flip = (id, on) => { const p = sw[id]; if (p) p.rotation.x = -(on ? 0.5 : -0.5) * p.userData.sign; };
   return {
-    group: g, hitBoxes: hits, canvases: () => [...gauges.map(G => G.cv), cautT.cv, pedA.cv, pedB.cv, ohR.cv],   // canvases: for test contact sheets
+    group: g, hitBoxes: hits, cmLamps: { lock: lockL, msl: mslL, laser: lasL },   // CM: for tests
+    canvases: () => [...gauges.map(G => G.cv), cautT.cv, pedA.cv, pedB.cv, ohR.cv],   // canvases: for test contact sheets
     labelOf(id) {
       const s = lastS && lastS.sw; if (!s || !LBL[id]) return LBL[id] || id;
       if (id === 'gov') return lblOf(id, s.gov); if (id === 'engine' || id === 'inv' || id === 'bat' || id === 'gen' || id === 'hyd' || id === 'trim' || id === 'light' || id === 'sas' || id === 'lowrpm') return lblOf(id, s[id] ? 'ON' : 'OFF');
@@ -601,6 +623,11 @@ export function buildHueyCockpit() {
       for (const id in push) push[id].o.position.z = push[id].z - (pt[id] > 0 ? 0.005 : 0);
       // lamps (DC powered); master caution steady amber, RPM / FIRE red
       const pw = S.volts > 18; setLamp(mcL, pw && S.masterCaution); setLamp(rpmL, pw && S.rpmWarn); setLamp(rpmL2, pw && S.rpmWarn); setLamp(fireL, S.volts > 12 && S.fire);
+      if (S.rwr) {   // CM: threat lamps (LOCK steady, MISSILE flashing, LASER while a LANCE charges or fires), scope, counters
+        const R = S.rwr, fl = (performance.now() % 400) < 220;
+        setLamp(lockL, pw && R.locked && !R.launch); setLamp(mslL, pw && R.launch && fl); setLamp(lasL, pw && R.laser);
+        if (slot === 3) { drawRwr(rwrT.ctx, 192, R, S.hdg, performance.now() / 1000, 'apr39', pw); rwrT.tex.needsUpdate = true; drawCm(S); }
+      }
       // hover marker
       hovs[0].visible = hovs[1].visible = false;
       const hl = S.hover && hitsOf[S.hover];
