@@ -118,7 +118,7 @@ export function makeWorldQuery(src) {
       return !W.los(tx, ty, tz, x, y + hullH, z) && W.los(x, y + topH, z, tx, ty, tz);
     },
     // local avoidance: steer the direction (dx, dz) around obstacles within `look` m (and away from water)
-    steer(x, z, dx, dz, rad = 0.6, look = 6) {
+    steer(x, z, dx, dz, rad = 0.6, look = 6, maxGrade = 0) {
       let l = Math.hypot(dx, dz) || 1, ux = dx / l, uz = dz / l, sx = ux, sz = uz;
       for (const o of near(x, z, x + ux * look, z + uz * look, rad + 3, _near)) {
         const ox = o.x - x, oz = o.z - z, along = ox * ux + oz * uz; if (along < -1 || along > look + o.R) continue;
@@ -127,6 +127,11 @@ export function makeWorldQuery(src) {
         const d = Math.hypot(ox, oz); if (d < R) { sx -= ox / d * (R - d); sz -= oz / d * (R - d); }   // already too close: push out
       }
       if (water(x + ux * 4, z + uz * 4)) { const n = W.normal(x, z); sx += n[0] * 3; sz += n[2] * 3; }
+      // too steep to climb straight (vehicles): turn along the contour, on the side nearer the wanted heading
+      if (maxGrade) {
+        const px = x + ux * 5, pz = z + uz * 5, gx = (H(px + 1, pz) - H(px - 1, pz)) / 2, gz = (H(px, pz + 1) - H(px, pz - 1)) / 2, up = gx * ux + gz * uz;
+        if (up > maxGrade) { let cx = -gz, cz = gx; const cl = Math.hypot(cx, cz) || 1; cx /= cl; cz /= cl; if (cx * ux + cz * uz < 0) { cx = -cx; cz = -cz; } const k = clamp((up - maxGrade) / 0.15, 0, 1) * 2; sx += cx * k; sz += cz * k; }
+      }
       l = Math.hypot(sx, sz) || 1; return [sx / l, sz / l];
     },
   };
@@ -152,6 +157,18 @@ export function makeWorldQuery(src) {
 }
 
 // ------------------------------------------------------------------------------------------------- sandbox island
+// A height function baked to a grid (bilinear): the sims ask for the ground thousands of times a frame, so an analytic
+// terrain gets sampled once. size m square centred on 0, res m cells; outside it the source function is used.
+export function bakeHeight(fn, size = 560, res = 1) {
+  const n = Math.round(size / res) + 1, h0 = -size / 2, g = new Float32Array(n * n);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) g[j * n + i] = fn(h0 + i * res, h0 + j * res);
+  return (x, z) => {
+    const fx = (x - h0) / res, fz = (z - h0) / res, i = Math.floor(fx), j = Math.floor(fz);
+    if (i < 0 || j < 0 || i >= n - 1 || j >= n - 1) return fn(x, z);
+    const u = fx - i, v = fz - j, k = j * n + i;
+    return g[k] * (1 - u) * (1 - v) + g[k + 1] * u * (1 - v) + g[k + n] * (1 - u) * v + g[k + n + 1] * u * v;
+  };
+}
 export function sandboxIsland(seed = 1980) {
   const R = 215;
   const ridge = (x, z) => {   // a NE-SW ridge with a saddle, and a knoll in the east
@@ -187,6 +204,7 @@ export function sandboxIsland(seed = 1980) {
   }
   // a pine wood on the north slope (concealment; trunks are thin)
   for (let i = 0; i < 90; i++) { const x = -165 + r() * 90, z = -70 + r() * 80; if (dry(x, z, 2)) trees.push({ x, z, h: 7 + r() * 5, r: 1.4 + r() * 0.8 }); }
-  return { height, water: (x, z) => height(x, z) < 0.15, obstacles, trees, R,
+  const baked = bakeHeight(height, 560, 1);
+  return { height: baked, heightExact: height, water: (x, z) => baked(x, z) < 0.15, obstacles, trees, R,
     spawn: { rw: [[-40, -125], [0, -135], [40, -125]], tf: [[-60, 105], [0, 120], [55, 95]], pad: [0, 30] } };
 }

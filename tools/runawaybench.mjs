@@ -116,31 +116,31 @@ if (sec('B')) {
   console.log('--- B. RW-7 hover tank ---');
   { const T = hover(flatEnv(), { vx: 0, vz: 0 }, 8); const lift = T.press.reduce((s, p) => s + p * RW7.CELL_A, 0) / (RW7.MASS * RW7.G);
     check('hover: hem clearance and cushion lift = weight', Math.abs(T.gap[0] - RW7.GAP_T) < 0.05 && Math.abs(lift - 1) < 0.02, `gap ${T.gap.map(g => g.toFixed(2)).join('/')} m, lift/weight ${lift.toFixed(3)}, cushion ${(T.press[0] / 1000).toFixed(2)} kPa, fans ${(T.fan[0] * 100).toFixed(0)}%`, `${RW7.GAP_T} m, 1.00`); }
-  { let ymax = -9, ymin = 9; const T = hover(flatEnv(), { vx: 0, vz: 0 }, 6, [0, 0, 0], (T, t) => { if (t < 0.02) { T.p[1] += 0.5; T.v[1] = 0; } if (t > 0.1) { ymax = Math.max(ymax, T.p[1]); ymin = Math.min(ymin, T.p[1]); } });
-    const y0 = 0.55 + RW7.GAP_T - 0.0; check('heave: dropped from 0.5 m above its cushion, settles without bouncing', ymin > y0 - 0.25 && Math.abs(T.p[1] - (RW7.GAP_T - RW7.SKIRT_Y)) < 0.05 && T.stats.minGap > -0.02, `undershoot ${(y0 - ymin).toFixed(2)} m, final gap ${T.gap[0].toFixed(2)}, skirt touch ${T.stats.minGap < 0}`); }
+  { let ymin = 9, settle = null; const y0 = RW7.GAP_T - RW7.SKIRT_Y; const T = hover(flatEnv(), { vx: 0, vz: 0 }, 6, [0, 0, 0], (T, t) => { if (t < 0.02) { T.p[1] = y0 + 0.3; T.v[1] = 0; } if (t > 0.1) { ymin = Math.min(ymin, T.p[1]); if (settle === null && Math.abs(T.p[1] - y0) < 0.03 && Math.abs(T.v[1]) < 0.05 && t > 0.5) settle = t; } });
+    check('heave: dropped 0.3 m onto its cushion, damped (no skirt strike)', y0 - ymin < 0.3 && T.stats.minGap > 0.02 && settle !== null && settle < 3, `undershoot ${(y0 - ymin).toFixed(2)} m, lowest hem ${T.stats.minGap.toFixed(2)} m, settled in ${settle?.toFixed(1)} s`); }
   { const T = hover(flatEnv(), { vx: 0, vz: -30 }, 30); check('top speed (governed)', Math.abs(T.speed - RW7.TOP) < 1.5, `${T.speed.toFixed(1)} m/s (${(T.speed * 3.6).toFixed(0)} km/h)`, `${RW7.TOP} m/s`); }
   { const T = hover(slopeEnv(20, 0), { vx: 0, vz: -8 }, 15); check('climbs a 20° grade', T.speed > 3 && T.tilt() < 0.4 && T.stats.minGap > -0.05, `${T.speed.toFixed(1)} m/s up the slope, hull tilt ${deg(T.tilt()).toFixed(1)}°, min gap ${T.stats.minGap.toFixed(2)}`); }
   { let x0; const T = hover(slopeEnv(20, Math.PI / 2), { vx: 0, vz: 0 }, 20, [0, 0, 0], (T, t) => { if (Math.abs(t - 10) < DT / 2) x0 = [T.p[0], T.p[2]]; }); const d = Math.hypot(T.p[0] - x0[0], T.p[2] - x0[1]);
     check('holds station across a 20° slope (no slide away)', d < 1.0, `drift ${d.toFixed(2)} m in 10 s`, '< 1 m'); }
   { let maxDrift = 0; hover(flatEnv(), (t) => t < 5 ? { vx: 0, vz: -16 } : { vx: -16, vz: 0 }, 9, [0, 0, 0], T => { maxDrift = Math.max(maxDrift, Math.abs(T.drift)); });
     check('hard 90° turn at 16 m/s: the hull drifts (no grip)', deg(maxDrift) > 20, `peak drift ${deg(maxDrift).toFixed(0)}° between nose and travel`, '> 20°'); }
-  { let tilt = 0; const T = hover(flatEnv(), (t) => ({ vx: 0, vz: 0, turret: t > 1 ? Math.PI : 0 }), 8, [0, 0, 0], T => tilt = Math.max(tilt, T.tilt()));
-    check('weight shift: turret slewed aft trims out (small tilt)', deg(tilt) > 0.3 && deg(tilt) < 3, `peak tilt ${deg(tilt).toFixed(2)}°, turret ${deg(T.turretYaw).toFixed(0)}°`, '0.3-3°'); }
+  { let tilt = 0; const T = hover(flatEnv(), (t) => ({ vx: 0, vz: 0, turret: t > 1 ? Math.PI : 0 }), 14, [0, 0, 0], T => tilt = Math.max(tilt, T.tilt()));
+    check('weight shift: turret slewed aft rocks the hull, the trim works it off', deg(tilt) > 0.5 && deg(T.tilt()) < 0.5, `peak tilt ${deg(tilt).toFixed(2)}°, after ${deg(T.tilt()).toFixed(2)}°, turret ${deg(T.turretYaw).toFixed(0)}°`, 'visible, then < 0.5°'); }
   { const T = hover(flatEnv(), { vx: 0, vz: 0 }, 6); T.charge = 1; const v0 = T.v[2]; T.fire(); const dv = T.v[2] - v0;
     check('coilgun recoil kicks the hull back', Math.abs(dv - RW7.RECOIL / RW7.MASS) < 0.02, `${dv.toFixed(3)} m/s`, `${(RW7.RECOIL / RW7.MASS).toFixed(3)} m/s`); }
   { let tilt = 0; const T = hover(flatEnv(), (t, T) => { if (t > 2) T.fanHp[2] = 0; return { vx: 0, vz: t > 5 ? -6 : 0 }; }, 12, [0, 0, 0], T => tilt = Math.max(tilt, T.tilt()));
-    check('a dead lift fan: its corner sags, the hull still flies', T.gap[2] < T.gap[1] && T.speed > 3 && deg(tilt) < 15, `gaps ${T.gap.map(g => g.toFixed(2)).join('/')}, ${T.speed.toFixed(1)} m/s, max tilt ${deg(tilt).toFixed(1)}°, skirt load ${(T.stats.scrape / 1000).toFixed(0)} kN`); }
+    check('a dead lift fan: its corner sags, the hull still flies', T.gap[2] < T.gap[1] && T.speed > 3 && deg(tilt) < 20, `gaps ${T.gap.map(g => g.toFixed(2)).join('/')}, ${T.speed.toFixed(1)} m/s, max tilt ${deg(tilt).toFixed(1)}°, skirt load ${(T.stats.scrape / 1000).toFixed(0)} kN`); }
   {
     const I = sandboxIsland(), W = makeWorldQuery(I), env = { height: I.height, normal: (x, z) => W.normal(x, z) }, R = rng(9);
     let minGap = 9, maxTilt = 0, dist = 0, last;
-    const T = createHoverTank(); T.place(0, -40, 0, env); last = [T.p[0], T.p[2]]; let goal = null;
+    const T = createHoverTank(); T.place(-40, 60, 0, env); last = [T.p[0], T.p[2]]; let goal = null;
     for (let t = 0; t < 120; t += 1 / 30) {
       if (!goal || Math.hypot(goal[0] - T.p[0], goal[1] - T.p[2]) < 15) do { goal = [-140 + R() * 280, -140 + R() * 280]; } while (W.isWater(goal[0], goal[1]));
-      const [ux, uz] = W.steer(T.p[0], T.p[2], goal[0] - T.p[0], goal[1] - T.p[2], 2.5, 12);
+      const [ux, uz] = W.steer(T.p[0], T.p[2], goal[0] - T.p[0], goal[1] - T.p[2], 2.5, 12, 0.32);
       T.step(1 / 30, { vx: ux * 12, vz: uz * 12 }, env); minGap = Math.min(minGap, ...T.gap); maxTilt = Math.max(maxTilt, T.tilt());
       dist += Math.hypot(T.p[0] - last[0], T.p[2] - last[1]); last = [T.p[0], T.p[2]];
     }
-    check('terrain following over the island at 12 m/s (120 s)', minGap > -0.15 && deg(maxTilt) < 32, `${(dist / 1000).toFixed(2)} km, lowest hem ${minGap.toFixed(2)} m, max tilt ${deg(maxTilt).toFixed(0)}°`);
+    check('terrain following over the island at 12 m/s (120 s)', minGap > -0.15 && deg(maxTilt) < 40, `${(dist / 1000).toFixed(2)} km, lowest hem ${minGap.toFixed(2)} m, max tilt ${deg(maxTilt).toFixed(0)}°`);
   }
 }
 

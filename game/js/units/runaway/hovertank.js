@@ -33,7 +33,7 @@ export const RW7 = {
   CELL_PERIM: 10.2,             // m of skirt hem per cell (outer edges)
   CD_LEAK: 0.6,
   PMAX: 14000,                  // Pa fan stall pressure
-  QMAX: 520,                    // m^3/s per fan at zero back-pressure (big ducted fans: the hem floats ~0.4 m clear)
+  QMAX: 620,                    // m^3/s per fan at zero back-pressure (big ducted fans: the hem floats ~0.4 m clear)
   PLENUM_T: 0.03,               // s pressure lag
   GAP_T: 0.42,                  // m hem clearance the ride control holds
   SKIRT_Y: -0.55,               // skirt hem below the hull origin (origin = hull centre at the hem line + 0.55)
@@ -64,7 +64,7 @@ export function createHoverTank(opt = {}) {
   const T = {
     id: opt.id ?? 0, side: 2, kind: 'hovertank',
     p: [0, 0, 0], v: [0, 0, 0], q: [0, 0, 0, 1], w: [0, 0, 0],   // w in body axes (x pitch, y yaw, z roll)
-    vInt: [0, 0], fan: [1, 1, 1, 1], fanCmd: [1, 1, 1, 1], press: [0, 0, 0, 0], gap: [0.4, 0.4, 0.4, 0.4], gapRate: [0, 0, 0, 0], contact: [0, 0, 0, 0],
+    vInt: [0, 0], attI: [0, 0], fan: [1, 1, 1, 1], fanCmd: [1, 1, 1, 1], press: [0, 0, 0, 0], gap: [0.4, 0.4, 0.4, 0.4], gapRate: [0, 0, 0, 0], contact: [0, 0, 0, 0],
     turretYaw: 0, gunPitch: 0, turretTgt: 0, gunTgt: 0,
     hp: { ...R.HP }, fanHp: [R.HP.fan, R.HP.fan, R.HP.fan, R.HP.fan], alive: true, events: [], time: 0,
     lift: 1, speed: 0, drift: 0, vec: [0, 0], recoil: 0, charge: 1, pdCool: 0,
@@ -129,15 +129,15 @@ export function createHoverTank(opt = {}) {
     T.time += h; T.charge = Math.min(1, T.charge + h / 5.5); T.pdCool = Math.max(0, T.pdCool - h);
     const yaw = T.yaw;
     // ---- controls: the autopilot turns a desired velocity / heading into vectoring + yaw rate
-    let fwd = cmd.fwd || 0, str = cmd.strafe || 0, yr = cmd.yaw || 0;
+    let fwd = cmd.fwd || 0, str = cmd.strafe || 0, yr = cmd.yaw || 0, fwdP = fwd;   // fwdP: the commanded acceleration only (the nose dips for that, not for holding a load)
     const fwdW = T.forward([0, 0, 0]), rgtW = qrot(T.q, [1, 0, 0], [0, 0, 0]);
     if (cmd.vx !== undefined) {
       const ex = cmd.vx - T.v[0], ez = cmd.vz - T.v[2];
       // feed-forward the drag + a PD on the velocity error, into the hull plane
       // (PI: the integral holds station against a slope's pull or the turret's weight shift)
-      T.vInt[0] = clamp(T.vInt[0] + ex * h * 0.6, -3, 3); T.vInt[1] = clamp(T.vInt[1] + ez * h * 0.6, -3, 3);
+      T.vInt[0] = clamp(T.vInt[0] + ex * h * 1.2, -5, 5); T.vInt[1] = clamp(T.vInt[1] + ez * h * 1.2, -5, 5);
       const ax = clamp(ex * 0.9 + T.vInt[0], -5, 5), az = clamp(ez * 0.9 + T.vInt[1], -5, 5);
-      fwd = (ax * fwdW[0] + az * fwdW[2]) / (R.VEC_MAX * G); str = (ax * rgtW[0] + az * rgtW[2]) / (R.VEC_MAX * G);
+      fwd = (ax * fwdW[0] + az * fwdW[2]) / (R.VEC_MAX * G); str = (ax * rgtW[0] + az * rgtW[2]) / (R.VEC_MAX * G); fwdP = (clamp(ex * 0.9, -5, 5) * fwdW[0] + clamp(ez * 0.9, -5, 5) * fwdW[2]) / (R.VEC_MAX * G);
       const sp = Math.hypot(cmd.vx, cmd.vz), face = cmd.face ?? (sp > 1 ? Math.atan2(-cmd.vx, -cmd.vz) : yaw);
       yr = clamp(angDiff(yaw, face) * 1.6, -1, 1);
     }
@@ -153,15 +153,17 @@ export function createHoverTank(opt = {}) {
     const yawH = yaw, hfx = -Math.sin(yawH) * 3, hfz = -Math.cos(yawH) * 3, hrx = Math.cos(yawH) * 1.8, hrz = -Math.sin(yawH) * 1.8;
     const gP = Math.atan2(env.height(T.p[0] + hfx, T.p[2] + hfz) - env.height(T.p[0] - hfx, T.p[2] - hfz), 6);
     const gR = Math.atan2(env.height(T.p[0] - hrx, T.p[2] - hrz) - env.height(T.p[0] + hrx, T.p[2] + hrz), 3.6);
-    const tp = clamp(gP * 0.9 - fwd * 0.04, -0.45, 0.45), tr = clamp(gR * 0.9, -0.45, 0.45);
-    const ep = (pitch - tp) * 2.2 + T.w[0] * 0.55, er = (roll - tr) * 2.2 - T.w[2] * 0.55;
+    const tp = clamp(gP * 0.9 - clamp(fwdP, -1, 1) * 0.04, -0.45, 0.45), tr = clamp(gR * 0.9, -0.45, 0.45);
+    // (PI: the integral works off steady loads - the turret traversed off the centreline, a damaged fan)
+    T.attI[0] = clamp(T.attI[0] + (pitch - tp) * h * 4, -1, 1); T.attI[1] = clamp(T.attI[1] + (roll - tr) * h * 4, -1, 1);
+    const ep = (pitch - tp) * 2.2 + T.attI[0] + T.w[0] * 0.55, er = (roll - tr) * 2.2 + T.attI[1] - T.w[2] * 0.55;
     for (let i = 0; i < 4; i++) {
       const [cx, cz] = R.CELLS[i], front = cz < 0 ? 1 : -1, rightSide = cx > 0 ? 1 : -1;
       // active ride control: each fan also works against its own cell's gap error and heave rate (a bare cushion is
       // a lightly damped spring; the machine damps it - and holds the hem ~0.32 m clear)
       if (i === 0) { const mg = (T.gap[0] + T.gap[1] + T.gap[2] + T.gap[3]) / 4; T.rideI = clamp((T.rideI || 0) + (R.GAP_T - mg) * h * 0.8, -0.25, 0.3); }
       const ride = 0.5 * (R.GAP_T - T.gap[i]) - 0.35 * T.gapRate[i] + T.rideI;
-      T.fanCmd[i] = clamp(liftCmd * (0.9 + ride - ep * front * 0.25 + er * rightSide * 0.25), 0, 1);
+      T.fanCmd[i] = clamp(liftCmd * (0.78 + ride - ep * front * 0.25 + er * rightSide * 0.25), 0, 1);
       const alive = T.fanHp[i] > 0 && T.alive ? 1 : 0;
       T.fan[i] += clamp(T.fanCmd[i] * alive - T.fan[i], -h / 0.15, h / 0.12);   // variable-pitch fan: quick response
     }
@@ -207,7 +209,7 @@ export function createHoverTank(opt = {}) {
     }
     T.stats.scrape = scrape;
     // vectoring (needs fan flow: scales with the mean fan speed), in the hull plane; yaw torque from differential louvres
-    const fl = (T.fan[0] + T.fan[1] + T.fan[2] + T.fan[3]) / 4, VF = R.VEC_MAX * R.MASS * G * fl;
+    const fl = (T.fan[0] + T.fan[1] + T.fan[2] + T.fan[3]) / 4, VF = R.VEC_MAX * R.MASS * G * Math.min(1.15, fl / 0.78);   // (louvre authority scales with the flow, nominal at the hover fan speed)
     for (let k = 0; k < 3; k++) F[k] += (fwdW[k] * fwd + rgtW[k] * str) * VF;
     // yaw: rate command against the measured rate, torque-limited
     const yawRateCmd = yr * R.YAW_MAX, yawTorqMax = R.I[1] * 1.2 * fl;
@@ -223,7 +225,7 @@ export function createHoverTank(opt = {}) {
     const Dw = qrot(T.q, Db, [0, 0, 0]); for (let k = 0; k < 3; k++) F[k] += Dw[k];
     // governor: louvres back off near the top speed
     const sp = Math.hypot(T.v[0], T.v[2]);
-    if (sp > R.TOP) { const k = (sp - R.TOP) * R.MASS * 2; F[0] -= T.v[0] / sp * k; F[2] -= T.v[2] / sp * k; }
+    if (sp > R.TOP) { const k = (sp - R.TOP) * R.MASS * 8; F[0] -= T.v[0] / sp * k; F[2] -= T.v[2] / sp * k; }
     // angular damping (aero + skirt), then integrate
     M[0] -= T.w[0] * 9000; M[1] -= T.w[1] * 18000; M[2] -= T.w[2] * 9000;
     for (let k = 0; k < 3; k++) { T.v[k] += F[k] / R.MASS * h; T.p[k] += T.v[k] * h; }

@@ -446,18 +446,24 @@ export function createStrider(opt = {}) {
         // never cross over (body frame, relative to the stance foot)
         const latRel = (tx - st.x) * blx + (tz - st.z) * blz;
         if (s * latRel < 0.08) { tx += blx * s * (0.08 - s * latRel); tz += blz * s * (0.08 - s * latRel); }
-        const hx = cTx + blx * s * S_.HIP_HALF, hz = cTz + blz * s * S_.HIP_HALF, over = Math.max(0, Math.hypot(tx - hx, tz - hz) - reach);
+        // the leg has to reach the hock over the foothold in 3D: a foothold below the hip on a grade costs reach
+        const hx = cTx + blx * s * S_.HIP_HALF, hz = cTz + blz * s * S_.HIP_HALF, hkx = tx - nfx * S_.HOCK_BACK, hkz = tz - nfz * S_.HOCK_BACK;
+        const dyv = c[1] + vyT * tau - S_.COM_UP - (env.height(tx, tz) + S_.HOCK_UP), reach3 = Math.sqrt(Math.max(0.01, LEG * LEG * 0.97 - dyv * dyv));
+        const over = Math.max(0, Math.hypot(hkx - hx, hkz - hz) - reach3);
         // (on a grade the hip also climbs / drops away from the stance foot as the body moves on)
         const dyT = dyS + vyT * tau, dmaxS = Math.sqrt(Math.max(0.01, LEG * LEG - dyT * dyT)) * 0.98;
         const shx = cTx - blx * s * S_.HIP_HALF - _k[0], shz = cTz - blz * s * S_.HIP_HALF - _k[2], overS = Math.max(0, Math.hypot(shx, shz) - dmaxS);
         const overT = Math.max(0, Math.hypot(tx - sw.x, tz - sw.z) - S_.SWING_V * tau - 0.03);
         const cost = over + overS + overT * 0.25;
-        if (!best || cost < best.cost - 1e-4) best = { tau, tx, tz, cost, over, overS, hx, hz };
+        if (!best || cost < best.cost - 1e-4) best = { tau, tx, tz, cost, over, overS, hx, hz, reach3 };
         if (cost < 1e-4) break;
       }
       let { tau, tx, tz, cost } = best;
       // a foothold beyond reach is clamped to it (the leg lunges as far as it can)
-      if (best.over > 0) { const dx = tx - best.hx, dz = tz - best.hz, dl = Math.hypot(dx, dz), r = reach * 1.08; if (dl > r) { tx = best.hx + dx * r / dl; tz = best.hz + dz * r / dl; } }
+      if (best.over > 0) {   // (clamped on the hock, then back to the toe)
+        const dx = tx - nfx * S_.HOCK_BACK - best.hx, dz = tz - nfz * S_.HOCK_BACK - best.hz, dl = Math.hypot(dx, dz), r = best.reach3 * 1.02;
+        if (dl > r) { tx = best.hx + dx * r / dl + nfx * S_.HOCK_BACK; tz = best.hz + dz * r / dl + nfz * S_.HOCK_BACK; }
+      }
       if (!locked) { S.T = S.t + tau; sw.sw.tx = tx; sw.sw.tz = tz; if (tau < 0.07) sw.sw.lock = true; }
       // stumble: how much the step had to be hurried (or could not be made)
       const need = tauNom > 0.08 && !locked ? clamp((1 - tau / tauNom) * 1.0 + cost * 4, 0, 1) : clamp(cost * 4, 0, 1);
@@ -514,6 +520,14 @@ export function createStrider(opt = {}) {
   }
   function touchdown(f, env, vr, T0) {
     f.x = f.sw.tx; f.z = f.sw.tz; f.y = env.height(f.x, f.z); f.n = terrainNormal(env, f.x, f.z); f.yaw = S.yaw; f.lift = 0;
+    // the foot comes down where the leg can actually reach (short of the target if the body has not kept up)
+    for (let it = 0; it < 3; it++) {
+      hipOf(f.i, S.c, _h); hockOf(f, _k);
+      const dx = _k[0] - _h[0], dy = _k[1] - _h[1], dz = _k[2] - _h[2], d = Math.hypot(dx, dy, dz), Lm = (S_.THIGH + S_.SHIN) * 0.985;
+      if (d <= Lm) break;
+      const dh = Math.hypot(dx, dz), want = Math.sqrt(Math.max(0, Lm * Lm - dy * dy)), k = dh > 1e-3 ? Math.max(0, want) / dh : 1;
+      f.x = _h[0] + dx * k + (f.x - _k[0]); f.z = _h[2] + dz * k + (f.z - _k[2]); f.y = env.height(f.x, f.z); f.n = terrainNormal(env, f.x, f.z);
+    }
     const impactV = Math.abs(S.v[1]) + 0.4 + 1.2 * S.speed / S_.RUN + S.stumble;
     if (S.stepT0 !== undefined && S.time - S.stepT0 > 0.1 && S.stumble < 0.3) {   // per-step average speed vs the command
       const dt = S.time - S.stepT0, ex = S.vRef[0] - (S.c[0] - S.stepC[0]) / dt, ez = S.vRef[1] - (S.c[2] - S.stepC[1]) / dt;

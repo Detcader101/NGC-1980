@@ -376,7 +376,7 @@ export function createSquadAI(world, opt = {}) {
   AI.steerVel = (m, speed) => {
     const a = m.ai; if (!a.move) return [0, 0];
     const dx = a.move[0] - m.x, dz = a.move[1] - m.z, d = Math.hypot(dx, dz); if (d < 0.6) return [0, 0];
-    const [ux, uz] = world.steer(m.x, m.z, dx, dz, m.vehicle ? 2.5 : 0.6, m.vehicle ? 10 : 5);
+    const [ux, uz] = world.steer(m.x, m.z, dx, dz, m.vehicle ? 2.5 : 0.6, m.vehicle ? 10 : 5, m.kind === 'hovertank' ? 0.32 : m.kind === 'mbt' ? 0.45 : 0);
     const s = speed * Math.min(1, d / 3); return [ux * s, uz * s];
   };
   return AI;
