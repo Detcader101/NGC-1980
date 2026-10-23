@@ -507,6 +507,9 @@ const aimLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THR
 aimLine.renderOrder = 10; zScene.add(aimLine);
 const D = createDamage();
 const H = createHeliSim(), _aimR = new THREE.Vector3();   // the UH-1H (hueyfm.js via heli.js)
+// ngc/foot2: putting the Huey somewhere (a teleport, a respawn, a scene) brings it out of the hangar: a stowed Huey (a
+// Hornet took the deck) is not simulated, and the deck crew would re-spot it on the carrier when the jet is put away
+{ const reset0 = H.reset; H.reset = (...a) => { if (G.heliStowed) unstowHeli(); return reset0(...a); }; }
 const HI = createHeliInput({ keyDown: kd, CTL, hwOn: () => !keyboardOnly, say: (t, s) => say(t, s) });
 const SY = createHeliSystems({ D, G, say: (t, s) => say(t, s) });   // electrics, engine start, governor, cautions
 const Z = {
