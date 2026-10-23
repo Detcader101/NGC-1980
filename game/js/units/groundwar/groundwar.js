@@ -154,7 +154,7 @@ export function createGroundWar(ctx) {
       const d = Math.hypot(e.x - ear.x, e.z - ear.z), key = e.e + (e.id ?? '');
       const say = (txt, r, gap = 6, kind = 'bad') => { if (d > r || (careT.get(key) ?? -99) > W.time - gap) return; careT.set(key, W.time); if (GW.sayHook) GW.sayHook(txt, kind); else feed(txt, kind); };
       const u = e.id !== undefined ? GS.units.find(q => q.id === e.id) : null, who = u?.name || 'MARINE';
-      if (e.e === 'callout') say(`${who}: "${e.text}"`, 70, 7);
+      if (e.e === 'callout') { if (CV.player && CV.player.active()) say(`${who}: "${e.text}"`, 70, 7); }   // (heard on foot, not over a rotor)
       else if (e.e === 'medic' && !e.ext) say(`CORPSMAN MOVING TO ${GS.units.find(q => q.id === e.to)?.name || 'A CASUALTY'}`, 90, 10, 'good');
       else if (e.e === 'medic' && e.ext) say('"HANG ON, I GOT YOU"  -  THE CORPSMAN IS COMING TO YOU', 1e9, 10, 'good');
       else if (e.e === 'treat') say(e.ext ? `CORPSMAN: ${e.label} (${e.time} S)  -  STAY STILL` : `${who === 'MARINE' ? 'CORPSMAN' : GS.units.find(q => q.id === e.medic)?.name || 'CORPSMAN'}: ${e.label}`, e.ext ? 1e9 : 40, 2, 'good');
