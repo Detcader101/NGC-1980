@@ -281,8 +281,9 @@ export function createGround(ctx) {
   };
 
   // ------------------------------------------------------------------ spawn points
-  // carrier deck parking spots (local; starboard, forward of the island, clear of the catapult and the landing area)
-  const DECK_SPOTS = [{ name: 'ALBATROSS DECK PARK 1', lx: 9, lz: -24, yaw: 0 }, { name: 'ALBATROSS DECK PARK 2', lx: 9, lz: -34, yaw: 0 }, { name: 'ALBATROSS DECK PARK 3', lx: 9, lz: -44, yaw: 0 }];
+  // carrier deck parking spots (local): the port-side strip forward of the landing area, clear of the catapult lane
+  // (x > -8.2), the parked Hornets (starboard bow) and the port elevator's edge (NAVAL polish: was x 9, under the jets)
+  const DECK_SPOTS = [{ name: 'ALBATROSS DECK PARK 1', lx: -11.3, lz: -12, yaw: 0 }, { name: 'ALBATROSS DECK PARK 2', lx: -11.3, lz: -22, yaw: 0 }, { name: 'ALBATROSS DECK PARK 3', lx: -11.3, lz: -32, yaw: 0 }];
   GR.DECK_SPOTS = DECK_SPOTS;
   GR.deckSpot = (k = 0) => {
     const u = war.carrier; if (!u || u.sinking !== undefined) return null;

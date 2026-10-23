@@ -236,6 +236,19 @@ function buildDeckGear(kit, glow) {
   // folding whip antennas on the deck edge (lowered for flight ops), and the bow anchors' hawse pipes
   for (const [x, z] of [[14.3, 50], [14.3, 12], [-14.3, 20], [-14.3, -10]]) kit.rod([x, DECK - 0.3, z], [x + Math.sign(x) * 4.5, DECK - 0.1, z + 0.7], 0.04, 0x8d9294, 4);
   for (const sd of [-1, 1]) { kit.cyl(0.55, 0.55, 0.6, BLACK, sd * 6.3, 4.6, -56.5, 0, 0, Math.PI / 2 - sd * 0.3, 10); kit.box(0.4, 1.6, 1.1, 0x1a1a1a, sd * 6.5, 3.4, -56.2, 0, 0, sd * -0.3); }
+  // the bridle arrester "horn" off the bow at the end of cat 1 (it caught the wire bridle a 1970s catapult threw off
+  // the launch; Midway carried them into the 1980s): a tapered boom overhanging the stem, with its brake housing
+  kit.add(new THREE.BoxGeometry(1.2, 0.7, 15).translate(0, 0, -7.5), HAZE, T(-2.5, DECK - 0.15, -52, 0.035));
+  kit.box(1.5, 0.9, 3.2, HAZE_D, -2.5, DECK - 0.55, -53.6); kit.box(0.5, 0.25, 15, 0x55595e, -2.5, DECK + 0.22, -59.2, 0.035);
+  for (const z of [-60, -64]) kit.rod([-2.5, DECK - 0.5, z], [-2.5, 4.2, z + 4.5], 0.12, HAZE_D, 5);
+  // the bullnose fairlead at the stem, the jackstaff
+  kit.cyl(0.55, 0.55, 0.5, HAZE_D, 0, DECK - 0.6, -65.6, Math.PI / 2, 0, 0, 10); kit.rod([0, DECK, -65.2], [0, DECK + 3.2, -65.2], 0.04, 0x2a2a2a, 4);
+  // starboard UNREP (underway replenishment) station: kingposts and a receiving sponson forward of the island
+  kit.box(2.0, 0.3, 6, HAZE, 13.4, 6.0, -15.5); for (const z of [-17.5, -13.5]) kit.rod([13.6, 6.1, z], [14.2, DECK + 6.5, z], 0.13, HAZE_D, 6);
+  kit.rod([14.2, DECK + 6.5, -17.5], [14.2, DECK + 6.5, -13.5], 0.08, HAZE_D, 4);
+  // the starboard boat pocket aft: a recess in the hangar side with the captain's gig and a motor whaleboat
+  kit.box(0.14, 2.2, 9, 0x24282c, 12.26, 4.9, 44);
+  for (const [z, c] of [[41.8, 0xd8d8d0], [46.4, 0x8b9095]]) { kit.add(new THREE.SphereGeometry(1, 8, 5, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), c, T(12.2, 5.0, z, 0, 0, 0, 0.9, 0.7, 2.0)); kit.box(1.4, 0.35, 3.4, 0x5a5f63, 12.2, 5.1, z); }
   // hangar-deck openings in the side under the elevators (dark), and the sponsons for the mounts
   for (const E of ELEVATORS) { const sd = Math.sign(E.x0 + E.x1), zc = (E.z0 + E.z1) / 2, len = E.z1 - E.z0 - 1;
     kit.box(0.12, 2.6, len, 0x23272b, sd * 12.25, 5.4, zc);                                                        // the hangar beyond (dim)
@@ -335,10 +348,11 @@ export function buildAlbatross(side = 1, opts = {}) {
   const kit = new Kit({ wear: 0.035, seed: 3, grime }), glow = new Kit({ wear: 0 }), sheet = new DecalSheet(1024, 8, 8);
   buildHull(kit); buildIsland(kit, glow, sheet); buildDeckGear(kit, glow); buildSponsons(kit);
   // vehicles and deck clutter
-  tractor(kit, 5.6, -1.5, 0.4); tractor(kit, 12.2, 38, Math.PI); tractor(kit, -11.6, -44, -0.3, 0xe8e8e2);
+  // (the port strip from z -6 to -36 is the vehicle park: ground.js DECK_SPOTS put the Marines' jeep and armour there)
+  tractor(kit, 5.6, -1.5, 0.4); tractor(kit, 12.2, 38, Math.PI); tractor(kit, -10.6, -45, -0.25, 0xe8e8e2);
   tilly(kit, 5.9, 12.5, 0.05); bowser(kit, 10.6, -38.5, 2.6); huffer(kit, 4.6, -16, 1.2); huffer(kit, 4.3, 46, -0.6);
-  for (const [x, z] of [[4.2, -25], [6.4, 24], [12.4, 15.8], [-12.6, 2]]) fireBottle(kit, x, z);
-  for (let i = 0; i < 4; i++) kit.box(0.6, 0.15, 3.2, 0x2a2a2a, -12.6 + i * 0.75, DECK + 0.08, -18 + i * 0.4, 0, 0.1, 0);   // tow bars stacked at the edge
+  for (const [x, z] of [[4.2, -25], [6.4, 24], [12.4, 15.8], [-12.6, 2], [-12.4, -40]]) fireBottle(kit, x, z);
+  for (let i = 0; i < 4; i++) kit.box(0.6, 0.15, 3.2, 0x2a2a2a, -13.0 + i * 0.7, DECK + 0.08, 6 + i * 0.4, 0, 0.1, 0);   // tow bars stacked at the edge
   // parked aircraft: two Hornets forward of the island (tails over the starboard edge), two Tomcats aft (oversweep)
   const hornets = [[8.9, -46, 0.62], [9.2, -31, 0.62]], cats = [[9.0, 27, 0.06], [9.3, 46.5, -0.1]];
   const hornetMesh = instanced(hornetGeo(), hornets, 2.05); hornetMesh.name = 'parked-hornets'; g.add(hornetMesh);
@@ -411,23 +425,29 @@ export function buildAlbatross(side = 1, opts = {}) {
   let crew = null;
   if (opts.crew !== false) {
     const C = [
-      // around the catapult and the bow: green shirts at the shuttle, a yellow shooter, blue chockers
+      // cat 1 (clear of the lane, x < -8.4 or x > 3.6): the catapult officer ("shooter", yellow) by the JBD, green-shirt
+      // catapult crew at the deck-edge control station and the hold-back bar, a white-shirt safety petty officer
       { x: -9.4, z: -4.2, yaw: 0.8, jersey: 'green', mode: 'kneel' }, { x: 4.0, z: -12, yaw: -0.5, jersey: 'green' }, { x: -9.6, z: -10, yaw: 0.5, jersey: 'yellow', mode: 'signal' },
-      { x: -10.2, z: -26, yaw: 1.4, jersey: 'white', hands: true }, { x: -10.8, z: -42, yaw: 0.4, jersey: 'blue', mode: 'talk' }, { x: -10.2, z: -41, yaw: -2.6, jersey: 'blue' },
-      // the parked Hornets: plane captains, a purple fueller, an ordie, chockers
-      { x: 5.2, z: -44, yaw: -1.9, jersey: 'brown' }, { x: 6.8, z: -40.5, yaw: 2.4, jersey: 'purple', mode: 'kneel' }, { x: 6.0, z: -28.5, yaw: -2.0, jersey: 'red', mode: 'kneel' },
-      { x: 4.6, z: -33, yaw: -1.2, jersey: 'brown', hands: true }, { x: 11.8, z: -36, yaw: 3.0, jersey: 'blue', mode: 'talk' }, { x: 4.8, z: -21, yaw: 0.6, jersey: 'green' },
+      { x: -9.3, z: 1.5, yaw: 0.3, jersey: 'green', mode: 'talk' }, { x: 3.9, z: 1.2, yaw: -0.6, jersey: 'white', hands: true },
+      // the bow: the bow tractor's crew and a blue-shirt pair with chains
+      { x: -9.0, z: -43.6, yaw: 0.4, jersey: 'blue', mode: 'talk' }, { x: -9.4, z: -42.6, yaw: -2.6, jersey: 'blue' }, { x: -9.6, z: -38, yaw: 1.4, jersey: 'white', hands: true },
+      // each parked Hornet: the plane captain (brown) at the nose, a blue chocker at the mains, the fuel crew (purple)
+      // at the single-point refuel on the left side, ordnancemen (red) at the wing stations
+      { x: 5.6, z: -50.6, yaw: 0.6, jersey: 'brown', hands: true }, { x: 8.4, z: -44.0, yaw: 2.4, jersey: 'blue', mode: 'kneel' }, { x: 6.8, z: -40.5, yaw: 2.4, jersey: 'purple', mode: 'kneel' },
+      { x: 5.8, z: -35.6, yaw: 0.6, jersey: 'brown' }, { x: 6.0, z: -28.5, yaw: -2.0, jersey: 'red', mode: 'kneel' }, { x: 4.7, z: -26.4, yaw: -2.3, jersey: 'red', mode: 'talk' },
+      { x: 11.8, z: -36, yaw: 3.0, jersey: 'purple', mode: 'talk' }, { x: 4.8, z: -21, yaw: 0.6, jersey: 'green' },
       // the island: flight-deck control, a safety officer, a medic, the tractor driver
       { x: 6.3, z: -3.8, yaw: 2.8, jersey: 'yellow', hands: true }, { x: 7.2, z: 1.2, yaw: -1.6, jersey: 'white' }, { x: 6.6, z: 3, yaw: -1.5, jersey: 'blue', mode: 'talk' },
       { x: 7.1, z: 9, yaw: -2.8, jersey: 'red' },
       // aft: Tomcat crews, the arresting gear (green), the LSO team on the platform
-      { x: 5.0, z: 22, yaw: 1.8, jersey: 'brown' }, { x: 6.2, z: 34, yaw: 2.6, jersey: 'purple' }, { x: 5.1, z: 41.5, yaw: -1.2, jersey: 'blue', mode: 'kneel' }, { x: 12.6, z: 54, yaw: 0.4, jersey: 'red', mode: 'talk' },
+      { x: 5.0, z: 22, yaw: 1.8, jersey: 'brown' }, { x: 6.2, z: 34, yaw: 2.6, jersey: 'purple' }, { x: 6.5, z: 27.6, yaw: -1.4, jersey: 'blue', mode: 'kneel' }, { x: 5.1, z: 41.5, yaw: -1.2, jersey: 'blue', mode: 'kneel' }, { x: 12.6, z: 54, yaw: 0.4, jersey: 'red', mode: 'talk' },
+      { x: 12.2, z: 37.6, yaw: 1.2, jersey: 'purple', mode: 'kneel' }, { x: 4.4, z: 48.8, yaw: -0.4, jersey: 'yellow', mode: 'signal' },
       { x: -12.5, z: 47, yaw: 0.2, jersey: 'green' }, { x: -12.8, z: 36.5, yaw: 1.1, jersey: 'green', hands: true },
       { x: -15.2, z: 42, yaw: Math.PI - 0.15, jersey: 'white', mode: 'lso', y: DECK - 0.22 }, { x: -14.6, z: 44.2, yaw: Math.PI + 0.2, jersey: 'white', y: DECK - 0.22 }, { x: -16.0, z: 44.8, yaw: Math.PI, jersey: 'white', mode: 'talk', y: DECK - 0.22 },
       // people walking the deck: along the street by the island, across the bow, round the fantail
       { mode: 'walk', jersey: 'blue', path: [[4.4, -48], [4.4, -6], [6.6, -4], [6.6, 16], [6.6, -4], [4.4, -6]], speed: 1.3 },
       { mode: 'walk', jersey: 'yellow', path: [[3.8, 18], [3.8, 46], [3.8, 18]], speed: 1.1 },
-      { mode: 'walk', jersey: 'green', path: [[-12, -40], [-12, -6], [-12, -40]], speed: 1.4 },
+      { mode: 'walk', jersey: 'green', path: [[-8.9, -36], [-8.9, -6], [-8.9, -36]], speed: 1.4 },
       { mode: 'walk', jersey: 'purple', path: [[12.8, -34], [12.8, -12], [12.8, -34]], speed: 0.9 },
       { mode: 'walk', jersey: 'brown', path: [[12.6, 18], [12.6, 54], [12.6, 18]], speed: 1.2 },
     ];
