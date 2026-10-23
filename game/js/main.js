@@ -17,6 +17,7 @@ import { createHelm } from './helm.js';
 import { createCraftHost } from './craft.js';
 import { createGround } from './ground.js';
 import { createFootCraft } from './foot.js';
+import { createMarine } from './marine.js';   // wave 2 (ngc/foot2): the 1980 Marine on foot
 import { createVehicleCraft } from './vehicle.js';
 import { createJetCraft } from './craftjet.js';
 import { createBoxCar } from './units/placeholder/boxcar.js';
@@ -506,6 +507,9 @@ const aimLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THR
 aimLine.renderOrder = 10; zScene.add(aimLine);
 const D = createDamage();
 const H = createHeliSim(), _aimR = new THREE.Vector3();   // the UH-1H (hueyfm.js via heli.js)
+// ngc/foot2: putting the Huey somewhere (a teleport, a respawn, a scene) brings it out of the hangar: a stowed Huey (a
+// Hornet took the deck) is not simulated, and the deck crew would re-spot it on the carrier when the jet is put away
+{ const reset0 = H.reset; H.reset = (...a) => { if (G.heliStowed) unstowHeli(); return reset0(...a); }; }
 const HI = createHeliInput({ keyDown: kd, CTL, hwOn: () => !keyboardOnly, say: (t, s) => say(t, s) });
 const SY = createHeliSystems({ D, G, say: (t, s) => say(t, s) });   // electrics, engine start, governor, cautions
 const Z = {
@@ -543,7 +547,7 @@ function showEnd(title, why) {
 war = createWar({
   scene: zScene, fx, sfx, terrainH, isWater, nav, ISLANDS, BASES, G: PSTORE, feed, addScore, ear: zCam.position,
   carrierStart: seaSpot(-300, 280), enemyStart: seaSpot(300, -280),
-  player: () => PL, hurtPlayer: (a, why, at, dir) => hurtPlayer(a, why, at, dir), onOwner: islandOwnerChanged, onEnd: warOver,
+  player: () => PL, hurtPlayer: (a, why, at, dir, kind) => hurtPlayer(a, why, at, dir, kind), onOwner: islandOwnerChanged, onEnd: warOver,
 });
 const world = createWorldLife({ scene: zScene, fx, sfx, terrainH, isWater, nav, war, fog, uTime: terrainUni.uTime, view, ISLANDS, PADS, BASES });   // WORLD (world/life.js)
 // ---------------------------------------------------------------- the HORNET (jetplay.js)
@@ -694,9 +698,9 @@ function toggleEngine() {
 }
 // enemy fire / rams: break a part instead of killing outright
 // war.js hits the player: route to the craft you are in (at = the round's position, dir = its velocity: body parts)
-function hurtPlayer(amount, why, at, dir) {
+function hurtPlayer(amount, why, at, dir, kind) {   // kind (wave 2): the war.js projectile, for the Marine's wounds
   if (G.bench) return;
-  if (G.craft === 'heli') hurtHeli(amount, why); else crafts.active.hurt(amount, why, at, dir);
+  if (G.craft === 'heli') hurtHeli(amount, why); else crafts.active.hurt(amount, why, at, dir, kind);
 }
 function hurtHeli(amount, why, part) {
   if (G.bench) return;
@@ -963,6 +967,11 @@ const foot = crafts.register(createFootCraft({
   scene: zScene, GR, crafts, war, fx, sfx, say, keyDown: kd, groundEnv: GR, camera: () => zCam,
   invulnerable: () => !!G.bench,
   onDeath: why => { G.lives--; G.crewDownT = 3.5; feed(`CREW LOST  -  ${why}`, 'bad'); if (G.lives < 0) gameOver(); },
+}));
+// wave 2 (ngc/foot2): the real 1980 Marine on that craft (marine.js): rifleman, medical, inventory, viewmodel, sound
+const marine = foot.setMarine(createMarine({
+  scene: zScene, GR, war, fx, sfx, say, feed, keyDown: kd, crafts, canvas, hudEl: $('hud'), terrainH, ISLANDS,
+  serviceAt: (x, z) => serviceAt(x, z), active: () => G.craft === 'foot' && G.state === 'play' && G.mode === 'zarch',
 }));
 // --- ground vehicles: the placeholder TEST CAR (the WHEELED agent's M151A2 takes its place)
 const vehCtx = {
@@ -1558,7 +1567,7 @@ function updateHud() {
     for (const id of ['tl', 'hint', 'feed', 'war']) setStyle(id, 'display', bigMap ? 'none' : 'block');   // the command map has its own read-outs
     setStyle('radar', 'bottom', ck && !bigMap ? 'auto' : ''); setStyle('radar', 'top', ck && !bigMap ? '64px' : ''); setStyle('feed', 'top', ck ? '236px' : '');
   }
-  crossEl.style.display = document.pointerLockElement === canvas && (cockpit.group.visible || JP.cockpit.group.visible) || (G.craft === 'foot' && foot.alive && foot.firstPerson() && G.state === 'play') ? 'block' : 'none';
+  crossEl.style.display = document.pointerLockElement === canvas && (cockpit.group.visible || JP.cockpit.group.visible) || (G.craft === 'foot' && !foot.marine && foot.alive && foot.firstPerson() && G.state === 'play') ? 'block' : 'none';
   const ch = G.craft !== 'heli' && crafts.active ? crafts.active.hud() : null;   // FOUNDATION: any other craft's read-outs
   {   // g effects in the jet cockpit: grey tunnel closing in, black at G-LOC, red-out under negative g
     const gf = JP.cockpit.group.visible || (G.craft === 'jet' && JP.gloc > 0) ? JP.gfx() : { grey: 0, red: 0 };
@@ -1803,10 +1812,11 @@ function frame(now) {
   const t2 = performance.now();
   fx.setView(zCam, renderer.domElement.height, zScene.fog);
   renderer.render(zScene, zCam);
+  if (G.craft === 'foot' && G.state !== 'title' && G.mode === 'zarch') foot.overlay(renderer, zCam);   // wave 2: the Marine's arms and weapon, their own pass
   const t3 = performance.now(), pk = 0.05;   // smoothed per-frame CPU cost: sim, scene/HUD prep, render submit
   PROF.sim += ((t1 - now0) - PROF.sim) * pk; PROF.prep += ((t2 - t1) - PROF.prep) * pk; PROF.render += ((t3 - t2) - PROF.render) * pk;
 }
 const PROF = { sim: 0, prep: 0, render: 0 };
 buildCaves(); war.reset(); resetZarch(true); placeVehicles(); updateFogImg(); terrainStream(Z.pos.x, Z.pos.z);
 requestAnimationFrame(frame);
-if (params.has('debug')) { window.__G = { G, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, forest, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, carC, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); enterCave(b); } }
+if (params.has('debug')) { window.__G = { G, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, forest, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, carC, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); enterCave(b); } }

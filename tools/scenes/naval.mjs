@@ -12,7 +12,7 @@ export default async function (h) {
     const r = __G.renderer, orig = r.render.bind(r), T = __G.THREE, a = new T.Vector3(), b = new T.Vector3();
     const W = (u, l, out) => { const c = Math.cos(u.yaw), s = Math.sin(u.yaw); return out.set(u.p.x + l[0] * c + l[2] * s, u.p.y + l[1], u.p.z - l[0] * s + l[2] * c); };
     r.render = (sc, cam) => { const C = window.__cam; if (C && C.u) { W(C.u, C.p, a); W(C.u, C.t, b); cam.position.copy(a); cam.up.set(0, 1, 0); cam.lookAt(b); cam.updateMatrixWorld(); } orig(sc, cam); };
-    window.__shot = (u, p, t) => { window.__cam = { u, p, t }; W(u, p, a); __G.H.reset(a.clone().add(new T.Vector3(0, 40, 0)), 0, false, 1); __G.HI.setCollective(0.475); };
+    window.__shot = (u, p, t) => { window.__cam = { u, p, t }; W(u, p, a); if (!__G.G.heliStowed) __G.H.reset(a.clone().add(new T.Vector3(0, 40, 0)), 0, false, 1); __G.HI.setCollective(0.475); };   // (a Huey stowed in the hangar stays there: H.reset would bring it out)
     return true; })()`);
   // a Hornet on the catapult: the jet blast deflector comes up behind it
   await h.waitFor('__G.H.landed', 10000);
@@ -20,7 +20,12 @@ export default async function (h) {
   await h.waitFor('__G.G.craft === "jet" && __G.war.carrier.parts.jbdK > 0.9', 8000);   // the JBD rises at 0.7/s; slow headless frames
   await h.expect('__G.G.craft === "jet" && __G.war.carrier.parts.jbdK > 0.9', 'JBD raised behind the jet on the cat');
   await h.eval(`(__shot(__G.war.carrier, [-16, 9, 22], [-2.5, 9, -2]), 1)`); await h.wait(1200); await h.shot('albatross-jbd');
+  // FOUNDATION flow: Y climbs out on foot (the jet stays parked, the deck crew bring the Huey up); walk to the Huey's
+  // door and Y gets in
   await h.eval('(window.__cam = null, 1)'); await h.key('tap', 'KeyY'); await h.wait(800);
+  await h.waitFor('__G.G.craft === "foot" && !__G.G.heliStowed', 8000);
+  await h.eval(`(() => { const d = __G.crafts.toWorld(__G.heliC, [2.6, -1.84, -1.9]), c = __G.war.carrier; return __G.foot.spawnAt({ x: d.x, y: __G.GR.deckH(d.x, d.z), z: d.z, yaw: d.yaw + Math.PI / 2 }); })()`);
+  await h.wait(300); await h.key('tap', 'KeyY'); await h.wait(800);
   await h.expect('__G.G.craft === "heli"', 'back in the helicopter');
   // the helicopter out of the way, parked on its home pad
   await h.eval(`(__G.H.reset(new __G.THREE.Vector3(__G.HOME_B.x + 18, 60, __G.HOME_B.z + 18), 0, false, 1), __G.HI.setCollective(0.475), 1)`);

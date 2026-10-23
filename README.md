@@ -93,18 +93,42 @@ The Huey spawns hot at flight idle and rolls the throttle on by itself. With `?c
 | J | controls panel: live view of every axis and button, bind and calibrate HOTAS / pedals |
 | Y | stopped on the deck: climb out (the Hornet stays parked; the deck crew brings the Huey up) |
 
-### On foot and in vehicles
+### On foot: the 1980 Marine, and in vehicles
+
+Get out of the landed Huey, a stopped vehicle or the Hornet stopped on deck (Y) and you are an M16A1 rifleman of 1980:
+the rifleman's kit from the inventory (M16A1 with six 20-round magazines in the ammo pouches and two in the vest, an
+M72 LAW slung, a bandolier in the pack, grenades, two canteens, a field dressing and a cravat), real ballistics, wounds
+that bleed and a body that tires. Iron sights only, no crosshair. The ship decks carry you as they sail, heave, pitch
+and roll; the ALBATROSS island has a ladder on its port face up to the top deck, the carriers a stern ladder from the sea.
 
 | Key | Action |
 |---|---|
 | Y | get out (Huey landed with the collective down, Hornet stopped on deck, vehicle stopped) / get in at a door |
 | [ / ] | change seat (driver, passenger, rear) |
 | W A S D, mouse (click to capture), arrows | walk and look (arrows turn), or drive and steer |
-| Shift / Space / C / Z | sprint / jump / crouch / prone (on foot); Space = handbrake in a vehicle |
+| Shift | sprint (stamina: the oxygen debt is paid back afterwards); hold breath while aiming |
+| Ctrl / Caps Lock | walk / run toggle |
+| C / Z / X, Space | kneel / prone / stand (toggles), jump (stands you up first) |
+| Q / E | lean left / right |
+| left mouse, right mouse | fire, aim down the sights (hold) |
+| R, R R | tactical reload (the old magazine back in a pouch), speed reload (dropped); LAW: R extends, R arms |
+| T, Shift+T, O, U | immediate action (SPORTS), remedial action, charging handle, forward assist |
+| B, PageUp / PageDown | fire mode (safe / semi / auto), sight aperture |
+| L, Shift+L | check the magazine, check the chamber (the HUD only knows what you checked) |
+| 1 2 3, mouse wheel | rifle / LAW / pistol, cycle (Shift+digit: the war commands) |
+| G | throw an M67 frag (4.5 s fuse; M203 on / off on the grenadier's rifle) |
+| N | bipod (M60) |
+| Tab (or I), H | GEAR screen, HEALTH screen (the mouse is released; Esc closes) |
+| F | search a crate, a pile of dropped kit or a body; on a friendly pad or the carrier deck: rearm and resupply |
 | V | first / third person on foot; seat eye / chase in a vehicle (the mouse orbits) |
-| F / click, R | fire / reload (placeholder M16A1) |
 | I / H | vehicle engine / horn |
 | 7 | motor pool: a vehicle to the selected friendly island (15 materiel) |
+
+Wounds: enemy rounds, flak, blasts and lasers hit body parts (MEDINV's wound model behind the M1 helmet and M69 vest);
+bleeding drains blood volume through the shock classes (tunnel vision, grey, unconsciousness). Treat yourself on the
+HEALTH screen: drag the field dressing onto the wound, the cravat onto a limb as a tourniquet. Bleeding out costs a
+life like a lost helicopter; your body stays where you fell with your kit on it. Crates: an ammunition crate and a
+medical chest on the ALBATROSS deck forward of the island, one by every island pad (RUNAWAY caches on enemy islands).
 
 Cockpit switches are clickable (gear and hook handles, flaps, master arm, FCS CAS/DIRECT, engine cranks, fire lights, master caution, jettison, eject, DDI pages). To land: gear down, flaps FULL, hook down, fly the ICLS needles at 8° AoA (the green/amber/red indexer) into the wires.
 
@@ -182,7 +206,7 @@ Air defence: `game/dev/defence.html` is a sandbox to view each AA unit and watch
 `node tools/infantrybench.mjs` checks the infantry cores (flight of the rounds against the field-manual maximum ranges and
 zeroes, rates of fire, barrel heat, stoppages, recoil, march / run / sprint speeds and stamina against the Pandolf and
 ACSM equations); `scenes/infantry.mjs`, `infantrydrills.mjs` and `infantrymodels.mjs` drive the range page.
-On foot and vehicles: `node tools/footbench.mjs` (soldier movement vs FM 22-5 cadences, ladders, swimming, moving decks), `node tools/boxcarbench.mjs` (the test car), scenes `foot.mjs` and `vehicle.mjs`.
+On foot and vehicles: `node tools/footbench.mjs` (soldier movement vs FM 22-5 cadences, ladders, swimming, moving decks), `node tools/boxcarbench.mjs` (the test car), scenes `foot.mjs` and `vehicle.mjs`. The Marine in the game: `node tools/marinebench.mjs` (the rifleman, medical and inventory on the walker: FM 22-5 paces with the real load, standing still on a deck in a seaway, magazines fired and reloaded from the rig, wounds, bleeding out, tourniquet), scenes `marine.mjs` (seaway deck, iron sights, reload, wound and treatment on the health screen, gear screen) and `marinelife.mjs` (crates, rearm, vehicles, bleeding out, the next life).
 Rotary AI scenes: `ch46capture.mjs` (command 1: a Sea Knight takes SANDBAR), `mv22landing.mjs` (an Osprey lands machine troopers), `wasp.mjs` (a WASP raid), `rotarydev.mjs` (the dev page: model turntables and each aircraft's whole mission; `ROTARY=ch46|mv22|wasp`).
 Hercules scenes: `drop.json`, `dropflak.json`, `rescue.json` (the para-drop in the game), `c130.mjs` (flight deck, switches, engine out, drop run, take-off on the test page), `c130model.mjs` (exterior screenshots and dimensions).
 Huey scenes: `hueystart.json` (cold start), `hueyhover.json` (hover trim, forward flight), `hueyauto.json` (practice autorotation with power recovery), `hueycockpit.mjs`, `hueymodel.mjs` (screenshots).

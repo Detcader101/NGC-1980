@@ -1275,3 +1275,72 @@ game/dev/c130-model.html; scenes c130.mjs, c130model.mjs. fixedwing.js is no lon
   same probe against the ngc/c130 build in the same session: 10 fps, 10 frames, bank 0.11. The scene now holds D and
   waits for the hands-off recovery in game time (drop.state.t: 1 s and 2.5 s) instead of wall time; no game code
   changed. Seen once: a jumper landed in the water (fuel 20, expect > 20) - drop scatter, not this bug.
+
+## 2026-10-23 — NGC-1980 wave 2: THE 1980 MARINE in the game (branch ngc/foot2)
+On-foot play is now INFANTRY's rifleman with MEDINV's medical and inventory, on FOUNDATION's craft. Get out of the Huey,
+a vehicle or the Hornet on deck and you are an M16A1 rifleman of 1980 with the inventory's rifleman kit.
+- **marinesim.js (pure, node-benched)** joins three wave-1 cores: the rifleman (soldier.js body: inertia, stances,
+  Pandolf / ACSM stamina, sway, recoil, ADS, lean; weapons; projectiles; hit registration), MEDINV's medical sim and
+  rig, and FOUNDATION's walker (footsim.js) for the world. Each 1/120 s step: the deck carries the walker and the
+  soldier's view turns with the ship; the soldier decides his deck-relative velocity; the walker resolves it against
+  walls, steps, ladders, the sea and decks (footsim `intent.vel`, new); what the world allowed goes back into the
+  soldier. Medical runs at 10 Hz and feeds soldier.js modifiers (legs / arms / pain / blood loss / shock / tremor /
+  unconscious), sprint and weapon-use limits. Falls go to `M.fall`.
+- **invbridge.js (pure)**: the rifleman's magazine items are VIEWS of inventory instances (`rounds` reads / pops the
+  LIFO round segments: MEDINV's tracers-last loading feeds the tracer round to ballistics), so the inventory is his
+  magazine source and his load (`totalKg`, minus the guns the rifleman counts itself). Each step reconciles the gun's
+  magazine with the weapon item's mag slot both ways (a reload seats the new magazine in the M16 item; a magazine
+  dragged onto the rifle on the gear screen feeds the gun), weapons added / removed on the gear screen, the fired LAW
+  leaves the rig. `resupply()` refills magazines (two tracers last), replaces missing ones and the LAW, restocks the
+  dressing and cravat.
+- **marine.js (game side)**: keys / mouse (LMB fire, RMB sights, wheel weapons) / gamepad; the world for his rounds
+  (raycast: terrain, sea, decks / hulls / islands via the ground host, island buildings and AA guns, tree trunks (new
+  `GR.treeHit`), war.js units as spheres or their own `u.hitRay`, ship gun mounts, crafts' footprints as thin skins,
+  soldier figures by soldiermodel hitboxes); GAME damage to war units (M193 0.22, M80 0.35 war units: ~14 rounds for a
+  gunship, buildings and hulls barely scratched); M433 / M72 explosions -> `war.blast`. Incoming fire -> MEDINV hit-info:
+  the WASP's bolts ('b': dmg 50 pen 34), CIWS / 20 mm ('ciws' / 'jb': dmg 95 pen 55) on the body part under the round's
+  closest point (`hitZone`), flak / blasts / shells / missiles as `fragmentHits` (closer = more), the LANCE laser as a
+  burn. The viewmodel in its own pass after the world (`foot.overlay`, main.js), the 17-bone Marine for third person,
+  figures and bodies; tracers, impacts, muzzle light; InfantryAudio on the game's AudioContext (own shots, impacts,
+  cracks of enemy rounds passing within 6 m, footsteps by surface, breathing, heartbeat).
+- **Screens**: Tab / I = GEAR, H = HEALTH (MEDINV's invui / medui; pointer lock released; movement and fire blocked
+  while open; what is dragged to GROUND becomes a pile at his feet). The medical HUD strip, vision effects (tunnel,
+  grey, blur, blackout) and a red hit vignette on the HUD.
+- **World**: an ammunition crate and a medical chest on the ALBATROSS deck forward of the island, one more aft, one by
+  every island pad (RUNAWAY caches on enemy islands); they ride the ship. F searches the nearest crate / pile / body;
+  F on a friendly pad or the carrier deck rearms. Speed-reload magazines fall into a pile at his feet. RUNAWAY trooper
+  figures (`marine.addFigure`, a start for the ground-war agent): hit twice (once in head or chest) they go down and
+  their seized kit is lootable. G throws an M67 from the rig (14 m/s, 4.5 s fuse, bounces): MEDINV fragments for anyone near
+  (him too), war.blast for war units.
+- **Life**: bleeding out (or any medical death) ends the life with the game's rules (lives - 1, a new crew in the Huey
+  after 3.5 s). His body stays where he fell (on a deck it rides the ship) with his kit. The next Marine out is fresh;
+  getting in and out of crafts keeps the same man (kit and wounds).
+- **FOUNDATION fixes**: platform.js carries with the FULL ship frame (heave, pitch, roll, the sky carrier's climb), not
+  position + yaw; ladders in the full frame. The ALBATROSS island in ground.js is now NAVAL's model: level boxes in the
+  ship frame (O-3..O-7, bridge, pri-fly, funnel, mast, top-deck rails; colliders lean with the roll), a walkable top
+  deck 13.33 m above the flight deck (`GR.deckH` replaces war.deckY's 17 m block there), the island ladder moved
+  forward of the bridge wing on the port face; KRAKEN's island collider to its model; the island ladder only on the
+  ALBATROSS (it was drawn on the KRAKEN too). H.reset on a stowed Huey unstows it (infinite.mjs: a teleported Huey was
+  not simulated and the deck crew re-spotted it on the carrier). naval.mjs follows the Y-out-of-the-jet flow.
+- **Shared files**: main.js (import, `foot.setMarine(createMarine(...))`, `foot.overlay` after the world render,
+  hurtPlayer passes `kind`, no crosshair for the Marine, the H.reset wrapper, `__G.marine`), war.js (hurtPlayer gets the
+  projectile kind / hit point at the bullet, flak, blast and SHRIKE cannon calls), foot.js (`setMarine` and its
+  delegations, `F.overlay`, `hurt(.., kind)`), footsim.js (`intent.vel`), ground.js, platform.js, invui.js (label
+  polish), index.html (help line), README.
+- **Polish (MEDINV report)**: item labels in small grid cells: a dark backing behind name and count, one-cell items
+  wrap the name onto two tight lines instead of clipping, counts never wrap; the in-game gear screen uses 40 px cells.
+- **Tests**: `node tools/marinebench.mjs` 24 checks (walk 1.53 / run 2.70 m/s with 20 kg; a wall stops him; prone;
+  0.000 m slip standing on a deck that sails, turns, climbs, heaves, pitches and rolls; walks straight along a rolling
+  deck; rounds come out of the inventory magazine; tactical reload seats a pouch magazine and stows the old one, rounds
+  conserved; a gear-screen magazine feeds the gun; fired dry then resupplied; the LAW fired and gone from the rig;
+  5 / 5 aimed rounds on a plate at 100 m; a thigh wound bleeds; untreated femoral: dead of blood loss in ~6 min;
+  cravat windlass tourniquet stops it). Scenes: `foot.mjs` 12/12, `marine.mjs` 15/15, `marinelife.mjs` 10/10,
+  `naval.mjs` 5/5, `infinite.mjs` 5/5 (+ notblank), `jettrap.mjs` 7/7.
+- **Gotchas**: the viewmodel's springs are explicit Euler: at headless frame rates (dt 0.1 s) they blew up and the
+  arms vanished off screen - stepped at <= 1/60 s now; the soldier toggles crouch / prone on every repeated stance
+  request (one-shots only); a measurement taken before the frame's carry reads one frame of ship motion as slip; the
+  semi-auto M16 needs trigger releases (holding fire is one shot); a bandolier is loose rounds, not magazines.
+- **Untested / next**: real mouse / pointer lock feel and the gamepad map on hardware; buddy aid (MEDINV's BUDDY API is
+  ready: the CH-46 squad could treat you); AI soldiers using createRifleman (the figures are static targets now); the
+  medical sim pauses while you ride a craft; enemy small-arms fire from RUNAWAY ground units arrives once the ground-war
+  agent's units shoot `'b'` / their own kinds through hurtPlayer; grenades are thrown straight off the rig (no cooking, no throw animation in the viewmodel).
