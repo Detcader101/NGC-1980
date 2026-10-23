@@ -85,6 +85,8 @@ A unit is done when it matches the HORNET (`jetfm.js`, `jetcockpit.js`, `jetplay
    at. Screenshot evidence, not just pass counts.
 8. **Docs**: a MODLOG.md section (what, sources, numbers vs published, gotchas, untested) and README lines.
 
+**Weapons stay at game level**: widely known headline figures only (muzzle velocity, rate of fire, magazine size), game-tuned damage and armour tables, missiles as projectiles with a capped turn rate. No guidance or seeker laws, no kill-probability or penetration research. Deep real-world weapons modelling trips auto mode's safety check and stops the agent; the depth belongs in vehicle and flight dynamics, systems, models, interiors, AI behaviour and sound.
+
 Performance: the game must stay playable on a mid-range GPU. Instanced meshes for crowds, merged geometry per unit,
 no per-frame allocations in hot loops, `?res=` respected.
 
