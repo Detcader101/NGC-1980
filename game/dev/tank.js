@@ -7,7 +7,7 @@ import { createM60A3 } from '../js/units/armor/m60a3.js';
 import { createM113 } from '../js/units/armor/m113.js';
 import { buildM60A3Mesh, TANK } from '../js/units/armor/tankmodel.js';
 import { buildM113Mesh } from '../js/units/armor/m113model.js';
-import { buildTankInterior } from '../js/units/armor/tankinterior.js';
+import { buildTankInterior, buildM113Interior, M113_EYES } from '../js/units/armor/tankinterior.js';
 import { ArmorAudio } from '../js/units/armor/armoraudio.js';
 import * as TG from '../js/units/armor/testground.js';
 import { newShot, stepShot, ROUNDS, shotSpeed } from '../js/units/armor/armorballistics.js';
@@ -108,8 +108,10 @@ const V = VEH === 'm113' ? createM113() : createM60A3();
 const fm = V.fm;
 const model = VEH === 'm113' ? buildM113Mesh() : buildM60A3Mesh();
 scene.add(model.group);
-const interior = VEH === 'm60' ? buildTankInterior() : null;
-if (interior) model.hull.add(interior.group);
+const interior = VEH === 'm60' ? buildTankInterior() : buildM113Interior();
+if (VEH === 'm60') { model.hull.add(interior.group); model.turret.add(interior.gunner); model.cupola.add(interior.commander); }
+else { model.hull.add(interior.group); model.ramp.add(interior.rampIn); model.hatches.cargo.add(interior.cargoIn); }
+let gunLook = false;   // gunner: E looks up from the sight into the station
 const at = (Q.get('at') || '0,40,0').split(',').map(Number);
 V.reset(at[0], at[1], at[2] || 0, env, { range: 'N' });
 const audio = new ArmorAudio();
@@ -159,6 +161,7 @@ function readInput(dt) {
   IN.mgTrav = IN.cupTrav; IN.mgElev = IN.cupElev;
   if (o('KeyH')) { const open = hatches.cupola < 0.5; hatches.cupola = hatches.loader = hatches.driver = open ? 1 : 0; }
   if (VEH === 'm113') { if (o('KeyR')) IN.ramp = !(IN.ramp); if (o('KeyY')) IN.vane = !(IN.vane); if (o('KeyJ')) IN.pumps = !(IN.pumps); }
+  if (o('KeyE') && view === 'gunner') { gunLook = !gunLook; cam.look = [0, 0]; }
   if (o('Tab')) { view = VIEWS[(VIEWS.indexOf(view) + 1) % VIEWS.length]; cam.look = [0, 0]; }
   once.clear();
 }
@@ -235,11 +238,14 @@ function updateCamera(dt) {
     camera.position.y = Math.max(camera.position.y, TG.height(camera.position.x, camera.position.z) + 0.6);
     camera.lookAt(tgt); fovWanted = 50;
   } else if (view === 'driver' || view === 'troops') {
-    const eye = VEH === 'm113' ? (view === 'driver' ? [-0.62, 1.62, -1.62] : [0, 1.45, 1.9]) : TANK.DRIVER_EYE;
+    const eye = VEH === 'm113' ? M113_EYES[view === 'driver' ? 'driver' : 'troops'] : TANK.DRIVER_EYE;
     hullPoint(eye, camera.position); inside = true;
     _q.set(fm.q.x, fm.q.y, fm.q.z, fm.q.w);
     _e.set(cam.look[1] - (view === 'driver' ? 0.12 : 0.1), cam.look[0] + (view === 'troops' ? 0 : 0), 0, 'YXZ');
     camera.quaternion.copy(_q).multiply(new THREE.Quaternion().setFromEuler(_e)); fovWanted = 70;
+  } else if (view === 'gunner' && gunLook && VEH === 'm60') {
+    turretPoint(TANK.GUNNER_EYE_T, camera.position); inside = true;
+    _e.set(cam.look[1] - 0.25, fm.out.heading + V.az + cam.look[0], 0, 'YXZ'); camera.quaternion.setFromEuler(_e); fovWanted = 70;
   } else if (view === 'gunner') {
     // the sight picture: along the sight line from the sight head; magnification by FOV
     turretPoint([0.55, 0.85, -0.9], camera.position);
@@ -247,7 +253,7 @@ function updateCamera(dt) {
     sightActive = true; thermal = V.sight === 'tts' && V.ttsCool > 0.95;
     fovWanted = V.sight === 'tts' ? (V.ttsMag === 3 ? 13.5 : 5.0) : 6.0;   // game FOVs: day 8x, TTS 3x / 8x
   } else if (view === 'commander') {
-    turretPoint([TANK.COMMANDER_EYE_T[0], TANK.COMMANDER_EYE_T[1] + (hatches.cupola > 0.5 ? 0.55 : 0), TANK.COMMANDER_EYE_T[2]], camera.position);
+    turretPoint([TANK.COMMANDER_EYE_T[0], 1.09 + (hatches.cupola > 0.5 ? 0.55 : 0), TANK.COMMANDER_EYE_T[2]], camera.position);
     const az = fm.out.heading + V.az + (V.mg50 ? V.mg50.az : 0) + cam.look[0];
     _e.set(cam.look[1] + (V.mg50 ? V.mg50.el : 0) * 0.5, az, 0, 'YXZ'); camera.quaternion.setFromEuler(_e); fovWanted = 60;
     inside = hatches.cupola < 0.5;
@@ -294,6 +300,7 @@ const postScene = new THREE.Scene(); postScene.add(post); const postCam = new TH
 // ------------------------------------------------------------------------------------------------ reticles (2D overlay)
 function drawSight() {
   const W = overlay.width, H = overlay.height, c = octx; c.clearRect(0, 0, W, H);
+  overlay.style.visibility = sightActive ? 'visible' : 'hidden';   // (a cleared 2D canvas layer is not always re-composited in headless Chrome)
   if (!sightActive) return;
   const R = Math.min(W, H) * 0.46, cx = W / 2, cy = H / 2;
   // eyepiece vignette
@@ -358,16 +365,25 @@ function syncModel() {
   } else model.animate({ travel, trackPos: fm.trackPos, mgAz: V.mg.az, mgEl: V.mg.el, ramp: V.ramp, vane: V.vane, hatches, inside: false });
 }
 function frame(now) {
-  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now;   // (the first rAF time can be earlier than the load time)
   if (!paused) simStep(dt);
   syncModel();
   const inside = updateCamera(dt);
   if (model.setInside) model.setInside(inside); else for (const m of model.shell) m.visible = !inside;
-  if (interior) { interior.group.visible = inside && view === 'driver'; if (interior.group.visible) interior.update(V, IN, dt); }
+  updateInterior(inside, dt);
   render();
   hudText(); drawSight();
   audio.update(V, VEH, { inside, view, dt, cam: camera.position });
   requestAnimationFrame(frame);
+}
+function updateInterior(inside, dt) {
+  if (VEH === 'm60') {
+    interior.group.visible = inside && view === 'driver'; interior.gunner.visible = view === 'gunner' && gunLook; interior.commander.visible = view === 'commander' && hatches.cupola < 0.5;
+    if (interior.group.visible || interior.gunner.visible || interior.commander.visible) interior.update(V, IN, dt);
+  } else {
+    interior.driver.visible = inside && view === 'driver'; interior.troops.visible = view === 'troops' || (inside && view === 'driver');
+    interior.update(V, IN, dt);
+  }
 }
 function render() {
   if (thermal) {
@@ -383,11 +399,12 @@ requestAnimationFrame(frame);
 // ------------------------------------------------------------------------------------------------ debug bridge
 if (DEBUG) window.__T = {
   V, fm, model, scene, camera, renderer, env, TG, IN, THREE, stats, interior, audio, hatches,
+  get keys() { return [...keys]; }, get sightActive() { return sightActive; }, get gunLook() { return gunLook; }, set gunLook(v) { gunLook = v; },
   get view() { return view; }, set view(v) { view = v; cam.look = [0, 0]; }, cam,
   input(o) { ext = o ? { ...(ext || {}), ...o } : null; },               // override inputs (persisting) / null to release
   reset(x, z, yaw, o) { V.reset(x, z, yaw, env, o); },
   pause(p) { paused = p; }, step(n = 1, dt = 1 / 60) { for (let i = 0; i < n; i++) simStep(dt); syncModel(); },
-  render() { syncModel(); updateCamera(0); render(); drawSight(); },
+  render() { syncModel(); const inside = updateCamera(0); if (model.setInside) model.setInside(inside); updateInterior(inside, 0); render(); drawSight(); },
   aimAt(x, y, z) {   // lay the sight line on a world point (relative to the hull)
     const R = fm.R, p = V.turretPoint([0.55, 0.85, -0.9]), d = [x - p[0], y - p[1], z - p[2]], l = Math.hypot(...d);
     const b = [R[0] * d[0] + R[3] * d[1] + R[6] * d[2], R[1] * d[0] + R[4] * d[1] + R[7] * d[2], R[2] * d[0] + R[5] * d[1] + R[8] * d[2]].map(v => v / l);

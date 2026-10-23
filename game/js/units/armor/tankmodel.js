@@ -333,7 +333,7 @@ export function buildM60A3Mesh(opts = {}) {
   const W = weathered(seed, null, dirt);
   const P = geo => paintFaces(geo, W);
   const hull = new THREE.Group(); hull.name = 'hull'; root.add(hull);
-  const shell = [];   // exterior parts hidden from inside
+  const shell = [], glassIn = [];   // exterior shell; vision-device glass hidden when a crewman looks out through it
   // ---- hull body: loft along z
   const ST = [];
   const ring = (z, topY, uw, botY, lw, sy = 1.17) => {
@@ -385,7 +385,7 @@ export function buildM60A3Mesh(opts = {}) {
   // driver's hatch with three M27 periscopes, the hull roof ring guard
   const dh = new THREE.Group(); dh.position.set(0, 1.78, -2.0); hull.add(dh);
   dh.add(new THREE.Mesh(P(cylY(0.32, 0.08, 14, 0, 0.06, 0)), paintM));
-  for (const a of [-0.45, 0, 0.45]) { const pe = new THREE.Mesh(box(0.16, 0.09, 0.07, Math.sin(a) * 0.22, 0.14, -Math.cos(a) * 0.22), glass); pe.rotation.y = -a; dh.add(pe); }
+  for (const a of [-0.45, 0, 0.45]) { const pe = new THREE.Mesh(box(0.16, 0.09, 0.07, Math.sin(a) * 0.22, 0.14, -Math.cos(a) * 0.22), glass); pe.rotation.y = -a; dh.add(pe); glassIn.push(pe); }
   const dHatch = new THREE.Group(); dHatch.position.set(0, 0.11, 0.0); dh.add(dHatch); dHatch.add(new THREE.Mesh(P(cylY(0.26, 0.05, 12, 0, 0.02, 0)), paintM)); dHatch.name = 'driverHatch';
   // rear plate details: infantry phone box, tow cable (coiled), towing pintle, jerry can racks
   parts.push(P(box(0.28, 0.3, 0.12, 0.95, 1.35, 3.53)));
@@ -462,7 +462,7 @@ export function buildM60A3Mesh(opts = {}) {
   const cupola = new THREE.Group(); cupola.name = 'cupola'; cupola.position.set(...TANK.COMMANDER_EYE_T.map((v, i) => i === 1 ? 0.92 : v)); turret.add(cupola);
   const cp = [PT(cylY(0.5, 0.3, 16, 0, 0.15, 0)), PT(cylY(0.44, 0.08, 16, 0, 0.34, 0))];
   cupola.add(new THREE.Mesh(merge(cp), paintM));
-  for (let k = 0; k < 8; k++) { const a = k / 8 * TAU + Math.PI / 8; const vb = new THREE.Mesh(box(0.14, 0.08, 0.03), glass); vb.position.set(Math.sin(a) * 0.495, 0.17, -Math.cos(a) * 0.495); vb.rotation.y = -a; cupola.add(vb); }
+  for (let k = 0; k < 8; k++) { const a = k / 8 * TAU + Math.PI / 8; const vb = new THREE.Mesh(box(0.14, 0.08, 0.03), glass); vb.position.set(Math.sin(a) * 0.495, 0.17, -Math.cos(a) * 0.495); vb.rotation.y = -a; cupola.add(vb); glassIn.push(vb); }
   const cHatch = new THREE.Group(); cHatch.position.set(0, 0.4, 0.3); cupola.add(cHatch); cHatch.add(new THREE.Mesh(PT(cylY(0.38, 0.06, 14, 0, 0.0, -0.3)), paintM)); cHatch.name = 'cupolaHatch';
   const mg50 = new THREE.Group(); mg50.position.set(0.0, 0.22, -0.42); cupola.add(mg50);
   mg50.add(new THREE.Mesh(box(0.2, 0.2, 0.18, 0, 0, 0), steelP));
@@ -488,7 +488,7 @@ export function buildM60A3Mesh(opts = {}) {
   // the coax port and the gunner's day periscope port on the shield
   gun.add(new THREE.Mesh(cylZ(0.03, 0.12, 8, 0.32, -0.05, -0.68), black));
   // ---- collect
-  const api = { group: root, hull, turret, gun, recoil, cupola, mg50, gear, shell, hatches: { driver: dHatch, loader: lHatch, cupola: cHatch }, tts: [ttsDoorL, ttsDoorR], searchlight: { group: searchlight, lens, door: slDoor }, materials: { paintM, steel, steelP, trackSteel, rubber } };
+  const api = { group: root, hull, turret, gun, recoil, cupola, mg50, gear, shell, glassIn, setInside: v => { for (const m of glassIn) m.visible = !v; }, hatches: { driver: dHatch, loader: lHatch, cupola: cHatch }, tts: [ttsDoorL, ttsDoorR], searchlight: { group: searchlight, lens, door: slDoor }, materials: { paintM, steel, steelP, trackSteel, rubber } };
   // state: { travel: [[6],[6]], trackPos: [L, R], az, el, recoil (m), cupAz, mgEl, hatches: { driver, loader, cupola } 0..1,
   //          tts: 0..1 doors open, light: 0..1, inside: hide the shell (interior views) }
   api.animate = (s = {}) => {
@@ -500,7 +500,7 @@ export function buildM60A3Mesh(opts = {}) {
     lHatch.rotation.z = -(h.loader || 0) * 1.9; cHatch.rotation.x = (h.cupola || 0) * 1.7;
     ttsDoorL.rotation.y = -(s.tts ?? 1) * 1.6; ttsDoorR.rotation.y = (s.tts ?? 1) * 1.6;
     slDoor.visible = !(s.light > 0); lens.material.emissive.setScalar(s.light > 0 ? 1 : 0);
-    for (const m of shell) m.visible = !s.inside;
+    for (const m of glassIn) m.visible = !s.inside;
   };
   api.animate({});
   return api;

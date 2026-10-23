@@ -676,6 +676,7 @@ export function createTrackSim(P, opt = {}) {
   // ---------------------------------------------------------------------------------------------- public step
   // returns the events of this call (sim.events is cleared at the start)
   sim.step = (dt, env) => {
+    if (!(dt > 0)) return sim.events.length = 0, sim.events;   // never run backwards (or on NaN)
     sim.events.length = 0;
     // mass grows with the water inside (sinking)
     sim.mass = P.MASS + sim.water.inside * RHO_W + (sim.eng.fuel - (P.FUEL_L ?? 0)) * 0.84;
