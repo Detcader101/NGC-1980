@@ -141,7 +141,7 @@ export function createRotary(ctx) {
   function updateTransport(u, U, dt) {
     const S = U.S, I = u.target;
     // mission changes: target taken by us already before the Marines got there -> home with them aboard
-    if (!u.dying && I && I.owner === u.side && !u.reinforce && !U.deployed && !['rtb', 'descend2', 'parked'].includes(U.AI.phase)) {
+    if (!u.dying && I && I.owner === u.side && !u.reinforce && !U.deployed && !U.AI.homing()) {
       // the enemy commander re-tasks its Osprey to the next island; ours bring the Marines home
       const next = u.side === 2 && W.pickExpansion ? W.pickExpansion() : null;
       if (next && !next.cave) { u.target = next; u.lz = chooseLZ(next, MV22_FOOT); U.setPad && U.setPad(next.pad); if (['ground', 'descend'].includes(U.AI.phase)) U.AI.set('lift2'); else U.AI.set('transit'); }

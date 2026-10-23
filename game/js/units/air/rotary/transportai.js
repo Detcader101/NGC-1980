@@ -2,6 +2,12 @@
 // fly to the landing zone over the terrain, a decelerating approach down a glide path, a vertical descent to touchdown,
 // unload, lift off, fly home and land back on the deck. Pure JS: no game imports, runs in node (tools/rotarymission.mjs).
 //
+// Flown the way Marine helicopter crews fly it (NATOPS / FM 1-203 habits): a stabilized approach down a ~10 deg
+// glide path to a hover check at a few metres over the spot, a proper flare (nose up ~10-12 deg) in the last stretch,
+// approach gates with a WAVE-OFF (too high, too fast, or the zone fouled: power on, straight ahead, climb away, come
+// round again), a hover check after every lift-off, and a ship recovery from a hover off the deck's port quarter with a
+// sidestep over the spot.
+//
 // It only produces guidance - a desired world velocity, climb rate and heading (+ hints like the wanted airspeed for
 // the tiltrotor's nacelles). The aircraft's own pilot (pilot.js / the tiltrotor controller) turns that into stick,
 // collective and pedals, and the flight model does the flying. No position is ever set.
@@ -16,7 +22,7 @@ export function approach(st, tgt, o, world, out = {}) {
   const vs = Math.sqrt(2 * o.aDec * Math.max(0, d - o.stop)), Vc = Math.min(o.cruise, vs, d * (o.kpos ?? 0.22), steep);   // linear close in: the position loop stays slower than the velocity loop
   out.vx = (tgt.vx || 0) + ux * Vc; out.vz = (tgt.vz || 0) + uz * Vc;
   // on the braking curve: feed the deceleration forward so the pilot raises the nose in time (the loop only trims it)
-  const brake = vs < o.cruise && vs < d * (o.kpos ?? 0.22) && d > 12 ? o.aDec : 0;
+  const brake = vs < o.cruise && vs < d * (o.kpos ?? 0.22) && d > 12 ? o.aDec * (d < (o.flareD ?? 70) && Vc > 5 ? (o.flareK ?? 1.5) : 1) : 0;   // the flare
   out.ax = -ux * brake; out.az = -uz * brake; out.dist = d; out.closing = Vc;
   // terrain floor along the way (look-ahead grows with speed) and close round the aircraft
   const look = Math.min(d, 60 + 6 * Math.hypot(st.vx, st.vz));
@@ -70,15 +76,49 @@ export function createTransportAI(o, hooks) {
           const tgt = { x: sp.x, z: sp.z, hdg: sp.hdg, vx: h ? h.vx : 0, vz: h ? h.vz : 0 };
           if (h) { sp.x += (h.vx || 0) * dt; sp.z += (h.vz || 0) * dt; }   // the deck moves on
           hold(st, tgt, sim.agl < 1 ? 1.2 : clamp((o.liftAgl + 2 - sim.agl) * 0.6, 0.5, 3), 0.22, c);
-          if (sim.agl > o.liftAgl) AI.set(AI.phase === 'lift' ? 'transit' : 'rtb');
+          if (sim.agl > o.liftAgl) { AI.chk = (AI.chk || 0) + dt; if (AI.chk > (o.liftCheck ?? 1.2)) { AI.chk = 0; AI.set(AI.phase === 'lift' ? 'transit' : 'rtb'); } }
           break;
         }
         case 'transit': case 'rtb': {
-          const tgt = AI.phase === 'transit' ? hooks.lz() : hooks.home && hooks.home();
+          let tgt = AI.phase === 'transit' ? hooks.lz() : hooks.home && hooks.home();
           if (!tgt) { AI.set('hover'); break; }
+          // ship recovery: come to a hover off the deck's port quarter first (then sidestep over the spot)
+          const ship = AI.phase === 'rtb' && Math.hypot(tgt.vx || 0, tgt.vz || 0) > 0.5;
+          if (ship) tgt = AI.quarter(tgt);
           approach(st, tgt, o, world, c);
           const rel = Math.hypot(st.vx - (tgt.vx || 0), st.vz - (tgt.vz || 0));
-          if (c.dist < o.stop + 1.5 && rel < 1.5 && Math.abs(st.y - (tgt.y + o.hover)) < 3) AI.set(AI.phase === 'transit' ? 'descend' : 'descend2');
+          // approach gates: established and not far above the glide path at ~250 m; slow enough at short final; a clear zone
+          if (AI.phase === 'transit' && !AI.gateOff && AI.t > 6) {
+            const toward = ((st.vx - (tgt.vx || 0)) * (tgt.x - st.x) + (st.vz - (tgt.vz || 0)) * (tgt.z - st.z)) / Math.max(c.dist, 1);   // closing speed actually flown
+            const why = c.dist < 280 && c.dist > 150 && st.y - c.hDes > 40 ? 'high' : c.dist < 40 && toward > 1.6 * c.closing + 5 ? 'fast' : c.dist < 140 && hooks.fouled && hooks.fouled() ? 'fouled' : null;
+            if (why) { AI.waveoffs = (AI.waveoffs || 0) + 1; AI.why = why; (AI.woLog ||= []).push([why, +c.dist.toFixed(0), +rel.toFixed(1), +c.closing.toFixed(1), +(st.y - c.hDes).toFixed(1)]); AI.woHdg = Math.atan2(-(st.vx || 1e-3), -(st.vz || 1e-3)); AI.set('waveoff'); break; }
+          }
+          if (c.dist < o.stop + 1.5 && rel < 1.5 && Math.abs(st.y - (tgt.y + o.hover)) < 3) AI.set(AI.phase === 'transit' ? 'hoverchk' : ship ? 'sidestep' : 'hoverchk2');
+          break;
+        }
+        case 'waveoff': {   // power on, straight ahead, climb away; then round again (a fresh approach from wherever it is)
+          // climb first, then accelerate (no nosing over close to the ground)
+          const fx = -Math.sin(AI.woHdg), fz = -Math.cos(AI.woHdg), sp = Math.min(o.cruise * 0.6, 30) * clamp((AI.t - 1.5) / 4, 0.25, 1);
+          c.vx = fx * sp; c.vz = fz * sp; c.ax = c.az = 0; c.hdg = AI.woHdg;
+          const floor = world.floorAlong(st.x, st.z, fx, fz, 120);
+          c.vy = clamp((Math.max(floor + o.clear + 10, st.y + 10) - st.y) * 0.5, 2.5, o.vClimb);
+          const lz = hooks.lz(), far = !lz || Math.hypot(lz.x - st.x, lz.z - st.z) > (o.goRound ?? 320);   // far enough out to set up a fresh approach
+          if (AI.t > 9 && st.y > floor + o.clear && (far || AI.t > 45)) { AI.gateOff = AI.waveoffs >= 2; if (hooks.waveoff) hooks.waveoff(AI); AI.set('transit'); }
+          break;
+        }
+        case 'hoverchk': case 'hoverchk2': {   // stabilized hover over the spot: power check, then set it down
+          const tgt = AI.phase === 'hoverchk' ? hooks.lz() : hooks.home && hooks.home();
+          if (!tgt) { AI.set('hover'); break; }
+          hold(st, tgt, clamp((tgt.y + o.hover - st.y) * 0.6, -1, 1), 0.25, c);
+          const off = Math.hypot(tgt.x - st.x, tgt.z - st.z), rel = Math.hypot(st.vx - (tgt.vx || 0), st.vz - (tgt.vz || 0));
+          if (AI.t > (o.hoverCheck ?? 2) && off < 2 && rel < 0.8) AI.set(AI.phase === 'hoverchk' ? 'descend' : 'descend2');
+          if (AI.t > 12) AI.set(AI.phase === 'hoverchk' ? 'descend' : 'descend2');
+          break;
+        }
+        case 'sidestep': {   // from the hover off the port quarter, slide across and over the spot, matching the deck
+          const tgt = hooks.home && hooks.home(); if (!tgt) { AI.set('hover'); break; }
+          hold(st, { ...tgt, y: tgt.y }, clamp((tgt.y + o.hover - st.y) * 0.6, -1, 1), 0.3, c);
+          if (Math.hypot(tgt.x - st.x, tgt.z - st.z) < 2.5) AI.set('hoverchk2');
           break;
         }
         case 'descend': case 'descend2': {   // vertical descent over the spot, slowing toward the ground
@@ -107,7 +147,10 @@ export function createTransportAI(o, hooks) {
       c.vy = vyPrev + clamp((c.vy ?? 0) - vyPrev, -(o.vyRate ?? 1.5) * dt, (o.vyRate ?? 1.5) * dt);   // no steps in the climb / descent command
       return c;
     },
-    goHome() { if (!['rtb', 'descend2', 'parked'].includes(AI.phase)) AI.set(AI.phase === 'ground' || AI.phase === 'spool' ? 'lift2' : 'rtb'); },
+    goHome() { if (!AI.homing()) AI.set(AI.phase === 'ground' || AI.phase === 'spool' ? 'lift2' : 'rtb'); },
+    homing: () => ['rtb', 'sidestep', 'hoverchk2', 'descend2', 'parked'].includes(AI.phase),
+    // the hover point off a ship's port quarter: aft and to the left of the spot (deck heading), at the hover height
+    quarter(t) { const h = t.hdg ?? 0, fx = -Math.sin(h), fz = -Math.cos(h), lx = -fz * -1, lz = fx * -1; const aft = o.quarterAft ?? 26, port = o.quarterPort ?? 22; return { ...t, x: t.x - fx * aft + lx * port, z: t.z - fz * aft + lz * port, hdg: h }; },
   };
   return AI;
 }
