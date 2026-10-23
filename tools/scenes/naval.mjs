@@ -20,7 +20,12 @@ export default async function (h) {
   await h.waitFor('__G.G.craft === "jet" && __G.war.carrier.parts.jbdK > 0.9', 8000);   // the JBD rises at 0.7/s; slow headless frames
   await h.expect('__G.G.craft === "jet" && __G.war.carrier.parts.jbdK > 0.9', 'JBD raised behind the jet on the cat');
   await h.eval(`(__shot(__G.war.carrier, [-16, 9, 22], [-2.5, 9, -2]), 1)`); await h.wait(1200); await h.shot('albatross-jbd');
+  // FOUNDATION flow: Y climbs out on foot (the jet stays parked, the deck crew bring the Huey up); walk to the Huey's
+  // door and Y gets in
   await h.eval('(window.__cam = null, 1)'); await h.key('tap', 'KeyY'); await h.wait(800);
+  await h.waitFor('__G.G.craft === "foot" && !__G.G.heliStowed', 8000);
+  await h.eval(`(() => { const d = __G.crafts.toWorld(__G.heliC, [2.6, -1.84, -1.9]), c = __G.war.carrier; return __G.foot.spawnAt({ x: d.x, y: c.p.y + 8, z: d.z, yaw: d.yaw + Math.PI / 2 }); })()`);
+  await h.wait(300); await h.key('tap', 'KeyY'); await h.wait(800);
   await h.expect('__G.G.craft === "heli"', 'back in the helicopter');
   // the helicopter out of the way, parked on its home pad
   await h.eval(`(__G.H.reset(new __G.THREE.Vector3(__G.HOME_B.x + 18, 60, __G.HOME_B.z + 18), 0, false, 1), __G.HI.setCollective(0.475), 1)`);
