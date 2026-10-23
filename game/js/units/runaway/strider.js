@@ -48,6 +48,7 @@ export const STRIDER = {
   STEP_W: 0.26,                 // m, nominal lateral distance between the feet
   WALK: 1.6, RUN: 4.6,          // m/s
   ACC: 3.2,                     // m/s^2 commanded acceleration limit
+  SWING_V: 11,                  // m/s top swing-foot speed
   A_LAT: 1.6,                   // m/s^2 cornering (the reference velocity's rate of turn = A_LAT / speed)
   T_WALK: 0.56, T_RUN: 0.27, T_MIN: 0.19,   // s, step period
   CLEAR_WALK: 0.12, CLEAR_RUN: 0.22,       // m, swing foot clearance
@@ -59,7 +60,7 @@ export const STRIDER = {
   GETUP_T: 1.9, DOWN_T: 1.1,    // s
   // armour (game armour points, see hit.js) and hit points per part: GAME-TUNED so rifles hurt limbs and the head and
   // need many hits for the core, machine guns do real work, a rocket is overkill
-  ARMOUR: { head: 3, thorax: 7, stomach: 6, armL: 4, armR: 4, legL: 5, legR: 5, weapon: 3 },
+  ARMOUR: { head: 3, thorax: 7, stomach: 6, armL: 4, armR: 4, legL: 7, legR: 7, weapon: 3 },
   HP: { head: 18, thorax: 60, stomach: 40, armL: 22, armR: 22, legL: 34, legR: 34, weapon: 14 },
 };
 
@@ -188,7 +189,7 @@ export function createStrider(opt = {}) {
       S.leanV[0] += jf * arm / S_.I_TORSO; S.leanV[1] -= jl * arm / S_.I_TORSO;
       // servo glitch: energy that reached the internals jolts the part's actuators (a leg in stance sags)
       const eIn = h.energy * r.residual + (h.type === 'blast' ? h.energy : 0);
-      const gl = Math.min(0.45, eIn / 6000 + (dmg > 4 ? 0.06 : 0));
+      const gl = Math.min(0.4, eIn / 12000 + (dmg > 4 ? 0.03 : 0));
       if (part === 'legL' || part === 'legR') { const f = S.feet[part === 'legL' ? 0 : 1]; f.glitch = Math.max(f.glitch, gl); }
       else if (part === 'stomach' || part === 'thorax') S.glitch.gyro = Math.max(S.glitch.gyro, gl * 0.7);
       else if (part === 'armL' || part === 'armR' || part === 'weapon') S.glitch.arms = Math.max(S.glitch.arms, gl);
@@ -210,10 +211,10 @@ export function createStrider(opt = {}) {
     //      face: yaw to turn to when standing (default: the aim or the motion), run: bool (allows RUN speed)
     // env: { height(x, z), normal?(x, z) }
     step(dt, cmd, env) {
-      S.events.length = 0;
+      // (events raised between steps - hits - come out with this step's)
       const n = Math.max(1, Math.ceil(dt / (1 / 240))), h = dt / n;
       for (let i = 0; i < n; i++) sub(h, cmd, env);
-      return S.events;
+      const out = S.events.slice(); S.events.length = 0; return out;
     },
   };
 
@@ -313,7 +314,8 @@ export function createStrider(opt = {}) {
     }
     const vr = Math.hypot(S.vRef[0], S.vRef[1]);
     S.run = clamp((vr - S_.WALK) / (S_.RUN - S_.WALK), 0, 1);
-    S.crouch += clamp((cmd.crouch || 0) - S.crouch, -h * 2.5, h * 2.5);
+    // (no running crouched: the crouch gives way to the stride as speed builds)
+    S.crouch += clamp((cmd.crouch || 0) * (1 - clamp((Math.hypot(v[0], v[2]) - 1.2) / 1.5, 0, 1)) - S.crouch, -h * 2.5, h * 2.5);
     // ---- body yaw: toward the motion when moving, else toward `face` / the aim
     let face = cmd.face;
     // (the hips follow the body's actual travel, with a little lead from the command: facing the command while the
@@ -332,7 +334,7 @@ export function createStrider(opt = {}) {
     const T0 = Math.max(S_.T_MIN + 0.04, (S_.T_WALK + (S_.T_RUN - S_.T_WALK) * Math.sqrt(S.run)) / (1 + 1.3 * Math.abs(slope)));
 
     // ---- height: pelvis target over the terrain, limited by what the stance leg(s) can reach
-    let pelvis = gC + S_.PELVIS_H - S_.CROUCH * S.crouch - 0.12 * S.run - (0.25 + 0.3 * S.run) * Math.abs(slope) - 0.12 * S.stumble;
+    let pelvis = gC + S_.PELVIS_H - S_.CROUCH * S.crouch - 0.2 * S.run - (0.25 + 0.3 * S.run) * Math.abs(slope) - 0.12 * S.stumble;
     // a leg that is glitching sags; a wrecked gyro makes it crouch to keep the CoM low
     if (!gyroOk) pelvis -= 0.15;
     for (const f of S.feet) if (f.stance) { pelvis = Math.min(pelvis, maxPelvisFor(f, c[0], c[2]) - 0.02); if (f.glitch > 0) pelvis -= 0.22 * Math.min(1, f.glitch * 5); }
@@ -448,9 +450,9 @@ export function createStrider(opt = {}) {
         // (on a grade the hip also climbs / drops away from the stance foot as the body moves on)
         const dyT = dyS + vyT * tau, dmaxS = Math.sqrt(Math.max(0.01, LEG * LEG - dyT * dyT)) * 0.98;
         const shx = cTx - blx * s * S_.HIP_HALF - _k[0], shz = cTz - blz * s * S_.HIP_HALF - _k[2], overS = Math.max(0, Math.hypot(shx, shz) - dmaxS);
-        const overT = Math.max(0, Math.hypot(tx - sw.x, tz - sw.z) - 7.5 * tau - 0.03);
-        const cost = over + overS + overT * 0.5;
-        if (!best || cost < best.cost - 1e-4) best = { tau, tx, tz, cost, over, hx, hz };
+        const overT = Math.max(0, Math.hypot(tx - sw.x, tz - sw.z) - S_.SWING_V * tau - 0.03);
+        const cost = over + overS + overT * 0.25;
+        if (!best || cost < best.cost - 1e-4) best = { tau, tx, tz, cost, over, overS, hx, hz };
         if (cost < 1e-4) break;
       }
       let { tau, tx, tz, cost } = best;
@@ -458,10 +460,12 @@ export function createStrider(opt = {}) {
       if (best.over > 0) { const dx = tx - best.hx, dz = tz - best.hz, dl = Math.hypot(dx, dz), r = reach * 1.08; if (dl > r) { tx = best.hx + dx * r / dl; tz = best.hz + dz * r / dl; } }
       if (!locked) { S.T = S.t + tau; sw.sw.tx = tx; sw.sw.tz = tz; if (tau < 0.07) sw.sw.lock = true; }
       // stumble: how much the step had to be hurried (or could not be made)
-      const need = tauNom > 0.08 && !locked ? clamp((1 - tau / tauNom) * 1.4 + cost * 4, 0, 1) : clamp(cost * 4, 0, 1);
-      S.stumble = Math.max(S.stumble - h * 1.2, need);
+      const need = tauNom > 0.08 && !locked ? clamp((1 - tau / tauNom) * 1.0 + cost * 4, 0, 1) : clamp(cost * 4, 0, 1);
+      S.stumble = Math.max(S.stumble - h * 1.2, need); if (need > 0.6) S.dbgNeed = { r: tau / tauNom, over: best.over, overS: best.overS, cost, t: S.t, run: S.run, sl: S.slope };
       // unrecoverable: no reachable foothold catches the DCM even with the quickest step
-      if (cost > 0.4 && (locked || tau <= tauMin + 1e-6)) { S.dbgFall = { cost, over: best.over, tau, t: S.t }; startFall(-1, 'balance'); return; }
+      // (only reach and stance-leg length can make it fall: a slow swing just lands the foot a little late)
+      const fatal = best.over + best.overS;
+      if (fatal > 0.4 && (locked || tau <= tauMin + 1e-6)) { S.dbgFall = { cost, fatal, over: best.over, tau, t: S.t }; startFall(-1, 'balance'); return; }
       if (S.hp.stomach <= 0 && S.glitch.gyro > 0.2 && need > 0.6) { startFall(-1, 'gyro'); return; }
       swingFoot(sw, h, env);
       if (S.t >= S.T - 1e-6) touchdown(sw, env, vr, T0);
@@ -493,7 +497,7 @@ export function createStrider(opt = {}) {
   // A machine's step: no arc-and-float, a precise lift / traverse / set-down.
   function swingFoot(f, h, env) {
     const w = f.sw, tau = Math.max(h, S.T - S.t + h);
-    const dx = w.tx - f.x, dz = w.tz - f.z, d = Math.hypot(dx, dz), k = Math.min(1, h / tau), vmax = 7.5 * h;
+    const dx = w.tx - f.x, dz = w.tz - f.z, d = Math.hypot(dx, dz), k = Math.min(1, h / tau), vmax = S_.SWING_V * h;
     const mv = Math.min(d * k * (tau > 0.12 ? 1.25 : 1), vmax), kk = d > 1e-6 ? Math.min(1, mv / d) : 1;
     const x = f.x + dx * kk, z = f.z + dz * kk;
     const clr = (S_.CLEAR_WALK + (S_.CLEAR_RUN - S_.CLEAR_WALK) * S.run) * (1 - 0.4 * S.stumble);

@@ -116,10 +116,10 @@ export function createHoverTank(opt = {}) {
     // cmd: { lift 0..1, fwd -1..1, strafe -1..1, yaw -1..1 (rate), turret: world yaw, gun: pitch }  or the autopilot:
     //      { vx, vz (desired world velocity), face (yaw) }
     step(dt, cmd, env) {
-      T.events.length = 0;
+      // (events raised between steps - hits - come out with this step's)
       const n = Math.max(1, Math.ceil(dt / (1 / 240))), h = dt / n;
       for (let i = 0; i < n; i++) sub(h, cmd, env);
-      return T.events;
+      const out = T.events.slice(); T.events.length = 0; return out;
     },
   };
   const _a = [0, 0, 0], _b = [0, 0, 0], _c = [0, 0, 0];

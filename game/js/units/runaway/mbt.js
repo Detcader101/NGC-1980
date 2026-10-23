@@ -118,7 +118,7 @@ export function createMBT(P, opt = {}) {
     kill() { if (!T.alive) return; T.alive = false; T.events.push({ e: 'destroyed' }); },
     // cmd: { throttle, steer } direct, or { vx, vz } autopilot (+ face); turret: world yaw; gun: pitch
     step(dt, cmd, env) {
-      T.events.length = 0; T.reload = Math.max(0, T.reload - dt);
+      T.reload = Math.max(0, T.reload - dt);
       let thr = cmd.throttle ?? 0, st = cmd.steer ?? 0;
       if (!T.alive) { thr = 0; st = 0; }
       else if (cmd.vx !== undefined) {
@@ -134,7 +134,7 @@ export function createMBT(P, opt = {}) {
       drive.step(dt, { throttle: thr, steer: st, brake: cmd.brake || 0 }, env);
       if (cmd.turret !== undefined) T.turretYaw += clamp(angDiff(T.turretYaw, angDiff(drive.yaw, cmd.turret)), -P.traverse * dt, P.traverse * dt);
       if (cmd.gun !== undefined) T.gunPitch += clamp(clamp(cmd.gun - drive.pitch, P.elev[0], P.elev[1]) - T.gunPitch, -0.3 * dt, 0.3 * dt);
-      return T.events;
+      const out = T.events.slice(); T.events.length = 0; return out;
     },
   };
   return T;
