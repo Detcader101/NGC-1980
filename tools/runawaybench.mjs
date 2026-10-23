@@ -164,7 +164,7 @@ if (sec('C')) {
 // ------------------------------------------------------------------------------------------------ D. squad AI
 function fight(name, secs, seed = 1980, each) {
   const B = setupScenario(createSandbox({ seed }), name); const t0 = performance.now();
-  for (let t = 0; t < secs; t += 1 / 30) { B.step(1 / 30); if (each) each(B, t); }
+  for (let t = 0; t < secs; t += 1 / 30) { const ev = B.step(1 / 30); if (each) each(B, t, ev); }
   B.wall = performance.now() - t0; return B;
 }
 if (sec('D')) {
@@ -237,19 +237,22 @@ if (sec('D')) {
   }
   // combined arms: armour keeps away from AT gunners; the fight costs
   {
-    let wall = 0, simS = 0, stats = null;
+    let wall = 0, simS = 0, stats = null; const armour = [];
     const res = SEEDS.map(seed => {
-      let minAT = 1e9, contact = false;
-      const B = fight('combined', 150, seed, (B) => {
+      let minAT = 1e9, contact = false; const vshots = {}, vstart = {}, vmoved = {};
+      const B = fight('combined', 150, seed, (B, t, ev) => {
+        for (const e of ev) if (e.e === 'shot' && e.side === 2) { const m = B.units.find(u => u.id === e.src); if (m && m.vehicle) vshots[m.kind] = (vshots[m.kind] || 0) + 1; }
+        for (const m of B.units) if (m.vehicle) { vstart[m.kind] = vstart[m.kind] || [m.x, m.z]; vmoved[m.kind] = Math.max(vmoved[m.kind] || 0, Math.hypot(m.x - vstart[m.kind][0], m.z - vstart[m.kind][1])); }
         if (B.ai.squads.some(S => S.state !== 'advance')) contact = true;
         if (!contact) return;
         // (a gunner counts once it has been known for 8 s - the time to react and back off)
-        for (const d of B.dummies) if (d.alive && d.kind === 'at' && B.ai.squads.some(S => S.know.has(d.id))) { d.knownT = d.knownT ?? B.time; if (B.time - d.knownT > 8) for (const m of B.units) if (m.vehicle && m.alive) minAT = Math.min(minAT, Math.hypot(m.x - d.x, m.z - d.z)); }
+        for (const d of B.dummies) if (d.alive && d.kind === 'at' && B.ai.squads.some(S => S.know.has(d.id))) { d.knownT = d.knownT ?? B.time; if (B.time - d.knownT > 8) for (const m of B.units) if (m.vehicle && m.alive && m.ai.state === 'stand-off (AT)' && B.ai.time - m.ai.stateT0 > 6) minAT = Math.min(minAT, Math.hypot(m.x - d.x, m.z - d.z)); }
       });
-      wall += B.wall; simS += 150; stats = B.stats;
+      wall += B.wall; simS += 150; stats = B.stats; armour.push({ vshots, vmoved });
       return minAT;
     });
-    check('combined arms: tanks back out of known AT range', res.filter(d => d > 150).length >= 2 && res.every(d => d > 120), res.map(d => d > 1e8 ? 'n/a' : d.toFixed(0) + ' m').join(', '), '> 150 m in 2/3, never < 120 (LAW range 200)');
+    check('combined arms: the armour manoeuvres (> 40 m, every seed) and gets shots in (2/3 seeds)', armour.every(a => ['hovertank', 'mbt'].every(k => (a.vmoved[k] || 0) > 40)) && armour.filter(a => ['hovertank', 'mbt'].every(k => (a.vshots[k] || 0) > 0)).length >= 2, armour.map(a => ['hovertank', 'mbt'].map(k => `${k} ${(a.vmoved[k] || 0).toFixed(0)} m / ${a.vshots[k] || 0} rds`).join(' ')).join(' | '));
+    check('combined arms: standing off, armour keeps out of known AT range', res.filter(d => d > 140).length >= 2 && res.every(d => d > 110), res.map(d => d > 1e8 ? 'n/a' : d.toFixed(0) + ' m').join(', '), '> 140 m in 2/3, never < 110 (game: M1 front 150, RW-7 with PD 180)');
     // (13 agents share this machine: the budget allows for a loaded CPU)
     const ms = wall / simS;
     check('cost: a combined-arms fight (10 machines, 10 dummies)', ms < 40, `${ms.toFixed(1)} ms of CPU per simulated second (${(ms / 30).toFixed(2)} ms per 30 Hz step)`, '< 40 ms/s');
