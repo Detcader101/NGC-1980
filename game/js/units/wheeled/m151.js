@@ -87,8 +87,8 @@ export const M151 = {
   ],
   // seats: driver on the left (US), eye ~1.35 m above the ground (INFERRED from the 0.62 m seat)
   seats: [
-    { id: 'driver', role: 'driver', at: [-0.36, 0.62, 0.02], eye: [-0.36, 1.36, -0.02] },
-    { id: 'front', role: 'passenger', at: [0.36, 0.62, 0.02], eye: [0.36, 1.36, -0.02] },
+    { id: 'driver', role: 'driver', at: [-0.36, 0.62, 0.05], eye: [-0.36, 1.38, 0.14] },
+    { id: 'front', role: 'passenger', at: [0.36, 0.62, 0.05], eye: [0.36, 1.38, 0.14] },
     { id: 'gunner', role: 'gunner', at: [0, 0.62, 0.95], eye: [0, 1.62, 0.55], gun: 'M60' },
     { id: 'rearL', role: 'passenger', at: [-0.36, 0.62, 0.95], eye: [-0.36, 1.34, 0.92] },
   ],

@@ -64,9 +64,9 @@ export const LANDROVER = car({
   hull: boxHull(4.45, 1.68, 0.30, 1.9, 0.1, [[-0.8, 2.0, -0.6], [0.8, 2.0, -0.6], [-0.8, 1.9, 2.1], [0.8, 1.9, 2.1]]),
   collide: spheres(4.45, 1.68, 0.75, 0.1, 0.32),
   seats: [
-    { id: 'driver', role: 'driver', at: [0.42, 0.85, -0.45], eye: [0.42, 1.62, -0.5] },   // right-hand drive (UK/ Commonwealth export)
-    { id: 'front', role: 'passenger', at: [-0.42, 0.85, -0.45], eye: [-0.42, 1.62, -0.5] },
-    { id: 'mid', role: 'passenger', at: [0, 0.85, -0.45], eye: [0, 1.62, -0.5] },
+    { id: 'driver', role: 'driver', at: [0.42, 0.84, -0.18], eye: [0.42, 1.60, -0.04] },   // right-hand drive (UK / Commonwealth export)
+    { id: 'front', role: 'passenger', at: [-0.42, 0.84, -0.18], eye: [-0.42, 1.60, -0.04] },
+    { id: 'mid', role: 'passenger', at: [0, 0.84, -0.18], eye: [0, 1.60, -0.04] },
   ],
   components: { engine: [-0.45, 0.5, -2.1, 0.45, 1.15, -1.2], radiator: [-0.45, 0.5, -2.3, 0.45, 1.1, -2.15], fuelTank: [0.1, 0.45, -0.7, 0.8, 0.75, -0.1], battery: [-0.7, 0.8, -1.6, -0.4, 1.0, -1.2], gearbox: [-0.25, 0.4, -1.2, 0.25, 0.75, -0.5] },
   published: { vmax: 105 / 3.6, ford: 0.5, turnCircle: 47 * FT },
@@ -105,8 +105,8 @@ export const HILUX = car({
   hull: boxHull(4.40, 1.65, 0.28, 1.0, 0.05, [[-0.7, 1.72, -0.75], [0.7, 1.72, -0.75], [-0.7, 1.72, 0.25], [0.7, 1.72, 0.25]]),
   collide: spheres(4.40, 1.65, 0.7, 0.05, 0.3),
   seats: [
-    { id: 'driver', role: 'driver', at: [0.38, 0.78, -0.25], eye: [0.38, 1.48, -0.3] },   // RHD (Japan / UK / Commonwealth)
-    { id: 'front', role: 'passenger', at: [-0.38, 0.78, -0.25], eye: [-0.38, 1.48, -0.3] },
+    { id: 'driver', role: 'driver', at: [0.38, 0.78, -0.12], eye: [0.38, 1.50, 0.0] },   // RHD (Japan / UK / Commonwealth)
+    { id: 'front', role: 'passenger', at: [-0.38, 0.78, -0.12], eye: [-0.38, 1.50, 0.0] },
     { id: 'bed', role: 'passenger', at: [0, 0.95, 1.2], eye: [0, 1.7, 1.2] },
   ],
   components: { engine: [-0.45, 0.45, -2.1, 0.45, 1.0, -1.25], radiator: [-0.45, 0.45, -2.25, 0.45, 1.0, -2.1], fuelTank: [-0.6, 0.35, 0.9, 0.2, 0.6, 1.6], battery: [0.4, 0.75, -1.7, 0.7, 0.95, -1.4], gearbox: [-0.25, 0.35, -1.25, 0.25, 0.7, -0.6] },
@@ -148,8 +148,8 @@ export const BEETLE = car({
   hull: boxHull(4.06, 1.55, 0.22, 0.9, 0.05, [[-0.6, 1.5, -0.1], [0.6, 1.5, -0.1], [-0.55, 1.42, 0.65], [0.55, 1.42, 0.65]]),
   collide: spheres(4.06, 1.55, 0.6, 0.05, 0.3),
   seats: [
-    { id: 'driver', role: 'driver', at: [-0.33, 0.55, -0.05], eye: [-0.33, 1.18, -0.1] },
-    { id: 'front', role: 'passenger', at: [0.33, 0.55, -0.05], eye: [0.33, 1.18, -0.1] },
+    { id: 'driver', role: 'driver', at: [-0.33, 0.58, -0.05], eye: [-0.33, 1.18, 0.08] },
+    { id: 'front', role: 'passenger', at: [0.33, 0.58, -0.05], eye: [0.33, 1.18, 0.08] },
     { id: 'rearL', role: 'passenger', at: [-0.33, 0.55, 0.75], eye: [-0.33, 1.16, 0.75] },
     { id: 'rearR', role: 'passenger', at: [0.33, 0.55, 0.75], eye: [0.33, 1.16, 0.75] },
   ],
@@ -190,8 +190,8 @@ export const LADA = car({
   hull: boxHull(4.07, 1.61, 0.22, 0.85, 0.0, [[-0.6, 1.42, -0.2], [0.6, 1.42, -0.2], [-0.6, 1.4, 0.6], [0.6, 1.4, 0.6]]),
   collide: spheres(4.07, 1.61, 0.58, 0.0, 0.3),
   seats: [
-    { id: 'driver', role: 'driver', at: [-0.35, 0.52, -0.05], eye: [-0.35, 1.13, -0.1] },
-    { id: 'front', role: 'passenger', at: [0.35, 0.52, -0.05], eye: [0.35, 1.13, -0.1] },
+    { id: 'driver', role: 'driver', at: [-0.35, 0.52, -0.02], eye: [-0.35, 1.13, 0.08] },
+    { id: 'front', role: 'passenger', at: [0.35, 0.52, -0.02], eye: [0.35, 1.13, 0.08] },
     { id: 'rearL', role: 'passenger', at: [-0.35, 0.52, 0.8], eye: [-0.35, 1.12, 0.8] },
     { id: 'rearR', role: 'passenger', at: [0.35, 0.52, 0.8], eye: [0.35, 1.12, 0.8] },
   ],

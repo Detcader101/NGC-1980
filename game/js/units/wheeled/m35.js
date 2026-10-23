@@ -87,8 +87,8 @@ export const M35 = {
     [-0.95, 1.6, 0.4, 0.5], [0.95, 1.6, 0.4, 0.5], [-0.95, 1.6, 1.8, 0.5], [0.95, 1.6, 1.8, 0.5], [-0.95, 1.6, 3.3, 0.5], [0.95, 1.6, 3.3, 0.5],
   ],
   seats: [
-    { id: 'driver', role: 'driver', at: [-0.48, 1.42, -1.02], eye: [-0.48, 2.22, -1.08] },
-    { id: 'front', role: 'passenger', at: [0.48, 1.42, -1.02], eye: [0.48, 2.22, -1.08] },
+    { id: 'driver', role: 'driver', at: [-0.48, 1.42, -0.74], eye: [-0.48, 2.25, -0.80] },
+    { id: 'front', role: 'passenger', at: [0.48, 1.42, -0.74], eye: [0.48, 2.25, -0.80] },
     { id: 'ring', role: 'gunner', at: [0.48, 1.85, -0.95], eye: [0.48, 2.62, -0.95], gun: 'M2', variant: 'ring' },
     // troop seats: 2 x 8 on the folding side benches, facing in (TM: 16 troops + driver/assistant)
     ...Array.from({ length: 16 }, (_, i) => { const s = i < 8 ? -1 : 1, k = i % 8; return { id: 'troop' + i, role: 'troop', at: [s * 0.92, 1.72, 0.2 + k * 0.44], eye: [s * 0.82, 2.48, 0.2 + k * 0.44], face: -s }; }),
