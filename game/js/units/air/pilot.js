@@ -31,17 +31,17 @@ const _d = new THREE.Vector3(), _t = new THREE.Vector3(), _r = new THREE.Vector3
 // Weapons are game-level: a kind, the range band and nose cone it is fired in, how long the projectile lives.
 export const PILOTS = {
   TOMCAT: {
-    climbEAS: 150, capEAS: 128, corner: 170, fightTop: 200, gmax: 6.5, gfight: 7.2, aoaApp: 10.5 * D2R, capAlt: 240, capR: 520,
+    climbEAS: 150, capEAS: 128, corner: 170, fightTop: 200, vmin: 82, gmax: 6.5, gfight: 6.8, tactic: 'energy', aoaApp: 10.5 * D2R, capAlt: 240, capR: 520,
     radar: 1700, leash: 1900, bingo: 1900, patAlt: 110, gs: 3.5 * D2R, landX: -4.5, catX: 4.5, abFight: true,
     weapons: [   // game ranges for a 1.3 km map: long shots with the AIM-54 / AIM-7, the AIM-9 close, then the gun
       { w: 'aim54', rmin: 650, rmax: 1500, cone: 0.35, life: 10, v0: 25, every: 4 },
       { w: 'aim7', rmin: 380, rmax: 1000, cone: 0.3, life: 8, v0: 20, every: 3 },
       { w: 'aim9', rmin: 130, rmax: 520, cone: 0.45, life: 6, v0: 15, every: 2 },
     ],
-    gun: { range: 330, cone: 0.035, speed: 520, burst: 0.45, rest: 0.5 },
+    gun: { range: 380, cone: 0.06, speed: 520, burst: 0.45, rest: 0.5 },   // snapshots too: a burst whenever the pipper sweeps through
   },
   SHRIKE: {
-    climbEAS: 160, capEAS: 140, corner: 165, fightTop: 210, gmax: 9, gfight: 11, capAlt: 200, capR: 450,
+    climbEAS: 160, capEAS: 140, corner: 165, fightTop: 210, vmin: 78, gmax: 9, gfight: 10, capAlt: 200, capR: 450,
     radar: 1400, leash: 2200, bingo: 0, abFight: false, aggressive: true,
     weapons: [{ w: 'aam', rmin: 150, rmax: 600, cone: 0.4, life: 6, v0: 15, every: 4 }],
     gun: { range: 280, cone: 0.04, speed: 480, burst: 0.4, rest: 0.8 },
@@ -59,7 +59,7 @@ export function createPilot(A, o = {}) {
     trapped: null, recovered: false, waveoffs: 0, bolters: 0, kills: 0, why: '', tdT: -1, terrainPull: 0, minAGL: 1e9,
   };
   const say = (msg) => { PL.log.push({ t: +PL.t.toFixed(1), msg }); if (PL.log.length > 60) PL.log.shift(); if (o.onSay) o.onSay(msg, PL); };
-  const set = (s, why) => { if (PL.state !== s) { PL.state = s; PL.stateT = 0; PL.wp = 0; say(`${s.toUpperCase()}${why ? '  ' + why : ''}`); } };
+  const set = (s, why) => { if (PL.state !== s) { PL.state = s; PL.stateT = 0; PL.wp = 0; A.brakeCmd = 0; say(`${s.toUpperCase()}${why ? '  ' + why : ''}`); } };
   PL.set = set;
   A.landX = T.landX ?? DK.LAND_X; A.catX = T.catX ?? DK.CAT_X;
 
@@ -106,7 +106,7 @@ export function createPilot(A, o = {}) {
     return d;
   }
   // fly toward direction d with terrain protection; speed target in EAS
-  function fly(d, dt, env, { speed, ab = false, g = T.gmax, k = 1.6, guard = true, free = false } = {}) {
+  function fly(d, dt, env, { speed, ab = false, g = T.gmax, k = 1.6, guard = true, free = false, push = true } = {}) {
     PL.terrainPull = 0;
     if (!free) {   // outside a fight, turns are flat: at most ~60° of heading change asked for at once (no loops to reverse)
       const vh = Math.hypot(A.vel.x, A.vel.z), dh = Math.hypot(d.x, d.z);
@@ -116,8 +116,21 @@ export function createPilot(A, o = {}) {
       }
     }
     if (guard) terrainGuard(d, env);
+    // hard deck and dive recovery: below the fight floor no new dives; and if the height left is less than the
+    // pull-out from this dive needs (V^2 (1 - cos gamma) / (g (n - 1)), plus the roll-out), wings level and pull now
+    if (guard && env.terrain && !A.onGround) {
+      const agl = A.pos.y - Math.max(env.terrain(A.pos.x, A.pos.z), env.terrain(A.pos.x + A.vel.x * 2, A.pos.z + A.vel.z * 2));
+      const floor = T.hardDeck ?? 140;
+      if (PL.state === 'fight' && agl < floor && d.y < 0.05) { d.y = agl < floor * 0.6 ? 0.25 : Math.max(d.y, 0.05); d.normalize(); }
+      if (A.vel.y < -2) {
+        const V = A.tas, gam = Math.asin(clamp(-A.vel.y / V, 0, 1)), n = Math.max(2, Math.min(g, A.qbar * A.P.S * 1.1 / (A.mass * 9)));
+        const hpo = V * V * (1 - Math.cos(gam)) / (9 * (n - 1)) * 1.4 + Math.abs(A.attitude().roll) / 3 * -A.vel.y + 25;
+        if (agl < hpo) { const vh = Math.hypot(A.vel.x, A.vel.z) || 1; d.set(A.vel.x / vh * 0.7, 0.7, A.vel.z / vh * 0.7).normalize(); PL.terrainPull = 2; g = Math.max(g, T.gfight); k = 5; }
+      }
+    }
     if (PL.terrainPull) { speed = Math.max(speed ?? 0, T.climbEAS); ab = true; if (PL.terrainPull >= 1) g = Math.max(g, Math.min(T.gfight, 5)); }   // climbing for the terrain: power up
-    FD.steer(d, dt, { gmax: g, k: PL.terrainPull ? Math.max(k, 2) : k, eas: speed ?? null, ab });
+    FD.steer(d, dt, { gmax: g, k: PL.terrainPull ? Math.max(k, 2) : k, eas: speed ?? null, ab, push });
+    if (A.nz > g + 0.2) FD.ctl.pitch = Math.max(-1, FD.ctl.pitch - (A.nz - g - 0.2) * 0.5);   // feel the g: ease off past the limit
     const agl = A.pos.y - (env.terrain ? env.terrain(A.pos.x, A.pos.z) : 0); if ((PL.state === 'cap' || PL.state === 'fight' || PL.state === 'rtb' || PL.state === 'patrol') && !A.onGround) PL.minAGL = Math.min(PL.minAGL, agl);
   }
   const dirTo = (x, y, z, maxG = 0.45, out = _d) => FD.dirTo(x, y, z, out, maxG);
@@ -181,26 +194,36 @@ export function createPilot(A, o = {}) {
       }
     }
   }
+  // energy: the slower we are, the less we may point up (no zoom climbs to a stall); below vmin, nose low and unload
+  function energyLimit(d) {
+    const vmin = T.vmin ?? 80, e = clamp((A.eas - vmin) / (T.corner - vmin), 0, 1), gMax = -0.25 + 1.15 * e;
+    const gam = Math.asin(clamp(d.y, -1, 1));
+    if (gam > gMax) { const h = Math.hypot(d.x, d.z) || 1, c = Math.cos(gMax); d.set(d.x / h * c, Math.sin(gMax), d.z / h * c); }
+    return e;
+  }
   function fight(dt, env) {
     const t = PL.tgt, th = PL.threat;
-    if (th && th !== t || (th && th === t && PL.defT > 0)) {   // defensive: break into the attacker (or across a missile) at max g
-      PL.mode = 'break'; PL.defT = Math.max(PL.defT || 0, 0);
+    if (th && PL.defT > 0) {   // defensive: break into the attacker (or across a missile's path) at max g, nose a little low
+      PL.mode = 'break';
       _t.copy(th.p).sub(A.pos).normalize();
       _d.copy(_t).addScaledVector(A.vel, -_t.dot(A.vel) / A.vel.lengthSq());   // the part of the line of sight across our path
       if (_d.lengthSq() < 1e-4) _d.set(-A.vel.z, 0, A.vel.x);
-      _d.normalize(); A.forward(_f); _d.multiplyScalar(2).add(_f.normalize()).normalize(); _d.y = Math.min(_d.y, 0.15);
-      fly(_d.normalize(), dt, env, { speed: T.corner, ab: T.abFight, g: T.gfight, k: 4, free: true });
+      _d.normalize(); A.forward(_f); _d.multiplyScalar(2).add(_f.normalize()).normalize(); _d.y = clamp(_d.y, -0.2, 0.1);
+      if (th.kind !== 'aam') { const j = Math.floor(PL.t / 1.3) % 3; _d.y += j === 0 ? 0.45 : j === 1 ? -0.3 : 0; }   // guns jink: change the plane every second or so
+      energyLimit(_d.normalize());
+      fly(_d, dt, env, { speed: T.corner, ab: T.abFight, g: T.gfight, k: 4, free: true, push: false });
       return;
     }
     if (!t) return;
     _t.copy(t.p).sub(A.pos); const R = _t.length(), los = _t.divideScalar(R);
-    const V = Math.max(A.tas, 1), closure = -((t.v.x - A.vel.x) * los.x + (t.v.y - A.vel.y) * los.y + (t.v.z - A.vel.z) * los.z);
+    const closure = -((t.v.x - A.vel.x) * los.x + (t.v.y - A.vel.y) * los.y + (t.v.z - A.vel.z) * los.z);
     A.forward(_f); const ata = Math.acos(clamp(_f.dot(los), -1, 1));
-    const tv = t.v.length(), aspect = tv > 3 ? Math.acos(clamp(t.v.dot(los) / tv, -1, 1)) : 0;   // 0 = we are on its tail
     let mode;
     if (R > 900) mode = 'intercept';
-    else if (R < 260 && closure > 25 && ata > 0.6) mode = 'lag';   // about to overshoot: lag and go up (high yo-yo)
-    else if (R < T.gun?.range * 1.3 && ata < 0.5) mode = 'lead';
+    else if (A.eas < (T.vmin ?? 80) * 1.05) mode = 'extend';                   // out of energy: unload, nose low, get speed back
+    else if (T.tactic === 'energy' && (PL.bugT > 0 || (R < 650 && ata > 0.8 && PL.t - (PL.bugEnd || -99) > 6))) mode = 'bugout';   // don't turn with a better turner: run, then come back for a shot
+    else if (R < 260 && closure > 25 && ata > 0.6) mode = 'lag';             // about to overshoot: lag and go up (high yo-yo)
+    else if (R < (T.gun ? T.gun.range * 1.3 : 300) && ata < 0.5) mode = 'lead';
     else mode = 'pure';
     PL.mode = mode;
     if (mode === 'intercept') {   // collision-course lead on a far target
@@ -209,15 +232,18 @@ export function createPilot(A, o = {}) {
     } else if (mode === 'lead') {
       const tof = R / (T.gun ? T.gun.speed : 400); _a.copy(t.p).addScaledVector(t.v, tof * 1.2); _a.y += 0.5 * 9 * tof * tof;
     } else if (mode === 'lag') {
-      _a.copy(t.p).addScaledVector(t.v, -1.0); _a.y += 60;
+      _a.copy(t.p).addScaledVector(t.v, -1.0); _a.y += 40;
+    } else if (mode === 'bugout') {
+      if (!(PL.bugT > 0)) { PL.bugT = 7; say('EXTENDING'); }
+      PL.bugT -= dt; if (R > 1300 || PL.bugT <= 0) { PL.bugT = 0; PL.bugEnd = PL.t; }
+      const h = Math.hypot(los.x, los.z) || 1; _a.set(A.pos.x - los.x / h * 400, A.pos.y - 25, A.pos.z - los.z / h * 400);
+    } else if (mode === 'extend') {
+      const vh = Math.hypot(A.vel.x, A.vel.z) || 1; _a.set(A.pos.x + A.vel.x / vh * 300, A.pos.y - 60, A.pos.z + A.vel.z / vh * 300);
     } else _a.copy(t.p);
     _d.copy(_a).sub(A.pos).normalize();
-    // keep the fight off the deck: never dive into the last 70 m
-    const agl = A.pos.y - (env.terrain ? env.terrain(A.pos.x, A.pos.z) : 0);
-    if (agl < 120 && _d.y < 0) _d.y *= clamp((agl - 70) / 50, 0, 1);
+    energyLimit(_d);
     const sp = mode === 'intercept' ? T.fightTop : T.corner;
-    fly(_d.normalize(), dt, env, { speed: sp, ab: T.abFight && (A.eas < T.corner - 10 || mode === 'intercept' && R > 1200), g: mode === 'lead' ? Math.min(T.gfight, 5) : T.gfight, k: mode === 'lead' ? 2.5 : 3, free: R < 1200 });
-    void aspect; void V;
+    fly(_d, dt, env, { speed: mode === 'bugout' ? T.fightTop + 40 : sp, ab: T.abFight && (A.eas < T.corner - 10 || mode === 'bugout' || mode === 'intercept' && R > 1200), g: mode === 'lead' ? Math.min(T.gfight, 5) : mode === 'extend' ? 1 : mode === 'bugout' ? 4 : T.gfight, k: mode === 'lead' ? 2.5 : 3, free: R < 1200, push: false });
   }
 
   // ------------------------------------------------------------------ carrier recovery
@@ -238,7 +264,7 @@ export function createPilot(A, o = {}) {
       // the ship moves: aim where the waypoint will be
       _t.x += (c.vx || 0) * 8; _t.z += (c.vz || 0) * 8;
       dirTo(_t.x, _t.y, _t.z, 0.25);
-      fly(_d, dt, env, { speed: PL.wp >= 3 ? 118 : 130, g: 3 });
+      fly(_d, dt, env, { speed: PL.wp >= 3 ? 118 : 130, g: 3 }); A.brakeCmd = A.eas > 140 ? 1 : 0;
       if (Math.hypot(_t.x - A.pos.x, _t.z - A.pos.z) < 300) { if (PL.wp >= 3) set('final', 'BASE'); else PL.wp++; }
       return;
     }
@@ -298,6 +324,7 @@ export function createPilot(A, o = {}) {
     const e = want - A.eas, aerr = dirty ? A.alpha - T.aoaApp : 0;
     PL.thrI = clamp((PL.thrI ?? 0.6) + (e * 0.02 + aerr * 0.6) * dt, 0.05, 0.79);
     FD.thr = clamp(PL.thrI + e * 0.04 + aerr * 2.5, 0, 0.95); FD.setThrottle(FD.thr); PL.vapp = va;
+    A.brakeCmd = e < -12 && !dirty ? 1 : 0;   // speedbrake out when well fast on the way in
   }
   // wave-off: power up, wings level, stop the sink and climb gently on AoA (never past on-speed + 3°: a slow TF30
   // is still spooling), then up and away along the deck heading and round the pattern
@@ -339,7 +366,9 @@ export function createPilot(A, o = {}) {
       PL.thinkT = 0.25;
       if (airborne && T.radar) {
         const t = pickTarget(env); if (t !== PL.tgt) { PL.tgt = t; if (t) say(`CONTACT ${t.type || ''} ${t.p.distanceTo(A.pos).toFixed(0)} m`); }
-        const th = pickThreat(env); if (th && th !== PL.threat) { PL.defT = 2.5; say('BREAK'); } PL.threat = th;
+        const th = pickThreat(env);
+        if (th) { A.forward(_f); _t.copy(th.p).sub(A.pos); const behind = th.kind === 'aam' || (_f.dot(_t) / _t.length() < 0.5 && _t.length() < 550); if (behind) { if (PL.defT <= 0) say(th.kind === 'aam' ? 'MISSILE  BREAK' : 'BREAK'); PL.defT = Math.max(PL.defT, 1.2); } }
+        PL.threat = th;
         if ((PL.tgt || PL.threat) && PL.state !== 'climb') set('fight');
         if (!PL.tgt && !PL.threat && PL.state === 'fight') set('cap');
       }

@@ -64,14 +64,14 @@ export function createFD(A, o = {}) {
     setThrottle(t) { for (let k = 0; k < NE; k++) FD.ctl.throttle[k] = A.eng[k].stalled ? 0 : t; },   // a stalled TF30: idle that one
     // ------------------------------------------------------------------ guidance
     // fly so the velocity turns toward direction d (unit, world): lift-vector pointing. k: turn-rate gain (1/s)
-    steer(d, dt, { gmax = FD.gmax, k = 1.6, eas = null, ab = true, coord = true } = {}) {
+    steer(d, dt, { gmax = FD.gmax, k = 1.6, eas = null, ab = true, coord = true, push = true } = {}) {
       const V = Math.max(A.tas, 1); _v.copy(A.vel).divideScalar(V);
       const c = clamp(_v.dot(d), -1, 1), ang = Math.acos(c);
       _e.copy(d).addScaledVector(_v, -c);
       if (_e.lengthSq() < 1e-8) _e.copy(A.up(_u)).addScaledVector(_v, -_v.dot(_u));
       _e.normalize();
       const nAvail = Math.max(1, Math.min(gmax, A.qbar * P.S * 1.1 / (A.mass * GRAV)));   // what the wing can give now
-      const w = Math.min(ang * k, (nAvail * GRAV) / V);                                    // turn rate wanted
+      const w = Math.min(ang * k, GRAV * Math.sqrt(Math.max(0.3, nAvail * nAvail - 1)) / V);   // turn rate wanted (what is left of the g after holding up the weight)
       // specific force the lift must give: the turn plus holding up against gravity (perpendicular to the path)
       _f.copy(_e).multiplyScalar(w * V); _f.y += GRAV; _f.addScaledVector(_v, -_v.dot(_f));
       let n = _f.length() / GRAV;
@@ -79,7 +79,7 @@ export function createFD(A, o = {}) {
       _u.copy(UP).addScaledVector(_v, -_v.y); if (_u.lengthSq() < 1e-6) _u.copy(A.up(_r)); _u.normalize();
       _r.crossVectors(_v, _u).normalize();   // right of the path
       let phi = Math.atan2(_f.dot(_r), _f.dot(_u));
-      if (Math.abs(phi) > 2.1 && n < 2.2) { phi = wrap(phi + Math.PI); n = -Math.min(n, -FD.gmin); }   // push rather than roll inverted for small corrections
+      if (push && Math.abs(phi) > 2.1 && n < 2.2) { phi = wrap(phi + Math.PI); n = -Math.min(n, -FD.gmin); }   // push rather than roll inverted for small corrections
       const bankErr = Math.abs(wrap(phi - A.attitude().roll));
       if (bankErr > 0.6 && n > 1.5) n = Math.max(Math.cos(A.attitude().pitch), n * clamp(1.4 - bankErr, 0.25, 1));   // roll first, then pull
       FD.bankCmd = phi; FD.nzCmd = clamp(n, FD.gmin, gmax);

@@ -5,6 +5,18 @@ import * as THREE from 'three';
 
 const _pp = new THREE.Vector3(), _gd = new THREE.Vector3();
 export const AAM = { BOOST: 2.2, ACC: 150, VMAX: 340, COAST: 0.06, TURN: 270, LOSE: 1.4, FUSE: 7 };
+// Decoys (flares / the RUNAWAY's drone decoys), a game rule: an aircraft with decoys left drops one as a missile
+// closes inside 350 m and again inside 150 m; each one draws the missile off 45% of the time. Returns true when a
+// decoy was dropped (for the effect).
+export const DECOY = { R1: 350, R2: 150, P: 0.45 };
+export function decoyCheck(b, u, rnd = Math.random) {
+  if (!b.tgt || !u || !(u.decoys > 0)) return false;
+  const d = b.tgt.p.distanceTo(b.p), stage = d < DECOY.R2 ? 2 : d < DECOY.R1 ? 1 : 0;
+  if (stage <= (b.dc || 0)) return false;
+  b.dc = stage; u.decoys--; u.flares = (u.flares || 0) + 1;
+  if (rnd() < DECOY.P) b.tgt = null;
+  return true;
+}
 // b: { p, v, tgt: {p, v, dead, dying, gone}, age, spd }
 export function homeAAM(b, dt) {
   b.age += dt; b.spd = b.age < AAM.BOOST ? Math.min(AAM.VMAX, b.spd + AAM.ACC * dt) : b.spd * (1 - AAM.COAST * dt);
