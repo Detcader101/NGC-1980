@@ -38,10 +38,10 @@ export default async function (h) {
   await h.eval('__A.st(__A.T())'); await h.shot('m60-on-the-road-chase');
   await h.waitFor(`__A.T().driver.state !== 'driving'`, 90000);
   await h.eval('({ st: __A.st(__A.T()), drv: __A.T().driver.state })');
-  // off the road and up a hillside: the steepest climb within 70 m that rises 5+ m
-  await h.eval(`(() => { const T = __G.terrainH, o = __A.T().fm.origin(); let best = null; for (let a = 0; a < 6.28; a += 0.2) for (const r of [25, 35, 45, 60, 80]) { const x = o[0] + Math.cos(a) * r, z = o[2] + Math.sin(a) * r, dh = T(x, z) - T(o[0], o[2]); let max = 0; for (let s = 2; s < r; s += 2) { const g = (T(o[0] + Math.cos(a) * (s + 1), o[2] + Math.sin(a) * (s + 1)) - T(o[0] + Math.cos(a) * (s - 1), o[2] + Math.sin(a) * (s - 1))) / 2; max = Math.max(max, Math.abs(g)); } if (dh > 3 && max < 0.62 && T(x, z) > 2 && (!best || dh / r > best.g)) best = { x, z, g: dh / r, dh, max }; } window.__hill = best; if (best) __A.T().order([[best.x, best.z]], { speed: 3, arrive: 4 }); return best && { x: Math.round(best.x), z: Math.round(best.z), grade: +best.g.toFixed(2), steepest: +best.max.toFixed(2), rise: +best.dh.toFixed(1) }; })()`);
+  // a climb: up the home island's landing hard (1 in 5, concrete) and on up the hillside above it (grass, steeper)
+  await h.eval(`(() => { const H = __G.HARDS.find(d => d.I === __G.HOME_B.isl), a = H.at(2), b = H.at(H.u1 + 18); __A.T().spawnAt({ x: a[0], z: a[1], yaw: H.yaw }); __A.T().order([b], { speed: 4, arrive: 4 }); return { from: a.map(Math.round), to: b.map(Math.round), rise: +(__G.terrainH(b[0], b[1]) - __G.terrainH(a[0], a[1])).toFixed(1) }; })()`);
   await h.eval('(window.__y0 = __A.T().fm.origin()[1], window.__pmax = 0, window.__pt = setInterval(() => { __pmax = Math.max(__pmax, __A.T().fm.out.pitch); }, 100), 1)');
-  await h.wait(5000); await h.eval('__A.st(__A.T())'); await h.shot('m60-climbing-off-road');
+  await h.wait(5000); await h.eval('__A.st(__A.T())'); await h.shot('m60-climbing-the-hard');
   await h.waitFor(`__A.T().driver.state !== 'driving'`, 90000);
   await h.eval('({ st: __A.st(__A.T()), climbed: +(__A.T().fm.origin()[1] - __y0).toFixed(1), maxPitchDeg: +(__pmax * 57.3).toFixed(1), drv: __A.T().driver.state })');
   await h.expect("__A.T().fm.origin()[1] - __y0 > 2 && __pmax > 0.1");

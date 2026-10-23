@@ -44,7 +44,9 @@ export function createTrackDriver(V, opt = {}) {
     D.ve = clamp(D.ve + e * dt * 0.25, -0.3, 0.6);
     if (Math.abs(want) < 0.05) { inp.throttle = 0; inp.brake = Math.abs(v) > 0.3 ? 1 : 0.6; return; }
     if (Math.sign(v) && Math.sign(v) !== Math.sign(want) && Math.abs(v) > 0.4) { inp.throttle = 0; inp.brake = 1; return; }   // wrong way: stop first
-    inp.range = want < 0 ? 'R' : Math.abs(want) < 3 && fm.out.pitch > 0.15 ? LOW : FWD;
+    // low range on a grade at low speed (a converter stalls in high on 1 in 5 from a standstill), and after a jam
+    if (want >= 0) D.low = D.low ? !(fm.out.pitch < 0.04 && Math.abs(fm.out.fwd) > 5) : (fm.out.pitch > 0.08 && Math.abs(fm.out.fwd) < 4) || D.tries > 0;
+    inp.range = want < 0 ? 'R' : D.low ? LOW : FWD;
     inp.throttle = clamp(0.35 + 0.18 * e + D.ve, 0, 1); inp.brake = e < -1.2 ? clamp(-e * 0.25, 0, 0.8) : 0;
   }
   D.update = (dt) => {
@@ -52,6 +54,7 @@ export function createTrackDriver(V, opt = {}) {
     if (D.state === 'idle' || D.state === 'arrived' || D.state === 'stuck') {
       speedTo(0, dt); if (Math.abs(fm.out.fwd) < 0.4) { inp.park = true; inp.range = 'N'; inp.brake = 0; } return inp;
     }
+    if (!fm.eng.running) { inp.throttle = 0; inp.brake = 1; inp.park = true; inp.range = 'N'; return inp; }   // brakes on until the engine runs (a parked tank on a slope stays put)
     inp.park = false;
     const p = pos(), hd = heading(), fx = -Math.sin(hd), fz = -Math.cos(hd), v = fm.out.fwd;
     // ---- backing off a jam
@@ -111,7 +114,7 @@ export function createTrackDriver(V, opt = {}) {
     if (D.stuckT > 4) {
       D.tries++; D.stuckT = 0;
       if (D.tries > 3) { D.state = 'stuck'; return D.update(dt); }
-      D.backT = 3; D.backSteer = steer > 0 ? -0.6 : 0.6;
+      D.backT = fm.out.pitch > 0.12 ? 0 : 3; D.backSteer = steer > 0 ? -0.6 : 0.6;   // (on a climb: no backing down it, just low range and push)
     }
     return inp;
   };
