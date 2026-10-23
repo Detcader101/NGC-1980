@@ -17,9 +17,9 @@ export default async function (h) {
     await look(-0.35, -0.85, 'levers');
     await look(0.9, -0.15, 'passenger');
     await look(-1.2, -0.1, 'driverside');
-    // drive: accelerate up the road, steer a little
+    // drive: accelerate up the road, steer a little (an absolute angle: winding to full lock at 35 km/h rolls a Land Rover, as it should)
     await h.eval(`(__V.drive({ throttle: 1, steer: 0.0 }), 1)`); await h.wait(4500);
-    await h.eval(`(__V.drive({ throttle: 0.5, steer: 0.35 }), 1)`); await h.wait(500);
+    await h.eval(`(__V.drive({ throttle: 0.5, steer: 0.12, steerAbs: true }), 1)`); await h.wait(500);
     await look(0.08, -0.3, 'driving');
     await h.eval(`({ id: '${id}', kmh: __V.sim.kmh, rpm: __V.sim.eng.rpm, gear: __V.sim.gear, temp: __V.sim.eng.temp, oil: __V.sim.eng.oilP, wheelRot: __V.interior.controls.wheelG.rotation.y })`);
     await h.expect('Math.hypot(__V.sim.vel[0], __V.sim.vel[2]) > 2 && Math.abs(__V.interior.controls.wheelG.rotation.y) > 0.3');
