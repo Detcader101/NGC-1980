@@ -2,10 +2,14 @@
 // built in units/naval/ and wrapped here under their old names), capture drones, enemy transports and the island
 // buildings. Low-poly, flat-shaded, built from primitives. Local frame: +y up, the bow / nose points along -z.
 import * as THREE from 'three';
+import { buildFactionStructure } from './world/structures.js';   // WORLD: faction structures
 import { buildAlbatross } from './units/naval/albatross.js';
 import { buildKraken } from './units/naval/kraken.js';
 import { buildLeviathan, LEV } from './units/naval/leviathan.js';
 import { buildContainerShip, BOX } from './units/naval/containership.js';
+import { buildCH46Mesh } from './units/air/rotary/ch46model.js';
+import { buildMV22Mesh } from './units/air/rotary/mv22model.js';
+import { buildWaspMesh } from './units/air/rotary/waspmodel.js';
 
 const M = (c, o = {}) => new THREE.MeshPhongMaterial({ color: c, flatShading: true, shininess: 20, ...o });
 const box = (w, h, d, m, x = 0, y = 0, z = 0, parent) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); parent && parent.add(b); return b; };
@@ -54,39 +58,12 @@ export function buildBattleship() { return buildLeviathan(); }
 export const FREIGHTER = BOX;   // the autonomous container ship (units/naval/containership.js): { group, guns } + mounts, tick, localDeck
 export function buildFreighter() { return buildContainerShip(); }
 // ------------------------------------------------------------------------------------------- aircraft
-export function buildDrone() {   // player capture drone ("MANTA"): a flat quad-rotor carrying a command module
-  const g = new THREE.Group(), body = M(0x2a3f55), team = M(TEAM[1], { emissive: 0x0b3355 });
-  box(3.2, 0.7, 4.2, body, 0, 0, 0, g); box(2, 0.9, 2.2, team, 0, 0.7, 0.3, g);
-  const rotors = [];
-  for (const [x, z] of [[-2.4, -2.2], [2.4, -2.2], [-2.4, 2.2], [2.4, 2.2]]) {
-    box(2.6, 0.25, 0.3, body, x / 2, 0.1, z, g);
-    const r = new THREE.Mesh(new THREE.CircleGeometry(1.3, 14).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x223344, transparent: true, opacity: 0.45, side: THREE.DoubleSide, depthWrite: false }));
-    r.position.set(x, 0.45, z); g.add(r); rotors.push(r);
-  }
-  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.22, 6, 4), new THREE.MeshBasicMaterial({ color: 0x66ffff })); lamp.position.set(0, 1.3, 0.3); g.add(lamp);
-  for (const [x, z] of [[-1.2, 1.6], [1.2, 1.6], [-1.2, -1.6], [1.2, -1.6]]) box(0.15, 1.2, 0.15, body, x, -0.8, z, g);
-  return { group: g, rotors, lamp };
-}
-export function buildTransport() {   // enemy twin-rotor transport that lands troops to take islands
-  const g = new THREE.Group(), body = M(0x5a2a24), dark = M(0x221614);
-  box(2.6, 2.4, 9, body, 0, 0, 0, g); box(2.2, 1.6, 2, M(0xffaa66, { emissive: 0x442200 }), 0, 0.3, -4.7, g);
-  box(1.2, 1.6, 2.2, body, 0, 1.6, -3.4, g); box(1.2, 2.2, 2.2, body, 0, 1.8, 3.6, g);
-  const rotors = [];
-  for (const [y, z] of [[2.7, -3.4], [3.0, 3.6]]) {
-    const r = new THREE.Mesh(new THREE.CircleGeometry(4.2, 18).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x221111, transparent: true, opacity: 0.4, side: THREE.DoubleSide, depthWrite: false }));
-    r.position.set(0, y, z); g.add(r); rotors.push(r);
-  }
-  for (const x of [-1.1, 1.1]) for (const z of [-3, 3]) box(0.3, 0.8, 0.3, dark, x, -1.5, z, g);
-  return { group: g, rotors };
-}
-export function buildGunship(side = 2) {   // attack drone (the original saucer, with a gun pod): red for the enemy, blue escorts for us
-  const g = new THREE.Group();
-  const mat = new THREE.MeshPhongMaterial({ color: side === 1 ? 0x2a8cdd : 0xdd2222, emissive: side === 1 ? 0x08263f : 0x440808, flatShading: true });
-  g.add(new THREE.Mesh(new THREE.OctahedronGeometry(1.8).scale(1.4, 0.7, 1.4), mat));
-  g.add(new THREE.Mesh(new THREE.TorusGeometry(2.6, 0.12, 4, 20).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: side === 1 ? 0x77eeff : 0xff8844 })));
-  box(0.5, 0.5, 1.6, M(0x331111), 0, -0.9, -0.6, g);
-  return { group: g };
-}
+// NGC-1980: the capture drone, the twin-rotor transport and the saucer gunship are replaced by the rotary units
+// (game/js/units/air/rotary/): these names stay as wrappers for anything that still builds them. The blue "escort"
+// variant of the saucer is retired - the Tomcats fly escort, and a 1980 task force has no hover drones.
+export function buildDrone() { const m = buildCH46Mesh(); return { group: m.group, rotors: [], model: m }; }          // CH-46E Sea Knight
+export function buildTransport() { const m = buildMV22Mesh(); return { group: m.group, rotors: [], model: m }; }      // RUNAWAY MV-22B
+export function buildGunship() { const m = buildWaspMesh(); return { group: m.group, model: m }; }                    // RW-3 WASP
 
 // ------------------------------------------------------------------------------------------- escort fighter
 // Cold War carrier fighter (Tomcat-like): twin tails, wide flat body between the engine nacelles, tandem canopy, and
@@ -184,37 +161,14 @@ export function buildGun(side, s = 1) {
   g.userData = { yaw, pitch, team };
   return g;
 }
+// island buildings: hq / factory (depot) / fuel / radar are the faction structures in world/structures.js (1980 and
+// RUNAWAY styles, damage states, ownership changes); the shipyard stays here
 export function buildStructure(kind, side) {
-  const g = new THREE.Group(), wall = M(0x8a8a84), dark = M(0x3a3c3e), roof = M(0x5c5e60);
+  if (kind !== 'shipyard') return buildFactionStructure(kind, side);
+  const g = new THREE.Group(), dark = M(0x3a3c3e);
   const team = M(TEAM[side], { emissive: 0x111111 });
   const ud = { team, kind, h: 6, r: 5 };
-  if (kind === 'hq') {
-    box(10, 6, 9, wall, 0, 3, 0, g); box(10.4, 0.6, 9.4, team, 0, 6.2, 0, g); box(4, 5, 4, wall, -2, 9, 0, g); box(4.4, 1.2, 4.4, M(0x223344, { emissive: 0x0a1a2a }), -2, 10.5, 0, g);
-    cyl(0.12, 0.12, 8, dark, 3, 10, 2, g, 4);
-    const flag = box(2.4, 1.4, 0.08, team, 4.2, 13.2, 2, g); ud.flag = flag;
-    ud.h = 12; ud.r = 7;
-  } else if (kind === 'factory') {
-    box(14, 7, 10, wall, 0, 3.5, 0, g);
-    for (let i = 0; i < 4; i++) { const r = box(3.5, 1.6, 10.2, roof, -5.25 + i * 3.5, 7.6, 0, g); r.rotation.z = 0.35; }
-    box(14.2, 0.8, 0.3, team, 0, 5.5, -5.1, g);
-    ud.stacks = [cyl(0.9, 1.2, 9, dark, 4.5, 11, 3, g, 8), cyl(0.9, 1.2, 11, dark, 2, 12, 3, g, 8)];
-    ud.stackTops = [[4.5, 15.6, 3], [2, 17.6, 3]];
-    ud.h = 9; ud.r = 8;
-  } else if (kind === 'fuel') {   // derrick + storage tanks
-    const t = new THREE.Group(); g.add(t);
-    for (const [x, z] of [[-1.4, -1.4], [1.4, -1.4], [-1.4, 1.4], [1.4, 1.4]]) { const l = box(0.25, 12, 0.25, dark, x * 0.6, 6, z * 0.6, t); l.rotation.set(z * -0.06, 0, x * 0.06); }
-    for (let y = 2; y < 12; y += 2.5) box(2.2 - y * 0.08, 0.15, 2.2 - y * 0.08, dark, 0, y, 0, t);
-    const beam = box(6, 0.4, 0.4, M(0xd0a020), 0, 12.3, 0, g); ud.beam = beam;
-    for (const [x, z] of [[-6, 4], [6, 4], [0, 7.5]]) { cyl(2.4, 2.4, 4.4, M(0xd8d8d0), x, 2.2, z, g, 14); cyl(2.45, 2.45, 0.5, team, x, 3.4, z, g, 14); }
-    ud.h = 8; ud.r = 8;
-  } else if (kind === 'radar') {
-    for (const [x, z] of [[-1.5, -1.5], [1.5, -1.5], [-1.5, 1.5], [1.5, 1.5]]) box(0.3, 10, 0.3, dark, x, 5, z, g);
-    box(4, 2.5, 4, wall, 0, 10.6, 0, g); box(4.2, 0.4, 4.2, team, 0, 12, 0, g);
-    const dish = new THREE.Group(); dish.position.y = 13; g.add(dish);
-    const d = new THREE.Mesh(new THREE.SphereGeometry(3.4, 14, 6, 0, Math.PI * 2, 0, 1.0), M(0xdfe4ea, { side: THREE.DoubleSide })); d.rotation.x = -Math.PI / 2 + 0.25; d.position.z = 1.2; dish.add(d);
-    cyl(0.12, 0.12, 2.6, dark, 0, 0.3, -0.2, dish, 4).rotation.x = Math.PI / 2;
-    ud.dish = dish; ud.h = 12; ud.r = 5;
-  } else if (kind === 'shipyard') {   // the enemy slipway where the battleship is built
+  if (kind === 'shipyard') {   // the enemy slipway where the battleship is built
     for (const x of [-11, 11]) { box(1.2, 14, 1.2, dark, x, 7, -14, g); box(1.2, 14, 1.2, dark, x, 7, 14, g); box(1.2, 1.2, 30, dark, x, 14, 0, g); }
     box(23, 1.2, 1.2, M(0xd0a020), 0, 14, -6, g); box(23, 1.2, 1.2, M(0xd0a020), 0, 14, 8, g);
     box(18, 1, 34, M(0x55524c), 0, 0.5, 0, g); box(4, 4, 4, team, -9, 2, 16, g);

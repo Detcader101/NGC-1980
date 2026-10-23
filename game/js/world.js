@@ -6,6 +6,7 @@
 //         fuel      - oil derricks: fuel for the fleet's stores
 //         factory   - materiel for drones, guns and helicopters (enemy factories also build the battleship)
 //         radar     - long-range sight through the fog of war
+import { roadBed } from './world/net.js';   // the lived-in world (roads, towns, farms): flattened into islandH below
 export const BOUND = 640, SEA_FLOOR = -14;
 export const ISLANDS = [
   { name: 'HOME ISLAND', kind: 'hq', owner: 1, x: -420, z: 400, r: 130, tier: 0 },
@@ -71,7 +72,10 @@ export function wildH(x, z) {
 }
 // forests: where the forest noise says so, on gentle slopes between the beach and the tree line (~360 m)
 export function forestAt(x, z, h, slopeY) { return h > 3.5 && h < 360 - 60 * noise(x / 300, z / 300) && slopeY > 0.82 && fbm(x / 1700 + 5.5, z / 1700 + 9.2, 3) > -0.08; }
-export const islandH = (x, z) => Math.max(Math.abs(x), Math.abs(z)) < BOUND + 300 ? mix(SEA_FLOOR, hills(x, z) * 0.7 + 9, landMask(x, z)) : wildH(x, z);
+// rawH: the natural ground. islandH: the ground people built on - road beds, town squares, quays and farmyards are
+// flattened in by world/net.js (the lived-in world), so physics, the terrain bake and the road ribbons all agree.
+export const rawH = (x, z) => Math.max(Math.abs(x), Math.abs(z)) < BOUND + 300 ? mix(SEA_FLOOR, hills(x, z) * 0.7 + 9, landMask(x, z)) : wildH(x, z);
+export const islandH = (x, z) => roadBed(x, z, rawH(x, z));
 export const islandAt = (x, z, pad = 0) => ISLANDS.find(I => Math.hypot(x - I.x, z - I.z) < I.r + pad);
 
 // the same, as GLSL (constants baked in: the islands never move)

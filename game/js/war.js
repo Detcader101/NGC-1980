@@ -9,11 +9,15 @@
 // enemy carrier or take its HQ island (IRONHOLD) to win.
 import * as THREE from 'three';
 import { addLiftFans, FAN_POS } from './ships.js';
+import { structAngle } from './world/net.js';   // WORLD: the HQ / production slots are seeded per island (the villages keep clear of them)
 import { createDefence } from './units/defence/brain.js';   // NGC-1980 DEFENCE: AA unit models + engagement logic
+import { createRotary } from './units/air/rotary/rotary.js';   // NGC-1980: CH-46 + Marines, MV-22, RW-3 WASP (physical AI rotorcraft)
 import { buildCarrier, buildBattleship, buildFreighter, buildDrone, buildTransport, buildGunship, buildTomcat, buildGun, buildStructure, buildRubble, CARRIER, BSHIP, FREIGHTER, TEAM } from './ships.js';
 // NAVAL: ship motion in a seaway (heave / pitch / roll by sea state and speed) and the naval effects
 import { SHIPS as SHIP_MOTION, makeSea, createShipMotion, shipPointY, shipPointVY } from './units/naval/seamotion.js';
 import { createNavalFx } from './units/naval/navalfx.js';
+import { createAirWar } from './units/air/airwar.js';             // AIR: sim-flown Tomcats, SHRIKE / REAPER / SHAHED (ngc/airfw)
+import { homeAAM, decoyCheck } from './units/air/gameproj.js';     // AIR: the shared game-level missile homing and decoy rule
 
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -58,6 +62,7 @@ export function createWar(ctx) {
     const y = placeAt(x, z); mesh.position.set(x, y, z); mesh.rotation.y = kind === 'aa' ? 0 : yaw; islandGroup.add(mesh);
     const ud = mesh.userData, hp = { hq: 30, factory: 26, fuel: 22, radar: 16, shipyard: 40, aa: 7 }[kind];
     const s = { kind, I, side, x, y, z, hp, max: hp, mesh, dead: false, r: kind === 'aa' ? 2.8 : ud.r, h: kind === 'aa' ? 2 : ud.h * 0.5, cd: rnd(1, 3), rebuild: 0 };
+    ud.attach?.({ fx, s });   // WORLD: faction structures (world/structures.js) smoke and scorch through fx
     if (kind === 'aa') defence.attach(s);   // DEFENCE hook: unit state, hit size, parked on the slope
     if (kind === 'factory') s.chimneys = ud.stackTops.map(([sx, sy, sz]) => { _v.set(sx, sy, sz).applyEuler(mesh.rotation).add(mesh.position); return fx.chimney(_v.x, _v.y, _v.z, 1); });
     I.structs.push(s); return s;
@@ -81,13 +86,13 @@ export function createWar(ctx) {
       I.structs = []; I.cap = null; I.owner = I.owner0 ?? I.owner; I.owner0 = I.owner; I.seen = I.owner === 1 ? I.owner : -1; I.lastHit = -99;
       const p = I.pad;
       if (I.cave) {   // cave islands: HQ (+ a derrick on fortresses) beside the pad
-        addStruct(I, 'hq', p.x - 17, p.z + 9, I.owner, Math.PI);
-        if (I.kind === 'fortress') addStruct(I, 'fuel', p.x + 19, p.z + 6, I.owner, 0);
+        addStruct(I, 'hq', p.x - 17, p.z + 9, I.owner, Math.atan2(17, -9));   // WORLD: fronts face the pad
+        if (I.kind === 'fortress') addStruct(I, 'fuel', p.x + 19, p.z + 6, I.owner, Math.atan2(-19, -6));
         if (I.name === 'IRONHOLD') { const [x, z, a] = coastPoint(I, [0, 0]); I.yard = addStruct(I, 'shipyard', x, z, 2, -a + Math.PI / 2); }
       } else {
-        const a0 = rnd(6.283);
-        addStruct(I, 'hq', p.x + Math.cos(a0) * 17, p.z + Math.sin(a0) * 17, I.owner, -a0);
-        addStruct(I, I.kind, p.x + Math.cos(a0 + Math.PI) * 18, p.z + Math.sin(a0 + Math.PI) * 18, I.owner, -a0);
+        const a0 = structAngle(I);   // WORLD: was random; seeded so the island's village can be laid out round it
+        addStruct(I, 'hq', p.x + Math.cos(a0) * 17, p.z + Math.sin(a0) * 17, I.owner, Math.atan2(-Math.cos(a0), -Math.sin(a0)));   // WORLD: fronts face the pad
+        addStruct(I, I.kind, p.x + Math.cos(a0 + Math.PI) * 18, p.z + Math.sin(a0 + Math.PI) * 18, I.owner, Math.atan2(Math.cos(a0), Math.sin(a0)));
       }
       const guns = I.owner === 0 ? 0 : I.name === 'IRONHOLD' ? 4 : I.kind === 'hq' ? 2 : I.owner === 2 ? 2 : 1;
       for (let k = 0; k < guns; k++) { const s = buildAA(I, I.owner); if (s) { s.building = 0; s.mesh.scale.setScalar(1); } }
@@ -96,6 +101,7 @@ export function createWar(ctx) {
   }
   function recolor(s) {
     const c = TEAM[s.side]; s.mesh.traverse(o => { if (o.material && o.material === s.mesh.userData.team) o.material.color.setHex(c); });
+    s.mesh.userData.setSide?.(s.side);   // WORLD: 1980 / RUNAWAY style, flags, growth
   }
   W.setOwner = (I, side, how) => {
     const was = I.owner; if (was === side) return;
@@ -123,7 +129,8 @@ export function createWar(ctx) {
     fx.explode(s.x, s.y + s.h, s.z, big, { fire: s.kind === 'aa' ? 25 : 90, debris: Math.round(big * 5), color: 0x5a5650, crater: 2.4 });
     if (s.kind === 'fuel') { fx.explode(s.x + 5, s.y + 3, s.z + 4, 2.4, { fire: 120 }); setTimeout(() => fx.explode(s.x - 5, s.y + 3, s.z + 4, 2.8, { fire: 140 }), 350); }
     boomAt(s.x, s.y, s.z, Math.min(1.4, big * 0.4));
-    s.mesh.visible = false; s.rubble = buildRubble(s.r * 0.9); s.rubble.position.set(s.x, s.y, s.z); islandGroup.add(s.rubble);
+    if (s.mesh.userData.setState) s.mesh.userData.setState('destroyed');   // WORLD: the structure shows its own ruin
+    else { s.mesh.visible = false; s.rubble = buildRubble(s.r * 0.9); s.rubble.position.set(s.x, s.y, s.z); islandGroup.add(s.rubble); }
     if (s.chimneys) for (const c of s.chimneys) c.off = true;
     if (s.kind !== 'aa') s.rebuild = 60;
     if (s.kind === 'shipyard') { W.E.bship = Math.max(0, W.E.bship - 30); feed('SHIPYARD DESTROYED  -  BATTLESHIP SET BACK', 'good'); }
@@ -132,6 +139,7 @@ export function createWar(ctx) {
   }
   function restoreStruct(s) {
     s.dead = false; s.hp = s.max; s.mesh.visible = true; if (s.rubble) { islandGroup.remove(s.rubble); s.rubble = null; }
+    s.mesh.userData.setState?.('intact');   // WORLD
     if (s.chimneys) for (const c of s.chimneys) c.off = false;
     recolor(s);
   }
@@ -364,7 +372,11 @@ export function createWar(ctx) {
   }
 
   // ------------------------------------------------------------------------------------- aircraft
+  // NGC-1980 hook: the rotary module flies 'drone' (CH-46), 'transport' (MV-22) and 'gunship' (RW-3 WASP) physically
+  const ROT = createRotary({ W, scene, fx, sfx, terrainH, isWater, feed, addScore: ctx.addScore, shoot, blast, boomAt, hear, ear });
+  W.rotary = ROT;
   function makeAir(type, side, x, y, z, extra = {}) {
+    { const ru = ROT.make(type, side, x, y, z, extra); if (ru) { W.units.push(ru); return ru; } }   // NGC-1980 hook
     const m = type === 'drone' ? buildDrone() : type === 'transport' ? buildTransport() : type === 'escort' ? buildTomcat(side) : buildGunship(side);
     const hp = { drone: 5, transport: 7, gunship: 3, escort: 4 }[type];
     const u = { type, side, p: new THREE.Vector3(x, y, z), v: new THREE.Vector3(), yaw: 0, hp, hpMax: hp, mesh: m.group, parts: m, r: type === 'transport' ? 4.5 : type === 'escort' ? 4 : 3.2, cd: rnd(1, 2.5), ph: rnd(6.28), state: 'go', ...extra };
@@ -379,9 +391,9 @@ export function createWar(ctx) {
     if (W.P.mat < COST.drone) return 'NOT ENOUGH MATERIEL';
     if (I.owner === 1) return `${I.name} IS ALREADY OURS`;
     if (I.cave) return 'CAVE ISLANDS: STEAL THE POD FROM THE CAVE';
-    if (W.units.filter(u => u.type === 'drone' && !u.dead).length >= 3) return 'THREE DRONES ALREADY OUT';
+    if (W.units.filter(u => u.type === 'drone' && !u.dead).length >= 3) return 'THREE SEA KNIGHTS ALREADY OUT';
     W.P.mat -= COST.drone; const [x, y, z] = launchPoint(1); makeAir('drone', 1, x, y, z, { target: I });
-    sfx.dock(); return `CAPTURE DRONE LAUNCHED  -  ${I.name}`;
+    sfx.dock(); return `SEA KNIGHT LAUNCHED  -  13 MARINES FOR ${I.name}`;
   };
   W.orderAA = I => {
     if (I.owner !== 1) return 'GUNS CAN ONLY GO ON OUR ISLANDS';
@@ -399,6 +411,7 @@ export function createWar(ctx) {
   }
   const cruise = (x, z, alt) => Math.max(terrainH(x, z), 0, W.deckY(x, z)) + alt;
   function updateAir(u, dt, pl) {
+    if (u.rot) { ROT.update(u, dt, pl, W.peace); return; }   // NGC-1980 hook: rotary units fly themselves (dying too)
     u.ph += dt;
     if (u.dying) {
       u.v.y -= 15 * dt; u.p.addScaledVector(u.v, dt); u.mesh.rotation.y += dt * 8; u.mesh.rotation.z += dt * 2;
@@ -410,7 +423,7 @@ export function createWar(ctx) {
       }
       return;
     }
-    if (u.type === 'escort') { updateEscort(u, dt, pl); jetVisuals(u, dt); return; }
+    if (u.sim || u.drone) { W.air.update(u, dt, pl); return; }   // AIR: real flight models flown by the AI pilot (units/air/airwar.js)
     if (u.type === 'gunship') updateGunship(u, dt, pl);
     else updateLander(u, dt);
     if (u.parts.rotors) for (const r of u.parts.rotors) r.rotation.y += dt * 30;
@@ -447,7 +460,7 @@ export function createWar(ctx) {
       if (u.target && u.target !== 'player' && (u.target.dead || u.target.gone || (u.target.side !== undefined && u.target.side !== 1))) u.target = null;
       if (!u.target) {
         let best = null, bd = 160;
-        for (const o of W.units) if (o.side === 1 && !o.dead && !o.dying && (o.type === 'drone' || o.type === 'escort') && o.p.distanceTo(u.p) < bd) { best = o; bd = o.p.distanceTo(u.p); }
+        for (const o of W.units) if (o.side === 1 && !o.dead && !o.dying && (o.type === 'drone' || o.type === 'escort' || o.type === 'squad') && o.p.distanceTo(u.p) < bd) { best = o; bd = o.p.distanceTo(u.p); }
         if (best) u.target = best; else if (u.raid) u.target = u.raid.dead || u.raid.gone || u.raid.side !== 1 ? (u.raid = null) : u.raid;
       }
     }
@@ -472,80 +485,8 @@ export function createWar(ctx) {
       flyTo(u, hx, cruise(u.p.x, u.p.z, 26 + Math.sin(u.ph) * 4), hz, 12, dt);
     }
   }
-  // our escort fighters (Tomcats): real jets - they can't hover, so they fly top cover in a wide orbit over the
-  // helicopter and make gun runs on enemy aircraft near it: lead pursuit, a burst when the nose is on, overshoot,
-  // extend and come round again. Turn rate is limited, wings sweep back with speed and forward in hard turns.
-  function jetFly(u, tx, ty, tz, spd, dt) {
-    const want = Math.atan2(-(tx - u.p.x), -(tz - u.p.z));
-    const w = clamp(angDiff(u.yaw, want) * 1.8, -0.95, 0.95);
-    u.yaw += w * dt; u.turn = w;
-    u.speed += (spd - u.speed) * (1 - Math.exp(-0.7 * dt));
-    u.bank += (clamp(Math.atan(w * u.speed / 9.8), -1.35, 1.35) - u.bank) * (1 - Math.exp(-4 * dt));
-    let floor = 0; for (let k = 0; k <= 3; k++) floor = Math.max(floor, cruise(u.p.x + fwdX(u.yaw) * k * 30, u.p.z + fwdZ(u.yaw) * k * 30, 16));
-    const vy = clamp((Math.max(ty, floor) - u.p.y) * 0.7, -16, 18);
-    u.v.set(fwdX(u.yaw) * u.speed, vy, fwdZ(u.yaw) * u.speed); u.p.addScaledVector(u.v, dt);
-    u.pitch += (Math.atan2(vy, u.speed) - u.pitch) * (1 - Math.exp(-5 * dt));
-  }
-  function updateEscort(u, dt, pl) {
-    const anchor = pl.alive && !pl.inCave ? pl.pos : (W.carrier && W.carrier.sinking === undefined ? W.carrier.p : null);
-    u.retarget = (u.retarget || 0) - dt;
-    if (u.retarget <= 0) {
-      u.retarget = 0.8; let bd = 260, best = null;
-      if (anchor) for (const o of W.units) if (o.side === 2 && o.p && !o.dims && !o.dead && !o.dying) { const d = o.p.distanceTo(anchor); if (d < bd) { bd = d; best = o; } }
-      if (best !== u.target) { u.target = best; u.extendT = 0; }
-    }
-    if (u.target && (u.target.dead || u.target.dying)) u.target = null;
-    u.cd -= dt; u.extendT = (u.extendT || 0) - dt;
-    if (u.target) {
-      const t = u.target, d = t.p.distanceTo(u.p), tt = d / 130;
-      const ax = t.p.x + t.v.x * tt, ay = t.p.y + t.v.y * tt, az = t.p.z + t.v.z * tt;
-      if (u.extendT > 0) jetFly(u, u.p.x + fwdX(u.yaw) * 200, t.p.y + 25, u.p.z + fwdZ(u.yaw) * 200, 62, dt);   // overshot: extend, then come round
-      else {
-        jetFly(u, ax, ay + 1, az, 58, dt);
-        if (d < 38) u.extendT = 2.2;
-      }
-      // guns: a burst while the nose is on the lead point
-      const cp = Math.cos(u.pitch), fx_ = fwdX(u.yaw) * cp, fy = Math.sin(u.pitch), fz = fwdZ(u.yaw) * cp;
-      const dx = ax - u.p.x, dy = ay - u.p.y, dz = az - u.p.z, dl = Math.hypot(dx, dy, dz) || 1;
-      if (u.cd <= 0 && d < 260 && d > 25 && (fx_ * dx + fy * dy + fz * dz) / dl > 0.985) {
-        u.cd = 0.07; const sp = 135;
-        shoot('b', 1, u.p.x + fx_ * 4, u.p.y + fy * 4, u.p.z + fz * 4, (dx / dl + rnd(-0.012, 0.012)) * sp + u.v.x * 0.3, (dy / dl + rnd(-0.012, 0.012)) * sp, (dz / dl + rnd(-0.012, 0.012)) * sp + u.v.z * 0.3, 2.2);
-        if (hear(u.p.x, u.p.y, u.p.z, 300) > 0 && Math.random() < 0.4) sfx.shot();
-      }
-    } else if (anchor) {   // top cover: a wide orbit over the helicopter, spaced round the circle
-      const c = Math.atan2(u.p.z - anchor.z, u.p.x - anchor.x) + 0.55, R = 120 + u.slot * 25;
-      jetFly(u, anchor.x + Math.cos(c) * R, Math.max(anchor.y, 0) + 40 + u.slot * 8, anchor.z + Math.sin(c) * R, 46, dt);
-    } else jetFly(u, u.p.x + fwdX(u.yaw + 0.5) * 100, 60, u.p.z + fwdZ(u.yaw + 0.5) * 100, 46, dt);
-  }
-  function jetVisuals(u, dt) {
-    const m = u.mesh, P = u.parts;
-    m.position.copy(u.p); m.rotation.set(u.pitch, u.yaw, u.bank, 'YXZ');
-    const sweep = clamp(0.3 + (u.speed - 32) / 30 * 0.85 - Math.abs(u.turn || 0) * 0.35, 0.3, 1.15);
-    u.sweep = (u.sweep ?? sweep) + (sweep - (u.sweep ?? sweep)) * (1 - Math.exp(-1.5 * dt));
-    P.wings[0].rotation.y = -u.sweep; P.wings[1].rotation.y = u.sweep;
-    m.updateMatrixWorld();
-    const burner = u.target && u.speed > 50;
-    for (const n of P.nozzles) {
-      _w.copy(n).applyMatrix4(m.matrixWorld);
-      fx.add.spawn(_w.x, _w.y, _w.z, -u.v.x * 0.1, 0, -u.v.z * 0.1, burner ? 0.16 : 0.08, burner ? 1.3 : 0.6, 0.2, 1, burner ? .55 : .7, burner ? .2 : .4, burner ? 0.95 : 0.5);
-    }
-    if (Math.abs(u.bank) > 0.9 && u.speed > 45) for (const t of P.tips) { _w.copy(t).applyMatrix4(m.matrixWorld); fx.mix.spawn(_w.x, _w.y, _w.z, 0, 0, 0, 0.7, 0.25, 0.9, .95, .97, 1, 0.45, 0, 1); }   // wingtip vapour in hard turns
-    if (u.hp < u.hpMax * 0.5 && Math.random() < 0.4) fx.trail(u.p.x, u.p.y, u.p.z, 0.9);
-    // flyby roar when one passes close to the camera
-    u.roarT = (u.roarT || 0) - dt;
-    if (u.roarT <= 0) { const k = hear(u.p.x, u.p.y, u.p.z, 70); if (k > 0) { sfx.noiseBurst?.(600, 80, 1.6, 0.22 * k); u.roarT = 4; } }
-  }
-  W.sendEscort = () => {
-    const n = W.units.filter(u => u.type === 'escort' && !u.dead && !u.dying).length;
-    if (n >= 3) return 'THREE ESCORTS ALREADY UP';
-    if (W.P.mat < COST.escort) return 'NOT ENOUGH MATERIEL';
-    W.P.mat -= COST.escort; const [x, y, z] = launchPoint(1); const u = makeAir('escort', 1, x, y + 2, z); u.slot = n;
-    // off the catapult along the carrier's heading, with a puff of steam
-    const c = W.carrier && W.carrier.sinking === undefined ? W.carrier : null;
-    Object.assign(u, { yaw: c ? c.yaw : 0, speed: 42, bank: 0, pitch: 0.15, turn: 0 }); u.v.set(fwdX(u.yaw) * 42, 0, fwdZ(u.yaw) * 42);
-    for (let i = 0; i < 12; i++) fx.mix.spawn(x + rnd(-2, 2), y - 1, z + rnd(-2, 2), rnd(-2, 2), rnd(1, 4), rnd(-2, 2), rnd(1, 2), 1, 4, .95, .95, .95, 0.5, -0.5, 1.5, 0.5);
-    sfx.noiseBurst?.(900, 120, 1.2, 0.25); return 'TOMCAT LAUNCHED  -  TOP COVER INBOUND';
-  };
+  // our escort fighters: F-14A Tomcats on a real flight model, catapulted and trapped by the AI (units/air/airwar.js)
+  W.sendEscort = I => W.air.sendEscort(I);
   W.spawnGunship = (side, near, raid) => {
     const [x, y, z] = near || launchPoint(2), u = makeAir('gunship', 2, x + rnd(-6, 6), y + 6, z + rnd(-6, 6));
     u.id = rnd(6.28); u.home = [x, z]; u.raid = raid || null; u.target = raid || null; return u;
@@ -572,19 +513,8 @@ export function createWar(ctx) {
   // small target (a soldier) between frames; the closest point is left in _cpt (where it hit, for body-part damage)
   const _cpt = new THREE.Vector3();
   function segD2(a, b, p) { const sx = b.x - a.x, sy = b.y - a.y, sz = b.z - a.z, L2 = sx * sx + sy * sy + sz * sz || 1e-9; const k = clamp(((p.x - a.x) * sx + (p.y - a.y) * sy + (p.z - a.z) * sz) / L2, 0, 1); _cpt.set(a.x + sx * k, a.y + sy * k, a.z + sz * k); return _cpt.distanceToSquared(p); }
-  // missile guidance: lead pursuit onto the target with a turn-rate limit (~30 g), a 2.2 s motor, proximity fuse
-  function guide(b, dt) {
-    b.age += dt; b.spd = b.age < 2.2 ? Math.min(340, b.spd + 150 * dt) : b.spd * (1 - 0.06 * dt);
-    const t = b.tgt;
-    if (t && !t.dead && !t.dying && !t.gone) {
-      const d = t.p.distanceTo(b.p), tgo = d / Math.max(60, b.spd - t.v.dot(_gd.copy(t.p).sub(b.p).normalize()));
-      _gd.copy(t.p).addScaledVector(t.v, Math.min(3, tgo)).sub(b.p).normalize();
-      const cur = _pp.copy(b.v).normalize(), ang = Math.acos(Math.min(1, cur.dot(_gd))), maxT = 270 / Math.max(50, b.spd) * dt;
-      if (ang > 1e-4) cur.lerp(_gd, Math.min(1, maxT / ang)).normalize();
-      b.v.copy(cur).multiplyScalar(b.spd);
-      if (ang > 1.4 && d < 120) b.tgt = null;   // overshot: the seeker loses it
-    } else b.v.setLength(b.spd);
-  }
+  // missile homing: lead onto the target with a turn-rate limit (~30 g), a 2.2 s motor, proximity fuse (gameproj.js)
+  function guide(b, dt) { homeAAM(b, dt); }
   // everything that can be hit, of the side opposite to `side`
   function* targets(side) {
     for (const u of W.units) if (u.side !== side && !u.dead && !u.dying && !u.gone) yield u;
@@ -607,16 +537,18 @@ export function createWar(ctx) {
     return null;
   }
   function damage(t, dmg, side) {
+    if (t.player) { if (side === 2) ctx.hurtPlayer(Math.min(0.6, 0.06 * dmg), dmg >= 9 ? 'MISSILE' : 'HIT'); return; }   // AIR: the player as an air target
     if (t.ship) {   // a ship's gun mount
       t.hp -= dmg; if (t.hp <= 0 && !t.dead) { t.dead = true; t.mesh.getWorldPosition(_w); fx.explode(_w.x, _w.y + 1, _w.z, 1.4, { debris: 5 }); t.mesh.visible = false; t.rebuild = 45; boomAt(_w.x, _w.y, _w.z, 0.5); if (t.ship.side === 2) { ctx.addScore(300); feed(`${t.ship.type === 'carrier' ? 'KRAKEN' : 'BATTLESHIP'} GUN DESTROYED`, 'good'); } }
       t.ship.hp -= dmg * 0.25; checkShip(t.ship); return;
     }
     if (t.dims) { t.hp -= dmg; t.lastHit = W.time; checkShip(t); return; }
     if (t.p) {   // aircraft
-      t.hp -= dmg; if (t.hp <= 0 && !t.dying) { t.dying = true; t.v.y = 3; fx.explode(t.p.x, t.p.y, t.p.z, 0.9, { debris: 3, color: t.side === 1 ? 0x2a3f55 : 0x992222 }); boomAt(t.p.x, t.p.y, t.p.z, 0.5); if (t.side === 2) ctx.addScore(t.type === 'transport' ? 400 : 150); if (t.type === 'transport') { feed('ENEMY TRANSPORT SHOT DOWN', 'good'); if (t.target) t.target.lostT = W.time; } if (t.type === 'drone') feed('CAPTURE DRONE LOST', 'bad'); }
+      t.hp -= dmg; if (t.hp <= 0 && !t.dying) { t.dying = true; t.v.y = 3; fx.explode(t.p.x, t.p.y, t.p.z, 0.9, { debris: 3, color: t.side === 1 ? 0x2a3f55 : 0x992222 }); boomAt(t.p.x, t.p.y, t.p.z, 0.5); if (t.side === 2) ctx.addScore(t.type === 'transport' ? 400 : 150); if (t.type === 'transport') { feed('ENEMY TRANSPORT SHOT DOWN', 'good'); if (t.target) t.target.lostT = W.time; } if (t.type === 'drone') feed('SEA KNIGHT DOWN', 'bad'); }
       return;
     }
-    t.hp -= dmg; t.I.lastHit = W.time; if (t.hp <= 0) killStruct(t);
+    t.hp -= dmg; t.I.lastHit = W.time; t.mesh.userData.onHp?.(Math.max(0, t.hp / t.max));   // WORLD: damaged state
+    if (t.hp <= 0) killStruct(t);
   }
   function checkShip(u) {
     if (u.hp > 0 || u.sinking !== undefined) return;
@@ -646,7 +578,7 @@ export function createWar(ctx) {
     for (let i = W.proj.length - 1; i >= 0; i--) {
       const b = W.proj[i]; b.life -= dt;
       const grav = b.kind === 'bomb' || b.kind === 'shell' || b.kind === 'jb' ? 9 : b.kind === 'rocket' ? 1.2 : b.kind === 'flak' || b.kind === 'aam' ? 0 : 2.2;
-      if (b.kind === 'aam') guide(b, dt);
+      if (b.kind === 'aam') { const tg = b.tgt; if (decoyCheck(b, tg)) fx.add.spawn(tg.p.x, tg.p.y - 1, tg.p.z, rnd(-4, 4), -3, rnd(-4, 4), 0.25, 1.6, 0.6, 1, .85, .5, 1); guide(b, dt); }   // AIR: decoys (flares)
       _pp.copy(b.p); b.v.y -= grav * dt; b.p.addScaledVector(b.v, dt); b.p.y += 0.5 * grav * dt * dt;   // exact under gravity at any frame rate (bombs land where the CCIP says)
       if (b.kind === 'aam' && b.tgt && !b.tgt.dead && !b.tgt.dying) {   // proximity fuse on the closest approach along this step (fast missile, big frames)
         const t = b.tgt, sx = b.p.x - _pp.x, sy = b.p.y - _pp.y, sz = b.p.z - _pp.z, L2 = sx * sx + sy * sy + sz * sz || 1;
@@ -657,7 +589,7 @@ export function createWar(ctx) {
       // visuals: tracers are a few short-lived sparks along the path
       if (b.kind === 'jb') fx.add.spawn(x, y, z, 0, 0, 0, 0.04, 0.8, 0.4, 1, .9, .5, 1);
       else if (b.kind === 'aam') { fx.add.spawn(x, y, z, 0, 0, 0, 0.06, 1.4, 0.6, 1, .85, .6, 1); fx.mix.spawn(x, y, z, rnd(-.3, .3), rnd(-.2, .3), rnd(-.3, .3), rnd(2, 3.5), 0.6, 2.8, .85, .85, .85, 0.6, -0.1, 1, 0.4); }
-      if (b.kind === 'b' || b.kind === 'ciws') { const own = b.side === 1; fx.add.spawn(x, y, z, 0, 0, 0, 0.05, own ? 0.9 : 1.1, 0.6, own ? .5 : 1, own ? 1 : .55, own ? 1 : .2, 1); }
+      if (b.kind === 'b' || b.kind === 'ciws') { const own = b.side === 1, k = b.col; if (k) fx.add.spawn(x, y, z, 0, 0, 0, 0.06, 1.3, 0.8, k[0], k[1], k[2], 1); else fx.add.spawn(x, y, z, 0, 0, 0, 0.05, own ? 0.9 : 1.1, 0.6, own ? .5 : 1, own ? 1 : .55, own ? 1 : .2, 1); }   // NGC-1980 hook: b.col = round colour (WASP pulses)
       else if (b.kind === 'rocket') { fx.add.spawn(x, y, z, 0, 0, 0, 0.08, 1.2, 0.5, 1, .7, .3, 1); fx.mix.spawn(x, y, z, rnd(-.4, .4), rnd(-.2, .4), rnd(-.4, .4), rnd(1.4, 2.4), 0.5, 2.4, .75, .75, .75, 0.55, -0.2, 1.2, 0.5); }
       else if (b.kind === 'shell') fx.add.spawn(x, y, z, 0, 0, 0, 0.06, 1.4, 0.8, 1, .8, .5, 1);
       else if (b.kind === 'flak') fx.add.spawn(x, y, z, 0, 0, 0, 0.04, 0.5, 0.3, 1, .9, .5, 1);
@@ -674,7 +606,8 @@ export function createWar(ctx) {
       } else if (!done) {
         if (b.kind === 'jb') {   // ~500 m/s: walk the segment travelled this frame so nothing is tunnelled through
           const n = Math.max(1, Math.ceil(_pp.distanceTo(b.p) / 2.5));
-          for (let k = 1; k <= n && !hit && !done; k++) { _js.lerpVectors(_pp, b.p, k / n); if (_js.y < Math.max(terrainH(_js.x, _js.z), 0, W.deckY(_js.x, _js.z, b.side))) { done = true; b.p.copy(_js); } else hit = hitTest(_js.x, _js.y, _js.z, b.side, 0.4); }
+          for (let k = 1; k <= n && !hit && !done; k++) { _js.lerpVectors(_pp, b.p, k / n); if (_js.y < Math.max(terrainH(_js.x, _js.z), 0, W.deckY(_js.x, _js.z, b.side))) { done = true; b.p.copy(_js); } else hit = hitTest(_js.x, _js.y, _js.z, b.side, 0.4);
+            if (!hit && b.side === 2 && pl.alive && !pl.inCave && _js.distanceToSquared(pl.pos) < (pl.hitR || 2.6) ** 2) { ctx.hurtPlayer(0.15, 'CANNON'); done = true; } }   // AIR: SHRIKE cannon vs the player
           if (hit) { done = true; b.p.copy(_js); }
         } else if (b.boom) { done = true; }
         else if (y < floor) done = true;
@@ -751,7 +684,7 @@ export function createWar(ctx) {
       for (const u of W.units) if (u.landed && u.target === I && !u.dead && !u.dying && u.side !== I.owner) {
         if (I.cave && u.side === 1) continue;
         if (I.kind === 'hq' && u.side === 2) continue;   // our HQ can't be taken by transports
-        if (!side || side === u.side) { side = u.side; rate += 1 / CAP_TIME[u.type]; who = who || u.type; }
+        if (!side || side === u.side) { side = u.side; rate += 1 / (u.capTime || CAP_TIME[u.type]); who = who || u.type; }   // squads carry their own capture time
       }
       const guarded = W.aliveAA(I) > 0;
       if (!side || guarded) { if (I.cap && (!side || guarded)) { I.cap.t = Math.max(0, I.cap.t - dt * 0.2); if (I.cap.t <= 0) I.cap = null; } if (side && guarded) I.capBlocked = W.time; continue; }
@@ -794,7 +727,7 @@ export function createWar(ctx) {
     for (const I of W.islands) {
       if (I.owner === 2 || I.kind === 'hq') continue;
       if (I.owner === 1 && W.aliveAA(I) > 0) continue;   // guarded: needs a raid first
-      if (W.units.some(u => u.type === 'transport' && u.target === I && !u.dead)) continue;
+      if (W.units.some(u => (u.type === 'transport' || (u.type === 'squad' && u.side === 2)) && u.target === I && !u.dead)) continue;   // a landing party there counts too
       if (W.time - (I.lostT ?? -1e9) < 100) continue;   // lost a transport there recently: wait for a raid to clear the way
       let danger = 0;   // our guns covering the pad
       for (const J of W.islands) for (const g of J.structs) if (g.kind === 'aa' && !g.dead && g.side === 1 && Math.hypot(g.x - I.pad.x, g.z - I.pad.z) < 160) danger++;
@@ -916,7 +849,7 @@ export function createWar(ctx) {
     return s;
   };
   W.reset = () => {
-    for (const u of W.units) scene.remove(u.mesh); W.units.length = 0; nfx.sweep(W.units);
+    for (const u of W.units) scene.remove(u.mesh); W.units.length = 0; nfx.sweep(W.units); ROT.reset();
     for (const p of W.proj) if (p.mesh) scene.remove(p.mesh); W.proj.length = 0;
     defence.reset();   // DEFENCE hook
     islandGroup.clear(); fx.emitters.length = 0;
@@ -926,9 +859,10 @@ export function createWar(ctx) {
     W.carrier = makeShip('carrier', 1, ctx.carrierStart[0], ctx.carrierStart[1], ctx.carrierStart[2]);
     W.enemyCarrier = makeShip('carrier', 2, ctx.enemyStart[0], ctx.enemyStart[1], ctx.enemyStart[2]);
     for (const I of W.islands) ctx.onOwner(I, I.owner);
+    W.air.reset();   // AIR
   };
   W.update = (dt, pl, peace) => {
-    W.time += dt; W._pl = pl;
+    W.time += dt; W._pl = pl; W.peace = peace;
     for (const u of W.units) { if (u.ext) continue; if (u.dims) sailShip(u, dt); else updateAir(u, dt, pl); }
     {   // ships keep clear of each other (a gentle shove when two hulls would overlap)
       const sh = W.units.filter(u => u.dims && u.sinking === undefined && !(u.sky && u.p.y > 12));
@@ -938,15 +872,18 @@ export function createWar(ctx) {
       }
     }
     for (let i = W.units.length - 1; i >= 0; i--) if (W.units[i].dead || W.units[i].gone) { const u = W.units[i]; if (!u.gone) scene.remove(u.mesh); W.units.splice(i, 1); if (u.dims) nfx.remove(u); }
+    ROT.tick(dt);   // NGC-1980 hook: garrisons and fallen troops after their units are gone
     updateProj(dt, pl);
     updateGuns(dt, pl, peace);
     defence.tick(dt);   // DEFENCE hook: missiles in flight, beams, the cockpit warning
     updateCapture(dt, pl);
     updateEconomy(dt);
     updateBattleship(dt); updateFreighters(dt);
-    if (!peace) { W.thinkT -= dt; if (W.thinkT <= 0) { W.thinkT = 2; think(pl); } }
+    if (!peace) { W.thinkT -= dt; if (W.thinkT <= 0) { W.thinkT = 2; think(pl); W.air.think(pl); } }   // AIR: + the enemy air arm's plans
+    W.air.frame(dt, pl);   // AIR: launch queue, drone rails, engine sounds
     // buildings animate
     for (const I of W.islands) for (const s of I.structs) {
+      s.mesh.userData.tick?.(dt, W.time);   // WORLD: faction structures animate themselves
       if (s.dead) continue; const ud = s.mesh.userData;
       if (ud.dish) ud.dish.rotation.y += dt * 1.2;
       if (ud.beam) ud.beam.rotation.z = Math.sin(W.time * 1.5 + s.x) * 0.25;
@@ -956,9 +893,10 @@ export function createWar(ctx) {
   };
   W.setVisibility = fog => {   // enemy aircraft and ships only where we can see; buildings once explored
     for (const u of W.units) if (u.side === 2) { u.mesh.visible = fog.visibleAt(u.p.x, u.p.z); if (u.mesh.visible && u.type === 'freighter' && !u.spotted) { u.spotted = true; feed('RADAR: ENEMY FREIGHTER SPOTTED  -  SINK IT TO CUT THEIR SUPPLY'); } }
-    for (const I of W.islands) { const ex = fog.exploredAt(I.x, I.z) || fog.exploredAt(I.pad.x, I.pad.z); for (const s of I.structs) { s.mesh.visible = !s.dead && ex; if (s.rubble) s.rubble.visible = ex; } if (fog.visibleAt(I.pad.x, I.pad.z)) I.seen = I.owner; }
+    for (const I of W.islands) { const ex = fog.exploredAt(I.x, I.z) || fog.exploredAt(I.pad.x, I.pad.z); for (const s of I.structs) { s.mesh.visible = (!s.dead || !!s.mesh.userData.setState) && ex; if (s.rubble) s.rubble.visible = ex; } if (fog.visibleAt(I.pad.x, I.pad.z)) I.seen = I.owner; }
   };
   W.damage = damage; W.hitTest = hitTest; W.pickExpansion = pickExpansion;
   W.makeShip = makeShip;   // NAVAL: tests and the dev tools place ships with it
+  W.air = createAirWar(W, ctx, { shoot, damage, blast, hear, boomAt, feed, CARRIER, COST_ESCORT: COST.escort });   // AIR (units/air/airwar.js)
   return W;
 }

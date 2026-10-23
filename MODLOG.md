@@ -695,3 +695,491 @@ API reference for wave 2: [docs/ngc1980/FOUNDATION.md](docs/ngc1980/FOUNDATION.m
   jettrap.mjs (now walks away from the parked Hornet to the Huey); regression results in the branch report.
 - Untested: real HOTAS / gamepad driving and walking (only keyboard in headless), pointer-lock mouse look in a real
   browser, the SKY CARRIER flying with a soldier on deck (bench only), many vehicles at once.
+## 2026-10-23 — NGC-1980 AIR (fixed wing): F-14A on a real flight model flown by an AI pilot; the RUNAWAY air arm
+Branch ngc/airfw (airframe, Tomcat FM, flight director) + ngc/airfw-2 (pilot, RUNAWAY aircraft, models, war hooks).
+- **Parametric airframe** (units/air/airframe.js): the Hornet's flight model generalised (aero table, engine schedule,
+  NDI or SAS control law, sweep / engine hooks). jetfm.js is now the Hornet's parameter set, bit-identical
+  (tools/jetfingerprint.mjs hashes every state float over 12 scenarios; jetbench 24/24).
+- **F-14A TOMCAT** (units/air/tomcatfm.js): CADC sweep 20-68° + oversweep (Heatblur table, 15°/s), TF30-P-412A (slow
+  spool, AB zones, compressor stalls at high AoA / sideslip / slams, 0.69 / 2.78 TSFC), mechanical stick + SAS (no
+  limiter). tools/tomcatbench.mjs 32/32: 1 g min 114 KEAS (~115-125), on-speed 124 KEAS (~130-135 at 51,800 lb), roll
+  145°/s at 350 KEAS, M 0.91 MIL / M 1.14 AB low level (M 1.2 Jane's), 6.5 g sustained at 343 KEAS, fuel flow 8,337 /
+  57,678 lb/h (8,500 / 58,000), cat end 187 KEAS, trap.
+- **AI pilot** (units/air/pilot.js) flies only stick, pedals and throttles through the flight director (fd.js):
+  - cat run-up and shot, climb-out (gear and flaps up on schedule), CAP orbit (lead-point guidance on a circle; turns
+    kept flat, no loops to reverse), radar contacts, intercept, dogfight: lead / pure / lag (high yo-yo) pursuit,
+    "bugout" extension (the Tomcat does not turn with a better turner), energy limit (no zooms below vmin), defensive
+    break into an attacker with guns jinks, missile break; game weapons in range bands with a gun snapshot cone;
+  - terrain look-ahead: the path is sampled out to 14 s, the climb angle raised to clear by 55 m, and if no sane climb
+    does, a clearing heading is held for a few seconds (no flip-flop along ridges); hard deck 140 m in fights, and a
+    dive-recovery check (pull-out height V^2(1-cos g)/(g(n-1)) + roll-out) that rolls level and pulls;
+  - recovery: bingo / winchester RTB; pattern (upwind, downwind, base) or straight in; final: carrot onto the extended
+    centreline + glideslope, gear / hook / flaps, speedbrake when fast; the last 700 m flown like the LSO wants: stick
+    for the 3.5° slope (vertical speed), throttle for on-speed EAS from the weight (aeroCoeffs at 10.5° AoA) trimmed on
+    AoA, bank for lineup; wave-off in close (lineup, glideslope, AoA, swinging deck), bolter (MIL on touchdown), go
+    round; trap and wire release. The 3 wire: the hook hangs 3.4 m under the CG at 7° nose up and a wire catches within
+    0.45 m of the deck, so the glideslope is aimed 20 m up the deck from the hook's touchdown point.
+- **RUNAWAY aircraft** (units/air/rwfm.js): RW-4 SHRIKE (FICTIONAL: blended delta drone, 39 kN dry, NDI 11 g, ~280°/s
+  roll, M 0.92 low level, 2 decoys, hp 2); MQ-9 REAPER on the airframe with a turboprop engineFn (671 kW TPE331,
+  eta 0.8, thrust = eta P / EAS; cruise 178 KEAS at 70%, slow flight 99 KEAS; GA-ASI: cruise ~170 kt) that orbits and
+  spots; SHAHED-style one-way drone as a point mass (bank-to-turn, lift / drag / prop thrust, rail booster; GAME
+  ~115 KEAS) with terrain-following cruise and a terminal dive.
+- **Weapons stay game level** (BIBLE rule): AIM-54 / AIM-7 / AIM-9 and the SHRIKE's missiles are all war.js 'aam'
+  projectiles (units/air/gameproj.js: the existing capped-turn-rate homing moved into a shared module, unchanged) with
+  game range bands; guns are war.js 'jb'; the SHAHED's warhead is a war.js blast. Decoys are a game rule: a missile
+  closing inside 350 m and again inside 150 m on an aircraft with decoys is drawn off 45% of the time.
+- **tools/airbench.mjs 28/28** (node): two full sorties off a fake ALBATROSS (with tower) sailing at 6 m/s and turning
+  during CAP: cat at 7 s, CAP at 20 s (r 430-490 m, 249 m), bingo at 295 s, 3 wire, 0 wave-offs, < 3.6 g, never below
+  110 m AGL outside the approach; a forced wave-off and a hook-skip bolter that both go round and trap; a 700 m ridge in
+  front of a low CAP point (cleared by 56 m); SHRIKE / REAPER / SHAHED checks; Tomcat vs SHRIKE: BVR 5 wins / 1 loss,
+  merge (AIM-9 + gun only, a 10-g drone) 3 / 3, nobody into the sea, every pursuit mode used; a Tomcat on CAP vs
+  SHAHED salvos at 70 m: 9/12 shot down, never below 80 m (dive limit: no dive steeper than one it can pull out of
+  above the 140 m hard deck; below 460 m no reversals through the vertical).
+- **Models** (house style, real size): TOMCAT (units/air/tomcatmodel.js) driven by the sim: swing wings, glove vanes,
+  slats, flaps, spoilers, differential stabs, rudders, speedbrakes, gear with launch bar, hook, canopy, two crew, TF30
+  nozzles + afterburner, AIM-54 / 7 / 9 on their stations, gull grey over white, fictional 1980 squadron VF-118 on the
+  ALBATROSS (tail code AB, modex 2xx), full-colour star-and-bar. SHRIKE, REAPER, SHAHED (units/air/rwmodel.js) with
+  RUNAWAY marks (cyan IFF strips, stencils over painted-out markings, a bolted-on sensor pod on the REAPER).
+- **In the war** (units/air/airwar.js; war.js hooks marked AIR): command 4 queues a Tomcat for the bow catapult (one at
+  a time, waits for open water ahead up to 20 s), CAP over the selected island or the ALBATROSS (main.js one-liner:
+  `war.sendEscort(selIsl)`), fights anything of the RUNAWAY's in the air, RTBs and traps (+15 materiel back); the enemy
+  launches SHRIKE pairs off the KRAKEN (answering our Tomcats, sweeps), a REAPER that finds the ALBATROSS and then SHAHED
+  salvos from its nearest island at her (or at our islands' buildings). The player is a target too (missiles, cannon).
+  Fuel runs 8x real for game-length sorties (~5 min CAP). Sounds (units/air/airsound.js, on the Sfx bus): TF30 roar with
+  AB crackle and Doppler for the three nearest jets, REAPER turboprop buzz, SHAHED moped drone.
+- **Gotchas**: ship heading vs flight heading convention (bow at -z: heading = -yaw; one sign error made every wave-off
+  turn the wrong way); FD.steer asked for all of the g as turn and none to hold the nose up in steep turns at low g
+  limits (now it keeps sqrt(n^2-1) for the turn); "push instead of rolling inverted" is wrong in a fight (option); the
+  catapult holds forever (burning all its fuel) if the lane-ahead check never clears; the dev page's carrier sat on an
+  island; the old kinematic escort code in war.js is gone.
+- **Untested**: hours of real play balance (SHRIKE / SHAHED pacing, materiel costs); the escorts with the sky carrier
+  airborne; Tomcats over the real mountains outside the zone (bench ridge only); many simultaneous sims on a slow GPU.
+- Scenes: escorts.mjs (new), airmodels.mjs, airfly.mjs (dev/air.html); jets.json and war2.json updated for real jets.
+## 2026-10-23 — NGC-1980 AIR AI rotary: CH-46E + Marines, RUNAWAY MV-22B, RW-3 WASP (branch ngc/airrot)
+Three AI rotorcraft that fly physically: a pure-JS flight model, a node bench against published data, an AI pilot that
+works the controls (stick, collective / thrust lever, pedals, nacelles - never a position), a mission brain, an
+exterior model, synthesized sound, a dev page and in-game scenes. Files: game/js/units/air/rotary/* (all new),
+game/dev/rotary.html (+ rotary-dev.js, rotary-units.js), tools/{ch46bench,mv22bench,waspbench,rotarymission,
+waspmission,rotaryperf,rotarykit,runscenes}.mjs, scenes ch46capture / mv22landing / wasp / rotarydamage / rotarydev.
+
+### Shared core
+- rb.js: 6-DOF rigid body (FRD dynamics, three-style quaternion so meshes take it as is) with gear contacts: spring /
+  damper normal force and the Huey's deadbeat friction on the effective mass, relative to moving decks (surfVel).
+- rotor.js: the Huey's rotor concepts as a reusable disc, but thrust / torque from 8-10 blade-element strips with the
+  azimuth-mean tangential speed (reproduces CT = sigma a/2 (theta0 (1/3 + mu^2/2) ...) - checked: 0.00576 vs 0.00573 in
+  the Huey's hover) so the same code is a lifting rotor AND a proprotor in high axial inflow. Glauert inflow + lag,
+  Johnson's ring curve, Cheeseman-Bennett ground effect, external inflow (rotor interference), flapback / lateral
+  flapping signed by rotation sense, disc lag behind body rates, articulated hub moment (hinge offset) or gimbal spring.
+  Non-uniform inflow factor 1.12 (INFERRED).
+- pilot.js: layered autopilot - velocity -> attitude (+ learned trim, slewed at a pilot's pace) -> cyclic PD+I,
+  vertical speed PI on the collective, yaw rate on the pedals. transportai.js: the transport mission (spool on the
+  deck, lift off a moving deck, turn onto the track in the hover, terrain-following transit, a sqrt-profile approach
+  with deceleration feed-forward and a linear close-in, glide path, steep-approach speed limit, VRS descent limit below
+  ~40 kt, slewed climb commands, vertical descent, unload, RTB to the moving deck, park).
+
+### CH-46E Sea Knight (player transport, command 1: replaces the MANTA capture drone)
+- Tandem: pitch by DIFFERENTIAL COLLECTIVE (DCP), roll by lateral cyclic, yaw by DIFFERENTIAL LATERAL CYCLIC. The brief
+  said "differential collective for yaw" - on a tandem that is pitch; yaw is differential lateral cyclic (decision).
+  LCT (both discs forward with airspeed), overlap interference in the hover (+~10% induced power, Harris), the aft rotor
+  in the front rotor's wake in forward flight (fades as the wake passes below the higher aft rotor), counter-rotating
+  (front CCW, aft CW), unstable fuselage in pitch, aft-pylon weathercock, dual SAS. 2 x T58-GE-16 with N2 governor,
+  collective anticipator, torque topping (~105%, INFERRED), a 2,800 shp transmission limit (INFERRED: the D/F drive
+  train). Gear: fixed tricycle.
+- Bench (node tools/ch46bench.mjs, 21/21; CH-46E SL ISA):
+  | item | model | published |
+  |---|---|---|
+  | max level speed, 24,300 lb, 2,800 shp | 144 kt | 144 kt (CONFIRMED) |
+  | max climb, 24,300 lb, 75 kt | 1,799 fpm | 1,715 fpm (CONFIRMED; weight / speed INFERRED) |
+  | hover ceiling OGE / IGE, 24,300 lb | 6,000 / 9,000 ft | 5,750 / 9,500 ft (CONFIRMED; weight INFERRED) |
+  | hover OGE at mission weight (22,000 lb) | 2,298 shp, pitch +3.8 deg | - |
+  | aft rotor power > front in forward flight | 60 kt: 584 / 777 shp | qualitative (Stepniewski & Keys, Harris) CONFIRMED |
+  | one engine out, 70 kt, mission weight | +815 fpm | E upgrade bought single-engine capability (INFERRED) |
+  | autorotation 80 kt | NR 102%, 2,650 fpm | rpm limits 94-113% CONFIRMED; rate UNVERIFIED |
+  | SAS off at 100 kt | pitch diverges 4.2 deg in 6 s (0.6 with SAS) | tandems need SAS (qualitative) |
+  INFERRED (tuned / estimated, stated in ch46fm.js): flat-plate drag 5.6 m2 (to 144 kt), inertias, blade chord 18.25 in
+  (UNVERIFIED), twist, Lock, hinge offset, shaft tilt 4.5 deg, LCT schedule, interference factors, transmission limit.
+  Source conflict: 83 ft 4 in rotors-turning length gives 33.3 ft shaft spacing, the "16 ft overlap" figure 34 ft (used 33.3).
+- Mission (node tools/rotarymission.mjs): lifts off the ALBATROSS at 6 m/s, lands 1.2 m from its LZ mark at 0.19 m/s,
+  unloads, lands back on the moved deck at 0.20 m/s, min 29 m AGL en route, bank <= 17 deg, torque <= 105%.
+- In the war: the LZ is chosen beside the pad (18 m out, perpendicular to the HQ / production line, tail to the pad,
+  rotor discs and fuselage clear of every building, flat ground); the ramp lowers, 13 Marines run up the cabin, down the
+  ramp and out to a perimeter round the pad, kneel facing out; the squad is its own unit ('squad': capTime 9 s like the
+  drone, hp = men alive, hits drop them one by one, it fires back at game level) and holds the pad; the Sea Knight lifts
+  off once they're clear and flies home to its deck spot (or HOME ISLAND's pad if the carrier is gone or flying), parks
+  and is struck below. Below half hp an engine quits (abort, home on one engine); killed: both engines out, the AI
+  autorotates (40% of the time the aft rotor is lost - it falls), the wreck explodes, Marines aboard are lost. Taken
+  islands keep their Marines standing guard until the island falls again.
+- Model (ch46model.js): lofted fuselage at real size, cockpit glazing, crew in the cockpit, five-a-side windows, crew
+  door with the upper half swung up, hoist, sponsons + main wheels, twin nose wheels, forward pylon, roof tunnel, aft
+  pylon with trailing fin, T58 nacelles with soot, 3-blade articulated heads (blades flap into each tip-path plane,
+  droop at rest, blur discs), red troop seats, the ramp (lowers to the ground; crew chief appears), beacons / nav /
+  landing light, 1980 USMC markings: dark green, black MARINES, full-colour star and bar, "EM 05" (HMM-261, INFERRED),
+  BuNo, nose modex.
+
+### MV-22B Osprey (RUNAWAY, replaces the enemy twin-rotor transport)
+- Tiltrotor: two 3-blade gimballed proprotors (rotor.js discs) on nacelles 0-97.5 deg (CONFIRMED), 90 deg in ~12 s
+  (CONFIRMED), cross-shafted (either engine turns both, CONFIRMED). FCS mixing by nacelle angle: helicopter =
+  longitudinal cyclic (pitch), differential collective (roll), differential longitudinal cyclic (yaw); airplane =
+  elevator, flaperons, twin rudders. Thrust lever -> collective on an axial-inflow schedule in the helicopter share,
+  -> engine power with a collective prop governor in the airplane share; 412 rpm helicopter / conversion, 333 rpm
+  airplane (CONFIRMED two-speed rotor); FCS overspeed protection. Wing halves in the rotor wash (download), H-tail,
+  twin fins, retractable gear, proprotor ground strike. Conversion corridor INFERRED from the published XV-15 / V-22
+  shape, with the floor scaled to the wing's stall speed at the present weight.
+- Bench (node tools/mv22bench.mjs, 21/21):
+  | item | model | published |
+  |---|---|---|
+  | disc loading at 47,500 lb | 20.9 lb/ft2 | 20.9 (CONFIRMED) |
+  | hover OGE at 47,500 lb | 8,787 shp (71% of 2 x 6,150), FM 0.78, download 10.7% | FM ~0.78, download ~10-12% (INFERRED) |
+  | level trims hover .. 260 kt inside the corridor | all held, max pitch 8.1 deg | - |
+  | max level speed SL, 2 x 6,150 shp | 270 kt | 275 kt (CONFIRMED) |
+  | climb, airplane mode, 154 KCAS, MCP, 52,600 lb | 2,774 fpm | 2,320-4,000 fpm (CONFIRMED; 154 KCAS AOPA) |
+  | conversion 90 -> 0 | 11.9 s | ~12 s (CONFIRMED) |
+  | rotor speed heli / airplane | 412 / 333 rpm | 412 / 333 (CONFIRMED) |
+  | one engine out at 200 kt | level, both rotors at 333 rpm | cross-shaft (CONFIRMED) |
+  CONFLICT: the published 110 kt "stall speed" can't be the wing alone (W/S 158 lb/ft2 needs CL 3.8); the model's flapped
+  wing stalls at 137 kt at 39,500 lb. INFERRED: f = 3.55 m2 (to 275 kt), inertias, linear twist -40 deg (real -47
+  nonlinear), wing CLmax 1.6 / 2.05 flapped, wash factor, tail sizes, MCP ~5,000 shp.
+- Tilt pilot (tiltpilot.js): accelerates and slows with the nacelle angle (the thumbwheel), attitude near level; the
+  helicopter loops (speed by pitch, height by thrust lever) hand over to airplane loops (speed by thrust lever, climb
+  by pitch, turn by bank, zero sideslip) only once the wing has margin (1.0-1.22 x stall speed); one set of integrators
+  in charge at a time (bumpless); decelerating from airplane mode on power first. Mission (rotarymission.mjs): from the
+  KRAKEN 6.5 km out - converts to 0 deg / 206 KIAS, back to the hover, lands 1.6 m from its LZ at 0.24 m/s, unloads,
+  back to the moving KRAKEN at 0.24 m/s, 0 s outside the corridor, power <= 97%, min AGL 32 m.
+- In the war ('transport'): off the KRAKEN's bow spot (or IRONHOLD); 12 machine troopers march out in lock-step (one
+  shared gait phase) and stand round the pad sweeping their heads together (capTime 10 s as before); if the commander's
+  target is taken first it's re-tasked to the next island; it folds on the KRAKEN when it gets home (rotor brake,
+  nacelles down, blades fold back, wing swings fore-and-aft) and is struck below. Engine hits: it presses on
+  (cross-shaft); killed: it falls and explodes with the troopers aboard.
+- Model (mv22model.js): two-tone grey, primer patches, nacelles that tilt about the wing tips with spinners and three
+  twisted blades (fold), wing on its stow ring with flaperons, H-tail + twin fins / rudders, sponsons, retracting gear,
+  rear ramp, refuelling probe; RUNAWAY refit: a sensor ball under the chin with cyan lenses, cyan IFF strips and seams,
+  machine cores where the pilots sat, crude glyphs stencilled over MARINES.
+
+### RW-3 WASP (RUNAWAY ducted-fan attack drone, replaces the saucer gunship)
+- Physics (waspfm.js, a fictional machine: physics checks, not a spec sheet): shrouded-fan momentum theory with the wake
+  held at the exit (P = T^1.5 / sqrt(4 sigma rho A); fan share 1/(2 sigma)), climb inflow, edgewise momentum drag and
+  the nose-up lip moment (Fleming 2003, Abrego & Bulaga 2002), exit vanes below the CG, fan torque split for yaw, an
+  onboard stabiliser (open loop it diverges, as ducted fans do), three feet. The AI never tilts further than full power
+  can hold 1 g.
+- Bench (waspbench.mjs 13/13): hover 156 kW = FM 0.78 against the ducted ideal, 1.5x less than an open rotor (sqrt(2
+  sigma)), lip share 55% (from the fan's pressure jump), 60% power to hover, momentum drag 1 kN at 10 m/s -> 1.8 kN at
+  20, vanes trim nose-down with speed, holds 30 m/s at 41 deg, top speed 39 m/s at 52 deg, open loop diverges, lands.
+- Mind (waspai.js): guard with mechanical sensor sweeps (yaw steps); AMBUSH - finds low ground with terrain between it
+  and a target that's closing, hovers there still, springs when it's in reach; STRAFE - runs in on an offset line,
+  fires, overflies, breaks away and comes back from a new bearing; SNIPE - hovers at standoff and slides sideways; SWARM
+  - raid groups take evenly spaced slots on a ring round the target, turning in lock-step, breaking off one at a time;
+  predictive avoidance of the target and each other. Node (waspmission.mjs 8/8): a swarm of four round a circling Huey
+  for 2 min - no losses, >= 10 m from the target, >= 9.8 m apart, 39-58 s of firing windows each; the ambusher hides 9 s
+  behind the hills and springs at 40 s.
+- In the war ('gunship', same unit-list and damage semantics, hp 3): the old targeting rules (the player within
+  170 / 260 m, our transports / squads / escorts within 160 m, raid targets, guard home), swarm slots shared by WASPs on
+  one target, some lie in ambush when the player is coming their way. WEAPON AT GAME LEVEL (orchestrator's rule): bursts
+  of three of the war's own 'b' rounds at 90 m/s with spread, drawn cyan (one-line b.col hook in war.js updateProj).
+  Shot down: fans die, it tumbles and explodes.
+- Model (waspmodel.js): a lathed ceramic shroud with cyan seams round two counter-rotating fans, stators and two stages
+  of exit vanes (animated), a faceted sensor head offset to the left with three eyes and a sweeping scanner slit, a
+  sensor fin on the right, a segmented abdomen curling under into an articulated stinger (the emitter tracks its
+  target, flashes when it fires), three legs that fold.
+- Escort decision: the blue-saucer "escort" variant of buildGunship is retired - the Tomcats (fixed-wing agent) fly
+  escort, and a 1980 task force has no hover drones. ships.js keeps buildDrone / buildTransport / buildGunship as
+  wrappers that build the CH-46 / MV-22 / WASP.
+
+### Troops (figures.js, squad.js)
+- Stand-in soldiers, deliberately simple and SWAPPABLE: FIGURES[kind](opts) -> { group, pose(state, phase) }, states
+  run / walk / stand / kneel / aim / fall / dead / seated. 1980 Marine (M1 helmet with the leaf cover, ERDL utilities,
+  M1955 flak vest, ALICE pack + canteens, M16A1; four skin tones) and RUNAWAY machine trooper (ceramic plates, cyan
+  sensor slit, seized carbine with a cyan optic). 6 meshes each with one shared vertex-colour material. The INFANTRY
+  and RW-1 work can replace them by registering in FIGURES.
+
+### Sound (rotorsound.js)
+- A voice pool per type for the nearest aircraft, distance falloff like the war's sounds, Doppler on the tones. CH-46:
+  two 13.2 Hz blade-passage pulse trains gating noise bands, a hair apart (the beating tandem whop-whop), rotor thump,
+  T58 whine. MV-22: deep 20.6 Hz proprotor thrum that turns into a propeller drone as the nacelles come down, AE1107
+  whine. WASP: two detuned fan tones that beat, a slowly wavering formant, a sub hum, a chirp when it acquires a target.
+
+### Shared-file hooks
+- war.js: import createRotary; `const ROT = createRotary(...)` + `W.rotary`; makeAir first line (ROT.make), updateAir
+  first line (ROT.update - rotary units fly themselves, dying too), W.update `W.peace = peace` and `ROT.tick(dt)`,
+  W.reset `ROT.reset()`, updateCapture uses `u.capTime || CAP_TIME[u.type]`, gunship targeting includes 'squad',
+  pickExpansion skips islands with an enemy landing party on them, sendDrone / damage feed texts (SEA KNIGHT), the
+  b.col tracer colour. ships.js: three builders replaced by wrappers + three imports. main.js: ONE line - the command
+  map legend "1: SEA KNIGHT + 13 MARINES" (the advisor's "SEND A DRONE (M, 1)" line in main.js is left for FOUNDATION).
+- External placement: if a script / test moves a rotary unit's u.p, its flight model follows (jetweapons.mjs pins a
+  gunship ahead of the jet).
+
+### Tests (2026-10-23, load average ~70 from 13 agents: headless runs at 3-15 fps)
+- node: ch46bench 21/21, mv22bench 21/21, waspbench 13/13, rotarymission 12/12, waspmission 8/8, rotaryperf (3 CH-46
+  + 2 MV-22 + 12 WASP = 0.39 ms of CPU per 60 fps frame).
+- scenes: ch46capture 4/4, mv22landing 4/4, wasp 3/3, rotarydamage 8/8, rotarydev 5/5 (all three missions + turntables),
+  smoke 5/5, war 5/5 (two earlier runs at 3 fps failed a carrier-moved-3-m-in-5-s and an 8 s heli capture check: game
+  time falls behind real time under load, before any rotary unit exists; passed on rerun), war2 6/6, jets 1/1,
+  jetweapons 7/7, ships / aisim / playwar run clean (no expects).
+- Untested: sound by ear (the graph builds; headless audio is muted); the CH-46 / Osprey launching from a pad when
+  their carrier is gone; a flying SKY CARRIER as home (falls back to the HQ pad); many simultaneous squads on one
+  island; the advisor text in main.js still says DRONE.
+
+### Gotchas
+- An inline `//` comment swallowed the rest of a line again (mv22bench) - keep comments off code lines in edits.
+- dt = 0 on a page's first update divided by zero in the gear friction (NaN everywhere): every sim's step() returns on
+  dt <= 0.
+- With the gear up the Osprey lost its AGL and water / ground detection (they came from the gear contacts): belly check.
+- Torque limiting by the needle pumped: rotor droop raises free-turbine torque. Limit on rotor power, slowly.
+- Tandem transition: a fast nose-down command = forward stick = more aft-rotor collective = 135% torque: attitude
+  commands slew at a pilot's pace.
+- The tiltrotor's hard part was the conversion, not the hover: accelerating by pitching (a helicopter habit) with the
+  nacelles already forward sank it; slowing from airplane mode by raising the nacelles at 190 kt windmilled the rotors
+  (122% rpm). Fixes: speed by nacelle angle, attitude near level, wing-load handover, slow on power first, an FCS
+  overspeed protection.
+- Ducted fans have huge momentum drag at high disc loading: the WASP needs ~40 deg of tilt for 30 m/s; it sank when the
+  pilot leant further than the thrust allowed (tilt limit from the fan model).
+- The game only draws terrain round the player (250 m): in-game scenes park the Huey near the action for screenshots.
+- The ALBATROSS's guns shred WASPs (hp 3, like the saucer) before they're in range; the wasp scene silences them to test
+  the weapon.
+## 2026-10-23 — NGC-1980 armour: M60A3 TTS and M113A2 (track sim, models, interiors, sound, test ground)
+Files (all new): game/js/units/armor/ trackfm.js (the tracked-vehicle sim, pure), m60a3.js (M60A3 parameters + the
+tank: turret, stabiliser, fire control, racks, loader, crew, electrics, fire, armour zones), m113.js (M113A2 parameters +
+the APC: ramp, trim vane, bilge pumps, M2HB, 11 seats), armorballistics.js (game-level shells and armour), tankmodel.js
+(M60A3 exterior + the shared running-gear kit), m113model.js, tankinterior.js (M60 driver / gunner / cupola, M113 driver
+/ troop compartment), armoraudio.js, testground.js (the test ground, pure: used by the bench and the dev page);
+game/dev/tank.html + tank.js; tools/tankbench.mjs; scenes tankmodel / tankinterior / tankdrive / tankm113 / tankaudio.
+No shared files touched (main.js, audio.js, war.js untouched): wave 2 plugs these in through the interface below.
+
+**The sim (trackfm.js), per 1/240 s substep** (AI vehicles can run 1/120: `createTrackSim(P, { substep: 1/120 })`):
+- 6-DOF rigid hull (CG, diagonal inertia, quaternion). Hull frame: origin on the ground at static ride height, centre of
+  the track contact; x right, y up, z AFT (forward -z, like the jet).
+- Roadwheels: massless, on preloaded torsion bars (the rebound stop is a stiff spring, so a hanging wheel touches down
+  without a force step), dampers on the stations that have shocks, bump stops. Travel = where the ground puts the wheel
+  circle, sampled at 7 points (a kerb lifts the wheel before its centre reaches it). Between adjacent wheels the bottom
+  run is two more contacts (it bears on ridges and step lips). Idler and sprocket arcs (to 155° from down) and the
+  inclined front / rear runs are rigid contacts; hull probes for high-centring, rollovers and the gun digging in.
+- Contact normal = the terrain normal; a contact that meets a wall or an edge (kink in the height field: second
+  difference > 5 cm) uses its own geometry. Soil edges crumble under a heavily loaded track (up to 0.3 m).
+- Track-ground shear: Wong's exponential law on a 2-D shear-displacement state per contact, relaxed as fresh links
+  arrive (steady state = Wong's drawbar-pull / slip curve; at standstill a stiff spring: parks on a 30 % slope with zero
+  creep). The links in contact move along the contact plane at track speed (the track conforms). Longitudinal and
+  lateral slip, skid steer and pivots all come from this one law.
+- Soils (SOILS): Bekker n, kc, kphi, cohesion, friction angle (Wong table 2.3: LLL sandy loam = grass, dry sand, WES lean
+  clay 32 % = mud, lean clay 22 % = dirt, snow) + an INFERRED bog; rubber pads on paved / rock. Sinkage from a low-passed
+  track pressure (plastic: sinks fast, recovers slowly) plus slip sinkage; compaction resistance; internal track
+  resistance R_in = W (222 + 3 V) N (Wong).
+- Drivetrain: engine, converter turbine and two sprockets as rotating bodies joined by torque-limited constraints solved
+  with sequential impulses: range clutch, converter lock-up, one proportional steer constraint (cross-drive: steer speed from the
+  input, pivot in neutral; controlled differential: steer ratio on the output, no pivot), brakes, park brake, downshift
+  inhibitor, automatic shifting (TX100). Diesel with an all-speed governor on a net torque curve, injection lag,
+  starter, stall, fuel burn incl. fan power; Trilok converter (capacity factor + torque ratio). The ground's pull on each
+  sprocket is implicit (stiff soil stays stable).
+- Water: buoyant hull columns, quadratic drag, paddle thrust from track slip through the water (and its torque back on
+  the sprockets), the M113's trim vane (bow lift), intake flooding after ~0.8 s under (stalls the engine), leaks through
+  the deck line, bilge pumps; water aboard adds mass (sinking). Events: stall, start, flooded, thrown, bellied, rollover,
+  swimming, sinking, knockdown, impact, gunDug.
+
+**INTERFACE FOR FOUNDATION (wave 2)**
+- Create: `createM60A3(opt)` / `createM113(opt)` (vehicle with crew systems) or `createTrackSim(P, opt)` (bare chassis).
+  `V.reset(x, z, yaw, env, { range, park, speed, running, cold, vane, pumps, ramp })` sits it on the ground (plane fit
+  under the track corners). `V.step(dt, env, input)` returns this frame's events. Pose for rendering: `V.fm.origin()`
+  (hull frame origin, world) + `V.fm.q` (quaternion {x,y,z,w}, three.js convention); `V.fm.pos` is the CG.
+- env (what the host provides): `height(x, z)` REQUIRED; `surface(x, z)` -> 'paved'|'rock'|'dirt'|'grass'|'sand'|'mud'|
+  'bog'|'snow' (default dirt); `water(x, z)` -> water level or -Infinity; `normal(x, z, out)` optional;
+  `obstacles(x, z, r)` -> [{ kind: 'cyl', x, z, r, top, id, breakN } | { kind: 'box', x, z, hx, hz, yaw, top, id,
+  breakN }] (things with breakN get pushed over: event 'knockdown'); `raycast(o, d, max)` -> distance (laser).
+  `makeArmorEnv({ height, seaLevel, paved, forest, obstacles, raycast })` (armorenv.js) builds this from the game's own
+  terrain: sand on the sea bed and beach band, rock on steep or high ground, mud in wet coastal hollows, grass / dirt
+  patches, paved where the host says (pads, roads, decks); water at the sea level.
+  Moving decks are not supported yet.
+- Inputs (M60A3): throttle, brake, steer (-1..1, + right), range ('R','N','L','H'), park, starter, fuelOn; trav, elev
+  (power control handle, + right / up), fire, coax, lase, dump, ammo ('M735'|'M456'|'M393'), stab, power, sight
+  ('day'|'tts'), ttsMag (3|8), ttsPolarity ('wh'|'bh'); commander: cupTrav, cupElev, fire50; extinguish.
+  (M113): the same driving inputs with ranges 'R','N','1','1-2','1-3'; mgTrav, mgElev, fire50; ramp, vane, pumps,
+  dismount / mount (seat index, 'all', 'any').
+- Shots come out as events `{ type: 'shot', weapon: 'main'|'coax'|'mg50', round, p, dir, v0, vel }`: the host flies
+  them with armorballistics `newShot` / `stepShot` (the model the computer's tables use) and reports hits with
+  `V.hit({ round, range, o, d })` (a ray in the hull frame; returns the result + events: crew wounds, component damage,
+  fire, cook-off, kill state M / F / K). Recoil is applied to the hull by the tank itself.
+- Models: `buildM60A3Mesh()` / `buildM113Mesh()` -> { group, hull, turret, cupola, ..., animate(state), setInside(bool) };
+  state from the sim: travel = fm.wheels[s][i].s, trackPos = fm.trackPos, az / el / recoil / cupAz / mgEl, hatches,
+  ramp / vane. Interiors: `buildTankInterior()` (add .group to the hull, .gunner to model.turret, .commander to
+  model.cupola) / `buildM113Interior()` (add .group to the hull, .rampIn to model.ramp, .cargoIn to the cargo hatch);
+  eyes: TANK.DRIVER_EYE, TANK.GUNNER_EYE_T, TANK.COMMANDER_EYE_T, M113_EYES. Sound: `new ArmorAudio(sfx.ctx, sfx.master)`,
+  `.update(V, 'm60'|'m113', { inside, cam })` per frame, `.mainGun()`, `.mg(weapon)`, `.loaded()`, `.impact(big, dist)`.
+  The dev page (game/dev/tank.js) is the reference host: cameras, sights, thermal view, shells, hits, sound.
+- Cost: ~1.0 ms per 1/60 s frame for an M60A3 at 240 Hz on rough ground (0.55 ms at 120 Hz), M113 0.4 ms; no
+  allocation in the substep loops.
+
+**Bench (node tools/tankbench.mjs: 72 checks, all pass, incl. 7 state-hygiene checks from a code review).** C = in a source read for this work (AFVDB, FAS, Wikipedia
+citing Foss / Jane's and Hunnicutt, armedconflicts.com), U = unverified, I = inferred, GAME = game balance.
+| item | M60A3 sim | published | M113A2 sim | published |
+|---|---|---|---|---|
+| top speed, road | 48.7 km/h | 48 (C) | 63.6 km/h | 64 (C) |
+| 0-32 km/h | 10.3 s | not found (U ~15-20) | 9.2 s | 11.0 s (FAS, C) |
+| reverse | 17.1 km/h | 16 (FAS, C) | 19.0 km/h | - |
+| road range at 30 km/h | 500 km | 450-500 (C) | 446 km | 480 (C) |
+| gradient | climbs 60 % at 3.5 km/h, fails 85 % (pad friction) | 60 % (C) | 60 % at 2.3 km/h, fails 85 % | 60 % (C) |
+| side slope | holds 30 % parked (no creep) and driving | 30 % (C) | same | 30 % (C) |
+| vertical step | 0.91 m yes, 1.2 m no | 0.91 m (C) | 0.61 m yes, 0.85 m no | 0.61 m (C) |
+| trench (crawl) | 2.59 m yes; sim limit ~3.6 m | 2.59 m (C) | 1.68 m yes; sim limit ~2.8 m | 1.68 m (C) |
+| fording | 1.2 m dry, floods at 1.6 m | 1.22 m (C) | swims | 1.02 m / swims (C) |
+| swimming | - | - | 5.5 km/h, 32 cm freeboard | 5.8 km/h (C) |
+| turning | pivots 34°/s (dirt); half T-bar at 40 km/h: ~40 m radius | pivot (C) | 8.0 m circle, no pivot | 7.9 m (C) |
+| ground pressure | 0.867 kg/cm2 | 0.852 (C) | 0.557 empty / 0.61 with troops | 0.55 (C) |
+| traverse / elevation | 16.2 s for 360°, 3.9°/s, +20/-10° | 16 s, 4°/s, +20/-10° (C) | - | - |
+| stabiliser on the move | 2.3 mrad on vs 44 off at 23 km/h | two-axis; Pk >70 % with, ~0 without (C, qualitative) | - | - |
+| soft ground | grass 44, sand 42, mud 27 km/h (sinks 24 cm), bog: bellied | - (I) | 43 / 41 / 32, bog: bellied | - (I) |
+INFERRED parameters (stated in the files): gear ratios (CD-850-6A: L 5.1, H 1.26, R 3.62, final 4.4; TX100: 4.0 / 1.75 /
+1.0, R 3.4, final 3.95), converter capacity and stall ratios, steer ratios (the M113's tuned to its 7.9 m circle),
+torsion bar rates (~1.1 Hz heave), track masses and inertias, the M113 track's internal-resistance factor, buoyancy
+columns, paddle coefficient (tuned to 5.8 km/h), the soil-to-surface mapping and the bog.
+
+**Weapons are GAME-LEVEL** (the coordinator's instruction mid-wave): headline muzzle velocities only (M735 1501, M456
+1173, M393 732, 7.62 853, .50 887 m/s), a game drag, game penetration values and game armour thicknesses per zone
+(layered: track skirts and fenders use up part of a round's value). The computer is a simple range (superelevation from
+the same flight model) + lead (tracking rate x time of flight, capped at 25 mils) solution, applied by offsetting the
+gun from the sight line (the gunner keeps the reticle on the target). Decisions: the coax is the M240 (standardised with
+the M60A3 around 1979: Wikipedia, FAS); hydraulics are fire-resistant with Halon (two shots; crew compartment automatic,
+engine manual); 63 rounds in three racks (13 ready in the bustle at 7.5 s a round, 26 in the hull at 13 s, 24 on the
+floor at 11 s; the loader slows when wounded or on the move, and the commander loads if the loader is dead); combat weight
+52,617 kg (sources conflict 51.4-52.6 t).
+
+**Models and interiors.** M60A3 at real size (lofted hull and needle-nose turret, fenders with stowage boxes, headlight
+guards, TTS housing with doors, M19 cupola with the M85, xenon searchlight, thermal-sleeved M68 with bore evacuator,
+bustle rack with bedrolls, smoke dischargers, antennas, spare track blocks, jerry cans, tow cable), MERDC Summer Verdant
+painted per face from a 3-D noise, mud low down, dust on top, stencilled bumper codes and the turret number. The
+running-gear kit (both vehicles): wheels ride trailing torsion arms with the sim's travel, shocks stretch, sprocket /
+idler / wheels spin with the track, and the links (80 on the M60, 63 on the M113, instanced) follow the real belt round
+the circles (support rollers, sag). M113: aluminium box with glacis, plywood trim vane (folds / raises), ramp with door,
+cargo hatch, cupola with M2HB, front sprocket, no support rollers. Interiors are closed rooms seen only through the
+vision devices (the exterior lofts are back faces from inside): driver (periscopes, live gauges, warning lights, T-bar,
+pedals, selector, park brake, hull rack), gunner (full-screen M35E1 day / TTS thermal sight pictures with mil reticle,
+range, round, READY, mode; E looks up into the fighting compartment: breech that recoils, power control handles that
+move, M21 panel with a live range readout and lamps, handwheels, bustle ready rack), commander (cupola with eight vision
+blocks, turns with the .50), M113 driver (four periscopes, laterals that pull, selector, gauges, bilge lamps) and troop
+compartment (two benches, eleven seated infantrymen in OG-107 and M1 helmets with M16A1s, the ramp opens to the world,
+dome lights, radio). The TTS view re-renders the scene in heat greys (hot hulks, engine decks and running gear, cool sky
+and ground) through a green-phosphor shader with scan lines, noise and WH / BH polarity.
+
+**Gotchas found on the way.**
+- The first frame's rAF timestamp can be earlier than the load-time performance.now(): dt < 0 ran the sim backwards into
+  NaN (and crept the smoothed inputs). Clamp dt >= 0 on the page and refuse dt <= 0 in sim.step.
+- Contact normals along the hull's tilted up axis gave a FREE horizontal force whenever the hull pitched (2.7 kN of thrust
+  at the M113's 1.3° nose-down trim): top speed depended on the CG position. Use the terrain normal; geometry normals
+  only at walls and edges.
+- A finite-difference normal over a step lip looks like a 51° slope (passes a steepness test) and pushes the hull back:
+  detect kinks by the second difference instead.
+- Inclined track runs with a link direction fixed in the hull dragged when pressed flat on the ground (the cos of the run
+  angle): project the link direction onto the contact plane at track speed.
+- Sinkage computed from the instantaneous load fed back through the dampers into a period-2 limit cycle (730 / 300 kN
+  alternating): low-pass the load and measure damper rates over the unsunk ground.
+- The side-slope lane had no eastern bound and raised a 4.8 m wall across the bump course; it is a bounded ridge now.
+- Steering first used a steer brake easing off against a steer clutch coming in: at half travel their torques cancelled
+  and the lower half of the T-bar did nothing. One proportional steer constraint now (squared response on the M113's
+  laterals); full steer at top speed still skids and throws tracks, so the dev page narrows the keyboard steer with
+  speed (Right Shift: no limit).
+- A cleared 2D overlay canvas was not re-composited in headless Chrome (a stale reticle in later shots): hide it instead.
+- The gun muzzle probe had the hull's stiffness: a tank that hit a bank at 47 km/h was thrown back at 28 km/h off its
+  own gun, and a 75 % slope "stopped" it only because the barrel jammed into the slope. The muzzle is a soft, lossy stop
+  now (the barrel bends; each dig-in costs the gun a quarter of its hp) and hull contacts are ~half critically damped.
+- The snap harness wraps evals in `const __r = ...`: a scene variable named __r breaks it.
+- A fresh-eyes code review found state that survived reset() (the intake-flood timer re-flooded a reset tank in a
+  puddle; rate-limited events stayed silent; damper rates jolted the first step), probes shared between tank instances
+  (every tank's muzzle probe followed the last-stepped gun), an M113 automatic range that went NaN at speed, troop mass
+  baked in, knockdowns that relied on mutating the host's objects, an engine fire that never burned, machine guns
+  firing below their rate. All fixed; the probes are now bench checks (state hygiene).
+- A `//` comment pasted mid-line by sed swallowed the rest of the statement (again): use /* */ in one-liners.
+- Sensitivities, documented not hidden: a sharp CONCRETE 0.91 m wall is marginal for the M60 in the sim (face friction
+  must lift the nose against the rear pivot; earth banks with crumbling lips are fine, so the test ground's steps are
+  earth banks), and both vehicles bridge trenches ~1.4-1.6x their ratings at a crawl (rigid track, firm far wall; the
+  ratings carry field margins).
+
+**Tests and runs.** node tools/tankbench.mjs 72/72. Scenes (from tools/, CHROME_PATH=... node snap.mjs scenes/<s>):
+tankmodel.mjs 2/2 (VEH=m113 too), tankinterior.mjs 2/2 (driver, sight pictures, gunner station, cupola),
+tankdrive.mjs 9/9 (step, trench, 60 % ramp, ridge, mud, ford, laser range, a first-round SABOT hit at 1000 m, a
+stabilised hit on the move at ~1000 m),
+tankm113.mjs 4/4 (ramp, vane, troops, swims at ~5.9 km/h), tankaudio.mjs 4/4 (offline render: louder under load,
+muffled highs inside, the gun, the 6V53).
+
+**Untested / not done.** A HOTAS / gamepad on the tank (keyboard + mouse on the dev page); moving decks (landing craft);
+the hatch-open driver view; AI driving; damage drawn on the model (burning, a thrown track off its wheels); night (the
+searchlight lights nothing yet); terrain heat in the TTS beyond a flat grey; sound on real speakers (only measured
+offline). Next step (wave 2): FOUNDATION hosts V.step / the model / the interior on the island terrain (height, surface
+from the terrain classes, water at 0), shells through war.js, enter / exit at the hatches; then AI tank and APC drivers.
+
+
+## 2026-10-23 — NGC-1980: faction structures and a lived-in world (ngc/world)
+Files: game/js/world/ (net.js, layout.js, models.js, kit.js, chunkgen.js, worldworker.js, gfx.js, life.js, ambient.js,
+structures.js, rng.js), game/dev/world.html (+ world-preview.js), tools/worldbench.mjs, tools/scenes/world.mjs,
+worldprev.mjs, structprev.mjs, worldperf.mjs, worldjet.mjs.
+- **Settlements and roads (net.js, pure, seeded).** Wild lands: one settlement candidate per 1.6 km cell (hamlet 70 m,
+  village 135 m, town 210 m radius; harbour towns on the coast), linked by a relaxed relative-neighbourhood graph
+  (tarmac between villages and towns, lanes to hamlets, dirt between hamlets). Each road is routed by dynamic
+  programming down a corridor (40 m stations, 25 m lateral steps, cost = length + grade + water), Chaikin-smoothed,
+  resampled at 8 m, given a grade-limited profile (tarmac 8.5 %, lane 10 %, street 12 %, dirt 14 %), causeways over
+  short shallow water, bridges over longer water or fills > 5 m (max 420 m). Towns get side streets, a harbour lane and
+  a quay; farms (one per 420 m cell where the land allows) get a dirt track to the nearest road and up to seven walled or
+  hedged fields (wheat, barley, hay, potato, plough, pasture) inside their own cell. Control zone: a village on each big
+  island (away from the pad, the shaft and the war's building slots), a lane from the pad apron, a harbour lane to a
+  stone quay, a back street; jetties, rim cottages and lighthouses on the small islands.
+- **The ground agrees.** world.js: `rawH` is the old islandH; `islandH = roadBed(rawH)`: road beds (flat 1.6 m past the
+  edge, shoulder 3-18 m), squares, quays, farmyards and **building platforms** (cut-and-fill pads, blended by weights
+  that don't depend on generation order) are flattened in, so physics, the terrain bake and the road ribbons agree
+  (99.9 % of road centreline samples within 5 cm; the rest are junctions). The 16 m far bake uses rawH.
+- **Determinism.** Everything is seeded by position and generated lazily per 1.6 km cell, independently on the main
+  thread, the terrain worker and the world worker. What keeps the threads agreeing: lots and farms only look at things
+  guaranteed to exist first (prepArea), incident roads are sorted by key, farms stay in their own cell. worldbench: a
+  second process generating in the opposite order agrees to 5e-5 m over 20 000 points.
+- **Buildings (models.js on kit.js).** 1980 houses (1-2 storeys, gable / hip, framed windows, doors, porches, chimneys,
+  TV aerials, flower boxes), cottages, terraces with shopfronts, awnings and fascias, the church (nave, chancel, porch,
+  tower with spire or battlements, clock, churchyard), filling station, barns, Dutch barns, silos, tractors, boat sheds,
+  quay walls, timber piers, lobster pots, lighthouses with keeper's cottages, guyed radio masts, phone and post boxes,
+  bus shelters, lamps, signs, war memorials, benches, laundry lines, sheds, woodpiles, garages, parked cars, garden
+  trees; wooden power poles every 45 m along tarmac and lane links with sagging wires.
+- **Chunks (chunkgen.js, worldworker.js, life.js).** 400 m chunks built in a worker: four merged buffers (solid near,
+  solid far, ground overlay near, ground overlay far; 18 bytes a vertex), one draw call each. Near within ~520 m, far to
+  the jet's view (capped 2.3 km), at most two in flight, nearest first. Ground overlays (roads, fields, squares) use a
+  polygon offset, sit on the terrain as drawn (the 4 m lattice, bilinear), and lift a little with distance so the
+  coarser far terrain doesn't swallow them. The zone villages are built at start (fog-of-war patched materials).
+- **Faction structures (structures.js; ships.js buildStructure delegates for hq / factory / fuel / radar).** 1980: HQ
+  bunker in an earth berm (concrete face, blast door, prefab hut, guyed mast, whips, flag), fuel farm (three bunded
+  tanks with ladders, pipes, pump house, a nodding pumpjack), depot (two quonsets, workshop with stove pipe, crates),
+  radar site (AN/TPS-43-style planar array turning on its trailer, radome, shelters on M35s). Military clutter (jeeps,
+  M35s, camo nets, sandbags, generators, floodlights) while we hold it; Land Rover, notice board and flower tubs while
+  it is neutral. RUNAWAY: command node (leaning ceramic monolith, sensor head, fins), siphon spire with spherical tanks,
+  fabricator (maw, sliding gantry arm, vents), sensor spire (tripod, rotating ring array, crystal tip); pale cyan seams.
+  When the machines take a site their structure grows out of the 1980 ruin (9 s, sparks, seams blazing) and RW power
+  pylons go up across the island one by one; when we take it back the machine goes dark and stays as shards round the
+  1980 site, and half the pylons topple. Damaged below 50 % hp (smoke that keeps going, scorch, mast blown over, flag
+  gone, seams flickering); destroyed = the structure's own ruin (no generic rubble). Dressing: helipad windsock (turns
+  to fx.wind, droops in a calm), edge lights, ops shack; a collar over each cave shaft (RUNAWAY ring and leaning pylons /
+  our sandbag ring and floodlights) replacing main.js's placeholder blocks.
+- **Ambient life (ambient.js).** Civilians (instanced, walk cycle in the vertex shader, shirts from the instance colour)
+  walk the verges, go in and out of front doors, and run for their doors at any explosion within ~160-200 m (and stay
+  in a minute). Traffic: saloons, hatchbacks, estates, VW-style vans, pickups, lorries, tractors (on dirt), country
+  buses; keeping right, slowing for bends (2.6 m/s² lateral) and the car in front, carrying on at road ends and turning
+  off at junctions, turning round and leaving when a battle is near, burning out when a shell lands next to them. Moored
+  dinghies and crabbers bob at the piers; trawlers work the fishing grounds offshore (six more in the zone, kept to deep
+  water by the nav grid) with gulls following; cows and sheep in the pastures; up to eight chimneys lit near the camera.
+  A village on a machine-held island is deserted (no people, no smoke, no traffic).
+- **Interfaces for vehicles and AI** (net.js; also on the world object): `roadAt(x, z)` -> { surface 'tarmac'|'dirt',
+  type, kind, bridge, y, road, s, heading, dist, hw } or null; `roadGraph(x, z, r)` -> { roads: [{ id, type, surface,
+  kind, hw, xs, ys, zs, br (bridge per segment), s (arc length), len, junctions: [{ s, road, end }], a, b }], nodes:
+  [{ id, x, y, z, roads: [{ road, end }] }] }; `roadPoint(R, s, lateral)` -> { x, y, z, dx, dz, grade, bridge };
+  `nearestRoad(x, z, maxD)`. Bridge decks are NOT in groundY: a wheeled vehicle must use roadAt(x, z).y on a bridge.
+  Traffic models are swappable: `world.traffic.setModel(kind, { geometry, length })` (instanced; an optional aPaint
+  vertex attribute marks the paint) or `{ object, length }` (cloned per car); kinds saloon, hatch, estate, van, pickup,
+  truck, tractor, bus.
+- **Hooks.** main.js (4 lines marked WORLD): import, createWorldLife after createWar, world.update after
+  updateCamsAndMeshes, clearedAt() keeps the zone trees off the villages. war.js: structAngle (HQ / production slots
+  seeded per island, were random), ud.attach / setSide / onHp / setState / tick when present, dead faction structures
+  stay visible as their ruin, fronts face the pad and sit on a cardinal direction between the AA slots on the diagonals.
+  terrainworker.js: far bake on rawH, forest trees skip clearedAt(). ships.js: delegate.
+- **Numbers.** worldbench (9 km square 3.6 km east of the zone): 18 settlements, 26 farms / 89 fields, 125 km of road,
+  7 bridges, steepest grade 14 %; a new cell costs 10-20 ms on the main thread (the first, cold, ~240 ms; prewarmed only
+  near the wild lands); a 2 km x 4 m terrain bake 54 ms with roads vs 43 raw; chunk build in the worker 5-50 ms; a town
+  chunk ~12k near tris; world main-thread cost 0.1-0.4 ms a frame. worldperf A/B (same run, load average ~70 on the
+  shared box): deck 10.8 -> 9.9 fps, 151 -> 165 calls, 139k -> 147k tris; over a town 6.9 -> 6.5 fps, 106 -> 134 calls,
+  294k -> 327k tris (most of those are the forest). Jet at 300 m over the zone: +34 calls, +9k tris.
+- **Gotchas.** Every ground overlay quad faced down at first (faceW / upW now wind quads by direction); the ES-module
+  cycle world.js <-> net.js <-> layout.js needs lazy references (a top-level `{ hf: ground0 }` hit the TDZ); a piped
+  write cut short by process.exit; a trailing // comment swallowed the rest of a line again (worldperf caught it).
+- **Untested / next.** Wheeled vehicles driving on the roads (roadAt for the surface and bridge decks); AI ground units
+  on the road graph; civilians react to explosions and impacts only (not aircraft overhead); no night lighting; the
+  zone villages are small (the islands are steep and mostly base). A Huey NaN was seen once at the very start of a run
+  at load average ~70, with and without the world (not reproduced).
