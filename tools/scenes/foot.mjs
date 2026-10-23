@@ -49,7 +49,7 @@ export default async function (h) {
   await h.eval('__F.state()'); await h.wait(300); await h.eval("(__G.foot.view = 'third', 1)"); await h.wait(500); await h.shot('stern-ladder');
   await h.waitFor('!__G.foot.W.ladder && __G.foot.W.onGround', 40000); await h.key('up', 'KeyW');
   await h.eval('({ loc: __F.loc(), state: __F.state() })');
-  await h.expect('Math.abs(__F.loc().y - 8) < 0.1 && __G.foot.W.plat === __G.war.carrier');
+  await h.expect('Math.abs(__G.foot.W.y - __G.war.deckY(__G.foot.W.x, __G.foot.W.z)) < 0.1 && __G.foot.W.plat === __G.war.carrier');
   await h.eval("(__G.foot.view = 'first', 1)");
   // 6. an island pad (the home island): walk onto it from the grass
   await h.eval('(() => { const p = __G.PAD; return __G.foot.spawnAt({ x: p.x + 16, y: p.h, z: p.z, yaw: Math.PI / 2 }); })()');

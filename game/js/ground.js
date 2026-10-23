@@ -208,11 +208,11 @@ export function createGround(ctx) {
   const DECK_SPOTS = [{ name: 'ALBATROSS DECK PARK 1', lx: 9, lz: -24, yaw: 0 }, { name: 'ALBATROSS DECK PARK 2', lx: 9, lz: -34, yaw: 0 }, { name: 'ALBATROSS DECK PARK 3', lx: 9, lz: -44, yaw: 0 }];
   GR.DECK_SPOTS = DECK_SPOTS;
   // SEAWORLD: parked aircraft are solid now, so a spot is used only when the deck round it is clear (flat at deck
-  // height over a 2.6 m radius); else the next of these candidates (port side forward, aft of the island)
+  // height over a car-sized 2.2 x 4.8 m footprint); else the next of these candidates (port side forward, aft of the island)
   const DECK_SPARE = [{ lx: -9.5, lz: -20 }, { lx: -9.5, lz: -30 }, { lx: 4.5, lz: 16 }, { lx: 11, lz: 12 }, { lx: -9.5, lz: 6 }];
   const deckClear = (u, lx, lz) => {
     if (!u.parts || !u.parts.localDeck) return true;
-    for (const [ox, oz] of [[0, 0], [2.6, 0], [-2.6, 0], [0, 2.6], [0, -2.6], [1.8, 1.8], [-1.8, 1.8], [1.8, -1.8], [-1.8, -1.8]]) if (Math.abs(u.parts.localDeck(lx + ox, lz + oz) - CARRIER.DECK) > 0.05) return false;
+    for (const [ox, oz] of [[0, 0], [1.1, 0], [-1.1, 0], [0, 2.4], [0, -2.4], [1.1, 2.4], [-1.1, 2.4], [1.1, -2.4], [-1.1, -2.4]]) if (Math.abs(u.parts.localDeck(lx + ox, lz + oz) - CARRIER.DECK) > 0.05) return false;
     return true;
   };
   GR.deckSpot = (k = 0) => {
