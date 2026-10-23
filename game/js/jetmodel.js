@@ -107,7 +107,8 @@ function twoTone(geo, below = -0.35) {
 // further model (the parked jets on deck) takes the next single-seater. Paint: the pre-low-visibility Navy scheme still
 // in force in 1980, gloss light gull grey FS 16440 over gloss white FS 17875, full-colour national insignia (upper left /
 // lower right wing, intake sides), black NAVY titles, the FSD number on the nose and fins, the BuNo on the fins, and a
-// day-glo red-orange test band at the fin tips (NATC practice; the exact FSD trim is INFERRED from period photos).
+// day-glo red-orange test band at the fin tips (NATC practice; the exact trim of this jet is INFERRED, not checked
+// against photographs).
 const FSD = [[3, 160777], [1, 160775], [2, 160776], [4, 160778], [5, 160779], [6, 160780], [8, 160782], [9, 160783], [11, 160785]];
 let fsdNext = 0;
 const _tex = new Map();
@@ -135,10 +136,10 @@ function decalMesh(tex, w, h, parent, name) {
 }
 
 // ------------------------------------------------------------------------------------------- the model
-export function buildJetMesh(side = 1) {
+export function buildJetMesh(side = 1, fsd) {   // fsd: index into FSD (0 = the player's #3); default: the next of the others
   const g = new THREE.Group(); g.name = 'hornet';
   const team = side === 2 ? 0xff3322 : 0xff5a22;   // fin tip band: day-glo red-orange test band (side 2: red)
-  const [fsdNo, buno] = FSD[fsdNext++ % FSD.length];
+  const [fsdNo, buno] = FSD[fsd ?? 1 + (fsdNext++ % (FSD.length - 1))];
   const greyM = M(0xa7aaab, { shininess: 40 }), underM = M(0xe8e9e6, { shininess: 40 }), radomeM = M(0x9a9d9e, { shininess: 30 }), glareM = M(0x2a2d30), darkM = M(0x24272a), blackM = M(0x0c0d0e, { shininess: 5 });
   const pair2 = [greyM, underM];
   const metalM = M(0x4a4d52, { shininess: 50 }), gearM = M(0xd9dcde), tyreM = M(0x1b1b1b, { shininess: 4 }), teamM = M(team, { emissive: team, emissiveIntensity: 0.15 });
@@ -223,7 +224,9 @@ export function buildJetMesh(side = 1) {
   }
 
   // ---- vertical tails (canted 20 deg out), rudders on the lower aft part; team band at the tip
-  const CANT = 20 * Math.PI / 180, FS = 2.93, FTE = v => 7.2 + v * 0.188, FT = v => 0.16 - v * 0.03;
+  // fin span 2.5 m along the cant: Jane's gives 9.68 m2 for both fins, i.e. 4.84 m2 each over a ~2.85 m root and ~1.1 m
+  // tip chord = ~2.45 m; the first model had 2.93 m (overall height 5.45 m against the real 4.66 m)
+  const CANT = 20 * Math.PI / 180, FS = 2.5, FTE = v => 7.2 + v * 0.188, FT = v => 0.16 - v * 0.03;
   for (const s of [-1, 1]) {
     const S = s < 0 ? 'L' : 'R';
     const map = (z, v, w) => [s * (1.05 + w * Math.cos(CANT) + v * Math.sin(CANT)), 0.65 - w * Math.sin(CANT) + v * Math.cos(CANT), z];
@@ -235,7 +238,7 @@ export function buildJetMesh(side = 1) {
     surf['finTip' + S] = V(...map(7.6, FS, 0));
     // outer face of the fin: the FSD number large, the BuNo low on the fixed part (ahead of the rudder hinge)
     const onFin = (tex, w, h, z, v, name) => { const piv = new THREE.Group(); piv.position.set(...map(z, v, FT(v) * 0.5 + 0.004)); piv.rotation.z = -s * CANT; g.add(piv); const d = decalMesh(tex, w, h, piv, name); d.rotation.y = s * Math.PI / 2; return d; };
-    onFin(texOf('fsdFin' + fsdNo, 128, 128, (x, w, h) => stencil(x, String(fsdNo), w / 2, h / 2 + 4, 116)), 0.8, 0.8, 6.0, 1.95, 'finNumber');
+    onFin(texOf('fsdFin' + fsdNo, 128, 128, (x, w, h) => stencil(x, String(fsdNo), w / 2, h / 2 + 4, 116)), 0.7, 0.7, 6.52, 1.6, 'finNumber');
     onFin(texOf('buno' + buno, 256, 48, (x, w, h) => stencil(x, String(buno), w / 2, h / 2 + 2, 40)), 0.8, 0.15, 5.95, 0.5, 'bunoFin');
     onFin(texOf('fsdNavyFin', 256, 48, (x, w, h) => stencil(x, 'NAVY', w / 2, h / 2 + 2, 40)), 0.6, 0.11, 5.95, 0.72, 'navyFin');
   }

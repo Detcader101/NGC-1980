@@ -23,7 +23,7 @@ const _iq = new THREE.Quaternion(), _p = new THREE.Vector3(), _m = new THREE.Mat
 export function createJetPlay(ctx) {
   const { scene, war, fx, sfx, say, feed, CTL, GRAV } = ctx;
   const J = createJetSim(GRAV), D = createJetDamage();
-  const model = buildJetMesh(1), cockpit = buildJetCockpit();
+  const model = buildJetMesh(1, 0), cockpit = buildJetCockpit();   // FSD #3, BuNo 160777
   model.group.add(cockpit.group); model.group.visible = false; scene.add(model.group);
   const shadow = new THREE.Mesh(new THREE.PlaneGeometry(11.4, 17).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.35, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
   shadow.visible = false; scene.add(shadow);
@@ -471,6 +471,7 @@ export function createJetPlay(ctx) {
   P.weapLine = () => `${P.mode}  ${P.arm ? 'ARM' : 'SAFE'}  AIM-9 ${J.stores.aam.filter(Boolean).length}  MK-82 ${J.stores.bomb.filter(Boolean).length}  GUN ${J.gun * 5}  FLR ${P.cm.flare}  CHF ${P.cm.chaff}`;
   P.hint = () => {
     if (!P.alive) return P.ejected ? 'UNDER THE CANOPY  -  WAITING FOR RESCUE' : '';
+    if (J.onGround && !J.eng[0].run && !J.eng[1].run) return P.crank >= 0 ? `CRANKING ${P.crank ? 'RIGHT' : 'LEFT'}  -  LIGHT-OFF AT 24%` : P.apu === 'START' ? 'APU STARTING  -  WAIT FOR THE GREEN READY LIGHT' : P.apu === 'READY' ? 'APU READY  -  ENG CRANK R, THEN L (RIGHT CONSOLE)' : 'ENGINES OFF  -  I: FULL START, OR BATT, APU, ENG CRANK ON THE RIGHT CONSOLE';
     if (J.cat && J.cat.state === 'hold' && J.catClear === false) return 'CAT 1 HOLD  -  THE ALBATROSS IS TURNING INTO CLEAR WATER FOR THE LAUNCH';
     if (J.cat && J.cat.state === 'hold') return J.eng[0].n > 0.95 ? 'MIL POWER  -  STAND BY FOR THE SHOT' : 'HOOKED UP ON CAT 1  -  THROTTLE TO MIL (80%+) OR AFTERBURNER';
     if (J.wire && J.wire.held > 0) return 'TRAPPED  -  THROTTLE TO IDLE, HOOK UP (H)';

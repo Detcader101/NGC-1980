@@ -29,7 +29,7 @@ export const fuelBurnPct = (H) => H.fuelFlow * HELI.FUEL_ACCEL / KG_PER_PCT;   /
 // ------------------------------------------------------------------------------------------------- systems
 // UH-1H caution panel captions (TM 55-1520-210-10), in panel order; the master caution, RPM and FIRE lights are separate.
 export const CAPTIONS = ['ENGINE OIL PRESS', 'ENGINE ICING', 'ENGINE ICE DET', 'ENGINE CHIP DET', 'LEFT FUEL BOOST', 'RIGHT FUEL BOOST', 'ENG FUEL PUMP', '20 MINUTE FUEL',
-  'FUEL FILTER', 'GOV EMER', 'AUX FUEL LOW', 'XMSN OIL PRESS', 'XMSN OIL HOT', 'HYD PRESSURE', 'INST INVERTER', 'DC GENERATOR', 'EXTERNAL POWER', 'CHIP DETECTOR', 'IFF', 'SPARE'];
+  'FUEL FILTER', 'GOV EMER', 'AUX FUEL LOW', 'XMSN OIL PRESS', 'XMSN OIL HOT', 'HYD PRESSURE', 'ENGINE INLET AIR', 'INST INVERTER', 'DC GENERATOR', 'EXTERNAL POWER', 'CHIP DETECTOR', 'IFF'];   // 5 rows x 4, as the panel reads
 // D = damage.js model, G = game state ({fuel %, light}) - the switches the damage model owns stay there (engine fuel,
 // hydraulic boost); the rest live here
 export function createHeliSystems({ D, G, say }) {
