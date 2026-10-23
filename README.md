@@ -1,6 +1,10 @@
-# Thrust Zarch: The Island War
+# NGC-1980
 
-A browser game in Three.js that mixes *Zarch*, *Thrust*, *Raid on Bungeling Bay* and *Carrier Command*.
+**1980.** Machines from the runaway star NGC-1980 have made a one-way jump back in time to Earth, bringing their own
+war machines and modern weapons from our future. A joint Cold War task force is sent to stop them.
+
+A browser game in Three.js (formerly *Thrust Zarch: The Island War*) that grew out of *Zarch*, *Thrust*, *Raid on
+Bungeling Bay* and *Carrier Command*. Design bible: [docs/ngc1980/BIBLE.md](docs/ngc1980/BIBLE.md).
 You fly a simulated helicopter from the deck of your carrier, the ALBATROSS, across a sea of 17 islands.
 The enemy carrier KRAKEN is out there doing the same, and whoever controls the map wins.
 
