@@ -15,7 +15,7 @@ export class InfantryAudio {
   constructor(ctx = null, dest = null) { this.ctx = ctx; this.dest = dest; this.c = 340; }
   init() {
     if (!this.ctx) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return; this.ctx = new C(); }
-    if (this.ctx.state === 'suspended') this.ctx.resume();
+    if (this.ctx.state === 'suspended' && !(window.OfflineAudioContext && this.ctx instanceof OfflineAudioContext)) this.ctx.resume();
     if (this.master) return;
     const c = this.ctx;
     const len = c.sampleRate * 2, b = c.createBuffer(1, len, c.sampleRate), d = b.getChannelData(0);

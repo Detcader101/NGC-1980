@@ -29,7 +29,8 @@ export const LOADOUTS = {
   rifleman:  { slots: ['M16A1', 'M72A2', 'M1911A1'], items: () => [...Array(8)].map((_, i) => makeItem('M16-20', 18, { tracerLast: i < 4 ? 2 : 0 })).concat([makeItem('M1911-7'), makeItem('M1911-7')]) },
   grenadier: { slots: ['M16A1/M203', 'M1911A1'], items: () => [...Array(6)].map(() => makeItem('M16-20', 18)).concat([...Array(12)].map(() => makeItem('40mm')), [makeItem('M1911-7'), makeItem('M1911-7')]) },
   gunner:    { slots: ['M60', 'M1911A1'], items: () => [makeItem('M60-belt'), makeItem('M60-belt'), makeItem('M60-barrel'), makeItem('M1911-7'), makeItem('M1911-7')] },
-  range:     { slots: ['M16A1/M203', 'M60', 'M72A2', 'M1911A1'], items: () => [...Array(10)].map((_, i) => makeItem('M16-20', i < 5 ? 20 : 18, { tracerLast: i % 2 ? 2 : 0 })).concat([...Array(10)].map(() => makeItem('40mm')), [makeItem('M60-belt'), makeItem('M60-belt'), makeItem('M60-belt'), makeItem('M60-barrel')], [...Array(4)].map(() => makeItem('M1911-7'))) },
+  // the range: every weapon to try, but range kit (helmet and webbing only, kitKg 4) and range ammunition, ~38 kg
+  range:     { kitKg: 4, slots: ['M16A1/M203', 'M60', 'M72A2', 'M1911A1'], items: () => [...Array(6)].map((_, i) => makeItem('M16-20', i < 3 ? 20 : 18, { tracerLast: i % 2 ? 2 : 0 })).concat([...Array(6)].map(() => makeItem('40mm')), [makeItem('M60-belt'), makeItem('M60-barrel')], [...Array(2)].map(() => makeItem('M1911-7'))) },
 };
 // where the bore sits relative to the eye (m, weapon frame: right, up, forward) when shouldered at the hip / low ready
 const HIP = { rifle: [0.17, -0.24, 0.55], mg: [0.2, -0.33, 0.7], pistol: [0.12, -0.2, 0.42], law: [0.12, 0.02, 0.45], gl: [0.17, -0.3, 0.45] };
@@ -51,7 +52,7 @@ export function createRifleman(o = {}) {
   function takeFull(fit, consume = false) { const it = inv.find(fit); if (it) inv.remove(it); return consume ? it : it; }
 
   const R = {
-    soldier, inv, slots, slot: 0, glMode: false, rng, id: o.id ?? 1, side: o.side ?? 1, kitKg: o.kitKg ?? 12,
+    soldier, inv, slots, slot: 0, glMode: false, rng, id: o.id ?? 1, side: o.side ?? 1, kitKg: o.kitKg ?? L.kitKg ?? 12,
     swap: null,                       // { t, dur, from, to, phase: 'out' | 'in' }
     projectiles: [], events: [], shots: 0, mods: {},
     get cur() { const w = slots[R.slot]; return R.glMode && w && w.gl ? w.gl : w; },
