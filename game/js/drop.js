@@ -1,90 +1,39 @@
 // Para-drop repair team. Called down damaged (or dry) on land, you radio for help and home base - off the map, over
-// the horizon - sends a steel dropship, MULE 1, with a repair team. You fly it in from the edge of the map: a proper
-// fixed-wing flight model (fixedwing.js) from the flight deck, or from outside (V); the autopilot (H) flies it if you
-// let it. Line up the jump run, mind the wind (the green smoke at the helicopter shows it), pick height and speed,
-// and call the jumps on the green light. Then you steer the canopies down. Whoever lands on dry ground runs to the
-// helicopter: each one brings fuel, and together they fix it - the more that make it, the faster. Flak can bring
-// the dropship down (the stick bails out); fly it into the ground and the team is lost.
+// the horizon - sends a Marine KC-130R Hercules, RAIDER 21, with a repair team of three. You fly it in from the edge
+// of the map: a real C-130H flight model (units/air/c130fm.js: four T56s, governed props, flaps, the blown wing) from
+// the flight deck (units/air/c130cockpit.js) or from outside (V); the autopilot (H) flies it if you let it, with the
+// crew working the flaps, the para doors and the jump lights. Line up the jump run, mind the wind (the green smoke at
+// the helicopter shows it), keep it at about 130 KIAS with 50 % flaps and no lower than 400 ft, and call the jump on
+// the green light (F, or the JUMP LIGHTS switch on the paratroop panel). The stick goes out of both para doors, static
+// lines open the MC1-1 canopies, and then you steer them down. Whoever lands on dry ground runs to the helicopter:
+// each one brings fuel, and together they fix it - the more that make it, the faster. Flak can knock out engines or
+// bring the Hercules down (the stick bails out); fly it into the ground and the team is lost.
 import * as THREE from 'three';
 import { buildDropship, buildJumper } from './ships.js';
-import { createPlaneSim } from './fixedwing.js';
+import { createC130Sim, C130, KT } from './units/air/c130fm.js';
+import { C130M } from './units/air/c130model.js';
+import { buildC130Deck, DECK_EYE, DECK_EYE_PITCH } from './units/air/c130cockpit.js';
+import { createC130Audio } from './units/air/c130audio.js';
 
-const FF_TIME = 2, AIR = 7.5, AIR_BRAKE = 3, SINK = 4.4, SINK_BRAKE = 3.1, TURN = 1.1, RUN = 4.5;
-const WORK = 10, FUEL_EACH = 20, N_JUMPERS = 3, ENTRY = 1400, AP_SPEED = 50, JUMP_MIN_AGL = 40, JUMP_MAX_V = 72;
-const EYE = new THREE.Vector3(-0.75, 1.42, -10.3);   // left seat on the flight deck
+const CALL = 'RAIDER 21';
+const N_JUMPERS = 3, WORK = 10, FUEL_EACH = 20, ENTRY = 1400, RUN = 4.5;
+// the drop: 130 KIAS with 50 % flaps (FM 3-21.38: C-130 personnel 130-135 KIAS), ~550 ft over the drop zone (a low
+// combat jump), never below 400 ft (bail-out minimum), never above 150 KIAS (para door / bail-out limit)
+const DROP_KIAS = 130, CRUISE_KIAS = 150, DROP_AGL = 170, JUMP_MIN_AGL = 120, JUMP_MAX_KIAS = 150;
+// MC1-1 (FM 3-21.220 / TM 10-1670-1): ~8 kt forward drive, ~18 ft/s descent, 360 deg in ~9 s; the static line pulls it
+// at once, it is out of the bag at ~2 s and fully open at ~3.5 s (the "four-second count"). The canopy flies in real air
+// (the 4x density of the aircraft world is a scale trick for the aeroplanes only). Rear-riser slip (S) kills the drive.
+const DRIVE = 4.1, SINK = 5.5, TURN = 0.7, SLIP_DRIVE = 1.2, SLIP_SINK = 6.2, DEPLOY = 3.5, HARD_LANDING = 7.0;
 const rnd = (a, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const fwdX = y => -Math.sin(y), fwdZ = y => -Math.cos(y);   // yaw 0 = nose along -z
-const KT = 1.944;
-
-// ---------------------------------------------------------------------------------------------- flight deck
-function buildFlightDeck() {
-  const g = new THREE.Group(), M = c => new THREE.MeshLambertMaterial({ color: c }), dark = M(0x2a2e33), frame = M(0x3a3f45), seatM = M(0x4a3a2a);
-  const box = (w, h, d, m, x, y, z) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); g.add(b); return b; };
-  const panel = box(3.3, 0.55, 0.12, dark, 0, 0.3, -11.55); panel.rotation.x = -0.35;
-  box(3.4, 0.06, 0.2, dark, 0, 0.6, -11.72);                             // glareshield
-  for (const x of [-1.62, -0.55, 0.55, 1.62]) { const p = box(0.045, 1.25, 0.045, frame, x, 1.3, -11.8); p.rotation.x = 0.25; p.rotation.z = x * 0.08; }
-  box(3.5, 0.08, 0.08, frame, 0, 2.0, -11.6);                             // windscreen top
-  box(3.5, 0.08, 1.8, dark, 0, 2.0, -10.2);                               // overhead panel
-  for (const x of [-1.8, 1.8]) { box(0.08, 0.6, 2.4, dark, x, 0.55, -10.2); box(0.08, 0.08, 2.4, frame, x, 1.9, -10.2); box(0.08, 1, 0.08, frame, x, 1.4, -9.4); }
-  box(0.5, 0.45, 1.1, dark, 0, 0.45, -10.4);                              // pedestal
-  const levers = [];
-  for (let i = 0; i < 4; i++) { const l = new THREE.Group(); l.position.set(-0.15 + i * 0.1, 0.68, -10.4); g.add(l); const k = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.22, 0.04), M(0x999999)); k.position.y = 0.11; l.add(k); const knob = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.05, 0.05), M(0x222222)); knob.position.y = 0.23; l.add(knob); levers.push(l); }
-  box(0.55, 0.12, 0.55, seatM, -0.75, 0.2, -9.9); box(0.55, 0.7, 0.1, seatM, -0.75, 0.6, -9.6);
-  box(0.55, 0.12, 0.55, seatM, 0.75, 0.2, -9.9); box(0.55, 0.7, 0.1, seatM, 0.75, 0.6, -9.6);
-  // yokes: column + wheel, they move with your inputs
-  const yokes = [];
-  for (const x of [-0.75, 0.75]) {
-    const col = new THREE.Group(); col.position.set(x, 0.12, -10.95); g.add(col);
-    const c = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.45, 0.06), frame); c.position.y = 0.22; col.add(c);
-    const wheel = new THREE.Group(); wheel.position.y = 0.48; col.add(wheel);
-    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.05, 0.05), M(0x1c1c1c)); wheel.add(bar);
-    for (const s of [-1, 1]) { const h = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.14, 0.05), M(0x1c1c1c)); h.position.set(s * 0.18, 0.05, 0); wheel.add(h); }
-    yokes.push({ col, wheel });
-  }
-  // instruments: one canvas across the panel
-  const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 256;
-  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
-  const face = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.425), new THREE.MeshBasicMaterial({ map: tex }));
-  face.position.set(-0.75, 0.33, -11.47); face.rotation.x = -0.35; g.add(face);
-  // the jump light by the door is mirrored on the glareshield where the pilot sees it
-  const jl = new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 8), new THREE.MeshBasicMaterial({ color: 0x220000 })); jl.position.set(-0.85, 0.66, -11.5); g.add(jl);
-  const jl2 = jl.clone(); jl2.material = new THREE.MeshBasicMaterial({ color: 0x002200 }); jl2.position.x = -0.76; g.add(jl2);
-  return { group: g, levers, yokes, cv, tex, red: jl, green: jl2 };
-}
-function drawInstruments(D, s, info) {
-  const x = D.cv.getContext('2d'), W = 1024, H = 256;
-  x.fillStyle = '#16191c'; x.fillRect(0, 0, W, H);
-  const dial = (cx, cy, r, label, val, min, max, txt) => {
-    x.fillStyle = '#060708'; x.beginPath(); x.arc(cx, cy, r, 0, 6.283); x.fill(); x.strokeStyle = '#555'; x.lineWidth = 3; x.stroke();
-    x.strokeStyle = '#ddd'; x.lineWidth = 2;
-    for (let i = 0; i <= 10; i++) { const a = -2.4 + i / 10 * 4.8; x.beginPath(); x.moveTo(cx + Math.sin(a) * r * 0.82, cy - Math.cos(a) * r * 0.82); x.lineTo(cx + Math.sin(a) * r * 0.95, cy - Math.cos(a) * r * 0.95); x.stroke(); }
-    const a = -2.4 + clamp((val - min) / (max - min), 0, 1) * 4.8;
-    x.strokeStyle = '#ffcc33'; x.lineWidth = 5; x.beginPath(); x.moveTo(cx, cy); x.lineTo(cx + Math.sin(a) * r * 0.78, cy - Math.cos(a) * r * 0.78); x.stroke();
-    x.fillStyle = '#ccc'; x.font = 'bold 17px monospace'; x.textAlign = 'center'; x.fillText(label, cx, cy + r * 0.55); x.fillStyle = '#fff'; x.font = 'bold 24px monospace'; x.fillText(txt, cx, cy - r * 0.25);
-  };
-  const r = 96, y = 128;
-  dial(110, y, r, 'IAS kt', s.V * KT, 0, 200, Math.round(s.V * KT));
-  // attitude
-  { const cx = 330; x.save(); x.beginPath(); x.arc(cx, y, r, 0, 6.283); x.clip(); x.translate(cx, y); x.rotate(-s.bank); const py = s.pitch * 260;
-    x.fillStyle = '#3a7bd5'; x.fillRect(-200, -400 + py, 400, 400); x.fillStyle = '#7a5530'; x.fillRect(-200, py, 400, 400); x.strokeStyle = '#fff'; x.lineWidth = 3; x.beginPath(); x.moveTo(-200, py); x.lineTo(200, py); x.stroke();
-    for (const k of [-2, -1, 1, 2]) { x.beginPath(); x.moveTo(-30, py - k * 45); x.lineTo(30, py - k * 45); x.stroke(); }
-    x.restore(); x.strokeStyle = '#ffcc33'; x.lineWidth = 6; x.beginPath(); x.moveTo(cx - 60, y); x.lineTo(cx - 18, y); x.lineTo(cx, y + 14); x.lineTo(cx + 18, y); x.lineTo(cx + 60, y); x.stroke();
-    x.strokeStyle = '#555'; x.lineWidth = 3; x.beginPath(); x.arc(cx, y, r, 0, 6.283); x.stroke(); }
-  dial(550, y, r, 'ALT m', info.alt % 1000, 0, 1000, Math.round(info.alt));
-  dial(770, y, r, 'VSI m/s', s.v.y, -15, 15, s.v.y.toFixed(1));
-  // annunciators
-  const ann = (t, on, col, yy) => { x.fillStyle = on ? col : '#222'; x.fillRect(890, yy, 124, 36); x.fillStyle = on ? '#000' : '#555'; x.font = 'bold 18px monospace'; x.textAlign = 'center'; x.fillText(t, 952, yy + 25); };
-  ann(info.ap ? 'AP ON' : 'AP OFF', info.ap, '#4f6', 10); ann('STALL', s.stall || s.alpha > 0.18, '#f43', 52);
-  ann(`THR ${Math.round(s.thr * 100)}%`, true, '#fc4', 94); ann(`HDG ${String(Math.round(((-s.heading * 180 / Math.PI) % 360 + 360) % 360)).padStart(3, '0')}`, true, '#9cf', 136);
-  ann(`JUMP ${info.left}`, info.light === 'green', '#4f6', 178); ann('PULL UP', info.pullUp, '#f43', 220);
-  D.tex.needsUpdate = true;
-}
+const angDiff = (a, b) => { let d = (b - a) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return d; };
 
 export function createDrop(ctx) {
   const { scene, fx, sfx, war, groundY, terrainH, isWater, say, feed } = ctx;
   let M = null;
-  const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _e = new THREE.Euler();
+  const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _r = new THREE.Vector3();
+  const snd = createC130Audio(sfx);
 
   // ground markers: the helicopter (green) and where a jumper leaving now would land with no steering (yellow)
   const ring = (r, col) => {
@@ -92,17 +41,54 @@ export function createDrop(ctx) {
     m.renderOrder = 10; m.visible = false; scene.add(m); return m;
   };
   const tRing = ring(7, 0x44ff66), pRing = ring(4.5, 0xffdd33);
-  const deck = buildFlightDeck(); deck.group.visible = false;
+  const deck = buildC130Deck(); deck.group.visible = false;
+
+  // ---- flight deck switches: hover with the cursor (or the crosshair when the mouse is captured), click to work them
+  const ray = new THREE.Raycaster(), mouseNdc = new THREE.Vector2(), c0 = new THREE.Vector2();
+  let camRef = null, hover = null;
+  addEventListener('mousemove', e => mouseNdc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1));
+  addEventListener('mousedown', e => {
+    if (!M || !deckView() || !hover || (e.button !== 0 && e.button !== 2)) return;
+    e.stopImmediatePropagation(); e.preventDefault(); clickSwitch(hover, e.button === 2);
+  }, { capture: true });
+  addEventListener('contextmenu', e => { if (M && deckView() && hover) e.preventDefault(); });
+  // keys the helicopter does not need while the Hercules flies: Z flaps, G gear, [ ] trim (H, V, F are main.js's)
+  const held = new Set();
+  addEventListener('keydown', e => {
+    held.add(e.code);
+    if (!planeHasStick() || e.repeat || e.ctrlKey || e.altKey) return;
+    const S = M.plane.sim;
+    if (e.code === 'KeyZ') { S.flapSel = S.flapSel >= 1 ? 0 : S.flapSel + 0.5; M.flapManual = true; say(`FLAPS ${Math.round(S.flapSel * 100)} %`, 1); }
+    if (e.code === 'KeyG') { S.gearCmd = S.gearCmd ? 0 : 1; say(S.gearCmd ? 'GEAR DOWN' : 'GEAR UP', 1); }
+  });
+  addEventListener('keyup', e => held.delete(e.code));
+
+  function clickSwitch(id, alt) {
+    const S = M.plane.sim, k = +id.slice(-1);
+    sfx.blip?.(1400, 900, 0.04, 'square', 0.05);
+    if (id.startsWith('cond')) { const e = S.eng[k]; S.setCond(k, alt ? 'stop' : e.cond === 'run' ? 'feather' : e.cond === 'feather' ? 'airstart' : 'run'); say(`CONDITION LEVER ${k + 1}: ${S.eng[k].cond.toUpperCase()}`, 1.2); }
+    else if (id.startsWith('fire')) { const e = S.eng[k]; e.firePulled = true; S.setCond(k, 'feather'); if (e.fire) e.fire = 'out'; say(`NUMBER ${k + 1} FIRE HANDLE PULLED  -  FEATHERED, AGENT DISCHARGED`, 1.6); }
+    else if (id.startsWith('start')) { S.startEngine(k); }
+    else if (id === 'gear') S.gearCmd = S.gearCmd ? 0 : 1;
+    else if (id === 'flap') { S.flapSel = S.flapSel >= 1 ? 0 : S.flapSel + 0.5; M.flapManual = true; }
+    else if (id === 'ap' || id === 'apAlt') api.toggleAP();
+    else if (id === 'af') S.autoFeatherArm = !S.autoFeatherArm;
+    else if (id === 'jump') { M.jumpSwitch = { off: 'red', red: 'green', green: 'off' }[M.jumpSwitch]; M.lightManual = true; if (M.jumpSwitch === 'green') callGreen(); }
+    else if (id === 'bell') { if (M.left > 0) { say('ALARM BELL  -  ABANDON AIRCRAFT', 2); while (M.left > 0) jump(true); } }
+    else if (id === 'doorL' || id === 'doorR') { const i = id === 'doorL' ? 0 : 1; S.doorCmd[i] = S.doorCmd[i] ? 0 : 1; M.doorManual = true; }
+    else if (id === 'ramp') S.rampCmd = S.rampCmd ? 0 : 1;
+    else if (id === 'mc') M.mcReset = true;
+  }
 
   function cleanup() {
     if (!M) return;
     if (M.hadStick) ctx.releaseStick();
     M.plane.mesh.remove(deck.group); scene.remove(M.plane.mesh); M.plane.u.gone = true;
     for (const j of M.jumpers) scene.remove(j.m.group);
-    tRing.visible = pRing.visible = false; M = null;
+    tRing.visible = pRing.visible = false; snd.stop(); M = null;
   }
 
-  // home base is off the map: MULE 1 comes in over the edge, from the side the carrier is on, a long way out
+  // home base is off the map: the Hercules comes in over the edge, from the side the carrier is on, a long way out
   function entryPoint(target, from) {
     let a = Math.atan2(from.z - target.z, from.x - target.x);
     if (Math.hypot(from.x - target.x, from.z - target.z) < 1) a = Math.atan2(1, -1);
@@ -112,58 +98,86 @@ export function createDrop(ctx) {
 
   function start(target, from) {
     cleanup();
-    const wa = rnd(6.283), ws = rnd(2, 6);
+    const wa = rnd(6.283), ws = rnd(1.5, 4.5);   // up to ~9 kt: inside the 13 kt training jump limit, and an MC1-1 (8 kt) can still hold against it
     const e = entryPoint(target, from), yaw = Math.atan2(-(target.x - e.x), -(target.z - e.z));
     const m = buildDropship(); scene.add(m.group); m.group.add(deck.group);
-    const sim = createPlaneSim(); sim.reset(new THREE.Vector3(e.x, Math.max(150, target.y + 120), e.z), yaw, 55);
-    const u = { type: 'dropship', side: 1, ext: true, p: sim.p, v: sim.v, r: 9, hp: 14, hpMax: 14, mesh: m.group };
+    const sim = createC130Sim(), alt = Math.max(Math.max(target.y, 0) + 230, groundY(e.x, e.z) + 150, 200);
+    const rho = 4.9 * Math.exp(-alt / 6000), tas = CRUISE_KIAS / KT * Math.sqrt(1.225 / rho);
+    sim.reset(new THREE.Vector3(e.x, alt, e.z), yaw, tas, { flap: 0, gear: 0, lever: 55 });
+    sim.fuel = 9000; sim.payload = 1200 + N_JUMPERS * 140;
+    const u = { type: 'dropship', side: 1, ext: true, p: sim.pos, v: sim.vel, r: 11, hp: 14, hpMax: 14, mesh: m.group };
     war.addExternal(u);
     M = {
       phase: 'run', target: new THREE.Vector3(target.x, target.y, target.z), wind: new THREE.Vector2(Math.cos(wa) * ws, Math.sin(wa) * ws),
-      plane: { u, sim, mesh: m.group, parts: m, p: sim.p, entry: e }, ap: true, view: 'cockpit', ctl: { roll: 0, pitch: 0, yaw: 0, thr: 0.45 }, kb: { roll: 0, pitch: 0 },
-      jumpers: [], left: N_JUMPERS, jumpCd: 0, work: 0, arrived: 0, fixed: false, t: 0, smokeT: 0, instT: 0, hadStick: false,
-      cam: new THREE.Vector3().copy(sim.p).add(_v.set(0, 20, 40)), look: new THREE.Vector3().copy(target), wasFire: false, lost: 0, autoStick: false, apJump: true,
+      plane: { u, sim, mesh: m.group, parts: m, p: sim.pos, entry: e, lastHp: u.hp }, ap: true, view: 'cockpit', ctl: { roll: 0, pitch: 0, yaw: 0, throttle: [0.5, 0.5, 0.5, 0.5] }, kb: { roll: 0, pitch: 0 },
+      jumpers: [], left: N_JUMPERS, jumpCd: 0, work: 0, arrived: 0, fixed: false, t: 0, smokeT: 0, hadStick: false, apJump: true,
+      cam: new THREE.Vector3().copy(sim.pos).add(_v.set(0, 25, 70)), look: new THREE.Vector3().copy(target), lost: 0, light: 'off', jumpSwitch: 'off', exits: 0,
+      doorMen: [null, null], doorT: [0, 0], hold: null, noInput: 9, env: { groundY: (x, z) => Math.max(groundY(x, z), 0), water: (x, z) => isWater(x, z), wind: { x: 0, z: 0 } },
     };
+    M.env.wind.x = M.wind.x; M.env.wind.z = M.wind.y;
     const dir = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(((Math.atan2(M.wind.x, -M.wind.y) + 6.283) % 6.283) / 0.785) % 8];
     const from8 = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(((Math.atan2(e.x - target.x, -(e.z - target.z)) + 6.283) % 6.283) / 0.785) % 8];
-    feed(`HOME BASE: REPAIR TEAM OF ${N_JUMPERS} ON THE WAY  -  DROPSHIP MULE 1 FROM THE ${from8}, ${(ENTRY / 1000).toFixed(1)} km`, 'good');
+    feed(`HOME BASE: REPAIR TEAM OF ${N_JUMPERS} ON THE WAY  -  KC-130 ${CALL} FROM THE ${from8}, ${(ENTRY / 1000).toFixed(1)} km`, 'good');
     feed(`WIND ${ws.toFixed(0)} m/s TOWARD ${dir}`, 'info');
-    say('YOU HAVE MULE 1  -  AUTOPILOT ON (H)  ·  STICK TO FLY IT  ·  V VIEW  ·  F JUMP ON THE GREEN LIGHT', 4);
+    say(`YOU HAVE ${CALL}  -  AUTOPILOT ON (H)  ·  STICK TO FLY IT  ·  V VIEW  ·  F GREEN LIGHT  ·  Z FLAPS`, 4);
     sfx.dock();
   }
 
-  // where a jumper leaving the plane now lands with no steering: a quick forward sim of freefall + an unsteered canopy
-  function predict(out) {
-    const S = M.plane.sim; let x = S.p.x, y = S.p.y, z = S.p.z, vx = S.v.x, vz = S.v.z, vy = S.v.y, h = S.heading;
+  // ---------------------------------------------------------------- jumpers
+  // where a jumper leaving the aircraft now lands if he does not steer: the static-line deployment (he slows to the
+  // wind and falls), then the canopy drives along the run heading and drifts with the wind
+  function predict(out) { const S = M.plane.sim; return predictFrom(S.pos.x, S.pos.y, S.pos.z, S.vel.x, S.vel.z, S.vel.y, S.heading, out); }
+  function predictFrom(x, y, z, vx, vz, vy, h, out) {
     const dt = 0.25;
-    for (let t = 0; t < 70; t += dt) {
-      if (t < FF_TIME) { const k = Math.exp(-0.9 * dt); vx = M.wind.x + (vx - M.wind.x) * k; vz = M.wind.y + (vz - M.wind.y) * k; vy = Math.max(vy - 9.8 * dt, -45); }
-      else { vx = fwdX(h) * AIR + M.wind.x; vz = fwdZ(h) * AIR + M.wind.y; vy = -SINK; }
+    for (let t = 0; t < 90; t += dt) {
+      if (t < DEPLOY) { const k = Math.exp(-0.9 * dt); vx = M.wind.x + (vx - M.wind.x) * k; vz = M.wind.y + (vz - M.wind.y) * k; vy = t < 2 ? Math.max(vy - 9.8 * dt, -25) : vy + (-SINK - vy) * (1 - Math.exp(-3 * dt)); }
+      else { vx = fwdX(h) * DRIVE + M.wind.x; vz = fwdZ(h) * DRIVE + M.wind.y; vy = -SINK; }
       x += vx * dt; y += vy * dt; z += vz * dt;
       if (y < groundY(x, z) + 0.5) break;
     }
     return out.set(x, groundY(x, z), z);
   }
   const aglOf = p => p.y - Math.max(groundY(p.x, p.z), 0);
+  const doorWorld = (i, out) => out.set(...C130M.DOOR[i]).applyQuaternion(M.plane.sim.q).add(M.plane.sim.pos);
+
+  // the next man in each open door, standing in it (part of the aircraft until he goes)
+  function doorMan(i, show) {
+    let d = M.doorMen[i];
+    if (show && !d) {
+      d = buildJumper(); d.canopy.visible = false; d.rig.pose('door');
+      d.group.position.set(i ? 1.72 : -1.72, C130M.FLOOR_Y, C130M.DOOR[i][2]); d.group.rotation.y = i ? -Math.PI / 2 : Math.PI / 2;
+      M.plane.mesh.add(d.group); M.doorMen[i] = d;
+    }
+    if (d) d.group.visible = !!show;
+  }
 
   function jump(force) {
     const S = M.plane.sim;
     if (!force) {
-      if (aglOf(S.p) < JUMP_MIN_AGL) { say(`TOO LOW TO JUMP  -  CLIMB ABOVE ${JUMP_MIN_AGL} m`, 1.2); M.jumpCd = 0.8; return; }
-      if (S.V > JUMP_MAX_V) { say(`TOO FAST TO JUMP  -  SLOW BELOW ${Math.round(JUMP_MAX_V * KT)} kt`, 1.2); M.jumpCd = 0.8; return; }
+      if (aglOf(S.pos) < JUMP_MIN_AGL) { say(`NO JUMP  -  TOO LOW: CLIMB ABOVE ${Math.round(JUMP_MIN_AGL * 3.28 / 50) * 50} FT`, 1.4); M.jumpCd = 0.8; M.jumpSwitch = 'red'; return; }
+      if (S.kias > JUMP_MAX_KIAS) { say(`NO JUMP  -  TOO FAST: SLOW BELOW ${JUMP_MAX_KIAS} KIAS`, 1.4); M.jumpCd = 0.8; M.jumpSwitch = 'red'; return; }
     }
-    M.left--; M.jumpCd = 0.6;
-    const m = buildJumper(); m.canopy.visible = false; scene.add(m.group);
-    const door = _v.set(0, -1.5, 15).applyQuaternion(S.q).add(S.p);   // the rear ramp
-    const j = { m, p: door.clone(), v: S.v.clone(), h: S.heading, state: 'ff', t: 0, off: (M.jumpers.length - 1) * 4 };
+    M.left--; M.jumpCd = force ? 0.15 : 0.6;   // two doors, one man a second from each
+    const i = M.exits % 2; M.exits++;   // alternate doors, left first
+    if (M.doorMen[i]) { M.plane.mesh.remove(M.doorMen[i].group); M.doorMen[i] = null; M.doorT[i] = 0.9; }
+    const m = buildJumper(); m.canopy.visible = false; m.rig.pose('exit'); scene.add(m.group);
+    const door = doorWorld(i, new THREE.Vector3()), side = S.right(_r).multiplyScalar(i ? 1 : -1);
+    const v = S.vel.clone().addScaledVector(side, 1.6); v.y -= 0.5;
+    const j = { m, p: door, v, h: S.heading + (i ? -0.3 : 0.3), state: 'ff', t: 0, off: (M.jumpers.length - 1) * 4, door: i };
     M.jumpers.push(j); sfx.ui?.('select');
-    say(M.left ? `JUMPER AWAY  -  ${M.left} LEFT` : 'STICK AWAY  -  STEER THE CANOPIES: A/D TURN, S BRAKES', 1.6);
+    say(M.left ? `JUMPER AWAY  -  ${M.left} LEFT` : 'STICK AWAY  -  STEER THE CANOPIES: A/D TURN, S RISER SLIP', 1.6);
+  }
+  // the green light: the jumpmaster starts the stick (the rest follow at a second's spacing while it stays green)
+  function callGreen() {
+    if (!M || M.left === 0) return;
+    M.jumpSwitch = 'green';
+    if (M.jumpCd <= 0) jump();
   }
 
   function landJumper(j) {
     const gy = groundY(j.p.x, j.p.z); j.p.y = gy;
-    const fast = Math.hypot(j.v.x, j.v.z) > 8.5;
-    j.m.canopy.visible = false;
+    const fast = Math.hypot(j.v.x, j.v.z) > HARD_LANDING;
+    j.m.canopy.visible = false; j.m.rig.pose('plf');
     if (isWater(j.p.x, j.p.z) && gy < 0.6) {
       j.state = 'swim'; j.t = 0; M.lost++;
       fx.splash?.(j.p.x, j.p.z, 0.6); feed('JUMPER IN THE WATER  -  THE ALBATROSS WILL FISH HIM OUT', 'bad');
@@ -172,42 +186,46 @@ export function createDrop(ctx) {
     if (war.shipAt(j.p.x, j.p.z)) { j.state = 'aboard'; M.lost++; j.m.group.visible = false; feed('JUMPER CAME DOWN ON A SHIP  -  OUT OF THIS ONE', 'bad'); return; }
     if (Math.hypot(j.p.x - M.target.x, j.p.z - M.target.z) > 300) { j.state = 'stranded'; M.lost++; feed('JUMPER DOWN TOO FAR AWAY TO WALK  -  WAITING FOR PICK-UP', 'bad'); return; }
     j.state = 'run'; j.t = 0; j.slow = fast;
-    if (fast) say('HARD LANDING  -  BRAKE (S) JUST BEFORE TOUCHDOWN', 1.6);
-    for (let i = 0; i < 4; i++) fx.mix.spawn(j.p.x, gy + 0.3, j.p.z, rnd(-1.5, 1.5), rnd(0.3, 1), rnd(-1.5, 1.5), rnd(0.8, 1.5), 0.4, 1.6, .5, .45, .35, 0.4, 0.5, 1.5, 0.3);
+    if (fast) say('HARD LANDING  -  TURN INTO THE WIND BEFORE TOUCHDOWN', 1.6);
+    for (let i = 0; i < 6; i++) fx.mix.spawn(j.p.x, gy + 0.3, j.p.z, rnd(-1.5, 1.5), rnd(0.3, 1), rnd(-1.5, 1.5), rnd(0.8, 1.5), 0.4, 1.6, .5, .45, .35, 0.4, 0.5, 1.5, 0.3);
   }
 
   function updateJumper(j, dt, steer, brake, lead) {
     j.t += dt;
-    const m = j.m;
-    if (j.state === 'ff') {
-      const k = Math.exp(-0.9 * dt); j.v.x = M.wind.x + (j.v.x - M.wind.x) * k; j.v.z = M.wind.y + (j.v.z - M.wind.y) * k; j.v.y = Math.max(j.v.y - 9.8 * dt, -45);
+    const m = j.m, rig = m.rig;
+    if (j.state === 'ff') {   // out of the door: the static line pays out, the slipstream takes him, the canopy blossoms
+      const k = Math.exp(-0.9 * dt); j.v.x = M.wind.x + (j.v.x - M.wind.x) * k; j.v.z = M.wind.y + (j.v.z - M.wind.y) * k;
+      j.v.y = j.t < 2 ? Math.max(j.v.y - 9.8 * dt, -25) : j.v.y + (-SINK - j.v.y) * (1 - Math.exp(-3 * dt));
       j.p.addScaledVector(j.v, dt);
-      m.body.rotation.x = clamp(j.t * 1.5, 0, 1.4);   // tips into the arch
-      if (j.t >= FF_TIME) { j.state = 'canopy'; j.t = 0; m.canopy.visible = true; m.canopy.scale.set(0.1, 0.1, 0.1); sfx.noiseBurst?.(700, 200, 0.25, 0.12); }
+      if (j.t > 1.6) { m.canopy.visible = true; m.canopyAnim(M.t, (j.t - 1.6) / (DEPLOY - 1.6), 0); }
+      m.body.rotation.x = 0.35 + Math.sin(j.t * 3) * 0.15 * (j.t < 2 ? 1 : 0);
+      if (j.t >= DEPLOY) { j.state = 'canopy'; j.t = 0; rig.pose('canopy'); sfx.noiseBurst?.(700, 200, 0.25, 0.12); }
       if (j.p.y < groundY(j.p.x, j.p.z) + 0.5) { j.state = 'canopy'; landJumper(j); }
     } else if (j.state === 'canopy') {
       const gy = groundY(j.p.x, j.p.z), agl = j.p.y - gy;
       let s = 0, b = 0;
       if (lead && (Math.abs(steer) > 0.05 || brake > 0.05)) M.jumpHandsT = 0;
       if (lead && M.jumpHandsT < 1.5) { s = steer; b = brake; }
-      else {   // the jumper flies himself: turn toward the helicopter, flare at the bottom
-        const tx = M.target.x + j.off, tz = M.target.z, want = Math.atan2(-(tx - j.p.x), -(tz - j.p.z));
-        let d = want - j.h; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
-        s = clamp(-d * 1.2, -1, 1); b = agl < 5 ? 1 : 0;
+      else {   // the jumper flies himself: toward the helicopter, and into the wind for the landing
+        const tx = M.target.x + j.off, tz = M.target.z;
+        let want = Math.atan2(-(tx - j.p.x), -(tz - j.p.z));
+        if (agl < 30 && Math.hypot(M.wind.x, M.wind.y) > 1.5) want = Math.atan2(M.wind.x, M.wind.y);
+        s = clamp(-angDiff(j.h, want) * 1.2, -1, 1);
       }
       j.h -= s * TURN * dt;
-      const air = AIR + (AIR_BRAKE - AIR) * b, sink = SINK + (SINK_BRAKE - SINK) * b, k = 1 - Math.exp(-2.5 * dt);
-      j.v.x += (fwdX(j.h) * air + M.wind.x - j.v.x) * k; j.v.z += (fwdZ(j.h) * air + M.wind.y - j.v.z) * k; j.v.y += (-sink - j.v.y) * (1 - Math.exp(-1.6 * dt));
+      const drive = DRIVE + (SLIP_DRIVE - DRIVE) * b, sink = SINK + (SLIP_SINK - SINK) * b, k = 1 - Math.exp(-2.5 * dt);
+      j.v.x += (fwdX(j.h) * drive + M.wind.x - j.v.x) * k; j.v.z += (fwdZ(j.h) * drive + M.wind.y - j.v.z) * k; j.v.y += (-sink - j.v.y) * (1 - Math.exp(-1.6 * dt));
       j.p.addScaledVector(j.v, dt);
-      const o = Math.min(1, j.t / 0.7); m.canopy.scale.set(o, 0.4 + 0.6 * o, o);
-      m.body.rotation.x = 0; m.group.rotation.z = -s * 0.25;
-      m.legs[0].rotation.x = m.legs[1].rotation.x = b * -0.5;
+      m.canopyAnim(M.t, 1, s); m.group.rotation.z = -s * 0.15;
+      m.legs[0].rotation.x = m.legs[1].rotation.x = -0.12 - b * 0.3;
       if (agl < 0.6) landJumper(j);
     } else if (j.state === 'run') {
+      if (j.t < 0.6) { m.group.position.copy(j.p); m.group.rotation.y = j.h; return; }   // the PLF, then up and running
+      if (j.t < 0.7) rig.pose('stand');
       const dx = M.target.x + Math.cos(j.off) * 2.6 - j.p.x, dz = M.target.z + Math.sin(j.off) * 2.6 - j.p.z, d = Math.hypot(dx, dz);
       if (d < 1) { j.state = 'work'; j.t = 0; M.arrived++; ctx.onFuel(FUEL_EACH); feed(`REPAIR CREW AT THE HELICOPTER  -  +${FUEL_EACH}% FUEL`, 'good'); }
       else {
-        const sp = (j.slow ? 1.6 : RUN) * Math.min(1, j.t / 0.8);
+        const sp = (j.slow ? 1.6 : RUN) * Math.min(1, (j.t - 0.6) / 0.8);
         const nx = j.p.x + dx / d * sp * dt, nz = j.p.z + dz / d * sp * dt;
         if (isWater(nx, nz) && groundY(nx, nz) < 0.5) { j.state = 'stuck'; M.lost++; feed('JUMPER CUT OFF BY WATER', 'bad'); }
         else { j.p.set(nx, groundY(nx, nz), nz); j.h = Math.atan2(-dx, -dz); }
@@ -216,7 +234,7 @@ export function createDrop(ctx) {
       m.group.rotation.z = 0;
     } else if (j.state === 'work') {
       j.h = Math.atan2(-(M.target.x - j.p.x), -(M.target.z - j.p.z));
-      const ph = j.t * 7; m.legs[0].rotation.x = m.legs[1].rotation.x = 0;
+      const ph = j.t * 7; m.legs[0].rotation.x = m.legs[1].rotation.x = 0; m.body.rotation.x = M.fixed ? 0 : 0.35;
       m.arms[0].rotation.x = M.fixed ? -2.6 - Math.sin(ph) * 0.4 : -1.2 + Math.sin(ph) * 0.5; m.arms[1].rotation.x = M.fixed ? 0 : -1.2 - Math.sin(ph) * 0.5;   // spanners, then a wave
       if (!M.fixed && Math.random() < dt * 5) fx.add.spawn(M.target.x + (j.p.x - M.target.x) * 0.5, j.p.y + 1, M.target.z + (j.p.z - M.target.z) * 0.5, rnd(-2, 2), rnd(1, 3), rnd(-2, 2), 0.25, 0.25, 0.1, 1, .85, .4, 1, 9);
     } else if (j.state === 'swim') {
@@ -225,93 +243,171 @@ export function createDrop(ctx) {
     m.group.position.copy(j.p); m.group.rotation.y = j.h;
   }
 
+  // ---------------------------------------------------------------- the aeroplane
   // the jump run: where the autopilot aims, so that the unsteered landing point sweeps over the helicopter
+  // The jump run: a straight line on heading h through the release point (CARP), where a man leaving at 130 KIAS lands
+  // on the helicopter if he does not steer (his throw plus the drift under canopy, computed like predict()). The run is
+  // flown along the line from the entry; overshoot it without the stick out and the crew turns round and runs it back.
+  function planRun(h) {
+    const T = M.target, alt = Math.max(T.y, 0) + DROP_AGL, rho = 4.9 * Math.exp(-alt / 6000), tas = DROP_KIAS / KT * Math.sqrt(1.225 / rho);
+    const ux = fwdX(h), uz = fwdZ(h), along = tas + M.wind.x * ux + M.wind.y * uz;   // the autopilot crabs: ground track along the run
+    predictFrom(T.x, alt, T.z, ux * along, uz * along, 0, h, _w);
+    M.run = { h, x: T.x - (_w.x - T.x), z: T.z - (_w.z - T.z), passes: 0, setup: false };
+  }
+  function runGeom() {   // along-track distance s (negative before the release point) and cross-track c (+ = right of it)
+    const S = M.plane.sim, R = M.run, rx = S.pos.x - R.x, rz = S.pos.z - R.z;
+    return { s: rx * fwdX(R.h) + rz * fwdZ(R.h), c: rx * Math.cos(R.h) - rz * Math.sin(R.h) };
+  }
   function apTarget() {
     const T = M.target, S = M.plane.sim;
-    if (M.left === 0 || M.egress) return { x: M.plane.entry.x, z: M.plane.entry.z, alt: 160, spd: 60 };
-    predict(_w);
-    const dzAlt = Math.max(T.y, 0) + 85;
-    const d = Math.hypot(T.x - S.p.x, T.z - S.p.z);
-    // far out: head for the drop zone; close in: correct for the throw and the drift
-    const k = clamp((900 - d) / 500, 0, 1);
-    return { x: T.x - (_w.x - S.p.x) * k, z: T.z - (_w.z - S.p.z) * k, alt: d > 900 ? Math.max(dzAlt, 140) : dzAlt, spd: AP_SPEED };
+    const d = Math.hypot(T.x - S.pos.x, T.z - S.pos.z);
+    const lookY = Math.max(groundY(S.pos.x + fwdX(S.heading) * 350, S.pos.z + fwdZ(S.heading) * 350), groundY(S.pos.x, S.pos.z), 0);
+    if (M.left === 0 || M.egress) return { x: M.plane.entry.x, z: M.plane.entry.z, alt: Math.max(lookY + 160, 260), kias: 200 };
+    if (!M.run) planRun(Math.atan2(-(T.x - S.pos.x), -(T.z - S.pos.z)));
+    let { s, c } = runGeom();
+    // overshot without the stick out: go round - out past the start of the run, 480 m to its right, so the 180 deg turn
+    // back (radius ~240 m at 130 KIAS and 25 deg of bank) rolls out on the line
+    if (s > 250 && M.jumpSwitch !== 'green' && !M.run.setup) { M.run.setup = true; M.run.passes++; feed(`${CALL}: GO AROUND  -  RUNNING IT AGAIN`, 'info'); }
+    if (M.run.setup) {
+      const px = M.run.x - fwdX(M.run.h) * 1700 + Math.cos(M.run.h) * 480, pz = M.run.z - fwdZ(M.run.h) * 1700 - Math.sin(M.run.h) * 480;
+      if (Math.hypot(px - S.pos.x, pz - S.pos.z) < 250) M.run.setup = false;
+      else return { track: Math.atan2(-(px - S.pos.x), -(pz - S.pos.z)), alt: Math.max(Math.max(T.y, 0) + 230, lookY + 120), kias: CRUISE_KIAS, s, c };
+    }
+    const dzAlt = Math.max(T.y, 0) + DROP_AGL;
+    // line following: intercept at up to 35 deg, steeper the further off; a long way off (turning round) head for the start of the run
+    const track = M.run.h + clamp(c * 0.0028, -0.5, 0.5);   // converges with a ~10 s time constant: slower than the heading loop, no weave
+    return { track, alt: Math.max(s < -1000 ? Math.max(dzAlt, 220) : dzAlt, lookY + 110), kias: s < -1100 ? CRUISE_KIAS : DROP_KIAS, s, c };
+  }
+  const apCmd = t => ({ track: t.track ?? Math.atan2(-(t.x - M.plane.sim.pos.x), -(t.z - M.plane.sim.pos.z)), alt: t.alt, kias: Math.min(t.kias, flapLimit(M.plane.sim)) });
+  // the crew: flaps 50 % for the run below 180 KIAS (limit), up again on the way out; para doors open on the red light
+  // (the loadmaster), closed when the stick is out; a dead engine gets feathered
+  // the autopilot keeps inside the flap limit (230 - flap %, OPS card) and the para door limit with them open
+  const flapLimit = S => Math.min(S.flap > 0.03 || S.flapSel > 0 ? C130.V_FLAP(Math.max(S.flap, S.flapSel)) - 12 : 400, S.door[0] + S.door[1] > 0.05 ? C130.V_DOORS - 15 : 400);
+  function crew(dt) {
+    const S = M.plane.sim, T = M.target, d = Math.hypot(T.x - S.pos.x, T.z - S.pos.z);
+    if (!M.flapManual) {
+      if (M.run && M.run.setup && S.kias > 140) S.flapSel = 0;
+      else if (!M.egress && M.run && runGeom().s > -1500 && runGeom().s < 300 && S.kias < 175) S.flapSel = 0.5;
+      if (M.egress && S.kias > 140 && S.vel.y > -1) S.flapSel = 0;
+    }
+    if (!M.doorManual) { const open = !M.egress && (M.light !== 'off' || M.jumpSwitch !== 'off') && S.kias < 180; S.doorCmd[0] = S.doorCmd[1] = open ? 1 : 0; }
+    for (let k = 0; k < 4; k++) {
+      const e = S.eng[k];
+      if (!e.run && e.cond !== 'feather' && !e.autoFeathered && e.hp < 0.5 && (M.ap || !M.hadStick)) { e.crewT = (e.crewT || 0) + dt; if (e.crewT > 2.5) { S.setCond(k, 'feather'); if (e.fire) { e.fire = 'out'; e.firePulled = true; } feed(`${CALL}: NUMBER ${k + 1} FEATHERED`, 'info'); } }
+    }
+  }
+  // flak damage reaches the engines: a hit may knock one out or set it on fire
+  function engineDamage(S, hits) {
+    if (hits <= 0 || Math.random() > 0.45) return;
+    const k = Math.floor(Math.random() * 4), e = S.eng[k];
+    e.hp = Math.max(0, e.hp - rnd(0.25, 0.7));
+    if (e.hp < 0.4 && !e.fire && e.run) { e.fire = true; feed(`${CALL}: NUMBER ${k + 1} ENGINE FIRE`, 'bad'); say(`NUMBER ${k + 1} ENGINE FIRE  -  PULL THE FIRE HANDLE (OVERHEAD)`, 2); }
+    else feed(`${CALL}: HIT  -  NUMBER ${k + 1} ENGINE DAMAGED`, 'bad');
   }
 
   function updatePlane(dt, ctl, fireNow, hasStick) {
     const P = M.plane, S = P.sim, u = P.u;
-    const agl = aglOf(S.p);
-    if (u.dying && !P.down) { P.down = true; S.engines = 0; feed('MULE 1 HIT  -  GOING DOWN', 'bad'); say('MULE 1 GOING DOWN  -  BAIL OUT!', 2); while (M.left > 0) jump(true); }
+    const agl = aglOf(S.pos);
+    if (u.hp < P.lastHp) { engineDamage(S, P.lastHp - u.hp); P.lastHp = u.hp; }
+    if (u.dying && !P.down) {
+      P.down = true; for (let k = 0; k < 4; k++) { S.eng[k].hp = 0; S.eng[k].fire = true; }
+      feed(`${CALL} HIT  -  GOING DOWN`, 'bad'); say(`${CALL} GOING DOWN  -  BAIL OUT!`, 2); while (M.left > 0) jump(true);
+    }
+    for (const e of S.eng) if (e.fire === true && e.firePulled) e.fire = 'out';
     // controls: autopilot, or you; any real stick input takes it off autopilot
     let c;
     if (hasStick && !P.down) {
       const kbd = ctl.source === 'KEYBOARD';
       const thrMoved = M.lastColl !== undefined && ctl.coll !== undefined && Math.abs(ctl.coll - M.lastColl) > 0.03;   // throttle keys pressed / throttle lever moved
-      const stickIn = Math.abs(ctl.cx || 0) > 0.15 || Math.abs(ctl.cy || 0) > 0.15 || Math.abs(ctl.pedal || 0) > 0.15 || thrMoved;
+      const rIn = ctl.cx || 0, pIn = ctl.cy || 0, yIn = ctl.pedal || 0;
+      const stickIn = Math.abs(rIn) > 0.15 || Math.abs(pIn) > 0.15 || Math.abs(yIn) > 0.15 || thrMoved;
       if (M.ap && stickIn && M.t > 0.5) { M.ap = false; M.apJump = false; say('AUTOPILOT OFF  -  YOU HAVE CONTROL', 1.4); }
+      const thr = clamp(ctl.coll ?? S.thr, 0, 1), throttle = [thr, thr, thr, thr];
       if (M.ap) {
-        const t = apTarget(); c = S.autopilot(dt, t.x, t.z, t.alt, t.spd);
-        if (kbd) ctx.setThrottle(c.thr);   // the throttle keys pick up from where the autopilot left it
-      } else {
-        // keyboard: smoothed half deflection, and a wing leveller / pitch hold when the keys are released; a stick is raw
-        const rIn = ctl.cx || 0, pIn = ctl.cy || 0;
-        if (kbd) {
-          const k = 1 - Math.exp(-5 * dt); M.kb.roll += (rIn * 0.7 - M.kb.roll) * k; M.kb.pitch += (pIn * 0.5 - M.kb.pitch) * k;
-          c = { roll: Math.abs(rIn) > 0 ? M.kb.roll : clamp(-S.bank * 1.2 + S.w.z * 0.6, -0.5, 0.5), pitch: Math.abs(pIn) > 0 ? M.kb.pitch : clamp(-S.v.y * 0.05 - S.w.x * 0.4 + 0.05, -0.4, 0.4), yaw: ctl.pedal || 0, thr: ctl.coll ?? S.thr };
-        } else c = { roll: rIn, pitch: pIn, yaw: ctl.pedal || 0, thr: ctl.coll ?? S.thr };
-      }
-      M.lastColl = M.ap && kbd ? c.thr : ctl.coll;
+        const t = apTarget(); c = S.autopilot(dt, apCmd(t));
+        if (kbd) ctx.setThrottle(c.throttle[0]);   // the throttle keys pick up from where the autopilot left it
+        M.hold = null;
+      } else if (kbd) {
+        // keyboard: smoothed partial deflection; hands off, it holds the heading and height you left it at
+        const k = 1 - Math.exp(-5 * dt); M.kb.roll += (rIn * 0.75 - M.kb.roll) * k; M.kb.pitch += (pIn * 0.55 - M.kb.pitch) * k;
+        const active = Math.abs(rIn) > 0.05 || Math.abs(pIn) > 0.05;
+        M.noInput = active ? 0 : M.noInput + dt;
+        if (active || M.noInput < 0.25) { c = { roll: M.kb.roll, pitch: M.kb.pitch + 0.0, yaw: yIn + S.beta * 3, throttle }; M.hold = null; S.apState.Iq = S.surf.ele / 0.38; S.apState.I = 0; }
+        else {
+          if (!M.hold) M.hold = { track: S.track(), alt: S.pos.y };
+          const a = S.autopilot(dt, { track: M.hold.track, alt: M.hold.alt, kias: S.kias }); c = { ...a, yaw: a.yaw + yIn, throttle };
+        }
+      } else c = { roll: rIn, pitch: pIn, yaw: yIn, throttle, trimRate: (held.has('BracketRight') ? 1 : 0) - (held.has('BracketLeft') ? 1 : 0) };
+      M.lastColl = M.ap && kbd ? c.throttle[0] : ctl.coll;
     } else if (!P.down) {   // nobody on the stick (everyone out): autopilot home
-      const t = apTarget(); c = S.autopilot(dt, t.x, t.z, t.alt, t.spd);
-    } else c = { roll: 0.3, pitch: -0.2, yaw: 0, thr: 0, wobble: Math.sin(M.t * 3) * 0.6 };
+      const t = apTarget(); c = S.autopilot(dt, apCmd(t));
+    } else c = { roll: 0.35 + Math.sin(M.t * 1.3) * 0.2, pitch: -0.25, yaw: 0.3, throttle: [0, 0, 0, 0] };
     M.ctl = c;
-    S.step(dt, c);
-    // jumps: F on the green light (or the jumpmaster, on autopilot)
+    crew(dt);
+        S.step(dt, c, M.env);
+    // jumps: the green light (you: F or the switch; the crew on autopilot); the jumpmaster sends one a second
     M.jumpCd -= dt;
-    if (!P.down && hasStick && M.left > 0 && M.jumpCd <= 0) {
-      if (fireNow) jump();
-      else if (M.autoStick) jump();
-      else if (M.ap && M.apJump) { predict(_w); if (Math.hypot(_w.x - M.target.x, _w.z - M.target.z) < 16 && agl > JUMP_MIN_AGL) { M.autoStick = true; jump(); } }
+    if (!P.down && hasStick && M.left > 0) {
+      if (fireNow && M.jumpSwitch !== 'green') { M.jumpSwitch = 'green'; M.lightManual = true; }
+      if (M.ap && M.apJump && M.light === 'green' && M.jumpSwitch !== 'green') M.jumpSwitch = 'green';
+      if (M.ap && M.apJump && M.light === 'red' && M.jumpSwitch === 'off') M.jumpSwitch = 'red';
+      if (M.ap && M.apJump && M.light === 'off' && M.jumpSwitch === 'red' && !M.lightManual) M.jumpSwitch = 'off';
+      if (M.jumpSwitch === 'green' && M.jumpCd <= 0) jump();
     }
-    if (M.left === 0 && !M.egress) { M.egress = true; M.egressT = M.t; }
+    if (M.left === 0 && !M.egress) { M.egress = true; M.egressT = M.t; M.jumpSwitch = 'off'; }
+    // the next men stand in the open doors
+    for (let i = 0; i < 2; i++) { M.doorT[i] -= dt; const need = M.left > (i === M.exits % 2 ? 0 : 1); doorMan(i, need && S.door[i] > 0.9 && M.doorT[i] <= 0 && !P.down); }
     // warnings
     if (!P.down && hasStick) {
-      if (S.alpha > 0.18 && S.V > 5) sfx.alarm?.();
-      M.pullUp = agl < 30 && S.v.y < -3;
+      if (S.buffet > 0.3) sfx.alarm?.();
+      M.pullUp = agl < 50 && S.vel.y < -3;
       if (M.pullUp) sfx.alarm?.();
     }
-    // smoke and fire when hit; ground
-    if (P.down || u.hp < u.hpMax * 0.5) { fx.trail(S.p.x, S.p.y, S.p.z, P.down ? 2 : 1); if (P.down) fx.add.spawn(S.p.x, S.p.y, S.p.z, rnd(-1, 1), rnd(0, 2), rnd(-1, 1), rnd(0.3, 0.6), 2.2, 0.6, 1, rnd(.4, .6), .1, 0.9, -1, 1); }
-    const floor = Math.max(groundY(S.p.x, S.p.z), 0);
-    if (S.p.y < floor + 1.5) {
-      const wet = isWater(S.p.x, S.p.z);
-      fx.explode(S.p.x, floor, S.p.z, 4, { fire: wet ? 0 : 60, oil: wet, debris: 16, color: 0x6c747c, crater: wet ? 0 : 4 }); sfx.boom(1.2);
-      if (M.left > 0) { feed(`MULE 1 CRASHED  -  ${M.left} OF THE TEAM LOST`, 'bad'); say('MULE 1 CRASHED', 2.5); M.lost += M.left; M.left = 0; }
-      P.gone = true; scene.remove(P.mesh); u.gone = true;
+    // smoke and fire when hit; a burning engine trails smoke; ground
+    if (P.down || u.hp < u.hpMax * 0.5) { fx.trail(S.pos.x, S.pos.y, S.pos.z, P.down ? 2 : 1); if (P.down) fx.add.spawn(S.pos.x, S.pos.y, S.pos.z, rnd(-1, 1), rnd(0, 2), rnd(-1, 1), rnd(0.3, 0.6), 2.2, 0.6, 1, rnd(.4, .6), .1, 0.9, -1, 1); }
+    for (let k = 0; k < 4; k++) if (S.eng[k].fire === true && Math.random() < dt * 20) { _v.set(C130M.ENG_X[k], C130M.ENG_Y + 0.6, 2.5).applyQuaternion(S.q).add(S.pos); fx.trail(_v.x, _v.y, _v.z, 1); }
+    const floor = Math.max(groundY(S.pos.x, S.pos.z), 0);
+    if (S.dead || S.pos.y < floor + 1.5) {
+      const wet = isWater(S.pos.x, S.pos.z);
+      fx.explode(S.pos.x, floor, S.pos.z, 5, { fire: wet ? 0 : 80, oil: wet, debris: 24, color: 0xa9adb0, crater: wet ? 0 : 5 }); sfx.boom(1.4);
+      if (M.left > 0) { feed(`${CALL} CRASHED  -  ${M.left} OF THE TEAM LOST`, 'bad'); say(`${CALL} CRASHED`, 2.5); M.lost += M.left; M.left = 0; }
+      P.gone = true; scene.remove(P.mesh); u.gone = true; snd.stop();
     }
-    if (M.egress && !P.gone && (M.t > M.egressT + 70 || (Math.hypot(S.p.x, S.p.z) > 1000 && M.t > M.egressT + 15))) { P.gone = true; scene.remove(P.mesh); u.gone = true; }
+    if (M.egress && !P.gone && (M.t > M.egressT + 80 || (Math.hypot(S.pos.x, S.pos.z) > 1100 && M.t > M.egressT + 20))) { P.gone = true; scene.remove(P.mesh); u.gone = true; snd.stop(); }
     // the mesh and its moving parts
-    P.mesh.position.copy(S.p); P.mesh.quaternion.copy(S.q);
-    for (const pr of P.parts.props) pr.rotation.z += dt * (S.engines ? 20 + 30 * S.thr : 3);
-    P.parts.lamp.visible = (M.t % 1.2) < 0.12;
-    for (const l of deck.levers) l.rotation.x = -0.6 + S.thr * 1.1;
-    for (const y of deck.yokes) { y.col.rotation.x = clamp(c.pitch, -1, 1) * 0.25; y.wheel.rotation.z = -clamp(c.roll, -1, 1) * 0.8; }
+    P.mesh.position.copy(S.pos); P.mesh.quaternion.copy(S.q);
+    P.parts.animate({ eng: S.eng, flap: S.flap, gear: S.gear, ramp: S.ramp, door: S.door, ele: S.surf.ele, ail: S.surf.ail, rud: S.surf.rud, steer: S.steer, wow: S.wow, jumpLight: M.jumpSwitch }, dt, M.t, deckView());
   }
 
+  // what the navigator's computer says: red inside a minute of the drop zone, green at the release point within limits
   function jumpLight() {
     if (!M || M.left === 0 || M.plane.gone) return 'off';
-    predict(_w); const miss = Math.hypot(_w.x - M.target.x, _w.z - M.target.z), S = M.plane.sim;
-    if (miss < 30 && aglOf(S.p) > JUMP_MIN_AGL && S.V < JUMP_MAX_V) return 'green';
-    return Math.hypot(M.target.x - S.p.x, M.target.z - S.p.z) < 900 ? 'red' : 'off';
+    const S = M.plane.sim; predict(_w); let miss = Math.hypot(_w.x - M.target.x, _w.z - M.target.z);
+    // on the run: the stick goes when the predicted landing point comes abeam the helicopter (a little early for a stick
+    // of three at a second's spacing) and no more than 90 m to the side (they can steer that out under canopy)
+    if (M.run && !M.run.setup) { const ax = _w.x - M.target.x, az = _w.z - M.target.z, al = ax * fwdX(M.run.h) + az * fwdZ(M.run.h), lat = ax * Math.cos(M.run.h) - az * Math.sin(M.run.h); if (al > -30 && al < 20 && Math.abs(lat) < 90) miss = 0; }
+    const onRun = !M.run || (!M.run.setup && Math.abs(angDiff(S.track(), M.run.h)) < 0.5);
+    if (miss < 35 && onRun && aglOf(S.pos) > JUMP_MIN_AGL && S.kias < JUMP_MAX_KIAS) return 'green';
+    if (!M.run) return 'off';
+    const { s, c } = runGeom();
+    return !M.run.setup && s > -1000 && s < 200 && Math.abs(c) < 200 ? 'red' : 'off';
+  }
+
+  function cautions(S) {
+    return { gear: S.gear > 0.01 && S.gear < 0.99, flapOs: S.kias > C130.V_FLAP(S.flap) + 2 && S.flap > 0.05, ramp: S.ramp > 0.02, door: S.door[0] > 0.02 || S.door[1] > 0.02,
+      otq: S.eng.some(e => e.torque > 19600), tit: S.eng.some(e => e.tit > 1083), nts: S.eng.some(e => e.nts), eng: S.eng.some(e => !e.run), fuel: S.fuel < 1800, stall: S.buffet > 0.3, af: S.autoFeatherArm,
+      doorOs: (S.ramp > 0.02 && S.kias > C130.V_RAMP) || ((S.door[0] > 0.02 || S.door[1] > 0.02) && S.kias > C130.V_DOORS) };
   }
 
   function update(dt, ctl, heli) {
     if (!M) return;
     M.t += dt; M.jumpHandsT = (M.jumpHandsT ?? 9) + dt;
     if (heli.landed) M.target.set(heli.pos.x, groundY(heli.pos.x, heli.pos.z), heli.pos.z);
-    const fireNow = !!ctl.fire, flying = planeHasStick();   // the stick goes to the dropship until everyone is out
+    const fireNow = !!ctl.fire, flying = planeHasStick();   // the stick goes to the aeroplane until everyone is out
     if (flying && !M.hadStick) { M.hadStick = true; ctx.takeStick(); }
     if (!flying && M.hadStick) { M.hadStick = false; ctx.releaseStick(); }
     if (!flying) deck.group.visible = false;
+    M.light = jumpLight();
     const lead = leadJumper();
     if (!M.plane.gone) updatePlane(dt, ctl, flying && fireNow, flying);
     for (const j of M.jumpers) updateJumper(j, dt, ctl.cx || 0, Math.max(0, ctl.cy || 0), !flying && j === lead);
@@ -320,14 +416,22 @@ export function createDrop(ctx) {
     // repairs: man-seconds of work from whoever made it
     const working = M.jumpers.filter(j => j.state === 'work').length;
     if (working && !M.fixed) { M.work += working * dt; if (M.work >= WORK) { M.fixed = true; ctx.onRepaired(); } }
-    // markers, light, instruments
-    M.light = jumpLight();
+    // markers, instruments, sound
     tRing.visible = !M.fixed; pRing.visible = M.left > 0 && !M.plane.gone && !M.plane.down;
     if (tRing.visible) { tRing.position.set(M.target.x, M.target.y + 0.4, M.target.z); tRing.scale.setScalar(1 + 0.08 * Math.sin(M.t * 5)); }
     if (pRing.visible) { predict(_w); pRing.position.set(_w.x, _w.y + 0.4, _w.z); }
-    const blink = (M.t % 0.5) < 0.25;
-    deck.red.material.color.setHex(M.light === 'red' ? 0xff2010 : 0x220000); deck.green.material.color.setHex(M.light === 'green' && blink ? 0x30ff40 : 0x002200);
-    if (deck.group.visible && (M.instT -= dt) <= 0) { M.instT = 0.08; drawInstruments(deck, M.plane.sim, { ap: M.ap, alt: M.plane.sim.p.y, left: M.left, light: M.light, pullUp: M.pullUp }); }
+    const S = M.plane.sim;
+    if (!M.plane.gone) {
+      if (deck.group.visible) {
+        const C = cautions(S); if (!Object.values(C).some(Boolean)) M.mcReset = false;
+        deck.update(S, { ap: M.ap, jumpLight: M.jumpSwitch, jumpSwitch: M.jumpSwitch, dz: { brg: Math.atan2(-(M.target.x - S.pos.x), -(M.target.z - S.pos.z)), dist: Math.hypot(M.target.x - S.pos.x, M.target.z - S.pos.z) },
+          agl: aglOf(S.pos) - 2.6, cautions: C, mcReset: M.mcReset, time: M.t, ctl: M.ctl }, dt, hover);
+      }
+      if (camRef) {
+        const d = camRef.position.distanceTo(S.pos), vr = d > 1 ? _v.subVectors(camRef.position, S.pos).dot(S.vel) / d : 0;
+        snd.update({ eng: S.eng, tas: S.tas, inside: deckView(), dist: d, vr });
+      }
+    }
     // finished? everyone is down (or lost) and nobody is still running
     const settled = M.left === 0 && M.jumpers.every(j => j.state !== 'ff' && j.state !== 'canopy' && j.state !== 'run');
     if (!M.done && settled && (M.fixed || working === 0)) {
@@ -340,56 +444,68 @@ export function createDrop(ctx) {
   }
   function planeHasStick() { return !!M && M.left > 0 && !M.plane.gone && !M.plane.u.dying; }
   function leadJumper() { return M && M.jumpers.find(j => j.state === 'ff' || j.state === 'canopy') || null; }
+  function deckView() { return planeHasStick() && M.view === 'cockpit'; }
 
-  // camera: on the flight deck (or behind the dropship), then riding with the lead canopy
+  // camera: on the flight deck (or behind the aeroplane), then riding with the lead canopy
   function camera(cam, dt) {
+    camRef = cam;
     const k = 1 - Math.exp(-4 * dt), L = leadJumper(), S = M.plane.sim;
-    const deckView = planeHasStick() && M.view === 'cockpit';
-    deck.group.visible = deckView; M.plane.parts.glazing.visible = !deckView;
-    if (deckView) {
+    const dv = deckView();
+    deck.group.visible = dv;
+    if (dv) {
       M.plane.mesh.updateMatrixWorld();
-      cam.position.copy(EYE).applyMatrix4(M.plane.mesh.matrixWorld);
-      cam.quaternion.copy(S.q).multiply(_q.setFromEuler(_e.set(-0.24 + (ctx.head?.pitch || 0), ctx.head?.yaw || 0, 0, 'YXZ')));
+      cam.position.copy(DECK_EYE).applyMatrix4(M.plane.mesh.matrixWorld);
+      cam.quaternion.copy(S.q).multiply(_q.setFromEuler(_e.set(DECK_EYE_PITCH + (ctx.head?.pitch || 0), ctx.head?.yaw || 0, 0, 'YXZ')));
+      if (S.buffet > 0.05) { cam.position.y += (Math.random() - 0.5) * 0.03 * S.buffet; cam.rotateZ((Math.random() - 0.5) * 0.01 * S.buffet); }
       M.cam.copy(cam.position); M.look.copy(cam.position).add(S.forward(_v).multiplyScalar(50));
+      // switch under the cursor / crosshair
+      hover = null; cam.updateMatrixWorld();
+      ray.setFromCamera(document.pointerLockElement ? c0 : mouseNdc, cam);
+      const h = ray.intersectObjects(deck.hitBoxes, false)[0]; if (h && h.distance < 2.2) hover = h.object.userData.sw;
       return;
     }
+    hover = null;
     if (L && !planeHasStick()) {
       const h = L.state === 'ff' ? S.heading : L.h;
       _v.set(L.p.x - fwdX(h) * 13, L.p.y + 4.5, L.p.z - fwdZ(h) * 13);
       _w.set(L.p.x + fwdX(h) * 10, L.p.y - 5, L.p.z + fwdZ(h) * 10).lerp(M.target, 0.3);
     } else {
       const f = S.forward(_w).clone(); f.y = 0; f.normalize();
-      _v.set(S.p.x - f.x * 48, S.p.y + 14, S.p.z - f.z * 48);
-      _w.set(S.p.x + f.x * 50, S.p.y - 20, S.p.z + f.z * 50);
+      _v.set(S.pos.x - f.x * 58, S.pos.y + 16, S.pos.z - f.z * 58);
+      _w.set(S.pos.x + f.x * 50, S.pos.y - 22, S.pos.z + f.z * 50);
     }
     M.cam.lerp(_v, k); M.look.lerp(_w, k);
     M.cam.y = Math.max(M.cam.y, groundY(M.cam.x, M.cam.z) + 2);
     cam.position.copy(M.cam); cam.lookAt(M.look);
   }
 
-  return {
+  const api = {
     start, update, camera, cancel: cleanup,
     get active() { return !!M; },
     get camActive() { return !!M && (planeHasStick() || !!leadJumper()); },
     get controlling() { return this.camActive; },
     get flying() { return planeHasStick(); },
-    get cockpitView() { return planeHasStick() && M.view === 'cockpit'; },
+    get cockpitView() { return deckView(); },
     get state() { return M; },
-    engineLevel() { return M && !M.plane.gone ? 0.35 + 0.55 * M.plane.sim.thr * M.plane.sim.engines : 0; },
-    toggleAP() { if (!planeHasStick()) return; M.ap = !M.ap; if (M.ap) { M.apJump = true; M.plane.sim.ap.I = 0.05; } say(M.ap ? 'AUTOPILOT ON  -  IT WILL FLY THE RUN AND CALL THE JUMP' : 'AUTOPILOT OFF  -  YOU HAVE CONTROL', 1.6); },
+    get hover() { return hover; },
+    deck, clickSwitch: (id, alt) => M && clickSwitch(id, alt),
+    engineLevel() { return 0; },   // the Hercules has its own sound (c130audio.js); this keeps main.js's generic engine quiet
+    toggleAP() { if (!planeHasStick()) return; M.ap = !M.ap; if (M.ap) { M.apJump = true; const a = M.plane.sim.apState; a.I = 0; a.It = 0; a.Ir = 0; } say(M.ap ? 'AUTOPILOT ON  -  THE CREW FLIES THE RUN AND CALLS THE GREEN LIGHT' : 'AUTOPILOT OFF  -  YOU HAVE CONTROL', 1.6); },
     toggleView() { if (!M) return; M.view = M.view === 'cockpit' ? 'chase' : 'cockpit'; say(M.view === 'cockpit' ? 'FLIGHT DECK' : 'CHASE VIEW', 1); },
     status() {
       if (!M) return '';
+      if (hover && deckView()) return `${deck.labelOf(hover, M.plane.sim, { ap: M.ap, jumpLight: M.jumpSwitch })}  -  CLICK`;
       if (M.fixed) return 'REPAIRED  -  THE CREW WAITS FOR PICK-UP';
       const run = M.jumpers.filter(j => j.state === 'run').length, work = M.jumpers.filter(j => j.state === 'work').length;
       if (work) return `FIELD REPAIR  ${Math.round(100 * M.work / WORK)}%  -  ${work} AT WORK${run ? `, ${run} ON THE WAY` : ''}`;
       if (run) return `REPAIR CREW ON THE WAY  -  ${run} RUNNING`;
       const L = leadJumper();
-      if (L && !planeHasStick()) { const d = Math.hypot(L.p.x - M.target.x, L.p.z - M.target.z); return `CANOPY  ·  ${Math.round(L.p.y - groundY(L.p.x, L.p.z))}m UP  ·  ${Math.round(d)}m TO THE HELICOPTER  ·  A/D TURN  ·  S BRAKES  ·  HANDS OFF: HE STEERS`; }
-      if (!planeHasStick()) return 'MULE 1 OUTBOUND';
+      if (L && !planeHasStick()) { const d = Math.hypot(L.p.x - M.target.x, L.p.z - M.target.z); return `MC1-1  ·  ${Math.round((L.p.y - groundY(L.p.x, L.p.z)) * 3.28)} FT  ·  ${Math.round(d)} m TO THE HELICOPTER  ·  A/D TURN  ·  S RISER SLIP  ·  HANDS OFF: HE STEERS`; }
+      if (!planeHasStick()) return `${CALL} OUTBOUND`;
       const S = M.plane.sim; predict(_w);
-      const light = M.light === 'green' ? 'GREEN LIGHT - JUMP (F)' : M.light === 'red' ? 'RED LIGHT - STAND BY' : `${M.left} TO JUMP`;
-      return `MULE 1  ·  DZ ${Math.round(Math.hypot(M.target.x - S.p.x, M.target.z - S.p.z))}m  ·  ${Math.round(S.V * KT)}kt  ·  ${Math.round(aglOf(S.p))}m AGL  ·  MISS ${Math.round(Math.hypot(_w.x - M.target.x, _w.z - M.target.z))}m  ·  ${M.ap ? 'AP ON' : 'AP OFF'} (H)  ·  ${light}`;
+      const light = M.jumpSwitch === 'green' ? 'GREEN LIGHT' : M.light === 'green' ? 'AT THE RELEASE POINT - F GREEN LIGHT' : M.light === 'red' || M.jumpSwitch === 'red' ? 'RED LIGHT - STAND BY' : `${M.left} TO JUMP`;
+      return `${CALL}  ·  DZ ${Math.round(Math.hypot(M.target.x - S.pos.x, M.target.z - S.pos.z))} m  ·  ${Math.round(S.kias)} KIAS  ·  ${Math.round(aglOf(S.pos) * 3.28)} FT AGL  ·  FLAPS ${Math.round(S.flap * 100)}  ·  MISS ${Math.round(Math.hypot(_w.x - M.target.x, _w.z - M.target.z))} m  ·  ${M.ap ? 'AP ON' : 'AP OFF'} (H)  ·  ${light}`;
     },
   };
+  return api;
 }

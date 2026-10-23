@@ -25,7 +25,7 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const TAU = Math.PI * 2, D2R = Math.PI / 180, FT = 3.28084;
 const SANS = 'Arial, "Liberation Sans", Helvetica, sans-serif';
 const FLOOR = -0.2;
-const _v = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
+const _v = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0), _mInv = new THREE.Matrix4();
 
 function canvasTex(w, h) {
   const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
@@ -59,7 +59,7 @@ function dialFace(c, W, o) {
 export function buildC130Deck() {
   const g = new THREE.Group(); g.visible = false; g.name = 'c130Deck';
   const M = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, emissive: new THREE.Color(c).multiplyScalar(0.45), ...o });
-  const black = M(0x151617), panelM = M(0x1c1e1f), glareM = M(0x101112), wallM = M(0x6e7568), wallD = M(0x4f554b), floorM = M(0x2f3331);
+  const black = M(0x151617), panelM = M(0x1c1e1f), glareM = M(0x222527), wallM = M(0x6e7568), wallD = M(0x4f554b), floorM = M(0x2f3331);
   const seatM = M(0x3c3a33), cushion = M(0x5a4a33), metal = M(0x8a8f93), frameM = M(0x3c4146), redM = M(0xc01a10), whiteM = M(0xdedbd0);
   const knobM = M(0x1a1a1a), yellowM = M(0xd8b21a), suit = M(0x6b7055), helmetM = M(0xd2d2c8), skinM = M(0xc19a77), gloveM = M(0x3a3226), bootM = M(0x161616);
   const box = (w, h, d, m, x, y, z, p = g, rx = 0, ry = 0, rz = 0) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); o.rotation.set(rx, ry, rz); p.add(o); return o; };
@@ -422,7 +422,7 @@ export function buildC130Deck() {
       for (let i = 0; i < hovs.length; i++) {
         const o = hovs[i], h = hb[i]; o.visible = !!h; if (!h) continue;
         h.updateWorldMatrix(true, false); o.matrix.copy(h.matrixWorld); const [w, hh, d] = h.userData.size; o.matrix.scale(_v.set(w, hh, d));
-        g.updateWorldMatrix(true, false); o.matrix.premultiply(new THREE.Matrix4().copy(g.matrixWorld).invert());
+        g.updateWorldMatrix(true, false); o.matrix.premultiply(_mInv.copy(g.matrixWorld).invert());
       }
     },
   };

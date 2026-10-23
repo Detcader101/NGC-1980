@@ -198,7 +198,7 @@ const FZ = FUS.map(f => f[0]), FI = z => FZ.indexOf(z);
 function skinMat(z0, z1, qh) {
   if (z1 <= -12.75) return 4;                                                   // radome
   if (z0 >= -12.75 && z1 <= -12.3 && qh <= 3) return 2;                          // anti-glare panel ahead of the windscreen
-  if (z0 >= -12.3 && z1 <= -11.35 && qh >= 1 && qh <= 4) return 1;              // windscreen (centre panes + corners)
+  if (z0 >= -12.3 && z1 <= -11.35 && qh <= 4) return 1;                         // windscreen (two centre panes either side of the post, corners)
   if (z0 >= -11.35 && z1 <= -10.1 && qh >= 4 && qh <= 5) return 1;              // side windows
   if (z0 >= -11.35 && z1 <= -10.75 && qh === 2) return 1;                       // eyebrow windows over the pilots
   if (z0 >= -12.3 && z1 <= -11.85 && qh === 7) return 1;                         // lower (chin) windows by the rudder pedals

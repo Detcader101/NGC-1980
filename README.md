@@ -18,7 +18,7 @@ The enemy carrier KRAKEN is out there doing the same, and whoever controls the m
 - **Economy.** Islands produce fuel and materiel. Spend materiel on capture drones, AA guns, spare helicopters and escort fighters.
 - **An enemy commander.** It sends transports to take islands, fortifies, raids your carrier, ships supplies by freighter, and builds a battleship in its factories that hunts the ALBATROSS. Bomb the factories to slow it down.
 - **HORNET carrier jet.** Land on the ALBATROSS and press 5: an F/A-18-style fighter on the catapult. Full 6-DOF flight model with a Hornet-like flight computer, a 3D cockpit with a conformal HUD and working displays, catapult launches, arrested landings, gun, AIM-9s and CCIP bombs, ejection. Built for a T.Flight HOTAS 4 and rudder pedals with toe brakes (any stick, pad or keyboard works).
-- **Para-drop repair team.** Downed on land? Press L and home base sends a steel dropship from over the horizon. You fly it in from the flight deck with a real fixed-wing flight model (or let the autopilot), line up the jump run against the wind, jump on the green light, then steer the canopies down; whoever lands on dry ground runs over with fuel and fixes the helicopter. Enemy flak can bring the dropship down.
+- **Para-drop repair team: the KC-130 Hercules.** Downed on land? Press L and home base sends a Marine KC-130R from over the horizon with a repair team. Fly it in from a full 1980 flight deck (or let the crew and autopilot do it) on a real C-130H flight model: four T56 turboprops with governed propellers, beta, feathering and engine-out handling, Fowler flaps, the blown wing. Slow to 130 KIAS with 50% flaps, call the green light, and the stick goes out of both para doors under MC1-1 canopies that you steer down. Whoever lands on dry ground runs over with fuel and fixes the helicopter. Flak knocks out engines and can bring the Hercules down.
 - **SKY CARRIER.** Spend 300 materiel (6 on the map) and the ALBATROSS is refitted with four ducted lift fans and takes to the air. Land on her and press Tab to stand on the bridge: wheel, speed telegraph and lift lever, all slow and heavy. Send her anywhere from the map and she flies over the islands; flak can bring her down.
 - **UH-1H Huey.** A Bell UH-1H with a validated flight model (teetering two-blade rotor with the Bell stabilizer bar, translational lift, ground effect, vortex ring state, retreating blade stall, a T53 engine with governor and freewheel so autorotations work), a full 3D cockpit with live instruments and the real caution panel, an authentic (optional) start sequence, the two-blade "wop wop", and a damage model where hits cause failures you can survive and repair. Built for a T.Flight HOTAS 4 + T-Rudder pedals: stick = cyclic, throttle lever = collective, pedals (or twist) = anti-torque; keyboard works too with the stability assist.
 - **Effects that build up.** Smoke columns, fires, scorch marks, debris and oil slicks stay on the map.
@@ -82,6 +82,19 @@ The Huey spawns hot at flight idle and rolls the throttle on by itself. With `?c
 
 Cockpit switches are clickable (gear and hook handles, flaps, master arm, FCS CAS/DIRECT, engine cranks, fire lights, master caution, jettison, eject, DDI pages). To land: gear down, flaps FULL, hook down, fly the ICLS needles at 8° AoA (the green/amber/red indexer) into the wires.
 
+### KC-130 Hercules (para-drop)
+
+| Key | Action |
+|---|---|
+| L (landed) | call logistics: the Hercules flies out the repair team |
+| H / V | autopilot (the crew flies the run, works flaps, doors and lights) / flight deck or chase view |
+| stick, Shift / Ctrl | yoke and the four power levers together |
+| F / X | green light: the stick jumps (the jumpmaster holds below 400 ft or above 150 KIAS) |
+| Z / G / [ ] | flaps 0-50-100 / gear / elevator trim (on a stick) |
+| A D, S (under canopy) | steer the lead canopy, rear-riser slip; hands off and he steers himself |
+
+The flight deck is clickable: the four condition levers on the overhead (click: RUN -> FEATHER -> AIR START -> RUN, right click GND STOP), fire T-handles, engine starts, autofeather, gear and flap levers, autopilot, and the paratroop panel left of the pilot (jump lights OFF / RED / GREEN, alarm bell = everyone out now, para doors, ramp). A flak hit can set an engine on fire: pull its fire handle. `game/dev/c130.html` flies the aeroplane alone (`?start=air|runway|drop`) with a chase camera and telemetry; `game/dev/c130-model.html` is the model turntable.
+
 The in-game help screen has the full list.
 
 ## Tests
@@ -91,6 +104,7 @@ The in-game help screen has the full list.
 ```
 cd tools && npm install && node snap.mjs scenes/war.json
 node tools/jetbench.mjs             # the jet's flight model against published F/A-18C figures, in plain node
+node tools/c130bench.mjs            # the C-130H flight model against published C-130H data (spec box, ops limits card, FM 3-21.38)
 node tools/hueybench.mjs            # the Huey's flight model against published UH-1H data (Heffley, Talbot, DCS / TM charts)
 ```
 
@@ -98,6 +112,7 @@ Jet scenes: `jet.mjs` (launch, climb, turn), `jettrap.mjs` (arrested landing), `
 `node tools/cavebench.mjs` checks the cave generator without a browser: it prints every island's cave as an ASCII map and
 sweeps hundreds of seeds per tier, checking that each cave is connected, wide enough to fly and has its pad, tanks and
 pod on solid floors. `scenes/caves.mjs` flies into every cave and screenshots it.
+Hercules scenes: `drop.json`, `dropflak.json`, `rescue.json` (the para-drop in the game), `c130.mjs` (flight deck, switches, engine out, drop run, take-off on the test page), `c130model.mjs` (exterior screenshots and dimensions).
 Huey scenes: `hueystart.json` (cold start), `hueyhover.json` (hover trim, forward flight), `hueyauto.json` (practice autorotation with power recovery), `hueycockpit.mjs`, `hueymodel.mjs` (screenshots).
 
 ## Credits
