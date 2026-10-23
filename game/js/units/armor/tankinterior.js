@@ -280,8 +280,10 @@ function soldierGeo(seed = 0) {
     col(box(0.09, 0.32, 0.1, s * 0.22, 0.48, 0.02), og);
     col(box(0.08, 0.08, 0.28, s * 0.17, 0.3, 0.16), og);
   }
-  col(box(0.04, 0.9, 0.07, 0.0, 0.12, 0.36), 0x161616);
-  col(box(0.05, 0.08, 0.12, 0.0, -0.05, 0.36), 0x161616);
+  col(box(0.028, 0.74, 0.045, 0.0, 0.2, 0.36), 0x202020);    // M16A1 upright between the knees: barrel and receiver
+  col(box(0.026, 0.14, 0.05, 0.0, 0.02, 0.41), 0x202020);    // magazine
+  col(box(0.03, 0.03, 0.03, 0.0, 0.58, 0.36), 0x2a2a2a);     // front sight block
+  col(box(0.04, 0.16, 0.07, 0.0, -0.22, 0.36), 0x202020);    // stock on the floor
   const g = new THREE.BufferGeometry(); let n = 0; for (const p of parts) n += p.attributes.position.count;
   const P = new Float32Array(n * 3), C = new Float32Array(n * 3); let o = 0;
   for (const p of parts) { P.set(p.attributes.position.array, o * 3); C.set(p.attributes.color.array, o * 3); o += p.attributes.position.count; }

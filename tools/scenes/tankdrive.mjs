@@ -40,6 +40,14 @@ export default async function (h) {
   await h.expect('__T.stats.shots === 1 && __T.stats.hits === 1', 'first-round hit at 1000 m');
   await h.eval("(() => { __T.view = 'free'; Object.assign(__T.cam, { yaw: 2.6, pitch: 0.15, dist: 14 }); __T.input({ fire: false }); __T.step(1); __T.render(); return 1; })()");
   await h.shot('after-shot');
-  // a moving shot: drive the bump course at ~20 km/h with the stabiliser, lay on the 1500 m hulk direction, fire
+  // a moving shot: 20 km/h up the range road with the stabiliser on; lay once on the 1000 m panel, lase, then hands off
+  // for 1.5 s (the stabiliser holds the lay while the hull moves) and fire
+  await h.eval(`(() => { __T.input(null); __T.reset(-2, 140, 0, { range: 'L' }); __T.step(30); __T.stats.shots = 0; __T.stats.hits = 0;
+    window.__res = __drive(20, 12); const t = __T.TG.TARGETS.find(t => t.id === 'panel1000'); __T.aimAt(t.x, 0.5 + 1.2, t.z);
+    __T.input({ lase: true, throttle: 0.5, range: 'H', park: false, stab: true }); __T.step(2); __T.input({ lase: false }); __T.step(90);
+    return { v: __T.fm.out.fwd * 3.6, range: __T.V.laser.range, lead: __T.V.fc.lead, dist: Math.hypot(__T.fm.origin()[0] - t.x, __T.fm.origin()[2] - t.z) }; })()`);
+  await h.eval("(() => { __T.view = 'gunner'; __T.IN.sight = 'day'; __T.render(); return 1; })()"); await h.wait(150); await h.shot('moving-laid');
+  await h.eval(`(() => { __T.input({ fire: true }); __T.step(3); __T.input({ fire: false }); for (let i = 0; i < 90; i++) __T.step(1); return { hits: __T.stats.hits, shots: __T.stats.shots, last: __T.stats.last, impacts: __T.stats.impacts.slice(-1) }; })()`);
+  await h.expect('__T.stats.shots === 1 && __T.stats.hits === 1', 'hit on the move at ~1000 m (stabilised)');
   await h.eval('(__T.input(null), 1)');
 }

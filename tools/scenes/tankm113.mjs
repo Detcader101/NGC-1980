@@ -2,7 +2,7 @@
 // the open ramp and from inside, the driver's station; then a swim: vane up, pumps on, into the lake, afloat, swim speed.
 //   CHROME_PATH=... node snap.mjs scenes/tankm113.mjs
 export default async function (h) {
-  await h.goto('dev/tank.html?debug&ui=0&res=0.6&veh=m113&at=-60,20,1.5708');
+  await h.goto('dev/tank.html?debug&ui=0&res=0.9&veh=m113&at=-60,20,1.5708');
   await h.waitFor('window.__T', 15000);
   await h.eval('(__T.pause(true), __T.step(60), 1)');
   const view = async (name, v, look = [0, 0], js = '') => { await h.eval(`(() => { __T.view = '${v}'; __T.cam.look = [${look}]; ${js}; __T.render(); return 1; })()`); await h.wait(250); await h.shot(name); };
