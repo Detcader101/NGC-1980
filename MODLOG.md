@@ -428,3 +428,69 @@ makeShip carrier refit + attach, updateGuns update, W.update tick, W.reset reset
 - Untested: the sounds by ear (the paths run without errors in a live AudioContext); the NAVAL agent's
   carrier `userData.mounts` (the code reads { kind, pos, dir } and falls back to the old four deck spots); the sky
   carrier as a missile / beam target in a real fight; performance on a mid-range GPU with every island garrisoned.
+## 2026-10-23 — NGC-1980 INFANTRY: the 1980 Marine rifleman (wave 1, branch ngc/infantry)
+Standalone modules in `game/js/units/infantry/` plus the range sandbox `game/dev/infantry.html`; nothing in main.js
+yet (FOUNDATION wires it in wave 2). Contract for FOUNDATION / MEDINV / RUNAWAY: [docs/ngc1980/INFANTRY.md](docs/ngc1980/INFANTRY.md).
+- **Flight of the rounds** (`ballistics.js`, pure): point mass with the standard G1 / G7 drag functions, wind, air
+  density from temperature / pressure / humidity, Heun steps (allocation-free, sub-stepped to 1/400 s). Headline
+  figures only: muzzle velocities M193 991, M80 853, .45 253, M433 76, M72 145 m/s; drag fitted so the maximum ranges
+  match the field manuals (M193 2,861 vs 2,653 m: a point mass flies the subsonic tail too far; M80 3,959 vs 3,725;
+  .45 1,547 vs 1,500; M433 402 vs 400; M72 996 vs 1,000). G7 fits the rifle rounds' maximum range better than G1
+  (+8 % vs +16 %). Sight solutions: M16A1 apertures (250 m battlesight, 'L' 375 m), M60 leaf (battle + 300-1,100 m),
+  M203 quadrant 50-400 m and leaf, M72 front-sight range lines, M1911 fixed 25 m.
+- **Hits are a game table**, deliberately (coordinator's call): penetration power (`pen` x v/mv) against material
+  resistance per 10 cm, ricochet below a material's grazing angle, a `dmg` scale per round for MEDINV. Tuned so cover
+  behaves: a sandbag layer stops rifle ball, plank walls and car bodies do not, brick stops the .45, steel plate stops
+  small arms, shallow shots skip off water.
+- **Weapons** (`weapons.js`, pure state machines): rates of fire (M16A1 750, M60 550 rpm), semi / auto, closed vs
+  open bolt, bolt hold-open, forward assist, 20-round magazines (loaded with 18 like 1980 Marines: full ones jam more),
+  M60 belts (4:1 tracer), M203 single shot, M72 extend -> arm -> fire -> discard (backblast event), M1911 slide lock.
+  Manual actions run on keyframes (the viewmodel animates the same fractions): tactical / speed reloads (partial
+  magazines stay items; speed reloads drop them), charging, SPORTS immediate action, remedial action for stuck cases
+  and double feeds, mag / chamber checks (you only know what you have looked at), M60 belt change, barrel change (the
+  hot barrel goes into the pack and cools), runaway gun (break the belt). Stoppages scale with fouling, heat, dirt and
+  full magazines; barrel heat by Newton cooling fitted to the FM 23-67 barrel-change schedule; cook-off risk on a hot
+  closed-bolt chamber. Recoil impulse = bullet + gas momentum.
+- **The body** (`soldier.js`, pure): Arma-like inertia (accelerate / brake limits, heavier with load), stand / crouch
+  (kneel) / prone with timed transitions, walk 1.52 / run 2.74 m/s (FM 22-5 quick time / double time) / sprint ~5.6,
+  lean, free look, aim deadzone, weapon inertia (heavy guns lag), Tobler slope pace, wading and swimming, falls.
+  Stamina is physiology: demand from the Pandolf walking equation and the ACSM running equation (load, grade, terrain
+  factor), a sprint as an all-out effort; oxygen uptake follows with a lag, the deficit comes out of an anaerobic
+  reserve that is paid back afterwards (out of breath after the sprint, fastest recovery at rest); heart rate and
+  breathing follow, and drive the sway (breathing figure-8, drift, pulse, pain tremor, movement) by stance, rest and
+  bipod. Breath hold ~8 s rested, ~3 s blown. Medical modifiers in, `fallInjury` out.
+- **Rifleman** (`rifleman.js`, pure): the whole Marine in one `step()`: loadouts, weapon slots and swap times, the M203
+  under the M16, projectiles with host raycasts, body hits through armour layers, explosions, supersonic cracks at the
+  listener, dropped items, a HUD status that only reports what the soldier has checked.
+- **Viewmodel**: ERDL sleeves, a GI watch, bare hands parented to anchors on the weapon, arms by two-bone IK from
+  fixed shoulders; ADS puts the rear sight exactly eyeRelief in front of the eye (the real sight picture: blurred
+  aperture ring, front post, the carry handle ears; the M60 leaf; the M203 through its quadrant, raised by the set
+  elevation; the LAW reticle with range lines; the M1911 at arm's length); hip, sprint (port arms), prone; inertia from
+  turning, bob, recoil kick, bolt cycle, muzzle flash, brass; action tracks for every drill.
+- **Third person** (`soldiermodel.js`): a shared rigid skeleton (17 bones, one mesh each), procedural poses (walk /
+  run / sprint / crawl cycles, kneel, prone, down, lean, aim, stance blending, arm IK onto the weapon), hitboxes per
+  bone (head, neck, thorax, stomach, arms, legs; helmet and vest coverage), and the Marine: M1 helmet with the Mitchell
+  cover, a bug-juice bottle in the band and the chin straps hanging, ERDL or OG-107 utilities, M1955 flak vest, ALICE
+  belt, suspenders, magazine pouches, canteens, boots.
+- **Sound** (`infantryaudio.js`): synthesised; your own shot = blast + body + the action (the M16's buffer-spring
+  twang) + reverb tail; distant shots arrive late, darker and quieter with an echo off the treeline; a passing
+  supersonic round cracks before its report; steel gongs ring after time of flight + the sound's return;
+  mechanics, footsteps by surface with gear rattle, breathing from the soldier's breath phase / depth, heartbeat.
+- **Bench** `tools/infantrybench.mjs`: 90 checks (flight, sights, cover table, rates of fire, barrel schedule, stoppages,
+  SPORTS, recoil, sway order, march / run / sprint / rush / recovery times, heart-rate recovery, Pandolf, Tobler,
+  injuries, the whole shot -> hit loop, hitboxes on the posed skeleton, every module parses).
+- **Scenes** (`tools/scenes/`, all on `dev/infantry.html?debug&fixed`, which steps the sim synchronously through
+  `__I.advance(sec, input)`): `infantry` (100 / 300 m shots, drop vs the sight line), `infantrydrills` (reloads frame by
+  frame, bolt lock, SPORTS, M203 quadrant, M60 bipod + barrel change, LAW, M1911, third person), `infantryviews` (every
+  placement, lean, free look, rest and bipod on the sandbags, the aim deadzone), `infantrysights` (one sight picture per
+  weapon + spotting scope), `infantryhits` (mannequin parts and armour layers), `infantrymalf` (press check, stuck case ->
+  double feed -> rod, runaway M60), `infantrymove` (blown on the hill, wading / swimming, gait cycles in third person),
+  `infantryaudio` (offline render: a shot 340 m away arrives 1.0 s late, 8x quieter, darker; crack before report; echo;
+  gong after time of flight + sound), `infantryhands` (orbit the arms), `infantrymodels` (weapons and postures). Tags: CONFIRMED (field manual / primary source), INFERRED, UNVERIFIED, GAME.
+- Gotchas: (1) a `//` comment appended inside a one-line `if (...) { ... }` swallowed the brace again (weaponmodels):
+  the bench now parses every module. (2) Inner `function key()` shadowed the `key` parameter of `createWeapon`.
+  (3) Targets lined up in a lane hid each other: they are staggered across the lane by distance. (4) The M16A1 has no
+  elevation knob on the left (that is the A2): an early model put one right in the sight picture. (5) A through-and-through
+  restarted inside the same hitbox and hit it again: rounds now resume past the exit. (6) Low ready pivoted on the rear
+  sight (the stock stood up beside the face): it pivots on the butt in the shoulder pocket. (7) The 1980 range kit with every
+  weapon weighed 49 kg, over the 45 kg no-sprint limit: correct, so the range kit is lighter.

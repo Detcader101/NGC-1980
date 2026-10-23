@@ -94,6 +94,24 @@ develop at x1 to x60, then treat him.
 
 - **Gear (Tab):** drag and drop between pockets, the LC-2 belt and its ALICE pouches, the M69 vest and the ALICE pack. **R** rotates while dragging, **Shift-drag** splits a stack, **Ctrl-click** quick-moves, double-click inspects or opens a container, right-click opens the menu (unload, fill from rig, reload, quick slot, drop). Drop rounds on a magazine to load it (stripper clips are faster than thumbing). Bodies and crates are searched item by item. Arrows and Enter (or a gamepad d-pad and A) work as a cursor.
 - **Health (H):** drag a dressing, tourniquet, splint, morphine syrette, IV (corpsman only) or canteen onto the body. Right-click a limb to tighten or remove a tourniquet. Blood volume follows the ATLS shock classes I-IV. A tourniquet is safe for 2 hours. The modern CAT tourniquet and QuikClot looted from the RUNAWAY's seized stocks are anachronisms that work far better than the 1980 strap-and-buckle.
+### Infantry (NGC-1980 Marine rifleman, dev range)
+
+`game/dev/infantry.html` is a firing range for the on-foot Marine of 1980 (M16A1 with M203, M60, M72 LAW, M1911A1):
+pop-up E-type targets at 25-400 m, steel gongs, a spotting scope that shows where each round landed (drop against your
+sight line, time of flight, speed), reload and malfunction drills, stamina on the hill, a pond to wade.
+`?view=model` shows the weapons and the Marine's postures. Press I on the range for the controls.
+
+| Key | Action |
+|---|---|
+| W A S D, Shift, Ctrl | move, sprint, walk toggle |
+| C / Z / X, Q / E, hold Alt | crouch (kneel) / prone / stand, lean, free look |
+| right mouse, left mouse, Shift on the sights | aim down the sights, fire, hold breath |
+| 1-4, G, B | M16A1 (+M203) / M60 / LAW / M1911, M203 on/off, fire mode |
+| R, R R | tactical reload (keeps the magazine), speed reload (drops it); LAW: extend, then arm |
+| T, Shift+T, Y, U | immediate action (SPORTS), remedial action, charging handle, forward assist |
+| K / J / L / H / N | check magazine / check chamber / inspect / M60 barrel change / bipod |
+| PgUp PgDn or [ ], arrows | sight setting (aperture, leaf, M203 quadrant), zeroing clicks |
+| F, Backspace, M, P, V | pick up a dropped magazine, reset targets, spotting scope, bullet trails, third person |
 
 ## Tests
 
@@ -117,6 +135,9 @@ Jet scenes: `jet.mjs` (launch, climb, turn), `jettrap.mjs` (arrested landing), `
 sweeps hundreds of seeds per tier, checking that each cave is connected, wide enough to fly and has its pad, tanks and
 pod on solid floors. `scenes/caves.mjs` flies into every cave and screenshots it.
 Air defence: `game/dev/defence.html` is a sandbox to view each AA unit and watch it engage target drones (`?unit=talon&player=1`, smoke and ridge included); `defence.mjs` (model close-ups, engagements, line of sight, the LANCE and smoke), `defencewar.mjs` (the units in the game, a lock and missile on the player, hiding behind a hill), `defbalance.mjs` (damage rates against the old AA gun).
+`node tools/infantrybench.mjs` checks the infantry cores (flight of the rounds against the field-manual maximum ranges and
+zeroes, rates of fire, barrel heat, stoppages, recoil, march / run / sprint speeds and stamina against the Pandolf and
+ACSM equations); `scenes/infantry.mjs`, `infantrydrills.mjs` and `infantrymodels.mjs` drive the range page.
 Huey scenes: `hueystart.json` (cold start), `hueyhover.json` (hover trim, forward flight), `hueyauto.json` (practice autorotation with power recovery), `hueycockpit.mjs`, `hueymodel.mjs` (screenshots).
 
 ## Credits
