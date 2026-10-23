@@ -14,7 +14,7 @@ import { buildCarrier, buildBattleship, buildFreighter, buildDrone, buildTranspo
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const angDiff = (a, b) => { let d = (b - a) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return d; };
-export const COST = { drone: 40, aa: 30, heli: 60, escort: 30, sky: 300 };
+export const COST = { drone: 40, aa: 30, heli: 60, escort: 30, jet: 80, sky: 300 };
 export const SIDE_NAME = ['NEUTRAL', 'FRIENDLY', 'ENEMY'];
 const CAP_TIME = { heli: 6, drone: 9, transport: 10 };
 const PROD = { fuel: { fuel: 0.55 }, factory: { mat: 0.4 }, radar: {}, hq: { fuel: 0.3, mat: 0.3 }, fortress: { fuel: 0.6 } };
@@ -504,7 +504,8 @@ export function createWar(ctx) {
   };
 
   // ------------------------------------------------------------------------------------- projectiles
-  // kinds: b (bullet), ciws (fast tracer), flak (bursts at its fuse), rocket, bomb, shell (artillery)
+  // kinds: b (bullet), ciws (fast tracer), flak (bursts at its fuse), rocket, bomb, shell (artillery),
+  //        jb (jet cannon: fast, swept hit test), aam (heat-seeking missile, guided onto b.tgt)
   function shoot(kind, side, x, y, z, vx, vy, vz, life, extra) {
     const p = { kind, side, p: new THREE.Vector3(x, y, z), v: new THREE.Vector3(vx, vy, vz), life, ...extra };
     if (kind === 'bomb') { p.mesh = new THREE.Mesh(bombGeo, bombMat); scene.add(p.mesh); }
@@ -516,6 +517,22 @@ export function createWar(ctx) {
   W.fireBullet = (p, v) => shoot('b', 1, p.x, p.y, p.z, v.x, v.y, v.z, 1.8);
   W.fireRocket = (p, v) => { sfx.rocket?.(); return shoot('rocket', 1, p.x, p.y, p.z, v.x, v.y, v.z, 3); };
   W.dropBomb = (p, v) => { sfx.bombDrop?.(); return shoot('bomb', 1, p.x, p.y, p.z, v.x, v.y, v.z, 12); };
+  W.fireJetGun = (p, v) => shoot('jb', 1, p.x, p.y, p.z, v.x, v.y, v.z, 1.3);
+  W.fireMissile = (p, v, tgt) => { sfx.missile?.(); return shoot('aam', 1, p.x, p.y, p.z, v.x, v.y, v.z, 7, { tgt, age: 0, spd: v.length() }); };
+  const _pp = new THREE.Vector3(), _gd = new THREE.Vector3(), _js = new THREE.Vector3();
+  // missile guidance: lead pursuit onto the target with a turn-rate limit (~30 g), a 2.2 s motor, proximity fuse
+  function guide(b, dt) {
+    b.age += dt; b.spd = b.age < 2.2 ? Math.min(340, b.spd + 150 * dt) : b.spd * (1 - 0.06 * dt);
+    const t = b.tgt;
+    if (t && !t.dead && !t.dying && !t.gone) {
+      const d = t.p.distanceTo(b.p), tgo = d / Math.max(60, b.spd - t.v.dot(_gd.copy(t.p).sub(b.p).normalize()));
+      _gd.copy(t.p).addScaledVector(t.v, Math.min(3, tgo)).sub(b.p).normalize();
+      const cur = _pp.copy(b.v).normalize(), ang = Math.acos(Math.min(1, cur.dot(_gd))), maxT = 270 / Math.max(50, b.spd) * dt;
+      if (ang > 1e-4) cur.lerp(_gd, Math.min(1, maxT / ang)).normalize();
+      b.v.copy(cur).multiplyScalar(b.spd);
+      if (ang > 1.4 && d < 120) b.tgt = null;   // overshot: the seeker loses it
+    } else b.v.setLength(b.spd);
+  }
   // everything that can be hit, of the side opposite to `side`
   function* targets(side) {
     for (const u of W.units) if (u.side !== side && !u.dead && !u.dying && !u.gone) yield u;
@@ -576,10 +593,18 @@ export function createWar(ctx) {
   function updateProj(dt, pl) {
     for (let i = W.proj.length - 1; i >= 0; i--) {
       const b = W.proj[i]; b.life -= dt;
-      const grav = b.kind === 'bomb' || b.kind === 'shell' ? 9 : b.kind === 'rocket' ? 1.2 : b.kind === 'flak' ? 0 : 2.2;
-      b.v.y -= grav * dt; b.p.addScaledVector(b.v, dt);
+      const grav = b.kind === 'bomb' || b.kind === 'shell' || b.kind === 'jb' ? 9 : b.kind === 'rocket' ? 1.2 : b.kind === 'flak' || b.kind === 'aam' ? 0 : 2.2;
+      if (b.kind === 'aam') guide(b, dt);
+      _pp.copy(b.p); b.v.y -= grav * dt; b.p.addScaledVector(b.v, dt); b.p.y += 0.5 * grav * dt * dt;   // exact under gravity at any frame rate (bombs land where the CCIP says)
+      if (b.kind === 'aam' && b.tgt && !b.tgt.dead && !b.tgt.dying) {   // proximity fuse on the closest approach along this step (fast missile, big frames)
+        const t = b.tgt, sx = b.p.x - _pp.x, sy = b.p.y - _pp.y, sz = b.p.z - _pp.z, L2 = sx * sx + sy * sy + sz * sz || 1;
+        const k = clamp(((t.p.x - _pp.x) * sx + (t.p.y - _pp.y) * sy + (t.p.z - _pp.z) * sz) / L2, 0, 1);
+        if (Math.hypot(_pp.x + sx * k - t.p.x, _pp.y + sy * k - t.p.y, _pp.z + sz * k - t.p.z) < 7) { b.boom = true; b.p.set(_pp.x + sx * k, _pp.y + sy * k, _pp.z + sz * k); damage(t, 9, b.side); }
+      }
       const { x, y, z } = b.p;
       // visuals: tracers are a few short-lived sparks along the path
+      if (b.kind === 'jb') fx.add.spawn(x, y, z, 0, 0, 0, 0.04, 0.8, 0.4, 1, .9, .5, 1);
+      else if (b.kind === 'aam') { fx.add.spawn(x, y, z, 0, 0, 0, 0.06, 1.4, 0.6, 1, .85, .6, 1); fx.mix.spawn(x, y, z, rnd(-.3, .3), rnd(-.2, .3), rnd(-.3, .3), rnd(2, 3.5), 0.6, 2.8, .85, .85, .85, 0.6, -0.1, 1, 0.4); }
       if (b.kind === 'b' || b.kind === 'ciws') { const own = b.side === 1; fx.add.spawn(x, y, z, 0, 0, 0, 0.05, own ? 0.9 : 1.1, 0.6, own ? .5 : 1, own ? 1 : .55, own ? 1 : .2, 1); }
       else if (b.kind === 'rocket') { fx.add.spawn(x, y, z, 0, 0, 0, 0.08, 1.2, 0.5, 1, .7, .3, 1); fx.mix.spawn(x, y, z, rnd(-.4, .4), rnd(-.2, .4), rnd(-.4, .4), rnd(1.4, 2.4), 0.5, 2.4, .75, .75, .75, 0.55, -0.2, 1.2, 0.5); }
       else if (b.kind === 'shell') fx.add.spawn(x, y, z, 0, 0, 0, 0.06, 1.4, 0.8, 1, .8, .5, 1);
@@ -591,21 +616,27 @@ export function createWar(ctx) {
         if (b.life <= 0) {   // burst
           fx.flak(x, y, z); if (hear(x, y, z, 300) > 0) sfx.flak?.();
           for (const t of targets(b.side)) if (t.p && !t.dims && t.p.distanceTo(b.p) < 8) damage(t, 1.2, b.side);
-          if (b.side === 2 && pl.alive && !pl.inCave && pl.pos.distanceTo(b.p) < 7) ctx.hurtPlayer(0.13, 'FLAK');
+          if (b.side === 2 && pl.alive && !pl.inCave && pl.pos.distanceTo(b.p) < 7 + (pl.hitR || 2.6) - 2.6) ctx.hurtPlayer(0.13, 'FLAK');
           const sc = W.carrier; if (b.side === 2 && sc && sc.sky && sc.sky.up && sc.p.y > 8) { const [lx, lz] = toLocal(sc, x, z); if (Math.abs(lx) < 34 && Math.abs(lz) < 66 && Math.abs(y - (sc.p.y + 4)) < 10) damage(sc, 2, 2); }
         }
       } else if (!done) {
-        if (y < floor) done = true;
+        if (b.kind === 'jb') {   // ~500 m/s: walk the segment travelled this frame so nothing is tunnelled through
+          const n = Math.max(1, Math.ceil(_pp.distanceTo(b.p) / 2.5));
+          for (let k = 1; k <= n && !hit && !done; k++) { _js.lerpVectors(_pp, b.p, k / n); if (_js.y < Math.max(terrainH(_js.x, _js.z), 0, W.deckY(_js.x, _js.z, b.side))) { done = true; b.p.copy(_js); } else hit = hitTest(_js.x, _js.y, _js.z, b.side, 0.4); }
+          if (hit) { done = true; b.p.copy(_js); }
+        } else if (b.boom) { done = true; }
+        else if (y < floor) done = true;
         else {
-          hit = hitTest(x, y, z, b.side, b.kind === 'rocket' ? 0.5 : 0);
+          hit = hitTest(x, y, z, b.side, b.kind === 'rocket' ? 0.5 : b.kind === 'aam' ? 1.5 : 0);
           if (hit) done = true;
-          else if (b.side === 2 && b.kind !== 'shell' && pl.alive && !pl.inCave && pl.pos.distanceToSquared(b.p) < 2.6 * 2.6) { ctx.hurtPlayer(0.2, 'HIT'); done = true; }
+          else if (b.side === 2 && b.kind !== 'shell' && pl.alive && !pl.inCave && pl.pos.distanceToSquared(b.p) < (pl.hitR || 2.6) ** 2) { ctx.hurtPlayer(0.2, 'HIT'); done = true; }
         }
         if (done) {
           const wet = y < floor + 0.5 && isWater(x, z) && dy < 0;
           const ship = dy > gy + 0.5 && y < dy + 1 ? W.shipAt(x, z) : null;   // landed on a deck: a direct hit
           if (ship && ship.side !== b.side && ship.sinking === undefined) damage(ship, { rocket: 5, bomb: 24, shell: 18 }[b.kind] || 0, b.side);
-          if (b.kind === 'b' || b.kind === 'ciws') { if (hit) { damage(hit, b.kind === 'ciws' ? 0.5 : 1, b.side); fx.impact(x, y, z, 'metal'); } else fx.impact(x, floor, z, wet ? 'water' : 'ground'); }
+          if (b.kind === 'b' || b.kind === 'ciws' || b.kind === 'jb') { const q = b.p; if (hit) { damage(hit, b.kind === 'ciws' ? 0.5 : b.kind === 'jb' ? 1.4 : 1, b.side); fx.impact(q.x, q.y, q.z, 'metal'); } else fx.impact(q.x, Math.max(q.y, floor), q.z, wet ? 'water' : 'ground'); }
+          else if (b.kind === 'aam') { fx.explode(x, Math.max(y, floor), z, 1.3, { debris: 3 }); boomAt(x, y, z, 0.6); if (hit && !b.boom) damage(hit, 6, b.side); blast(x, y, z, 7, 3, b.side); }
           else if (b.kind === 'rocket') { fx.explode(x, Math.max(y, floor), z, 1.1, { debris: 2 }); boomAt(x, y, z, 0.45); if (hit) damage(hit, 4, b.side); blast(x, y, z, 6, 4, b.side); }
           else if (b.kind === 'bomb') { fx.explode(x, Math.max(y, floor), z, 2.8, { debris: 8, crater: 3.6, fire: wet ? 0 : 20 }); boomAt(x, y, z, 1.3); blast(x, Math.max(y, floor), z, 12, 20, b.side); }
           else if (b.kind === 'shell') { fx.explode(x, Math.max(y, floor), z, 2.4, { debris: 5, crater: 3 }); boomAt(x, y, z, 1); blast(x, Math.max(y, floor), z, 10, 16, b.side); }
@@ -819,7 +850,8 @@ export function createWar(ctx) {
   function end(result, why) { if (!W.over) { W.over = { result, why }; ctx.onEnd(result, why); } }
   W.visionSources = pl => {
     const s = [];
-    if (pl.alive) s.push({ x: pl.pos.x, z: pl.pos.z, r: pl.inCave ? 60 : SIGHT.heli });
+    if (pl.alive) s.push({ x: pl.pos.x, z: pl.pos.z, r: pl.inCave ? 60 : pl.sight || SIGHT.heli });
+    if (pl.alive && pl.sources) s.push(...pl.sources);
     for (const u of W.units) if (u.side === 1 && !u.dead && !u.gone) s.push({ x: u.p.x, z: u.p.z, r: u.dims ? SIGHT.carrier * (1 + clamp(u.p.y / 120, 0, 0.8)) : SIGHT.drone });
     for (const I of W.islands) if (I.owner === 1) s.push({ x: I.x, z: I.z, r: I.kind === 'radar' && I.structs.some(q => q.kind === 'radar' && !q.dead) ? SIGHT.radar : SIGHT.island + I.r * 0.4 });
     return s;

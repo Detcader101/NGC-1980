@@ -3,12 +3,14 @@ import { buildLevel } from './level.js';
 import { buildCaveMesh, makeTurret, makeTank, makePod, makeRope } from './cave3d.js';
 import { Sfx } from './audio.js';
 import { createDamage, PARTS } from './damage.js';
-import { HELI, EYE, buildHeliMesh, buildCockpit, createHeliSim, createHeliInput } from './heli.js';
-import { BOUND, ISLANDS, islandH, createNav } from './world.js';
+import { HELI, EYE, buildHeliMesh, buildCockpit, createHeliSim, createHeliInput, createHeliSystems, fuelBurnPct } from './heli.js';
+import { BOUND, ISLANDS, islandH, createNav, SEA_FLOOR, inZone } from './world.js';
 import { createWar, COST } from './war.js';
 import { CARRIER } from './ships.js';
 import { createFog, FOG_GLSL, fogPatch } from './fog.js';
 import { createFx } from './fx.js';
+import { createControls } from './hotas.js';
+import { createJetPlay } from './jetplay.js';
 import { createDrop } from './drop.js';
 import { createHelm } from './helm.js';
 
@@ -22,6 +24,8 @@ const sfx = new Sfx();
 
 // ---------------------------------------------------------------- input
 const keys = new Set();
+// flight controls: HOTAS, rudder pedals and gamepads with per-device bindings (hotas.js); J in the jet opens the panel
+const CTL = createControls({ say: (t, s) => say(t, s) });
 let chaseCam = params.has('chase'), cockpitCam = params.has('cockpit'), bigMap = false;
 const _cf = { x: 0, z: -1 };
 let keyboardOnly = params.has('kb');
@@ -32,15 +36,23 @@ addEventListener('keydown', e => {
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
   sfx.init();
   if (e.repeat) return;
+  if (CTL.isOpen) return;   // the controls panel has the keyboard
   if (G.state === 'paused') { menuKey(e); return; }
   if (e.code === 'Escape' && G.state === 'play') { openMenu(); return; }
+  if (G.craft === 'jet' && G.state === 'play') {   // flying the HORNET: its own switches (see jetplay.js)
+    if (e.code === 'KeyJ') { CTL.toggle(); return; }
+    if (e.code === 'KeyY') { swapToHeli(); return; }
+    if (JP.key(e.code)) return;
+    if (['KeyH', 'KeyI', 'KeyO', 'KeyU', 'KeyL', 'KeyN'].includes(e.code)) return;
+  }
+  if (e.code === 'KeyY' && G.state === 'play') say('5: TAKE A JET (LANDED ON THE ALBATROSS)', 1.6);
   if (e.code === 'KeyH') { if (drop.flying) drop.toggleAP(); else doSwitch('sas'); }
   const sw = { KeyI: 'engine', KeyO: 'fire', KeyU: 'hyd', KeyL: 'radio', KeyN: 'light' }[e.code];
   if (sw) doSwitch(sw);
-  if (e.code === 'KeyJ') HI.startCalibration();
+  if (e.code === 'KeyJ') HI.startCalibration();   // the controls panel: bind and calibrate HOTAS / pedals (hotas.js)
   if (e.code === 'KeyT') toggleFreeLook();
   if (e.code === 'KeyM') { bigMap = !bigMap; setMapSize(); if (bigMap && document.pointerLockElement) document.exitPointerLock(); }
-  if (['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'].includes(e.code)) command(+e.code.slice(5));
+  if (['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6'].includes(e.code)) command(+e.code.slice(5));
   if (e.code === 'Tab') { e.preventDefault(); toggleHelm(); }
   if (e.code === 'KeyV' && drop.flying) drop.toggleView();
   else if (e.code === 'KeyV' && helm.active) helm.toggleView();
@@ -63,8 +75,10 @@ let padWasStart = false;
 function readPad() {
   if (keyboardOnly) return null;
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-  let best = null;
-  for (const p of pads) if (p && p.connected) { best = p; if (p.axes.length >= 2) break; }
+  const d = CTL.state && CTL.state.devices && CTL.state.devices.find(d => d.role === 'stick' || d.role === 'gamepad');
+  if (d && pads[d.index] && pads[d.index].connected) return pads[d.index];
+  let best = null;   // never the rudder pedals: with pedals plugged in they may come first
+  for (const p of pads) if (p && p.connected && !/b679|rudder|pedal/i.test(p.id)) { best = p; if (p.axes.length >= 2) break; }
   return best;
 }
 function readInput() {
@@ -78,7 +92,7 @@ function readInput() {
     fire: kd(...FIRE_KEYS) || mouseFire,
     start: false,
   };
-  const p = readPad();
+  const p = G.craft === 'jet' ? null : readPad();   // the jet reads its HOTAS through CTL
   if (p) {
     const gx = dz(p.axes[0] || 0), gy = dz(p.axes[1] || 0);
     if (gx !== 0) inp.x = gx;
@@ -101,16 +115,17 @@ let switchHover = null;
 let mouseAimT = -1e9;
 addEventListener('mousemove', e => { mouseNdc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); mouseAimT = performance.now(); });
 function pickSwitch() {
-  if (!cockpit.group.visible) return null;
+  const ck = G.craft === 'jet' ? JP.cockpit : cockpit;
+  if (!ck.group.visible) return null;
   switchRay.setFromCamera(document.pointerLockElement === canvas ? _ndc0 : mouseNdc, zCam);
-  const hit = switchRay.intersectObjects(cockpit.hitBoxes, false)[0];
+  const hit = switchRay.intersectObjects(ck.hitBoxes, false)[0];
   return hit && hit.distance < 2.5 ? hit.object.userData.sw : null;
 }
 const _ndc0 = new THREE.Vector2(0, 0);
 addEventListener('mousedown', e => {
   if (e.button !== 0 || G.state !== 'play') return;
   const id = pickSwitch(); if (!id) return;
-  e.stopImmediatePropagation(); e.preventDefault(); doSwitch(id);
+  e.stopImmediatePropagation(); e.preventDefault(); if (G.craft === 'jet') JP.click(id); else doSwitch(id);
 }, { capture: true });
 // cockpit free look: click the view to capture the mouse (Esc releases it and the head re-centres; middle click centres)
 const head = { yaw: 0, pitch: 0 };
@@ -126,6 +141,7 @@ addEventListener('mousemove', e => {
   head.yaw = clamp(head.yaw - e.movementX * 0.0025, -2.5, 2.5); head.pitch = clamp(head.pitch - e.movementY * 0.0025, -1.1, 0.8);
 });
 addEventListener('mousedown', e => { if (e.button === 1 && document.pointerLockElement === canvas) { head.yaw = head.pitch = 0; e.preventDefault(); } });
+addEventListener('wheel', e => { if (G.craft === 'jet' && cockpitCam) JP.zoom = clamp(JP.zoom + (e.deltaY < 0 ? 0.25 : -0.25), 0, 1); }, { passive: true });
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
 const PR_MAX = params.has('res') ? +params.get('res') : Math.min(devicePixelRatio, 1.5);
 let pixRatio = PR_MAX; renderer.setPixelRatio(pixRatio);
@@ -186,8 +202,13 @@ function explode(arr, x, y, z, n, sp, is2d) {
 
 // ---------------------------------------------------------------- game state
 const ROCKETS_MAX = 16, BOMBS_MAX = 6;
-const G = { light: false, n2: 0, res: 250, mat: 90, rockets: ROCKETS_MAX, bombs: BOMBS_MAX, cargo: 0, state: 'title', mode: 'zarch', score: 0, hi: 0, lives: 3, fuel: 100, visit: 0, tr: null, msgT: 0, over: false };
+const G = { craft: 'heli', jets: 2, jetDownT: 0, light: false, n2: 0, res: 250, mat: 90, rockets: ROCKETS_MAX, bombs: BOMBS_MAX, cargo: 0, state: 'title', mode: 'zarch', score: 0, hi: 0, lives: 3, fuel: 100, visit: 0, tr: null, msgT: 0, over: false };
 try { G.hi = +(localStorage.getItem('tz_hi') || 0); } catch (e) {}
+// first-person (cockpit) field of view, vertical degrees: the Huey, the Hornet (its zoom scales from it) and the
+// dropship flight deck; set in the pause menu, remembered per browser
+const CK_FOV = { min: 40, max: 100, def: 70 };
+let ckFov = CK_FOV.def; try { ckFov = clamp(+(localStorage.getItem('tz_ckfov') || CK_FOV.def), CK_FOV.min, CK_FOV.max) || CK_FOV.def; } catch (e) {}
+function setCkFov(v) { ckFov = clamp(Math.round(v), CK_FOV.min, CK_FOV.max); try { localStorage.setItem('tz_ckfov', ckFov); } catch (e) {} }
 function addScore(n) { G.score += n; if (G.score > G.hi) { G.hi = G.score; try { localStorage.setItem('tz_hi', G.hi); } catch (e) {} } }
 let war = null;   // the island war (created once the world exists)
 function say(t, secs = 2) { const m = $('msg'); m.textContent = t; m.style.opacity = t ? 1 : 0; G.msgT = secs; }
@@ -227,6 +248,9 @@ const HORIZON = new THREE.Color(0xbfd9f2);
 // One draw distance for everything (the retro look and the fps lever): terrain grid, fog, far clip and sky dome all
 // end together, so nothing - trees, enemies, beacons - hangs in the sky past the edge of the ground.
 const DRAW = 250;
+// The jet sees further: view.draw grows with altitude while you fly it (fog, far clip, sky and terrain all follow it),
+// and a coarse far-terrain ring fills in past the fine grid.
+const view = { draw: DRAW };
 zScene.fog = new THREE.Fog(HORIZON, DRAW * 0.5, DRAW);
 const zCam = new THREE.PerspectiveCamera(62, 1, 0.5, DRAW + 15);
 zScene.add(new THREE.HemisphereLight(0xcfe6ff, 0x4a5a34, 0.9));
@@ -257,27 +281,75 @@ const decorTex = (() => {   // r = nearest pad index + 1, g = nearest shaft inde
   }
   const t = new THREE.DataTexture(a, DEC_N, DEC_N, THREE.RGBAFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t;
 })();
+// Past the control zone the world goes on for ever (world.js: continents, mountain ranges, forests). Inside the zone
+// the terrain reads the baked core heightmap above; outside it reads two heightmaps baked around the camera by a
+// worker (terrainworker.js) from the same height function the physics uses: 2 km at 4 m and 8 km at 16 m. They are
+// re-baked as you travel and swapped in when ready; the near bake also scatters the forest trees.
+const HW_N = 512;
+const HW = [{ c: 4, recentre: 280, trees: 9000, uni: 'uHMNo' }, { c: 16, recentre: 1000, trees: 0, uni: 'uHMFo' }].map(L => {
+  const tex = new THREE.DataTexture(new Float32Array(HW_N * HW_N).fill(SEA_FLOOR), HW_N, HW_N, THREE.RedFormat, THREE.FloatType);
+  tex.minFilter = tex.magFilter = THREE.NearestFilter; tex.needsUpdate = true; return { ...L, tex, cx: 1e9, cz: 1e9, busy: false };
+});
+const terrainWorker = new Worker(new URL('./terrainworker.js', import.meta.url), { type: 'module' });
+terrainWorker.onmessage = ({ data: d }) => {
+  const L = HW[d.id]; L.busy = false; L.tex.image.data = d.h; L.tex.needsUpdate = true; terrainUni[L.uni].value.set(d.ox, d.oz, d.c);
+  if (d.trees) fillForest(d.trees);
+  if (d.id === 1) buildFarMap(d);
+};
+function terrainStream(x, z) {
+  HW.forEach((L, id) => {
+    if (L.busy) return;
+    const step = L.c * 32, cx = Math.round(x / step) * step, cz = Math.round(z / step) * step;
+    if (Math.abs(cx - L.cx) < L.recentre && Math.abs(cz - L.cz) < L.recentre) return;
+    L.busy = true; L.cx = cx; L.cz = cz;
+    terrainWorker.postMessage({ id, n: HW_N, c: L.c, ox: cx - HW_N / 2 * L.c, oz: cz - HW_N / 2 * L.c, trees: L.trees });
+  });
+}
+// a small colour map of the far window for the minimap and the jet's moving map
+const farMap = { cv: document.createElement('canvas'), ox: 0, oz: 0, size: 0, ready: false };
+function buildFarMap(d) {
+  const N = 256, k = d.n / N, cv = farMap.cv; cv.width = cv.height = N; const x = cv.getContext('2d'), im = x.createImageData(N, N);
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const h = d.h[(j * k | 0) * d.n + (i * k | 0)], o = (j * N + i) * 4;
+    const col = h <= 0 ? [lerp(28, 8, clamp(-h / 30, 0, 1)), lerp(92, 34, clamp(-h / 30, 0, 1)), lerp(118, 78, clamp(-h / 30, 0, 1))] : h < 3 ? [176, 164, 112] : h < 160 ? [lerp(48, 70, h / 160), lerp(118, 100, h / 160), lerp(50, 52, h / 160)] : h < 440 ? [lerp(110, 140, (h - 160) / 280), lerp(100, 128, (h - 160) / 280), lerp(80, 110, (h - 160) / 280)] : [230, 234, 240];
+    im.data[o] = col[0]; im.data[o + 1] = col[1]; im.data[o + 2] = col[2]; im.data[o + 3] = 255;
+  }
+  x.putImageData(im, 0, 0); Object.assign(farMap, { ox: d.ox, oz: d.oz, size: d.n * d.c, ready: true });
+}
 const fog = createFog(BOUND); fog.enabled = false; fog.update([]);
 const terrainGeo = new THREE.PlaneGeometry(TG * TN, TG * TN, TN, TN); terrainGeo.rotateX(-Math.PI / 2);
 const terrainUni = {
   uFog: { value: HORIZON }, uSun: { value: new THREE.Vector3(.5, 1, .3) }, uBases: { value: baseUniform }, uPadCol: { value: padUniform }, uTime: { value: 0 },
   uPadP: { value: PADS.map(p => new THREE.Vector4(p.x, p.z, p.isl.cave ? 1 : 0, 0)) }, uHM: { value: hmTex }, uDecor: { value: decorTex }, ...fog.uniforms,
+  uHMN: { value: HW[0].tex }, uHMF: { value: HW[1].tex }, uHMNo: { value: new THREE.Vector3(-1e6, -1e6, 4) }, uHMFo: { value: new THREE.Vector3(-1e6, -1e6, 16) },
+  uFogN: { value: DRAW * 0.5 }, uFogF: { value: DRAW * 0.97 }, uNear: { value: new THREE.Vector3(0, 0, 0) },
 };
-const terrain = new THREE.Mesh(terrainGeo, new THREE.ShaderMaterial({
-  uniforms: terrainUni,
-  vertexShader: `
-    varying vec3 vW; varying float vRaw; uniform sampler2D uHM;
+const terrainVS = `
+    varying vec3 vW; varying float vRaw; uniform sampler2D uHM, uHMN, uHMF; uniform vec3 uHMNo, uHMFo;
+    float bil(sampler2D t, vec2 g){   // bilinear by hand (float textures may not filter); g in texel units
+      vec2 i=floor(g), f=g-i; float n=${HW_N.toFixed(1)};
+      float a=texture2D(t,(i+.5)/n).r, b=texture2D(t,(i+vec2(1.5,.5))/n).r, c=texture2D(t,(i+vec2(.5,1.5))/n).r, d=texture2D(t,(i+1.5)/n).r;
+      return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);
+    }
+    float hOut(vec2 p){   // the 4 m near window where it reaches, else the 16 m far window
+      vec2 g=(p-uHMNo.xy)/uHMNo.z;
+      if(g.x>1.&&g.y>1.&&g.x<${(HW_N - 2).toFixed(1)}&&g.y<${(HW_N - 2).toFixed(1)}) return bil(uHMN,g);
+      return bil(uHMF,(p-uHMFo.xy)/uHMFo.z);
+    }
     void main(){
       vec4 w=modelMatrix*vec4(position,1.);
-      float h=texture2D(uHM,((w.xz+${BOUND.toFixed(1)})/${TG.toFixed(1)}+.5)/${HM_N.toFixed(1)}).r;
+      float h=max(abs(w.x),abs(w.z))<${BOUND.toFixed(1)} ? texture2D(uHM,((w.xz+${BOUND.toFixed(1)})/${TG.toFixed(1)}+.5)/${HM_N.toFixed(1)}).r : hOut(w.xz);
       vRaw=h; w.y=max(h,0.); vW=w.xyz;
       gl_Position=projectionMatrix*viewMatrix*w;
-    }`,
-  fragmentShader: `
+    }`;
+const terrainFS = `
     varying vec3 vW; varying float vRaw; uniform vec3 uFog; uniform vec3 uSun; uniform vec4 uBases[${BASES.length}]; uniform vec3 uPadCol[${PADS.length}]; uniform vec4 uPadP[${PADS.length}];
-    uniform float uTime; uniform sampler2D uDecor, uFogT; uniform float uFogB;
+    uniform float uTime; uniform sampler2D uDecor, uFogT; uniform float uFogB, uFogN, uFogF; uniform vec3 uNear;
     ${FOG_GLSL}
     void main(){
+      #ifdef FAR
+      if(max(abs(vW.x-uNear.x),abs(vW.z-uNear.y))<uNear.z) discard;   // the fine grid covers this
+      #endif
       vec2 dc=texture2D(uDecor,(vW.xz+${BOUND.toFixed(1)})/${(2 * BOUND).toFixed(1)}).rg*255.;
       int pi=int(dc.r+.5)-1, bi=int(dc.g+.5)-1;
       if(bi>=0 && length(vW.xz-uBases[bi].xy)<${HOLE_R.toFixed(1)}) discard;   // the shaft
@@ -286,7 +358,10 @@ const terrain = new THREE.Mesh(terrainGeo, new THREE.ShaderMaterial({
       vec2 g=floor(vW.xz/6.); float chk=mod(g.x+g.y,2.);
       vec3 land=mix(vec3(.17,.5,.15),vec3(.25,.6,.19),chk);
       vec3 rock=mix(vec3(.45,.37,.27),vec3(.52,.43,.32),chk);
-      vec3 c=mix(land,rock,smoothstep(24.,38.,vW.y));
+      float wild=step(${BOUND.toFixed(1)},max(abs(vW.x),abs(vW.z)));
+      float rk=mix(smoothstep(24.,38.,vW.y),max(smoothstep(170.,300.,vW.y+18.*sin(vW.x*.013+vW.z*.009)),smoothstep(.8,.62,n.y)),wild);
+      vec3 c=mix(land*mix(1.,.8+.2*sin(vW.x*.0021)*sin(vW.z*.0017),wild),rock,rk);
+      c=mix(c,vec3(.93,.95,.98),wild*smoothstep(430.,500.,vW.y+30.*sin(vW.x*.011)*cos(vW.z*.009))*smoothstep(.45,.7,n.y));
       c=mix(vec3(.78,.72,.45),c,smoothstep(0.,3.,vW.y));
       c*=l;
       if(vRaw<=0.){   // sea: shallows to deep water, rolling glints, surf on the beaches
@@ -311,10 +386,13 @@ const terrain = new THREE.Mesh(terrainGeo, new THREE.ShaderMaterial({
         if(d<${(PAD_R + 2.5).toFixed(1)}){ vec3 pc=vec3(.5,.52,.58)*l; if(d<${PAD_R.toFixed(1)}){float r=d/${PAD_R.toFixed(1)}; pc=mix(vec3(.15,.16,.2),uPadCol[pi],step(.5,fract(r*4.)))*l;} c=pc; } }
       c=fogOfWar(c,vW.xz,uTime);
       float fd=length((viewMatrix*vec4(vW,1.)).xyz);
-      gl_FragColor=vec4(mix(c,uFog,smoothstep(${(DRAW * 0.5).toFixed(1)},${(DRAW * 0.97).toFixed(1)},fd)),1.);
-    }`,
-}));
+      gl_FragColor=vec4(mix(c,uFog,smoothstep(uFogN,uFogF,fd)),1.);
+    }`;
+const terrain = new THREE.Mesh(terrainGeo, new THREE.ShaderMaterial({ uniforms: terrainUni, vertexShader: terrainVS, fragmentShader: terrainFS }));
 terrain.frustumCulled = false; zScene.add(terrain);
+const FAR_C = 24, FAR_N = 220;   // far ring: 12 m cells out to ~1.5 km, only drawn while the view reaches past the fine grid
+const farTerrain = new THREE.Mesh(new THREE.PlaneGeometry(FAR_C * FAR_N, FAR_C * FAR_N, FAR_N, FAR_N).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({ uniforms: terrainUni, vertexShader: terrainVS, fragmentShader: terrainFS, defines: { FAR: 1 } }));
+farTerrain.frustumCulled = false; farTerrain.visible = false; zScene.add(farTerrain);
 const _nrm = new THREE.Vector3();
 const normalAt = (x, z) => { const e = 1.5; return isWater(x, z) ? new THREE.Vector3(0, 1, 0) : _nrm.set(terrainH(x - e, z) - terrainH(x + e, z), 2 * e, terrainH(x, z - e) - terrainH(x, z + e)).normalize().clone(); };
 const fx = createFx(zScene, { groundY: (x, z) => Math.max(terrainH(x, z), 0), isWater, normalAt });
@@ -332,6 +410,13 @@ const fx = createFx(zScene, { groundY: (x, z) => Math.max(terrainH(x, z), 0), is
     m.compose(new THREE.Vector3(x, h, z), q, sc); mesh.setMatrixAt(n++, m);
   }
   mesh.count = n; zScene.add(mesh);
+}
+// forest trees out in the wild lands (scattered by the terrain worker on a fixed jittered grid: the same every time)
+const forest = (() => { const geo = new THREE.ConeGeometry(1.3, 5, 6); geo.translate(0, 2.5, 0); const t = new THREE.InstancedMesh(geo, fogPatch(new THREE.MeshLambertMaterial({ color: 0x1b6a26, flatShading: true }), fog, terrainUni.uTime), 9000); t.count = 0; t.frustumCulled = false; zScene.add(t); return t; })();
+function fillForest(a) {
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), p = new THREE.Vector3(); let n = 0;
+  for (let k = 0; k + 3 < a.length && n < 9000; k += 4) { const s = a[k + 3]; sc.set(s, s * (0.9 + (k % 7) * 0.06), s); m4.compose(p.set(a[k], a[k + 1] - 0.3, a[k + 2]), q, sc); forest.setMatrixAt(n++, m4); }
+  forest.count = n; forest.instanceMatrix.needsUpdate = true;
 }
 // base
 const baseGroup = new THREE.Group(); baseGroup.position.set(HOME_B.x, PAD_H, HOME_B.z); zScene.add(baseGroup);
@@ -366,7 +451,7 @@ for (const b of BASES) {
 }
 
 // player ship (zarch)
-const heliModel = buildHeliMesh(), shipMesh = heliModel.group, cockpit = buildCockpit(), heliShell = ['cab', 'nose', 'roof', 'mast'].map(n => shipMesh.getObjectByName(n));
+const heliModel = buildHeliMesh(), shipMesh = heliModel.group, cockpit = buildCockpit(), heliShell = heliModel.shell;
 shipMesh.add(cockpit.group);
 zScene.add(shipMesh);
 const shadowMat = new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.4, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
@@ -402,8 +487,9 @@ const reticle = new THREE.Group();
 const aimLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, -1)]), new THREE.LineBasicMaterial({ color: 0xff5a70, transparent: true, opacity: 0.28, depthTest: false }));
 aimLine.renderOrder = 10; zScene.add(aimLine);
 const D = createDamage();
-const H = createHeliSim(GRAV), _aimR = new THREE.Vector3();
-const HI = createHeliInput({ keyDown: kd, readPad, say: (t, s) => say(t, s) });
+const H = createHeliSim(), _aimR = new THREE.Vector3();   // the UH-1H (hueyfm.js via heli.js)
+const HI = createHeliInput({ keyDown: kd, CTL, hwOn: () => !keyboardOnly, say: (t, s) => say(t, s) });
+const SY = createHeliSystems({ D, G, say: (t, s) => say(t, s) });   // electrics, engine start, governor, cautions
 const Z = {
   pos: new THREE.Vector3(PAD.x, PAD_H + 0.9, PAD.z), vel: new THREE.Vector3(), lean: new THREE.Vector2(), facing: new THREE.Vector2(0, -1),
   aim: new THREE.Vector3(0, 0, -1), aimOff: new THREE.Vector2(), hd: 0, sector: -1, round: 0, throttle: 0, landed: true, alive: true, deadT: 0, fireCd: 0, wave: 0, waveT: 2,
@@ -412,7 +498,15 @@ const Z = {
 const nav = createNav(terrainH);
 const seaSpot = (x, z) => { const [wx, wz] = nav.nearestWater(x, z); return [wx, wz, Math.atan2(wx, wz)]; };   // facing the map centre
 const PSTORE = { get fuel() { return G.res; }, set fuel(v) { G.res = v; }, get mat() { return G.mat; }, set mat(v) { G.mat = v; }, get fuelMax() { return RES_MAX; } };
-const PL = { pos: Z.pos, vel: Z.vel, get alive() { return G.mode === 'zarch' ? Z.alive : T.alive; }, get landed() { return G.mode === 'zarch' && Z.alive && H.landed; }, get inCave() { return G.mode !== 'zarch'; } };
+const PL = {
+  pos: Z.pos, vel: Z.vel, get alive() { return G.craft === 'jet' ? JP.alive && !JP.ejected : G.mode === 'zarch' ? Z.alive : T.alive; },
+  get landed() { return G.craft === 'heli' && G.mode === 'zarch' && Z.alive && H.landed; }, get inCave() { return G.mode !== 'zarch'; },
+  get hitR() { return G.craft === 'jet' ? 4.5 : HELI.HIT_R; }, get sight() { return G.craft === 'jet' ? 220 : 0; },
+  get sources() {   // the jet's radar: a wide patch of sight ahead of the nose
+    if (G.craft !== 'jet' || !JP.alive) return null; const f = JP.J.forward(_rk); const l = Math.hypot(f.x, f.z) || 1;
+    return [{ x: Z.pos.x + f.x / l * 420, z: Z.pos.z + f.z / l * 420, r: 320 }];
+  },
+};
 const feedItems = [];
 function feed(t, kind = 'info') { feedItems.unshift({ t, kind, at: performance.now() }); feedItems.length = Math.min(feedItems.length, 6); }
 function islandOwnerChanged(I, was) {
@@ -430,6 +524,7 @@ function warOver(result, why) {
   setTimeout(() => showEnd(result === 'win' ? 'VICTORY' : 'DEFEAT', why), 5000);
 }
 function showEnd(title, why) {
+  if (G.craft === 'jet') { JP.stow(); G.craft = 'heli'; }
   G.state = 'title'; G.mode = 'zarch'; $('title').style.display = 'flex'; $('title').querySelector('h1').textContent = title;
   $('result').textContent = `${why}  -  SCORE ${G.score}`; if (document.pointerLockElement) document.exitPointerLock();
 }
@@ -438,6 +533,77 @@ war = createWar({
   carrierStart: seaSpot(-300, 280), enemyStart: seaSpot(300, -280),
   player: () => PL, hurtPlayer: (a, why) => hurtHeli(a, why), onOwner: islandOwnerChanged, onEnd: warOver,
 });
+// ---------------------------------------------------------------- the HORNET (jetplay.js)
+const jetGroundY = (x, z) => Math.max(terrainH(x, z), 0, war.deckY(x, z));   // no shaft holes for a jet: the apron is solid
+const JP = createJetPlay({
+  scene: zScene, war, fx, sfx, say, feed, CTL, GRAV, CARRIER, BOUND, keyDown: kd, groundY: jetGroundY, waterAt, addScore,
+  takeFuel: u => { const t = Math.max(0, Math.min(u, G.res)); G.res -= t; return t; },
+  onCarrier: (x, z) => { const u = war.shipAt(x, z); return !!u && u === war.carrier && u.sinking === undefined; },
+  onLost: (why, ejected) => jetLost(why, ejected), onEject: () => {}, toggleView: () => { cockpitCam = !cockpitCam; if (!cockpitCam) JP.snapChase(); },
+  selectedIsland: () => selIsl, drawMap: (c, k) => drawJetMap(c, k), catClear: () => { const c = war.carrier; return !!c && laneClear(c, c.yaw) > 320; },
+});
+// open water ahead of the carrier's bow along heading yaw: how far (m) before land comes up
+function laneClear(c, yaw, max = 700) {
+  const fx = -Math.sin(yaw), fz = -Math.cos(yaw), bx = c.p.x - Math.sin(c.yaw) * 66, bz = c.p.z - Math.cos(c.yaw) * 66;
+  for (let d = 0; d <= max; d += 15) if (terrainH(bx + fx * d, bz + fz * d) > -1) return d;
+  return max + 1;
+}
+// before a launch the ALBATROSS steams onto the nearest heading with a clear run ahead (as carriers turn into the wind)
+function turnIntoClear() {
+  const c = war.carrier; if (!c || laneClear(c, c.yaw) > 320) return false;
+  let best = null;
+  for (let k = 1; k <= 24 && !best; k++) for (const s of [1, -1]) { const y = c.yaw + s * k * Math.PI / 12; if (laneClear(c, y) > 600) { best = y; break; } }
+  if (best === null) return false;
+  war.orderCarrier(c.p.x - Math.sin(best) * 500, c.p.z - Math.cos(best) * 500); feed('ALBATROSS: TURNING INTO CLEAR WATER FOR THE LAUNCH'); return true;
+}
+// 5 on the ALBATROSS deck: climb into a Hornet on the catapult (or back to the cat if you are already in one)
+function launchJet() {
+  if (G.mode !== 'zarch') { say('CLIMB OUT OF THE CAVE FIRST', 1.6); return; }
+  const c = war.carrier; if (!c || c.sinking !== undefined) { say('NO CARRIER  -  NO JETS', 1.6); return; }
+  if (G.craft === 'jet') { if (JP.stoppedOnDeck() || JP.J.cat) { JP.respot(); turnIntoClear(); } else say('TRAP ON THE ALBATROSS FIRST: GEAR, FLAPS FULL, HOOK DOWN', 2); return; }
+  const svc = Z.alive && H.landed ? serviceAt(Z.pos.x, Z.pos.z) : null;
+  if (!svc || !svc.deck) { say('LAND ON THE ALBATROSS TO TAKE A JET', 1.8); return; }
+  if (G.jets <= 0) { if (G.mat < COST.jet) { say(`NO HORNETS LEFT  -  A NEW ONE COSTS ${COST.jet} MATERIEL`, 2); return; } G.mat -= COST.jet; G.jets++; feed('NEW HORNET DELIVERED TO THE ALBATROSS', 'good'); }
+  G.jets--; G.craft = 'jet'; shipMesh.visible = false; shipShadow.visible = false; sfx.engine(0); cancelRescue();
+  if (!JP.launch()) { G.craft = 'heli'; G.jets++; shipMesh.visible = true; return; }
+  JP.snapChase(); head.yaw = head.pitch = 0; turnIntoClear();
+}
+// Y on the deck: stow the Hornet, back into the helicopter
+function swapToHeli() {
+  if (!JP.stoppedOnDeck() && !(JP.J.cat && JP.J.cat.state === 'hold')) { say('STOP ON THE ALBATROSS DECK FIRST', 1.6); return; }
+  G.jets++; JP.stow(); G.craft = 'heli'; resetZarch(true); say('HORNET STOWED  -  HELICOPTER ON DECK', 2);
+}
+// the jet is gone: ejected (pilot rescued) or crashed (pilot lost: that costs a life too)
+function jetLost(why, ejected) {
+  G.jetDownT = ejected ? 0.5 : 3; feed(ejected ? 'HORNET LOST  -  PILOT RECOVERED' : 'HORNET AND PILOT LOST', 'bad');
+  if (ejected) say(why, 2.5);
+  else { G.lives--; if (G.lives < 0) gameOver(); }
+}
+function updateJet(dt, inp) {
+  JP.update(dt, inp);
+  const J = JP.J, E = JP.ejected;
+  Z.pos.copy(E ? E.pos : J.pos); Z.vel.copy(E ? E.vel : J.vel); Z.landed = J.onGround;
+  const fw = J.forward(_rk), fl = Math.hypot(fw.x, fw.z); if (fl > 0.15) Z.facing.set(fw.x / fl, fw.z / fl);
+  if (JP.alive && !E) advise(dt);
+  if (G.jetDownT > 0) {
+    G.jetDownT -= dt;
+    if (G.jetDownT <= 0 && !G.over) { JP.stow(); G.craft = 'heli'; G.fuel = 100; G.cargo = 0; D.reset(); G.rockets = ROCKETS_MAX; G.bombs = BOMBS_MAX; resetZarch(true); say(war.carrier && war.carrier.sinking === undefined ? 'HELICOPTER ON THE ALBATROSS' : 'HELICOPTER ON THE HOME PAD', 2); }
+  }
+}
+// the AMPCD moving map (drawn in world metres; k = pixels per metre)
+function drawJetMap(c, k) {
+  c.fillStyle = 'rgb(10,38,74)'; c.fillRect(Z.pos.x - 6000, Z.pos.z - 6000, 12000, 12000);
+  if (farMap.ready) c.drawImage(farMap.cv, farMap.ox, farMap.oz, farMap.size, farMap.size);
+  c.imageSmoothingEnabled = true; c.drawImage(landImg, -BOUND, -BOUND, 2 * BOUND, 2 * BOUND); c.drawImage(fogImg, -BOUND, -BOUND, 2 * BOUND, 2 * BOUND);
+  c.strokeStyle = 'rgba(255,220,120,.7)'; c.lineWidth = 2 / k; c.setLineDash([12 / k, 10 / k]); c.strokeRect(-BOUND, -BOUND, 2 * BOUND, 2 * BOUND); c.setLineDash([]);
+  c.save(); c.translate(-BOUND + 8 / k, -BOUND + 22 / k); c.scale(1 / k, 1 / k); c.fillStyle = 'rgba(255,220,120,.9)'; c.font = 'bold 15px monospace'; c.textAlign = 'left'; c.fillText('CONTROL ZONE', 0, 0); c.restore();
+  c.lineWidth = 2 / k;
+  for (const I of ISLANDS) { if (!fog.exploredAt(I.pad.x, I.pad.z)) continue; c.strokeStyle = I.seen < 0 ? '#999' : OWN_COL[I.seen]; c.beginPath(); if (I.cave) c.rect(I.pad.x - 14, I.pad.z - 14, 28, 28); else c.arc(I.pad.x, I.pad.z, 14, 0, 6.283); c.stroke(); if (I === selIsl) { c.strokeStyle = '#ff8'; c.beginPath(); c.arc(I.pad.x, I.pad.z, 26, 0, 6.283); c.stroke(); } }
+  for (const u of war.units) {
+    if (u.side === 2 && !fog.visibleAt(u.p.x, u.p.z)) continue; c.fillStyle = u.side === 1 ? '#6ef' : '#f64';
+    if (u.dims) { c.save(); c.translate(u.p.x, u.p.z); c.rotate(-u.yaw); c.fillRect(-u.dims.W / 2, -u.dims.L / 2, u.dims.W, u.dims.L); c.restore(); } else c.fillRect(u.p.x - 6, u.p.z - 6, 12, 12);
+  }
+}
 // the para-drop repair team (logistics on land): a dropship from the carrier, a jump run, canopies, a crew that runs over
 const drop = createDrop({
   scene: zScene, fx, sfx, war, groundY, terrainH, isWater, say, feed,
@@ -453,7 +619,7 @@ function toggleHelm() {
   if (G.state !== 'play' || G.mode !== 'zarch') return;
   if (helm.active) { leaveHelm(); return; }
   const c = war.carrier;
-  if (!c || !c.sky) { say(`NO SKY CARRIER YET  -  REFIT THE ALBATROSS FROM THE MAP (5, ${COST.sky} MATERIEL)`, 2.2); return; }
+  if (!c || !c.sky) { say(`NO SKY CARRIER YET  -  REFIT THE ALBATROSS FROM THE MAP (6, ${COST.sky} MATERIEL)`, 2.2); return; }
   if (!c.sky.up) { say(`REFIT UNDER WAY  -  ${Math.ceil(c.sky.refit)}s`, 1.6); return; }
   if (!helm.canTake(Z.alive && H.landed, !!(Z.svc && Z.svc.deck))) { say('LAND ON THE ALBATROSS TO TAKE THE HELM', 1.8); return; }
   helm.take(); if (document.pointerLockElement) document.exitPointerLock();
@@ -463,8 +629,9 @@ function leaveHelm() { helm.leave(); HI.setCollective(G.heliColl ?? 0); }
 let selIsl = null;
 function command(n) {
   if (G.state !== 'play') return;
+  if (n === 5) { launchJet(); return; }
   if (n === 4) { say(war.sendEscort(), 2); return; }
-  if (n === 5) { say(war.upgradeCarrier(), 2.5); return; }
+  if (n === 6) { say(war.upgradeCarrier(), 2.5); return; }
   if (n === 3) { if (G.mat < COST.heli) say('NOT ENOUGH MATERIEL FOR A HELICOPTER', 1.6); else { G.mat -= COST.heli; G.lives++; say('NEW HELICOPTER IN THE HANGAR', 1.6); sfx.dock(); } return; }
   if (!selIsl) { say('SELECT AN ISLAND ON THE MAP FIRST (M)', 1.8); return; }
   say(n === 1 ? war.sendDrone(selIsl) : war.orderAA(selIsl), 2);
@@ -472,12 +639,16 @@ function command(n) {
 // where a fresh helicopter starts: the carrier deck while it is afloat, else the home pad
 function spawnSpot() {
   const c = war && war.carrier;
-  if (c && c.sinking === undefined && !params.has('homepad')) { const lx = -3, lz = 26, cs = Math.cos(c.yaw), sn = Math.sin(c.yaw); return { x: c.p.x + lx * cs + lz * sn, z: c.p.z - lx * sn + lz * cs, y: CARRIER.DECK + Math.max(0, c.p.y), yaw: c.yaw }; }
+  // the aft helicopter spot (H3): the Huey's 48 ft disc clears the island there
+  if (c && c.sinking === undefined && !params.has('homepad')) { const lx = -2, lz = 32, cs = Math.cos(c.yaw), sn = Math.sin(c.yaw); return { x: c.p.x + lx * cs + lz * sn, z: c.p.z - lx * sn + lz * cs, y: CARRIER.DECK + Math.max(0, c.p.y), yaw: c.yaw }; }
   return { x: PAD.x, z: PAD.z, y: PAD_H, yaw: 0 };
 }
 function resetZarch(fromPad) {
   const sp = spawnSpot();
-  H.reset(new THREE.Vector3(sp.x, sp.y - HELI.SKID_Y, sp.z), sp.yaw, fromPad, fromPad ? 0 : 1); HI.setCollective(0);
+  // on the deck / pad: hot at flight idle, the throttle rolls on by itself (?cold: cold and dark, start it yourself)
+  const cold = fromPad && params.has('cold');
+  H.reset(new THREE.Vector3(sp.x, sp.y - HELI.SKID_Y, sp.z), sp.yaw, fromPad, cold ? -1 : fromPad ? 0 : 1); HI.setCollective(0); SY.reset(cold);
+  if (!fromPad) SY.grip = 1, SY.auto = null;
   Z.pos.copy(H.pos); Z.vel.set(0, 0, 0); Z.lean.set(0, 0); Z.landed = fromPad;
   Z.alive = true; shipMesh.visible = true; shipShadow.visible = true;
 }
@@ -525,14 +696,23 @@ function doSwitch(id) {
   else if (id === 'light') { G.light = !G.light; say(G.light ? 'LANDING LIGHT ON' : 'LANDING LIGHT OFF', 1.2); }
   else if (id === 'radio') callLogistics();
   else if (id === 'fire') { const r = D.extinguish(); say(r === 'FIRE OUT' ? 'FIRE EXTINGUISHED' : r, 1.6); if (r === 'FIRE OUT') sfx.refuel?.(); }
+  else if (['bat', 'gen', 'inv', 'gov', 'trim', 'lowrpm', 'starter', 'mc'].includes(id)) {   // Huey systems (heli.js)
+    const on = SY.toggle(id), name = { bat: 'BATTERY', gen: 'MAIN GENERATOR', inv: 'INVERTER', gov: 'GOVERNOR', trim: 'FORCE TRIM', lowrpm: 'LOW RPM AUDIO', starter: 'STARTER' }[id];
+    if (name) say(id === 'gov' ? `GOVERNOR ${on}${on === 'EMER' ? '  -  MANAGE THE RPM WITH THE THROTTLE (PGUP / PGDN)' : ''}` : id === 'starter' ? (on ? 'STARTER ENGAGED  -  RELEASES AT 40% N1' : 'STARTER RELEASED') : `${name} ${on ? 'ON' : 'OFF'}`, 1.6);
+  }
 }
+// I: cut the fuel (autorotate) / with the engine stopped, the whole start sequence on one key (battery, starter to 40% N1,
+// light-off, idle, throttle open: ~10 s). The cockpit switches and Home / PgUp / PgDn do it by hand.
 function toggleEngine() {
-  D.engineSwitch = !D.engineSwitch;
-  say(D.engineSwitch ? (D.hp.engine > 0.05 ? 'ENGINE START' : 'ENGINE WILL NOT START') : 'ENGINE CUT  -  AUTOROTATE', 1.6);
+  if (D.engineSwitch && (H.run || SY.auto)) { D.engineSwitch = false; SY.cut(); say('MAIN FUEL OFF  -  ENGINE CUT  -  AUTOROTATE', 1.8); return; }
+  if (D.hp.engine <= 0.05) { D.engineSwitch = !D.engineSwitch; say('ENGINE WILL NOT START', 1.6); return; }
+  if (H.run) { D.engineSwitch = true; say('MAIN FUEL ON', 1.2); return; }
+  SY.quickStart(); say('ENGINE START  -  STARTER ENGAGED', 1.8);
 }
 // enemy fire / rams: break a part instead of killing outright
 function hurtHeli(amount, why, part) {
   if (G.bench) return;
+  if (G.craft === 'jet') { JP.hurt(amount, why); return; }
   const p = D.hit(amount, part), name = PARTS.find(q => q.id === p).name;
   sfx.hit?.() ?? sfx.boom(0.3);
   const m = D.mods();
@@ -554,7 +734,7 @@ const rescueStatus = () => G.rescue && G.rescue.drop ? drop.status() : G.rescue 
 function killPlayerZ(why) {
   cancelRescue();
   if (!Z.alive) return;
-  Z.alive = false; Z.deadT = 2.4; shipMesh.visible = false; shipShadow.visible = false;
+  Z.alive = false; Z.deadT = 2.4; Z.lastDeath = { why, pos: H.pos.toArray().map(v => +v.toFixed(1)), t: performance.now() };   // for tests and post-mortems shipMesh.visible = false; shipShadow.visible = false;
   fx.explode(Z.pos.x, Z.pos.y, Z.pos.z, 2.4, { fire: 45, debris: 16, color: 0x55613d, oil: true }); sfx.boom(1.2); sfx.engine(0);
   say(why, 2);
   G.lives--; if (G.lives < 0) gameOver();
@@ -593,20 +773,70 @@ function advise(dt) {
   }
   const f = ISLANDS.find(I => I.cave && I.owner === 2); if (f) feed(`ADVISOR: STEAL THE POD FROM THE CAVE UNDER ${f.name} TO TAKE IT`);
 }
+// ---------------------------------------------------------------- the Huey's moving parts, panel and sound (heli.js)
+const _hl = { nr: 0, tx: 0, ty: 0, cone: 0.05, coll: 0, ped: 0, rockets: 0, light: false, aim: new THREE.Vector3(), firing: false, tailLost: false, rotorHp: 1, run: false, n1: 0 };
+function heliLook() {   // what the exterior model animates
+  return Object.assign(_hl, { nr: H.rpm, tx: H.tx, ty: H.ty, cone: 0.03 + 0.03 * Math.min(1.5, H.thrust / (H.mass * 9.81)), coll: H.c.coll, ped: H.c.ped, rockets: G.rockets, light: G.light,
+    firing: Z.fireCd > 0.06, tailLost: D.hp.tail <= 0, rotorHp: D.hp.rotor, run: H.run, n1: H.n1 }), _hl.aim.copy(Z.aim), _hl;
+}
+const _hp = { sw: {}, ctl: {} };
+function heliPanel(hover) {   // everything the cockpit shows (hueycockpit.js)
+  const a = H.attitude(), m = D.mods();
+  return Object.assign(_hp, {
+    ias: H.ias, alt: H.pos.y * 3.28084, vsi: H.vel.y * 196.85, pitch: a.pitch, roll: -a.roll, hdg: H.heading(), slip: H.slip, turn: -H.w.y, agl: H.agl, landed: H.landed,
+    nr: H.rpm, n2: H.n2, n1: H.n1, torque: H.torque, egt: H.egt, engOilP: SY.engOilP, engOilT: SY.engOilT, xmsnOilP: SY.xmsnOilP, xmsnOilT: SY.xmsnOilT,
+    fuelLb: G.fuel / 100 * 1358, fuelPct: G.fuel, volts: SY.volts, amps: SY.amps, ac: SY.ac, hydPsi: m.hydOk ? 1000 * Math.min(1, H.rpm * 1.5) : 0,
+    throttle: SY.grip, cautions: SY.cautions, masterCaution: SY.masterCaution, rpmWarn: SY.rpmWarn, fire: D.fire, hover, avionics: D.hp.avionics, vrs: H.vrs, stall: H.stall,
+  }), Object.assign(_hp.sw, { bat: SY.bat, gen: SY.gen, inv: SY.inv, engine: D.engineSwitch, gov: SY.gov, hyd: D.hydBoost, trim: SY.trim, light: G.light, sas: HI.sas, lowrpm: SY.lowRpmAudio, starter: H.starter }),
+    Object.assign(_hp.ctl, { cx: H.c.lat, cy: H.c.lon, pedal: H.c.ped, coll: H.c.coll }), _hp;
+}
+function hueyLine(ias, hdg, agl, c) {   // the numbers line under the external views
+  const flags = [H.vrs > 0.4 && 'VORTEX RING!', SY.rpmWarn && 'RPM!', H.stall > 0.3 && 'BLADE STALL!', H.torque > 52 && 'OVERTORQUE', SY.gov === 'EMER' && 'GOV EMER'].filter(Boolean).join('  ');
+  return `NR ${(H.rpm * 100).toFixed(0)}%  TQ ${H.torque.toFixed(0)} PSI  N1 ${(H.n1 * 100).toFixed(0)}%  EGT ${H.egt.toFixed(0)}°  IAS ${ias.toFixed(0)}kt  VS ${(H.vel.y * 196.85 / 100).toFixed(0) * 100}fpm  AGL ${agl.toFixed(0)}m  HDG ${hdg.toFixed(0).padStart(3, '0')}  COLL ${(H.coll * 100).toFixed(0)}%  ${c.sas ? 'ASSIST' : 'MANUAL'}  [${c.source || ''}]${flags ? '  ' + flags : ''}`;
+}
+function hueyHint() {   // what to do next, from the start sequence to the emergencies
+  const n1 = Math.round(H.n1 * 100);
+  if (!H.run && H.n1 < 0.1 && !SY.auto && !H.starter) return D.hp.engine <= 0.05 ? 'ENGINE DEAD  -  AUTOROTATE, OR CALL LOGISTICS ON THE GROUND (L)' : !H.landed ? 'ENGINE OUT  -  COLLECTIVE DOWN, KEEP 324 RPM, 70 KT, FLARE AT ~100 FT, CUSHION WITH THE COLLECTIVE' : 'ENGINE OFF  -  I: QUICK START  ·  BY HAND: BAT, MAIN FUEL, THROTTLE TO IDLE (PGUP), HOLD STARTER (HOME) TO 40% N1';
+  if (H.hung) return `HUNG START  -  N1 ${n1}%  -  HOLD THE STARTER (HOME) TO 40% N1`;
+  if (H.starter || SY.auto === 'crank' || (H.run && H.n1 < 0.6)) return `STARTING  -  N1 ${n1}%  EGT ${H.egt.toFixed(0)}°C${H.run ? '  -  LIGHT-OFF' : ''}${H.n1 > 0.4 ? '  -  RELEASE THE STARTER' : ''}`;
+  if (H.landed && SY.grip < 0.95) return SY.auto === 'rollon' ? `THROTTLE ROLLING ON  -  NR ${Math.round(H.rpm * 100)}%` : 'FLIGHT IDLE  -  OPEN THE THROTTLE (PGUP) TO 6600 RPM';
+  if (H.landed && H.rpm < 0.95) return `ROTOR COMING UP TO 324 RPM  -  NR ${Math.round(H.rpm * 100)}%`;
+  if (H.landed) return '';
+  if (!H.driven && H.rpm > 0.3) return 'AUTOROTATION  -  COLLECTIVE TO HOLD 324 RPM, 70 KT, FLARE AT ~100 FT, CUSHION WITH THE COLLECTIVE';
+  if (H.vrs > 0.5) return 'VORTEX RING STATE  -  FORWARD CYCLIC: FLY OUT OF YOUR OWN DOWNWASH';
+  if (H.stall > 0.3) return 'RETREATING BLADE STALL  -  SLOW DOWN, LOWER THE COLLECTIVE';
+  if (SY.rpmWarn && H.rpm < 0.93) return 'LOW ROTOR RPM  -  LOWER THE COLLECTIVE';
+  if (H.torque > 52) return 'OVERTORQUE  -  50 PSI IS THE LIMIT';
+  return '';
+}
+function hueySound() {   // blade slap, turbine, low rotor rpm horn (audio.js)
+  if (!sfx.huey) { sfx.engine(H.rpm * (0.25 + 0.75 * H.coll)); return; }
+  sfx.huey({ nr: H.rpm, n1: H.n1, load: H.thrust / (H.mass * 9.81), torque: H.torque, vib: H.vib, horn: SY.horn, inside: cockpit.group.visible, spd: Math.hypot(H.vel.x, H.vel.z), on: G.state === 'play' && G.craft === 'heli' && (G.mode === 'zarch' ? Z.alive : T.alive) });
+}
 function updateZarch(dt, inp) {
+  if (G.craft === 'jet') { updateJet(dt, inp); return; }
   const P = Z.pos;
   if (Z.alive) advise(dt);
   if (!Z.alive) {
     Z.deadT -= dt;
     if (Z.deadT <= 0 && !G.over) { G.fuel = 100; G.cargo = 0; D.reset(); G.rockets = ROCKETS_MAX; G.bombs = BOMBS_MAX; resetZarch(true); say(war.carrier && war.carrier.sinking === undefined ? 'NEW HELICOPTER ON THE ALBATROSS' : 'NEW HELICOPTER ON THE HOME PAD', 2); }
   } else {
-    const ctl = HI.read(dt);
-    drop.update(dt, ctl, H);
+    const M = D.mods(), ctl = HI.read(dt, H, { trim: SY.trim, mods: M });
+    drop.update(dt, ctl.raw ? { ...ctl, ...ctl.raw } : ctl, H);   // the raw stick (not the stability assist's output)
     const atHelm = helm.active; helm.update(dt, ctl, { up: kd('Space', 'ShiftLeft'), down: kd('ControlLeft', 'KeyZ') });
     if (atHelm && !helm.active) HI.setCollective(G.heliColl ?? 0);
-    if (drop.controlling || helm.active) { ctl.cx = ctl.cy = ctl.pedal = 0; ctl.fire = ctl.rocket = ctl.bomb = false; inp = { ...inp, fire: false }; ctl.coll = G.heliColl ?? 0; }   // the stick flies the dropship / canopies
+    if (drop.controlling || helm.active) { ctl.cx = ctl.cy = ctl.pedal = 0; ctl.fire = ctl.rocket = ctl.bomb = false; inp = { ...inp, fire: false }; ctl.coll = G.heliColl ?? 0; }   // the stick flies the dropship / canopies / ship
     else G.heliColl = ctl.coll;
-    const ev = H.step(dt, ctl, { groundY, fuel: G.fuel, water: waterAt(H.pos.x, H.pos.z), surfVel: war.surfVel, mods: D.mods() });
+    SY.starterKey = kd('Home');   // Home: starter (hold), PgUp / PgDn: throttle twist grip
+    Object.assign(ctl, SY.controls(dt, H, (kd('PageUp') ? 1 : 0) - (kd('PageDown') ? 1 : 0)));
+    H.extraMass = G.cargo * 3;    // fuel drums from the caves
+    const ev = H.step(dt, ctl, { groundY, fuel: G.fuel, water: waterAt, surfVel: war.surfVel, mods: M });
+    SY.update(dt, H, H.landed);
+    for (const e of H.events) {
+      if (e.e === 'overtemp') { D.hit(0.2, 'engine'); say('ENGINE OVERTEMP  -  EGT PAST 760°C', 2); }
+      if (e.e === 'flameout' && D.engineSwitch && G.fuel > 0 && D.hp.engine > 0.05 && !SY.quick) say('FLAME-OUT  -  AUTOROTATE', 1.6);
+    }
+    if (H.mastBump > 0.25) { H.mastBump = 0; D.hit(0.3, 'rotor'); say('MAST BUMPING  -  LOW G: EASE THE CYCLIC, COLLECTIVE UP', 2.5); sfx.boom(0.3); }
     G.fuel = Math.max(0, G.fuel - D.update(dt));
     P.copy(H.pos); Z.vel.copy(H.vel); Z.landed = H.landed; Z.throttle = H.coll * H.rpm; Z.ctl = ctl;
     const fw = H.forward(), fl = Math.hypot(fw.x, fw.z); if (fl > 0.15) Z.facing.set(fw.x / fl, fw.z / fl);
@@ -615,10 +845,10 @@ function updateZarch(dt, inp) {
       Z.aimOff.x = lerp(Z.aimOff.x, -(ctl.hatX || 0) * 0.26, k); Z.aimOff.y = lerp(Z.aimOff.y, (ctl.hatY || 0) * 0.26, k);
       Z.aim.copy(fw).applyAxisAngle(H.up(), Z.aimOff.x).applyAxisAngle(_aimR.set(1, 0, 0).applyQuaternion(H.q), Z.aimOff.y);
     }
-    G.fuel = Math.max(0, G.fuel - HELI.BURN * (0.15 + 0.85 * H.coll) * H.rpm * dt);
+    G.fuel = Math.max(0, G.fuel - fuelBurnPct(H) * dt);   // the T53 fuel flow, scaled to the game tank (heli.js)
     if (G.fuel <= 0 && !H.landed) say('FUEL EXHAUSTED  -  AUTOROTATE AND SET DOWN SAFELY', 0.5);
     updateRescue(dt, H.landed, false);
-    sfx.engine(drop.flying ? drop.engineLevel() : helm.active ? 0.3 : H.rpm * (0.25 + 0.75 * H.coll));
+    if (drop.flying) sfx.engine(drop.engineLevel()); else if (helm.active) sfx.engine(0.3); else hueySound();   // they share a mixer: one at a time
     const svc = H.landed ? serviceAt(P.x, P.z) : null; Z.svc = svc;
     if (svc) service(svc, dt);
     else if (ev === 'water') killPlayerZ('DITCHED IN THE WATER');
@@ -628,36 +858,34 @@ function updateZarch(dt, inp) {
     else if (ev === 'crash') killPlayerZ('CRASHED');
     if (!Z.alive) return;
     // rotor downwash: dust (or spray over water) blown out radially under the disc
-    if (H.agl < 12 && H.rpm > 0.5 && H.coll > 0.2) {
-      const gy = groundY(P.x, P.z), wet = waterAt(P.x, P.z), k = (1 - H.agl / 12) * H.coll;
+    if (H.agl < 20 && H.rpm > 0.5 && H.thrust > 8000) {   // the 48 ft disc throws dust (spray) out to a rotor diameter
+      const gy = groundY(P.x, P.z), wet = waterAt(P.x, P.z), k = (1 - H.agl / 20) * Math.min(1, H.thrust / 40000);
       for (let i = 0; i < 4; i++) if (Math.random() < k) {
-        const a = rnd(6.283), sp = rnd(8, 16);
-        if (wet) fx.mix.spawn(P.x + Math.cos(a) * 2, gy + 0.3, P.z + Math.sin(a) * 2, Math.cos(a) * sp, rnd(0.5, 2.5), Math.sin(a) * sp, rnd(0.6, 1.1), 0.7, 3, .85, .92, .97, 0.4, 2, 1.4, 0.3);
-        else fx.mix.spawn(P.x + Math.cos(a) * 2, gy + 0.3, P.z + Math.sin(a) * 2, Math.cos(a) * sp, rnd(0.5, 2.5), Math.sin(a) * sp, rnd(0.6, 1.2), 0.8, 3.4, .55, .48, .36, 0.45, 1.5, 1.5, 0.3);
+        const a = rnd(6.283), sp = rnd(10, 20), rr = rnd(2, 6);
+        if (wet) fx.mix.spawn(P.x + Math.cos(a) * rr, gy + 0.3, P.z + Math.sin(a) * rr, Math.cos(a) * sp, rnd(0.5, 2.5), Math.sin(a) * sp, rnd(0.6, 1.1), 0.7, 3, .85, .92, .97, 0.4, 2, 1.4, 0.3);
+        else fx.mix.spawn(P.x + Math.cos(a) * rr, gy + 0.3, P.z + Math.sin(a) * rr, Math.cos(a) * sp, rnd(0.5, 2.5), Math.sin(a) * sp, rnd(0.6, 1.2), 0.8, 3.4, .55, .48, .36, 0.45, 1.5, 1.5, 0.3);
       }
       Z.washT = (Z.washT || 0) - dt;
       if (wet && Z.washT <= 0 && k > 0.2) { Z.washT = 0.18; fx.water.add({ x: P.x, y: 0.1, z: P.z, size: 3, grow: 12, a: 0.45 * k, life: 1.1, tile: 1, pow: 1.5 }); }
     }
-    for (const ax of ['x', 'z']) if (Math.abs(P[ax]) > BOUND) { P[ax] = Math.sign(P[ax]) * BOUND; Z.vel[ax] = 0; say('TURN BACK', 0.8); }
     // weapons: door gun (F / trigger), rocket pods (G / button 3), bombs (B / button 5)
     Z.fireCd -= dt; Z.rkCd = (Z.rkCd || 0) - dt; Z.bmCd = (Z.bmCd || 0) - dt;
     if ((inp.fire || ctl.fire) && Z.fireCd <= 0) {
       Z.fireCd = 0.14; sfx.shot();
-      war.fireBullet(P.clone().addScaledVector(Z.aim, 3.2), Z.aim.clone().multiplyScalar(75).addScaledVector(Z.vel, 0.5));
+      war.fireBullet(P.clone().addScaledVector(Z.aim, 5), Z.aim.clone().multiplyScalar(75).addScaledVector(Z.vel, 0.5));
     }
     if (((kd('KeyG') && !drop.controlling) || ctl.rocket) && Z.rkCd <= 0) {
       if (G.rockets > 0) {
         Z.rkCd = 0.2; G.rockets--; Z.rkSide = -(Z.rkSide || 1);
-        const p0 = P.clone().add(_rk.set(1.15 * Z.rkSide, -0.55, -1).applyQuaternion(H.q));
+        const p0 = P.clone().add(_rk.set(1.7 * Z.rkSide, -0.4, -0.6).applyQuaternion(H.q));
         war.fireRocket(p0, Z.aim.clone().multiplyScalar(105).add(Z.vel)); fx.flash(p0.x, p0.y, p0.z, 0.35);
       } else { Z.rkCd = 1; say('ROCKETS EMPTY  -  REARM ON THE CARRIER OR A FRIENDLY PAD', 1.4); }
     }
     if (((kd('KeyB') && !drop.controlling) || ctl.bomb) && Z.bmCd <= 0) {
-      if (G.bombs > 0) { Z.bmCd = 0.45; G.bombs--; war.dropBomb(P.clone().add(_rk.set(0, -1.7, 0)), Z.vel.clone()); }
+      if (G.bombs > 0) { Z.bmCd = 0.45; G.bombs--; war.dropBomb(P.clone().add(_rk.set(0, -2.3, 0)), Z.vel.clone()); }
       else { Z.bmCd = 1; say('BOMBS GONE  -  REARM ON THE CARRIER OR A FRIENDLY PAD', 1.4); }
     }
     { const hb = holeOf(P.x, P.z); if (hb && P.y < hb.h - 0.5 && Z.vel.y < 0) { enterCave(hb); return; } }
-    if (Math.abs(P.x) > BOUND || Math.abs(P.z) > BOUND) { H.pos.x = clamp(H.pos.x, -BOUND, BOUND); H.pos.z = clamp(H.pos.z, -BOUND, BOUND); }
   }
 }
 
@@ -677,17 +905,17 @@ const caveToWorld = (x, y, out, b = T.base) => out.set(b.x + (x - CAVE_OX) * CS,
 const sol = (x, y) => { const L = T.lvl; if (x < 0 || x >= L.W || y < 0) return 1; if (y >= L.H) return 0; return L.solid[Math.floor(y) * L.W + Math.floor(x)]; };
 const isPad = (x, y) => { const L = T.lvl; if (x < 0 || x >= L.W || y < 0 || y >= L.H) return false; return L.pad[Math.floor(y) * L.W + Math.floor(x)] === 1; };
 
-// Build every base's cave once. Geometry is shared; each base keeps its own turrets/tanks/pod state, so a looted
+// Build every base's cave once: each base has its own procedurally generated cave (level.js, seeded by the base name,
+// so the same island always has the same cave) and its own turrets/tanks/pod state, so a looted
 // tank stays empty and a destroyed turret stays dead. The home cave is friendly: no turrets, a big reservoir tank and
 // a blue intake pad where carried fuel is pumped into the reservoir.
 const CARGO_MAX = 100;
 function buildCaves() {
-  let proto = null;
-  BASES.forEach((b, i) => {
-    const L = b.L = buildLevel(b.tier);
-    if (!proto) proto = buildCaveMesh(L, { depth: CAVE_DEPTH });
+  const t0 = performance.now();
+  BASES.forEach(b => {
+    const L = b.L = buildLevel(b.tier, b.name, { home: b.kind === 'home' });
     const grp = b.group = new THREE.Group(); grp.scale.setScalar(CS); grp.position.set(b.x - CAVE_OX * CS, b.h - CAVE_SINK - L.H * CS, b.z); zScene.add(grp);
-    const mesh = proto.clone(); grp.add(mesh);
+    const mesh = buildCaveMesh(L, { depth: CAVE_DEPTH }); grp.add(mesh);
     const dyn = new THREE.Group(); grp.add(dyn);
     b.st = { turrets: [], tanks: [], pod: null, podTaken: false };
     if (b.kind === 'home') {
@@ -702,6 +930,7 @@ function buildCaves() {
       b.st.pod = { x: L.orb.x, y: L.orb.y, vx: 0, vy: 0, attached: false };
     }
   });
+  PROF.caves = performance.now() - t0;
   useCave(BASES[0]);
 }
 function useCave(b) {   // point the shared cave state + effects at base b
@@ -784,14 +1013,18 @@ function updateThrust(dt, inp) {
   const L = T.lvl;
   if (!T.alive) { T.deadT -= dt; if (T.deadT <= 0 && !G.over) respawnHome(); stepParts(T.parts, dt); return; }
   const ctl = HI.read(dt); Z.ctl = ctl;
-  const M = D.mods(), driven = G.fuel > 0 && M.engineOk && M.xmsnOk;
-  if (driven) H.rpm += (Math.min(1, 1 - Math.max(0, ctl.coll - M.power) * 1.4) - H.rpm) * 0.8 * dt;
-  else H.rpm = Math.max(0, H.rpm - (0.06 + 0.2 * ctl.coll + (M.xmsnOk ? 0 : 0.18)) * dt);
+  const M = D.mods();
+  SY.starterKey = kd('Home'); Object.assign(ctl, SY.controls(dt, H, (kd('PageUp') ? 1 : 0) - (kd('PageDown') ? 1 : 0)));
+  // the same rotor and engine, in axial flight: climb speed and the rock under the skids (ground effect) -> thrust / weight
+  const zr = T.ge > 0 ? HELI.ROTOR_R * (0.55 + (1 - T.ge) * 1.5) : Infinity;
+  const tw = T.landed && ctl.coll < 0.05 ? 0 : H.axial(dt, ctl, { mods: M, fuel: G.fuel }, T.landed ? 0 : T.vy * CS, zr);
+  if (T.landed && ctl.coll < 0.05) H.axial(dt, ctl, { mods: M, fuel: G.fuel }, 0, HELI.ROTOR_R * 0.55);
+  SY.update(dt, H, T.landed);
   G.fuel = Math.max(0, G.fuel - D.update(dt));
-  const auth = H.rpm * H.rpm * M.lift, thr = ctl.coll * auth, beam = !!ctl.winch;
-  T.spin = driven ? ctl.coll * (1 - M.tail) : 0;   // no tail rotor: the airframe spins (visual) and the disc wanders
-  T.thrOn = thr; T.beamOn = beam;
-  sfx.engine(T.landed && thr < 0.05 ? 0 : thr);
+  const auth = H.rpm * H.rpm * M.lift, thr = Math.max(0, tw), beam = !!ctl.winch;
+  T.spin = M.tail === 0 && H.driven ? H.torque / 40 : 0;   // no tail rotor: the airframe spins (visual) and the disc wanders
+  T.thrOn = H.coll * H.rpm; T.beamOn = beam;
+  hueySound();
   T.fireCd -= dt; T.caveT += dt;
   caveAim(ctl);
   if ((inp.fire || ctl.fire || T.hatFire) && T.fireCd <= 0) {
@@ -800,7 +1033,7 @@ function updateThrust(dt, inp) {
   }
   const n = Math.ceil(dt / (1 / 240)), h = dt / n, pod = T.pod;
   for (let it = 0; it < n && T.alive; it++) {
-    const lift = thr * HELI.TMAX * 7 * (1 + 0.22 * T.ge);
+    const lift = thr * 7;   // the cave's gravity is 7 cells/s2: thrust / weight 1 = hover
     if (T.guide > 0) { T.guide -= h; T.landed = false; T.x += (CAVE_OX - T.x) * Math.min(1, 5 * h); T.vx *= 1 - Math.min(1, 4 * h); T.ang *= 1 - Math.min(1, 3 * h); }   // the funnel lines you up on the shaft
     if (T.landed) { if (lift > 7) { T.landed = false; T.onPad = false; } else { T.vx = T.vy = 0; T.w = 0; T.ang *= 0.9; break; } }
     {   // disc tilt rate follows the cyclic; stability assist levels it hands-off
@@ -854,7 +1087,7 @@ function updateThrust(dt, inp) {
     if (T.ge > 0) { let gy = T.y - 0.8; while (!sol(T.x, gy) && gy > T.y - 5) gy -= 0.25;
       for (let i = 0; i < 2; i++) { const d = Math.random() < 0.5 ? -1 : 1; emit(T.parts, T.x + d * rnd(0.3, 1.5), gy + 0.4, 0, d * rnd(5, 10), rnd(0.3, 1.5), 0, 0.5, .55, .48, .38, 2); } }
   }
-  G.fuel = Math.max(0, G.fuel - HELI.BURN * (0.15 + 0.85 * ctl.coll) * H.rpm * dt);
+  G.fuel = Math.max(0, G.fuel - fuelBurnPct(H) * dt);
   if (beam && G.fuel > 0) {
     G.fuel = Math.max(0, G.fuel - 0.8 * dt);
     const bx = T.x - Math.sin(T.ang) * 3.5, by = T.y - Math.cos(T.ang) * 3.5, BR = 5.5;
@@ -901,7 +1134,7 @@ function gameOver() {
 }
 function startTransition(label, swap) { G.state = 'trans'; G.tr = { t: 0, phase: 0, swap }; $('fadeText').textContent = label; }
 function newGame() {
-  cancelRescue(); D.reset();
+  cancelRescue(); D.reset(); JP.stow(); G.craft = 'heli'; G.jets = 2; G.jetDownT = 0;
   G.score = 0; G.lives = 3; G.fuel = 100; G.visit = 0; G.mode = 'zarch'; G.over = false; G.state = 'play';
   G.res = 250; G.mat = 90; G.rockets = ROCKETS_MAX; G.bombs = BOMBS_MAX; G.cargo = 0; selIsl = null; feedItems.length = 0; G.advT = 12;
   fx.clear(); war.reset(); resetBases(); fog.reset(); fog.enabled = !params.has('nofog'); resetZarch(true);
@@ -915,12 +1148,20 @@ function pressStart() { if (G.state === 'title') newGame(); }
 // out of any stuck state (set down broken somewhere logistics can't help, wedged in a cave, out of fuel at sea).
 const menu = { items: [], sel: 0 };
 function menuItems() {
+  if (G.craft === 'jet') return [   // flying the Hornet: no logistics; 'respawn' writes the jet off and puts you back in the helicopter
+    { id: 'resume', label: 'RESUME' },
+    { id: 'logistics', label: 'CALL LOGISTICS', note: 'JETS ARE SERVICED ON THE ALBATROSS DECK', off: true },
+    { id: 'respawn', label: 'BACK TO THE ALBATROSS', note: `WRITES OFF THIS HORNET (${G.jets} LEFT IN THE HANGAR)  -  YOU GO BACK TO THE HELICOPTER`, off: G.over },
+    { id: 'fov', label: 'COCKPIT FOV', slider: true },
+    { id: 'quit', label: 'QUIT TO TITLE', note: 'ENDS THIS WAR' },
+  ];
   const alive = G.mode === 'zarch' ? Z.alive : T.alive, landed = G.mode === 'zarch' ? H.landed : T.landed, home = war.carrier && war.carrier.sinking === undefined ? 'THE ALBATROSS' : 'THE HOME PAD';
   const last = G.lives <= 0;
   return [
     { id: 'resume', label: 'RESUME' },
     { id: 'logistics', label: 'CALL LOGISTICS', note: G.rescue ? `INBOUND  -  ${rescueStatus()}` : landed ? (G.mode === 'zarch' ? 'A DROPSHIP FLIES OUT A PARA REPAIR TEAM' : 'FUEL DROP AND FIELD REPAIR WHERE YOU ARE') : 'LAND FIRST', off: !alive || !landed || !!G.rescue },
     { id: 'respawn', label: `RESPAWN ON ${home}`, note: last ? 'THIS IS YOUR LAST HELICOPTER  -  ABANDONING IT LOSES THE WAR' : `ABANDON THIS HELICOPTER  -  COSTS ONE (${G.lives} LEFT IN THE HANGAR)`, off: !alive || G.over },
+    { id: 'fov', label: 'COCKPIT FOV', slider: true },
     { id: 'quit', label: 'QUIT TO TITLE', note: 'ENDS THIS WAR' },
   ];
 }
@@ -933,13 +1174,20 @@ function openMenu() {
 function closeMenu() { $('menu').classList.remove('on'); if (G.state === 'paused') G.state = 'play'; menu.confirm = null; }
 function renderMenu() {
   menu.items = menuItems();
-  $('menuSub').textContent = `SCORE ${G.score}  ·  HELICOPTERS ${Math.max(0, G.lives)}  ·  FUEL ${Math.round(G.fuel)}%`;
+  $('menuSub').textContent = `SCORE ${G.score}  ·  HELICOPTERS ${Math.max(0, G.lives)}  ·  HORNETS ${G.jets}  ·  ${G.craft === 'jet' ? `JET FUEL ${Math.round(JP.J.fuel * 2.20462)} LB` : `FUEL ${Math.round(G.fuel)}%`}`;
   const box = $('menuItems'); box.textContent = '';
   menu.items.forEach((it, i) => {
+    if (it.slider) {   // COCKPIT FOV: drag, or LEFT / RIGHT while it's selected
+      const d = document.createElement('div'); d.className = 'slider' + (i === menu.sel ? ' sel' : '');
+      d.innerHTML = `<span>${it.label}  <b id="fovVal">${ckFov}°</b></span><input type="range" min="${CK_FOV.min}" max="${CK_FOV.max}" step="1" value="${ckFov}"><small>FIRST-PERSON VIEWS: HUEY, HORNET, DROPSHIP  ·  LEFT / RIGHT  ·  DEFAULT ${CK_FOV.def}°</small>`;
+      const r = d.querySelector('input'); r.oninput = () => { setCkFov(+r.value); $('fovVal').textContent = ckFov + '°'; };
+      d.onmouseenter = () => { menu.sel = i; for (const [k, c] of [...box.children].entries()) c.classList.toggle('sel', k === i); };
+      box.appendChild(d); return;
+    }
     const b = document.createElement('button'); b.disabled = !!it.off; b.className = i === menu.sel ? 'sel' : '';
     const conf = menu.confirm === it.id;
     b.innerHTML = (conf ? `${it.label}?  PRESS AGAIN TO CONFIRM` : it.label) + (it.note ? `<small>${it.note}</small>` : '');
-    b.onmouseenter = () => { if (!it.off) { menu.sel = i; for (const [k, c] of [...box.children].entries()) c.className = k === i ? 'sel' : ''; } };
+    b.onmouseenter = () => { if (!it.off) { menu.sel = i; for (const [k, c] of [...box.children].entries()) c.classList.toggle('sel', k === i); } };
     b.onclick = () => { menu.sel = i; menuPick(); };
     box.appendChild(b);
   });
@@ -952,10 +1200,12 @@ function menuKey(e) {
     for (let k = 0; k < n; k++) { menu.sel = (menu.sel + d + n) % n; if (!menu.items[menu.sel].off) break; }
     menu.confirm = null; renderMenu(); sfx.ui?.('select');
   }
+  const it = menu.items[menu.sel];
+  if (it && it.slider && ['ArrowLeft', 'KeyA', 'ArrowRight', 'KeyD'].includes(e.code)) { setCkFov(ckFov + (['ArrowLeft', 'KeyA'].includes(e.code) ? -5 : 5)); renderMenu(); sfx.ui?.('select'); return; }
   if (e.code === 'Enter' || e.code === 'Space') menuPick();
 }
 function menuPick() {
-  const it = menu.items[menu.sel]; if (!it || it.off) return;
+  const it = menu.items[menu.sel]; if (!it || it.off || it.slider) return;
   sfx.ui?.('select');
   if ((it.id === 'respawn' || it.id === 'quit') && menu.confirm !== it.id) { menu.confirm = it.id; renderMenu(); return; }
   if (it.id === 'resume') closeMenu();
@@ -965,6 +1215,7 @@ function menuPick() {
 }
 // the crew is picked up and the airframe written off; a fresh helicopter waits on the carrier
 function abandonHeli() {
+  if (G.craft === 'jet') { JP.stow(); G.craft = 'heli'; G.jetDownT = 0; G.fuel = 100; D.reset(); resetZarch(true); feed('HORNET WRITTEN OFF', 'bad'); say('BACK ON THE ALBATROSS  -  IN THE HELICOPTER', 2.5); return; }
   cancelRescue();
   if (G.mode !== 'zarch' ? !T.alive : !Z.alive) return;
   if (G.mode === 'zarch') fx.explode(Z.pos.x, Z.pos.y, Z.pos.z, 1.2, { debris: 4, color: 0x55613d });
@@ -1017,9 +1268,11 @@ function drawMap() {
   if (!big) { radar.beginPath(); radar.arc(cx, cy, 74, 0, 6.283); radar.clip(); }
   else { radar.fillStyle = 'rgba(2,8,16,.88)'; radar.fillRect(0, 0, W, Hh); }
   radar.imageSmoothingEnabled = true;
+  if (!big) { radar.fillStyle = 'rgb(10,38,74)'; radar.fillRect(0, 0, W, Hh); if (farMap.ready) radar.drawImage(farMap.cv, px(farMap.ox), py(farMap.oz), farMap.size * half, farMap.size * half); }
   radar.drawImage(landImg, px(-BOUND), py(-BOUND), 2 * BOUND * half, 2 * BOUND * half);
   radar.drawImage(fogImg, px(-BOUND), py(-BOUND), 2 * BOUND * half, 2 * BOUND * half);
-  if (big) { radar.strokeStyle = 'rgba(120,220,255,.35)'; radar.lineWidth = 1; radar.strokeRect(px(-BOUND), py(-BOUND), 2 * BOUND * half, 2 * BOUND * half); }
+  radar.strokeStyle = 'rgba(255,220,120,.5)'; radar.lineWidth = 1; radar.setLineDash([4, 4]); radar.strokeRect(px(-BOUND), py(-BOUND), 2 * BOUND * half, 2 * BOUND * half); radar.setLineDash([]);   // the control zone
+  if (big) { radar.fillStyle = 'rgba(255,220,120,.8)'; radar.font = 'bold 12px monospace'; radar.textAlign = 'left'; radar.fillText('CONTROL ZONE', px(-BOUND) + 6, py(-BOUND) + 16); }
   // islands, as last seen
   for (const I of ISLANDS) {
     if (!fog.exploredAt(I.x, I.z) && !fog.exploredAt(I.pad.x, I.pad.z)) continue;
@@ -1061,7 +1314,7 @@ function drawMap() {
     radar.font = '14px monospace'; radar.textAlign = 'center'; radar.fillStyle = '#bfe';
     radar.fillText('CLICK THE SEA: SAIL THE ALBATROSS THERE   ·   CLICK AN ISLAND: SELECT IT   ·   M: CLOSE', W / 2, Hh - 70);
     radar.fillStyle = '#ff8';
-    radar.fillText(`1: CAPTURE DRONE (${COST.drone})  ·  2: AA GUN ON OUR ISLAND (${COST.aa})  ·  3: NEW HELICOPTER (${COST.heli})  ·  4: ESCORT FIGHTER (${COST.escort})  ·  5: SKY CARRIER REFIT (${COST.sky})     MATERIEL ${Math.floor(G.mat)}`, W / 2, Hh - 46);
+    radar.fillText(`1: CAPTURE DRONE (${COST.drone})  ·  2: AA GUN ON OUR ISLAND (${COST.aa})  ·  3: NEW HELICOPTER (${COST.heli})  ·  4: ESCORT FIGHTER (${COST.escort})  ·  6: SKY CARRIER REFIT (${COST.sky})     MATERIEL ${Math.floor(G.mat)}`, W / 2, Hh - 46);
     radar.font = '12px monospace'; radar.fillStyle = '#8ab';
     radar.fillText('HQ  HEADQUARTERS     C  CAVE FORTRESS (STEAL ITS POD)     F  FUEL     M  MATERIEL (FACTORY)     R  RADAR     ▲ AA GUNS', W / 2, Hh - 24);
     if (selIsl) {
@@ -1092,6 +1345,7 @@ const crossEl = (() => {
   e.innerHTML = '<svg width="25" height="25" viewBox="0 0 25 25" style="filter:drop-shadow(0 0 1px #000)"><circle cx="12.5" cy="12.5" r="1.3" fill="#ffe8a0"/><path d="M12.5 1v7M12.5 17v7M1 12.5h7M17 12.5h7" stroke="#ffe8a0" stroke-width="1" opacity=".85"/></svg>';
   $('hud').appendChild(e); return e;
 })();
+const gfxEl = (() => { const e = document.createElement('div'); e.style.cssText = 'position:absolute;inset:0;pointer-events:none;display:none'; $('hud').prepend(e); return e; })();
 const cautionEl = (() => { const e = document.createElement('div'); e.id = 'caution'; e.style.cssText = 'position:absolute;left:16px;bottom:100px;font-size:15px;letter-spacing:1px;font-weight:bold'; $('hud').appendChild(e); return e; })();
 // what the island pad under / near you is doing: capture progress, guns in the way, services
 function padHint() {
@@ -1137,19 +1391,24 @@ function updateTags() {
 function updateHud() {
   updateTags();
   {   // in the cockpit the instruments carry fuel / rpm / speed, so the bottom text block steps aside and the map moves up
-    const ck = cockpit.group.visible; setStyle('bot', 'display', ck || bigMap ? 'none' : 'block');
+    const ck = cockpit.group.visible || JP.cockpit.group.visible; setStyle('bot', 'display', ck || bigMap ? 'none' : 'block');
     for (const id of ['tl', 'hint', 'feed', 'war']) setStyle(id, 'display', bigMap ? 'none' : 'block');   // the command map has its own read-outs
     setStyle('radar', 'bottom', ck && !bigMap ? 'auto' : ''); setStyle('radar', 'top', ck && !bigMap ? '64px' : ''); setStyle('feed', 'top', ck ? '236px' : '');
   }
-  crossEl.style.display = document.pointerLockElement === canvas && cockpit.group.visible ? 'block' : 'none';
+  crossEl.style.display = document.pointerLockElement === canvas && (cockpit.group.visible || JP.cockpit.group.visible) ? 'block' : 'none';
+  {   // g effects in the jet cockpit: grey tunnel closing in, black at G-LOC, red-out under negative g
+    const gf = JP.cockpit.group.visible || (G.craft === 'jet' && JP.gloc > 0) ? JP.gfx() : { grey: 0, red: 0 };
+    const k = (gf.grey * 100) | 0, r = (gf.red * 100) | 0, key = k * 1000 + r;
+    if (gfxEl._k !== key) { gfxEl._k = key; gfxEl.style.display = key ? 'block' : 'none'; gfxEl.style.background = `radial-gradient(circle at 50% 45%, rgba(${r ? 120 : 0},0,0,${gf.red * 0.55}) ${Math.max(0, 62 - gf.grey * 70)}%, rgba(${r ? 90 : 0},0,0,${Math.min(1, 0.15 + gf.grey * 1.1 + gf.red * 0.4)}) ${Math.max(8, 95 - gf.grey * 80)}%)`; gfxEl.style.backdropFilter = gf.grey > 0.2 ? `grayscale(${Math.min(1, gf.grey * 1.4)})` : ''; }
+  }
   { const list = G.state === 'play' && !cockpit.group.visible ? D.cautions(G.fuel, H.rpm, G.mode === 'zarch' ? H.landed : T.landed) : [], blink = (performance.now() % 600) < 300;
     const html = list.map(c => `<span style="color:${c.warn ? (blink ? '#ff3a2a' : '#7a1810') : '#ffb020'};margin-right:12px">${c.t}</span>`).join('');
     if (cautionEl._h !== html) { cautionEl._h = html; cautionEl.innerHTML = html; } }
   setText('score', String(G.score)); setText('hi', String(G.hi));
-  setText('lives', '▲'.repeat(Math.max(0, G.lives)));
-  setStyle('fuel', 'width', clamp(G.fuel, 0, 100).toFixed(1) + '%');
+  setText('lives', '▲'.repeat(Math.max(0, G.lives))); setText('jets', `${G.jets} IN THE HANGAR${G.craft === 'jet' ? '  ·  1 FLYING' : ''}`);
+  setStyle('fuel', 'width', clamp(G.craft === 'jet' ? JP.J.fuel / 27.2 : G.fuel, 0, 100).toFixed(1) + '%');
   setText('modeTag', `FUEL STORES ${Math.round(G.res)}/${RES_MAX}   MATERIEL ${Math.floor(G.mat)}${G.cargo > 0.5 ? '   CARGO ' + Math.round(G.cargo) : ''}`);
-  setText('weap', `ROCKETS ${G.rockets}   BOMBS ${G.bombs}`);
+  setText('weap', G.craft === 'jet' ? JP.weapLine() : `ROCKETS ${G.rockets}   BOMBS ${G.bombs}`);
   {   // the war at a glance
     const n = [0, 0, 0]; for (const I of ISLANDS) n[I.owner]++;
     const c = war.carrier, b = war.battleship, eb = war.E.bship;
@@ -1160,17 +1419,22 @@ function updateHud() {
     const now = performance.now(), fh = feedItems.filter(f => now - f.at < 14000).map(f => `<div style="color:${f.kind === 'good' ? '#7f9' : f.kind === 'bad' ? '#f86' : '#cde'};opacity:${Math.min(1, (14000 - (now - f.at)) / 2000).toFixed(2)}">${f.t}</div>`).join('');
     if (_hud.feed !== fh) { _hud.feed = fh; $('feed').innerHTML = fh; }
   }
-  setText('pad', readPad() ? 'CONTROLLER' : (keyboardOnly ? 'KEYBOARD ONLY' : 'KEYBOARD'));
+  setText('pad', keyboardOnly ? 'KEYBOARD ONLY' : CTL.state.source && CTL.state.source !== 'NONE' ? `${CTL.state.source}${CTL.state.hasPedals ? ' + PEDALS' : ''}  ·  J CONTROLS` : readPad() ? 'CONTROLLER' : 'KEYBOARD');
   setStyle('radar', 'display', G.mode === 'zarch' ? 'block' : 'none');
-  if (G.mode === 'zarch') {
+  setStyle('bot', 'width', '440px'); setStyle('hint', 'left', '470px');   // the Huey's numbers line is as long as the jet's
+  if (G.craft === 'jet') {
+    setText('alt', JP.hudLine());
+    setText('hint', switchHover ? `${JP.cockpit.labelOf(switchHover)}  -  CLICK` : JP.hint());
+    if (performance.now() - (Z.mapT || 0) > (bigMap ? 60 : 120)) { Z.mapT = performance.now(); drawMap(); }
+  } else if (G.mode === 'zarch') {
     const hb = holeOf(Z.pos.x, Z.pos.z), alt = Z.pos.y - 0.9 - (hb ? hb.h : groundY(Z.pos.x, Z.pos.z)), bd = Math.hypot(Z.pos.x - HOME_B.x, Z.pos.z - HOME_B.z);
     const ias = Math.hypot(Z.vel.x, Z.vel.z) * 1.944, hdg = ((H.heading() * 180 / Math.PI) + 360) % 360, c = Z.ctl || {};
-    setText('alt', `COLL ${(H.coll * 100).toFixed(0)}%  RPM ${(H.rpm * 100).toFixed(0)}%  IAS ${ias.toFixed(0)}kt  VS ${Z.vel.y.toFixed(1)}  AGL ${Math.max(0, hb ? Z.pos.y + HELI.SKID_Y - hb.h : H.agl).toFixed(0)}m  HDG ${hdg.toFixed(0).padStart(3, '0')}  ${c.sas ? 'SAS' : 'MANUAL'}  [${c.source || ''}]${H.vrs > 0.4 ? '  VORTEX RING!' : ''}`);
-    setText('hint', helm.active ? helm.status() : switchHover ? `${switchHover.toUpperCase()}  -  CLICK TO OPERATE` : G.rescue ? (G.rescue.drop ? drop.status() : `EMERGENCY LANDING  -  FUEL DROP IN ${Math.max(0, Math.ceil(G.rescue.t))}s`) : H.landed && H.rpm < 0.9 && G.fuel > 0 ? 'ROTOR SPOOLING...' : padHint());
+    setText('alt', hueyLine(ias, hdg, Math.max(0, hb ? Z.pos.y + HELI.SKID_Y - hb.h : H.agl), c));
+    setText('hint', helm.active ? helm.status() : switchHover ? `${cockpit.labelOf(switchHover)}  -  CLICK` : G.rescue ? (G.rescue.drop ? drop.status() : `EMERGENCY LANDING  -  FUEL DROP IN ${Math.max(0, Math.ceil(G.rescue.t))}s`) : hueyHint() || padHint());
     if (performance.now() - (Z.mapT || 0) > (bigMap ? 60 : 120)) { Z.mapT = performance.now(); drawMap(); }
   } else {
     const c = Z.ctl || {};
-    setText('alt', `COLL ${(c.coll * 100 || 0).toFixed(0)}%  RPM ${(H.rpm * 100).toFixed(0)}%  VS ${T.vy.toFixed(1)}  ${c.sas ? 'SAS' : 'MANUAL'}  ${T.pod && T.pod.attached ? 'POD ON THE LINE' : ''}`);
+    setText('alt', `COLL ${(H.coll * 100).toFixed(0)}%  NR ${(H.rpm * 100).toFixed(0)}%  TQ ${H.torque.toFixed(0)} PSI  VS ${T.vy.toFixed(1)}  ${c.sas ? 'ASSIST' : 'MANUAL'}  ${T.pod && T.pod.attached ? 'POD ON THE LINE' : ''}${SY.rpmWarn ? '  RPM!' : ''}`);
     const nearTank = T.tanks.some(t => t.fuel > 0 && Math.hypot(t.x - T.x, t.y - T.y) < 10) && G.cargo < CARGO_MAX;
     setText('hint', switchHover ? `${switchHover.toUpperCase()}  -  CLICK TO OPERATE` : G.rescue ? `EMERGENCY LANDING  -  FUEL RUN IN ${Math.max(0, Math.ceil(G.rescue.t))}s` : nearTank && !T.beamOn ? 'HOVER OVER THE TANK AND HOLD S / R (WINCH) TO DRAIN IT' : G.cargo >= CARGO_MAX ? 'CARGO FULL  -  CLIMB OUT AND TAKE IT HOME' : T.caveT < 8 ? 'HAT OR MOUSE AIMS THE DOOR GUN' : '');
   }
@@ -1198,7 +1462,7 @@ lightPool.renderOrder = 3; zScene.add(lightPool);
 const _ld = new THREE.Vector3();
 function updateLandingLight(inCave) {
   lightPool.visible = false;
-  if (!G.light || inCave || !Z.alive || G.state !== 'play') return;
+  if (!G.light || inCave || !Z.alive || G.state !== 'play') return;   // (inCave is also passed true while flying the jet)
   _ld.set(0, -0.8, -0.6).applyQuaternion(H.q).normalize();   // fixed light under the nose, angled forward-down
   for (let t = 1; t < 70; t += 1) {
     const x = H.pos.x + _ld.x * t, y = H.pos.y + _ld.y * t, z = H.pos.z + _ld.z * t, gy = groundY(x, z);
@@ -1211,11 +1475,12 @@ const _wv0 = new THREE.Vector3(), _q = new THREE.Quaternion(), _q2 = new THREE.Q
 const camA = new THREE.PerspectiveCamera(), camS = new THREE.PerspectiveCamera(), SIDE_FOV = 38, SIDE_VIEWH = 30 * CS;
 let camB = 0;
 function updateCamsAndMeshes(dt, time) {
-  const P = Z.pos, inCave = G.mode === 'thrust' && !!T.lvl;
+  const P = Z.pos, inCave = G.mode === 'thrust' && !!T.lvl, jet = G.craft === 'jet' && G.state !== 'title';
+  { const want = jet ? clamp(1100 + zCam.position.y * 1.2, 1100, 2600) : inZone(zCam.position.x, zCam.position.z) ? DRAW : 600; view.draw += (want - view.draw) * Math.min(1, 1.5 * dt); if (Math.abs(view.draw - want) < 1) view.draw = want; }
   if (inCave) {   // keep Z.pos on the ship so the 3D camera keeps following it through the swing
     caveToWorld(T.x, T.y, P); T.zOff *= Math.exp(-5 * dt); P.z = T.base.z + T.zOff;
   }
-  heliModel.animate(H.rpm, dt, time, cockpit.group.visible);
+  heliModel.animate(heliLook(), dt, time, cockpit.group.visible);
   if (Z.alive && G.state === 'play' && (D.fire || D.hp.engine < 0.5) && Math.random() < (D.fire ? 0.9 : 0.35)) {
     const p = _wv0.set(0, 1.3, 1.4).applyQuaternion(shipMesh.quaternion).add(shipMesh.position);
     if (D.fire) fx.add.spawn(p.x, p.y, p.z, rnd(-1, 1), rnd(2, 4), rnd(-1, 1), rnd(0.3, 0.6), 1, 0.3, 1, rnd(.4, .6), .1, 0.9, -1.5, 1);
@@ -1223,30 +1488,37 @@ function updateCamsAndMeshes(dt, time) {
   }
   for (const b of BASES) {
     b.funnel.visible = camB < 0.5;
-    const d = Math.hypot(zCam.position.x - b.x, zCam.position.z - b.z), f = 1 - smooth(DRAW * 0.45, DRAW * 0.85, d);
+    const d = Math.hypot(zCam.position.x - b.x, zCam.position.z - b.z), f = 1 - smooth(view.draw * 0.45, view.draw * 0.85, d);
     b.beam.visible = f > 0.01; b.beam.material.opacity = (b.kind === 'home' ? 0.35 : 0.3) * f;
   }
   for (const b of BASES) if (b.group) b.group.visible = b === T.base && inCave || Math.hypot(zCam.position.x - b.x, zCam.position.z - b.z) < 140;
   baseGroup.userData.ring.material.color.setHSL((time * 0.5) % 1, 1, 0.6);
   if (G.state === 'title') {
     const a = time * 0.07, c = war.carrier.p; camA.position.set(c.x + Math.cos(a) * 95, 30, c.z + Math.sin(a) * 95); camA.lookAt(c.x, 8, c.z);   // the ALBATROSS on station
+  } else if (jet) {
+    if (cockpitCam && JP.alive && !JP.ejected) {
+      const h = CTL.state.actions && CTL.state.actions.lookhat !== false;   // POV hat looks around the cockpit
+      if (h && (CTL.state.hatX || CTL.state.hatY)) { head.yaw = clamp(head.yaw - CTL.state.hatX * 2.2 * dt, -2.6, 2.6); head.pitch = clamp(head.pitch + CTL.state.hatY * 1.6 * dt, -1.1, 0.9); }
+      else if (!freeLook || (document.pointerLockElement !== canvas && !h)) { const k = Math.exp(-6 * dt); head.yaw *= k; head.pitch *= k; }   // T (free look off) re-centres
+      JP.cockpitCam(camA, dt, head);
+    } else JP.chaseCam(camA, dt);
   } else if (drop.camActive && !inCave) {
     drop.camera(camA, dt);
   } else if (helm.active && !inCave) {
     helm.camera(camA, dt, head);
   } else if (cockpitCam && !inCave && Z.alive) {
-    // pilot's eye, rigidly in the airframe (rotor vibration adds a hint of shake at high collective)
-    camA.position.copy(EYE).applyQuaternion(H.q).add(H.pos); camA.quaternion.copy(H.q).multiply(_q2.setFromAxisAngle(_yAx, head.yaw)).multiply(_q2.setFromAxisAngle(_xAx, -0.22 + head.pitch));   // eyes down enough to take in both instrument rows, plus free look
+    // pilot's eye, rigidly in the airframe, with the Huey's two-per-rev bounce (stronger with load, ETL shudder, blade stall)
+    camA.position.copy(EYE).applyQuaternion(H.q).add(H.pos); camA.quaternion.copy(H.q).multiply(_q2.setFromAxisAngle(_yAx, head.yaw)).multiply(_q2.setFromAxisAngle(_xAx, HELI.EYE_PITCH + head.pitch));   // eyes down a little to the panel, plus free look
     if (document.pointerLockElement !== canvas || !freeLook) { const k = Math.exp(-6 * dt); head.yaw *= k; head.pitch *= k; }   // released or free look off: back to centre and stay there
-    const sh = (0.004 * (0.3 + H.coll) + 0.03 * D.mods().vib) * H.rpm; camA.position.x += (Math.random() - 0.5) * sh; camA.position.y += (Math.random() - 0.5) * sh;
+    const sh = (0.002 + 0.02 * H.vib + 0.03 * D.mods().vib) * H.rpm, b2 = 0.004 * (0.3 + H.coll + 2 * H.vib) * H.rpm * Math.sin(time * 2 * H.omega); camA.position.x += (Math.random() - 0.5) * sh; camA.position.y += (Math.random() - 0.5) * sh + b2;
   } else if (chaseCam && !inCave) {
     const k = 1 - Math.exp(-3 * dt); _cf.x = lerp(_cf.x, Z.facing.x, k); _cf.z = lerp(_cf.z, Z.facing.y, k);
     const m = Math.hypot(_cf.x, _cf.z) || 1; _cf.x /= m; _cf.z /= m;
-    _tgt.set(P.x - _cf.x * 22, P.y + 8, P.z - _cf.z * 22); camA.position.lerp(_tgt, 1 - Math.exp(-6 * dt));
+    _tgt.set(P.x - _cf.x * 30, P.y + 10, P.z - _cf.z * 30); camA.position.lerp(_tgt, 1 - Math.exp(-6 * dt));
     camA.position.y = Math.max(camA.position.y, groundY(camA.position.x, camA.position.z) + 3);
     camA.lookAt(P.x + _cf.x * 14, P.y - 1, P.z + _cf.z * 14);
   } else {
-    _tgt.set(P.x, P.y + 9, P.z + 20); camA.position.lerp(_tgt, 1 - Math.exp(-5 * dt));
+    _tgt.set(P.x, P.y + 12, P.z + 28); camA.position.lerp(_tgt, 1 - Math.exp(-5 * dt));
     camA.position.y = Math.max(camA.position.y, groundY(camA.position.x, camA.position.z) + 3);
     camA.lookAt(P.x * 0.9 + camA.position.x * 0.1, P.y - 1, P.z - 12);
   }
@@ -1271,14 +1543,22 @@ function updateCamsAndMeshes(dt, time) {
     zCam.position.set(a * camA.position.x + b * _tgt.x + cc * camS.position.x, a * camA.position.y + b * _tgt.y + cc * camS.position.y, a * camA.position.z + b * _tgt.z + cc * camS.position.z);
     zCam.quaternion.slerpQuaternions(camA.quaternion, camS.quaternion, smooth(0, 0.6, e));
   }
-  const fov = lerp(62, SIDE_FOV, e); if (Math.abs(zCam.fov - fov) > 0.01) { zCam.fov = fov; zCam.updateProjectionMatrix(); }
-  zScene.fog.color.copy(HORIZON).multiplyScalar(1 - 0.85 * e); zScene.fog.near = lerp(DRAW * 0.5, DRAW * 0.8, e);
+  const jetCk = jet && cockpitCam && JP.alive && !JP.ejected, zoomK = jetCk ? Math.max(JP.zoom, CTL.state.actions && CTL.state.actions.zoom ? 1 : 0) : 0;
+  const heliCk = cockpitCam && !inCave && Z.alive && G.craft === 'heli' && !drop.camActive, firstP = jetCk || heliCk || drop.cockpitView;
+  const fov = lerp(firstP ? (jetCk ? lerp(ckFov, ckFov * 0.4, zoomK) : ckFov) : 62, SIDE_FOV, e); if (Math.abs(zCam.fov - fov) > 0.01) { zCam.fov = fov; zCam.updateProjectionMatrix(); }
+  zScene.fog.color.copy(HORIZON).multiplyScalar(1 - 0.85 * e); zScene.fog.near = lerp(view.draw * 0.5, DRAW * 0.8, e); zScene.fog.far = lerp(view.draw, DRAW, e);
+  terrainUni.uFogN.value = view.draw * 0.5; terrainUni.uFogF.value = view.draw * 0.97;
+  if (Math.abs(zCam.far - (view.draw + 15)) > 2) { zCam.far = view.draw + 15; zCam.updateProjectionMatrix(); }
+  sky.scale.setScalar(view.draw / DRAW);
   if (fx.shake > 0.01) { const k = fx.shake * (cockpit.group.visible ? 0.1 : 0.4); zCam.position.x += rnd(-k, k); zCam.position.y += rnd(-k, k); zCam.position.z += rnd(-k, k); }
   fx.ear.copy(zCam.position); terrainUni.uTime.value = time;
   sky.position.copy(zCam.position);
+  terrainStream(zCam.position.x, zCam.position.z);
   terrain.position.set(Math.round(zCam.position.x / TG) * TG, 0, Math.round(zCam.position.z / TG) * TG);
+  farTerrain.visible = view.draw > DRAW + 20; terrainUni.uNear.value.set(terrain.position.x, terrain.position.z, TG * TN / 2 - 3);
+  if (farTerrain.visible) farTerrain.position.set(Math.round(zCam.position.x / FAR_C) * FAR_C, 0, Math.round(zCam.position.z / FAR_C) * FAR_C);
 
-  shipShadow.visible = Z.alive && !inCave;
+  shipShadow.visible = Z.alive && !inCave && G.craft === 'heli'; if (G.craft === 'jet') shipMesh.visible = false;
   if (inCave && T.alive) {
     // side view: the nose points along the thrust like the classic Thrust triangle, top of the ship faces the camera;
     // blended from the 3D attitude while the camera swings so the ship visibly pitches into it
@@ -1287,34 +1567,24 @@ function updateCamsAndMeshes(dt, time) {
     else T.yawF = lerp(T.yawF, -T.face * Math.PI / 2 + Math.round((T.yawF + T.face * Math.PI / 2) / (2 * Math.PI)) * 2 * Math.PI, 1 - Math.exp(-5 * dt));
     _q.setFromAxisAngle(_zAx, -T.ang); _q2.setFromAxisAngle(_yAx, T.yawF); _q.multiply(_q2);
     shipMesh.quaternion.slerpQuaternions(T.q0, _q, e); T.qLast.copy(_q); shipMesh.position.copy(P);
-    shipMesh.scale.setScalar(lerp(1, 0.7, e));
-  } else if (Z.alive) {
+    shipMesh.scale.setScalar(lerp(1, HELI.CAVE_SCALE, e));   // drawn small enough to fit the cave outline (shipPts), skids on its skid line
+    shipMesh.position.addScaledVector(_u.set(0, 1, 0).applyQuaternion(shipMesh.quaternion), (HELI.CAVE_SKID - HELI.SKID_Y * lerp(1, HELI.CAVE_SCALE, e)) * e);
+  } else if (Z.alive && G.craft === 'heli') {
     shipMesh.quaternion.copy(H.q);
     if (e > 0) shipMesh.quaternion.slerp(T.qLast, e);   // still turning back from the side view after the climb out
-    shipMesh.position.copy(P); shipMesh.scale.setScalar(lerp(1, 0.7, e));
+    shipMesh.position.copy(P); shipMesh.scale.setScalar(lerp(1, HELI.CAVE_SCALE, e));
     const gy = groundY(P.x, P.z), alt = P.y - gy;
-    shipShadow.position.set(P.x, gy + 0.12, P.z); const sc = 1 + alt * 0.02; shipShadow.scale.set(sc, 1, sc); shadowMat.opacity = clamp(0.5 - alt * 0.006, 0.12, 0.5);
+    shipShadow.position.set(P.x, gy + 0.12, P.z); const sc = 2.4 + alt * 0.03; shipShadow.scale.set(sc, 1, sc); shadowMat.opacity = clamp(0.5 - alt * 0.006, 0.12, 0.5);
   }
-  const inCockpit = cockpitCam && !inCave && e < 0.01 && Z.alive && G.state !== 'title' && !drop.camActive && !helm.active;
+  const inCockpit = cockpitCam && !inCave && e < 0.01 && Z.alive && G.state !== 'title' && G.craft === 'heli' && !drop.camActive && !helm.active;
   cockpit.group.visible = inCockpit; for (const o of heliShell) o.visible = !inCockpit;   // seen from inside, the outer shell only gets in the way
-  const near = inCockpit || drop.cockpitView || helm.bridgeView ? 0.06 : 0.5; if (zCam.near !== near) { zCam.near = near; zCam.updateProjectionMatrix(); }
-  {   // engine N2 runs on its own when it isn't clutched to the rotor (engine running, gearbox seized) or winds down
-    const m = D.mods(), running = m.engineOk && G.fuel > 0;
-    G.n2 = lerp(G.n2 || 0, running ? (H.driven ? H.rpm : 1) : 0, 1 - Math.exp(-1.2 * dt));
-  }
-  updateLandingLight(inCave); updateBombSight(inCave || e > 0.05 || drop.camActive || helm.active);
-  switchHover = inCockpit ? pickSwitch() : null;
-  if (inCockpit) {
-    const m = D.mods();
-    cockpit.update(H, Z.ctl || {}, dt, {
-      fuel: G.fuel, cautions: D.cautions(G.fuel, H.rpm, H.landed), engineOn: D.engineSwitch, hydOn: D.hydBoost, sasOn: HI.sas, lightOn: G.light,
-      n2: G.n2, egt: G.n2 > 0.3 ? 420 + 300 * H.coll * (1.7 - 0.7 * D.hp.engine) + (D.fire ? 280 : 0) : 30 + 400 * G.n2,
-      oil: 58 * D.hp.xmsn * Math.min(1, H.rpm * 1.4), hydPsi: m.hydOk ? 1000 * Math.min(1, D.hp.hyd + 0.15) * Math.min(1, H.rpm * 1.4) : 0,
-      avionics: D.hp.avionics, hover: switchHover,
-    });
-  }
+  const near = inCockpit || jetCk || drop.cockpitView || helm.bridgeView ? 0.05 : 0.5; if (zCam.near !== near) { zCam.near = near; zCam.updateProjectionMatrix(); }
+  updateLandingLight(inCave || jet); updateBombSight(inCave || e > 0.05 || jet || drop.camActive || helm.active);
+  switchHover = inCockpit || jetCk ? pickSwitch() : null;
+  if (G.craft === 'jet') { JP.render(dt, time, jetCk, switchHover); if (G.state !== 'play') { sfx.jet?.(0, 0, 0, false, false); sfx.seeker?.(0); sfx.jetGun?.(false); } }
+  if (inCockpit) cockpit.update(H, dt, heliPanel(switchHover));
   const caveAimOn = inCave && T.alive && T.aimX !== undefined && e > 0.9 && G.state === 'play';
-  reticle.visible = (Z.alive && !inCave && G.state !== 'title' && !drop.camActive && !helm.active) || caveAimOn; aimLine.visible = reticle.visible && !inCockpit;
+  reticle.visible = (Z.alive && !inCave && G.state !== 'title' && !jet && !drop.camActive && !helm.active) || caveAimOn; aimLine.visible = reticle.visible && !inCockpit;
   if (caveAimOn) _wv0.set(T.aimX, T.aimY, 0); else _wv0.copy(Z.aim);
   if (reticle.visible) {
     reticle.position.copy(P).addScaledVector(_wv0, caveAimOn ? 7 * CS * 0.7 : 40);   // far enough out that it never sits on the helicopter
@@ -1347,6 +1617,7 @@ function frame(now) {
   updateDynRes(now - last);
   const rdt = (now - last) / 1000, dt = Math.min(rdt, 0.1); last = now;   // the sims substep, so they keep real time down to 10 fps
   fpsAcc += rdt; fpsN++; if (fpsAcc > 1) { $('dbg').textContent = `${Math.round(fpsN / fpsAcc)} fps  ·  res ${Math.round(pixRatio * 100)}%`; fpsAcc = 0; fpsN = 0; }
+  CTL.poll(dt);
   const inp = readInput();
   if (inp.start && !padWasStart) { sfx.init(); if (G.state === 'paused') menuPick(); else pressStart(); }
   padWasStart = inp.start;
@@ -1372,6 +1643,6 @@ function frame(now) {
   PROF.sim += ((t1 - now0) - PROF.sim) * pk; PROF.prep += ((t2 - t1) - PROF.prep) * pk; PROF.render += ((t3 - t2) - PROF.render) * pk;
 }
 const PROF = { sim: 0, prep: 0, render: 0 };
-buildCaves(); war.reset(); resetZarch(true); updateFogImg();
+buildCaves(); war.reset(); resetZarch(true); updateFogImg(); terrainStream(Z.pos.x, Z.pos.z);
 requestAnimationFrame(frame);
-if (params.has('debug')) { window.__G = { G, Z, T, H, HI, D, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, helm, toggleHelm, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; } }; if (params.has('auto')) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); enterCave(b); } }
+if (params.has('debug')) { window.__G = { G, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, forest, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; } }; if (params.has('auto')) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); enterCave(b); } }

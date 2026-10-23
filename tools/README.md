@@ -11,6 +11,8 @@ set PUPPETEER_SKIP_DOWNLOAD=1 && npm install        # puppeteer-core only, no bu
 ```
 
 The harness uses installed Chrome (`C:\Program Files\Google\Chrome\Application\chrome.exe`) and falls back to Edge.
+Under WSL use a Linux headless Chrome through `CHROME_PATH` (a wrapper that unsets `WAYLAND_DISPLAY`/`DISPLAY` and adds
+`--ozone-platform=headless`, otherwise SwiftShader WebGL fails; it also needs fonts, or canvas text is invisible).
 Override it with `--browser <exe>` or the `CHROME_PATH` environment variable.
 
 ## Run
