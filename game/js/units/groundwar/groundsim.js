@@ -58,7 +58,9 @@ export const RW_HURT = { xm7: { hp: 60, war: 0.15, air: 0.008, heli: 0.08 }, nee
 const HEIGHT = { strider: 2.1, hovertank: 2.6, mbt: 2.4, marine: 1.8 };
 // ngc/infdepth: what a round does to a Marine on the medical sim (MEDINV hit-info, GAME: the same damage scale as
 // RW_HURT.hp; pen against the 1980 M1955 / M69 vests, armour class 2 in MEDINV's table)
-const RICH_HIT = { xm7: { dmg: 60, pen: 40, bleed: 1.2 }, needle: { dmg: 48, pen: 36, bleed: 1.3 }, mg: { dmg: 62, pen: 42, bleed: 1.2 }, pd: { dmg: 30, pen: 22, bleed: 1 },
+// (ngc/infdepth-fix: tuned so a near Marine on MEDINV is killed about as often per hit as the cheap model - a third of
+// trunk wounds, the M1 helmet turning some rounds - not one-shot by every rifle round)
+const RICH_HIT = { xm7: { dmg: 45, pen: 28, bleed: 1.1 }, needle: { dmg: 38, pen: 26, bleed: 1.2 }, mg: { dmg: 48, pen: 30, bleed: 1.1 }, pd: { dmg: 30, pen: 22, bleed: 1 },
   m16: { dmg: 55, pen: 30, bleed: 1.1 }, m60: { dmg: 70, pen: 38, bleed: 1.2 }, hmg: { dmg: 120, pen: 60, bleed: 1.5 }, cannon20: { dmg: 160, pen: 70, bleed: 1.6 } };
 const NEAR = 560;     // m from the island's shore to the camera: inside = full simulation
 const AIR_RANGE = 170;   // m: machines open up on an aircraft only inside this
@@ -516,7 +518,10 @@ export function createGroundSim(o) {
         u.lastPart = 'blast';
       } else {
         const part = partAt(u.body, h.point), spec = RICH_HIT[h.weapon] || { dmg: hp, pen: 40, bleed: 1.2 };
-        u.rich.hit({ kind: 'bullet', part, dmg: hp > 300 ? hp : spec.dmg, pen: spec.pen, bleed: spec.bleed, dir: [hd.x, hd.y, hd.z], victimYaw: S.yaw, source: h.weapon });
+        // GAME rule as the cheap model: the M1 steel helmet turns 40 % of rifle hits on the head into a glance (a ringing
+        // head, blunt) - MEDINV alone let every head hit through and the near Marines died twice as often
+        const glance = part === 'head' && hp <= 300 && R() < 0.4;
+        u.rich.hit(glance ? { kind: 'blunt', part, dmg: spec.dmg * 0.3, source: h.weapon } : { kind: 'bullet', part, dmg: hp > 300 ? hp : spec.dmg, pen: spec.pen, bleed: spec.bleed, dir: [hd.x, hd.y, hd.z], victimYaw: S.yaw, source: h.weapon });
         u.lastPart = part;
       }
       richState(u);
