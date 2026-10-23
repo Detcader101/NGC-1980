@@ -38,7 +38,7 @@ function skinMat(z0, z1, qh, s) {
 
 export function buildCH46Mesh(o = {}) {
   const g = new THREE.Group(); g.name = 'ch46';
-  const greenM = M(0x3d4a33), green2M = M(0x46553b), darkM = M(0x23281f), blackM = M(0x141512, { shininess: 6 }), metalM = M(0x4a4d4f, { shininess: 50 });
+  const greenM = M(0x56633f), green2M = M(0x5f6c47), darkM = M(0x2c3226), blackM = M(0x141512, { shininess: 6 }), metalM = M(0x4a4d4f, { shininess: 50 });
   const bladeM = M(0x1d1f1d, { shininess: 25 }), tipM = M(0xe2bb1a), redM = M(0xa8231b), sootM = M(0x2a2622, { shininess: 4 }), tyreM = M(0x161616, { shininess: 4 }), hubM = M(0x5a5d58, { shininess: 40 });
   const glassM = new THREE.MeshPhongMaterial({ color: 0x86a5a0, specular: 0xffffff, shininess: 90, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide });
   const winM = M(0x1b2622, { shininess: 90, specular: 0x9fb8aa }), innerM = M(0x30362a, { side: THREE.BackSide }), seatM = M(0x9a2a1c), floorM = M(0x2a2d27);
@@ -193,7 +193,7 @@ export function buildCH46Mesh(o = {}) {
     for (const b of beacons) { b.material = fl ? beaconM : beaconOff; b.scale.setScalar(fl ? 1.6 : 1); }
     for (const n of navs) n.material = live ? n.userData.on : navOff;
     lensM.color.setHex(S.light ? 0xfff6d8 : 0x3a3a34);
-    const h = clamp(((S.n1 ?? 0) - 0.45) / 0.55, 0, 1); for (const e of engines) e.heat.material.color.setRGB(0.08 + 0.55 * h, 0.03 + 0.16 * h, 0.02 + 0.03 * h);
+    const h = clamp(((S.n1 ?? 0) - 0.45) / 0.55, 0, 1); for (const e of engines) e.heat.material.color.setRGB(0.07 + 0.2 * h, 0.05 + 0.05 * h, 0.04);   // a dull heat in the pipe
   }
   animate({});
   // the lowered ramp's lip (where the squad steps off), local
