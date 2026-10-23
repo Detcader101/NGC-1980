@@ -289,7 +289,7 @@ export function buildC130Deck() {
     }
   };
   seated(0.62, FLOOR + 0.54, -10.32, [[-1, [0.44, FLOOR + 0.92, -10.96]], [1, [0.8, FLOOR + 0.92, -10.96]]]);   // copilot, hands on the yoke horns
-  seated(0.0, FLOOR + 0.66, -9.85, [[-1, [-0.06, FLOOR + 0.85, -10.62]], [1, [0.22, FLOOR + 1.42, -10.6]]], 0.25);   // engineer: a hand on the power levers, one up at the overhead
+  seated(0.0, FLOOR + 0.66, -9.85, [[-1, [-0.1, FLOOR + 0.86, -10.5]], [1, [0.16, FLOOR + 0.86, -10.45]]], 0.3);   // engineer: leaning in, a hand by the power levers
 
   // hover marker
   const hovs = [0, 1].map(() => { const o = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color: 0xffd040, depthTest: false, transparent: true })); o.renderOrder = 9; o.visible = false; o.matrixAutoUpdate = false; g.add(o); return o; });

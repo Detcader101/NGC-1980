@@ -90,7 +90,7 @@ Cockpit switches are clickable (gear and hook handles, flaps, master arm, FCS CA
 | H / V | autopilot (the crew flies the run, works flaps, doors and lights) / flight deck or chase view |
 | stick, Shift / Ctrl | yoke and the four power levers together |
 | F / X | green light: the stick jumps (the jumpmaster holds below 400 ft or above 150 KIAS) |
-| Z / G / [ ] | flaps 0-50-100 / gear / elevator trim (on a stick) |
+| R / G / [ ] | flaps 0-50-100 / gear / elevator trim (on a stick) |
 | A D, S (under canopy) | steer the lead canopy, rear-riser slip; hands off and he steers himself |
 
 The flight deck is clickable: the four condition levers on the overhead (click: RUN -> FEATHER -> AIR START -> RUN, right click GND STOP), fire T-handles, engine starts, autofeather, gear and flap levers, autopilot, and the paratroop panel left of the pilot (jump lights OFF / RED / GREEN, alarm bell = everyone out now, para doors, ramp). A flak hit can set an engine on fire: pull its fire handle. `game/dev/c130.html` flies the aeroplane alone (`?start=air|runway|drop`) with a chase camera and telemetry; `game/dev/c130-model.html` is the model turntable.

@@ -52,13 +52,13 @@ export function createDrop(ctx) {
     e.stopImmediatePropagation(); e.preventDefault(); clickSwitch(hover, e.button === 2);
   }, { capture: true });
   addEventListener('contextmenu', e => { if (M && deckView() && hover) e.preventDefault(); });
-  // keys the helicopter does not need while the Hercules flies: Z flaps, G gear, [ ] trim (H, V, F are main.js's)
+  // keys the helicopter does not need while the Hercules flies: R flaps, G gear, [ ] trim (H, V, F are main.js's)
   const held = new Set();
   addEventListener('keydown', e => {
     held.add(e.code);
     if (!planeHasStick() || e.repeat || e.ctrlKey || e.altKey) return;
     const S = M.plane.sim;
-    if (e.code === 'KeyZ') { S.flapSel = S.flapSel >= 1 ? 0 : S.flapSel + 0.5; M.flapManual = true; say(`FLAPS ${Math.round(S.flapSel * 100)} %`, 1); }
+    if (e.code === "KeyR") { S.flapSel = S.flapSel >= 1 ? 0 : S.flapSel + 0.5; M.flapManual = true; say(`FLAPS ${Math.round(S.flapSel * 100)} %`, 1); }
     if (e.code === 'KeyG') { S.gearCmd = S.gearCmd ? 0 : 1; say(S.gearCmd ? 'GEAR DOWN' : 'GEAR UP', 1); }
   });
   addEventListener('keyup', e => held.delete(e.code));
@@ -119,7 +119,7 @@ export function createDrop(ctx) {
     const from8 = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(((Math.atan2(e.x - target.x, -(e.z - target.z)) + 6.283) % 6.283) / 0.785) % 8];
     feed(`HOME BASE: REPAIR TEAM OF ${N_JUMPERS} ON THE WAY  -  KC-130 ${CALL} FROM THE ${from8}, ${(ENTRY / 1000).toFixed(1)} km`, 'good');
     feed(`WIND ${ws.toFixed(0)} m/s TOWARD ${dir}`, 'info');
-    say(`YOU HAVE ${CALL}  -  AUTOPILOT ON (H)  ·  STICK TO FLY IT  ·  V VIEW  ·  F GREEN LIGHT  ·  Z FLAPS`, 4);
+    say(`YOU HAVE ${CALL}  -  AUTOPILOT ON (H)  ·  STICK TO FLY IT  ·  V VIEW  ·  F GREEN LIGHT  ·  R FLAPS`, 4);
     sfx.dock();
   }
 
@@ -320,8 +320,11 @@ export function createDrop(ctx) {
       const kbd = ctl.source === 'KEYBOARD';
       const thrMoved = M.lastColl !== undefined && ctl.coll !== undefined && Math.abs(ctl.coll - M.lastColl) > 0.03;   // throttle keys pressed / throttle lever moved
       const rIn = ctl.cx || 0, pIn = ctl.cy || 0, yIn = ctl.pedal || 0;
-      const stickIn = Math.abs(rIn) > 0.15 || Math.abs(pIn) > 0.15 || Math.abs(yIn) > 0.15 || thrMoved;
-      if (M.ap && stickIn && M.t > 0.5) { M.ap = false; M.apJump = false; say('AUTOPILOT OFF  -  YOU HAVE CONTROL', 1.4); }
+      // a stick left deflected from the helicopter (force trim) is not input: only a change from it counts
+      if (!M.stick0) M.stick0 = { x: rIn, y: pIn, p: yIn };
+      for (const [k, v] of [['x', rIn], ['y', pIn], ['p', yIn]]) if (Math.abs(v) < 0.05) M.stick0[k] = 0;
+      const stickIn = Math.abs(rIn - M.stick0.x) > 0.15 || Math.abs(pIn - M.stick0.y) > 0.15 || Math.abs(yIn - M.stick0.p) > 0.15 || thrMoved;
+      if (M.ap && stickIn && M.t > 0.5) { M.ap = false; M.apJump = false; M.apOffWhy = { cx: rIn, cy: pIn, pedal: yIn, coll: ctl.coll, last: M.lastColl, t: M.t }; say('AUTOPILOT OFF  -  YOU HAVE CONTROL', 1.4); }
       const thr = clamp(ctl.coll ?? S.thr, 0, 1), throttle = [thr, thr, thr, thr];
       if (M.ap) {
         const t = apTarget(); c = S.autopilot(dt, apCmd(t));
@@ -390,7 +393,9 @@ export function createDrop(ctx) {
     if (miss < 35 && onRun && aglOf(S.pos) > JUMP_MIN_AGL && S.kias < JUMP_MAX_KIAS) return 'green';
     if (!M.run) return 'off';
     const { s, c } = runGeom();
-    return !M.run.setup && s > -1000 && s < 200 && Math.abs(c) < 200 ? 'red' : 'off';
+    // red once established on the run (on the line, wings level): the one-minute warning
+    if (M.light === 'red') return !M.run.setup && s > -1100 && s < 200 && Math.abs(c) < 200 ? 'red' : 'off';
+    return !M.run.setup && s > -1000 && s < 200 && Math.abs(c) < 60 && Math.abs(angDiff(S.track(), M.run.h)) < 0.2 && Math.abs(S.bank) < 0.12 ? 'red' : 'off';
   }
 
   function cautions(S) {
@@ -467,8 +472,8 @@ export function createDrop(ctx) {
     hover = null;
     if (L && !planeHasStick()) {
       const h = L.state === 'ff' ? S.heading : L.h;
-      _v.set(L.p.x - fwdX(h) * 13, L.p.y + 4.5, L.p.z - fwdZ(h) * 13);
-      _w.set(L.p.x + fwdX(h) * 10, L.p.y - 5, L.p.z + fwdZ(h) * 10).lerp(M.target, 0.3);
+      _v.set(L.p.x - fwdX(h) * 20, L.p.y + 9, L.p.z - fwdZ(h) * 20);   // far enough back to see the canopy over him
+      _w.set(L.p.x + fwdX(h) * 12, L.p.y + 1, L.p.z + fwdZ(h) * 12).lerp(M.target, 0.15);
     } else {
       const f = S.forward(_w).clone(); f.y = 0; f.normalize();
       _v.set(S.pos.x - f.x * 58, S.pos.y + 16, S.pos.z - f.z * 58);
