@@ -219,6 +219,9 @@ console.log('=== MOVEMENT AND STAMINA ===');
   const s10 = sprintT(10), s22 = sprintT(22), s40 = sprintT(40);
   check('sprint until blown, 22 kg', s22.t > 18 && s22.t < 40, `${s22.t.toFixed(1)} s, ${s22.d.toFixed(0)} m`, '20-35 s', 'INFERRED (all-out effort ~3x VO2max)');
   check('more load = shorter, slower sprint', s10.t > s22.t && s22.t > s40.t && s10.d > s40.d, `10 kg ${s10.t.toFixed(0)} s / ${s10.d.toFixed(0)} m, 40 kg ${s40.t.toFixed(0)} s / ${s40.d.toFixed(0)} m`, '', 'INFERRED');
+  { const S = createSoldier({ rng: rngSeeded(2) }); S.load = 22; for (let t = 0; t < 40 && S.reserve > 0.06 * S.maod; t += 1 / 60) S.step(1 / 60, { move: [0, 1], sprint: true }, {}, {});
+    const hr0 = S.hr; for (let t = 0; t < 60; t += 1 / 60) S.step(1 / 60, {}, {}, {});
+    check('heart rate recovery, first minute of rest', hr0 - S.hr > 15 && hr0 - S.hr < 60, `${hr0.toFixed(0)} -> ${S.hr.toFixed(0)} bpm (-${(hr0 - S.hr).toFixed(0)}), breathing ${S.breathRate.toFixed(0)}/min`, '-15..-60 bpm', 'INFERRED: Cole et al. NEJM 1999, < 12 bpm is abnormal'); }
   { const S = s22.S; let t12 = null, t90 = null; for (let t = 0; t < 600 && t90 == null; t += 1 / 60) { S.step(1 / 60, {}, {}, {}); if (t12 == null && S.staminaFrac > 0.12) t12 = t; if (S.staminaFrac > 0.9) t90 = t; }
     check('recovery after being blown: sprint again / 90 %', t12 < 20 && t90 > 90 && t90 < 300, `${t12.toFixed(0)} s / ${t90.toFixed(0)} s`, '<20 s / 1.5-5 min', 'INFERRED (EPOC)'); }
   // rushes: 3-5 s up, down, repeat (FM 7-8)

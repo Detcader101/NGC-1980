@@ -273,7 +273,10 @@ export function createSoldier(o = {}) {
     const rel = S.vo2 / S.vo2max;
     if (rel > 0.45) S.fatigue = Math.min(1, S.fatigue + (rel - 0.45) * dt / 3600 * 0.9);
     else if (S.speed < 0.2) S.fatigue = Math.max(0, S.fatigue - dt / 7200 * (0.3 + S.fatigue));
-    const hrT = S.hrRest + (S.hrMax - S.hrRest) * clamp(rel, 0, 1) * 0.92 + 18 * S.debt + 15 * pain + 25 * blood + 10 * (m.adrenaline || 0);
+    // heart rate: part uptake, part what you are doing now (it falls 20-40 bpm in the first minute of rest while the
+    // breathing still pays the oxygen debt back)
+    const hrRel = 0.55 * clamp(rel, 0, 1) + 0.45 * clamp(S.demand / S.vo2max, 0, 1);
+    const hrT = S.hrRest + (S.hrMax - S.hrRest) * hrRel * 0.95 + 14 * S.debt + 15 * pain + 25 * blood + 10 * (m.adrenaline || 0);
     S.hr += (Math.min(S.hrMax + 10, hrT) - S.hr) * (1 - Math.exp(-dt / (hrT > S.hr ? 6 : 18)));
     const brT = 12 + 30 * rel * rel + 16 * S.debt + (S.gaspT > 0 ? 10 : 0);
     S.breathRate += (brT - S.breathRate) * (1 - Math.exp(-dt / 3));
@@ -292,7 +295,7 @@ export function createSoldier(o = {}) {
     // ------------------------------------------------ ADS, weapon lowering (sprint), lean, bipod, rest
     const adsTime = (wpn.adsTime || 0.3) * (1 + 0.8 * arm) * (1 + 0.2 * S.fatigue);
     S.ads = clamp(S.ads + (S.adsTarget ? 1 : -1.3) * dt / adsTime, 0, 1);
-    S.lower = clamp(S.lower + (S.sprinting ? 1 : -1) * dt / 0.25, 0, 1);
+    S.lower = clamp(S.lower + (S.sprinting || S.swimming ? 1 : -1) * dt / 0.25, 0, 1);   // swimming: the rifle is slung up out of the water
     const leanT = S.sprinting || S.swimming ? 0 : clamp(inp.lean || 0, -1, 1);
     S.lean += clamp(leanT - S.lean, -dt * 4, dt * 4);
     if (inp.bipod) {

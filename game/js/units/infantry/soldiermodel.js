@@ -280,16 +280,21 @@ export function poseSkeleton(sk, pose, dt = 0.016) {
     const g = W.group, cls = pose.cls || 'rifle';
     B.head.localToWorld(_eye.set(...EYE_LOCAL));
     sk.root.worldToLocal(_eye);
-    // the weapon frame: on the sights (ADS), low ready, or sprinting (port arms); in root space
-    const ads = pose.ads || 0, low = 1 - ads, spr = pose.lower || 0;
-    const yawW = aimY, pitchW = aimP * (1 - 0.15 * low) - low * (cls === 'pistol' ? 0.5 : 0.55) * (1 - prone * 0.7) - spr * 0.2;
-    _q.setFromEuler(_e.set(pitchW, yawW + spr * 0.95, spr * -0.4, 'YXZ'));
-    const er = (W.sight && W.sight.eyeRelief) || 0.075;
-    // on the sights: rear sight eyeRelief in front of the eye; low ready: down, right, closer
-    const off = _v.set(0.0 + low * 0.1 + spr * 0.05, -low * (cls === 'pistol' ? 0.28 : 0.2) * (1 - prone * 0.5) - spr * 0.15, -er - low * (cls === 'pistol' ? 0.15 : -0.02)).applyQuaternion(_q);
-    if (cls === 'pistol') off.x -= 0.02 * ads;
-    if (cls === 'law') off.set(0.05 * low, 0.02 - low * 0.05, -er).applyQuaternion(_q);
-    g.position.copy(_eye).add(off); g.quaternion.copy(_q);
+    // the weapon frame. On the sights: the rear sight eyeRelief in front of the eye. Low ready / port arms: the butt
+    // stays in the shoulder pocket and the muzzle drops (or swings across the chest); the two blend with the ADS amount.
+    const ads = pose.ads || 0, spr = pose.lower || 0, er = (W.sight && W.sight.eyeRelief) || 0.075;
+    _q.setFromEuler(_e.set(aimP, aimY, 0, 'YXZ'));
+    _a.set(0, 0, -er).applyQuaternion(_q).add(_eye);                                  // ADS origin
+    const lowPitch = cls === 'pistol' ? -0.75 : cls === 'law' ? -0.1 : -0.6 * (1 - 0.7 * prone);
+    _q2.setFromEuler(_e.set(aimP * 0.3 + lowPitch - spr * 0.1, aimY * 0.5 + spr * 0.9, -spr * 0.5, 'YXZ'));
+    if (cls === 'pistol') {   // pistol at the low ready: arms half out, muzzle down, in front of the chest
+      _b.set(0.04, 0.02, -0.38); B.chest.localToWorld(_b); sk.root.worldToLocal(_b);
+    } else {                  // butt in the right shoulder pocket
+      const bt = W.anchors.butt || [0, -0.1, 0.3]; _b.set(0.15, 0.13, -0.12); B.chest.localToWorld(_b); sk.root.worldToLocal(_b);
+      _b.sub(_v.set(bt[0], bt[1], bt[2]).applyQuaternion(_q2));
+    }
+    const k2 = ads * ads * (3 - 2 * ads);
+    g.position.copy(_b).lerp(_a, k2); g.quaternion.copy(_q2).slerp(_q, k2);
     if (pose.weaponState) W.setState(pose.weaponState);
     g.updateMatrixWorld(true);
     // hands to the anchors (reload: the left hand goes to the magazine / pouch)
