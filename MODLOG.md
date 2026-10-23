@@ -297,7 +297,7 @@ No shared files touched (main.js, audio.js, war.js untouched): wave 2 plugs thes
 - Cost: ~1.0 ms per 1/60 s frame for an M60A3 at 240 Hz on rough ground (0.55 ms at 120 Hz), M113 0.4 ms; no
   allocation in the substep loops.
 
-**Bench (node tools/tankbench.mjs: 63 checks, all pass).** C = in a source read for this work (AFVDB, FAS, Wikipedia
+**Bench (node tools/tankbench.mjs: 65 checks, all pass).** C = in a source read for this work (AFVDB, FAS, Wikipedia
 citing Foss / Jane's and Hunnicutt, armedconflicts.com), U = unverified, I = inferred, GAME = game balance.
 | item | M60A3 sim | published | M113A2 sim | published |
 |---|---|---|---|---|
@@ -311,7 +311,7 @@ citing Foss / Jane's and Hunnicutt, armedconflicts.com), U = unverified, I = inf
 | trench (crawl) | 2.59 m yes; sim limit ~3.6 m | 2.59 m (C) | 1.68 m yes; sim limit ~2.8 m | 1.68 m (C) |
 | fording | 1.2 m dry, floods at 1.6 m | 1.22 m (C) | swims | 1.02 m / swims (C) |
 | swimming | - | - | 5.5 km/h, 32 cm freeboard | 5.8 km/h (C) |
-| turning | pivots 39°/s (dirt) | pivot (C) | 8.0 m circle, no pivot | 7.9 m (C) |
+| turning | pivots 34°/s (dirt); half T-bar at 40 km/h: ~40 m radius | pivot (C) | 8.0 m circle, no pivot | 7.9 m (C) |
 | ground pressure | 0.867 kg/cm2 | 0.852 (C) | 0.557 empty / 0.61 with troops | 0.55 (C) |
 | traverse / elevation | 16.2 s for 360°, 3.9°/s, +20/-10° | 16 s, 4°/s, +20/-10° (C) | - | - |
 | stabiliser on the move | 2.3 mrad on vs 44 off at 23 km/h | two-axis; Pk >70 % with, ~0 without (C, qualitative) | - | - |
@@ -373,9 +373,10 @@ and ground) through a green-phosphor shader with scan lines, noise and WH / BH p
   earth banks), and both vehicles bridge trenches ~1.4-1.6x their ratings at a crawl (rigid track, firm far wall; the
   ratings carry field margins).
 
-**Tests and runs.** node tools/tankbench.mjs 63/63. Scenes (from tools/, CHROME_PATH=... node snap.mjs scenes/<s>):
+**Tests and runs.** node tools/tankbench.mjs 65/65. Scenes (from tools/, CHROME_PATH=... node snap.mjs scenes/<s>):
 tankmodel.mjs 2/2 (VEH=m113 too), tankinterior.mjs 2/2 (driver, sight pictures, gunner station, cupola),
-tankdrive.mjs 8/8 (step, trench, 60 % ramp, ridge, mud, ford, laser range, a first-round SABOT hit at 1000 m),
+tankdrive.mjs 9/9 (step, trench, 60 % ramp, ridge, mud, ford, laser range, a first-round SABOT hit at 1000 m, a
+stabilised hit on the move at ~1000 m),
 tankm113.mjs 4/4 (ramp, vane, troops, swims at ~5.9 km/h), tankaudio.mjs 4/4 (offline render: louder under load,
 muffled highs inside, the gun, the 6V53).
 

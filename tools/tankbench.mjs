@@ -119,6 +119,15 @@ function mobility(veh) {
       check(`${name} cannot pivot (controlled differential)`, yr2 / D2R < 2, `${(yr2 / D2R).toFixed(2)} deg/s in neutral`, 'no neutral steer (DS-200)', 'C');
     }
   }
+  {
+    // part steer at speed: turns proportionally, without skidding off or throwing a track
+    const T = make(veh), env = flat('dirt'); T.reset(0, 0, 0, env); run(T, env, 2, { park: true });
+    const vs = veh === 'm60' ? 40 : 50, st = veh === 'm60' ? 0.5 : 0.25;
+    run(T, env, 40, speedHold(vs / KMH, veh));
+    let thrown = false; run(T, env, 6, (T) => ({ ...speedHold(vs / KMH, veh)(T), range: veh === 'm60' ? 'H' : '1-3', steer: st }), (T, t, ev) => { if (ev.some(e => e.type === 'thrown')) thrown = true; });
+    const R = Math.abs(T.fm.out.fwd / T.fm.out.yawRate);
+    check(`${name} part steer (${st}) at ${vs} km/h`, R > 15 && R < 200 && !thrown, `radius ${R.toFixed(0)} m at ${(T.fm.out.fwd * KMH).toFixed(0)} km/h${thrown ? ', THREW A TRACK' : ''}`, 'a proportional turn, tracks stay on', 'I');
+  }
   console.log(`--- ${name}: soft ground ---`);
   for (const s of ['grass', 'sand', 'mud', 'bog']) {
     const T = make(veh), env = flat(s); T.reset(0, 0, 0, env); run(T, env, 2, { park: true });
