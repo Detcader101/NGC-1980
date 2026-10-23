@@ -58,7 +58,7 @@ let br = null; for (const R of N.netState.roads) { for (let i = 0; i + 1 < R.xs.
 if (br) {
   const { R, i } = br, x = (R.xs[i] + R.xs[i + 1]) / 2, z = (R.zs[i] + R.zs[i + 1]) / 2, deck = (R.ys[i] + R.ys[i + 1]) / 2, g = world.islandH(x, z);
   const fl = S.floor(x, z, deck + 0.5, 0.45), under = S.floor(x, z, Math.max(g, 0) + 0.1, 0.45);
-  check(fl !== null && Math.abs(fl - deck) < 0.4 && deck - Math.max(g, 0) > 1, 'a bridge deck is a floor above the ground / sea under it', `deck ${fl === null ? 'none' : fl.toFixed(2)} vs road ${deck.toFixed(2)}, ground ${g.toFixed(1)}`);
+  check(fl !== null && Math.abs(fl - deck) < 0.4 && deck - Math.max(g, 0) > 1, 'a bridge deck is a floor above the ground / sea under it', `at ${x.toFixed(0)}, ${z.toFixed(0)}: deck ${fl === null ? "none" : fl.toFixed(2)} vs road ${deck.toFixed(2)}, ground ${g.toFixed(1)}`);
   check(under === null || under < deck - 1, 'under the bridge you are under it (no floor from below)', String(under));
   const par = S.near(x, z, 8).filter(p => p.t === 'parapet');
   check(par.length >= 2, 'the bridge has parapets', `${par.length}`);

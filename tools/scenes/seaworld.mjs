@@ -82,10 +82,11 @@ export default async function (h) {
 
   if (want('bridge')) {
     await toFoot();
-    // a bridge in the wild lands: walk (sprint) over it end to end; the deck carries him (bridges are not in the terrain)
-    await h.eval(`(() => { const W = __WORLD; for (const [x, z] of [[1500, 0], [0, 1500], [-1500, 0], [0, -1500], [1500, 1500]]) W.roadGraph(x, z, 1200);
-      let best = null; for (const R of W.net.netState.roads) { let i0 = -1; for (let i = 0; i < R.xs.length; i++) { if (R.br[i] && i0 < 0) i0 = i; if (!R.br[i] && i0 >= 0) { const L = R.s[i] - R.s[i0], d = Math.hypot(R.xs[i0], R.zs[i0]); let low = 1e9; for (let k = i0; k < i; k++) low = Math.min(low, R.ys[k] - Math.max(0, __G.terrainH(R.xs[k], R.zs[k]))); if (L > 24 && L < 160 && low > -1 && (!best || d < best.d)) best = { R, i0, i1: i, L, d }; i0 = -1; } } }
-      if (!best) return null; const { R, i0, i1 } = best, a = Math.max(0, i0 - 2), b = Math.min(R.xs.length - 1, i1 + 2);
+    // a bridge in the wild lands (one worldsolidbench finds near 5103, -2004): walk (sprint) over it end to end; the
+    // deck carries him (bridges are not in the terrain)
+    await h.eval(`(() => { const W = __WORLD; W.roadGraph(5103, -2004, 300);
+      const q = W.roadAt(5103, -2004); if (!q || !q.bridge) return null; const R = W.roadById(q.road); let i0 = 0, d0 = 1e9; for (let i = 0; i < R.xs.length; i++) { const d = Math.hypot(R.xs[i] - 5103, R.zs[i] + 2004); if (d < d0) { d0 = d; i0 = i; } } let i1 = i0; while (i0 > 0 && R.br[i0 - 1]) i0--; while (i1 < R.xs.length - 1 && R.br[i1]) i1++; const best = { L: R.s[i1] - R.s[i0] };
+      const a = Math.max(0, i0 - 2), b = Math.min(R.xs.length - 1, i1 + 2);
       window.__br = { R, i0, i1, a, b, L: best.L, ex: R.xs[b], ez: R.zs[b], minUp: 1e9, wet: false };
       const yaw = Math.atan2(-(R.xs[a + 1] - R.xs[a]), -(R.zs[a + 1] - R.zs[a]));
       __G.foot.spawnAt({ x: R.xs[a], y: R.ys[a] + 0.3, z: R.zs[a], yaw }); __G.foot.view = 'third';
@@ -96,13 +97,13 @@ export default async function (h) {
     // steer him along the road while he sprints: each tick, face the next road point
     await h.eval(`(window.__brI = setInterval(() => { const B = __br, W = __G.foot.W, R = B.R; let k = B.a; for (let i = B.a; i <= B.b; i++) if (Math.hypot(R.xs[i] - W.x, R.zs[i] - W.z) < Math.hypot(R.xs[k] - W.x, R.zs[k] - W.z)) k = i;
       const n = Math.min(B.b, k + 2); W.yaw = Math.atan2(-(R.xs[n] - W.x), -(R.zs[n] - W.z));
-      if (k > B.i0 && k < B.i1) { B.minUp = Math.min(B.minUp, W.y - Math.max(0, __G.terrainH(W.x, W.z))); B.onBridge = true; } if (W.swim || W.wade > 0) B.wet = true; }, 50), 1)`);
+      { const q = __WORLD.roadAt(W.x, W.z); if (q && q.bridge) { B.onBridge = true; B.under = Math.max(B.under || 0, q.y - W.y); B.high = Math.max(B.high || 0, W.y - Math.max(0, __G.terrainH(W.x, W.z))); } } if (W.swim || W.wade > 0) B.wet = true; }, 50), 1)`);
     await h.key('down', 'KeyW'); await h.key('down', 'ShiftLeft');
     await h.waitFor('Math.hypot(__G.foot.W.x - __br.ex, __G.foot.W.z - __br.ez) < 4', 60000);
-    await h.eval('({ minUpOverGround: +__br.minUp.toFixed(2), wet: __br.wet, onBridge: !!__br.onBridge })');
+    await h.eval('({ belowDeckMax: +(__br.under || 0).toFixed(2), maxAboveGround: +(__br.high || 0).toFixed(1), wet: __br.wet, onBridge: !!__br.onBridge })');
     await h.wait(1);
     await h.key('up', 'ShiftLeft'); await h.key('up', 'KeyW'); await h.eval('(clearInterval(__brI), 1)');
-    await h.expect('__br.onBridge && !__br.wet && __br.minUp > 1', 'walked over the bridge on its deck (never in the water or the valley)');
+    await h.expect('__br.onBridge && !__br.wet && __br.under < 0.5 && __br.high > 5', 'walked over the bridge on its deck (never in the water or the valley)');
     // back to the middle for a picture
     await h.eval(`(() => { const B = __br, R = B.R, m = Math.round((B.i0 + B.i1) / 2); __G.foot.spawnAt({ x: R.xs[m], y: R.ys[m] + 0.3, z: R.zs[m], yaw: Math.atan2(-(R.xs[m + 1] - R.xs[m]), -(R.zs[m + 1] - R.zs[m])) + 2.4 }); return 1; })()`);
     await h.wait(1500); await h.shot('bridge-deck');
