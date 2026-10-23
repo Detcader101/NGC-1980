@@ -110,7 +110,6 @@ export default async function (h) {
   await h.eval(OVERRIDE);
   await h.key('tap', 'KeyY'); await h.wait(800);
   await h.expect(`__G.G.craft === 'foot'`, 'out of the Huey on foot');
-  await h.eval("(__G.marine.view = 'third', 1)");   // third person: the outside cameras below show no viewmodel
   await h.eval(`(() => { __G.G.bench = true; for (const u of __G.war.units) if (u.type === 'gunship') u.dead = true;
     const I = __G.ISLANDS.find(I => I.name === 'IRONHOLD'), L = I.structs.find(s => s.def && s.def.type === 'lance'); window.__L = L;
     for (const s of I.structs) if (s.kind === 'aa' && s !== L) { s.dead = true; s.mesh.visible = false; }
@@ -120,6 +119,7 @@ export default async function (h) {
     if (!best) return 'no spot';
     __G.foot.spawnAt([{ x: best.x, y: best.y, z: best.z, yaw: Math.atan2(-(L.x - best.x), -(L.z - best.z)) }], { fresh: false }); window.__spot = best;
     return { spot: [best.x, best.y, best.z].map(v => +v.toFixed(1)), lance: [L.x, L.y, L.z].map(v => +v.toFixed(1)) }; })()`);
+  await h.eval("(__G.marine.view = 'third', 1)");   // third person: the outside cameras below show no viewmodel
   await h.waitFor(`__L.def.key === 'P' && (__L.def.beam.st === 'charge' || __L.def.beam.st === 'on')`, 40000);
   await h.eval(`({ st: __L.def.beam.st, los: __L.def.los, d: +__L.def.d.toFixed(0), smokes: __G.marine.inv && __G.marine.MS ? 1 : 0 })`);
   await h.eval(side('__L', '__G.foot.W', 35, 12, 0.5)); await h.wait(400); await h.shot('lance-on-the-marine');
