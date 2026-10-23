@@ -14,7 +14,8 @@ import { createDefence } from './units/defence/brain.js';   // NGC-1980 DEFENCE:
 import { createRotary } from './units/air/rotary/rotary.js';   // NGC-1980: CH-46 + Marines, MV-22, RW-3 WASP (physical AI rotorcraft)
 import { buildCarrier, buildBattleship, buildFreighter, buildDrone, buildTransport, buildGunship, buildTomcat, buildGun, buildStructure, buildRubble, CARRIER, BSHIP, FREIGHTER, TEAM } from './ships.js';
 // NAVAL: ship motion in a seaway (heave / pitch / roll by sea state and speed) and the naval effects
-import { SHIPS as SHIP_MOTION, makeSea, createShipMotion, shipPointY, shipPointVY } from './units/naval/seamotion.js';
+import { SHIPS as SHIP_MOTION, makeSea, createShipMotion, shipPointY, shipPointVY, retuneSea, advanceSea, seaElevation } from './units/naval/seamotion.js';
+import { createSeaWeather } from './units/naval/seaweather.js';   // SEAWORLD: the optional drifting sea state
 import { createNavalFx } from './units/naval/navalfx.js';
 import { createAirWar } from './units/air/airwar.js';             // AIR: sim-flown Tomcats, SHRIKE / REAPER / SHAHED (ngc/airfw)
 import { homeAAM, decoyCheck } from './units/air/gameproj.js';     // AIR: the shared game-level missile homing and decoy rule
@@ -39,8 +40,16 @@ export function createWar(ctx) {
   // NAVAL: the sea state (?sea=0..7, default 4 MODERATE; waves from the west-south-west) and the ships' wake / spray
   const _sq = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
   W.sea = makeSea(_sq && _sq.has('sea') ? +_sq.get('sea') : 4, -1.2, 11);
-  W.setSea = (ss, dir = W.sea.dir) => { W.sea = makeSea(ss, dir, 11); for (const u of W.units) if (u.mo) u.mo.setSea(W.sea); return W.sea.name; };
-  const nfx = createNavalFx(scene, fx);
+  // SEAWORLD: ONE live sea. main.js draws its surface from W.sea and every ship rides it (sailShip passes its
+  // position to the motion model); setSea retunes it in place (the waves keep their phases: nothing jumps).
+  // W.weather drifts the state over the war when the player turns WEATHER DRIFT on (pause menu; seaweather.js).
+  W.weather = createSeaWeather(W.sea.ss, W.sea.dir, 23);
+  W.setSea = (ss, dir = W.sea.dir) => { W.weather.set(ss); retuneSea(W.sea, ss, dir); return W.sea.name; };
+  W.setSeaDrift = on => { W.weather.set(W.weather.base, !!on); retuneSea(W.sea, W.weather.base, W.sea.dir); };
+  W.seaY = (x, z) => seaElevation(W.sea, x, z);   // the drawn surface height (game m) at a world point
+  // the sea's clock and the weather: main.js calls this every frame the game isn't paused (the title screen too)
+  W.tickSea = dt => { advanceSea(W.sea, dt); const w = W.weather.step(dt); if (w) { retuneSea(W.sea, w.ss, w.dir); if (w.msg) feed(w.msg); } };
+  const nfx = createNavalFx(scene, fx, W.seaY);
   const store = side => side === 1 ? W.P : W.E;
   // war sounds fall off with distance from the camera, so a battle across the map is a distant rumble
   const ear = ctx.ear;
@@ -358,7 +367,7 @@ export function createWar(ctx) {
     u.v.set(fwdX(u.yaw) * u.speed, 0, fwdZ(u.yaw) * u.speed);
     u.p.addScaledVector(u.v, dt);
     // NAVAL: heave, pitch and roll in the seaway (and the list of a sinking ship); deckY() uses the same attitude
-    const a = u.att, mo = u.mo.step(dt, u.speed, u.yaw, u.w);
+    const a = u.att, mo = u.mo.step(dt, u.speed, u.yaw, u.w, u.p.x, u.p.z);   // SEAWORLD: on the live sea at its position
     a.heave = mo.heave; a.pitch = mo.pitch; a.roll = mo.roll; a.vHeave = mo.vHeave; a.vPitch = mo.vPitch; a.vRoll = mo.vRoll;
     if (u.sinking !== undefined) { a.roll += Math.min(0.35, u.sinking * 0.03) * (u.side === 1 ? 1 : -1); a.pitch -= Math.min(0.12, u.sinking * 0.01); }
     placeShip(u);
