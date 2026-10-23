@@ -67,7 +67,7 @@ export function buildM113Mesh(opts = {}) {
   }
   // exhaust grille and air inlet on the right front (glacis / roof), the exhaust stack outlet
   for (let k = 0; k < 7; k++) hull.add(new THREE.Mesh(box(0.55, 0.02, 0.035, 0.75, 1.86, -1.45 + k * 0.1), black));
-  const ex = new THREE.Mesh(box(0.42, 0.06, 0.32, 0, 0, 0), black); ex.position.set(0.95, 1.42, -1.9); ex.rotation.x = -Math.PI / 4; hull.add(ex);
+  const ex = new THREE.Mesh(box(0.42, 0.06, 0.32, 0, 0, 0), black); ex.position.set(0.95, 1.42, -1.9); ex.rotation.x = -Math.PI / 4; ex.userData.heat = 1; hull.add(ex);
   // driver's hatch (front left) with four periscopes
   const dh = new THREE.Group(); dh.position.set(-0.62, 1.86, -1.35); hull.add(dh);
   parts.push(P(cylY(0.36, 0.06, 14, -0.62, 1.87, -1.35)));
@@ -119,7 +119,7 @@ export function buildM113Mesh(opts = {}) {
   const api = { group: root, hull, gear, shell, glassIn, setInside: v => { for (const m of glassIn) m.visible = !v; }, cupola: cup, mg, mgEl, ramp, vane, hatches: { driver: dHatch, cupola: cHatch, cargo } };
   // state: { travel, trackPos, mgAz, mgEl, ramp 0..1, vane 0..1, hatches: { driver, cupola, cargo }, inside }
   api.animate = (st = {}) => {
-    for (let i = 0; i < 2; i++) gear[i].update(st.travel ? st.travel[i] : null, st.trackPos ? st.trackPos[i] : 0);
+    for (let i = 0; i < 2; i++) { gear[i].update(st.travel ? st.travel[i] : null, st.trackPos ? st.trackPos[i] : 0); gear[i].setTrack(!(st.thrown && st.thrown[i])); }
     cup.rotation.y = st.mgAz || 0; mgEl.rotation.x = st.mgEl || 0;
     ramp.rotation.x = (st.ramp || 0) * 1.32;                // down to the ground (~76 deg)
     vane.rotation.x = -Math.PI / 4 - (st.vane || 0) * 1.31;   // folded on the 45 deg glacis -> standing forward of the bow

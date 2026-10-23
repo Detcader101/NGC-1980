@@ -328,7 +328,7 @@ the same flight model) + lead (tracking rate x time of flight, capped at 25 mils
 gun from the sight line (the gunner keeps the reticle on the target). Decisions: the coax is the M240 (standardised with
 the M60A3 around 1979: Wikipedia, FAS); hydraulics are fire-resistant with Halon (two shots; crew compartment automatic,
 engine manual); 63 rounds in three racks (13 ready in the bustle at 7.5 s a round, 26 in the hull at 13 s, 24 on the
-floor at 11 s; the loader slows when wounded, when the hull pitches, and the commander loads if he is dead); combat weight
+floor at 11 s; the loader slows when wounded or on the move, and the commander loads if the loader is dead); combat weight
 52,617 kg (sources conflict 51.4-52.6 t).
 
 **Models and interiors.** M60A3 at real size (lofted hull and needle-nose turret, fenders with stowage boxes, headlight

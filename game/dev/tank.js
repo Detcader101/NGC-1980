@@ -239,7 +239,9 @@ function updateCamera(dt) {
     camera.lookAt(tgt); fovWanted = 50;
   } else if (view === 'driver' || view === 'troops') {
     const eye = VEH === 'm113' ? M113_EYES[view === 'driver' ? 'driver' : 'troops'] : TANK.DRIVER_EYE;
-    hullPoint(eye, camera.position); inside = true;
+    // hatch open (H): the driver puts his head out (eye 0.55 m up, out of the hull)
+    const headOut = view === 'driver' && hatches.driver > 0.5;
+    hullPoint(headOut ? [eye[0], eye[1] + 0.55, eye[2] + 0.05] : eye, camera.position); inside = !headOut;
     _q.set(fm.q.x, fm.q.y, fm.q.z, fm.q.w);
     _e.set(cam.look[1] - (view === 'driver' ? 0.12 : 0.1), cam.look[0] + (view === 'troops' ? 0 : 0), 0, 'YXZ');
     camera.quaternion.copy(_q).multiply(new THREE.Quaternion().setFromEuler(_e)); fovWanted = 70;
@@ -362,8 +364,8 @@ function syncModel() {
   const travel = fm.wheels.map(side => side.map(w => w.on ? w.s : Math.min(w.s, -0.0)));
   if (VEH === 'm60') {
     for (const k of Object.keys(hatches)) hatches[k] = hatches[k];
-    model.animate({ travel, trackPos: fm.trackPos, az: V.az, el: V.el, recoil: V.gun.recoil, cupAz: V.mg50.az, mgEl: V.mg50.el, hatches, tts: 1, light: IN.light, inside: false });
-  } else model.animate({ travel, trackPos: fm.trackPos, mgAz: V.mg.az, mgEl: V.mg.el, ramp: V.ramp, vane: V.vane, hatches, inside: false });
+    model.animate({ travel, trackPos: fm.trackPos, thrown: fm.dmg.thrown, az: V.az, el: V.el, recoil: V.gun.recoil, cupAz: V.mg50.az, mgEl: V.mg50.el, hatches, tts: 1, light: IN.light, inside: false });
+  } else model.animate({ travel, trackPos: fm.trackPos, thrown: fm.dmg.thrown, mgAz: V.mg.az, mgEl: V.mg.el, ramp: V.ramp, vane: V.vane, hatches, inside: false });
 }
 function frame(now) {
   const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now;   // (the first rAF time can be earlier than the load time)

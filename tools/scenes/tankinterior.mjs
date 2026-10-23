@@ -12,6 +12,8 @@ export default async function (h) {
   await view('driver-panel', 'driver', [0.75, -0.45]);
   await view('driver-tbar', 'driver', [0, -0.75]);
   await view('driver-right-rack', 'driver', [-1.0, -0.4]);
+  await view('driver-head-out', 'driver', [0, -0.05], '__T.hatches.driver = 1; __T.step(1)');
+  await h.eval('(__T.hatches.driver = 0, 1)');
   // drive off (H range, turning right): the T-bar, pedal and selector move, the gauges read speed and rpm
   await h.eval("(__T.input({ throttle: 1, range: 'L', park: false, steer: 0.4 }), __T.step(300), __T.input({ range: 'H' }), __T.step(300), 1)");
   await h.eval('({ v: __T.fm.out.fwd * 3.6, rpm: __T.fm.eng.w * 9.549, range: __T.fm.range })');

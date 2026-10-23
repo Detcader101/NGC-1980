@@ -64,6 +64,8 @@ export function weathered(seed = 0, worldOf = null, dirt = 1) {
 
 // ---------------------------------------------------------------------------------------------------- geometry kit
 const box = (w, h, d, x = 0, y = 0, z = 0) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
+// a part with a thermal signature (userData.heat 0..1, read by the TTS view): exhaust grilles, engine deck
+export const hot = (parent, mesh, heat = 0.9) => { mesh.userData.heat = heat; parent.add(mesh); return mesh; };
 const cylX = (r, len, seg = 12, x = 0, y = 0, z = 0, r2 = r) => new THREE.CylinderGeometry(r2, r, len, seg).rotateZ(Math.PI / 2).translate(x, y, z);   // axis along x (r at -x)
 const cylY = (r, h, seg = 12, x = 0, y = 0, z = 0, r2 = r) => new THREE.CylinderGeometry(r2, r, h, seg).translate(x, y, z);
 const cylZ = (r, len, seg = 12, x = 0, y = 0, z = 0, r2 = r) => new THREE.CylinderGeometry(r2, r, len, seg).rotateX(Math.PI / 2).translate(x, y, z);   // r at -z... (CylinderGeometry top = +y -> after rotateX(+90) top -> +z)
@@ -300,7 +302,7 @@ export function buildRunningGear(def, mats, side) {
     for (const im of inst) im.instanceMatrix.needsUpdate = true;
   }
   update(null, 0);
-  return { group: g, update, wheels, path, def };
+  return { group: g, update, wheels, path, def, setTrack: on => { for (const im of inst) im.visible = on; } };
 }
 
 // ---------------------------------------------------------------------------------------------------- decals
@@ -375,12 +377,12 @@ export function buildM60A3Mesh(opts = {}) {
     hull.add(new THREE.Mesh(box(0.08, 0.16, 0.14, s * 0.85, 0.9, 3.5), steelP));
     // rear: tail light clusters, exhaust grilles over the rear deck sides
     hull.add(new THREE.Mesh(box(0.14, 0.12, 0.05, s * 1.25, 1.62, 3.49), MAT.red()));
-    for (let k = 0; k < 6; k++) hull.add(new THREE.Mesh(box(0.42, 0.02, 0.03, s * 1.05, 1.905, 2.65 + k * 0.12), black));
+    for (let k = 0; k < 6; k++) hot(hull, new THREE.Mesh(box(0.42, 0.02, 0.03, s * 1.05, 1.905, 2.65 + k * 0.12), black), 1);
     // mud flaps
     parts.push(P(box(0.36, 0.3, 0.015, s * 1.63, 1.0, 3.32)));
   }
   // engine deck grilles (centre) and access doors
-  for (let k = 0; k < 9; k++) hull.add(new THREE.Mesh(box(1.05, 0.02, 0.04, 0, 1.906, 1.15 + k * 0.13), black));
+  for (let k = 0; k < 9; k++) hot(hull, new THREE.Mesh(box(1.05, 0.02, 0.04, 0, 1.906, 1.15 + k * 0.13), black), 0.85);
   parts.push(P(box(1.2, 0.03, 1.25, 0, 1.91, 1.7)));
   // driver's hatch with three M27 periscopes, the hull roof ring guard
   const dh = new THREE.Group(); dh.position.set(0, 1.78, -2.0); hull.add(dh);
@@ -492,7 +494,7 @@ export function buildM60A3Mesh(opts = {}) {
   // state: { travel: [[6],[6]], trackPos: [L, R], az, el, recoil (m), cupAz, mgEl, hatches: { driver, loader, cupola } 0..1,
   //          tts: 0..1 doors open, light: 0..1, inside: hide the shell (interior views) }
   api.animate = (s = {}) => {
-    for (let i = 0; i < 2; i++) gear[i].update(s.travel ? s.travel[i] : null, s.trackPos ? s.trackPos[i] : 0);
+    for (let i = 0; i < 2; i++) { gear[i].update(s.travel ? s.travel[i] : null, s.trackPos ? s.trackPos[i] : 0); gear[i].setTrack(!(s.thrown && s.thrown[i])); }
     turret.rotation.y = s.az || 0; gun.rotation.x = s.el || 0; recoil.position.z = s.recoil || 0;
     cupola.rotation.y = s.cupAz || 0; mg50.rotation.x = s.mgEl || 0;
     const h = s.hatches || {};
