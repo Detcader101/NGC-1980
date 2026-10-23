@@ -122,7 +122,7 @@ export const M60A3_ARMOR = (() => {
   for (const s of [-1, 1]) {
     P.push(plate(s < 0 ? 'sideL' : 'sideR', H, [s * 1.1, 1.0, -1.2], [s, 0, 0], [0, 0, 1], 2.1, 0.5, 75, { ext: s < 0 ? 'trackL' : 'trackR' }));
     P.push(plate(s < 0 ? 'sideRearL' : 'sideRearR', H, [s * 1.1, 1.0, 2.2], [s, 0, 0], [0, 0, 1], 1.2, 0.5, 45, { ext: s < 0 ? 'trackL' : 'trackR' }));
-    P.push(plate(s < 0 ? 'trackRunL' : 'trackRunR', H, [s * 1.82, 0.55, 0], [s, 0, 0], [0, 0, 1], 3.2, 0.45, 25, { ext: s < 0 ? 'trackL' : 'trackR' }));
+    P.push(plate(s < 0 ? 'trackRunL' : 'trackRunR', H, [s * 1.82, 0.55, 0], [s, 0, 0], [0, 0, 1], 3.2, 0.45, 25, { outer: true, ext: s < 0 ? 'trackL' : 'trackR' }));
   }
   P.push(plate('rear', H, [0, 1.1, 3.45], [0, 0, 1], [1, 0, 0], 1.6, 0.6, 30, { ext: null }));
   P.push(plate('deck', H, [0, 1.95, 1.8], [0, 1, 0], [1, 0, 0], 1.6, 1.6, 30));

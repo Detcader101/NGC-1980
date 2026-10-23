@@ -108,17 +108,27 @@ export function rng(seed = 1) { let a = seed >>> 0; return () => { a = (a + 0x6D
 // Perforation: the components and crew within reach behind the hit point (a few sample points along the path, a
 // little spread) take damage. Returns { result, zone, eff, pen, events }.
 export function resolveHit(armor, hit, state = { az: 0 }, rand = armor.rand || Math.random) {
-  const R = typeof hit.round === 'string' ? ROUNDS[hit.round] : hit.round, ev = [];
-  const tr = tracePlates(armor, hit.o, hit.d, state);
-  if (!tr) return { result: 'miss', events: ev };
-  const P = tr.plate, ang = Math.acos(clamp(tr.cos, -1, 1)), eff = P.t / Math.max(1 / 3, tr.cos), pen = penAt(R, hit.range || 0);
-  const out = { zone: P.zone, p: tr.p, angle: ang, eff, pen, events: ev, round: R.id };
-  if (ang > 75 * D2R && rand() < 0.8) out.result = 'ricochet';
-  else if (R.kind === 'HEP') out.result = P.soft ? 'perforated' : P.t <= R.pen ? 'scab' : 'defeated';
-  else out.result = pen > eff ? 'perforated' : 'defeated';
-  ev.push({ type: 'hit', result: out.result, zone: P.zone, round: R.id, eff: Math.round(eff), pen: Math.round(pen) });
-  const heavy = R.cal >= 100;
-  if (heavy && P.ext) damage(armor, P.ext, 0.5 + rand() * 0.6, ev, R);
+  const R = typeof hit.round === 'string' ? ROUNDS[hit.round] : hit.round, ev = [], heavy = R.cal >= 100;
+  // plates in layers: a perforated outer plate (track skirt, fender, stowage) uses up part of the round's value and the
+  // rest goes on to the next plate along the path
+  let o = hit.o, pen = penAt(R, hit.range || 0), out = null, tr = null;
+  for (let layer = 0; layer < 3; layer++) {
+    const t = tracePlates(armor, o, hit.d, state);
+    if (!t) break;
+    tr = t;
+    const P = tr.plate, ang = Math.acos(clamp(tr.cos, -1, 1)), eff = P.t / Math.max(1 / 3, tr.cos);
+    out = { zone: P.zone, p: tr.p, angle: ang, eff, pen, events: ev, round: R.id };
+    if (ang > 75 * D2R && rand() < 0.8) out.result = 'ricochet';
+    else if (R.kind === 'HEP') out.result = P.soft ? 'perforated' : P.t <= R.pen ? 'scab' : 'defeated';
+    else out.result = pen > eff ? 'perforated' : 'defeated';
+    ev.push({ type: 'hit', result: out.result, zone: P.zone, round: R.id, eff: Math.round(eff), pen: Math.round(pen) });
+    if (heavy && P.ext) damage(armor, P.ext, 0.5 + rand() * 0.6, ev, R);
+    if (out.result !== 'perforated' || !P.outer) break;
+    pen -= eff; if (R.kind === 'HEP') pen = 0;
+    o = [tr.p[0] + hit.d[0] * 0.05, tr.p[1] + hit.d[1] * 0.05, tr.p[2] + hit.d[2] * 0.05];
+    if (pen <= 0) { out.result = 'defeated'; break; }
+  }
+  if (!out) return { result: 'miss', events: ev };
   if (out.result !== 'perforated' && out.result !== 'scab') return out;
   // behind the armour
   const reach = heavy ? (out.result === 'scab' ? 1.0 : 3.0) : 1.2, n = heavy ? 10 : 3, spread = heavy ? 0.35 : 0.1;
