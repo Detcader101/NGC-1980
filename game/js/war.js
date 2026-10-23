@@ -442,7 +442,7 @@ export function createWar(ctx) {
     if (u.retarget <= 0) {
       u.retarget = 1;
       const pd = pl.alive && !pl.inCave ? pl.pos.distanceTo(u.p) : 1e9;
-      if (pd < (u.target === 'player' ? 260 : 170)) u.target = 'player';
+      if (pd < (u.target === 'player' ? 260 : 170) * (pl.detect ?? 1)) u.target = 'player';   // FOUNDATION: pl.detect - a soldier is hard to spot
       else if (u.target === 'player') u.target = null;
       if (u.target && u.target !== 'player' && (u.target.dead || u.target.gone || (u.target.side !== undefined && u.target.side !== 1))) u.target = null;
       if (!u.target) {
@@ -568,6 +568,10 @@ export function createWar(ctx) {
   W.fireJetGun = (p, v) => shoot('jb', 1, p.x, p.y, p.z, v.x, v.y, v.z, 1.3);
   W.fireMissile = (p, v, tgt) => { sfx.missile?.(); return shoot('aam', 1, p.x, p.y, p.z, v.x, v.y, v.z, 7, { tgt, age: 0, spd: v.length() }); };
   const _pp = new THREE.Vector3(), _gd = new THREE.Vector3(), _js = new THREE.Vector3();
+  // FOUNDATION: squared distance from p to the segment a-b (a round's path this frame), so a fast round can't skip a
+  // small target (a soldier) between frames; the closest point is left in _cpt (where it hit, for body-part damage)
+  const _cpt = new THREE.Vector3();
+  function segD2(a, b, p) { const sx = b.x - a.x, sy = b.y - a.y, sz = b.z - a.z, L2 = sx * sx + sy * sy + sz * sz || 1e-9; const k = clamp(((p.x - a.x) * sx + (p.y - a.y) * sy + (p.z - a.z) * sz) / L2, 0, 1); _cpt.set(a.x + sx * k, a.y + sy * k, a.z + sz * k); return _cpt.distanceToSquared(p); }
   // missile guidance: lead pursuit onto the target with a turn-rate limit (~30 g), a 2.2 s motor, proximity fuse
   function guide(b, dt) {
     b.age += dt; b.spd = b.age < 2.2 ? Math.min(340, b.spd + 150 * dt) : b.spd * (1 - 0.06 * dt);
@@ -677,7 +681,7 @@ export function createWar(ctx) {
         else {
           hit = hitTest(x, y, z, b.side, b.kind === 'rocket' ? 0.5 : b.kind === 'aam' ? 1.5 : 0);
           if (hit) done = true;
-          else if (b.side === 2 && b.kind !== 'shell' && pl.alive && !pl.inCave && pl.pos.distanceToSquared(b.p) < (pl.hitR || 2.6) ** 2) { ctx.hurtPlayer(0.2, 'HIT'); done = true; }
+          else if (b.side === 2 && b.kind !== 'shell' && pl.alive && !pl.inCave && segD2(_pp, b.p, pl.pos) < (pl.hitR || 2.6) ** 2) { ctx.hurtPlayer(0.2, 'HIT', _cpt, b.v); done = true; }   // FOUNDATION: swept (small targets), hit point for body parts
         }
         if (done) {
           const wet = y < floor + 0.5 && isWater(x, z) && dy < 0;
@@ -697,14 +701,14 @@ export function createWar(ctx) {
   function enemiesOf(side, pl) {
     const list = [];
     for (const u of W.units) if (u.side !== side && !u.dead && !u.dying && u.p && !u.dims) list.push(u);
-    if (side === 2 && pl.alive && !pl.inCave) list.push({ p: pl.pos, v: pl.vel, player: true });
+    if (side === 2 && pl.alive && !pl.inCave) list.push({ p: pl.pos, v: pl.vel, player: true, vis: pl.detect ?? 1 });
     const sc = W.carrier; if (side === 2 && sc && sc.sky && sc.sky.up && sc.p.y > 8 && sc.sinking === undefined) list.push({ p: _skyAim.set(sc.p.x, sc.p.y + 4, sc.p.z), v: sc.v });
     return list;
   }
   function gunFire(g, gx, gy, gz, side, dt, foes, range) {
     g.cd -= dt; if (g.cd > 0) return;
     let best = null, bd = range;
-    for (const f of foes) { const d = Math.hypot(f.p.x - gx, f.p.y - gy, f.p.z - gz); if (d < bd && f.p.y > gy - 4) { bd = d; best = f; } }
+    for (const f of foes) { const d = Math.hypot(f.p.x - gx, f.p.y - gy, f.p.z - gz); if (d < bd && d < range * (f.vis ?? 1) && f.p.y > gy - 4) { bd = d; best = f; } }
     if (!best) { g.cd = 0.5; return; }
     const t = bd / 90;
     const ax = best.p.x + best.v.x * t - gx, ay = best.p.y + best.v.y * t - gy, az = best.p.z + best.v.z * t - gz, al = Math.hypot(ax, ay, az) || 1;
@@ -743,7 +747,7 @@ export function createWar(ctx) {
   function updateCapture(dt, pl) {
     for (const I of W.islands) {
       const p = I.pad; let side = 0, rate = 0, who = '';
-      if (pl.alive && !pl.inCave && pl.landed && Math.hypot(pl.pos.x - p.x, pl.pos.z - p.z) < p.r + 1 && I.owner !== 1 && !I.cave) { side = 1; rate = 1 / CAP_TIME.heli; who = 'heli'; }
+      if (pl.alive && !pl.inCave && pl.landed && Math.hypot(pl.pos.x - p.x, pl.pos.z - p.z) < p.r + 1 && I.owner !== 1 && !I.cave) { side = 1; rate = 1 / (pl.capTime || CAP_TIME.heli); who = pl.kind === 'foot' ? 'infantry' : 'heli'; }   // FOUNDATION: any craft on the pad (pl.capTime)
       for (const u of W.units) if (u.landed && u.target === I && !u.dead && !u.dying && u.side !== I.owner) {
         if (I.cave && u.side === 1) continue;
         if (I.kind === 'hq' && u.side === 2) continue;   // our HQ can't be taken by transports
@@ -807,7 +811,7 @@ export function createWar(ctx) {
     const cap = Math.min(12, 3 + Math.floor(W.time / 110)), mine = W.islands.filter(I => I.owner === 2);
     // 1. defend: the player is poking at one of our islands or the carrier
     if (pl.alive && !pl.inCave) {
-      const near = [...mine.map(I => [I.x, I.z]), ...(ec ? [[ec.p.x, ec.p.z]] : [])].some(([x, z]) => Math.hypot(pl.pos.x - x, pl.pos.z - z) < 260);
+      const near = [...mine.map(I => [I.x, I.z]), ...(ec ? [[ec.p.x, ec.p.z]] : [])].some(([x, z]) => Math.hypot(pl.pos.x - x, pl.pos.z - z) < 260 * (pl.detect ?? 1));
       const hunting = guns.filter(g => g.target === 'player').length;
       if (near && hunting < 2 + Math.floor(W.time / 300) && guns.length < cap && E.mat >= 12) { E.mat -= 12; W.spawnGunship(2, nearestLaunch(pl.pos.x, pl.pos.z)).target = 'player'; }
     }

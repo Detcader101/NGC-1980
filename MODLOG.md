@@ -658,3 +658,40 @@ AI over three seeds: cover 100 %, flanks right 3/3 and the flankers get there 3/
 - The hover tank's fan / vectoring numbers are design values; no water running (it is a hovercraft, but the sandbox
   keeps it ashore).
 - Audio was only checked for errors and a running context headless (no ears on it).
+## 2026-10-23 — NGC-1980 FOUNDATION: crafts, on foot, the ground-vehicle host (branch ngc/foundation)
+API reference for wave 2: [docs/ngc1980/FOUNDATION.md](docs/ngc1980/FOUNDATION.md).
+- craft.js: a registry of player-controllable crafts with one interface (seats with eyes / doors / exits, enter /
+  canExit / exitSpots / exit, update / idle / afterWar / render, camera / firstPerson / fov, key / look, hud, silence,
+  pl, avatar, hurt, bounds). main.js routes keys, mouse, cameras, FOV, near plane, HUD, pause menu, silence and war.js's
+  PL through it. G.craft is still the active id ('heli', 'jet', 'foot', 'boxcar').
+- The HORNET moved out of main.js into craftjet.js (taking a jet, flying, losing it, cameras, keys, HUD, radar sight).
+  Y stopped on deck now climbs out: the jet stays parked and rides the deck; the deck crew brings the Huey up from the
+  hangar; Y at the boarding ladder climbs back in; 5 in the Huey re-spots the parked jet instead of a new one.
+- The Huey is a craft too (doors either side, exit when landed with the collective down, parked: collective down,
+  engine left at flight idle, still serviced on a friendly pad, can still be lost). Its flying / cave / drop / helm
+  stay special in main.js (updateHeli(dt, inp, piloted)).
+- ON FOOT (foot.js + pure footsim.js): FM 22-5 walk 1.52 / run 2.74 m/s, sprint 5.5 m/s with stamina, crouch, prone,
+  jump, Tobler slopes (blocked past 37°), 0.45 m steps, falls (hurt from ~2.5 m), wading, swimming, ladders (carrier
+  stern from the water, island to its roof), mouse look, first / third person, a placeholder 1980 Marine and arms with
+  an M16A1 that fires war.js bullets. Slots for INFANTRY (soldier sim, viewmodel, body, weapon) and MEDINV (medical,
+  inventory). Hits are routed to body parts from the round's closest point.
+- platform.js: kinematic deck carrying (ship motion since the last settle is added, so mouse look and the sim's own
+  motion are kept); crafts.afterWar() re-carries after war.update so nothing trails its deck by a frame.
+- ground.js (GR): surfaces (road / deck / rock / grass / sand / mud / water, mu + rolling resistance), floor() with
+  walls, colliders (island trees now recorded, buildings, AA guns, ship islands, every craft's footprint), ladders,
+  spawn spots (carrier deck park, island motor pools, beaches), clearView for third-person cameras.
+- vehicle.js: any pure wheeled / tracked sim + model becomes a drivable craft (keyboard / gamepad / HOTAS + pedals,
+  seat eyes with head-look, chase orbit, motor sound, hull damage, crew exposure, wrecks, sinking). Placeholder TEST
+  CAR (units/placeholder/boxcar*.js, M151A2-ish numbers) at the home motor pool; 7 = motor pool delivery.
+- war.js (small, commented FOUNDATION): swept bullet hits on the player with the hit point, pl.detect (gunship hunt,
+  AA ranges, the commander's defend check), pl.capTime / kind (a soldier or a vehicle takes a pad).
+- audio.js: sfx.motor (piston engine), huey()/jet() accept a volume for parked aircraft heard from outside.
+- Gotchas: requestPointerLock from a key press froze headless screenshots (now only on a click); a frame with
+  dt = 0 (same rAF timestamp) made the flight models divide by zero (NaN Huey) - dt is now at least 1 ms; the first
+  deck carry snapped the walker back to his stored yaw (mouse look dead on ships) - carry now adds only the ship's
+  motion; reading the soldier between war.update and the next frame showed him trailing his deck (afterWar); a
+  vehicle wheel compared against the body height took slopes for walls - each wheel is compared with its own height.
+- Tests: tools/footbench.mjs (28 checks), tools/boxcarbench.mjs (20), scenes foot.mjs (12), vehicle.mjs (14),
+  jettrap.mjs (now walks away from the parked Hornet to the Huey); regression results in the branch report.
+- Untested: real HOTAS / gamepad driving and walking (only keyboard in headless), pointer-lock mouse look in a real
+  browser, the SKY CARRIER flying with a soldier on deck (bench only), many vehicles at once.

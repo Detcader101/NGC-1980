@@ -23,6 +23,8 @@ The enemy carrier KRAKEN is out there doing the same, and whoever controls the m
 - **UH-1H Huey.** A Bell UH-1H with a validated flight model (teetering two-blade rotor with the Bell stabilizer bar, translational lift, ground effect, vortex ring state, retreating blade stall, a T53 engine with governor and freewheel so autorotations work), a full 3D cockpit with live instruments and the real caution panel, an authentic (optional) start sequence, the two-blade "wop wop", and a damage model where hits cause failures you can survive and repair. Built for a T.Flight HOTAS 4 + T-Rudder pedals: stick = cyclic, throttle lever = collective, pedals (or twist) = anti-torque; keyboard works too with the stability assist.
 - **Ships that live and move.** The ALBATROSS is a 1980 Midway-class big deck in haze grey with a working deck: crew in coloured jerseys, tractors, Tilly, parked Hornets and Tomcats, an LSO team, the meatball, SPS-48 and SPS-49 turning, boiler smoke from the funnel. The enemy has a seized 2030s Ford-class supercarrier (the KRAKEN) refitted by the machines, the RW-9 LEVIATHAN railgun monitor and autonomous container ships. Every ship heaves, pitches and rolls with the sea state (`?sea=0..7`, default 4) and its speed, and the decks you land on move with them. Wakes, bow spray and smoke follow each ship's real track.
 - **Air defences you can read.** Our islands are guarded by the Soviet contingent's ZSU-23-4s, and command 2 builds M163 Vulcans; the ALBATROSS carries two white-domed close-in guns and two box missile launchers. The RUNAWAY field seized 8x8 gun-missile trucks and, on their strongholds, the RW-5 LANCE laser. Every one of them has to see you (terrain blocks it) and lock on before it fires, and shows it: radars stop and point, barrels spin up, lamps blink faster, the LANCE glows and paints you with an aiming line, and a lock and missile warning sounds in the cockpit. Missiles steer but turn at a capped rate and go dumb if you drop behind a hill; smoke stops the laser. Stay low.
+- **Get out and walk.** Land the Huey (or stop a Hornet on deck), press Y and climb out: walk the carrier's deck while she sails and turns (you stay where you stand), climb the island ladder to its roof, go over the side and swim to the stern ladder, walk onto an island pad and hold it. A placeholder Marine with an M16 for now; the real infantry, weapons, medical and inventory plug into slots (see [docs/ngc1980/FOUNDATION.md](docs/ngc1980/FOUNDATION.md)).
+- **Drive.** A placeholder test car waits at the home island's motor pool (7 delivers it to a friendly island): get in at the driver's door, drive on terrain, pads and decks, ford shallow water (and drown the engine past 0.53 m).
 - **Effects that build up.** Smoke columns, fires, scorch marks, debris and oil slicks stay on the map.
 
 Win by sinking the KRAKEN or taking IRONHOLD. You lose if the ALBATROSS sinks or you run out of helicopters.
@@ -80,7 +82,20 @@ The Huey spawns hot at flight idle and rolls the throttle on by itself. With `?c
 | hold Backspace | eject |
 | V, mouse wheel, hat | cockpit or chase view, zoom, look around |
 | J | controls panel: live view of every axis and button, bind and calibrate HOTAS / pedals |
-| Y | stopped on the deck: back to the helicopter |
+| Y | stopped on the deck: climb out (the Hornet stays parked; the deck crew brings the Huey up) |
+
+### On foot and in vehicles
+
+| Key | Action |
+|---|---|
+| Y | get out (Huey landed with the collective down, Hornet stopped on deck, vehicle stopped) / get in at a door |
+| [ / ] | change seat (driver, passenger, rear) |
+| W A S D, mouse (click to capture), arrows | walk and look (arrows turn), or drive and steer |
+| Shift / Space / C / Z | sprint / jump / crouch / prone (on foot); Space = handbrake in a vehicle |
+| V | first / third person on foot; seat eye / chase in a vehicle (the mouse orbits) |
+| F / click, R | fire / reload (placeholder M16A1) |
+| I / H | vehicle engine / horn |
+| 7 | motor pool: a vehicle to the selected friendly island (15 materiel) |
 
 Cockpit switches are clickable (gear and hook handles, flaps, master arm, FCS CAS/DIRECT, engine cranks, fire lights, master caution, jettison, eject, DDI pages). To land: gear down, flaps FULL, hook down, fly the ICLS needles at 8° AoA (the green/amber/red indexer) into the wires.
 
@@ -138,6 +153,7 @@ Air defence: `game/dev/defence.html` is a sandbox to view each AA unit and watch
 `node tools/infantrybench.mjs` checks the infantry cores (flight of the rounds against the field-manual maximum ranges and
 zeroes, rates of fire, barrel heat, stoppages, recoil, march / run / sprint speeds and stamina against the Pandolf and
 ACSM equations); `scenes/infantry.mjs`, `infantrydrills.mjs` and `infantrymodels.mjs` drive the range page.
+On foot and vehicles: `node tools/footbench.mjs` (soldier movement vs FM 22-5 cadences, ladders, swimming, moving decks), `node tools/boxcarbench.mjs` (the test car), scenes `foot.mjs` and `vehicle.mjs`.
 Huey scenes: `hueystart.json` (cold start), `hueyhover.json` (hover trim, forward flight), `hueyauto.json` (practice autorotation with power recovery), `hueycockpit.mjs`, `hueymodel.mjs` (screenshots).
 
 **RUNAWAY ground forces (NGC-1980, not in the game yet).** The enemy's land army as standalone sims and models in
