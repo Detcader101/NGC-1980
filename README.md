@@ -14,9 +14,9 @@ The enemy carrier KRAKEN is out there doing the same, and whoever controls the m
 
 - **Endless world.** The 17 islands are the CONTROL ZONE, where the war happens. Past it the world goes on for ever: open sea, then continents with coasts, forests and mountain ranges over a kilometre high, all perfectly flyable, just without objectives.
 - **Archipelago and fog of war.** You only see what your helicopter, carrier, drones and islands can see. Radar islands see further.
-- **Capture islands.** Silence the owner's AA guns, then land on the pad or send a drone. Fortress islands hide a cave: fly down the shaft, Thrust-style, and steal the pod. Every cave is procedurally generated (the same island always has the same cave), and the heavier the fortress, the deeper and more twisted its cave and the more turrets guard it.
-- **Economy.** Islands produce fuel and materiel. Spend materiel on capture drones, AA guns, spare helicopters and escort fighters.
-- **An enemy commander.** It sends transports to take islands, fortifies, raids your carrier, ships supplies by freighter, and builds a battleship in its factories that hunts the ALBATROSS. Bomb the factories to slow it down.
+- **Capture islands.** Silence the owner's AA guns, then land on the pad or send a CH-46 Sea Knight with a Marine squad (command 1). Fortress islands hide a cave: fly down the shaft, Thrust-style, and steal the pod. Every cave is procedurally generated (the same island always has the same cave), and the heavier the fortress, the deeper and more twisted its cave and the more turrets guard it.
+- **Economy.** Islands produce fuel and materiel. Spend materiel on Sea Knight landings, AA guns, spare helicopters and escort fighters.
+- **An enemy commander.** It sends RUNAWAY MV-22 Ospreys full of machine troopers to take islands, swarms of RW-3 WASP ducted-fan drones to hunt you, fortifies, raids your carrier, ships supplies by freighter, and builds a battleship in its factories that hunts the ALBATROSS. Bomb the factories to slow it down.
 - **HORNET carrier jet.** Land on the ALBATROSS and press 5: an F/A-18-style fighter on the catapult. Full 6-DOF flight model with a Hornet-like flight computer, a 3D cockpit with a conformal HUD and working displays, catapult launches, arrested landings, gun, AIM-9s and CCIP bombs, ejection. Built for a T.Flight HOTAS 4 and rudder pedals with toe brakes (any stick, pad or keyboard works).
 - **Tomcat escorts and the RUNAWAY air arm.** Press 4: an F-14A Tomcat goes to the ALBATROSS's bow catapult and an AI pilot flies its real flight model (swing wings, TF30s, mechanical stick) through stick, pedals and throttle: catapult shot, CAP over the ship or the island you selected, intercepts and dogfights with game-level missiles and the gun, bingo, the carrier pattern and an arrested landing (with wave-offs and bolters). The enemy answers with RW-4 SHRIKE fighter drones off the KRAKEN, an MQ-9 REAPER that hunts for the ALBATROSS and SHAHED drone salvos. Watch them alone on `game/dev/air.html`.
 - **Para-drop repair team.** Downed on land? Press L and home base sends a steel dropship from over the horizon. You fly it in from the flight deck with a real fixed-wing flight model (or let the autopilot), line up the jump run against the wind, jump on the green light, then steer the canopies down; whoever lands on dry ground runs over with fuel and fixes the helicopter. Enemy flak can bring the dropship down.
@@ -26,6 +26,7 @@ The enemy carrier KRAKEN is out there doing the same, and whoever controls the m
 - **Air defences you can read.** Our islands are guarded by the Soviet contingent's ZSU-23-4s, and command 2 builds M163 Vulcans; the ALBATROSS carries two white-domed close-in guns and two box missile launchers. The RUNAWAY field seized 8x8 gun-missile trucks and, on their strongholds, the RW-5 LANCE laser. Every one of them has to see you (terrain blocks it) and lock on before it fires, and shows it: radars stop and point, barrels spin up, lamps blink faster, the LANCE glows and paints you with an aiming line, and a lock and missile warning sounds in the cockpit. Missiles steer but turn at a capped rate and go dumb if you drop behind a hill; smoke stops the laser. Stay low.
 - **Get out and walk.** Land the Huey (or stop a Hornet on deck), press Y and climb out: walk the carrier's deck while she sails and turns (you stay where you stand), climb the island ladder to its roof, go over the side and swim to the stern ladder, walk onto an island pad and hold it. A placeholder Marine with an M16 for now; the real infantry, weapons, medical and inventory plug into slots (see [docs/ngc1980/FOUNDATION.md](docs/ngc1980/FOUNDATION.md)).
 - **Drive.** A placeholder test car waits at the home island's motor pool (7 delivers it to a friendly island): get in at the driver's door, drive on terrain, pads and decks, ford shallow water (and drown the engine past 0.53 m).
+- **AI rotorcraft that really fly.** The CH-46E Sea Knight (tandem rotors, differential collective, longitudinal cyclic trim), the RUNAWAY's seized MV-22B Osprey (tiltrotor: nacelles convert from helicopter to airplane mode inside the conversion corridor) and the RW-3 WASP (ducted fan) each have a physical flight model checked against published data, and an AI pilot that flies it through stick, collective, pedals and nacelles: deck launches from a moving carrier, terrain-following transits, decelerating approaches, touchdowns beside the pad. Marines run off the Sea Knight's ramp and take the pad; the Osprey's machine troopers march out in lock-step. WASPs strafe, snipe from a hover, lie in ambush behind hills and circle in eerie swarms. Watch them on `game/dev/rotary.html`.
 - **Effects that build up.** Smoke columns, fires, scorch marks, debris and oil slicks stay on the map.
 
 Win by sinking the KRAKEN or taking IRONHOLD. You lose if the ALBATROSS sinks or you run out of helicopters.
@@ -58,6 +59,7 @@ update it. The launcher lives in `%LOCALAPPDATA%\ThrustZarch` (log: `launcher.lo
 | R | winch (pick up the pod in a cave) |
 | M | command map: click the sea to sail the carrier, click an island to select it |
 | 1-4, 6 | send drone, build AA gun, spare helicopter, Tomcat escort (CAP over the selected island, else over the ALBATROSS), SKY CARRIER refit |
+| 1-5 | send a Sea Knight + Marines, build AA gun, spare helicopter, escort fighter, SKY CARRIER refit |
 | Tab | take / leave the SKY CARRIER helm (landed on her deck) |
 | V / C | cockpit view / chase camera |
 | H | stability assist on/off (on: the cyclic holds attitude, pedals hold heading; default for keyboard) |
@@ -138,6 +140,11 @@ cd tools && npm install && node snap.mjs scenes/war.json
 node tools/jetbench.mjs             # the jet's flight model against published F/A-18C figures, in plain node
 node tools/hueybench.mjs            # the Huey's flight model against published UH-1H data (Heffley, Talbot, DCS / TM charts)
 node tools/medinvbench.mjs          # medical (ATLS shock timing, tourniquets, drugs, IV), kit weights, inventory grids
+node tools/ch46bench.mjs            # CH-46E tandem rotor: max speed, climb, hover ceilings, single engine, autorotation, SAS
+node tools/mv22bench.mjs            # MV-22B tiltrotor: hover / download / figure of merit, the conversion corridor, 275 kt, 412 / 333 rpm
+node tools/waspbench.mjs            # RW-3 WASP ducted fan against shrouded-fan momentum theory and wind-tunnel trends
+node tools/rotarymission.mjs        # CH-46 and MV-22 fly their whole missions (deck -> LZ -> deck) physically
+node tools/waspmission.mjs          # WASP swarm, strafing and ambush behaviours
 ```
 
 Medical and inventory scenes: `medinv.mjs` (hits, bleeding, a mouse-dragged tourniquet, gear, looting, inspect, death) and `medinv_ui.mjs` (rotate, split, menu, container window, quick move, cursor, corpsman IV, class IV vision).
@@ -156,6 +163,7 @@ Air defence: `game/dev/defence.html` is a sandbox to view each AA unit and watch
 zeroes, rates of fire, barrel heat, stoppages, recoil, march / run / sprint speeds and stamina against the Pandolf and
 ACSM equations); `scenes/infantry.mjs`, `infantrydrills.mjs` and `infantrymodels.mjs` drive the range page.
 On foot and vehicles: `node tools/footbench.mjs` (soldier movement vs FM 22-5 cadences, ladders, swimming, moving decks), `node tools/boxcarbench.mjs` (the test car), scenes `foot.mjs` and `vehicle.mjs`.
+Rotary AI scenes: `ch46capture.mjs` (command 1: a Sea Knight takes SANDBAR), `mv22landing.mjs` (an Osprey lands machine troopers), `wasp.mjs` (a WASP raid), `rotarydev.mjs` (the dev page: model turntables and each aircraft's whole mission; `ROTARY=ch46|mv22|wasp`).
 Huey scenes: `hueystart.json` (cold start), `hueyhover.json` (hover trim, forward flight), `hueyauto.json` (practice autorotation with power recovery), `hueycockpit.mjs`, `hueymodel.mjs` (screenshots).
 
 **RUNAWAY ground forces (NGC-1980, not in the game yet).** The enemy's land army as standalone sims and models in
