@@ -9,6 +9,7 @@
 // enemy carrier or take its HQ island (IRONHOLD) to win.
 import * as THREE from 'three';
 import { addLiftFans, FAN_POS } from './ships.js';
+import { structAngle } from './world/net.js';   // WORLD: the HQ / production slots are seeded per island (the villages keep clear of them)
 import { createDefence } from './units/defence/brain.js';   // NGC-1980 DEFENCE: AA unit models + engagement logic
 import { createRotary } from './units/air/rotary/rotary.js';   // NGC-1980: CH-46 + Marines, MV-22, RW-3 WASP (physical AI rotorcraft)
 import { buildCarrier, buildBattleship, buildFreighter, buildDrone, buildTransport, buildGunship, buildTomcat, buildGun, buildStructure, buildRubble, CARRIER, BSHIP, FREIGHTER, TEAM } from './ships.js';
@@ -61,6 +62,7 @@ export function createWar(ctx) {
     const y = placeAt(x, z); mesh.position.set(x, y, z); mesh.rotation.y = kind === 'aa' ? 0 : yaw; islandGroup.add(mesh);
     const ud = mesh.userData, hp = { hq: 30, factory: 26, fuel: 22, radar: 16, shipyard: 40, aa: 7 }[kind];
     const s = { kind, I, side, x, y, z, hp, max: hp, mesh, dead: false, r: kind === 'aa' ? 2.8 : ud.r, h: kind === 'aa' ? 2 : ud.h * 0.5, cd: rnd(1, 3), rebuild: 0 };
+    ud.attach?.({ fx, s });   // WORLD: faction structures (world/structures.js) smoke and scorch through fx
     if (kind === 'aa') defence.attach(s);   // DEFENCE hook: unit state, hit size, parked on the slope
     if (kind === 'factory') s.chimneys = ud.stackTops.map(([sx, sy, sz]) => { _v.set(sx, sy, sz).applyEuler(mesh.rotation).add(mesh.position); return fx.chimney(_v.x, _v.y, _v.z, 1); });
     I.structs.push(s); return s;
@@ -84,13 +86,13 @@ export function createWar(ctx) {
       I.structs = []; I.cap = null; I.owner = I.owner0 ?? I.owner; I.owner0 = I.owner; I.seen = I.owner === 1 ? I.owner : -1; I.lastHit = -99;
       const p = I.pad;
       if (I.cave) {   // cave islands: HQ (+ a derrick on fortresses) beside the pad
-        addStruct(I, 'hq', p.x - 17, p.z + 9, I.owner, Math.PI);
-        if (I.kind === 'fortress') addStruct(I, 'fuel', p.x + 19, p.z + 6, I.owner, 0);
+        addStruct(I, 'hq', p.x - 17, p.z + 9, I.owner, Math.atan2(17, -9));   // WORLD: fronts face the pad
+        if (I.kind === 'fortress') addStruct(I, 'fuel', p.x + 19, p.z + 6, I.owner, Math.atan2(-19, -6));
         if (I.name === 'IRONHOLD') { const [x, z, a] = coastPoint(I, [0, 0]); I.yard = addStruct(I, 'shipyard', x, z, 2, -a + Math.PI / 2); }
       } else {
-        const a0 = rnd(6.283);
-        addStruct(I, 'hq', p.x + Math.cos(a0) * 17, p.z + Math.sin(a0) * 17, I.owner, -a0);
-        addStruct(I, I.kind, p.x + Math.cos(a0 + Math.PI) * 18, p.z + Math.sin(a0 + Math.PI) * 18, I.owner, -a0);
+        const a0 = structAngle(I);   // WORLD: was random; seeded so the island's village can be laid out round it
+        addStruct(I, 'hq', p.x + Math.cos(a0) * 17, p.z + Math.sin(a0) * 17, I.owner, Math.atan2(-Math.cos(a0), -Math.sin(a0)));   // WORLD: fronts face the pad
+        addStruct(I, I.kind, p.x + Math.cos(a0 + Math.PI) * 18, p.z + Math.sin(a0 + Math.PI) * 18, I.owner, Math.atan2(Math.cos(a0), Math.sin(a0)));
       }
       const guns = I.owner === 0 ? 0 : I.name === 'IRONHOLD' ? 4 : I.kind === 'hq' ? 2 : I.owner === 2 ? 2 : 1;
       for (let k = 0; k < guns; k++) { const s = buildAA(I, I.owner); if (s) { s.building = 0; s.mesh.scale.setScalar(1); } }
@@ -99,6 +101,7 @@ export function createWar(ctx) {
   }
   function recolor(s) {
     const c = TEAM[s.side]; s.mesh.traverse(o => { if (o.material && o.material === s.mesh.userData.team) o.material.color.setHex(c); });
+    s.mesh.userData.setSide?.(s.side);   // WORLD: 1980 / RUNAWAY style, flags, growth
   }
   W.setOwner = (I, side, how) => {
     const was = I.owner; if (was === side) return;
@@ -126,7 +129,8 @@ export function createWar(ctx) {
     fx.explode(s.x, s.y + s.h, s.z, big, { fire: s.kind === 'aa' ? 25 : 90, debris: Math.round(big * 5), color: 0x5a5650, crater: 2.4 });
     if (s.kind === 'fuel') { fx.explode(s.x + 5, s.y + 3, s.z + 4, 2.4, { fire: 120 }); setTimeout(() => fx.explode(s.x - 5, s.y + 3, s.z + 4, 2.8, { fire: 140 }), 350); }
     boomAt(s.x, s.y, s.z, Math.min(1.4, big * 0.4));
-    s.mesh.visible = false; s.rubble = buildRubble(s.r * 0.9); s.rubble.position.set(s.x, s.y, s.z); islandGroup.add(s.rubble);
+    if (s.mesh.userData.setState) s.mesh.userData.setState('destroyed');   // WORLD: the structure shows its own ruin
+    else { s.mesh.visible = false; s.rubble = buildRubble(s.r * 0.9); s.rubble.position.set(s.x, s.y, s.z); islandGroup.add(s.rubble); }
     if (s.chimneys) for (const c of s.chimneys) c.off = true;
     if (s.kind !== 'aa') s.rebuild = 60;
     if (s.kind === 'shipyard') { W.E.bship = Math.max(0, W.E.bship - 30); feed('SHIPYARD DESTROYED  -  BATTLESHIP SET BACK', 'good'); }
@@ -135,6 +139,7 @@ export function createWar(ctx) {
   }
   function restoreStruct(s) {
     s.dead = false; s.hp = s.max; s.mesh.visible = true; if (s.rubble) { islandGroup.remove(s.rubble); s.rubble = null; }
+    s.mesh.userData.setState?.('intact');   // WORLD
     if (s.chimneys) for (const c of s.chimneys) c.off = false;
     recolor(s);
   }
@@ -542,7 +547,8 @@ export function createWar(ctx) {
       t.hp -= dmg; if (t.hp <= 0 && !t.dying) { t.dying = true; t.v.y = 3; fx.explode(t.p.x, t.p.y, t.p.z, 0.9, { debris: 3, color: t.side === 1 ? 0x2a3f55 : 0x992222 }); boomAt(t.p.x, t.p.y, t.p.z, 0.5); if (t.side === 2) ctx.addScore(t.type === 'transport' ? 400 : 150); if (t.type === 'transport') { feed('ENEMY TRANSPORT SHOT DOWN', 'good'); if (t.target) t.target.lostT = W.time; } if (t.type === 'drone') feed('SEA KNIGHT DOWN', 'bad'); }
       return;
     }
-    t.hp -= dmg; t.I.lastHit = W.time; if (t.hp <= 0) killStruct(t);
+    t.hp -= dmg; t.I.lastHit = W.time; t.mesh.userData.onHp?.(Math.max(0, t.hp / t.max));   // WORLD: damaged state
+    if (t.hp <= 0) killStruct(t);
   }
   function checkShip(u) {
     if (u.hp > 0 || u.sinking !== undefined) return;
@@ -877,6 +883,7 @@ export function createWar(ctx) {
     W.air.frame(dt, pl);   // AIR: launch queue, drone rails, engine sounds
     // buildings animate
     for (const I of W.islands) for (const s of I.structs) {
+      s.mesh.userData.tick?.(dt, W.time);   // WORLD: faction structures animate themselves
       if (s.dead) continue; const ud = s.mesh.userData;
       if (ud.dish) ud.dish.rotation.y += dt * 1.2;
       if (ud.beam) ud.beam.rotation.z = Math.sin(W.time * 1.5 + s.x) * 0.25;
@@ -886,7 +893,7 @@ export function createWar(ctx) {
   };
   W.setVisibility = fog => {   // enemy aircraft and ships only where we can see; buildings once explored
     for (const u of W.units) if (u.side === 2) { u.mesh.visible = fog.visibleAt(u.p.x, u.p.z); if (u.mesh.visible && u.type === 'freighter' && !u.spotted) { u.spotted = true; feed('RADAR: ENEMY FREIGHTER SPOTTED  -  SINK IT TO CUT THEIR SUPPLY'); } }
-    for (const I of W.islands) { const ex = fog.exploredAt(I.x, I.z) || fog.exploredAt(I.pad.x, I.pad.z); for (const s of I.structs) { s.mesh.visible = !s.dead && ex; if (s.rubble) s.rubble.visible = ex; } if (fog.visibleAt(I.pad.x, I.pad.z)) I.seen = I.owner; }
+    for (const I of W.islands) { const ex = fog.exploredAt(I.x, I.z) || fog.exploredAt(I.pad.x, I.pad.z); for (const s of I.structs) { s.mesh.visible = (!s.dead || !!s.mesh.userData.setState) && ex; if (s.rubble) s.rubble.visible = ex; } if (fog.visibleAt(I.pad.x, I.pad.z)) I.seen = I.owner; }
   };
   W.damage = damage; W.hitTest = hitTest; W.pickExpansion = pickExpansion;
   W.makeShip = makeShip;   // NAVAL: tests and the dev tools place ships with it

@@ -1101,3 +1101,85 @@ the hatch-open driver view; AI driving; damage drawn on the model (burning, a th
 searchlight lights nothing yet); terrain heat in the TTS beyond a flat grey; sound on real speakers (only measured
 offline). Next step (wave 2): FOUNDATION hosts V.step / the model / the interior on the island terrain (height, surface
 from the terrain classes, water at 0), shells through war.js, enter / exit at the hatches; then AI tank and APC drivers.
+
+
+## 2026-10-23 — NGC-1980: faction structures and a lived-in world (ngc/world)
+Files: game/js/world/ (net.js, layout.js, models.js, kit.js, chunkgen.js, worldworker.js, gfx.js, life.js, ambient.js,
+structures.js, rng.js), game/dev/world.html (+ world-preview.js), tools/worldbench.mjs, tools/scenes/world.mjs,
+worldprev.mjs, structprev.mjs, worldperf.mjs, worldjet.mjs.
+- **Settlements and roads (net.js, pure, seeded).** Wild lands: one settlement candidate per 1.6 km cell (hamlet 70 m,
+  village 135 m, town 210 m radius; harbour towns on the coast), linked by a relaxed relative-neighbourhood graph
+  (tarmac between villages and towns, lanes to hamlets, dirt between hamlets). Each road is routed by dynamic
+  programming down a corridor (40 m stations, 25 m lateral steps, cost = length + grade + water), Chaikin-smoothed,
+  resampled at 8 m, given a grade-limited profile (tarmac 8.5 %, lane 10 %, street 12 %, dirt 14 %), causeways over
+  short shallow water, bridges over longer water or fills > 5 m (max 420 m). Towns get side streets, a harbour lane and
+  a quay; farms (one per 420 m cell where the land allows) get a dirt track to the nearest road and up to seven walled or
+  hedged fields (wheat, barley, hay, potato, plough, pasture) inside their own cell. Control zone: a village on each big
+  island (away from the pad, the shaft and the war's building slots), a lane from the pad apron, a harbour lane to a
+  stone quay, a back street; jetties, rim cottages and lighthouses on the small islands.
+- **The ground agrees.** world.js: `rawH` is the old islandH; `islandH = roadBed(rawH)`: road beds (flat 1.6 m past the
+  edge, shoulder 3-18 m), squares, quays, farmyards and **building platforms** (cut-and-fill pads, blended by weights
+  that don't depend on generation order) are flattened in, so physics, the terrain bake and the road ribbons agree
+  (99.9 % of road centreline samples within 5 cm; the rest are junctions). The 16 m far bake uses rawH.
+- **Determinism.** Everything is seeded by position and generated lazily per 1.6 km cell, independently on the main
+  thread, the terrain worker and the world worker. What keeps the threads agreeing: lots and farms only look at things
+  guaranteed to exist first (prepArea), incident roads are sorted by key, farms stay in their own cell. worldbench: a
+  second process generating in the opposite order agrees to 5e-5 m over 20 000 points.
+- **Buildings (models.js on kit.js).** 1980 houses (1-2 storeys, gable / hip, framed windows, doors, porches, chimneys,
+  TV aerials, flower boxes), cottages, terraces with shopfronts, awnings and fascias, the church (nave, chancel, porch,
+  tower with spire or battlements, clock, churchyard), filling station, barns, Dutch barns, silos, tractors, boat sheds,
+  quay walls, timber piers, lobster pots, lighthouses with keeper's cottages, guyed radio masts, phone and post boxes,
+  bus shelters, lamps, signs, war memorials, benches, laundry lines, sheds, woodpiles, garages, parked cars, garden
+  trees; wooden power poles every 45 m along tarmac and lane links with sagging wires.
+- **Chunks (chunkgen.js, worldworker.js, life.js).** 400 m chunks built in a worker: four merged buffers (solid near,
+  solid far, ground overlay near, ground overlay far; 18 bytes a vertex), one draw call each. Near within ~520 m, far to
+  the jet's view (capped 2.3 km), at most two in flight, nearest first. Ground overlays (roads, fields, squares) use a
+  polygon offset, sit on the terrain as drawn (the 4 m lattice, bilinear), and lift a little with distance so the
+  coarser far terrain doesn't swallow them. The zone villages are built at start (fog-of-war patched materials).
+- **Faction structures (structures.js; ships.js buildStructure delegates for hq / factory / fuel / radar).** 1980: HQ
+  bunker in an earth berm (concrete face, blast door, prefab hut, guyed mast, whips, flag), fuel farm (three bunded
+  tanks with ladders, pipes, pump house, a nodding pumpjack), depot (two quonsets, workshop with stove pipe, crates),
+  radar site (AN/TPS-43-style planar array turning on its trailer, radome, shelters on M35s). Military clutter (jeeps,
+  M35s, camo nets, sandbags, generators, floodlights) while we hold it; Land Rover, notice board and flower tubs while
+  it is neutral. RUNAWAY: command node (leaning ceramic monolith, sensor head, fins), siphon spire with spherical tanks,
+  fabricator (maw, sliding gantry arm, vents), sensor spire (tripod, rotating ring array, crystal tip); pale cyan seams.
+  When the machines take a site their structure grows out of the 1980 ruin (9 s, sparks, seams blazing) and RW power
+  pylons go up across the island one by one; when we take it back the machine goes dark and stays as shards round the
+  1980 site, and half the pylons topple. Damaged below 50 % hp (smoke that keeps going, scorch, mast blown over, flag
+  gone, seams flickering); destroyed = the structure's own ruin (no generic rubble). Dressing: helipad windsock (turns
+  to fx.wind, droops in a calm), edge lights, ops shack; a collar over each cave shaft (RUNAWAY ring and leaning pylons /
+  our sandbag ring and floodlights) replacing main.js's placeholder blocks.
+- **Ambient life (ambient.js).** Civilians (instanced, walk cycle in the vertex shader, shirts from the instance colour)
+  walk the verges, go in and out of front doors, and run for their doors at any explosion within ~160-200 m (and stay
+  in a minute). Traffic: saloons, hatchbacks, estates, VW-style vans, pickups, lorries, tractors (on dirt), country
+  buses; keeping right, slowing for bends (2.6 m/s² lateral) and the car in front, carrying on at road ends and turning
+  off at junctions, turning round and leaving when a battle is near, burning out when a shell lands next to them. Moored
+  dinghies and crabbers bob at the piers; trawlers work the fishing grounds offshore (six more in the zone, kept to deep
+  water by the nav grid) with gulls following; cows and sheep in the pastures; up to eight chimneys lit near the camera.
+  A village on a machine-held island is deserted (no people, no smoke, no traffic).
+- **Interfaces for vehicles and AI** (net.js; also on the world object): `roadAt(x, z)` -> { surface 'tarmac'|'dirt',
+  type, kind, bridge, y, road, s, heading, dist, hw } or null; `roadGraph(x, z, r)` -> { roads: [{ id, type, surface,
+  kind, hw, xs, ys, zs, br (bridge per segment), s (arc length), len, junctions: [{ s, road, end }], a, b }], nodes:
+  [{ id, x, y, z, roads: [{ road, end }] }] }; `roadPoint(R, s, lateral)` -> { x, y, z, dx, dz, grade, bridge };
+  `nearestRoad(x, z, maxD)`. Bridge decks are NOT in groundY: a wheeled vehicle must use roadAt(x, z).y on a bridge.
+  Traffic models are swappable: `world.traffic.setModel(kind, { geometry, length })` (instanced; an optional aPaint
+  vertex attribute marks the paint) or `{ object, length }` (cloned per car); kinds saloon, hatch, estate, van, pickup,
+  truck, tractor, bus.
+- **Hooks.** main.js (4 lines marked WORLD): import, createWorldLife after createWar, world.update after
+  updateCamsAndMeshes, clearedAt() keeps the zone trees off the villages. war.js: structAngle (HQ / production slots
+  seeded per island, were random), ud.attach / setSide / onHp / setState / tick when present, dead faction structures
+  stay visible as their ruin, fronts face the pad and sit on a cardinal direction between the AA slots on the diagonals.
+  terrainworker.js: far bake on rawH, forest trees skip clearedAt(). ships.js: delegate.
+- **Numbers.** worldbench (9 km square 3.6 km east of the zone): 18 settlements, 26 farms / 89 fields, 125 km of road,
+  7 bridges, steepest grade 14 %; a new cell costs 10-20 ms on the main thread (the first, cold, ~240 ms; prewarmed only
+  near the wild lands); a 2 km x 4 m terrain bake 54 ms with roads vs 43 raw; chunk build in the worker 5-50 ms; a town
+  chunk ~12k near tris; world main-thread cost 0.1-0.4 ms a frame. worldperf A/B (same run, load average ~70 on the
+  shared box): deck 10.8 -> 9.9 fps, 151 -> 165 calls, 139k -> 147k tris; over a town 6.9 -> 6.5 fps, 106 -> 134 calls,
+  294k -> 327k tris (most of those are the forest). Jet at 300 m over the zone: +34 calls, +9k tris.
+- **Gotchas.** Every ground overlay quad faced down at first (faceW / upW now wind quads by direction); the ES-module
+  cycle world.js <-> net.js <-> layout.js needs lazy references (a top-level `{ hf: ground0 }` hit the TDZ); a piped
+  write cut short by process.exit; a trailing // comment swallowed the rest of a line again (worldperf caught it).
+- **Untested / next.** Wheeled vehicles driving on the roads (roadAt for the surface and bridge decks); AI ground units
+  on the road graph; civilians react to explosions and impacts only (not aircraft overhead); no night lighting; the
+  zone villages are small (the islands are steep and mostly base). A Huey NaN was seen once at the very start of a run
+  at load average ~70, with and without the world (not reproduced).
