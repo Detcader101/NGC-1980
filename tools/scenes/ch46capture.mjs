@@ -33,8 +33,8 @@ export default async function (h) {
   await phase('ground'); await h.shot('05-touchdown');
   await h.eval(`({ phase: __u.rot.AI.phase, off: Math.hypot(__u.p.x - __u.lz.x, __u.p.z - __u.lz.z), sink: __u.rot.S.body.maxSink, landed: __u.rot.S.landed })`);
   await h.expect(`!__u.dead && Math.hypot(__u.p.x - __u.lz.x, __u.p.z - __u.lz.z) < 4`, 'landed on the LZ');
-  await h.waitFor(`__u.rot.squad.holding > 3 || __u.dead`, 30000); await h.shot('06-marines-out');
-  await h.waitFor(`__I.owner === 1 || __u.dead`, 60000);
+  await h.waitFor(`(__u.squadUnit && __u.squadUnit.hp > 3) || __u.rot.squad.holding > 3 || __u.dead`, 60000);   // (GROUND WAR: the Marines are a squad proxy) await h.shot('06-marines-out');
+  await h.waitFor(`__I.owner === 1 || __u.dead`, 150000);
   await h.eval(`({ owner: __I.owner, squads: __G.war.units.filter(u => u.type === 'squad').length, feed: document.getElementById('feed').textContent.slice(0, 200) })`);
   await h.expect(`__I.owner === 1`, 'SANDBAR taken by the Marines');
   await h.shot('07-captured');

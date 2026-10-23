@@ -76,7 +76,7 @@ export function createRotary(ctx) {
   };
   function makeCH46(side, extra) {
     const sp = freeSpot('ch46', side), start = sp ? { x: sp.x, y: sp.y, z: sp.z, yaw: sp.hdg } : { ...homePad(side), yaw: 0 };
-    const I = extra.target, lz = chooseLZ(I, CH46_FOOT);
+    const I = extra.target, lz = (R.ground && R.ground.hotLZ(I, side, CH46_FOOT, chooseLZ)) || chooseLZ(I, CH46_FOOT);   // GROUND WAR hook: a hot island: land away from the fighting
     const u = { type: 'drone', kind: 'ch46', side, p: new THREE.Vector3(start.x, start.y + 2, start.z), v: new THREE.Vector3(), yaw: start.yaw, hp: 10, hpMax: 10, r: 7, cd: 0, ph: 0, state: 'go', landed: false, ...extra };
     const spot = sp ? [sp.lx, sp.lz] : null;
     const home = () => { const c = carrierOf(side); return c && spot ? deckSpot(c, spot[0], spot[1]) : homePad(side); };
@@ -85,7 +85,7 @@ export function createRotary(ctx) {
     u.lz = lz; u.rot = U; u.mesh = U.model.group;
     // the Marines become a ground unit of their own when they come off the ramp
     const unload = U.AI.hooks.unload;
-    U.AI.hooks.unload = (ai, dt) => { const done = unload(ai, dt); if (U.deployed && !u.squadUnit) { u.squadUnit = addSquad(U.squad, side, u.target, 9); U.squadExternal = true; } return done; };
+    U.AI.hooks.unload = (ai, dt) => { const done = unload(ai, dt); if (U.deployed && !u.squadUnit) { u.squadUnit = R.ground ? R.ground.landing(u, U, side, u.target) : addSquad(U.squad, side, u.target, 9);   /* GROUND WAR hook: the Marines fight as a squad */ U.squadExternal = true; } return done; };
     return u;
   }
   // RUNAWAY MV-22 with 12 machine troopers: off the KRAKEN (or IRONHOLD's pad), takes islands for the enemy commander
@@ -94,12 +94,12 @@ export function createRotary(ctx) {
     const u = { type: 'transport', kind: 'mv22', side, p: new THREE.Vector3(start.x, start.y + 2, start.z), v: new THREE.Vector3(), yaw: start.yaw, hp: 12, hpMax: 12, r: 7.5, cd: 0, ph: 0, state: 'go', landed: false, ...extra };
     const spot = sp ? [sp.lx, sp.lz] : null;
     const home = () => { const c = carrierOf(side); return c && spot ? deckSpot(c, spot[0], spot[1]) : homePad(side); };
-    u.lz = chooseLZ(u.target, MV22_FOOT);
+    u.lz = (R.ground && R.ground.hotLZ(u.target, side, MV22_FOOT, chooseLZ)) || chooseLZ(u.target, MV22_FOOT);   // GROUND WAR hook
     const U = createMV22Unit({ parent: scene, env, world, lz: () => u.lz, home, pad: u.target.pad, start, squad: 12,
       onParked: () => { u.dead = true; u.stowed = true; if (!U.squadExternal) U.squad.dispose(); } });
     u.rot = U; u.mesh = U.model.group;
     const unload = U.AI.hooks.unload;
-    U.AI.hooks.unload = (ai, dt) => { const done = unload(ai, dt); if (U.deployed && !u.squadUnit) { u.squadUnit = addSquad(U.squad, side, u.target, 10); U.squadExternal = true; } return done; };
+    U.AI.hooks.unload = (ai, dt) => { const done = unload(ai, dt); if (U.deployed && !u.squadUnit) { u.squadUnit = R.ground ? R.ground.landing(u, U, side, u.target) : addSquad(U.squad, side, u.target, 10);   /* GROUND WAR hook: the troopers come off the ramp as STRIDERs */ U.squadExternal = true; } return done; };
     return u;
   }
   // RW-3 WASP (replaces the saucer gunship): war.js's spawnGunship sets id / home / raid / target after this returns
@@ -136,7 +136,7 @@ export function createRotary(ctx) {
   function updateTransport(u, U, dt) {
     const S = U.S, I = u.target;
     // mission changes: target taken by us already before the Marines got there -> home with them aboard
-    if (!u.dying && I && I.owner === u.side && !U.deployed && !['rtb', 'descend2', 'parked'].includes(U.AI.phase)) {
+    if (!u.dying && I && I.owner === u.side && !u.reinforce && !U.deployed && !['rtb', 'descend2', 'parked'].includes(U.AI.phase)) {
       // the enemy commander re-tasks its Osprey to the next island; ours bring the Marines home
       const next = u.side === 2 && W.pickExpansion ? W.pickExpansion() : null;
       if (next && !next.cave) { u.target = next; u.lz = chooseLZ(next, MV22_FOOT); U.setPad && U.setPad(next.pad); if (['ground', 'descend'].includes(U.AI.phase)) U.AI.set('lift2'); else U.AI.set('transit'); }
@@ -299,6 +299,6 @@ export function createRotary(ctx) {
   };
   R.reset = () => { for (const s of R.squads) s.Q.dispose(); R.squads.length = 0; };
   R.snd = snd;
-  R.chooseLZ = chooseLZ; R.env = env; R.root = root;
+  R.chooseLZ = chooseLZ; R.env = env; R.root = root; R.FOOT = { ch46: CH46_FOOT, mv22: MV22_FOOT };   // (FOOT: the GROUND WAR's hot-LZ choice)
   return R;
 }
