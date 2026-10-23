@@ -1,4 +1,4 @@
-// NGC-1980 infantry: exterior and terminal ballistics. PURE: plain JS, no THREE, no DOM, no game imports (runs in node).
+// NGC-1980 infantry: projectile flight and a game table for hits. PURE: plain JS, no THREE, no DOM, no game imports (runs in node).
 //
 // Exterior: 3-DOF point mass. Drag from the standard G1 / G7 drag functions (Cd vs Mach, the Ingalls/Mayevski G1 and
 // the BRL G7 tables as tabulated by McCoy, "Modern Exterior Ballistics", 1999) scaled by a published ballistic
@@ -8,8 +8,8 @@
 // Integration: Heun (2nd order), allocation-free, so the game can step every live round each frame.
 // Not modelled: spin drift, aerodynamic jump, Coriolis, yaw of repose (point mass), transonic instability.
 //
-// Terminal: penetration by De Marre (hard plates) or energy per presented area (soft media), ricochet by grazing angle,
-// and the HIT INFO structure the medical / damage model (MEDINV) consumes. See makeHitInfo().
+// Hits: a GAME TABLE (penetration power vs material resistance, ricochet by grazing angle) tuned for play, and the
+// HIT INFO structure the medical / damage model (MEDINV) consumes. See makeHitInfo().
 //
 // Units: SI everywhere (m, s, kg, J, Pa, deg C, hPa for pressure). World axes: three.js style, +y up.
 
@@ -67,53 +67,20 @@ export function atmosphere({ T = 15, p = 1013.25, rh = 0.5, alt = 0, wind = null
 export const STD_ATMOS = atmosphere({ T: 15, p: 1013.25, rh: 0 });
 
 // ------------------------------------------------------------------------------------------------ ammunition
-// cal (m), mass = projectile mass (kg), cart = complete cartridge mass (kg), mv = nominal muzzle velocity (m/s) from the
-// issue weapon, mvSd = shot-to-shot standard deviation, drag model + BC (lb/in^2) or { cd, area }.
-// core: 'lead' (FMJ lead core), 'pistol' (blunt FMJ), 'heat' (shaped charge), 'hedp' (dual purpose grenade).
-// Sources: TM 43-0001-27 (Army ammunition data sheets, small calibre), FM 23-9 (M16A1, 1974), FM 23-67 (M60, 1964/84),
-// FM 23-35 (pistols, 1971), FM 23-31 (M203/M79, 1972), FM 23-33 (M72A1/A2 LAW, 1977).
+// Headline figures only (muzzle velocity, bullet / cartridge mass, maximum range from the weapons' field manuals);
+// drag coefficients are fitted so the flight and the maximum range come out right. Everything the round does on
+// arrival (pen, dmg, blast) is a GAME TABLE, tuned for play, not a real-world terminal model.
+// cal (m), mass = projectile (kg), cart = cartridge (kg, for carried weight), mv (m/s), mvSd = shot-to-shot spread.
+// pen: game penetration power (see MATERIALS.res), dmg: game damage scale for MEDINV (rifle ball = 1).
 export const ROUNDS = {
-  M193: {   // 5.56x45 Ball M193: 55 gr FMJBT lead core, 3,250 fps from the 20 in M16A1 barrel
-    name: '5.56mm Ball M193', cal: 0.00556, mass: 0.003564, cart: 0.0118, mv: 991, mvSd: 6,   // mv CONFIRMED (TM 43-0001-27: 3,250 fps); mass CONFIRMED (55 gr); cart INFERRED (~182 gr)
-    model: 'G7', bc: 0.120,             // INFERRED: G7 0.120 (Litz-style G7 for 55 gr FMJBT; G1 equivalent ~0.24). G7 tracks the
-                                        // published maximum range better than G1 (+8% vs +16%, see the bench)
-    core: 'lead', fragV: 823,           // INFERRED: M193 yaws and fragments in tissue above ~2,700 fps impact (Fackler, Letterman Army Inst. 1980s)
-    maxRange: 2653,                     // CONFIRMED: FM 23-9 (M16A1 maximum range 2,653 m)
-  },
-  M196: {   // 5.56 tracer M196 (red, burnout ~ 450 m), same ballistics as M193 to the eye
-    name: '5.56mm Tracer M196', cal: 0.00556, mass: 0.00350, cart: 0.0117, mv: 991, mvSd: 7, model: 'G7', bc: 0.115, core: 'lead', fragV: 823,
-    tracer: 450,                        // INFERRED: M196 trace visible to ~450 m (TM 43-0001-27 lists 450 m)
-  },
-  M80: {    // 7.62x51 Ball M80: 147 gr FMJBT, 2,800 fps from the M60
-    name: '7.62mm Ball M80', cal: 0.00782, mass: 0.00953, cart: 0.0254, mv: 853, mvSd: 6,   // mv CONFIRMED (FM 23-67 / TM 43-0001-27 2,750-2,800 fps); mass CONFIRMED (147 gr)
-    model: 'G7', bc: 0.200,             // INFERRED: 147 gr M80 G7 ~0.20 (G1 ~0.39-0.40, Litz / Sierra)
-    core: 'lead', fragV: 2000,          // M80 yaws but rarely fragments: no fragmentation threshold in the combat envelope
-    maxRange: 3725,                     // CONFIRMED: FM 23-67 (M60 maximum range 3,725 m)
-  },
-  M62: {    // 7.62 tracer M62 (4 ball : 1 tracer in M60 belts), trace to 900 m
-    name: '7.62mm Tracer M62', cal: 0.00782, mass: 0.00926, cart: 0.0248, mv: 838, mvSd: 7, model: 'G7', bc: 0.19, core: 'lead', fragV: 2000,
-    tracer: 900,                        // CONFIRMED: FM 23-67 (tracer burns out at ~900 m)
-  },
-  M1911: {  // .45 ACP Ball M1911: 230 gr FMJ round nose, 830 fps
-    name: '.45 Ball M1911', cal: 0.01143, mass: 0.0149, cart: 0.0213, mv: 253, mvSd: 5,   // mv CONFIRMED (FM 23-35: 830 fps); mass CONFIRMED (230 gr)
-    model: 'G1', bc: 0.16,              // INFERRED: 230 gr FMJ RN G1 ~0.15-0.19
-    core: 'pistol', fragV: 9999,
-    maxRange: 1500,                     // CONFIRMED: FM 23-35 (M1911A1 maximum range 1,500 m)
-  },
-  M433: {   // 40x46 mm HEDP M433 (M203 / M79): spin stabilised, 250 fps
-    name: '40mm HEDP M433', cal: 0.040, mass: 0.180, cart: 0.230, mv: 76, mvSd: 1.2,   // mv CONFIRMED (FM 23-31: 76 m/s); cart CONFIRMED (~0.23 kg); projectile INFERRED
-    model: 'CD', cd: 0.26,              // INFERRED: fitted so the maximum range is ~400 m (FM 23-31 maximum range 400 m)
-    core: 'hedp', arm: [14, 27],        // CONFIRMED: FM 23-31, arms between 14 and 27 m from the muzzle
-    heatPen: 50, killR: 5, casualtyR: 15,   // CONFIRMED: penetrates 2 in (50 mm) of steel; 5 m kill radius (FM 23-31). casualtyR INFERRED
-    maxRange: 400,                      // CONFIRMED: FM 23-31
-  },
-  M72: {    // 66 mm HEAT M72A2 rocket: motor burns out inside the tube, fin stabilised, 475 fps
-    name: '66mm HEAT M72A2', cal: 0.066, mass: 1.0, cart: 1.0, mv: 145, mvSd: 2,   // mv CONFIRMED (FM 23-33: 145 m/s); rocket mass INFERRED (~1.0 kg)
-    model: 'CD', cd: 0.40,              // INFERRED: fitted so the maximum range is ~1,000 m (FM 23-33 maximum range 1,000 m)
-    core: 'heat', arm: [10, 10],        // INFERRED: arms ~10 m from the muzzle
-    heatPen: 300, killR: 1.5, casualtyR: 8,   // UNVERIFIED: 300 mm RHA is the commonly quoted M72A2 figure (FM 23-33 says "up to 12 in")
-    maxRange: 1000,                     // CONFIRMED: FM 23-33
-  },
+  M193:  { name: '5.56mm Ball M193', cal: 0.00556, mass: 0.00356, cart: 0.0118, mv: 991, mvSd: 6, model: 'G7', bc: 0.120, pen: 10, dmg: 1.0, maxRange: 2653 },
+  M196:  { name: '5.56mm Tracer M196', cal: 0.00556, mass: 0.00350, cart: 0.0117, mv: 991, mvSd: 7, model: 'G7', bc: 0.115, pen: 9, dmg: 0.95, tracer: 450 },
+  M80:   { name: '7.62mm Ball M80', cal: 0.00782, mass: 0.00953, cart: 0.0254, mv: 853, mvSd: 6, model: 'G7', bc: 0.200, pen: 16, dmg: 1.4, maxRange: 3725 },
+  M62:   { name: '7.62mm Tracer M62', cal: 0.00782, mass: 0.00926, cart: 0.0248, mv: 838, mvSd: 7, model: 'G7', bc: 0.19, pen: 15, dmg: 1.35, tracer: 900 },
+  M1911: { name: '.45 Ball M1911', cal: 0.01143, mass: 0.0149, cart: 0.0213, mv: 253, mvSd: 5, model: 'G1', bc: 0.16, pen: 3, dmg: 0.9, maxRange: 1500 },
+  // the grenade and the rocket: fitted drag (max ranges 400 m / 1,000 m); explode on impact once armed (game values)
+  M433:  { name: '40mm HEDP M433', cal: 0.040, mass: 0.180, cart: 0.230, mv: 76, mvSd: 1.2, model: 'CD', cd: 0.26, explosive: true, arm: [14, 27], blast: { r: 5, rMax: 12, armour: 2 }, maxRange: 400 },
+  M72:   { name: '66mm M72A2 rocket', cal: 0.066, mass: 1.0, cart: 1.0, mv: 145, mvSd: 2, model: 'CD', cd: 0.40, explosive: true, arm: [10, 10], blast: { r: 2, rMax: 8, armour: 10 }, maxRange: 1000 },
 };
 for (const [k, r] of Object.entries(ROUNDS)) {
   r.key = k; r.area = PI * r.cal * r.cal / 4;
@@ -235,81 +202,54 @@ export function maxRange(round, o = {}) {
   return { range: Math.max(fc, fd), angle: (a + b) / 2 };
 }
 
-// ------------------------------------------------------------------------------------------------ terminal
-// Materials. Hard plates: perforation thickness by De Marre, t = C * f * (m v^2 / d^1.5)^0.714 / hard (mm), calibrated so
-// the M1 helmet (1.12 mm Hadfield manganese steel) just stops a .45 ACP ball at 800 fps: CONFIRMED anchor (the M1 shell
-// spec / WWII acceptance test: resist .45 ACP at 800 ft/s). Soft media: depth = f * E / (A * res) (mm), res values tuned
-// to the order of FM 5-103 (Survivability, 1985) protection thicknesses: UNVERIFIED.
-// ricochet: grazing angle (deg) below which a hit glances off; keep: velocity fraction kept on a ricochet. INFERRED.
+// ------------------------------------------------------------------------------------------------ terminal (GAME TABLE)
+// What happens when a round arrives is a game table, tuned for play (cover that works, cover that doesn't):
+//   power = pen * (v / mv)  (a round loses punch as it slows)
+//   a surface of `res` per 10 cm stops it if thickness * res / 100 >= power; otherwise it goes through and loses that much
+//   ricochet: glancing hits (below the material's angle) may skip off
+// res values are "how good is this as cover" knobs, not material science.
 export const MATERIALS = {
-  rha:        { kind: 'plate', hard: 1.00, ricochet: 25, keep: 0.6 },   // rolled homogeneous armour (tanks)
-  hadfield:   { kind: 'plate', hard: 0.88, ricochet: 20, keep: 0.6 },   // M1 helmet shell steel
-  steel:      { kind: 'plate', hard: 0.55, ricochet: 22, keep: 0.6 },   // mild steel (targets, vehicle bodies, plates)
-  sheet:      { kind: 'plate', hard: 0.45, ricochet: 12, keep: 0.7 },   // car / truck sheet metal
-  aluminium:  { kind: 'plate', hard: 0.30, ricochet: 15, keep: 0.6 },
-  nylon:      { kind: 'plate', hard: 0.42, ricochet: 0, keep: 0 },      // M1955 flak vest: ballistic nylon (fragments, pistol)
-  glass:      { kind: 'plate', hard: 0.15, ricochet: 8, keep: 0.8 },
-  wood:       { kind: 'soft', res: 1.6e5, ricochet: 8, keep: 0.5 },    // pine, J per m^2 per mm
-  soil:       { kind: 'soft', res: 3.2e5, ricochet: 12, keep: 0.4 },
-  sandbag:    { kind: 'soft', res: 3.6e5, ricochet: 10, keep: 0.4 },
-  brick:      { kind: 'soft', res: 1.1e6, ricochet: 15, keep: 0.4 },
-  concrete:   { kind: 'soft', res: 2.0e6, ricochet: 18, keep: 0.45 },
-  water:      { kind: 'fluid', rho: 1000, breakup: 2.5, ricochet: 7, keep: 0.7 },   // fast rifle bullets break up in water
-  flesh:      { kind: 'fluid', rho: 1060, breakup: 1, ricochet: 0, keep: 0 },     // through-and-through checks only; wounds are MEDINV's
+  armour:   { res: 400, ricochet: 25, keep: 0.6 },   // vehicle armour: small arms never go through
+  steel:    { res: 200, ricochet: 22, keep: 0.6 },    // plates, steel targets, hulks
+  sheet:    { res: 25, ricochet: 12, keep: 0.7 },    // car / truck bodywork
+  helmet:   { res: 30, ricochet: 30, keep: 0.6 },    // game armour layers (MEDINV decides what they do)
+  vest:     { res: 12, ricochet: 0, keep: 0 },
+  glass:    { res: 5, ricochet: 8, keep: 0.8 },
+  wood:     { res: 1.2, ricochet: 8, keep: 0.5 },
+  soil:     { res: 5.0, ricochet: 12, keep: 0.4 },
+  sandbag:  { res: 6.0, ricochet: 10, keep: 0.4 },
+  brick:    { res: 8, ricochet: 15, keep: 0.4 },
+  concrete: { res: 14, ricochet: 18, keep: 0.45 },
+  water:    { res: 0.6, ricochet: 7, keep: 0.7 },
+  flesh:    { res: 4, ricochet: 0, keep: 0 },      // through-and-through check only
 };
-// calibrated (see above): .45 ball (pistol core factor 1) at 243.8 m/s (800 fps) -> exactly 1.12 mm of Hadfield steel
-const demarreX = (m, v, d) => Math.pow(m * v * v / Math.pow(d, 1.5), 0.714);
-const DEMARRE_C = 1.12 * 0.88 / demarreX(0.0149, 243.84, 0.01143);
-// core factors: how well the round's core penetrates hard plate / soft media relative to a rigid blunt slug
-// INFERRED: lead-core rifle bullets deform on steel (0.5); a slow blunt pistol slug does not deform in wood or earth, so
-// it goes ~6x deeper than its energy alone suggests (fitted: .45 ball ~150 mm of pine, the old Ordnance pine-board figure, UNVERIFIED)
-const CORE = { lead: [0.5, 1.0], pistol: [1.0, 6.0], ap: [1.6, 1.3], hedp: [1, 1], heat: [1, 1] };
-// thickness (mm) of `material` this round defeats at speed v (normal incidence)
-export function penetration(round, v, material) {
-  const R = typeof round === 'string' ? ROUNDS[round] : round, M = typeof material === 'string' ? MATERIALS[material] : material;
-  if (R.core === 'heat' || R.core === 'hedp') return M.kind === 'plate' ? R.heatPen / M.hard : R.heatPen * 4 * (1.1e6 / (M.res || 2e5));   // shaped charge jet: velocity independent
-  const cf = CORE[R.core] || CORE.lead;
-  // lead cores mushroom on hard plate, more the faster they hit (0.5 at >= 700 m/s rising to 1 at <= 300 m/s): INFERRED
-  if (M.kind === 'plate') return DEMARRE_C * (R.core === 'lead' ? cf[0] + (1 - cf[0]) * Math.min(1, Math.max(0, (700 - v) / 400)) : cf[0]) * demarreX(R.mass, v, R.cal) / M.hard;
-  // fluids (water, tissue): drag penetration x = 2 (m/A) / (rho Cd) ln(v / 30 m/s); Cd 0.6 for a stable blunt pistol
-  // bullet, 1.0 for a yawing rifle bullet, 2.0 once it fragments; fast rifle bullets break up in water (x breakup).
-  // INFERRED: gives ~0.6-0.9 m of tissue for .45 / M80, ~0.4 m for fragmenting M193, < 1 m of water for rifles.
-  if (M.kind === 'fluid') {
-    const cdE = (R.core === 'pistol' ? 0.6 : v > R.fragV ? 2 : 1) * (R.core !== 'pistol' && v > 500 ? M.breakup : 1);
-    return v <= 30 ? 0 : 1000 * 2 * (R.mass / R.area) / (M.rho * cdE) * Math.log(v / 30);
-  }
-  // soft media: energy per presented area, weighted by sectional density (long heavy bullets go deeper); M193 above
-  // its fragmentation speed breaks up and goes LESS deep up close (FM 90-10-1: 5.56 penetrates masonry best at ~200 m)
-  const sd = Math.sqrt(R.mass / (R.cal * R.cal) / 156), frag = v > R.fragV ? 0.5 : 1;
-  return cf[1] * sd * frag * energy(R, v) / (R.area * M.res);
-}
-// impact of a live projectile on a surface: normal (unit, facing the shooter), material, thickness (mm) of the
-// obstacle. Mutates P (velocity/direction) and returns { result: 'stop' | 'pen' | 'ricochet', v0, v1, grazing (deg) }.
-// rng() -> [0,1). Penetrations leave with the residual energy (E1 = E0 (1 - t / tmax)) and a small deflection.
+const matOf = m => typeof m === 'string' ? (MATERIALS[m] || MATERIALS.soil) : m;
+export const power = (round, v) => { const R = typeof round === 'string' ? ROUNDS[round] : round; return (R.pen || 0) * Math.max(0, v / R.mv); };
+// thickness (mm) of a material the round goes through at speed v
+export function penetration(round, v, material) { const p = power(round, v), M = matOf(material); return p * 100 / M.res; }
+// impact on a surface: normal (unit, facing the shooter), material, thickness (mm). Mutates P; returns
+// { result: 'stop' | 'pen' | 'ricochet' | 'detonate', v0, v1, grazing (deg) }.
 export function impact(P, nx, ny, nz, material, thickness = 1e9, rng = Math.random) {
-  const R = P.round, M = typeof material === 'string' ? MATERIALS[material] : material, v0 = P.v || Math.hypot(P.vx, P.vy, P.vz);
-  const ux = P.vx / v0, uy = P.vy / v0, uz = P.vz / v0, cosI = -(ux * nx + uy * ny + uz * nz);   // cos of the angle to the normal
+  const R = P.round, M = matOf(material), v0 = P.v || Math.hypot(P.vx, P.vy, P.vz);
+  const ux = P.vx / v0, uy = P.vy / v0, uz = P.vz / v0, cosI = -(ux * nx + uy * ny + uz * nz);
   const grazing = 90 - Math.acos(Math.max(-1, Math.min(1, cosI))) * 180 / PI;
   const out = { result: 'stop', v0, v1: 0, grazing };
-  if (R.core === 'heat' || R.core === 'hedp') { P.alive = false; out.result = 'detonate'; return out; }
-  // ricochet: likely below the critical grazing angle, never above 1.5x it
+  if (R.explosive) { P.alive = false; out.result = P.armed ? 'detonate' : 'dud'; return out; }
   if (M.ricochet > 0 && grazing < M.ricochet * 1.5) {
     const pr = grazing < M.ricochet ? 0.85 - 0.5 * grazing / M.ricochet : 0.35 * (1.5 - grazing / M.ricochet) / 0.5;
     if (rng() < pr) {
       const d = 2 * (ux * nx + uy * ny + uz * nz);
       let rx = ux - d * nx, ry = uy - d * ny, rz = uz - d * nz;
-      // the outgoing path is flatter than the incoming (pulls toward the surface) and scattered
-      const pull = 0.5; rx -= nx * (rx * nx + ry * ny + rz * nz) * pull; ry -= ny * (rx * nx + ry * ny + rz * nz) * pull; rz -= nz * (rx * nx + ry * ny + rz * nz) * pull;
-      const s = 0.12; rx += (rng() - 0.5) * s; ry += (rng() - 0.5) * s * 0.5; rz += (rng() - 0.5) * s;
+      const dn = (rx * nx + ry * ny + rz * nz) * 0.5; rx -= nx * dn; ry -= ny * dn; rz -= nz * dn;   // skips off flatter
+      rx += (rng() - 0.5) * 0.12; ry += (rng() - 0.5) * 0.06; rz += (rng() - 0.5) * 0.12;
       const rn = Math.hypot(rx, ry, rz), v1 = v0 * M.keep * (0.8 + 0.2 * rng());
       P.vx = rx / rn * v1; P.vy = ry / rn * v1; P.vz = rz / rn * v1; P.v = v1; P.rics++;
       Object.assign(out, { result: 'ricochet', v1 }); return out;
     }
   }
-  // penetration: effective thickness grows with obliquity
   const tEff = thickness / Math.max(0.2, cosI), tMax = penetration(R, v0, M);
   if (tMax > tEff) {
-    const v1 = v0 * Math.sqrt(1 - tEff / tMax), s = 0.04 + 0.1 * (tEff / tMax);
+    const v1 = v0 * (1 - tEff / tMax), s = 0.04 + 0.1 * (tEff / tMax);
     let rx = ux + (rng() - 0.5) * s, ry = uy + (rng() - 0.5) * s, rz = uz + (rng() - 0.5) * s; const rn = Math.hypot(rx, ry, rz);
     P.vx = rx / rn * v1; P.vy = ry / rn * v1; P.vz = rz / rn * v1; P.v = v1; P.pens++;
     Object.assign(out, { result: 'pen', v1 }); return out;
@@ -319,31 +259,24 @@ export function impact(P, nx, ny, nz, material, thickness = 1e9, rng = Math.rand
 
 // ------------------------------------------------------------------------------------------------ hit info
 // THE CONTRACT WITH THE MEDICAL / DAMAGE MODEL (MEDINV). One object per projectile strike on a body:
-// {
-//   kind: 'bullet' | 'fragment' | 'blast',
-//   round: 'M193' | 'M80' | ... (ROUNDS key), name, calibre (m), mass (kg),
-//   velocity (m/s at impact), energy (J), momentum (N s),
-//   dir: [x, y, z] unit travel direction, point: [x, y, z] world impact point,
-//   range (m travelled), part: 'head' | 'neck' | 'thorax' | 'stomach' | 'armL' | 'armR' | 'legL' | 'legR' (soldiermodel HITBOXES),
-//   penetratedArmour: [{ material, thickness }] (helmet / vest it went through first), stopped: bool (armour stopped it),
-//   fragments: bool (M193 above ~823 m/s yaws and breaks up: bigger wound), tracer: bool,
-//   ownerId, side, time (s of flight)
-// }
+// { kind: 'bullet', round (ROUNDS key), name, calibre (m), velocity (m/s), dmg (game damage scale: round.dmg x v/mv),
+//   dir: [x, y, z] unit travel direction, point: [x, y, z] world impact point, range (m travelled),
+//   part: 'head' | 'neck' | 'thorax' | 'stomach' | 'armL' | 'armR' | 'legL' | 'legR' (soldiermodel HITBOXES),
+//   armour: [{ material, thickness, stopped }] layers it met first (helmet, vest) - MEDINV decides their effect,
+//   stopped: bool, tracer: bool, ownerId, side, time (s of flight) }
 export function makeHitInfo(P, part, px, py, pz, extra = {}) {
   const R = P.round, v = P.v;
   return {
-    kind: extra.kind || 'bullet', round: R.key, name: R.name, calibre: R.cal, mass: R.mass,
-    velocity: v, energy: energy(R, v), momentum: R.mass * v,
+    kind: extra.kind || 'bullet', round: R.key, name: R.name, calibre: R.cal, velocity: v, dmg: (R.dmg || 1) * Math.min(1.1, v / R.mv),
     dir: [P.vx / v, P.vy / v, P.vz / v], point: [px, py, pz], range: P.dist, part,
-    penetratedArmour: extra.armour || [], stopped: !!extra.stopped, fragments: v > R.fragV, tracer: !!R.tracer,
-    ownerId: P.owner, side: P.side, time: P.t,
+    armour: extra.armour || [], stopped: !!extra.stopped, tracer: !!R.tracer, ownerId: P.owner, side: P.side, time: P.t,
   };
 }
-// explosion description for HEDP / HEAT detonations (the host applies blast + fragments to everything in range)
+// explosion description for the 40 mm grenade / LAW rocket (game values: the host applies it to everything in range)
 export function explosionInfo(P, x, y, z) {
-  const R = P.round;
-  return { kind: 'explosion', round: R.key, name: R.name, point: [x, y, z], armed: P.armed, killRadius: P.armed ? R.killR : 0,
-    casualtyRadius: P.armed ? R.casualtyR : 0, heatPen: P.armed ? R.heatPen : 0, ownerId: P.owner, side: P.side, dud: !P.armed };
+  const R = P.round, b = R.blast || { r: 0, rMax: 0, armour: 0 };
+  return { kind: 'explosion', round: R.key, name: R.name, point: [x, y, z], dud: !P.armed, radius: P.armed ? b.r : 0, radiusMax: P.armed ? b.rMax : 0,
+    armourDamage: P.armed ? b.armour : 0, ownerId: P.owner, side: P.side };
 }
 
 // ------------------------------------------------------------------------------------------------ misc

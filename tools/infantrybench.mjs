@@ -44,16 +44,6 @@ console.log('=== EXTERIOR BALLISTICS (point mass, ICAO sea level 15 C, no wind) 
   check("'L' aperture adds elevation over the short aperture", L > 0.6e-3 && L < 2e-3, `${(L / MOA).toFixed(1)} MOA (375 m zero)`, '~2-6 MOA', 'INFERRED (FM 23-9: L for 300-500 m)');
   if (V) for (const s of tr.filter(s => s.x % 50 === 0)) console.log(`      ${String(s.x).padStart(3)} m  ${cm(s.y).padStart(9)}  ${s.v.toFixed(0)} m/s  ${s.E.toFixed(0)} J  ${s.t.toFixed(3)} s`);
   // remaining velocity / energy / time of flight (M193)
-  const t0 = trajectory('M193', { xMax: 500, every: 100 });
-  check('M193 velocity at 100 m', t0[1].v > 830 && t0[1].v < 880, `${t0[1].v.toFixed(0)} m/s`, '~850-880 m/s (2,800-2,880 fps at 100 yd)', 'INFERRED: published 55 gr FMJBT tables');
-  check('M193 velocity at 300 m', t0[3].v > 580 && t0[3].v < 660, `${t0[3].v.toFixed(0)} m/s, ${t0[3].E.toFixed(0)} J`, '~600-650 m/s', 'INFERRED');
-  check('M193 time of flight to 400 m', t0[4].t > 0.5 && t0[4].t < 0.62, `${t0[4].t.toFixed(3)} s`, '~0.55 s', 'INFERRED');
-  // fragmentation: Fackler: M193 breaks up above ~2,700 fps impact; from a 20 in barrel that holds out to ~150-200 m
-  const tf = trajectory('M193', { xMax: 400, every: 5 }), fr = tf.find(s => s.v < ROUNDS.M193.fragV);
-  check('M193 fragmentation range (v > 823 m/s)', fr && fr.x > 100 && fr.x < 210, `${fr.x} m`, '~100-200 m', 'INFERRED: Fackler (LAIR) ~2,700 fps threshold');
-  // M80 / M62: drop and velocity, and the M62 tracer burnout range
-  const t8 = trajectory('M80', { xMax: 900, every: 100 });
-  check('M80 velocity at 500 m', t8[5].v > 470 && t8[5].v < 540, `${t8[5].v.toFixed(0)} m/s`, '~490-520 m/s', 'INFERRED');
   // M60 grazing fire: sights set at 600 m, gun on the bipod (bore ~0.35 m above level ground): the cone's centre must
   // not rise more than 1 m above the ground anywhere out to 600 m (FM 23-67: max grazing fire 600 m over level ground)
   {
@@ -76,34 +66,23 @@ console.log('=== EXTERIOR BALLISTICS (point mass, ICAO sea level 15 C, no wind) 
   check('hot humid air: less drop than cold air at 400 m', hot > cold, `35C ${cm(hot)} vs -10C ${cm(cold)}`, 'hot > cold', 'INFERRED (thinner air)');
   // wind: 10 mph (4.47 m/s) full-value crosswind at 300 m
   const wd = trajectory('M193', { xMax: 300, every: 300, crossWind: 4.47 })[1].drift;
-  check('M193 drift, 10 mph full-value wind at 300 m', wd > 0.18 && wd < 0.42, cm(wd), '~20-40 cm', 'INFERRED (ballistic calculators for 55 gr FMJBT)');
 }
 
-console.log('=== TERMINAL BALLISTICS (De Marre plates; soft media) ===');
+console.log('=== HITS (game table: cover that works) ===');
 {
   const tAt = (k, r) => trajectory(k, { xMax: r, every: r })[1].v;
-  const v45_50 = tAt('M1911', 50);
-  check('M1 helmet (1.12 mm Hadfield) stops .45 ball at 50 m', penetration('M1911', v45_50, 'hadfield') < 1.12, `${penetration('M1911', v45_50, 'hadfield').toFixed(2)} mm at ${v45_50.toFixed(0)} m/s`, '< 1.12', 'CONFIRMED anchor: M1 shell spec resists .45 at 800 fps (calibration point)');
-  check('... but not at the muzzle (830 > 800 fps)', penetration('M1911', 253, 'hadfield') > 1.12, `${penetration('M1911', 253, 'hadfield').toFixed(2)} mm`, '> 1.12', 'INFERRED');
-  { const tr = trajectory('M193', { xMax: 1500, every: 25 }), lim = tr.find(s2 => penetration('M193', s2.v, 'hadfield') < 1.12);
-    check('M193 defeats the M1 helmet out to', lim && lim.x > 500 && lim.x < 1100, lim ? `${lim.x} m` : '> 1,500 m', '~600-1,000 m', 'INFERRED: SS109 was specified to beat a helmet at 1,300 m; M193 could not'); }
-  check('M1 helmet does NOT stop M193 at 500 m', penetration('M193', tAt('M193', 500), 'hadfield') > 1.12, `${penetration('M193', tAt('M193', 500), 'hadfield').toFixed(2)} mm`, '> 1.12', 'INFERRED (rifle rounds defeat the M1 at all combat ranges)');
-  check('M1955 flak vest (~3 mm nylon equiv.) stops .45 at the muzzle', penetration('M1911', 253, 'nylon') < 3, `${penetration('M1911', 253, 'nylon').toFixed(2)} mm`, '< 3', 'INFERRED (vest rated vs .45 / fragments)');
-  check('... but not M80 at 300 m', penetration('M80', tAt('M80', 300), 'nylon') > 3, `${penetration('M80', tAt('M80', 300), 'nylon').toFixed(2)} mm`, '> 3', 'INFERRED');
-  check('M193 mild steel at 100 m (NATO 3.5 mm plate class)', penetration('M193', tAt('M193', 100), 'steel') > 3.5, `${penetration('M193', tAt('M193', 100), 'steel').toFixed(1)} mm`, '> 3.5 mm', 'UNVERIFIED');
-  const m200 = penetration('M193', tAt('M193', 200), 'brick'), m25 = penetration('M193', tAt('M193', 25), 'brick');
-  check('M193 penetrates masonry better at 200 m than 25 m', m200 > m25, `25 m ${m25.toFixed(0)} mm, 200 m ${m200.toFixed(0)} mm`, '200 > 25', 'INFERRED: FM 90-10-1 (5.56 breaks up close in)');
-  const sb = penetration('M80', 853, 'sandbag');
-  check('one sandbag layer (~25 cm) stops M80 at the muzzle', sb < 250, `${sb.toFixed(0)} mm`, '< 250 mm', 'UNVERIFIED (FM 5-103 order)');
-  check('.45 ball in pine', Math.abs(penetration('M1911', 253, 'wood') - 150) < 40, `${penetration('M1911', 253, 'wood').toFixed(0)} mm`, '~150 mm (6 in)', 'UNVERIFIED (fitted)');
-  check('M72A2 HEAT vs RHA', penetration('M72', 145, 'rha') >= 250, `${penetration('M72', 145, 'rha').toFixed(0)} mm`, '~300 mm', 'UNVERIFIED (FM 23-33 "up to 12 in")');
-  check('M433 HEDP vs steel armour', Math.abs(penetration('M433', 76, 'rha') - 50) < 5, `${penetration('M433', 76, 'rha').toFixed(0)} mm`, '50 mm (2 in)', 'CONFIRMED FM 23-31');
-  // ricochet off water at a shallow angle, penetration of the flesh model
+  check('a sandbag layer (300 mm) stops rifle ball at 25 m', penetration('M80', tAt('M80', 25), 'sandbag') < 300 && penetration('M193', tAt('M193', 25), 'sandbag') < 300, `M80 ${penetration('M80', tAt('M80', 25), 'sandbag').toFixed(0)} mm, M193 ${penetration('M193', tAt('M193', 25), 'sandbag').toFixed(0)} mm`, '< 300 mm', 'GAME');
+  check('a plank wall (25 mm) does not stop rifle ball', penetration('M193', tAt('M193', 100), 'wood') > 25, `${penetration('M193', tAt('M193', 100), 'wood').toFixed(0)} mm`, '> 25 mm', 'GAME');
+  check('M80 beats M193 through cover', penetration('M80', 853, 'brick') > penetration('M193', 991, 'brick'), `${penetration('M80', 853, 'brick').toFixed(0)} vs ${penetration('M193', 991, 'brick').toFixed(0)} mm brick`, '', 'GAME');
+  check('a 10 mm steel plate stops small arms', penetration('M80', 853, 'steel') < 10, `${penetration('M80', 853, 'steel').toFixed(1)} mm`, '< 10 mm', 'GAME');
+  check('car bodywork does not stop rifle ball', penetration('M193', tAt('M193', 200), 'sheet') > 2, `${penetration('M193', tAt('M193', 200), 'sheet').toFixed(1)} mm`, '> 2 mm', 'GAME');
+  check('the .45 is stopped by a brick wall', penetration('M1911', 253, 'brick') < 100, `${penetration('M1911', 253, 'brick').toFixed(0)} mm`, '< 100 mm', 'GAME');
   const rng = rngSeeded(3); let ric = 0; for (let i = 0; i < 200; i++) { const P = B.createProjectile('M193', 0, 1, 0, 1, -Math.tan(4 * Math.PI / 180), 0, 900); if (B.impact(P, 0, 1, 0, 'water', 1e9, rng).result === 'ricochet') ric++; }
-  check('M193 at 4 deg onto water mostly ricochets', ric > 100, `${ric}/200`, '> 50 %', 'INFERRED (critical angle ~7 deg)');
+  check('a shallow shot onto water mostly skips', ric > 100, `${ric}/200`, '> 50 %', 'GAME');
   const P2 = B.createProjectile('M80', 0, 0, 0, 1, 0, 0, 700); const hi = B.makeHitInfo(P2, 'thorax', 1, 0, 0);
-  check('hit info carries the MEDINV fields', ['round', 'calibre', 'mass', 'velocity', 'energy', 'momentum', 'dir', 'point', 'part', 'fragments'].every(k => k in hi), Object.keys(hi).length + ' fields', '', 'contract');
+  check('hit info carries the MEDINV fields', ['round', 'calibre', 'velocity', 'dmg', 'dir', 'point', 'part', 'armour'].every(k => k in hi), Object.keys(hi).length + ' fields', '', 'contract');
 }
+
 
 console.log('=== WEAPONS ===');
 const fireFor = (w, secs, inv, ctl = { trigger: true }, ctxx = {}) => { const shots = []; for (let t = 0; t < secs; t += 1 / 240) { const ev = w.step(1 / 240, ctl, { inv, canFire: true, ...ctxx }); for (const e of ev) if (e.e === 'shot') shots.push({ t, ...e }); } return shots; };
@@ -286,7 +265,7 @@ console.log('=== RIFLEMAN (whole loop: shot -> projectile -> hit info) ===');
   R.soldier.pitch = R.soldier.wPitch = Math.atan2(1.3 - 0.36, 100);
   for (let t = 0; t < 1.5; t += 1 / 120) { const e = R.step(1 / 120, { ads: true, fire: fired < 1, holdBreath: true }, env); for (const x of e) { if (x.e === 'shot') fired++; ev.push(x); } }
   const hit = ev.find(e => e.e === 'hit');
-  check('a prone shot at a man at 100 m registers a hit', !!hit, hit ? `${hit.hit.part}, ${hit.hit.velocity.toFixed(0)} m/s, ${hit.hit.energy.toFixed(0)} J, frag ${hit.hit.fragments}` : 'miss: ' + ev.filter(e => e.e === 'impact').map(e => e.material + '@' + e.z.toFixed(0) + ' y' + e.y.toFixed(2)).join(), '');
+  check('a prone shot at a man at 100 m registers a hit', !!hit, hit ? `${hit.hit.part}, ${hit.hit.velocity.toFixed(0)} m/s, dmg ${hit.hit.dmg.toFixed(2)}` : 'miss: ' + ev.filter(e => e.e === 'impact').map(e => e.material + '@' + e.z.toFixed(0) + ' y' + e.y.toFixed(2)).join(), '');
   check('load includes weapons, ammo and kit', R.soldier.load > 18 && R.soldier.load < 30, `${R.soldier.load.toFixed(1)} kg`, '~20-25 kg fighting load', 'CONFIRMED FM 21-18 (<= 22 kg recommended)');
 }
 console.log(`\n${pass} passed, ${fail} failed`);

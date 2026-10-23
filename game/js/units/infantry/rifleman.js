@@ -168,14 +168,14 @@ export function createRifleman(o = {}) {
     for (const a of h.body.armour || []) {
       const t = penetration(P.round, P.v, a.material);
       if (t < a.thickness) { stopped = true; armour.push({ ...a, stopped: true }); break; }
-      armour.push(a); P.v *= Math.sqrt(1 - a.thickness / t); const n = Math.hypot(P.vx, P.vy, P.vz); P.vx *= P.v / n; P.vy *= P.v / n; P.vz *= P.v / n;
+      armour.push(a); P.v *= 1 - a.thickness / t; const n = Math.hypot(P.vx, P.vy, P.vz); P.vx *= P.v / n; P.vy *= P.v / n; P.vz *= P.v / n;
     }
     const info = makeHitInfo(P, h.body.part, h.x, h.y, h.z, { armour, stopped });
     out('hit', { hit: info, target: h.body.target });
-    if (P.round.core === 'heat' || P.round.core === 'hedp') { P.alive = false; out('explode', { info: explosionInfo(P, h.x, h.y, h.z), x: h.x, y: h.y, z: h.z, nx: 0, ny: 1, nz: 0 }); return; }
-    // through and through: ~0.3 m of tissue on a torso / limb path (INFERRED)
+    if (P.round.explosive) { P.alive = false; out('explode', { info: explosionInfo(P, h.x, h.y, h.z), x: h.x, y: h.y, z: h.z, nx: 0, ny: 1, nz: 0 }); return; }
+    // through and through (game table: body path lengths in mm against the 'flesh' material)
     const pen = stopped ? 0 : penetration(P.round, P.v, MATERIALS.flesh), path = h.body.part === 'head' ? 180 : h.body.part.startsWith('arm') || h.body.part.startsWith('leg') ? 140 : 300;
-    if (pen > path) { P.v *= Math.sqrt(1 - path / pen); const n = Math.hypot(P.vx, P.vy, P.vz); P.vx *= P.v / n; P.vy *= P.v / n; P.vz *= P.v / n; P.pens++; }
+    if (pen > path) { P.v *= 1 - path / pen; const n = Math.hypot(P.vx, P.vy, P.vz); P.vx *= P.v / n; P.vy *= P.v / n; P.vz *= P.v / n; P.pens++; }
     else P.alive = false;
   }
 
