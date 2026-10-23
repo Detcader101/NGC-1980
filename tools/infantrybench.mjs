@@ -268,5 +268,14 @@ console.log('=== RIFLEMAN (whole loop: shot -> projectile -> hit info) ===');
   check('a prone shot at a man at 100 m registers a hit', !!hit, hit ? `${hit.hit.part}, ${hit.hit.velocity.toFixed(0)} m/s, dmg ${hit.hit.dmg.toFixed(2)}` : 'miss: ' + ev.filter(e => e.e === 'impact').map(e => e.material + '@' + e.z.toFixed(0) + ' y' + e.y.toFixed(2)).join(), '');
   check('load includes weapons, ammo and kit', R.soldier.load > 18 && R.soldier.load < 30, `${R.soldier.load.toFixed(1)} kg`, '~20-25 kg fighting load', 'CONFIRMED FM 21-18 (<= 22 kg recommended)');
 }
+console.log('=== SYNTAX (every infantry module and the dev page parse as ES modules) ===');
+{
+  const { execFileSync } = await import('node:child_process'), fs = await import('node:fs'), path = await import('node:path'), { fileURLToPath } = await import('node:url');
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'), dir = path.join(root, 'game/js/units/infantry');
+  const files = fs.readdirSync(dir).filter(f => f.endsWith('.js')).map(f => path.join(dir, f)).concat([path.join(root, 'game/dev/infantry.js'), path.join(root, 'game/dev/infantry-range.js')]);
+  const bad = [];
+  for (const f of files) { try { execFileSync(process.execPath, ['--input-type=module', '--check'], { input: fs.readFileSync(f), stdio: ['pipe', 'pipe', 'pipe'] }); } catch (e) { bad.push(path.basename(f) + ': ' + String(e.stderr).split('\n').find(l => /Error/.test(l))); } }
+  check('all modules parse', bad.length === 0, bad.length ? bad.join('; ') : `${files.length} files`);
+}
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

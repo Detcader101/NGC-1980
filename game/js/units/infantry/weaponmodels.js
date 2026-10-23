@@ -272,7 +272,7 @@ function finish(G, parts, anchors, sight, key, sub) {
     if (p.cocking) p.cocking.position.z = 0.02 + 0.09 * (st.charge || 0);
     if (p.bipod) { const a = st.bipod || 0; for (const l of p.bipod.children) { l.rotation.x = -1.45 * (1 - a) + 0.12 * a; l.rotation.z = l.userData.side * 0.25 * a; } }
     if (p.handle) p.handle.rotation.z = -1.5 * (1 - (st.handle ?? 1));
-    if (p.glow) { const h = st.heat || 20; p.glow.material.opacity = Math.max(0, Math.min(0.7, (h - 420) / 350)); p.glow.material.color.setHSL(0.0 + Math.max(0, (h - 600) / 3000), 0.95, 0.22 + Math.max(0, (h - 550) / 1200));   // dull red from ~450 C, brighter past 600 }
+    if (p.glow) { const h = st.heat || 20; p.glow.material.opacity = Math.max(0, Math.min(0.7, (h - 420) / 350)); p.glow.material.color.setHSL(0.0 + Math.max(0, (h - 600) / 3000), 0.95, 0.22 + Math.max(0, (h - 550) / 1200)); }   // dull red from ~450 C, brighter past 600
     if (p.barrel) { if (st.barrelOff) { p.barrel.position.set(st.barrelOff[0], -0.075 + st.barrelOff[1], st.barrelOff[2]); p.barrel.visible = st.barrelVisible !== false; } else { p.barrel.position.set(0, -0.075, 0); p.barrel.visible = true; } }
     if (p.belt) { const n = Math.max(0, Math.min(p.links.length, st.beltRounds ?? p.links.length)); p.links.forEach((l, i) => { l.visible = i < n; l.rotation.x = 0.06 + 0.05 * Math.sin((st.time || 0) * 3 + i * 0.7) * (st.beltSwing || 0.3); }); p.belt.visible = n > 0; }
     if (p.inner) { const e = st.law || 0; p.inner.position.z = 0.14 + 0.238 * e; }
