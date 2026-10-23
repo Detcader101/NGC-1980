@@ -26,7 +26,7 @@ export const CM_RULES = {
 const flares = [], chaff = [], smoke = [];
 let seq = 0;
 export const CM = { flares, chaff, smoke, stats: { flares: 0, chaff: 0, decoyed: 0, jammed: 0 } };
-// radar warning: threats this frame. kind: 'T' TALON (gun / missile radar), 'L' LANCE (laser), 'A' other gun, 'M' a
+// radar warning: threats this frame. kind: 'T' TALON (gun / missile radar), 'L' LANCE (laser), 'A' other gun, 'W' a WASP's sensor (rotary.js), 'M' a
 // missile in the air at you. brg: world bearing from the player (rad, 0 = -z north, clockwise), d: m, lock 0..1
 export const RWR = { threats: [], n: 0, mode: 0, p: 0, launch: false, laser: false, t: 0 };
 const _pool = []; let _np = 0;
@@ -229,7 +229,7 @@ export function drawRwr(c, W, rwr, yaw, t, style = 'apr39', power = true) {
     } else {
       if (o.kind === 'M' && !blink) continue;
       c.fillStyle = G; c.font = `bold ${Math.round(W / 8)}px Consolas, monospace`; c.textAlign = 'center'; c.textBaseline = 'middle';
-      c.fillText(o.kind === 'M' ? 'M' : o.kind === 'T' ? '8' : o.kind === 'L' ? 'L' : 'A', x, y);
+      c.fillText(o.kind === 'M' ? 'M' : o.kind === 'T' ? '8' : o.kind === 'L' ? 'L' : o.kind === 'W' ? 'W' : 'A', x, y);
       if (o.locked || o.firing) { c.strokeStyle = G; c.lineWidth = Math.max(1.5, W / 100); c.beginPath(); c.arc(x, y, W / 11, 0, 6.283); c.stroke(); }
     }
   }
