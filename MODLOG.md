@@ -242,3 +242,79 @@ TM-73,254 (fuselage, stab bar, tail rotor), DCS UH-1H manual (limits, procedures
 - Checked: sky 8/8 (twice); a scratch scene climbing + turning + ahead, then descending: Huey stays at the same deck
   spot and heading (±0.2 m, ±0.01 rad), lifts off, and the climbing deck catches it in a hover for a clean landing.
   hueyhover, hueystart, hueyauto, rescue, smoke, loop, jettrap green; hueybench 41/41.
+## 2026-10-23 — NGC-1980 MEDICAL + INVENTORY (wave 1, branch ngc/medinv)
+Pure modules in `game/js/units/infantry/` (no DOM, no THREE, node-testable) + HTML overlay UIs + a sandbox.
+- `items.js`: the item database (about 90 items): 1980 USMC kit (M16A1, M16A1/M203, M60, M1911A1, M72A2, magazines,
+  M193 bandoliers, M67, M18 smoke, claymore, LC-2 belt and ALICE pouches, M69 vest, M1 helmet, ALICE packs, Unit One
+  bag, e-tool, P-38), 1980 medicine (field / battle dressing, cravat, strap-and-buckle tourniquet, wire ladder splint,
+  morphine syrette, APC, Lactated Ringer's IV, ammonia inhalant, 14G catheter), rations (MCI "C-rats", LRP), seized
+  modern loot (M4A1 RW refit, PMAGs, M855A1, plate carrier, ECH, CAT, QuikClot, SAM, Hyfin, fentanyl lozenge, IFAK,
+  2030s MRE) and RUNAWAY items (needle carbine, cells, carapace, MENDER nanite injector, sensor core). Crates and caches.
+  Decision: the MRE was adopted in 1975 but reached troops in 1983, so in 1980 the Marines eat C-rats; the MRE is loot.
+- `medical.js`: 7 regions with Tarkov HP (35/85/70/60/65) and blacked-out limbs (damage spills x0.7, stomach x1.5);
+  zones (cranium/face/neck, chest, abdomen/pelvis, upper arm/forearm/hand, thigh/shin/foot) decide vessels, bones and
+  armour coverage. Blood 70 ml/kg; bleeds light/heavy/arterial with flow at normal pressure, scaled by MAP (they slow in
+  shock), clotting (light ~4 min, heavy slowly, arterial not), control class tq/junctional/internal; ATLS classes I-IV
+  drive HR, BP, RR, mental state, consciousness (cerebral perfusion), vision, tremor and stamina. Haematocrit and
+  crystalloid (3:1 rule; IV pressure makes an uncontrolled bleed bleed faster), transcapillary refill, pneumothorax
+  (open / sealed / tension / decompressed / vented), fractures, pain + adrenaline, morphine PK (overdose worse in shock),
+  hydration and energy (bite after hours), tourniquet ischaemia (2 h safe, limb lost at 6 h), RW nanites.
+- DAMAGE AND ARMOUR ARE GAME-LEVEL (coordinator instruction, mid-task): rounds carry Tarkov-style dmg / pen / bleed,
+  armour has classes 1-6 (M69 and M1 = 2, seized soft armour 3, ECH 4, ceramic plates 5, RUNAWAY lattice 6) with
+  coverage per zone and face, durability and blunt damage; fragments are a simple falloff table. No real terminal
+  ballistics are modelled or researched; the medical side keeps its sourced depth. Bench section 4 checks feel only.
+- Treatments (times self / buddy): dressing 40/25 s (stops light, heavy x0.3, arterial x0.6, wrapper seals a sucking
+  chest wound), tourniquets roll success per application (CAT 97% leg, strap-and-buckle 30% leg / 85% arm, cravat
+  windlass 60% leg; +8% buddy), TIGHTEN re-rolls a windlass, a second TQ above the first; QuikClot (3 min pressure)
+  packs junctional wounds; splint / sling; morphine (absorption compressed ~10x for play, documented); IV is
+  CORPSMAN ONLY (decision); wound care with the Unit One bag (corpsman) restores a ruined limb to 50%; the inhalant
+  wakes a knocked-out man, not a shocked one; MENDER heals everything (a second dose within 10 min: seizure).
+- `inventory.js`: nested grids and named slots, rotation, stacks (split / merge), magazines with LIFO round segments
+  (tracers on top feed first), loading from loose rounds (0.9 s/rd) or stripper clips (0.3 s/rd), reload swaps the
+  fullest magazine in and the empty back where it came from, quick slots, search (items revealed one by one),
+  encumbrance from load / body mass + the Pandolf load-carriage equation, loadouts (rifleman, grenadier, mg,
+  corpsman, RW trooper body), loot tables, serialise / relink.
+- `invui.js` / `medui.js`: overlays in the game's style. The health screen draws the figure facing you (his right on
+  your left), wounds, tourniquet bands, splints, an M on the forehead after morphine. Also `createMedHud` (HUD strip)
+  and `createVisionFX` (vignette + canvas grayscale / blur + blackout + nanite tint).
+- Sandbox `game/dev/medinv.html` (?debug -> window.__MI, &manual stops real-time stepping, &seed=N).
+- Bench `tools/medinvbench.mjs`: 108 checks pass. Femoral artery untreated: class III 3:15, unconscious 5:34, dead
+  6:21 (lit. 3-5 min, INFERRED); carotid 2:02 / 3:56; brachial 6:33 / 12:55; heavy venous class III 17:14 and survives;
+  light ooze clots; ATLS HR/SBP/RR bands per class (CONFIRMED). Femoral bleed + self-aid at 0:15, survive 30 min:
+  CAT 98%, strap 29%, two straps (buddy) 62%, cravat 59%, cravat + tighten 87%. QuikClot on a groin bleed 91%.
+  Ringer's: 403 of 1000 ml left after an hour. Sealed sucking chest wound -> dead of tension at 20:22; decompressed
+  survives; vented seal no tension. Loads incl. 3.6 kg clothing: rifleman 29.8 kg (fighting 20.5), grenadier 28.7,
+  corpsman 30.6, M60 gunner 41.3 (FM 21-18: 22 kg fighting / 33 kg approach). Pandolf 75+30 kg at 1.34 m/s: 429 W.
+- Scenes: `tools/scenes/medinv.mjs` (10 expects) and `medinv_ui.mjs` (11 expects) drive the real UI with the mouse.
+- Gotchas: `pickW(obj, rng)` got the function, not a number (every hit landed on the cranium); the Unit One bag had
+  cat 'pack' so the pack main grid (deny pack) refused it and the loadout silently dropped it - loadouts now throw;
+  `dblclick` never fires when the DOM re-renders between the clicks (search ticking) - double-click is detected by
+  item uid in pointerdown; an ECG canvas inside innerHTML is recreated every refresh - it is now re-attached;
+  3-digit hex + alpha ('#4f6' + '18') is not a colour; a canvas arc after rect() needs a moveTo.
+
+### Interfaces for wave 2
+- INFANTRY (weapons) -> medical: `M.hit(hitInfo, I.armour(inv))`, hitInfo = { part | zone (+ side), round (ROUNDS
+  id) + velocity (m/s at impact) or dmg + pen directly, dir (travel direction in the victim's body frame: x right, y up,
+  z forward), kind 'bullet' | 'fragment' | 'blunt', source }. Returns { region, zone, face, penetrated, layers[{ cls,
+  pPen, stopped }], hp, bleed, fracture, ptx, concussion } for hit markers and the feed. Grenades:
+  `fragmentHits(FRAGS id, distM, rng, { prone })` -> hit-infos. Falls: `M.fall(impactSpeed, { plf })`.
+  The INFANTRY branch's `ballistics.js makeHitInfo()` object is accepted as is (checked in the bench): its `dmg` is
+  read as a scale, `part: 'neck'` becomes head/neck, and its world `dir` array is turned into the body frame when
+  the caller adds `victimYaw` (three.js yaw, facing -z at 0). Its `explosionInfo()` keys M433 / M72 exist in FRAGS.
+- Weapons <-> inventory: magazines are items. `I.weaponMag(w)`, `I.magPop(m)` -> round id (feed), `I.magCount`,
+  `I.reload(inv, weapon)` -> { mag, old, dropped }, `I.countRounds(inv, cal)`, `ROUNDS[id]` (cal, v0, cartG, dmg,
+  pen, bleed, tracer); weapon defs carry `weapon: { cal, rpm, modes, barrelIn, vMul, single }`; the M203 slot is `gl`.
+- Soldier sim (FOUNDATION / INFANTRY): call `M.update(dt, { exertion 0..1, moving })` every frame and read
+  `M.mods()`: speedMul, sprint, jump, crawlOnly, limp, aimSway (x), tremor (rad), reloadMul, adsTimeMul, weaponUse
+  ('both' | 'one' | 'none'), staminaRegenMul, staminaMaxMul, vision { tunnel, grey, blur, blackout, tint }, hearing,
+  breathing, heartRate, dead, unconscious. Load: `I.encumbrance(I.totalWeight(inv))` or `I.pandolfWatts(...)`.
+  Events from `M.update` (bleed, fracture, unconscious, death, treated ...) feed the HUD and sound.
+- UI: `createInvUI({ inv, med, parent, tabs: ['GEAR','HEALTH'], onTab, onUse?, onDrop?(item to the ground) })`,
+  `.open(loot?)` with a crate (`I.fillCrate`) or a dead soldier's inventory root; `createMedUI({ med, inv, parent,
+  by: () => ({ self, skill }) })`; `createMedHud(hudEl, M)`; `createVisionFX(hudEl, canvas)`. Both overlays close on
+  Esc and stop key propagation while open; FOUNDATION should bind Tab / H and release pointer lock.
+- Buddy aid: `patient.startTreatment({ item, region, by: { self: false, skill: medic.skill } })`; `patient.action`
+  is the progress (cancel when they move more than `BUDDY.treatRangeM` apart); `BUDDY.dragSpeed(medicMods,
+  casualtyKg, medicLoadKg)`, `carrySpeed`, `staminaDrainMul`.
+- Untested: in-game integration (no on-foot mode yet), gamepad on real hardware (only the button mapping is wired),
+  touch input, the UIs below 1280x720, save / load across sessions.
