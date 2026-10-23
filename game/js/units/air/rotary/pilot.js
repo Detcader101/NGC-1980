@@ -27,7 +27,7 @@ export function createPilot(G) {
   const P = {
     G, i: { lon: G.lon0 ?? 0, lat: 0, ped: G.ped0 ?? 0, coll: G.coll0, th: G.th0 ?? 0, ph: 0 },
     ctl: { coll: G.coll0, lon: 0, lat: 0, ped: 0 }, thT: 0, phT: 0, rT: 0,
-    reset(coll = G.coll0) { Object.assign(P.i, { lon: G.lon0 ?? 0, lat: 0, ped: G.ped0 ?? 0, coll, th: G.th0 ?? 0, ph: 0 }); P.ctl.coll = coll; },
+    reset(coll = G.coll0) { Object.assign(P.i, { lon: G.lon0 ?? 0, lat: 0, ped: G.ped0 ?? 0, coll, th: G.th0 ?? 0, ph: 0 }); P.ctl.coll = coll; P.thT = P.phT = 0; },
     // cmd: { vx, vz: desired world ground velocity; vy: desired climb (m/s); hdg: desired yaw (three-style) or null = hold;
     //        ax, az: feed-forward acceleration; tilt: tilt limit override; collFix: hold the collective at a value }
     step(s, dt, cmd) {
@@ -39,9 +39,11 @@ export function createPilot(G) {
       let af = clamp(ef * kv, -aM, aM) + ((cmd.ax ?? 0) * fx + (cmd.az ?? 0) * fz), ar = clamp(er * kv, -aM, aM) + ((cmd.ax ?? 0) * -fz + (cmd.az ?? 0) * fx);
       const tl = cmd.tilt ?? G.tilt;
       I.th = clamp(I.th - ef * G.trimI * dt, -0.25, 0.25); I.ph = clamp(I.ph + er * G.trimI * dt, -0.15, 0.15);
-      P.thT = clamp(I.th - Math.atan(af / g), -tl, tl * 0.8); P.phT = clamp(I.ph + Math.atan(ar / g), -tl, tl);
-      if (cmd.pitch !== undefined) P.thT = cmd.pitch;
-      if (cmd.roll !== undefined) P.phT = cmd.roll;
+      let thT = clamp(I.th - Math.atan(af / g), -tl, tl * 0.8), phT = clamp(I.ph + Math.atan(ar / g), -tl, tl);
+      if (cmd.pitch !== undefined) thT = cmd.pitch;
+      if (cmd.roll !== undefined) phT = cmd.roll;
+      // attitude commands slew at a pilot's pace (G.rate rad/s), not in steps
+      const sr = (G.rate ?? 0.15) * dt; P.thT += clamp(thT - P.thT, -sr, sr); P.phT += clamp(phT - P.phT, -2 * sr, 2 * sr);
       // attitude loops (PD + integral), output limited
       const eth = P.thT - s.pitch, eph = P.phT - s.roll;
       I.lon = clamp(I.lon + eth * G.th[1] * dt, -1, 1); I.lat = clamp(I.lat + eph * G.ph[1] * dt, -1, 1);

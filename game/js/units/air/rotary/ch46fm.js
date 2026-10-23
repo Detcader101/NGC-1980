@@ -56,7 +56,7 @@ export const CH46 = {
   // hover ceiling OGE 5,750 ft / IGE 9,500 ft, service ceiling 17,000 ft
   PUB: { VMAX: 144, VCRUISE: 143, ROC: 1715, HOGE: 5750, HIGE: 9500 },
   // the AI pilot's gains for this airframe (pilot.js)
-  PILOT: { kv: 0.45, aMax: 3, tilt: 0.33, th: [3, 1.5, 1.2], ph: [3, 1.5, 0.8], vz: [0.08, 0.06], coll0: 0.5, psi: [0.9, 0.3], r: [1.5, 1], trimI: 0.004 },
+  PILOT: { kv: 0.6, aMax: 1.8, tilt: 0.24, th: [3, 1.5, 1.2], ph: [3, 1.5, 0.8], vz: [0.08, 0.06], coll0: 0.5, psi: [0.9, 0.3], r: [1.5, 1], trimI: 0.004 },
 };
 const C = CH46;
 const ROTOR = (dir) => ({ R: C.R, nb: C.NB, chord: C.CHORD, root: 0.18, twist: C.TWIST, a: 5.9, cd0: 0.0095, d2: 0.35, aStall: 0.24, omega0: C.OMEGA, dir, lock: C.LOCK, e: C.E, Sb: C.SB, N: 8 });
@@ -70,7 +70,7 @@ export function createCH46Sim(G = 9.81) {
     // pilot / AI controls: coll 0..1, lon (+aft) -1..1, lat (+right), ped (+right), sas
     c: { coll: 0, lon: 0, lat: 0, ped: 0 }, sas: true, lct: 0,
     ias: 0, vz: 0, agl: 0, landed: true, torque: 0, power: 0, events: [], dead: false, rho: 1.225, vib: 0, mods: null,
-    get rpm() { return S.omega / C.OMEGA; },
+    get rpm() { return S.omega / C.OMEGA; }, xmsn: C.XMSN,
     reset(pos, yaw = 0, landed = true, env = null) {
       S.body.reset(pos, yaw, landed, env); S.omega = C.OMEGA; S.dead = false;
       rf.reset(landed ? 0.01 : 0.05); ra.reset(landed ? 0.01 : 0.05); for (const e of S.eng) { e.on = true; e.n1 = landed ? 0.8 : 0.9; e.ok = true; }
@@ -155,7 +155,10 @@ export function createCH46Sim(G = 9.81) {
     let qe = 0, live = 0;
     for (let i = 0; i < 2; i++) {
       const e = S.eng[i], ok = e.ok && e.on && (M['eng' + i] ?? true) && ctl['eng' + i] !== false && (M.fuel ?? 1) > 0;
-      const dem = ok ? clamp(S.govI + err * 8 + 0.25 * S.c.coll - 0.1, 0.62, 1.02) : 0;
+      // demand: governor PI + collective anticipator, topped so the pair can't push the drive train past ~105% torque
+      // (a governor recovering a drooped rotor would otherwise dump full engine torque into it; INFERRED topping)
+      const share = 1.05 * C.XMSN / Math.max(1, S.live ?? 2) / Math.max(0.5, 2 - nr), top = 0.6 + 0.4 * Math.min(1.1, share / (C.P_ENG * lapse)) ** (2 / 3);
+      const dem = ok ? clamp(Math.min(S.govI + err * 8 + 0.25 * S.c.coll - 0.1, top), 0.62, 1.02) : 0;
       e.n1 += clamp((dem - e.n1) * 1.8, -0.3, 0.12) * h;   // acceleration-limited spool (~4 s idle -> max, INFERRED)
       e.p = ok ? C.P_ENG * lapse * Math.max(0, (e.n1 - 0.6) / 0.4) ** 1.5 : 0;
       e.q = e.p / C.OMEGA * Math.max(0, 2 - nr);   // free-turbine torque at the rotor falls with N2

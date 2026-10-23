@@ -17,14 +17,14 @@ function mk(o = {}) {
   return { S, P, st: {} };
 }
 const avgKeys = (A) => ({ coll: () => A.S.c.coll, lon: () => A.S.c.lon, lat: () => A.S.c.lat, ped: () => A.S.c.ped, pitch: () => deg(A.st.pitch), roll: () => deg(A.st.roll),
-  shp: () => A.S.power / HP, pf: () => A.S.rf.power / HP, pa: () => A.S.ra.power / HP, vy: () => A.S.body.vel[1], vf: () => A.st.vf, rpm: () => A.S.rpm, tq: () => A.S.torque, lct: () => deg(A.S.lct) });
+  shp: () => (A.S.rf.power + A.S.ra.power) / HP, pf: () => A.S.rf.power / HP, pa: () => A.S.ra.power / HP, vy: () => A.S.body.vel[1], vf: () => A.st.vf, rpm: () => A.S.rpm, tq: () => A.S.torque, lct: () => deg(A.S.lct) });
 function trim(A, Vf, env = sea(), secs = 40, cmd = {}, agl) {   // agl: hold this wheel height (in ground effect)
   return run(A.S, secs, () => { stateOf(A.S.body, A.st); return A.P.step(A.st, DT, { vx: 0, vz: -Vf, vy: agl === undefined ? 0 : clamp((agl - A.S.agl) * 0.8, -1, 1), hdg: 0, ...cmd }); }, env, avgKeys(A), 6);
 }
 // collective held by a power loop at `limit` (W) while the pilot holds speed: climb performance
 function climb(A, Vf, limit, env = sea(), secs = 45) {
   let c = A.S.c.coll || 0.5;
-  return run(A.S, secs, () => { stateOf(A.S.body, A.st); const k = A.P.step(A.st, DT, { vx: 0, vz: -Vf, vy: 0, hdg: 0, collFix: c }); c = clamp(c + (limit - A.S.power) / limit * 0.6 * DT, 0, 1); return k; }, env, avgKeys(A), 8);
+  return run(A.S, secs, () => { stateOf(A.S.body, A.st); const k = A.P.step(A.st, DT, { vx: 0, vz: -Vf, vy: 0, hdg: 0, collFix: c }); c = clamp(c + (limit - A.S.rf.power - A.S.ra.power) / limit * 0.6 * DT, 0, 1); return k; }, env, avgKeys(A), 8);
 }
 
 console.log(`--- control signs (trimmed hover at ${MISSION.toFixed(0)} kg = ${(MISSION * 2.2046).toFixed(0)} lb, 0.3 input for 0.8 s, SAS off) ---`);
