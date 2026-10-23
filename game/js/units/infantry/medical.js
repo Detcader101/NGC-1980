@@ -24,9 +24,9 @@
 // - Pain per region with adrenaline masking it for the first minutes, analgesia from morphine (pharmacokinetics with
 //   overdose: sedation, respiratory depression, worse in shock) and APC tablets.
 // - Hydration and energy that drain over hours (summer island heat); they only bite after a long patrol.
-// - Wound model: INFANTRY ballistics hit-info -> armour (coverage roll by zone and face, penetration vs. V50 by
-//   energy density, blunt trauma behind it, armour durability) -> energy deposited in tissue (yaw / fragmentation
-//   depth per cartridge, Fackler) -> HP damage, bleed (type by vessel), fracture, pneumothorax, concussion.
+// - Wound model (GAME level, Tarkov-style tables): hit-info -> armour (coverage roll by zone and face, penetration
+//   value vs armour class, blunt damage behind it, durability) -> HP damage, then bleeds (type by the vessels of the
+//   zone), fractures, pneumothorax, concussion. The MEDICAL side (what a wound does to the body over time) is the deep part.
 // - Treatments with real application times, self vs. buddy aid, corpsman-only skills, one action at a time.
 //
 // Numbers: CONFIRMED (published), INFERRED (derived / tuned to published behaviour), UNVERIFIED (plausible guess).
@@ -41,7 +41,7 @@
 //   M.treatOptions(item, region, by) / M.startTreatment({ item, region, by }) / M.cancelTreatment()
 //   M.fall(speedMs), M.damage(region, hp, opts), M.restore(), M.serialize(), M.load(obj)
 //   BUDDY.dragSpeed(...), BUDDY.carrySpeed(...): buddy aid and casualty movement
-import { ITEMS, ROUNDS, MATS, FRAGS } from './items.js';
+import { ITEMS, ROUNDS, MATS, FRAGS, ARMOUR_CLASS } from './items.js';
 
 // -------------------------------------------------------------------------------------------------------- constants
 export const REGIONS = ['head', 'thorax', 'stomach', 'armL', 'armR', 'legL', 'legR'];
@@ -54,24 +54,24 @@ export const REGION = {
   legL:    { name: 'LEFT LEG',  hp: 65, limb: 'leg', spill: 0.7, zones: { thigh: 0.5, shin: 0.4, foot: 0.1 } },
   legR:    { name: 'RIGHT LEG', hp: 65, limb: 'leg', spill: 0.7, zones: { thigh: 0.5, shin: 0.4, foot: 0.1 } },
 };
-// Zones. pathCm: tissue a bullet crosses (INFERRED anthropometry); dmgMul: HP multiplier (brain 2.6); light/heavy:
+// Zones. dmgMul: GAME HP multiplier (cranium 2.6); light/heavy:
 // ml/min at normal pressure and the base chance of a heavy bleed; artery: chance a wound opens the named vessel, its
 // flow (ml/min, INFERRED from resting arterial flows: femoral ~350-500, brachial ~150-250, carotid ~400-800 - a cut
 // artery bleeds at about its full flow against low resistance) and how it can be controlled; bone: fracture chance.
 // ctl: 'tq' = distal to a tourniquet site, 'junctional' = packable but no tourniquet, 'internal' = non-compressible.
 export const ZONES = {
-  cranium:  { region: 'head', pathCm: 15, dmgMul: 2.6, light: 15, heavyP: 0.25, heavy: 80, heavyCtl: 'junctional', artery: { p: 0.03, rate: 150, ctl: 'internal', name: 'INTRACRANIAL' }, bone: 0 },
-  face:     { region: 'head', pathCm: 10, dmgMul: 1.2, light: 20, heavyP: 0.35, heavy: 100, heavyCtl: 'junctional', artery: { p: 0.08, rate: 200, ctl: 'junctional', name: 'FACIAL A.' }, bone: 0.4, boneName: 'JAW' },
-  neck:     { region: 'head', pathCm: 10, dmgMul: 1.4, light: 20, heavyP: 0.4, heavy: 150, heavyCtl: 'junctional', artery: { p: 0.3, rate: 800, ctl: 'junctional', name: 'CAROTID A.' }, bone: 0 },
-  chest:    { region: 'thorax', pathCm: 25, dmgMul: 1.0, light: 15, heavyP: 0.3, heavy: 120, heavyCtl: 'internal', artery: { p: 0.06, rate: 700, ctl: 'internal', name: 'GREAT VESSELS' }, bone: 0.3, boneName: 'RIBS', ptx: 0.65 },
-  abdomen:  { region: 'stomach', pathCm: 25, dmgMul: 1.0, light: 15, heavyP: 0.4, heavy: 120, heavyCtl: 'internal', artery: { p: 0.06, rate: 450, ctl: 'internal', name: 'MESENTERIC / LIVER' }, bone: 0 },
-  pelvis:   { region: 'stomach', pathCm: 22, dmgMul: 1.0, light: 15, heavyP: 0.3, heavy: 120, heavyCtl: 'junctional', artery: { p: 0.12, rate: 600, ctl: 'junctional', name: 'ILIAC / COMMON FEMORAL A.' }, bone: 0.25, boneName: 'PELVIS' },
-  upperArm: { region: 'arm', pathCm: 10, dmgMul: 1.0, light: 12, heavyP: 0.25, heavy: 80, heavyCtl: 'tq', artery: { p: 0.10, rate: 250, ctl: 'tq', name: 'BRACHIAL A.' }, bone: 0.35, boneName: 'HUMERUS' },
-  forearm:  { region: 'arm', pathCm: 8, dmgMul: 1.0, light: 10, heavyP: 0.2, heavy: 60, heavyCtl: 'tq', artery: { p: 0.12, rate: 150, ctl: 'tq', name: 'RADIAL / ULNAR A.' }, bone: 0.45, boneName: 'RADIUS / ULNA' },
-  hand:     { region: 'arm', pathCm: 4, dmgMul: 0.9, light: 8, heavyP: 0.15, heavy: 40, heavyCtl: 'tq', artery: { p: 0.05, rate: 80, ctl: 'tq', name: 'PALMAR ARCH' }, bone: 0.5, boneName: 'HAND' },
-  thigh:    { region: 'leg', pathCm: 16, dmgMul: 1.0, light: 15, heavyP: 0.3, heavy: 120, heavyCtl: 'tq', artery: { p: 0.12, rate: 500, ctl: 'tq', name: 'FEMORAL A.' }, bone: 0.4, boneName: 'FEMUR' },
-  shin:     { region: 'leg', pathCm: 11, dmgMul: 1.0, light: 12, heavyP: 0.25, heavy: 80, heavyCtl: 'tq', artery: { p: 0.08, rate: 200, ctl: 'tq', name: 'POPLITEAL / TIBIAL A.' }, bone: 0.5, boneName: 'TIBIA' },
-  foot:     { region: 'leg', pathCm: 7, dmgMul: 0.9, light: 10, heavyP: 0.2, heavy: 50, heavyCtl: 'tq', artery: { p: 0.04, rate: 80, ctl: 'tq', name: 'DORSALIS PEDIS' }, bone: 0.5, boneName: 'FOOT' },
+  cranium:  { region: 'head', dmgMul: 2.6, light: 15, heavyP: 0.25, heavy: 80, heavyCtl: 'junctional', artery: { p: 0.03, rate: 150, ctl: 'internal', name: 'INTRACRANIAL' }, bone: 0 },
+  face:     { region: 'head', dmgMul: 1.2, light: 20, heavyP: 0.35, heavy: 100, heavyCtl: 'junctional', artery: { p: 0.08, rate: 200, ctl: 'junctional', name: 'FACIAL A.' }, bone: 0.4, boneName: 'JAW' },
+  neck:     { region: 'head', dmgMul: 1.4, light: 20, heavyP: 0.4, heavy: 150, heavyCtl: 'junctional', artery: { p: 0.3, rate: 800, ctl: 'junctional', name: 'CAROTID A.' }, bone: 0 },
+  chest:    { region: 'thorax', dmgMul: 1.0, light: 15, heavyP: 0.3, heavy: 120, heavyCtl: 'internal', artery: { p: 0.06, rate: 700, ctl: 'internal', name: 'GREAT VESSELS' }, bone: 0.3, boneName: 'RIBS', ptx: 0.65 },
+  abdomen:  { region: 'stomach', dmgMul: 1.0, light: 15, heavyP: 0.4, heavy: 120, heavyCtl: 'internal', artery: { p: 0.06, rate: 450, ctl: 'internal', name: 'MESENTERIC / LIVER' }, bone: 0 },
+  pelvis:   { region: 'stomach', dmgMul: 1.0, light: 15, heavyP: 0.3, heavy: 120, heavyCtl: 'junctional', artery: { p: 0.12, rate: 600, ctl: 'junctional', name: 'ILIAC / COMMON FEMORAL A.' }, bone: 0.25, boneName: 'PELVIS' },
+  upperArm: { region: 'arm', dmgMul: 1.0, light: 12, heavyP: 0.25, heavy: 80, heavyCtl: 'tq', artery: { p: 0.10, rate: 250, ctl: 'tq', name: 'BRACHIAL A.' }, bone: 0.35, boneName: 'HUMERUS' },
+  forearm:  { region: 'arm', dmgMul: 1.0, light: 10, heavyP: 0.2, heavy: 60, heavyCtl: 'tq', artery: { p: 0.12, rate: 150, ctl: 'tq', name: 'RADIAL / ULNAR A.' }, bone: 0.45, boneName: 'RADIUS / ULNA' },
+  hand:     { region: 'arm', dmgMul: 0.9, light: 8, heavyP: 0.15, heavy: 40, heavyCtl: 'tq', artery: { p: 0.05, rate: 80, ctl: 'tq', name: 'PALMAR ARCH' }, bone: 0.5, boneName: 'HAND' },
+  thigh:    { region: 'leg', dmgMul: 1.0, light: 15, heavyP: 0.3, heavy: 120, heavyCtl: 'tq', artery: { p: 0.12, rate: 500, ctl: 'tq', name: 'FEMORAL A.' }, bone: 0.4, boneName: 'FEMUR' },
+  shin:     { region: 'leg', dmgMul: 1.0, light: 12, heavyP: 0.25, heavy: 80, heavyCtl: 'tq', artery: { p: 0.08, rate: 200, ctl: 'tq', name: 'POPLITEAL / TIBIAL A.' }, bone: 0.5, boneName: 'TIBIA' },
+  foot:     { region: 'leg', dmgMul: 0.9, light: 10, heavyP: 0.2, heavy: 50, heavyCtl: 'tq', artery: { p: 0.04, rate: 80, ctl: 'tq', name: 'DORSALIS PEDIS' }, bone: 0.5, boneName: 'FOOT' },
 };
 export const regionOfZone = (zone, side) => { const r = ZONES[zone].region; return r === 'arm' ? 'arm' + side : r === 'leg' ? 'leg' + side : r; };
 
@@ -111,65 +111,47 @@ const defOf = it => typeof it === 'string' ? ITEMS[it] : ITEMS[it?.id];   // id 
 export const shockClass = loss => loss < MED.CLASS[0] ? 1 : loss < MED.CLASS[1] ? 2 : loss < MED.CLASS[2] ? 3 : 4;
 
 // ------------------------------------------------------------------------------------------------------------ hit info
-// The hit-info contract with the INFANTRY ballistics module. Required: part (region id) or zone. Projectile: either
-// round (a ROUNDS id) + velocity (m/s at impact), or massG + velocity (+ diaMm, proj). Optional: energy (J), dir
-// (projectile travel direction in the victim's body frame: x right, y up, z forward = where he faces), side ('L'/'R'
-// for limbs if part is a zone), kind ('bullet' | 'fragment' | 'blunt'), rangeM (logs only), source (logs).
+// The hit-info contract with the INFANTRY module. Required: part (region id) or zone (else a random body part).
+// Damage: either round (a ROUNDS id) + velocity (m/s at impact; full damage at the round's v0), or dmg + pen
+// directly (fragments, blasts, melee, anything). Optional: dir (travel direction in the victim's body frame: x right,
+// y up, z forward = where he faces; decides front / back / side / top for armour), side ('L'/'R' when only a limb
+// zone is given), kind ('bullet' | 'fragment' | 'blunt'), bleed (multiplier), source and rangeM (logs).
+// All damage numbers are GAME tuning (Tarkov-style), not a model of real terminal ballistics.
 export function normaliseHit(h, rng = Math.random) {
-  const o = { kind: h.kind || (h.frag ? 'fragment' : 'bullet'), ...h };
+  const o = { kind: h.kind || 'bullet', ...h };
   const rd = o.round ? ROUNDS[o.round] : null;
-  o.massG = o.massG ?? rd?.bulletG ?? 1;
-  o.velocity = o.velocity ?? (o.energy ? Math.sqrt(2 * o.energy / (o.massG / 1000)) : rd?.v0 ?? 300);
-  o.energy = o.energy ?? 0.5 * (o.massG / 1000) * o.velocity * o.velocity;
-  // fragments: steel sphere diameter x1.2 for the irregular shape (INFERRED)
-  o.diaMm = o.diaMm ?? rd?.diaMm ?? (o.kind === 'fragment' ? 1.2 * 10 * Math.cbrt(6 * o.massG / (Math.PI * 7.85)) : 6);
-  o.proj = o.proj ?? rd?.proj ?? (o.kind === 'fragment' ? 'fsp' : 'rifle');
-  o.pen = o.pen ?? rd?.pen ?? 1;
-  o.area = Math.PI * o.diaMm * o.diaMm / 4;
-  // region / zone / side
+  if (rd) {
+    const f = clamp((o.velocity ?? rd.v0) / rd.v0, 0, 1.2);
+    o.dmg = o.dmg ?? rd.dmg * (0.55 + 0.45 * f);       // GAME: damage falls to ~55% as the round slows
+    o.pen = o.pen ?? rd.pen * (0.4 + 0.6 * f);         // GAME: penetration falls faster
+    o.bleed = o.bleed ?? rd.bleed;
+  }
+  o.dmg = o.dmg ?? 20; o.pen = o.pen ?? 10; o.bleed = o.bleed ?? 1;
   let part = o.part, zone = o.zone;
   if (zone && !part) { const r = ZONES[zone].region; part = r === 'arm' || r === 'leg' ? r + (o.side || (rng() < 0.5 ? 'L' : 'R')) : r; }
   if (!part) part = pickW({ head: 0.12, thorax: 0.28, stomach: 0.2, armL: 0.08, armR: 0.08, legL: 0.12, legR: 0.12 }, rng());
   if (!zone || ZONES[zone] && regionOfZone(zone, part.slice(-1)) !== part) zone = pickW(REGION[part].zones, rng());
   o.part = part; o.zone = zone;
-  // face of the body the shot arrives on
-  const d = o.dir || { x: 0, y: 0, z: -1 };   // default: shot from the front (travelling backwards through him)
+  const d = o.dir || { x: 0, y: 0, z: -1 };   // default: shot from the front
   const ix = -d.x, iy = -d.y, iz = -d.z;      // towards the shooter
   o.face = iy > 0.75 ? 'top' : Math.abs(ix) > Math.abs(iz) ? 'side' : iz >= 0 ? 'front' : 'back';
   return o;
 }
 
-// Fraction of a projectile's energy left in tissue over pathCm. Bullets cross a narrow channel until they yaw
-// (neckCm), then dump energy fast; above fragV they also break up (M193: Fackler). Pistol ball barely yaws.
-export function depositFraction(hit, pathCm) {
-  const rd = hit.round ? ROUNDS[hit.round] : null;
-  if (hit.proj === 'fsp' || !rd) return 1 - Math.exp(-pathCm / 4);
-  const lead = rd.proj === 'lead', frag = hit.velocity >= rd.fragV;
-  const kLow = lead ? 0.022 : 0.018, L = frag ? 7 : lead ? 1e9 : 18;
-  let f = Math.min(pathCm, rd.neckCm) * kLow;
-  const rest = pathCm - rd.neckCm; if (rest > 0) f += (1 - f) * (1 - Math.exp(-rest / L));
-  return clamp(f, 0, 0.98);
-}
-export const hpFromEnergy = ej => 0.9 * Math.pow(Math.max(0, ej), 0.6);   // INFERRED: M193 chest ~60 HP, M80 ~75, .45 ~26, small fragment ~10-25
-
-// Probability a projectile defeats one armour layer. Logistic in energy density / t50.
-export function penProbability(hit, mat, durFrac = 1) {
-  const m = MATS[mat]; const t50 = m.t50[hit.proj] * (0.55 + 0.45 * durFrac);
-  const ed = hit.energy / hit.area * hit.pen;
-  return 1 / (1 + Math.exp(-(ed / t50 - 1) / m.spread));
+// GAME: chance a hit with penetration `pen` gets through armour class `cls` (worn armour counts as lower class).
+export function penProbability(pen, cls, durFrac = 1) {
+  const eff = cls * 10 * (0.6 + 0.4 * durFrac);
+  return 1 / (1 + Math.exp(-(pen - eff) / 4));
 }
 
-// Fragment presets -> a list of hit-infos for a man at distance distM from the burst (expected count from the
-// presented area 0.5 m^2 standing; INFERRED). prone halves the area.
+// Fragment presets -> hit-infos for a man distM from the burst (expected count from a 0.5 m^2 standing target;
+// prone 0.2). GAME table, see FRAGS in items.js.
 export function fragmentHits(presetId, distM, rng = Math.random, { prone = false, dir } = {}) {
   const P = FRAGS[presetId]; const area = prone ? 0.2 : 0.5;
   const lambda = P.count * area / (4 * Math.PI * Math.max(1, distM) ** 2);
   let n = 0, L = Math.exp(-lambda), p = 1; do { n++; p *= rng(); } while (p > L && n < 60); n--;   // Poisson
-  const out = [];
-  for (let i = 0; i < n; i++) {
-    const m = lerp(P.massG[0], P.massG[1], rng() * rng());
-    out.push({ kind: 'fragment', massG: m, velocity: P.v0 * Math.exp(-distM / P.decayM), proj: 'fsp', source: P.name, rangeM: distM, dir });
-  }
+  const out = [], k = Math.exp(-distM / P.falloff);
+  for (let i = 0; i < n; i++) out.push({ kind: 'fragment', dmg: P.dmg * k * (0.5 + rng()), pen: P.pen * k * (0.7 + 0.6 * rng()), bleed: 0.8, source: P.name, rangeM: distM, dir });
   return out;
 }
 
@@ -260,13 +242,12 @@ export function createMedical(opts = {}) {
   }
   function addFracture(region, name) { const R = M.regions[region]; if (R.fracture) return; R.fracture = name || 'FRACTURE'; R.splint = 0; addPain(region, 35); ev('fracture', { region, name: R.fracture }); }
 
-  // The wound model. armour: array of item instances (or defs) with def.armour; instance.dur is worn down.
+  // The wound model (GAME tables). armour: item instances (or defs) with def.armour; instance.dur is worn down.
   M.hit = (hitIn, armour = []) => {
     const h = normaliseHit(hitIn, rng);
-    const Z = ZONES[h.zone], res = { region: h.part, zone: h.zone, face: h.face, energy: Math.round(h.energy), velocity: Math.round(h.velocity), layers: [], penetrated: true, blunt: 0, hp: 0, bleed: null, fracture: null, ptx: null, concussion: false, source: h.source || h.round || h.kind };
+    const Z = ZONES[h.zone], res = { region: h.part, zone: h.zone, face: h.face, dmg: +h.dmg.toFixed(1), pen: +h.pen.toFixed(1), layers: [], penetrated: true, hp: 0, bleed: null, fracture: null, ptx: null, concussion: false, source: h.source || h.round || h.kind };
     if (M.dead) { res.dead = true; return res; }
-    // skin: below ~0.1 J/mm^2 a fragment only bruises (INFERRED, skin penetration threshold)
-    let E = h.energy;
+    let dmg = h.dmg, pen = h.pen, blunt = 0;
     // armour, outermost first (layers in listed order per item, items in given order)
     for (const it of armour) {
       const def = defOf(it); const A = def?.armour; if (!A) continue;
@@ -275,52 +256,39 @@ export function createMedical(opts = {}) {
         if (rng() > cov) { res.layers.push({ item: def.id, mat: L.mat, covered: false }); continue; }
         const durMax = A.durMax || 1; if (it.dur == null && it.uid != null) it.dur = durMax;   // instances (with uid) wear; bare defs don't
         const durFrac = it.dur != null ? clamp(it.dur / durMax) : 1;
-        const hh = { ...h, energy: E };
-        const p = penProbability(hh, L.mat, durFrac);
-        const stopped = rng() >= p, m = MATS[L.mat];
-        if (it.dur != null) it.dur = Math.max(0, it.dur - (E / 1000) * m.durK * 10 * (stopped ? 1 : 0.4));
-        res.layers.push({ item: def.id, mat: L.mat, covered: true, pPen: +p.toFixed(3), stopped });
-        if (stopped) { res.penetrated = false; res.blunt = E * m.blunt; break; }
-        // through: the layer still eats energy (INFERRED: ~half its V50 energy)
-        E = Math.max(0, E - 0.5 * m.t50[h.proj] * (0.55 + 0.45 * durFrac) * h.area / h.pen);
+        const cls = MATS[L.mat].cls, p = penProbability(pen, cls, durFrac), stopped = rng() >= p;
+        if (it.dur != null) it.dur = Math.max(0, it.dur - dmg * (stopped ? 0.12 : 0.05) * (1 + pen / 40));   // GAME wear
+        res.layers.push({ item: def.id, mat: L.mat, cls, covered: true, pPen: +p.toFixed(3), stopped });
+        if (stopped) { res.penetrated = false; blunt = dmg * ARMOUR_CLASS[cls].blunt; break; }
+        dmg *= 0.85; pen *= 0.75;   // GAME: going through armour costs damage and penetration
       }
       if (!res.penetrated) break;
     }
-    if (res.penetrated && E / h.area < 0.1) { res.penetrated = false; res.blunt = E; }
     M.adrenaline = Math.min(1, M.adrenaline + 0.45);
     const region = h.part;
     if (!res.penetrated) {
-      // blunt trauma behind armour (back-face deformation)
-      const hp = 0.55 * Math.pow(res.blunt, 0.6); res.hp = +hp.toFixed(1);
-      M.damage(region, hp, h); addPain(region, hp * 0.8);
-      if (h.zone === 'chest' && res.blunt > 120 && rng() < clamp((res.blunt - 120) / 400, 0, 0.6)) { addFracture('thorax', 'RIBS'); res.fracture = 'RIBS'; }
-      if (h.zone === 'cranium' && rng() < clamp((res.blunt - 25) / 120, 0, 0.7)) { res.concussion = true; concuss(15 + rng() * 30); }
+      res.hp = +blunt.toFixed(1); res.blunt = res.hp;
+      M.damage(region, blunt, h); addPain(region, blunt * 0.8);
+      if (h.zone === 'chest' && rng() < clamp((blunt - 6) / 30, 0, 0.5)) { addFracture('thorax', 'RIBS'); res.fracture = 'RIBS'; }
+      if (h.zone === 'cranium' && rng() < clamp((blunt - 4) / 12, 0, 0.7)) { res.concussion = true; concuss(15 + rng() * 30); }
       ev('hit', { ...res });
       return res;
     }
-    // energy in tissue
-    const vRes = Math.sqrt(2 * E / (h.massG / 1000));
-    const hRes = { ...h, energy: E, velocity: vRes };
-    const f = depositFraction(hRes, Z.pathCm);
-    const dep = E * f; res.deposited = Math.round(dep); res.exit = E - dep > 60 && h.kind !== 'fragment';
-    const hp = hpFromEnergy(dep) * Z.dmgMul * (0.85 + 0.3 * rng()); res.hp = +hp.toFixed(1);
+    const hp = dmg * Z.dmgMul * (0.85 + 0.3 * rng()); res.hp = +hp.toFixed(1);
+    res.exit = h.kind === 'bullet' && dmg > 45 && rng() < 0.6;
     M.regions[region].wounds++;
-    // bleed: the wound's worst vessel decides its type
-    if (dep > 6) {
-      // wound size: a small fragment track rarely reaches a big vessel; a rifle's temporary cavity reaches more
-      // (k = 1 at 300 J deposited; INFERRED, tuned so an M67 at 5 m kills about half of unprotected men - FM32330)
-      const k = clamp(dep / 300, 0.08, 1.5);
+    // bleed: the wound's worst vessel decides its type. Wound size k scales the chance of reaching a big vessel.
+    const k = clamp(dmg / 45 * h.bleed, 0.1, 1.6);
+    if (dmg > 2) {
       if (rng() < Z.artery.p * k) res.bleed = addBleed(region, h.zone, 'arterial', Z.artery.rate * (0.8 + 0.4 * rng()), Z.artery.ctl, Z.artery.name);
       else if (rng() < clamp(Z.heavyP * k, 0, 0.8)) res.bleed = addBleed(region, h.zone, 'heavy', Z.heavy * (0.7 + 0.6 * rng()), Z.heavyCtl === 'internal' && rng() < 0.4 ? 'junctional' : Z.heavyCtl, 'VENOUS');
       else if (rng() < 0.9) res.bleed = addBleed(region, h.zone, 'light', Z.light * (0.6 + 0.8 * rng()) * (0.4 + 0.6 * Math.min(1, k)), Z.heavyCtl === 'internal' ? 'surface' : Z.heavyCtl === 'junctional' ? 'surface' : Z.heavyCtl, 'WOUND');
       if (res.exit && rng() < 0.7) addBleed(region, h.zone, 'light', Z.light * 0.8, Z.heavyCtl === 'tq' ? 'tq' : 'surface', 'EXIT WOUND');
     }
     if (res.bleed) res.bleed = res.bleed.type;
-    // bone
-    if (Z.bone && rng() < clamp(Z.bone * Math.min(1.6, dep / 500))) { addFracture(region, Z.boneName); res.fracture = Z.boneName; }
-    // chest: pneumothorax
-    if (Z.ptx && dep > 40 && rng() < Z.ptx) {
-      const open = res.exit || dep > 500 || rng() < 0.45;
+    if (Z.bone && rng() < clamp(Z.bone * Math.min(1.6, dmg / 50))) { addFracture(region, Z.boneName); res.fracture = Z.boneName; }
+    if (Z.ptx && dmg > 8 && rng() < Z.ptx * Math.min(1, dmg / 30)) {
+      const open = res.exit || dmg > 60 || rng() < 0.45;
       if (!M.ptx) M.ptx = { open, sev: open ? 0.45 : 0.25, sealed: false, vented: false, tension: 0, decompressed: 0 };
       else { M.ptx.open = M.ptx.open || open; M.ptx.sealed = M.ptx.sealed && !open; }
       res.ptx = open ? 'OPEN' : 'CLOSED'; ev('ptx', { open });

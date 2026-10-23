@@ -8,21 +8,23 @@
 // Grid sizes are abstract Tarkov-style cells (roughly a hand's width, ~10 cm): a rifle is 5x2, a magazine 1x2, a
 // grenade 1x1. Weights are real (kg). Container items carry `grids` (where items go) and/or `slots` (named sockets:
 // a weapon's magazine well, the LC-2 belt's pouch keepers). Interfaces for other modules:
-//   ROUNDS[id]   ballistic data per cartridge (mass, muzzle velocity, diameter, BC, wound behaviour) - shared with the
-//                INFANTRY ballistics module, which should take its numbers from here (one source of truth).
-//   MATS[id]     armour materials (penetration thresholds per projectile class), used by medical.js.
+//   ROUNDS[id]   per cartridge: logistics (cartridge weight for the inventory), a nominal muzzle speed for the flight
+//                code, and GAME stats (dmg, pen, bleed) in the Tarkov style. Wound and armour effects in this game are
+//                deliberately simple gameplay tables, tuned for feel - NOT a model of real terminal ballistics.
+//   ARMOUR_CLASS armour classes 1-6 (Tarkov-style), used by medical.js.
 //   ITEMS[id]    item definitions, used by inventory.js (grids, weights) and medical.js (med blocks, armour blocks).
-//   FRAGS[id]    fragment presets for grenades / 40 mm / shells (medical.fragmentHit turns them into hit-infos).
+//   FRAGS[id]    grenade / shell fragment presets (game tables; medical.fragmentHits turns them into hit-infos).
 
 // ---------------------------------------------------------------------------------------------------------------- sources
+// Sources cover kit weights / sizes / issue, rations and MEDICINE. Combat damage numbers are game tuning (tag GAME).
 export const S = {
-  TM16: 'TM 9-1005-249-10, Operator\'s Manual M16A1 Rifle (1977/1985): weights, 991 m/s M193 from a 20 in barrel',
-  FM2367: 'FM 23-67 Machinegun 7.62-mm M60 (1984): 10.5 kg gun, 838 m/s M80',
-  FM2331: 'FM 23-31 40-mm Grenade Launcher M203 (1972/1994): 1.36 kg launcher, M406 HE 0.23 kg, 5 m kill / 130 m casualty radius',
-  FM2333: 'FM 23-33 66-mm HEAT Rocket M72A2 (1975): 2.3 kg, 0.67 m closed',
-  FM2335: 'FM 23-35 Combat Training with Pistols M1911A1 (1988): 1.1 kg, .45 ball 14.9 g at 253 m/s',
-  FM32330: 'FM 3-23.30 Grenades and Pyrotechnic Signals: M67 0.4 kg, 5 m fatality / 15 m casualty radius; M18 0.54 kg',
-  FM2123: 'FM 23-23 Antipersonnel Mine M18A1 Claymore: 1.6 kg mine, bandolier set 1.6 kg+',
+  TM16: 'TM 9-1005-249-10, Operator\'s Manual M16A1 Rifle: weights (6.35 lb rifle, 0.7 lb loaded 20-rd magazine)',
+  FM2367: 'FM 23-67 Machinegun 7.62-mm M60: 23.15 lb gun',
+  FM2331: 'FM 23-31 40-mm Grenade Launcher M203: 3 lb launcher, 8 oz rounds',
+  FM2333: 'FM 23-33 66-mm HEAT Rocket M72A2: 5.1 lb, 0.67 m closed',
+  FM2335: 'FM 23-35 Combat Training with Pistols M1911A1: 2.44 lb pistol, 7-rd magazine',
+  FM32330: 'FM 3-23.30 Grenades and Pyrotechnic Signals: M67 14 oz, M18 smoke 19 oz',
+  FM2123: 'FM 23-23 Antipersonnel Mine M18A1: 3.5 lb with bandolier',
   FM2118: 'FM 21-18 Foot Marches (1990): fighting load 48 lb (22 kg), approach march load 72 lb (33 kg), emergency 150 lb',
   FM2111: 'FM 21-11 First Aid for Soldiers (1977/1988 ed.): field dressing, improvised tourniquet (cravat + windlass), splints, sucking chest wound sealed with the dressing wrapper',
   ATLS: 'ATLS Student Course Manual 10th ed. (2018), table 3-1 haemorrhagic shock classes I-IV (blood volume 7% of body weight)',
@@ -31,72 +33,66 @@ export const S = {
   CATMFR: 'North American Rescue CAT Gen 7 data sheet: 2.7 oz (77 g)',
   QCMFR: 'Z-Medica QuikClot Combat Gauze instructions: pack the wound, hold 3 minutes of direct pressure',
   SAMMFR: 'SAM Medical SAM Splint 36 in: 4 oz (113 g)',
-  FACKLER: 'Fackler, Wound ballistics: a review of common misconceptions, JAMA 1988; Fackler et al. 1984 (M193 fragments above ~2700 ft/s; M80 yaws at ~16 cm; AK-47 at ~26 cm; 5.45 7N6 yaws at ~7 cm)',
   NATICK: 'US Army Natick Soldier Center ration fact sheets (MRE ~1250 kcal, ~0.6 kg); MCI / LRP histories',
   MORPH: 'Morphine pharmacology (Goodman & Gilman): IM peak 30-60 min, elimination half-life 2-3 h; respiratory depression dose-related',
-  NIJ: 'NIJ 0101.04 / 0101.06 body armour levels: IIIA stops .44 Magnum 15.6 g at 436 m/s; ESAPI (Level IV class) stops .30-06 M2 AP',
-  MILV50: 'MIL-STD-662F V50 ballistic test; 17-grain (1.1 g) .22 cal fragment-simulating projectile (FSP)',
-  M69: 'US Army Natick history of body armour: M69 fragmentation vest, 12-ply ballistic nylon, ~8.5 lb, fragments only',
-  M1HELM: 'M1 helmet: Hadfield manganese steel shell ~2.25 lb + liner; designed against shell fragments and pistol ball at low velocity',
-  ALICE: 'TM 10-8465-236-10 / SB 10-523: ALICE components (LC-2 belt, small arms ammunition case holds 3 x 20- or 30-rd magazines, canteen cover, first-aid case, medium pack)',
+  M69: 'US Army Natick history of body armour: M69 fragmentation vest ~8.5 lb, issued against fragments',
+  M1HELM: 'M1 helmet: steel shell + liner, ~3 lb',
+  ALICE: 'TM 10-8465-236-10 / SB 10-523: ALICE components (LC-2 belt, small arms ammunition case holds 3 magazines, canteen cover, first-aid case, medium pack)',
   UNIT1: 'US Navy Hospital Corpsman Unit One medical bag (Vietnam era to 1980s) contents lists',
-  BAND: 'TM 43-0001-27 small arms ammunition data: M193 ball 11.8 g cartridge, issued 10-rd stripper clips, bandolier 140 rds (7 pockets x 2 clips) with charger',
+  BAND: 'TM 43-0001-27 small arms ammunition data: M193 cartridge 11.8 g; 10-rd stripper clips, bandolier 140 rds (7 pockets x 2 clips) with charger',
 };
 
 // ------------------------------------------------------------------------------------------------------------ cartridges
-// proj: penetration class vs armour (fsp = fragment / fragment-simulating, lead = soft lead-core pistol ball, rifle =
-// jacketed rifle ball), pen = hardness multiplier on top of the class (steel penetrator 1.2-1.6, AP core 1.8-2.0).
-// neckCm: tissue path before the bullet yaws (narrow channel); fragV: impact speed above which it fragments (m/s).
-// bc: G1 ballistic coefficient, used only by approxVelocity() below (sandbox); the INFANTRY ballistics module owns flight.
+// Logistics: cartG (cartridge weight, for the inventory), cal (which magazines take it), v0 (nominal muzzle speed in
+// m/s, handed to the INFANTRY flight code). Game stats (tag GAME, Tarkov-style, tuned for play):
+//   dmg   HP to an unarmoured body part at full speed (falls off with speed, see gameDamage in medical.js)
+//   pen   armour penetration 0-70: beats armour class C roughly when pen > 10 C (see ARMOUR_CLASS)
+//   bleed multiplier on the wound's bleed chances
 export const ROUNDS = {
-  M193:  { cal: '556', name: '5.56x45 M193 BALL', bulletG: 3.56, cartG: 11.8, v0: 991, diaMm: 5.70, bc: 0.243, proj: 'rifle', pen: 1.0, neckCm: 12, fragV: 823, tag: 'CONFIRMED', src: 'TM16,FACKLER,BAND' },
-  M196:  { cal: '556', name: '5.56x45 M196 TRACER', bulletG: 3.50, cartG: 11.6, v0: 991, diaMm: 5.70, bc: 0.24, proj: 'rifle', pen: 1.0, neckCm: 12, fragV: 850, tracer: true, tag: 'INFERRED', src: 'TM16' },
-  M855:  { cal: '556', name: '5.56x45 M855 (seized)', bulletG: 4.02, cartG: 12.3, v0: 948, diaMm: 5.70, bc: 0.304, proj: 'rifle', pen: 1.25, neckCm: 12, fragV: 760, tag: 'CONFIRMED', src: 'FACKLER (M855 62 gr, 3100 ft/s from 20 in)' },
-  M855A1:{ cal: '556', name: '5.56x45 M855A1 EPR (seized)', bulletG: 4.02, cartG: 12.3, v0: 961, diaMm: 5.70, bc: 0.31, proj: 'rifle', pen: 1.6, neckCm: 8, fragV: 0, tag: 'INFERRED', src: 'US Army PEO Soldier M855A1 fact sheet (yaw-independent fragmentation)' },
-  M80:   { cal: '762n', name: '7.62x51 M80 BALL', bulletG: 9.53, cartG: 25.4, v0: 838, diaMm: 7.82, bc: 0.40, proj: 'rifle', pen: 1.0, neckCm: 16, fragV: 99999, tag: 'CONFIRMED', src: 'FM2367,FACKLER' },
-  M62:   { cal: '762n', name: '7.62x51 M62 TRACER', bulletG: 9.33, cartG: 25.0, v0: 838, diaMm: 7.82, bc: 0.39, proj: 'rifle', pen: 1.0, neckCm: 16, fragV: 99999, tracer: true, tag: 'INFERRED', src: 'FM2367' },
-  M1911: { cal: '45', name: '.45 ACP M1911 BALL', bulletG: 14.9, cartG: 21.1, v0: 253, diaMm: 11.48, bc: 0.15, proj: 'lead', pen: 1.0, neckCm: 40, fragV: 99999, tag: 'CONFIRMED', src: 'FM2335' },
-  M882:  { cal: '9', name: '9x19 M882 BALL (seized)', bulletG: 8.0, cartG: 12.0, v0: 375, diaMm: 9.01, bc: 0.14, proj: 'lead', pen: 1.05, neckCm: 30, fragV: 99999, tag: 'CONFIRMED', src: 'TM 43-0001-27 (M882 124 gr, 1230 ft/s)' },
-  PS:    { cal: '762r', name: '7.62x39 57-N-231 PS', bulletG: 7.9, cartG: 16.2, v0: 718, diaMm: 7.92, bc: 0.30, proj: 'rifle', pen: 1.15, neckCm: 26, fragV: 99999, tag: 'CONFIRMED', src: 'FACKLER (AK-47 yaws at 26 cm); AKM manual 715 m/s' },
-  N7N6:  { cal: '545', name: '5.45x39 7N6', bulletG: 3.42, cartG: 10.2, v0: 880, diaMm: 5.60, bc: 0.33, proj: 'rifle', pen: 1.2, neckCm: 7, fragV: 99999, tag: 'CONFIRMED', src: 'FACKLER (7N6 yaws at ~7 cm); AK-74 manual 900 m/s' },
-  RWN:   { cal: 'rw', name: 'RW 3 mm NEEDLE (rail)', bulletG: 0.9, cartG: 1.4, v0: 1500, diaMm: 3.0, bc: 0.2, proj: 'rifle', pen: 3.0, neckCm: 4, fragV: 99999, tag: 'FICTION', src: '' },
+  M193:  { cal: '556', name: '5.56x45 M193 BALL', cartG: 11.8, v0: 991, dmg: 54, pen: 32, bleed: 1.1, tag: 'GAME', src: 'BAND (cartridge weight)' },
+  M196:  { cal: '556', name: '5.56x45 M196 TRACER', cartG: 11.6, v0: 991, dmg: 52, pen: 30, bleed: 1.0, tracer: true, tag: 'GAME', src: '' },
+  M855:  { cal: '556', name: '5.56x45 M855 (SEIZED)', cartG: 12.3, v0: 948, dmg: 50, pen: 38, bleed: 1.0, tag: 'GAME', src: '' },
+  M855A1:{ cal: '556', name: '5.56x45 M855A1 (SEIZED)', cartG: 12.3, v0: 961, dmg: 49, pen: 48, bleed: 1.0, tag: 'GAME', src: '' },
+  M80:   { cal: '762n', name: '7.62x51 M80 BALL', cartG: 25.4, v0: 838, dmg: 72, pen: 45, bleed: 1.2, tag: 'GAME', src: '' },
+  M62:   { cal: '762n', name: '7.62x51 M62 TRACER', cartG: 25.0, v0: 838, dmg: 70, pen: 42, bleed: 1.1, tracer: true, tag: 'GAME', src: '' },
+  M1911: { cal: '45', name: '.45 ACP M1911 BALL', cartG: 21.1, v0: 253, dmg: 40, pen: 14, bleed: 0.9, tag: 'GAME', src: '' },
+  M882:  { cal: '9', name: '9x19 M882 BALL (SEIZED)', cartG: 12.0, v0: 375, dmg: 36, pen: 18, bleed: 0.8, tag: 'GAME', src: '' },
+  PS:    { cal: '762r', name: '7.62x39 PS', cartG: 16.2, v0: 718, dmg: 57, pen: 38, bleed: 1.1, tag: 'GAME', src: '' },
+  N7N6:  { cal: '545', name: '5.45x39 7N6', cartG: 10.2, v0: 880, dmg: 50, pen: 36, bleed: 1.1, tag: 'GAME', src: '' },
+  RWN:   { cal: 'rw', name: 'RW 3 MM NEEDLE (RAIL)', cartG: 1.4, v0: 1500, dmg: 46, pen: 66, bleed: 1.4, tag: 'FICTION', src: '' },
 };
 
-// Simple flat-fire velocity decay v(x) = v0 exp(-x * 2.61e-4 / BC). Calibrated so M193 is 718 m/s at 300 m (published
-// ~725) and M80 689 m/s at 300 m (published 689): good to ~5% inside 500 m. INFERRED; for the sandbox and bench only.
+// Game falloff of a round's speed with range (sandbox and bench only; the INFANTRY module owns flight).
 export function approxVelocity(roundId, rangeM, v0) {
-  const r = ROUNDS[roundId]; return (v0 ?? r.v0) * Math.exp(-rangeM * 2.61e-4 / r.bc);
+  const r = ROUNDS[roundId]; return (v0 ?? r.v0) * Math.exp(-rangeM / (r.v0 > 600 ? 2400 : 900));
 }
 
 // ---------------------------------------------------------------------------------------------------------- fragments
-// Grenade / shell fragment presets: a hit-info generator in medical.js draws a mass and slows it with range
-// (v = v0 exp(-x / decayM)). INFERRED from Gurney velocities (~1200-1500 m/s for Comp B steel cases) and the published
-// casualty radii: an M67 fragment must still wound (> ~80 J) at 15 m and rarely beyond 30 m.
+// Grenade / shell fragments (GAME): expected hits on a standing man = count * 0.5 m^2 / (4 pi d^2); each hit does
+// dmg * exp(-d / falloff) with pen * exp(-d / falloff). Tuned so an M67 wounds about half the men in the open at 15 m
+// (the field-manual "casualty radius") and kills or disables many at 5 m.
 export const FRAGS = {
-  M67:  { name: 'M67 FRAG', massG: [0.15, 0.6], v0: 1500, decayM: 7.5, count: 4000, killR: 5, casR: 15, tag: 'INFERRED', src: 'FM32330' },
-  M406: { name: '40mm M406 HE', massG: [0.1, 0.4], v0: 1500, decayM: 9, count: 3000, killR: 5, casR: 130, tag: 'INFERRED', src: 'FM2331 (casualty radius is to 50% of exposed men, statistically)' },
-  ART:  { name: '105mm SHELL', massG: [1, 12], v0: 1100, decayM: 40, count: 20000, killR: 15, casR: 35, tag: 'INFERRED', src: 'FM 6-40 lethal area figures' },
-  RWB:  { name: 'RW CERAMIC BURST', massG: [0.3, 1.2], v0: 1800, decayM: 10, count: 3000, killR: 6, casR: 20, tag: 'FICTION', src: '' },
+  M67:  { name: 'M67 FRAG', dmg: 26, pen: 24, falloff: 9, count: 4000, tag: 'GAME', src: '' },
+  M406: { name: '40mm M406 HE', dmg: 24, pen: 22, falloff: 10, count: 3000, tag: 'GAME', src: '' },
+  ART:  { name: '105mm SHELL', dmg: 45, pen: 30, falloff: 25, count: 20000, tag: 'GAME', src: '' },
+  RWB:  { name: 'RW CERAMIC BURST', dmg: 30, pen: 35, falloff: 10, count: 3000, tag: 'FICTION', src: '' },
 };
 
-// ---------------------------------------------------------------------------------------------------------- armour mats
-// t50: energy density (J/mm^2 of presented area) at which half the hits of that projectile class get through (V50),
-// before the round's own pen multiplier; spread = logistic width as a fraction of t50; blunt = fraction of the energy
-// of a STOPPED round passed to the body (back-face deformation); durK = durability lost per kJ stopped.
-// Calibration (energy density = E / (pi d^2 / 4)):
-//   M69 nylon: 17-gr FSP V50 ~380 m/s (1250 ft/s)            -> 79 J / 24.6 mm^2 = 3.2   INFERRED (MILV50, M69)
-//   M1 steel:  17-gr FSP V50 ~320 m/s; stops .45 ball ~244 m/s -> 2.3 fsp / 4.4 lead     INFERRED (M1HELM)
-//   soft IIIA: 17-gr FSP V50 ~600 m/s; stops .44 Mag (15.4)    -> 8 fsp / 19 lead        CONFIRMED level (NIJ), V50 INFERRED
-//   ESAPI:     stops M2 AP (10.8 g, 868 m/s, 85 J/mm^2 x pen 2) -> rifle t50 210         CONFIRMED level (NIJ), INFERRED t50
-//   ECH (UHMWPE helmet): stops some 7.62x39 PS (43 x 1.15)     -> rifle 55               INFERRED
-//   RW lattice ceramic: stops every 1980 small-arms round       -> rifle 400              FICTION
-export const MATS = {
-  m69_nylon:   { name: 'BALLISTIC NYLON (M69)', t50: { fsp: 3.2, lead: 5.0, rifle: 3.2 }, spread: 0.18, blunt: 0.20, durK: 0.6, tag: 'INFERRED', src: 'M69,MILV50' },
-  m1_steel:    { name: 'HADFIELD STEEL (M1)', t50: { fsp: 2.3, lead: 4.4, rifle: 6 }, spread: 0.18, blunt: 0.12, durK: 0.5, tag: 'INFERRED', src: 'M1HELM,MILV50' },
-  soft3a:      { name: 'ARAMID SOFT IIIA', t50: { fsp: 8, lead: 19, rifle: 9 }, spread: 0.15, blunt: 0.16, durK: 0.4, tag: 'INFERRED', src: 'NIJ,MILV50' },
-  esapi:       { name: 'B4C / UHMWPE PLATE', t50: { fsp: 60, lead: 120, rifle: 210 }, spread: 0.12, blunt: 0.07, durK: 0.25, tag: 'INFERRED', src: 'NIJ' },
-  ech:         { name: 'UHMWPE HELMET (ECH)', t50: { fsp: 14, lead: 30, rifle: 55 }, spread: 0.15, blunt: 0.10, durK: 0.35, tag: 'INFERRED', src: 'NIJ' },
-  rw_lattice:  { name: 'RW LATTICE CERAMIC', t50: { fsp: 80, lead: 200, rifle: 400 }, spread: 0.10, blunt: 0.04, durK: 0.12, tag: 'FICTION', src: '' },
+// ---------------------------------------------------------------------------------------------------------- armour
+// Armour classes (GAME, Tarkov-style): a round with pen well above 10 x class goes through; well below, the armour
+// stops it and passes blunt damage (blunt x the round's dmg). Worn armour (durability) counts as a lower class.
+// Assignments: M69 vest and M1 helmet class 2 (fragments, some pistol), seized soft armour 3, ECH helmet 4,
+// seized ceramic plates 5, RUNAWAY lattice 6.
+export const ARMOUR_CLASS = {
+  1: { blunt: 0.35 }, 2: { blunt: 0.3 }, 3: { blunt: 0.25 }, 4: { blunt: 0.2 }, 5: { blunt: 0.16 }, 6: { blunt: 0.12 },
+};
+export const MATS = {   // armour layer materials -> class (names shown in the inspect panel)
+  m69_nylon:  { name: 'BALLISTIC NYLON (M69)', cls: 2 },
+  m1_steel:   { name: 'STEEL (M1)', cls: 2 },
+  soft3a:     { name: 'SOFT ARMOUR', cls: 3 },
+  ech:        { name: 'COMPOSITE HELMET', cls: 4 },
+  esapi:      { name: 'CERAMIC PLATE', cls: 5 },
+  rw_lattice: { name: 'RW LATTICE', cls: 6, tag: 'FICTION' },
 };
 
 // --------------------------------------------------------------------------------------------------------------- items
@@ -184,7 +180,7 @@ D('pouch_ammo', { name: 'SMALL ARMS AMMO CASE', short: 'AMMO CASE', cat: 'pouch'
 D('pouch_aid', { name: 'FIRST AID / COMPASS CASE', short: 'AID CASE', cat: 'pouch', tags: ['pouch', 'pouch_aid'], kg: 0.04, icon: 'aidcase', grids: [{ w: 1, h: 1, accept: ['dressing', 'compass', 'medsmall'], label: '' }], tag: 'INFERRED', src: 'ALICE' });
 D('pouch_canteen', { name: 'CANTEEN COVER', short: 'COVER', cat: 'pouch', tags: ['pouch', 'pouch_canteen'], w: 1, h: 2, kg: 0.15, icon: 'pouch', grids: [{ w: 1, h: 2, accept: ['canteen'], label: '' }, { w: 1, h: 1, accept: ['tablets', 'medsmall'], label: 'POCKET' }], tag: 'INFERRED', src: 'ALICE (cover with an outer pocket for water purification tablets)' });
 D('pouch_etool', { name: 'E-TOOL CARRIER', short: 'E-TOOL C', cat: 'pouch', tags: ['pouch', 'pouch_etool'], w: 2, h: 2, kg: 0.2, icon: 'pouch', grids: [{ w: 2, h: 2, accept: ['etool'], label: '' }], tag: 'INFERRED', src: 'ALICE' });
-D('m69_vest', { name: 'M69 FRAG VEST', short: 'M69', cat: 'armour', tags: ['vest', 'armour'], w: 3, h: 3, kg: 3.9, icon: 'vest', tag: 'INFERRED', src: 'M69 (8.5 lb, 12-ply ballistic nylon)',
+D('m69_vest', { name: 'M69 FRAG VEST', short: 'M69', cat: 'armour', tags: ['vest', 'armour'], w: 3, h: 3, kg: 3.9, icon: 'vest', tag: 'INFERRED', src: 'M69 (8.5 lb)',
   grids: [{ w: 1, h: 2, label: 'POCKET L' }, { w: 1, h: 2, label: 'POCKET R' }],
   armour: { durMax: 60, layers: [{ mat: 'm69_nylon', faces: ['front', 'back', 'side'], zones: { chest: 0.95, abdomen: 0.8, pelvis: 0.15, neck: 0.4, upperArm: 0.15 } }] },
   desc: 'Twelve plies of ballistic nylon with a high collar. Stops grenade and shell fragments. Does not stop rifle bullets. Hot.' });
@@ -200,13 +196,13 @@ D('unit1_bag', { name: 'UNIT ONE MEDICAL BAG', short: 'UNIT ONE', cat: 'pack', t
   grids: [{ w: 4, h: 3, accept: ['med', 'medsmall', 'dressing'], label: 'MAIN' }],
   med: { kind: 'woundcare', who: 'corpsman', uses: 6, time: { self: 240, buddy: 120 }, hpTo: 0.5 },
   desc: 'The Navy corpsman\'s bag. With it a corpsman can clean, debride and dress a ruined limb so it works again ("wound care", 6 uses of supplies).' });
-D('plate_carrier_rw', { name: 'PLATE CARRIER (SEIZED, RW)', short: 'CARRIER', cat: 'armour', tags: ['vest', 'armour', 'modern'], w: 3, h: 3, kg: 10.8, era: 'modern', icon: 'carrier', tag: 'INFERRED', src: 'NIJ; IOTV Gen IV with ESAPI front/back ~ 10-12 kg',
+D('plate_carrier_rw', { name: 'PLATE CARRIER (SEIZED, RW)', short: 'CARRIER', cat: 'armour', tags: ['vest', 'armour', 'modern'], w: 3, h: 3, kg: 10.8, era: 'modern', icon: 'carrier', tag: 'INFERRED', src: 'weight of a modern plate carrier with front and back plates, ~10-12 kg',
   grids: [{ w: 1, h: 2, accept: ['mag', 'grenade'], label: 'MAG 1' }, { w: 1, h: 2, accept: ['mag', 'grenade'], label: 'MAG 2' }, { w: 1, h: 2, accept: ['mag', 'grenade'], label: 'MAG 3' }, { w: 2, h: 1, label: 'ADMIN' }, { w: 2, h: 2, accept: ['med', 'medsmall', 'dressing'], label: 'IFAK' }],
   armour: { durMax: 90, layers: [
     { mat: 'esapi', faces: ['front', 'back'], zones: { chest: 0.72, abdomen: 0.3 } },
     { mat: 'soft3a', faces: ['front', 'back', 'side'], zones: { chest: 0.97, abdomen: 0.85, pelvis: 0.35, neck: 0.3, upperArm: 0.2 } }] },
   desc: 'A modern ceramic plate carrier from 2030-something, scrubbed of its markings, cyan IFF strip on the shoulder. Stops our rifle rounds.' });
-D('ech_helmet', { name: 'ECH HELMET (SEIZED)', short: 'ECH', cat: 'armour', tags: ['helmet', 'armour', 'modern'], w: 2, h: 2, kg: 1.4, era: 'modern', icon: 'helmet2', tag: 'INFERRED', src: 'NIJ',
+D('ech_helmet', { name: 'ECH HELMET (SEIZED)', short: 'ECH', cat: 'armour', tags: ['helmet', 'armour', 'modern'], w: 2, h: 2, kg: 1.4, era: 'modern', icon: 'helmet2', tag: 'INFERRED', src: 'weight ~1.4 kg',
   armour: { durMax: 55, layers: [{ mat: 'ech', faces: ['front', 'back', 'side', 'top'], zones: { cranium: 0.78 } }] } });
 D('rw_carapace', { name: 'RW-1 CARAPACE SECTION', short: 'CARAPACE', cat: 'armour', tags: ['vest', 'armour', 'rw'], w: 3, h: 3, kg: 6.2, era: 'rw', icon: 'carapace', tag: 'FICTION', src: '',
   armour: { durMax: 140, layers: [{ mat: 'rw_lattice', faces: ['front', 'back', 'side'], zones: { chest: 0.9, abdomen: 0.85, pelvis: 0.5, neck: 0.2, upperArm: 0.3 } }] },

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// medinvbench.mjs - checks the NGC-1980 medical, wound, armour and inventory models (game/js/units/infantry/) in plain
-// node against published data. Every check is tagged CONFIRMED (the target is a published figure), INFERRED (derived
-// from published data / doctrine) or UNVERIFIED (plausible, unchecked), with its source (S keys in items.js).
+// medinvbench.mjs - checks the NGC-1980 medical and inventory models (game/js/units/infantry/) in plain node against
+// published medical / kit data; the damage and armour side is GAME tuning (Tarkov-style) and is checked for feel only. Every check is tagged CONFIRMED (the target is a published figure), INFERRED (derived
+// from published data / doctrine), UNVERIFIED (plausible, unchecked) or GAME (a gameplay tuning target).
 //   node tools/medinvbench.mjs [--v]
-import { createMedical, mulberry32, ZONES, MED, hpFromEnergy, depositFraction, normaliseHit, penProbability, fragmentHits, BUDDY } from '../game/js/units/infantry/medical.js';
+import { createMedical, mulberry32, ZONES, MED, normaliseHit, penProbability, fragmentHits, BUDDY } from '../game/js/units/infantry/medical.js';
 import { ITEMS, ROUNDS, approxVelocity } from '../game/js/units/infantry/items.js';
 import * as I from '../game/js/units/infantry/inventory.js';
 
@@ -136,67 +136,49 @@ console.log('--- 3. treatments ---');
     check('RW nanite injector: bleeds stopped, limbs restored, bone knit', M.bleedRate() < 1 && M.regions.armR.hp > 50 && !M.regions.legL.fracture, `bleed ${M.bleedRate().toFixed(1)}, arm ${M.regions.armR.hp.toFixed(0)}`, 'healed', 'FICTION'); }
 }
 
-// ============================================================================================ 4. wounds and armour
-console.log('--- 4. wound ballistics (median HP of 400 hits, no armour) ---');
+// ============================================================================== 4. damage and armour (GAME tuning)
+// Not checked against real-world data: these are Tarkov-style gameplay tables. The checks pin the intended FEEL so
+// later tuning doesn't break it. Tag GAME.
+console.log('--- 4. damage and armour (game tuning, Tarkov-style; tag GAME) ---');
 const median = a => { const s = [...a].sort((x, y) => x - y); return s[s.length >> 1]; };
-function hpStats(hit, N = 400, armourIds = []) {
+function hpStats(hit, N = 300, armourIds = []) {
   const hp = [], dead = []; let stopped = 0;
-  for (let i = 0; i < N; i++) { const M = createMedical({ rng: mulberry32(1000 + i) }); const arm = armourIds.map(id => I.newItem(id)); const r = M.hit({ ...hit }, arm); hp.push(r.hp); if (!r.penetrated) stopped++; run(M, 600, 1); dead.push(M.dead ? 1 : 0); }
+  for (let i = 0; i < N; i++) { const M = createMedical({ rng: mulberry32(1000 + i) }); const r = M.hit({ ...hit }, armourIds.map(id => I.newItem(id))); hp.push(r.hp); if (!r.penetrated) stopped++; run(M, 600, 1); dead.push(M.dead ? 1 : 0); }
   return { hp: median(hp), stop: stopped / N, dead10: dead.reduce((s, x) => s + x, 0) / N };
 }
+function stopRate(hit, ids, N = 1000) { let s = 0, cov = 0; for (let i = 0; i < N; i++) { const M = createMedical({ rng: mulberry32(7 + i) }); const r = M.hit({ ...hit }, ids.map(id => I.newItem(id))); if (r.layers.some(l => l.covered)) { cov++; if (!r.penetrated) s++; } } return cov ? s / cov : 0; }
 {
-  const v100 = r => approxVelocity(r, 100);
-  check('M193 velocity at 300 m (approx. drag)', Math.abs(approxVelocity('M193', 300) - 725) < 30, approxVelocity('M193', 300).toFixed(0) + ' m/s', '~725 m/s', 'CONFIRMED', 'TM 43-0001-27 range tables');
-  check('M80 velocity at 300 m', Math.abs(approxVelocity('M80', 300) - 689) < 30, approxVelocity('M80', 300).toFixed(0) + ' m/s', '~689 m/s', 'CONFIRMED', 'FM2367');
-  const f50 = depositFraction(normaliseHit({ round: 'M193', velocity: approxVelocity('M193', 50), zone: 'thigh', part: 'legL' }), 16), f300 = depositFraction(normaliseHit({ round: 'M193', velocity: approxVelocity('M193', 300), zone: 'thigh', part: 'legL' }), 16);
-  check('M193 fragments inside ~200 m: more energy left in a thigh', f50 > f300 * 1.2, `${(f50 * 100).toFixed(0)}% @50 m vs ${(f300 * 100).toFixed(0)}% @300 m`, 'frag > no frag', 'CONFIRMED', 'FACKLER (2700 ft/s)');
-  const tab = [['M193 @100 m', { round: 'M193', velocity: v100('M193') }], ['M193 @300 m', { round: 'M193', velocity: approxVelocity('M193', 300) }], ['M80 @100 m', { round: 'M80', velocity: v100('M80') }], ['PS 7.62x39 @100 m', { round: 'PS', velocity: v100('PS') }],
-    ['7N6 5.45 @100 m', { round: 'N7N6', velocity: v100('N7N6') }], ['.45 ACP @10 m', { round: 'M1911', velocity: approxVelocity('M1911', 10) }], ['9 mm @10 m', { round: 'M882', velocity: approxVelocity('M882', 10) }], ['M67 fragment 0.3 g @5 m', { kind: 'fragment', massG: 0.3, velocity: 1300 * Math.exp(-5 / 7.5) }]];
   const out = {};
-  for (const [name, h] of tab) { const th = hpStats({ ...h, part: 'thorax', zone: 'chest' }, 300), lg = hpStats({ ...h, part: 'legL', zone: 'thigh' }, 300); out[name] = { th, lg }; console.log(`      ${name.padEnd(26)} chest ${th.hp.toFixed(0).padStart(3)} HP (dead in 10 min ${(th.dead10 * 100).toFixed(0).padStart(3)}%)   thigh ${lg.hp.toFixed(0).padStart(3)} HP (dead ${(lg.dead10 * 100).toFixed(0).padStart(3)}%)`); }
-  check('one M193 in the chest: not killed outright by HP', out['M193 @100 m'].th.hp < 85, out['M193 @100 m'].th.hp.toFixed(0) + ' HP', '< 85', 'INFERRED', 'Tarkov-like HP; real chest GSW survival ~70-80% with care');
-  check('7.62 M80 wounds more than M193 at 300 m (chest)', out['M80 @100 m'].th.hp > out['M193 @300 m'].th.hp, `${out['M80 @100 m'].th.hp.toFixed(0)} vs ${out['M193 @300 m'].th.hp.toFixed(0)}`, 'M80 > M193@300', 'INFERRED', 'FACKLER');
-  check('pistol ball wounds far less than rifle (chest)', out['.45 ACP @10 m'].th.hp < out['M193 @100 m'].th.hp * 0.6, `${out['.45 ACP @10 m'].th.hp.toFixed(0)} vs ${out['M193 @100 m'].th.hp.toFixed(0)}`, '< 60%', 'CONFIRMED', 'FACKLER');
-  { const r = hpStats({ round: 'M193', velocity: v100('M193'), part: 'head', zone: 'cranium' }, 200); check('rifle bullet through the cranium: lethal', r.dead10 > 0.97, (r.dead10 * 100).toFixed(0) + '%', '> 97%', 'CONFIRMED', 'wound ballistics'); }
-}
-console.log('--- 4b. armour (Monte Carlo, n=1000 each) ---');
-function stopRate(hit, ids, N = 1000) { let s = 0; for (let i = 0; i < N; i++) { const M = createMedical({ rng: mulberry32(7 + i) }); const r = M.hit({ ...hit }, ids.map(id => I.newItem(id))); if (!r.penetrated && r.layers.some(l => l.covered)) s++; } return s / N; }
-{
-  const fsp = v => ({ kind: 'fragment', massG: 1.1, diaMm: 5.59, velocity: v, proj: 'fsp', part: 'thorax', zone: 'chest' });
-  const a = stopRate(fsp(300), ['m69_vest']), b = stopRate(fsp(460), ['m69_vest']);
-  check('M69 vs 17-gr FSP at 300 m/s: stops', a > 0.8, (a * 100).toFixed(0) + '%', '> 80% (of covered)', 'INFERRED', 'MILV50, M69 (V50 ~380 m/s)');
-  check('M69 vs 17-gr FSP at 460 m/s: mostly through', b < 0.3, (b * 100).toFixed(0) + '%', '< 30%', 'INFERRED', 'MILV50');
-  const c = stopRate({ round: 'M193', velocity: approxVelocity('M193', 100), part: 'thorax', zone: 'chest' }, ['m69_vest']);
-  check('M69 vs M193 rifle at 100 m: no protection', c < 0.01, (c * 100).toFixed(1) + '%', '< 1%', 'CONFIRMED', 'M69: fragments only');
-  const d = stopRate({ round: 'M1911', velocity: approxVelocity('M1911', 5), part: 'thorax', zone: 'chest' }, ['m69_vest']);
-  check('M69 vs .45 ACP at 5 m: sometimes stops', d > 0.1 && d < 0.8, (d * 100).toFixed(0) + '%', '10-80%', 'UNVERIFIED', 'Vietnam-era anecdotes');
-  const e = stopRate({ round: 'M1911', velocity: 244, part: 'head', zone: 'cranium' }, ['m1_helmet']);
-  check('M1 helmet vs .45 ball at 244 m/s (800 ft/s)', e > 0.25 && e < 0.85, (e * 100).toFixed(0) + '%', '~50%', 'UNVERIFIED', 'M1HELM design requirement');
-  const f = stopRate({ round: 'M193', velocity: approxVelocity('M193', 300), part: 'head', zone: 'cranium' }, ['m1_helmet']);
-  check('M1 helmet vs M193 at 300 m: no protection', f < 0.01, (f * 100).toFixed(1) + '%', '< 1%', 'CONFIRMED', 'M1HELM');
-  const g = stopRate({ round: 'M80', velocity: approxVelocity('M80', 10), part: 'thorax', zone: 'chest', dir: { x: 0, y: 0, z: -1 } }, ['plate_carrier_rw']);
-  check('seized plate carrier vs M80 at 10 m (plate covers 72%)', g > 0.68 && g < 0.76, (g * 100).toFixed(0) + '%', '~72%', 'CONFIRMED', 'NIJ Level IV / ESAPI stops 7.62 NATO');
-  const h = stopRate({ round: 'M80', velocity: approxVelocity('M80', 10), part: 'thorax', zone: 'chest', dir: { x: -1, y: 0, z: 0 } }, ['plate_carrier_rw']);
-  check('... from the side (soft armour only): through', h < 0.02, (h * 100).toFixed(1) + '%', '< 2%', 'CONFIRMED', 'NIJ IIIA is pistol-rated');
-  const k = stopRate({ round: 'RWN', velocity: 1500, part: 'thorax', zone: 'chest' }, ['m69_vest']);
-  check('RW needle vs M69: through', k < 0.01, (k * 100).toFixed(1) + '%', '< 1%', 'FICTION');
-  const k2 = stopRate({ round: 'M80', velocity: approxVelocity('M80', 10), part: 'thorax', zone: 'chest' }, ['rw_carapace']);
-  check('RW carapace vs M80 at 10 m: stops when covered', k2 > 0.85, (k2 * 100).toFixed(0) + '%', '> 85%', 'FICTION');
-  // durability: a plate that stopped ten M80s is weaker
-  { const pc = I.newItem('plate_carrier_rw'); const M = createMedical({ rng: mulberry32(5) }); const hh = normaliseHit({ round: 'M80', velocity: 820, part: 'thorax', zone: 'chest' }); const p0 = penProbability(hh, 'esapi', 1);
-    for (let i = 0; i < 25; i++) { M.hit({ round: 'M80', velocity: 820, part: 'thorax', zone: 'chest' }, [pc]); M.restore(); }
-    const p1 = penProbability(hh, 'esapi', pc.dur / ITEMS.plate_carrier_rw.armour.durMax);
-    check('plate durability: 25 hits later more rounds get through', p1 > p0 * 2 && pc.dur < 75, `P(pen) ${(p0 * 100).toFixed(2)}% -> ${(p1 * 100).toFixed(2)}%, dur ${pc.dur.toFixed(0)}/90`, 'rises', 'INFERRED', 'NIJ multi-hit'); }
-  // blunt trauma
-  { const hp = [], ribs = []; for (let i = 0; i < 300; i++) { const M = createMedical({ rng: mulberry32(50 + i) }); const r = M.hit({ round: 'M80', velocity: 820, part: 'thorax', zone: 'chest' }, ['plate_carrier_rw'].map(id => I.newItem(id))); if (!r.penetrated) { hp.push(r.hp); ribs.push(r.fracture ? 1 : 0); } }
-    const mh = median(hp), rf = ribs.reduce((s, x) => s + x, 0) / ribs.length;
-    check('M80 stopped by a plate: blunt trauma only', mh > 3 && mh < 20, mh.toFixed(1) + ` HP, ribs ${(rf * 100).toFixed(0)}%`, '3-20 HP, some rib fractures', 'INFERRED', 'behind-armour blunt trauma literature'); }
-  // grenade
-  for (const [d, arm, lo, hi, what] of [[5, [], 0.25, 0.9, 'no armour'], [5, ['m69_vest', 'm1_helmet'], 0, 0.45, 'M69 + M1'], [15, [], 0.25, 0.85, 'no armour']]) {
+  for (const [name, h] of [['M193 @100 m', { round: 'M193', velocity: approxVelocity('M193', 100) }], ['M193 @400 m', { round: 'M193', velocity: approxVelocity('M193', 400) }], ['M80 @100 m', { round: 'M80', velocity: approxVelocity('M80', 100) }], ['.45 ACP @10 m', { round: 'M1911', velocity: approxVelocity('M1911', 10) }], ['grenade fragment @5 m', fragmentHits('M67', 5, mulberry32(4))[0] || { kind: 'fragment', dmg: 15, pen: 14 }]]) {
+    const th = hpStats({ ...h, part: 'thorax', zone: 'chest' }), lg = hpStats({ ...h, part: 'legL', zone: 'thigh' }); out[name] = { th, lg };
+    console.log(`      ${name.padEnd(24)} chest ${th.hp.toFixed(0).padStart(3)} HP (dead in 10 min ${(th.dead10 * 100).toFixed(0).padStart(3)}%)   thigh ${lg.hp.toFixed(0).padStart(3)} HP (dead ${(lg.dead10 * 100).toFixed(0).padStart(3)}%)`);
+  }
+  check('one rifle hit to the chest is survivable (HP)', out['M193 @100 m'].th.hp < 85, out['M193 @100 m'].th.hp.toFixed(0) + ' HP', '< 85 (two kill)', 'GAME');
+  check('7.62 hits harder than 5.56 at range', out['M80 @100 m'].th.hp > out['M193 @400 m'].th.hp, `${out['M80 @100 m'].th.hp.toFixed(0)} vs ${out['M193 @400 m'].th.hp.toFixed(0)}`, 'M80 > M193', 'GAME');
+  check('pistol hits softer than rifle', out['.45 ACP @10 m'].th.hp < out['M193 @100 m'].th.hp, `${out['.45 ACP @10 m'].th.hp.toFixed(0)} vs ${out['M193 @100 m'].th.hp.toFixed(0)}`, 'pistol < rifle', 'GAME');
+  { const r = hpStats({ round: 'M193', velocity: 900, part: 'head', zone: 'cranium' }, 200); check('unprotected head shot (rifle): lethal', r.dead10 > 0.97, (r.dead10 * 100).toFixed(0) + '%', '> 97%', 'GAME'); }
+  const frag = { kind: 'fragment', dmg: 14, pen: 13, part: 'thorax', zone: 'chest' };
+  check('class 2 (M69 vest) stops most grenade fragments', stopRate(frag, ['m69_vest']) > 0.7, (stopRate(frag, ['m69_vest']) * 100).toFixed(0) + '%', '> 70% of covered hits', 'GAME');
+  const rifle = { round: 'M193', velocity: approxVelocity('M193', 100), part: 'thorax', zone: 'chest' };
+  check('class 2 (M69 vest) rarely stops rifle rounds', stopRate(rifle, ['m69_vest']) < 0.1, (stopRate(rifle, ['m69_vest']) * 100).toFixed(1) + '%', '< 10%', 'GAME');
+  const pistol = { round: 'M1911', velocity: 250, part: 'head', zone: 'cranium' };
+  check('class 2 (M1 helmet) vs pistol: sometimes', stopRate(pistol, ['m1_helmet']) > 0.2 && stopRate(pistol, ['m1_helmet']) < 0.9, (stopRate(pistol, ['m1_helmet']) * 100).toFixed(0) + '%', '20-90%', 'GAME');
+  const m80 = { round: 'M80', velocity: approxVelocity('M80', 50), part: 'thorax', zone: 'chest', dir: { x: 0, y: 0, z: -1 } };
+  check('class 5 plate (seized carrier) stops 7.62 from the front', stopRate(m80, ['plate_carrier_rw']) > 0.6, (stopRate(m80, ['plate_carrier_rw']) * 100).toFixed(0) + '%', '> 60% of covered hits', 'GAME');
+  check('... from the side only the soft class 3 covers: through', stopRate({ ...m80, dir: { x: -1, y: 0, z: 0 } }, ['plate_carrier_rw']) < 0.1, (stopRate({ ...m80, dir: { x: -1, y: 0, z: 0 } }, ['plate_carrier_rw']) * 100).toFixed(0) + '%', '< 10%', 'GAME');
+  check('class 6 (RW carapace) stops our 7.62', stopRate(m80, ['rw_carapace']) > 0.9, (stopRate(m80, ['rw_carapace']) * 100).toFixed(0) + '%', '> 90%', 'FICTION');
+  check('RW needles go through the M69', stopRate({ round: 'RWN', part: 'thorax', zone: 'chest' }, ['m69_vest']) < 0.02, (stopRate({ round: 'RWN', part: 'thorax', zone: 'chest' }, ['m69_vest']) * 100).toFixed(1) + '%', '< 2%', 'FICTION');
+  { const pc = I.newItem('plate_carrier_rw'); const p0 = penProbability(ROUNDS.M80.pen, 5, 1);
+    for (let i = 0; i < 25; i++) { const M = createMedical({ rng: mulberry32(5 + i) }); M.hit({ round: 'M80', part: 'thorax', zone: 'chest' }, [pc]); }
+    const p1 = penProbability(ROUNDS.M80.pen, 5, pc.dur / ITEMS.plate_carrier_rw.armour.durMax);
+    check('armour wears: 25 hits later more get through', p1 > p0 * 2, `P(pen) ${(p0 * 100).toFixed(1)}% -> ${(p1 * 100).toFixed(1)}%, dur ${pc.dur.toFixed(0)}/90`, 'rises', 'GAME'); }
+  { const hp = []; for (let i = 0; i < 300; i++) { const M = createMedical({ rng: mulberry32(50 + i) }); const r = M.hit({ round: 'M80', velocity: 820, part: 'thorax', zone: 'chest' }, [I.newItem('plate_carrier_rw')]); if (!r.penetrated) hp.push(r.hp); }
+    check('a stopped round still hurts (blunt)', median(hp) > 5 && median(hp) < 20, median(hp).toFixed(1) + ' HP', '5-20 HP', 'GAME'); }
+  for (const [d, arm, lo, hi, what, kind] of [[5, [], 0.2, 0.9, 'no armour', 'dead'], [5, ['m69_vest', 'm1_helmet'], 0, 0.6, 'M69 + M1', 'dead'], [15, [], 0.3, 0.8, 'no armour', 'wounded']]) {
     let wounded = 0, dead = 0; const N = 300;
     for (let i = 0; i < N; i++) { const rng = mulberry32(900 + i); const M = createMedical({ rng }); const hits = fragmentHits('M67', d, rng); const kit = arm.map(id => I.newItem(id)); for (const h of hits) M.hit(h, kit); if (Object.values(M.regions).some(R => R.hp < R.max)) wounded++; run(M, 600, 1); if (M.dead) dead++; }
-    if (d === 15) check(`M67 at ${d} m (${what}): wounded`, wounded / N >= lo && wounded / N <= hi, (wounded / N * 100).toFixed(0) + '%', `${lo * 100}-${hi * 100}%`, 'CONFIRMED', 'FM32330 casualty radius 15 m (~50%)');
-    else check(`M67 at ${d} m (${what}): dead within 10 min untreated`, dead / N >= lo && dead / N <= hi, (dead / N * 100).toFixed(0) + '%', `${lo * 100}-${hi * 100}%`, 'INFERRED', 'FM32330 fatality radius 5 m');
+    const v = (kind === 'dead' ? dead : wounded) / N;
+    check(`grenade at ${d} m (${what}): ${kind === 'dead' ? 'dead within 10 min untreated' : 'wounded'}`, v >= lo && v <= hi, (v * 100).toFixed(0) + '%', `${lo * 100}-${hi * 100}%`, 'GAME', kind === 'wounded' ? 'feel: about half wounded at 15 m' : '');
   }
 }
 
