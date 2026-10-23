@@ -398,8 +398,14 @@ export function buildM60A3Mesh(opts = {}) {
   for (let k = 0; k < 3; k++) { const sb = new THREE.Mesh(box(0.7, 0.05, 0.16, 0, 0, 0), trackSteel); sb.position.set(0, 1.3 + k * 0.07, -2.9 + k * 0.155); sb.rotation.x = -1.13; hull.add(sb); }
   const hullMesh = new THREE.Mesh(merge(parts), paintM); hullMesh.name = 'hullShell'; hull.add(hullMesh); shell.push(hullMesh);
   // markings: bumper codes front and rear (unit / vehicle), subdued 1980 style
-  hull.add(decal(stencil('3-64AR', 256, 64), 0.5, 0.125, V3(-0.55, 0.78, -3.28), Math.PI, -0.75));
-  hull.add(decal(stencil('B-21', 256, 64), 0.42, 0.105, V3(0.6, 0.78, -3.28), Math.PI, -0.75));
+  hull.add(decal(stencil('3-64AR', 256, 64), 0.5, 0.125, V3(-0.55, 0.78, -3.28), Math.PI, 0.96));
+  // the US Army registration number on the glacis (subdued black, 1980) and the yellow NATO bridge-classification disc
+  // (military load class 60) on the right front light guard
+  hull.add(decal(stencil('U.S.ARMY  9A1274', 512, 64, '#1c1c18'), 0.9, 0.11, V3(0, 1.385, -2.77), Math.PI, -1.134));
+  { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); x.fillStyle = '#d8b21c'; x.beginPath(); x.arc(32, 32, 30, 0, TAU); x.fill(); x.strokeStyle = '#111'; x.lineWidth = 3; x.stroke();
+    x.fillStyle = '#111'; x.font = 'bold 30px Arial'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('60', 32, 34);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; hull.add(decal(t, 0.2, 0.2, V3(1.24, 1.32, -3.235), Math.PI, 0)); }
+  hull.add(decal(stencil('B-21', 256, 64), 0.42, 0.105, V3(0.6, 0.78, -3.28), Math.PI, 0.96));
   hull.add(decal(stencil('3-64AR  B-21', 512, 64), 0.9, 0.11, V3(0, 1.08, 3.475), 0, 0));
   // ---- running gear (both sides)
   const gearDef = s => ({
@@ -415,18 +421,23 @@ export function buildM60A3Mesh(opts = {}) {
   const WT = weathered(seed, toHull, dirt * 0.7), PT = geo => paintFaces(geo, WT);
   const TR = [];
   const tring = (z, w, h, b = 0.0, nose = 1) => [z, [[0, h], [w * 0.62, h], [w * 0.9, h * 0.8], [w, h * 0.5], [w * 0.97, (h + b) * 0.28 + b * 0.4], [w * 0.84 * nose, b + 0.02], [0, b]]];
-  TR.push(tring(-1.8, 0.34, 0.5, 0.16, 0.9));
-  TR.push(tring(-1.5, 0.7, 0.64, 0.06));
-  TR.push(tring(-1.0, 1.08, 0.82, 0.0));
-  TR.push(tring(-0.4, 1.32, 0.95, 0.0));
-  TR.push(tring(0.3, 1.36, 0.96, 0.0));
-  TR.push(tring(0.95, 1.3, 0.92, 0.05));
-  TR.push(tring(1.25, 1.18, 0.82, 0.16));
-  TR.push(tring(1.62, 0.98, 0.72, 0.24));
+  // the M60A1 / A3 "needle nose" casting (Hunnicutt's drawings): a long wedge in plan narrowing to the gun shield, the
+  // roof sloping down to the nose with the chin undercut beneath it, full width (~2.8 m) over the ring, then a long bustle
+  // overhanging the engine deck (its floor well above the ring) to a near-vertical rear plate: ~3.95 m of casting
+  TR.push(tring(-1.78, 0.46, 0.72, 0.3, 0.9));
+  TR.push(tring(-1.55, 0.66, 0.8, 0.2));
+  TR.push(tring(-1.2, 0.95, 0.88, 0.08));
+  TR.push(tring(-0.75, 1.22, 0.95, 0.0));
+  TR.push(tring(-0.25, 1.38, 0.98, 0.0));
+  TR.push(tring(0.45, 1.4, 0.98, 0.0));
+  TR.push(tring(0.95, 1.36, 0.97, 0.12));
+  TR.push(tring(1.3, 1.3, 0.95, 0.3));
+  TR.push(tring(1.8, 1.22, 0.92, 0.34));
+  TR.push(tring(2.0, 1.12, 0.86, 0.38));
   const tparts = [PT(loftHalfRings(TR))];
   // turret ring skirt, lifting eyes, grab rails
   tparts.push(PT(cylY(1.12, 0.1, 24, 0, -0.03, 0)));
-  for (const [x, z] of [[-0.95, -0.9], [0.95, -0.9], [-1.0, 1.1], [1.0, 1.1]]) tparts.push(PT(new THREE.TorusGeometry(0.06, 0.018, 4, 8).rotateY(Math.PI / 2).translate(x, 0.9, z)));
+  for (const [x, z] of [[-0.95, -0.9], [0.95, -0.9], [-1.05, 1.55], [1.05, 1.55]]) tparts.push(PT(new THREE.TorusGeometry(0.06, 0.018, 4, 8).rotateY(Math.PI / 2).translate(x, 0.9, z)));
   for (const s of [-1, 1]) tparts.push(P(rodGeo(V3(s * 1.2, 0.72, -0.6), V3(s * 1.24, 0.72, 0.8), 0.03)));
   // loader's hatch (left) with periscope
   tparts.push(PT(cylY(0.36, 0.06, 14, -0.6, 0.94, 0.05)));
@@ -446,17 +457,22 @@ export function buildM60A3Mesh(opts = {}) {
     const tube = new THREE.Mesh(cylZ(0.045, 0.22, 8, 0, 0, 0), steelP); tube.position.set(s * (1.06 + c * 0.09), 0.62 + r * 0.1, -1.0 + c * 0.04); tube.rotation.set(0.35, s * 0.5, 0); turret.add(tube);
   }
   // crosswind sensor mast and antennas on the rear roof
-  turret.add(new THREE.Mesh(cylY(0.015, 0.5, 6, 0.2, 1.15, 1.25), steel)); turret.add(new THREE.Mesh(cylY(0.04, 0.08, 8, 0.2, 1.42, 1.25), steel));
-  for (const s of [-1, 1]) { turret.add(new THREE.Mesh(cylY(0.05, 0.12, 8, s * 0.95, 0.85, 1.35), steelP)); { const ant = new THREE.Mesh(cylY(0.012, 2.8, 4, 0, 1.4, 0), black); ant.position.set(s * 0.95, 0.9, 1.35); ant.rotation.x = 0.12; turret.add(ant); } }
+  turret.add(new THREE.Mesh(cylY(0.015, 0.5, 6, 0.2, 1.17, 1.7), steel)); turret.add(new THREE.Mesh(cylY(0.04, 0.08, 8, 0.2, 1.44, 1.7), steel));
+  for (const s of [-1, 1]) { turret.add(new THREE.Mesh(cylY(0.05, 0.12, 8, s * 0.98, 0.88, 1.78), steelP)); { const ant = new THREE.Mesh(cylY(0.012, 2.8, 4, 0, 1.4, 0), black); ant.position.set(s * 0.98, 0.93, 1.78); ant.rotation.x = 0.12; turret.add(ant); } }
   // bustle rack with stowage: bedrolls, ammo cans, a tarp
   const rk = [];
-  for (const x of [-1.0, 1.0]) rk.push(rodGeo(V3(x, 0.4, 1.55), V3(x, 0.4, 2.15), 0.03), rodGeo(V3(x, 0.4, 2.15), V3(x, 0.85, 2.15), 0.03));
-  rk.push(rodGeo(V3(-1.0, 0.85, 2.15), V3(1.0, 0.85, 2.15), 0.03), rodGeo(V3(-1.0, 0.4, 2.15), V3(1.0, 0.4, 2.15), 0.03), rodGeo(V3(-1.0, 0.62, 2.15), V3(1.0, 0.62, 2.15), 0.02));
+  for (const x of [-1.05, 1.05]) rk.push(rodGeo(V3(x, 0.42, 1.95), V3(x, 0.42, 2.6), 0.03), rodGeo(V3(x, 0.42, 2.6), V3(x, 0.92, 2.6), 0.03), rodGeo(V3(x, 0.92, 1.95), V3(x, 0.92, 2.6), 0.025));
+  rk.push(rodGeo(V3(-1.05, 0.92, 2.6), V3(1.05, 0.92, 2.6), 0.03), rodGeo(V3(-1.05, 0.42, 2.6), V3(1.05, 0.42, 2.6), 0.03), rodGeo(V3(-1.05, 0.67, 2.6), V3(1.05, 0.67, 2.6), 0.02));
+  for (let k = -3; k <= 3; k++) rk.push(rodGeo(V3(k * 0.3, 0.42, 2.6), V3(k * 0.3, 0.92, 2.6), 0.015));
   turret.add(new THREE.Mesh(merge(rk), steelP));
-  turret.add(new THREE.Mesh(box(1.9, 0.08, 0.6, 0, 0.36, 1.85), steelP));
-  for (let k = 0; k < 3; k++) { const br = new THREE.Mesh(cylX(0.13, 0.7, 10, -0.55 + k * 0.55, 0.53, 1.95), canvas); br.rotation.y = k * 0.06; turret.add(br); }
-  for (let k = 0; k < 2; k++) turret.add(new THREE.Mesh(box(0.28, 0.2, 0.15, 0.6 - k * 0.32, 0.5, 1.68), new THREE.MeshLambertMaterial({ color: 0x3c4630, flatShading: true })));
-  turret.add(new THREE.Mesh(box(0.9, 0.18, 0.4, -0.35, 0.72, 1.86).rotateZ(0.04), canvas));
+  turret.add(new THREE.Mesh(box(2.1, 0.06, 0.62, 0, 0.4, 2.29), steelP));
+  // the crew's kit in the rack: bedrolls, duffel bags, ammo cans, a water can, the folded tarpaulin on top
+  const kit = new THREE.MeshLambertMaterial({ color: 0x3c4630, flatShading: true }), duffel = new THREE.MeshLambertMaterial({ color: 0x55553a, flatShading: true });
+  for (let k = 0; k < 3; k++) { const br = new THREE.Mesh(cylX(0.13, 0.62, 10, -0.62 + k * 0.6, 0.57, 2.42), canvas); br.rotation.y = (k - 1) * 0.05; turret.add(br); }
+  for (const [x, w] of [[-0.75, 0.42], [0.55, 0.5]]) turret.add(new THREE.Mesh(cylZ(0.17, w, 9, x, 0.6, 2.2), duffel));
+  for (let k = 0; k < 3; k++) turret.add(new THREE.Mesh(box(0.28, 0.2, 0.15, 0.05 + (k - 1) * 0.3, 0.53, 2.1), kit));
+  turret.add(new THREE.Mesh(box(0.17, 0.46, 0.33, 0.85, 0.66, 2.42), new THREE.MeshLambertMaterial({ color: 0x3e4a2e, flatShading: true })));   // water can
+  turret.add(new THREE.Mesh(box(1.5, 0.16, 0.5, -0.15, 0.82, 2.33).rotateZ(0.03), canvas));
   const turretShell = new THREE.Mesh(merge(tparts), paintM); turretShell.name = 'turretShell'; turret.add(turretShell); shell.push(turretShell);
   // turret markings: vehicle number on both sides, a small subdued star on the bustle
   for (const s of [-1, 1]) turret.add(decal(stencil('B21', 256, 96, '#e2ddc8', 'bold 80px "Courier New", monospace'), 0.55, 0.2, V3(s * 1.33, 0.52, 0.2), s * Math.PI / 2, 0));
@@ -468,6 +484,7 @@ export function buildM60A3Mesh(opts = {}) {
   const cHatch = new THREE.Group(); cHatch.position.set(0, 0.4, 0.3); cupola.add(cHatch); cHatch.add(new THREE.Mesh(PT(cylY(0.38, 0.06, 14, 0, 0.0, -0.3)), paintM)); cHatch.name = 'cupolaHatch';
   const mg50 = new THREE.Group(); mg50.position.set(-0.17, 0.33, -0.36); cupola.add(mg50);   // left of centre, over the vision blocks (M19)
   mg50.add(new THREE.Mesh(box(0.2, 0.2, 0.18, 0, 0, 0), steelP));
+  mg50.add(new THREE.Mesh(PT(box(0.26, 0.22, 0.1, 0, 0.01, -0.12)), paintM));   // the M85's armoured mantlet in the cupola front
   mg50.add(new THREE.Mesh(cylZ(0.022, 0.9, 8, 0, 0.02, -0.5), black)); mg50.add(new THREE.Mesh(cylZ(0.032, 0.2, 8, 0, 0.02, -0.15), black));
   // ---- gun: mantlet / shield (pitches with the gun), tube with thermal shroud and bore evacuator, searchlight
   const gun = new THREE.Group(); gun.name = 'gun';
@@ -475,6 +492,8 @@ export function buildM60A3Mesh(opts = {}) {
   gun.position.set(...trT); turret.add(gun);
   const gp = [PT(box(0.86, 0.56, 0.42, 0, 0.02, -0.4)), PT(box(0.7, 0.44, 0.12, 0, 0.02, -0.66))];
   gun.add(new THREE.Mesh(merge(gp), paintM));
+  // the canvas dust cover laced over the gun shield (the M60A1 / A3 look): a slightly larger, sagging shell
+  { const cv = new THREE.BoxGeometry(0.98, 0.64, 0.5, 2, 2, 1).translate(0, 0.0, -0.45); const p = cv.attributes.position; for (let i = 0; i < p.count; i++) { if (p.getY(i) < 0) p.setZ(i, p.getZ(i) + 0.05); p.setX(i, p.getX(i) * (1 - 0.06 * Math.abs(p.getY(i)))); } cv.computeVertexNormals(); gun.add(new THREE.Mesh(cv, canvas)); }
   gun.add(new THREE.Mesh(cylZ(0.2, 0.22, 12, 0, 0, -0.78), canvas));   // canvas mantlet boot over the gun port
   const recoil = new THREE.Group(); gun.add(recoil);
   const L = TANK.MUZZLE_FWD;
@@ -483,10 +502,14 @@ export function buildM60A3Mesh(opts = {}) {
   tube.push(cylZ(0.13, 0.62, 14, 0, 0, -L + 1.75, 0.13), cylZ(0.105, 0.1, 14, 0, 0, -L + 1.4, 0.13), cylZ(0.105, 0.1, 14, 0, 0, -L + 2.1, 0.13));   // bore evacuator
   recoil.add(new THREE.Mesh(paintFaces(merge(tube), (c, n) => { camoColor(c.x, c.y + 3, c.z, seed, _c); return _c.lerp(DUST, 0.15); }), paintM));
   recoil.add(new THREE.Mesh(cylZ(0.06, 0.03, 12, 0, 0, -L - 0.01), black));   // muzzle bore
-  const searchlight = new THREE.Group(); searchlight.position.set(0, 0.48, -0.45); gun.add(searchlight);
-  searchlight.add(new THREE.Mesh(PT(box(0.62, 0.52, 0.42, 0, 0, 0)), paintM));
-  const lens = new THREE.Mesh(cylZ(0.22, 0.03, 18, 0, 0, -0.22), MAT.lamp()); searchlight.add(lens);
-  const slDoor = new THREE.Mesh(PT(box(0.56, 0.48, 0.03, 0, 0, -0.235)), paintM); searchlight.add(slDoor);   // closed shutter
+  // the AN/VSS-1 xenon searchlight: a big box (~0.8 m) on brackets over the shield, elevating with the gun
+  const searchlight = new THREE.Group(); searchlight.position.set(0, 0.62, -0.5); gun.add(searchlight);
+  searchlight.add(new THREE.Mesh(PT(box(0.82, 0.7, 0.5, 0, 0, 0.02)), paintM));
+  searchlight.add(new THREE.Mesh(PT(cylZ(0.36, 0.06, 18, 0, 0, -0.25)), paintM));
+  for (const s of [-1, 1]) searchlight.add(new THREE.Mesh(box(0.06, 0.24, 0.3, s * 0.3, -0.42, 0.05), steelP));
+  searchlight.add(new THREE.Mesh(box(0.12, 0.12, 0.12, 0.33, 0.33, 0.1), black));
+  const lens = new THREE.Mesh(cylZ(0.3, 0.03, 20, 0, 0, -0.28), MAT.lamp()); searchlight.add(lens);
+  const slDoor = new THREE.Mesh(PT(box(0.74, 0.64, 0.03, 0, 0, -0.29)), paintM); searchlight.add(slDoor);   // closed armoured shutter
   // the coax port and the gunner's day periscope port on the shield
   gun.add(new THREE.Mesh(cylZ(0.03, 0.12, 8, 0.32, -0.05, -0.68), black));
   // ---- collect
