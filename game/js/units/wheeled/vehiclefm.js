@@ -301,6 +301,35 @@ export function createVehicleSim(spec, opts = {}) {
       _a[0] = at[0] - S.cgw[0]; _a[1] = at[1] - S.cgw[1]; _a[2] = at[2] - S.cgw[2]; crossTo(_a, J, _b);
       S.L[0] += _b[0]; S.L[1] += _b[1]; S.L[2] += _b[2]; qToR(S.q, R); wFromL(R);
     },
+    // ngc/wheeledgame: kinematic transport by a moving deck (platform.js carry): move the whole vehicle by (dx, dy, dz)
+    // and turn it about the vertical through its model origin by dyaw (THREE convention, + = left), velocities and
+    // angular momentum turned with it, so motion relative to the deck is kept exactly
+    transport(dx, dy, dz, dyaw = 0) {
+      if (dyaw) {
+        const c = Math.cos(dyaw), s = Math.sin(dyaw), ox = S.pos[0], oz = S.pos[2];
+        const rot = v => { const x = v[0], z = v[2]; v[0] = x * c + z * s; v[2] = -x * s + z * c; };
+        const rx = S.cgw[0] - ox, rz = S.cgw[2] - oz; S.cgw[0] = ox + rx * c + rz * s; S.cgw[2] = oz - rx * s + rz * c;
+        rot(S.vel); rot(S.w); rot(S.L);
+        const h = dyaw / 2, qy = [0, Math.sin(h), 0, Math.cos(h)], q = S.q;   // q = qy * q
+        const x = qy[3] * q[0] + qy[1] * q[2], y = qy[3] * q[1] + qy[1] * q[3], z = qy[3] * q[2] - qy[1] * q[0], w = qy[3] * q[3] - qy[1] * q[1];
+        q[0] = x; q[1] = y; q[2] = z; q[3] = w;
+      }
+      S.cgw[0] += dx; S.cgw[1] += dy; S.cgw[2] += dz;
+      updatePose();
+    },
+    // ngc/wheeledgame: start already rolling at v m/s (WORLD traffic handed over to the sim): body, wheels, shafts and
+    // the engine set consistent with the drivetrain constraints in `gear` (0 = neutral, the engine idling)
+    launch(v, gear = 0) {
+      const f = S.fwdv; S.vel[0] = f[0] * v; S.vel[1] = f[1] * v; S.vel[2] = f[2] * v;
+      let wr = 0, wf = 0;
+      for (const W of wheels) { const om = v / W.r; W.omega = om; solver.w[4 + W.i] = om; }
+      for (const a of spec.axles) if (a.driven === 'R') wr = a.final * v / wheels[a.wheels[0]].r; else if (a.driven === 'F') wf = a.final * v / wheels[a.wheels[0]].r;
+      solver.w[2] = wr; solver.w[3] = wf; solver.w[1] = (TC.high || 1) * wr;
+      S.gear = gear | 0;
+      solver.w[0] = gear > 0 ? GB.ratios[gear - 1] * solver.w[1] : Math.max(solver.w[0], E.idle / RPM);
+      S.eng.rpm = solver.w[0] * RPM; S.eng.running = true;
+      updatePose();
+    },
     step(dt, ctl, env) {
       S.events.length = 0; S.lastCtl = ctl;
       dt = Math.min(dt, 0.1);

@@ -22,8 +22,7 @@ import { createVehicleCraft } from './vehicle.js';
 import { createJetCraft } from './craftjet.js';
 import { createTomcatCraft } from './crafttomcat.js';   // TOMCAT: the flyable F-14A (crafttomcat.js, units/air/tomcatplay.js)
 const isJet = () => G.craft === 'jet' || G.craft === 'tomcat';   // TOMCAT: the fixed-wing crafts share the HORNET's hooks below
-import { createBoxCar } from './units/placeholder/boxcar.js';
-import { buildBoxCarMesh } from './units/placeholder/boxcarmodel.js';
+import { createMotorPool } from './units/wheeled/motorpool.js';   // ngc/wheeledgame: the M151A2, M35A2 and 1980 civilian cars (replace the TEST CAR)
 import { createWorldLife } from './world/life.js'; import { clearedAt } from './world/net.js';   // WORLD: the lived-in world (towns, roads, traffic, people, faction structures)
 
 const $ = id => document.getElementById(id);
@@ -66,7 +65,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyJ') HI.startCalibration();   // the controls panel: bind and calibrate HOTAS / pedals (hotas.js)
   if (e.code === 'KeyT' && (G.craft === 'heli' || isJet())) toggleFreeLook();
   if (e.code === 'KeyM') { bigMap = !bigMap; setMapSize(); if (bigMap && document.pointerLockElement) document.exitPointerLock(); }
-  if (['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8'].includes(e.code)) command(+e.code.slice(5));   // TOMCAT: 8
+  if (['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'].includes(e.code)) command(+e.code.slice(5));   // TOMCAT: 8
   if (e.code === 'Tab') { e.preventDefault(); toggleHelm(); }
   if (G.craft !== 'heli' && !isJet()) { /* foot / vehicles: V and C belong to the craft (above) */ }
   else if (e.code === 'KeyV' && drop.flying) drop.toggleView();
@@ -622,7 +621,7 @@ function command(n) {
   if (G.state !== 'play') return;
   if (n === 5) { launchJet(); return; }
   if (n === 8) { tomcatC.launch(); return; }   // TOMCAT: an F-14A to cat 1 (crafttomcat.js)
-  if (n === 7) { deliverVehicle(); return; }
+  if (n === 7 || n === 9) { deliverVehicle(n === 9 ? 'm35' : 'm151'); return; }   // ngc/wheeledgame
   if (n === 4) { say(war.sendEscort(selIsl), 2); return; }   // AIR: CAP over the selected island, else over the ALBATROSS
   if (n === 6) { say(war.upgradeCarrier(), 2.5); return; }
   if (n === 3) { if (G.mat < COST.heli) say('NOT ENOUGH MATERIEL FOR A HELICOPTER', 1.6); else { G.mat -= COST.heli; G.lives++; say('NEW HELICOPTER IN THE HANGAR', 1.6); sfx.dock(); } return; }
@@ -988,20 +987,15 @@ const marine = foot.setMarine(createMarine({
   scene: zScene, GR, war, fx, sfx, say, feed, keyDown: kd, crafts, canvas, hudEl: $('hud'), terrainH, ISLANDS,
   serviceAt: (x, z) => serviceAt(x, z), active: () => G.craft === 'foot' && G.state === 'play' && G.mode === 'zarch',
 }));
-// --- ground vehicles: the placeholder TEST CAR (the WHEELED agent's M151A2 takes its place)
+// --- ground vehicles (ngc/wheeledgame): the WHEELED M151A2s, M35A2s and civilian cars, through units/wheeled/motorpool.js
 const vehCtx = {
   scene: zScene, GR, crafts, war, fx, sfx, say, feed, keyDown: kd, CTL, hwOn: () => !keyboardOnly, camZ: () => zCam,
   crewHit: (a, why, at) => foot.hurt(a, why, null),
   crewKilled: why => { say(`${why}  -  CREW KILLED`, 2.5); G.lives--; G.crewDownT = 3.5; feed(`CREW LOST  -  ${why}`, 'bad'); if (G.lives < 0) gameOver(); },
 };
-const carC = crafts.register(createVehicleCraft(vehCtx, {
-  id: 'boxcar', label: 'TEST CAR', sim: createBoxCar(), model: buildBoxCarMesh(), hitR: 2, exposed: 0.35, cyl: 4,
-  seats: [
-    { id: 'driver', label: 'DRIVER', role: 'driver', eye: [-0.38, 1.5, 0.12], door: [-1.15, 0.9, -0.1], exit: [-1.6, 0, -0.1] },
-    { id: 'pass', label: 'PASSENGER', role: 'passenger', eye: [0.38, 1.5, 0.12], door: [1.15, 0.9, -0.1], exit: [1.6, 0, -0.1] },
-    { id: 'rear', label: 'REAR SEAT', role: 'passenger', eye: [0, 1.52, 1.0], door: [0, 0.9, 2.0], exit: [0, 0, 2.5] },
-  ],
-}));
+const pool = createMotorPool({ ...vehCtx, foot, marine, world, ISLANDS, G, Z, terrainH, serviceAt: (x, z) => serviceAt(x, z), selIsl: () => selIsl,
+  holes: BASES.map(b => ({ x: b.x, z: b.z, r: HOLE_R + 0.6 })) });
+void createVehicleCraft;   // (vehicle.js stays the host for tracked units)
 crafts.setActive('heli');
 crafts.onSwitch = (from, to) => {
   if (to.kind === 'foot' || to.kind === 'ground') { if (bigMap) { bigMap = false; setMapSize(); } }   // a click captures the mouse (as in the cockpits)
@@ -1040,18 +1034,10 @@ function toHeli(msg) {
 // title screen / new game: everyone back in the hangar, the player in the helicopter
 function stowCrafts() { JP.stow(); jetC.park.on = false; tomcatC.TP.stow(); tomcatC.park.on = false; if (foot.exists) foot.exit(); G.heliStowed = false; G.crewDownT = 0; crafts.setActive('heli'); crafts.silence(); }
 // a new war: the TEST CAR waits at the home island's motor pool (else on the carrier deck)
-function placeVehicles() { const sp = GR.motorPool(HOME_B.isl) || GR.deckSpot(0); if (sp) carC.spawnAt(sp); else carC.stow(); }
-// 7: the motor pool lands a vehicle at the selected friendly island (else the nearest one to you, else the carrier deck)
-const COST_VEH = 15;
-function deliverVehicle() {
-  if (crafts.active === carC) { say(`YOU ARE IN THE ${carC.label}`, 1.2); return; }
-  if (G.mat < COST_VEH) { say(`A VEHICLE NEEDS ${COST_VEH} MATERIEL`, 1.6); return; }
-  let I = selIsl && selIsl.owner === 1 ? selIsl : null;
-  if (!I) { let bd = 1e9; for (const J of ISLANDS) if (J.owner === 1) { const d = Math.hypot(J.pad.x - Z.pos.x, J.pad.z - Z.pos.z); if (d < bd) { bd = d; I = J; } } }
-  const sp = (I && GR.motorPool(I)) || GR.deckSpot(0);
-  if (!sp) { say('NOWHERE TO LAND A VEHICLE', 1.6); return; }
-  G.mat -= COST_VEH; carC.spawnAt(sp); feed(`MOTOR POOL: ${carC.label} LANDED AT ${sp.name}`, 'good'); say(`${carC.label} WAITING AT ${sp.name}`, 2.2); sfx.dock();
-}
+function placeVehicles() { pool.newGame(); }   // ngc/wheeledgame: M151s and M35s at every friendly motor pool and on the deck park
+// 7 / 9 (ngc/wheeledgame): an M151A2 (10 materiel) / an M35A2 (20) to the selected friendly island's motor pool (else the
+// nearest friendly island, else the carrier deck)
+function deliverVehicle(type = 'm151') { return pool.deliver(type); }
 // the per-frame entry for the surface: the active craft flies / drives / walks, the parked ones idle (craft.js)
 function updateZarch(dt, inp) {
   inp.pad = G.craft === 'heli' || isJet() ? null : readPad(); inp.keyboardOnly = keyboardOnly;
@@ -1824,6 +1810,7 @@ function frame(now) {
   const t1 = performance.now();
   updateCamsAndMeshes(dt, now / 1000);
   world.update(dt, zCam, G.state === 'play');   // WORLD: stream the lived-in world round the camera, ambient life
+  pool.update(dt, G.state === 'play' && G.mode === 'zarch');   // ngc/wheeledgame: parked / town / traffic vehicles, MG rounds, engine sound
   updateHud();
   { const hide = drop.flying || helm.active ? 'none' : ''; setStyle('bot', 'display', hide); setStyle('caution', 'display', hide); }
   const t2 = performance.now();
@@ -1836,4 +1823,4 @@ function frame(now) {
 const PROF = { sim: 0, prep: 0, render: 0 };
 buildCaves(); war.reset(); resetZarch(true); placeVehicles(); updateFogImg(); terrainStream(Z.pos.x, Z.pos.z);
 requestAnimationFrame(frame);
-if (params.has('debug')) { window.__G = { G, tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, forest, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, carC, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); enterCave(b); } }
+if (params.has('debug')) { window.__G = { G, tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, forest, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); enterCave(b); } }
