@@ -42,7 +42,7 @@ export function createWaspAI(o = {}) {
       const reach = ctx.reach ?? 110, low = Math.max(gy, 0) + 7;
       // ---- choose the behaviour
       if (AI.mode === 'guard') AI.set(ctx.ambush && d > reach * 1.2 ? 'ambush' : o.slots > 1 ? 'swarm' : 'strafe');
-      if (AI.mode === 'ambush' && (d < reach * 0.9 || AI.t > 40)) AI.set('strafe');
+      if (AI.mode === 'ambush' && (d < reach * 0.9 || AI.t > 25 || !ctx.ambush)) AI.set('strafe');
       if (AI.mode === 'snipe' && AI.t > 4 + (o.id || 0) * 3) AI.set(o.slots > 1 ? 'swarm' : 'strafe');
       switch (AI.mode) {
         case 'ambush': {   // find low ground with the terrain between us and the target: hover there, still

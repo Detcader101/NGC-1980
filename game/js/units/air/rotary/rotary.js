@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { createCH46Unit } from './ch46unit.js';
 import { createMV22Unit } from './mv22unit.js';
+import { createWaspUnit } from './waspunit.js';
 import { createSquad, padSlots } from './squad.js';
 import { attitude } from './rb.js';
 import { stateOf } from './pilot.js';
@@ -69,6 +70,7 @@ export function createRotary(ctx) {
   R.make = (type, side, x, y, z, extra = {}) => {
     if (type === 'drone') return makeCH46(side, extra);
     if (type === 'transport') return makeMV22(side, extra);
+    if (type === 'gunship') return makeWasp(side, x, y, z, extra);
     return null;
   };
   function makeCH46(side, extra) {
@@ -99,6 +101,19 @@ export function createRotary(ctx) {
     U.AI.hooks.unload = (ai, dt) => { const done = unload(ai, dt); if (U.deployed && !u.squadUnit) { u.squadUnit = addSquad(U.squad, side, u.target, 10); U.squadExternal = true; } return done; };
     return u;
   }
+  // RW-3 WASP (replaces the saucer gunship): war.js's spawnGunship sets id / home / raid / target after this returns
+  const world2 = { ...world, los(ax, ay, az, bx, by, bz) { const d = Math.hypot(bx - ax, bz - az), n = Math.ceil(d / 8); for (let i = 1; i < n; i++) { const k = i / n; if (groundY(ax + (bx - ax) * k, az + (bz - az) * k) > ay + (by - ay) * k) return false; } return true; } };
+  function makeWasp(side, x, y, z, extra) {
+    const u = { type: 'gunship', kind: 'wasp', side, p: new THREE.Vector3(x, y, z), v: new THREE.Vector3(), yaw: rnd(6.283), hp: 3, hpMax: 3, r: 2.8, cd: 0, ph: rnd(6.28), state: 'go', ...extra };
+    const U = createWaspUnit({ parent: scene, env, world: world2, start: { x, y, z, yaw: u.yaw }, home: [x, z], id: Math.random(), speed: 90,
+      fire: (p, d, U) => {   // game level: the war's rounds, cyan, a little spread
+        const e = 0.025; const b = ctx.shoot('b', side, p.x, p.y, p.z, (d.x + rnd(-e, e)) * 90, (d.y + rnd(-e, e)) * 90, (d.z + rnd(-e, e)) * 90, 2.2); b.col = [0.55, 0.95, 1];
+        fx.add.spawn(p.x, p.y, p.z, 0, 0, 0, 0.08, 1.6, 1.2, 0.6, 0.95, 1, 1);
+        if (ctx.hear(p.x, p.y, p.z, 260) > 0) ctx.sfx.blip?.(1800, 2600, 0.07, 'sawtooth', 0.04 * ctx.hear(p.x, p.y, p.z, 260));
+      } });
+    u.rot = U; u.mesh = U.model.group;
+    return u;
+  }
   function addSquad(Q, side, I, capTime) {
     const s = { type: 'squad', side, p: new THREE.Vector3(I.pad.x, I.pad.h + 1, I.pad.z), v: new THREE.Vector3(), yaw: 0, hp: Q.alive, hpMax: Q.alive, r: 7, cd: rnd(1, 3),
       target: I, landed: false, capTime, mesh: new THREE.Object3D(), squad: Q, rot: { squad: true } };
@@ -111,6 +126,7 @@ export function createRotary(ctx) {
     if (u.type === 'squad') return updateSquad(u, dt, pl, peace);
     const U = u.rot; R.time = W.time;
     if (u.kind === 'ch46' || u.kind === 'mv22') updateTransport(u, U, dt);
+    else if (u.kind === 'wasp') updateWasp(u, dt, pl, peace);
     return true;
   };
   function updateTransport(u, U, dt) {
@@ -176,6 +192,50 @@ export function createRotary(ctx) {
       if (wet) fx.mix.spawn(u.p.x + Math.cos(a) * rr, gy + 0.3, u.p.z + Math.sin(a) * rr, Math.cos(a) * sp, rnd(0.5, 2.5), Math.sin(a) * sp, rnd(0.6, 1.1), 0.7, 3, .85, .92, .97, 0.4, 2, 1.4, 0.3);
       else fx.mix.spawn(u.p.x + Math.cos(a) * rr, gy + 0.3, u.p.z + Math.sin(a) * rr, Math.cos(a) * sp, rnd(0.5, 2.5), Math.sin(a) * sp, rnd(0.6, 1.2), 0.8, 3.4, .55, .48, .36, 0.45, 1.5, 1.5, 0.3);
     }
+  }
+
+  // ---- WASPs: the old gunship's targeting (hunt the player when close, else our drones / escorts / squads near, else
+  // the raid target, else guard home), flown by the WASP mind: strafing passes, standoff sniping, ambush, swarm rings
+  const _tg = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0 };
+  function updateWasp(u, dt, pl, peace) {
+    const U = u.rot;
+    if (u.dying) {   // fans dead: it tumbles out of the sky trailing fire
+      U.S.mods = { power: 0 }; U.S.body.w[0] += rnd(-3, 3) * dt; U.S.body.w[1] += rnd(-3, 3) * dt;
+      U.update(dt, W.time, null, { peace: true });
+      fx.add.spawn(u.p.x, u.p.y, u.p.z, rnd(-1, 1), rnd(0, 2), rnd(-1, 1), rnd(0.25, 0.5), 1.4, 0.4, 0.6, 0.9, 1, 0.9, -1, 1); fx.trail(u.p.x, u.p.y, u.p.z, 1.1);
+      const gy = groundY(u.p.x, u.p.z);
+      if (U.dead || u.p.y < gy + 1 || (u.dieT = (u.dieT || 0) + dt) > 12) {
+        const wet = env.water(u.p.x, u.p.z); fx.explode(u.p.x, Math.max(gy, u.p.y - 1), u.p.z, 1.8, { fire: wet ? 0 : 30, oil: wet, debris: 8, color: 0xc8c6be }); ctx.boomAt(u.p.x, gy, u.p.z, 0.8); ctx.blast(u.p.x, gy + 1, u.p.z, 5, 2, u.side); u.dead = true;
+      }
+    } else {
+      u.retarget = (u.retarget || 0) - dt;
+      if (u.retarget <= 0) {
+        u.retarget = 1;
+        const pd = pl.alive && !pl.inCave ? pl.pos.distanceTo(u.p) : 1e9;
+        if (pd < (u.target === 'player' ? 260 : 170)) u.target = 'player'; else if (u.target === 'player') u.target = null;
+        if (u.target && u.target !== 'player' && (u.target.dead || u.target.gone || (u.target.side !== undefined && u.target.side === u.side))) u.target = null;
+        if (!u.target) {
+          let best = null, bd = 160;
+          for (const o of W.units) if (o.side !== u.side && o.side !== 0 && !o.dead && !o.dying && (o.type === 'drone' || o.type === 'escort' || o.type === 'squad' || o.type === 'transport') && o.p.distanceTo(u.p) < bd) { best = o; bd = o.p.distanceTo(u.p); }
+          if (best) u.target = best; else if (u.raid) u.target = u.raid.dead || u.raid.gone || u.raid.side === u.side ? (u.raid = null) : u.raid;
+        }
+        // swarm slots: the WASPs on the same target share a ring
+        const mates = W.units.filter(o => o.kind === 'wasp' && !o.dead && !o.dying && o.target === u.target && u.target);
+        U.AI.o.slot = Math.max(0, mates.indexOf(u)); U.AI.o.slots = Math.max(1, mates.length); U.AI.o.home = u.home || U.AI.o.home;
+        // some lie in wait instead of charging - when the player is coming their way
+        const closing = u.target === 'player' ? -((pl.pos.x - u.p.x) * pl.vel.x + (pl.pos.z - u.p.z) * pl.vel.z) / Math.max(1, pd) : 0;
+        u.ambush = u.target === 'player' && pd > 130 && closing > 4 && (u.id || 0) > 3.2;
+      }
+      let tgt = null;
+      if (u.target === 'player') { _tg.x = pl.pos.x; _tg.y = pl.pos.y; _tg.z = pl.pos.z; _tg.vx = pl.vel.x; _tg.vy = pl.vel.y; _tg.vz = pl.vel.z; tgt = _tg; }
+      else if (u.target && u.target.p) { const t = u.target.p, v = u.target.v || t; _tg.x = t.x; _tg.y = t.y; _tg.z = t.z; _tg.vx = v === t ? 0 : v.x; _tg.vy = v === t ? 0 : v.y; _tg.vz = v === t ? 0 : v.z; tgt = _tg; }
+      else if (u.target) { const s = u.target; _tg.x = s.x; _tg.y = s.y + (s.h || 2); _tg.z = s.z; _tg.vx = _tg.vy = _tg.vz = 0; tgt = _tg; }
+      const others = W.units.filter(o => o.kind === 'wasp' && o !== u && !o.dead && o.p.distanceToSquared(u.p) < 900).map(o => ({ x: o.p.x, y: o.p.y, z: o.p.z, vx: o.v.x, vy: o.v.y, vz: o.v.z }));
+      U.update(dt, W.time, tgt, { reach: 110, ambush: u.ambush, peace: peace || (u.target === 'player' && !pl.alive), others, burstGap: Math.max(1.0, 2.4 - W.time / 400) });
+    }
+    const b = U.S.body; u.p.set(b.pos[0], b.pos[1], b.pos[2]); u.v.set(b.vel[0], b.vel[1], b.vel[2]); attitude(b.q, _att); u.yaw = _att.yaw;
+    if (u.hp < u.hpMax && Math.random() < 0.3) fx.trail(u.p.x, u.p.y, u.p.z, 0.7);
+    if (!u.dying && U.dead) { u.dying = true; u.crashWhy = U.dead; }   // flew into something (kept for the tests)
   }
 
   // ---- squads on the ground: hold the pad, shoot at enemies near, lose figures to hits

@@ -13,7 +13,7 @@ const _q = new THREE.Quaternion(), _v = new THREE.Vector3(), _m = new THREE.Matr
 
 export function buildWaspMesh() {
   const g = new THREE.Group(); g.name = 'wasp';
-  const ceramicM = M(0xd2d0c8, { shininess: 6 }), ceramic2M = M(0xb8b6ae, { shininess: 6 }), compM = M(0x24272b, { shininess: 30 }), comp2M = M(0x34383d, { shininess: 30 });
+  const ceramicM = M(0xe6e4dc, { shininess: 6 }), ceramic2M = M(0xc8c6be, { shininess: 6 }), compM = M(0x24272b, { shininess: 30 }), comp2M = M(0x34383d, { shininess: 30 });
   const bladeM = M(0x3a3e43, { shininess: 40 }), cyanM = B(0x7ff6ff), eyeM = B(0x9ffaff), dimM = B(0x1e5b63);
   const body = bucket();
 
@@ -56,13 +56,13 @@ export function buildWaspMesh() {
   body.add(boxG(0.04, 0.55, 0.5, 1.25, 0.35, 0.3).rotateZ(-0.25), comp2M); body.add(boxG(0.045, 0.04, 0.4, 1.32, 0.58, 0.3), cyanM);
 
   // ---- the abdomen: tapered segments back from the ring, curling under to the stinger (the emitter)
-  const segs = [[0, 0.0, 1.25, 0.32], [0, -0.08, 1.75, 0.3], [0, -0.22, 2.2, 0.26], [0, -0.42, 2.55, 0.22], [0, -0.66, 2.7, 0.18], [0, -0.88, 2.6, 0.15]];
+  const segs = [[0, 0.05, 1.25, 0.32], [0, 0.0, 1.75, 0.29], [0, -0.1, 2.2, 0.25], [0, -0.25, 2.55, 0.21], [0, -0.43, 2.72, 0.17], [0, -0.6, 2.66, 0.14]];
   for (let i = 0; i < segs.length; i++) {
     const [x, y, z, r] = segs[i]; body.add(sphG(r, x, y, z, 1, 0.85, 1.25, 10, 6), i % 2 ? compM : ceramicM);
     if (i < segs.length - 1) body.add(boxG(0.02, 0.02, 0.02, 0, 0, 0).translate(x, y, z), compM);
     if (i % 2 === 0) body.add(new THREE.TorusGeometry(r * 0.95, 0.012, 4, 20).translate(x, y, z), cyanM);
   }
-  const sting = group(g, 'stinger', 0, -0.95, 2.35), stingP = group(sting, 'stingerPitch');
+  const sting = group(g, 'stinger', 0, -0.66, 2.4), stingP = group(sting, 'stingerPitch');
   { const sb = bucket(); sb.add(cylZ(0.13, 0.09, 0.9, 10).translate(0, 0, -0.4), compM); sb.add(cylZ(0.06, 0.06, 0.35, 8).translate(0, 0, -0.95), comp2M); sb.add(boxG(0.3, 0.05, 0.25, 0, 0.1, -0.2), ceramic2M); sb.flush(stingP, 'stingerParts'); }
   const emitter = mesh(sphG(0.07, 0, 0, -1.14, 1, 1, 1, 8, 5), dimM, stingP, 'emitter');
   const flashM = B(0xbff8ff, { transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
@@ -78,7 +78,7 @@ export function buildWaspMesh() {
 
   // ---- animation. S: { fan 0..1, pitch, roll (vane cmds), aim: world Vector3 | null, firing, gear 0..1, alert 0..1 }
   let psi = 0, sYaw = 0, sPitch = 0;
-  const MUZZLE = V(0, -0.95, 2.35 - 1.5);
+  const MUZZLE = V(0, -0.66, 2.4 - 1.5);
   function animate(S = {}, dt = 0, time = 0) {
     const fan = S.fan ?? 0.6; psi += fan * 95 * dt;   // ~5400 rpm at full
     fans[0].rotation.y = psi; fans[1].rotation.y = -psi * 1.07;
@@ -95,7 +95,7 @@ export function buildWaspMesh() {
     emitter.material = fire ? eyeM : dimM;
     // eyes: a slow breathing glow, hot white when firing; the scanner slit sweeps
     const glow = 0.55 + 0.25 * Math.sin(time * 1.7) + 0.4 * (S.alert ?? 0);
-    eyeM.color.setRGB(Math.min(1, 0.45 * glow + (fire ? 0.5 : 0)), Math.min(1, 0.95 * glow + (fire ? 0.1 : 0)), 1);
+    eyeM.color.setRGB(Math.min(1, 0.25 * glow + (fire ? 0.6 : 0)), Math.min(1, 0.85 * glow + (fire ? 0.15 : 0)), Math.min(1, 0.95 * glow + 0.05));
     cyanM.color.setHSL(0.51, 1, 0.55 + 0.15 * Math.sin(time * 2.3));
     scan.position.x = Math.sin(time * (S.alert ? 6 : 1.6)) * 0.12;
     const gr = clamp(S.gear ?? 0, 0, 1); for (const L of legs) L.rotation.x = (1 - gr) * 1.1;

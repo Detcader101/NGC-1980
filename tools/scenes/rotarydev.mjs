@@ -16,6 +16,9 @@ const MISSIONS = {
     ['06-final', `${U}.AI.phase === 'transit' && ${U}.AI.cmd.dist < 70`, 'lz'], ['07-touchdown', `${U}.AI.phase === 'ground'`, 'lz'], ['08-troopers', `${U}.squad.holding > 3`, 'squad'],
     ['09-troopers-hold', `${U}.squad.holding > 10`, 'lz'], ['10-rtb', `${U}.AI.phase === 'rtb' && ${U}.S.nac < 0.5`, 'chase'], ['11-deck-final', `${U}.AI.phase === 'descend2'`, 'deck'],
     ['12-folding', `${U}.fold > 0.6`, 'deck'], ['13-stowed', `__R.unit.done()`, 'deck']] },
+  wasp: { states: [['vanes', { pitch: 0.8, roll: -0.6, gear: 0, firing: false }]], expects: [[`__R.unit.U.ws.every(w => !w.dead) && !__R.unit.U.amb.dead`, 'wasp: all five flew 90 s without a crash']], shots: [
+    ['01-inbound', '__R.simT > 6', 'chase'], ['02-swarm', '__R.simT > 18', 'orbit'], ['03-strafe', `__R.unit.U.ws.some(w => w.AI.mode === 'strafe' && w.AI.fire)`, 'chase'],
+    ['04-ambusher', '__R.simT > 30', 'chase'], ['05-later', '__R.simT > 60', 'chase'], ['06-end', '__R.simT > 90', 'orbit']] },
 };
 export default async function (h) {
   for (const ac of ONLY ? [ONLY] : Object.keys(MISSIONS)) {
@@ -30,6 +33,7 @@ export default async function (h) {
       const t = await h.eval(`(__R.camMode = '${cam}', __R.runUntil(() => ${cond}, ${max}), __R.render(), +__R.simT.toFixed(1))`);
       await h.wait(200); await h.shot(`${ac}-${name}`);
     }
+    if (M.expects) { for (const [e, l] of M.expects) await h.expect(e, l); continue; }
     await h.expect(`${U}.parked && !${U}.dead`, `${ac}: mission flown, back on the deck`);
     await h.expect(`${U}.squad.holding >= 11`, `${ac}: squad holding the pad`);
   }

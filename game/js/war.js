@@ -611,7 +611,7 @@ export function createWar(ctx) {
       // visuals: tracers are a few short-lived sparks along the path
       if (b.kind === 'jb') fx.add.spawn(x, y, z, 0, 0, 0, 0.04, 0.8, 0.4, 1, .9, .5, 1);
       else if (b.kind === 'aam') { fx.add.spawn(x, y, z, 0, 0, 0, 0.06, 1.4, 0.6, 1, .85, .6, 1); fx.mix.spawn(x, y, z, rnd(-.3, .3), rnd(-.2, .3), rnd(-.3, .3), rnd(2, 3.5), 0.6, 2.8, .85, .85, .85, 0.6, -0.1, 1, 0.4); }
-      if (b.kind === 'b' || b.kind === 'ciws') { const own = b.side === 1; fx.add.spawn(x, y, z, 0, 0, 0, 0.05, own ? 0.9 : 1.1, 0.6, own ? .5 : 1, own ? 1 : .55, own ? 1 : .2, 1); }
+      if (b.kind === 'b' || b.kind === 'ciws') { const own = b.side === 1, k = b.col; if (k) fx.add.spawn(x, y, z, 0, 0, 0, 0.06, 1.3, 0.8, k[0], k[1], k[2], 1); else fx.add.spawn(x, y, z, 0, 0, 0, 0.05, own ? 0.9 : 1.1, 0.6, own ? .5 : 1, own ? 1 : .55, own ? 1 : .2, 1); }   // NGC-1980 hook: b.col = round colour (WASP pulses)
       else if (b.kind === 'rocket') { fx.add.spawn(x, y, z, 0, 0, 0, 0.08, 1.2, 0.5, 1, .7, .3, 1); fx.mix.spawn(x, y, z, rnd(-.4, .4), rnd(-.2, .4), rnd(-.4, .4), rnd(1.4, 2.4), 0.5, 2.4, .75, .75, .75, 0.55, -0.2, 1.2, 0.5); }
       else if (b.kind === 'shell') fx.add.spawn(x, y, z, 0, 0, 0, 0.06, 1.4, 0.8, 1, .8, .5, 1);
       else if (b.kind === 'flak') fx.add.spawn(x, y, z, 0, 0, 0, 0.04, 0.5, 0.3, 1, .9, .5, 1);

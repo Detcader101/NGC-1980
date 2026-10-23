@@ -1,6 +1,9 @@
 // Models for the island war: the two carriers, the enemy battleship, capture drones, enemy transports and the island
 // buildings. Low-poly, flat-shaded, built from primitives. Local frame: +y up, the bow / nose points along -z.
 import * as THREE from 'three';
+import { buildCH46Mesh } from './units/air/rotary/ch46model.js';
+import { buildMV22Mesh } from './units/air/rotary/mv22model.js';
+import { buildWaspMesh } from './units/air/rotary/waspmodel.js';
 
 const M = (c, o = {}) => new THREE.MeshPhongMaterial({ color: c, flatShading: true, shininess: 20, ...o });
 // a top-view outline drawn with y = local z; for a floor facing up after rotateX(-PI/2) the outline is mirrored in y
@@ -124,39 +127,12 @@ export function buildFreighter() {
 }
 
 // ------------------------------------------------------------------------------------------- aircraft
-export function buildDrone() {   // player capture drone ("MANTA"): a flat quad-rotor carrying a command module
-  const g = new THREE.Group(), body = M(0x2a3f55), team = M(TEAM[1], { emissive: 0x0b3355 });
-  box(3.2, 0.7, 4.2, body, 0, 0, 0, g); box(2, 0.9, 2.2, team, 0, 0.7, 0.3, g);
-  const rotors = [];
-  for (const [x, z] of [[-2.4, -2.2], [2.4, -2.2], [-2.4, 2.2], [2.4, 2.2]]) {
-    box(2.6, 0.25, 0.3, body, x / 2, 0.1, z, g);
-    const r = new THREE.Mesh(new THREE.CircleGeometry(1.3, 14).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x223344, transparent: true, opacity: 0.45, side: THREE.DoubleSide, depthWrite: false }));
-    r.position.set(x, 0.45, z); g.add(r); rotors.push(r);
-  }
-  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.22, 6, 4), new THREE.MeshBasicMaterial({ color: 0x66ffff })); lamp.position.set(0, 1.3, 0.3); g.add(lamp);
-  for (const [x, z] of [[-1.2, 1.6], [1.2, 1.6], [-1.2, -1.6], [1.2, -1.6]]) box(0.15, 1.2, 0.15, body, x, -0.8, z, g);
-  return { group: g, rotors, lamp };
-}
-export function buildTransport() {   // enemy twin-rotor transport that lands troops to take islands
-  const g = new THREE.Group(), body = M(0x5a2a24), dark = M(0x221614);
-  box(2.6, 2.4, 9, body, 0, 0, 0, g); box(2.2, 1.6, 2, M(0xffaa66, { emissive: 0x442200 }), 0, 0.3, -4.7, g);
-  box(1.2, 1.6, 2.2, body, 0, 1.6, -3.4, g); box(1.2, 2.2, 2.2, body, 0, 1.8, 3.6, g);
-  const rotors = [];
-  for (const [y, z] of [[2.7, -3.4], [3.0, 3.6]]) {
-    const r = new THREE.Mesh(new THREE.CircleGeometry(4.2, 18).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x221111, transparent: true, opacity: 0.4, side: THREE.DoubleSide, depthWrite: false }));
-    r.position.set(0, y, z); g.add(r); rotors.push(r);
-  }
-  for (const x of [-1.1, 1.1]) for (const z of [-3, 3]) box(0.3, 0.8, 0.3, dark, x, -1.5, z, g);
-  return { group: g, rotors };
-}
-export function buildGunship(side = 2) {   // attack drone (the original saucer, with a gun pod): red for the enemy, blue escorts for us
-  const g = new THREE.Group();
-  const mat = new THREE.MeshPhongMaterial({ color: side === 1 ? 0x2a8cdd : 0xdd2222, emissive: side === 1 ? 0x08263f : 0x440808, flatShading: true });
-  g.add(new THREE.Mesh(new THREE.OctahedronGeometry(1.8).scale(1.4, 0.7, 1.4), mat));
-  g.add(new THREE.Mesh(new THREE.TorusGeometry(2.6, 0.12, 4, 20).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: side === 1 ? 0x77eeff : 0xff8844 })));
-  box(0.5, 0.5, 1.6, M(0x331111), 0, -0.9, -0.6, g);
-  return { group: g };
-}
+// NGC-1980: the capture drone, the twin-rotor transport and the saucer gunship are replaced by the rotary units
+// (game/js/units/air/rotary/): these names stay as wrappers for anything that still builds them. The blue "escort"
+// variant of the saucer is retired - the Tomcats fly escort, and a 1980 task force has no hover drones.
+export function buildDrone() { const m = buildCH46Mesh(); return { group: m.group, rotors: [], model: m }; }          // CH-46E Sea Knight
+export function buildTransport() { const m = buildMV22Mesh(); return { group: m.group, rotors: [], model: m }; }      // RUNAWAY MV-22B
+export function buildGunship() { const m = buildWaspMesh(); return { group: m.group, model: m }; }                    // RW-3 WASP
 
 // ------------------------------------------------------------------------------------------- escort fighter
 // Cold War carrier fighter (Tomcat-like): twin tails, wide flat body between the engine nacelles, tandem canopy, and
