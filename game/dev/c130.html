@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hercules Flight Test</title>
+<script type="importmap">{"imports":{"three":"../vendor/three.module.min.js"}}</script>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#9db9d4;font:12px Consolas,monospace;color:#dff}
+canvas{display:block}
+#tel{position:fixed;left:6px;top:6px;background:rgba(0,12,24,.72);padding:6px 9px;white-space:pre;line-height:1.35;pointer-events:none}
+#tel b{color:#ffd860}
+#help{position:fixed;right:6px;top:6px;background:rgba(0,12,24,.72);padding:6px 9px;white-space:pre;line-height:1.35;max-width:330px}
+#help.hide,#tel.hide{display:none}
+#hover{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:rgba(0,0,0,.6);padding:4px 10px;color:#ffd860;display:none}
+#xh{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:3px;background:#ffe8a0;opacity:.8;display:none}
+</style></head><body>
+<div id="tel"></div>
+<div id="help"><b>KC-130R FLIGHT TEST</b>  (?start=air|runway|drop  ?ui=0)
+W/S pitch   A/D roll   Q/E rudder   (or a stick)
+SHIFT / CTRL   power levers   (R held: beta / reverse on the ground)
+H autopilot   G gear   Z / X flaps up / down   [ ] trim
+B brakes   , . tiller   V view (deck / chase / orbit)
+P ramp   O para doors   J jump lights   F feather #1   N air start #1
+mouse: free look on the deck (click to capture), click the switches
+</div>
+<div id="hover"></div><div id="xh"></div>
+<script type="module" src="./c130.js"></script>
+</body></html>

@@ -184,9 +184,9 @@ const full = h => [...h, ...h.slice(0, -1).reverse().map(([x, y, z]) => [-x, y, 
 const QH = k => (k < 13 ? k : 25 - k);
 // [z, top, bottom, half width, top corner r, bottom corner r]: radome, flight deck, cargo hold, upswept tail
 const FUS = [
-  [-13.55, -0.25, -0.45, 0.06, 0.05, 0.05], [-13.42, 0.12, -0.92, 0.62, 0.5, 0.48], [-13.15, 0.42, -1.27, 1.02, 0.8, 0.75],
-  [-12.75, 0.78, -1.55, 1.42, 1.05, 0.85], [-12.3, 1.12, -1.72, 1.72, 1.25, 0.8], [-11.85, 1.52, -1.8, 1.92, 1.35, 0.7],
-  [-11.35, 1.84, -1.84, 2.03, 1.38, 0.6], [-10.75, 2.0, -1.85, 2.08, 1.38, 0.5], [-10.1, 2.05, -1.85, 2.1, 1.38, 0.45],
+  [-13.55, -0.25, -0.45, 0.06, 0.05, 0.05], [-13.42, 0.05, -0.92, 0.62, 0.5, 0.48], [-13.15, 0.26, -1.27, 1.02, 0.8, 0.75],
+  [-12.75, 0.44, -1.55, 1.42, 1.0, 0.85], [-12.3, 0.66, -1.72, 1.72, 1.2, 0.8], [-11.85, 1.3, -1.8, 1.92, 1.32, 0.7],
+  [-11.35, 1.8, -1.84, 2.03, 1.38, 0.6], [-10.75, 2.0, -1.85, 2.08, 1.38, 0.5], [-10.1, 2.05, -1.85, 2.1, 1.38, 0.45],
   ...[-9.4, -8.6, -7.0, -5.0, -3.0, -1.0, 1.0, 3.0, 4.6, 5.6].map(z => [z, 2.05, -1.85, 2.1, 1.38, 0.45]),
   [6.45, 2.05, -1.84, 2.1, 1.38, 0.45], [7.35, 2.05, -1.74, 2.08, 1.38, 0.5], [8.35, 2.05, -1.55, 2.05, 1.36, 0.55],
   [9.5, 2.06, -1.05, 1.98, 1.32, 0.6], [10.5, 2.08, -0.6, 1.86, 1.25, 0.6], [11.47, 2.1, -0.15, 1.7, 1.15, 0.6],
@@ -206,6 +206,29 @@ function skinMat(z0, z1, qh) {
   if (z0 >= 8.35 && z1 <= 14.3 && qh >= 9) return -1;                           // ramp + upper cargo door
   if (qh <= 3 && z0 >= -12.3) return 3;                                          // white top
   return 0;
+}
+
+// the window frame lines of the flight deck glazing ([points, radius] in airframe coordinates): bows across the
+// windscreen and side windows, posts between the panes, the centre post
+export function windowFrames() {
+  const rings = FUS.map(f => full(rr(...f))), at = z => rings[FI(z)], along = (zs, k) => zs.map(z => at(z)[k]), out = [];
+  out.push([at(-12.3).slice(1, 6), 0.035], [at(-12.3).slice(21, 26), 0.035], [at(-11.35).slice(1, 7), 0.035], [at(-11.35).slice(20, 26), 0.035],
+    [at(-10.1).slice(3, 7), 0.035], [at(-10.1).slice(20, 24), 0.035], [at(-10.75).slice(2, 4), 0.03], [at(-10.75).slice(23, 25), 0.03]);
+  for (const k of [2, 3, 4, 22, 23, 24, 1, 25]) out.push([along([-12.3, -11.85, -11.35], k), 0.03]);
+  for (const k of [5, 21]) out.push([along([-11.35, -10.75, -10.1], k), 0.03]);
+  out.push([along([-12.3, -11.85, -11.35], 0), 0.04], [at(-11.85).slice(7, 9), 0.025], [at(-11.85).slice(18, 20), 0.025]);
+  return out;
+}
+// the inside of the nose skin from the radome bulkhead back to the hold (inset), glass panels left open; group 0 only
+export function noseLiningGeo(inset = 0.05) {
+  const sh = f => [f[0], f[1] - inset, f[2] + inset, f[3] - inset, Math.max(0.05, f[4] - inset), Math.max(0.05, f[5] - inset)];
+  const i0 = FI(-12.75), i1 = FI(-9.4), rings = FUS.slice(i0, i1 + 1).map(f => full(rr(...sh(f))));
+  return loft(rings, (r, k) => { const m = skinMat(FZ[i0 + r], FZ[i0 + r + 1], QH(k)); return m === 1 ? -1 : 0; });
+}
+// glass panes only (for the inside view: the exterior shell is hidden then)
+export function noseGlassGeo() {
+  const i1 = FI(-9.4), rings = FUS.slice(0, i1 + 1).map(f => full(rr(...f)));
+  return loft(rings, (r, k) => skinMat(FZ[r], FZ[r + 1], QH(k)) === 1 ? 0 : -1);
 }
 
 // ------------------------------------------------------------------------------------------- decals
@@ -289,13 +312,8 @@ export function buildC130Mesh() {
   front.add(rodG([0.0, 2.05, -10.2], [0.0, 2.35, -9.7], 0.04), blackM);                                                   // flight deck mast
   front.add(rodG([-1.55, 0.6, -12.25], [-1.85, 0.6, -12.7], 0.03, 5), metalM); front.add(rodG([1.55, 0.6, -12.25], [1.85, 0.6, -12.7], 0.03, 5), metalM);   // pitots
 
-  // ---- windscreen frames (the deck module has its own; these show from outside)
-  const at = z => rings[FI(z)], along = (zs, k) => zs.map(z => at(z)[k]);
-  const fT = (pts, r = 0.035) => front.add(tubeG(pts, r, Math.max(2, (pts.length - 1) * 3), 4), M(0x55595c));
-  fT(at(-12.3).slice(1, 6)); fT(at(-12.3).slice(21, 26)); fT(at(-11.35).slice(1, 7)); fT(at(-11.35).slice(20, 26)); fT(at(-10.1).slice(3, 7)); fT(at(-10.1).slice(20, 24));
-  for (const k of [2, 3, 4, 22, 23, 24, 1, 25]) fT(along([-12.3, -11.85, -11.35], k), 0.03);
-  for (const k of [5, 21]) fT(along([-11.35, -10.75, -10.1], k), 0.03);
-  fT(along([-12.3, -11.85, -11.35], 0), 0.04);
+  // ---- windscreen frames (the same lines frame the glass from inside, see windowFrames / c130cockpit.js)
+  for (const [pts, r] of windowFrames()) front.add(tubeG(pts, r, Math.max(2, (pts.length - 1) * 3), 4), M(0x55595c));
 
   // ---- wing: centre section constant chord, outer panels taper with a little dihedral; NACA 64A318 -> 64A412
   // chord stations: x, LE z, chord, mean line y, thickness
