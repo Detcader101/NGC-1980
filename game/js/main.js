@@ -698,6 +698,7 @@ function hurtPlayer(amount, why, at, dir) {
 }
 function hurtHeli(amount, why, part) {
   if (G.bench) return;
+  if (G.craft !== 'heli') { crafts.active.hurt(amount, why, null, null); return; }   // (tests call this in the jet)
   const p = D.hit(amount, part), name = PARTS.find(q => q.id === p).name;
   sfx.hit?.() ?? sfx.boom(0.3);
   const m = D.mods();
@@ -1407,6 +1408,7 @@ const shipName = u => ({ battleship: 'BATTLESHIP', freighter: 'FREIGHTER' }[u.ty
 const KIND_TAG = { hq: 'HQ', fortress: 'C', fuel: 'F', factory: 'M', radar: 'R' };
 const OWN_COL = ['#e8e4d0', '#4cf', '#f54'];
 let mapView = null;
+const _mapF = { x: 0, y: 0, z: 0, yaw: 0 };
 function drawMap() {
   const W = radar.canvas.width, Hh = radar.canvas.height; radar.clearRect(0, 0, W, Hh);
   const big = bigMap, half = big ? Math.min(W, Hh - 120) * 0.47 / BOUND : 72 / 260, cx = W / 2, cy = big ? (Hh - 60) / 2 : Hh / 2;
@@ -1453,6 +1455,15 @@ function drawMap() {
       const l = Math.max(big ? 12 : 7, u.dims.L * half), w = Math.max(big ? 4 : 3, u.dims.W * half); radar.fillRect(-w / 2, -l / 2, w, l); radar.restore();
       if (big) { radar.fillStyle = col; radar.font = 'bold 12px monospace'; radar.fillText(shipName(u), X + 12, Y - 8); }
     } else { radar.fillStyle = col; const sz = big ? (u.type === 'transport' ? 7 : u.type === 'dropship' ? 9 : 5) : u.type === 'dropship' ? 5 : 3; radar.fillRect(X - sz / 2, Y - sz / 2, sz, sz); }
+  }
+  // FOUNDATION: your parked crafts (the Huey you walked away from, a Hornet on deck, vehicles): hollow white marks
+  for (const d of crafts.defs) {
+    if (d === crafts.active || d.kind === 'foot' || !d.present()) continue;
+    const f = d.frame(_mapF), X = px(f.x), Y = py(f.z), r = big ? 6 : 3.5;
+    radar.strokeStyle = '#fff'; radar.lineWidth = big ? 2 : 1.2; radar.beginPath();
+    if (d.kind === 'ground') radar.rect(X - r, Y - r, 2 * r, 2 * r); else { radar.moveTo(X, Y - r * 1.3); radar.lineTo(X + r, Y + r); radar.lineTo(X - r, Y + r); radar.closePath(); }
+    radar.stroke();
+    if (big) { radar.fillStyle = '#fff'; radar.font = '11px monospace'; radar.textAlign = 'left'; radar.fillText(d.label, X + 10, Y + 4); }
   }
   // you: an arrow along the nose
   const X = px(Z.pos.x), Y = py(Z.pos.z), fx_ = Z.facing.x, fz = Z.facing.y, sz = big ? 9 : 5;

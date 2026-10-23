@@ -66,6 +66,20 @@ export function createBoxCar(P = BOXCAR) {
     for (let i = 0; i < 4; i++) S.wheelH[i] = _gh[i];
     const front = (_gh[0] + _gh[1]) / 2, rear = (_gh[2] + _gh[3]) / 2, left = (_gh[0] + _gh[2]) / 2, right = (_gh[1] + _gh[3]) / 2;
     const gy = (front + rear) / 2, pitchT = Math.atan2(front - rear, P.WB), rollT = Math.atan2(left - right, P.TRACK);
+    // ---- amphibious (P.AMPHIB, e.g. an M113): afloat once the bottom is deeper than the draft - track / jet thrust
+    // against hull drag, slow turning; the wheels / tracks take over again in the shallows. A reference for unit sims.
+    S.afloat = !!P.AMPHIB && gy < -P.DRAFT && S.y <= -P.DRAFT + 0.3;
+    if (S.afloat) {
+      const dir = S.gear === 'R' ? -1 : 1, fx = -Math.sin(S.yaw), fz = -Math.cos(S.yaw);
+      S.v += (dir * thr * P.SWIM_F - 0.5 * 1000 * P.SWIM_CDA * S.v * Math.abs(S.v)) / m * h;
+      S.yawRate = (c.steer || 0) * P.SWIM_TURN * Math.min(1, 0.3 + Math.abs(S.v));
+      S.x += fx * S.v * h; S.z += fz * S.v * h; S.yaw -= S.yawRate * h;
+      S.y += (-P.DRAFT - S.y) * Math.min(1, 3 * h); S.vy = 0; S.onGround = false; S.water = -S.y;
+      S.pitch *= 1 - Math.min(1, 2 * h); S.roll *= 1 - Math.min(1, 2 * h); for (let i = 0; i < 4; i++) S.wheelH[i] = S.y;
+      if (live) S.fuel = Math.max(0, S.fuel - (0.6 + 12 * thr) / 3600 * h);
+      S.rpm = live ? 700 + 2500 * thr : Math.max(0, S.rpm - 2000 * h);
+      return;
+    }
     // ---- longitudinal: drive (power / traction limited), brakes, rolling resistance, drag, grade, water
     const N = m * G * Math.cos(S.pitch) * (S.onGround ? 1 : 0), mu = _s.mu ?? 0.6, crr = _s.crr ?? 0.03;
     let F = 0;
@@ -104,7 +118,7 @@ export function createBoxCar(P = BOXCAR) {
     // ---- vertical: suspension follows the ground, the car leaves it over a crest and lands
     const g2 = gy;
     if (S.onGround) {
-      if (g2 < S.y - 0.35 && S.v * S.v > 60) { S.onGround = false; S.vy = 0; }   // crest at speed: airborne
+      if (g2 < S.y - 0.6 || (g2 < S.y - 0.3 && S.v * S.v > 60)) { S.onGround = false; S.vy = 0; }   // off a ledge, or a crest at speed: airborne
       else { const ny = S.y + (g2 - S.y) * Math.min(1, 25 * h); S.vy = (ny - S.y) / h; S.y = ny; }
     }
     if (!S.onGround) {

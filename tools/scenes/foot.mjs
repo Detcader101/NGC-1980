@@ -57,6 +57,13 @@ export default async function (h) {
   await h.eval('__F.state()');
   await h.expect("__G.foot.W.onGround && Math.abs(__G.foot.W.y - __G.PAD.h) < 0.3 && __G.foot.W.surface === 'road'");
   await h.eval("(__G.foot.view = 'third', __G.foot.W.yaw += Math.PI, 1)"); await h.wait(900); await h.shot('on-the-home-pad');
+  // war hooks: what war.js sees of a soldier, and a round's hit point routed to a body part
+  await h.eval("(__G.foot.stance = 'prone', 1)"); await h.waitFor("__G.foot.W.stance === 'prone' && __G.foot.W.eye < 0.4", 10000);
+  await h.eval("({ kind: __G.PL.kind, hitR: __G.PL.hitR, detect: __G.PL.detect, sight: __G.PL.sight, capTime: __G.PL.capTime, landed: __G.PL.landed, alive: __G.PL.alive })");
+  await h.expect("__G.PL.kind === 'foot' && __G.PL.hitR < 0.4 && __G.PL.detect < 0.25 && __G.PL.landed && __G.PL.capTime === 12");
+  await h.eval("(__G.foot.stance = 'stand', 1)"); await h.waitFor("__G.foot.W.stance === 'stand' && __G.foot.W.eye > 1.5", 10000);
+  await h.eval("(() => { const W = __G.foot.W; __G.hurtPlayer(0.05, 'HIT', { x: W.x, y: W.y + 1.65, z: W.z }, { x: 50, y: 0, z: 0 }); __G.hurtPlayer(0.05, 'HIT', { x: W.x, y: W.y + 0.4, z: W.z }, null); return { ...__G.foot.slots.medical.hp, alive: __G.foot.alive, hud: __G.foot.slots.medical.hudLine() }; })()");
+  await h.expect('__G.foot.slots.medical.hp.head < 35 && __G.foot.slots.medical.hp.thorax === 85 && (__G.foot.slots.medical.hp.legL < 65 || __G.foot.slots.medical.hp.legR < 65) && __G.foot.alive');
   await h.eval("(__G.foot.view = 'first', 1)");
   // 7. back to the Huey (on the deck), get in by the pilot's door, take off
   await h.eval(`(() => { const c = __G.war.carrier, d = __G.crafts.toWorld(__G.heliC, [2.6, -1.84, -1.9]); return __G.foot.spawnAt({ x: d.x, y: c.p.y + 8, z: d.z, yaw: d.yaw + Math.PI / 2 }); })()`);

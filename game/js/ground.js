@@ -14,6 +14,7 @@
 //   GR.platVel(x, z)              -> { vx, vz, w, cx, cz } velocity of the deck under (x, z), or null
 //   GR.spawns(kind)               -> where vehicles and soldiers can appear: carrier deck spots, island motor pools
 //   GR.motorPool(I)               -> a clear, flat spot beside island I's pad for a delivered vehicle (or null)
+//   GR.beach(I, toward)           -> a landing beach on island I facing toward [x, z] (dry sand, gentle, nose inland)
 //   GR.addSurface(fn)             -> fn(x, z) returns a surface name or null: roads, mud, airstrips (WORLD agent)
 //   GR.addCollider(c)             -> extra static circles { x, z, r, y0, y1 } or boxes { x, z, yaw, hl, hw, y0, y1 }
 //   GR.G                          -> 9.81 (the ground units use real gravity, like the Huey)
@@ -215,10 +216,27 @@ export function createGround(ctx) {
     }
     return null;
   };
+  // a landing beach on island I on the side facing `toward` [x, z] (default: the ALBATROSS): dry sand just above the
+  // waterline, gentle, clear, nose inland - where a landing craft would put a vehicle or a squad ashore
+  GR.beach = (I, toward) => {
+    const t0 = toward || (war.carrier ? [war.carrier.p.x, war.carrier.p.z] : [0, 0]), a0 = Math.atan2(t0[1] - I.z, t0[0] - I.x);
+    for (let k = 0; k < 24; k++) {
+      const a = a0 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 0.13, cx = Math.cos(a), sz = Math.sin(a);
+      for (let r = 10; r < (I.r || 80) + 120; r += 1.5) {
+        const x = I.x + cx * r, z = I.z + sz * r, h = terrainH(x, z);
+        if (h > 2.2) continue;
+        if (h < 0.4) break;   // past the dry sand
+        if (Math.abs(terrainH(x - sz * 2, z + cx * 2) - terrainH(x + sz * 2, z - cx * 2)) > 0.4 || terrainH(x - cx * 3, z - sz * 3) - h > 1.2) break;
+        if (!GR.clearAt(x, z, 2.5) || holeOf(x, z)) break;
+        return { name: `${I.name} BEACH`, x, z, y: h, yaw: Math.atan2(cx, sz), plat: null };   // nose inland
+      }
+    }
+    return null;
+  };
   GR.spawns = () => {
     const out = [];
     for (let k = 0; k < DECK_SPOTS.length; k++) { const s = GR.deckSpot(k); if (s) out.push(s); }
-    for (const I of ISLANDS) if (I.owner === 1) { const s = GR.motorPool(I); if (s) out.push(s); }
+    for (const I of ISLANDS) if (I.owner === 1) { const s = GR.motorPool(I); if (s) out.push(s); const b = GR.beach(I); if (b) out.push(b); }
     return out;
   };
   return GR;

@@ -73,6 +73,16 @@ function drive(S, secs, ctl, stop) { for (let t = 0; t < secs; t += DT) { S.step
   S.engineOn = false; const t = drive(S, 2, { drive: 0, engine: true });
   check('will not restart drowned', !S.engineOn, `engine ${S.engineOn}`);
 }
+// ---------------------------------------------------------------- an amphibious variant (the host contract for an M113)
+{
+  const A = { ...BOXCAR, AMPHIB: true, DRAFT: 1.2, SWIM_F: 3240, SWIM_CDA: 2.5, SWIM_TURN: 0.25, FORD: 99, H: 2.5 };   // M113: swims 5.8 km/h CONFIRMED (TM 9-2300-257-10)
+  const S = createBoxCar(A); S.place(0, 0, 200, -Math.PI / 2); S.engineOn = true;
+  drive(S, 120, { drive: 1 }, () => S.afloat && S.x > 120);
+  const x0 = S.x; drive(S, 10, { drive: 1 }); const vs = (S.x - x0) / 10;
+  check('amphibious: swims at the published speed', S.afloat && Math.abs(vs - 5.8 / 3.6) < 0.15, `${(vs * 3.6).toFixed(1)} km/h, draft ${S.water.toFixed(2)} m`, '5.8 km/h (M113)');
+  S.yaw = Math.PI / 2; drive(S, 200, { drive: 1 }, () => !S.afloat && S.onGround && S.y > -0.2);
+  check('amphibious: drives back out up the beach', !S.afloat && S.onGround && S.y > -0.3 && !S.flooded, `y ${S.y.toFixed(2)} x ${S.x.toFixed(1)}`);
+}
 // ---------------------------------------------------------------- a ship's deck
 {
   const S = createBoxCar(); ship.p = { x: 0, y: 0, z: 400 }; ship.yaw = 0;
@@ -83,6 +93,12 @@ function drive(S, secs, ctl, stop) { for (let t = 0; t < secs; t += DT) { S.step
   check('parked on a moving, turning, rising deck', Math.hypot(a1 - a0, b1 - b0) < 0.05 && Math.abs(S.y - ship.p.y - 8) < 0.05, `slip ${Math.hypot(a1 - a0, b1 - b0).toFixed(3)} m, y-deck ${(S.y - ship.p.y - 8).toFixed(3)}`);
   S.yaw = ship.yaw; S.engineOn = true; drive(S, 4, { drive: 0.3 }, () => { ship.p.x += 6 * DT; return false; });
   const [a2, b2] = toLocal(ship, S.x, S.z);
+  { // off the side of the deck: an 8 m fall (the ship at rest, the ground beside it)
+    const C = createBoxCar(); ship.p = { x: 0, y: 0, z: 400 }; ship.yaw = 0; C.place(10, 8, 400, -Math.PI / 2); C.engineOn = true; const ev = [];
+    for (let t = 0; t < 6 && C.y > 0.01; t += DT) ev.push(...C.step(DT, { drive: 0.4 }, env));
+    const l = ev.find(e => e.e === 'land');
+    check('drives off the deck edge and falls 8 m', !!l && l.v > 11 && Math.abs(C.y) < 0.05, `land ${l ? l.v.toFixed(1) : '-'} m/s, y ${C.y.toFixed(2)}`, `${Math.sqrt(2 * 9.81 * 8).toFixed(1)} m/s`);
+  }
   check('drives along the deck (relative motion)', b2 < b1 - 5 && Math.abs(a2 - a1) < 0.3 && S.plat === ship, `moved ${(b1 - b2).toFixed(1)} m forward, ${(a2 - a1).toFixed(2)} m sideways`);
 }
 console.log(fails ? `\n${fails} FAILED` : '\nall passed');
