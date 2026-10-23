@@ -23,8 +23,8 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 // the rotary module's squads (the CH-46 cabin and ramp) show INFANTRY's Marine from now on (FIGURES contract)
 FIGURES.marine = o => buildMarineFigure({ ...o, detail: 'full' });
 export const GW_T = {
-  HOVER_AT: 240, HOVER_COST: 40, HOVER_GAP: 70,     // s from the start / materiel / s between launches
-  MBT_AT: 540, MBT_COST: 70, MBT_GAP: 150,
+  HOVER_AT: 240, HOVER_COST: 32, HOVER_GAP: 70,     // s from the start / materiel / s between launches
+  MBT_AT: 540, MBT_COST: 55, MBT_GAP: 150,
   STRIDERS: 8, SQUAD: 4,                            // per MV-22 load; per squad
   CAP_RW: 12, CAP_MAR: 9,                           // s to take a pad (the war's CAP_TIME for the old troops: 10 / 9)
   DRAW: { strider: 700, hovertank: 1100, mbt: 1100, marine: 520, marineFull: 140 },
@@ -84,7 +84,7 @@ export function createGroundWar(ctx) {
   }
   function extBlast(x, y, z, r, power, side) { W.blast(x, y, z, r, 4 * power, side, true); }   // (true: the ground war already did its own)
   const GS = createGroundSim({ terrainH, islands: W.islands, hooks: { targetsFor, extSeg, extBlast } });
-  const GW = { sim: GS, root, views: new Map(), proxies: [], landings: [], lcacs: [], hoverT: GW_T.HOVER_AT, mbtT: GW_T.MBT_AT, playerFiredT: 99, kills: new Map(), godPlayer: false, T: GW_T };
+  const GW = { sim: GS, root, views: new Map(), proxies: [], landings: [], lcacs: [], hoverT: GW_T.HOVER_AT, mbtT: GW_T.MBT_AT, playerFiredT: 99, bank: 0, kills: new Map(), godPlayer: false, T: GW_T };
 
   // ------------------------------------------------------------------------------------------- views
   function viewOf(u) {
@@ -329,9 +329,9 @@ export function createGroundWar(ctx) {
       for (let r = I.r + 40; r > 10; r -= 2) if (H(a, r) > 0.3) { shore = r; break; }
       if (!shore) continue;
       const sea1 = H(a, shore + 8), sea2 = H(a, shore + 16), land1 = H(a, shore - 10), land2 = H(a, shore - 20);
-      if (sea1 < -4.5 || land1 > 6) continue;
+      const steep = Math.max(0, -4.5 - sea1) + Math.max(0, land1 - 6);   // (most of the islands rise steeply out of deep water: take the least bad)
       const da = Math.abs(Math.atan2(Math.sin(a - a0), Math.cos(a - a0))), [lx, lz] = P(a, shore - 12);
-      const sc = (land2 - sea2) / 36 * 12 + da * 1.6 + Math.max(0, land2 - 8) * 0.3 + (I.structs.some(s => Math.hypot(s.x - lx, s.z - lz) < 18) ? 20 : 0);
+      const sc = (land2 - sea2) / 36 * 12 + steep * 0.8 + da * 1.6 + Math.max(0, land2 - 8) * 0.3 + (I.structs.some(s => Math.hypot(s.x - lx, s.z - lz) < 18) ? 20 : 0);
       if (!best || sc < best.sc) best = { sc, a, land: [lx, lz], edge: P(a, shore + 4), sea: P(a, shore + 50) };
     }
     return best;
@@ -354,6 +354,7 @@ export function createGroundWar(ctx) {
       if (rw && mar) s = 100 + mar * 3 - rw;
       else if (mar && I.owner === 2) s = 80 + mar * 3;
       else if (rw && I.owner !== 2) s = 40 - rw;
+      else if (armour && I.owner === 1 && !I.cave && mar && W.aliveAA(I) === 0) s = 30 - mar;   // (an island of theirs held only by Marines: armour goes in)
       else if (armour && I.owner === 2 && !I.cave) { let dmin = 1e9; for (const J of W.islands) if (J.owner === 1) dmin = Math.min(dmin, Math.hypot(J.x - I.x, J.z - I.z)); s = 10 - dmin / 100 - (GS.units.some(u => u.alive && u.vehicle && u.B?.I === I) ? 30 : 0); }
       if (s > bs) { bs = s; best = I; }
     }
@@ -418,11 +419,15 @@ export function createGroundWar(ctx) {
     const E = W.E, t = W.time;
     const hovers = GS.units.filter(u => u.kind === 'hovertank' && u.alive).length, mbts = GS.units.filter(u => u.kind === 'mbt' && u.alive).length + GW.lcacs.filter(L => !L.mbt).length;
     GW.hoverT -= 2; GW.mbtT -= 2;
-    if (t >= GW_T.HOVER_AT && GW.hoverT <= 0 && hovers < Math.min(4, 1 + Math.floor(t / 420)) && E.mat >= GW_T.HOVER_COST) {
-      const I = pickGroundTarget(false); if (I && GW.launchHover(I)) { E.mat -= GW_T.HOVER_COST; GW.hoverT = GW_T.HOVER_GAP; feed(`RADAR: RW-7 HOVER TANK LEAVING THE KRAKEN  -  HEADING FOR ${I.name}`, 'bad'); }
+    // the ground arm saves up: when armour is due it takes a share of the materiel as it comes in (the air arm would
+    // otherwise spend every point on WASPs), and pays for the launch out of that
+    const wantH = t >= GW_T.HOVER_AT && hovers < Math.min(4, 1 + Math.floor(t / 420)), wantM = t >= GW_T.MBT_AT && mbts < Math.min(3, Math.floor(t / 540));
+    if ((wantH || wantM) && GW.bank < GW_T.MBT_COST) { const take = Math.min(E.mat, 2); E.mat -= take; GW.bank += take; }
+    if (wantH && GW.hoverT <= 0 && GW.bank >= GW_T.HOVER_COST) {
+      const I = pickGroundTarget(true); if (I && GW.launchHover(I)) { GW.bank -= GW_T.HOVER_COST; GW.hoverT = GW_T.HOVER_GAP; feed(`RADAR: RW-7 HOVER TANK LEAVING THE KRAKEN  -  HEADING FOR ${I.name}`, 'bad'); }
     }
-    if (t >= GW_T.MBT_AT && GW.mbtT <= 0 && mbts < Math.min(3, Math.floor(t / 540)) && E.mat >= GW_T.MBT_COST) {
-      const I = pickGroundTarget(true); if (I && GW.launchMBT(I, Math.random() < 0.5 ? 'm1a2' : 't90m')) { E.mat -= GW_T.MBT_COST; GW.mbtT = GW_T.MBT_GAP; feed(`RADAR: ENEMY LANDING CRAFT WITH ARMOUR  -  HEADING FOR ${I.name}`, 'bad'); }
+    if (wantM && GW.mbtT <= 0 && GW.bank >= GW_T.MBT_COST) {
+      const I = pickGroundTarget(true); if (I && GW.launchMBT(I, Math.random() < 0.5 ? 'm1a2' : 't90m')) { GW.bank -= GW_T.MBT_COST; GW.mbtT = GW_T.MBT_GAP; feed(`RADAR: ENEMY LANDING CRAFT WITH ARMOUR  -  HEADING FOR ${I.name}`, 'bad'); }
     }
     // the hover tanks are the machines' mobile reserve: one with nothing to do crosses to where there is a fight
     for (const u of GS.units) {
@@ -488,7 +493,7 @@ export function createGroundWar(ctx) {
     for (const id of [...GW.views.keys()]) dropView(id);
     for (const L of GW.lcacs) root.remove(L.view.group); GW.lcacs.length = 0;
     for (const L of GW.landings) L.Q.dispose(); GW.landings.length = 0;
-    GW.proxies.length = 0; GW.kills.clear(); GS.reset(); GW.hoverT = GW_T.HOVER_AT; GW.mbtT = GW_T.MBT_AT; GW.silence();
+    GW.proxies.length = 0; GW.kills.clear(); GS.reset(); GW.hoverT = GW_T.HOVER_AT; GW.mbtT = GW_T.MBT_AT; GW.bank = 0; GW.silence();
   };
   return GW;
 }

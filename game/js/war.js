@@ -890,7 +890,7 @@ export function createWar(ctx) {
     updateCapture(dt, pl);
     updateEconomy(dt);
     updateBattleship(dt); updateFreighters(dt);
-    if (!peace) { W.thinkT -= dt; if (W.thinkT <= 0) { W.thinkT = 2; think(pl); W.air.think(pl); GW.think(pl); } }   // AIR: + the enemy air arm's plans; GROUND WAR: + its ground plans
+    if (!peace) { W.thinkT -= dt; if (W.thinkT <= 0) { W.thinkT = 2; GW.think(pl); think(pl); W.air.think(pl); } }   // GROUND WAR: its ground plans first (armour is saved up for); AIR: + the enemy air arm's plans
     W.air.frame(dt, pl);   // AIR: launch queue, drone rails, engine sounds
     // buildings animate
     for (const I of W.islands) for (const s of I.structs) {
