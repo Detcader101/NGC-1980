@@ -114,7 +114,7 @@ export function createDefence(env) {
   }
   // smoke along a ray: the summed opacity of the smoke puffs (fx.mix) the ray passes through, and where it gets thick
   function smokeAlong(a, dir, L) {
-    const P = fx && fx.mix; if (!P) return [0, L];
+    const P = fx && fx.mix; if (!P) { smokeAlong.stop = L; return 0; }
     let acc = 0, stop = L; const p = P.p, col = P.col, size = P.size;
     for (let i = 0; i < P.n; i++) {
       const al = col[i * 4 + 3], s = size[i]; if (al < 0.12 || s < 1.2) continue;
@@ -126,20 +126,21 @@ export function createDefence(env) {
       acc += al * (lum < 0.5 ? 0.6 : 0.3);   // dark smoke stops it faster than spray or steam
       if (acc >= DEF_WAR.smokeBlock && t < stop) stop = t;
     }
-    return [acc, stop];
+    smokeAlong.stop = stop; return acc;   // the stop distance rides on the function (no array per call)
   }
   env.smokeAlong = smokeAlong; env.los = los;
 
   // ------------------------------------------------------------------ target helpers
   const keyOf = f => f.player ? 'P' : f.hp === undefined ? 'S' : f;
-  const valid = f => f && (f.player ? (() => { const p = env.player(); return p.alive && !p.inCave; })() : !(f.dead || f.dying || f.gone));
+  function valid(f) { if (!f) return false; if (f.player) { const p = env.player(); return p.alive && !p.inCave; } return !(f.dead || f.dying || f.gone); }
+  function findKey(foes, k) { for (let i = 0; i < foes.length; i++) if (keyOf(foes[i]) === k) return foes[i]; return null; }
   function eyeOf(o, out) { return o.mesh.userData.pitch.getWorldPosition(out); }
   function maxRange(T) { return Math.max(T.gun ? T.gun.range : 0, T.msl ? T.msl.range : 0, T.beam ? T.beam.range : 0); }
   // world aim direction -> local yaw / pitch of the turret
-  function toTurret(o, dir) {
+  function toTurret(o, dir, D) {   // -> D.wy, D.wp
     const yawG = o.mesh.userData.yaw; yawG.parent.getWorldQuaternion(_q).invert();
     _e.copy(dir).applyQuaternion(_q);
-    return [Math.atan2(-_e.x, -_e.z), Math.asin(clamp(_e.y, -1, 1))];
+    D.wy = Math.atan2(-_e.x, -_e.z); D.wp = Math.asin(clamp(_e.y, -1, 1));
   }
   // the barrel's actual pointing direction in the world
   function barrelDir(o, out) { o.mesh.userData.pitch.getWorldQuaternion(_q); return out.set(0, 0, -1).applyQuaternion(_q); }
@@ -164,7 +165,7 @@ export function createDefence(env) {
       if (best) { if (keyOf(best) !== D.key) { D.key = keyOf(best); D.lockT = 0; D.dwell = 0; } D.tgt = best; D.lostT = 0; if (D.mode === 'search') D.mode = 'track'; }
     }
     // refresh the target object (the player / sky proxies are rebuilt every frame by the host)
-    if (D.tgt) { const k = D.key; D.tgt = foes.find(f => keyOf(f) === k) || null; if (!D.tgt || !valid(D.tgt)) { D.tgt = null; D.key = null; D.mode = 'search'; D.lockT = 0; } }
+    if (D.tgt) { const k = D.key; D.tgt = findKey(foes, k); if (!D.tgt || !valid(D.tgt)) { D.tgt = null; D.key = null; D.mode = 'search'; D.lockT = 0; } }
     const f = D.tgt;
     let wantYaw = D.yaw, wantPitch = 0.15, err = 9;
     if (f) {
@@ -179,7 +180,7 @@ export function createDefence(env) {
       if (sp) { let tf = D.d / sp; for (let i = 0; i < 2; i++) { ax = f.p.x + f.v.x * tf; ay = f.p.y + f.v.y * tf; az = f.p.z + f.v.z * tf; tf = Math.hypot(ax - eye.x, ay - eye.y, az - eye.z) / sp; } }
       D.aim = D.aim || new THREE.Vector3(); D.aim.set(ax, ay, az);
       _d.set(ax - eye.x, ay - eye.y, az - eye.z).normalize();
-      [wantYaw, wantPitch] = toTurret(o, _d);
+      toTurret(o, _d, D); wantYaw = D.wy; wantPitch = D.wp;
     } else if (D.mode !== 'cool') {
       // searching: the turret drifts slowly through a sector, barrels at a ready elevation
       wantYaw = D.yaw + Math.sin(t * 0.25 + D.radarA) * 0.4 * dt * 4; wantPitch = 0.25;
@@ -288,7 +289,7 @@ export function createDefence(env) {
     cell.cover.visible = false;
     ud.pitch.localToWorld(_m.copy(cell.pos)); barrelDir(o, _n);
     const mesh = mslGeo.clone(); mesh.position.copy(_m); scene.add(mesh);
-    const ms = { p: _m.clone(), dir: _n.clone(), spd: M.speed0, age: 0, M, side: D.side, launcher: o, key: D.key, tgt: f.player ? null : f, player: !!f.player, tp: f.p, tv: f.v, guided: true, losT: 0, mesh, smokeT: 0 };
+    const ms = { p: _m.clone(), dir: _n.clone(), spd: M.speed0, age: 0, M, side: D.side, launcher: o, key: D.key, tgt: f.player || f.hp === undefined ? null : f, player: !!f.player, tp: f.p, tv: f.v, guided: true, losT: 0, mesh, smokeT: 0 };   // tgt null for the flying ALBATROSS: a proxy point, hit-tested at the burst
     missiles.push(ms);
     // launch tell: a cloud of smoke round the launcher, the whoosh, the cockpit warning
     if (fx) for (let i = 0; i < 14; i++) fx.mix.spawn(_m.x + rnd(-1, 1), _m.y + rnd(-0.5, 0.5), _m.z + rnd(-1, 1), -_n.x * rnd(2, 6) + rnd(-2, 2), rnd(0.5, 2), -_n.z * rnd(2, 6) + rnd(-2, 2), rnd(2, 4), 1.2, 5, .78, .77, .74, 0.6, -0.2, 1.4, 0.6);
@@ -303,7 +304,7 @@ export function createDefence(env) {
       const m = missiles[i], M = m.M; m.age += dt;
       m.spd = Math.min(M.speed, m.spd + M.accel * dt);
       // target still there? guided only while the launcher is alive and still sees it (hide behind a hill and it goes dumb)
-      const alive = m.player ? pl && pl.alive && !pl.inCave : m.tgt && !m.tgt.dead && !m.tgt.dying && !m.tgt.gone;
+      const alive = m.player ? pl && pl.alive && !pl.inCave : m.tgt ? !m.tgt.dead && !m.tgt.dying && !m.tgt.gone : true;
       m.losT -= dt;
       if (m.guided && m.losT <= 0) {
         m.losT = 0.2; const L = m.launcher, le = L.mesh.userData.pitch.getWorldPosition(_e);
@@ -384,7 +385,7 @@ export function createDefence(env) {
     const showLine = B.st === 'charge', showBeam = B.st === 'on';
     if (showLine || showBeam) {
       let L = rayGround(lens, _n, range); B.blocked = L < range ? 'ground' : '';
-      const [sm, stop] = smokeAlong(lens, _n, L); if (stop < L) { L = stop; B.blocked = 'smoke'; } B.smoke = sm;
+      const sm = smokeAlong(lens, _n, L), stop = smokeAlong.stop; if (stop < L) { L = stop; B.blocked = 'smoke'; } B.smoke = sm;
       let onT = false;
       if (f) {   // does the beam pass through the target?
         const dx = f.p.x - lens.x, dy = f.p.y - lens.y, dz = f.p.z - lens.z, tt = dx * _n.x + dy * _n.y + dz * _n.z;
