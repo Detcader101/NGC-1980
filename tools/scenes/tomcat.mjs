@@ -44,14 +44,15 @@ export default async function (h) {
       for (const e of A.events) if (e.e === 'compstall' || e.e === 'stallclear' || e.e === 'flameout') window.__ev.push(e.e + e.k);
       if (window.__ph === 'level') { FD.steer(FD.dirHdg(A.heading(), Math.max(-0.1, Math.min(0.2, (800 - A.pos.y) * 0.004))), dt, { gmax: 3, eas: 72, ab: false }); const c = FD.ctl; T.thr = c.throttle[0]; if (A.eas < 80 && A.pos.y > 650) window.__ph = 'pull'; return { pitch: c.pitch, roll: c.roll, yaw: c.yaw, throttle: c.throttle, brakeL: 0, brakeR: 0 }; }
       if (window.__ph === 'pull') { T.thr = 1; if (A.eng.some(e => e.stalled)) window.__ph = 'recover'; return { pitch: 1, roll: 0, yaw: 0.7, throttle: [1, 1], brakeL: 0, brakeR: 0 }; }
-      T.thr = 0; return { pitch: -0.35, roll: FD.rollFor(0), yaw: 0, throttle: [0, 0], brakeL: 0, brakeR: 0 };
+      if (A.eng.some(e => e.stalled) || A.alpha > 0.2) { T.thr = 0; return { pitch: -0.35, roll: FD.rollFor(0), yaw: 0, throttle: [0, 0], brakeL: 0, brakeR: 0 }; }
+      FD.steer(FD.dirHdg(A.heading(), 0.05), dt, { gmax: 3, eas: 140, ab: false }); const c = FD.ctl; T.thr = c.throttle[0]; return { pitch: c.pitch, roll: c.roll, yaw: c.yaw, throttle: c.throttle, brakeL: 0, brakeR: 0 };   // recovered: level off, power up slowly
     }; return 1; })()`);
   await h.waitFor("window.__ph !== 'level'", 120000);
   await h.eval('({ph: window.__ph, alt: A.pos.y, eas: A.eas * 1.944})');
   await h.waitFor("window.__ph === 'recover' || !T.alive", 120000);
   await h.wait(300); await h.shot('cockpit-compressor-stall');
   await h.eval('({ev: window.__ev, stalled: A.eng.map(e => !!e.stalled), cue: T.stallCue, caut: T.cautions, egt: A.eng.map(e => Math.round(e.egt)), n: A.eng.map(e => +e.n.toFixed(2)), alt: A.pos.y})');
-  await h.waitFor('!A.eng.some(e => e.stalled) || !T.alive', 90000);
+  await h.waitFor('!A.eng.some(e => e.stalled) || !T.alive', 90000); await h.wait(600);   // (the autopilot hook logs the events a frame later)
   await h.eval('({ev: window.__ev, run: A.eng.map(e => e.run), alt: A.pos.y, eas: A.eas * 1.944})');
   await h.expect("T.alive && window.__ev.some(e => e.startsWith('compstall')) && window.__ev.some(e => e.startsWith('stallclear')) && A.eng.every(e => e.run)");
   // ---- level off again and move to the RIO's seat: two RUNAWAY fighters out ahead for the AWG-9
@@ -108,7 +109,7 @@ export default async function (h) {
   await h.eval("(__G.foot.view = 'third', __G.foot.W.yaw += 2.4, 1)"); await h.wait(1200); await h.shot('out-beside-the-parked-tomcat');
   await h.key('tap', 'KeyY'); await h.wait(600);
   await h.expect('__G.G.craft === "tomcat" && !__G.foot.exists');
-  await h.key('tap', 'Digit9'); await h.key('hold', 'Minus', 1600); await h.wait(4500);
+  await h.key('tap', 'Digit9'); await h.key('down', 'Minus'); await h.waitFor('T.sweep.handle > 74', 30000); await h.key('up', 'Minus'); await h.waitFor('A.sweep > 74', 30000);
   await h.eval('({mode: T.sweep.mode, handle: T.sweep.handle, sweep: A.sweep, simMode: A.sweepMode})');
   await h.expect('T.sweep.mode === "OVER" && A.sweep > 70');
   await h.eval('(__G.cockpitCam = false, T.snapChase(), 1)'); await h.wait(1200); await h.shot('chase-oversweep-on-deck');
@@ -126,5 +127,5 @@ export default async function (h) {
   await h.shot('chase-two-chutes');
   await h.eval('({seats: T.ejected.seats.map(s => [Math.round(s.pos.y), s.out])})');
   await h.waitFor('__G.G.craft === "heli"', 90000);
-  await h.expect('__G.G.craft === "heli" && __G.G.tomcats === 0');
+  await h.expect('__G.G.craft === "heli" && __G.G.tomcats === 1 && !__G.tomcatC.TP.active');   // the lost airframe; one left in the hangar
 }

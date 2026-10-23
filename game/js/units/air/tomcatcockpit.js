@@ -113,8 +113,9 @@ export function buildTomcatCockpit() {
   hudMesh.position.set(0, HUD.cy, HUD.z); hudMesh.renderOrder = 6; g.add(hudMesh);
   const comb = new THREE.Mesh(new THREE.PlaneGeometry(HUD.hw * 2, HUD.hh * 2), new THREE.MeshBasicMaterial({ color: 0x9fe8c0, transparent: true, opacity: 0.06, depthWrite: false, side: THREE.DoubleSide }));
   comb.position.set(0, HUD.cy, HUD.z - 0.004); comb.renderOrder = 5; g.add(comb);
-  for (const s of [-1, 1]) box(0.012, HUD.hh * 2 + 0.02, 0.014, black, s * (HUD.hw + 0.007), HUD.cy - 0.01, HUD.z);
-  box(0.26, 0.07, 0.16, black, 0, 0.86, -6.2);                                // projector on the coaming
+  for (const s of [-1, 1]) box(0.006, 0.33, 0.01, black, s * (HUD.hw + 0.004), 1.015, HUD.z);   // thin combiner frame down to the projector
+  box(0.26, 0.012, 0.012, black, 0, HUD.cy - HUD.hh - 0.006, HUD.z);
+  box(0.24, 0.04, 0.16, black, 0, 0.83, -6.2);                                // projector, down in the coaming
 
   // ================================================================ the main instrument panel (tilted back)
   const P = new THREE.Group(); P.position.set(0, 0.5, -6.22); P.rotation.x = -0.3; g.add(P);
@@ -211,8 +212,15 @@ export function buildTomcatCockpit() {
   plane(0.2, 0.69, new THREE.MeshLambertMaterial({ map: conL.tex, emissive: 0xffffff, emissiveMap: conL.tex, emissiveIntensity: 0.55 }), 0, 0, 0.001, LC);
   plane(0.2, 0.69, new THREE.MeshLambertMaterial({ map: conR.tex, emissive: 0xffffff, emissiveMap: conR.tex, emissiveIntensity: 0.55 }), 0, 0, 0.001, RC);
   // console-local: x right, y forward (along -z world), z up. Throttles run along y.
-  const thr = [-0.03, 0.025].map((x, i) => { const t = new THREE.Group(); t.position.set(x, 0, 0); LC.add(t); box(0.012, 0.012, 0.12, metal, 0, 0, 0.06, t); const grip = box(0.042, 0.075, 0.05, black, i ? 0.006 : -0.006, 0.0, 0.13, t); grip.rotation.x = -0.2; return t; });
-  box(0.07, 0.3, 0.012, black, 0, 0.0, 0.002, LC);   // throttle slot
+  const thr = [-0.032, 0.026].map((x, i) => {   // two levers; the outboard grip carries the sweep switch, the inboard the speed brake
+    const t = new THREE.Group(); t.position.set(x, 0, 0); LC.add(t); box(0.012, 0.014, 0.1, metal, 0, 0, 0.05, t);
+    const grip = box(i ? 0.045 : 0.052, 0.055, 0.11, M(0x24272a), i ? 0.004 : -0.006, -0.01, 0.14, t); grip.rotation.x = 0.28;
+    box(0.02, 0.012, 0.012, i ? M(0x9a9a92) : redM, i ? 0.012 : -0.03, 0.0, 0.17, t);   // switches on the grips
+    return t;
+  });
+  box(0.075, 0.3, 0.012, black, 0, 0.0, 0.002, LC);   // throttle slot
+  box(0.012, 0.006, 0.014, yellow, -0.045, 0.092, 0.008, LC); box(0.012, 0.006, 0.014, yellow, 0.045, 0.092, 0.008, LC);   // the afterburner detent (84%: -0.11 + 0.24 x 0.84)
+  box(0.012, 0.006, 0.014, M(0xe0e0d8), -0.045, 0.082, 0.008, LC);   // MIL (80%)
   const sweepSw = box(0.012, 0.016, 0.012, M(0xd0d0c8), -0.04, 0.0, 0.16, thr[0]);   // thumb switch on the outboard grip
   hit('sweepFwd', 0.05, 0.035, 0.05, -0.035, 0.035, 0.15, LC, 'WING SWEEP  FWD (MAN)'); hit('sweepAft', 0.05, 0.035, 0.05, -0.035, -0.035, 0.15, LC, 'WING SWEEP  AFT (MAN)');
   hit('sweepAuto', 0.04, 0.03, 0.04, 0.03, 0.0, 0.17, LC, 'WING SWEEP  AUTO');
@@ -274,6 +282,8 @@ export function buildTomcatCockpit() {
   hit('mc', 0.08, 0.04, 0.03, -0.36, -0.1, 0.01, RP, 'MASTER CAUTION RESET', hitsR);
   hit('eject', 0.24, 0.1, 0.12, 0, 1.68, -3.8, g, 'EJECT  -  FACE CURTAIN (CLICK TWICE)', hitsR);
   const cmdSel = toggle('rio:cmd', RP, -0.25, -0.2, 'COMMAND EJECT SELECTOR  MCO / RIO ONLY', hitsR);
+  // the RIO's side consoles: radios, IFF, the TACAN, ECM, the data link (flat panels, canvas top = forward)
+  const rcon = [-1, 1].map(s => { const t = canvasTex(220, 640), p = new THREE.Group(); p.position.set(s * 0.44, 0.472, -3.95); p.rotation.x = -Math.PI / 2; g.add(p); plane(0.2, 0.58, new THREE.MeshLambertMaterial({ map: t.tex, emissive: 0xffffff, emissiveMap: t.tex, emissiveIntensity: 0.55 }), 0, 0, 0.001, p); return t; });
   // hand control unit (the radar stick) between the RIO's knees, his legs
   const hcu = new THREE.Group(); hcu.position.set(0, 0.35, -4.2); g.add(hcu); box(0.12, 0.05, 0.16, grey, 0, 0, 0, hcu); box(0.04, 0.09, 0.05, black, 0, 0.06, -0.02, hcu, 0.25);
   for (const s of [-1, 1]) { const hip = V3(s * 0.12, 0.43, -3.86), knee = V3(s * 0.16, 0.5, -4.4), ank = V3(s * 0.17, -0.08, -4.62); limb(hip, knee, 0.075, suit); limb(knee, ank, 0.058, suit); box(0.1, 0.09, 0.24, black, s * 0.17, -0.12, -4.68).rotation.x = -0.35; }
@@ -316,6 +326,19 @@ export function buildTomcatCockpit() {
     rl('WEAPON TYPE', 0.35, 0.02, 10); rl('LAUNCH', 0.42, -0.05, 9); rl('STT', 0.28, -0.12, 9); rl('WPN', 0.35, -0.12, 9); rl('HOOK', 0.18, -0.22, 9); rl('RANGE', -0.15, -0.22, 9);
     rl('CMD SEL', -0.25, -0.24, 9); rl('MCO', -0.25, -0.165, 9); rl('AN/AWG-9', 0.0, -0.28, 13);
     rart.tex.needsUpdate = true;
+    // the RIO's side consoles: grey panels with knobs, frequency windows and placards (static)
+    const PANELS = [[['UHF 1  ARC-159', 3, '243.0'], ['TACAN  ARN-84', 2, 'CH 071X'], ['IFF  APX-72', 4, 'MODE 3 / 7700'], ['DATA LINK', 2, 'ADR 012']], [['ECM  ALQ-100', 3, 'STBY'], ['UHF 2  ARC-51', 2, '305.5'], ['NAV MODE', 3, 'INS  ALIGN'], ['RWR  ALR-45', 2, 'BRT  AUD']]];
+    rcon.forEach((t, si) => {
+      const x = t.ctx; x.fillStyle = '#30353a'; x.fillRect(0, 0, 220, 640);
+      PANELS[si].forEach(([title, knobs, win], i) => {
+        const y0 = 8 + i * 158; x.fillStyle = '#3a4046'; x.fillRect(8, y0, 204, 150); x.strokeStyle = '#22272b'; x.lineWidth = 3; x.strokeRect(8, y0, 204, 150);
+        x.fillStyle = '#e6e2cf'; x.font = `bold 15px ${SANS}`; x.textAlign = 'center'; x.fillText(title, 110, y0 + 22);
+        x.fillStyle = '#050505'; x.fillRect(40, y0 + 34, 140, 30); x.fillStyle = '#ffb040'; x.font = `bold 17px ${MONO}`; x.fillText(win, 110, y0 + 55);
+        for (let k = 0; k < knobs; k++) { const kx = 220 / (knobs + 1) * (k + 1), ky = y0 + 108; x.fillStyle = '#16181a'; x.beginPath(); x.arc(kx, ky, 17, 0, TAU); x.fill(); x.strokeStyle = '#6a7076'; x.lineWidth = 2; x.stroke(); x.strokeStyle = '#e6e2cf'; x.beginPath(); x.moveTo(kx, ky); x.lineTo(kx + 12 * Math.sin(k * 1.7 + i), ky - 12 * Math.cos(k * 1.7 + i)); x.stroke(); }
+        for (let k = 0; k < 4; k++) { x.fillStyle = '#80868c'; x.beginPath(); x.arc(14 + (k % 2) * 192, y0 + 6 + Math.floor(k / 2) * 138, 3, 0, TAU); x.fill(); }
+      });
+      t.tex.needsUpdate = true;
+    });
   }
   drawArt();
 
@@ -538,9 +561,9 @@ export function buildTomcatCockpit() {
   function drawHUD(A, S) {
     const c = hc, W = HUD.W, H = HUD.H; c.clearRect(0, 0, W, H);
     if (!S.power || (S.flicker && Math.random() < 0.35)) { hud.tex.needsUpdate = true; return; }
-    c.save(); c.strokeStyle = GRN; c.fillStyle = GRN; c.lineWidth = 2.4; c.shadowColor = 'rgba(80,255,110,.7)'; c.shadowBlur = 3;
+    c.save(); c.strokeStyle = GRN; c.fillStyle = GRN; c.lineWidth = 3.2; c.shadowColor = 'rgba(80,255,110,.8)'; c.shadowBlur = 4;
     const line = (x0, y0, x1, y1) => { c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); };
-    const T = (t, x, y, a = 'center', sz = 17) => { c.font = `${Math.round(sz * 1.15)}px ${MONO}`; c.textAlign = a; c.textBaseline = 'alphabetic'; c.fillText(t, x, y); };
+    const T = (t, x, y, a = 'center', sz = 17) => { c.font = `bold ${Math.round(sz * 1.2)}px ${MONO}`; c.textAlign = a; c.textBaseline = 'alphabetic'; c.fillText(t, x, y); };
     const mode = S.mode;
     // waterline: the 1980 "W"
     const wl = projLocal(_w.set(0, 0, -1)); if (wl) { const [x, y] = wl; line(x - 16, y, x - 8, y); line(x - 8, y, x - 4, y + 7); line(x - 4, y + 7, x, y); line(x, y, x + 4, y + 7); line(x + 4, y + 7, x + 8, y); line(x + 8, y, x + 16, y); }
