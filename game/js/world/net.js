@@ -513,7 +513,12 @@ export function nearestRoad(x, z, maxD = 60, filter = null) {
 // the road graph round a point (ensures it is generated first): roads with their polylines and junctions, and nodes
 export function roadGraph(x, z, rad = 1500) {
   const c0 = Math.floor((x - rad) / CELL), c1 = Math.floor((x + rad) / CELL), d0 = Math.floor((z - rad) / CELL), d1 = Math.floor((z + rad) / CELL);
-  ensure(x, z); for (let j = d0; j <= d1; j++) for (let i = c0; i <= c1; i++) if (cheb((i + 0.5) * CELL, (j + 0.5) * CELL) > BOUND) cellReady(i, j);
+  ensure(x, z);
+  for (let j = d0; j <= d1; j++) for (let i = c0; i <= c1; i++) {   // only cells the circle reaches that hold some wild land
+    const nx = Math.max(i * CELL, Math.min(x, (i + 1) * CELL)), nz = Math.max(j * CELL, Math.min(z, (j + 1) * CELL));
+    const far = Math.max(Math.abs(i * CELL), Math.abs((i + 1) * CELL), Math.abs(j * CELL), Math.abs((j + 1) * CELL));
+    if (Math.hypot(nx - x, nz - z) < rad && far > BOUND + 300 && cheb(x, z) + rad > BOUND + 300) cellReady(i, j);
+  }
   const roads = [], nodes = new Map();
   for (const R of S.roads) {
     let near = false; for (let i = 0; i < R.xs.length; i += 4) if (Math.abs(R.xs[i] - x) < rad && Math.abs(R.zs[i] - z) < rad) { near = true; break; }

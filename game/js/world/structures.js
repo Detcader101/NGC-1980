@@ -353,12 +353,11 @@ export function buildFactionStructure(kind, side) {
 // Not war targets: the helipad's windsock, edge lights and ops shack; the fortress collar over a cave shaft; the
 // RUNAWAY power pylons that march across a machine-held island. world/life.js owns these and polls island owners.
 export function buildPadDressing(r0 = 8.5) {
-  const g = new THREE.Group(), G = new Geo(), lights = new Geo();
-  for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; lights.box(Math.cos(a) * (r0 + 1.2), 0, Math.sin(a) * (r0 + 1.2), 0.35, 0.25, 0.35, i % 3 ? col(0xe8d24a) : col(0x3a8a4a), 1); }
+  const g = new THREE.Group(), G = new Geo(), lights = G;   // one mesh for the static parts (draw calls)
+  for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; lights.box(Math.cos(a) * (r0 + 1.2), 0, Math.sin(a) * (r0 + 1.2), 0.35, 0.25, 0.35, i % 3 ? col(0xffe860) : col(0x50c060), 1); }
   G.cyl(r0 + 6, 0, 0, 0.07, 5.5, 5, col(0xd8d8d0), 0); G.box(r0 + 6, 0, 0, 0.8, 0.12, 0.8, CONC, 1);
   G.push(r0 + 9, 0, 4).box(0, 0, 0, 3.2, 2.5, 2.4, col(0xc8c4b0), 1).box(0, 2.5, 0, 3.4, 0.12, 2.6, DARK, 0).pop();
   const solid = mesh(G); g.add(solid);
-  const lm = new THREE.Mesh(geoFrom(lights.build()), new THREE.MeshBasicMaterial({ vertexColors: true })); g.add(lm);
   // windsock: a cone of orange and white bands that swings to the wind and fills with it
   const sock = new THREE.Group(); sock.position.set(r0 + 6, 5.3, 0); g.add(sock);
   const S = new Geo(); for (let k = 0; k < 4; k++) S.push(0, 0, 0, 0, 0, -Math.PI / 2).cyl(0, k * 0.55, 0, 0.42 - k * 0.07, 0.55, 8, k % 2 ? col(0xf0f0ea) : col(0xe8641e), 0, 0.35 - k * 0.07).pop();

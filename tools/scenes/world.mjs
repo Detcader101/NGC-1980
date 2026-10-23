@@ -18,6 +18,11 @@ export default {
     await stats('town'); await h.shot('town-chase'); await h.notblank();
     await h.expect('__WORLD.ambient.stats.people > 0');
     await h.eval('(__G.cockpitCam = true, 1)'); await h.wait(1500); await h.shot('town-cockpit'); await h.eval('(__G.cockpitCam = false, 1)');
+    // down in the street: hover low beside a walker, looking along the road
+    await h.eval(`(() => { const p = __WORLD.ambient.people.filter(p => p.state === 'walk').sort((a, b) => Math.hypot(a.x - __T.x, a.z - __T.z) - Math.hypot(b.x - __T.x, b.z - __T.z))[0]; window.__P = p ? { x: p.x, z: p.z, yaw: p.yaw } : { x: __T.x, z: __T.z, yaw: 0 }; return __P; })()`);
+    const PW = await h.eval('__P');
+    await hover(PW.x - Math.sin(PW.yaw) * 22, PW.z - Math.cos(PW.yaw) * 22, 7, Math.atan2(-Math.sin(PW.yaw), -Math.cos(PW.yaw)));
+    await h.wait(1500); await h.eval('(__G.cockpitCam = true, 1)'); await h.wait(1200); await h.shot('street-cockpit'); await h.eval('(__G.cockpitCam = false, 1)'); await h.wait(800); await h.shot('street-chase');
     // a bang in the street: the people run for their doors
     await h.eval(`(() => { const p = __WORLD.ambient.people.find(p => p.state === 'walk') || __WORLD.ambient.people[0]; window.__bang = p ? { x: p.x, z: p.z } : { x: __T.x, z: __T.z }; __G.fx.explode(__bang.x + 12, __G.groundY(__bang.x + 12, __bang.z) + 1, __bang.z, 1.2, { fire: 20 }); return __bang; })()`);
     await h.wait(1200);
@@ -29,8 +34,11 @@ export default {
     const R = await h.eval('__R');
     await hover(R.x - R.dz * 4 - R.dx * 6, R.z + R.dx * 4 - R.dz * 6, 14, Math.atan2(-R.dx, -R.dz));
     await h.waitFor('__WORLD.stats.pending === 0 && __WORLD.ambient.stats.cars > 2', 40000); await h.wait(6000);
-    await stats('road'); await h.shot('road-traffic-chase');
-    await h.eval('(__G.cockpitCam = true, 1)'); await h.wait(1500); await h.shot('road-traffic-cockpit'); await h.eval('(__G.cockpitCam = false, 1)');
+    await stats('road'); await h.shot('road-chase');
+    // pull alongside the nearest car and watch it go by
+    await h.eval(`(() => { const H = __G.H.pos, c = __WORLD.ambient.cars.filter(c => !c.wreck).sort((a, b) => Math.hypot(a.x - H.x, a.z - H.z) - Math.hypot(b.x - H.x, b.z - H.z))[0]; if (!c) return null; const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw); window.__C = { x: c.x + fx * 45 - fz * 14, z: c.z + fz * 45 + fx * 14, tx: c.x, tz: c.z, kind: c.kind }; return __C; })()`);
+    const C = await h.eval('__C');
+    if (C) { await hover(C.x, C.z, 9, face(C.x, C.z, C.tx, C.tz)); await h.wait(1800); await h.shot('road-car-chase'); await h.eval('(__G.cockpitCam = true, 1)'); await h.wait(1000); await h.shot('road-car-cockpit'); await h.eval('(__G.cockpitCam = false, 1)'); }
     // ---- a harbour
     await h.eval(`(() => { const W = __WORLD; const ss = W.net.settlementsNear(3600, 1200, 9000).filter(s => s.layout && s.layout.quay).sort((a, b) => Math.hypot(a.x - 3600, a.z - 1200) - Math.hypot(b.x - 3600, b.z - 1200)); const q = ss[0].layout.quay; window.__Q = { x: q.x, z: q.z, a: q.a }; return window.__Q; })()`);
     const Q = await h.eval('__Q');

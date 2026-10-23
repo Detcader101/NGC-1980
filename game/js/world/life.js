@@ -19,13 +19,14 @@ import { structAngle, settlementsNear, nearestRoad } from './net.js';
 const NEAR_R = 520, FAR_MAX = 2300;
 export function createWorldLife(ctx) {
   const { scene, terrainH, fog, uTime } = ctx;
+  if (/[?&]noworld/.test(location.search)) return (window.__WORLD = { update() {}, stats: { ms: 0, off: true }, zone: [], chunks: new Map(), ambient: { stats: {}, people: [], cars: [] } });   // A/B for perf
   const root = new THREE.Group(); root.name = 'world'; scene.add(root);
   const M = {
     solid: worldMaterial(), gNear: groundMaterial(), gFar: groundMaterial({ far: true }),
     zSolid: worldMaterial({ fog, uTime }), zgNear: groundMaterial({ fog, uTime }), zgFar: groundMaterial({ fog, uTime, far: true }),
     wire: new THREE.LineBasicMaterial({ color: 0x202020, transparent: true, opacity: 0.75 }),
   };
-  const stats = { chunks: 0, pending: 0, built: 0, buildMs: 0, tris: 0, zoneTris: 0 };
+  const stats = { chunks: 0, pending: 0, built: 0, buildMs: 0, tris: 0, zoneTris: 0, ms: 0 };
   const mk = (d, mat) => { if (!d || !d.tris) return null; const m = new THREE.Mesh(geoFrom(d), mat); m.matrixAutoUpdate = false; root.add(m); return m; };
   const wiresOf = w => { if (!w || !w.length) return null; const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(w, 3)); g.computeBoundingSphere(); const l = new THREE.LineSegments(g, M.wire); l.matrixAutoUpdate = false; root.add(l); return l; };
   const dispose = o => { if (!o) return; root.remove(o); o.geometry.dispose(); };
@@ -142,11 +143,13 @@ export function createWorldLife(ctx) {
     net: { settlementsNear, netState, nearestRoad },   // for tests and tools
     traffic: { setModel: (k, def) => ambient.setModel(k, def), get models() { return ambient.models; }, get cars() { return ambient.cars; } },
     update(dt, cam, playing = true) {
-      const cx = cam.position.x, cz = cam.position.z;
+      const t0 = performance.now(), cx = cam.position.x, cz = cam.position.z;
       scanT -= dt; if (scanT <= 0) { scanT = 0.4; stream(cx, cz); lod(cx, cz); }
-      prewarmT -= dt; if (prewarmT <= 0) { prewarmT = 1.5; prewarm(cx, cz); }
+      // only near the wild lands (physics in the zone never needs them); one cell at a time
+      prewarmT -= dt; if (prewarmT <= 0) { prewarmT = 1.5; if (Math.max(Math.abs(cx), Math.abs(cz)) > BOUND - 150) prewarm(cx, cz); }
       W.t = (W.t || 0) + dt; updateSites(dt, W.t);
       ambient.update(dt, cam, playing);
+      stats.ms += (performance.now() - t0 - stats.ms) * 0.05;   // smoothed main-thread cost per frame
     },
     // ---- road queries for vehicles and AI traffic (net.js; see MODLOG "lived-in world")
     roadAt, roadGraph, roadPoint, roadById,

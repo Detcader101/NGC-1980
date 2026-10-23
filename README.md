@@ -13,6 +13,8 @@ The enemy carrier KRAKEN is out there doing the same, and whoever controls the m
 ## What's in it
 
 - **Endless world.** The 17 islands are the CONTROL ZONE, where the war happens. Past it the world goes on for ever: open sea, then continents with coasts, forests and mountain ranges over a kilometre high, all perfectly flyable, just without objectives.
+- **A lived-in world.** Villages and market towns with churches, shops and pubs, harbours with piers, trawlers and gulls, farms with walled fields, cows and sheep, lighthouses, radio masts and power lines, joined by a real road network (tarmac, lanes, farm tracks, bridges) that the ground is levelled for. People walk the streets and run indoors when the shooting starts; 1980 cars, vans, lorries and tractors drive the roads. The same world every run.
+- **Two kinds of base.** Our 1980 sites (sandbagged HQ bunker, fuel farm with a nodding pumpjack, quonset-hut depot, a TPS-43 radar on its trailer) and the RUNAWAY's machine structures, which grow out of the ruins when they take an island, string glowing power pylons across it, and are left as dark shards when we take it back. Hits leave them smoking and scorched, then in ruins.
 - **Archipelago and fog of war.** You only see what your helicopter, carrier, drones and islands can see. Radar islands see further.
 - **Capture islands.** Silence the owner's AA guns, then land on the pad or send a drone. Fortress islands hide a cave: fly down the shaft, Thrust-style, and steal the pod. Every cave is procedurally generated (the same island always has the same cave), and the heavier the fortress, the deeper and more twisted its cave and the more turrets guard it.
 - **Economy.** Islands produce fuel and materiel. Spend materiel on capture drones, AA guns, spare helicopters and escort fighters.
@@ -41,6 +43,8 @@ worktree next to it (port 8766, the icon with the orange EXP band). Each click s
 (or reuses it) and opens the browser, so both builds can run side by side. Set up the experimental worktree once with
 `git worktree add --track -b experimental ../thrust-zarch-experimental origin/experimental`, and `git pull` there to
 update it. The launcher lives in `%LOCALAPPDATA%\ThrustZarch` (log: `launcher.log`).
+
+**World preview and checks.** `game/dev/world.html` shows the lived-in world on its own (`?focus=town|village|hamlet|harbour|farm|bridge|zone`, `?structs=1` for every faction structure in every state, `?lod=far`). `node tools/worldbench.mjs` checks the road network and its determinism in node and draws a map to `tools/runs/`. `?noworld` turns the towns and traffic off (for A/B frame timing).
 
 ## Controls
 

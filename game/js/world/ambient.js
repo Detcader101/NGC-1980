@@ -251,7 +251,7 @@ export function createAmbient(ctx) {
   const _a = {}, _b = {};
   function updateCars(dt, cam) {
     const cx = cam.position.x, cz = cam.position.z;
-    if (Math.hypot(cx - graphAt[0], cz - graphAt[1]) > 250) { graph = roadGraph(cx, cz, 1000); graphAt = [cx, cz]; for (const R of graph.roads) learn(R); }
+    if (Math.hypot(cx - graphAt[0], cz - graphAt[1]) > 250) { graph = roadGraph(cx, cz, Math.max(Math.abs(cx), Math.abs(cz)) < BOUND ? 450 : 1000); /* in the zone: its own roads, no wild generation */ graphAt = [cx, cz]; for (const R of graph.roads) learn(R); }
     const want = graph ? Math.min(MAXC, Math.round(graph.roads.reduce((a, R) => a + (R.type === 'dirt' ? 0.2 : R.type === 'street' ? 0.6 : 1) * R.len, 0) / 260)) : 0;
     spawnT -= dt; if (spawnT <= 0 && A.cars.length < want) { spawnT = 0.15; spawnCar(cam, A.cars.length > want * 0.3); }
     for (const m of Object.values(MODELS)) m.n = 0;
