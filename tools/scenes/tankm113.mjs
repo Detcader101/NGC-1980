@@ -20,6 +20,9 @@ export default async function (h) {
   await view('driver-ahead', 'driver', [0, 0]);
   await view('driver-panel', 'driver', [0.9, -0.35]);
   await view('driver-laterals', 'driver', [0.1, -0.85]);
+  await view('commander-m2', 'commander', [0, -0.05]);
+  await h.eval("(() => { const a = __T.V.mg.ammo; __T.input({ fire50: true }); __T.step(60); __T.input({ fire50: false }); __T.step(5); return { fired: a - __T.V.mg.ammo }; })()");
+  await h.expect('__T.V.mg.ammo < 2000 - 5', 'the M2 fires');
   // swim: pumps on, drive west into the ford and the lake
   await h.eval("(__T.input({ pumps: true, range: '1', throttle: 0.45, park: false }), __T.step(60 * 10), __T.input({ range: '1-2', throttle: 1 }), __T.step(60 * 25), ({ x: __T.fm.origin()[0], afloat: __T.fm.water.afloat, depth: __T.fm.water.depth, v: __T.fm.out.fwd * 3.6, inside: __T.fm.water.inside, flooded: __T.fm.eng.flooded }))");
   await h.expect('__T.fm.water.afloat && !__T.fm.eng.flooded');

@@ -257,6 +257,13 @@ function updateCamera(dt) {
     const d = V.sightDir(); camera.up.copy(hullUp()); camera.lookAt(camera.position.x + d[0], camera.position.y + d[1], camera.position.z + d[2]);
     sightActive = true; thermal = V.sight === 'tts' && V.ttsCool > 0.95;
     fovWanted = V.sight === 'tts' ? (V.ttsMag === 3 ? 13.5 : 5.0) : 6.0;   // game FOVs: day 8x, TTS 3x / 8x
+  } else if (view === 'commander' && VEH === 'm113') {
+    // M113: the commander stands in his cupola behind the M2 (head out: the M113A2 has no closed-down sight for it)
+    // standing in the hatch behind the spade grips: the eye turns with the cupola about its pivot
+    const pv = V.fm.P.MG.PIVOT, ca = Math.cos(V.mg.az), sa = Math.sin(V.mg.az);
+    hullPoint([pv[0] + sa * 0.5, 2.4, pv[2] + ca * 0.5], camera.position);
+    _e.set(cam.look[1] + V.mg.el * 0.6 - 0.08, fm.out.heading + V.mg.az + cam.look[0], 0, 'YXZ'); camera.quaternion.setFromEuler(_e); fovWanted = 60;
+    inside = false;
   } else if (view === 'commander') {
     turretPoint([TANK.COMMANDER_EYE_T[0], 1.09 + (hatches.cupola > 0.5 ? 0.55 : 0), TANK.COMMANDER_EYE_T[2]], camera.position);
     const az = fm.out.heading + V.az + (V.mg50 ? V.mg50.az : 0) + cam.look[0];
