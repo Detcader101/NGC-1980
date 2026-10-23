@@ -17,6 +17,7 @@ export default async function (h) {
   // a Hornet on the catapult: the jet blast deflector comes up behind it
   await h.waitFor('__G.H.landed', 10000);
   await h.key('tap', 'Digit5'); await h.wait(2500);
+  await h.waitFor('__G.G.craft === "jet" && __G.war.carrier.parts.jbdK > 0.9', 8000);   // the JBD rises at 0.7/s; slow headless frames
   await h.expect('__G.G.craft === "jet" && __G.war.carrier.parts.jbdK > 0.9', 'JBD raised behind the jet on the cat');
   await h.eval(`(__shot(__G.war.carrier, [-16, 9, 22], [-2.5, 9, -2]), 1)`); await h.wait(1200); await h.shot('albatross-jbd');
   await h.eval('(window.__cam = null, 1)'); await h.key('tap', 'KeyY'); await h.wait(800);
