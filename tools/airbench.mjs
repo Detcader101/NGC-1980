@@ -78,8 +78,8 @@ function arena(env, units, seed = 1) {
           if (u.side === b.side || u.dying || done) continue;
           // closest approach along this step
           const sx = b.p.x - _p.x, sy = b.p.y - _p.y, sz = b.p.z - _p.z, L2 = sx * sx + sy * sy + sz * sz || 1;
-          const k = Math.max(0, Math.min(1, ((u.A.pos.x - _p.x) * sx + (u.A.pos.y - _p.y) * sy + (u.A.pos.z - _p.z) * sz) / L2));
-          const d = Math.hypot(_p.x + sx * k - u.A.pos.x, _p.y + sy * k - u.A.pos.y, _p.z + sz * k - u.A.pos.z);
+          const k = Math.max(0, Math.min(1, ((u.p.x - _p.x) * sx + (u.p.y - _p.y) * sy + (u.p.z - _p.z) * sz) / L2));
+          const d = Math.hypot(_p.x + sx * k - u.p.x, _p.y + sy * k - u.p.y, _p.z + sz * k - u.p.z);
           if (b.kind === 'aam' && b.tgt === u && d < AAM.FUSE) { hit(u, 9, b.w); done = true; u.hitBy = (u.hitBy || 0) + 1; }
           else if (b.kind === 'gun' && d < u.r) { hit(u, 1.4, 'gun'); done = true; u.gunHits = (u.gunHits || 0) + 1; }
         }
@@ -233,6 +233,36 @@ if ((!ONLY || ONLY === 'fight') && rw) {
     }
     check(`${mode.toUpperCase()}: nobody flies into the sea`, crashed === 0, `${crashed} crashed`);
   }
+}
+
+// ------------------------------------------------------------------------------------------------- 4. low, slow drones
+// a Tomcat on CAP against a SHAHED salvo cruising at 70 m: slow targets low over the sea are where a fighter flies
+// into the water chasing them (it must not), and it should still shoot some down
+if ((!ONLY || ONLY === 'drones') && rw) {
+  console.log('--- Tomcat on CAP vs a SHAHED salvo at 70 m ---');
+  let kills = 0, crashes = 0, minAlt = 1e9; const lines = [];
+  for (let seed = 1; seed <= 3; seed++) {
+    const W = carrierWorld({ x: 0, z: 0, yaw: 0, speed: 0 });
+    const A = createTomcatSim(G, { seed }); A.reset(0, 0, 400, 0, { running: true, airborne: true, alt: 240, speed: 75 }); for (const e of A.eng) e.n = 0.9; A.fuel = 5000;
+    const T = { A, side: 1, hp: 4, r: 4.5, name: 'TOMCAT', decoys: 6 }; T.p = A.pos; T.v = A.vel; T.air = true; T.type = 'TOMCAT';
+    const PT = createPilot(A, { side: 1 }); PT.anchor = { x: 0, y: 0, z: 0 }; PT.spawnAir('cap'); T.pilot = PT; PT.unit = T;
+    const units = [T], tgt = { x: 0, y: 8, z: 0 };
+    for (let k = 0; k < 4; k++) { const D = rw.createShahedSim(G); D.launch(1400 + k * 20, 5, -1200 + k * 15, Math.atan2(-1400, 1200) + (k - 1.5) * 0.08); const u = { D, side: 2, hp: 1, r: 2, name: 'SHAHED', type: 'SHAHED', air: true, p: D.pos, v: D.vel, delay: seed * 0.5 + k * 1.3 }; units.push(u); }
+    const AR = arena(W, units, seed);
+    run(120, t => {
+      if (!T.dying) { PT.update(DT, W); minAlt = Math.min(minAlt, A.pos.y); if (A.dead) { T.dying = true; crashes++; } }
+      if (process.env.DLOG && +process.env.DLOG === seed && Math.round(t * 60) % 15 === 0 && !T.dying) { const at = A.attitude(); console.log(`${t.toFixed(2)} ${PT.state}/${PT.mode} y ${A.pos.y.toFixed(0)} vy ${A.vel.y.toFixed(0)} pitch ${deg(at.pitch).toFixed(0)} roll ${deg(at.roll).toFixed(0)} eas ${(A.eas * KT).toFixed(0)} nz ${A.nz.toFixed(1)} pull ${PT.terrainPull} tgt ${PT.tgt ? PT.tgt.p.y.toFixed(0) + "@" + PT.tgt.p.distanceTo(A.pos).toFixed(0) : "-"} thr ${PT.threat ? "T" : ""}`); }
+      for (const u of units) if (u.D && !u.dying && !u.dead) { if (t < u.delay) continue; rw.shahedGuide(u.D, tgt, W.terrain); u.D.step(DT); if (u.D.pos.y <= 0.3) u.dead = true; }
+      AR.step(DT);
+      if (units.every(u => !u.D || u.dying || u.dead)) return false;
+    });
+    const k = units.filter(u => u.D && u.dying).length; kills += k;
+    lines.push(`   seed ${seed}: ${k}/4 shot down, Tomcat ${T.dying ? 'LOST' : 'ok'}, ${T.missiles || 0} missiles ${T.shots || 0} rounds, min alt ${minAlt.toFixed(0)} m`);
+    if (V) console.log(PT.log.map(l => `     T ${l.t} ${l.msg}`).join('\n'));
+  }
+  console.log(lines.join('\n'));
+  check('chasing low drones: never into the sea', crashes === 0 && minAlt > 40, `${crashes} crashed, min alt ${minAlt.toFixed(0)} m`);
+  check('and it shoots some down', kills >= 4, `${kills}/12 SHAHEDs`);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

@@ -263,11 +263,13 @@ Branch ngc/airfw (airframe, Tomcat FM, flight director) + ngc/airfw-2 (pilot, RU
   projectiles (units/air/gameproj.js: the existing capped-turn-rate homing moved into a shared module, unchanged) with
   game range bands; guns are war.js 'jb'; the SHAHED's warhead is a war.js blast. Decoys are a game rule: a missile
   closing inside 350 m and again inside 150 m on an aircraft with decoys is drawn off 45% of the time.
-- **tools/airbench.mjs 26/26** (node): two full sorties off a fake ALBATROSS (with tower) sailing at 6 m/s and turning
+- **tools/airbench.mjs 28/28** (node): two full sorties off a fake ALBATROSS (with tower) sailing at 6 m/s and turning
   during CAP: cat at 7 s, CAP at 20 s (r 430-490 m, 249 m), bingo at 295 s, 3 wire, 0 wave-offs, < 3.6 g, never below
   110 m AGL outside the approach; a forced wave-off and a hook-skip bolter that both go round and trap; a 700 m ridge in
   front of a low CAP point (cleared by 56 m); SHRIKE / REAPER / SHAHED checks; Tomcat vs SHRIKE: BVR 5 wins / 1 loss,
-  merge (AIM-9 + gun only, a 10-g drone) 3 / 3, nobody into the sea, every pursuit mode used.
+  merge (AIM-9 + gun only, a 10-g drone) 3 / 3, nobody into the sea, every pursuit mode used; a Tomcat on CAP vs
+  SHAHED salvos at 70 m: 9/12 shot down, never below 80 m (dive limit: no dive steeper than one it can pull out of
+  above the 140 m hard deck; below 460 m no reversals through the vertical).
 - **Models** (house style, real size): TOMCAT (units/air/tomcatmodel.js) driven by the sim: swing wings, glove vanes,
   slats, flaps, spoilers, differential stabs, rudders, speedbrakes, gear with launch bar, hook, canopy, two crew, TF30
   nozzles + afterburner, AIM-54 / 7 / 9 on their stations, gull grey over white, fictional 1980 squadron VF-118 on the

@@ -128,7 +128,7 @@ export function createPilot(A, o = {}) {
       if (PL.state === 'fight' && agl < floor && d.y < 0.05) { d.y = agl < floor * 0.6 ? 0.25 : Math.max(d.y, 0.05); d.normalize(); }
       if (A.vel.y < -2) {
         const V = A.tas, gam = Math.asin(clamp(-A.vel.y / V, 0, 1)), n = Math.max(2, Math.min(g, A.qbar * A.P.S * 1.1 / (A.mass * 9)));
-        const hpo = V * V * (1 - Math.cos(gam)) / (9 * (n - 1)) * 1.4 + Math.abs(A.attitude().roll) / 3 * -A.vel.y + 25;
+        const hpo = V * V * (1 - Math.cos(gam)) / (9 * (n - 1)) * 1.6 + Math.abs(A.attitude().roll) / 2 * -A.vel.y * 1.5 + 30;   // + the roll-out, while the dive steepens
         if (agl < hpo) { const vh = Math.hypot(A.vel.x, A.vel.z) || 1; d.set(A.vel.x / vh * 0.7, 0.7, A.vel.z / vh * 0.7).normalize(); PL.terrainPull = 2; g = Math.max(g, T.gfight); k = 5; }
       }
     }
@@ -205,6 +205,14 @@ export function createPilot(A, o = {}) {
     if (gam > gMax) { const h = Math.hypot(d.x, d.z) || 1, c = Math.cos(gMax); d.set(d.x / h * c, Math.sin(gMax), d.z / h * c); }
     return e;
   }
+  // dive limit: no steeper dive than one we can pull out of above the hard deck (V^2 (1 - cos g) / (g (n - 1)), x1.6)
+  function diveLimit(d, env) {
+    const agl = A.pos.y - (env.terrain ? env.terrain(A.pos.x, A.pos.z) : 0), room = Math.max(0, agl - (T.hardDeck ?? 140)), V = Math.max(A.tas, 30);
+    const gMin = -Math.acos(clamp(1 - room * 9 * (Math.min(T.gfight, 6) - 1) / (V * V * 1.6), -1, 1));
+    if (Math.asin(clamp(d.y, -1, 1)) < gMin) { const h = Math.hypot(d.x, d.z) || 1, c = Math.cos(gMin); d.set(d.x / h * c, Math.sin(gMin), d.z / h * c); }
+  }
+  // room for the vertical (loops, split-S, reversals through the vertical); below that, turns stay turns
+  const vertOk = env => A.pos.y - (env.terrain ? env.terrain(A.pos.x, A.pos.z) : 0) > (T.hardDeck ?? 140) + 320;
   function fight(dt, env) {
     const t = PL.tgt, th = PL.threat;
     if (th && PL.defT > 0) {   // defensive: break into the attacker (or across a missile's path) at max g, nose a little low
@@ -214,8 +222,8 @@ export function createPilot(A, o = {}) {
       if (_d.lengthSq() < 1e-4) _d.set(-A.vel.z, 0, A.vel.x);
       _d.normalize(); A.forward(_f); _d.multiplyScalar(2).add(_f.normalize()).normalize(); _d.y = clamp(_d.y, -0.2, 0.1);
       if (th.kind !== 'aam') { const j = Math.floor(PL.t / 1.3) % 3; _d.y += j === 0 ? 0.45 : j === 1 ? -0.3 : 0; }   // guns jink: change the plane every second or so
-      energyLimit(_d.normalize());
-      fly(_d, dt, env, { speed: T.corner, ab: T.abFight, g: T.gfight, k: 4, free: true, push: false });
+      energyLimit(_d.normalize()); diveLimit(_d, env);
+      fly(_d, dt, env, { speed: T.corner, ab: T.abFight, g: T.gfight, k: 4, free: vertOk(env), push: false });
       return;
     }
     if (!t) return;
@@ -245,9 +253,9 @@ export function createPilot(A, o = {}) {
       const vh = Math.hypot(A.vel.x, A.vel.z) || 1; _a.set(A.pos.x + A.vel.x / vh * 300, A.pos.y - 60, A.pos.z + A.vel.z / vh * 300);
     } else _a.copy(t.p);
     _d.copy(_a).sub(A.pos).normalize();
-    energyLimit(_d);
+    energyLimit(_d); diveLimit(_d, env);
     const sp = mode === 'intercept' ? T.fightTop : T.corner;
-    fly(_d, dt, env, { speed: mode === 'bugout' ? T.fightTop + 40 : sp, ab: T.abFight && (A.eas < T.corner - 10 || mode === 'bugout' || mode === 'intercept' && R > 1200), g: mode === 'lead' ? Math.min(T.gfight, 5) : mode === 'extend' ? 1 : mode === 'bugout' ? 4 : T.gfight, k: mode === 'lead' ? 2.5 : 3, free: R < 1200, push: false });
+    fly(_d, dt, env, { speed: mode === 'bugout' ? T.fightTop + 40 : sp, ab: T.abFight && (A.eas < T.corner - 10 || mode === 'bugout' || mode === 'intercept' && R > 1200), g: mode === 'lead' ? Math.min(T.gfight, 5) : mode === 'extend' ? 1 : mode === 'bugout' ? 4 : T.gfight, k: mode === 'lead' ? 2.5 : 3, free: R < 1200 && vertOk(env), push: false });
   }
 
   // ------------------------------------------------------------------ carrier recovery
