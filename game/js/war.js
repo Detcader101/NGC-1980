@@ -9,6 +9,7 @@
 // enemy carrier or take its HQ island (IRONHOLD) to win.
 import * as THREE from 'three';
 import { addLiftFans, FAN_POS } from './ships.js';
+import { createDefence } from './units/defence/brain.js';   // NGC-1980 DEFENCE: AA unit models + engagement logic
 import { buildCarrier, buildBattleship, buildFreighter, buildDrone, buildTransport, buildGunship, buildTomcat, buildGun, buildStructure, buildRubble, CARRIER, BSHIP, FREIGHTER, TEAM } from './ships.js';
 
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
@@ -34,15 +35,22 @@ export function createWar(ctx) {
   const hear = (x, y, z, range = 650) => Math.max(0, 1 - Math.hypot(x - ear.x, y - ear.y, z - ear.z) / range);
   function boomAt(x, y, z, big) { const k = hear(x, y, z); if (k > 0.02) sfx.boom(big * (0.12 + 0.88 * k * k)); }
   const feed = (t, kind = 'info') => ctx.feed(t, kind);
+  // NGC-1980 DEFENCE hook: the 'aa' structures and the ALBATROSS gun mounts are drawn and fought by units/defence/
+  // (turrets with slew limits, line-of-sight locks with tells, tracers / airbursts / missiles / the LANCE beam).
+  // war.js still owns their hp, building, capture rules, rebuilds and the projectile hits.
+  const defence = createDefence({ scene, fx, sfx, terrainH, hear, feed, time: () => W.time, player: ctx.player, hurtPlayer: (a, why) => ctx.hurtPlayer(a, why),
+    shoot: (...a) => shoot(...a), damage: (...a) => damage(...a), hitTest: (...a) => hitTest(...a) });
+  W.defence = defence;
 
   // ------------------------------------------------------------------------------------- islands and buildings
   const islandGroup = new THREE.Group(); scene.add(islandGroup);
   function placeAt(x, z) { return Math.max(terrainH(x, z), 0); }
   function addStruct(I, kind, x, z, side = I.owner, yaw = rnd(6.283)) {
-    const mesh = kind === 'aa' ? buildGun(side, 1) : buildStructure(kind, side);
+    const mesh = kind === 'aa' ? defence.model(side, I, seeding) : buildStructure(kind, side);   // DEFENCE hook: the unit for this side / island
     const y = placeAt(x, z); mesh.position.set(x, y, z); mesh.rotation.y = kind === 'aa' ? 0 : yaw; islandGroup.add(mesh);
     const ud = mesh.userData, hp = { hq: 30, factory: 26, fuel: 22, radar: 16, shipyard: 40, aa: 7 }[kind];
     const s = { kind, I, side, x, y, z, hp, max: hp, mesh, dead: false, r: kind === 'aa' ? 2.8 : ud.r, h: kind === 'aa' ? 2 : ud.h * 0.5, cd: rnd(1, 3), rebuild: 0 };
+    if (kind === 'aa') defence.attach(s);   // DEFENCE hook: unit state, hit size, parked on the slope
     if (kind === 'factory') s.chimneys = ud.stackTops.map(([sx, sy, sz]) => { _v.set(sx, sy, sz).applyEuler(mesh.rotation).add(mesh.position); return fx.chimney(_v.x, _v.y, _v.z, 1); });
     I.structs.push(s); return s;
   }
@@ -58,7 +66,9 @@ export function createWar(ctx) {
     for (let r = 20; r < I.r + 60; r += 2) { const x = I.x + Math.cos(a) * r, z = I.z + Math.sin(a) * r; if (terrainH(x, z) < 2.5) return [x - Math.cos(a) * 10, z - Math.sin(a) * 10, a]; }
     return [I.x + Math.cos(a) * I.r * 0.7, I.z + Math.sin(a) * I.r * 0.7, a];
   }
+  let seeding = false;   // DEFENCE: true while the starting garrisons go in
   function buildIslands() {
+    seeding = true;
     for (const I of W.islands) {
       I.structs = []; I.cap = null; I.owner = I.owner0 ?? I.owner; I.owner0 = I.owner; I.seen = I.owner === 1 ? I.owner : -1; I.lastHit = -99;
       const p = I.pad;
@@ -74,6 +84,7 @@ export function createWar(ctx) {
       const guns = I.owner === 0 ? 0 : I.name === 'IRONHOLD' ? 4 : I.kind === 'hq' ? 2 : I.owner === 2 ? 2 : 1;
       for (let k = 0; k < guns; k++) { const s = buildAA(I, I.owner); if (s) { s.building = 0; s.mesh.scale.setScalar(1); } }
     }
+    seeding = false;
   }
   function recolor(s) {
     const c = TEAM[s.side]; s.mesh.traverse(o => { if (o.material && o.material === s.mesh.userData.team) o.material.color.setHex(c); });
@@ -120,10 +131,12 @@ export function createWar(ctx) {
   // ------------------------------------------------------------------------------------- ships
   function makeShip(type, side, x, z, yaw) {
     const m = type === 'carrier' ? buildCarrier(side) : type === 'freighter' ? buildFreighter() : buildBattleship();
+    if (type === 'carrier' && side === 1) defence.refitCarrier(m, 1);   // DEFENCE hook: the ALBATROSS's close-in guns and missile boxes
     const dims = type === 'carrier' ? CARRIER : type === 'freighter' ? FREIGHTER : BSHIP;
     const u = { type, side, p: new THREE.Vector3(x, 0, z), v: new THREE.Vector3(), yaw, w: 0, speed: 0, max: { carrier: 6, freighter: 5, battleship: 7.5 }[type], hp: { carrier: 600, freighter: 70, battleship: 420 }[type], mesh: m.group, parts: m, dims, path: [], guns: [], wakeT: 0, launchT: 0 };
     u.hpMax = u.hp;
     u.guns = m.guns.map(g => ({ mesh: g, hp: 9, max: 9, dead: false, cd: rnd(1, 3), range: type === 'carrier' ? 150 : 130, ship: u }));
+    for (const g of u.guns) defence.attach(g);   // DEFENCE hook (no-op for the generic buildGun mounts)
     if (m.turrets) u.turrets = m.turrets.map(t => ({ mesh: t, cd: rnd(2, 5) }));
     m.group.position.copy(u.p); m.group.rotation.y = yaw; scene.add(m.group); W.units.push(u); return u;
   }
@@ -678,11 +691,13 @@ export function createWar(ctx) {
     for (const I of W.islands) for (const s of I.structs) {
       if (s.kind !== 'aa' || s.dead || (peace && s.side === 2)) continue;
       if (s.building > 0) { s.building -= dt; s.mesh.scale.setScalar(clamp(1 - s.building / 12, 0.05, 1)); if (s.building <= 0) { s.mesh.scale.setScalar(1); if (s.side === 1) feed(`${I.name}: AA GUN READY`, 'good'); } continue; }
+      if (s.def) { defence.update(s, dt, foes[s.side]); continue; }   // DEFENCE hook
       gunFire(s, s.x, s.y + 2.4, s.z, s.side, dt, foes[s.side], 150);
       const ud = s.mesh.userData; if (s.aimYaw !== undefined) { ud.yaw.rotation.y += angDiff(ud.yaw.rotation.y, s.aimYaw) * Math.min(1, 5 * dt); ud.pitch.rotation.x += (s.aimPitch - ud.pitch.rotation.x) * Math.min(1, 5 * dt); }
     }
     for (const u of W.units) if (u.dims && u.sinking === undefined && !(peace && u.side === 2)) for (const g of u.guns) {
       if (g.dead) { g.rebuild -= dt; if (g.rebuild <= 0 && store(u.side).mat >= 10) { store(u.side).mat -= 10; g.dead = false; g.hp = g.max; g.mesh.visible = true; } continue; }
+      if (g.def) { defence.update(g, dt, foes[u.side]); continue; }   // DEFENCE hook
       g.mesh.getWorldPosition(_w); gunFire(g, _w.x, _w.y + 2, _w.z, u.side, dt, foes[u.side], g.range);
       const ud = g.mesh.userData; if (g.aimYaw !== undefined) { ud.yaw.rotation.y += angDiff(ud.yaw.rotation.y, g.aimYaw - u.yaw) * Math.min(1, 5 * dt); ud.pitch.rotation.x += (g.aimPitch - ud.pitch.rotation.x) * Math.min(1, 5 * dt); }
     }
@@ -859,6 +874,7 @@ export function createWar(ctx) {
   W.reset = () => {
     for (const u of W.units) scene.remove(u.mesh); W.units.length = 0;
     for (const p of W.proj) if (p.mesh) scene.remove(p.mesh); W.proj.length = 0;
+    defence.reset();   // DEFENCE hook
     islandGroup.clear(); fx.emitters.length = 0;
     for (const I of W.islands) { I.owner = I.owner0 ?? I.owner; I.lostT = -1e9; I.stock = 0; }
     buildIslands();
@@ -880,6 +896,7 @@ export function createWar(ctx) {
     for (let i = W.units.length - 1; i >= 0; i--) if (W.units[i].dead || W.units[i].gone) { const u = W.units[i]; if (!u.gone) scene.remove(u.mesh); W.units.splice(i, 1); }
     updateProj(dt, pl);
     updateGuns(dt, pl, peace);
+    defence.tick(dt);   // DEFENCE hook: missiles in flight, beams, the cockpit warning
     updateCapture(dt, pl);
     updateEconomy(dt);
     updateBattleship(dt); updateFreighters(dt);
