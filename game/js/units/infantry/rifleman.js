@@ -126,7 +126,7 @@ export function createRifleman(o = {}) {
     const P = createProjectile(shot.round, ox, oy, oz, d[0], d[1], d[2], shot.v, { owner: R.id, side: R.side, id: ++R.shots });
     // the first metre from the eye to the muzzle: a wall right in front stops it there
     R.projectiles.push(P);
-    out('shot', { weapon: wpn.key, round: shot.round, x: ox, y: oy, z: oz, dir: d, v: shot.v, tracer: shot.tracer, cookoff: shot.cookoff, J: shot.J });
+    out('shot', { id: P.id, weapon: wpn.key, round: shot.round, x: ox, y: oy, z: oz, dir: d, v: shot.v, tracer: shot.tracer, cookoff: shot.cookoff, J: shot.J });
     if (def.cls !== 'law') S.recoil(shot);
   }
   // advance all live rounds; hit tests through the host raycast
@@ -142,7 +142,7 @@ export function createRifleman(o = {}) {
         if (h.body) { bodyHit(P, h); }
         else {
           const r = impact(P, h.nx, h.ny, h.nz, h.material || 'soil', h.thickness ?? 1e9, rng);
-          out('impact', { x: h.x, y: h.y, z: h.z, nx: h.nx, ny: h.ny, nz: h.nz, material: h.material || 'soil', result: r.result, round: P.round.key, v: r.v0, target: h.target || null, dist: P.dist });
+          out('impact', { id: P.id, t: P.t, owner: P.owner, x: h.x, y: h.y, z: h.z, nx: h.nx, ny: h.ny, nz: h.nz, material: h.material || 'soil', result: r.result, round: P.round.key, v: r.v0, target: h.target || null, dist: P.dist });
           if (r.result === 'detonate') out('explode', { info: explosionInfo(P, h.x, h.y, h.z), x: h.x, y: h.y, z: h.z, nx: h.nx, ny: h.ny, nz: h.nz });
         }
         if (!P.alive) break;
@@ -171,7 +171,7 @@ export function createRifleman(o = {}) {
       armour.push(a); P.v *= 1 - a.thickness / t; const n = Math.hypot(P.vx, P.vy, P.vz); P.vx *= P.v / n; P.vy *= P.v / n; P.vz *= P.v / n;
     }
     const info = makeHitInfo(P, h.body.part, h.x, h.y, h.z, { armour, stopped });
-    out('hit', { hit: info, target: h.body.target });
+    out('hit', { id: P.id, t: P.t, hit: info, target: h.body.target });
     if (P.round.explosive) { P.alive = false; out('explode', { info: explosionInfo(P, h.x, h.y, h.z), x: h.x, y: h.y, z: h.z, nx: 0, ny: 1, nz: 0 }); return; }
     // through and through (game table: body path lengths in mm against the 'flesh' material)
     const pen = stopped ? 0 : penetration(P.round, P.v, MATERIALS.flesh), path = h.body.part === 'head' ? 180 : h.body.part.startsWith('arm') || h.body.part.startsWith('leg') ? 140 : 300;

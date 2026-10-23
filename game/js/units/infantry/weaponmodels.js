@@ -19,7 +19,7 @@ function plate(outline, holes, thick) {
 function part(kit, name, parent, pos = [0, 0, 0], mat) { const g = new THREE.Group(); g.name = name; g.position.set(...pos); if (!kit.empty) g.add(kit.mesh(mat || KITMAT.steel(), name + 'Mesh')); parent.add(g); return g; }
 // the aperture / peep leaf: dark and slightly see-through (an out-of-focus ring at 7 cm from the eye)
 let apMat = null;
-const apertureMat = () => apMat || (apMat = new THREE.MeshBasicMaterial({ color: 0x0b0b0c, transparent: true, opacity: 0.9, depthWrite: true }));
+const apertureMat = () => apMat || (apMat = new THREE.MeshBasicMaterial({ color: 0x0b0b0c, transparent: true, opacity: 0.62, depthWrite: false }));
 
 // ------------------------------------------------------------------------------------------------ M16A1
 // 39 in overall, 20 in barrel, sight radius 19.75 in, carry handle rear sight with two flip apertures, triangular
@@ -32,9 +32,10 @@ export function buildM16(o = {}) {
   // upper receiver + carry handle
   k.box(0.032, 0.056, 0.26, P, [0, -0.064, -0.035]);                              // upper receiver body
   k.box(0.026, 0.012, 0.24, PD, [0, -0.033, -0.035]);                             // flat top under the handle
-  k.prism([[0.07, -0.036], [0.07, -0.002], [0.05, 0.004], [-0.02, 0.006], [-0.17, 0.006], [-0.17, -0.036], [-0.13, -0.036], [-0.13, -0.008], [0.035, -0.008], [0.035, -0.036]], 0.02, P, [0, 0, 0], 'zy');   // carry handle (a loop)
-  k.box(0.034, 0.03, 0.05, P, [0, -0.02, 0.03]);                                  // rear sight housing
-  if (hi) { k.cyl(0.006, 0.006, 0.006, PD, [0.019, -0.022, 0.03], 'x', 10); k.cyl(0.006, 0.006, 0.006, PD, [-0.0195, -0.004, 0.012], 'x', 10); }   // windage drum, elevation screw
+  k.prism([[0.05, -0.036], [0.05, -0.013], [0.02, -0.011], [-0.17, -0.011], [-0.17, -0.036], [-0.13, -0.036], [-0.13, -0.022], [0.02, -0.022], [0.02, -0.036]], 0.016, P, [0, 0, 0], 'zy');   // carry handle: a loop, its top just under the line of sight
+  k.box(0.03, 0.022, 0.04, P, [0, -0.024, 0.022]);                                 // rear sight housing in the handle
+  for (const sx of [-1, 1]) k.prism([[0.022, -0.014], [0.022, 0.0], [0.012, 0.004], [-0.006, 0.004], [-0.012, -0.002], [-0.012, -0.014]], 0.0035, P, [sx * 0.0125, 0, 0], 'zy');   // the ears either side of the aperture
+  if (hi) k.cyl(0.005, 0.005, 0.005, PD, [0.017, -0.027, 0.03], "x", 10);   // windage drum (right side; the A1 has no elevation knob)
   // lower receiver, magwell, trigger guard, pistol grip
   k.box(0.03, 0.036, 0.205, P, [0, -0.108, -0.008]);
   k.prism([[-0.025, -0.092], [-0.108, -0.092], [-0.112, -0.158], [-0.022, -0.158]], 0.036, P, [0, 0, 0], 'zy');   // magwell (flared)
@@ -73,7 +74,7 @@ export function buildM16(o = {}) {
   const parts = {};
   // rear sight flip aperture: short-range and 'L' leaves (selected one stands up)
   { const a = new THREE.Group(); a.name = 'aperture'; a.position.set(0, -0.006, 0.0); G.add(a);
-    const apG = plate([[-0.007, -0.004], [0.007, -0.004], [0.007, 0.006], [0.005, 0.012], [-0.005, 0.012], [-0.007, 0.006]], [[0, 0.006, 0.0022]], 0.0015);
+    const apG = plate([...Array(16)].map((_, i) => [Math.cos(i / 16 * Math.PI * 2) * 0.0068, 0.006 + Math.sin(i / 16 * Math.PI * 2) * 0.0068]).concat([[0.0068, -0.004], [-0.0068, -0.004]]).sort(() => 0).slice(0, 16), [[0, 0.006, 0.0032]], 0.0015);   // a round leaf with the peep
     const m = new THREE.Mesh(apG, apertureMat()); m.name = 'peep'; a.add(m); parts.aperture = a; }
   { const kc = new Kit(); kc.box(0.012, 0.008, 0.06, P, [0, 0, 0.0]); kc.box(0.044, 0.008, 0.012, P, [0, 0, 0.032]); if (hi) kc.box(0.006, 0.008, 0.012, PD, [-0.026, 0, 0.032]);   // charging handle with latch
     parts.charging = part(kc, 'charging', G, [0, -0.041, 0.09]); }
@@ -89,7 +90,7 @@ export function buildM16(o = {}) {
     if (hi) { for (let i = 0; i < 4; i++) km.box(0.0225, 0.11, 0.003, 0x26282a, [0, -0.085, -0.022 + i * 0.015]); km.cyl(0.0028, 0.0028, 0.03, COL.brass, [0, 0.004, -0.008], 'z', 6); km.cyl(0.0012, 0.0028, 0.008, COL.copper, [0, 0.004, -0.027], 'z', 6); }
     parts.mag = part(km, 'mag', G, [0, -0.1, -0.066]); parts.mag.userData.home = parts.mag.position.clone(); }
   const anchors = {
-    grip: [0, -0.168, 0.05], fore: [0, -0.1, -0.3], butt: [0, -0.105, 0.35], charging: [0, -0.04, 0.13], magwell: [0, -0.158, -0.066],
+    grip: [0, -0.168, 0.05], fore: [0, -0.07, -0.31], butt: [0, -0.105, 0.35], charging: [0, -0.04, 0.13], magwell: [0, -0.158, -0.066],
     magBottom: [0, -0.255, -0.07], boltCatch: [-0.021, -0.097, -0.012], fa: [0.036, -0.05, 0.1], ejection: [0.02, -0.062, -0.048], muzzle: [0, BY, -0.64],
     selector: [-0.02, -0.106, 0.036], frontSight: [0, 0, -0.5], cheek: [0, -0.03, 0.2],
   };
@@ -196,7 +197,8 @@ export function buildM72(o = {}) {
   const ka = new Kit(); ka.box(0.01, 0.008, 0.02, COL.black, [0, 0, 0]); parts.armHandle = part(ka, 'armHandle', tube, [0.012, R + 0.01, -0.03]);
   // rear sight: a peep on a spring leaf (pops up when extended)
   { const rs = new THREE.Group(); rs.name = 'rearSight'; rs.position.set(0, R + 0.004, 0.0); tube.add(rs);
-    const pe = new THREE.Mesh(plate([[-0.008, 0], [0.008, 0], [0.008, 0.04], [-0.008, 0.04]], [[0, 0.07 + BY - R - 0.004 + 0.0, 0.0024]], 0.0015), apertureMat()); rs.add(pe); parts.rearSight = rs; }
+    const hy = -BY - R - 0.004;   // the peep sits on the line of sight
+    const pe = new THREE.Mesh(plate([[-0.006, 0], [0.006, 0], [0.006, hy], ...[...Array(7)].map((_, i) => [Math.cos((i + 1) / 8 * Math.PI) * 0.006, hy + Math.sin((i + 1) / 8 * Math.PI) * 0.006]), [-0.006, hy]], [[0, hy, 0.0026]], 0.0015), apertureMat()); rs.add(pe); parts.rearSight = rs; }
   // front sight: frame with the reticle (cross + range lines), folds up
   { const fs = new THREE.Group(); fs.name = 'frontSight'; fs.position.set(0, R + 0.002, -0.34); tube.add(fs);
     const kf = new Kit(); const H = 0.07 - R - 0.002;   // height of the line of sight over the hinge
@@ -204,7 +206,7 @@ export function buildM72(o = {}) {
     fs.add(kf.mesh(KITMAT.lambert(), 'frame'));
     const ret = new THREE.Group(); ret.name = 'reticle'; ret.position.set(0, H, 0); fs.add(ret); parts.reticle = ret;
     parts.frontSight = fs; }
-  const anchors = { grip: [0.0, -0.016, -0.085], fore: [0, -0.112, -0.22], shoulder: [0, BY, 0.15], butt: [0, BY, 0.27], rearCap: [0, BY, 0.27], muzzle: [0, BY, -0.39], cheek: [0, -0.02, 0.08] };
+  const anchors = { grip: [0.028, BY, -0.19], fore: [-0.028, BY - 0.01, -0.32], shoulder: [0, BY, 0.15], butt: [0, BY, 0.27], rearCap: [0, BY, 0.27], muzzle: [0, BY, -0.39], cheek: [0, -0.02, 0.08] };
   return finish(G, parts, anchors, { eyeRelief: 0.06, height: 0.07 }, 'M72A2');
 }
 // draw the LAW reticle range lines (lines: [[range m, angle rad]...]), distance from the eye to the reticle plane d
@@ -270,7 +272,7 @@ function finish(G, parts, anchors, sight, key, sub) {
     if (p.cocking) p.cocking.position.z = 0.02 + 0.09 * (st.charge || 0);
     if (p.bipod) { const a = st.bipod || 0; for (const l of p.bipod.children) { l.rotation.x = -1.45 * (1 - a) + 0.12 * a; l.rotation.z = l.userData.side * 0.25 * a; } }
     if (p.handle) p.handle.rotation.z = -1.5 * (1 - (st.handle ?? 1));
-    if (p.glow) { const h = st.heat || 20; p.glow.material.opacity = Math.max(0, Math.min(0.85, (h - 380) / 300)); p.glow.material.color.setHSL(0.03 + Math.max(0, (h - 600) / 2000), 1, 0.45 + Math.max(0, (h - 600) / 1500)); }
+    if (p.glow) { const h = st.heat || 20; p.glow.material.opacity = Math.max(0, Math.min(0.7, (h - 420) / 350)); p.glow.material.color.setHSL(0.0 + Math.max(0, (h - 600) / 3000), 0.95, 0.22 + Math.max(0, (h - 550) / 1200));   // dull red from ~450 C, brighter past 600 }
     if (p.barrel) { if (st.barrelOff) { p.barrel.position.set(st.barrelOff[0], -0.075 + st.barrelOff[1], st.barrelOff[2]); p.barrel.visible = st.barrelVisible !== false; } else { p.barrel.position.set(0, -0.075, 0); p.barrel.visible = true; } }
     if (p.belt) { const n = Math.max(0, Math.min(p.links.length, st.beltRounds ?? p.links.length)); p.links.forEach((l, i) => { l.visible = i < n; l.rotation.x = 0.06 + 0.05 * Math.sin((st.time || 0) * 3 + i * 0.7) * (st.beltSwing || 0.3); }); p.belt.visible = n > 0; }
     if (p.inner) { const e = st.law || 0; p.inner.position.z = 0.14 + 0.238 * e; }

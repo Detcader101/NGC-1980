@@ -105,7 +105,7 @@ export function createSoldier(o = {}) {
     // physiology
     vo2: 8, demand: 8, reserve: o.maod ?? 65, fatigue: 0, hr: 65, breathRate: 12, breathPhase: 0, breathDepth: 0.3,
     pendingYaw: 0, ouY: 0, ouP: 0, tremPhase: 0, pulsePhase: 0, shake: 0, t: 0,
-    mods: {}, events: [], canFire: true, deadzone: o.deadzone ?? 0,
+    mods: {}, events: [], canFire: true, deadzone: o.deadzone ?? 0, swayScale: o.swayScale ?? 1,   // swayScale: 0 for tests
     get exertion() { return clamp((S.hr - S.hrRest) / (S.hrMax - S.hrRest), 0, 1); },
     get debt() { return clamp(1 - S.reserve / S.maod, 0, 1); },
     get staminaFrac() { return clamp(S.reserve / S.maod, 0, 1); },
@@ -362,6 +362,7 @@ export function createSoldier(o = {}) {
     S.shake *= Math.exp(-dt * 12);
 
     // ------------------------------------------------ outputs
+    S.swayPitch *= S.swayScale; S.swayYaw *= S.swayScale;
     S.aimYaw = wrap(S.wYaw + S.swayYaw + S.recYaw);
     S.aimPitch = S.wPitch + S.swayPitch + S.recPitch;
     const st2 = S.stanceT < 1 ? (S.eyeH > 0.9 ? 'crouch' : 'prone') : st;
