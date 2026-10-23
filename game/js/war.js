@@ -196,7 +196,7 @@ export function createWar(ctx) {
     }
     return best;
   };
-  W.shipAt = (x, z) => W.units.find(u => u.dims && Math.abs(x - u.p.x) < 70 && Math.abs(z - u.p.z) < 70 && (() => { const [lx, lz] = toLocal(u, x, z); return Math.abs(lx) < u.dims.W / 2 && Math.abs(lz) < u.dims.L / 2 + 4; })());
+  W.shipAt = (x, z) => W.units.find(u => u.dims && Math.abs(x - u.p.x) < 70 && Math.abs(z - u.p.z) < 70 && (() => { const [lx, lz] = toLocal(u, x, z); return Math.abs(lx) < (u.parts.halfW || u.dims.W / 2) && Math.abs(lz) < u.dims.L / 2 + 4; })());   // SEAWORLD: halfW reaches the outboard lifts
   // vy: the deck's vertical velocity there (heave + pitch + roll; the sky carrier's climb), for gear that wants it
   W.surfVel = (x, z) => { const u = W.shipAt(x, z); if (!u || u.sinking) return null; const a = u.att, [lx, lz] = toLocal(u, x, z), h = u.parts.localDeck ? Math.max(0, u.parts.localDeck(lx, lz)) : u.dims.DECK; return { vx: u.v.x, vz: u.v.z, w: u.w, cx: u.p.x, cz: u.p.z, vy: u.v.y + (a ? shipPointVY(a.vHeave, a.pitch, a.roll, a.vPitch, a.vRoll, lx, h, lz) : 0) }; };
   // the deck height of ship u under (x, z), moving with the sea (the jet's catapult and wires use it)

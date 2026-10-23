@@ -54,6 +54,7 @@ addEventListener('keydown', e => {
   if (G.state === 'play' && G.mode === 'zarch') {
     if (e.code === 'KeyY') { getInOut(); return; }
     if (e.code === 'BracketLeft' || e.code === 'BracketRight') { crafts.cycleSeat(e.code === 'BracketRight' ? 1 : -1); return; }
+    if (e.code === 'KeyU' && G.craft !== 'heli' && G.craft !== 'jet' && liftConsole()) return;   // SEAWORLD: run a deck-edge lift (before the craft: foot / vehicles swallow U)
     if (G.craft !== 'heli' && crafts.active && crafts.active.key(e.code, e)) return;
   }
   if (G.craft === 'heli') {   // the Huey's switches (heli.js / damage.js)
@@ -1392,6 +1393,18 @@ function menuPick() {
   else if (it.id === 'seadrift') { setSeaDrift(!SEA_PREF.drift); renderMenu(); }   // SEAWORLD
   else if (it.id === 'respawn') { closeMenu(); abandonHeli(); }
   else if (it.id === 'quit') { closeMenu(); quitToTitle(); }
+}
+// SEAWORLD: U at a lift's console on the ALBATROSS's deck edge (or standing / parked on the lift) sends it up or down
+function liftConsole() {
+  const c = war.carrier; if (!c || c.sinking !== undefined || !c.parts.lifts) return false;
+  const [lx, lz] = GR.toLocal(c, Z.pos.x, Z.pos.z), yl = Z.pos.y - c.p.y;
+  for (const L of c.parts.lifts) {
+    const atConsole = Math.hypot(lx - L.con.lx, lz - L.con.lz) < 3 && Math.abs(yl - 8) < 2.5, onIt = c.parts.liftAt(lx, lz) === L && Math.abs(yl - L.y) < 2.5;
+    if (!atConsole && !onIt) continue;
+    const dir = c.parts.lift(L.i); say(`LIFT ${L.i + 1} ${dir === 'down' ? 'GOING DOWN TO THE HANGAR DECK' : 'COMING UP TO THE FLIGHT DECK'}`, 2); sfx.ui?.('select');
+    return true;
+  }
+  return false;
 }
 // the crew is picked up and the airframe written off; a fresh helicopter waits on the carrier
 function abandonHeli() {

@@ -83,7 +83,8 @@ export function createGround(ctx) {
   };
 
   // ------------------------------------------------------------------ ships: frames, decks, carrying
-  const PF = createPlatforms({ deckY: (x, z) => war.deckY(x, z), shipAt: (x, z) => war.shipAt(x, z), alive: u => u.sinking === undefined || u.sinking < 4 ? war.units.includes(u) : false });
+  const PF = createPlatforms({ deckY: (x, z) => war.deckY(x, z), shipAt: (x, z) => war.shipAt(x, z), alive: u => u.sinking === undefined || u.sinking < 4 ? war.units.includes(u) : false,
+    subY: (u, lx, lz) => u.parts && u.parts.liftY ? u.parts.liftY(lx, lz) : null });   // SEAWORLD: the ALBATROSS's lifts carry
   const { toLocal, toWorld } = PF;
   const _w = { x: 0, z: 0 };
   GR.toLocal = toLocal; GR.toWorld = toWorld;
@@ -167,6 +168,7 @@ export function createGround(ctx) {
       else if (u.type === 'battleship') box(u, 0, 4, 4.5, 10, y + D.DECK, y + D.DECK + 14);
       else if (u.type === 'freighter') box(u, 0, D.L / 2 - 6, 4.3, 3.2, y + D.DECK, y + D.DECK + 6);
       if (_sb.ok && pushBox(o, _sb)) n++;
+      if (u.parts && u.parts.boxes) for (const b of u.parts.boxes()) { box(u, b.lx, b.lz, b.hw, b.hl, y + b.y0, y + b.y1); if (pushBox(o, _sb)) n++; }   // SEAWORLD: lift railings
     }
     function box(u, lx, lz, hw, hl, y0, y1) { toWorld(u, lx, lz, _w); _sb.x = _w.x; _sb.z = _w.z; _sb.yaw = u.yaw; _sb.hw = hw; _sb.hl = hl; _sb.y0 = y0; _sb.y1 = y1; _sb.ok = true; }
     for (const c of extra) if (c.hl ? pushBox(o, c) : (o.y1 > (c.y0 ?? -1e9) && o.y0 < (c.y1 ?? 1e9) && pushCircle(o, c.x, c.z, c.r))) n++;
@@ -197,9 +199,19 @@ export function createGround(ctx) {
   // carrier deck parking spots (local; starboard, forward of the island, clear of the catapult and the landing area)
   const DECK_SPOTS = [{ name: 'ALBATROSS DECK PARK 1', lx: 9, lz: -24, yaw: 0 }, { name: 'ALBATROSS DECK PARK 2', lx: 9, lz: -34, yaw: 0 }, { name: 'ALBATROSS DECK PARK 3', lx: 9, lz: -44, yaw: 0 }];
   GR.DECK_SPOTS = DECK_SPOTS;
+  // SEAWORLD: parked aircraft are solid now, so a spot is used only when the deck round it is clear (flat at deck
+  // height over a 2.6 m radius); else the next of these candidates (port side forward, aft of the island)
+  const DECK_SPARE = [{ lx: -9.5, lz: -20 }, { lx: -9.5, lz: -30 }, { lx: 4.5, lz: 16 }, { lx: 11, lz: 12 }, { lx: -9.5, lz: 6 }];
+  const deckClear = (u, lx, lz) => {
+    if (!u.parts || !u.parts.localDeck) return true;
+    for (const [ox, oz] of [[0, 0], [2.6, 0], [-2.6, 0], [0, 2.6], [0, -2.6], [1.8, 1.8], [-1.8, 1.8], [1.8, -1.8], [-1.8, -1.8]]) if (Math.abs(u.parts.localDeck(lx + ox, lz + oz) - CARRIER.DECK) > 0.05) return false;
+    return true;
+  };
   GR.deckSpot = (k = 0) => {
     const u = war.carrier; if (!u || u.sinking !== undefined) return null;
-    const s = DECK_SPOTS[k % DECK_SPOTS.length]; toWorld(u, s.lx, s.lz, _w);
+    const cands = [...DECK_SPOTS, ...DECK_SPARE.map((s, i) => ({ name: `ALBATROSS DECK PARK ${DECK_SPOTS.length + i + 1}`, yaw: 0, ...s }))].filter(s => deckClear(u, s.lx, s.lz));
+    if (!cands.length) return null;
+    const s = cands[k % cands.length]; toWorld(u, s.lx, s.lz, _w);
     return { name: s.name, x: _w.x, z: _w.z, y: u.p.y + CARRIER.DECK, yaw: u.yaw + s.yaw, plat: u };
   };
   const _o = { x: 0, z: 0, r: 2.4 };

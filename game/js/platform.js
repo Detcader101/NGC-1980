@@ -10,7 +10,9 @@
 //
 // Kinematic carrying (rather than friction against a moving deck) makes a parked or standing thing stay exactly on its
 // deck spot at any frame rate and any ship motion; a sim then only has to model motion relative to the deck.
-export function createPlatforms({ deckY, shipAt, alive = () => true }) {
+// subY(u, lx, lz) (optional, SEAWORLD): the height of a moving part of ship u's deck at a ship-frame point (a deck-edge
+// lift), or null - whoever stands on it is carried up and down with it too
+export function createPlatforms({ deckY, shipAt, alive = () => true, subY = null }) {
   const toLocal = (u, x, z) => { const dx = x - u.p.x, dz = z - u.p.z, c = Math.cos(u.yaw), s = Math.sin(u.yaw); return [dx * c - dz * s, dx * s + dz * c]; };
   const toWorld = (u, lx, lz, out = { x: 0, z: 0 }) => { const c = Math.cos(u.yaw), s = Math.sin(u.yaw); out.x = u.p.x + lx * c + lz * s; out.z = u.p.z - lx * s + lz * c; return out; };
   const _w = { x: 0, z: 0 };
@@ -21,7 +23,9 @@ export function createPlatforms({ deckY, shipAt, alive = () => true }) {
     const u = o.plat, L = o.loc; o.carried = null;
     if (!u || !L || !alive(u)) { o.plat = null; o.loc = null; return; }
     toWorld(u, L.x, L.z, _w);
-    const dx = _w.x - L.wx, dz = _w.z - L.wz, dy = u.p.y - L.sy, dyaw = u.yaw - L.syaw;
+    const dx = _w.x - L.wx, dz = _w.z - L.wz, dyaw = u.yaw - L.syaw;
+    let dy = u.p.y - L.sy;
+    if (L.ly != null && subY) { const y = subY(u, L.x, L.z); if (y != null) dy += y - L.ly; }   // SEAWORLD: on a lift
     o.x += dx; o.z += dz; o.y += dy; o.yaw += dyaw;
     o.carried = { dx, dy, dz, dyaw };
   };
@@ -36,6 +40,7 @@ export function createPlatforms({ deckY, shipAt, alive = () => true }) {
     if (!ship) { o.loc = null; return; }
     const [lx, lz] = toLocal(ship, o.x, o.z);
     o.loc ||= {}; o.loc.x = lx; o.loc.z = lz; o.loc.wx = o.x; o.loc.wz = o.z; o.loc.sy = ship.p.y; o.loc.syaw = ship.yaw;
+    o.loc.ly = subY ? subY(ship, lx, lz) : null;
   };
   return PF;
 }
