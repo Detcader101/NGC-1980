@@ -515,7 +515,8 @@ export function createMarine(ctx) {
     }
     // first person: arms and weapon (own pass, see overlay)
     vmOn = fp && !MS.dead && !W.ladder && !W.swim;
-    if (vmOn) vm.update(dt, R);
+    // (the viewmodel's springs are explicit: at low frame rates they would blow up, so they are stepped at <= 1/60 s)
+    if (vmOn) { let t = dt; while (t > 1e-6) { const h = Math.min(t, 1 / 60); vm.update(h, R); t -= h; } if (!Number.isFinite(vm.lag.x + vm.lag.y + vm.kick.z + vm.kick.p)) { Object.assign(vm.lag, { x: 0, y: 0, vx: 0, vy: 0 }); Object.assign(vm.kick, { z: 0, zv: 0, p: 0, pv: 0 }); } }
     // tracers
     let nT = 0;
     for (const P of R.projectiles) {
@@ -554,7 +555,7 @@ export function createMarine(ctx) {
     return { line, hint, tip, weap, fuel: S.staminaFrac * 100, fuelLabel: 'STAMINA' };
   };
   Mr.pl = { detect: () => ({ stand: 0.45, crouch: 0.32, prone: 0.18 })[S.stanceT < 1 ? S.stanceTo : S.stance] + (S.sprinting ? 0.12 : 0) + (Mr.firedT < 3 ? 0.25 : 0) };
-  Mr.stockWorld = stockWorld;
+  Mr.stockWorld = stockWorld; Mr.I = I;
   Mr.stats = { shots: 0, impacts: 0, hits: 0, downs: 0 };
   // a standing soldier figure on the 17-bone skeleton: a RUNAWAY machine-crewed trooper in seized modern kit (or a
   // Marine). Hit twice (once in the head or chest) he goes down and his kit is lootable. Scenes, and the start of a

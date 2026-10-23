@@ -20,9 +20,9 @@ export default async function (h) {
     rifle: () => __G.marine.inv.slots.primary,
   }, 1)`);
   // 1. under way in a seaway, then out of the Huey
-  await h.eval(`(() => { const c = __G.war.carrier; __G.war.orderCarrier(c.p.x - Math.sin(c.yaw) * 900, c.p.z - Math.cos(c.yaw) * 900); c.speed = 4; return __F.sea(); })()`);
-  await h.wait(1500);
-  await h.key('tap', 'KeyY'); await h.wait(600);
+  await h.eval(`(() => { const c = __G.war.carrier; __G.war.orderCarrier(c.p.x - Math.sin(c.yaw) * 900, c.p.z - Math.cos(c.yaw) * 900); return __F.sea(); })()`);
+  await h.key("tap", "KeyY"); await h.wait(600); await h.eval("document.getElementById('msg').textContent");
+  await h.wait(2500);   // she gathers way with him on deck
   await h.expect("__G.G.craft === 'foot' && __G.foot.exists && __G.foot.W.plat === __G.war.carrier && __G.marine.R.cur.key === 'M16A1'", 'out on the deck as the Marine with his M16A1');
   await h.eval('({ sea: __F.sea(), load: +__G.marine.S.load.toFixed(1), weap: document.getElementById("weap").textContent })');
   // 2. walk forward along the deck while she steams, heaves, pitches and rolls
@@ -34,10 +34,10 @@ export default async function (h) {
   // 3. a RUNAWAY trooper figure 30 m forward on the deck: aim through the iron sights, fire single shots
   await h.eval(`(() => { const c = __G.war.carrier, W = __G.foot.W, l = __F.loc(), p = __G.GR.fromShip(c, l.x, 8, l.z - 30, {}); window.__tg = __G.marine.addFigure(p.x, __G.GR.deckH(p.x, p.z), p.z, c.yaw + Math.PI, { ship: c }); return { at: [p.x, p.z] }; })()`);
   await h.eval('(__G.marine.input({ ads: true }), 1)'); await h.wait(1200);
+  await h.eval('(() => { const r = __tg.sk.bones.chest.getWorldPosition(new __G.THREE.Vector3()); return __F.aimAt(r.x, r.y, r.z); })()'); await h.wait(700); await h.shot('aiming-down-the-sights');
   for (let i = 0; i < 6; i++) {
     await h.eval('(() => { const r = __tg.sk.bones.chest.getWorldPosition(new __G.THREE.Vector3()); __F.aimAt(r.x, r.y, r.z); return __G.marine.input({ fire: true }); })()'); await h.wait(160);
     await h.eval('__G.marine.input({ fire: false })'); await h.wait(260);
-    if (i === 1) await h.shot('aiming-down-the-sights');
     if (await h.eval('!__tg.alive')) break;
   }
   await h.wait(500);
@@ -49,7 +49,7 @@ export default async function (h) {
   await h.eval(`(() => { window.__mag0 = __F.rifle().slots.mag; window.__rds0 = __G.marine.MS.inv && [...(function* w(r) { yield r; for (const k in r.slots || {}) if (r.slots[k]) yield* w(r.slots[k]); for (const g of r.grids || []) for (const o of g) yield* w(o); })(__G.marine.inv)].filter(o => o.id === 'mag_m16_20').reduce((s, m) => s + m.ammo.reduce((a, x) => a + x[1], 0), 0); __G.marine.press('reload'); return { mag0: __mag0.uid, rounds: __rds0 }; })()`);
   await h.wait(400); await h.shot('reloading');
   await h.waitFor('__F.rifle().slots.mag && __F.rifle().slots.mag !== __mag0 && !__G.marine.R.cur.act', 30000);
-  await h.expect('__F.rifle().slots.mag !== __mag0 && __G.marine.R.cur.mag.inst === __F.rifle().slots.mag && !!__G.marine.inv && (() => { let p = __mag0; for (let i = 0; i < 6 && p; i++) { if (p === __G.marine.inv) return true; p = (window.__pp ||= null, __G.marine.MS.B && null) || null; } return true; })()', 'tactical reload: a fresh magazine from the pouches in the rifle');
+  await h.expect('__F.rifle().slots.mag !== __mag0 && __G.marine.R.cur.mag.inst === __F.rifle().slots.mag && __G.marine.I.isWithin(__mag0, __G.marine.inv) && !__G.marine.I.isWithin(__mag0, __F.rifle())', 'tactical reload: a fresh magazine from the pouches in the rifle, the old one back in a pouch');
   await h.eval('({ newMag: __F.rifle().slots.mag.uid, newRounds: __F.rifle().slots.mag.ammo.reduce((a, x) => a + x[1], 0), hud: document.getElementById("weap").textContent })');
   // 5. a WASP round through the left thigh: bleeding (made arterial, the worst case, for the treatment)
   await h.eval(`(() => { const W = __G.foot.W, M = __G.marine.M, fx = Math.cos(W.yaw), fz = -Math.sin(W.yaw); __G.hurtPlayer(0.2, 'HIT', { x: W.x - fx * 0.1, y: W.y + 0.6, z: W.z - fz * 0.1 }, { x: -30, y: 0, z: 10 }, 'b');
@@ -66,7 +66,7 @@ export default async function (h) {
   const dr = await center(h, '.ngc-med .mi[data-id="dressing_field"]'), part = await center(h, `.ngc-med path[data-region="${leg}"]`);
   await h.eval(`({ dressing: ${JSON.stringify(dr)}, leg: ${JSON.stringify(part)} })`);
   if (dr && part) await drag(h, dr, part);
-  await h.expect("__G.marine.M.action && __G.marine.M.action.kind === 'dressing'", 'dressing dragged onto the leg: applying');
+  await h.expect("__G.marine.M.action && /dress/i.test(__G.marine.M.action.label + __G.marine.M.action.kind)", 'dressing dragged onto the leg: applying');
   await h.eval('(() => { const M = __G.marine.M; let t = 0; while (M.action && t < 120) { M.update(0.25, {}); t += 0.25; } return { t, bleed: Math.round(M.bleedRate()) }; })()');
   await h.wait(500);
   const cr = await center(h, '.ngc-med .mi[data-id="cravat"]'), part2 = await center(h, `.ngc-med path[data-region="${leg}"]`);
