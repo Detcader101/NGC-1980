@@ -62,7 +62,25 @@ export class Sfx {
     sp(this.hWiG.gain, Math.min(0.12, (o.spd / 60) ** 2 * 0.12)); sp(this.hWiF.frequency, 700 + o.spd * 12);
     // low rotor rpm warning: the UH-1H's pulsing horn in the headset
     const hornOn = o.horn && (t % 0.5) < 0.32; sp(this.hHornG.gain, hornOn ? 0.05 : 0, 0.01); sp(this.hHorn.frequency, (t % 1) < 0.5 ? 640 : 560, 0.01);
-    sp(this.hMuff.frequency, o.inside ? 2400 : 18000); sp(this.hG.gain, o.on ? 1 : 0, 0.1);
+    sp(this.hMuff.frequency, o.inside ? 2400 : 18000); sp(this.hG.gain, typeof o.on === 'number' ? o.on : o.on ? 1 : 0, 0.1);   // FOUNDATION: on may be a volume (a parked Huey heard from outside)
+  }
+  // ---------------------------------------------------------------- GROUND VEHICLES (FOUNDATION hook)
+  // a piston engine: the firing pulse (rpm / 60 x cylinders / 2) as a buzzy sawtooth, exhaust rumble (noise), muffled
+  // inside. o: { rpm, load 0..1, cyl, on (0..1 volume, 0 = silent), inside }. One engine at a time (the one you drive
+  // or stand next to); unit agents may build their own richer sound beside it.
+  motorInit() {
+    if (!this.ctx || this.mG) return; const c = this.ctx;
+    this.mOsc = c.createOscillator(); this.mOsc.type = 'sawtooth'; this.mOscG = c.createGain(); this.mOscG.gain.value = 0; this.mOsc.connect(this.mOscG);
+    const s = c.createBufferSource(); s.buffer = this.noise; s.loop = true; this.mNF = c.createBiquadFilter(); this.mNF.type = 'lowpass'; this.mNF.frequency.value = 300; s.connect(this.mNF);
+    this.mNG = c.createGain(); this.mNG.gain.value = 0; this.mNF.connect(this.mNG);
+    this.mF = c.createBiquadFilter(); this.mF.type = 'lowpass'; this.mF.frequency.value = 900; this.mG = c.createGain(); this.mG.gain.value = 0;
+    this.mOscG.connect(this.mF); this.mNG.connect(this.mF); this.mF.connect(this.mG); this.mG.connect(this.master); this.mOsc.start(); s.start(0, Math.random());
+  }
+  motor(o) {
+    if (!this.ctx) return; this.motorInit(); const t = this.ctx.currentTime, sp = (p, v) => p.setTargetAtTime(v, t, 0.06);
+    const f = Math.max(8, (o.rpm || 0) / 60 * (o.cyl || 4) / 2), ld = Math.max(0, Math.min(1, o.load || 0));
+    sp(this.mOsc.frequency, f); sp(this.mOscG.gain, 0.06 + 0.1 * ld); sp(this.mNF.frequency, 120 + f * 3); sp(this.mNG.gain, 0.12 + 0.25 * ld);
+    sp(this.mF.frequency, o.inside ? 500 + f * 4 : 900 + f * 8); sp(this.mG.gain, (o.rpm > 50 ? 1 : 0) * Math.max(0, Math.min(1, o.on || 0)) * 0.55);
   }
   blip(f0, f1, dur, type = 'square', vol = 0.15) {
     if (!this.ctx) return; const c = this.ctx, t = c.currentTime;
@@ -121,7 +139,7 @@ export class Sfx {
   }
   // n: mean rpm 0..1.05, ab 0..1, spd m/s true airspeed, inside: in the cockpit, on: jet is the player's aircraft
   jet(n, ab, spd, inside, on = true) {
-    if (!this.ctx) return; this.jetInit(); const t = this.ctx.currentTime, k = on ? 1 : 0, sp = (v, x) => v.setTargetAtTime(x, t, 0.08);
+    if (!this.ctx) return; this.jetInit(); const t = this.ctx.currentTime, k = typeof on === 'number' ? on : on ? 1 : 0, sp = (v, x) => v.setTargetAtTime(x, t, 0.08);
     const run = Math.max(0, (n - 0.2) / 0.85);
     sp(this.jRoar.gain, k * (0.05 + 0.32 * run * run)); sp(this.jRoarF.frequency, 300 + 900 * run);
     sp(this.jWhineG.gain, k * 0.05 * Math.min(1, n * 1.5) * (inside ? 1.4 : 0.8)); sp(this.jWhine.frequency, 220 + 900 * n); sp(this.jWhineF.frequency, 1200 + 2800 * n);

@@ -34,7 +34,7 @@ const env = {
   ladderAt(x, z, y, r) {   // the ship's stern ladder: at local (0, +L/2), climber faces -z (toward the bow)
     const [bx, bz] = toWorld(ship, 0, ship.L / 2 + 0.3), yaw = ship.yaw, fx = -Math.sin(yaw), fz = -Math.cos(yaw);
     const dx = x - bx, dz = z - bz, along = dx * fz - dz * fx, off = -(dx * fx + dz * fz);
-    if (Math.abs(along) < 0.6 && off > -0.2 && off < r + 0.45 && y > ship.p.y - 2.2 && y < ship.p.y + ship.DECK + 0.2) { const [tx, tz] = toWorld(ship, 0, ship.L / 2 - 0.9); return { x: bx, z: bz, fx, fz, y0: ship.p.y - 1.6, y1: ship.p.y + ship.DECK, tx, tz, name: 'STERN' }; }
+    if (Math.abs(along) < 0.6 && off > -0.2 && off < r + 0.45 && y > ship.p.y - 2.2 && y < ship.p.y + ship.DECK + 0.2) { const [tx, tz] = toWorld(ship, 0, ship.L / 2 - 0.9); return { x: bx, z: bz, fx, fz, y0: ship.p.y - 1.6, y1: ship.p.y + ship.DECK, tx, tz, name: 'STERN', ship }; }
     return null;
   },
   carry: o => PF.carry(o), settle: (o, on) => PF.settle(o, on),   // the game's own platform code (platform.js)
@@ -102,6 +102,10 @@ function run(W, secs, intent, each) { const evs = []; for (let t = 0; t < secs; 
   const [lx1, lz1] = toLocal(ship, W.x, W.z);
   check('carried by a moving, turning, rising deck', Math.hypot(lx1 - lx0, lz1 - lz0) < 0.05 && Math.abs(W.y - (ship.p.y + 8)) < 0.05 && W.onGround, `slip ${Math.hypot(lx1 - lx0, lz1 - lz0).toFixed(3)} m, y-deck ${(W.y - ship.p.y - 8).toFixed(3)}`);
   check('turns with the ship', Math.abs(W.yaw - ship.yaw) < 1e-6, `yaw ${W.yaw.toFixed(3)} ship ${ship.yaw.toFixed(3)}`);
+  // looking round (the mouse sets yaw between frames) on a turning deck: your own turn is kept, the ship's is added
+  W.yaw = ship.yaw + 1; ship.yaw += 0.02; W.step(DT, {}, env);
+  check('mouse look kept on a turning deck', Math.abs(W.yaw - (ship.yaw + 1)) < 1e-6, `yaw-ship ${(W.yaw - ship.yaw).toFixed(4)}`);
+  W.yaw = ship.yaw;
   // walk aft along the deck at quick time while the ship steams on: speed relative to the deck
   const yawAft = ship.yaw + Math.PI; W.yaw = yawAft; run(W, 1, { mz: 1, walk: true }, () => { ship.p.x += 6 * DT; });
   const [a0, b0] = toLocal(ship, W.x, W.z); run(W, 3, { mz: 1, walk: true }, () => { ship.p.x += 6 * DT; });
@@ -120,6 +124,12 @@ function run(W, secs, intent, each) { const evs = []; for (let t = 0; t < secs; 
   run(W, 2, { mz: 1 });
   const onL = !!W.ladder; run(W, 10, { mz: 1 });
   check('climbs the stern ladder out of the sea onto the deck', onL && W.onGround && Math.abs(W.y - 8) < 0.05 && !!W.plat, `ladder ${onL} y ${W.y.toFixed(2)} plat ${!!W.plat}`);
+  // the same while she steams on and turns: the ladder carries the climber
+  ship.p = { x: 200, y: 0, z: 0 }; ship.yaw = 0; W.place(200, -SOLDIER.SWIM_D, 33, 0); W.swim = true; W.onGround = false; W.step(DT, {}, env);
+  for (let t = 0; t < 4 && !W.ladder; t += DT) W.step(DT, { mz: 1 }, env);   // a ship under way can't be caught swimming: grab it at rest
+  for (let t = 0; t < 12 && !(W.onGround && W.y > 7); t += DT) { ship.p.x += 6 * DT; ship.yaw += 0.03 * DT; W.step(DT, { mz: 1 }, env); }
+  const [sl, sz] = toLocal(ship, W.x, W.z);
+  check('climbs the stern ladder of a moving, turning ship', W.onGround && Math.abs(W.y - 8) < 0.05 && W.plat === ship && Math.abs(sl) < 0.6 && sz < 30, `y ${W.y.toFixed(2)} local ${sl.toFixed(2)},${sz.toFixed(2)}`);
   // standing on the deck under a flying ship? walk under it on land
   ship.p = { x: 30, y: 40, z: 300 }; W.place(30, 0, 340, 0); W.step(DT, {}, env); run(W, 30, { mz: 1 });
   check('walks under a flying carrier', W.z < 265 && W.y < 0.01, `z ${W.z.toFixed(1)} y ${W.y.toFixed(2)}`);

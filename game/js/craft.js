@@ -90,10 +90,12 @@ export function createCraftHost({ G, Z, say = NOOP }) {
     for (const def of defs) {
       if (def === skip || def.kind === 'foot' || !def.present()) continue;
       def.seats.forEach((s, i) => {
-        if (!s.door || s.locked) return;
-        const w = host.toWorld(def, s.door, _d); if (!w) return;
-        const d = Math.hypot(w.x - x, (w.y - y) * 0.6, w.z - z);
-        if (d < (s.reach || reach) && (!best || d < best.d)) best = { def, seat: i, d };
+        if (s.locked) return;
+        for (const p of s.doors || (s.door ? [s.door] : [])) {   // a seat may have several doors (the Huey: either side)
+          const w = host.toWorld(def, p, _d); if (!w) return;
+          const d = Math.hypot(w.x - x, (w.y - y) * 0.6, w.z - z);
+          if (d < (s.reach || reach) && (!best || d < best.d)) best = { def, seat: i, d };
+        }
       });
     }
     return best;
@@ -114,6 +116,12 @@ export function createCraftHost({ G, Z, say = NOOP }) {
     for (const def of defs) if (def !== a && def.present()) def.idle(dt);
     if (a) a.avatar(Z);
     host.mouse.dx = host.mouse.dy = 0;
+  };
+  // after war.update has moved the ships: everything standing / parked on a deck catches up with it now, so the frame
+  // is drawn with no lag (a soldier would otherwise trail his deck by one frame of the ship's motion)
+  host.afterWar = () => {
+    for (const def of defs) if (def.afterWar && def.present()) def.afterWar();
+    if (host.active) host.active.avatar(Z);
   };
   host.render = (dt, time) => { for (const def of defs) if (def.render && def.render !== NOOP) def.render(dt, time, def === host.active && def.firstPerson()); };
   host.silence = () => { for (const def of defs) def.silence(); };

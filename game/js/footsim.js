@@ -38,7 +38,7 @@ export function createWalker(P = SOLDIER) {
     if (W.stance === 'prone') return S.prone;
     if (W.stance === 'crouch') return S.crouch;
     const run = intent.walk ? S.walk : S.run;
-    return W.sprinting ? S.sprint : run;
+    return (W.sprinting ? S.sprint : run) * (intent.speedK ?? 1);   // speedK: injuries, load (medical / inventory slots)
   }
   // try to move horizontally to (nx, nz): stairs / deck edges up to STEP, no walls, no steep climbs
   function tryMove(nx, nz, env) {
@@ -64,7 +64,10 @@ export function createWalker(P = SOLDIER) {
     for (let k = 0; k < n; k++) sub(h, intent, env, k === 0);
     const had = W.plat, c = W.carried;
     env.settle(W, W.onGround || !!W.ladder);
-    if (had && !W.plat && c && dt > 0) { W.vx += c.dx / dt; W.vz += c.dz / dt; }   // stepped off a moving deck: keep its speed
+    if (had && !W.plat && dt > 0) {   // stepped off a moving deck: keep its speed (deckV: the host's measure, else this step's carry)
+      if (W.deckV) { W.vx += W.deckV.x; W.vz += W.deckV.z; } else if (c) { W.vx += c.dx / dt; W.vz += c.dz / dt; }
+    }
+    if (!W.plat) W.deckV = null;
     return W.events;
   };
   function sub(h, I, env, first) {

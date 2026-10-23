@@ -15,12 +15,14 @@ export function createPlatforms({ deckY, shipAt, alive = () => true }) {
   const toWorld = (u, lx, lz, out = { x: 0, z: 0 }) => { const c = Math.cos(u.yaw), s = Math.sin(u.yaw); out.x = u.p.x + lx * c + lz * s; out.z = u.p.z - lx * s + lz * c; return out; };
   const _w = { x: 0, z: 0 };
   const PF = { toLocal, toWorld };
+  // The ship's motion since the last settle() is added to o (position, height and heading), so anything else that
+  // moved o in between - its own sim, a mouse turning a soldier's head, a teleport - is kept, not snapped back.
   PF.carry = o => {
     const u = o.plat, L = o.loc; o.carried = null;
     if (!u || !L || !alive(u)) { o.plat = null; o.loc = null; return; }
     toWorld(u, L.x, L.z, _w);
-    const dx = _w.x - o.x, dz = _w.z - o.z, dy = u.p.y + L.y - o.y, dyaw = u.yaw + L.yaw - o.yaw;
-    o.x = _w.x; o.z = _w.z; o.y += dy; o.yaw += dyaw;
+    const dx = _w.x - L.wx, dz = _w.z - L.wz, dy = u.p.y - L.sy, dyaw = u.yaw - L.syaw;
+    o.x += dx; o.z += dz; o.y += dy; o.yaw += dyaw;
     o.carried = { dx, dy, dz, dyaw };
   };
   PF.settle = (o, onGround = true) => {
@@ -29,10 +31,11 @@ export function createPlatforms({ deckY, shipAt, alive = () => true }) {
     // in the air over the deck it left (a jump, a step off a ledge onto the deck below): stay with that ship, so the
     // jump is relative to the deck
     if (!ship && !onGround && o.plat && alive(o.plat) && deck > -1e8 && o.y > deck - 0.5 && o.y < deck + 8) ship = o.plat;
+    if (!ship && o.ladder && o.ladder.ship && alive(o.ladder.ship)) ship = o.ladder.ship;   // on a ship's ladder
     o.plat = ship || null;
     if (!ship) { o.loc = null; return; }
     const [lx, lz] = toLocal(ship, o.x, o.z);
-    o.loc ||= {}; o.loc.x = lx; o.loc.z = lz; o.loc.y = o.y - ship.p.y; o.loc.yaw = o.yaw - ship.yaw;
+    o.loc ||= {}; o.loc.x = lx; o.loc.z = lz; o.loc.wx = o.x; o.loc.wz = o.z; o.loc.sy = ship.p.y; o.loc.syaw = ship.yaw;
   };
   return PF;
 }
