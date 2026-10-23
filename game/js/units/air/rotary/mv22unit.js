@@ -61,7 +61,7 @@ export function createMV22Unit(o) {
     g.position.set(b.pos[0], b.pos[1], b.pos[2]); g.quaternion.set(b.q[0], b.q[1], b.q[2], b.q[3]);
     animS.nr = U.folding ? Math.max(0, S.rpm * (1 - U.fold * 2)) : S.rpm; animS.nac = S.nac; animS.coll = S.c.tcl;
     animS.tR.tx = S.rR.tx; animS.tR.ty = S.rR.ty; animS.tL.tx = S.rL.tx; animS.tL.ty = S.rL.ty;
-    animS.gear = S.gear; animS.ramp = U.ramp; animS.flap = S.flap; animS.el = -S.c.lon; animS.rud = S.c.ped; animS.ail = S.c.lat; animS.fold = U.fold;
+    animS.gear = S.gear; animS.ramp = U.ramp; animS.flap = S.flap; animS.el = -S.c.lon; animS.rud = S.c.ped; animS.ail = S.c.lat; animS.fold = U.fold; animS.th75 = S.th75;
     model.animate(animS, dt, time);
   };
   U.setPad = p => { o.pad = p; };
