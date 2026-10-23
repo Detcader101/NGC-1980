@@ -21,6 +21,7 @@ The enemy carrier KRAKEN is out there doing the same, and whoever controls the m
 - **Para-drop repair team.** Downed on land? Press L and home base sends a steel dropship from over the horizon. You fly it in from the flight deck with a real fixed-wing flight model (or let the autopilot), line up the jump run against the wind, jump on the green light, then steer the canopies down; whoever lands on dry ground runs over with fuel and fixes the helicopter. Enemy flak can bring the dropship down.
 - **SKY CARRIER.** Spend 300 materiel (6 on the map) and the ALBATROSS is refitted with four ducted lift fans and takes to the air. Land on her and press Tab to stand on the bridge: wheel, speed telegraph and lift lever, all slow and heavy. Send her anywhere from the map and she flies over the islands; flak can bring her down.
 - **UH-1H Huey.** A Bell UH-1H with a validated flight model (teetering two-blade rotor with the Bell stabilizer bar, translational lift, ground effect, vortex ring state, retreating blade stall, a T53 engine with governor and freewheel so autorotations work), a full 3D cockpit with live instruments and the real caution panel, an authentic (optional) start sequence, the two-blade "wop wop", and a damage model where hits cause failures you can survive and repair. Built for a T.Flight HOTAS 4 + T-Rudder pedals: stick = cyclic, throttle lever = collective, pedals (or twist) = anti-torque; keyboard works too with the stability assist.
+- **Wheeled vehicles (NGC-1980).** M151A2 MUTT, M35A2 6x6 "deuce", Land Rover 109, Toyota Hilux, VW Beetle and Lada 2101, all drivable on one shared vehicle model: real tyres, suspension, gearboxes, transfer cases and diffs, engines that stall and drown, fording, rollovers, damage that punctures tyres and sets fuel tanks alight, 3D cabs with live gauges and synthesised engine sound. Test drive them on `game/dev/vehicle.html`.
 - **Effects that build up.** Smoke columns, fires, scorch marks, debris and oil slicks stay on the map.
 
 Win by sinking the KRAKEN or taking IRONHOLD. You lose if the ALBATROSS sinks or you run out of helicopters.
@@ -92,7 +93,10 @@ The in-game help screen has the full list.
 cd tools && npm install && node snap.mjs scenes/war.json
 node tools/jetbench.mjs             # the jet's flight model against published F/A-18C figures, in plain node
 node tools/hueybench.mjs            # the Huey's flight model against published UH-1H data (Heffley, Talbot, DCS / TM charts)
+node tools/wheeledbench.mjs         # the wheeled vehicles against TM / factory figures (speed, grades, fording, stability, fuel)
 ```
+
+Wheeled vehicle scenes: `wheeledmodel.mjs` (exteriors and variants), `wheeledcockpit.mjs` (cabs, gauges, driving), `wheeleddrive.mjs` (dirt loop, 60% ramp, twist ditch, ford, side slope, mud, fire and wreck), `wheeledaudio.mjs` (engine sound); add `--query "?only=m151"` to the first two.
 
 Jet scenes: `jet.mjs` (launch, climb, turn), `jettrap.mjs` (arrested landing), `jetweapons.mjs` (AIM-9, gun, CCIP), `jetsystems.mjs` (damage, fire, DIRECT, G-LOC, ejection), `jetterrain.mjs` (TERRAIN and PULL UP at a mountain).
 `node tools/cavebench.mjs` checks the cave generator without a browser: it prints every island's cave as an ASCII map and
