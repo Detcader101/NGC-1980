@@ -169,8 +169,9 @@ export function createDefence(env) {
     if (f) {
       D.d = Math.hypot(f.p.x - eye.x, f.p.y - eye.y, f.p.z - eye.z);
       D.losT -= dt; if (D.losT <= 0) { D.losT = 0.15; D.los = D.d < maxRange(T) * 1.15 && los(eye.x, eye.y, eye.z, f.p.x, f.p.y, f.p.z); }
+      const wasLos = D.losWas; D.losWas = D.los;
       if (D.los) { D.lockT = Math.min(D.lockT + dt, T.lock + (T.msl ? T.msl.lockExtra : 0) + 0.5); D.lostT = 0; }
-      else { D.lockT = Math.max(0, D.lockT - dt * 2); D.lostT += dt; if (D.lostT > 2.5) { D.tgt = null; D.key = null; D.mode = 'search'; } }
+      else { if (wasLos) D.lockT = Math.min(D.lockT, T.lock * (T.lockKeep ?? 1)); D.lockT = Math.max(0, D.lockT - dt * 2); D.lostT += dt; if (D.lostT > 2.5) { D.tgt = null; D.key = null; D.mode = 'search'; } }
       // lead: gun rounds -> linear prediction, iterated once; missiles and the beam point straight at it
       const sp = T.gun ? T.gun.speed : 0;
       let ax = f.p.x, ay = f.p.y, az = f.p.z;
@@ -397,9 +398,10 @@ export function createDefence(env) {
         if (onT) {
           B.dwell += dt;
           if (B.dwell >= BT.dwell) {
-            if (f.player) { B.dmgAcc += BT.playerDps * dt; if (B.dmgAcc >= 0.08) { env.hurtPlayer && env.hurtPlayer(B.dmgAcc, 'LASER'); B.dmgAcc = 0; } }
-            else if (f.hp !== undefined) { B.dmgAcc += BT.dps * dt; if (B.dmgAcc >= 0.5) { env.damage(f, B.dmgAcc, D.side); B.dmgAcc = 0; } }
-            else if (env.hitTest) { B.dmgAcc += BT.dps * dt; if (B.dmgAcc >= 1) { const h = env.hitTest(B.end.x, B.end.y, B.end.z, D.side, 4); if (h) env.damage(h, B.dmgAcc, D.side); B.dmgAcc = 0; } }
+            const k = BT.full ? clamp(1 - (1 - BT.falloff) * (L - BT.full) / (BT.range - BT.full), BT.falloff, 1) : 1;   // the beam spreads with range
+            if (f.player) { B.dmgAcc += BT.playerDps * k * dt; if (B.dmgAcc >= 0.08) { env.hurtPlayer && env.hurtPlayer(B.dmgAcc, 'LASER'); B.dmgAcc = 0; } }
+            else if (f.hp !== undefined) { B.dmgAcc += BT.dps * k * dt; if (B.dmgAcc >= 0.5) { env.damage(f, B.dmgAcc, D.side); B.dmgAcc = 0; } }
+            else if (env.hitTest) { B.dmgAcc += BT.dps * k * dt; if (B.dmgAcc >= 1) { const h = env.hitTest(B.end.x, B.end.y, B.end.z, D.side, 4); if (h) env.damage(h, B.dmgAcc, D.side); B.dmgAcc = 0; } }
           }
         } else B.dwell = Math.max(0, B.dwell - dt * 2);
       }

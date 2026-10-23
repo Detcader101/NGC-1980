@@ -49,8 +49,10 @@ export default async function (h) {
     await h.eval(`(() => { const d = __D.drones[0]; d.spd = 0.0001; __D.run(4); return { los: __D.unit.def.los, lock: __D.unit.def.lockT, hits: __D.S.hits }; })()`);
     await h.expect(`__D.unit.def.lockT === 0 && __D.S.hits === 0`);
     // pop up over the ridge: lock builds, then fire
-    await h.eval(`(() => { const d = __D.drones[0]; d.alt = 45; __D.run(5); return { los: __D.unit.def.los, lock: +__D.unit.def.lockT.toFixed(2), hits: __D.S.hits, msl: __D.def.missiles.length }; })()`);
+    await h.eval(`(() => { const d = __D.drones[0]; d.alt = 45; __D.run(2.5); return { los: __D.unit.def.los, lock: +__D.unit.def.lockT.toFixed(2), hits: __D.S.hits }; })()`);
     await h.expect(`__D.unit.def.lockT > 1`);
+    await h.eval(`(__D.run(4), { hits: __D.S.hits, kills: __D.S.kills })`);
+    await h.expect(`__D.S.hits > 0`);
     // LANCE vs a player drone, then smoke: the beam stops in the smoke
     await h.goto('dev/defence.html?mode=fight&unit=lance&drones=1&player=1&hill=0&panel=0');
     await h.waitFor('window.__D && __D.unit', 15000);

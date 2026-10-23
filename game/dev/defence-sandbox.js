@@ -8,6 +8,7 @@ import { Sfx } from '../js/audio.js';
 import { createDefence } from '../js/units/defence/brain.js';
 import { buildDefence } from '../js/units/defence/models.js';
 import { DEF } from '../js/units/defence/tune.js';
+import { buildGun } from '../js/ships.js';   // the old generic AA gun, for the 'legacy1' / 'legacy2' balance baseline
 
 const Q = new URLSearchParams(location.search);
 const TYPES = Object.keys(DEF);
@@ -37,7 +38,7 @@ const sfx = new Sfx();
 addEventListener('pointerdown', () => sfx.init()); addEventListener('keydown', () => sfx.init());
 
 // ---- the player stand-in, drones, projectiles
-const S = { time: 0, hits: 0, playerHurt: 0, kills: 0, log: [] };
+const S = { time: 0, hits: 0, playerHurt: 0, kills: 0, log: [], why: {} };
 const playerObj = { pos: new THREE.Vector3(), vel: new THREE.Vector3(), alive: false, inCave: false, hitR: 2.6 };
 const droneGeo = (() => {
   const g = new THREE.Group(), m = new THREE.MeshLambertMaterial({ color: 0xd8642a, flatShading: true }), d = new THREE.MeshLambertMaterial({ color: 0x2a2c30, flatShading: true });
@@ -79,15 +80,15 @@ function updateProj(dt) {
     else fx.add.spawn(x, y, z, 0, 0, 0, 0.04, 0.5, 0.3, 1, .9, .5, 1);
     if (b.kind === 'flak' && done) {
       fx.flak(x, y, z); sfx.ctx && sfx.flak();
-      for (const d of drones) if (!d.dead && !d.dying && d.side !== b.side && d.p.distanceTo(b.p) < 8) { if (d.isPlayer) hurtPlayer(0.13, 'FLAK'); else damage(d, 1.2); }
+      for (const d of drones) if (!d.dead && !d.dying && d.side !== b.side && d.p.distanceTo(b.p) < (d.isPlayer ? 7 : 8)) { if (d.isPlayer) hurtPlayer(0.13, 'FLAK'); else damage(d, 1.2); }   // as war.js
     } else if (!done) {
       if (y < terrainH(x, z)) { done = true; fx.impact(x, Math.max(y, terrainH(x, z)), z, 'ground'); }
-      else for (const d of drones) if (!d.dead && !d.dying && d.side !== b.side && d.p.distanceToSquared(b.p) < d.r * d.r) { done = true; fx.impact(x, y, z, 'metal'); if (d.isPlayer) hurtPlayer(0.2, 'HIT'); else damage(d, 0.5); break; }
+      else for (const d of drones) if (!d.dead && !d.dying && d.side !== b.side && d.p.distanceToSquared(b.p) < (d.isPlayer ? 2.6 : d.r) ** 2) { done = true; fx.impact(x, y, z, 'metal'); if (d.isPlayer) hurtPlayer(0.2, 'HIT'); else damage(d, 0.5); break; }
     }
     if (done) { proj[i] = proj[proj.length - 1]; proj.pop(); }
   }
 }
-function hurtPlayer(a, why) { S.playerHurt += a; S.log.unshift(`${S.time.toFixed(1)}s  PLAYER ${why}  +${a.toFixed(2)}`); S.log.length = Math.min(S.log.length, 8); }
+function hurtPlayer(a, why) { S.playerHurt += a; S.why[why] = +((S.why[why] || 0) + a).toFixed(3); S.log.unshift(`${S.time.toFixed(1)}s  PLAYER ${why}  +${a.toFixed(2)}`); S.log.length = Math.min(S.log.length, 8); }
 const ear = new THREE.Vector3();
 const hear = (x, y, z, range = 650) => Math.max(0, 1 - Math.hypot(x - ear.x, y - ear.y, z - ear.z) / range);
 const feed = (t) => { S.log.unshift(`${S.time.toFixed(1)}s  ${t}`); S.log.length = Math.min(S.log.length, 8); };
@@ -102,11 +103,11 @@ let unitType = TYPES.includes(Q.get('unit')) ? Q.get('unit') : 'vads';
 let unit = null; const lineup = [];
 function setUnit(type) {
   unitType = type;
-  if (unit) { scene.remove(unit.mesh); def.units.delete(unit); if (unit.def.beam) { const B = unit.def.beam; scene.remove(B.g, B.spot, B.line); } }
-  const side = DEF[type].side, mesh = buildDefence(type, side);
+  if (unit) { scene.remove(unit.mesh); def.units.delete(unit); if (unit.def && unit.def.beam) { const B = unit.def.beam; scene.remove(B.g, B.spot, B.line); } }
+  const legacy = type.startsWith('legacy'), side = legacy ? +type[6] : DEF[type].side, mesh = legacy ? buildGun(side, 1) : buildDefence(type, side);
   scene.add(mesh);
-  unit = { kind: 'aa', side, mesh, x: 0, y: 0, z: 0, hp: 7, dead: false };
-  def.attach(unit, { terrain: false }); mesh.rotation.y = 0.5;
+  unit = { kind: 'aa', side, mesh, x: 0, y: 0, z: 0, hp: 7, dead: false, legacy, cd: 1 };   // legacy1ship = the old carrier mount: the same gun, range 150
+  if (!legacy) def.attach(unit, { terrain: false }); mesh.rotation.y = 0.5;
   for (const d of drones) d.side = d.isPlayer ? (side === 2 ? 1 : 2) : (side === 1 ? 2 : 1);
   if (side === 1) for (const d of drones) d.isPlayer = false;
   playerObj.alive = drones.some(d => d.isPlayer);
@@ -124,6 +125,39 @@ if (Q.get('smoke') === '1') smokeScreen();
 function smokeScreen(x = 22, z = -18) {   // a wall of thick smoke between the unit and the drones' near side
   for (let i = 0; i < 260; i++) fx.mix.spawn(x + Math.random() * 10 - 5, Math.random() * 30 + 2, z + Math.random() * 60 - 30, Math.random() - 0.5, Math.random() * 0.4, Math.random() - 0.5, 25 + Math.random() * 10, 8, 14, .16, .16, .16, 0.85, 0, 0.2, 0.1);
 }
+
+// the old war.js gunFire, verbatim rules (no line of sight, no lock, instant aim), as the balance baseline
+const angDiff = (a, b) => { let d = (b - a) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return d; };
+function legacyFire(g, dt, foes) {
+  const gx = 0, gy = 2.4, gz = 0, side = g.side, range = 150, rnd = (a = 1) => Math.random() * a;
+  const ud = g.mesh.userData; if (g.aimYaw !== undefined) { ud.yaw.rotation.y += angDiff(ud.yaw.rotation.y, g.aimYaw - g.mesh.rotation.y) * Math.min(1, 5 * dt); ud.pitch.rotation.x += (g.aimPitch - ud.pitch.rotation.x) * Math.min(1, 5 * dt); }
+  g.cd -= dt; if (g.cd > 0) return;
+  let best = null, bd = range;
+  for (const f of foes) { const d = Math.hypot(f.p.x - gx, f.p.y - gy, f.p.z - gz); if (d < bd && f.p.y > gy - 4) { bd = d; best = f; } }
+  if (!best) { g.cd = 0.5; return; }
+  const t = bd / 90, ax = best.p.x + best.v.x * t - gx, ay = best.p.y + best.v.y * t - gy, az = best.p.z + best.v.z * t - gz, al = Math.hypot(ax, ay, az) || 1;
+  g.aimYaw = Math.atan2(-ax, -az); g.aimPitch = Math.asin(Math.max(-1, Math.min(1, ay / al)));
+  if (bd < 45) { g.cd = side === 1 ? 0.12 : 0.2; const sp = 140, e = side === 1 ? 0.02 : 0.05, r = () => (Math.random() * 2 - 1) * e; shoot('ciws', side, gx, gy, gz, (ax / al + r()) * sp, (ay / al + r()) * sp, (az / al + r()) * sp, 0.6); }
+  else {
+    g.cd = side === 1 ? 0.7 : 1.1 + rnd(0.6) - Math.min(0.5, S.time / 900);
+    const err = (best.player ? 7 : 5) * (bd / 100), e = () => (Math.random() * 2 - 1) * err;
+    const bx = gx + ax + e(), by = gy + ay + e(), bz = gz + az + e(), d2 = Math.hypot(bx - gx, by - gy, bz - gz);
+    shoot('flak', side, gx, gy, gz, (bx - gx) / d2 * 90, (by - gy) / d2 * 90, (bz - gz) / d2 * 90, d2 / 90);
+  }
+}
+// balance: one unit against a circling player drone (enemy units) or three hp-3 gunship stand-ins (our units)
+function balance(type, secs = 120, o = {}) {
+  for (const d of drones) scene.remove(d.mesh); drones.length = 0; proj.length = 0;
+  for (const m of def.missiles) scene.remove(m.mesh); def.missiles.length = 0;
+  S.playerHurt = 0; S.hits = 0; S.kills = 0; S.log.length = 0; S.why = {}; if (o.t0 !== undefined) S.time = o.t0;
+  const legacy = type.startsWith('legacy'), side = legacy ? +type[6] : DEF[type].side;
+  if (side === 2) { const d = addDrone(0, true); Object.assign(d, { R: o.R ?? 100, alt: o.alt ?? 30, spd: o.spd ?? 30, hp: 1e9, hpMax: 1e9 }); }
+  else for (let i = 0; i < (o.n ?? 3); i++) { const d = addDrone(i); Object.assign(d, { hp: o.hp ?? 3, hpMax: o.hp ?? 3 }, o.R ? { R: o.R } : {}, o.alt ? { alt: o.alt } : {}, o.spd ? { spd: o.spd } : {}); }
+  setUnit(type);
+  step0(secs);
+  return { type, why: S.why, hurtPerMin: +(S.playerHurt / secs * 60).toFixed(3), hits: S.hits, kills: S.kills, killsPerMin: +(S.kills / secs * 60).toFixed(2) };
+}
+const step0 = (sec, dt = 1 / 30) => { for (let t = 0; t < sec; t += dt) step(dt); };
 
 // ---- camera
 const cam = { yaw: 0.8, pitch: 0.28, dist: 18, t: new THREE.Vector3(0, 2, 0) };
@@ -156,6 +190,7 @@ function buildUI() {
 }
 function hudText() {
   if (!unit) return 'lineup: ' + TYPES.map(t => DEF[t].name).join('  |  ');
+  if (unit.legacy) return `LEGACY war.js GUN (side ${unit.side})   t ${S.time.toFixed(1)} s\nhits ${S.hits}  kills ${S.kills}  player hurt ${S.playerHurt.toFixed(2)}`;
   const D = unit.def, B = D.beam;
   return [`${DEF[unitType].name}   t ${S.time.toFixed(1)} s`,
     `mode ${D.mode}  target ${D.tgt ? (D.tgt.player ? 'PLAYER' : 'drone') : '-'}  d ${D.tgt ? D.d.toFixed(0) : '-'} m  los ${D.los ? 'yes' : 'NO'}`,
@@ -175,7 +210,7 @@ function step(dt) {
   if (unit && !unit.dead) {
     const foes = [];
     for (const d of drones) if (!d.dead && !d.dying && d.side !== unit.side) foes.push(d.isPlayer ? { p: playerObj.pos, v: playerObj.vel, player: true } : d);
-    def.update(unit, dt, foes);
+    if (unit.legacy) legacyFire(unit, dt, foes); else def.update(unit, dt, foes);
   }
   def.tick(dt);
   updateProj(dt);
@@ -194,8 +229,8 @@ function frame(now) {
 }
 requestAnimationFrame(frame);
 // test hook: advance the simulation deterministically from a scene script (headless frames are slow)
-window.__D = { THREE, scene, camera, renderer, cam, def, DEF, TYPES, drones, S, fx, lineup, playerObj, terrainH,
-  get unit() { return unit; }, setUnit, addDrone, smokeScreen,
+window.__D = { THREE, sfx, scene, camera, renderer, cam, def, DEF, TYPES, drones, S, fx, lineup, playerObj, terrainH,
+  get unit() { return unit; }, setUnit, addDrone, smokeScreen, balance,
   // frame the unit from behind and to one side, looking out toward its target (or a point p)
   frame(p, side = 0.55, k = 0.3) { const u = unit.mesh.position, t = p || (unit.def.tgt ? unit.def.tgt.p : new THREE.Vector3(60, 25, -40)), dx = t.x - u.x, dz = t.z - u.z, l = Math.hypot(dx, dz) || 1;
     cam.t.set(u.x + dx * k, u.y + 2.5 + (t.y - u.y) * k * 0.5, u.z + dz * k); cam.yaw = Math.atan2(-dx, -dz) + side; cam.pitch = 0.06; cam.dist = 12 + l * k * 1.25; return true; },
