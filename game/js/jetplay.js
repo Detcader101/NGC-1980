@@ -187,7 +187,7 @@ export function createJetPlay(ctx) {
     const u = best.k.u, same = P.tgt && P.tgt.u === u;
     P.lockT = same && P.mode === 'AA' && best.off < (P.tgt.lock ? 0.35 : 0.21) && best.k.range < 1150 && J.stores.aam.some(Boolean) ? P.lockT + dt : 0;
     const lock = P.lockT > 0.6;
-    P.tgt = { u, pos: u.p, range: best.k.range, lock, off: best.off, name: { gunship: 'GUNSHIP', transport: 'TRANSPORT', drone: 'DRONE' }[u.type] || 'BANDIT', shoot: lock && best.k.range > 120 && best.k.range < 1100 };
+    P.tgt = { u, pos: u.p, range: best.k.range, lock, off: best.off, name: { gunship: 'RW-3 WASP', transport: 'MV-22 OSPREY', drone: 'SEA KNIGHT' }[u.type] || 'BANDIT', shoot: lock && best.k.range > 120 && best.k.range < 1100 };
     best.k.locked = lock;
   }
   // where gun rounds fired now will be when they reach the target's range (minus the target's own motion)

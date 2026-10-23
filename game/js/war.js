@@ -133,7 +133,7 @@ export function createWar(ctx) {
     else { s.mesh.visible = false; s.rubble = buildRubble(s.r * 0.9); s.rubble.position.set(s.x, s.y, s.z); islandGroup.add(s.rubble); }
     if (s.chimneys) for (const c of s.chimneys) c.off = true;
     if (s.kind !== 'aa') s.rebuild = 60;
-    if (s.kind === 'shipyard') { W.E.bship = Math.max(0, W.E.bship - 30); feed('SHIPYARD DESTROYED  -  BATTLESHIP SET BACK', 'good'); }
+    if (s.kind === 'shipyard') { W.E.bship = Math.max(0, W.E.bship - 30); feed('SHIPYARD DESTROYED  -  LEVIATHAN SET BACK', 'good'); }
     if (!quiet && s.side === 2) { ctx.addScore(s.kind === 'aa' ? 250 : 600); feed(`${s.I.name}: ${s.kind === 'aa' ? 'AA GUN' : s.kind.toUpperCase()} DESTROYED`, 'good'); }
     if (!quiet && s.side === 1) feed(`${s.I.name}: OUR ${s.kind === 'aa' ? 'AA GUN' : s.kind.toUpperCase()} DESTROYED`, 'bad');
   }
@@ -539,7 +539,7 @@ export function createWar(ctx) {
   function damage(t, dmg, side) {
     if (t.player) { if (side === 2) ctx.hurtPlayer(Math.min(0.6, 0.06 * dmg), dmg >= 9 ? 'MISSILE' : 'HIT'); return; }   // AIR: the player as an air target
     if (t.ship) {   // a ship's gun mount
-      t.hp -= dmg; if (t.hp <= 0 && !t.dead) { t.dead = true; t.mesh.getWorldPosition(_w); fx.explode(_w.x, _w.y + 1, _w.z, 1.4, { debris: 5 }); t.mesh.visible = false; t.rebuild = 45; boomAt(_w.x, _w.y, _w.z, 0.5); if (t.ship.side === 2) { ctx.addScore(300); feed(`${t.ship.type === 'carrier' ? 'KRAKEN' : 'BATTLESHIP'} GUN DESTROYED`, 'good'); } }
+      t.hp -= dmg; if (t.hp <= 0 && !t.dead) { t.dead = true; t.mesh.getWorldPosition(_w); fx.explode(_w.x, _w.y + 1, _w.z, 1.4, { debris: 5 }); t.mesh.visible = false; t.rebuild = 45; boomAt(_w.x, _w.y, _w.z, 0.5); if (t.ship.side === 2) { ctx.addScore(300); feed(`${t.ship.type === 'carrier' ? 'KRAKEN' : t.ship.type === 'freighter' ? 'CONTAINER SHIP' : 'LEVIATHAN'} GUN DESTROYED`, 'good'); } }
       t.ship.hp -= dmg * 0.25; checkShip(t.ship); return;
     }
     if (t.dims) { t.hp -= dmg; t.lastHit = W.time; checkShip(t); return; }
@@ -556,8 +556,8 @@ export function createWar(ctx) {
     for (let i = 0; i < 6; i++) setTimeout(() => { toWorld(u, rnd(-10, 10), u.dims.DECK, rnd(-u.dims.L / 2, u.dims.L / 2)); fx.explode(_v.x, _v.y, _v.z, rnd(2.5, 4), { debris: 10, color: 0x4a4440, oil: true }); boomAt(_v.x, _v.y, _v.z, 1.2); }, i * 450);
     for (let i = 0; i < 4; i++) { const e = fx.burn(0, 0, 0, 60, 2.5, u.p); e.ox = rnd(-8, 8); e.oy = u.dims.DECK; e.oz = rnd(-40, 40); }
     for (let i = 0; i < 6; i++) fx.water.add({ x: u.p.x + rnd(-30, 30), y: 0.12, z: u.p.z + rnd(-30, 30), size: rnd(14, 26), grow: 0.25, a: 0.85, life: 300, tile: 3, fadeIn: 3 });
-    if (u.type === 'battleship') { W.battleship = null; ctx.addScore(5000); feed('ENEMY BATTLESHIP SUNK', 'good'); }
-    else if (u.type === 'freighter') { const salvage = Math.round(u.cargo * 0.5); W.P.mat += salvage; ctx.addScore(800); feed(`ENEMY FREIGHTER SUNK  -  ${salvage} MATERIEL SALVAGED`, 'good'); }
+    if (u.type === 'battleship') { W.battleship = null; ctx.addScore(5000); feed('LEVIATHAN SUNK', 'good'); }
+    else if (u.type === 'freighter') { const salvage = Math.round(u.cargo * 0.5); W.P.mat += salvage; ctx.addScore(800); feed(`ENEMY CONTAINER SHIP SUNK  -  ${salvage} MATERIEL SALVAGED`, 'good'); }
     else if (u.side === 2) { ctx.addScore(10000); feed('THE KRAKEN IS SINKING', 'good'); end('win', 'ENEMY CARRIER SUNK'); }
     else { feed('ALBATROSS IS SINKING', 'bad'); end('lose', 'OUR CARRIER WAS SUNK'); }
   }
@@ -780,7 +780,7 @@ export function createWar(ctx) {
       E.bship = 0; const I = W.islands.find(I => I.name === 'IRONHOLD'), y = I.yard || I;
       const [wx, wz] = nav.nearestWater(y.x + (0 - y.x) * 0.2, y.z + (0 - y.z) * 0.2);
       W.battleship = makeShip('battleship', 2, wx, wz, Math.atan2(-(0 - wx), -(0 - wz)));
-      feed('ENEMY BATTLESHIP LAUNCHED  -  IT IS HUNTING THE ALBATROSS', 'bad'); sfx.alarm?.();
+      feed('THE LEVIATHAN IS AT SEA  -  IT IS HUNTING THE ALBATROSS', 'bad'); sfx.alarm?.();
     }
     // the enemy carrier's course
     if (ec) {
@@ -892,7 +892,7 @@ export function createWar(ctx) {
     }
   };
   W.setVisibility = fog => {   // enemy aircraft and ships only where we can see; buildings once explored
-    for (const u of W.units) if (u.side === 2) { u.mesh.visible = fog.visibleAt(u.p.x, u.p.z); if (u.mesh.visible && u.type === 'freighter' && !u.spotted) { u.spotted = true; feed('RADAR: ENEMY FREIGHTER SPOTTED  -  SINK IT TO CUT THEIR SUPPLY'); } }
+    for (const u of W.units) if (u.side === 2) { u.mesh.visible = fog.visibleAt(u.p.x, u.p.z); if (u.mesh.visible && u.type === 'freighter' && !u.spotted) { u.spotted = true; feed('RADAR: ENEMY CONTAINER SHIP SPOTTED  -  SINK IT TO CUT THEIR SUPPLY'); } }
     for (const I of W.islands) { const ex = fog.exploredAt(I.x, I.z) || fog.exploredAt(I.pad.x, I.pad.z); for (const s of I.structs) { s.mesh.visible = (!s.dead || !!s.mesh.userData.setState) && ex; if (s.rubble) s.rubble.visible = ex; } if (fog.visibleAt(I.pad.x, I.pad.z)) I.seen = I.owner; }
   };
   W.damage = damage; W.hitTest = hitTest; W.pickExpansion = pickExpansion;
