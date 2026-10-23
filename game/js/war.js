@@ -318,7 +318,7 @@ export function createWar(ctx) {
 
   // ------------------------------------------------------------------------------------- aircraft
   // NGC-1980 hook: the rotary module flies 'drone' (CH-46), 'transport' (MV-22) and 'gunship' (RW-3 WASP) physically
-  const ROT = createRotary({ W, scene, fx, sfx, terrainH, isWater, feed, addScore: ctx.addScore, shoot, blast, boomAt, hear });
+  const ROT = createRotary({ W, scene, fx, sfx, terrainH, isWater, feed, addScore: ctx.addScore, shoot, blast, boomAt, hear, ear });
   W.rotary = ROT;
   function makeAir(type, side, x, y, z, extra = {}) {
     { const ru = ROT.make(type, side, x, y, z, extra); if (ru) { W.units.push(ru); return ru; } }   // NGC-1980 hook

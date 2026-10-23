@@ -25,6 +25,7 @@ export const UNITS = {
     mission(scene, W) {
       const U = createCH46Unit({ parent: scene, env: W.env, world: W.world, lz: () => W.lz(18), home: () => W.spot(-2, -2), pad: W.PAD, start: { ...W.spot(-2, -2), yaw: W.deck.yaw }, modex: 5 });
       return {
+        sound: () => [{ kind: 'ch46', x: U.S.body.pos[0], y: U.S.body.pos[1], z: U.S.body.pos[2], vx: U.S.body.vel[0], vy: U.S.body.vel[1], vz: U.S.body.vel[2], nr: U.S.rpm, load: (U.S.rf.T + U.S.ra.T) / (U.S.mass * 9.81) }],
         U, chase: 32, focus: () => U.model.group, squadCenter: () => { const c = {}; return U.squad.center(c) ? c : null; }, vel: () => ({ x: U.S.body.vel[0], z: U.S.body.vel[2] }), done: () => !!U.parked || !!U.dead,
         update: (dt, t) => U.update(dt, t),
         telemetry(t) {
@@ -47,6 +48,7 @@ export const UNITS = {
       const lz = { ...W.lz(18), x: W.PAD.x - 18, hdg: Math.PI / 2 };
       const U = createMV22Unit({ parent: scene, env: W.env, world: W.world, lz: () => lz, home: () => W.krakenSpot(-1, -36), pad: W.PAD, start: { ...W.krakenSpot(-1, -36), yaw: W.kraken.yaw }, squad: 12 });
       return {
+        sound: () => [{ kind: 'mv22', x: U.S.body.pos[0], y: U.S.body.pos[1], z: U.S.body.pos[2], vx: U.S.body.vel[0], vy: U.S.body.vel[1], vz: U.S.body.vel[2], nr: U.folding ? 0 : U.S.rpm, load: (U.S.rR.T + U.S.rL.T) / (U.S.mass * 9.81), nac: U.S.nac }],
         U, chase: 40, focus: () => U.model.group, homeDeck: () => W.kraken, squadCenter: () => { const c = {}; return U.squad.center(c) ? c : null; }, vel: () => ({ x: U.S.body.vel[0], z: U.S.body.vel[2] }), done: () => !!U.parked || !!U.dead,
         update: (dt, t) => U.update(dt, t),
         telemetry(t) {
@@ -79,6 +81,7 @@ export const UNITS = {
       const all = [...ws, amb];
       let shots = 0; const fire0 = fire;
       return {
+        sound: () => all.map(w => ({ kind: 'wasp', x: w.S.body.pos[0], y: w.S.body.pos[1], z: w.S.body.pos[2], vx: w.S.body.vel[0], vy: w.S.body.vel[1], vz: w.S.body.vel[2], nr: w.S.power / 260e3, chirp: w.AI.fire })),
         U: { ws, amb }, chase: 18, focus: () => ws.find(w => !w.dead)?.model.group || huey.group, vel: () => { const w = ws.find(w => !w.dead) || ws[0]; return { x: w.S.body.vel[0], z: w.S.body.vel[2] }; },
         done: () => false, homeDeck: () => W.kraken,
         update(dt, t) {

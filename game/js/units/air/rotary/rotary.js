@@ -13,6 +13,7 @@ import { createWaspUnit } from './waspunit.js';
 import { createSquad, padSlots } from './squad.js';
 import { attitude } from './rb.js';
 import { stateOf } from './pilot.js';
+import { createRotorSound } from './rotorsound.js';
 
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
 const _v = new THREE.Vector3(), _att = {};
@@ -264,8 +265,23 @@ export function createRotary(ctx) {
     return true;
   }
   // ---- after the war is done with a unit: garrisons stay on their island, the dead lie a while
+  // sound: the nearest of each type get a voice (list objects reused: no per-frame garbage)
+  const snd = ctx.sfx ? createRotorSound(ctx.sfx) : null, sndList = [];
+  function sound(dt) {
+    if (!snd || !ctx.ear) return;
+    let n = 0;
+    for (const u of W.units) {
+      if (!u.rot || !u.rot.S || u.dead) continue;
+      const S = u.rot.S, p = sndList[n] || (sndList[n] = {}); n++;
+      p.kind = u.kind; p.x = u.p.x; p.y = u.p.y; p.z = u.p.z; p.vx = u.v.x; p.vy = u.v.y; p.vz = u.v.z;
+      if (u.kind === 'ch46') { p.nr = S.rpm; p.load = (S.rf.T + S.ra.T) / (S.mass * 9.81); }
+      else if (u.kind === 'mv22') { p.nr = u.rot.folding ? 0 : S.rpm; p.load = (S.rR.T + S.rL.T) / (S.mass * 9.81); p.nac = S.nac; }
+      else { p.nr = u.dying ? 0.1 : S.power / 260e3; const tg = !!u.rot.target; p.chirp = tg && !u._hadTgt; u._hadTgt = tg; }
+    }
+    sndList.length = n; snd.update(sndList, ctx.ear, dt);
+  }
   R.tick = (dt) => {
-    R.time = W.time;
+    R.time = W.time; sound(dt);
     for (let i = R.squads.length - 1; i >= 0; i--) {
       const s = R.squads[i], Q = s.Q;
       if (s.u.dead && !s.gone) { s.gone = true; if (Q.alive && s.I.owner === s.side) Q.garrison(); }
@@ -279,6 +295,7 @@ export function createRotary(ctx) {
     }
   };
   R.reset = () => { for (const s of R.squads) s.Q.dispose(); R.squads.length = 0; };
+  R.snd = snd;
   R.chooseLZ = chooseLZ; R.env = env; R.root = root;
   return R;
 }

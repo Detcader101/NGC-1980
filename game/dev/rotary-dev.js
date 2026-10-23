@@ -5,6 +5,9 @@
 import * as THREE from 'three';
 import { createDevWorld } from '../js/units/air/rotary/devworld.js';
 import { UNITS } from './rotary-units.js';
+import { Sfx } from '../js/audio.js';
+import { createRotorSound } from '../js/units/air/rotary/rotorsound.js';
+const sfx = new Sfx(), snd = createRotorSound(sfx);
 
 const Q = new URLSearchParams(location.search);
 const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(2, devicePixelRatio) * (+Q.get('res') || 1)); document.body.prepend(renderer.domElement);
@@ -57,6 +60,7 @@ for (const c of ['chase', 'side', 'lz', 'squad', 'orbit', 'deck']) btn('cam: ' +
 btn('model turntable', () => go('view', VIEW === 'model' ? 'mission' : 'model'), () => VIEW === 'model');
 for (const s of [1, 2, 4, 8]) btn('speed x' + s, () => { speed = s; }, () => speed === s);
 btn('pause', () => { paused = !paused; }, () => paused);
+btn('sound', () => { sfx.init(); sfx.on = !sfx.on; if (sfx.master) sfx.master.gain.value = sfx.on ? 0.5 : 0; }, () => !!sfx.on);
 function refresh() { for (const b of bar.children) b.classList.toggle('on', !!(b.on && b.on())); }
 refresh();
 
@@ -97,6 +101,7 @@ function frame(now) {
   if (unit && !paused) { acc += real * speed; let n = 0; while (acc >= DT && n < 40) { step(); acc -= DT; n++; } }
   if (tm) { if (!paused) cam.yaw += real * 0.25; tm.update(real, now / 1000); }
   syncCarrier(); placeCamera(real);
+  if (unit && unit.sound && sfx.on) snd.update(unit.sound(), camera.position, real);
   if (unit) tel.innerHTML = unit.telemetry(simT);
   else tel.innerHTML = `<b>${UNITS[AC].label}</b> turntable  (drag: orbit, wheel: zoom)`;
   renderer.render(scene, camera);

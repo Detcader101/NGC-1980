@@ -1314,7 +1314,7 @@ function drawMap() {
     radar.font = '14px monospace'; radar.textAlign = 'center'; radar.fillStyle = '#bfe';
     radar.fillText('CLICK THE SEA: SAIL THE ALBATROSS THERE   ·   CLICK AN ISLAND: SELECT IT   ·   M: CLOSE', W / 2, Hh - 70);
     radar.fillStyle = '#ff8';
-    radar.fillText(`1: CAPTURE DRONE (${COST.drone})  ·  2: AA GUN ON OUR ISLAND (${COST.aa})  ·  3: NEW HELICOPTER (${COST.heli})  ·  4: ESCORT FIGHTER (${COST.escort})  ·  6: SKY CARRIER REFIT (${COST.sky})     MATERIEL ${Math.floor(G.mat)}`, W / 2, Hh - 46);
+    radar.fillText(`1: SEA KNIGHT + 13 MARINES (${COST.drone})  ·  2: AA GUN ON OUR ISLAND (${COST.aa})  ·  3: NEW HELICOPTER (${COST.heli})  ·  4: ESCORT FIGHTER (${COST.escort})  ·  6: SKY CARRIER REFIT (${COST.sky})     MATERIEL ${Math.floor(G.mat)}`, W / 2, Hh - 46);
     radar.font = '12px monospace'; radar.fillStyle = '#8ab';
     radar.fillText('HQ  HEADQUARTERS     C  CAVE FORTRESS (STEAL ITS POD)     F  FUEL     M  MATERIEL (FACTORY)     R  RADAR     ▲ AA GUNS', W / 2, Hh - 24);
     if (selIsl) {
