@@ -106,8 +106,8 @@ export function buildM113Mesh(opts = {}) {
   // jerry cans and a stowage rack on the rear corners
   for (const s of [-1, 1]) hull.add(new THREE.Mesh(box(0.33, 0.46, 0.17, s * 1.05, 1.4, 2.53), new THREE.MeshLambertMaterial({ color: 0x3e4a2e, flatShading: true })));
   const hullMesh = new THREE.Mesh(merge(parts), paintM); hullMesh.name = 'hullShell'; hull.add(hullMesh); shell.push(hullMesh);
-  hull.add(decal(stencil('2-41IN'), 0.4, 0.1, V3(-0.6, 0.86, -2.425), Math.PI, -0.52));
-  hull.add(decal(stencil('C-12'), 0.32, 0.08, V3(0.6, 0.86, -2.425), Math.PI, -0.52));
+  hull.add(decal(stencil('2-41IN'), 0.4, 0.1, V3(-0.6, 0.86, -2.425), Math.PI, 0.52));
+  hull.add(decal(stencil('C-12'), 0.32, 0.08, V3(0.6, 0.86, -2.425), Math.PI, 0.52));
   for (const s of [-1, 1]) hull.add(decal(stencil('C12', 256, 96), 0.5, 0.19, V3(s * 1.272, 1.45, 0.6), s * Math.PI / 2, 0));
   // ---- running gear: front sprocket, rear idler, 5 roadwheels, no support rollers
   const gearDef = s => ({

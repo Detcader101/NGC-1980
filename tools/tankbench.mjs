@@ -172,6 +172,17 @@ function turret() {
   // manual traverse when the hydraulics are down
   const T2 = createM60A3(); T2.reset(0, 40, 0, env); run(T2, env, 2, { park: true, power: false });
   const a0 = T2.losAz; run(T2, env, 5, { trav: 1, park: true, power: false }); const manual = Math.abs(T2.losAz - a0) / 5 / D2R;
+  // the start-up procedure from cold and dark (TM order, game times)
+  {
+    const C = createM60A3(), env2 = flat('paved'); C.reset(0, 0, 0, env2, { cold: true });
+    run(C, env2, 3, { starter: true, park: true });                                  // MASTER still off: nothing
+    const deadStart = !C.fm.eng.running;
+    let tRun = null; run(C, env2, 10, (T, t) => ({ master: true, starter: !T.fm.eng.running, park: true }), (T, t) => { if (tRun == null && T.fm.eng.running && T.fm.eng.w * 9.549 > 600) tRun = t; });
+    const before = C.stabMode; run(C, env2, 5, { master: true, power: true, park: true }); const runUp = C.stabMode;
+    run(C, env2, 20, { master: true, power: true, park: true });
+    check('M60A3 start-up: MASTER, START, turret POWER, gyros', deadStart && tRun != null && tRun < 6 && before === 'MANUAL' && runUp === 'STAB RUN-UP' && C.stabMode === 'STAB',
+      `no master: ${deadStart ? 'dead' : 'RAN'}; runs after ${tRun?.toFixed(1)} s; ${before} -> ${runUp} -> ${C.stabMode}`, 'starts only with MASTER on; STAB after the gyro run-up', 'GAME (TM order)');
+  }
   check('M60A3 manual traverse (handwheel)', manual > 1 && manual < 4, `${manual.toFixed(2)} deg/s`, 'slow, crank by hand', 'GAME');
   // stabilisation: sight-line wander while driving the bump course, stab on / off
   const wander = stab => {
