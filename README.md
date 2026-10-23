@@ -27,6 +27,7 @@ The enemy carrier KRAKEN is out there doing the same, and whoever controls the m
 - **Get out and walk.** Land the Huey (or stop a Hornet on deck), press Y and climb out: walk the carrier's deck while she sails and turns (you stay where you stand), climb the island ladder to its roof, go over the side and swim to the stern ladder, walk onto an island pad and hold it. A placeholder Marine with an M16 for now; the real infantry, weapons, medical and inventory plug into slots (see [docs/ngc1980/FOUNDATION.md](docs/ngc1980/FOUNDATION.md)).
 - **Drive.** A placeholder test car waits at the home island's motor pool (7 delivers it to a friendly island): get in at the driver's door, drive on terrain, pads and decks, ford shallow water (and drown the engine past 0.53 m).
 - **AI rotorcraft that really fly.** The CH-46E Sea Knight (tandem rotors, differential collective, longitudinal cyclic trim), the RUNAWAY's seized MV-22B Osprey (tiltrotor: nacelles convert from helicopter to airplane mode inside the conversion corridor) and the RW-3 WASP (ducted fan) each have a physical flight model checked against published data, and an AI pilot that flies it through stick, collective, pedals and nacelles: deck launches from a moving carrier, terrain-following transits, decelerating approaches, touchdowns beside the pad. Marines run off the Sea Knight's ramp and take the pad; the Osprey's machine troopers march out in lock-step. WASPs strafe, snipe from a hover, lie in ambush behind hills and circle in eerie swarms. Watch them on `game/dev/rotary.html`.
+- **Armour: M60A3 TTS and M113A2** (on their test ground for now, `dev/tank.html`; they join the war in the next wave). A tracked-vehicle simulation with torsion-bar roadwheels, track-soil shear and sinkage on road, grass, sand, mud and bog, a real drivetrain (diesel, torque converter, cross-drive with pivot turns / controlled differential), steps, trenches, slopes, fording, and the M113 swims on its tracks. The tank has a stabilised turret, laser rangefinder and ballistic computer, day and thermal (TTS) sights, a loader, coax and .50; both have full crew interiors (driver's periscopes and gauges, gunner's station, commander's cupola, the M113's troop compartment) and synthesised engine, track and gun sound.
 - **Effects that build up.** Smoke columns, fires, scorch marks, debris and oil slicks stay on the map.
 
 Win by sinking the KRAKEN or taking IRONHOLD. You lose if the ALBATROSS sinks or you run out of helicopters.
@@ -165,6 +166,17 @@ ACSM equations); `scenes/infantry.mjs`, `infantrydrills.mjs` and `infantrymodels
 On foot and vehicles: `node tools/footbench.mjs` (soldier movement vs FM 22-5 cadences, ladders, swimming, moving decks), `node tools/boxcarbench.mjs` (the test car), scenes `foot.mjs` and `vehicle.mjs`.
 Rotary AI scenes: `ch46capture.mjs` (command 1: a Sea Knight takes SANDBAR), `mv22landing.mjs` (an Osprey lands machine troopers), `wasp.mjs` (a WASP raid), `rotarydev.mjs` (the dev page: model turntables and each aircraft's whole mission; `ROTARY=ch46|mv22|wasp`).
 Huey scenes: `hueystart.json` (cold start), `hueyhover.json` (hover trim, forward flight), `hueyauto.json` (practice autorotation with power recovery), `hueycockpit.mjs`, `hueymodel.mjs` (screenshots).
+`node tools/tankbench.mjs` checks the M60A3 and M113A2 against published figures (speed, acceleration, gradient, side
+slope, step, trench, fording, swimming, turning, turret rates, stabiliser), every number tagged with its source.
+Armour scenes: `tankmodel.mjs` (exterior; `VEH=m113` for the APC), `tankinterior.mjs` (crew stations, sight pictures),
+`tankdrive.mjs` (the obstacle lanes, a first-round hit at 1000 m), `tankm113.mjs` (ramp, troops, swimming),
+`tankaudio.mjs` (the synthesised sound, rendered offline).
+
+**Armour test ground** (`game/dev/tank.html`, `?veh=m113` for the APC): W/S accelerator / brake, A/D steer, Z X C V
+range R N L H (M113: R N 1-2 1-3), P park brake, I engine; Tab cycles the views (chase, driver, gunner, commander,
+free); arrows or mouse lay the gun, Space fires, F coax, T lase, G dump, 1 2 3 SABOT HEAT HEP, B stabiliser, O day /
+thermal sight, [ ] TTS 3x / 8x, U white / black hot, E (gunner) look up from the sight, K searchlight, M or Space in
+the cupola fires the .50, H hatches; M113: R ramp, Y trim vane, J bilge pumps.
 
 **RUNAWAY ground forces (NGC-1980, not in the game yet).** The enemy's land army as standalone sims and models in
 `game/js/units/runaway/`: the RW-1 STRIDER (a balancing biped that stumbles when hit, falls and gets back up), the
