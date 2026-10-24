@@ -64,7 +64,9 @@ export class Geo {
     const x0 = x - w / 2 - o, x1 = x + w / 2 + o, z0 = z - d / 2 - o, z1 = z + d / 2 + o, yr = y0 + h, ye = y0 - o * h / (d / 2);
     this.quad([x0, ye, z1], [x1, ye, z1], [x1, yr, z], [x0, yr, z], roofC);
     this.quad([x1, ye, z0], [x0, ye, z0], [x0, yr, z], [x1, yr, z], roofC);
-    this.quad([x0, ye - 0.12, z1], [x0, ye - 0.12, z0], [x1, ye - 0.12, z0], [x1, ye - 0.12, z1], shade(roofC, 0.55));   // soffit
+    // soffit: under the overhang only (ngc/interiors: it used to span the whole footprint, a dark false ceiling inside)
+    const ys = ye - 0.12, sc = shade(roofC, 0.55), gx0 = x - w / 2, gx1 = x + w / 2, sof = (xa, xb, za, zb) => { if (xb - xa > 1e-3 && zb - za > 1e-3) this.quad([xa, ys, zb], [xa, ys, za], [xb, ys, za], [xb, ys, zb], sc); };
+    sof(x0, x1, z1 - o, z1); sof(x0, x1, z0, z0 + o); sof(x0, gx0, z0 + o, z1 - o); sof(gx1, x1, z0 + o, z1 - o);
     if (gableC) { const gx0 = x - w / 2, gx1 = x + w / 2; this.tri([gx1, y0, z + d / 2], [gx1, y0, z - d / 2], [gx1, yr - 0.02, z], gableC); this.tri([gx0, y0, z - d / 2], [gx0, y0, z + d / 2], [gx0, yr - 0.02, z], gableC); }
     return this;
   }

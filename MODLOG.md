@@ -1785,6 +1785,103 @@ untouched (war.js's exported hitTest / damage / blast carry the gunnery).
   while the M60 and M113 were parked in the test car's path - moved), jettrap 7/7, world 4/4; foot.mjs 10/12 (the island
   roof ladder top and the medical slot check; the experimental base scored 6/18 on the same machine - load-dependent).
 
+## 2026-10-23 — NGC-1980 wave 2: the WHEELED vehicles in the game (branch ngc/wheeledgame)
+The M151A2 MUTT, the M35A2 and the 1980 civilian cars (Land Rover 109, Hilux, Beetle, Lada 2101) are crafts in the real
+game on the WHEELED sim (vehiclefm.js); the placeholder TEST CAR is gone. Files (game/js/units/wheeled/): wheeledcraft.js
+(the craft), wheeledenv.js (the world as the sim sees it), wheeledworld.js (WORLD buildings as obstacles, parked town
+cars), motorpool.js (who is where, traffic, sound, service, crew wounds), vehicleguns.js (M60 / M2), delivery.js +
+lcm8model.js (CH-46 sling, LCM-8), wheeledbake.js (one-mesh far LOD and the WORLD's instanced traffic); world/parked.js.
+- **Seats, doors, exits.** From the spec's seats: driver, front passenger, the M151's M60 pedestal gunner and rear seat,
+  the M35's cab, M36 ring-mount M2 gunner and six of the sixteen troop places on the benches (three a side, doors at the
+  tailgate), the Hilux bed, the cars' rear seats. `[ ]` changes seat, Y gets out (below 8 km/h). The Marine keeps his kit
+  and wounds: while he rides the walker sits at the seat (so hits land on the right body part) and his medical keeps
+  running (bleeding goes on; dying of wounds in a seat ends the life). Parked engines go off; the starter cranks when you
+  take the wheel (the sim's starter motor). Seated Marine figures show you in chase view; civilians drive the traffic.
+- **Controls.** Keyboard throttle / brake ramps, hold S stopped = reverse (driver.js auto), the steering wheel turns at a
+  hand's rate and the keys' lock narrows with speed (to a ~0.42 g turn: full lock at 60 km/h would roll the M151, as it
+  should with a stick), the parking brake holds when stopped with no pedal; gamepad (left stick with a softer narrowing,
+  RT / LT, A) and HOTAS via CTL (stick X or pedals, the throttle lever, toe brakes); U 4x4, L low range, G fording kit, N
+  gearbox auto / semi / manual (E / Q, C clutch), I engine, H horn, O lights. Gunner: the mouse (or arrows / right stick)
+  lays the gun within the mount's elevation limits, LMB / F / RT fires, R changes the belt. V: seat eye / chase.
+- **Environment (wheeledenv.js on makeTerrainEnv).** terrainH through a 1 m lattice cache with bilinear interpolation
+  (the sim asks ~300 heights a substep; terrainH costs 1-2 us); the WORLD road ribbons' lift (0.10-0.14 m) is in the
+  lattice so the wheels roll on the drawn road; surfaces from roadAt (tarmac / dirt) then the ground host (pads = tarmac,
+  sand, rock, grass, mud, sea bottom = sand); bridge decks from roadAt().y (+lift) when the vehicle is up there, with
+  parapets at hw + 5 cm; ship decks from GR.deckH (only when a ship is within 140 m), carried kinematically by
+  platform.js (`sim.transport`, new in vehiclefm.js) so parked and driven vehicles ride a sailing, turning carrier with
+  sub-25 cm drift; the sea for fording; collide = the ground host (trees, island buildings, AA, ship islands, crafts),
+  the WORLD's houses, barns, churches, sheds, garden trees, lamps (wheeledworld.js, 32 m grid, wild towns indexed when
+  first approached), other wheeled vehicles (an impact pushes them), the fenced cave shafts, and terrain faces steeper
+  than ~57 deg (the WHEELED report: cliffs need collide).
+- **Where they are.** An M151 and an M35 at every friendly island's motor pool, an M151 and an M35 on the deck park
+  (deck spot 3 is the armour's M113), an M151 when an island is taken. 7 then 1: an M151 slung in under a CH-46E from
+  the ALBATROSS (10 materiel; it hovers, lowers it onto its wheels, releases and goes home); 7 then 2: an M35 run in by an
+  LCM-8 to a beach a truck can climb (20; ramp down, the truck drives off up the sand under a driver.js follower). Real
+  cars parked on the verges of the town streets (kerbside, by position hash: the WORLD's garden cars never get placed -
+  see gotchas) can be commandeered; parked vehicles sleep (no physics) until touched. Vehicles stopped on a friendly pad
+  or the deck refuel, are repaired after 3 s and get their belts back.
+- **Traffic.** The WORLD's instanced saloons / hatches / estates / vans / pickups are our Lada / Beetle / Lada / Land
+  Rover / Hilux baked into one mesh each (paint per instance from the cars' own colours). Within 150 m of the player up to
+  six are handed to the real sim (far LOD: 1 probe, 1/240 s; mid within 60 m) with a createFollower on their lane, gaps
+  to the player, our vehicles and the WORLD's cars ahead, a toot when held up, restart after a stall, carrying on into
+  the next road; handed back to the WORLD past 240 m. Stand in front of one: it stops; Y at its door commandeers it.
+- **Weapons (game level).** M60: 550 rpm, 853 m/s, 100-round belts, 6 boxes; M2: 500 rpm, 890 m/s, 100-round cans, 4.
+  Rounds fly with gravity and dispersion, every fifth a tracer, swept in 2.5 m steps against terrain, decks, island
+  trees and war.hitTest; war.damage(side 1) 0.38 / 1.1 war units a hit; impacts through fx; InfantryAudio shots (an M2
+  voice added). Incoming: war.js bullets ('b' as hmg, 'ciws' / 'jb' as cannon) walk vehicledamage.js's ray through
+  tyres, engine, radiator, fuel tank, battery, crew; blasts (and every fx.explode near a vehicle) blast it and push it;
+  fire, leaks, flats, seizures and wrecks (charred model, burning) follow from the damage model. A crew hit on your seat
+  becomes the Marine's wound (bullets on the body part, blasts / crashes as fragments, fire as burns).
+- **HUD and sound.** Line: type, seat, speed, gear and rpm, 4x4 / 6x6, surface (BRIDGE), wading depth against the fording
+  depth, temperature, oil pressure, damage (FLAT, LEAKS, FIRE), the Marine's bleeding; fuel bar in litres; weapons line
+  belt / boxes and troops. WheeledAudio on the game's bus for your vehicle (inside / outside) and the nearest other
+  running one; silent in the pause menu (and the deliveries stop).
+- **The M35's troops.** B at one of our pads: six Marines board (105 kg each through sim.setLoad), sit on the benches,
+  the capture time on a pad drops 8 -> 4 s; B again dismounts them.
+- **The working cab (cabin.js, on interior.js).** The vehicles stand cold. Look at a switch and click, as in the jets
+  (main.js's switch ray asks `craft.switches()` / `craft.click(id)`): M151A2 rotary ignition OFF / ON / START, M35A2
+  ENGINE switch + START button (TM 9-2320-209-10; the air gauge), the cars' key; the military main light switch OFF /
+  BO MARKER / BO DRIVE / SERVICE DRIVE (lamps as glow sprites: head, blackout drive, tail; no scene lights - they recompile
+  every shader), panel light, wipers that sweep (~45 a minute, back to park), horn button, front-drive / transfer levers,
+  parking brake (T-handle / lever), the fire extinguisher (2 on the military vehicles: X or click; works on a young fire).
+  T changes a flat for the spare (stopped, 25 s, the spare goes off the body). The driver's hands and arms on the wheel only
+  when somebody drives (you, traffic, an AI); his legs and boots on the pedals (right foot to the brake when braking, left
+  on the clutch) and his body in the seat in first person. The camera shakes with hits, crashes and a rough engine.
+- **Input.** Gamepad: A handbrake, B horn, X engine (gunner: reload), Y view, LB / RB seat, Back get out. HOTAS through
+  CTL's bindings: trigger = horn (gunner: the gun), pickle = engine, VIEW, GEAR = next seat, EJECT = get out, FLAPS =
+  lights, WHEEL BRAKE = parking brake. **Racing wheel** (wheelinput.js, pure; Logitech G27 / G29 / G920 / G923,
+  Thrustmaster T150 / T300 / TMX / T248, Fanatec, Moza ... by id): the rim is axis 0; the pedals are found from their rest
+  values (an axis sitting at +-1 when first seen; +1 or -1 released both work; one reported 0 until touched counts as
+  released; a hat axis at ~1.29 is not a pedal), in axis order gas, brake, clutch; `localStorage.tz_wheel_axes =
+  "0,1,2,3"` (`!` inverts) overrides. Paddles shift (semi / manual), the clutch pedal works the manual gearbox (C on the
+  keys, ramped), face buttons horn / engine / view / handbrake, 6 / 7 seats. A wheel replaces the gamepad and HOTAS paths
+  while you drive (its buttons would double up).
+- **COMMANDER hook (motorpool.js).** One function per vehicle type, no materiel, no delivery:
+  `pool.spawnM151(where, opt)`, `spawnM35`, `spawnLandRover`, `spawnHilux`, `spawnBeetle`, `spawnLada`, and the same as
+  `pool.spawners[type]`. where = an island (its motor pool spot), 'deck' (the deck park) or { x, z, yaw } (the nearest
+  clear, dry, level place within 40 m: no roof, wall, tree or vehicle; `plat` / `exact` place it as given); opt = {
+  running, owner, colour, home }; returns the craft (in pool.list and crafts) or null. `window.__G.pool` in ?debug.
+- **Fix: hits between sim steps were lost.** vehiclefm.js cleared `S.events` at the start of each step, so the events a
+  round raised through `dmg.hit` from war.js (between steps) - crewHit above all - never reached the craft: the seat
+  died silently and the Marine riding in it was never wounded. Events raised between steps are now queued
+  (`S._between`) and reported with the next step. (The scene's old check fired 12 rounds synchronously and read the
+  wound at once; it now waits a frame.)
+- **Tests.** wheeledbench 65/65; wheelinputbench 14/14 (fake pads: G29 / G920 / T150 / G923 reversed pedals / T300 at 0 /
+  Fanatec with an override; the HOTAS, T-Rudder and an Xbox pad are not wheels); wheeledgame.mjs (walk to the M151, the
+  cab's ignition ON / START, lights, wipers, keyboard drive, village street, bridge, farm field in 4x4, ford, M60 on an
+  enemy building, hits and the crew wound, commandeer a town car, the deck under way, the M35's troops and ring mount,
+  the commander spawners) 27/27 (tools/runs/2026-10-24_09-58-48-wheeledgame); vehicle 14/14, wheeleddeliver 6/6,
+  wheeledcockpit 12/12, wheeleddrive 7/7, wheeledmodel 6/6, wheeledaudio 10/10, smoke 5/5.
+- **Fix: a jeep could not drive into the surf.** vehicle.mjs's last leg had failed since the M151 went in (it dug in on
+  the beach: GR's 'sand' is all ground under 2.5 m, the soft dry kind, crr 0.12 and sinkage, a spinning tyre digs a 2WD
+  jeep in and even 4WD stalled on a twisted beach). Sand under 0.8 m (the tide line, the shallows) is now firm (dirt) for
+  the wheeled sim (wheeledenv.js): the soft sand is up the beach, as on a real one. The LCM-8's truck gets ashore on it too.
+- **One .50 hit kills.** A round through a seated man's chest is fatal (crewHit hands MEDINV the hit at the seat's chest
+  height); the scene reads the wound off his medical and patches him up before foot.js sees the death.
+- **Untested / next.** A real wheel's axis layout on Linux / macOS drivers (only Windows-style layouts assumed; the
+  override covers the rest); force feedback (the Gamepad API has none for wheels); night (the lamps are sprites: the game
+  has no night yet); the cab's switches in the M35 by eye in every light; AI crews in the other seats of a vehicle you
+  drive (only the M35's troops ride along).
 ## 2026-10-23 — NAVAL polish (authenticity pass)
 - ALBATROSS: crew placed by role round each aircraft and station (plane captain brown at the nose, blue chockers at
   the mains, purple fuel crew at the refuel point, red ordnancemen at the wing stations; green catapult crew, a yellow
@@ -1968,6 +2065,49 @@ What: fish schools round the camera, water clarity seen from above, the view und
   ship hulls they are not near when the hull is stationary (by design, fish shelter by moored hulls); the far terrain
   grid could be culled under water for fps; amberjack rarely spawn in the zone's 14 m sea.
 
+## 2026-10-24 — armour at the Huey / Hornet bar: clickable crew stations, start-up, crew, HUD (branch ngc/armorgame-polish)
+
+What (on top of the stopped 2026-10-23 session's crew procedures, hatch figures, fire-command calls and LCM-8 work):
+- **Every crew station clickable** (`units/armor/armorstations.js`, new): invisible hit boxes on the controls each
+  crewman works, picked by the crosshair (mouse captured) or the cursor, framed in yellow and named on the hint line,
+  click to work them - the same path as the Huey / Hornet cockpits (main.js `pickSwitch` -> `armCk()` ->
+  `craft.cockpitObj()` / `craft.click(id)`). M60A3 driver: MASTER switch, START button, parking brake, range selector,
+  the fixed fire extinguisher pull, hatch. Gunner (E looks up from the sight): a TURRET POWER / STAB panel on the right
+  wall, the M21 computer panel's buttons (lase, dump to battlesight, SABOT / HEAT / HEP), the TTS field-of-view and
+  polarity knobs. Loader: the ready rack (round bases painted by type, taken out as the rack empties; click a type to
+  take that round and ram it), the breech, his hatch, the AN/VRC-12 (status report on the net). Commander (E: look
+  about inside the cupola): hatch, OVERRIDE (the turret slews onto the cupola's bearing, the cupola holds it), a new
+  .50 can. M113A2 driver: MASTER, START, BILGE, a RAMP / VANE panel on the left wall, fire pull, range, parking brake,
+  hatch; commander (E: look about the troop compartment): hatch, ramp, .50 ammunition box, AN/VRC-46; troops: ramp,
+  cargo hatch, radio. New geometry where the controls were missing (MASTER / START / switch panels, labels).
+- **Start-up procedure**: vehicles spawn cold and dark (`spawnAt({ ..., state: 'cold' | 'hot' })`, cold by default;
+  'hot' = running, power up, gyros run up - for units spawned into a fight). In the driver's seat the start-up is
+  yours (I = MASTER + START, or click them); in any other seat the crew does it, each man his part, with the calls
+  (DRIVER: MASTER ON / STARTING, GUNNER: TURRET POWER ON - STAB RUNNING UP / STAB UP). The gunner's I is TURRET POWER.
+  Left alone the crew shuts down (fuel off, then MASTER and turret power off). `crankUp()` (orders, the LCM-8) starts
+  at once. HUD line: COLD - MASTER OFF, the stab mode.
+- **Crew in and out**: seated / standing figures in the M60's fighting compartment (gunner, commander, loader - each
+  rises through his hatch when he rides head out, where the head-and-shoulders figure takes over), shown when you
+  are inside; the M113's squad as before.
+- **Sound**: switch clicks and relay clunks, hatch latch / slam, the stabiliser gyros' run-up whine.
+- **Fixes**: the band across the gunner's periscope picture (the needle nose, the AN/VSS-1 searchlight and the shield
+  were in front of the sight camera, which sat inside the turret): the sight eye is now at the sight head and the own
+  tank is hidden while looking through it. The HUD weapons line wraps short of the message feed (`#weap` max-width),
+  the centre message sits below the top-left block (`#msg` top max(22%, 236px)), the sight's TURRET POWER OFF note
+  moved up out of the hint line. The M113 commander's head-out view was a wall (the cupola lid stood in front of his
+  face): the lid now opens back past vertical and his eye is ahead of the hinge. The M60 at the home hard parked on mud
+  past the top and slid (its gun dug in: MAIN GUN OUT before anyone got in - why the gunner "would not fire"): it now
+  parks on the concrete 5 m below the top; a muzzle resting on the ground while the tank barely moves no longer bends
+  the gun, and the gunner will not lay the gun into the ground (chase-view aim on the near ground ignored).
+- Commander integration: `spawnAt(sp)` (cold / hot), `order(pts)`, `crankUp()`, `startUp()` stay plain calls.
+
+Tests: `scenes/armorpolish.mjs` (every station: driver cold start by clicking, gunner power off / on, loader HEAT out
+of the rack into the breech, commander override slew, crew head out / buttoned up under fire, HUD overlap check,
+M113 driver start + RAMP switch, commander radio, LCM-8 run), `scenes/armorgame.mjs` (start-up keys added),
+`scenes/armorprobe.mjs` (sight / periscope pictures looking down the hard), tankbench 73/73, armorgamebench 20/20.
+Untested: the hover frame with a real captured mouse on a real GPU (headless fakes the pointer lock); gamepad / HOTAS
+buttons for the switches (keyboard I / E cover them).
+
 ## 2026-10-24 — NGC-1980 infantry depth, fixes: the rich Marines' rounds, hands off the rifle in third person, AI grenades and carries (branch ngc/infdepth-fix)
 - **"Both sides fire" (groundwar scene), counted right**: every round the near (rich) Marines fire already went through
   groundsim's `shoot()` into `GS.stats.shots[1]`; what was wrong was the rest of the count and the men themselves.
@@ -2054,3 +2194,159 @@ the switches, real-state cautions, switch sounds, and the RIO visible behind you
   hueycockpit.mjs does); a hit box parented to a moving lever (the throttle finger lifts) picks fine.
 - **Untested**: by ear (headless is muted); the start on real HOTAS; the RIO's mirrors (the three canopy-bow mirrors
   are still plain metal).
+
+## 2026-10-23 — Hercules polish: start flow, jump procedure, flight deck, sound, markings (branch ngc/c130-polish)
+- **Engine start (c130fm.js)**, after T.O. 1C-130H-1 normal start and the OPS card: battery; the GTC (the C-130H's
+  gas turbine compressor) comes on speed in ~20 s and puts bleed air on the manifold; with the condition lever at RUN
+  the start button engages the air turbine starter (~95 N m at the engine, x13.54); fuel and ignition at 16 %
+  (light-off ~3 s), TIT peaks ~775 C (normal start 750-830), the starter drops out at 60 % (~9 s), the fuel control's
+  acceleration schedule takes it to ground idle (~14 s). No battery or no bleed air: no start; >60 s below 60 %: hung
+  start, aborted. Later engines start on cross-bleed from a running one. Bench: 46/46 (the 38 plus 8 start checks).
+- **Checklists**: a checklist card on the flight deck (by the pilot's left knee) shows what the crew is working
+  through, ticked live: STARTING ENGINES (battery, GTC, bleed air, power levers ground idle, brakes, engines
+  3-4-2-1 with rpm / peak TIT) and BEFORE TAXI on the ground; DESCENT, SLOWDOWN / AIRDROP (drop altitude, flaps 50,
+  130 KIAS, stick hooked up, doors and deflectors, door bundle, jump lights) and COMPLETION OF DROP in the drop.
+  dev/c130.html?start=cold + K: the flight engineer runs the start himself (one action every ~1.2 s).
+- **Overhead**: BATTERY, GTC START, GTC BLEED AIR switches, GTC rpm gauge, engine oil pressure (50-60 psi) and
+  temperature (60-85 C) per engine (OPS card bands); condition-lever labels moved inside their box.
+- **Jump procedure (drop.js)**: the jumpmaster's commands by time to the release point (FM 3-21.220 order, compressed
+  like the run): GET READY, OUTBOARD PERSONNEL STAND UP, HOOK UP, CHECK STATIC LINES, CHECK EQUIPMENT, SOUND OFF FOR
+  EQUIPMENT CHECK ("OKAY!"), doors open / air deflectors out / platforms down, STAND BY on the red light, GO on the
+  green. No jump before HOOK UP ("NOT HOOKED UP - HOLD"). The door bundle (A-21 bag on a G-14 cargo chute, new
+  buildDoorBundle in jumper.js) goes out of the left door first; it lands short of the jumpers (no drive, ~28 ft/s);
+  within 200 m of the helicopter on dry land the tools are recovered and the repair goes 1.5x faster. Each jumper's
+  static line runs from the anchor cable over the door to his pack while it pays out (~0.6 s), then the spent line and
+  its deployment bag stream aft from the door, flapping, until the jumpmaster pulls them in (~7 s after the last man);
+  the doors close after that. The bail-out (alarm bell / shot down) skips all of it.
+- **Sound (c130audio.js)**: each engine on its own stereo position (on the flight deck #1/#2 on the left; outside
+  panned by where each prop is across the camera), the synchrophaser's slow hunting (the beat comes and goes), the
+  flat-pitch buzz-saw on the ground in beta, the GTC's thin scream and bleed-air hiss. c130.mjs checks the graph runs:
+  props 2-4 at 68 Hz (blade passage at 100 %), the feathered #1 winding down.
+- **Exterior**: red DANGER PROPELLER bands on the fuselage in the plane of the props, wing walkway lines, the HF long
+  wire from the flight deck roof to the fin.
+- **Landing on the home island: decided against for now.** HOME ISLAND is a 260 m, hilly island (hills up to ~40 m);
+  an assault strip needs a flattened bed in the terrain (world.js / world/net.js, other agents' files and the baked
+  terrain). In this world a C-130 landing roll is ~70-80 m (a quarter of the real ~1,000 ft), but the approach and
+  roll-out need a ~250 m flat, clear strip: the island has none. The test page lands on its runway; the bench lands.
+  Next step if wanted: a dirt strip as a flattened bed in net.js, then a landing mode in drop.js.
+- Tests: c130bench 46/46; c130.mjs 8/8 (adds cold start 3-4-2-1 with TIT < 830 and the sound graph), c130jump.json
+  (new: jumpmaster stages, doors, bundle, trailing bags, retrieval) 4/4, drop.json 5/5 (the F press waits for the
+  bundle, then the first man).
+
+## 2026-10-24 — Hercules polish, part 2: crew in the hold, navigator, door bundle on the DZ (branch ngc/c130-polish)
+- Reviewed and kept the stopped session's work (ground start, jump procedure, checklist card, sound, markings, the
+  overhead gauges drawn three a frame); merged experimental (MODLOG conflict only: both sides kept).
+- **Jumpmaster and safety visible (drop.js holdCrew, jumper.js poses 'doorcheck' / 'safety')**: from DOORS OPEN the
+  jumpmaster does his door check in the left door (FM 3-21.220: hands on both edges, leaning into the slipstream,
+  looking toward the nose for the DZ); the next jumper only steps into that door after the jumpmaster has pushed the
+  door bundle. Then he stands at the aft edge of the left door facing the stick, controlling the static lines; the
+  safety (the loadmaster) does the same at the right door. Both stay aboard and retrieve the bags; gone with the doors.
+- **Navigator on the flight deck (c130cockpit.js)**: seated at the existing table (left, aft of the pilot), facing
+  outboard, grease pencil on a jump-run chart (IP, CARP, DZ circle); his panel has the APN-59 search radar scope
+  (green phosphor, 4 s sweep painting the DZ return at its bearing / range) and the APN-147 Doppler readout (ground
+  speed and drift angle, real-equivalent knots like the ASI and DME). `seated()` takes a parent group now.
+- **Door bundle on the DZ (drop.js predictPattern)**: the release point was set for the men alone, so the bundle (no
+  drive, ~28 ft/s) landed ~70-150 m short, on WELLSPRING usually in the sea (c130jump: bundleOK false, 148 m). While
+  the bundle is aboard, the computed impact point is 80 % of the way from the men's unsteered point to the bundle's,
+  and the green comes with that point at the helicopter, not up to 35 m early. Now the bundle lands ~25 m short and
+  the stick, which steers (~120 m of drive from 800 ft), still lands within 10 m (c130jump: bundle -24 m, men 1-13 m).
+- Test hook: `drop.camLocal = [[x,y,z],[lx,ly,lz]]` puts the camera at a point in the aeroplane's frame (scenes).
+- Tests: c130bench 46/46; c130.mjs 8/8 (new deck_navigator shot); c130jump.json 7/7 (adds the door check, the safeties,
+  the stick in the door, bundleOK); drop.json 5/5; dropflak.json 1/1; smoke.json 5/5.
+
+## 2026-10-24 — NGC-1980 wave 3 #2: INTERIORS - enterable buildings, doors / gates / hatches, the ALBATROSS inside, seats and occupants (branch ngc/interiors)
+
+**What.** The lived-in world's buildings are now rooms you walk into, the carrier has a hangar deck, an island and a
+bridge you can reach on foot, and people sit in the seats.
+- **Buildings** (`game/js/interiors/rooms.js`, pure plans from the same seeded world items the worker draws): detached
+  houses (1-2 floors: living room with tiled fireplace, sofa, armchairs, the telly with its aerial, sideboard; lino
+  kitchen with units, cooker, sink, fridge, table; a 34-degree stair up the side wall to the bedrooms - double bed,
+  bedside tables, wardrobe, dressing table - and the bathroom), cottages, terrace units (shops on the ground floor:
+  grocer, newsagent, hardware, cafe - counter and till, shelves of goods, the freezer, sweet jars, news rack - or a
+  home; a stair to the first-floor flat), the parish church (porch, two blocks of pews, pulpit, lectern, font, organ,
+  chancel with altar and rail), the filling-station kiosk, barns (hay, sacks, the tractor), boat sheds (an upturned
+  clinker dinghy, pots, oars), lock-up garages (a car, the bench, tyres) and the task force's **quonset barracks** -
+  one by each island pad (bunks, footlockers, wall lockers, oil stove, the duty desk, rifle rack). Inner walls carry
+  real window holes where the shell has glass (sills, curtains), skirting, ceilings with pendant lights.
+- **Drawing** (`interiors/interiors.js`, `furniture.js`): rooms are built only within ~55 m of the camera (one merged
+  geometry per building, <=2 builds a frame, dropped beyond 80 m). The shells stay the world's closed chunk meshes:
+  rooms draw first (renderOrder -3), then a depth-only **punch** in front of each facade doorway (-2), then the world -
+  so an open front door shows the hall, and from inside the shell's faces are culled (windows are windows).
+  `world/kit.js` gable soffits now cover only the overhang (they were a false ceiling across every house).
+- **Doors, gates, hatches** (`interiors/doors.js`, one registry): hinged house / shop / church / hut doors, barn and
+  boat-shed double doors, up-and-over garage doors, ship's watertight doors (the dogs come off first), the bridge
+  hatch, and a five-bar **gate in every field wall's gap**. Each leaf is a live collider (walls, vehicles; gates are
+  soft: a tank goes through), drawn instanced, with synthesised latch / creak / dog / slam sounds. **F** opens or
+  shuts the door you face (HUD: "F: OPEN THE DOOR").
+- **Walking them** (`interiors/roomsolid.js`, `world/solid.js`): each enterable item is its walls with door gaps,
+  furniture boxes, door leaves and floors (ground floor, upper floor round its stairwell, stairs as ramps, the front
+  step and steps down a slope) instead of one box.
+- **ALBATROSS** (`interiors/shipint.js` pure plan, `shipgeo.js`): the **hangar deck** at the lifts' lower stop (y 4.25)
+  inside the hull's hangar sides, open to the three deck-edge lifts (chains across while a lift is up), deckhead
+  beams and lights, fire curtains, the hangar deck control booth, spare engines on stands, tow tractors, a crash
+  crane, tool boxes, drums, crates, fire stations, crew at work. The **island**: in through the port watertight door
+  to Flight Deck Control (the Ouija board with its aircraft templates), a watertight door and inclined ladder down
+  the trunk to the hangar deck, inclined ladders up to the O-5 **ready room** (16 ready-room chairs, status board,
+  pilots), O-7 **flag plot** and the O-9 **navigation bridge** (helm, engine order telegraph, captain's chair to port,
+  radar repeater, chart table, bridge-wing doors, glass all round), a ladder up through a **hatch** to the island top
+  deck. Sailors, officers and pilots at their stations.
+- **Seats and occupants** (`interiors/seats.js`, `crewfig.js`): a RIDE craft - Y at a free seat's door: the Huey's
+  four-man troop bench, two seats by a CH-46's ramp (the AI crew flies you out; Y once it has landed; [ ] along the
+  bench and on to the Huey's controls; V looks from outside); you are seen in the seat (a 1980 Marine, M16 between
+  the knees). The Hornet now shows its pilot (HGU-33, visor, mask, harness) while someone flies it; a CH-46's 13
+  Marines sit in the red troop seats until they file down the ramp; the MV-22's machine troopers stand in their racks.
+
+**Shared-file hooks** (commented ngc/interiors): `ground.js` (deckH(x, z, y): layered ship floors inside the ALBATROSS
+interior zones; interior walls replace ALB_BOXES when present; interior ladders; GR.stairAt / addStairs);
+`platform.js` (settle reads the deck under the man's feet); `footsim.js` (stairs at a stair's pace; the grade probe
+looks 0.8 m up, not 1.2 - the next deck overhead read as a wall); `units/infantry/soldier.js` + `marinesim.js`
+(env.onStair: stairs are not Tobler hills); `marine.js` (F use + hint); `world/solid.js` (rooms, gates, ramps,
+roomsNear / gatesNear / stairAt); `world/models.js` (door position / shop units from the seed, shared with the rooms);
+`world/kit.js` (soffit); `main.js` (create, update, afterWar, map skips the RIDE craft, debug handles).
+
+**Tests.** `tools/scenes/interiors.mjs` 18/18 (+ the gate when a farm is found): the island door blocks shut, opens,
+in to FDC, the trunk door, down to the hangar deck, up O-5 / O-7 / bridge, the hatch blocks the ladder until opened,
+out onto the top deck, Huey cabin seat in / out, a two-storey house's front door blocks / opens / the rooms, a CH-46
+with its squad seated. `tools/scenes/interiorsprev.mjs` shoots `game/dev/interiors.html` (every plan cut away, the
+ship interior, the crew figures). smoke 5/5, foot 12/12, marine 15/15; footbench, marinebench, infantrybench 90/90,
+worldsolidbench 9/9, worldbench pass.
+
+**Known / next.** Terraces' second floor and above, the church tower, pri-fly and the KRAKEN stay closed. Interiors
+are lit by the sun like the outside (no interior lighting model). The punch hides other figures standing just
+inside a doorway when seen from outside. AI soldiers do not open doors. Rounds do not hit the world's buildings
+(as before). Field gates exist only where the far world has farms. The ALBATROSS layout fits experimental's island
+model: if NAVAL's island changes (ngc/naval-polish: parts.islandBoxes / islandFloor), `shipint.js`'s ISL table and
+the punch positions must follow it.
+
+## 2026-10-24 — NGC-1980 HORNET + HUEY polish: 1980 F/A-18A and UH-1H authenticity, HOTAS 4 + T-Rudder defaults (branch ngc/hornethuey-polish)
+- **HORNET thrust, the one flight-model change**: F404-GE-400 (1980 FSD and early production) instead of the 1990s
+  -402 EPE: 16,000 lbf with afterburner (GE / Jane's Aero-Engines: CONFIRMED), ~10,600 lbf dry (sources 10,500-10,700:
+  INFERRED) = TMIL 47,150 N / TAB 71,170 N per engine. jetbench 24/24 (M 0.94 MIL / 1.01 AB low level, cat end 188
+  KEAS, approach unchanged); `tools/jetfingerprint.ref` re-baselined for this change only, SAME on all 12 scenarios since.
+- **HORNET = FSD #3, BuNo 160777** (jetmodel.js): gull grey over white, full-colour insignia, the NATC fin band, fin
+  span 2.5 m (the real fin height); the player's jet is always #3. **Cockpit** (jetcockpit.js): the F/A-18A layout -
+  horizontal indicator and engine fuel display, monochrome DDIs (left DDI CHECKLIST page and caution messages), the real
+  caution light panel (CK SEAT, APU ACC, BATT SW, FCS HOT, GEN TIE, FUEL LO, FCES, L / R GEN...), the warning /
+  advisory lights left of the left DDI (L / R BLEED, SPD BRK, STBY, the red and green L BAR, REC, XMIT), threat lamps,
+  UFC layout, HUD bank scale. **Start** (jetplay.js): BATT, APU (READY light), ENG CRANK R then L, generators on line,
+  the crank refused without APU air; I still does it all. Voice alerts limited to the period's (ALTITUDE, FUEL LOW,
+  BINGO - no GPWS "pull up").
+- **HUEY = 1980 US Army UH-1H** (hueymodel.js): subdued black markings and fin serial, the WSPS wire cutter /
+  windscreen deflector, APR-39 antennas, the crew chief on the right M60D. Cockpit: ENGINE INLET AIR caption (the
+  20-caption panel in its 5 x 4 order), caution lamp TEST, a tail-rotor buzz in audio.js (2 blades x 5.123 x Nr = 55 Hz).
+- **HOTAS 4 + T-Rudder defaults for both aircraft** (hotas.js, heli.js, main.js): one binding table, two meanings. The
+  J panel labels say both ("LANDING GEAR · HUEY STAB ASSIST"). Huey: trigger door gun, 2 / 4 hoist, 3 rockets, 5 bombs,
+  6 stability assist, 7 force trim, 8 landing light, 9 view, 11 starter (held; the real starter is the trigger under the
+  collective grip). The throttle rocker is FLARES (right) / CHAFF (left) in every aircraft (the HOTAS 4 has 12 buttons, so
+  the old 13 / 14 defaults did not exist); the panel now shows "HOTAS 4 ROCKER RIGHT / LEFT" for them, the device's
+  short name is "HOTAS 4" so button numbers are not cut off. README: a button table for both aircraft.
+- **Flight models unchanged** apart from the thrust above: jetfingerprint SAME (bit-identical, 12 scenarios),
+  jetbench 24/24, hueybench 41/41, tomcatbench 32/32, airbench 28/28, hotas self-test (+ rocker test).
+- **Scenes**: hornetcockpit.mjs 10/10 (panel, every display, cold and dark, battery-only cautions, APU, crank, checklist,
+  voice alerts), hueycockpit.mjs 7/7, new hueyhotas.mjs 11/11 (a fake HOTAS 4 + T-Rudder through navigator.getGamepads:
+  starter on button 11 to light-off, buttons 6-9, collective and pedals, the panel), jet.mjs 8/8, smoke 5/5.
+- **Gotchas / untested**: the machine ran at load ~170 during testing, so wall-clock waits in the older scenes
+  (hueystart.json, hueyhover.json, jets.json) time out at 1-5 fps (the game caps dt at 0.1 s, so sim time runs at a
+  third of real time); hueystart / hueyhover / jets fail identically on a clean `experimental` checkout (checked).
+  jets.json: the AI Tomcat stays on the cat there too; worth a look when the machine is quiet. hueyhotas waits on game state. Real HOTAS button numbering is from the Windows HID
+  order (1 = trigger); not checked on the physical stick in this pass.
