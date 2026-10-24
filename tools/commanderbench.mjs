@@ -99,5 +99,46 @@ function run(H, AI, env, secs, ctlBase = { throttle: 1, gov: 'AUTO', fuel: true 
   run(H, AI, env, 5);
   check('huey AI: a landed Huey stays landed', H.landed && H.pos.y < 3, `y ${H.pos.y.toFixed(2)}`);
 }
+// ------------------------------------------------------------------ the jets' wingman (pilot.js on the player's airframes)
+{
+  const { createJetSim } = await import('../game/js/jetfm.js');
+  const { createTomcatSim } = await import('../game/js/units/air/tomcatfm.js');
+  const { createWingman } = await import('../game/js/units/commander/wingman.js');
+  // the ALBATROSS as airbench.mjs has it: 120 x 28 m deck 8 m up, island to starboard, sailing
+  function carrierWorld(c) {
+    const loc = (x, z) => { const dx = x - c.x, dz = z - c.z, co = Math.cos(c.yaw), si = Math.sin(c.yaw); return [dx * co - dz * si, dx * si + dz * co]; };
+    const deckAt = (x, z) => { const [lx, lz] = loc(x, z); let hw = 14 * 0.97, h = -1e9; if (lz < -44) hw *= Math.max(0, (lz + 66) / 22); if (Math.abs(lx) < hw && lz > -66 && lz < 60) h = 8; if (Math.abs(lx - 10.5) < 2.9 && Math.abs(lz - 6) < 9) h = 25; return h; };
+    return {
+      c, terrain: () => 0, groundY: (x, z) => Math.max(0, deckAt(x, z)), water: (x, z) => deckAt(x, z) < 0,
+      surfVel: (x, z) => deckAt(x, z) > 0 ? { vx: -Math.sin(c.yaw) * c.speed, vz: -Math.cos(c.yaw) * c.speed, w: 0, cx: c.x, cz: c.z } : null,
+      carrier: () => ({ x: c.x, z: c.z, yaw: c.yaw, deck: 8, vx: -Math.sin(c.yaw) * c.speed, vz: -Math.cos(c.yaw) * c.speed, speed: c.speed, w: 0 }),
+      anchor: () => ({ x: c.x, y: 8, z: c.z }), foes: function* () {}, missiles: function* () {}, inFlight: () => 0, fire: () => {},
+      tick(dt) { c.x += -Math.sin(c.yaw) * c.speed * dt; c.z += -Math.cos(c.yaw) * c.speed * dt; },
+    };
+  }
+  for (const [kind, make] of [['HORNET', () => createJetSim(9)], ['TOMCAT', () => createTomcatSim(9)]]) {
+    const W = carrierWorld({ x: 0, z: 0, yaw: 0.4, speed: 5 });
+    const A = make(); A.reset(600, 0, -500, 1.2, { running: true, airborne: true, alt: 260, speed: 80 }); for (const e of A.eng) e.n = 0.85; A.gearCmd = 0; A.flapSel = 0;
+    const P = createWingman(A, kind, kind);
+    const st0 = P.state; let t = 0, recalled = false, minY = 1e9, seenCap = false;
+    for (; t < 700; t += DT) {
+      if (P.state === 'cap') seenCap = true;
+      if (!recalled && t > 40) { P.recall(); recalled = true; }
+      P.update(DT, W); W.tick(DT);
+      if (P.state !== 'final' && P.state !== 'trapped' && !A.onGround) minY = Math.min(minY, A.pos.y);
+      if (A.dead || P.recovered) break;
+    }
+    check(`wingman ${kind}: takes over in the air on CAP`, st0 === 'cap' && seenCap, `${st0}`);
+    check(`wingman ${kind}: recalled, flies the pattern and traps`, P.recovered && !A.dead, P.recovered ? `${P.trapped.wire} wire at ${t.toFixed(0)} s, ${P.waveoffs} wave-offs` : `${A.dead || P.state} ${P.why}`);
+    check(`wingman ${kind}: never below 60 m outside the approach`, minY > 60, minY.toFixed(0) + ' m');
+  }
+  {   // just off the cat, gear down, low: climbs out first
+    const W = carrierWorld({ x: 0, z: 0, yaw: 0, speed: 5 });
+    const A = createJetSim(9); A.reset(0, 0, -200, 0, { running: true, airborne: true, alt: 40, speed: 75 }); A.gearCmd = 1; A.flapSel = 1; for (const e of A.eng) e.n = 0.9;
+    const P = createWingman(A, 'HORNET', 'HORNET'); const st0 = P.state; let minY = 1e9;
+    for (let t = 0; t < 60; t += DT) { P.update(DT, W); W.tick(DT); minY = Math.min(minY, A.pos.y); if (A.dead) break; }
+    check('wingman HORNET: low and dirty off the bow -> climbs, cleans up', st0 === 'climb' && !A.dead && A.gearCmd === 0 && A.pos.y > 150, `${st0} -> ${P.state}, y ${A.pos.y.toFixed(0)}, gear ${A.gearCmd}, min ${minY.toFixed(0)} m`);
+  }
+}
 console.log(`\n${n - fails}/${n} pass`);
 process.exit(fails ? 1 : 0);
