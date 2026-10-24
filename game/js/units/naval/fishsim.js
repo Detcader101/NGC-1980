@@ -35,11 +35,11 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 //   shy    how far (m) a threat of strength 1 is felt; fear lasts `calm` s
 export const SPECIES = [
   {   // European pilchard (sardine), Sardina pilchardus: 15-20 cm, dense schools near the surface over the shelf.
-    key: 'sardine', name: 'PILCHARD', len: [0.14, 0.2], n: [50, 90], water: [3, 99], band: [0.7, 6], bottom: 0,
+    key: 'sardine', name: 'PILCHARD', len: [0.14, 0.2], n: [50, 90], water: [3, 99], band: [0.5, 5], bottom: 0,
     cruise: 2.2, burst: 12, nnd: 1.0, view: 1.6, agility: 3.5, shy: 1.0, calm: 4, weight: 3,
   },
   {   // Atlantic mackerel, Scomber scombrus: 30-40 cm, fast, schools in mid water; bursts ~5 m/s (Wardle 1975, INFERRED).
-    key: 'mackerel', name: 'MACKEREL', len: [0.28, 0.38], n: [25, 45], water: [5, 99], band: [1.5, 11], bottom: 0,
+    key: 'mackerel', name: 'MACKEREL', len: [0.28, 0.38], n: [25, 45], water: [5, 99], band: [1, 8], bottom: 0,
     cruise: 2.6, burst: 11, nnd: 1.2, view: 3.0, agility: 3.0, shy: 1.1, calm: 5, weight: 2,
   },
   {   // Flathead grey mullet, Mugil cephalus: 30-50 cm, small groups grazing the bottom in the shallows by the beaches.
@@ -113,7 +113,7 @@ export function createFishSim({ depthAt, seed = 1980 } = {}) {
   S.blast = (x, y, z, s = 1) => {
     const coup = y > 0.4 ? Math.exp(-(y - 0.4) / 1.5) : 1;   // in the air above the water little of it goes in
     if (coup < 0.05) { S.scare(x, 0, z, 12 + 8 * s, 0.8, 2); return 0; }
-    const rStun = (3 + 6 * s) * coup, rKill = rStun * 0.45;
+    const rStun = (3 + 6 * s) * coup, rKill = rStun * 0.2;
     let hit = 0;
     for (const sc of S.schools) {
       if (Math.hypot(sc.cx - x, sc.cz - z) > rStun + sc.rad + 2) continue;
@@ -154,7 +154,7 @@ export function createFishSim({ depthAt, seed = 1980 } = {}) {
     const sp = SPECIES[spi], n = Math.round(sp.n[0] + r() * (sp.n[1] - sp.n[0]));
     if (S.nFish + n > FISH.MAX_FISH) return null;
     const b = bed(x, z), L0 = sp.len[0] + r() * (sp.len[1] - sp.len[0]);
-    band(sp, b, L0, _b); const yc = _b[0] + (_b[1] - _b[0]) * (0.3 + 0.4 * r());
+    band(sp, b, L0, _b); const yc = _b[1] - (_b[1] - _b[0]) * (0.15 + 0.35 * r());   // (the upper part of the band)
     const hd = r() * TAU, sp0 = sp.cruise * L0;
     const sc = { sp: spi, n, a: new Float32Array(n * STRIDE), cx: x, cy: yc, cz: z, rad: 2, gx: x, gz: z, goalT: 0, alarm: 0, ax: 0, az: 0, at: -99, fade: fadeIn ? 0 : 1, L: L0, vx: 0, vz: 0, id: S.stats.spawned };
     // a ball of fish, nnd apart, all heading roughly one way

@@ -307,7 +307,7 @@ export function createMarine(ctx) {
     const turn = (kd('ArrowRight') ? 1 : 0) - (kd('ArrowLeft') ? 1 : 0);
     const shift = kd('ShiftLeft', 'ShiftRight');
     const inp = { move: [mx, my], look: [lookX + turn * 2.2 * (input.dt || 0.016), lookY], sprint: shift && S.ads < 0.5, holdBreath: shift && S.ads > 0.5, walk: walkMode,
-      lean: (kd('KeyE') ? 1 : 0) - (kd('KeyQ') ? 1 : 0), ads: held.ads, fire: held.fire, actions: [] };
+      lean: (kd('KeyE') ? 1 : 0) - (kd('KeyQ') ? 1 : 0), ads: held.ads, fire: held.fire, actions: [], dive: kd('KeyC') };   // (ngc/waterfish: C held in the water dives)
     lookX = lookY = 0;
     if (pad) {   // left stick moves, right stick looks, RT fires, LT aims, A jump, B crouch, X reload, Y weapon, L3 sprint
       const ax = i => { const v = pad.axes[i] || 0; return Math.abs(v) < 0.15 ? 0 : v; }, b = i => !!pad.buttons[i]?.pressed;
@@ -315,6 +315,7 @@ export function createMarine(ctx) {
       inp.look[0] += ax(2) * 2.4 * (input.dt || 0.016); inp.look[1] -= ax(3) * 1.6 * (input.dt || 0.016);
       if ((pad.buttons[7]?.value || 0) > 0.4) inp.fire = true; if ((pad.buttons[6]?.value || 0) > 0.4) inp.ads = true;
       if (b(10)) inp.sprint = true;
+      if (b(1)) inp.dive = true;   // ngc/waterfish: B held in the water dives
       const pr = Mr._padPrev ||= {};
       const edge = i => b(i) && !pr[i];
       if (edge(0)) presses.push(S.stance === 'stand' ? 'jump' : 'stance:stand'); if (edge(1)) presses.push('stance:crouch'); if (edge(2)) presses.push('reload'); if (edge(3)) presses.push('slot' + ((R.slot + 1) % R.slots.length + 1));
@@ -696,7 +697,7 @@ export function createMarine(ctx) {
     else if (lt) hint = `F: SEARCH ${lt.name}`;
     else if (ctx.serviceAt(W.x, W.z) && (I.countRounds(MS.inv, '556') < 200 || !MS.inv.slots.secondary)) hint = 'F: REARM AND RESUPPLY HERE';
     else if (W.ladder) hint = `${W.ladder.name}  -  W / S TO CLIMB, SPACE TO LET GO`;
-    else if (W.swim) hint = 'SWIMMING  -  MAKE FOR A BEACH OR THE ALBATROSS STERN LADDER';
+    else if (W.swim) hint = W.y < -2 ? `UNDER WATER  -  BREATH ${Math.ceil(W.breath)} S  ·  LET GO OF C TO SURFACE` : 'SWIMMING  -  HOLD C TO DIVE  ·  MAKE FOR A BEACH OR THE ALBATROSS STERN LADDER';   // (ngc/waterfish)
     else { tip = true; hint = 'CLICK: LOOK  ·  LMB FIRE  ·  RMB AIM  ·  R RELOAD  ·  TAB GEAR  ·  H HEALTH  ·  F USE  ·  C / Z STANCE  ·  Q / E LEAN'; }
     return { line, hint, tip, weap, fuel: S.staminaFrac * 100, fuelLabel: 'STAMINA' };
   };

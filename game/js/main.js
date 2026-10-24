@@ -25,7 +25,8 @@ import { createTomcatCraft } from './crafttomcat.js';   // TOMCAT: the flyable F
 const isJet = () => G.craft === 'jet' || G.craft === 'tomcat';   // TOMCAT: the fixed-wing crafts share the HORNET's hooks below
 import { createBoxCar } from './units/placeholder/boxcar.js';
 import { buildBoxCarMesh } from './units/placeholder/boxcarmodel.js';
-import { createSeaUniforms, updateSeaUniforms, SEA_VS_DECL, SEA_VS, SEA_FS_DECL, SEA_FS_NORMAL, SEA_FS_FOAM } from './units/naval/seasurface.js';   // SEAWORLD: the sea surface
+import { createSeaUniforms, updateSeaUniforms, SEA_VS_DECL, SEA_VS, SEA_FS_DECL, SEA_FS_NORMAL, SEA_FS_FOAM, SEA_FS_WATER, SEA_FS_UNDER } from './units/naval/seasurface.js';   // SEAWORLD: the sea surface
+import { createSeaLife } from './units/naval/sealife.js';   // SEALIFE (ngc/waterfish): fish, the sea bed, the view under water
 import { createWorldSolid } from './world/solid.js';   // SEAWORLD: buildings as colliders, piers and bridges as floors
 import { createWorldLife } from './world/life.js'; import { clearedAt } from './world/net.js';   // WORLD: the lived-in world (towns, roads, traffic, people, faction structures)
 // ARMOUR (wave 2): the M60A3 TTS and M113A2 as crafts on the island world, their sights, the LCM-8 delivery
@@ -441,7 +442,7 @@ const terrainFS = `
         float d=-vRaw, t=uTime; vec2 p=vW.xz;
         float a1=p.x*.19+t*1.3+sin(p.y*.05), a2=p.y*.23-t*1.1+sin(p.x*.07), a3=(p.x+p.y)*.11+t*.7;
         ${SEA_FS_NORMAL}
-        vec3 wc=mix(vec3(.09,.45,.55),vec3(.02,.13,.36),smoothstep(0.,9.,d));
+        ${SEA_FS_WATER}   // SEALIFE: clarity - the bed through the water (was a flat shallows-to-deep ramp)
         wc=mix(wc,vec3(.1,.2,.27),sk*.4);   // a rough sea is darker and greyer
         vec3 V=normalize(cameraPosition-vW), L=normalize(uSun);
         float fr=1.-max(dot(V,wn),0.); fr*=fr; fr*=fr;
@@ -451,6 +452,7 @@ const terrainFS = `
         wc+=vec3(1.,.95,.8)*sp*1.3*(sp>.002?glitAt(p,t,sk):1.);
         ${SEA_FS_FOAM}
         c=mix(wc*(.92+.05*(sin(a1)+sin(a2))),vec3(.88,.94,1.),foam*.8);
+        ${SEA_FS_UNDER}   // SEALIFE: the surface from below
       }
       if(bi>=0){ vec4 b=uBases[bi]; float d=length(vW.xz-b.xy);
         if(d<${BASE_R.toFixed(1)}){ vec3 pc=mix(vec3(.5,.52,.58),vec3(.36,.3,.3),b.w)*l;
@@ -1076,6 +1078,17 @@ const marine = foot.setMarine(createMarine({
   scene: zScene, GR, war, fx, sfx, say, feed, keyDown: kd, crafts, canvas, hudEl: $('hud'), terrainH, ISLANDS,
   serviceAt: (x, z) => serviceAt(x, z), active: () => G.craft === 'foot' && G.state === 'play' && G.mode === 'zarch',
 }));
+// SEALIFE (ngc/waterfish, units/naval/sealife.js): fish round the camera that flee ships, wash, swimmers and blasts; the
+// sea bed and the view from under the surface. The player's own disturbances come from here (the AI's from war.units).
+const _slF = {};
+const sealife = createSeaLife({
+  scene: zScene, uniforms: terrainUni, terrain, sky, fx, war, depthAt: terrainH, isWater, cell: TG, canvas,
+  active: () => G.mode === 'zarch' && camB < 0.01,
+  extra: S => {
+    if (G.craft === 'heli' && Z.alive && !G.heliStowed && H.agl < 25 && waterAt(H.pos.x, H.pos.z)) S.point(H.pos.x, 0, H.pos.z, 8 + 14 * (1 - H.agl / 25), Math.min(1, H.thrust / 40000) * (1.1 - H.agl / 25), 0, 0, 2 + 3 * (1 - H.agl / 25));   // the Huey's downwash
+    if (G.craft === 'foot' && foot.exists) { const f = foot.frame(_slF); if (f.y < 0.3 && isWater(f.x, f.z)) S.point(f.x, f.y + 0.6, f.z, 4.5, 0.65, 0, 0, 2.5); }   // a man in the water
+  },
+});
 // --- ground vehicles: the placeholder TEST CAR (the WHEELED agent's M151A2 takes its place)
 const vehCtx = {
   scene: zScene, GR, crafts, war, fx, sfx, say, feed, keyDown: kd, CTL, hwOn: () => !keyboardOnly, camZ: () => zCam,
@@ -1973,6 +1986,7 @@ function frame(now) {
     else { $('fade').style.opacity = Math.max(0, 1 - tr.t / D); if (tr.t >= D) { G.state = 'play'; $('fade').style.opacity = 0; $('fadeText').textContent = ''; } }
   }
   fx.update(dt);
+  sealife.update(G.state === 'paused' ? 0 : dt);   // SEALIFE
   const t1 = performance.now();
   updateCamsAndMeshes(dt, now / 1000);
   world.update(dt, zCam, G.state === 'play');   // WORLD: stream the lived-in world round the camera, ambient life
@@ -1988,4 +2002,4 @@ function frame(now) {
 const PROF = { sim: 0, prep: 0, render: 0 };
 buildCaves(); war.reset(); resetZarch(true); placeVehicles(); updateFogImg(); terrainStream(Z.pos.x, Z.pos.z);
 requestAnimationFrame(frame);
-if (params.has('debug')) { window.__G = { G, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, forest, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, carC, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); enterCave(b); } }
+if (params.has('debug')) { window.__G = { G, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, forest, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, carC, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); enterCave(b); } }
