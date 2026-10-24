@@ -2187,8 +2187,11 @@ the switches, real-state cautions, switch sounds, and the RIO visible behind you
   bit-identical. Scene tomcatcockpit.mjs (new): 8 -> cat, Y out / Y in (cold), then through the real mouse path (hover,
   hint, mousedown): ENG CRANK R, throttle IDLE at 20%, light-off, crank out, R GEN, the left engine, MASTER CAUTION reset,
   STAB AUG pitch off / on, L GEN off / on, FUEL DUMP, the emergency sweep guard and handle (the wings follow to 30°), a
-  wet / hot start, I shutdown and auto start, the RIO over both shoulders, back to the cat and the shot. The old
-  preview-page close-ups are now tomcatpanels.mjs.
+  wet / hot start, I shutdown and auto start, the RIO over both shoulders, back to the cat (MIL, the cat fires). The
+  old preview-page close-ups are now tomcatpanels.mjs.
+- **Known, not from this branch**: headless (SwiftShader, 3-4 fps) the Tomcat dies ('crash' at deck height, ~180 KEAS)
+  at the end of the catapult stroke, so tomcat.mjs fails from the shot on. Reproduced with experimental's own game code
+  (574ad1b) and a minimal 8 -> MIL -> shot scene; for whoever owns the deck / cat (something solid at the bow?).
 - **Gotchas**: headless game time runs well below real time (the auto start needs minutes of wall clock: wait on state);
   the cockpit camera pulls the head back to centre unless the mouse is captured (scenes hold it with an interval, as
   hueycockpit.mjs does); a hit box parented to a moving lever (the throttle finger lifts) picks fine.

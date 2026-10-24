@@ -123,14 +123,11 @@ export default async function (h) {
   await h.eval('(__hy = [0.95, -0.7], 1)'); await h.wait(600); await h.shot('left-console');
   await h.eval('(__hy = [-0.95, -0.7], 1)'); await h.wait(600); await h.shot('right-console');
   await h.eval('(__hy = null, clearInterval(__hyI), 1)');
-  // ---- back to the cat and the shot still works (8, MIL)
+  // ---- back to the cat (8): MIL on both and the cat fires (what happens after the stroke is tomcat.mjs's business)
   await h.key('tap', 'Digit8'); await h.wait(600);
   await h.expect('A.cat && A.cat.state === "hold"');
   await h.waitFor('A.eng.every(e => e.run && e.n > 0.6)', 120000);
   await h.key('down', 'ShiftLeft'); await h.waitFor('T.thr > 0.81', 10000); await h.key('up', 'ShiftLeft');
-  await h.waitFor('!A.cat', 90000);
-  await h.key('hold', 'KeyS', 1000); await h.key('tap', 'KeyG');
-  await h.waitFor('A.pos.y > 25 || !T.alive', 60000);
-  await h.eval('({ alive: T.alive, y: A.pos.y, eas: A.eas * 1.944, run: A.eng.map(e => e.run), n: A.eng.map(e => +e.n.toFixed(2)), loss: T.lastLoss })');
-  await h.expect('T.alive && A.eng.every(e => e.run)', 'launched off the cat after the cold start');
+  await h.waitFor('A.eng.every(e => e.n > 0.9) && (!A.cat || A.cat.state !== "hold")', 90000);
+  await h.expect('A.eng.every(e => e.run && e.n > 0.9) && (!A.cat || A.cat.state !== "hold")', 'MIL on both after the cold start: the cat fires');
 }
