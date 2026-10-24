@@ -35,7 +35,7 @@ export default async function (h) {
   if (want('look')) {
     // looking down on the shelf from 14 m: sand, sea grass, fish
     await h.eval(`(window.__cam = { p: [__SH[0] + 26, 12, __SH[1] + 12], t: [__SH[0] - 4, -2, __SH[1]] }, 1)`);
-    await h.eval(`(() => { const S = __G.sealife.sim; S.spawnSchool('mullet', __SH[0] - 6, __SH[1]); S.spawnSchool('sardine', __SH[0] + 18, __SH[1] + 6); S.spawnSchool('mackerel', __DP[0], __DP[1]); return 1; })()`);
+    await h.eval(`(() => { const S = __G.sealife.sim; S.spawnSchool('mullet', __SH[0] + 2, __SH[1]); S.spawnSchool('mullet', __SH[0] + 4, __SH[1] + 5); S.spawnSchool('sardine', __SH[0] + 18, __SH[1] + 6); S.spawnSchool('mackerel', __DP[0], __DP[1]); return 1; })()`);
     await waitGame(5);
     await h.eval(`({ schools: __G.sealife.sim.schools.map(s => [s.sp, s.n, +s.cx.toFixed(0), +s.cz.toFixed(0), +s.cy.toFixed(1)]), drawn: __G.sealife.fishDrawn, under: __G.sealife.under })`);
     await h.expect('__G.sealife.fishDrawn > 60 && __G.sealife.sim.schools.length >= 3', 'schools of fish round the camera');
@@ -54,16 +54,17 @@ export default async function (h) {
     // the same camera, fish on then off then on: the cost of the fish (draw + sim)
     await h.eval(`(window.__cam = { p: [__SH[0] + 26, 12, __SH[1] + 12], t: [__SH[0] - 4, -2, __SH[1]] }, __G.sealife.fishOn = true, 1)`);
     await waitGame(2);
-    await h.eval('__fps(100)'); await h.waitFor('__ft.length >= 100', 60000);
-    await h.eval('(window.__fpsOn1 = __fpsRes())');
-    await h.eval('(__G.sealife.fishOn = false, 1)'); await waitGame(1);
-    await h.eval('__fps(100)'); await h.waitFor('__ft.length >= 100', 60000);
-    await h.eval('(window.__fpsOff = __fpsRes())');
-    await h.eval('(__G.sealife.fishOn = true, 1)'); await waitGame(3);
-    await h.eval('__fps(100)'); await h.waitFor('__ft.length >= 100', 60000);
-    await h.eval('(window.__fpsOn2 = __fpsRes())');
-    await h.eval('({ on1: __fpsOn1, off: __fpsOff, on2: __fpsOn2, costMs: +(((__fpsOn1.avgMs + __fpsOn2.avgMs) / 2) - __fpsOff.avgMs).toFixed(1) })');
-    await h.expect('((__fpsOn1.avgMs + __fpsOn2.avgMs) / 2) < __fpsOff.avgMs * 1.08 + 3', 'the fish cost under ~8 % of a (software-rendered) frame');
+    // alternating blocks (the machine is shared: one long block each way is at the mercy of other load); compare the
+    // median block. Also the CPU side alone: sealife.ms (sim + threats + instance upload).
+    await h.eval('(window.__blk = { on: [], off: [] }, 1)');
+    for (const on of [true, false, true, false, true, false]) {
+      await h.eval(`(__G.sealife.fishOn = ${on}, 1)`); await waitGame(on ? 2 : 0.5);
+      await h.eval('__fps(50)'); await h.waitFor('__ft.length >= 50', 60000);
+      await h.eval(`(__blk.${on ? 'on' : 'off'}.push(__fpsRes()), 1)`);
+    }
+    await h.eval('(__G.sealife.fishOn = true, 1)');
+    await h.eval('(() => { const med = a => a.map(r => r.avgMs).sort((x, y) => x - y)[1]; window.__fpsCmp = { on: med(__blk.on), off: med(__blk.off), simMs: med(__blk.on.map(r => ({ avgMs: r.simMs }))), fish: __blk.on[0].fish }; __fpsCmp.costMs = +(__fpsCmp.on - __fpsCmp.off).toFixed(1); return { ...__fpsCmp, blocks: __blk }; })()');
+    await h.expect('__fpsCmp.on < __fpsCmp.off * 1.1 + 3 && __fpsCmp.simMs < 4', 'the fish cost: median frame within ~10 % (software-rendered, shared machine), CPU under 4 ms');
   }
 
   if (want('hull')) {

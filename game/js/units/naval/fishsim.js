@@ -351,12 +351,22 @@ export function createFishSim({ depthAt, seed = 1980 } = {}) {
 
   // ------------------------------------------------------------------ instances out
   // A: (x, y, z, length)  B: (yaw, pitch, roll, species)  C: (tail phase, swim effort 0..1, fade 0..1, fear)
-  S.write = (A, B, C, max) => {
-    let k = 0;
+  // view (optional): { x, y, z, fx, fy, fz, cos, px } the camera, its forward, the cosine of a cone round the view and
+  // pixels per radian: fish that cannot show are left out of the draw (behind the camera, under a pixel, or so deep
+  // along the line of sight from above that the water hides them)
+  S.culled = 0;
+  S.write = (A, B, C, max, view) => {
+    let k = 0; S.culled = 0;
     for (const sc of S.schools) {
       const a = sc.a, sp = SPECIES[sc.sp];
       for (let i = 0; i < sc.n && k < max; i++) {
         const o = i * STRIDE, vx = a[o + F_VX], vy = a[o + F_VY], vz = a[o + F_VZ], hs = Math.hypot(vx, vz), len = a[o + F_LEN];
+        if (view) {
+          const dx = a[o] - view.x, dy = a[o + F_Y] - view.y, dz = a[o + F_Z] - view.z, d = Math.hypot(dx, dy, dz) + 1e-6;
+          const vis = (dx * view.fx + dy * view.fy + dz * view.fz) / d > view.cos && len / d * view.px > 0.9
+            && (view.y < 0 ? d < 40 : (-a[o + F_Y]) * d / Math.max(view.y - a[o + F_Y], 0.1) < 28);   // (water path, m: green ~exp(-0.07 x 28) ~ 0.14)
+          if (!vis) { S.culled++; continue; }
+        }
         const j = k * 4;
         A[j] = a[o]; A[j + 1] = a[o + F_Y]; A[j + 2] = a[o + F_Z]; A[j + 3] = len;
         B[j] = Math.atan2(vx, vz); B[j + 1] = Math.atan2(vy, Math.max(hs, 1e-4)) * (a[o + F_STUN] > 0 ? 0.2 : 1); B[j + 2] = a[o + F_ROLL]; B[j + 3] = sc.sp;

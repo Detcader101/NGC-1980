@@ -230,7 +230,7 @@ export function createSeaLife(ctx) {
   const _ft = { near: 0, far: 0 };
   scene.onBeforeRender = ((prev) => function (renderer, sc, camera) {
     if (prev) prev.call(this, renderer, sc, camera);
-    const p = camera.position; L.cam.copy(p);
+    const p = camera.position; L.cam.copy(p); L.camObj = camera;
     const water = L.enabled && active() && isWater(p.x, p.z);
     const surf = water ? surfaceAt(p.x, p.z) : 0;
     const bedH = water ? sim.bed(p.x, p.z) : 0;
@@ -267,7 +267,7 @@ export function createSeaLife(ctx) {
   }
 
   // ------------------------------------------------------------------ each frame
-  const ROTARY = { drone: 1, transport: 1, gunship: 1 };
+  const ROTARY = { drone: 1, transport: 1, gunship: 1 }, _view = {};
   L.update = dt => {
     if (!L.enabled || !active()) { sim.clearThreats(); geo.instanceCount = 0; fishMesh.visible = false; L.ms = 0; return; }
     fishMesh.visible = true;
@@ -289,8 +289,14 @@ export function createSeaLife(ctx) {
     if (ctx.extra) ctx.extra(sim);
     sim.enabled = L.fishOn; if (!L.fishOn && sim.schools.length) sim.clear();
     sim.update(dt, c);
-    const n = sim.write(A.array, B.array, C.array, MAX);
-    geo.instanceCount = n; L.fishDrawn = n;
+    let n = 0;
+    if (L.camObj) {   // the camera that last rendered: its forward and field of view for the cull
+      const cm = L.camObj, e = cm.matrixWorld.elements, fl = Math.hypot(e[8], e[9], e[10]) || 1, fov = (cm.fov || 60) * Math.PI / 180, asp = cm.aspect || 1.6;
+      const half = Math.atan(Math.tan(fov / 2) * Math.hypot(1, asp)) + 0.15;
+      Object.assign(_view, { x: c.x, y: c.y, z: c.z, fx: -e[8] / fl, fy: -e[9] / fl, fz: -e[10] / fl, cos: Math.cos(Math.min(half, 3)), px: (ctx.heightPx ? ctx.heightPx() : 720) / fov });
+      n = sim.write(A.array, B.array, C.array, MAX, _view);
+    } else n = sim.write(A.array, B.array, C.array, MAX);
+    geo.instanceCount = n; L.fishDrawn = n; L.culled = sim.culled;
     if (n) { A.addUpdateRange(0, n * 4); B.addUpdateRange(0, n * 4); C.addUpdateRange(0, n * 4); A.needsUpdate = B.needsUpdate = C.needsUpdate = true; }
     // the sea bed: kept warm while the camera is low over the water (so a dive finds it built), stepped a little a frame
     if (c.y < 4 && isWater(c.x, c.z)) { bedWant(c.x, c.z, false); bedStep(500); }
