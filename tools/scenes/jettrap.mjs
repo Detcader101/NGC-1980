@@ -28,10 +28,10 @@ export default async function (h) {
     return 1; })()`);
   await h.eval('__G.cockpitCam = true'); await h.wait(4000); await h.shot('approach-cockpit');
   await h.eval('(__G.cockpitCam = false, __G.JP.snapChase(), 1)'); await h.wait(2500); await h.shot('approach-chase');
-  await h.waitFor('__G.JP.J.trapWire > 0 || !__G.JP.alive', 30000);
+  await h.waitFor('__G.JP.J.trapWire > 0 || !__G.JP.alive', 150000);   // (ngc/bugsweep: wall timeouts for 2-5 fps headless)
   await h.eval('({wire: __G.JP.J.trapWire, alive: __G.JP.alive, loss: __G.JP.lastLoss})');
   await h.wait(600); await h.shot('trap-chase');
-  await h.waitFor('__G.JP.stoppedOnDeck() || !__G.JP.alive', 20000);
+  await h.waitFor('__G.JP.stoppedOnDeck() || !__G.JP.alive', 120000);
   await h.wait(1500);
   await h.eval('({onDeck: __G.JP.stoppedOnDeck(), wire: __G.JP.J.trapWire, alive: __G.JP.alive})');
   await h.expect('__G.JP.alive && __G.JP.J.trapWire > 0 && __G.JP.stoppedOnDeck()');

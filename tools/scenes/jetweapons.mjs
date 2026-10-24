@@ -12,14 +12,14 @@ export default async function (h) {
   await h.key('tap', 'KeyR'); await h.wait(300);
   await h.expect('__G.JP.mode === "AA"');
   await h.eval('(__G.cockpitCam = true, 1)');
-  await h.waitFor('__G.JP.tgt && __G.JP.tgt.lock', 8000);
+  await h.waitFor('__G.JP.tgt && __G.JP.tgt.lock', 60000);
   await h.eval('({range: __G.JP.tgt.range, off: __G.JP.tgt.off, shoot: __G.JP.tgt.shoot})');
   await h.key('tap', 'KeyR'); await h.wait(100);
   await h.expect('__G.war.proj.some(q => q.kind === "aam" && q.tgt === __gs)');
   await h.shot('aa-fox2-cockpit');
   await h.expect('__G.JP.J.stores.aam.filter(Boolean).length === 1');
   await h.wait(600); await h.eval('(__G.cockpitCam = false, __G.JP.snapChase(), 1)'); await h.shot('fox2');
-  await h.waitFor('__gs.dying || __gs.dead', 8000);
+  await h.waitFor('__gs.dying || __gs.dead', 60000);
   await h.expect('__gs.dying || __gs.dead');
   // gun: a target parked on the gun line 330 m out; hands off (CAS holds the flight path) so the gun line stays put
   await place(-900, 300, 150, 0, 75); await h.eval('(__G.JP.autopilot = (J) => ({ pitch: 0, roll: -J.attitude().roll * 2, yaw: 0, throttle: [0.7, 0.7], brakeL: 0, brakeR: 0 }), 1)');
@@ -41,7 +41,7 @@ export default async function (h) {
   await h.eval(`(() => { const J = __G.JP.J; let p = J.worldPoint([-2.6, -0.35, 0.3]), v = J.vel.clone(); for (let i = 0; i < 600; i++) { v.y -= 9 * 0.04; p.addScaledVector(v, 0.04); if (p.y <= 0) break; } window.__pred = p.clone(); window.__nb = __G.war.proj.length; return [p.x, p.z]; })()`);
   await h.key('tap', 'KeyB');
   await h.eval(`(() => { window.__pred = __G.JP.lastDrop.pred; const b = __G.JP.lastDrop.bomb; window.__bomb = b; window.__bombLast = null; window.__bt = setInterval(() => { if (__G.war.proj.includes(b)) { const t = Math.max(0, b.p.y) / Math.max(1, -b.v.y); window.__bombLast = b.p.clone().addScaledVector(b.v, t); window.__bombLast.y = 0; } }, 5); return !!b; })()`);
-  await h.waitFor('!__G.war.proj.includes(__bomb)', 15000);
+  await h.waitFor('!__G.war.proj.includes(__bomb)', 90000);   // (ngc/bugsweep: the fall takes ~15 s of game time - minutes of wall time at 2-5 fps)
   await h.eval('({pred: [__pred.x, __pred.z], hit: [__bombLast.x, __bombLast.y, __bombLast.z], miss: Math.hypot(__pred.x - __bombLast.x, __pred.z - __bombLast.z)})');
   await h.expect('Math.hypot(__pred.x - __bombLast.x, __pred.z - __bombLast.z) < 5');
 }
