@@ -10,7 +10,7 @@
 // |z - 22| < 9, 13 m above the deck. dims = { L: 120, W: 28, DECK: 8, TOWER_X: 10.5, TOWER_Z: 22, TOWER_H: 13 }.
 import * as THREE from 'three';
 import { Kit, T, DEG, rng, hullMat, glowMat, canvasTex, DecalSheet, drawStreak, drawText, drawGlyphs } from './navkit.js';
-import { buildHull, deckHalf as albDeckHalf, waterHalf } from './albatross.js';
+import { buildHull, deckHalf as albDeckHalf, waterHalf, STERN_LADDER, buildLadderGeo } from './albatross.js';
 import { buildRAM, buildLaser } from './mounts.js';
 
 export const KRK = { L: 120, W: 28, DECK: 8, TOWER_X: 10.5, TOWER_Z: 22, TOWER_H: 13 };
@@ -195,6 +195,7 @@ export function buildKraken(opts = {}) {
   const MOUNTS = [{ kind: 'ram', x: 15.6, z: -38, y: DECK - 1.2, out: [1, 0, -0.5] }, { kind: 'ram', x: -15.4, z: -32, y: DECK - 1.2, out: [-1, 0, -0.5] },
     { kind: 'laser', x: -19.4, z: 56, y: DECK - 1.0, out: [-1, 0, 0.6] }, { kind: 'laser', x: 15.4, z: 54, y: DECK - 1.0, out: [1, 0, 0.6] }];
   for (const M of MOUNTS) { const sd = Math.sign(M.x); kit.box(4.2, 0.35, 4.6, GREY, M.x - sd * 0.6, M.y - 0.18, M.z); kit.add(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 0, -3, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, -3, 0], 3)), GREY_D, T(sd * 12, M.y - 0.3, M.z, 0, 0, 0, sd * (Math.abs(M.x) - 12.5), 1, 1)); }
+  buildLadderGeo(kit, STERN_LADDER);
   const hull = kit.mesh(); hull.name = 'kraken-hull'; g.add(hull);
   g.add(buildDeck());
   const dec = sheet.mesh(); g.add(dec);
@@ -222,7 +223,7 @@ export function buildKraken(opts = {}) {
   }
   return {
     group: g, guns, dish, lamp, lights: [], teamM: team, tower: tw, band, mounts, hull, deck: g.getObjectByName('flightdeck'),
-    bow: new THREE.Vector3(0, 1, -60), stern: new THREE.Vector3(0, 0, 57), localDeck, waterHalf, motion: 'kraken', dims: KRK, fx: { wake: 1.05, smoke: 0 },
+    bow: new THREE.Vector3(0, 1, -60), stern: new THREE.Vector3(0, 0, 57), localDeck, waterHalf, ladders: [STERN_LADDER], motion: 'kraken', dims: KRK, fx: { wake: 1.05, smoke: 0 },
     tick(dt, t) { for (const gun of guns) gun.userData.tick?.(dt); lamp.visible = (t % 1.1) < 0.5; },
   };
 }
