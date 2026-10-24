@@ -12,7 +12,7 @@
     "key tap KeyC",
     "wait 4500",
     "shot 01-fans-unfolding",
-    "waitFor 8000 __G.war.carrier.sky.up",
+    "waitFor 60000 __G.war.carrier.sky.up",
     "eval (window.__t0=__G.war.time, 1)",
     "waitFor 168000 __G.war.time - __t0 >= 14",
     "eval ({y:+__G.war.carrier.p.y.toFixed(1), heliY:+__G.H.pos.y.toFixed(1), landed:__G.H.landed})",

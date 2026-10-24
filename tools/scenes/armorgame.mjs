@@ -92,10 +92,13 @@ export default async function (h) {
   await h.expect('__A.A().exists');
   await h.eval(`(__G.crafts.control('m113', 1, 'foot'), __A.A().view = 'chase', __A.A().orbit.yaw = 2.2, __A.A().orbit.pitch = 0.35, 1)`);
   await h.wait(2000);
-  await h.eval(`(() => { const c = __G.war.carrier; __G.war.orderCarrier(c.p.x - Math.sin(c.yaw + 0.6) * 700, c.p.z - Math.cos(c.yaw + 0.6) * 700); const o = __A.A().fm.origin(), [x, z] = __G.GR.toLocal(c, o[0], o[2]); window.__dl = [x, z, c.p.x, c.p.z, c.yaw]; return __dl.map(v => +v.toFixed(2)); })()`);
-  await h.wait(15000);
-  await h.eval(`(() => { const c = __G.war.carrier, o = __A.A().fm.origin(), [x, z] = __G.GR.toLocal(c, o[0], o[2]); return { local: [x, z].map(v => +v.toFixed(2)), was: __dl.slice(0, 2).map(v => +v.toFixed(2)), shipMoved: +Math.hypot(c.p.x - __dl[2], c.p.z - __dl[3]).toFixed(1), turned: +((c.yaw - __dl[4]) * 57.3).toFixed(1), y: +o[1].toFixed(2) }; })()`);
-  await h.expect(`(() => { const c = __G.war.carrier, o = __A.A().fm.origin(), [x, z] = __G.GR.toLocal(c, o[0], o[2]); return Math.hypot(x - __dl[0], z - __dl[1]) < 0.3 && Math.hypot(c.p.x - __dl[2], c.p.z - __dl[3]) > 10; })()`);
+  // (ngc/bugsweep) the spot is compared in the full ship frame (GR.toShip: heave, pitch and roll too). The plan-view
+  // toLocal read a deck 8.5 m above the waterline as 0.7 m off its spot when she heeled 5 degrees in the turn, though the
+  // M113 hadn't moved on the deck; the turn is waited in game time (the headless build runs ~5-8 fps)
+  await h.eval(`(() => { const c = __G.war.carrier; __G.war.orderCarrier(c.p.x - Math.sin(c.yaw + 0.6) * 700, c.p.z - Math.cos(c.yaw + 0.6) * 700); const o = __A.A().fm.origin(), l = __G.GR.toShip(c, o[0], o[1], o[2]); window.__dl = [l.x, l.z, c.p.x, c.p.z, c.yaw, l.y]; window.__t0 = __G.war.time; return __dl.map(v => +v.toFixed(2)); })()`);
+  await h.waitFor('__G.war.time - __t0 >= 12', 150000);
+  await h.eval(`(() => { const c = __G.war.carrier, o = __A.A().fm.origin(), l = __G.GR.toShip(c, o[0], o[1], o[2]); return { ship: [l.x, l.y, l.z].map(v => +v.toFixed(2)), was: [__dl[0], __dl[5], __dl[1]].map(v => +v.toFixed(2)), shipMoved: +Math.hypot(c.p.x - __dl[2], c.p.z - __dl[3]).toFixed(1), turned: +((c.yaw - __dl[4]) * 57.3).toFixed(1), heelDeg: +((c.att ? c.att.roll : 0) * 57.3).toFixed(1), y: +o[1].toFixed(2) }; })()`);
+  await h.expect(`(() => { const c = __G.war.carrier, o = __A.A().fm.origin(), l = __G.GR.toShip(c, o[0], o[1], o[2]); return Math.hypot(l.x - __dl[0], l.z - __dl[1]) < 0.3 && Math.hypot(c.p.x - __dl[2], c.p.z - __dl[3]) > 10; })()`);
   await h.shot('m113-on-the-moving-deck');
   // ---- 5. the M113 down the home landing hard into the sea: vane up, pumps on, swim
   await h.eval(`(() => { const H = __G.HARDS.find(d => d.I === __G.HOME_B.isl), p = H.at(12); __A.A().spawnAt({ x: p[0], z: p[1], yaw: H.yaw + Math.PI }); __G.crafts.control('m113', 0, 'swap'); __A.A().view = 'chase'; __A.A().orbit.yaw = 2.4; __A.A().orbit.pitch = 0.3; return [Math.round(p[0]), Math.round(p[1])]; })()`);
