@@ -1785,6 +1785,34 @@ untouched (war.js's exported hitTest / damage / blast carry the gunnery).
   while the M60 and M113 were parked in the test car's path - moved), jettrap 7/7, world 4/4; foot.mjs 10/12 (the island
   roof ladder top and the medical slot check; the experimental base scored 6/18 on the same machine - load-dependent).
 
+## 2026-10-23 — NAVAL polish (authenticity pass)
+- ALBATROSS: crew placed by role round each aircraft and station (plane captain brown at the nose, blue chockers at
+  the mains, purple fuel crew at the refuel point, red ordnancemen at the wing stations; green catapult crew, a yellow
+  catapult officer and a white safety PO by cat 1, all clear of the launch lane), a yellow director at the fantail.
+  1970s-80s details: the bridle arrester horn off the bow at the end of cat 1, bullnose and jackstaff, a starboard
+  UNREP receiving sponson at hangar-deck level, a boat pocket aft with the gig and a motor whaleboat. The fuel bowser
+  no longer sits under a parked Hornet; funnel smoke is a light oil-fired haze, not black.
+- Deck vehicle park: the port strip forward of the landing area (SEAWORLD's DECK_SPOTS, x -10.5), clear of the catapult
+  lane; tow bars and the bow tractor moved off it.
+- KRAKEN: Ford-class plan - a broad blunt bow, both starboard elevators forward of the island (one was under the
+  island) plus the port one aft, the deck's underside and edge fascia wherever it overhangs the hull. The RW drones are
+  a proper tailless flying wing now (sawtooth trailing edge, lift fans in the roots, leading-edge seams).
+- LEVIATHAN: the port sensor fin is a small blade in the same language as the main one (was a box with a pole).
+- Sea: each hull has a bow wave (foam crests along its forward shoulders, attached to the ship, stronger with speed
+  and when the bow plunges); parts.waterHalf(z) gives the waterline half-beam for it.
+- **Island ladder (user bug: it didn't line up).** The ladders are the model's now: albatross.js exports
+  `parts.ladders` ({ name, lx, lz, yaw, y0, y1, w, top: [dx, dz], cage, drawn }, ship frame) and draws them itself
+  (`buildLadderGeo`: rails, rungs, stand-off brackets, grab handles, the upper flight caged); ground.js `GR.laddersOf`
+  reads them (its old LADDERS table stays the fallback) and foot.js skips drawing a ladder marked `drawn`. A 1980
+  island arrangement: two flights up the port face, flight deck -> the O-7 catwalk (now a proper bracketed walkway with
+  rails, open at the forward end) -> the island top deck (a gap in its port rail at the ladder head); a Jacob's
+  ladder off the fantail of both carriers (KRAKEN too). The island colliders and floors come from the model as well
+  (`parts.islandBoxes`, `parts.islandFloor`): the catwalk is walkable, the boxes match the geometry.
+  scenes/ladder.mjs climbs every ladder (9/9, runs/2026-10-24_09-10-02-ladder); foot.mjs step 4 takes the two flights.
+- Tests (2026-10-24, after merging experimental): ladder 9/9; foot 12/12; naval 5/5; seaworld 25/25; smoke 5/5;
+  navalbench 22/22; seabench 15/15; node --check game/js/*.js clean.
+- Tests: navalbench 22/22; naval.mjs 5/5 (runs/2026-10-23_15-30-10-naval); smoke 5/5; jettrap 7/7; sky 6/8 - the
+  same two expects fail on experimental 651012c (runs/2026-10-23_15-33-06-sky), not a naval regression.
 ## 2026-10-23 — NGC-1980 wave 2: INFANTRY DEPTH - buddy aid, the corpsman, casevac, AI Marines on the real sims, the grenade drill (branch ngc/infdepth)
 - **AI Marines on the real rifleman sim** (`units/groundwar/richmarine.js`, pure). Inside 120 m of the camera (up to 14
   men; `GW_T.RICH_R / RICH_MAX`) a ground-war Marine is promoted from marine.js's kinematic body to INFANTRY's rifleman
