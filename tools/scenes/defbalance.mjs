@@ -4,7 +4,9 @@
 // No line-of-sight terrain (hill=0): this is the open-sky worst case for the player; hills only help.
 //   node snap.mjs scenes/defbalance.mjs
 const ORBITS = [{ R: 70, alt: 20, spd: 25 }, { R: 110, alt: 35, spd: 35 }, { R: 140, alt: 50, spd: 45 }];
-const RUNS = +(process.env.BAL_RUNS || 3), SECS = +(process.env.BAL_SECS || 120);
+// (ngc/bugsweep) 10 runs per cell, not 3: with 3 the close-orbit TALON / old-gun ratio scattered 1.07-1.30 round a true ~1.10
+// and the 1.25 bound failed about one run in two
+const RUNS = +(process.env.BAL_RUNS || 10), SECS = +(process.env.BAL_SECS || 120);
 export default async function (h) {
   await h.goto('dev/defence.html?mode=fight&unit=talon&drones=0&hill=0&panel=0');
   await h.waitFor('window.__D', 15000);
