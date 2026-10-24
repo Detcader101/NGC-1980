@@ -1800,6 +1800,17 @@ untouched (war.js's exported hitTest / damage / blast carry the gunnery).
 - LEVIATHAN: the port sensor fin is a small blade in the same language as the main one (was a box with a pole).
 - Sea: each hull has a bow wave (foam crests along its forward shoulders, attached to the ship, stronger with speed
   and when the bow plunges); parts.waterHalf(z) gives the waterline half-beam for it.
+- **Island ladder (user bug: it didn't line up).** The ladders are the model's now: albatross.js exports
+  `parts.ladders` ({ name, lx, lz, yaw, y0, y1, w, top: [dx, dz], cage, drawn }, ship frame) and draws them itself
+  (`buildLadderGeo`: rails, rungs, stand-off brackets, grab handles, the upper flight caged); ground.js `GR.laddersOf`
+  reads them (its old LADDERS table stays the fallback) and foot.js skips drawing a ladder marked `drawn`. A 1980
+  island arrangement: two flights up the port face, flight deck -> the O-7 catwalk (now a proper bracketed walkway with
+  rails, open at the forward end) -> the island top deck (a gap in its port rail at the ladder head); a Jacob's
+  ladder off the fantail of both carriers (KRAKEN too). The island colliders and floors come from the model as well
+  (`parts.islandBoxes`, `parts.islandFloor`): the catwalk is walkable, the boxes match the geometry.
+  scenes/ladder.mjs climbs every ladder (9/9, runs/2026-10-24_09-10-02-ladder); foot.mjs step 4 takes the two flights.
+- Tests (2026-10-24, after merging experimental): ladder 9/9; foot 12/12; naval 5/5; seaworld 25/25; smoke 5/5;
+  navalbench 22/22; seabench 15/15; node --check game/js/*.js clean.
 - Tests: navalbench 22/22; naval.mjs 5/5 (runs/2026-10-23_15-30-10-naval); smoke 5/5; jettrap 7/7; sky 6/8 - the
   same two expects fail on experimental 651012c (runs/2026-10-23_15-33-06-sky), not a naval regression.
 ## 2026-10-23 — NGC-1980 wave 2: INFANTRY DEPTH - buddy aid, the corpsman, casevac, AI Marines on the real sims, the grenade drill (branch ngc/infdepth)
