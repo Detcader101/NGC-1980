@@ -63,11 +63,11 @@ export default async function (h) {
     await h.eval('(__G.war.carrier.parts.lift(0, "up"), 1)');
     await h.waitFor('__G.war.carrier.parts.lifts[0].y > 7.99', 100000); await h.wait(600);
     await h.expect('Math.abs(__F.loc().under - 8) < 0.02 && Math.abs(__F.loc().on) < 0.15 && __G.foot.W.onGround', 'and back up with it');
-    // walking into a parked Hornet: it is solid
-    await h.eval('(__F.place(4.6, -31, -Math.PI / 2), __view("first"), 1)'); await h.wait(500);
+    // walking into a parked Hornet: it is solid (ngc/bugsweep: the forward Hornets moved 3.7 m outboard, their wings start at x ~10 here)
+    await h.eval('(__F.place(7.4, -31, -Math.PI / 2), __view("first"), 1)'); await h.wait(500);
     await h.key('down', 'KeyW'); await h.wait(3500); await h.key('up', 'KeyW');
     await h.eval('__F.loc()');
-    await h.expect('__F.loc().x < 7.2 && __F.loc().plat === "carrier" && Math.abs(__G.foot.W.y - __G.war.deckAt(__G.war.carrier, __G.foot.W.x, __G.foot.W.z)) < 0.15', 'a parked Hornet stops a walker');
+    await h.expect('__F.loc().x < 10.0 && __F.loc().plat === "carrier" && Math.abs(__G.foot.W.y - __G.war.deckAt(__G.war.carrier, __G.foot.W.x, __G.foot.W.z)) < 0.15', 'a parked Hornet stops a walker');
     await h.eval(`(__view('third'), 1)`); await h.wait(900); await h.shot('walker-at-parked-hornet');
     await h.eval(`(__view('first'), 1)`);
   }
