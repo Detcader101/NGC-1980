@@ -55,11 +55,15 @@ export default async function (h) {
     await h.eval(`(__shot({ u: __G.war.carrier, p: [36, 9, -32], t: [16, 4, -17] }), 1)`); await h.wait(1200); await h.shot('lift-down');
     await h.eval(`(__view('third'), __face(__G.war.carrier.yaw + Math.PI * 0.85), 1)`); await h.wait(300);
     await h.eval('(window.__cam = null, 1)'); await h.wait(1200); await h.shot('lift-down-third-person');
-    // the hull is a wall from down here: walking inboard he stays on the platform
+    // the lift at the hangar door: walking inboard he goes into the hangar (ngc/interiors made the hangar deck walkable -
+    // it used to be a wall), then back out onto the platform before it goes up (ngc/bugsweep)
     await h.eval('(__face(__G.war.carrier.yaw + Math.PI / 2), 1)');
     await h.key('down', 'KeyW'); await h.wait(2500); await h.key('up', 'KeyW');
     await h.eval('__F.loc()');
-    await h.expect('__F.loc().x > 13.6 && Math.abs(__F.loc().under - 4.25) < 0.02 && Math.abs(__F.loc().on) < 0.15', 'the hull side stops him (no walking into the deck from below)');
+    await h.expect('__F.loc().x < 13.6 && __F.loc().plat === "carrier" && __G.foot.W.onGround && Math.abs(__F.loc().y - 4.25) < 0.6', 'through the hangar door onto the hangar deck');
+    await h.eval('(__face(__G.war.carrier.yaw - Math.PI / 2), 1)');
+    await h.key('down', 'KeyW'); await h.waitFor('__F.loc().x > 14.6 && Math.abs(__F.loc().on) < 0.15', 60000); await h.key('up', 'KeyW');
+    await h.expect('Math.abs(__F.loc().under - 4.25) < 0.02 && Math.abs(__F.loc().on) < 0.15', 'and back out onto the lift');
     await h.eval('(__G.war.carrier.parts.lift(0, "up"), 1)');
     await h.waitFor('__G.war.carrier.parts.lifts[0].y > 7.99', 100000); await h.wait(600);
     await h.expect('Math.abs(__F.loc().under - 8) < 0.02 && Math.abs(__F.loc().on) < 0.15 && __G.foot.W.onGround', 'and back up with it');
