@@ -21,7 +21,8 @@ function foam() {
   return foamTex;
 }
 
-export function createNavalFx(scene, fx) {
+// seaY(x, z): the drawn sea surface height (SEAWORLD: the wake rides the waves), optional
+export function createNavalFx(scene, fx, seaY = null) {
   const ships = new Map();
   const rnd = (a, b) => a + Math.random() * (b - a);
   function track(u) {
@@ -67,7 +68,7 @@ export function createNavalFx(scene, fx) {
         const cw = (Wd * 0.24 + sS * 0.05) * k, ca = fade * fade * vk * 0.55 * Math.min(1, 0.35 + i * 0.25);
         // Kelvin arms: points the bow passed, now pushed out by the wave crest at 19.5 deg; width grows a little
         const off = sB * KELVIN + Wd * 0.38, aw = (0.7 + sB * 0.02) * k, aa = fade * vk * 0.32 * Math.min(1, i * 0.5);
-        const set = (strip, j, x, z, a, u0, v0) => { const o = ((strip * N + i) * 2 + j); pos[o * 3] = x; pos[o * 3 + 1] = 0.07 + strip * 0.004; pos[o * 3 + 2] = z; col[o * 4] = col[o * 4 + 1] = col[o * 4 + 2] = 1; col[o * 4 + 3] = a; uv[o * 2] = u0; uv[o * 2 + 1] = v0; };
+        const set = (strip, j, x, z, a, u0, v0) => { const o = ((strip * N + i) * 2 + j); pos[o * 3] = x; pos[o * 3 + 1] = (seaY ? seaY(x, z) : 0) + 0.07 + strip * 0.004; pos[o * 3 + 2] = z; col[o * 4] = col[o * 4 + 1] = col[o * 4 + 2] = 1; col[o * 4 + 3] = a; uv[o * 2] = u0; uv[o * 2 + 1] = v0; };
         set(0, 0, h.sx - px * cw, h.sz - pz * cw, ca, 0, sS / 22); set(0, 1, h.sx + px * cw, h.sz + pz * cw, ca, 1, sS / 22);
         for (const [strip, sd] of [[1, -1], [2, 1]]) {
           const cx = h.bx + px * off * sd, cz = h.bz + pz * off * sd;

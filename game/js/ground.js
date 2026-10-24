@@ -34,6 +34,7 @@ export const SURF = {
   sand:  { mu: 0.5,  crr: 0.18,  sink: 0.06, speed: 0.8 },
   mud:   { mu: 0.35, crr: 0.13,  sink: 0.08, speed: 0.7 },
   water: { mu: 0.45, crr: 0.15,  sink: 0.05, speed: 0.5 },   // the (sandy) bottom under shallow water: wading drag is the sim's
+  dirt:  { mu: 0.65, crr: 0.04,  sink: 0.02, speed: 1 },     // SEAWORLD: a dirt / gravel farm track (Wong: gravel road mu 0.6-0.7, crr 0.02-0.05)
   hole:  { mu: 0,    crr: 1,     sink: 0,    speed: 0 },
 };
 export const GRAV = 9.81;
@@ -42,7 +43,7 @@ export const GRAV = 9.81;
 export function createGround(ctx) {
   const { war, terrainH, holeOf, PADS, CARRIER } = ctx;
   const ISLANDS = ctx.ISLANDS;
-  const providers = [], extra = [];
+  const providers = [], extra = [], floors = [], sources = [];   // SEAWORLD: floors (piers, bridge decks) and collider sources (the world's buildings)
   const GR = { G: GRAV, SURF };
 
   // ------------------------------------------------------------------ static circles: island trees in a hash grid
@@ -80,8 +81,11 @@ export function createGround(ctx) {
       if (y + tall < bottom) return t;                          // under a flying carrier: the ground below
       return Infinity;                                          // a hull side or a superstructure: a wall
     }
-    return t;
+    // SEAWORLD: piers and bridge decks you are on or above (world/solid.js); under them, the ground below
+    let f = t; for (const fl of floors) { const v = fl(x, z, y, step); if (v !== null && v > f) f = v; }
+    return f;
   };
+  GR.addFloor = fn => { floors.push(fn); };   // fn(x, z, y, step) -> a surface height at or below y + step, or null
 
   // ------------------------------------------------------------------ ships: frames, decks, carrying
   // wave 2 (ngc/foot2): the ALBATROSS island as NAVAL built it (units/naval/albatross.js buildIsland, tower frame:
@@ -127,7 +131,8 @@ export function createGround(ctx) {
     return war.deckY(x, z);
   }
   GR.deckH = deckH;
-  const PF = createPlatforms({ deckY: deckH, shipAt: (x, z) => war.shipAt(x, z), alive: u => u.sinking === undefined || u.sinking < 4 ? war.units.includes(u) : false });
+  const PF = createPlatforms({ deckY: deckH, shipAt: (x, z) => war.shipAt(x, z), alive: u => u.sinking === undefined || u.sinking < 4 ? war.units.includes(u) : false,
+    subY: (u, lx, lz) => u.parts && u.parts.liftY ? u.parts.liftY(lx, lz) : null });   // SEAWORLD: the ALBATROSS's lifts carry
   const { toLocal, toWorld } = PF;
   const _w = { x: 0, z: 0 };
   GR.toLocal = toLocal; GR.toWorld = toWorld; GR.toShip = PF.toShip; GR.fromShip = PF.fromShip;
@@ -198,6 +203,7 @@ export function createGround(ctx) {
   // pushed out there, and the push is turned back into the world (so a rolling ship's island leans with her)
   const BS_BOXES = [[-4.5, 4.5, -10, 10, 0, 14]], FR_BOXES = [[-4.3, 4.3, -3.2, 3.2, 0, 6]];
   const _sl = { x: 0, y: 0, z: 0 }, _sl2 = { x: 0, y: 0, z: 0 };
+  const _rails = [];
   function shipBoxes(o, u, boxes, ox, oz, oy) {
     const top = Math.min(o.y1, o.y0 + 4), ym = (o.y0 + top) / 2, hh = (top - o.y0) / 2;
     PF.toShip(u, o.x, ym, o.z, _sl);
@@ -241,8 +247,16 @@ export function createGround(ctx) {
       if (u.type === 'carrier') n += shipBoxes(o, u, u.parts.islandBoxes || (isAlb(u) ? ALB_BOXES : KRK_BOXES), D.TOWER_X, D.TOWER_Z, D.DECK);
       else if (u.type === 'battleship') n += shipBoxes(o, u, BS_BOXES, 0, 4, D.DECK);
       else if (u.type === 'freighter') n += shipBoxes(o, u, FR_BOXES, 0, D.L / 2 - 6, D.DECK);
+      if (u.parts && u.parts.boxes) {   // SEAWORLD: the lift railings (ship-frame boxes that move with each lift)
+        const bs = u.parts.boxes(); _rails.length = bs.length;
+        bs.forEach((b, i) => { const a = _rails[i] ||= []; a[0] = b.lx - b.hw; a[1] = b.lx + b.hw; a[2] = b.lz - b.hl; a[3] = b.lz + b.hl; a[4] = b.y0; a[5] = b.y1; });
+        n += shipBoxes(o, u, _rails, 0, 0, 0);
+      }
     }
     for (const c of extra) if (c.hl ? pushBox(o, c) : (o.y1 > (c.y0 ?? -1e9) && o.y0 < (c.y1 ?? 1e9) && pushCircle(o, c.x, c.z, c.r))) n++;
+    // SEAWORLD: the lived-in world's buildings, walls, hedges, parapets, poles (world/solid.js); o.crush (a tank) goes
+    // through the soft ones (field walls, hedges)
+    for (const src of sources) for (const c of src(o.x, o.z, o.r + 1)) { if (c.soft && o.crush) continue; if (c.hl !== undefined ? pushBox(o, c) : (o.y1 > c.y0 && o.y0 < c.y1 && pushCircle(o, c.x, c.z, c.r))) n++; }
     if (ctx.crafts) for (const b of ctx.crafts.bounds(skip)) if (pushBox(o, b)) n++;
     return n;
   };
@@ -262,6 +276,7 @@ export function createGround(ctx) {
     return best;
   };
   GR.addCollider = c => { extra.push(c); return c; };
+  GR.addColliderSource = fn => { sources.push(fn); };   // SEAWORLD: fn(x, z, r) -> boxes / circles near (x, z)
   GR.removeCollider = c => { const i = extra.indexOf(c); if (i >= 0) extra.splice(i, 1); };
   // third-person / chase cameras: pull the camera p {x, y, z} in along the line from the eye (ex, ey, ez) to in front of
   // the first thing in the way - the ground, a deck, a hull side, a craft's footprint (except `skip`'s)
@@ -282,13 +297,23 @@ export function createGround(ctx) {
   };
 
   // ------------------------------------------------------------------ spawn points
-  // carrier deck parking spots (local): the port-side strip forward of the landing area, clear of the catapult lane
-  // (x > -8.2), the parked Hornets (starboard bow) and the port elevator's edge (NAVAL polish: was x 9, under the jets)
-  const DECK_SPOTS = [{ name: 'ALBATROSS DECK PARK 1', lx: 9, lz: -24, yaw: 0 }, { name: 'ALBATROSS DECK PARK 2', lx: -11.3, lz: -22, yaw: 0 }, { name: 'ALBATROSS DECK PARK 3', lx: -11.3, lz: -32, yaw: 0 }];
+  // carrier deck parking spots (local; clear of the catapult and the landing area). SEAWORLD: moved to the port bow
+  // (were x 9 on the starboard side, nose to nose with the parked Hornets, which are solid now), clear 12 m ahead
+  const DECK_SPOTS = [{ name: 'ALBATROSS DECK PARK 1', lx: -10.5, lz: -16, yaw: 0 }, { name: 'ALBATROSS DECK PARK 2', lx: -10.5, lz: -29, yaw: 0 }, { name: 'ALBATROSS DECK PARK 3', lx: -10.5, lz: -42, yaw: 0 }];
   GR.DECK_SPOTS = DECK_SPOTS;
+  // SEAWORLD: parked aircraft are solid now, so a spot is used only when the deck round it is clear (flat at deck
+  // height over a car-sized 2.2 x 4.8 m footprint); else the next of these candidates (port side forward, aft of the island)
+  const DECK_SPARE = [{ lx: 9, lz: -20 }, { lx: 4.5, lz: 16 }, { lx: 11, lz: 12 }, { lx: -9.5, lz: 6 }];
+  const deckClear = (u, lx, lz) => {
+    if (!u.parts || !u.parts.localDeck) return true;
+    for (const [ox, oz] of [[0, 0], [1.1, 0], [-1.1, 0], [0, 2.4], [0, -2.4], [1.1, 2.4], [-1.1, 2.4], [1.1, -2.4], [-1.1, -2.4]]) if (Math.abs(u.parts.localDeck(lx + ox, lz + oz) - CARRIER.DECK) > 0.05) return false;
+    return true;
+  };
   GR.deckSpot = (k = 0) => {
     const u = war.carrier; if (!u || u.sinking !== undefined) return null;
-    const s = DECK_SPOTS[k % DECK_SPOTS.length]; toWorld(u, s.lx, s.lz, _w);
+    const cands = [...DECK_SPOTS, ...DECK_SPARE.map((s, i) => ({ name: `ALBATROSS DECK PARK ${DECK_SPOTS.length + i + 1}`, yaw: 0, ...s }))].filter(s => deckClear(u, s.lx, s.lz));
+    if (!cands.length) return null;
+    const s = cands[k % cands.length]; toWorld(u, s.lx, s.lz, _w);
     return { name: s.name, x: _w.x, z: _w.z, y: deckH(_w.x, _w.z), yaw: u.yaw + s.yaw, plat: u };
   };
   const _o = { x: 0, z: 0, r: 2.4 };
