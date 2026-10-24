@@ -361,6 +361,16 @@ export function createTomcatPlay(ctx) {
     effects(dt);
     if (P.hudMode === 'A/A' && P.wpn === 'SW' && P.arm && count('SW') && !P.ejected && P.seat === 0) sfx.seeker(P.seek && P.seek.locked ? 2 : P.seek ? 1 : 0); else sfx.seeker(0);
   };
+  // COMMANDER: the AI wingman flies it (units/commander/wingman.js) while the commander is in another unit - as
+  // jetplay.js does for the HORNET; the CADC keeps sweeping the wings
+  const _wenv = {};
+  P.wingman = (dt, pilot, aiEnv) => {
+    if (!P.active || !P.alive || P.ejected) return;
+    sweepStep(P.sweep, A, false, false, dt, D.mods().cadcOk);
+    env.mods = D.mods(); A.stallRisk = Math.max(D.stallRisk(0), D.stallRisk(1)); A.fuel = Math.max(0, A.fuel - D.update(dt));
+    pilot.update(dt, Object.assign(_wenv, env, aiEnv));
+    if (A.dead) lose(A.dead === 'water' ? 'TOMCAT DITCHED IN THE SEA' : 'TOMCAT CRASHED');
+  };
   function autoHud() {   // the HUD mode follows the phase of flight until the pilot picks one
     if (!P.hudAuto) return;
     if (A.onGround || A.cat) { if (P.hudMode !== 'A/A') P.hudMode = 'T.O.'; }
@@ -488,12 +498,12 @@ export function createTomcatPlay(ctx) {
     if (inCockpit) cockpit.update(A, P.ctl, dt, hudState(hover));
     snd.update({ n: [A.eng[0].n, A.eng[1].n], ab: [A.eng[0].ab, A.eng[1].ab], tas: A.tas, inside: inCockpit, canopy: A.canopy, on: P.ejected ? 0 : 1, start: [A.eng[0].start > 0, A.eng[1].start > 0], stalled: [!!A.eng[0].stalled, !!A.eng[1].stalled], shaker: P.shaker, lowAlt: P.altTone, fire: D.fire[0] || D.fire[1], rwr: P.rwrLaunch ? 2 : P.rwr.some(t => t.lock) ? 1 : 0 });
   };
-  P.renderParked = (dt, time, vol) => {   // nobody in it: the model, and its engines heard by distance
+  P.renderParked = (dt, time, vol, crewed = false) => {   // nobody in it (or COMMANDER: the AI wingman's crew): the model, and its engines heard by distance
     if (!P.active || !P.alive) return;
     model.group.visible = true; model.group.position.copy(A.pos); model.group.quaternion.copy(A.q); model.animate(A, dt, time, false); cockpit.group.visible = false;
-    for (const m of crewMeshes) m.visible = m.name === 'glareshield' || m.name === 'rioPanel' || m.name === 'seatBack' || m.name === 'headbox';
-    const gy = ctx.groundY(A.pos.x, A.pos.z); shadow.visible = true; shadow.position.set(A.pos.x, gy + 0.1, A.pos.z); shadow.rotation.y = Math.atan2(-A.forward(_f).x, -_f.z);
-    snd.update({ n: [A.eng[0].n, A.eng[1].n], ab: [0, 0], tas: 0, inside: false, canopy: 1, on: vol, start: [false, false], stalled: [false, false], shaker: 0, lowAlt: false, fire: false, rwr: 0 });
+    for (const m of crewMeshes) m.visible = crewed || m.name === 'glareshield' || m.name === 'rioPanel' || m.name === 'seatBack' || m.name === 'headbox';
+    const gy = ctx.groundY(A.pos.x, A.pos.z); shadow.visible = A.pos.y - gy < 120; shadow.position.set(A.pos.x, gy + 0.1, A.pos.z); shadow.rotation.y = Math.atan2(-A.forward(_f).x, -_f.z);
+    snd.update({ n: [A.eng[0].n, A.eng[1].n], ab: [Math.max(0, A.eng[0].ab || 0), Math.max(0, A.eng[1].ab || 0)], tas: crewed ? A.tas : 0, inside: false, canopy: crewed ? 0 : 1, on: vol, start: [false, false], stalled: [false, false], shaker: 0, lowAlt: false, fire: false, rwr: 0 });
   };
   function hudState(hover) {
     const m = D.mods();

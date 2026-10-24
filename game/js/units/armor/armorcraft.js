@@ -543,6 +543,7 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
       if (big && turretRest) { model.turret.position.y += 0.35; model.turret.rotation.z = 0.12 + Math.random() * 0.1; model.turret.rotation.x = -0.08; }   // the turret lifted off its ring
     }
     ctx.feed?.(`${TY.label} ${why}`, 'bad');
+    ctx.unitLost?.(D, why, crafts.active === D);   // COMMANDER: the fleet's loss
     if (crafts.active === D) { say(`${TY.label}  -  ${why}  -  BAIL OUT!`, 3); setTimeout(() => { if (crafts.active === D) ctx.bail?.(D); }, 600); }
   }
   D.wreck = wreck;

@@ -260,6 +260,16 @@ export function createJetPlay(ctx) {
     // seeker tone
     if (P.mode === 'AA' && P.arm && J.stores.aam.some(Boolean) && !P.ejected) sfx.seeker(P.tgt && P.tgt.lock ? 2 : P.tgt && P.tgt.off < 0.3 ? 1 : 0); else sfx.seeker(0);
   };
+  // COMMANDER: nobody in the cockpit but the AI wingman (units/commander/wingman.js): the commander switched to another
+  // unit. The pilot flies the airframe (pilot.update steps J through FD's stick and throttles); the jet's own damage
+  // and leaks keep running, a crash is a loss like any other. aiEnv: the pilot's world (terrain, carrier, anchor...).
+  const _wenv = {};
+  P.wingman = (dt, pilot, aiEnv) => {
+    if (!P.active || !P.alive || P.ejected) return;
+    env.mods = D.mods(); J.fuel = Math.max(0, J.fuel - D.update(dt));
+    pilot.update(dt, Object.assign(_wenv, env, aiEnv));
+    if (J.dead) lose(J.dead === 'water' ? 'HORNET DITCHED IN THE SEA' : 'HORNET CRASHED');
+  };
   function handle(e) {
     switch (e.e) {
       case 'catshot': sfx.catShot(); P.kick = 1; say('', 0); feed('ALBATROSS: HORNET LAUNCHED', 'good'); { const p = J.pos; for (let i = 0; i < 30; i++) fx.mix.spawn(p.x + rnd(-1, 1), p.y - 1.8, p.z + rnd(-1, 1), rnd(-3, 3), rnd(1, 4), rnd(-3, 3), rnd(1, 2.5), 1.4, 6, .92, .94, .96, 0.5, -0.2, 1.4, 0.4); } break;
