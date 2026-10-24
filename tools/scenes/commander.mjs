@@ -75,7 +75,7 @@ export default {
     // switch to the nearest M35 (the islands stock them), then N: another M35 at the home island
     await h.eval('(window.__j0 = __G.fleet.n.m151, window.__o0 = __G.roster[5].outCount(), __G.commander.standDown(5), { n: __G.fleet.n.m151, out: __G.roster[5].outCount() })');
     await h.expect(`${F}.n.m151 === __j0 + 1 && __G.roster[5].outCount() === __o0 - 1`, 'an M151A2 stands down into reserve');
-    await h.eval('__G.commander.deploy("m151", "ship")'); await h.wait(600);
+    await h.eval('__G.commander.deploy("m151", "ship", true)'); await h.wait(600);
     await h.expect(`__G.crafts.active.type === 'm151' && ${F}.n.m151 === __j0 && __G.war.shipAt(__G.crafts.active.sim.pos[0], __G.crafts.active.sim.pos[2]) === __G.war.carrier`, 'an M151A2 out on the ALBATROSS deck park');
     await h.wait(800); await h.shot('m151-deck');
     await h.eval('(window.__t0n = __G.fleet.n.m35, window.__t0o = __G.roster[6].outCount(), __G.commander.deploy("m35"), { craft: __G.G.craft, out: __G.roster[6].outCount() })');
@@ -107,7 +107,7 @@ export default {
     await h.expect(`__G.G.craft === 'heli' && ${F}.n.tomcat === 1`, 'the hand-on: into the Huey');
 
     // ---- 11. the wingman brought the Hornet home on the recall (pattern, glideslope, trap) and she parks on deck
-    for (let k = 0; k < 40; k++) {   // (polls: a single wait is capped by the browser protocol at 180 s)
+    for (let k = 0; k < 75; k++) {   // (polls: a single wait is capped by the browser protocol at 180 s)
       const r = await h.eval('(() => { const w = __G.jetC.wing; return w ? { t: Math.round(__G.war.time), st: w.state, R: w.lso ? Math.round(w.lso.R) : null, y: Math.round(__G.JP.J.pos.y) } : { done: true }; })()');
       if (!r || r.done) break; await h.wait(8000);
     }

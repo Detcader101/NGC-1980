@@ -94,11 +94,11 @@ The Huey spawns hot at flight idle and rolls the throttle on by itself. With `?c
 
 You are TASK FORCE ALBATROSS's commander, not one helicopter crew. **\\** opens the command board (the war keeps
 running while it is open): every unit type of the fleet - UH-1H Huey, F/A-18A Hornet, F-14A Tomcat, M60A3, M113A2,
-the motor pool's vehicle, a Marine rifleman - with how many are in reserve and the one that is out (where it is, what
+M151A2 jeep, M35A2 truck, a Marine rifleman - with how many are in reserve and the one that is out (where it is, what
 it is doing). Pick the base with LEFT / RIGHT (the ALBATROSS, or any friendly island: jets only from the carrier's cat 1),
-ENTER (or 1-7) takes a unit out there and puts you in it, or switches you to the one already out; with none left in
+ENTER (or 1-8) takes a unit out there and puts you in it, or switches you to the one already out; with none left in
 reserve the board buys one for materiel. **/** jumps straight to the next unit that is out. On the board, R recalls a
-jet on CAP and X stands a parked unit down into reserve. **5** / **8** work from any unit (no need to land the Huey).
+jet on CAP, X stands a parked unit down into reserve, N takes another jeep or truck out (several can be out). **5** / **8** work from any unit (no need to land the Huey).
 
 The unit you leave carries on: a Huey in the air is flown home by her crew (to the nearest friendly pad or the
 ALBATROSS's aft spot, matching the deck's motion); a Hornet or Tomcat in the air goes to the escorts' AI pilot (CAP
