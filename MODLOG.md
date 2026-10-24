@@ -1882,6 +1882,34 @@ lcm8model.js (CH-46 sling, LCM-8), wheeledbake.js (one-mesh far LOD and the WORL
   override covers the rest); force feedback (the Gamepad API has none for wheels); night (the lamps are sprites: the game
   has no night yet); the cab's switches in the M35 by eye in every light; AI crews in the other seats of a vehicle you
   drive (only the M35's troops ride along).
+## 2026-10-23 — NAVAL polish (authenticity pass)
+- ALBATROSS: crew placed by role round each aircraft and station (plane captain brown at the nose, blue chockers at
+  the mains, purple fuel crew at the refuel point, red ordnancemen at the wing stations; green catapult crew, a yellow
+  catapult officer and a white safety PO by cat 1, all clear of the launch lane), a yellow director at the fantail.
+  1970s-80s details: the bridle arrester horn off the bow at the end of cat 1, bullnose and jackstaff, a starboard
+  UNREP receiving sponson at hangar-deck level, a boat pocket aft with the gig and a motor whaleboat. The fuel bowser
+  no longer sits under a parked Hornet; funnel smoke is a light oil-fired haze, not black.
+- Deck vehicle park: the port strip forward of the landing area (SEAWORLD's DECK_SPOTS, x -10.5), clear of the catapult
+  lane; tow bars and the bow tractor moved off it.
+- KRAKEN: Ford-class plan - a broad blunt bow, both starboard elevators forward of the island (one was under the
+  island) plus the port one aft, the deck's underside and edge fascia wherever it overhangs the hull. The RW drones are
+  a proper tailless flying wing now (sawtooth trailing edge, lift fans in the roots, leading-edge seams).
+- LEVIATHAN: the port sensor fin is a small blade in the same language as the main one (was a box with a pole).
+- Sea: each hull has a bow wave (foam crests along its forward shoulders, attached to the ship, stronger with speed
+  and when the bow plunges); parts.waterHalf(z) gives the waterline half-beam for it.
+- **Island ladder (user bug: it didn't line up).** The ladders are the model's now: albatross.js exports
+  `parts.ladders` ({ name, lx, lz, yaw, y0, y1, w, top: [dx, dz], cage, drawn }, ship frame) and draws them itself
+  (`buildLadderGeo`: rails, rungs, stand-off brackets, grab handles, the upper flight caged); ground.js `GR.laddersOf`
+  reads them (its old LADDERS table stays the fallback) and foot.js skips drawing a ladder marked `drawn`. A 1980
+  island arrangement: two flights up the port face, flight deck -> the O-7 catwalk (now a proper bracketed walkway with
+  rails, open at the forward end) -> the island top deck (a gap in its port rail at the ladder head); a Jacob's
+  ladder off the fantail of both carriers (KRAKEN too). The island colliders and floors come from the model as well
+  (`parts.islandBoxes`, `parts.islandFloor`): the catwalk is walkable, the boxes match the geometry.
+  scenes/ladder.mjs climbs every ladder (9/9, runs/2026-10-24_09-10-02-ladder); foot.mjs step 4 takes the two flights.
+- Tests (2026-10-24, after merging experimental): ladder 9/9; foot 12/12; naval 5/5; seaworld 25/25; smoke 5/5;
+  navalbench 22/22; seabench 15/15; node --check game/js/*.js clean.
+- Tests: navalbench 22/22; naval.mjs 5/5 (runs/2026-10-23_15-30-10-naval); smoke 5/5; jettrap 7/7; sky 6/8 - the
+  same two expects fail on experimental 651012c (runs/2026-10-23_15-33-06-sky), not a naval regression.
 ## 2026-10-23 — NGC-1980 wave 2: INFANTRY DEPTH - buddy aid, the corpsman, casevac, AI Marines on the real sims, the grenade drill (branch ngc/infdepth)
 - **AI Marines on the real rifleman sim** (`units/groundwar/richmarine.js`, pure). Inside 120 m of the camera (up to 14
   men; `GW_T.RICH_R / RICH_MAX`) a ground-war Marine is promoted from marine.js's kinematic body to INFANTRY's rifleman
@@ -1978,3 +2006,41 @@ lcm8model.js (CH-46 sling, LCM-8), wheeledbake.js (one-mesh far LOD and the WORL
   Roots-blower scream; the starter motor's gear whine; a cough when the diesel catches; the transmission's clunk on a
   range shift; brake squeal at low speed; the turret's hydraulic valve hiss while laying.
 - **Tests**: tankbench 73/73 (+ the start-up check), armorgamebench 20/20, tankaudio 4/4, tankmodel 2/2 (M60, M113).
+## 2026-10-24 — NGC-1980 infantry depth, fixes: the rich Marines' rounds, hands off the rifle in third person, AI grenades and carries (branch ngc/infdepth-fix)
+- **"Both sides fire" (groundwar scene), counted right**: every round the near (rich) Marines fire already went through
+  groundsim's `shoot()` into `GS.stats.shots[1]`; what was wrong was the rest of the count and the men themselves.
+  `GS.stats.hits` now only counts hits by the ground war's own rounds (the Huey's door gun, rockets and the player's rifle
+  go to the new `GS.stats.warHits`, so hits[1] can no longer exceed shots[1]); `GS.stats.richShots` counts the rich men's
+  share. The scene counts from the Sea Knight's touchdown (`__s0`), and checks the rich men's rounds when any were rich.
+- **Why it failed**: in a hot-LZ fight (13 Marines 15-60 m from 3 STRIDERs, `node` A/B of the same fights) the rich men
+  fired a fifth to a half of the cheap model's rounds and lost twice the men - they held fire on every rush to cover
+  (the cheap model fires on the way) and turned onto targets at 3.2 rad/s. Now: unsighted fire (2x the tolerance) on the
+  run too, a 4.5 rad/s target transition (~0.35 s for 90 deg). Same fights after: cheap 1302 rounds / 15 KIA, rich 1104 /
+  12. The scene's Sea Knight gets 400 hp (below half it loses an engine and turns for home - one run never landed) and
+  the door gun thins the STRIDERs to two (SANDBAR is 60 m across: the LZ can't be far from them). 3 / 3 runs pass.
+- **Hands off the rifle, third person** (`units/infantry/carepose.js`, `poseSkeleton`'s `pose.hands`): drag (crouched,
+  both hands on the drag strap, a heave with each step back), fireman's carry (bent under him, right arm round his leg
+  to his wrist, left hand on his back, `stand` targets that follow the pelvis down), buddy aid (bent over the wound),
+  and the M67 / M18 drill (pouch, pin to the off hand, the arm cocked with the throwing shoulder turned back, over the
+  top, follow-through; underhand). Blended in and out over ~0.25 s per figure (hand targets from wherever the hands are,
+  the rifle slung onto the back by the same weight, spine / chest turn and pelvis drop scaled with it); the grenade in
+  the right hand (`pose.grenade`) for the player and the AI. Player (marine.js) and AI (groundwar.js `careLook`).
+- **AI Marines throw M67s** (game level): a man with one (2 per rifleman, `MARINE.LOAD.frags`), his target 10-30 m off and
+  behind cover (or a STRIDER inside 20 m), none of his own within 12 m of it, ~0.3 / s chance: stops, kneels, runs the
+  drill (`AI_DRILL`: 0.45 draw, 0.55 pin, 0.35 ready, 1.0 cook, 0.5 throw), lets go at a ~35 deg lob; the grenade
+  (`GW_AMMO.m67`) lands, rolls a little and goes off when the 4.5 s fuse runs out (6 m blast, power 0.5). A man hit
+  before he lets go keeps it (pin back in: GAME). No rifle fire with a grenade in his hand.
+- **AI fireman's carry** (fieldcare.js): a litter case being dragged with nobody shooting and more than 12 m to go is
+  lifted onto the shoulders (`BUDDY.carrySpeed`, 1.21 m/s) and put down at the CCP; the views put him across the
+  carrier's shoulders (groundwar.js `carriedView`, as marinecare.js does for the player). Drag distance 0.85 m (hands on
+  the strap).
+- **Tests**: new scene `carepose.mjs` 11/11 (AI drag, carry, the drill phase by phase, a real throw and its burst);
+  groundwar 10/10 x3, buddyaid 23/23, marine 15/15 (the leg-bleed check), foot 12/12, smoke 5/5; buddyaidbench 24/24
+  (the "under fire" check passes again: the near men suppress), groundwarbench 33/33, infantrybench 90, medinvbench 109,
+  marinebench and footbench all.
+- **Gotchas**: (1) `BUDDY.carrySpeed` needs `sprint: true` in the mods it is given, or it is 0 - the carrier stood still
+  for 240 s. (2) a trailing `//` comment on a long line swallowed `_want.aim = aim` again. (3) a landed Huey within 45 m
+  of a casualty is a CASEVAC: the litter goes to the Huey, not the CCP (scenes: get out first). (4) a casualty's care
+  record is dropped while `u.able` is still true (the same frame he went down): set it after one step.
+- **Next**: the rich carrier walks at his rifleman's walk, not the carry speed (the body follows the soldier sim);
+  a grenade in flight is not drawn; a man killed with a cooked grenade could drop it.
