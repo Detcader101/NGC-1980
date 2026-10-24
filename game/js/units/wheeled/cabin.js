@@ -29,7 +29,7 @@ export function createCabin(V, ctx) {
   const C = { hitBoxes: [], group: null, lights: 0, panel: false, wiper: false, wipeT: 0, park: false, ext: mil ? 2 : 0, spare: 1, legs: null };
   const LIGHTS = mil ? MIL_LIGHTS : CIV_LIGHTS;
   const hitMat = new THREE.MeshBasicMaterial({ visible: false });
-  const _v = new THREE.Vector3(), _w = new THREE.Vector3();
+  const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _f = new THREE.Vector3(), _k = new THREE.Vector3(), _a = new THREE.Vector3();   // (no per-frame allocations)
   function hit(id, parent, pos, size = 0.07) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(size, size, size), hitMat); m.position.copy(pos); m.userData.sw = id; parent.add(m); C.hitBoxes.push(m); return m;
   }
@@ -187,9 +187,9 @@ export function createCabin(V, ctx) {
       for (let k = 0; k < 2; k++) {
         const L = C.legs.legs[k], s = k ? 1 : -1;
         const hip = _v.set(d.at[0] + s * 0.1, d.at[1] + 0.12, d.at[2] + 0.02);
-        const foot = k ? padPos((look.brake || 0) > 0.05 ? 1 : 2, new THREE.Vector3()) : padPos(0, new THREE.Vector3()).add(_w.set((look.clutch || 0) > 0.3 ? 0 : -0.1, (look.clutch || 0) > 0.3 ? 0 : 0.02, (look.clutch || 0) > 0.3 ? 0 : 0.06));
-        const knee = new THREE.Vector3().copy(hip).lerp(foot, 0.5); knee.y = Math.max(hip.y, foot.y) + 0.16; knee.z -= 0.04;
-        limb(L.thigh, hip, knee); limb(L.shin, knee, new THREE.Vector3(foot.x, foot.y + 0.07, foot.z + 0.05));
+        const foot = k ? padPos((look.brake || 0) > 0.05 ? 1 : 2, _f) : padPos(0, _f).add(_w.set((look.clutch || 0) > 0.3 ? 0 : -0.1, (look.clutch || 0) > 0.3 ? 0 : 0.02, (look.clutch || 0) > 0.3 ? 0 : 0.06));
+        const knee = _k.copy(hip).lerp(foot, 0.5); knee.y = Math.max(hip.y, foot.y) + 0.16; knee.z -= 0.04;
+        limb(L.thigh, hip, knee); limb(L.shin, knee, _a.set(foot.x, foot.y + 0.07, foot.z + 0.05));
         L.boot.position.set(foot.x, foot.y + 0.03, foot.z + 0.03); L.boot.rotation.x = -0.3;
       }
     }

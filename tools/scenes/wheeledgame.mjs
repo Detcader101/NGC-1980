@@ -114,8 +114,12 @@ export default async function (h) {
   await h.eval('({ hud: __WG.hud(), bleeds: __G.marine.MS.M.bleeds.length, vol: Math.round(__G.marine.MS.M.vol) })');
   await h.expect('__M.dmg.state.tyres.some(t => t.leak > 0 || t.pressure < 1) || __M.dmg.state.engine < 1 || __M.dmg.state.fuelLeak > 0', 'enemy rounds damaged the jeep (vehicledamage.js)');
   await h.shot('hit-gunner-view');
-  // a round straight through the gunner's place: the vehicle's crew hit becomes the Marine's wound (marine.js / MEDINV)
-  await h.eval(`(() => { const M = __G.marine.MS.M, hp = () => Object.values(M.regions).reduce((s, r) => s + r.hp, 0), h0 = hp(), T = __G.THREE, S = __M.sim, q = new T.Quaternion(S.q[0], S.q[1], S.q[2], S.q[3]), s = __M.seats[__M.seat]; let n = 0; while (hp() === h0 && n < 12 && !__G.marine.MS.dead) { const at = new T.Vector3(s.at[0], s.at[1] + 0.45, s.at[2]).applyQuaternion(q).add(new T.Vector3(S.pos[0], S.pos[1], S.pos[2])), dir = new T.Vector3(1, -0.1, 0).applyQuaternion(q); __G.hurtPlayer(0.2, 'HIT', at, dir.multiplyScalar(300), 'b'); n++; } window.__wound = { before: Math.round(h0), after: Math.round(hp()), shots: n, dead: __G.marine.MS.dead }; return __wound; })()`, 'rounds through the gunner');
+  // a round straight through the gunner's place: the vehicle's crew hit becomes the Marine's wound (marine.js / MEDINV).
+  // (the jeep patched up first - a burning wreck takes no more rounds; the crew events land on the next sim step)
+  await h.eval(`(() => { __M.dmg.repair('all'); const M = __G.marine.MS.M; window.__hp = () => Object.values(M.regions).reduce((s, r) => s + r.hp, 0); window.__wound = { before: Math.round(__hp()), shots: 0 }; return __wound; })()`);
+  await h.eval(`(() => { const T = __G.THREE, S = __M.sim, q = new T.Quaternion(S.q[0], S.q[1], S.q[2], S.q[3]), s = __M.seats[__M.seat]; for (let n = 0; n < 3; n++) { const at = new T.Vector3(s.at[0], s.at[1] + 0.45, s.at[2]).applyQuaternion(q).add(new T.Vector3(S.pos[0], S.pos[1], S.pos[2])), dir = new T.Vector3(1, -0.1, 0).applyQuaternion(q); __G.hurtPlayer(0.2, 'HIT', at, dir.multiplyScalar(300), 'b'); __wound.shots++; } return __wound; })()`, 'rounds through the gunner');
+  await h.wait(800);
+  await h.eval('(Object.assign(__wound, { after: Math.round(__hp()), dead: __G.marine.MS.dead }))');
   await h.expect('__wound.after < __wound.before || __wound.dead', 'the crew hit wounded the Marine riding in the jeep');
   await h.eval('(__G.marine.MS.dead ? 0 : (__G.marine.MS.M.restore(), 1))');   // (patched up for the rest of the scene)
 
@@ -185,4 +189,12 @@ export default async function (h) {
   await h.eval('({ seat: __T.seats[__T.seat].label })');
   await h.expect("__T.seats[__T.seat].sid === 'ring'", 'the ring mount seat');
   await h.wait(500); await h.shot('m35-ring-mount-m2');
+
+  // ---------------------------------------------------------------- 7. the COMMANDER hook: one spawn function per type
+  await h.eval(`(() => { const P = ${P}, I = __G.ISLANDS.find(I => I.owner === 1 && I.pad), n0 = P.list.length, mat0 = __G.G.mat; const S = __T.sim;
+    const a = P.spawnM151(I), b = P.spawnM35({ x: S.pos[0] + 12, z: S.pos[2] + 6, yaw: 1 }, { running: true }), c = P.spawnBeetle({ x: S.pos[0] - 12, z: S.pos[2] + 6 }), d = P.spawners.hilux({ x: S.pos[0] - 12, z: S.pos[2] - 10 });
+    window.__SP = [a, b, c, d]; return { added: P.list.length - n0, types: [a, b, c, d].map(V => V && V.type), owners: [a, b, c, d].map(V => V && V.owner), runningM35: b && b.sim.eng.running, mat: __G.G.mat - mat0, fns: Object.keys(P.spawners) }; })()`, 'commander spawners');
+  await h.wait(1500);
+  await h.expect("__SP.every(V => V && V.exists && V.sim.up[1] > 0.9) && __SP[1].sim.eng.running && __SP[2].owner === 'civ' && __SP[0].owner === 'mil'", 'pool.spawnM151 / spawnM35 / spawnBeetle / spawners.hilux: upright, the M35 running');
+  await h.key('tap', 'KeyV'); await h.wait(1200); await h.shot('commander-spawned');
 }

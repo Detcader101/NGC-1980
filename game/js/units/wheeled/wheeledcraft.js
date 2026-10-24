@@ -21,6 +21,11 @@ import { bakeModel } from './wheeledbake.js';
 import { createMountedGun, GUN } from './vehicleguns.js';
 import { buildMarine } from '../air/rotary/figures.js';
 import { createCabin } from './cabin.js';
+import { createWheelInput, WHEEL_ID } from './wheelinput.js';
+// one racing wheel for every vehicle (it learns its pedals' rest values once); the pads are read once per frame
+const WHEEL = createWheelInput({ store: { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } } } });
+let wheelT = -1, wheelR = null;
+const readWheel = input => { if (input && input.keyboardOnly) return null; const t = performance.now(); if (t !== wheelT) { wheelT = t; try { wheelR = WHEEL.read(navigator.getGamepads ? Array.from(navigator.getGamepads() || []) : []); } catch (e) { wheelR = null; } } return wheelR; };
 
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const STEP = 1 / 60;
@@ -181,7 +186,7 @@ export function createWheeledCraft(ctx, type, o = {}) {
   // (a keyboard is all or nothing: full lock at 60 km/h rolls an M151, which is right, but not what a tap means)
   const steerLimit = v => { const vv = Math.max(4, Math.abs(v)); return clamp(Math.atan(spec.dims.wheelbase * 0.42 * 9.81 / (vv * vv)) / spec.steer.max, 0.12, 1); };
   function readDriver(dt, input) {
-    const pad = input && input.pad && !input.keyboardOnly ? input.pad : null, st = ctx.CTL && ctx.CTL.state, hw = ctx.hwOn ? ctx.hwOn() : true;
+    const pad = input && input.pad && !input.keyboardOnly && !WHEEL_ID.test(input.pad.id || '') ? input.pad : null, st = ctx.CTL && ctx.CTL.state, hw = ctx.hwOn ? ctx.hwOn() : true;
     const up = kd('KeyW', 'ArrowUp'), dn = kd('KeyS', 'ArrowDown');
     const kSteer = (kd('KeyD', 'ArrowRight') ? 1 : 0) - (kd('KeyA', 'ArrowLeft') ? 1 : 0);
     V.thr = up ? Math.min(1, V.thr + dt * 2.5) : Math.max(0, V.thr - dt * 5);
@@ -194,7 +199,13 @@ export function createWheeledCraft(ctx, type, o = {}) {
       if (rt > 0.04) thr = Math.max(thr, rt); if (lt > 0.04) brk = Math.max(brk, lt);
       if (pad.buttons[0] && pad.buttons[0].pressed) hand = 1;
     }
-    if (hw && st && st.source && st.source !== 'NONE') {   // HOTAS: stick X or the pedals steer, throttle lever = gas, toe brakes / stick aft = brake
+    const wh = readWheel(input);
+    if (wh) {   // a racing wheel and pedals (wheelinput.js): the rim sets the wheel directly, gas / brake / clutch pedals
+      steerT = wh.steer; analog = true; V.wheelDev = wh.id;
+      if (wh.gas > 0.02) thr = Math.max(thr, wh.gas); if (wh.brake > 0.02) brk = Math.max(brk, wh.brake); V.wheelClutch = wh.clutch;
+      if (wh.handbrake) hand = 1;
+    } else V.wheelClutch = 0;
+    if (!wh && hw && st && st.source && st.source !== 'NONE') {   // HOTAS: stick X or the pedals steer, throttle lever = gas, toe brakes / stick aft = brake
       if (st.stick && Math.abs(st.stick.x) > 0.05) { steerT = st.stick.x; analog = true; }
       if (st.hasPedals && Math.abs(st.rudder) > 0.05) { steerT = st.rudder; analog = true; }
       if (st.throttle !== null && st.throttle !== undefined) { if (thrLast === null) thrLast = st.throttle; if (Math.abs(st.throttle - thrLast) > 0.03 || V._hwThr) { V._hwThr = true; thrLast = st.throttle; thr = Math.max(thr, st.throttle); } }
@@ -207,12 +218,14 @@ export function createWheeledCraft(ctx, type, o = {}) {
     if (thr < 0.05 && brk < 0.05 && Math.abs(S.speed) < 0.3) hand = 1;   // stopped with no pedal: the parking brake holds it (released as you pull away)
     inp.throttle = thr; inp.brake = brk; inp.steer = V.steer; inp.handbrake = hand; padSteer = steerT;
     inp.horn = kd('KeyH') || inp.horn;
+    // the clutch pedal (manual gearbox): C held, or the wheel's clutch pedal; the clutch ramps in at a foot's rate
+    { const want = Math.max(kd('KeyC') ? 1 : 0, V.wheelClutch || 0); V.clu = (V.clu || 0) + clamp(want - (V.clu || 0), -dt * 2.5, dt * 6); inp.clutch = V.wheelClutch ? want : V.clu; }
     if (V.crank > 0) { inp.ignition = true; inp.starter = !S.eng.running; V.crank -= dt; if (S.eng.running || V.crank <= 0) { V.crank = 0; inp.starter = false; } }
     else inp.starter = false;
   }
   // the gunner: the mouse (look), the arrow keys or the right stick lay the gun; LMB / F / X / RT fire
   function readGunner(dt, input) {
-    const pad = input && input.pad && !input.keyboardOnly ? input.pad : null, g = T.gun;
+    const pad = input && input.pad && !input.keyboardOnly && !WHEEL_ID.test(input.pad.id || '') ? input.pad : null, g = T.gun;
     const ky = (kd('ArrowUp') ? 1 : 0) - (kd('ArrowDown') ? 1 : 0), kx = (kd('ArrowLeft') ? 1 : 0) - (kd('ArrowRight') ? 1 : 0);
     V.aim.yaw += kx * dt * 1.2; V.aim.pitch = clamp(V.aim.pitch + ky * dt * 0.8, g.elev[0], g.elev[1]);
     if (pad) { const rx = Math.abs(pad.axes[2] || 0) > 0.12 ? pad.axes[2] : 0, ry = Math.abs(pad.axes[3] || 0) > 0.12 ? pad.axes[3] : 0; V.aim.yaw -= rx * dt * 1.6; V.aim.pitch = clamp(V.aim.pitch - ry * dt * 1.1, g.elev[0], g.elev[1]); }
@@ -224,7 +237,7 @@ export function createWheeledCraft(ctx, type, o = {}) {
   const padPrev = [];
   function buttons(input) {
     inp.horn = V.cabin.hornT > 0;   // (the horn button clicked in the cab: half a second)
-    const pad = input && input.pad && !input.keyboardOnly ? input.pad : null;
+    const pad = input && input.pad && !input.keyboardOnly && !WHEEL_ID.test(input.pad.id || '') ? input.pad : null;
     if (pad) {
       const b = i => !!(pad.buttons[i] && pad.buttons[i].pressed), edge = i => b(i) && !padPrev[i];
       if (edge(2)) V.key(isGunner() ? 'KeyR' : 'KeyI'); if (edge(3)) V.key('KeyV');
@@ -232,8 +245,13 @@ export function createWheeledCraft(ctx, type, o = {}) {
       if (b(1) && isDriver()) inp.horn = true;
       for (let i = 0; i < 12; i++) padPrev[i] = b(i);
     }
+    const wh = isDriver() ? readWheel(input) : null;
+    if (wh) {   // the wheel's paddles shift (semi / manual), face buttons: horn, engine, view; 6 / 7 seats
+      if (wh.up) V.key('KeyE'); if (wh.down) V.key('KeyQ'); if (wh.engine) V.key('KeyI'); if (wh.view) V.key('KeyV');
+      if (wh.seatNext) crafts.cycleSeat(1); if (wh.seatPrev) crafts.cycleSeat(-1); if (wh.horn) inp.horn = true;
+    }
     const st = ctx.CTL && ctx.CTL.state, hw = ctx.hwOn ? ctx.hwOn() : true;
-    if (hw && st && st.pressed && st.source && st.source !== 'NONE') {
+    if (!wh && hw && st && st.pressed && st.source && st.source !== 'NONE') {
       const P = st.pressed, A = st.actions || {};
       if (P.pickle) V.key('KeyI'); if (P.view) V.key('KeyV'); if (P.gear) crafts.cycleSeat(1); if (P.eject) ctx.getInOut?.(); if (P.flaps) V.cabin.click('lights');
       if (P.wheelbrake) V.cabin.click('park');

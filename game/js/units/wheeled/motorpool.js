@@ -108,6 +108,31 @@ export function createMotorPool(o) {
     if (opt.home) V.home = opt.home;
     return V;
   }
+  // ---- one spawn function per vehicle type, for a COMMANDER menu (or any other caller): no materiel, no delivery.
+  //   where: an island (its motor pool spot), 'deck' (the ALBATROSS's deck park), or a spot { x, z, yaw?, y?, plat?,
+  //          exact? } (the nearest clear, dry, gentle place within 40 m of it unless plat / exact)
+  //   opt:   { running, owner ('player' | 'civ'), colour, home } -> the craft (pool.list, crafts) or null (no room)
+  //   pool.spawnM151(I)  pool.spawnM35({ x, z, yaw })  pool.spawnLandRover / spawnHilux / spawnBeetle / spawnLada
+  //   pool.spawners[type](where, opt) is the same table keyed by type (TYPES' keys)
+  function spotFor(type, where) {
+    const r = type === 'm35' ? 3.6 : 2.4;
+    if (!where) return null;
+    if (where === 'deck') return GR.deckSpot(0) || GR.deckSpot(1) || GR.deckSpot(2);
+    if (where.pad || where.structs) return GR.motorPool(where, r);   // an island
+    if (!Number.isFinite(where.x) || !Number.isFinite(where.z)) return null;
+    const mk = (x, z) => ({ name: where.name || 'SPAWN', x, z, y: where.y, yaw: where.yaw || 0, plat: where.plat || null });
+    if (where.plat || where.exact) return mk(where.x, where.z);   // a deck spot / the caller knows best
+    // the nearest clear, dry, gentle spot within 40 m (no roof, wall, tree or vehicle; the ground within 2 r level to ~7 deg)
+    const T = o.terrainH, ok = (x, z) => { const h = T(x, z); if (h < 0.3) return false; let lo = h, hi = h; for (let k = 0; k < 8; k++) { const c = Math.cos(k * 0.785), sn = Math.sin(k * 0.785); for (const R of [r, 2 * r]) { const y = T(x + c * R, z + sn * R); lo = Math.min(lo, y); hi = Math.max(hi, y); } } return (hi - lo) / (4 * r) < 0.12 && GR.clearAt(x, z, r) && !WO.near(x, z, r + 1).boxes.length && !list.some(V => V.exists && Math.hypot(V.sim.pos[0] - x, V.sim.pos[2] - z) < r + 3); };
+    for (let d = 0; d <= 40; d += 3) for (let k = 0, n = d ? Math.ceil(d * 1.2) : 1; k < n; k++) { const a = k / n * Math.PI * 2, x = where.x + Math.sin(a) * d, z = where.z + Math.cos(a) * d; if (ok(x, z)) return mk(x, z); }
+    return null;
+  }
+  function spawnType(type, where, opt = {}) {
+    const sp = spotFor(type, where); if (!sp) return null;
+    const home = opt.home ?? (where === 'deck' ? 'deck' : where && (where.pad || where.structs) ? where : null);
+    return spawn(type, sp, { owner: TYPES[type].civ ? 'civ' : undefined, ...opt, home });
+  }
+  const spawners = Object.fromEntries(Object.keys(TYPES).map(t => [t, (where, opt) => spawnType(t, where, opt)]));
   function remove(V) {
     if (crafts.active === V) return false;
     const i = list.indexOf(V); if (i >= 0) list.splice(i, 1);
@@ -342,6 +367,7 @@ export function createMotorPool(o) {
   // ---------------------------------------------------------------- per frame
   const pool = {
     list, ctx, WENV, WO, guns, delivery, spawn, remove, newGame, deliver, stockIsland, takeover, giveBack, parked,
+    spawners, spawnM151: spawners.m151, spawnM35: spawners.m35, spawnLandRover: spawners.landrover, spawnHilux: spawners.hilux, spawnBeetle: spawners.beetle, spawnLada: spawners.lada,
     first: type => list.find(V => V.type === type && V.exists) || null,
     // tests / tools: a driver.js follower at the wheel of V (pts [{x, z, v?}]), and a path along a WORLD road
     autopilot: (V, pts, speed = 10) => { V.auto = pts ? createFollower(pts, { speed, latG: 0.3, stopDist: 3, unstick: false }) : null; return !!V.auto; },

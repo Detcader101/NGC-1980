@@ -233,7 +233,7 @@ export function createVehicleSim(spec, opts = {}) {
     // outputs
     speed: 0, kmh: 0, slipMax: 0, yawRate: 0, latG: 0, lonG: 0, up: v3(0, 1, 0), fwdv: v3(0, 0, -1), roll: 0, pitch: 0, heading: 0,
     inWater: 0, depth: 0, hullContact: 0, odometer: 0, tripFuel: 0, onGround: false, upsideDown: false, contactForce: 0,
-    events: [], dmg: null, mods: { power: 1, seized: false, flat: null, brake: 1 }, _acc: v3(), _t: 0, _evCool: {},
+    events: [], _between: [], _inStep: false, dmg: null, mods: { power: 1, seized: false, flat: null, brake: 1 }, _acc: v3(), _t: 0, _evCool: {},
     kit: false, horn: false, lights: false, lastCtl: null,
     // reset the vehicle: model origin at pos, heading yaw (rad, 0 = nose along -z, + = turn LEFT as three's y rotation),
     // o: { running (engine on), gear, fuel (litres) }
@@ -242,7 +242,7 @@ export function createVehicleSim(spec, opts = {}) {
       S.pos[0] = pos[0]; S.pos[1] = pos[1]; S.pos[2] = pos[2];
       qToR(S.q, R); bw(R, S.cgb, _a);
       S.cgw[0] = pos[0] + _a[0]; S.cgw[1] = pos[1] + _a[1]; S.cgw[2] = pos[2] + _a[2];
-      S.vel.fill(0); S.w.fill(0); S.L.fill(0); solver.w.fill(0); S.events.length = 0;
+      S.vel.fill(0); S.w.fill(0); S.L.fill(0); solver.w.fill(0); S.events.length = 0; S._between.length = 0;
       for (const W of wheels) { const k = P.wk[W.i]; W.s = k.s0; W.sv = 0; W.penPrev = k.pen0; W.ts = tyreState(); W.contact = W.wasContact = false; W.Fbx = 0; W.omega = 0; }
       const run = o.running !== false;
       Object.assign(S.eng, { rpm: run ? E.idle : 0, running: run, thr: 0, temp: o.temp ?? (run ? 82 : 20), boost: 0, crank: 0, misfire: 0, wet: 0, seized: false, hydrolock: false, smoke: 0 });
@@ -331,13 +331,14 @@ export function createVehicleSim(spec, opts = {}) {
       updatePose();
     },
     step(dt, ctl, env) {
-      S.events.length = 0; S.lastCtl = ctl;
+      // events raised between steps (a round through the vehicle: dmg.hit / blast from the host) are reported with this one
+      S.events.length = 0; for (const e of S._between) S.events.push(e); S._between.length = 0; S._inStep = true; S.lastCtl = ctl;
       dt = Math.min(dt, 0.1);
       const n = Math.max(1, Math.ceil(dt / SUB - 1e-6)), h = dt / n;
       frameControls(dt, ctl, env);
       for (let i = 0; i < n; i++) sub(h, ctl, env);
       systems(dt, ctl, env);
-      updatePose();
+      updatePose(); S._inStep = false;
       return S.events;
     },
     // level of detail: 'near' (9 tyre probes, 600 Hz: the player / the camera's neighbours), 'mid' (5, 480 Hz), 'far'
@@ -346,7 +347,7 @@ export function createVehicleSim(spec, opts = {}) {
     get rpm() { return S.eng.rpm; },
     get mass() { return S.massNow; },
   };
-  const ev = (e, x, cool = 0) => { if (cool) { const t = S._evCool[e] || 0; if (S._t < t) return; S._evCool[e] = S._t + cool; } S.events.push(x ? { e, ...x } : { e }); if (S.dmg) S.dmg.onEvent?.(S, e, x); };
+  const ev = (e, x, cool = 0) => { if (cool) { const t = S._evCool[e] || 0; if (S._t < t) return; S._evCool[e] = S._t + cool; } (S._inStep ? S.events : S._between).push(x ? { e, ...x } : { e }); if (S._between.length > 64) S._between.shift(); if (S.dmg) S.dmg.onEvent?.(S, e, x); };
   S.ev = ev;
 
   function updatePose() {
