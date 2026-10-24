@@ -69,7 +69,7 @@ export function buildShipGeo(INT, g = new Geo()) {
     const c = C(f.c ?? 0x5a5f63);
     if (f.ry) { steps(g, f, c); continue; }
     if (f.deck) continue;   // the model draws the flight deck
-    if (f.roof) { if (f.y < 8 + 13.5) g.quad([f.x0, f.y - 0.22, f.z1], [f.x0, f.y - 0.22, f.z0], [f.x1, f.y - 0.22, f.z0], [f.x1, f.y - 0.22, f.z1], C(0x9a9e9c)); continue; }   // a roof the model draws: its underside only (the deckhead)
+    if (f.roof) { if (f.y < 8 + 13.5 && !f.noCeil) g.quad([f.x0, f.y - 0.22, f.z1], [f.x0, f.y - 0.22, f.z0], [f.x1, f.y - 0.22, f.z0], [f.x1, f.y - 0.22, f.z1], C(0x9a9e9c)); continue; }   // a roof the model draws: its underside only (the deckhead)
     const th = f.hangar ? 0.4 : 0.15, lift = 0.015;   // (lifted clear of the model's own level tops, coplanar with the decks)
     g.box((f.x0 + f.x1) / 2, f.y - th + lift, (f.z0 + f.z1) / 2, f.x1 - f.x0, th, f.z1 - f.z0, c, 0, shade(c, 1.05));
   }

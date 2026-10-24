@@ -108,12 +108,16 @@ export function createAlbInterior(ship) {
   wallX(L1.z0, 1, L1.x0, L1.x1, 3.2, 6.4, [], inner, ext); wallX(L1.z1, -1, L1.x0, L1.x1, 3.2, 6.4, [], inner, ext);
   wallZ(L2.x0, 1, L2.z0, L2.z1, 6.4, 9.0, [], inner, { ...ext, glass: [7.6 - 6.4, 8.3 - 6.4] }); wallZ(L2.x1, -1, L2.z0, L2.z1, 6.4, 9.0, [], inner, { ...ext, glass: [1.2, 1.9] });
   wallX(L2.z0, 1, L2.x0, L2.x1, 6.4, 9.0, [], inner, { ...ext, glass: [1.2, 1.9] }); wallX(L2.z1, -1, L2.x0, L2.x1, 6.4, 9.0, [], 0x8a8f90, ext);
-  const dWing = sd => ({ a: -4.6 - 0.42, b: -4.6 + 0.42, h: 1.95 });
+  const WZ = { '-1': -3.2, '1': -4.6 };   // the bridge wings' centres (NAVAL's model: port at z -3.2, starboard -4.6)
+  const dWing = sd => ({ a: WZ[sd] - 0.42, b: WZ[sd] + 0.42, h: 1.95 });
   wallZ(BR.x0, 1, BR.z0, BR.z1, 9.0, 13.05, [dWing(-1)], inner, { ...ext, glass: [0.95, 3.55] }); wallZ(BR.x1, -1, BR.z0, BR.z1, 9.0, 13.05, [dWing(1)], inner, { ...ext, glass: [0.95, 3.55] });
   wallX(BR.z0, 1, BR.x0, BR.x1, 9.0, 13.05, [], inner, { ...ext, glass: [0.95, 3.55] }); wallX(BR.z1, -1, BR.x0, BR.x1, 9.0, 13.05, [], inner, { ...ext, glass: [0.95, 3.55] });
   // what stays solid outside: pri-fly, the funnel, the mast, the top-deck rails, the wings' rails (as ALB_BOXES had them)
-  for (const b of [[-3.4, 1.0, 0.3, 4.9, 13.15, 15.8], [-2.0, 2.2, 4.1, 8.7, 6.4, 17.8], [-0.2, 0.4, -1.3, -0.7, 13.3, 28], [-2.5, 2.6, -6.25, -6.05, 13.3, 14.3], [2.45, 2.65, -6.1, 0.4, 13.3, 14.3], [-2.65, -2.45, -6.1, 0.3, 13.3, 14.3]]) box(...b, 0, { noDraw: true });
-  for (const sd of [-1, 1]) { box(sd > 0 ? 3.85 : -3.95, sd > 0 ? 3.95 : -3.85, -5.8, -3.4, 9.1, 10.1, 0, { noDraw: true }); box(sd > 0 ? 2.5 : -3.95, sd > 0 ? 3.95 : -2.5, -5.9, -5.75, 9.1, 10.1, 0, { noDraw: true }); }
+  // (NAVAL's own list when the model exports it - parts.islandBoxes from pri-fly on: funnel, mast, SPS-48 pedestal, the
+  // top-deck and catwalk rails, the port wing's ledge; else the same boxes as ground.js ALB_BOXES had)
+  const outside = ship.parts && ship.parts.islandBoxes ? ship.parts.islandBoxes.slice(4) : [[-3.4, 1.0, 0.3, 4.9, 13.15, 15.8], [-2.0, 2.2, 4.1, 8.7, 6.4, 17.8], [-0.2, 0.4, -1.3, -0.7, 13.3, 28], [-2.5, 2.6, -6.25, -6.05, 13.3, 14.3], [2.45, 2.65, -6.1, 0.4, 13.3, 14.3], [-2.65, -2.45, -6.1, 0.3, 13.3, 14.3]];
+  for (const b of outside) box(...b, 0, { noDraw: true });
+  for (const sd of [-1, 1]) { const z = WZ[sd]; box(sd > 0 ? 3.85 : -3.95, sd > 0 ? 3.95 : -3.85, z - 1.2, z + 1.2, 9.1, 10.1, 0, { noDraw: true }); box(sd > 0 ? 2.5 : -3.95, sd > 0 ? 3.95 : -2.5, z - 1.3, z - 1.15, 9.1, 10.1, 0, { noDraw: true }); }
   // ---- O-3: Flight Deck Control forward, the vestibule, the trunk down, the stairs up
   slabHole(-3.96, 3.29, -9.3, 9.4, 0, [0.3, 1.2, 1.0, 1.0 + 3.75 / STAIR], deckc, { deck: true });   // (the flight deck round the island too: to its edge at x 13.79)
   wallX(-2.2, -1, B.x0 + W, B.x1 - W, 0, 3.05, [{ a: -1.7, b: -0.8, h: 2.0 }], inner);   // FDC's aft bulkhead
@@ -156,8 +160,9 @@ export function createAlbInterior(ship) {
   slabHole(BR.x0, BR.x1, BR.z0, BR.z1, 9.1, s4, 0x3b3530);
   slab(L2.x0, L2.x1, L2.z0, BR.z0, 9.0, deckc, { roof: true }); slab(L2.x0, L2.x1, BR.z1, 6.0, 9.0, deckc, { roof: true });   // O-7's roof round the bridge
   wallZ(s4[1], 1, s4[2] - W, s4[3], 9.1, 10.1, [], 0x5a5f63); wallX(s4[2], -1, s4[0] - 0.05, s4[1], 9.1, 10.1, [], 0x5a5f63);   // rails: inboard and forward of the well
-  for (const sd of [-1, 1]) slab(sd > 0 ? 2.5 : -3.95, sd > 0 ? 3.95 : -2.5, -5.8, -3.4, 9.12, deckc, { wing: sd });
-  const dWP = door('wingP', { u: BR.x0 + W / 2, v: -4.6, y: 9.1, w: 0.84, h: 1.85, ax: 'v', hinge: 1, swing: 1, kind: 'wt', c: 0x8c9296, out: -1 });
+  for (const sd of [-1, 1]) slab(sd > 0 ? 2.5 : -3.95, sd > 0 ? 3.95 : -2.5, WZ[sd] - 1.2, WZ[sd] + 1.2, 9.12, deckc, { wing: sd, roof: true, noCeil: true });
+  slab(-3.62, -2.3, -7.2, 5.2, 6.4, deckc, { roof: true, noCeil: true });   // the O-7 catwalk on the port face (NAVAL's ladders land on it)
+  const dWP = door('wingP', { u: BR.x0 + W / 2, v: WZ[-1], y: 9.1, w: 0.84, h: 1.85, ax: 'v', hinge: 1, swing: 1, kind: 'wt', c: 0x8c9296, out: -1 });
   const dWS = door('wingS', { u: BR.x1 - W / 2, v: -4.6, y: 9.1, w: 0.84, h: 1.85, ax: 'v', hinge: 1, swing: -1, kind: 'wt', c: 0x8c9296, out: 1 });
   put('helm', -0.2, 9.1, -3.6, 0, {}, [0.9, 0.7, 1.3]); put('telegraph', 0.75, 9.1, -3.75, 0, {}, [0.5, 0.5, 1.2]);
   put('captainChair', -1.85, 9.1, -4.9, Math.PI + 0.25, {}, [0.75, 0.75, 1.3]); put('radarRepeater', 1.4, 9.1, -1.5, -0.6, {}, [0.8, 0.8, 1.2]);
@@ -179,7 +184,7 @@ export function createAlbInterior(ship) {
   const dIsl = door('port', { u: B.x0 + W / 2, v: -1.0, y: 0, w: 0.85, h: 1.9, ax: 'v', hinge: -1, swing: 1, kind: 'wt', c: 0x2b2e32, out: -1 });
   const punches = [
     { door: dIsl, x: X(B.x0) - 0.14, z: Z(-1.0), y0: Y(0), y1: Y(1.9), w: 0.85, nx: -1 },
-    { door: dWP, x: X(BR.x0) - 0.14, z: Z(-4.6), y0: Y(9.1), y1: Y(10.95), w: 0.84, nx: -1 },
+    { door: dWP, x: X(BR.x0) - 0.14, z: Z(WZ[-1]), y0: Y(9.1), y1: Y(10.95), w: 0.84, nx: -1 },
     { door: dWS, x: X(BR.x1) + 0.14, z: Z(-4.6), y0: Y(9.1), y1: Y(10.95), w: 0.84, nx: 1 },
     ...openings.map(o => ({ hangar: true, x: o.sd * (12.37), z: (o.z0 + o.z1) / 2, y0: H.y, y1: H.y + 2.6, w: o.z1 - o.z0, nx: o.sd })),
   ];
