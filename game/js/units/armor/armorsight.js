@@ -58,7 +58,7 @@ export function createSight({ canvas }) {
     c.font = `${Math.round(H / 48)}px "Courier New", monospace`;
     c.fillText(`${tts ? 'TTS ' + V.ttsMag + 'X ' + (V.ttsPolarity === 'wh' ? 'WH' : 'BH') : 'DAY 8X'}   ${V.stabMode === 'STAB RUN-UP' ? 'STAB RUN-UP ' + Math.round(V.gyro * 100) + '%' : V.stabMode || (V.hydP > 0.5 ? (V.stab ? 'STAB' : 'POWER') : 'MANUAL')}${V.fc.solved ? '   COMP ' + V.fc.range : '   BS 1200'}`, cx, cy - R * 0.85);
     if (tts && !cool) c.fillText(`COOLING ${Math.round(V.ttsCool * 100)} %`, cx, cy - R * 0.2);
-    if (s.note) { c.font = `${Math.round(H / 52)}px "Courier New", monospace`; c.fillText(s.note, cx, cy + R * 0.92); }
+    if (s.note) { c.font = `${Math.round(H / 52)}px "Courier New", monospace`; c.fillText(s.note, cx, cy - R * 0.74); }   // (under the status line: at the bottom it ran under the HUD hint)
   };
   // chase view / commander's cupola: a light crosshair where the gun (or the .50) points, a ring at the camera's aim
   function chaseReticle(s, W, H, pxPerRad) {

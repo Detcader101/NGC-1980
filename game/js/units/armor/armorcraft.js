@@ -28,6 +28,7 @@ import { ArmorAudio } from './armoraudio.js';
 import { ROUNDS } from './armorballistics.js';
 import { createTrackDriver } from './armordriver.js';
 import { createGunnery } from './armorgunnery.js';
+import { buildStations } from './armorstations.js';
 
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
@@ -80,6 +81,7 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
   const interior = M60 ? buildTankInterior() : buildM113Interior();
   if (M60) { model.hull.add(interior.group); model.turret.add(interior.gunner); model.cupola.add(interior.commander); }
   else { model.hull.add(interior.group); model.ramp.add(interior.rampIn); model.hatches.cargo.add(interior.cargoIn); }
+  const ST = buildStations(interior, model, type);   // the clickable controls, the crew inside
   model.group.visible = false; scene.add(model.group);
   model.group.userData.heat = 0.42;
   model.group.traverse(o => { if (o.name && /runningGear/.test(o.name)) o.userData.heat = 0.66; });
@@ -115,7 +117,7 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
       const alive = !comp || crewOk(comp), mine = active && s.hatch === hk && (k !== 'cargoR');
       f.visible = !D.dead && alive && D.hatch[hk] > 0.85 && !(fp && mine) && (hk !== 'cargo' || active && s.role === 'troop');
       f.position.y = CREW_AT[k].p[1] - (1 - Math.min(1, (D.hatch[hk] - 0.85) / 0.15)) * 0.25;   // rising up through the ring
-      if (!M60 && k === 'cupola') { const pv = fm.P.MG.PIVOT, a = V.mg.az; f.position.x = pv[0] + Math.sin(a) * 0.5; f.position.z = pv[2] + Math.cos(a) * 0.5; f.rotation.y = a; }   // behind the M2's spade grips
+      if (!M60 && k === 'cupola') { const pv = fm.P.MG.PIVOT, a = V.mg.az; f.position.x = pv[0] + Math.sin(a) * 0.2; f.position.z = pv[2] + Math.cos(a) * 0.2; f.rotation.y = a; }   // behind the M2's spade grips
       if (M60 && k === 'cupola') f.rotation.y = V.mg50.az * 0.5;
     }
   }
@@ -125,10 +127,10 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
     exists: false, dead: false, seat: 0, view: 'eye', station: false,
     head: { yaw: 0, pitch: 0 }, orbit: { yaw: 0, pitch: 0.22 }, aim: { yaw: 0, pitch: 0, set: false },
     hatch: { driver: 1, loader: 1, cupola: 1, cargo: 0 }, hatchWant: { driver: 1, loader: 1, cupola: 1, cargo: 0 },   // out of contact the crew rides head out
-    contactT: 0, binos: false,
+    contactT: 0, binos: false, wantRun: false, proc: { t: 0, calls: {} },
     asleep: false, still: 0, unattended: 0, lowRange: false, crank: 0, wreckT: 0, sunkT: 0, why: '',
   };
-  const IN = { throttle: 0, brake: 0, steer: 0, range: 'N', park: true, starter: false, fuelOn: true,
+  const IN = { master: false, throttle: 0, brake: 0, steer: 0, range: 'N', park: true, starter: false, fuelOn: true,
     trav: 0, elev: 0, fire: false, coax: false, lase: false, dump: false, ammo: 'M735', stab: true, power: true, sight: 'day', ttsMag: 8, ttsPolarity: 'wh',
     cupTrav: 0, cupElev: 0, fire50: false, extinguish: false, mgTrav: 0, mgElev: 0, ramp: false, vane: false, pumps: false };
   const env = AW.env(D), st = {};
@@ -162,9 +164,14 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
   const crewOk = k => { const c = V.armor.COMPS.find(c => c.id === k); return !c || c.hp > 0; };
 
   // ---------------------------------------------------------------- spawning, entering, leaving
+  // spawnAt({ x, z, yaw, plat, state }): state 'cold' (default: parked cold and dark - MASTER off, turret power off,
+  // gyros stopped, the TTS uncooled; the crew runs the start-up when someone gets in or orders it) or 'hot' (engine running,
+  // power up, gyros run up: ready to move off - a unit spawned into a fight). Returns the craft.
   D.spawnAt = sp => {
     newSim(); env.prep(sp.x, sp.z);
-    V.reset(sp.x, sp.z, sp.yaw ?? 0, env, { range: 'N', park: true, running: false, ramp: false });
+    const hot = sp.state === 'hot';
+    V.reset(sp.x, sp.z, sp.yaw ?? 0, env, { range: 'N', park: true, running: hot, ramp: false, cold: !hot });
+    IN.master = hot; IN.power = hot; IN.fuelOn = true; D.wantRun = hot; D.proc = { t: 0, pw: 0, calls: hot ? { stab: 1 } : {} };
     st.plat = null; st.loc = null; AW.settle(fm, st);
     if (M60) { V.muzzle(_w); const g = env.height(_w[0], _w[2]); if (_w[1] < g + 0.6) { V.losEl = V.el = Math.min(0.34, Math.atan2(g + 1 - _w[1], 6) + 0.05); } }   // parked facing a rise: the crew lays the gun up clear of the ground
     D.exists = true; D.dead = false; D.asleep = false; D.still = 0; D.wreckT = 0; D.sunkT = 0; D.why = ''; D.lowRange = false; D.crank = 0;
@@ -186,8 +193,10 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
     if (s.hatch) { D.hatch[s.hatch] = 1; D.hatchWant[s.hatch] = s.role === 'loader' || (!M60 && s.role === 'commander') ? 1 : 0; }
     D.binos = false;
     if (from === 'foot' && D.driver.state === 'driving') { /* the crew carries on driving until you take the wheel */ }
-    if (!fm.eng.running && !fm.eng.flooded) { D.crank = 4; IN.fuelOn = true; }   // the crew starts up
-    say(`${TY.label}  -  ${s.label}${!fm.eng.running ? '  ·  STARTING UP' : ''}  ·  ${hintShort(s)}`, 2.6);
+    // the crew starts up (each crewman his own part of the TM order; the player's station is the player's to do)
+    if (!fm.eng.running && !fm.eng.flooded) startUp();
+    const cold = !fm.eng.running && s.role === 'driver';
+    say(`${TY.label}  -  ${s.label}${cold ? `  ·  ${IN.master ? '' : 'MASTER ON, '}START: I (OR CLICK THE SWITCHES)` : !fm.eng.running ? '  ·  THE CREW IS STARTING UP' : ''}  ·  ${hintShort(s)}`, 2.6);
     sfx.ui?.('select');
     return true;
   };
@@ -292,6 +301,9 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
       else { IN.trav = -handle(wrap(D.aim.yaw - cur.yaw), 6, V.hydP > 0.5 ? 22.5 * D2R : 2.2 * D2R); IN.elev = handle(D.aim.pitch - cur.pitch, 6, V.hydP > 0.5 ? 4 * D2R : 0.9 * D2R); }
       // the gun's limits: let the aim come back inside them (+20 / -10 deg on the hull)
       const lp = V.losEl; if ((lp >= 20 * D2R - V.fc.se - 1e-3 && D.aim.pitch > cur.pitch) || (lp <= -10 * D2R + 1e-3 && D.aim.pitch < cur.pitch)) D.aim.pitch = cur.pitch;
+      // and he does not lay the gun into the ground (a bank ahead, the chase view's aim on the near ground): with the
+      // muzzle within 0.4 m of the earth the gun goes no lower
+      V.muzzle(_w); if (_w[1] < AW.terrain(_w[0], _w[2]) + 0.4) { if (D.aim.pitch < cur.pitch) D.aim.pitch = cur.pitch; if (IN.elev < 0) IN.elev = 0; }
       if (trig && !D.trigWas) { if (V.gun.state === 'ready') IN.fire = true; else say(V.gun.state === 'loading' ? `LOADER: ${ROUNDS[V.gun.round].short} - LOADING` : 'GUN EMPTY', 0.9); }
       D.trigWas = trig;
       IN.coax = !!second;
@@ -302,11 +314,14 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
       // the player is the loader: no automatic loading - he takes the round the gunner called for (Q) from the nearest rack
       // (the ready rack in the bustle first) and rams it: click / F. The gun is "UP" when the breech closes.
       IN.autoload = false;
-      if (trig && !D.trigWas) {
+      if ((trig && !D.trigWas) || D.loadReq) {
+        D.loadReq = false;
         if (V.gun.state === 'empty') { if (V.ammoCount(IN.ammo) > 0) { IN.autoload = true; say(`LOADING ${ROUNDS[IN.ammo].name}`, 1.2); } else say(`NO ${ROUNDS[IN.ammo].short} LEFT  -  Q FOR ANOTHER ROUND`, 1.4); }
         else say(V.gun.state === 'loading' ? 'STILL RAMMING THE ROUND' : 'THE GUN IS ALREADY UP', 1);
       }
       D.trigWas = trig;
+    } else if (lookingAbout(s)) {   // buttoned up, looking about the cupola at its controls (E): hands off the gun
+      D.trigWas = trig; D.aim.set = false;
     } else if (s.role === 'commander' && M60 && D.hatch.cupola > 0.6) {
       // head out of the M19 cupola: he looks about (mouse = his head, C = 7x50 binoculars); the M85 is fired from inside
       // through the M28 periscope sight, so the trigger is a reminder to button up
@@ -328,22 +343,50 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
 
   // ---------------------------------------------------------------- the sim step (player or parked / AI)
   const SHUT_T = 40;
+  // ---- the start-up (TM order, game times), each crewman his own part: the DRIVER - MASTER on, START held until the
+  // engine catches; the GUNNER (M60) - TURRET POWER on once the engine carries the load, then the stabiliser's gyros run
+  // up (~20 s) and the TTS cools. The player's own station is left to the player (I, or click the switches); the crew
+  // does the rest. Unattended, the crew shuts down: fuel off, then MASTER and turret power off.
+  function startUp() { D.wantRun = true; IN.fuelOn = true; D.proc.t = 0; D.proc.calls = {}; D.proc.pw = 0; }
+  D.startUp = startUp;
+  function crewProc(dt, active) {
+    const P = D.proc, me = active ? seatOf().role : null, call = (k, t, d = 1.4) => { if (!P.calls[k]) { P.calls[k] = 1; if (active) say(t, d); } };
+    P.t += dt;
+    if (D.wantRun && !D.dead) {
+      if (me !== 'driver' && crewOk('driver')) {
+        if (!IN.master) { if (P.t > 0.8) { IN.master = true; P.t = 0; snd()?.click(true); call('master', 'DRIVER: MASTER ON'); } }
+        else if (!fm.eng.running && !fm.eng.flooded && D.crank <= 0 && P.t > 1.2) { D.crank = 5; IN.fuelOn = true; P.t = 0; call('start', 'DRIVER: STARTING'); }
+      }
+      if (M60 && fm.eng.running && !IN.power) {
+        if (me !== 'gunner' && crewOk('gunner')) { P.pw += dt; if (P.pw > 1.5) { IN.power = true; P.pw = 0; snd()?.click(true); call('power', 'GUNNER: TURRET POWER ON  -  STAB RUNNING UP'); } }
+        else if (me === 'gunner') call('powerHint', 'TURRET POWER OFF  -  I (OR E: THE SWITCH ON THE RIGHT WALL)', 2.4);
+      }
+    }
+    if (M60 && IN.power && V.hydP > 0.5 && V.gyro >= 1) call('stab', 'GUNNER: STAB UP');
+    if (!D.wantRun && !fm.eng.running && !active) { P.off = (P.off || 0) + dt; if (P.off > 6 && (IN.master || IN.power)) { IN.master = false; IN.power = false; } } else P.off = 0;
+  }
   function step(dt, active) {
     fm.h = active || D.driver.state === 'driving' ? 1 / 240 : 1 / 120;
     contact(dt, active);
+    crewProc(dt, active);
     // the starter stays in until the engine runs up past its stall speed (it catches at ~160 rpm and dies under ~380)
-    if (D.crank > 0) { const up = fm.eng.running && fm.eng.w * 9.549 > fm.P.ENGINE.STALL_RPM + 80; D.crank -= dt; IN.starter = !up && !fm.eng.flooded; if (up || D.crank <= 0) { D.crank = 0; IN.starter = false; } } else IN.starter = false;
+    if (D.crank > 0) { const up = fm.eng.running && fm.eng.w * 9.549 > fm.P.ENGINE.STALL_RPM + 80; D.crank -= dt; IN.starter = !up && !fm.eng.flooded && IN.master; if (up || D.crank <= 0) { D.crank = 0; IN.starter = false; } } else IN.starter = false;
     if (!active) {   // nobody in it: the AI driver, or parked with the crew (who shut down after a while)
       if (D.driver.state === 'driving' || D.driver.state === 'arrived') { const a = D.driver.update(dt); Object.assign(IN, a); }
       else { IN.throttle = 0; IN.steer = 0; IN.brake = Math.abs(fm.out.fwd) > 0.3 ? 1 : 0; if (Math.abs(fm.out.fwd) < 0.4) { IN.park = true; IN.range = 'N'; } }
       IN.trav = IN.elev = IN.cupTrav = IN.cupElev = IN.mgTrav = IN.mgElev = 0; IN.fire = IN.coax = IN.fire50 = false; IN.autoload = true;   // the AI loader loads
-      D.unattended += dt; if (D.unattended > SHUT_T && fm.eng.running && D.driver.state !== 'driving') IN.fuelOn = false;
+      D.unattended += dt; if (D.unattended > SHUT_T && fm.eng.running && D.driver.state !== 'driving') { IN.fuelOn = false; D.wantRun = false; }
     } else D.unattended = 0;
     // the AI crew drives with the gun in the travel position (turret ahead, gun up, stabiliser off) so the barrel
     // clears the ground over banks and down ramps; the player taking the gunner's seat gets the stabiliser back
     const playerGunner = active && seatOf().role === 'gunner';
     if (M60 && D.driver.state === 'driving' && !playerGunner) { IN.stab = false; IN.trav = clamp(V.losAz * 3, -1, 1); IN.elev = clamp((0.16 - V.losEl) * 5, -1, 1); D.travelLock = true; }
     else if (D.travelLock && (playerGunner || D.driver.state !== 'driving')) { IN.stab = true; D.travelLock = false; }
+    // the commander's override (D.click 'override'): the gunner slews onto the cupola's bearing; the cupola holds it
+    if (M60 && D.slewAz != null) {
+      if (V.hydP < 0.5 || playerGunner || D.dead) D.slewAz = null;
+      else { const err = wrap(D.slewAz - V.az); IN.trav = clamp(-err * 4, -1, 1); V.mg50.az = err; if (Math.abs(err) < 0.004) { D.slewAz = null; if (active) say('GUNNER: IDENTIFIED', 1.2); } }
+    }
     if (!IN.fuelOn && !fm.eng.running && D.crank > 0) IN.fuelOn = true;
     fm.origin(_o); env.prep(_o[0], _o[2]);
     AW.carry(fm, st);
@@ -351,9 +394,10 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
     AW.settle(fm, st);
     IN.lase = false; IN.dump = false; IN.extinguish = false;
     // the gun pushed into a house wall or a tree, not dug into the ground: the barrel is not bent (game; the sim's
-    // dig-in rule is for the muzzle ploughing into earth)
+    // dig-in rule is for the muzzle ploughing into earth) - nor is it when the tank barely moves (settling where it was
+    // parked, a deck heaving under it): the muzzle rests on the ground, it is not driven into it
     if (M60 && evs.some(e => e.type === 'gunDug')) {
-      V.muzzle(_w); if (_w[1] > AW.terrain(_w[0], _w[2]) + 0.15) { const g = V.armor.COMPS.find(c => c.id === 'gun'); if (g) g.hp = Math.min(1, g.hp + 0.25); for (let i = evs.length - 1; i >= 0; i--) if (evs[i].type === 'component' && evs[i].id === 'gun') evs.splice(i, 1); }
+      V.muzzle(_w); if (_w[1] > AW.terrain(_w[0], _w[2]) + 0.15 || Math.abs(fm.out.fwd) < 1.5) { const g = V.armor.COMPS.find(c => c.id === 'gun'); if (g) g.hp = Math.min(1, g.hp + 0.25); for (let i = evs.length - 1; i >= 0; i--) if (evs[i].type === 'component' && evs[i].id === 'gun') evs.splice(i, 1); }
     }
     for (const e of evs) onEvent(e, active);
     // drowned / lost: the hull top under the sea for a while
@@ -421,7 +465,7 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
   D.wake = () => { D.asleep = false; D.restT = 0; };
   // an order for the crew (the AI driver): the landing craft, scripts, the RUNAWAY war's own machines use the same
   D.order = (pts, o = {}) => { D.crankUp(); D.driver.follow(pts, o); return D.driver; };
-  D.crankUp = () => { D.wake(); D.unattended = 0; if (!fm.eng.running && !fm.eng.flooded) { D.crank = 5; IN.fuelOn = true; } };
+  D.crankUp = () => { D.wake(); D.unattended = 0; if (!fm.eng.running && !fm.eng.flooded) { startUp(); IN.master = true; D.crank = 5; D.proc.calls.master = D.proc.calls.start = 1; } };   // an order: the crew starts at once
 
   // ---------------------------------------------------------------- damage: RUNAWAY fire into the armour model
   const _ro = [0, 0, 0], _rd = [0, 0, 0];
@@ -526,7 +570,7 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
     switch (code) {
       case 'KeyV': D.view = D.view === 'eye' ? 'chase' : 'eye'; D.aim.set = false; say(D.view === 'eye' ? `${s.label}'S VIEW` : 'CHASE VIEW  -  MOUSE ORBITS', 1); return true;
       case 'KeyH': if (s.hatch) { D.hatchWant[s.hatch] = D.hatchWant[s.hatch] > 0.5 ? 0 : 1; say(D.hatchWant[s.hatch] ? (role === 'troop' ? 'CARGO HATCH OPEN  -  STANDING UP' : 'HATCH OPEN  -  HEAD OUT') : 'HATCH CLOSED  -  BUTTONED UP', 1.2); } return true;
-      case 'KeyI': if (fm.eng.running) { IN.fuelOn = false; say('ENGINE OFF', 1.2); } else { IN.fuelOn = true; D.crank = 5; say(fm.eng.flooded ? 'ENGINE DROWNED  -  IT WILL NOT START' : 'STARTER', 1.2); } return true;
+      case 'KeyI': stationPower(role); return true;
       case 'KeyC': if (D.view === 'eye' && headOut(s)) { D.binos = !D.binos; say(D.binos ? 'BINOCULARS 7 X 50' : 'BINOCULARS DOWN', 0.9); } else if (D.view === 'eye') say('BINOCULARS: HEAD OUT FIRST (H)', 1.2); return true;
       case 'KeyZ': D.lowRange = !D.lowRange; say(D.lowRange ? `LOW RANGE (${TY.low})` : `HIGH RANGE (${TY.fwd})`, 1.2); return true;
       case 'KeyX': if (V.fire && V.fire.where) { IN.extinguish = true; say('EXTINGUISHER', 1); return true; } return false;
@@ -543,12 +587,79 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
         if (code === 'KeyE') { D.station = !D.station; D.head.yaw = D.head.pitch = 0; say(D.station ? 'GUNNER\'S STATION' : 'SIGHT', 0.8); return true; }
         if (code === 'KeyG') return true;
       }
-    } else {
+    }
+    if (code === 'KeyE' && role === 'commander') { D.station = !D.station; D.head.yaw = D.head.pitch = 0; D.aim.set = false; say(D.station ? (headOut(s) ? 'LOOK ABOUT' : 'LOOKING ABOUT THE CUPOLA  -  THE CONTROLS') : M60 ? 'ON THE M28 SIGHT' : 'ON THE .50', 0.9); return true; }
+    if (!M60) {
       if (code === 'KeyR') { IN.ramp = !(V.rampWant > 0.5); say(IN.ramp ? 'RAMP DOWN' : 'RAMP UP', 1.1); return true; }
       if (code === 'KeyN' && role !== 'troop') { IN.vane = !(V.vaneWant > 0.5); say(IN.vane ? 'TRIM VANE UP' : 'TRIM VANE STOWED', 1.1); return true; }
       if (code === 'KeyB' && role !== 'troop') { IN.pumps = !V.pumpSwitch; say(`BILGE PUMPS ${IN.pumps ? 'ON' : 'OFF'}`, 1.1); return true; }
     }
     return ['KeyF', 'KeyG', 'KeyO', 'KeyU', 'KeyL', 'KeyE', 'KeyQ', 'KeyR', 'KeyN', 'KeyB', 'KeyC', 'Home', 'PageUp', 'PageDown'].includes(code);
+  };
+  // I: your own station's power. DRIVER: MASTER on and the starter held until it catches (or the engine off); GUNNER:
+  // turret power; anyone else: tells the driver to start up / shut down
+  function stationPower(role) {
+    if (role === 'driver') {
+      if (fm.eng.running) { IN.fuelOn = false; D.wantRun = false; say('ENGINE OFF', 1.2); return; }
+      if (fm.eng.flooded) { say('ENGINE DROWNED  -  IT WILL NOT START', 1.4); return; }
+      if (!IN.master) snd()?.click(true);
+      IN.master = true; IN.fuelOn = true; D.crank = 5; D.wantRun = true; say('MASTER ON  -  STARTER', 1.2); return;
+    }
+    if (role === 'gunner' && M60) { IN.power = !IN.power; snd()?.click(true); say(IN.power ? `TURRET POWER ON${V.gyro < 1 ? '  -  STAB RUNNING UP' : ''}` : 'TURRET POWER OFF  -  HANDWHEELS', 1.3); return; }
+    if (fm.eng.running) { IN.fuelOn = false; D.wantRun = false; say('DRIVER, SHUT IT DOWN', 1.3); } else { startUp(); say('DRIVER, START UP', 1.3); }
+  }
+  // the clickable controls (armorstations.js): what the crosshair is over in the station you are in, click to work it
+  const lookingAbout = s => s.role === 'commander' && D.station && !headOut(s);
+  const _ck = { group: { visible: true }, hitBoxes: [] };
+  D.cockpitObj = () => {
+    if (crafts.active !== D || D.view !== 'eye' || D.dead) return null;
+    const s = seatOf(), r = s.role;
+    if (!insideCam || inSight() || (r === 'gunner' && !D.station) || (r === 'commander' && !lookingAbout(s))) return null;
+    _ck.hitBoxes = ST.hitsFor(r); return _ck;
+  };
+  D.click = id => {
+    const s = seatOf(), role = s.role, [k, arg] = id.split(':');
+    snd()?.click(false);
+    switch (k) {
+      case 'master': IN.master = !IN.master; if (!IN.master) D.wantRun = false; say(`MASTER ${IN.master ? 'ON' : 'OFF'}${!IN.master && M60 ? '  -  TURRET AND SIGHTS DEAD' : ''}`, 1); return;
+      case 'start':
+        if (fm.eng.running) say('ENGINE RUNNING', 0.9); else if (!IN.master) say('NOTHING  -  THE MASTER SWITCH IS OFF', 1.3); else if (fm.eng.flooded) say('ENGINE DROWNED', 1.2);
+        else { IN.fuelOn = true; D.crank = 4; D.wantRun = true; say('STARTER', 0.9); }
+        return;
+      case 'halon': if (V.fire && V.fire.where) { IN.extinguish = true; say('EXTINGUISHER PULLED', 1); } else say('NO FIRE  -  LEAVE IT', 0.9); return;
+      case 'park': IN.park = !IN.park; if (IN.park) IN.range = 'N'; say(IN.park ? 'PARKING BRAKE ON' : 'PARKING BRAKE OFF  -  IT SETS ITSELF WHEN YOU STOP', 1.2); return;
+      case 'range': D.key('KeyZ'); return;
+      case 'dhatch': case 'lhatch': case 'chatch': case 'cargo': D.key('KeyH'); return;
+      case 'tpower': stationPower('gunner'); return;
+      case 'stab': D.key('KeyB'); return;
+      case 'tts': toggleSight(); return;
+      case 'ttsmag': D.key('KeyN'); return;
+      case 'ttspol': D.key('KeyU'); return;
+      case 'lase': IN.lase = true; return;
+      case 'dump': D.key('KeyR'); return;
+      case 'ammo': IN.ammo = arg; say(`${ROUNDS[arg].name}  -  LOADER: ${ROUNDS[arg].short} NEXT  (${V.ammoCount(arg)} LEFT)`, 1.3); return;
+      case 'rack':   // the loader takes a round of that type out of the ready rack (and rams it if the breech is open)
+        if (!(V.racks.readyAmmo[arg] > 0)) { say(`NO ${ROUNDS[arg].short} IN THE READY RACK${V.ammoCount(arg) ? '  -  THE HULL RACKS ARE SLOWER' : ''}`, 1.4); if (!V.ammoCount(arg)) return; }
+        IN.ammo = arg; if (V.gun.state === 'empty') D.loadReq = true; else say(`${ROUNDS[arg].short} NEXT  -  THE GUN IS ${V.gun.state === 'ready' ? 'UP' : 'LOADING'}`, 1.1);
+        return;
+      case 'breech': if (V.gun.state === 'empty') D.loadReq = true; else say(V.gun.state === 'loading' ? 'STILL RAMMING THE ROUND' : 'THE GUN IS ALREADY UP', 1); return;
+      case 'override':   // the commander's override: the turret slews to where the cupola looks; the cupola holds its bearing
+        if (V.hydP < 0.5) { say('NO TURRET POWER', 1.2); return; }
+        D.slewAz = V.az + V.mg50.az; say('COMMANDER: GUNNER, TARGET - ON MY LINE', 1.4); return;
+      case 'can50': {
+        const m = M60 ? V.mg50 : V.mg, belt = M60 ? 180 : 100;
+        if (m.reload) say('ALREADY CHANGING THE CAN', 1); else if (m.ready >= Math.min(belt, m.ammo)) say('THE CAN IS FULL', 0.9); else if (m.ammo <= m.ready) say('NO MORE .50', 1.1); else { m.ready = 0; m.reload = 4; say('NEW CAN ON THE .50', 1.2); }
+        return;
+      }
+      case 'ramp': IN.ramp = !(V.rampWant > 0.5); say(IN.ramp ? 'RAMP DOWN' : 'RAMP UP', 1.1); return;
+      case 'vane': IN.vane = !(V.vaneWant > 0.5); say(IN.vane ? 'TRIM VANE UP' : 'TRIM VANE STOWED', 1.1); return;
+      case 'pumps': IN.pumps = !V.pumpSwitch; say(`BILGE PUMPS ${IN.pumps ? 'ON' : 'OFF'}`, 1.1); return;
+      case 'radio': {
+        const e = fm.eng, kill = V.armor.COMPS.filter(c => c.hp <= 0 && c.kind !== 'crew').length;
+        ctx.feed?.(`${TY.short} ON THE NET: FUEL ${Math.round(e.fuel / fm.P.FUEL_L * 100)}%${M60 ? `, ${V.ammoTotal()} MAIN GUN ROUNDS` : `, ${V.seats.filter(Boolean).length} DISMOUNTS`}, ${kill ? kill + ' SYSTEMS DOWN' : 'ALL SYSTEMS UP'}, ${e.running ? 'RUNNING' : 'SHUT DOWN'}`, 'good');
+        say('RADIO  -  STATUS REPORT SENT', 1); return;
+      }
+    }
   };
   function hintShort(s) { return s.role === 'driver' ? 'W / S DRIVE  ·  A / D STEER' : s.role === 'gunner' ? 'MOUSE LAYS THE GUN  ·  CLICK FIRES' : s.role === 'commander' ? 'MOUSE AIMS THE .50  ·  CLICK FIRES' : s.role === 'loader' ? 'Q PICKS THE NEXT ROUND' : 'R RAMP  ·  H CARGO HATCH'; }
 
@@ -557,7 +668,7 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
   D.look = (dx, dy) => {
     const s = seatOf();
     if (D.view === 'chase') { D.orbit.yaw -= dx * SENS; D.orbit.pitch = clamp(D.orbit.pitch + dy * SENS, -0.12, 1.2); return; }
-    const tcOut = s.role === 'commander' && M60 && D.hatch.cupola > 0.6;   // the M60's TC head out: the mouse is his head
+    const tcOut = (s.role === 'commander' && M60 && D.hatch.cupola > 0.6) || lookingAbout(s);   // the M60's TC head out / any TC looking about inside (E): the mouse is his head
     if (((s.role === 'gunner' && !D.station) || s.role === 'commander') && !tcOut) {
       const k = s.role === 'gunner' ? sightFov() / 55 : 1;
       if (!D.aim.set) return;
@@ -583,7 +694,7 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
   D.camera = (cam, dt, view) => {
     const s = seatOf(); insideCam = false;
     const released = !view || !view.locked;
-    if (released && !D.binos && !(s.role === 'gunner' && !D.station) && (s.role !== 'commander' || (M60 && D.hatch.cupola > 0.6))) { const k = Math.exp(-4 * dt); D.head.yaw *= k; D.head.pitch *= k; }
+    if (released && !D.binos && !(s.role === 'gunner' && !D.station) && (s.role !== 'commander' || (M60 && D.hatch.cupola > 0.6) || lookingAbout(s))) { const k = Math.exp(-4 * dt); D.head.yaw *= k; D.head.pitch *= k; }
     if (D.view === 'chase') { chase(cam, dt, view); return; }
     hullQ(_q);
     if (s.role === 'driver') {
@@ -595,7 +706,7 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
         turPt(TANK.GUNNER_EYE_T, cam.position); insideCam = true;
         cam.quaternion.copy(_q).multiply(_q2.setFromAxisAngle(_v.set(0, 1, 0), V.az)).multiply(_q2.setFromEuler(_e.set(D.head.pitch - 0.1, D.head.yaw, 0, 'YXZ')));
       } else {   // the sight picture: along the sight line from the sight head, the hull's up
-        turPt([0.55, 0.85, -0.9], cam.position); insideCam = true;
+        turPt([0.62, 1.07, -1.06], cam.position); insideCam = true;   // at the sight head (the TTS housing window, right of the searchlight): from inside the turret the shield, the searchlight and the dust cover crossed the picture as a band
         V.sightDir(_d); _t.set(cam.position.x + _d[0], cam.position.y + _d[1], cam.position.z + _d[2]);
         fromHull(0, 1, 0, _w); _up.set(_w[0], _w[1], _w[2]);
         _m.lookAt(cam.position, _t, _up); cam.quaternion.setFromRotationMatrix(_m);
@@ -605,11 +716,13 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
       if (M60) {
         const cu = TANK.COMMANDER_EYE_T; turPt([cu[0], 1.09 + (out ? 0.62 : 0), cu[2]], cam.position); insideCam = !out;
         if (out) cam.quaternion.copy(_q).multiply(_q2.setFromAxisAngle(_v.set(0, 1, 0), V.az)).multiply(_q2.setFromEuler(_e.set(D.head.pitch - 0.06, D.head.yaw, 0, 'YXZ')));   // standing in the cupola, looking about
+        else if (D.station) cam.quaternion.copy(_q).multiply(_q2.setFromAxisAngle(_v.set(0, 1, 0), V.az + V.mg50.az)).multiply(_q2.setFromEuler(_e.set(D.head.pitch - 0.1, D.head.yaw, 0, 'YXZ')));   // looking about inside the cupola (E)
         else cam.quaternion.copy(_q).multiply(_q2.setFromAxisAngle(_v.set(0, 1, 0), V.az + V.mg50.az)).multiply(_q2.setFromEuler(_e.set(V.mg50.el * 0.6 - 0.04, 0, 0, 'YXZ')));   // the vision blocks / M28 sight turn with the cupola
       } else {   // M113: standing in the cupola behind the M2's spade grips; the eye turns with the cupola
         const pv = V.fm.P.MG.PIVOT, ca = Math.cos(V.mg.az), sa = Math.sin(V.mg.az);
-        hullPt(out ? [pv[0] + sa * 0.5, 2.4, pv[2] + ca * 0.5] : [pv[0] + sa * 0.35, 1.95, pv[2] + ca * 0.35], cam.position); insideCam = !out;
-        cam.quaternion.copy(_q).multiply(_q2.setFromAxisAngle(_v.set(0, 1, 0), V.mg.az)).multiply(_q2.setFromEuler(_e.set(V.mg.el * 0.8 - 0.06, 0, 0, 'YXZ')));
+        hullPt(out ? [pv[0] + sa * 0.2, 2.4, pv[2] + ca * 0.2] : [pv[0] + sa * 0.2, 1.95, pv[2] + ca * 0.2], cam.position); insideCam = !out;   // (forward of the hatch hinge: the open lid lies back behind him)
+        if (!out && D.station) { hullPt([pv[0], 1.9, pv[2] + 0.1], cam.position); cam.quaternion.copy(_q).multiply(_q2.setFromEuler(_e.set(D.head.pitch - 0.1, D.head.yaw + Math.PI, 0, 'YXZ'))); }   // down inside, looking about the compartment (E): faces aft, the squad
+        else cam.quaternion.copy(_q).multiply(_q2.setFromAxisAngle(_v.set(0, 1, 0), V.mg.az)).multiply(_q2.setFromEuler(_e.set(V.mg.el * 0.8 - 0.06, 0, 0, 'YXZ')));
       }
     } else if (s.role === 'loader') {
       const out = headOut(s);
@@ -638,7 +751,7 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
     if ((s.role === 'gunner' && M60) || s.role === 'commander') {
       cam.getWorldDirection(_v);
       const sp = s.role === 'gunner' ? V.turretPoint([0.55, 0.85, -0.9], _gp) : fm.toWorld(M60 ? [0.6, 3.3, 0.2] : V.fm.P.MG.PIVOT, _gp);
-      const r = env.raycast([cam.position.x, cam.position.y, cam.position.z], [_v.x, _v.y, _v.z], 2500, true);
+      const r0 = env.raycast([cam.position.x, cam.position.y, cam.position.z], [_v.x, _v.y, _v.z], 2500, true), r = r0 && r0 > TY.chase + 4 ? r0 : null;   // (the ground short of the vehicle is not a target)
       const tx = cam.position.x + _v.x * (r || 2500), ty = cam.position.y + _v.y * (r || 2500), tz = cam.position.z + _v.z * (r || 2500);
       const dx = tx - sp[0], dy = ty - sp[1], dz = tz - sp[2], l = Math.hypot(dx, dy, dz) || 1;
       D.aim.yaw = Math.atan2(-dx, -dz); D.aim.pitch = Math.asin(dy / l); D.aim.set = true; D.aimRange = r;
@@ -647,7 +760,13 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
   }
 
   // ---------------------------------------------------------------- hatches, model, interiors, effects, sound
-  function hatches(dt) { for (const k in D.hatch) D.hatch[k] += clamp(D.hatchWant[k] - D.hatch[k], -dt / 0.8, dt / 0.8); }
+  function hatches(dt) {
+    for (const k in D.hatch) {
+      const was = D.hatch[k]; D.hatch[k] += clamp(D.hatchWant[k] - was, -dt / 0.8, dt / 0.8);
+      // the hatch slams shut on its stop / the lock releases and the spring lifts it (the one you are in, or one near you)
+      if (audio && audio.built && crafts.active === D && ((was > 0.02 && D.hatch[k] <= 0.02) || (was < 0.02 && D.hatch[k] >= 0.02))) audio.hatch(D.hatch[k] <= 0.02, k === seatOf().hatch);
+    }
+  }
   const travel = [new Array(fm.wheels[0].length).fill(0), new Array(fm.wheels[1].length).fill(0)];
   const fxT = { smoke: 0, dust: 0, wake: 0 };
   const _sp = new THREE.Vector3();
@@ -667,6 +786,7 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
     if (M60) model.animate({ travel, trackPos: fm.trackPos, thrown: fm.dmg.thrown, az: V.az, el: V.el, recoil: V.gun.recoil, cupAz: V.mg50.az, mgEl: V.mg50.el, hatches: D.hatch, tts: V.power ? 1 : 0, light: 0, inside });
     else model.animate({ travel, trackPos: fm.trackPos, thrown: fm.dmg.thrown, mgAz: V.mg.az, mgEl: V.mg.el, ramp: V.ramp, vane: V.vane, hatches: D.hatch, inside });
     poseCrew(active, s);
+    if (inSight()) model.group.visible = false;   // looking through the sight head: none of the own tank in the picture (the needle nose, the searchlight and the shield crossed it)
     // interiors: only the station the player looks out of
     if (M60) {
       interior.group.visible = active && D.view === 'eye' && s.role === 'driver' && inside;
@@ -678,6 +798,10 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
       interior.troops.visible = active && D.view === 'eye' && (s.role === 'troop' || (inside && (s.role === 'driver' || s.role === 'commander')));
       if (interior.driver.visible || interior.troops.visible) interior.update(V, IN, dt);
     }
+    if (active) {   // the controls (hover frame, switch positions, the ready rack) and the crew in the fighting compartment
+      const cw = k => k !== s.role && crewOk(k) ? (k === 'gunner' ? 'in' : D.hatch[k === 'commander' ? 'cupola' : k] > 0.85 ? 'up' : 'in') : null;
+      ST.update({ hover: inside && ctx.hover ? ctx.hover() : null, V, IN, D, crewIn: M60 ? { gunner: cw('gunner'), commander: cw('commander'), loader: cw('loader') } : {} });
+    } else ST.clear();
     model.group.userData.heat = D.dead ? (D.wreckT < 150 ? 0.95 : 0.5) : fm.eng.running ? 0.5 : 0.4;
     if (D.burnAt) { D.burnAt.x = _o[0]; D.burnAt.y = _o[1] + 1.8; D.burnAt.z = _o[2]; }
     // exhaust, dust, wake
@@ -740,18 +864,19 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
     const kill = V.armor ? (() => { const k = V.armor.COMPS.filter(c => c.hp <= 0 && c.kind !== 'crew').map(c => COMP_NAME[c.id] || c.id); return k.length ? k.slice(0, 2).join(', ') + ' OUT' : 'OK'; })() : 'OK';
     const water = fm.water.afloat ? `  ·  AFLOAT ${(Math.abs(fm.out.fwd) * 3.6).toFixed(1)} km/h${fm.water.inside > 0.05 ? `  ·  WATER IN ${fm.water.inside.toFixed(1)} m³` : ''}` : fm.water.depth > 0.1 ? `  ·  FORDING ${fm.water.depth.toFixed(1)} m` : '';
     const surf = st.plat ? (st.plat.type === 'carrier' ? 'ALBATROSS DECK' : st.plat.name || 'DECK') : (fm.soil[0] || '').toUpperCase();
-    let line = `${TY.label}  ·  ${s.label}  ·  ${KM(fm.out.fwd)} km/h ${fm.range}${IN.park ? ' P' : ''}  ·  ${e.running ? `${Math.round(e.w * 9.549)} RPM` : e.flooded ? 'ENGINE DROWNED' : 'ENGINE OFF'}  ·  ${surf}${water}  ·  ${D.dead ? D.why : kill}`;
-    if (M60) line += `  ·  TURRET ${String((Math.round(-V.az / D2R) % 360 + 360) % 360).padStart(3, '0')}°`;
+    let line = `${TY.label}  ·  ${s.label}  ·  ${KM(fm.out.fwd)} km/h ${fm.range}${IN.park ? ' P' : ''}  ·  ${e.running ? `${Math.round(e.w * 9.549)} RPM` : e.flooded ? 'ENGINE DROWNED' : IN.master ? 'ENGINE OFF' : 'COLD - MASTER OFF'}  ·  ${surf}${water}  ·  ${D.dead ? D.why : kill}`;
+    if (M60) line += `  ·  TURRET ${String((Math.round(-V.az / D2R) % 360 + 360) % 360).padStart(3, '0')}°  ·  ${V.stabMode || ''}`;
     const hint = D.dead ? 'KNOCKED OUT  -  Y TO GET OUT' : fm.eng.flooded ? 'ENGINE DROWNED  -  GET OUT' :
-      s.role === 'driver' ? `W / S DRIVE  ·  A / D STEER (R-SHIFT: FULL)  ·  SPACE BRAKE  ·  Z ${D.lowRange ? 'HIGH' : 'LOW'} RANGE  ·  H HATCH  ·  I ENGINE${M60 ? '' : '  ·  R RAMP  ·  N VANE  ·  B PUMPS'}  ·  V VIEW  ·  [ ] SEAT  ·  Y OUT` :
-      s.role === 'gunner' ? (D.view === 'chase' ? 'MOUSE: LAY THE GUN ON THE RING  ·  CLICK / F FIRE  ·  G COAX  ·  T LASE  ·  Q ROUND  ·  V SIGHT  ·  W A S D: DRIVER' : `MOUSE / ARROWS LAY  ·  CLICK / F FIRE  ·  G COAX  ·  T LASE  ·  R DUMP  ·  Q ROUND  ·  O DAY / TTS  ·  N 3X / 8X  ·  U WH / BH  ·  B STAB  ·  E LOOK UP  ·  W A S D: DRIVER`) :
-      s.role === 'commander' ? (M60 && D.hatch.cupola > 0.6 ? 'HEAD OUT  -  MOUSE LOOKS  ·  C BINOCULARS  ·  H BUTTON UP (THE M85 FIRES FROM INSIDE)  ·  Q ROUND  ·  V VIEW  ·  W A S D: DRIVER  ·  [ ] SEAT  ·  Y OUT' : `MOUSE: THE .50  ·  CLICK / F FIRE  ·  H ${M60 ? 'HEAD OUT' : 'HATCH'}${M60 ? '  ·  Q ROUND' : '  ·  C BINOCULARS  ·  R RAMP  ·  N VANE  ·  B PUMPS'}  ·  V VIEW  ·  W A S D: DRIVER  ·  [ ] SEAT  ·  Y OUT`) :
-      s.role === 'loader' ? `${V.gun.state === 'empty' ? 'GUN EMPTY  -  CLICK / F: LOAD' : V.gun.state === 'loading' ? 'RAMMING THE ROUND' : 'UP'}  ·  Q NEXT ROUND (SABOT / HEAT / HEP)  ·  H HATCH  ·  C BINOCULARS  ·  V VIEW  ·  W A S D: DRIVER  ·  [ ] SEAT  ·  Y OUT` :
+      s.role === 'driver' ? `W / S DRIVE  ·  A / D STEER (R-SHIFT: FULL)  ·  SPACE BRAKE  ·  Z ${D.lowRange ? 'HIGH' : 'LOW'} RANGE  ·  H HATCH  ·  I ${fm.eng.running ? 'ENGINE OFF' : 'MASTER + START'}${M60 ? '' : '  ·  R RAMP  ·  N VANE  ·  B PUMPS'}  ·  V VIEW  ·  [ ] SEAT  ·  Y OUT` :
+      s.role === 'gunner' ? (D.view === 'chase' ? 'MOUSE: LAY THE GUN ON THE RING  ·  CLICK / F FIRE  ·  G COAX  ·  T LASE  ·  Q ROUND  ·  V SIGHT  ·  W A S D: DRIVER' : `MOUSE / ARROWS LAY  ·  CLICK / F FIRE  ·  G COAX  ·  T LASE  ·  R DUMP  ·  Q ROUND  ·  O DAY / TTS  ·  N 3X / 8X  ·  U WH / BH  ·  B STAB  ·  I TURRET POWER  ·  E LOOK UP  ·  W A S D: DRIVER`) :
+      s.role === 'commander' ? (M60 && D.hatch.cupola > 0.6 ? 'HEAD OUT  -  MOUSE LOOKS  ·  C BINOCULARS  ·  E LOOK ABOUT  ·  H BUTTON UP (THE M85 FIRES FROM INSIDE)  ·  Q ROUND  ·  V VIEW  ·  W A S D: DRIVER  ·  [ ] SEAT  ·  Y OUT' : lookingAbout(s) ? 'LOOKING ABOUT  -  CLICK THE CONTROLS  ·  E BACK ON THE GUN  ·  H HATCH  ·  W A S D: DRIVER  ·  [ ] SEAT  ·  Y OUT' : `MOUSE: THE .50  ·  CLICK / F FIRE  ·  E LOOK ABOUT  ·  H ${M60 ? 'HEAD OUT' : 'HATCH'}${M60 ? '  ·  Q ROUND' : '  ·  C BINOCULARS  ·  R RAMP  ·  N VANE  ·  B PUMPS'}  ·  V VIEW  ·  W A S D: DRIVER  ·  [ ] SEAT  ·  Y OUT`) :
+      s.role === 'loader' ? `${V.gun.state === 'empty' ? 'GUN EMPTY  -  CLICK THE RACK OR F: LOAD' : V.gun.state === 'loading' ? 'RAMMING THE ROUND' : 'UP'}  ·  Q NEXT ROUND (SABOT / HEAT / HEP)  ·  H HATCH  ·  C BINOCULARS  ·  V VIEW  ·  W A S D: DRIVER  ·  [ ] SEAT  ·  Y OUT` :
       'R RAMP  ·  H STAND UP IN THE CARGO HATCH  ·  V VIEW  ·  W A S D: DRIVER  ·  [ ] SEAT  ·  Y OUT BY THE RAMP';
     let weap;
     if (M60) { const g = V.gun, r = V.racks, sum = k => Object.values(r[k]).reduce((a, b) => a + b, 0); weap = `${g.round ? ROUNDS[g.round].short + ' ' : ''}${g.state === 'ready' ? 'READY' : g.state === 'loading' ? `LOADING ${Math.round(100 * g.loadT / Math.max(0.1, g.loadNeed))}%` : 'EMPTY'}  ·  NEXT ${ROUNDS[IN.ammo].short} ${V.ammoCount(IN.ammo)}  ·  RACKS ${sum('readyAmmo')} / ${sum('hullAmmo')} / ${sum('floorAmmo')}  ·  COAX ${V.coax.ammo}  ·  .50 ${V.mg50.ready}/${V.mg50.ammo}${V.laser.range ? `  ·  RANGE ${V.laser.range}` : ''}`; }
     else weap = `.50 CAL ${V.mg.ready}/${V.mg.ammo}  ·  TROOPS ${V.seats.filter(Boolean).length}  ·  RAMP ${V.ramp > 0.95 ? 'DOWN' : V.ramp < 0.05 ? 'UP' : '...'}  ·  VANE ${V.vane > 0.95 ? 'UP' : 'STOWED'}  ·  PUMPS ${fm.water.pumps ? 'ON' : 'OFF'}`;
-    return { line, hint, weap, fuel: e.fuel / fm.P.FUEL_L * 100, fuelLabel: 'DIESEL' };
+    const hv = ctx.hover ? ctx.hover() : null;
+    return { line, hint: hv && D.cockpitObj() ? `${ST.labelOf(hv)}  -  CLICK` : hint, weap, fuel: e.fuel / fm.P.FUEL_L * 100, fuelLabel: 'DIESEL' };
   };
   D.menuNote = () => `${TY.short}  ${Math.round(fm.eng.fuel)} L DIESEL${M60 ? `  ·  ${V.ammoTotal()} ROUNDS` : ''}${D.dead ? '  ·  ' + D.why : ''}`;
   return D;

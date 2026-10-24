@@ -1909,3 +1909,46 @@ untouched (war.js's exported hitTest / damage / blast carry the gunnery).
   Roots-blower scream; the starter motor's gear whine; a cough when the diesel catches; the transmission's clunk on a
   range shift; brake squeal at low speed; the turret's hydraulic valve hiss while laying.
 - **Tests**: tankbench 73/73 (+ the start-up check), armorgamebench 20/20, tankaudio 4/4, tankmodel 2/2 (M60, M113).
+
+## 2026-10-24 — armour at the Huey / Hornet bar: clickable crew stations, start-up, crew, HUD (branch ngc/armorgame-polish)
+
+What (on top of the stopped 2026-10-23 session's crew procedures, hatch figures, fire-command calls and LCM-8 work):
+- **Every crew station clickable** (`units/armor/armorstations.js`, new): invisible hit boxes on the controls each
+  crewman works, picked by the crosshair (mouse captured) or the cursor, framed in yellow and named on the hint line,
+  click to work them - the same path as the Huey / Hornet cockpits (main.js `pickSwitch` -> `armCk()` ->
+  `craft.cockpitObj()` / `craft.click(id)`). M60A3 driver: MASTER switch, START button, parking brake, range selector,
+  the fixed fire extinguisher pull, hatch. Gunner (E looks up from the sight): a TURRET POWER / STAB panel on the right
+  wall, the M21 computer panel's buttons (lase, dump to battlesight, SABOT / HEAT / HEP), the TTS field-of-view and
+  polarity knobs. Loader: the ready rack (round bases painted by type, taken out as the rack empties; click a type to
+  take that round and ram it), the breech, his hatch, the AN/VRC-12 (status report on the net). Commander (E: look
+  about inside the cupola): hatch, OVERRIDE (the turret slews onto the cupola's bearing, the cupola holds it), a new
+  .50 can. M113A2 driver: MASTER, START, BILGE, a RAMP / VANE panel on the left wall, fire pull, range, parking brake,
+  hatch; commander (E: look about the troop compartment): hatch, ramp, .50 ammunition box, AN/VRC-46; troops: ramp,
+  cargo hatch, radio. New geometry where the controls were missing (MASTER / START / switch panels, labels).
+- **Start-up procedure**: vehicles spawn cold and dark (`spawnAt({ ..., state: 'cold' | 'hot' })`, cold by default;
+  'hot' = running, power up, gyros run up - for units spawned into a fight). In the driver's seat the start-up is
+  yours (I = MASTER + START, or click them); in any other seat the crew does it, each man his part, with the calls
+  (DRIVER: MASTER ON / STARTING, GUNNER: TURRET POWER ON - STAB RUNNING UP / STAB UP). The gunner's I is TURRET POWER.
+  Left alone the crew shuts down (fuel off, then MASTER and turret power off). `crankUp()` (orders, the LCM-8) starts
+  at once. HUD line: COLD - MASTER OFF, the stab mode.
+- **Crew in and out**: seated / standing figures in the M60's fighting compartment (gunner, commander, loader - each
+  rises through his hatch when he rides head out, where the head-and-shoulders figure takes over), shown when you
+  are inside; the M113's squad as before.
+- **Sound**: switch clicks and relay clunks, hatch latch / slam, the stabiliser gyros' run-up whine.
+- **Fixes**: the band across the gunner's periscope picture (the needle nose, the AN/VSS-1 searchlight and the shield
+  were in front of the sight camera, which sat inside the turret): the sight eye is now at the sight head and the own
+  tank is hidden while looking through it. The HUD weapons line wraps short of the message feed (`#weap` max-width),
+  the centre message sits below the top-left block (`#msg` top max(22%, 236px)), the sight's TURRET POWER OFF note
+  moved up out of the hint line. The M113 commander's head-out view was a wall (the cupola lid stood in front of his
+  face): the lid now opens back past vertical and his eye is ahead of the hinge. The M60 at the home hard parked on mud
+  past the top and slid (its gun dug in: MAIN GUN OUT before anyone got in - why the gunner "would not fire"): it now
+  parks on the concrete 5 m below the top; a muzzle resting on the ground while the tank barely moves no longer bends
+  the gun, and the gunner will not lay the gun into the ground (chase-view aim on the near ground ignored).
+- Commander integration: `spawnAt(sp)` (cold / hot), `order(pts)`, `crankUp()`, `startUp()` stay plain calls.
+
+Tests: `scenes/armorpolish.mjs` (every station: driver cold start by clicking, gunner power off / on, loader HEAT out
+of the rack into the breech, commander override slew, crew head out / buttoned up under fire, HUD overlap check,
+M113 driver start + RAMP switch, commander radio, LCM-8 run), `scenes/armorgame.mjs` (start-up keys added),
+`scenes/armorprobe.mjs` (sight / periscope pictures looking down the hard), tankbench 73/73, armorgamebench 20/20.
+Untested: the hover frame with a real captured mouse on a real GPU (headless fakes the pointer lock); gamepad / HOTAS
+buttons for the switches (keyboard I / E cover them).
