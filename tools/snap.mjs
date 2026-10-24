@@ -247,7 +247,7 @@ async function main() {
           const t0 = Date.now(), cap = Math.max(3 * timeout, Math.min(20 * timeout, 600000));
           let last = await gclock(), el = 0, tick = Date.now();
           for (;;) {
-            const ok = await page.evaluate(expr).catch(() => false);
+            const ok = await page.evaluate(`!!(${expr})`).catch(() => false);
             if (ok) return true;
             const now = Date.now(), g = await gclock();
             if (g !== null && g !== last) { el += g > last ? g - last : Math.max(0, g); last = g; tick = now; }
@@ -257,8 +257,10 @@ async function main() {
           fail(`waitFor timed out: ${expr}`); return false;
         }
         // no game clock yet (page loading, dev pages): wall time, at least 60 s - the load at ~150 took 28 s to boot the game
-        try { await page.waitForFunction(expr, { timeout: process.env.SNAP_WALL ? timeout : Math.max(timeout, 60000), polling: 50 }); return true; }
-        catch { fail(`waitFor timed out: ${expr}`); return false; }
+        // (polled here: page.waitForFunction rejects at once when the page's context is replaced while it boots)
+        const tw = process.env.SNAP_WALL ? timeout : Math.max(timeout, 60000), tw0 = Date.now();
+        while (Date.now() - tw0 < tw) { if (await page.evaluate(`!!(${expr})`).catch(() => false)) return true; await sleep(50); }
+        fail(`waitFor timed out: ${expr}`); return false;
       },
       async shot(sname) {
         sname = (sname || `shot${result.shots.length + 1}`).replace(/[^\w.-]+/g, '_');
