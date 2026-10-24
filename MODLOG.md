@@ -1947,3 +1947,35 @@ untouched (war.js's exported hitTest / damage / blast carry the gunnery).
   record is dropped while `u.able` is still true (the same frame he went down): set it after one step.
 - **Next**: the rich carrier walks at his rifleman's walk, not the carry speed (the body follows the soldier sim);
   a grenade in flight is not drawn; a man killed with a cooked grenade could drop it.
+
+## 2026-10-24 — NGC-1980 HORNET + HUEY polish: 1980 F/A-18A and UH-1H authenticity, HOTAS 4 + T-Rudder defaults (branch ngc/hornethuey-polish)
+- **HORNET thrust, the one flight-model change**: F404-GE-400 (1980 FSD and early production) instead of the 1990s
+  -402 EPE: 16,000 lbf with afterburner (GE / Jane's Aero-Engines: CONFIRMED), ~10,600 lbf dry (sources 10,500-10,700:
+  INFERRED) = TMIL 47,150 N / TAB 71,170 N per engine. jetbench 24/24 (M 0.94 MIL / 1.01 AB low level, cat end 188
+  KEAS, approach unchanged); `tools/jetfingerprint.ref` re-baselined for this change only, SAME on all 12 scenarios since.
+- **HORNET = FSD #3, BuNo 160777** (jetmodel.js): gull grey over white, full-colour insignia, the NATC fin band, fin
+  span 2.5 m (the real fin height); the player's jet is always #3. **Cockpit** (jetcockpit.js): the F/A-18A layout -
+  horizontal indicator and engine fuel display, monochrome DDIs (left DDI CHECKLIST page and caution messages), the real
+  caution light panel (CK SEAT, APU ACC, BATT SW, FCS HOT, GEN TIE, FUEL LO, FCES, L / R GEN...), the warning /
+  advisory lights left of the left DDI (L / R BLEED, SPD BRK, STBY, the red and green L BAR, REC, XMIT), threat lamps,
+  UFC layout, HUD bank scale. **Start** (jetplay.js): BATT, APU (READY light), ENG CRANK R then L, generators on line,
+  the crank refused without APU air; I still does it all. Voice alerts limited to the period's (ALTITUDE, FUEL LOW,
+  BINGO - no GPWS "pull up").
+- **HUEY = 1980 US Army UH-1H** (hueymodel.js): subdued black markings and fin serial, the WSPS wire cutter /
+  windscreen deflector, APR-39 antennas, the crew chief on the right M60D. Cockpit: ENGINE INLET AIR caption (the
+  20-caption panel in its 5 x 4 order), caution lamp TEST, a tail-rotor buzz in audio.js (2 blades x 5.123 x Nr = 55 Hz).
+- **HOTAS 4 + T-Rudder defaults for both aircraft** (hotas.js, heli.js, main.js): one binding table, two meanings. The
+  J panel labels say both ("LANDING GEAR · HUEY STAB ASSIST"). Huey: trigger door gun, 2 / 4 hoist, 3 rockets, 5 bombs,
+  6 stability assist, 7 force trim, 8 landing light, 9 view, 11 starter (held; the real starter is the trigger under the
+  collective grip). The throttle rocker is FLARES (right) / CHAFF (left) in every aircraft (the HOTAS 4 has 12 buttons, so
+  the old 13 / 14 defaults did not exist); the panel now shows "HOTAS 4 ROCKER RIGHT / LEFT" for them, the device's
+  short name is "HOTAS 4" so button numbers are not cut off. README: a button table for both aircraft.
+- **Flight models unchanged** apart from the thrust above: jetfingerprint SAME (bit-identical, 12 scenarios),
+  jetbench 24/24, hueybench 41/41, tomcatbench 32/32, airbench 28/28, hotas self-test (+ rocker test).
+- **Scenes**: hornetcockpit.mjs 10/10 (panel, every display, cold and dark, battery-only cautions, APU, crank, checklist,
+  voice alerts), hueycockpit.mjs 7/7, new hueyhotas.mjs 11/11 (a fake HOTAS 4 + T-Rudder through navigator.getGamepads:
+  starter on button 11 to light-off, buttons 6-9, collective and pedals, the panel), smoke 5/5.
+- **Gotchas / untested**: the machine ran at load ~170 during testing, so wall-clock waits in the older scenes
+  (hueystart.json, hueyhover.json, jets.json) time out at 1-5 fps (the game caps dt at 0.1 s, so sim time runs at a
+  third of real time); they fail the same way on `experimental`. Real HOTAS button numbering is from the Windows HID
+  order (1 = trigger); not checked on the physical stick in this pass.
