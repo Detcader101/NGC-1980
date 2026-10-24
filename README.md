@@ -68,7 +68,7 @@ update it. The launcher lives in `%LOCALAPPDATA%\ThrustZarch` (log: `launcher.lo
 | W A S D or arrows | cyclic |
 | Q / E | pedals (anti-torque; the Huey needs some left pedal in the hover) |
 | F / G / B | gun / rockets / bombs |
-| Insert or ; / Delete or ' | M130 dispenser: a pair of flares (decoys a missile) / chaff (breaks a radar lock); HOTAS: bind FLARES / CHAFF in the J panel |
+| Insert or ; / Delete or ' | M130 dispenser: a pair of flares (decoys a missile) / chaff (breaks a radar lock); HOTAS 4: throttle rocker right / left |
 | R | winch (pick up the pod in a cave) |
 | M | command map: click the sea to sail the carrier, click an island to select it |
 | 1-4, 6 | send drone, build AA gun, spare helicopter, Tomcat escort (CAP over the selected island, else over the ALBATROSS), SKY CARRIER refit |
@@ -90,6 +90,28 @@ while anything tracks you. Flares and chaff rearm on the carrier and friendly pa
 
 The Huey spawns hot at flight idle and rolls the throttle on by itself. With `?cold` it starts cold and dark: BAT and MAIN FUEL on, throttle to the idle detent (PgUp), hold the starter (Home) to 40% N1 (light-off at ~12%), let it reach idle (~70% N1), then throttle full open to 6600 rpm. The cockpit switches (battery, generator, inverter, main fuel, governor AUTO/EMER, hydraulic control, force trim, low rpm audio, starter, master caution) are clickable. To autorotate: collective down to keep 324 rpm, 70 kt, flare at ~100 ft, cushion with the collective.
 
+### HOTAS 4 + T-Rudder defaults (both aircraft)
+
+With nothing bound, a Thrustmaster T.Flight HOTAS 4 and T-Rudder pedals work as below (J opens the panel: every row
+shows what the button does in the jets and, after the dot, in the Huey; BIND / DEF / CLR change it per device).
+Stick X / Y = stick / cyclic, throttle lever = throttles / collective, pedals (else the stick twist) = rudder /
+anti-torque, toe brakes = wheel brakes, hat = look around (Huey: door gun aim), throttle rocker right / left = flares / chaff.
+
+| Button | HORNET (and Tomcat) | UH-1H |
+|---|---|---|
+| 1 (trigger) | gun | door gun |
+| 2 | weapon release | hoist |
+| 3 | missile (press again to fire) | rockets |
+| 4 | speed brake (hold) | hoist |
+| 5 | bombs | bombs |
+| 6 | landing gear | stability assist |
+| 7 | flaps (AUTO / HALF / FULL) | force trim |
+| 8 | tail hook | landing light |
+| 9 | cockpit / chase view | cockpit / outside view |
+| 10 | zoom (hold) | - |
+| 11 | wheel brakes (hold) | starter (hold to 40% N1; the trigger under the real collective grip) |
+| 12 | eject (hold 1 s) | - |
+
 ### HORNET (jet)
 
 | Key | Action |
@@ -101,7 +123,7 @@ The Huey spawns hot at flight idle and rolls the throttle on by itself. With `?c
 | . | wheel brakes (toe brakes on the pedals) |
 | F / X / mouse, R, B | gun, A/A missiles (press again to fire), A/G bombs with CCIP (press again to drop) |
 | , / I / U / N | master arm / engines / canopy / lights |
-| Insert or ; / Delete or ' | ALE-39: a pair of flares / two chaff (HOTAS: FLARES / CHAFF, default buttons 13 / 14 on a stick) |
+| Insert or ; / Delete or ' | ALE-39: a pair of flares / two chaff (HOTAS 4: rock the throttle rocker right / left) |
 | hold Backspace | eject |
 | V, mouse wheel, hat | cockpit or chase view, zoom, look around |
 | J | controls panel: live view of every axis and button, bind and calibrate HOTAS / pedals |
