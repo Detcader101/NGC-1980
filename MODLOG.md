@@ -1952,12 +1952,14 @@ What: fish schools round the camera, water clarity seen from above, the view und
 - **Tests**: `node tools/fishbench.mjs` 29/29 (Bainbridge, habitats, schooling NND / polarisation / cruise speed,
   ship pass: aside, down, none inside the hull, calm again; downwash; swimmer; blast stun / kill / recover; airburst;
   spawn / drop round the camera; real archipelago heights; cost 0.34 ms for 661 fish per frame in node).
-  `tools/scenes/fish.mjs` (PARTS=look,fps,hull,wash,blast,under) 11/11 over its parts: schools by the camera, hull,
+  `tools/scenes/fish.mjs` (PARTS=look,fps,hull,wash,blast,under) 10/10 after merging experimental: schools by the camera, hull,
   downwash and fx.explode frighten / stun, dive -> under water with the bed built, back up. smoke 5/5, naval 5/5,
   seaworld (sea, horizon) 9/9.
-- **fps**: same camera, fish on / off / on (SwiftShader, res 0.6, ~514 fish drawn): 163 / 155 / 146 ms per frame -
-  the difference is inside the frame-to-frame noise (sim 0.7-0.9 ms CPU in the browser, one draw call). Under water
-  ~10.6 fps headless with ~600 fish (the fog shortens nothing yet: the terrain grid is still drawn).
+- **fps**: same camera, fish on / off in alternating 50-frame blocks (SwiftShader, res 0.6, machine at load ~130):
+  median 272.6 ms on vs 274.6 ms off - no measurable cost; sealife CPU ~1 ms a frame (sim, threats, instance upload),
+  one draw call. Without culling, one run with all ~500 fish drawn showed ~20 % in SwiftShader (vertex-bound: a
+  software rasteriser runs the bending vertex shader on the CPU), so fish that cannot show are left out of the draw:
+  behind the camera, under a pixel, or behind more than ~28 m of water along the line of sight (40 m under water).
 - **Gotchas**: three's fog and background are colour-managed (converted to sRGB), the raw terrain / fish / bed shaders
   are not: the underwater fog colour goes to them as a linear colour (convertSRGBToLinear) or the far water shows as a
   pale band. foot.spawnAt refuses a spot in deep water unless `{ force: true }`.
