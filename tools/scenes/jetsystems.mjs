@@ -40,6 +40,6 @@ export default async function (h) {
   await h.key('hold', 'Backspace', 1300);
   await h.expect('!!__G.JP.ejected');
   await h.wait(2500); await h.shot('ejected');
-  await h.waitFor('__G.G.craft === "heli"', 40000);
+  await h.waitFor('__G.G.craft === "heli"', 240000);   // ~22 s of game time under the canopy and on the water: ~75 s wall at 3 fps headless (ngc/bugsweep)
   await h.expect(`__G.G.lives === ${lives}`);
 }
