@@ -99,6 +99,27 @@ export function createCommander(h) {
     C.rows = h.roster.map(r => rowOf(r));
     return C.act(i, fresh);
   };
+  // AIRLIFT: C on a vehicle's row - the unit by C-130 heavy drop to the selected island (units/air/airlift/airdrop.js):
+  // the reserve (or a buy) as any deployment, plus the sortie's materiel (h.airdrop.cost)
+  C.airdrop = (i = C.sel) => {
+    const r = h.roster[i]; if (!r) return false;
+    const t = fleet.type(r.id), b = base(), AD = h.airdrop || {}, cost = AD.cost || 0;
+    sfx?.ui?.('select');
+    if (!r.airdrop) { say(`NO AIR DROP FOR THE ${t ? t.short : r.label}  -  VEHICLES ONLY (M151, M35, M113)`, 1.8); return false; }
+    const no = r.airdropWhy ? r.airdropWhy() : ''; if (no) { say(no, 3); return false; }
+    if (!b || b.kind !== 'island') { say('AIR DROP: PICK AN ISLAND (LEFT / RIGHT)  -  NOT ONTO THE CARRIER', 2); return false; }
+    const need = cost + (fleet.has(r.id) ? 0 : t.cost);
+    if (h.mat() < need) { say(`AIR DROP: ${need} MATERIEL NEEDED (${fleet.has(r.id) ? '' : `${t.cost} FOR THE ${t.short} + `}${cost} FOR THE SORTIE)  -  YOU HAVE ${Math.floor(h.mat())}`, 2.2); return false; }
+    let bought = false;
+    if (!fleet.has(r.id)) { const w = fleet.buy(r.id, h.store); if (w) { say(w, 1.8); return false; } bought = true; }
+    if (!fleet.take(r.id)) { say(`NO ${t.short} LEFT`, 1.6); return false; }
+    const w = r.airdrop(b);
+    if (w) { fleet.give(r.id); if (bought) { fleet.n[r.id]--; fleet.bought[r.id]--; h.store.mat += t.cost; } say(w, 2.4); return false; }
+    h.store.mat -= cost;
+    feed(`COMMAND: ${t.label} BY C-130 AIR DROP TO ${b.name}  (${cost} MATERIEL)`, 'good');
+    say(`AIR DROP ORDERED  -  ${t.label} FOR ${b.name}  ·  V ON THE BOARD: WATCH THE RUN`, 2.6);
+    render(true); return true;
+  };
   C.recall = (i = C.sel) => { const r = h.roster[i]; if (!r || !r.recall) { say('NOTHING TO RECALL', 1.2); return; } const w = r.recall(); say(w || `${r.label}  -  RECALLED TO THE ALBATROSS`, 1.8); };
   C.standDown = (i = C.sel) => {
     const r = h.roster[i]; if (!r || !r.standDown || !r.out() || r.active()) { say('NOTHING TO STAND DOWN', 1.2); return; }
@@ -148,6 +169,8 @@ export function createCommander(h) {
     if (c === 'KeyR') { nav(); C.recall(); render(true); return true; }
     if (c === 'KeyX') { nav(); C.standDown(); render(true); return true; }
     if (c === 'KeyN') { nav(); C.act(C.sel, true); render(true); return true; }   // another one (the motor pool's types)
+    if (c === 'KeyC') { nav(); C.airdrop(); render(true); return true; }   // AIRLIFT: C-130 air drop to the selected island
+    if (c === 'KeyV' && h.airdrop && h.airdrop.watch) { if (h.airdrop.watch()) C.close(); return true; }   // AIRLIFT: watch a drop under way
     if (c === 'Slash') { C.next(); return true; }
     return !['KeyM', 'KeyP', 'KeyK', 'KeyJ'].includes(c);   // the map, pause, keyboard-only and the controls panel still work
   };
@@ -170,10 +193,14 @@ export function createCommander(h) {
     C.rows.forEach((o, i) => {
       const cls = ['row', i === C.sel ? 'sel' : '', o.action === 'none' ? 'off' : '', o.act ? 'here' : ''].join(' ');
       const more = o.r.multi && (o.out || o.act) ? `  ·  N: ANOTHER AT ${esc(b ? b.name : '')}` : '';
-      const st = o.act ? `<i>YOU ARE HERE</i>  ·  ${esc(o.status)}${more}` : o.out ? `<i>OUT</i>  ·  ${esc(o.status)}  ·  ENTER: SWITCH TO IT${o.r.recall && /CAP/.test(o.status) ? '  ·  R: RECALL' : ''}${o.r.standDown && o.r.canStandDown && o.r.canStandDown() ? '  ·  X: STAND DOWN' : ''}${more}` : `${o.action === 'none' ? '' : 'ENTER: '}${esc(o.label)}`;
+      const adw = o.r.airdrop ? (o.r.airdropWhy ? o.r.airdropWhy() : '') : null;   // AIRLIFT: the C-130 option on the vehicle rows
+      const ad = adw === null ? '' : adw ? `  ·  C-130: ${/TOO HEAVY/.test(adw) ? 'TOO HEAVY TO DROP' : 'NO'}` : b && b.kind === 'island' ? `  ·  C: AIR DROP (C-130)` : '';
+      const st = (o.act ? `<i>YOU ARE HERE</i>  ·  ${esc(o.status)}${more}` : o.out ? `<i>OUT</i>  ·  ${esc(o.status)}  ·  ENTER: SWITCH TO IT${o.r.recall && /CAP/.test(o.status) ? '  ·  R: RECALL' : ''}${o.r.standDown && o.r.canStandDown && o.r.canStandDown() ? '  ·  X: STAND DOWN' : ''}${more}` : `${o.action === 'none' ? '' : 'ENTER: '}${esc(o.label)}`) + ad;
       html += `<div class="${cls}" data-i="${i}"><span class="k">${i + 1}</span><span class="nm">${esc(o.t.short)}<small>${esc(o.r.label || o.t.label)}  ·  ${esc(o.t.note)}</small></span><span class="ct">${o.n}<small>IN RESERVE</small></span><span class="st">${st}</span></div>`;
     });
-    html += `<div class="foot">UP / DOWN SELECT  ·  LEFT / RIGHT BASE  ·  ENTER DEPLOY OR SWITCH  ·  1-${h.roster.length} PICK  ·  R RECALL A JET  ·  X STAND DOWN  ·  N ANOTHER VEHICLE  ·  / NEXT UNIT  ·  \\ CLOSE<br>THE WAR GOES ON: A UNIT YOU LEAVE IS FLOWN HOME BY ITS CREW OR PARKS WHERE IT IS</div>`;
+    const drops = h.airdrop && h.airdrop.lines ? h.airdrop.lines() : [];   // AIRLIFT: C-130 drops under way
+    if (drops.length) html += `<div class="sub" style="margin-top:6px">AIR DROPS  ·  V: WATCH<br>${drops.map(esc).join('<br>')}</div>`;
+    html += `<div class="foot">${h.airdrop ? `C AIR DROP A VEHICLE BY C-130 TO THE ISLAND (${h.airdrop.cost} MATERIEL + THE VEHICLE)  ·  ` : ''}UP / DOWN SELECT  ·  LEFT / RIGHT BASE  ·  ENTER DEPLOY OR SWITCH  ·  1-${h.roster.length} PICK  ·  R RECALL A JET  ·  X STAND DOWN  ·  N ANOTHER VEHICLE  ·  / NEXT UNIT  ·  \\ CLOSE<br>THE WAR GOES ON: A UNIT YOU LEAVE IS FLOWN HOME BY ITS CREW OR PARKS WHERE IT IS</div>`;
     if (force || html !== C.lastHtml) { C.lastHtml = html; el.innerHTML = html; }
   }
   // per frame: the HUD fleet strip; the open board refreshes ~4x a second (statuses move)

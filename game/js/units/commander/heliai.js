@@ -54,7 +54,7 @@ export function createHeliAI() {
     // ---- where to go: a ground velocity (world) and a height
     let wx, wz, yDes, vzMax = 4;
     if (AI.phase === 'transit') {
-      const sp = clamp(Math.sqrt(2 * 0.9 * Math.max(0, d - 8)), 6, HELI_AI.CRUISE);   // brakes in time: ~0.9 m/s2
+      const sp = clamp(Math.sqrt(2 * (T.gentle ? 0.45 : 0.9) * Math.max(0, d - 8)), 6, T.cruise || HELI_AI.CRUISE);   // brakes in time: ~0.9 m/s2 (AIRLIFT: T.gentle with a load on the hook)
       wx = tvx + dx / d * sp; wz = tvz + dz / d * sp;
       // cruise height: over the highest ground along the next ~10 s of the track and over the target
       let hi = Math.max(T.y, env.ground(P.x, P.z));
@@ -72,6 +72,7 @@ export function createHeliAI() {
       } else {   // descend: straight down, slowing to a gentle touchdown; back up if it drifts off the spot
         const agl = P.y - HELI_AI.SKID - T.y;
         yDes = null; vzMax = -clamp(agl * 0.35, 0.45, 2.2);
+        if (T.hover !== undefined && T.hover !== null) { yDes = T.y + T.hover + HELI_AI.SKID; vzMax = 1.5; }   // AIRLIFT: hold a hover with the skids T.hover over the spot (a sling load set down / picked up)
         if (d > 6) AI.phase = 'approach';
       }
     }
@@ -81,9 +82,9 @@ export function createHeliAI() {
     // ---- the bench pilot's loops, on body-axis velocity errors
     const uDes = wx * s.fx + wz * s.fz, vDes = wx * -s.fz + wz * s.fx;
     I.th = clamp(I.th + (s.u - uDes) * 0.012 * dt, -0.3, 0.3);
-    const thT = clamp(I.th + (s.u - uDes) * 0.045, -0.26, 0.3);
+    const g = T.gentle ? 0.4 : 1, thT = clamp(I.th + (s.u - uDes) * 0.045 * g, -0.26 * g, 0.3 * g);
     I.ph = clamp(I.ph - (s.v - vDes) * 0.012 * dt, -0.2, 0.2);
-    const phT = clamp(I.ph - (s.v - vDes) * 0.045, -0.3, 0.3);
+    const phT = clamp(I.ph - (s.v - vDes) * 0.045 * g, -0.3 * g, 0.3 * g);
     I.lon = clamp(I.lon + (thT - s.pitch) * 1.2 * dt, -1, 1); I.lat = clamp(I.lat + (phT - s.roll) * 1.5 * dt, -1, 1);
     c.cy = clamp(I.lon + (thT - s.pitch) * 3 - s.q * 1.2, -1, 1);
     c.cx = clamp(I.lat + (phT - s.roll) * 3 - s.p * 0.8, -1, 1);

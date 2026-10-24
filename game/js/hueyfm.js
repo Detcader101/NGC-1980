@@ -357,6 +357,7 @@ export function createHueySim(GRAV = 9.81) {
     // ground: skids (springs, friction against a moving surface), contact events
     _Fw.set(0, 0, 0); _Tw.set(0, 0, 0);
     contact(h, env, M, m);
+    if (env.ext) env.ext(h, H, _Fw, _Tw);   // AIRLIFT: an external load on the cargo hook adds its world force / torque about the CG (units/air/airlift/sling.js)
     // integrate: translation in world, rotation in body (Euler's equations)
     fromF(_Fb, _f).applyQuaternion(H.q).add(_Fw); _f.y -= m * GRAV;
     H.vel.addScaledVector(_f, h / m); H.pos.addScaledVector(H.vel, h);
