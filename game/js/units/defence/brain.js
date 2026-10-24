@@ -390,19 +390,21 @@ export function createDefence(env) {
   // nose; chaff: one weaker roll per cloud. A decoyed missile steers at the decoy instead (and bursts there).
   let decoyFeedT = -99;
   function decoy(m, pl) {
-    const FR = CM_RULES.flare, CR = CM_RULES.chaff, was = m.cmSeen || 0;
-    let best = null, seen = was;
+    const FR = CM_RULES.flare, CR = CM_RULES.chaff, tried = (m.cmTried ||= new Set());
+    let best = null;
+    // (ngc/bugsweep) a decoy is spent (its one roll) only once it is in reach and ahead of the nose: it used to be marked
+    // seen on the first look, so flares dropped while the missile was still > FR.near out (a launch at 300 m on a jet
+    // running in) never got their roll - the Hornet's ALE-39 pairs could not decoy anything
     const tryIt = (o, p) => {
-      if (o.id <= was) return false;
-      if (o.id > seen) seen = o.id;
+      if (tried.has(o.id)) return false;
       const dx = o.x - m.p.x, dy = o.y - m.p.y, dz = o.z - m.p.z, d = Math.hypot(dx, dy, dz) || 1;
       if (d > FR.near || (dx * m.dir.x + dy * m.dir.y + dz * m.dir.z) / d < FR.cone) return false;
+      tried.add(o.id);
       const close = pl && m.p.distanceTo(pl.pos) < FR.close;
       return Math.random() < p * (close ? FR.pClose / FR.p : 1);
     };
     for (const f of CM.flares) if (f.age >= 0.15 && tryIt(f, FR.p)) { best = f; break; }
     if (!best) for (const c of CM.chaff) if (c.age >= CR.bloom && tryIt(c, CR.p)) { best = c; break; }
-    m.cmSeen = seen;
     if (!best) return;
     m.player = false; m.tgt = null; m.decoy = best; m.tp = best; m.tv = { x: best.vx, y: best.vy, z: best.vz };   // the decoys carry x / y / z
     CM.stats.decoyed++;
