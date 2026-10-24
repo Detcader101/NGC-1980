@@ -1785,6 +1785,65 @@ untouched (war.js's exported hitTest / damage / blast carry the gunnery).
   while the M60 and M113 were parked in the test car's path - moved), jettrap 7/7, world 4/4; foot.mjs 10/12 (the island
   roof ladder top and the medical slot check; the experimental base scored 6/18 on the same machine - load-dependent).
 
+## 2026-10-23 — NGC-1980 wave 2: rotary polish (branch ngc/airrot-polish)
+
+Authenticity pass on the CH-46E, MV-22B and RW-3 WASP (game/js/units/air/rotary/*).
+
+- **RW-3 WASP redesign (waspmodel.js), per the bible.** A low lens-section ceramic disc (lathed, knife rim with a
+  white seam and a cyan lip seam, hair-thin panel seams), grilled 9-blade fans with crossed vanes that flutter, an
+  off-centre sensor spine forward-left carrying an eight-lens spider cluster that moves in saccades, an antenna blade
+  right-rear, a two-segment sting folded under the disc (seg 1 hangs back-down, the elbow takes the aim pitch), three
+  two-jointed insect legs that fold flush in flight.
+- **MV-22B.** Smooth one-piece proprotor blades (lens sections, chord 0.95 -> 0.53 m, ~47 deg twist) that feather
+  with the flight model's real blade angle (`S.th75`: fine in the hover, coarse in cruise); blunt dome spinners;
+  6 deg forward sweep on the leading edge and ~2 deg dihedral; the dorsal fairing over the stow ring; flaperons droop
+  in the hover (the download fix); cabin windows (one plated over in primer); the nacelle actuator eases into its stops
+  (conversion 12.6 s).
+- **CH-46E.** Two M2 .50 cal door guns on pintles (right crew door, left forward window) with gunners who swing onto
+  targets and flash; ramp hydraulic struts re-aimed every frame; short boxy aft sponsons as on the real aircraft;
+  lighter Marine green; sooty T58 exhaust. In the war (rotary.js `doorGuns`) the gun on the target's side fires short
+  bursts of game-level rounds at enemies below within ~150 m near the zone (transit < 450 m, wave-off, hover, ground).
+- **Marine-style procedures (transportai.js).** 10 deg approach (CH-46; MV-22 stays 7 deg) to a hover check at 5 m,
+  a proper flare (deceleration x1.5 over the last 70 m: ~12 deg nose-up), a hover check after every lift-off; approach
+  gates on the way in to an LZ - too high at 150-280 m (> 40 m above the path), too fast at short final (closing
+  actually flown > 1.6 x planned + 5 m/s), zone fouled (another aircraft within 16 m and below 15 m; rotary.js
+  `fouled`) -> WAVE-OFF: power on, straight ahead, climb, out to 320 m, come round again (gates off after two);
+  ship recovery from a hover off the port quarter (26 m aft, 22 m to port) with a sidestep over the spot.
+  `AI.homing()` replaces the old phase list in rotary.js. `AI.waveoffs / why / woLog` record it.
+- **Sound (rotorsound.js).** Blade-vortex slap on slow descents (the approach crack), CH-46 transmission whine,
+  MV-22 turbine whine + exhaust hiss + a chestier hover throb, WASP breathing hiss and slow pitch wander.
+- **Tests.** node: ch46bench 21/21, mv22bench 21/21, waspbench 13/13, waspmission 8/8, rotarymission 18/18 (new:
+  a fouled-zone run that waves off once and lands; normal approaches no longer wave off). Browser: see the report.
+
+### 2026-10-24 — rotary polish, part 2: deck ops and troop loading (same branch, after merging experimental)
+
+- **Embarkation on deck (embark.js, new; squad.js `stick / embark / boarded / boardNow`).** A troop lift worked the
+  way an amphibious flight deck does it (LPH / LHA habits; INFERRED in the detail): the stick waits in two files clear
+  of the rotor arc on the port quarter, away from the island (Marines kneeling, RUNAWAY machines standing in ranks), the ramp comes
+  down, the stick files up it one man every 0.45 s (machines 0.6 s, in lock-step) and goes forward in the cabin; ramp
+  up; the two blue shirts kneeling at the main wheels pull the chocks and chains and run clear; the LSE (yellow) out in
+  front of the nose gives the lift-off signal; it lifts. Recovery: the LSE signals it over the spot, the chockers run in
+  once it is down. The KRAKEN's crew wear cyan. The deck crew reuse NAVAL's `deckcrew.js` instancing (3 people per
+  aircraft). Figures on the deck follow the deck height (`groundY`), not the aircraft's pitched frame. Hooked into
+  transportai.js through a `board(ai, dt)` hook in the 'spool' phase; units opt in with `o.board` / `o.deck` (the war
+  and the dev page do; rotarymission does not). Loading takes ~20 s (CH-46) / ~28 s (MV-22) from ramp down to lift-off.
+  A transport re-tasked mid-load takes the rest aboard at once; rotary.js clears the crews of transports that leave.
+- **Approach fix (transportai.js).** With the longer deck time the CH-46 started from a different spot and waved off
+  'fast' at 11 m on a normal approach: it ran ~6 m/s behind the braking plan all the way down and crossed the spot at
+  ~7 m/s. Three causes: the 'too high' speed limit assumed constant speed (d/v) so it asked for more braking than a
+  helicopter has (now the braking-profile time to go, ~2d/v: `steepK` 1.6); inside ~50 m the linear close-in had no
+  braking fed forward (now kpos x V); and the cruise pitch limit (11 deg nose up) capped the flare - while behind the
+  plan the CH-46 pilot may now flare to ~15 deg and ask for 2.6 m/s2 (`flareTilt`, `flareA`). Now it arrives over the
+  spot at ~1.4 m/s. `cmd.turning` no longer sticks on.
+- **Tests.** node: embarkbench 12/12 (new), rotarymission 18/18, ch46bench 21/21, mv22bench 21/21, waspbench 13/13,
+  waspmission 8/8. Browser (load average ~140 on the shared machine): ch46capture 5/5 (new check: the waiting stick stands
+  on the flight deck, clear of the island - it first stood on the starboard side, inside the island; moved to port),
+  rotarydev ch46 2/2 (new shots 01b-boarding, 01c-lse-signal), smoke 5/5, rescue 2/2, drop 5/5; mv22landing 3/5 and
+  rotarydamage 5/9 fail only on waits: the Osprey's 6.5 km trip home outlasts puppeteer's 180 s cap per wait at this
+  load (now polled), and rotarydamage's squad part reads `s.squad` which the GROUND WAR's squad proxy no longer has
+  (stale since that merge, not this work). Scene timeouts raised for the ~20-28 s of loading.
+
+
 ## 2026-10-23 — NGC-1980 wave 2: the WHEELED vehicles in the game (branch ngc/wheeledgame)
 The M151A2 MUTT, the M35A2 and the 1980 civilian cars (Land Rover 109, Hilux, Beetle, Lada 2101) are crafts in the real
 game on the WHEELED sim (vehiclefm.js); the placeholder TEST CAR is gone. Files (game/js/units/wheeled/): wheeledcraft.js
@@ -1882,6 +1941,7 @@ lcm8model.js (CH-46 sling, LCM-8), wheeledbake.js (one-mesh far LOD and the WORL
   override covers the rest); force feedback (the Gamepad API has none for wheels); night (the lamps are sprites: the game
   has no night yet); the cab's switches in the M35 by eye in every light; AI crews in the other seats of a vehicle you
   drive (only the M35's troops ride along).
+
 ## 2026-10-23 — NAVAL polish (authenticity pass)
 - ALBATROSS: crew placed by role round each aircraft and station (plane captain brown at the nose, blue chockers at
   the mains, purple fuel crew at the refuel point, red ordnancemen at the wing stations; green catapult crew, a yellow
