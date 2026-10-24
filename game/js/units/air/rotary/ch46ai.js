@@ -7,7 +7,7 @@ import { clamp } from './rb.js';
 // a hover check at 5 m, vertical descent; ship recovery from a hover off the port quarter.
 export const CH46_AI = {
   cruise: 46, aDec: 1.2, stop: 0.6, glide: 10 * Math.PI / 180, flat: 18, hover: 5, agl: 45, clear: 18, kh: 0.45, vDesc: 4, vClimb: 6,
-  hdgDist: 70, liftAgl: 7, spool: 2.5,
+  hdgDist: 70, liftAgl: 7, spool: 2.5, flareTilt: 0.33, flareA: 2.6,   // flare: up to ~15 deg nose up while behind the braking plan
 };
 // guidance cmd -> controls. On the ground: collective as asked, stick and pedals centred, the loops' memory reset.
 // In the air: pilot.js, with the torque held under the transmission limit (a pilot watches the torque gauge).

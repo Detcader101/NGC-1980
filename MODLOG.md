@@ -1815,6 +1815,29 @@ Authenticity pass on the CH-46E, MV-22B and RW-3 WASP (game/js/units/air/rotary/
 - **Tests.** node: ch46bench 21/21, mv22bench 21/21, waspbench 13/13, waspmission 8/8, rotarymission 18/18 (new:
   a fouled-zone run that waves off once and lands; normal approaches no longer wave off). Browser: see the report.
 
+### 2026-10-24 — rotary polish, part 2: deck ops and troop loading (same branch, after merging experimental)
+
+- **Embarkation on deck (embark.js, new; squad.js `stick / embark / boarded / boardNow`).** A troop lift worked the
+  way an amphibious flight deck does it (LPH / LHA habits; INFERRED in the detail): the stick waits in two files clear
+  of the rotor arc on the port quarter, away from the island (Marines kneeling, RUNAWAY machines standing in ranks), the ramp comes
+  down, the stick files up it one man every 0.45 s (machines 0.6 s, in lock-step) and goes forward in the cabin; ramp
+  up; the two blue shirts kneeling at the main wheels pull the chocks and chains and run clear; the LSE (yellow) out in
+  front of the nose gives the lift-off signal; it lifts. Recovery: the LSE signals it over the spot, the chockers run in
+  once it is down. The KRAKEN's crew wear cyan. The deck crew reuse NAVAL's `deckcrew.js` instancing (3 people per
+  aircraft). Figures on the deck follow the deck height (`groundY`), not the aircraft's pitched frame. Hooked into
+  transportai.js through a `board(ai, dt)` hook in the 'spool' phase; units opt in with `o.board` / `o.deck` (the war
+  and the dev page do; rotarymission does not). Loading takes ~20 s (CH-46) / ~28 s (MV-22) from ramp down to lift-off.
+  A transport re-tasked mid-load takes the rest aboard at once; rotary.js clears the crews of transports that leave.
+- **Approach fix (transportai.js).** With the longer deck time the CH-46 started from a different spot and waved off
+  'fast' at 11 m on a normal approach: it ran ~6 m/s behind the braking plan all the way down and crossed the spot at
+  ~7 m/s. Three causes: the 'too high' speed limit assumed constant speed (d/v) so it asked for more braking than a
+  helicopter has (now the braking-profile time to go, ~2d/v: `steepK` 1.6); inside ~50 m the linear close-in had no
+  braking fed forward (now kpos x V); and the cruise pitch limit (11 deg nose up) capped the flare - while behind the
+  plan the CH-46 pilot may now flare to ~15 deg and ask for 2.6 m/s2 (`flareTilt`, `flareA`). Now it arrives over the
+  spot at ~1.4 m/s. `cmd.turning` no longer sticks on.
+- **Tests.** node: embarkbench 12/12 (new), rotarymission 18/18, ch46bench 21/21, mv22bench 21/21, waspbench 13/13,
+  waspmission 8/8. Browser: see below.
+
 ## 2026-10-23 — NAVAL polish (authenticity pass)
 - ALBATROSS: crew placed by role round each aircraft and station (plane captain brown at the nose, blue chockers at
   the mains, purple fuel crew at the refuel point, red ordnancemen at the wing stations; green catapult crew, a yellow

@@ -9,6 +9,7 @@ import { createTransportAI } from './transportai.js';
 import { flyMV22, MV22_AI } from './mv22ai.js';
 import { buildMV22Mesh } from './mv22model.js';
 import { createSquad, padSlots } from './squad.js';
+import { createEmbark } from './embark.js';
 
 const _v = new THREE.Vector3();
 export function createMV22Unit(o) {
@@ -37,6 +38,8 @@ export function createMV22Unit(o) {
     },
     parked() { U.parkT = (U.parkT || 0); U.folding = true; },
   });
+  // loading on the deck / pad before lift-off (o.board), with the deck crew on a ship's spot (o.deck() -> the spot)
+  if (o.board) { U.embark = createEmbark({ kind: 'mv22', U, deck: o.deck, parent: o.parent, jersey: o.jersey || 'cyan' }); AI.hooks.board = U.embark.board; }
   const animS = { nr: 1, nac: Math.PI / 2, tR: { tx: 0, ty: 0 }, tL: { tx: 0, ty: 0 }, coll: 0, gear: 1, ramp: 0, flap: 1, el: 0, rud: 0, ail: 0, fold: 0, run: true };
   U.update = (dt, time) => {
     U.time = time;
@@ -54,6 +57,7 @@ export function createMV22Unit(o) {
     if (U.folding) { U.fold = Math.min(1, U.fold + dt / 16); if (U.fold >= 1 && !U.parked) { U.parked = true; if (o.onParked) o.onParked(U); } }
     U.ramp += Math.max(-dt / 3, Math.min(dt / 3, U.rampT - U.ramp));
     U.sync(dt, time);
+    if (U.embark) { model.group.updateMatrixWorld(); U.embark.update(dt, time, AI.phase); }
     if (!U.squadExternal) squad.update(dt, time);
   };
   U.sync = (dt, time) => {
@@ -65,6 +69,6 @@ export function createMV22Unit(o) {
     model.animate(animS, dt, time);
   };
   U.setPad = p => { o.pad = p; };
-  U.dispose = () => { o.parent.remove(model.group); if (!U.squadExternal) squad.dispose(); };
+  U.dispose = () => { o.parent.remove(model.group); if (U.embark) U.embark.dispose(); if (!U.squadExternal) squad.dispose(); };
   return U;
 }

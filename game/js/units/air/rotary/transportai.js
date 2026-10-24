@@ -18,12 +18,17 @@ import { clamp, wrap } from './rb.js';
 export function approach(st, tgt, o, world, out = {}) {
   const dx = tgt.x - st.x, dz = tgt.z - st.z, d = Math.hypot(dx, dz) || 1e-6, ux = dx / d, uz = dz / d;
   // too high above the hover point to get down in time at vDesc: slow down (a steep approach, flown slowly)
-  const above = st.y - (tgt.y + o.hover), steep = above > 8 ? Math.max(4, (d - o.stop) * o.vDesc * 0.8 / above) : 1e9;
+  const above = st.y - (tgt.y + o.hover), steep = above > 8 ? Math.max(4, (d - o.stop) * o.vDesc * (o.steepK ?? 1.6) / above) : 1e9;   // time to go on a braking profile is ~2d/v: v <= 2 d vDesc / above (x 0.8 margin); the old d/v (x 0.8) asked for more braking than a helicopter has
   const vs = Math.sqrt(2 * o.aDec * Math.max(0, d - o.stop)), Vc = Math.min(o.cruise, vs, d * (o.kpos ?? 0.22), steep);   // linear close in: the position loop stays slower than the velocity loop
   out.vx = (tgt.vx || 0) + ux * Vc; out.vz = (tgt.vz || 0) + uz * Vc;
   // on the braking curve: feed the deceleration forward so the pilot raises the nose in time (the loop only trims it)
-  const brake = vs < o.cruise && vs < d * (o.kpos ?? 0.22) && d > 12 ? o.aDec * (d < (o.flareD ?? 70) && Vc > 5 ? (o.flareK ?? 1.5) : 1) : 0;   // the flare
+  // (inside ~50 m the linear close-in takes over: it brakes at kpos x V, fed forward too - without it the aircraft ran
+  // ~6 m/s behind the plan all the way down and crossed the spot at 7 m/s)
+  const kp = o.kpos ?? 0.22, brake = Vc === vs && vs < o.cruise && d > 12 ? o.aDec * (d < (o.flareD ?? 70) && Vc > 5 ? (o.flareK ?? 1.5) : 1) : Vc === d * kp && Vc < o.cruise ? kp * Vc : 0;   // the flare
   out.ax = -ux * brake; out.az = -uz * brake; out.dist = d; out.closing = Vc;
+  // braking: the pilot may pull the nose up further than in cruise (o.flareTilt, rad; a real flare is 10-15 deg) and ask
+  // for more deceleration - at the cruise limits the CH-46 ran ~6 m/s behind the plan all the way down
+  const fl = brake > 0 && o.flareTilt && Math.hypot(st.vx - (tgt.vx || 0), st.vz - (tgt.vz || 0)) > Vc + 0.5; out.tilt = fl ? o.flareTilt : undefined; out.aMax = fl ? o.flareA : undefined;
   // terrain floor along the way (look-ahead grows with speed) and close round the aircraft
   const look = Math.min(d, 60 + 6 * Math.hypot(st.vx, st.vz));
   const clr = o.hover - 1 + (o.clear - o.hover + 1) * clamp((d - o.flat) / 120, 0, 1);   // clearance shrinks to the hover height on short final
@@ -62,13 +67,14 @@ export function createTransportAI(o, hooks) {
     // st: pilot.stateOf(); sim: { agl, landed, contacts }; world: { floorAlong, groundY }
     step(st, sim, dt, world) {
       AI.t += dt; AI.tAll += dt;
-      const c = AI.cmd; c.collFix = undefined; c.ground = false; c.pitch = undefined; c.roll = undefined; const vyPrev = c.vy ?? 0;
+      const c = AI.cmd; c.collFix = undefined; c.ground = false; c.pitch = undefined; c.roll = undefined; c.tilt = c.aMax = undefined; c.turning = false; const vyPrev = c.vy ?? 0;
       switch (AI.phase) {
         case 'spool': {   // engines to flight rpm, rotors spinning up on the deck
           AI.spot = AI.spot || { x: st.x, z: st.z, hdg: st.yaw };
           const h = hooks.home && hooks.home(); hold(st, { ...AI.spot, vx: h ? h.vx : 0, vz: h ? h.vz : 0 }, 0, 0, c);
           c.collFix = 0; c.ground = true;
-          if (AI.t > o.spool) AI.set('lift');
+          const ready = !hooks.board || hooks.board(AI, dt);   // troops loading, chocks and chains, the LSE's signal (embark.js)
+          if (AI.t > o.spool && ready) AI.set('lift');
           break;
         }
         case 'lift': case 'lift2': {   // straight up off the deck / pad, keeping station over it, then away

@@ -28,7 +28,7 @@ const SPOTS = { ch46: [[-2, -2], [-2, -35]], mv22: [[-1, -36], [-1, 34]] };
 export function createRotary(ctx) {
   const { W, scene, fx, terrainH, isWater } = ctx;
   const root = new THREE.Group(); root.name = 'rotary'; scene.add(root);
-  const R = { squads: [], time: 0 };
+  const R = { squads: [], time: 0 }, crews = [];   // crews: transports with a deck crew / stick out (embark.js), cleared when they go
   // the environment the flight models fly in: terrain, sea, ship decks (moving)
   const groundY = (x, z) => Math.max(terrainH(x, z), 0, W.deckY(x, z));
   const env = { groundY, water: (x, z) => isWater(x, z) && W.deckY(x, z) < -1e8, surfVel: (x, z) => W.surfVel(x, z) };
@@ -85,9 +85,9 @@ export function createRotary(ctx) {
     const u = { type: 'drone', kind: 'ch46', side, p: new THREE.Vector3(start.x, start.y + 2, start.z), v: new THREE.Vector3(), yaw: start.yaw, hp: 10, hpMax: 10, r: 7, cd: 0, ph: 0, state: 'go', landed: false, ...extra };
     const spot = sp ? [sp.lx, sp.lz] : null;
     const home = () => { const c = carrierOf(side); return c && spot ? deckSpot(c, spot[0], spot[1]) : homePad(side); };
-    const U = createCH46Unit({ parent: scene, env, world, lz: () => u.lz, home, pad: I.pad, start, modex: 1 + Math.floor(rnd(30)), squad: 13,
+    const U = createCH46Unit({ parent: scene, env, world, lz: () => u.lz, home, pad: I.pad, start, modex: 1 + Math.floor(rnd(30)), squad: 13, board: true, deck: spot ? home : null,   // the stick boards on deck (embark.js)
       onParked: () => { u.dead = true; u.stowed = true; if (!U.squadExternal) U.squad.dispose(); } });
-    u.lz = lz; u.rot = U; u.mesh = U.model.group; U.AI.hooks.fouled = () => fouled(u);
+    u.lz = lz; u.rot = U; u.mesh = U.model.group; U.AI.hooks.fouled = () => fouled(u); crews.push(u);
     // the Marines become a ground unit of their own when they come off the ramp
     const unload = U.AI.hooks.unload;
     U.AI.hooks.unload = (ai, dt) => { const done = unload(ai, dt); if (U.deployed && !u.squadUnit) { u.squadUnit = R.ground ? R.ground.landing(u, U, side, u.target) : addSquad(U.squad, side, u.target, 9);   /* GROUND WAR hook: the Marines fight as a squad */ U.squadExternal = true; } return done; };
@@ -101,9 +101,9 @@ export function createRotary(ctx) {
     const spot = sp ? [sp.lx, sp.lz] : null;
     const home = () => { const c = carrierOf(side); return c && spot ? deckSpot(c, spot[0], spot[1]) : homePad(side); };
     u.lz = (R.ground && R.ground.hotLZ(u.target, side, MV22_FOOT, chooseLZ)) || chooseLZ(u.target, MV22_FOOT);   // GROUND WAR hook
-    const U = createMV22Unit({ parent: scene, env, world, lz: () => u.lz, home, pad: u.target.pad, start, squad: 12,
+    const U = createMV22Unit({ parent: scene, env, world, lz: () => u.lz, home, pad: u.target.pad, start, squad: 12, board: true, deck: spot ? home : null,
       onParked: () => { u.dead = true; u.stowed = true; if (!U.squadExternal) U.squad.dispose(); } });
-    u.rot = U; u.mesh = U.model.group; U.AI.hooks.fouled = () => fouled(u);
+    u.rot = U; u.mesh = U.model.group; U.AI.hooks.fouled = () => fouled(u); crews.push(u);
     const unload = U.AI.hooks.unload;
     U.AI.hooks.unload = (ai, dt) => { const done = unload(ai, dt); if (U.deployed && !u.squadUnit) { u.squadUnit = R.ground ? R.ground.landing(u, U, side, u.target) : addSquad(U.squad, side, u.target, 10);   /* GROUND WAR hook: the troopers come off the ramp as STRIDERs */ U.squadExternal = true; } return done; };
     return u;
@@ -323,6 +323,7 @@ export function createRotary(ctx) {
   }
   R.tick = (dt) => {
     R.time = W.time; sound(dt);
+    for (let i = crews.length - 1; i >= 0; i--) { const u = crews[i]; if (u.dead || u.gone || !W.units.includes(u)) { if (u.rot.embark) u.rot.embark.dispose(); if (u.rot.squad.state === 'boarding') u.rot.squad.killAll(); crews.splice(i, 1); } }
     for (let i = R.squads.length - 1; i >= 0; i--) {
       const s = R.squads[i], Q = s.Q;
       if (s.u.dead && !s.gone) { s.gone = true; if (Q.alive && s.I.owner === s.side) Q.garrison(); }
@@ -335,7 +336,7 @@ export function createRotary(ctx) {
       if (s.side === 2) Q.root.visible = s.u.dead ? true : s.u.mesh.visible;
     }
   };
-  R.reset = () => { for (const s of R.squads) s.Q.dispose(); R.squads.length = 0; };
+  R.reset = () => { for (const s of R.squads) s.Q.dispose(); R.squads.length = 0; for (const u of crews) { if (u.rot.embark) u.rot.embark.dispose(); u.rot.squad.dispose(); } crews.length = 0; };
   R.snd = snd;
   R.chooseLZ = chooseLZ; R.env = env; R.root = root; R.FOOT = { ch46: CH46_FOOT, mv22: MV22_FOOT }; R.waspTune = WASP_TUNE;   // (FOOT: the GROUND WAR's hot-LZ choice)
   return R;

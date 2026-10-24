@@ -10,6 +10,7 @@ import { createTransportAI } from './transportai.js';
 import { flyCH46, CH46_AI } from './ch46ai.js';
 import { buildCH46Mesh } from './ch46model.js';
 import { createSquad, padSlots } from './squad.js';
+import { createEmbark } from './embark.js';
 
 const _v = new THREE.Vector3();
 export function createCH46Unit(o) {
@@ -37,6 +38,8 @@ export function createCH46Unit(o) {
     },
     parked() { U.parked = true; if (o.onParked) o.onParked(U); },
   });
+  // loading on the deck / pad before lift-off (o.board), with the deck crew on a ship's spot (o.deck() -> the spot)
+  if (o.board) { U.embark = createEmbark({ kind: 'ch46', U, deck: o.deck, parent: o.parent, jersey: o.jersey || 'yellow' }); AI.hooks.board = U.embark.board; }
   const animS = { nr: 1, F: { tx: 0, ty: 0 }, A: { tx: 0, ty: 0 }, coll: 0, ramp: 0, run: true, n1: 0.9, cone: 0.06 };
   U.update = (dt, time) => {
     U.time = time;
@@ -51,6 +54,7 @@ export function createCH46Unit(o) {
     }
     U.ramp += Math.max(-dt / 2.5, Math.min(dt / 2.5, U.rampT - U.ramp));
     U.sync(dt, time);
+    if (U.embark) { model.group.updateMatrixWorld(); U.embark.update(dt, time, AI.phase); }
     if (!U.squadExternal) squad.update(dt, time);
   };
   U.sync = (dt, time) => {
@@ -63,6 +67,6 @@ export function createCH46Unit(o) {
     model.animate(animS, dt, time);
   };
   U.setPad = p => { o.pad = p; };
-  U.dispose = () => { o.parent.remove(model.group); squad.dispose(); };
+  U.dispose = () => { o.parent.remove(model.group); if (U.embark) U.embark.dispose(); squad.dispose(); };
   return U;
 }

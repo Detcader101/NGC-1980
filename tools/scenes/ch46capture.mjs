@@ -22,8 +22,11 @@ export default async function (h) {
     window.__cam = { mode: 'orbit', yaw: 2.4, d: 34, h: 9 }; return { owner: I.owner, n: __G.war.units.filter(u => u.kind === 'ch46').length, lz: u && u.lz, feed: document.getElementById('feed').textContent.slice(0, 120) }; })()`);
   await h.expect(`!!window.__u && __u.kind === 'ch46' && __u.rot.AI.phase === 'spool'`, 'a CH-46 is spooling up on the deck');
   await h.wait(1500); await h.shot('01-on-deck');
+  // embark.js: the stick files up the ramp, chocks off, the LSE signals the lift
+  await h.waitFor(`__u.rot.squad.figs.filter(F => F.st === 'embark' && F.delay < 0).length > 4 || __u.dead`, 60000); await h.shot('01b-boarding');
+  await h.expect(`__u.rot.squad.figs.some(F => F.st === 'embark' || F.st === 'aboard') && __u.rot.AI.phase === 'spool' && __u.rot.squad.figs.every(F => F.st !== 'stick' || Math.abs(F.y - (__u.p.y - 1.8)) < 0.6)`, 'Marines boarding by the ramp on deck (the waiting stick stands on the flight deck, clear of the island)');
   const phase = (p, ms = 90000) => h.waitFor(`__u.rot.AI.phase === '${p}' || __u.dead`, ms);
-  await h.waitFor(`__u.rot.S.agl > 3 || __u.dead`, 30000); await h.shot('02-liftoff');
+  await h.waitFor(`__u.rot.S.agl > 3 || __u.dead`, 150000); await h.shot('02-liftoff');
   await h.eval(`(window.__cam = { mode: 'chase', d: 34, h: 9 }, true)`);
   await h.waitFor(`(__u.rot.AI.phase === 'transit' && __u.rot.AI.cmd.dist < 300) || __u.dead`, 90000); await h.shot('03-transit');
   // the game draws terrain round the player (250 m): park the Huey on SANDBAR across the pad from the LZ to watch
