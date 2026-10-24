@@ -64,14 +64,14 @@ export default async function (h) {
   await h.eval(`(__G.marine.view = 'third', __F.orbit(-0.7, 3.2, 1.6, 0.0), 1)`); await h.wait(1200); await h.shot('swim-third-person');
   await h.key('up', 'KeyW');
   await h.eval(`(window.__cam = null, 1)`);
-  // ---- 5. a cooked M67 and he is knocked out: it falls live
+  // ---- 5. a cooked M67 and his throwing arm is hit: it falls live
   await h.eval(`(() => { __F.place(-6, -60, 0); __G.marine.view = 'third'; __G.marine.M.restore(); return 1; })()`); await h.wait(1500);
   await h.eval(`(__G.marine.input({ throwHeld: true }), __G.marine.key('KeyG'), { th: __G.marine.throwState() && __G.marine.throwState().phase })`);
   await h.waitFor(`__G.marine.throwState() && __G.marine.throwState().phase === 'cook' && __G.marine.throwState().cook > 0.5`, 20000);
-  await h.eval(`(window.__d0 = __G.marine.stats.dropped || 0, window.__bo = __G.marine.stats.booms || 0, __G.marine.M.ko = 60, 1)`);
+  await h.eval(`(window.__d0 = __G.marine.stats.dropped || 0, window.__bo = __G.marine.stats.booms || 0, __G.marine.M.regions.armR.hp = 0, 1)`);   // (his throwing arm hit: the hand won't hold it)
   await h.waitFor(`(__G.marine.stats.dropped || 0) > __d0`, 10000);
   await h.eval(`(() => { const g = __G.marine.lastThrow; window.__cam = { p: new __G.THREE.Vector3(g.x + 1.6, g.y + 1.1, g.z + 1.6), t: new __G.THREE.Vector3(g.x, g.y, g.z) }; return { fuse: +g.fuse.toFixed(2), dropped: !!g.dropped, th: __G.marine.throwState() }; })()`);
-  await h.expect(`__G.marine.lastThrow.dropped && __G.marine.lastThrow.fuse < 4.2 && !__G.marine.throwState()`, 'knocked out with the spoon gone: the M67 falls at his feet, live');
+  await h.expect(`__G.marine.lastThrow.dropped && __G.marine.lastThrow.fuse < 4.2 && !__G.marine.throwState()`, 'his throwing arm hit with the spoon gone: the M67 falls at his feet, live');
   await h.shot('dropped-live-grenade');
   await h.waitFor(`(__G.marine.stats.booms || 0) > __bo`, 20000);
   await h.expect(`(__G.marine.stats.booms || 0) > __bo`, 'and it goes off');
