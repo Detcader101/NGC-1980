@@ -23,6 +23,9 @@ import { fragmentHits, REGION } from './units/infantry/medical.js';
 import { createInvUI } from './units/infantry/invui.js';
 import { createMedUI, createMedHud, createVisionFX, FEEDTXT } from './units/infantry/medui.js';
 import { addSmoke } from './units/defence/cm.js';   // ngc/cmpolish: M18 smoke blocks sight lines and the LANCE beam
+import { createMarineCare } from './marinecare.js';   // ngc/infdepth: buddy aid both ways, drag / carry, the ground war's dead
+import { createThrowVM } from './units/infantry/throwvm.js';   // ngc/infdepth: the grenade drill in the viewmodel
+import { careHands, throwHands } from './units/infantry/carepose.js';   // ngc/infdepth-fix: the same in third person
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const SENS = 0.0022;   // mouse: rad per pixel (as foot.js)
@@ -87,9 +90,18 @@ export function createMarine(ctx) {
         set(t, { x: x0 + dx * t, y, z: z0 + dz * t, nx: -dx / L, ny: 0, nz: -dz / L, material: s.kind === 'aa' ? 'steel' : 'concrete', thickness: s.kind === 'aa' ? 12 : 400, target: s, fxKind: s.kind === 'aa' ? 'metal' : 'ground' });
       }
     }
+    // ngc/infdepth: the ground war's own units (STRIDERs, hover tanks, MBTs, the Marines - friendly fire is real) by
+    // groundsim's hit volumes; the hit goes to the ground sim (warHit -> GS.hitUnit)
+    const GSm = war.ground?.sim;
+    if (GSm) for (const u of GSm.units) {
+      if (!u.alive && u.kind !== 'strider' || u.evac || Math.abs(u.x - x0) > L + 8 || Math.abs(u.z - z0) > L + 8 || u === Mr.care?.hold?.u) continue;
+      const t = GSm.unitT(u, x0, y0, z0, x1, y1, z1); if (t < 0) continue;
+      const mar = u.kind === 'marine';
+      set(t, { x: x0 + dx * t, y: y0 + dy * t, z: z0 + dz * t, nx: -dx / L, ny: -dy / L, nz: -dz / L, material: mar ? 'flesh' : 'armour', thickness: mar ? 300 : 20, target: { gw: u }, fxKind: mar ? 'ground' : 'metal' });
+    }
     // war.js units: aircraft, RUNAWAY ground units (spheres of radius u.r, or the unit's own u.hitRay), ship gun mounts
     for (const u of war.units) {
-      if (u.dead || u.dying || u.gone) continue;
+      if (u.dead || u.dying || u.gone || u.noHit) continue;   // (noHit: the ground war's squad proxies, ngc/infdepth)
       if (u.dims) {
         if (Math.abs(x0 - u.p.x) > 90 || Math.abs(z0 - u.p.z) > 90) continue;
         for (const g of u.guns) { if (g.dead) continue; g.mesh.getWorldPosition(_c); const t = segSphere(x0, y0, z0, dx, dy, dz, _c.x, _c.y, _c.z, 1.6); if (t !== null) set(t, { x: x0 + dx * t, y: y0 + dy * t, z: z0 + dz * t, nx: -dx / L, ny: -dy / L, nz: -dz / L, material: 'steel', thickness: 15, target: g, fxKind: 'metal' }); }
@@ -285,6 +297,7 @@ export function createMarine(ctx) {
     if (code === 'Space') { presses.push(S.stance === 'stand' ? 'jump' : 'stance:stand'); return true; }
     if (code === 'KeyN') { presses.push('bipod'); return true; }
     if (code === 'ControlLeft' || code === 'CapsLock') { walkMode = !walkMode; say(walkMode ? 'WALK' : 'RUN', 0.8); return true; }
+    if (code === 'KeyF' && e?.shiftKey) return Mr.care.cycleHold();   // ngc/infdepth: drag / fireman's carry / put down
     if (code === 'KeyF') { interact(); return true; }
     if (code === 'KeyV') { Mr.view = Mr.view === 'first' ? 'third' : 'first'; say(Mr.view === 'first' ? 'FIRST PERSON' : 'THIRD PERSON', 1); return true; }
     return ['KeyQ', 'KeyE'].includes(code);
@@ -325,11 +338,12 @@ export function createMarine(ctx) {
   // rearm and resupply
   function nearestLoot(reach = 2.2) {
     let best = null, bd = reach;
-    for (const t of [...Mr.crates, ...Mr.piles, ...Mr.bodies]) { const d = Math.hypot(t.x - W.x, t.z - W.z); if (d < bd && Math.abs(t.y - W.y) < 1.6) { bd = d; best = t; } }
+    for (const t of [...Mr.crates, ...Mr.piles, ...Mr.bodies, ...Mr.care.bodies(W.x, W.z, reach)]) { const d = Math.hypot(t.x - W.x, t.z - W.z); if (d < bd && Math.abs(t.y - W.y) < 1.6) { bd = d; best = t; } }
     return best;
   }
   Mr.nearestLoot = nearestLoot;
   function interact() {
+    if (Mr.care.interact()) return;   // ngc/infdepth: a wounded Marine (treat him), a man you carry next to the Huey
     const t = nearestLoot();
     if (t) { openScreen('gear', t.c); say(`SEARCHING ${t.name}`, 1.5); return; }
     const svc = ctx.serviceAt(W.x, W.z);
@@ -345,8 +359,11 @@ export function createMarine(ctx) {
     input.dt = dt;
     const inp = buildInput(input);
     if (MS.dead) { inp.move = [0, 0]; inp.fire = false; inp.actions = []; }
+    if (Mr.care.hold) { inp.fire = false; inp.ads = false; inp.sprint = false; inp.actions = inp.actions.filter(a => !/^slot|^reload|^law|^gl/.test(a)); }   // (both hands on the casualty)
+    throwInput(inp, dt);   // ngc/infdepth: a grenade in the hand - the rifle is down
     const evs = MS.step(dt, inp, GR);
     Mr.firedT += dt;
+    Mr.care.update(dt);
     for (const e of evs) handle(e);
     for (const e of MS.medEvents) medEvent(e);
     incomingCracks(); stepGrenades(dt);
@@ -367,7 +384,7 @@ export function createMarine(ctx) {
       const kind = e.material === 'water' ? 'water' : ['steel', 'sheet', 'armour'].includes(e.material) ? 'metal' : 'ground';
       fx.impact(e.x, e.y, e.z, kind); Mr.stats.impacts++;
       a?.impact(e.material === 'soil' ? 'soil' : e.material, dist(e.x, e.y, e.z), 0, e.result);
-      warHit(e.target, e.round, e.result);
+      warHit(e.target, e.round, e.result, e);
     } else if (e.e === 'hit') {   // a soldier figure (an RUNAWAY trooper, a body): hitboxes on the shared skeleton
       fx.impact(e.hit.point[0], e.hit.point[1], e.hit.point[2], 'ground'); Mr.stats.hits++;
       const f = e.target; a?.impact('flesh', dist(...e.hit.point), 0, 'stop');
@@ -411,8 +428,15 @@ export function createMarine(ctx) {
     }
   }
   // a round of ours arriving at a war.js target: GAME damage by round
-  function warHit(t, round, result) {
+  function warHit(t, round, result, e) {
     if (!t || result === 'ricochet') return;
+    if (t.gw) {   // ngc/infdepth: a ground-war unit (game level: the ground sim's own tables)
+      const GSm = war.ground?.sim; if (!GSm) return;
+      const ammo = round === 'M80' || round === 'M62' ? 'm60' : 'm16', hp = round === 'M1911' ? 36 : ammo === 'm60' ? 70 : 60;
+      GSm.hitUnit(1, ammo, t.gw, e.x, e.y, e.z, [-e.nx, -e.ny, -e.nz], hp); Mr.stats.gwHits = (Mr.stats.gwHits || 0) + 1;
+      if (t.gw.kind === 'marine') say(`CEASE FIRE!  -  YOU HIT ${t.gw.name || 'A MARINE'}`, 2);
+      return;
+    }
     const k = WAR_DMG[round]; if (!k) return;
     if (t.dims) return;                                   // a hull: small arms do nothing
     if (t.ship) { if (t.ship.side !== 1) war.damage(t, k * 0.4, 1); return; }   // a ship's gun mount
@@ -476,12 +500,12 @@ export function createMarine(ctx) {
   // the life cycle: foot.js asks
   Mr.isDead = () => MS.dead;
   Mr.cause = () => MS.cause || 'KILLED';
-  Mr.onDeath = () => { closeScreens(); leaveBody(); Mr.needsFresh = true; Mr.view = 'third'; };
+  Mr.onDeath = () => { closeScreens(); Mr.care.exit(); leaveBody(); Mr.needsFresh = true; Mr.view = 'third'; };
   Mr.spawned = fresh => {
     if (fresh || Mr.needsFresh) { MS.reset(); Mr.needsFresh = false; vm.lawLines = lawW()?.lawLines?.(); }
     S.place(W.x, W.y, W.z, W.yaw, 'stand'); Mr.view = 'first'; held.fire = held.ads = false;
   };
-  Mr.exit = () => { closeScreens(); me.root.visible = false; tracers.visible = false; if (medHud) medHud.el.style.display = 'none'; if (vision) vision.update({ vision: { tunnel: 0, grey: 0, blur: 0, blackout: 0 } }); if (Mr.flashEl) Mr.flashEl.style.opacity = 0; held.fire = held.ads = false; };
+  Mr.exit = () => { closeScreens(); Mr.care.exit(); throwCancel(); me.root.visible = false; tracers.visible = false; if (medHud) medHud.el.style.display = 'none'; if (vision) vision.update({ vision: { tunnel: 0, grey: 0, blur: 0, blackout: 0 } }); if (Mr.flashEl) Mr.flashEl.style.opacity = 0; held.fire = held.ads = false; };
 
   // ================================================================ views
   Mr.firstPerson = () => Mr.view === 'first' && !MS.dead;
@@ -489,8 +513,15 @@ export function createMarine(ctx) {
   const _e = new THREE.Euler();
   Mr.camera = (cam, dt) => {
     if (Mr.firstPerson()) {
-      cam.position.set(S.eye.x, S.eye.y, S.eye.z);
-      cam.quaternion.setFromEuler(_e.set(S.camPitch, S.camYaw, S.camRoll, 'YXZ'));
+      // ngc/infdepth: breath and effort in the head, not just the rifle: the chest rises with each breath (deeper and
+      // faster as soldier.js's breathing follows the oxygen debt), blown he sways and his head drops on the exhale, a
+      // pounding heart (MEDINV / soldier.js HR) knocks the view on each beat. Less on the sights (the cheek weld).
+      const k = 1 - 0.75 * S.ads, br = Math.sin(S.breathPhase), dp = S.breathDepth, blown = clamp(1 - S.staminaFrac / 0.35, 0, 1), ex = S.exertion;
+      const hb = S.hr > 120 ? Math.pow(Math.max(0, Math.sin((Mr.hbPh = ((Mr.hbPh || 0) + dt * S.hr / 60 * Math.PI * 2) % (Math.PI * 2)))), 12) * clamp((S.hr - 120) / 60, 0, 1) : 0;
+      const dy = br * dp * (0.006 + 0.012 * ex) * k - blown * 0.02 * (0.5 - 0.5 * br) * k, dpitch = br * dp * (0.0025 + 0.006 * ex) * k - blown * 0.012 * (0.5 - 0.5 * br) * k - hb * 0.0025, droll = Math.sin(S.breathPhase * 0.5) * blown * 0.006 * k;
+      cam.position.set(S.eye.x, S.eye.y + dy, S.eye.z);
+      cam.quaternion.setFromEuler(_e.set(S.camPitch + dpitch, S.camYaw, S.camRoll + droll, 'YXZ'));
+      Mr.breathCam = { dy, dpitch, droll, hb };
       return;
     }
     const dead = MS.dead, back = dead ? 4.5 : 2.6, side = dead ? 0 : 0.6, yaw = S.camYaw, pitch = dead ? -0.9 : S.camPitch;
@@ -513,13 +544,19 @@ export function createMarine(ctx) {
       me.root.position.set(S.pos.x, S.pos.y, S.pos.z); me.root.rotation.y = S.yaw;
       const key = R.carrier ? (R.carrier.key === 'M16A1' && R.carrier.gl ? 'M16A1/M203' : R.carrier.key) : null; if (me.weaponKey !== key) me.setWeapon(key);
       const p = S.pose(); p.cls = R.cls === 'gl' ? 'rifle' : R.cls; p.action = R.cur && R.cur.act ? { name: R.cur.act.name, p: R.cur.act.t / R.cur.act.dur } : null;
+      // ngc/infdepth: hands off the rifle (slung on the back): bent over a casualty on the drag strap, under one in a
+      // fireman's carry, or the grenade drill (carepose.js); the grenade in the right hand until it leaves it
+      p.hands = null; p.sling = 0;
+      if (Mr.care.hold) { p.ads = 0; p.sling = 1; p.hands = careHands(Mr.care.hold.mode, 0, p.gaitPhase || 0); if (Mr.care.hold.mode === 'drag') { p.stance = p.stanceFrom = p.stanceTo = 'crouch'; p.stanceT = 1; } }
+      else if (TH && TH.phase !== 'recover') { p.ads = 0; p.sling = 1; p.hands = throwHands(TH.phase, TH.p, TH.under); }
+      p.grenade = !!TH && TH.phase !== 'recover' && !(TH.phase === 'throw' && TH.gone);   // (in his right hand in third person, through the drill)
       if (W.swim) { p.stance = p.stanceFrom = p.stanceTo = 'prone'; p.stanceT = 1; }
       poseSkeleton(me, p, dt);
     }
     // first person: arms and weapon (own pass, see overlay)
     vmOn = fp && !MS.dead && !W.ladder && !W.swim;
     // (the viewmodel's springs are explicit: at low frame rates they would blow up, so they are stepped at <= 1/60 s)
-    if (vmOn) { let t = dt; while (t > 1e-6) { const h = Math.min(t, 1 / 60); vm.update(h, R); t -= h; } if (!Number.isFinite(vm.lag.x + vm.lag.y + vm.kick.z + vm.kick.p)) { Object.assign(vm.lag, { x: 0, y: 0, vx: 0, vy: 0 }); Object.assign(vm.kick, { z: 0, zv: 0, p: 0, pv: 0 }); } }
+    if (vmOn) { let t = dt; while (t > 1e-6) { const h = Math.min(t, 1 / 60); vm.update(h, R); TV.update(h, TH ? { kind: TH.kind, phase: TH.phase, p: Math.min(1, TH.p), under: TH.under, cooked: TH.cooked, smokeCol: TH.T && M18_COL[TH.T.smoke] } : null, !!Mr.care.hold); t -= h; } if (!Number.isFinite(vm.lag.x + vm.lag.y + vm.kick.z + vm.kick.p)) { Object.assign(vm.lag, { x: 0, y: 0, vx: 0, vy: 0 }); Object.assign(vm.kick, { z: 0, zv: 0, p: 0, pv: 0 }); } }
     // tracers
     let nT = 0;
     for (const P of R.projectiles) {
@@ -545,21 +582,73 @@ export function createMarine(ctx) {
   // its burn time (items.js: 60 s; FM 3-23.30: 50-90 s); cm.js turns the plume into sight-blocking spheres
   const M18_COL = { green: [0.42, 0.62, 0.36], red: [0.78, 0.3, 0.26], yellow: [0.85, 0.78, 0.3], violet: [0.55, 0.38, 0.68] };
   const smokeGeo = new THREE.CylinderGeometry(0.032, 0.032, 0.145, 10), smokeMat = new THREE.MeshLambertMaterial({ color: 0x5c6448 });
+  // ngc/infdepth: THE THROW AS A DRILL (FM 3-23.30) instead of a grenade out of the rig at once. G (Shift+G: an M18):
+  // draw from the pouch, pull the pin (the left forefinger in the ring), cock the arm back - and throw when G is let go.
+  // HOLD G past the pin and you COOK it: the spoon flies, the 4.5 s fuse burns in your hand (count it: the HUD does),
+  // let go to throw; too long and it goes off in your hand. RMB held: an underhand lob (shorter, lower). The M18 burns
+  // from the moment it leaves the hand (no cooking). The viewmodel shows all of it (throwvm.js); the grenade leaves the
+  // hand where the hand is at the release, with his own velocity added.
+  const TH_T = { frag: { draw: 0.55, pin: 0.45, throw: 0.34, recover: 0.5 }, smoke: { draw: 0.45, pin: 0.35, throw: 0.34, recover: 0.45 } };
+  const TV = createThrowVM(vm); Mr.TV = TV;
+  let TH = null;
   function throwGrenade(kind = 'frag') {
-    if (MS.dead || W.swim || W.ladder) return;
+    if (MS.dead || W.swim || W.ladder || TH || Mr.care?.hold) return null;
     const smoke = kind === 'smoke', it = I.find(MS.inv, o => smoke ? !!ITEMS[o.id]?.throwable?.smoke : o.id === 'm67');
-    if (!it) { say(smoke ? 'NO SMOKE GRENADES' : 'NO GRENADES', 1.2); return; }
+    if (!it) { say(smoke ? 'NO SMOKE GRENADES' : 'NO GRENADES', 1.2); return null; }
     I.detach(it);
-    if (smoke) {
-      const T = ITEMS[it.id].throwable, cp = Math.cos(S.camPitch + 0.25), d = [-Math.sin(S.camYaw) * cp, Math.sin(S.camPitch + 0.25), -Math.cos(S.camYaw) * cp], v = 13;
-      const g = { smoke: T, x: S.eye.x + d[0] * 0.4, y: S.eye.y + 0.1, z: S.eye.z + d[2] * 0.4, vx: d[0] * v + (W.vx || 0), vy: d[1] * v, vz: d[2] * v + (W.vz || 0), fuse: T.fuseS ?? 1.5, burn: T.burnS ?? 60, mesh: new THREE.Mesh(smokeGeo, smokeMat) };
-      scene.add(g.mesh); grenades.push(g); A()?.mech('pin'); say(`SMOKE OUT  -  M18 ${String(T.smoke).toUpperCase()}`, 1.2); Mr.stats.smokes = (Mr.stats.smokes || 0) + 1; return g;
-    }
-    const cp = Math.cos(S.camPitch + 0.25), d = [-Math.sin(S.camYaw) * cp, Math.sin(S.camPitch + 0.25), -Math.cos(S.camYaw) * cp], v = 14;
-    const g = { x: S.eye.x + d[0] * 0.4, y: S.eye.y + 0.1, z: S.eye.z + d[2] * 0.4, vx: d[0] * v + (W.vx || 0), vy: d[1] * v, vz: d[2] * v + (W.vz || 0), fuse: 4.5, mesh: new THREE.Mesh(grenGeo, grenMat) };
-    scene.add(g.mesh); grenades.push(g); A()?.mech('pin'); say('FRAG OUT', 1);
+    TH = { kind, item: it, T: smoke ? ITEMS[it.id].throwable : null, phase: 'draw', t: 0, p: 0, cook: 0, cooked: false, held: true, under: false };
+    if (smoke) Mr.stats.smokes = (Mr.stats.smokes || 0) + 1;
+    return TH;
   }
   Mr.throwGrenade = throwGrenade; Mr.grenades = grenades;
+  Mr.throwState = () => TH;
+  function throwCancel() { if (TH && TH.phase !== 'recover' && TH.phase !== 'throw' && !TH.cooked) I.autoStore(MS.inv, TH.item); TH = null; }   // (pin back in: into the rig)
+  const _rel = new THREE.Vector3(), _qe = new THREE.Euler(), _qq = new THREE.Quaternion();
+  function throwInput(inp, dt) {
+    if (!TH) return;
+    if (MS.dead || W.swim || W.ladder) { throwCancel(); return; }
+    const D = TH_T[TH.kind];
+    TH.held = !!(kd('KeyG') || dbg.throwHeld);
+    TH.under = TH.under || (TH.phase === 'ready' || TH.phase === 'cook') && (held.ads || !!dbg.ads);
+    inp.fire = false; inp.ads = false; inp.sprint = false; inp.actions = inp.actions.filter(a => !/^slot|^reload|^law|^gl/.test(a));
+    if (Mr.freezeThrow) return;   // (scenes: hold a phase for the camera)
+    TH.t += dt;
+    const next = (ph, a) => { TH.phase = ph; TH.t = 0; if (a) a(); };
+    if (TH.phase === 'draw') { TH.p = TH.t / D.draw; if (TH.t >= D.draw) next('pin'); }
+    else if (TH.phase === 'pin') { TH.p = TH.t / D.pin; if (TH.t >= D.pin) next('ready', () => A()?.mech('pin')); }
+    else if (TH.phase === 'ready') {
+      TH.p = TH.t;
+      if (!TH.held) next('throw');
+      else if (TH.kind === 'frag' && TH.t > 0.4) next('cook', () => { TH.cooked = true; TV.spoon(); A()?.mech('click'); say('SPOON OFF  -  COOKING', 0.8); });
+    } else if (TH.phase === 'cook') {
+      TH.p = TH.t; TH.cook += dt;
+      if (TH.cook >= 4.5) { const h = handWorld(); TH = null; detonate({ x: h.x, y: h.y, z: h.z }, 'COOKED OFF IN HIS HAND'); return; }
+      if (!TH.held) next('throw');
+    } else if (TH.phase === 'throw') {
+      TH.p = TH.t / D.throw;
+      if (!TH.gone && TH.p >= (TH.under ? 0.62 : 0.55)) { TH.gone = true; release(); }
+      if (TH.t >= D.throw) next('recover');
+    } else if (TH.phase === 'recover') { TH.p = TH.t / D.recover; if (TH.t >= D.recover) TH = null; }
+  }
+  // the hand in the world (camera space -> world through the view)
+  function handWorld() {
+    _rel.copy(TV.rel); if (!Number.isFinite(_rel.x) || _rel.lengthSq() < 1e-6) _rel.set(0.15, 0.1, -0.4);
+    _qq.setFromEuler(_qe.set(S.camPitch, S.camYaw, S.camRoll, 'YXZ'));
+    return _rel.applyQuaternion(_qq).add(new THREE.Vector3(S.eye.x, S.eye.y, S.eye.z));
+  }
+  function release() {
+    const smoke = TH.kind === 'smoke', under = TH.under, lift = under ? 0.38 : 0.25, v = under ? 8 : smoke ? 13 : 14;
+    const cp = Math.cos(S.camPitch + lift), d = [-Math.sin(S.camYaw) * cp, Math.sin(S.camPitch + lift), -Math.cos(S.camYaw) * cp];
+    const h = Mr.firstPerson() ? handWorld() : { x: S.eye.x + d[0] * 0.4, y: S.eye.y + 0.1, z: S.eye.z + d[2] * 0.4 };
+    if (smoke) {
+      const T = TH.T, g = { smoke: T, x: h.x, y: h.y, z: h.z, vx: d[0] * v + (W.vx || 0), vy: d[1] * v, vz: d[2] * v + (W.vz || 0), fuse: T.fuseS ?? 1.5, burn: T.burnS ?? 60, mesh: new THREE.Mesh(smokeGeo, smokeMat) };
+      scene.add(g.mesh); grenades.push(g); A()?.mech('pin'); say(`SMOKE OUT  -  M18 ${String(T.smoke).toUpperCase()}`, 1.2); Mr.lastThrow = g; return g;
+    }
+    const g = { x: h.x, y: h.y, z: h.z, vx: d[0] * v + (W.vx || 0), vy: d[1] * v, vz: d[2] * v + (W.vz || 0), fuse: 4.5 - TH.cook, cooked: TH.cook, mesh: new THREE.Mesh(grenGeo, grenMat) };
+    scene.add(g.mesh); grenades.push(g); say(TH.cook > 0 ? `FRAG OUT  -  COOKED ${TH.cook.toFixed(1)} S` : 'FRAG OUT', 1); Mr.lastThrow = g; Mr.stats.throws = (Mr.stats.throws || 0) + 1;
+    return g;
+  }
+  const throwHint = () => !TH ? null : TH.phase === 'cook' ? `COOKING  ${TH.cook.toFixed(1)} S OF 4.5  -  LET GO OF G TO THROW` : TH.phase === 'ready' ? `PIN PULLED  -  LET GO OF G TO THROW, HOLD TO COOK${TH.kind === 'frag' ? '' : ''}  ·  RMB: UNDERHAND` : TH.phase === 'draw' || TH.phase === 'pin' ? (TH.kind === 'smoke' ? 'M18: PULLING THE PIN' : 'M67: SAFETY CLIP OFF, PULLING THE PIN') : null;
   function stepGrenades(dt) {
     for (let i = grenades.length - 1; i >= 0; i--) {
       const g = grenades[i]; g.fuse -= dt;
@@ -574,7 +663,15 @@ export function createMarine(ctx) {
         continue;
       }
       if (g.fuse > 0) continue;
-      scene.remove(g.mesh); grenades.splice(i, 1); Mr.stats.booms = (Mr.stats.booms || 0) + 1; Mr.lastBoom = { x: g.x, y: g.y, z: g.z };
+      scene.remove(g.mesh); grenades.splice(i, 1);
+      detonate(g);
+    }
+  }
+  // an M67 bursting at g (thrown, or cooked off in the hand)
+  function detonate(g, why) {
+    {
+      Mr.stats.booms = (Mr.stats.booms || 0) + 1; Mr.lastBoom = { x: g.x, y: g.y, z: g.z, why };
+      if (why) say(why, 2);
       const wet = ctx.terrainH(g.x, g.z) < 0 && g.y < 0.3 && GR.deckH(g.x, g.z) < -1e8;
       if (wet) fx.splash?.(g.x, g.z, 0.8); else fx.explode(g.x, g.y, g.z, 0.9, { debris: 3 });
       war.blast(g.x, g.y, g.z, 8, 4, 1);
@@ -594,11 +691,14 @@ export function createMarine(ctx) {
     const weap = w ? `${st.weapon}${st.glMode ? ' (M203)' : ''}  ${String(st.mode || '').toUpperCase()}  ·  ${String(st.sight || '').toUpperCase()}  ·  ${st.busy ? String(st.busy).toUpperCase() + '...' : known}${st.malfKnown ? '  ·  STOPPAGE: ' + (MALF[st.malfKnown] || st.malfKnown) : ''}${fit ? `  ·  ${mags} ${fit === 'M60-belt' ? 'BELTS' : 'MAGS'}` : ''}` : 'UNARMED';
     const posture = W.swim ? 'SWIMMING' : W.ladder ? 'ON A LADDER' : S.stance === 'prone' ? 'PRONE' : S.stance === 'crouch' ? 'KNEELING' : S.sprinting ? 'SPRINTING' : walkMode ? 'WALKING' : 'STANDING';
     const deck = W.plat ? (W.plat.type === 'carrier' ? (W.plat.side === 1 ? 'ALBATROSS' : 'KRAKEN') : W.plat.type.toUpperCase()) + '  ·  ' : '';
-    const line = `${posture}${S.bipod ? ' (BIPOD)' : S.rested ? ' (RESTED)' : ''}  ·  ${deck}${S.load.toFixed(0)} kg  ·  HR ${Math.round(S.hr)}${mods.unconscious ? '  ·  UNCONSCIOUS' : ''}`;
+    const line = `${posture}${S.bipod ? ' (BIPOD)' : S.rested ? ` (RESTED${MS.restKind ? ' ON ' + ({ ledge: 'A LEDGE', wall: 'A WALL', left: 'A WALL, LEFT', right: 'A WALL, RIGHT' })[MS.restKind] : ''})` : ''}  ·  ${deck}${S.load.toFixed(0)} kg  ·  HR ${Math.round(S.hr)}${mods.unconscious ? '  ·  UNCONSCIOUS' : ''}`;
     let hint = '', tip = false;
-    const lt = !MS.dead && nearestLoot();
+    const lt = !MS.dead && nearestLoot(), thr = throwHint();
     if (MS.dead) hint = MS.cause || 'KILLED';
+    else if (Mr.ui === 'patient') hint = 'BUDDY AID: DRAG AN ITEM FROM YOUR KIT ONTO HIM  ·  ESC CLOSE';
     else if (Mr.ui) hint = 'TAB GEAR  ·  H HEALTH  ·  ESC CLOSE';
+    else if (Mr.care.hint()) hint = Mr.care.hint();   // ngc/infdepth: casualties, carrying, a corpsman on you
+    else if (thr) hint = thr;
     else if (lt) hint = `F: SEARCH ${lt.name}`;
     else if (ctx.serviceAt(W.x, W.z) && (I.countRounds(MS.inv, '556') < 200 || !MS.inv.slots.secondary)) hint = 'F: REARM AND RESUPPLY HERE';
     else if (W.ladder) hint = `${W.ladder.name}  -  W / S TO CLIMB, SPACE TO LET GO`;
@@ -628,5 +728,6 @@ export function createMarine(ctx) {
     f.sk.root.updateMatrixWorld(true); f.sk.setWeapon?.(null);
     Mr.bodies.push(f); feed?.(`${f.name} DOWN (${String(part).toUpperCase()})`, 'good');
   }
+  Mr.care = createMarineCare(Mr, ctx);   // ngc/infdepth
   return Mr;
 }

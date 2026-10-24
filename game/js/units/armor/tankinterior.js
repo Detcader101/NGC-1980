@@ -72,7 +72,7 @@ function windowFrame(parent, cx, cy, hw, hh, d, mat, plane) {
 
 // ====================================================================================================== M60A3
 export function buildTankInterior() {
-  const white = M(0xd9d6c8, 0.5), grey = M(0x6c6e66, 0.45), dark = M(0x2c2d2a, 0.35), olive = M(0x4c5236, 0.45), black = M(0x141414, 0.2), red = M(0xa01c12, 0.4), brass = M(0x9c7a3a, 0.45), seatM = M(0x3b3e30, 0.4), metal = M(0x8a8c86, 0.4);
+  const white = M(0xd9d6c8, 0.5), grey = M(0x6c6e66, 0.45), dark = M(0x2c2d2a, 0.35), olive = M(0x4c5236, 0.45), black = M(0x141414, 0.2), red = M(0xa01c12, 0.4), brass = M(0x9c7a3a, 0.45), seatM = M(0x3b3e30, 0.4), metal = M(0x8a8c86, 0.4), periM = M(0x5a5f48, 0.45);
   const g = new THREE.Group(); g.name = 'tankInterior'; g.visible = false;
   // ------------------------------------------------------------------------------------------- driver's compartment
   // eye (0, 1.62, -2.05). Room x -0.78..0.78, floor 0.56, roof 1.80; the periscope wall at z -2.30 (three windows)
@@ -83,7 +83,7 @@ export function buildTankInterior() {
   const winY = 1.635, winH = 0.05, winW = 0.08;
   const pw = plateWithHoles(1.6, 0.36, [[-0.27, winY - 1.62, winW, winH], [0, winY - 1.62, winW, winH], [0.27, winY - 1.62, winW, winH]], white);
   pw.position.set(0, 1.62, ZW); D.add(pw);
-  for (const x of [-0.27, 0, 0.27]) { const fr = new THREE.Group(); fr.position.set(x, winY, ZW + 0.001); D.add(fr); windowFrame(fr, 0, 0, winW, winH, 0.06, black, fr); add(box(0.2, 0.05, 0.09, x, winY + 0.075, ZW + 0.04), dark); add(box(0.2, 0.04, 0.09, x, winY - 0.07, ZW + 0.04), dark); }
+  for (const x of [-0.27, 0, 0.27]) { const fr = new THREE.Group(); fr.position.set(x, winY, ZW + 0.001); D.add(fr); windowFrame(fr, 0, 0, winW, winH, 0.06, black, fr); add(box(0.19, 0.028, 0.06, x, winY + 0.066, ZW + 0.03), periM); add(box(0.19, 0.022, 0.06, x, winY - 0.063, ZW + 0.03), periM); add(box(0.15, 0.022, 0.035, x, winY + 0.093, ZW + 0.065), black); }   // the M27s: slim olive bodies, a rubber brow pad above each
   // glacis inner face below the periscopes, sloping forward-down toward the nose (the driver's legs go under it)
   add(rodGeo(new THREE.Vector3(0, 1.44, ZW), new THREE.Vector3(0, 0.62, -3.1), 1.6, 0.04), white);
   add(box(1.6, 0.04, 1.0, 0, RF, (ZW + ZB) / 2), white);                                   // roof
@@ -135,17 +135,17 @@ export function buildTankInterior() {
   const GU = new THREE.Group(); GU.name = 'gunnerStation'; GU.visible = false;
   const ga = (geo, m, p = GU) => { const o = new THREE.Mesh(geo, m); p.add(o); return o; };
   // the whole fighting compartment is one room: roof, curved cast walls (as flat slants), the bustle behind
-  ga(box(2.4, 0.04, 2.9, 0, 0.95, 0.1), white);                            // turret roof
-  ga(box(0.04, 1.6, 2.2, 1.2, 0.2, -0.1), white); ga(box(0.04, 1.6, 2.2, -1.2, 0.2, -0.1), white);   // side walls
+  ga(box(2.4, 0.04, 3.4, 0, 0.97, 0.3), white);                            // turret roof (to the bustle's rear wall)
+  ga(box(0.04, 1.6, 3.2, 1.2, 0.2, 0.4), white); ga(box(0.04, 1.6, 3.2, -1.2, 0.2, 0.4), white);   // side walls
   { const fw = ga(box(1.3, 1.6, 0.04, 0.6, 0.2, -1.22), white); fw.rotation.y = -0.35; }   // front walls either side of the gun
   { const fw = ga(box(1.3, 1.6, 0.04, -0.6, 0.2, -1.22), white); fw.rotation.y = 0.35; }
   ga(box(0.9, 1.6, 0.04, 0, 0.2, -1.0), grey);                             // the gun shield's inner face round the trunnions
-  ga(box(2.4, 1.6, 0.04, 0, 0.2, 1.62), white);                            // bustle rear wall
-  ga(box(2.4, 0.04, 2.9, 0, -0.62, 0.1), olive);                           // turret basket floor at knee level (legs below)
+  ga(box(2.4, 1.6, 0.04, 0, 0.2, 1.98), white);                            // bustle rear wall
+  ga(box(2.4, 0.04, 2.0, 0, -0.62, -0.3), olive); ga(box(2.4, 0.04, 0.9, 0, 0.3, 1.55), grey);   // basket floor; the bustle's raised floor                           // turret basket floor at knee level (legs below)
   // the bustle ready rack: rows of round bases (brass) facing the loader, the radio above
-  for (let r = 0; r < 2; r++) for (let k = 0; k < 7; k++) ga(new THREE.CylinderGeometry(0.06, 0.06, 0.02, 12).rotateX(Math.PI / 2).translate(-0.6 + k * 0.2, 0.15 + r * 0.16, 1.32), brass);
-  ga(box(1.6, 0.4, 0.3, 0, 0.23, 1.45), dark);
-  ga(box(0.8, 0.25, 0.25, 0.1, 0.62, 1.42), olive); label(GU, 'AN/VRC-12', 0.3, 0.05, 0.1, 0.62, 1.29, 0, Math.PI, '#d8d6c8', null, 40);
+  for (let r = 0; r < 2; r++) for (let k = 0; k < 7; k++) ga(new THREE.CylinderGeometry(0.06, 0.06, 0.02, 12).rotateX(Math.PI / 2).translate(-0.6 + k * 0.2, 0.47 + r * 0.16, 1.5), brass);
+  ga(box(1.6, 0.4, 0.42, 0, 0.55, 1.73), dark);
+  ga(box(0.8, 0.22, 0.25, 0.1, 0.86, 1.8), olive); label(GU, 'AN/VRC-12', 0.3, 0.05, 0.1, 0.86, 1.67, 0, Math.PI, '#d8d6c8', null, 40);
   ga(box(0.36, 0.06, 0.36, -0.65, -0.15, 0.1), seatM);                     // loader's seat (folded down)
   // the M68's breech on the left, the recoil guard, the coax M240 with its ammunition box
   const breech = new THREE.Group(); breech.position.set(0, 0.38, -0.25); GU.add(breech);

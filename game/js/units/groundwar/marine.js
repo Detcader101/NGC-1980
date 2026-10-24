@@ -15,7 +15,7 @@ export const MARINE = {
   STANCE_T: { 'stand>crouch': 0.45, 'crouch>stand': 0.5, 'crouch>prone': 0.8, 'prone>crouch': 0.9, 'stand>prone': 1.1, 'prone>stand': 1.3 },
   H: { stand: 1.78, crouch: 1.15, prone: 0.42 },
   R: { stand: 0.27, crouch: 0.32, prone: 0.26 },
-  LOAD: { sl: { mags: 7, laws: 0, gl: 0 }, tl: { mags: 7, laws: 1, gl: 0 }, ar: { mags: 12, laws: 0, gl: 0 }, mg: { mags: 6, laws: 0, gl: 0 }, aar: { mags: 8, laws: 1, gl: 0 }, gren: { mags: 6, laws: 0, gl: 12 } },
+  LOAD: { sl: { mags: 7, laws: 0, gl: 0, frags: 2 }, tl: { mags: 7, laws: 1, gl: 0, frags: 2 }, ar: { mags: 12, laws: 0, gl: 0, frags: 2 }, mg: { mags: 6, laws: 0, gl: 0, frags: 1 }, aar: { mags: 8, laws: 1, gl: 0, frags: 2 }, gren: { mags: 6, laws: 0, gl: 12, frags: 2 }, doc: { mags: 5, laws: 0, gl: 0, frags: 0 } },   // (doc: the Navy corpsman, ngc/infdepth; frags: M67s, ngc/infdepth-fix)
   ROLES: ['sl', 'tl', 'mg', 'aar', 'gren', 'tl', 'ar', 'aar', 'gren', 'tl', 'ar', 'aar', 'gren'],   // a reinforced squad: SL, three fire teams, an attached M60 gunner in the first
 };
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -28,14 +28,14 @@ export function createMarine(o = {}) {
     x: o.x ?? 0, y: 0, z: o.z ?? 0, yaw: o.yaw ?? 0, vx: 0, vz: 0, speed: 0,
     stance: 'stand', stanceFrom: 'stand', stanceTo: 'stand', stanceT: 1, gait: 0,
     hp: { ...MARINE.HP }, alive: true, able: true, wounded: 0, deadT: 0, why: '',
-    mags: L.mags, rounds: 18, laws: L.laws, gl: L.gl, firedT: 99, fireKind: null,
+    mags: L.mags, rounds: 18, laws: L.laws, gl: L.gl, frags: L.frags ?? 0, firedT: 99, fireKind: null,
     events: [],
   };
   if (o.env) M.y = o.env.height(M.x, M.z);
   // ---- the body as a hit volume (for the round's path)
   M.height = () => { const k = M.stanceT < 1 ? M.stanceT : 1; return MARINE.H[M.stanceFrom] + (MARINE.H[M.stanceTo] - MARINE.H[M.stanceFrom]) * k; };
   M.segHit = (ax, ay, az, bx, by, bz, pad = 0) => {
-    if (M.stanceTo === 'prone' && M.stanceT > 0.6 || !M.able) {
+    if (M.stanceTo === 'prone' && M.stanceT > 0.6 || !M.able && M.stanceTo !== 'stand') {   // (a walking wounded stands: ngc/infdepth)
       // lying: a capsule from the feet to the head along the facing, 0.25 m up
       const fx = -Math.sin(M.yaw), fz = -Math.cos(M.yaw), hx = M.x + fx * 0.9, hz = M.z + fz * 0.9, tx = M.x - fx * 0.9, tz = M.z - fz * 0.9;
       return segCapsule(ax, ay, az, bx, by, bz, tx, M.y + 0.22, tz, hx, M.y + 0.22, hz, MARINE.R.prone + pad);
@@ -79,13 +79,13 @@ export function createMarine(o = {}) {
     M.events.length = 0; M.firedT += dt;
     if (!M.alive) { M.deadT += dt; M.vx = M.vz = 0; M.speed = 0; M.y = env.height(M.x, M.z); return M.events; }
     // stance
-    let want = M.able ? (c.stance || 'stand') : 'prone';
+    let want = M.able ? (c.stance || 'stand') : c.crawl === 'walk' ? 'stand' : 'prone';   // (ngc/infdepth: a walking wounded)
     if (want !== M.stanceTo && M.stanceT >= 1) { M.stanceFrom = M.stanceTo; M.stanceTo = want; M.stanceT = 0; M.stanceDur = MARINE.STANCE_T[`${M.stanceFrom}>${want}`] ?? 0.6; M.events.push({ e: 'stance', to: want }); }
     if (M.stanceT < 1) { M.stanceT = Math.min(1, M.stanceT + dt / M.stanceDur); if (M.stanceT >= 1) M.stance = M.stanceTo; }
     // speed limits by stance, wounds and the slope (Tobler: walking pace e^-3.5|grade + 0.05| relative to flat)
     const st = M.stanceT < 1 ? 'moving' : M.stance;
     let vmax = st === 'prone' ? MARINE.SPEED.crawl : st === 'crouch' ? 1.4 : st === 'moving' ? 0.6 : MARINE.SPEED.rush;
-    if (!M.able) vmax = 0;
+    if (!M.able) vmax = c.crawl === 'walk' ? 1.0 : c.crawl ? 0.3 : 0;   // (ngc/infdepth: a casualty can drag himself into cover)
     vmax *= 1 - 0.5 * M.wounded;
     let vx = c.vx || 0, vz = c.vz || 0; const vl = Math.hypot(vx, vz);
     if (vl > 0.05) {
@@ -112,7 +112,7 @@ export function createMarine(o = {}) {
 export function partAt(M, p) {
   const fx = -Math.sin(M.yaw), fz = -Math.cos(M.yaw), lx = -Math.cos(M.yaw), lz = Math.sin(M.yaw);
   const dx = p.x - M.x, dz = p.z - M.z, lat = dx * lx + dz * lz;
-  if (M.stanceTo === 'prone' || !M.able) {
+  if (M.stanceTo === 'prone' || !M.able && M.stanceTo !== 'stand') {
     const along = (dx * fx + dz * fz) / 0.9;   // -1 feet .. +1 head
     return along > 0.72 ? 'head' : along > 0.25 ? (Math.abs(lat) > 0.2 ? (lat > 0 ? 'armL' : 'armR') : 'thorax') : along > -0.1 ? 'stomach' : lat > 0 ? 'legL' : 'legR';
   }

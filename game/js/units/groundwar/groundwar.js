@@ -17,6 +17,8 @@ import { buildHoverTank } from '../runaway/hovertankmodel.js';
 import { buildMBT } from '../runaway/mbtmodel.js';
 import { RwAudio } from '../runaway/rwaudio.js';
 import { FIGURES } from '../air/rotary/figures.js';
+import { createCasevac } from './casevac.js';   // ngc/infdepth
+import { careHands, throwHands } from '../infantry/carepose.js';   // ngc/infdepth-fix
 
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -29,8 +31,13 @@ export const GW_T = {
   STRIDERS: 8, SQUAD: 4,                            // per MV-22 load; per squad
   CAP_RW: 12, CAP_MAR: 9,                           // s to take a pad (the war's CAP_TIME for the old troops: 10 / 9)
   DRAW: { strider: 700, hovertank: 1100, mbt: 1100, marine: 520, marineFull: 140 },
+  RICH_R: 120, RICH_MAX: 14,                        // ngc/infdepth: Marines this close to the camera run the real sims
 };
 
+// ngc/infdepth: a name and rank for the men (the HEALTH screen of a casualty, the feed). Navy corpsmen are HM3 / HN.
+const SURN = ['RIVERA', 'KOWALSKI', 'JACKSON', 'NGUYEN', 'MURPHY', 'GARCIA', 'WASHINGTON', 'OLSEN', 'DELGADO', 'BROOKS', 'HARRIS', 'SCHULTZ', 'TAYLOR', 'MARTINEZ', 'COLLINS', 'REYES', 'MORGAN', 'BAKER', 'WILLIAMS', 'NOVAK', 'PRICE', 'HAYES', 'ORTIZ', 'FLETCHER'];
+const RANK = { sl: 'SGT', tl: 'CPL', ar: 'LCPL', aar: 'PFC', gren: 'LCPL', mg: 'LCPL', doc: 'HM3' };
+const nameOf = (role, id) => `${RANK[role] || 'PFC'} ${SURN[(id * 7 + 3) % SURN.length]}`;
 export function createGroundWar(ctx) {
   const { W, scene, fx, sfx, terrainH, nav } = ctx;
   const ear = ctx.ear, hear = ctx.hear, feed = ctx.feed;
@@ -84,8 +91,10 @@ export function createGroundWar(ctx) {
     return best;
   }
   function extBlast(x, y, z, r, power, side) { W.blast(x, y, z, r, 4 * power, side, true); }   // (true: the ground war already did its own)
-  const GS = createGroundSim({ terrainH, islands: W.islands, hooks: { targetsFor, extSeg, extBlast } });
-  const GW = { sim: GS, root, views: new Map(), proxies: [], landings: [], lcacs: [], hoverT: GW_T.HOVER_AT, mbtT: GW_T.MBT_AT, playerFiredT: 99, bank: 0, kills: new Map(), godPlayer: false, T: GW_T };
+  // ngc/infdepth: the Marines near the camera on the real rifleman + medical sims (rich), casualty care, casevac
+  const GS = createGroundSim({ terrainH, islands: W.islands, hooks: { targetsFor, extSeg, extBlast, patients: B => CV.patients(B) }, rich: { r: GW_T.RICH_R, max: GW_T.RICH_MAX }, care: true });
+  const CV = createCasevac({ GS, W, PL: () => ctx.player(), feed });
+  const GW = { sim: GS, root, views: new Map(), proxies: [], landings: [], lcacs: [], hoverT: GW_T.HOVER_AT, mbtT: GW_T.MBT_AT, playerFiredT: 99, bank: 0, kills: new Map(), godPlayer: false, T: GW_T, CV };
 
   // ------------------------------------------------------------------------------------------- views
   function viewOf(u) {
@@ -101,7 +110,28 @@ export function createGroundWar(ctx) {
     root.remove(V.group); if (V.shadow && V.shadow !== V.group) root.remove(V.shadow);
     GW.views.delete(id);
   }
-  const _pose = { stance: 'stand', stanceFrom: 'stand', stanceTo: 'stand', stanceT: 1, speed: 0, gaitPhase: 0, aimPitch: 0, down: false, cls: 'rifle', ads: 0, gait: 'walk' };
+  // ngc/infdepth-fix: a medic's, a dragger's, a carrier's or a grenadier's hands (carepose.js): rifle slung, hands on
+  // the casualty / the grenade (poseSkeleton blends them in and out)
+  function careLook(u, p) {
+    const st = (u.ai && u.body.alive && u.body.able && u.ai.state) || '';
+    p.hands = null; p.sling = 0; p.grenade = false;
+    if (u.thr && u.body.alive && u.body.able) { p.hands = throwHands(u.thr.phase, u.thr.p, false); p.sling = 1; p.ads = 0; p.grenade = !u.thr.gone; }
+    else if (/carrying/.test(st)) { p.hands = careHands('carry', W.time, p.gaitPhase || 0); p.sling = 1; p.ads = 0; p.stance = p.stanceFrom = p.stanceTo = 'stand'; p.stanceT = 1; }
+    else if (/dragging/.test(st)) { p.hands = careHands('drag', W.time, p.gaitPhase || 0); p.sling = 1; p.ads = 0; p.stance = p.stanceFrom = p.stanceTo = 'crouch'; p.stanceT = 1; }
+    else if (/treating/.test(st)) { p.hands = careHands('treat', W.time + u.id); p.sling = 1; p.ads = 0; if (p.stance === 'stand') { p.stance = p.stanceFrom = p.stanceTo = 'crouch'; p.stanceT = 1; } }
+  }
+  // a casualty in an AI Marine's fireman's carry (fieldcare.js: u.cas.carry = the carrier's id): across his shoulders,
+  // face down, his middle on the right shoulder (as marinecare.js puts the player's)
+  const _cq = new THREE.Quaternion(), _cq2 = new THREE.Quaternion(), _ce = new THREE.Euler(), _cv = new THREE.Vector3(), _carried = { x: 0, y: 0, z: 0, q: new THREE.Quaternion(), hidden: false };
+  function carriedView(u) {
+    const c = u.cas && u.cas.carry != null && GS.units.find(v => v.id === u.cas.carry); if (!c || !c.alive) return null;
+    const M = c.body, yaw = M.yaw, fx = -Math.sin(yaw), fz = -Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);
+    _cq.setFromEuler(_ce.set(0, yaw + Math.PI / 2, 0, 'YXZ')); _cq2.setFromEuler(_ce.set(0, 0, Math.PI, 'XYZ')); _cq.multiply(_cq2);
+    _cv.set(0, 0.13, -0.6).applyQuaternion(_cq);   // (the down pose's middle, from its root)
+    _carried.x = M.x + rx * 0.12 - _cv.x - fx * 0.05; _carried.y = M.y + 1.6 - 0.16 - _cv.y; _carried.z = M.z + rz * 0.12 - _cv.z - fz * 0.05; _carried.q.copy(_cq);
+    return _carried;
+  }
+  const _pose = { stance: 'stand', stanceFrom: 'stand', stanceTo: 'stand', stanceT: 1, speed: 0, gaitPhase: 0, aimPitch: 0, down: false, cls: 'rifle', ads: 0, gait: 'walk' }, _rp = {};
   function renderUnits(dt) {
     const cx = ear.x, cy = ear.y, cz = ear.z;
     for (const u of GS.units) {
@@ -118,16 +148,43 @@ export function createGroundWar(ctx) {
         const M = u.body, g = V.group;
         g.position.set(M.x, M.y, M.z); g.rotation.set(0, M.yaw, 0);
         V.setDetail(d < GW_T.DRAW.marineFull ? 'full' : 'lite');
+        // ngc/infdepth: carried by the player (marine.js sets u.viewAt: a fireman's carry over the shoulders), or a
+        // man on the rifleman sim (his real pose: stance transitions, lean, ADS, reload actions, limp)
+        const va = u.viewAt || (u.cas && u.cas.carry != null ? carriedView(u) : null);
+        if (va) { _pose.hands = null; _pose.sling = 0; _pose.grenade = false; g.visible = !va.hidden; g.position.set(va.x, va.y, va.z); g.quaternion.copy(va.q); _pose.down = true; _pose.speed = 0; _pose.stance = _pose.stanceFrom = _pose.stanceTo = 'stand'; _pose.stanceT = 1; V.poseFull(_pose, dt); continue; }
+        if (u.richOn && u.rich && M.alive && (M.able || (u.crawl && u.crawl.walk))) {
+          const R = u.rich.R, p = u.rich.S.pose(_rp); p.cls = R.cls === 'gl' ? 'rifle' : R.cls === 'none' ? 'rifle' : R.cls; p.action = R.cur && R.cur.act ? { name: R.cur.act.name, p: R.cur.act.t / R.cur.act.dur } : null; p.down = false;
+          careLook(u, p);
+          if (V.skeleton && R.carrier && V.setWeapon) V.setWeapon(u.ai && u.ai.fire === 'law' && u.laws > 0 ? 'M72A2' : R.carrier.key === 'M16A1' && R.carrier.gl ? 'M16A1/M203' : R.carrier.key);
+          V.poseFull(p, dt); continue;
+        }
         if (u.ai && u.ai.fire === 'law' && u.laws > 0) V.setWeapon('M72A2'); else V.setWeapon(u.role === 'gren' ? 'M16A1/M203' : 'M16A1');
         _pose.stance = M.stance; _pose.stanceFrom = M.stanceFrom; _pose.stanceTo = M.stanceTo; _pose.stanceT = M.stanceT;
-        _pose.speed = M.speed; _pose.gaitPhase = M.gait; _pose.down = !M.able; _pose.gait = M.speed > 3.5 ? 'sprint' : M.speed > 2 ? 'run' : 'walk';
+        _pose.speed = M.speed; _pose.gaitPhase = M.gait; _pose.down = !M.able && !(u.crawl && u.crawl.walk); _pose.gait = M.speed > 3.5 ? 'sprint' : M.speed > 2 ? 'run' : 'walk';
         _pose.cls = u.ai && u.ai.fire === 'law' ? 'law' : 'rifle'; _pose.ads = u.ai && u.ai.fire && u.firedT < 1.5 ? 1 : 0;
         _pose.aimPitch = u.ai && u.ai.aim ? clamp(Math.atan2(u.ai.aim[1] - (M.y + 1.5), Math.hypot(u.ai.aim[0] - M.x, u.ai.aim[2] - M.z)), -0.6, 0.6) : 0;
+        careLook(u, _pose);
         // the dead lie still (posed once)
         if (!M.alive && u.posedDead) continue;
         V.poseFull(_pose, dt); if (!M.alive) u.posedDead = true;
       }
       if (u.kind !== 'marine' && !u.alive && !u.dimmed) { u.dimmed = true; }
+    }
+  }
+  // ngc/infdepth: what the casualty care says, near the player: shouts, the corpsman, men back on their feet
+  const careT = new Map();
+  function careNews(evs) {
+    for (const e of evs) {
+      if (e.x === undefined) continue;
+      const d = Math.hypot(e.x - ear.x, e.z - ear.z), key = e.e + (e.id ?? '');
+      const say = (txt, r, gap = 6, kind = 'bad') => { if (d > r || (careT.get(key) ?? -99) > W.time - gap) return; careT.set(key, W.time); if (GW.sayHook) GW.sayHook(txt, kind); else feed(txt, kind); };
+      const u = e.id !== undefined ? GS.units.find(q => q.id === e.id) : null, who = u?.name || 'MARINE';
+      if (e.e === 'callout') { if (CV.player && CV.player.active()) say(`${who}: "${e.text}"`, 70, 7); }   // (heard on foot, not over a rotor)
+      else if (e.e === 'medic' && !e.ext) say(`CORPSMAN MOVING TO ${GS.units.find(q => q.id === e.to)?.name || 'A CASUALTY'}`, 90, 10, 'good');
+      else if (e.e === 'medic' && e.ext) say('"HANG ON, I GOT YOU"  -  THE CORPSMAN IS COMING TO YOU', 1e9, 10, 'good');
+      else if (e.e === 'treat') say(e.ext ? `CORPSMAN: ${e.label} (${e.time} S)  -  STAY STILL` : `${who === 'MARINE' ? 'CORPSMAN' : GS.units.find(q => q.id === e.medic)?.name || 'CORPSMAN'}: ${e.label}`, e.ext ? 1e9 : 40, 2, 'good');
+      else if (e.e === 'rtd') say(`${who} IS BACK ON HIS FEET`, 120, 10, 'good');
+      else if (e.e === 'drag') say(`${GS.units.find(q => q.id === e.id)?.name || 'A MARINE'} DRAGGING ${GS.units.find(q => q.id === e.to)?.name || 'A CASUALTY'} TO THE CCP`, 80, 10, 'good');
     }
   }
   GW.setVisibility = fog => { for (const u of GS.units) if (u.side === 2) u.fogVis = fog.visibleAt(u.x, u.z); for (const L of GW.lcacs) L.view.group.visible = fog.visibleAt(L.x, L.z); };
@@ -160,7 +217,7 @@ export function createGroundWar(ctx) {
     for (const e of evs) {
       switch (e.e) {
         case 'shot': {
-          if (!near(e.x, e.z, 700)) break;
+          if (!near(e.x, e.z, 700) || e.ammo === 'm67') break;   // (a hand grenade: no flash)
           const big = e.ammo === 'coil120' || e.ammo === 'mbt120' || e.ammo === 'mbt125', cyan = e.side === 2 && (e.ammo === 'needle' || e.ammo === 'coil120');
           fx.add.spawn(e.x + e.dx * 0.5, e.y + e.dy * 0.5, e.z + e.dz * 0.5, 0, 0, 0, 0.05, big ? 4 : 0.7, big ? 2 : 0.3, cyan ? 0.6 : 1, cyan ? 0.95 : 0.8, cyan ? 1 : 0.45, 1);
           if (e.ammo === 'coil120') for (let i = 0; i < 26; i++) { const k = i * 4; fx.add.spawn(e.x + e.dx * k, e.y + e.dy * k, e.z + e.dz * k, 0, 0.3, 0, 0.25, 0.8, 0.2, 0.75, 0.97, 1, 1); }
@@ -245,6 +302,7 @@ export function createGroundWar(ctx) {
     const P = makeProxy(side, I), B = GS.battle(I);
     GW.landings.push({ u, U, Q: U.squad, side, I, B, P, units: [], n: 0 });
     if (side === 2) note(I, 'ENEMY LANDING  -  STRIDERS ON THE GROUND');
+    if (side === 1 && u.kind === 'ch46' && U.AI) CV.landing(u, U, I);   // ngc/infdepth: the Sea Knight takes the island's wounded home
     return P;
   };
   function updateLandings(dt) {
@@ -264,8 +322,9 @@ export function createGroundWar(ctx) {
         let unit;
         if (L.side === 2) { fig.group.parent?.remove(fig.group); unit = GS.addStrider(L.B, F.x, F.z, F.yaw, { weapon: k % GW_T.SQUAD === 0 ? 'coil' : 'xm7', tag: `R${L.I.id}-${String(GS.nextId).padStart(3, '0')}` }); }
         else {
-          const role = ['sl', 'tl', 'ar', 'aar', 'gren'][k === 0 ? 0 : 1 + ((k - 1) % 4)];
-          unit = GS.addMarine(L.B, role, F.x, F.z, F.yaw, { seed: k });
+          // ngc/infdepth: the last man off a Sea Knight is the squad's Navy corpsman
+          const role = k >= 5 && k === Q.figs.length - 1 ? 'doc' : ['sl', 'tl', 'ar', 'aar', 'gren'][k === 0 ? 0 : 1 + ((k - 1) % 4)];
+          unit = GS.addMarine(L.B, role, F.x, F.z, F.yaw, { seed: k, name: nameOf(role, GS.nextId) });
           if (fig.poseFull) { unit.adoptView = fig; fig.group.parent?.remove(fig.group); }   // the same man, now in the fight
           else fig.group.parent?.remove(fig.group);
         }
@@ -319,7 +378,8 @@ export function createGroundWar(ctx) {
     const B = GS.battle(I), P = makeProxy(side, I), units = [];
     for (let k = 0; k < n; k++) {
       const a = k * 2.4, r = 2 + k * 0.9, ux = x + Math.cos(a) * r, uz = z + Math.sin(a) * r;
-      units.push(side === 2 ? GS.addStrider(B, ux, uz, o.yaw ?? 0, { weapon: k % GW_T.SQUAD === 0 ? 'coil' : 'xm7', tag: `R${I.id}-${GS.nextId}` }) : GS.addMarine(B, ['sl', 'tl', 'ar', 'aar', 'gren'][k === 0 ? 0 : 1 + ((k - 1) % 4)], ux, uz, o.yaw ?? 0, { seed: k }));
+      const role = k >= 5 && k === n - 1 ? 'doc' : ['sl', 'tl', 'ar', 'aar', 'gren'][k === 0 ? 0 : 1 + ((k - 1) % 4)];   // (ngc/infdepth: a corpsman with six or more)
+      units.push(side === 2 ? GS.addStrider(B, ux, uz, o.yaw ?? 0, { weapon: k % GW_T.SQUAD === 0 ? 'coil' : 'xm7', tag: `R${I.id}-${GS.nextId}` }) : GS.addMarine(B, role, ux, uz, o.yaw ?? 0, { seed: k, name: nameOf(role, GS.nextId) }));
     }
     const order = o.order || (I.owner === side ? { type: 'defend', x: I.pad.x, z: I.pad.z, r: 25 } : { type: 'take', x: I.pad.x, z: I.pad.z, r: 30 });
     if (side === 2) for (let k = 0; k < units.length; k += GW_T.SQUAD) P.squads.push(GS.squadRW(B, units.slice(k, k + GW_T.SQUAD), order));
@@ -496,6 +556,7 @@ export function createGroundWar(ctx) {
     }
     const evs = GS.step(dt, { cam: ear, peace });
     for (const e of evs) { if (e.e === 'kia') tally(e.I, 'kia'); else if (e.e === 'wia') tally(e.I, 'wia'); }
+    CV.update(dt); careNews(evs);   // ngc/infdepth
     updateProxies();
     updateLCACs(dt);
     renderUnits(dt);
@@ -507,7 +568,7 @@ export function createGroundWar(ctx) {
     for (const id of [...GW.views.keys()]) dropView(id);
     for (const L of GW.lcacs) root.remove(L.view.group); GW.lcacs.length = 0;
     for (const L of GW.landings) L.Q.dispose(); GW.landings.length = 0;
-    GW.proxies.length = 0; GW.kills.clear(); GS.reset(); GW.hoverT = GW_T.HOVER_AT; GW.mbtT = GW_T.MBT_AT; GW.bank = 0; GW.silence();
+    GW.proxies.length = 0; GW.kills.clear(); GS.reset(); CV.reset(); GW.hoverT = GW_T.HOVER_AT; GW.mbtT = GW_T.MBT_AT; GW.bank = 0; GW.silence();
   };
   return GW;
 }
