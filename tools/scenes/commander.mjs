@@ -14,11 +14,11 @@ export default {
     await h.expect(`${F}.n.heli === 3 && ${F}.n.jet === 2 && ${F}.n.tomcat === 2 && ${F}.n.marine === 6 && __G.G.lives === 3 && __G.G.jets === 2`, 'the fleet starts with its reserves (G.lives / G.jets are views of it)');
     await h.expect("/HUEY/.test(document.getElementById('fleet').textContent) && /MARINES/.test(document.getElementById('fleet').textContent)", 'the fleet strip is on the HUD');
 
-    // ---- 1. the board (\): open, a Marine on the ALBATROSS (key 7 on the board), close
+    // ---- 1. the board (\): open, a Marine on the ALBATROSS (key 8 on the board), close
     await h.key('tap', 'Backslash'); await h.wait(400);
     await h.expect('__G.commander.isOpen && document.getElementById("cmdBoard").classList.contains("on")', 'Backslash opens the command board');
     await h.shot('board-open');
-    await h.key('tap', 'Digit7'); await h.wait(600);
+    await h.key('tap', 'Digit8'); await h.wait(600);
     await h.expect(`__G.G.craft === 'foot' && __G.foot.alive && ${F}.n.marine === 5 && !__G.commander.isOpen`, 'a Marine out on the ALBATROSS from the reserve (6 -> 5)');
     await h.expect(`__G.war.shipAt(__G.foot.W.x, __G.foot.W.z) === __G.war.carrier`, 'he stands on the carrier deck');
     await h.wait(800); await h.shot('marine-on-deck');
@@ -71,15 +71,22 @@ export default {
     await h.expect(`__G.G.craft === 'm60' && ${F}.n.m60 === 0 && !__G.m60C.dead && Math.hypot(__G.m60C.frame({}).x - __G.HOME_B.isl.pad.x, __G.m60C.frame({}).z - __G.HOME_B.isl.pad.z) < 60`, 'a fresh M60A3 at the home island motor pool (1 -> 0)');
     await h.wait(1200); await h.shot('m60-island');
 
-    // ---- 7. stand down the car at the home motor pool, take it out again on the ALBATROSS deck
-    await h.eval('(window.__car0 = __G.fleet.n.car, __G.commander.standDown(5), __G.fleet.n.car)');
-    await h.expect(`${F}.n.car === __car0 + 1 && !__G.carC.present()`, 'the car stands down into reserve');
-    await h.eval('__G.commander.deploy("car", "ship")'); await h.wait(600);
-    await h.expect(`__G.G.craft === 'boxcar' && ${F}.n.car === __car0 && __G.war.shipAt(__G.carC.sim.x, __G.carC.sim.z) === __G.war.carrier`, 'the car out on the ALBATROSS deck park');
+    // ---- 7. the motor pool (several of a type out): stand an M151 down at a base, take one out on the ALBATROSS deck,
+    // switch to the nearest M35 (the islands stock them), then N: another M35 at the home island
+    await h.eval('(window.__j0 = __G.fleet.n.m151, window.__o0 = __G.roster[5].outCount(), __G.commander.standDown(5), { n: __G.fleet.n.m151, out: __G.roster[5].outCount() })');
+    await h.expect(`${F}.n.m151 === __j0 + 1 && __G.roster[5].outCount() === __o0 - 1`, 'an M151A2 stands down into reserve');
+    await h.eval('__G.commander.deploy("m151", "ship")'); await h.wait(600);
+    await h.expect(`__G.crafts.active.type === 'm151' && ${F}.n.m151 === __j0 && __G.war.shipAt(__G.crafts.active.sim.pos[0], __G.crafts.active.sim.pos[2]) === __G.war.carrier`, 'an M151A2 out on the ALBATROSS deck park');
+    await h.wait(800); await h.shot('m151-deck');
+    await h.eval('(window.__t0n = __G.fleet.n.m35, window.__t0o = __G.roster[6].outCount(), __G.commander.deploy("m35"), { craft: __G.G.craft, out: __G.roster[6].outCount() })');
+    await h.expect(`__G.crafts.active.type === 'm35' && ${F}.n.m35 === __t0n`, 'switched to the nearest M35A2 that is out (no reserve used)');
+    await h.eval(`__G.commander.deploy("m35", __G.HOME_B.isl.name, true)`); await h.wait(600);
+    await h.expect(`__G.crafts.active.type === 'm35' && ${F}.n.m35 === __t0n - 1 && __G.roster[6].outCount() === __t0o + 1`, 'N: another M35A2 out at the home island (reserve 1 -> 0)');
+    await h.eval('__G.commander.deploy("m151")'); await h.wait(400);
 
     // ---- 8. the Huey lost while parked; a new one from the reserve on an island pad
     await h.eval('(__G.killPlayerZ("DESTROYED ON DECK (TEST)"), 1)');
-    await h.expect(`!__G.Z.alive && ${F}.lost.heli === 1 && ${F}.n.heli === 3 && __G.G.craft === 'boxcar'`, 'the parked Huey is lost (counted); you stay in the car');
+    await h.expect(`!__G.Z.alive && ${F}.lost.heli === 1 && ${F}.n.heli === 3 && __G.crafts.active.type === 'm151'`, 'the parked Huey is lost (counted); you stay in the jeep');
     await h.eval(`__G.commander.deploy("heli", __G.HOME_B.isl.name)`); await h.wait(600);
     await h.expect(`__G.G.craft === 'heli' && __G.Z.alive && ${F}.n.heli === 2 && Math.hypot(__G.H.pos.x - __G.HOME_B.isl.pad.x, __G.H.pos.z - __G.HOME_B.isl.pad.z) < 5`, 'a new Huey on the home island pad (3 -> 2)');
     await h.wait(1000); await h.shot('huey-island-pad');
@@ -109,7 +116,7 @@ export default {
     await h.eval('(__G.cockpitCam = false, 1)'); await h.wait(500); await h.shot('hornet-recovered');
 
     // ---- 12. the fleet spent: nothing in reserve, nothing out -> DEFEAT
-    await h.eval(`(() => { for (const t of ${F}.types) ${F}.n[t.id] = 0; __G.JP.stow(); __G.jetC.park.on = false; __G.m60C.stow(); __G.m113C.stow(); __G.carC.stow(); __G.tomcatC.TP.stow(); __G.killPlayerZ('LAST HUEY (TEST)'); return __G.G.over; })()`);
+    await h.eval(`(() => { for (const t of ${F}.types) ${F}.n[t.id] = 0; __G.JP.stow(); __G.jetC.park.on = false; __G.m60C.stow(); __G.m113C.stow(); __G.pool.list.forEach(V => V.stow()); __G.tomcatC.TP.stow(); __G.killPlayerZ('LAST HUEY (TEST)'); return __G.G.over; })()`);
     await h.waitFor("__G.G.state === 'title'", 20000);
     await h.expect("document.querySelector('#title h1').textContent === 'DEFEAT' && /FLEET IS SPENT/.test(document.getElementById('result').textContent)", 'the fleet spent: the war is lost');
     await h.shot('defeat');

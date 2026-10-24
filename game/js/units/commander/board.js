@@ -60,11 +60,11 @@ export function createCommander(h) {
   function nearestBaseKey() { let best = null; for (const b of C.bases) if (!best || b.d < best.d) best = b; return best ? best.key : null; }
 
   // ---------------------------------------------------------------- what each row offers at the selected base
-  function rowOf(r) {
-    const t = fleet.type(r.id), n = Math.max(0, fleet.n[r.id] || 0), b = base(), out = r.out(), act = r.active();
+  function rowOf(r, fresh = false) {   // fresh: another of a type that can have several out (r.multi: the motor pool)
+    const t = fleet.type(r.id), n = Math.max(0, fleet.n[r.id] || 0), b = base(), out = r.out(), act = r.active(), another = fresh && r.multi;
     const o = { r, t, n, out, act, status: out ? r.status() : '', action: 'none', label: '', why: '' };
-    if (act) { o.action = 'here'; o.label = 'YOU ARE HERE'; return o; }
-    if (out) { o.action = 'switch'; o.label = 'SWITCH TO IT'; return o; }
+    if (act && !another) { o.action = 'here'; o.label = 'YOU ARE HERE'; return o; }
+    if (out && !another) { o.action = 'switch'; o.label = 'SWITCH TO IT'; return o; }
     const why = !b ? 'NO BASE' : !t.at.includes(b.kind) ? (b.kind === 'island' ? 'CARRIER ONLY' : 'ISLANDS ONLY') : r.can(b);
     if (why) { o.why = why; o.label = why; return o; }
     if (n > 0) { o.action = 'deploy'; o.label = `DEPLOY AT ${b.name}`; return o; }
@@ -74,8 +74,8 @@ export function createCommander(h) {
 
   // ---------------------------------------------------------------- acting
   function done() { C.lossMode = false; C.choosing = false; C.banner = ''; h.picked?.(); C.close(); }
-  C.act = (i = C.sel) => {
-    const o = C.rows[i] || rowOf(h.roster[i]); if (!o) return false;
+  C.act = (i = C.sel, fresh = false) => {
+    const o = fresh ? h.roster[i] && rowOf(h.roster[i], true) : C.rows[i] || rowOf(h.roster[i]); if (!o) return false;
     const r = o.r, b = base();
     sfx?.ui?.('select');
     if (o.action === 'here') { say(`YOU ARE IN THE ${r.label}`, 1.2); return false; }
@@ -91,13 +91,13 @@ export function createCommander(h) {
     done(); return true;
   };
   // deploy / switch to a type at once (keys 5 / 8 from any unit; tests): base = the nearest that takes it
-  C.deploy = (id, baseKey) => {
+  C.deploy = (id, baseKey, fresh = false) => {   // fresh: another of a motor-pool type even with one out
     const i = h.roster.findIndex(r => r.id === id); if (i < 0) return false;
     C.bases = basesNow(); const t = fleet.type(id);
     if (baseKey) C.baseKey = baseKey;
     else { let best = null; for (const b of C.bases) if (t.at.includes(b.kind) && (!best || b.d < best.d)) best = b; C.baseKey = best ? best.key : nearestBaseKey(); }
-    C.rows = h.roster.map(rowOf);
-    return C.act(i);
+    C.rows = h.roster.map(r => rowOf(r));
+    return C.act(i, fresh);
   };
   C.recall = (i = C.sel) => { const r = h.roster[i]; if (!r || !r.recall) { say('NOTHING TO RECALL', 1.2); return; } const w = r.recall(); say(w || `${r.label}  -  RECALLED TO THE ALBATROSS`, 1.8); };
   C.standDown = (i = C.sel) => {
@@ -147,6 +147,7 @@ export function createCommander(h) {
     if (/^Digit[1-9]$/.test(c)) { const i = +c.slice(5) - 1; if (i < R.length) { nav(); C.sel = i; C.act(i); render(true); } return true; }
     if (c === 'KeyR') { nav(); C.recall(); render(true); return true; }
     if (c === 'KeyX') { nav(); C.standDown(); render(true); return true; }
+    if (c === 'KeyN') { nav(); C.act(C.sel, true); render(true); return true; }   // another one (the motor pool's types)
     if (c === 'Slash') { C.next(); return true; }
     return !['KeyM', 'KeyP', 'KeyK', 'KeyJ'].includes(c);   // the map, pause, keyboard-only and the controls panel still work
   };
@@ -161,17 +162,18 @@ export function createCommander(h) {
   function render(force) {
     if (!C.isOpen) return;
     C.bases = basesNow(); if (!C.bases.some(b => b.key === C.baseKey)) C.baseKey = nearestBaseKey();
-    C.rows = h.roster.map(rowOf);
+    C.rows = h.roster.map(r => rowOf(r));
     const b = base();
     let html = `<h3>COMMAND</h3><div class="sub">TASK FORCE ALBATROSS  ·  MATERIEL <b>${Math.floor(h.mat())}</b>  ·  FUEL STORES <b>${Math.round(h.fuelStores())}</b>  ·  LOSSES <b>${fleet.losses()}</b></div>`;
     if (C.banner) html += `<div class="ban">${esc(C.banner)}</div>`;
     html += `<div class="base"><span data-b="-1">&lt;</span><b>DEPLOY AT: ${b ? esc(b.name) + (b.kind === 'island' ? ' (ISLAND)' : ' (CARRIER)') : 'NO BASE'}${b && b.d > 60 ? `  ·  ${Math.round(b.d)} m` : ''}</b><span data-b="1">&gt;</span></div>`;
     C.rows.forEach((o, i) => {
       const cls = ['row', i === C.sel ? 'sel' : '', o.action === 'none' ? 'off' : '', o.act ? 'here' : ''].join(' ');
-      const st = o.act ? `<i>YOU ARE HERE</i>  ·  ${esc(o.status)}` : o.out ? `<i>OUT</i>  ·  ${esc(o.status)}  ·  ENTER: SWITCH TO IT${o.r.recall && /CAP/.test(o.status) ? '  ·  R: RECALL' : ''}${o.r.standDown && o.r.canStandDown && o.r.canStandDown() ? '  ·  X: STAND DOWN' : ''}` : `${o.action === 'none' ? '' : 'ENTER: '}${esc(o.label)}`;
+      const more = o.r.multi && (o.out || o.act) ? `  ·  N: ANOTHER AT ${esc(b ? b.name : '')}` : '';
+      const st = o.act ? `<i>YOU ARE HERE</i>  ·  ${esc(o.status)}${more}` : o.out ? `<i>OUT</i>  ·  ${esc(o.status)}  ·  ENTER: SWITCH TO IT${o.r.recall && /CAP/.test(o.status) ? '  ·  R: RECALL' : ''}${o.r.standDown && o.r.canStandDown && o.r.canStandDown() ? '  ·  X: STAND DOWN' : ''}${more}` : `${o.action === 'none' ? '' : 'ENTER: '}${esc(o.label)}`;
       html += `<div class="${cls}" data-i="${i}"><span class="k">${i + 1}</span><span class="nm">${esc(o.t.short)}<small>${esc(o.r.label || o.t.label)}  ·  ${esc(o.t.note)}</small></span><span class="ct">${o.n}<small>IN RESERVE</small></span><span class="st">${st}</span></div>`;
     });
-    html += `<div class="foot">UP / DOWN SELECT  ·  LEFT / RIGHT BASE  ·  ENTER DEPLOY OR SWITCH  ·  1-${h.roster.length} PICK  ·  R RECALL A JET  ·  X STAND DOWN  ·  / NEXT UNIT  ·  \\ CLOSE<br>THE WAR GOES ON: A UNIT YOU LEAVE IS FLOWN HOME BY ITS CREW OR PARKS WHERE IT IS</div>`;
+    html += `<div class="foot">UP / DOWN SELECT  ·  LEFT / RIGHT BASE  ·  ENTER DEPLOY OR SWITCH  ·  1-${h.roster.length} PICK  ·  R RECALL A JET  ·  X STAND DOWN  ·  N ANOTHER VEHICLE  ·  / NEXT UNIT  ·  \\ CLOSE<br>THE WAR GOES ON: A UNIT YOU LEAVE IS FLOWN HOME BY ITS CREW OR PARKS WHERE IT IS</div>`;
     if (force || html !== C.lastHtml) { C.lastHtml = html; el.innerHTML = html; }
   }
   // per frame: the HUD fleet strip; the open board refreshes ~4x a second (statuses move)
@@ -180,8 +182,8 @@ export function createCommander(h) {
     if (C.isOpen) { rt -= dt; if (rt <= 0) { rt = 0.25; render(false); } }
     if (!strip) return;
     st -= dt; if (st > 0 && show === shown) return; st = 0.25; shown = show;   // the strip: 4x a second is plenty
-    const s = fleet.strip(id => { const r = h.roster.find(r => r.id === id); return !!(r && r.out()); });
-    const html = show ? `FLEET ${s.map(x => `<b>${x.short}</b> <i>${x.n}</i>${x.out ? '<span class="out">+1</span>' : ''}`).join('  ')}<div class="hint">\\ COMMAND BOARD  ·  / NEXT UNIT OUT  ·  +1 = OUT IN THE WAR</div>` : '';
+    const s = fleet.strip(id => { const r = h.roster.find(r => r.id === id); return r ? (r.outCount ? r.outCount() : r.out() ? 1 : 0) : 0; });
+    const html = show ? `FLEET ${s.map(x => `<b>${x.short}</b> <i>${x.n}</i>${x.out ? `<span class="out">+${x.out}</span>` : ''}`).join('  ')}<div class="hint">\\ COMMAND BOARD  ·  / NEXT UNIT OUT  ·  +N = OUT IN THE WAR</div>` : '';
     if (strip._h !== html) { strip._h = html; strip.innerHTML = html; }
   };
   return C;

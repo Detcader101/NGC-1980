@@ -18,7 +18,8 @@ export const FLEET_TYPES = [
   { id: 'tomcat', label: 'F-14A TOMCAT', short: 'TOMCAT', cost: 100, start: 2, at: ['ship'], kind: 'air', note: 'FLEET FIGHTER  -  CAT 1' },
   { id: 'm60', label: 'M60A3 TTS', short: 'M60', cost: 60, start: 1, at: ['ship', 'island'], kind: 'ground', note: 'MAIN BATTLE TANK' },
   { id: 'm113', label: 'M113A2', short: 'M113', cost: 30, start: 1, at: ['ship', 'island'], kind: 'ground', note: 'ARMOURED PERSONNEL CARRIER' },
-  { id: 'car', label: 'MOTOR POOL VEHICLE', short: 'JEEP', cost: 15, start: 2, at: ['ship', 'island'], kind: 'ground', note: 'LIGHT VEHICLE' },
+  { id: 'm151', label: 'M151A2 MUTT', short: 'JEEP', cost: 10, start: 2, at: ['ship', 'island'], kind: 'ground', note: 'JEEP  -  M60 ON A PEDESTAL' },
+  { id: 'm35', label: 'M35A2', short: 'TRUCK', cost: 20, start: 1, at: ['ship', 'island'], kind: 'ground', note: 'TWO AND A HALF TON TRUCK' },
   { id: 'marine', label: 'MARINE RIFLEMAN', short: 'MARINES', cost: 5, start: 6, at: ['ship', 'island'], kind: 'foot', note: 'ON FOOT  -  M16A1, ALICE GEAR' },
 ];
 
@@ -45,7 +46,7 @@ export function createFleet(types = FLEET_TYPES) {
   F.losses = () => types.reduce((s, t) => s + F.lost[t.id], 0);
   // spent: nothing in reserve and nothing alive out (outAlive(id) -> bool, from the host)
   F.spent = (outAlive = () => false) => types.every(t => F.n[t.id] <= 0 && !outAlive(t.id));
-  // the HUD strip: reserve, + how many are out ("HUEY 3+1")
-  F.strip = (outAlive = () => false) => types.map(t => ({ id: t.id, short: t.short, n: Math.max(0, F.n[t.id]), out: outAlive(t.id) ? 1 : 0, lost: F.lost[t.id] }));
+  // the HUD strip: reserve, + how many are out ("HUEY 3+1"; outAlive may return a count)
+  F.strip = (outAlive = () => false) => types.map(t => ({ id: t.id, short: t.short, n: Math.max(0, F.n[t.id]), out: Number(outAlive(t.id)) || 0, lost: F.lost[t.id] }));
   return F.reset();
 }
