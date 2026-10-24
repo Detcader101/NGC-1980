@@ -122,7 +122,7 @@ export function buildRoomsGeo(P, g = new Geo()) {
     const c = C(f.c ?? 0x7a5a3a);
     if (f.kind === 'stair' || f.kind === 'steps') { steps(g, f, c); continue; }
     if (f.kind === 'lino' && (f.u1 - f.u0) * (f.v1 - f.v0) < 30) { tiles(g, f, c); continue; }
-    g.box((f.u0 + f.u1) / 2, f.y - (f.kind === 'slab' ? 0.2 : 0.06), (f.v0 + f.v1) / 2, f.u1 - f.u0, f.kind === 'slab' ? 0.2 : 0.06, f.v1 - f.v0, c, f.kind === 'slab' ? 0 : 1);
+    g.box((f.u0 + f.u1) / 2, f.y - (f.kind === 'slab' ? 0.2 : 0.06), (f.v0 + f.v1) / 2, f.u1 - f.u0, f.kind === 'slab' ? 0.2 : 0.06, f.v1 - f.v0, c, 1);   // (a slab's underside is its ceiling quad)
     if (f.kind === 'boards') for (let u = f.u0 + 0.2; u < f.u1; u += 0.2) g.box(u, f.y, (f.v0 + f.v1) / 2, 0.01, 0.002, f.v1 - f.v0, shade(c, 0.8), 1);
     if (f.kind === 'flags') for (let u = f.u0 + 0.6; u < f.u1; u += 0.6) g.box(u, f.y, (f.v0 + f.v1) / 2, 0.02, 0.002, f.v1 - f.v0, shade(c, 0.75), 1);
   }

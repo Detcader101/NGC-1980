@@ -66,4 +66,40 @@ export default async function (h) {
   await h.eval("(__G.marine.view = 'first', 1)");
   // 6. from outside: the island with its door open, the hangar through a lift opening
   await h.eval('__F.place(-8.5, 8, -2.5, -Math.PI / 2)'); await h.wait(500); await h.eval('__F.look(-Math.PI / 2 + 0.15, 0.12)'); await h.wait(700); await h.shot('island-door-from-the-deck');
+  // 7. a seat in the Huey's cabin: Y at its cargo door, the RIDE craft, seen in the seat; Y out
+  await h.eval(`(() => { const d = __G.crafts.toWorld(__G.heliC, [2.6, -1.84, 1.2]); return __G.foot.spawnAt({ x: d.x, y: d.y + 0.3, z: d.z, yaw: d.yaw + Math.PI / 2 }); })()`); await h.wait(600);
+  await h.eval("document.getElementById('hint').textContent");
+  await h.expect("document.getElementById('hint').textContent.includes('TROOP SEAT')");
+  await h.key('tap', 'KeyY'); await h.wait(600);
+  await h.expect("__G.G.craft === 'ride'", 'in the cabin');
+  await h.shot('huey-cabin-from-the-seat');
+  await h.key('tap', 'KeyV'); await h.wait(900); await h.shot('huey-cabin-seated-marine');
+  await h.key('tap', 'KeyY'); await h.wait(600);
+  await h.expect("__G.G.craft === 'foot' && __G.foot.exists", 'out again');
+  // 8. a house in a village: its front door blocks shut, opens with F, the rooms behind it
+  const ok = await h.eval(`(() => { const p = __G.PAD, R = __SOLID.roomsNear(p.x, p.z, 700).filter(r => r.it.t === 'house' && r.it.floors === 2).sort((a, b) => Math.hypot(a.it.x - p.x, a.it.z - p.z) - Math.hypot(b.it.x - p.x, b.it.z - p.z))[0]; if (!R) return null;
+    const it = R.it, d = R.P.doors.find(d => d.out), c = Math.cos(it.yaw), s = Math.sin(it.yaw), v = d.v + 1.6;
+    window.__H = { it, d, key: R.P.key + '#' + d.id, out: () => { const W = __G.foot.W, dx = W.x - it.x, dz = W.z - it.z; return +(s * dx + c * dz).toFixed(2); } };
+    __G.foot.spawnAt({ x: it.x + c * d.u + s * v, y: it.y + 0.3, z: it.z - s * d.u + c * v, yaw: it.yaw }); __G.marine.aim(it.yaw, 0); return { t: it.t, x: it.x, z: it.z, door: d.u }; })()`);
+  if (ok) {
+    await h.wait(1500); await h.shot('house-front-door');
+    await h.key('down', 'KeyW'); await h.wait(2500); await h.key('up', 'KeyW');
+    await h.eval('__H.out()');
+    await h.expect('__H.out() > __H.d.v', 'the front door stops him');
+    await h.key('tap', 'KeyF'); await h.waitFor("__DOORS.get(__H.key).a > 0.99", 25000);
+    await h.shot('house-door-open-from-outside');
+    await h.key('down', 'KeyW'); await h.waitFor('__H.out() < __H.d.v - 1.2', 20000); await h.key('up', 'KeyW');
+    await h.expect('__H.out() < __H.d.v - 1', 'in the hall');
+    await h.eval('(__G.marine.aim(__H.it.yaw + 0.9, -0.15), 1)'); await h.wait(900); await h.shot('house-living-room');
+    await h.eval('(__G.marine.aim(__H.it.yaw - 2.4, -0.1), 1)'); await h.wait(900); await h.shot('house-inside-looking-back');
+  }
+  // 9. a CH-46 off the deck with its Marines: seen through the ramp and windows, sitting in the red troop seats
+  await h.eval("(__G.G.mat = 999, __G.selIsl = __G.ISLANDS.find(i => !i.cave && i.owner !== 1), __G.command(1), __G.G.msg || 1)");
+  await h.waitFor("__G.war.units.some(u => u.kind === 'ch46')", 20000);
+  await h.eval(`(() => { const u = __G.war.units.find(u => u.kind === 'ch46'), U = u.rot; const aboard = U.squad.figs.filter(F => F.st === 'aboard' && F.f.group.visible).length;
+    const c = Math.cos(u.yaw), s = Math.sin(u.yaw), x = u.p.x + c * 7 + s * 9, z = u.p.z - s * 7 + c * 9; __G.foot.spawnAt({ x, y: u.p.y, z, yaw: Math.atan2(x - u.p.x, z - u.p.z) }); window.__ch = u; return { aboard, y: u.p.y }; })()`);
+  await h.wait(800);
+  await h.eval(`(() => { const u = __ch, W = __G.foot.W; __G.marine.aim(Math.atan2(W.x - u.p.x, W.z - u.p.z), -0.12); return 1; })()`); await h.wait(900);
+  await h.expect("__ch.rot.squad.figs.filter(F => F.st === 'aboard' && F.f.group.visible).length >= 10", 'the squad seated aboard');
+  await h.shot('ch46-squad-aboard');
 }

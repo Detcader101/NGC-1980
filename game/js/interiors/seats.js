@@ -19,8 +19,9 @@ import { crewGeometry, crewMaterial } from './crewfig.js';
 const HUEY_SEATS = [-0.82, -0.27, 0.27, 0.82].map((x, i) => ({ id: 'troop' + i, label: `TROOP SEAT ${i + 1}`, at: [x, -0.58, 2.02], yaw: 0, eye: [x, 0.37, 1.98], door: [Math.sign(x) * 1.45, -0.8, 1.2] }));
 const CH46_SEATS = [{ id: 'r0', label: 'TROOP SEAT 14 (BY THE RAMP)', at: [0.86, -0.49, 3.25], yaw: Math.PI / 2 }, { id: 'r1', label: 'TROOP SEAT 15 (BY THE RAMP)', at: [-0.86, -0.49, 3.25], yaw: -Math.PI / 2 }]
   .map(s => ({ ...s, eye: [s.at[0] * 0.75, s.at[1] + 0.95, s.at[2] - 0.03] }));
-// the CH-46 squad's own seats (13): along both walls facing in, forward of the riders'
-const CH46_SQUAD = []; for (let i = 0; i < 13; i++) { const s = i % 2 ? -1 : 1, k = Math.floor(i / 2); CH46_SQUAD.push({ at: [s * 0.86, -0.49, -3.55 + k * 0.95], yaw: s > 0 ? Math.PI / 2 : -Math.PI / 2 }); }
+// the CH-46 squad's own seats (13): along both walls facing in, forward of the riders' (figures.js figures stand on
+// the cabin floor, their 'seated' pose drops them onto the seat)
+const CH46_SQUAD = []; for (let i = 0; i < 13; i++) { const s = i % 2 ? -1 : 1, k = Math.floor(i / 2); CH46_SQUAD.push({ at: [s * 0.8, -0.95, -3.55 + k * 0.95], yaw: s > 0 ? Math.PI / 2 : -Math.PI / 2 }); }
 const MV22_RACK = []; for (let i = 0; i < 12; i++) { const s = i % 2 ? -1 : 1, k = Math.floor(i / 2); MV22_RACK.push({ at: [s * 0.78, -1.22, -3.8 + k * 1.15], yaw: s > 0 ? Math.PI / 2 : -Math.PI / 2 }); }
 
 export function createSeats(ctx) {
@@ -53,14 +54,14 @@ export function createSeats(ctx) {
       h.seats.forEach((s, i) => {
         let door = s.door; if (h.U) door = h.ramp && h.ramp() ? [h.U.model.RAMP_END.x, h.U.model.RAMP_END.y + 0.6, h.U.model.RAMP_END.z] : [1.25, -0.4, -4.2];   // the ramp lip when it is down, else the crew door
         _v.set(door[0], door[1], door[2]); h.obj.localToWorld(_v);
-        seatsView.push({ id: s.id, label: `${s.label}`, doors: [[_v.x, _v.y, _v.z]], reach: 2.2, host: h, seat: s, hostLabel: h.label });
+        seatsView.push({ id: s.id, label: `${h.label}: ${s.label}`, doors: [[_v.x, _v.y, _v.z]], reach: 2.2, host: h, seat: s, hostLabel: h.label });
       });
     }
   }
   // ------------------------------------------------------------------ the RIDE craft
   let cur = null;   // { host, seat, i, look: { yaw, pitch }, view, last: Vector3 }
   const RIDE = {
-    id: 'ride', label: 'PASSENGER', kind: 'ground',
+    id: 'ride', label: 'PASSENGER SEAT', kind: 'ground',
     get seats() { return seatsView; },
     present: () => seatsView.length > 0 || crafts.active === RIDE,
     frame: out => { out.x = 0; out.y = 0; out.z = 0; out.yaw = 0; return out; },
@@ -82,7 +83,7 @@ export function createSeats(ctx) {
       const pts = h.U ? (h.ramp && h.ramp() ? [[h.U.model.RAMP_END.x, h.U.model.RAMP_END.y, h.U.model.RAMP_END.z + 1.2]] : [[2.0, -1.4, -4.2], [-2.0, -1.4, -4.2]]) : [[Math.sign(cur.seat.at[0]) * 2.3, -1.6, 1.2], [-Math.sign(cur.seat.at[0]) * 2.3, -1.6, 1.2], [0, -1.6, 4.5]];
       return pts.map(p => { _v.set(p[0], p[1], p[2]); o.localToWorld(_v); const yaw = yawOf(o); return { x: _v.x, y: _v.y + 0.3, z: _v.z, yaw }; });
     },
-    exit() { if (riderFig.parent) riderFig.parent.remove(riderFig); riderFig.visible = false; cur = null; },
+    exit() { if (riderFig.parent) riderFig.parent.remove(riderFig); riderFig.visible = false; cur = null; setTimeout(label, 0); },
     setSeat(i) {   // craft.js cycleSeat asks for host.seat +- 1: that gives the direction along the bench
       if (!cur) return false;
       const n = cur.host.seats.length, dir = i === (crafts.seat + 1) % n ? 1 : -1, j = cur.i + dir;
@@ -108,7 +109,10 @@ export function createSeats(ctx) {
       o.getWorldQuaternion(_q);
       _q2.setFromEuler(_e.set(cur.look.pitch, cur.seat.yaw + cur.look.yaw, 0, 'YXZ'));
       if (cur.view === 'first') { _v.set(...cur.seat.eye); o.localToWorld(_v); cam.position.copy(_v); cam.quaternion.copy(_q).multiply(_q2); }
-      else { _v.set(cur.seat.at[0], cur.seat.at[1] + 1.2, cur.seat.at[2]); o.localToWorld(_v); _v2.set(0, 0.25, 9).applyQuaternion(_q2).applyQuaternion(_q); cam.position.copy(_v).add(_v2); cam.lookAt(_v); }
+      else {   // from outside: beside the cabin door (the Huey), behind the open ramp (a Sea Knight)
+        const s = cur.seat, off = cur.host.U ? [s.at[0] * 0.3, 1.4, 9 + cur.look.pitch * 3] : [Math.sign(s.at[0] || 1) * 4.2, 1.2 + cur.look.pitch * 2, s.at[2] - 0.4 - cur.look.yaw * 2];
+        _v.set(s.at[0], s.at[1] + 0.6, s.at[2]); o.localToWorld(_v); _v2.set(...off); o.localToWorld(_v2); cam.position.copy(_v2); cam.lookAt(_v);
+      }
       riderFig.visible = cur.view !== 'first';
     },
     avatar(Z) {
@@ -124,7 +128,7 @@ export function createSeats(ctx) {
     pl: { alive: () => foot.alive !== false, landed: () => !!cur && cur.host.landed(), hitR: 0.7, detect: 0.25, sight: 0 },
     silence() {},
   };
-  function label() { RIDE.label = cur ? `PASSENGER (${cur.host.label})` : 'PASSENGER'; }
+  function label() { RIDE.label = cur ? `${cur.host.label} (A PASSENGER SEAT)` : 'PASSENGER SEAT'; }
   function placeFig() { const s = cur.seat; riderFig.position.set(s.at[0], s.at[1], s.at[2]); riderFig.rotation.set(0, Math.PI + s.yaw, 0); }   // the figure faces +z: turned to the seat's forward
   const yawOf = o => { o.getWorldQuaternion(_q); _v2.set(0, 0, -1).applyQuaternion(_q); return Math.atan2(-_v2.x, -_v2.z); };
   crafts.register(RIDE);
