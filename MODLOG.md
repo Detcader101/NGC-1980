@@ -2065,6 +2065,49 @@ What: fish schools round the camera, water clarity seen from above, the view und
   ship hulls they are not near when the hull is stationary (by design, fish shelter by moored hulls); the far terrain
   grid could be culled under water for fps; amberjack rarely spawn in the zone's 14 m sea.
 
+## 2026-10-24 — armour at the Huey / Hornet bar: clickable crew stations, start-up, crew, HUD (branch ngc/armorgame-polish)
+
+What (on top of the stopped 2026-10-23 session's crew procedures, hatch figures, fire-command calls and LCM-8 work):
+- **Every crew station clickable** (`units/armor/armorstations.js`, new): invisible hit boxes on the controls each
+  crewman works, picked by the crosshair (mouse captured) or the cursor, framed in yellow and named on the hint line,
+  click to work them - the same path as the Huey / Hornet cockpits (main.js `pickSwitch` -> `armCk()` ->
+  `craft.cockpitObj()` / `craft.click(id)`). M60A3 driver: MASTER switch, START button, parking brake, range selector,
+  the fixed fire extinguisher pull, hatch. Gunner (E looks up from the sight): a TURRET POWER / STAB panel on the right
+  wall, the M21 computer panel's buttons (lase, dump to battlesight, SABOT / HEAT / HEP), the TTS field-of-view and
+  polarity knobs. Loader: the ready rack (round bases painted by type, taken out as the rack empties; click a type to
+  take that round and ram it), the breech, his hatch, the AN/VRC-12 (status report on the net). Commander (E: look
+  about inside the cupola): hatch, OVERRIDE (the turret slews onto the cupola's bearing, the cupola holds it), a new
+  .50 can. M113A2 driver: MASTER, START, BILGE, a RAMP / VANE panel on the left wall, fire pull, range, parking brake,
+  hatch; commander (E: look about the troop compartment): hatch, ramp, .50 ammunition box, AN/VRC-46; troops: ramp,
+  cargo hatch, radio. New geometry where the controls were missing (MASTER / START / switch panels, labels).
+- **Start-up procedure**: vehicles spawn cold and dark (`spawnAt({ ..., state: 'cold' | 'hot' })`, cold by default;
+  'hot' = running, power up, gyros run up - for units spawned into a fight). In the driver's seat the start-up is
+  yours (I = MASTER + START, or click them); in any other seat the crew does it, each man his part, with the calls
+  (DRIVER: MASTER ON / STARTING, GUNNER: TURRET POWER ON - STAB RUNNING UP / STAB UP). The gunner's I is TURRET POWER.
+  Left alone the crew shuts down (fuel off, then MASTER and turret power off). `crankUp()` (orders, the LCM-8) starts
+  at once. HUD line: COLD - MASTER OFF, the stab mode.
+- **Crew in and out**: seated / standing figures in the M60's fighting compartment (gunner, commander, loader - each
+  rises through his hatch when he rides head out, where the head-and-shoulders figure takes over), shown when you
+  are inside; the M113's squad as before.
+- **Sound**: switch clicks and relay clunks, hatch latch / slam, the stabiliser gyros' run-up whine.
+- **Fixes**: the band across the gunner's periscope picture (the needle nose, the AN/VSS-1 searchlight and the shield
+  were in front of the sight camera, which sat inside the turret): the sight eye is now at the sight head and the own
+  tank is hidden while looking through it. The HUD weapons line wraps short of the message feed (`#weap` max-width),
+  the centre message sits below the top-left block (`#msg` top max(22%, 236px)), the sight's TURRET POWER OFF note
+  moved up out of the hint line. The M113 commander's head-out view was a wall (the cupola lid stood in front of his
+  face): the lid now opens back past vertical and his eye is ahead of the hinge. The M60 at the home hard parked on mud
+  past the top and slid (its gun dug in: MAIN GUN OUT before anyone got in - why the gunner "would not fire"): it now
+  parks on the concrete 5 m below the top; a muzzle resting on the ground while the tank barely moves no longer bends
+  the gun, and the gunner will not lay the gun into the ground (chase-view aim on the near ground ignored).
+- Commander integration: `spawnAt(sp)` (cold / hot), `order(pts)`, `crankUp()`, `startUp()` stay plain calls.
+
+Tests: `scenes/armorpolish.mjs` (every station: driver cold start by clicking, gunner power off / on, loader HEAT out
+of the rack into the breech, commander override slew, crew head out / buttoned up under fire, HUD overlap check,
+M113 driver start + RAMP switch, commander radio, LCM-8 run), `scenes/armorgame.mjs` (start-up keys added),
+`scenes/armorprobe.mjs` (sight / periscope pictures looking down the hard), tankbench 73/73, armorgamebench 20/20.
+Untested: the hover frame with a real captured mouse on a real GPU (headless fakes the pointer lock); gamepad / HOTAS
+buttons for the switches (keyboard I / E cover them).
+
 ## 2026-10-24 — NGC-1980 infantry depth, fixes: the rich Marines' rounds, hands off the rifle in third person, AI grenades and carries (branch ngc/infdepth-fix)
 - **"Both sides fire" (groundwar scene), counted right**: every round the near (rich) Marines fire already went through
   groundsim's `shoot()` into `GS.stats.shots[1]`; what was wrong was the rest of the count and the men themselves.
@@ -2103,6 +2146,66 @@ What: fish schools round the camera, water clarity seen from above, the view und
   record is dropped while `u.able` is still true (the same frame he went down): set it after one step.
 - **Next**: the rich carrier walks at his rifleman's walk, not the carry speed (the body follows the soldier sim);
   a grenade in flight is not drawn; a man killed with a cooked grenade could drop it.
+
+## 2026-10-23 — Hercules polish: start flow, jump procedure, flight deck, sound, markings (branch ngc/c130-polish)
+- **Engine start (c130fm.js)**, after T.O. 1C-130H-1 normal start and the OPS card: battery; the GTC (the C-130H's
+  gas turbine compressor) comes on speed in ~20 s and puts bleed air on the manifold; with the condition lever at RUN
+  the start button engages the air turbine starter (~95 N m at the engine, x13.54); fuel and ignition at 16 %
+  (light-off ~3 s), TIT peaks ~775 C (normal start 750-830), the starter drops out at 60 % (~9 s), the fuel control's
+  acceleration schedule takes it to ground idle (~14 s). No battery or no bleed air: no start; >60 s below 60 %: hung
+  start, aborted. Later engines start on cross-bleed from a running one. Bench: 46/46 (the 38 plus 8 start checks).
+- **Checklists**: a checklist card on the flight deck (by the pilot's left knee) shows what the crew is working
+  through, ticked live: STARTING ENGINES (battery, GTC, bleed air, power levers ground idle, brakes, engines
+  3-4-2-1 with rpm / peak TIT) and BEFORE TAXI on the ground; DESCENT, SLOWDOWN / AIRDROP (drop altitude, flaps 50,
+  130 KIAS, stick hooked up, doors and deflectors, door bundle, jump lights) and COMPLETION OF DROP in the drop.
+  dev/c130.html?start=cold + K: the flight engineer runs the start himself (one action every ~1.2 s).
+- **Overhead**: BATTERY, GTC START, GTC BLEED AIR switches, GTC rpm gauge, engine oil pressure (50-60 psi) and
+  temperature (60-85 C) per engine (OPS card bands); condition-lever labels moved inside their box.
+- **Jump procedure (drop.js)**: the jumpmaster's commands by time to the release point (FM 3-21.220 order, compressed
+  like the run): GET READY, OUTBOARD PERSONNEL STAND UP, HOOK UP, CHECK STATIC LINES, CHECK EQUIPMENT, SOUND OFF FOR
+  EQUIPMENT CHECK ("OKAY!"), doors open / air deflectors out / platforms down, STAND BY on the red light, GO on the
+  green. No jump before HOOK UP ("NOT HOOKED UP - HOLD"). The door bundle (A-21 bag on a G-14 cargo chute, new
+  buildDoorBundle in jumper.js) goes out of the left door first; it lands short of the jumpers (no drive, ~28 ft/s);
+  within 200 m of the helicopter on dry land the tools are recovered and the repair goes 1.5x faster. Each jumper's
+  static line runs from the anchor cable over the door to his pack while it pays out (~0.6 s), then the spent line and
+  its deployment bag stream aft from the door, flapping, until the jumpmaster pulls them in (~7 s after the last man);
+  the doors close after that. The bail-out (alarm bell / shot down) skips all of it.
+- **Sound (c130audio.js)**: each engine on its own stereo position (on the flight deck #1/#2 on the left; outside
+  panned by where each prop is across the camera), the synchrophaser's slow hunting (the beat comes and goes), the
+  flat-pitch buzz-saw on the ground in beta, the GTC's thin scream and bleed-air hiss. c130.mjs checks the graph runs:
+  props 2-4 at 68 Hz (blade passage at 100 %), the feathered #1 winding down.
+- **Exterior**: red DANGER PROPELLER bands on the fuselage in the plane of the props, wing walkway lines, the HF long
+  wire from the flight deck roof to the fin.
+- **Landing on the home island: decided against for now.** HOME ISLAND is a 260 m, hilly island (hills up to ~40 m);
+  an assault strip needs a flattened bed in the terrain (world.js / world/net.js, other agents' files and the baked
+  terrain). In this world a C-130 landing roll is ~70-80 m (a quarter of the real ~1,000 ft), but the approach and
+  roll-out need a ~250 m flat, clear strip: the island has none. The test page lands on its runway; the bench lands.
+  Next step if wanted: a dirt strip as a flattened bed in net.js, then a landing mode in drop.js.
+- Tests: c130bench 46/46; c130.mjs 8/8 (adds cold start 3-4-2-1 with TIT < 830 and the sound graph), c130jump.json
+  (new: jumpmaster stages, doors, bundle, trailing bags, retrieval) 4/4, drop.json 5/5 (the F press waits for the
+  bundle, then the first man).
+
+## 2026-10-24 — Hercules polish, part 2: crew in the hold, navigator, door bundle on the DZ (branch ngc/c130-polish)
+- Reviewed and kept the stopped session's work (ground start, jump procedure, checklist card, sound, markings, the
+  overhead gauges drawn three a frame); merged experimental (MODLOG conflict only: both sides kept).
+- **Jumpmaster and safety visible (drop.js holdCrew, jumper.js poses 'doorcheck' / 'safety')**: from DOORS OPEN the
+  jumpmaster does his door check in the left door (FM 3-21.220: hands on both edges, leaning into the slipstream,
+  looking toward the nose for the DZ); the next jumper only steps into that door after the jumpmaster has pushed the
+  door bundle. Then he stands at the aft edge of the left door facing the stick, controlling the static lines; the
+  safety (the loadmaster) does the same at the right door. Both stay aboard and retrieve the bags; gone with the doors.
+- **Navigator on the flight deck (c130cockpit.js)**: seated at the existing table (left, aft of the pilot), facing
+  outboard, grease pencil on a jump-run chart (IP, CARP, DZ circle); his panel has the APN-59 search radar scope
+  (green phosphor, 4 s sweep painting the DZ return at its bearing / range) and the APN-147 Doppler readout (ground
+  speed and drift angle, real-equivalent knots like the ASI and DME). `seated()` takes a parent group now.
+- **Door bundle on the DZ (drop.js predictPattern)**: the release point was set for the men alone, so the bundle (no
+  drive, ~28 ft/s) landed ~70-150 m short, on WELLSPRING usually in the sea (c130jump: bundleOK false, 148 m). While
+  the bundle is aboard, the computed impact point is 80 % of the way from the men's unsteered point to the bundle's,
+  and the green comes with that point at the helicopter, not up to 35 m early. Now the bundle lands ~25 m short and
+  the stick, which steers (~120 m of drive from 800 ft), still lands within 10 m (c130jump: bundle -24 m, men 1-13 m).
+- Test hook: `drop.camLocal = [[x,y,z],[lx,ly,lz]]` puts the camera at a point in the aeroplane's frame (scenes).
+- Tests: c130bench 46/46; c130.mjs 8/8 (new deck_navigator shot); c130jump.json 7/7 (adds the door check, the safeties,
+  the stick in the door, bundleOK); drop.json 5/5; dropflak.json 1/1; smoke.json 5/5.
+
 ## 2026-10-24 — NGC-1980 wave 3 #2: INTERIORS - enterable buildings, doors / gates / hatches, the ALBATROSS inside, seats and occupants (branch ngc/interiors)
 
 **What.** The lived-in world's buildings are now rooms you walk into, the carrier has a hangar deck, an island and a
@@ -2230,3 +2333,36 @@ revetments are not colliders. Door leaves of a destroyed building stay in the do
 the rubble). Ambient people still walk to a ruin's front door and chimneys of a ruin may still smoke. Damage is from
 explosions only (not small arms). The zone villages are small and steep, so few of the new institutions fit there;
 the terrain rebuild (ngc/terrain) will change which lots take them.
+
+## 2026-10-24 — NGC-1980 HORNET + HUEY polish: 1980 F/A-18A and UH-1H authenticity, HOTAS 4 + T-Rudder defaults (branch ngc/hornethuey-polish)
+- **HORNET thrust, the one flight-model change**: F404-GE-400 (1980 FSD and early production) instead of the 1990s
+  -402 EPE: 16,000 lbf with afterburner (GE / Jane's Aero-Engines: CONFIRMED), ~10,600 lbf dry (sources 10,500-10,700:
+  INFERRED) = TMIL 47,150 N / TAB 71,170 N per engine. jetbench 24/24 (M 0.94 MIL / 1.01 AB low level, cat end 188
+  KEAS, approach unchanged); `tools/jetfingerprint.ref` re-baselined for this change only, SAME on all 12 scenarios since.
+- **HORNET = FSD #3, BuNo 160777** (jetmodel.js): gull grey over white, full-colour insignia, the NATC fin band, fin
+  span 2.5 m (the real fin height); the player's jet is always #3. **Cockpit** (jetcockpit.js): the F/A-18A layout -
+  horizontal indicator and engine fuel display, monochrome DDIs (left DDI CHECKLIST page and caution messages), the real
+  caution light panel (CK SEAT, APU ACC, BATT SW, FCS HOT, GEN TIE, FUEL LO, FCES, L / R GEN...), the warning /
+  advisory lights left of the left DDI (L / R BLEED, SPD BRK, STBY, the red and green L BAR, REC, XMIT), threat lamps,
+  UFC layout, HUD bank scale. **Start** (jetplay.js): BATT, APU (READY light), ENG CRANK R then L, generators on line,
+  the crank refused without APU air; I still does it all. Voice alerts limited to the period's (ALTITUDE, FUEL LOW,
+  BINGO - no GPWS "pull up").
+- **HUEY = 1980 US Army UH-1H** (hueymodel.js): subdued black markings and fin serial, the WSPS wire cutter /
+  windscreen deflector, APR-39 antennas, the crew chief on the right M60D. Cockpit: ENGINE INLET AIR caption (the
+  20-caption panel in its 5 x 4 order), caution lamp TEST, a tail-rotor buzz in audio.js (2 blades x 5.123 x Nr = 55 Hz).
+- **HOTAS 4 + T-Rudder defaults for both aircraft** (hotas.js, heli.js, main.js): one binding table, two meanings. The
+  J panel labels say both ("LANDING GEAR · HUEY STAB ASSIST"). Huey: trigger door gun, 2 / 4 hoist, 3 rockets, 5 bombs,
+  6 stability assist, 7 force trim, 8 landing light, 9 view, 11 starter (held; the real starter is the trigger under the
+  collective grip). The throttle rocker is FLARES (right) / CHAFF (left) in every aircraft (the HOTAS 4 has 12 buttons, so
+  the old 13 / 14 defaults did not exist); the panel now shows "HOTAS 4 ROCKER RIGHT / LEFT" for them, the device's
+  short name is "HOTAS 4" so button numbers are not cut off. README: a button table for both aircraft.
+- **Flight models unchanged** apart from the thrust above: jetfingerprint SAME (bit-identical, 12 scenarios),
+  jetbench 24/24, hueybench 41/41, tomcatbench 32/32, airbench 28/28, hotas self-test (+ rocker test).
+- **Scenes**: hornetcockpit.mjs 10/10 (panel, every display, cold and dark, battery-only cautions, APU, crank, checklist,
+  voice alerts), hueycockpit.mjs 7/7, new hueyhotas.mjs 11/11 (a fake HOTAS 4 + T-Rudder through navigator.getGamepads:
+  starter on button 11 to light-off, buttons 6-9, collective and pedals, the panel), jet.mjs 8/8, smoke 5/5.
+- **Gotchas / untested**: the machine ran at load ~170 during testing, so wall-clock waits in the older scenes
+  (hueystart.json, hueyhover.json, jets.json) time out at 1-5 fps (the game caps dt at 0.1 s, so sim time runs at a
+  third of real time); hueystart / hueyhover / jets fail identically on a clean `experimental` checkout (checked).
+  jets.json: the AI Tomcat stays on the cat there too; worth a look when the machine is quiet. hueyhotas waits on game state. Real HOTAS button numbering is from the Windows HID
+  order (1 = trigger); not checked on the physical stick in this pass.

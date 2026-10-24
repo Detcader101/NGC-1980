@@ -68,7 +68,7 @@ update it. The launcher lives in `%LOCALAPPDATA%\ThrustZarch` (log: `launcher.lo
 | W A S D or arrows | cyclic |
 | Q / E | pedals (anti-torque; the Huey needs some left pedal in the hover) |
 | F / G / B | gun / rockets / bombs |
-| Insert or ; / Delete or ' | M130 dispenser: a pair of flares (decoys a missile) / chaff (breaks a radar lock); HOTAS: bind FLARES / CHAFF in the J panel |
+| Insert or ; / Delete or ' | M130 dispenser: a pair of flares (decoys a missile) / chaff (breaks a radar lock); HOTAS 4: throttle rocker right / left |
 | R | winch (pick up the pod in a cave) |
 | M | command map: click the sea to sail the carrier, click an island to select it |
 | 1-4, 6 | send drone, build AA gun, spare helicopter, Tomcat escort (CAP over the selected island, else over the ALBATROSS), SKY CARRIER refit |
@@ -90,6 +90,28 @@ while anything tracks you. Flares and chaff rearm on the carrier and friendly pa
 
 The Huey spawns hot at flight idle and rolls the throttle on by itself. With `?cold` it starts cold and dark: BAT and MAIN FUEL on, throttle to the idle detent (PgUp), hold the starter (Home) to 40% N1 (light-off at ~12%), let it reach idle (~70% N1), then throttle full open to 6600 rpm. The cockpit switches (battery, generator, inverter, main fuel, governor AUTO/EMER, hydraulic control, force trim, low rpm audio, starter, master caution) are clickable. To autorotate: collective down to keep 324 rpm, 70 kt, flare at ~100 ft, cushion with the collective.
 
+### HOTAS 4 + T-Rudder defaults (both aircraft)
+
+With nothing bound, a Thrustmaster T.Flight HOTAS 4 and T-Rudder pedals work as below (J opens the panel: every row
+shows what the button does in the jets and, after the dot, in the Huey; BIND / DEF / CLR change it per device).
+Stick X / Y = stick / cyclic, throttle lever = throttles / collective, pedals (else the stick twist) = rudder /
+anti-torque, toe brakes = wheel brakes, hat = look around (Huey: door gun aim), throttle rocker right / left = flares / chaff.
+
+| Button | HORNET (and Tomcat) | UH-1H |
+|---|---|---|
+| 1 (trigger) | gun | door gun |
+| 2 | weapon release | hoist |
+| 3 | missile (press again to fire) | rockets |
+| 4 | speed brake (hold) | hoist |
+| 5 | bombs | bombs |
+| 6 | landing gear | stability assist |
+| 7 | flaps (AUTO / HALF / FULL) | force trim |
+| 8 | tail hook | landing light |
+| 9 | cockpit / chase view | cockpit / outside view |
+| 10 | zoom (hold) | - |
+| 11 | wheel brakes (hold) | starter (hold to 40% N1; the trigger under the real collective grip) |
+| 12 | eject (hold 1 s) | - |
+
 ### HORNET (jet)
 
 | Key | Action |
@@ -101,7 +123,7 @@ The Huey spawns hot at flight idle and rolls the throttle on by itself. With `?c
 | . | wheel brakes (toe brakes on the pedals) |
 | F / X / mouse, R, B | gun, A/A missiles (press again to fire), A/G bombs with CCIP (press again to drop) |
 | , / I / U / N | master arm / engines / canopy / lights |
-| Insert or ; / Delete or ' | ALE-39: a pair of flares / two chaff (HOTAS: FLARES / CHAFF, default buttons 13 / 14 on a stick) |
+| Insert or ; / Delete or ' | ALE-39: a pair of flares / two chaff (HOTAS 4: rock the throttle rocker right / left) |
 | hold Backspace | eject |
 | V, mouse wheel, hat | cockpit or chase view, zoom, look around |
 | J | controls panel: live view of every axis and button, bind and calibrate HOTAS / pedals |
@@ -180,7 +202,9 @@ Compressor stall (a bang, the RPM rolls back, TIT climbs, L / R INLET on the cau
 |---|---|
 | Y, [ / ] | get in at a hatch (walk up to the hull side) / out; change seat (M60: driver, gunner, commander, loader; M113: driver, commander, troops) |
 | W / S, A / D | drive (from any seat: orders to the driver). Steering narrows with speed; Right Shift = full steer. S brakes, then reverses. At a standstill A / D pivot (M60) |
-| Space, Z, I, H | brake; low / high range; engine; hatch (head out / buttoned up; troops stand in the cargo hatch) |
+| Space, Z, I, H | brake; low / high range; your station's power (driver: MASTER + START, or engine off; gunner: TURRET POWER; anyone else: tells the driver to start / stop); hatch (head out / buttoned up; troops stand in the cargo hatch) |
+| look + click | every station's controls work like the Huey's: put the crosshair on a switch, handle or rack (it is framed in yellow and named on the hint line) and click. Driver: MASTER, START, parking brake, range, fire pull, hatch (M113: RAMP, VANE, BILGE too). Gunner (E: look up from the sight): TURRET POWER, STAB, the computer panel (lase, dump, SABOT / HEAT / HEP), the TTS knobs. Loader: a round out of the ready rack, the breech, hatch, radio. Commander (E: look about the cupola): hatch, OVERRIDE (the turret slews onto the cupola's line), a new .50 can; the M113's commander also the ramp and the radio |
+| cold start | vehicles stand cold and dark. Get in at the driver's hatch and it is your start-up (I, or click MASTER then START); in any other seat the crew does it, each man his own part (driver: MASTER, START; gunner: TURRET POWER, then ~20 s for the stab to run up) |
 | V | the seat's view / chase (the mouse orbits; as gunner the turret lays on what the ring is on) |
 | mouse / arrows (Shift: fine) | gunner: lay the gun (the sight follows); commander: the .50 |
 | click / F, G, T, R | fire (main gun / .50), coax, lase, dump the computer |
@@ -210,7 +234,7 @@ Cockpit switches are clickable (gear and hook handles, flaps, master arm, FCS CA
 | R / G / [ ] | flaps 0-50-100 / gear / elevator trim (on a stick) |
 | A D, S (under canopy) | steer the lead canopy, rear-riser slip; hands off and he steers himself |
 
-The flight deck is clickable: the four condition levers on the overhead (click: RUN -> FEATHER -> AIR START -> RUN, right click GND STOP), fire T-handles, engine starts, autofeather, gear and flap levers, autopilot, and the paratroop panel left of the pilot (jump lights OFF / RED / GREEN, alarm bell = everyone out now, para doors, ramp). A flak hit can set an engine on fire: pull its fire handle. `game/dev/c130.html` flies the aeroplane alone (`?start=air|runway|drop`) with a chase camera and telemetry; `game/dev/c130-model.html` is the model turntable.
+The flight deck is clickable: the four condition levers on the overhead (click: RUN -> FEATHER -> AIR START -> RUN, right click GND STOP), fire T-handles, engine starts, battery / GTC / bleed air, autofeather, gear and flap levers, autopilot, and the paratroop panel left of the pilot (jump lights OFF / RED / GREEN, alarm bell = everyone out now, para doors, ramp). The copilot, flight engineer and navigator (radar scope, Doppler, chart) are at their stations; a checklist card by your knee ticks off what the crew is doing. On the run the jumpmaster calls the time warnings (GET READY .. HOOK UP .. SOUND OFF .. STAND BY .. GO), does his door check leaning out of the left door, pushes the door bundle (the tools: repairs go faster) and stands safety with the loadmaster while the stick goes. `game/dev/c130.html?start=cold`, K: the engineer runs the engine start (battery, GTC, bleed air, 3-4-2-1). A flak hit can set an engine on fire: pull its fire handle. `game/dev/c130.html` flies the aeroplane alone (`?start=air|runway|drop`) with a chase camera and telemetry; `game/dev/c130-model.html` is the model turntable.
 
 The in-game help screen has the full list.
 
