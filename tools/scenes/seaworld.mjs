@@ -1,12 +1,13 @@
 // SEAWORLD: the live sea and the islands as places.   [PARTS=sea,elevator] node snap.mjs scenes/seaworld.mjs
+// (ngc/bugsweep) wall timeouts x4 (min 30 s): the full table ran it at 0-5 fps headless
 // - sea states 1, 4 and 7 from the ALBATROSS's deck and from altitude (the waves are the ones the ships ride)
 // (more parts are added below as they are built)
 export const query = '?debug&kb&peace&res=0.6&nofog&sea=4';
 export default async function (h) {
   await h.goto('?debug&kb&peace&res=0.6&nofog&sea=4');
-  await h.waitFor('window.__G', 15000);
+  await h.waitFor('window.__G', 60000);
   await h.key('tap', 'Enter'); await h.wait(1200);
-  await h.waitFor("__G.G.state === 'play'", 10000);
+  await h.waitFor("__G.G.state === 'play'", 40000);
   // a scripted camera: window.__cam = { u, p: [lx, ly, lz], t: [lx, ly, lz] } in a ship's frame (heading only), or
   // { wp: [x, y, z], wt: [x, y, z] } in world space
   await h.eval(`(() => {
@@ -26,7 +27,7 @@ export default async function (h) {
     return true; })()`);
   const parts = (process.env.PARTS || 'all').split(',');   // PARTS=sea,elevator,... to run some of them
   const want = p => parts.includes(p) || parts.includes('all');
-  await h.waitFor('__G.H.landed', 10000);   // the helicopter starts on the ALBATROSS's deck
+  await h.waitFor('__G.H.landed', 40000);   // the helicopter starts on the ALBATROSS's deck
 
   // helpers: the soldier in the carrier's frame
   await h.eval(`(window.__F = {
@@ -47,7 +48,7 @@ export default async function (h) {
     // U at the console runs it (the soldier is on it: that works too)
     await h.key('tap', 'KeyU'); await h.wait(300);
     await h.expect('__G.war.carrier.parts.lifts[0].target < 5', 'U sends lift 1 down');
-    await h.waitFor('__G.war.carrier.parts.lifts[0].y < 4.3', 25000); await h.wait(600);
+    await h.waitFor('__G.war.carrier.parts.lifts[0].y < 4.3', 100000); await h.wait(600);
     await h.eval('({ soldier: __F.loc(), lift: __G.war.carrier.parts.lifts[0].y, hornetY: __G.war.carrier.parts.localDeck(18.9, -17) })');
     await h.expect('Math.abs(__F.loc().on) < 0.15 && Math.abs(__F.loc().under - 4.25) < 0.02 && __G.foot.W.onGround && __F.loc().plat === "carrier"', 'the soldier rode the lift down to the hangar door');
     await h.expect('Math.abs(__G.war.carrier.parts.localDeck(18.9, -17) - 4.25 - 1.65) < 1.5', 'the Hornet came down with it (its footprint too)');
@@ -60,7 +61,7 @@ export default async function (h) {
     await h.eval('__F.loc()');
     await h.expect('__F.loc().x > 13.6 && Math.abs(__F.loc().under - 4.25) < 0.02 && Math.abs(__F.loc().on) < 0.15', 'the hull side stops him (no walking into the deck from below)');
     await h.eval('(__G.war.carrier.parts.lift(0, "up"), 1)');
-    await h.waitFor('__G.war.carrier.parts.lifts[0].y > 7.99', 25000); await h.wait(600);
+    await h.waitFor('__G.war.carrier.parts.lifts[0].y > 7.99', 100000); await h.wait(600);
     await h.expect('Math.abs(__F.loc().under - 8) < 0.02 && Math.abs(__F.loc().on) < 0.15 && __G.foot.W.onGround', 'and back up with it');
     // walking into a parked Hornet: it is solid
     await h.eval('(__F.place(4.6, -31, -Math.PI / 2), __view("first"), 1)'); await h.wait(500);
@@ -106,7 +107,7 @@ export default async function (h) {
       const n = Math.min(B.b, k + 2); __face(Math.atan2(-(R.xs[n] - W.x), -(R.zs[n] - W.z)));
       { const q = __WORLD.roadAt(W.x, W.z); if (q && q.bridge) { B.onBridge = true; B.under = Math.max(B.under || 0, q.y - W.y); B.high = Math.max(B.high || 0, W.y - Math.max(0, __G.terrainH(W.x, W.z))); } } if (W.swim || W.wade > 0) B.wet = true; }, 50), 1)`);
     await h.key('down', 'KeyW'); await h.key('down', 'ShiftLeft');
-    await h.waitFor('Math.hypot(__G.foot.W.x - __br.ex, __G.foot.W.z - __br.ez) < 4', 60000);
+    await h.waitFor('Math.hypot(__G.foot.W.x - __br.ex, __G.foot.W.z - __br.ez) < 4', 240000);
     await h.eval('({ belowDeckMax: +(__br.under || 0).toFixed(2), maxAboveGround: +(__br.high || 0).toFixed(1), wet: __br.wet, onBridge: !!__br.onBridge })');
     await h.wait(1);
     await h.key('up', 'ShiftLeft'); await h.key('up', 'KeyW'); await h.eval('(clearInterval(__brI), 1)');
@@ -138,14 +139,14 @@ export default async function (h) {
   if (want('horizon')) {
     // the horizon from the deck and from altitude, chase and cockpit, and from a scripted camera far off the player (what
     // used to clip the sky dome into a black dome): no pure-black pixels above the horizon
-    await h.eval('(window.__cam = null, __G.G.craft !== "heli" && __G.toHeli(), 1)'); await h.wait(800); await h.waitFor('__G.H.landed', 8000);
+    await h.eval('(window.__cam = null, __G.G.craft !== "heli" && __G.toHeli(), 1)'); await h.wait(800); await h.waitFor('__G.H.landed', 32000);
     const blk = async (name) => { await h.wait(1200); await h.eval('(window.__wantBlk = true, 1)'); await h.wait(400); const v = await h.eval('window.__blk'); await h.shot('horizon-' + name); await h.expect(`window.__blk < 0.002`, `horizon ${name}: no black above the horizon (${(v * 100).toFixed(2)} %)`); };
     await h.eval('(__G.cockpitCam = true, 1)'); await blk('deck-heli-cockpit');
     await h.eval('(__G.cockpitCam = false, 1)'); await blk('deck-heli-chase');
     await h.eval(`(window.__cam = { u: __G.war.carrier, p: [-180, 30, 160], t: [-400, 20, 400] }, 1)`); await blk('scripted-camera-180m-off');
     await h.eval(`(window.__cam = { u: __G.war.carrier, p: [150, 120, -150], t: [600, 40, -600] }, 1)`); await blk('scripted-camera-high');
     await h.eval('(window.__cam = null, 1)');
-    await h.key('tap', 'Digit5'); await h.wait(1500); await h.waitFor('__G.G.craft === "jet"', 8000);
+    await h.key('tap', 'Digit5'); await h.wait(1500); await h.waitFor('__G.G.craft === "jet"', 32000);
     await h.eval('(() => { const c = __G.war.carrier, J = __G.JP.J; J.cat = null; J.reset(c.p.x + 300, 0, c.p.z - 600, 2.4, { running: true, airborne: true, alt: 600, speed: 120 }); J.gearCmd = 0; J.gear = 0; __G.cockpitCam = false; __G.JP.snapChase(); return 1; })()');
     await blk('jet-chase-600m');
     await h.eval('(__G.cockpitCam = true, 1)'); await blk('jet-cockpit-600m');
@@ -153,15 +154,15 @@ export default async function (h) {
   }
 
   if (want('sea')) {
-    await h.eval('(window.__cam = null, __G.G.craft !== "heli" && __G.toHeli(), 1)'); await h.wait(800); await h.waitFor('__G.H.landed', 8000);
+    await h.eval('(window.__cam = null, __G.G.craft !== "heli" && __G.toHeli(), 1)'); await h.wait(800); await h.waitFor('__G.H.landed', 32000);
     // from the HORNET at 600 m (its view reaches ~1.5 km): the swell and the whitecaps out to the horizon
     await h.eval('(__G.war.setSea(7), 1)');
     await h.key('tap', 'Digit5'); await h.wait(1500);
-    await h.waitFor('__G.G.craft === "jet"', 8000);
+    await h.waitFor('__G.G.craft === "jet"', 32000);
     await h.eval('(() => { const c = __G.war.carrier, J = __G.JP.J; J.cat = null; J.reset(c.p.x + 600, 0, c.p.z + 500, 0.9, { running: true, airborne: true, alt: 600, speed: 120 }); J.gearCmd = 0; J.gear = 0; __G.cockpitCam = false; __G.JP.snapChase(); return 1; })()');
     await h.wait(3000); await h.shot('ss7-jet-600m');
     await h.eval('(__G.war.setSea(4), 1)'); await h.wait(1500); await h.shot('ss4-jet-600m');
-    await h.eval('(__G.toHeli(), 1)'); await h.wait(1000); await h.waitFor('__G.G.craft === "heli"', 5000);
+    await h.eval('(__G.toHeli(), 1)'); await h.wait(1000); await h.waitFor('__G.G.craft === "heli"', 30000);
     await h.eval('(__park(), 1)');
     // the carrier under way into the swell; the camera on deck (port side, looking out over the bow quarter) and up high
     await h.eval(`(() => { const c = __G.war.carrier; c.speed = 4; const fx = -Math.sin(c.yaw), fz = -Math.cos(c.yaw); __G.war.orderCarrier(c.p.x + fx * 900, c.p.z + fz * 900); return 1; })()`);
