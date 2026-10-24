@@ -1952,3 +1952,42 @@ M113 driver start + RAMP switch, commander radio, LCM-8 run), `scenes/armorgame.
 `scenes/armorprobe.mjs` (sight / periscope pictures looking down the hard), tankbench 73/73, armorgamebench 20/20.
 Untested: the hover frame with a real captured mouse on a real GPU (headless fakes the pointer lock); gamepad / HOTAS
 buttons for the switches (keyboard I / E cover them).
+
+## 2026-10-24 — NGC-1980 infantry depth, fixes: the rich Marines' rounds, hands off the rifle in third person, AI grenades and carries (branch ngc/infdepth-fix)
+- **"Both sides fire" (groundwar scene), counted right**: every round the near (rich) Marines fire already went through
+  groundsim's `shoot()` into `GS.stats.shots[1]`; what was wrong was the rest of the count and the men themselves.
+  `GS.stats.hits` now only counts hits by the ground war's own rounds (the Huey's door gun, rockets and the player's rifle
+  go to the new `GS.stats.warHits`, so hits[1] can no longer exceed shots[1]); `GS.stats.richShots` counts the rich men's
+  share. The scene counts from the Sea Knight's touchdown (`__s0`), and checks the rich men's rounds when any were rich.
+- **Why it failed**: in a hot-LZ fight (13 Marines 15-60 m from 3 STRIDERs, `node` A/B of the same fights) the rich men
+  fired a fifth to a half of the cheap model's rounds and lost twice the men - they held fire on every rush to cover
+  (the cheap model fires on the way) and turned onto targets at 3.2 rad/s. Now: unsighted fire (2x the tolerance) on the
+  run too, a 4.5 rad/s target transition (~0.35 s for 90 deg). Same fights after: cheap 1302 rounds / 15 KIA, rich 1104 /
+  12. The scene's Sea Knight gets 400 hp (below half it loses an engine and turns for home - one run never landed) and
+  the door gun thins the STRIDERs to two (SANDBAR is 60 m across: the LZ can't be far from them). 3 / 3 runs pass.
+- **Hands off the rifle, third person** (`units/infantry/carepose.js`, `poseSkeleton`'s `pose.hands`): drag (crouched,
+  both hands on the drag strap, a heave with each step back), fireman's carry (bent under him, right arm round his leg
+  to his wrist, left hand on his back, `stand` targets that follow the pelvis down), buddy aid (bent over the wound),
+  and the M67 / M18 drill (pouch, pin to the off hand, the arm cocked with the throwing shoulder turned back, over the
+  top, follow-through; underhand). Blended in and out over ~0.25 s per figure (hand targets from wherever the hands are,
+  the rifle slung onto the back by the same weight, spine / chest turn and pelvis drop scaled with it); the grenade in
+  the right hand (`pose.grenade`) for the player and the AI. Player (marine.js) and AI (groundwar.js `careLook`).
+- **AI Marines throw M67s** (game level): a man with one (2 per rifleman, `MARINE.LOAD.frags`), his target 10-30 m off and
+  behind cover (or a STRIDER inside 20 m), none of his own within 12 m of it, ~0.3 / s chance: stops, kneels, runs the
+  drill (`AI_DRILL`: 0.45 draw, 0.55 pin, 0.35 ready, 1.0 cook, 0.5 throw), lets go at a ~35 deg lob; the grenade
+  (`GW_AMMO.m67`) lands, rolls a little and goes off when the 4.5 s fuse runs out (6 m blast, power 0.5). A man hit
+  before he lets go keeps it (pin back in: GAME). No rifle fire with a grenade in his hand.
+- **AI fireman's carry** (fieldcare.js): a litter case being dragged with nobody shooting and more than 12 m to go is
+  lifted onto the shoulders (`BUDDY.carrySpeed`, 1.21 m/s) and put down at the CCP; the views put him across the
+  carrier's shoulders (groundwar.js `carriedView`, as marinecare.js does for the player). Drag distance 0.85 m (hands on
+  the strap).
+- **Tests**: new scene `carepose.mjs` 11/11 (AI drag, carry, the drill phase by phase, a real throw and its burst);
+  groundwar 10/10 x3, buddyaid 23/23, marine 15/15 (the leg-bleed check), foot 12/12, smoke 5/5; buddyaidbench 24/24
+  (the "under fire" check passes again: the near men suppress), groundwarbench 33/33, infantrybench 90, medinvbench 109,
+  marinebench and footbench all.
+- **Gotchas**: (1) `BUDDY.carrySpeed` needs `sprint: true` in the mods it is given, or it is 0 - the carrier stood still
+  for 240 s. (2) a trailing `//` comment on a long line swallowed `_want.aim = aim` again. (3) a landed Huey within 45 m
+  of a casualty is a CASEVAC: the litter goes to the Huey, not the CCP (scenes: get out first). (4) a casualty's care
+  record is dropped while `u.able` is still true (the same frame he went down): set it after one step.
+- **Next**: the rich carrier walks at his rifleman's walk, not the carry speed (the body follows the soldier sim);
+  a grenade in flight is not drawn; a man killed with a cooked grenade could drop it.
