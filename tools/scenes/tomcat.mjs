@@ -17,13 +17,14 @@ export default async function (h) {
   await h.eval('({thr: T.thr, n: A.eng.map(e => +e.n.toFixed(2)), clear: A.catClear})');
   await h.waitFor('!A.cat', 90000);
   await h.eval('({eas: A.eas * 1.944, y: A.pos.y, alive: T.alive})');
-  await h.key('hold', 'KeyS', 1000); await h.key('tap', 'KeyG');
+  await h.key('down', 'KeyS'); await h.eval('(window.__t0 = __G.war.time, 1)'); await h.waitFor('A.attitude().pitch > 0.1 || __G.war.time - __t0 >= 1.5', 30000); await h.key('up', 'KeyS'); await h.key('tap', 'KeyG');   // rotate: release at ~6 deg, she carries on to ~12 (ngc/bugsweep: a 1 s wall-clock hold was ~0.3 s of flight at headless frame rates - the Tomcat settled into the sea off the bow; 1 s of game time pitched it to 47 deg and it stalled)
+  // the flight director takes the climb-out straight after the rotation (ngc/bugsweep: hands-off, the launch trim kept pitching her up past 40 deg until it stalled at headless frame rates)
+  await h.eval(`(() => { const FD = T.FD; T.autopilot = (A, dt) => { const fd = FD; fd.steer(fd.dirHdg(A.heading(), Math.max(-0.1, Math.min(0.16, (700 - A.pos.y) * 0.004))), dt, { gmax: 3, eas: window.__spd || 150, ab: true }); const c = fd.ctl; T.thr = c.throttle[0]; return { pitch: c.pitch, roll: c.roll, yaw: c.yaw, throttle: c.throttle, brakeL: 0, brakeR: 0 }; }; window.__spd = 150; return 1; })()`);
   await h.waitFor('A.pos.y > 30 || !T.alive', 30000);
   await h.expect('T.alive && A.pos.y > 30');
   await h.key('tap', 'KeyL'); await h.shot('cockpit-climb-out');
   await h.eval('({eas: A.eas * 1.944, alt: A.pos.y, gear: A.gear, flap: A.flapSel, pitch: A.attitude().pitch, trim: A.trim, loss: T.lastLoss})');
   // ---- climb to 700 m on the flight director, then a burner run: the CADC sweeps the wings aft with Mach
-  await h.eval(`(() => { const FD = T.FD; T.autopilot = (A, dt) => { const fd = FD; fd.steer(fd.dirHdg(A.heading(), Math.max(-0.1, Math.min(0.25, (700 - A.pos.y) * 0.004))), dt, { gmax: 4, eas: window.__spd || 150, ab: true }); const c = fd.ctl; T.thr = c.throttle[0]; return { pitch: c.pitch, roll: c.roll, yaw: c.yaw, throttle: c.throttle, brakeL: 0, brakeR: 0 }; }; window.__spd = 150; return 1; })()`);
   await h.waitFor('A.pos.y > 550', 90000);
   await h.eval('({alt: A.pos.y, eas: A.eas * 1.944, sweep: A.sweep, mach: A.mach})');
   await h.eval('(window.__spd = 330, window.__sw = [], 1)');
@@ -73,6 +74,10 @@ export default async function (h) {
   // ---- the trap: set up 450 m behind the ALBATROSS on the glideslope, gear / flaps / hook, flown on 15 units
   await h.eval(`(() => {
     const c = __G.war.carrier, FD = T.FD; c.path = [];
+    // (ngc/bugsweep) turn her so the 3.5 deg approach from 450 m astern is over open water: wherever she has sailed to by now,
+    // the line could cross an island (the Tomcat touched a shore 165 m astern, bounced and struck the ramp)
+    { const clear = y => { for (let lz = 40; lz <= 560; lz += 8) for (const lx of [-20, -2.5, 15]) { const co = Math.cos(y), si = Math.sin(y); if (__G.terrainH(c.p.x + lx * co + lz * si, c.p.z - lx * si + lz * co) > -0.5) return false; } return true; };
+      for (let k = 0; k < 36; k++) { const y = c.yaw + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * Math.PI / 18; if (clear(y)) { c.yaw = y; c.w = 0; break; } } }
     const aimZ = 41 - 8.0, gs = 3.5 * Math.PI / 180, dist = 450, aoa = 10.5 * Math.PI / 180;
     const loc = (x, z) => { const co = Math.cos(c.yaw), si = Math.sin(c.yaw), dx = x - c.p.x, dz = z - c.p.z; return [dx * co - dz * si, dx * si + dz * co]; };
     const toW = (lx, lz) => { const co = Math.cos(c.yaw), si = Math.sin(c.yaw); return [c.p.x + lx * co + lz * si, c.p.z - lx * si + lz * co]; };
@@ -118,10 +123,10 @@ export default async function (h) {
   await h.key('tap', 'Digit8'); await h.wait(600);
   await h.expect('A.cat && A.cat.state === "hold"');
   await h.key('down', 'ShiftLeft'); await h.waitFor('T.thr > 0.81', 10000); await h.key('up', 'ShiftLeft');
-  await h.waitFor('!A.cat', 90000); await h.key('hold', 'KeyS', 1000); await h.key('tap', 'KeyG');
+  await h.waitFor('!A.cat', 90000); await h.key('down', 'KeyS'); await h.eval('(window.__t0 = __G.war.time, 1)'); await h.waitFor('A.attitude().pitch > 0.1 || __G.war.time - __t0 >= 1.5', 30000); await h.key('up', 'KeyS'); await h.key('tap', 'KeyG');   // rotate: release at ~6 deg, she carries on to ~12 (ngc/bugsweep: a 1 s wall-clock hold was ~0.3 s of flight at headless frame rates - the Tomcat settled into the sea off the bow; 1 s of game time pitched it to 47 deg and it stalled)
   await h.waitFor('A.pos.y > 60 || !T.alive', 30000);
   await h.eval('({alt: A.pos.y, eas: A.eas * 1.944})');
-  await h.key('hold', 'Backspace', 1300); await h.wait(500);
+  await h.key('down', 'Backspace'); await h.eval('(window.__t0 = __G.war.time, 1)'); await h.waitFor('__G.war.time - __t0 >= 1.3 || !!T.ejected', 30000); await h.key('up', 'Backspace'); await h.wait(500);
   await h.expect('!!T.ejected');
   await h.waitFor('T.ejected.seats.every(s => s.out)', 10000); await h.wait(1500);
   await h.shot('chase-two-chutes');
