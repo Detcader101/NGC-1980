@@ -27,7 +27,7 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const MOA = Math.PI / 10800;
 export const STEP = 1 / 120;   // the rifleman's recommended fixed step (soldier springs, sway, projectiles)
 // the ground host's surfaces -> the soldier's (Pandolf terrain factors, footstep sounds, bullet impact materials)
-export const SURF_MAP = { road: 'concrete', deck: 'metal', rock: 'rock', grass: 'grass', sand: 'sand', mud: 'mud', water: 'water', hole: 'rock' };
+export const SURF_MAP = { road: 'concrete', deck: 'metal', rock: 'rock', grass: 'grass', sand: 'sand', mud: 'mud', water: 'water', hole: 'rock', dirt: 'dirt' };   // (ngc/marine-polish: dirt tracks)
 
 // MEDINV's state -> soldier.js medical modifiers (0..1 scales; see soldier.js MODS)
 export function soldierMods(M, out = {}) {
@@ -133,6 +133,7 @@ export function createMarineSim(o = {}) {
     if (med && med.weaponUse === 'none') inp.fire = false;
     if (W.ladder || W.swim) { inp.fire = false; inp.ads = false; }
     MS.listener.x = S.eye.x; MS.listener.y = S.eye.y; MS.listener.z = S.eye.z;
+    MS.mods.vCap = MS.burden ? MS.burden.v : null;   // ngc/marine-polish: the soldier sim walks at the carry / drag speed (the clamp below stays)
     const evs = R.step(h, inp, renv, MS.mods);
     let jumped = false;
     for (const e of evs) { MS.events.push(e); if (e.e === 'body' && e.ev.e === 'jump') jumped = true; }
