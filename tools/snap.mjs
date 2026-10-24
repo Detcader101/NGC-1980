@@ -160,6 +160,7 @@ async function main() {
     result.browser = exe;
     browser = await puppeteer.launch({
       executablePath: exe,
+      protocolTimeout: 1800000,   // (ngc/bugsweep) puppeteer's default 180 s cut every longer waitFor short: a 400 s wait timed out at 180 s
       headless: args.headful ? false : 'new',
       defaultViewport: { width: W, height: H, deviceScaleFactor: 1 },
       args: [
