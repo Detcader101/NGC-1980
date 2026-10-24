@@ -2381,6 +2381,70 @@ inside a doorway when seen from outside. AI soldiers do not open doors. Rounds d
 model: if NAVAL's island changes (ngc/naval-polish: parts.islandBoxes / islandFloor), `shipint.js`'s ISL table and
 the punch positions must follow it.
 
+## 2026-10-24 — NGC-1980 WORLD polish batch 2: towns, harbours, farms, bases, damage, LOD (branch ngc/world-polish)
+
+**What.** The lived-in world's towns and structures brought up towards the Hornet / Huey bar, authentic 1980.
+- **Village institutions** (`world/townkit.js`, placed by `layout.js civic()`): the **pub** on the square (or on the
+  main street when the square is full; hamlets 45 %) - painted ground floor, small-paned bay windows, fascia with its
+  name in cream letters, the hanging sign on a wrought-iron bracket, lantern, hanging baskets, picnic tables and the
+  landlord's car at the side. It is a one-unit `terrace` with `pub: true`, so INTERIORS fits it out: `rooms.js`
+  shopUnit / shopKind make unit 0 a 'pub' (bar counter without a till, bottles on the shelves, three tables). The
+  **village school** (Victorian board school: stone or brick, tall many-paned windows, BOYS / GIRLS porches, bell-cote,
+  tarmac playground with hopscotch and a netball ring, iron railings, the red-triangle SCHOOL sign), the
+  nonconformist **chapel** (gable to the street, arched windows, pediment door, date stone, railed forecourt), the
+  **village hall** (models.js hall, as `vhall`). Schools / chapels / halls are solid, not enterable.
+- **Street furniture**: the K6 kiosk (domed roof, TELEPHONE strip, glazing bars), the pillar box with its cap,
+  1970s concrete lamp columns with sodium lanterns, litter bins, the 30 limit roundels and the village name board on
+  every link road in, fingerposts in hamlets, bus stop flags.
+- **1980 cars** (`townkit car2`): saloon (Cortina / Marina), hatchback, estate, Mini, Transit-style van - raked
+  glasshouses, chrome bumpers, grille, lamps, white front / yellow rear plates, hub caps. Parked nose-in round the
+  bigger squares (`pcar`, solid), the garden cars use them too (the drivable ones stay ngc/wheeledgame's crafts).
+- **Harbours** (`layout.js harbour()`): a concrete slipway down to 2.5 m of water with a boat at its head, the hand
+  crane on the quay edge, fish boxes, a heap of nets with floats, a fuel tank, the harbour office ashore, clinker boats
+  hauled up on the hard (a real stationed hull: transom, sheer, thwarts, inside planking), mooring buoys in the bay.
+- **Farmyards** (`layout.js farmyard()`): milking parlour with its feed hopper, a stack of small bales, the muck heap, a
+  water trough, a tipping trailer, the farm Land Rover, and the **milk churn stand** where the farm track meets the road.
+- **Weathering** (`kit.js Geo.weather / weatherAll`): every face a shade off its neighbours (keyed on its first corner
+  so quads stay whole) and a grime / damp band darkening the bottom metre towards earth brown - on every building,
+  the clutter, the faction structures, the AA emplacements. No extra vertices.
+- **Building damage** (`world/damage.js`, `life.js`): every `fx.explode` (wrapped like ambient.js does) of size s within
+  R = 2 + 2.4 s of a building's walls and below its roof does (s - 0.5)(1 - d/R)^1.5 against a game-level hp (house 2.6,
+  cottage 2, terrace 3.4, church 6, ...). Past 45 %: DAMAGED (soot plumes from the windows, a burnt hole in the roof
+  with rafters, glass and slates in the street, smoke). Past 100 %: DESTROYED - its vertex ranges in the chunk's merged
+  near / far meshes (recorded per building in `dyn.bld`) collapse to a point and a ruin is drawn (wall stumps of broken
+  heights, often a gable still standing, rubble heaps, charred beams leaning out, scorched floor), fire then a long
+  smoulder, a scorch decal. Kept per building key (rooms.js planOf's), so a chunk streamed out and back in comes back
+  ruined. `solid.js`: a destroyed building is one low soft rubble box (tanks push through), its rooms and doors go
+  (the chunk's colliders are rebuilt; interiors.js drops the built rooms on its next scan). One small 'ruins' mesh per
+  chunk with anything damaged. Tests / scripts: `__WORLD.damage.knock(x, z, 'damaged' | 'destroyed')`.
+- **Faction structures** (`structures.js`): a **perimeter fence** round the back and sides of every 1980 site (concrete
+  posts every 3 m on the real ground, four line wires, cranked arms with three strands of barbed wire), stepping round
+  the pad, the AA slots and the other sites; a **sentry box** with a red-and-white barrier pole while we hold it.
+  **AA emplacements** on each pad's four AA slots (`buildAASite`, placed by life.js, merged: 2 meshes an island): ours
+  an earth revetment with sandbags on the lip, a gap facing the pad to drive in by, ready-use ammunition and a netted
+  crew shelter; the machines' a ring of leaning ceramic plates with cyan seams. Follow island ownership.
+- **Performance** (`chunkgen.js`): a third, **detail** level per chunk (street furniture, cars, garden / yard / harbour
+  clutter: ~20 % of a town's near triangles) drawn only within ~240 m. The garage and the new buildings have far
+  boxes. worldperf (same scene before / after, load average 110-145 on the shared box, so fps is noise): Huey over a
+  wild town 984 -> 933 draw calls, 619k -> 574k triangles with more in the town; on the deck 556 -> 559 calls, 299k ->
+  301k. Town chunk build in the worker 17 ms mean, 38 ms max (worldpolishbench); main-thread world cost unchanged.
+
+**Shared-file hooks**: `interiors/rooms.js` (shopUnit / shopKind: the pub; shopFit 'pub'), `interiors/furniture.js`
+(GOODS.pub). No main.js / war.js changes (the AA slot formula is repeated from war.js aaSlots, commented).
+
+**Tests.** `node tools/worldpolishbench.mjs` 18/18 (pubs, schools, signs, parked cars, harbour gear, farmyards, every
+building's vertex ranges, chunk build time, the detail layer, a bomb damages / two destroy a house, rubble colliders,
+air bursts do nothing). worldbench ALL PASS, worldsolidbench 9/9. Scenes: `worldpolish.mjs` (preview: pub, school,
+chapel, square cars, signs, two harbours, a farmyard, a village with every third building knocked about, the base
+fences and AA emplacements) 1/1, `worlddamage.mjs` (in game: bombs on a town house, damaged -> destroyed with its
+range collapsed, PELICAN's fence and AA sites) 4/4, world.mjs 4/4, interiors.mjs 20/20, smoke 5/5, worldprev 1/1.
+
+**Known / next.** The square's parked cars are static geometry (not drivable, not shoved by vehicles). Fences and AA
+revetments are not colliders. Door leaves of a destroyed building stay in the door registry (F can still find one in
+the rubble). Ambient people still walk to a ruin's front door and chimneys of a ruin may still smoke. Damage is from
+explosions only (not small arms). The zone villages are small and steep, so few of the new institutions fit there;
+the terrain rebuild (ngc/terrain) will change which lots take them.
+
 ## 2026-10-24 — NGC-1980 HORNET + HUEY polish: 1980 F/A-18A and UH-1H authenticity, HOTAS 4 + T-Rudder defaults (branch ngc/hornethuey-polish)
 - **HORNET thrust, the one flight-model change**: F404-GE-400 (1980 FSD and early production) instead of the 1990s
   -402 EPE: 16,000 lbf with afterburner (GE / Jane's Aero-Engines: CONFIRMED), ~10,600 lbf dry (sources 10,500-10,700:

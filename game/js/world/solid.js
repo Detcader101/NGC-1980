@@ -20,12 +20,25 @@ import { rng } from './rng.js';
 import { BOUND } from '../world.js';
 import { roomParts, floorHere, ENTERABLE, KEEP } from '../interiors/roomsolid.js';
 import { DOORS } from '../interiors/doors.js';   // ngc/interiors: enterable buildings
+import { DAMAGE } from './damage.js';   // ngc/world-polish: a destroyed building is its rubble
+import { BUILDINGS, bldKey } from './chunkgen.js';
+import { bldDims } from './townkit.js';
 
 // ngc/interiors: an enterable building is its rooms (walls with door gaps, furniture, live door leaves, floors and
 // stairs: interiors/rooms.js), plus whatever of its old solid stays outside them (the church tower, the canopy posts)
 function roomItem(it, hf, parts, floors, rooms) {
   if (KEEP[it.t]) { const tmp = []; itemParts(it, hf, tmp); tmp.forEach((p, i) => { if (KEEP[it.t](i)) parts.push(p); }); }
   const P = roomParts(it, hf, parts, floors); if (P) rooms.push({ it, P });
+  else if (!KEEP[it.t]) itemParts(it, hf, parts);   // ngc/world-polish: enterable in name only (no plan): its plain box
+}
+// ngc/world-polish: one item, whatever it is (a destroyed building: a low heap of rubble that tanks push through)
+function anyItem(it, hf, parts, floors, rooms) {
+  if (BUILDINGS.has(it.t) && DAMAGE.dead(bldKey(it))) {
+    const D = bldDims(it), c = Math.cos(it.yaw || 0), s = Math.sin(it.yaw || 0), dz = D.dz || 0;
+    parts.push({ x: it.x + s * dz, z: it.z + c * dz, yaw: it.yaw || 0, hw: D.w * 0.42, hl: D.d * 0.42, y0: it.y - (it.drop || 0) - 0.3, y1: it.y + 0.9, t: 'rubble', soft: true });
+    return;
+  }
+  if (it.t === 'quay' || it.t === 'jetty') pierFloors(it, floors); else if (ENTERABLE.has(it.t)) roomItem(it, hf, parts, floors, rooms); else itemParts(it, hf, parts);
 }
 
 const GRID = 16, LIFT = { tarmac: 0.14, lane: 0.13, street: 0.12, dirt: 0.10 };
@@ -66,7 +79,25 @@ function itemParts(it, hf, out) {
     case 'car': box(0, 0, 1.7, 4.3, 1.45); break;
     case 'tractor': box(0, 0, 1.6, 3.6, 2.9); break;
     case 'woodpile': box(0, 0, 2.2, 0.9, 1.2); break;
-    case 'lamp': circ(0, 0, 0.14, 5); break;
+    case 'lamp': circ(0, 0, 0.14, 6.5); break;
+    // ---- ngc/world-polish
+    case 'school': box(0, -it.d / 2 + 4, it.w, 8, 4.2 + 3); for (const sd of [-1, 1]) { box(sd * (it.w / 2 - 1.6), -it.d / 2 + 9.1, 2.4, 2.2, 3.5); box(sd * (it.w / 2 - 0.15), 0, 0.1, it.d - 0.4, 1.1, { soft: true }); box(sd * (it.w / 4 + 0.7), it.d / 2 - 0.15, it.w / 2 - 1.6, 0.06, 1.15, { soft: true }); } break;
+    case 'chapel': box(0, -1, it.w, it.d - 2, 6.2 + it.w * 0.42); break;
+    case 'vhall': box(0, 0, it.w, it.d, 3.6 + it.d * 0.4); break;
+    case 'parlour': box(0, 0, it.w, it.d, 4.1); circ(-it.w / 2 - 1.6, 0, 1.1, 6.4); break;
+    case 'office': box(0, 0, 3.6, 3.0, 3.5); break;
+    case 'pcar': box(0, 0, 1.7, it.kind === 'mini' ? 3.05 : it.kind === 'van' ? 4.5 : 4.3, it.kind === 'van' ? 2.05 : 1.42); break;
+    case 'landrover': box(0, 0, 1.7, 4.4, 2.1); break;
+    case 'trailer': box(0, 0.4, 2.2, 4.4, 1.5); break;
+    case 'picnic': box(0, 0, 1.8, 1.6, 0.75); break;
+    case 'psign': case 'bin': circ(0, 0, 0.12, 2.4); break;
+    case 'crane': circ(0, 0, 0.25, 3.6); break;
+    case 'fueltank': box(0, 0, 1.4, 2.8, 2.3); break;
+    case 'fishbox': box(0.85, 0.3, 2.5, 1.2, 0.65); break;
+    case 'trough': box(0, 0, 2.4, 0.7, 0.65); break;
+    case 'churns': box(0, 0, 1.6, 1.0, 1.8); break;
+    case 'balestack': box(1.6, 0.25, 4.2, 1.0, 1.7); break;
+    case 'hboat': box(0, 0, (it.L || 4.2) * 0.38, it.L || 4.2, 0.9); break;
     case 'tree': circ(0, 0, 0.35 * (it.s || 1), 6); break;
     case 'field': fieldWalls(it, hf, out); break;
   }
@@ -129,7 +160,7 @@ export function createWorldSolid(ctx) {
     if (zoneSolid) return zoneSolid;
     const parts = [], floors = [], rooms = [];
     for (const e of (ctx.zone ? ctx.zone() : [])) {
-      for (const it of e.items) { if (it.t === 'quay' || it.t === 'jetty') pierFloors(it, floors); else if (ENTERABLE.has(it.t)) roomItem(it, ctx.zoneHf || ctx.hf, parts, floors, rooms); else itemParts(it, ctx.zoneHf || ctx.hf, parts); }
+      for (const it of e.items) anyItem(it, ctx.zoneHf || ctx.hf, parts, floors, rooms);
       for (const id of e.roads || []) { const R = roadById(id); if (R) parapets(R, R.xs.map((_, i) => i), parts); }
     }
     return (zoneSolid = index(parts, floors, rooms));
@@ -149,7 +180,7 @@ export function createWorldSolid(ctx) {
     if (inZoneChunk(i, j)) { c = zone(); chunks.set(k, c); return c; }
     const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
     const content = chunkContent(i, j, ctx.hf), parts = [], floors = [], rooms = [];
-    for (const it of content.items) { if (it.t === 'quay' || it.t === 'jetty') pierFloors(it, floors); else if (ENTERABLE.has(it.t)) roomItem(it, ctx.hf, parts, floors, rooms); else itemParts(it, ctx.hf, parts); }
+    for (const it of content.items) anyItem(it, ctx.hf, parts, floors, rooms);
     for (const [R, idx] of content.roads) {
       parapets(R, idx, parts);
       for (const p of polesOf(R)) if (p.x >= content.x0 && p.x < content.x1 && p.z >= content.z0 && p.z < content.z1) { const y = ctx.hf(p.x, p.z); parts.push({ x: p.x, z: p.z, r: 0.2, y0: y - 0.5, y1: y + 9, t: 'pole' }); }
@@ -159,6 +190,13 @@ export function createWorldSolid(ctx) {
     if (chunks.size > 64) for (const [kk] of chunks) { chunks.delete(kk); if (chunks.size <= 48) break; }   // forget the oldest
     return c;
   }
+  // ngc/world-polish: a building knocked down - its chunk's colliders (and rooms) are built again from the rubble
+  DAMAGE.onChange((b, cond) => {
+    if (cond !== 'destroyed') return;
+    const i = Math.floor(b.x / CHUNK), j = Math.floor(b.z / CHUNK);
+    if (inZoneChunk(i, j)) { for (const [k, c] of chunks) if (c === zoneSolid) chunks.delete(k); zoneSolid = null; }
+    else chunks.delete(kOf(i, j));
+  });
   const _seen = new Set(), _list = [], _rooms = [], _rseen = new Set(), _gates = [];
   const S = {
     stats: { chunks: 0, ms: 0 },

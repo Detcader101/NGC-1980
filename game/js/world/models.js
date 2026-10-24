@@ -4,6 +4,7 @@
 // eaves, a parish church tower ~16-22 m, a 1980 saloon 4.3 x 1.7 m.
 import { col, shade, mixc } from './kit.js';
 import { doorU, shopUnit } from '../interiors/rooms.js';   // ngc/interiors: the rooms behind the front door agree where it is
+import { pubFront } from './townkit.js';   // ngc/world-polish: the pub's front (an import cycle: used inside terrace() only)
 
 export const PAL = {
   walls: [0xe9e5da, 0xe8e0c8, 0xe6d6a8, 0xdcc0a8, 0xc9d3d6, 0xb4ada0, 0xd8d2c4, 0xefe9de, 0xd9c79a],
@@ -79,7 +80,10 @@ export function terrace(g, r, o) {
     const x = -o.w / 2 + uw * (i + 0.5), wall = col(r.pick(PAL.walls)), hh = H + (r() < 0.3 ? 0.4 : 0);
     g.push(x, 0, 0);
     g.box(0, 0, 0, uw, hh, d, wall, 1);
-    if ((r(), shopUnit(o, i))) {   // ngc/interiors: which units are shops, from the seed (the rooms fit them out)   // shopfront: big window, fascia board with the shop colour, door, maybe an awning
+    if ((r(), shopUnit(o, i)) && o.pub && i === 0) {   // ngc/world-polish: the pub (rooms.js fits it out as the bar)
+      pubFront(g, r, uw, d, fh);
+      windowsZ(g, -uw / 2 + 0.4, uw / 2 - 0.4, d / 2, fl - 1, fh, { sill: fh + 0.9, spacing: 2.4 });
+    } else if (shopUnit(o, i)) {   // ngc/interiors: which units are shops, from the seed (the rooms fit them out)   // shopfront: big window, fascia board with the shop colour, door, maybe an awning
       const sc = col(r.pick(PAL.shops));
       g.quad([-uw / 2 + 0.3, 0.5, d / 2 + 0.06], [uw / 2 - 1.5, 0.5, d / 2 + 0.06], [uw / 2 - 1.5, 2.5, d / 2 + 0.06], [-uw / 2 + 0.3, 2.5, d / 2 + 0.06], GLASS2);
       g.box(0, 2.6, d / 2 + 0.1, uw - 0.2, 0.6, 0.2, sc, 1);
