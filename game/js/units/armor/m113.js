@@ -40,7 +40,7 @@ export const M113A2 = {
     // net = gross less the cooling fan, alternator and air system (~15 %, I: the 6V53 fan is belt driven and large)
     CURVE: [[0, 0], [400, 290], [800, 490], [1300, 492 * LBFT * 0.84], [1800, 535], [2300, 495], [2800, 180 * HP / (2800 / 9.549)], [2950, 260], [3100, 0]],
     FRICTION: [30, 22], J: 1.25, KGOV: 40, TAU: 0.1,
-    STARTER: 260, STARTER_RPM: 280,
+    STARTER: 260, STARTER_RPM: 280, CRANK_T: 1.2,   // the two-stroke Detroit catches quickly (I)
     FAN_W: 32 * HP, SFC: 0.245 / 3.6e6, IDLE_FUEL: 0.0009, FUEL_DENS: 0.84,
   },
   CONV: { KF: 7.6, STALL_TR: 2.2, COUPLING: 0.86, OVERRUN: 1.1 },   // Allison TX100 converter I

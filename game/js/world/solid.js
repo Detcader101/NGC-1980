@@ -1,0 +1,172 @@
+// SEAWORLD: the lived-in world as something you bump into and stand on (pure: no THREE; node-testable).
+//
+// What a soldier or a vehicle meets (ground.js GR asks this module through three small hooks):
+//   colliders: houses, cottages, terraces, the church (nave, porch, chancel, tower, churchyard wall), filling station
+//     kiosk and canopy posts, barns, Dutch-barn posts, silos, boat sheds, garages, sheds, lighthouses with the
+//     keeper's cottage, radio masts and their huts, phone and post boxes, bus shelters, memorials, parked cars,
+//     tractors, wood piles, garden trees, power poles, stone field walls and hedges (with their gate gap), bridge
+//     parapets. Boxes { x, z, yaw, hl, hw, y0, y1 } (ground.js pushBox convention) and circles { x, z, r, y0, y1 };
+//     walls and hedges carry soft: true (a tank may push through them: GR.collide skips soft ones for o.crush).
+//   floors: timber piers and jetties (the deck and the T head) and BRIDGE DECKS (net.js roadAt().y: bridges are not
+//     in the terrain), for anyone at or above them; underneath, a swimmer or a boat still has the sea.
+//   surfaces: tarmac roads (and town squares, quays) are 'road', dirt tracks 'dirt'.
+// The same seeded generators the world worker builds the meshes from (chunkgen.chunkContent, layout.zoneItems) give
+// the footprints, so what you see is what you hit. Per 400 m chunk, built the first time something comes near it
+// (10-40 ms for a town chunk, once) and kept in a 16 m grid.
+import { chunkContent, CHUNK } from './chunkgen.js';
+import { roadAt, roadById } from './net.js';
+import { polesOf } from './layout.js';
+import { rng } from './rng.js';
+import { BOUND } from '../world.js';
+
+const GRID = 16, LIFT = { tarmac: 0.14, lane: 0.13, street: 0.12, dirt: 0.10 };
+const kOf = (i, j) => i * 100003 + j;
+
+// one item -> its solid parts (local frame of the item: u along its x, v along its z, front +v)
+function itemParts(it, hf, out) {
+  const y = it.ground || it.y === 0 && it.t !== 'field' ? hf(it.x, it.z) : it.y, y0 = y - (it.drop || 0) - 0.3;
+  const c = Math.cos(it.yaw || 0), s = Math.sin(it.yaw || 0);
+  const box = (u, v, w, d, h, extra) => out.push({ x: it.x + c * u + s * v, z: it.z - s * u + c * v, yaw: it.yaw || 0, hw: w / 2, hl: d / 2, y0, y1: y + h, t: it.t, ...extra });
+  const circ = (u, v, r, h) => out.push({ x: it.x + c * u + s * v, z: it.z - s * u + c * v, r, y0, y1: y + h, t: it.t });
+  switch (it.t) {
+    case 'house': box(0, 0, it.w, it.d, it.floors * 2.8 + it.d * 0.6); break;
+    case 'cottage': box(0, 0, it.w, it.d, 2.6 + it.d * 0.72); break;
+    case 'terrace': box(0, 0, it.w, it.d, it.floors * 3 + it.d * 0.45); break;
+    case 'hall': box(0, 0, it.w, it.d, 3.6 + it.d * 0.4); break;
+    case 'church': {
+      box(0, 0, 20, 9, 12); box(-2, 4.5 + 1.6, 3.4, 3.2, 4.8); box(-13, 0, 6, 6.5, 8.5); box(12.5, 0, 5.5, 5.5, 30);
+      const yw = 36, yd = 23;   // the churchyard's low wall (all round, as drawn)
+      box(0, yd / 2, yw, 0.5, 0.9, { soft: true }); box(0, -yd / 2, yw, 0.5, 0.9, { soft: true });
+      out.push({ x: it.x + c * yw / 2, z: it.z - s * yw / 2, yaw: it.yaw + Math.PI / 2, hw: yd / 2, hl: 0.25, y0, y1: y + 0.9, t: 'wall', soft: true });
+      out.push({ x: it.x - c * yw / 2, z: it.z + s * yw / 2, yaw: it.yaw + Math.PI / 2, hw: yd / 2, hl: 0.25, y0, y1: y + 0.9, t: 'wall', soft: true });
+      break;
+    }
+    case 'petrol': box(0, -3.5, 7.4, 5.4, 3.5); for (const [u, v] of [[-4, 2], [4, 2], [-4, 5], [4, 5]]) circ(u, v, 0.18, 4.4); circ(7, 5.5, 0.15, 7); break;
+    case 'barn': box(0, 0, it.w, it.d, (it.h || 5.5) + it.d * 0.32); break;
+    case 'openshed': for (let i = 0; i <= 3; i++) for (const sd of [-1, 1]) box(-it.w / 2 + i * it.w / 3, sd * it.d / 2, 0.3, 0.3, 4.5); break;
+    case 'silo': circ(0, 0, 2.3, 12.6); break;
+    case 'boatshed': box(0, 0, 6, 10, 5.2); break;
+    case 'garage': box(0, 0, 3.4, 5.7, 2.7); break;
+    case 'shed': box(0, 0, 2.2, 2.6, 2.5); break;
+    case 'lighthouse': circ(0, 0, 2.6, (it.h || 18) + 4); box(5.5, 0, 6, 5, 6.2); break;
+    case 'mast': box(0, 0, 3, 3, it.h || 70); box(7, 4, 4.3, 3.3, 2.8); break;
+    case 'phone': box(0, 0, 1.05, 1.05, 2.7); break;
+    case 'post': circ(0, 0, 0.3, 1.5); break;
+    case 'shelter': box(0, -0.7, 3, 0.15, 2.4); box(-1.5, 0, 0.12, 1.4, 2.4); box(1.5, 0, 0.12, 1.4, 2.4); break;
+    case 'memorial': box(0, 0, 1.6, 1.6, 4); break;
+    case 'car': box(0, 0, 1.7, 4.3, 1.45); break;
+    case 'tractor': box(0, 0, 1.6, 3.6, 2.9); break;
+    case 'woodpile': box(0, 0, 2.2, 0.9, 1.2); break;
+    case 'lamp': circ(0, 0, 0.14, 5); break;
+    case 'tree': circ(0, 0, 0.35 * (it.s || 1), 6); break;
+    case 'field': fieldWalls(it, hf, out); break;
+  }
+}
+// a field's walls / hedges, segment by segment, with the gate gap where chunkgen.js field() leaves it
+function fieldWalls(it, hf, out) {
+  const r = rng(it.seed); r();   // field(): tint = r() first, then the gate side
+  const gap = r.int(0, 3), hedge = it.wall === 'hedge', cy = Math.cos(it.yaw), sy = Math.sin(it.yaw);
+  const W = (u, v) => [it.x + cy * u + sy * v, it.z - sy * u + cy * v];
+  const sides = [[[-1, -1], [1, -1]], [[1, -1], [1, 1]], [[1, 1], [-1, 1]], [[-1, 1], [-1, -1]]];
+  sides.forEach(([[ua, va], [ub, vb]], k) => {
+    const len = Math.hypot((ub - ua) * it.w / 2, (vb - va) * it.d / 2), n = Math.max(1, Math.round(len / 6));
+    for (let q = 0; q < n; q++) {
+      if (k === gap && q === Math.floor(n / 2)) continue;
+      const t0 = q / n, t1 = (q + 1) / n;
+      const [x0, z0] = W((ua + (ub - ua) * t0) * (it.w / 2 + 1), (va + (vb - va) * t0) * (it.d / 2 + 1)), [x1, z1] = W((ua + (ub - ua) * t1) * (it.w / 2 + 1), (va + (vb - va) * t1) * (it.d / 2 + 1));
+      const h0 = hf(x0, z0), h1 = hf(x1, z1), l = Math.hypot(x1 - x0, z1 - z0) || 1;
+      // a box along the segment: its local z runs along it (pushBox frame: lz = dx sin + dz cos)
+      out.push({ x: (x0 + x1) / 2, z: (z0 + z1) / 2, yaw: Math.atan2(x1 - x0, z1 - z0), hw: hedge ? 0.6 : 0.3, hl: l / 2, y0: Math.min(h0, h1) - 0.3, y1: Math.max(h0, h1) + (hedge ? 1.7 : 0.95), t: hedge ? 'hedge' : 'wall', soft: true });
+    }
+  });
+}
+// the piers of a quay or a jetty: floors (rectangles in the item frame at a height)
+function pierFloors(it, out) {
+  const z0 = it.t === 'quay' ? 7.5 : 0, top = it.y + 0.15;
+  out.push({ x: it.x, z: it.z, c: Math.cos(it.yaw), s: Math.sin(it.yaw), u0: -1.5, u1: 1.5, v0: z0 - 0.5, v1: z0 + it.len, y: top });
+  out.push({ x: it.x, z: it.z, c: Math.cos(it.yaw), s: Math.sin(it.yaw), u0: -3.5, u1: 3.5, v0: z0 + it.len, v1: z0 + it.len + 3, y: top });
+}
+// bridge parapets along a road's bridge segments i0..i1 (chunkgen roadRibbons: from hw + 0.05 to hw + 0.4, 1 m high)
+function parapets(R, idx, out) {
+  const lift = LIFT[R.type] || 0.12;
+  for (const i of idx) {
+    if (!R.br[i] || i + 1 >= R.xs.length) continue;
+    const ax = R.xs[i], az = R.zs[i], bx = R.xs[i + 1], bz = R.zs[i + 1], dx = bx - ax, dz = bz - az, l = Math.hypot(dx, dz) || 1, nx = -dz / l, nz = dx / l;
+    const y = Math.min(R.ys[i], R.ys[i + 1]) + lift, yt = Math.max(R.ys[i], R.ys[i + 1]) + lift + 1.0;
+    for (const sd of [1, -1]) {
+      const o = sd * (R.hw + 0.22);
+      out.push({ x: (ax + bx) / 2 + nx * o, z: (az + bz) / 2 + nz * o, yaw: Math.atan2(dx, dz), hw: 0.2, hl: l / 2 + 0.1, y0: y - 1.1, y1: yt, t: 'parapet' });
+    }
+  }
+}
+
+// ctx: { hf (islandH: what the worker builds the wild lands on), zone: () => [{ items, roads }] (life.js world.zone),
+//        zoneHf (main.js terrainH) }
+export function createWorldSolid(ctx) {
+  const chunks = new Map();
+  const inZoneChunk = (i, j) => Math.max(Math.abs((i + 0.5) * CHUNK), Math.abs((j + 0.5) * CHUNK)) < BOUND + 300 - CHUNK * 0.5;   // life.js: the zone is built at start
+  let zoneSolid = null;
+  function zone() {
+    if (zoneSolid) return zoneSolid;
+    const parts = [], floors = [];
+    for (const e of (ctx.zone ? ctx.zone() : [])) {
+      for (const it of e.items) { if (it.t === 'quay' || it.t === 'jetty') pierFloors(it, floors); else itemParts(it, ctx.zoneHf || ctx.hf, parts); }
+      for (const id of e.roads || []) { const R = roadById(id); if (R) parapets(R, R.xs.map((_, i) => i), parts); }
+    }
+    return (zoneSolid = index(parts, floors));
+  }
+  function index(parts, floors) {
+    const grid = new Map();
+    for (const p of parts) {
+      const rr = p.r || Math.hypot(p.hw, p.hl);
+      for (let j = Math.floor((p.z - rr) / GRID); j <= Math.floor((p.z + rr) / GRID); j++) for (let i = Math.floor((p.x - rr) / GRID); i <= Math.floor((p.x + rr) / GRID); i++) {
+        const k = kOf(i, j); let a = grid.get(k); if (!a) grid.set(k, a = []); a.push(p);
+      }
+    }
+    return { grid, floors, n: parts.length };
+  }
+  function chunk(i, j) {
+    const k = kOf(i, j); let c = chunks.get(k); if (c) return c;
+    if (inZoneChunk(i, j)) { c = zone(); chunks.set(k, c); return c; }
+    const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
+    const content = chunkContent(i, j, ctx.hf), parts = [], floors = [];
+    for (const it of content.items) { if (it.t === 'quay' || it.t === 'jetty') pierFloors(it, floors); else itemParts(it, ctx.hf, parts); }
+    for (const [R, idx] of content.roads) {
+      parapets(R, idx, parts);
+      for (const p of polesOf(R)) if (p.x >= content.x0 && p.x < content.x1 && p.z >= content.z0 && p.z < content.z1) { const y = ctx.hf(p.x, p.z); parts.push({ x: p.x, z: p.z, r: 0.2, y0: y - 0.5, y1: y + 9, t: 'pole' }); }
+    }
+    c = index(parts, floors); c.ms = (typeof performance !== 'undefined' ? performance.now() : 0) - t0;
+    chunks.set(k, c); S.stats.chunks++; S.stats.ms += c.ms;
+    if (chunks.size > 64) for (const [kk] of chunks) { chunks.delete(kk); if (chunks.size <= 48) break; }   // forget the oldest
+    return c;
+  }
+  const _seen = new Set(), _list = [];
+  const S = {
+    stats: { chunks: 0, ms: 0 },
+    // every solid part whose grid cell is within r of (x, z) (a reused array: don't keep it)
+    near(x, z, r = 3) {
+      _list.length = 0; _seen.clear();
+      for (let j = Math.floor((z - r) / GRID); j <= Math.floor((z + r) / GRID); j++) for (let i = Math.floor((x - r) / GRID); i <= Math.floor((x + r) / GRID); i++) {
+        const c = chunk(Math.floor(i * GRID / CHUNK), Math.floor(j * GRID / CHUNK)), a = c.grid.get(kOf(i, j)); if (!a) continue;
+        for (const p of a) if (!_seen.has(p)) { _seen.add(p); _list.push(p); }
+      }
+      return _list;
+    },
+    // the floor at (x, z) for something at height y: a pier or bridge deck it is on or above (within `step` up), else null
+    floor(x, z, y, step = 0.45) {
+      let best = null;
+      const c = chunk(Math.floor(x / CHUNK), Math.floor(z / CHUNK));
+      for (const f of c.floors) {
+        const dx = x - f.x, dz = z - f.z, u = dx * f.c - dz * f.s, v = dx * f.s + dz * f.c;
+        if (u >= f.u0 && u <= f.u1 && v >= f.v0 && v <= f.v1 && f.y <= y + step && (best === null || f.y > best)) best = f.y;
+      }
+      const R = roadAt(x, z);
+      if (R && R.bridge) { const top = R.y + (LIFT[R.type] || 0.12); if (top <= y + step && (best === null || top > best)) best = top; }
+      return best;
+    },
+    // surface name of a road under (x, z), or null
+    surface(x, z) { const R = roadAt(x, z); return R ? (R.surface === 'dirt' ? 'dirt' : 'road') : null; },
+    chunkAt: (x, z) => chunk(Math.floor(x / CHUNK), Math.floor(z / CHUNK)),
+  };
+  return S;
+}
