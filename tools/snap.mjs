@@ -185,6 +185,25 @@ async function main() {
     const fail = (msg) => { log('FAIL', msg); result.expects.push({ ok: false, msg }); };
     let lastShot = null;
 
+    // ngc/bugsweep: 'wait' and 'key hold' run on the GAME clock (__G.war.time) when the page has one: the headless build
+    // runs 1-10 fps on a loaded machine and the frame step is capped at 0.1 s, so a wall-clock wait gave the game a
+    // fraction of the time the scene meant (the main cause of the scene table's flakes). Ends early only when the game
+    // clock is stopped (title, pause: after the wall time and 1 s without a tick) or after 20x the wall time.
+    // SNAP_WALL=1 restores wall-clock waits.
+    const gclock = () => page.evaluate(() => (window.__G && __G.war && typeof __G.war.time === 'number') ? __G.war.time : null).catch(() => null);
+    async function gameSleep(ms) {
+      ms = +ms; const t0 = Date.now(); let last = process.env.SNAP_WALL ? null : await gclock();
+      if (last === null) { await sleep(ms); return 'wall'; }
+      let el = 0, tick = Date.now();
+      for (;;) {
+        await sleep(Math.min(50, Math.max(5, ms)));
+        const now = Date.now(), g = await gclock();
+        if (g !== null && g !== last) { el += g > last ? g - last : Math.max(0, g); last = g; tick = now; }
+        if (el >= ms / 1000) return 'game';
+        if (now - t0 >= ms && now - tick > 1000) return 'game clock stopped';
+        if (now - t0 > Math.max(ms * 20, ms + 120000)) return 'cap';
+      }
+    }
     const ctx = {
       page, log,
       async goto(q) {
@@ -193,13 +212,14 @@ async function main() {
         await page.goto(u, { waitUntil: 'load' });
         await page.bringToFront();
       },
-      wait: async (ms) => { log('wait', `${ms} ms`); await sleep(+ms); },
+      wait: async (ms) => { log('wait', `${ms} ms`); await gameSleep(ms); },
       async key(action, code, ms) {
         action = action || 'tap';
         log('key', `${action} ${code}${ms ? ' ' + ms + 'ms' : ''}`);
         if (action === 'down') await page.keyboard.down(code);
         else if (action === 'up') await page.keyboard.up(code);
-        else if (action === 'tap' || action === 'hold') { await page.keyboard.down(code); await sleep(+ms || 60); await page.keyboard.up(code); }
+        else if (action === 'tap') { await page.keyboard.down(code); await sleep(+ms || 60); await page.keyboard.up(code); }
+        else if (action === 'hold') { await page.keyboard.down(code); await gameSleep(+ms || 60); await page.keyboard.up(code); }
         else throw new Error('key action must be down|up|tap|hold');
       },
       async click(x, y) { log('click', `${x},${y}`); await page.mouse.click(+x, +y); },
