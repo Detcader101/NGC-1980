@@ -2,7 +2,7 @@
 // remembered across reloads, and the Hornet cockpit (and its zoom) use it too.
 export default async function (h) {
   await h.waitFor("window.__G && __G.G.state==='play' && __G.H.landed", 15000); await h.wait(500);
-  await h.eval('(__G.setCkFov(70), __G.cockpitCam = true, 1)'); await h.wait(600);
+  await h.eval('(__G.setCkFov(70), __G.cockpitCam = true, 1)'); await h.waitFor('Math.abs(__G.zCam.fov - 70) < 0.5', 10000);
   await h.expect('Math.abs(__G.zCam.fov - 70) < 0.5');
   await h.shot('huey-70');
   await h.key('tap', 'Escape'); await h.wait(300);
@@ -15,13 +15,15 @@ export default async function (h) {
   await h.shot('menu-90');
   await h.key('tap', 'Escape'); await h.wait(400);
   await h.shot('huey-90');
-  await h.eval('(__G.cockpitCam = false, 1)'); await h.wait(400);
+  await h.eval('(__G.cockpitCam = false, 1)'); await h.waitFor('Math.abs(__G.zCam.fov - 62) < 0.5', 10000);
   await h.expect('Math.abs(__G.zCam.fov - 62) < 0.5');   // chase view unchanged
   // the Hornet cockpit
   await h.key('tap', 'Digit5'); await h.wait(500);
-  await h.eval('(__G.setCkFov(55), __G.cockpitCam = true, 1)'); await h.wait(500);
+  await h.eval('(__G.setCkFov(55), __G.cockpitCam = true, 1)'); await h.waitFor('__G.G.craft === "jet" && Math.abs(__G.zCam.fov - 55) < 0.5', 10000);
   await h.expect('__G.G.craft === "jet" && Math.abs(__G.zCam.fov - 55) < 0.5');
-  await h.eval('(__G.JP.zoom = 1, 1)'); await h.wait(300);
+  // (ngc/bugsweep) the camera follows on the next rendered frame: wait for it rather than a fixed 300 ms (a headless
+  // frame took longer than that once and the check read the unzoomed 55)
+  await h.eval('(__G.JP.zoom = 1, 1)'); await h.waitFor('Math.abs(__G.zCam.fov - 22) < 0.5', 10000);
   await h.expect('Math.abs(__G.zCam.fov - 22) < 0.5');
   await h.eval('(__G.JP.zoom = 0, __G.setCkFov(70), 1)');
 }
