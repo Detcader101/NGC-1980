@@ -13,7 +13,7 @@
     "eval (()=>{ const P=__G.H.pos; return __G.war.units.filter(u=>u.type==='escort').map(u=>[u.ai.state, Math.round(u.p.distanceTo(P))]) })()",
     "eval (()=>{ const P=__G.H.pos; window.__gs=[0,1,2].map(i=>__G.war.spawnGunship(2,[P.x+80+i*8, P.y, P.z-40])); __gs.forEach(g=>g.hp=1); return 1 })()",
     "key tap KeyC",
-    "wait 12000",
+    "waitFor 120000 __gs.filter(g=>!g.dead&&!g.dying).length < 3",
     "shot 01-dogfight",
     "eval ({gunshipsLeft:__gs.filter(g=>!g.dead&&!g.dying).length, escorts:__G.war.units.filter(u=>u.type==='escort').map(u=>[u.ai.state,u.ai.mode,u.hp])})",
     "expect __gs.filter(g=>!g.dead&&!g.dying).length < 3",
