@@ -1682,6 +1682,7 @@ function menuItems() {
 }
 function openMenu() {
   if (G.state !== 'play') return;
+  commander.close();   // COMMANDER: the board steps aside (after a loss the hand-on goes ahead)
   G.state = 'paused'; menu.sel = 0; if (document.pointerLockElement) document.exitPointerLock();
   if (bigMap) { bigMap = false; setMapSize(); }
   sfx.engine(0); crafts.silence(); armDelivery.silence(); say('', 0);   /* ARMOUR: the landing craft's diesels */  renderMenu(); $('menu').classList.add('on');

@@ -1881,3 +1881,53 @@ untouched (war.js's exported hitTest / damage / blast carry the gunnery).
   Roots-blower scream; the starter motor's gear whine; a cough when the diesel catches; the transmission's clunk on a
   range shift; brake squeal at low speed; the turret's hydraulic valve hiss while laying.
 - **Tests**: tankbench 73/73 (+ the start-up check), armorgamebench 20/20, tankaudio 4/4, tankmodel 2/2 (M60, M113).
+## 2026-10-24 — NGC-1980: THE COMMANDER - you command the task force, not the helicopter (branch ngc/commander)
+- **What**: the player is TASK FORCE ALBATROSS's commander. `\` opens the **command board** (units/commander/board.js,
+  DOM, the war keeps running while it is open): every unit type of the fleet - UH-1H Huey, F/A-18A Hornet, F-14A Tomcat,
+  M60A3, M113A2, the motor pool's vehicle, a Marine rifleman - with its reserve, the unit that is out (where, doing what)
+  and one key to take a unit out at the selected base (the ALBATROSS or any friendly island; LEFT / RIGHT) or switch to
+  the one already out. No need to land the Huey first: 5 / 8 work from any unit too. `/` jumps to the next unit out.
+  On the board R recalls a jet on CAP, X stands a parked unit at a base down into reserve; with no reserve left the
+  board buys one for materiel (game costs: Huey 60, Hornet 80, Tomcat 100, M60 60, M113 30, vehicle 15, Marine 5).
+- **The unit you leave carries on.** A Huey in the air: her crew flies her home (units/commander/heliai.js) to the
+  nearest friendly pad or the ALBATROSS's aft spot, through the real flight model's cyclic, pedals and collective (the
+  bench pilot's loops from tools/hueypilot.mjs, with ground-velocity targets so the hover matches the moving deck, a
+  sqrt braking profile en route, cruise 38 m over the highest ground ahead). A jet in the air (or rolling, or on the cat
+  stroke): the escorts' own AI pilot (units/air/pilot.js) takes the airframe (units/commander/wingman.js: no weapons, no
+  radar; CAP over the ALBATROSS, home at bingo or on recall, pattern, glideslope, trap, then she parks where the wire
+  left her). `jetplay.js` / `tomcatplay.js` got a small `P.wingman(dt, pilot, aiEnv)` that steps the airframe through
+  the pilot with the jet's own damage and leaks running; a crash under the wingman is a loss like any other. Vehicles
+  park (brakes on). A Marine you leave goes back to his platoon (+1 Marine in reserve, only if he came from it).
+- **Lives are the fleet** (units/commander/fleet.js, pure): a reserve per type (start: Huey 3 - the old lives - Hornet 2,
+  Tomcat 2, M60 1, M113 1, vehicle 2, Marines 6, besides what starts out: the Huey on deck, the M60 / M113 / car parked).
+  Taking a unit out costs one from reserve; losing one out there is counted (`fleet.lost`, LOSSES on the board); a unit
+  that stands down goes back. `G.lives`, `G.jets`, `G.tomcats` stay as views of the Huey / Hornet / Tomcat reserves (the
+  old scenes and menus read them). The HUD strip under the score replaces the HELICOPTERS / HORNETS / TOMCATS lines
+  ("HUEY 2+1": two in reserve, one out). The war is lost when the fleet is spent: nothing in reserve, nothing alive out.
+- **After a loss** of the unit you are in, the board opens on the next unit; unless you start choosing, the old crew
+  timers (3.5 s on foot / in a vehicle, 3 s in a jet, the Huey's 2.4 s) hand you on: the Huey where she is (out of the
+  hangar if a jet had the deck), else a new one from the reserve on the deck, else any unit that is out, else the board.
+  A Huey lost while you are elsewhere is no longer replaced for free: the next one comes from the reserve.
+- **Host hooks** (main.js, COMMANDER block): `roster` (one entry per type: out / active / status / can / deploy /
+  switchTo / recall / standDown), `commandBases()`, `onUnitLost(id, why, mine)` (craftjet / crafttomcat `ctx.onUnitLost`,
+  vehicle.js / armorcraft.js `ctx.unitLost(def, why)`), `autoNext()` (the hand-on), `heliHome()`; `resetZarch(fromPad,
+  spot)` takes an island pad; craftjet / crafttomcat `launch({ command: true })`, `D.wing`, `D.recall()`, `D.status()`,
+  `D.exit(next)` engages the wingman when she is flying. The WHEELED motor pool (ngc/wheeledgame) plugs into the roster
+  as the `car` row (today the TEST CAR).
+- **Tests**: `node tools/commanderbench.mjs` 32/32 - the ledger; the Huey AI to a pad 420 m away over a 40 m hill
+  (lands 1.1 m off the spot, 0.32 m/s at touchdown), onto a deck steaming at 7 m/s (2.4 m off the aft spot, rides it
+  after), out of a 45 m/s 25 m sinking run, staying down when landed; the wingman on the Hornet and the Tomcat airframes
+  (CAP, recall, trap: 4 / 3 wire, no wave-offs) and climbing out low and dirty off the bow. Scene `tools/scenes/
+  commander.mjs` 27/27: board open, a Marine on the deck, 5 from on foot (Hornet on cat 1, the Huey to the hangar, the
+  Marine back in reserve), switch to the Huey (wingman flies the Hornet, recalled with R on the board), the Huey left in
+  the air while you take the M113 (the crew lands her on the moving deck in ~30 s game time), `/`, a Tomcat on cat 1,
+  the M60 knocked out (counted) and a new one at the home island motor pool, the car stood down and out again on the
+  deck, the parked Huey lost and a new one on the island pad, the M113 stood down and out at the island, the war clock
+  running throughout, the Tomcat lost with you in it (the board opens, the hand-on puts you in the Huey), the wingman's
+  trap and park on deck, and DEFEAT when the fleet is spent.
+- **Known limits / next**: war.js still targets only the unit you are in (left units, the AI-flown Huey and jets
+  included, can't be hit - as parked crafts before); one instance per type (the game has one Hornet, one Tomcat, one
+  M60...): a second of a type out at once needs the crafts made multi-instance; the wingman does not fight (the escorts'
+  weapon logic wants their stores layout); the Huey's crew lands at the aft helicopter spot even if a jet sits there;
+  no gamepad navigation on the board (keyboard and mouse); the LCM-8 deliveries (9 / 0) and the motor pool (7) keep
+  their materiel costs and move the single vehicle (they don't touch the reserve).

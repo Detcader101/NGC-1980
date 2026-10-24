@@ -89,6 +89,23 @@ while anything tracks you. Flares and chaff rearm on the carrier and friendly pa
 
 The Huey spawns hot at flight idle and rolls the throttle on by itself. With `?cold` it starts cold and dark: BAT and MAIN FUEL on, throttle to the idle detent (PgUp), hold the starter (Home) to 40% N1 (light-off at ~12%), let it reach idle (~70% N1), then throttle full open to 6600 rpm. The cockpit switches (battery, generator, inverter, main fuel, governor AUTO/EMER, hydraulic control, force trim, low rpm audio, starter, master caution) are clickable. To autorotate: collective down to keep 324 rpm, 70 kt, flare at ~100 ft, cushion with the collective.
 
+### COMMAND (you command the task force)
+
+You are TASK FORCE ALBATROSS's commander, not one helicopter crew. **\\** opens the command board (the war keeps
+running while it is open): every unit type of the fleet - UH-1H Huey, F/A-18A Hornet, F-14A Tomcat, M60A3, M113A2,
+the motor pool's vehicle, a Marine rifleman - with how many are in reserve and the one that is out (where it is, what
+it is doing). Pick the base with LEFT / RIGHT (the ALBATROSS, or any friendly island: jets only from the carrier's cat 1),
+ENTER (or 1-7) takes a unit out there and puts you in it, or switches you to the one already out; with none left in
+reserve the board buys one for materiel. **/** jumps straight to the next unit that is out. On the board, R recalls a
+jet on CAP and X stands a parked unit down into reserve. **5** / **8** work from any unit (no need to land the Huey).
+
+The unit you leave carries on: a Huey in the air is flown home by her crew (to the nearest friendly pad or the
+ALBATROSS's aft spot, matching the deck's motion); a Hornet or Tomcat in the air goes to the escorts' AI pilot (CAP
+over the carrier, home at bingo or on recall, the pattern, the glideslope, a trap); vehicles park; a Marine you leave
+goes back to his platoon. Lives are the fleet: the HUD strip under the score shows each type's reserve (+1 = out in
+the war). A lost unit is a loss to the fleet; when the unit you are in is lost the board opens and, unless you pick,
+hands you on to the Huey. The war is lost when the fleet is spent - nothing in reserve and nothing left out there.
+
 ### HORNET (jet)
 
 | Key | Action |

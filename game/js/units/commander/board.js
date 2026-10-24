@@ -175,10 +175,11 @@ export function createCommander(h) {
     if (force || html !== C.lastHtml) { C.lastHtml = html; el.innerHTML = html; }
   }
   // per frame: the HUD fleet strip; the open board refreshes ~4x a second (statuses move)
-  let rt = 0;
+  let rt = 0, st = 0, shown = null;
   C.update = (dt, show) => {
     if (C.isOpen) { rt -= dt; if (rt <= 0) { rt = 0.25; render(false); } }
     if (!strip) return;
+    st -= dt; if (st > 0 && show === shown) return; st = 0.25; shown = show;   // the strip: 4x a second is plenty
     const s = fleet.strip(id => { const r = h.roster.find(r => r.id === id); return !!(r && r.out()); });
     const html = show ? `FLEET ${s.map(x => `<b>${x.short}</b> <i>${x.n}</i>${x.out ? '<span class="out">+1</span>' : ''}`).join('  ')}<div class="hint">\\ COMMAND BOARD  ·  / NEXT UNIT OUT  ·  +1 = OUT IN THE WAR</div>` : '';
     if (strip._h !== html) { strip._h = html; strip.innerHTML = html; }

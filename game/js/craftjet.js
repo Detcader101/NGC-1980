@@ -38,6 +38,7 @@ export function createJetCraft(ctx) {
       JP.snapChase(); head.yaw = head.pitch = 0; ctx.turnIntoClear(); return true;
     }
     if (G.craft === 'jet') { if (JP.stoppedOnDeck() || J.cat) { JP.respot(); ctx.turnIntoClear(); } else say('TRAP ON THE ALBATROSS FIRST: GEAR, FLAPS FULL, HOOK DOWN', 2); return; }
+    if (D.present() && !park.on) { crafts.control('jet', 0, 'command'); return; }   // COMMANDER: she is out with the wingman - take her where she is
     if (G.craft !== 'heli') { say(D.present() && park.on ? 'WALK TO THE PARKED HORNET AND GET IN (Y)' : 'LAND THE HELICOPTER ON THE ALBATROSS TO TAKE A JET', 1.8); return; }
     if (!ctx.heliOnDeck()) { say('LAND ON THE ALBATROSS TO TAKE A JET', 1.8); return; }
     if (D.present() && park.on) {   // a Hornet is already parked on deck: that one goes to the cat

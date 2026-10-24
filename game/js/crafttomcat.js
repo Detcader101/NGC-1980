@@ -45,6 +45,7 @@ export function createTomcatCraft(ctx) {
       TP.snapChase(); head.yaw = head.pitch = 0; ctx.turnIntoClear(); return true;
     }
     if (G.craft === 'tomcat') { if (TP.stoppedOnDeck() || A.cat) { TP.respot(); ctx.turnIntoClear(); } else say('TRAP ON THE ALBATROSS FIRST: GEAR, FLAPS DN, HOOK DOWN', 2); return; }
+    if (D.present() && !park.on) { crafts.control('tomcat', 0, 'command'); return; }   // COMMANDER: out with the wingman - take her where she is
     if (G.craft !== 'heli') { say(D.present() && park.on ? 'WALK TO THE PARKED TOMCAT AND CLIMB IN (Y AT THE LADDER, LEFT SIDE)' : 'LAND THE HELICOPTER ON THE ALBATROSS TO TAKE A TOMCAT', 1.8); return; }
     if (!ctx.heliOnDeck()) { say('LAND ON THE ALBATROSS TO TAKE A TOMCAT', 1.8); return; }
     if (ctx.catFouled && ctx.catFouled()) { say('CAT 1 IS FOULED  -  A PARKED JET IS ON IT', 1.8); return; }
