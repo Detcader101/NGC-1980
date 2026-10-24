@@ -4,7 +4,7 @@
   "steps": [
     "waitFor 10000 window.__G && __G.G.mode==='thrust'",
     "log (ngc/bugsweep) the UH-1H flight model hovers the cave at ~0.54 collective, not 0.42 (that sank 5 cells/s into the floor: HARD LANDING): hold the hover with the collective",
-    "eval (window.__hov = setInterval(()=>{ const T=__G.T; if (!T.alive || T.landed) return; __G.HI.setCollective(Math.min(0.7, Math.max(0.4, 0.54 - T.vy * 0.03))); }, 16), __G.H.rpm = 1, 1)",
+    "eval (window.__hc = 0.54, window.__hy = null, window.__hl = __G.war.time, window.__hov = setInterval(()=>{ const T=__G.T, dt = __G.war.time - __hl; if (__G.G.mode !== 'thrust' || !T.alive || T.landed) { __hl = __G.war.time; __hy = null; return; } if (dt <= 0) return; __hl = __G.war.time; if (__hy === null || T.vy > -0.5 && __hy > T.y + 4) __hy = T.y; const e = Math.max(-2, Math.min(2, (__hy - T.y) * 0.6)) - T.vy; __hc = Math.min(0.85, Math.max(0.4, __hc + e * 0.3 * dt)); __G.HI.setCollective(Math.min(0.95, Math.max(0.3, __hc + e * 0.03))); }, 16), __G.H.rpm = 1, 1)",
     "wait 2500",
     "expect __G.BASES[1].st.turrets.length === 2 && __G.BASES[4].st.turrets.length === 5",
     "log hat up: gun points straight up and auto-fires",
