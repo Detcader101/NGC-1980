@@ -34,9 +34,9 @@ export function createDelivery(o) {
       for (let r = 8; r < (I.r || 80) + 160; r += 1) if (terrainH(I.x + cx * r, I.z + sz * r) < 0) { shore = r; break; }
       if (shore < 0) continue;
       let ok = true, worst = 0;
-      for (let q = 0; q <= 30 && ok; q += 2) {
+      for (let q = 0; q <= 46 && ok; q += 2) {   // (ngc/bugsweep: the whole drive - off the ramp ~10 m out, then 24 m inland - not just the first 30 m; and 4 m either side, the follower wanders: the M35 rolled over on the graded shoulder beside the home island hard)
         const r = shore - q, x = I.x + cx * r, z = I.z + sz * r;
-        const along = Math.abs(terrainH(x + cx * 2, z + sz * 2) - terrainH(x - cx * 2, z - sz * 2)) / 4, across = Math.abs(terrainH(x - sz * 2.5, z + cx * 2.5) - terrainH(x + sz * 2.5, z - cx * 2.5)) / 5;
+        const along = Math.abs(terrainH(x + cx * 2, z + sz * 2) - terrainH(x - cx * 2, z - sz * 2)) / 4, across = Math.max(Math.abs(terrainH(x - sz * 2.5, z + cx * 2.5) - terrainH(x + sz * 2.5, z - cx * 2.5)) / 5, Math.abs(terrainH(x - sz * 4, z + cx * 4) - terrainH(x, z)) / 4, Math.abs(terrainH(x + sz * 4, z - cx * 4) - terrainH(x, z)) / 4);
         worst = Math.max(worst, along, across * 1.5); if (along > 0.25 || across > 0.16) ok = false;
         if (q >= 8 && !GR.clearAt(x, z, 3)) ok = false;
       }
