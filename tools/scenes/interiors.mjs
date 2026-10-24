@@ -102,4 +102,18 @@ export default async function (h) {
   await h.eval(`(() => { const u = __ch, W = __G.foot.W; __G.marine.aim(Math.atan2(W.x - u.p.x, W.z - u.p.z), -0.12); return 1; })()`); await h.wait(900);
   await h.expect("__ch.rot.squad.figs.filter(F => F.st === 'aboard' && F.f.group.visible).length >= 10", 'the squad seated aboard');
   await h.shot('ch46-squad-aboard');
+  // 10. a field gate: shut it blocks the gap in the wall, F swings it open
+  const g = await h.eval(`(() => { let best = null; for (const p of [__G.PAD, { x: -4691, z: 2434 }]) { const a = __SOLID.gatesNear(p.x, p.z, 500); if (a.length) { best = a.sort((x, y) => Math.hypot(x.cx - p.x, x.cz - p.z) - Math.hypot(y.cx - p.x, y.cz - p.z))[0]; break; } } if (!best) return null;
+    const D = best, d = D.d, hy = D.host.yaw(), c = Math.cos(hy), s = Math.sin(hy), n = d.ax === 'u' ? [0, 1] : [1, 0], o = [0, 0];
+    D.host.toWorld(d.u + n[0] * 2.2, d.v + n[1] * 2.2, o); const nx = o[0] - D.cx, nz = o[1] - D.cz, L = Math.hypot(nx, nz);
+    window.__GT = { D, side: () => { const W = __G.foot.W; return ((W.x - D.cx) * nx + (W.z - D.cz) * nz) / L; } };
+    __G.foot.spawnAt({ x: o[0], y: __G.terrainH(o[0], o[1]) + 0.3, z: o[1], yaw: Math.atan2(nx, nz) }); __G.marine.aim(Math.atan2(nx, nz), -0.1); return { x: D.cx, z: D.cz }; })()`);
+  if (g) {
+    await h.wait(6000); await h.eval("document.getElementById('hint').textContent"); await h.shot('field-gate-shut');
+    await h.key('down', 'KeyW'); await h.wait(4000); await h.key('up', 'KeyW');
+    await h.expect('__GT.side() > 0.2', 'the shut gate stops him');
+    await h.key('tap', 'KeyF'); await h.waitFor('__GT.D.a > 0.99', 25000); await h.shot('field-gate-open');
+    await h.key('down', 'KeyW'); await h.waitFor('__GT.side() < -1', 20000); await h.key('up', 'KeyW');
+    await h.expect('__GT.side() < -1', 'through the open gate');
+  }
 }

@@ -137,27 +137,33 @@ export function createInteriors(ctx) {
     built.set(P.key, { R, mesh, doors, box: [u0, u1, v0, v1, P.H] });
     IN.stats.built++; IN.stats.ms += performance.now() - t0;
   }
-  // per frame: leaves and punches of the built rooms
+  // one leaf (an instance of its kind) where its door stands: hinge, swing, the garage door's tilt (host frame -> world)
+  function placeLeaf(D) {
+    const d = D.d, M = leafMesh[d.kind] || leafMesh.house; if (M.count >= MAXL) return;
+    const L = DOORS.leaf(D), h = D.host, hy = h.yaw(), c = Math.cos(hy), s = Math.sin(hy), y0 = h.y0();
+    h.toWorld(L.hu, L.hv, _w); const wx = _w[0], wz = _w[1];
+    const ddx = c * L.du + s * L.dv, ddz = -s * L.du + c * L.dv, yaw = Math.atan2(-ddz, ddx);
+    _q.setFromAxisAngle(Y, yaw);
+    if (d.kind === 'garage') {   // up and over: the panel turns about its top edge, its foot swinging in
+      const nv = d.swing || -1, nx = s * nv, nz = c * nv, sg = Math.sign(nx * Math.sin(yaw) + nz * Math.cos(yaw)) || 1;
+      _q2.setFromAxisAngle(X, sg * L.lift * Math.PI / 2 * 0.98); _q.multiply(_q2);
+      _m.compose(_p.set(wx, y0 + d.y + d.h, wz), _q, _s.set(d.w, d.h, 1));
+    } else _m.compose(_p.set(wx, y0 + d.y, wz), _q, _s.set(d.w, d.h, 1));
+    M.setMatrixAt(M.count, _m); _c.setHex(d.c ?? 0x2f5a3a); M.instanceColor.setXYZ(M.count, _c.r, _c.g, _c.b); M.count++;
+  }
+  // per frame: leaves and punches of the built rooms, the field gates near the camera
   function drawLeaves(cam) {
     for (const k of LEAF_KINDS) leafMesh[k].count = 0;
     punch.count = 0;
+    if (worldSolid && worldSolid.gatesNear) for (const D of worldSolid.gatesNear(cam.position.x, cam.position.z, 70)) placeLeaf(D);
     for (const B of built.values()) {
       const it = B.R.it, c = Math.cos(it.yaw || 0), s = Math.sin(it.yaw || 0);
       const dx = cam.position.x - it.x, dz = cam.position.z - it.z, cu = c * dx - s * dz, cv = s * dx + c * dz, cy = cam.position.y - it.y;
       const inside = cu > B.box[0] - 0.05 && cu < B.box[1] + 0.05 && cv > B.box[2] - 0.05 && cv < B.box[3] + 0.05 && cy > -1 && cy < B.box[4] + 1.5;
       B.inside = inside;
       for (const D of B.doors) {
-        const d = D.d, M = leafMesh[d.kind] || leafMesh.house; if (M.count >= MAXL) continue;
-        const L = DOORS.leaf(D);
-        const wx = it.x + c * L.hu + s * L.hv, wz = it.z - s * L.hu + c * L.hv;
-        const ddx = c * L.du + s * L.dv, ddz = -s * L.du + c * L.dv, yaw = Math.atan2(-ddz, ddx);
-        _q.setFromAxisAngle(Y, yaw);
-        if (d.kind === 'garage') {   // up and over: the panel turns about its top edge, its foot swinging in
-          const nu = 0, nv = d.swing || -1, nx = c * nu + s * nv, nz = -s * nu + c * nv, lzx = Math.sin(yaw), lzz = Math.cos(yaw), sg = Math.sign(nx * lzx + nz * lzz) || 1;
-          _q2.setFromAxisAngle(X, sg * L.lift * Math.PI / 2 * 0.98); _q.multiply(_q2);
-          _m.compose(_p.set(wx, it.y + d.y + d.h, wz), _q, _s.set(d.w, d.h, 1));
-        } else _m.compose(_p.set(wx, it.y + d.y, wz), _q, _s.set(d.w, d.h, 1));
-        M.setMatrixAt(M.count, _m); _c.setHex(d.c ?? 0x2f5a3a); M.instanceColor.setXYZ(M.count, _c.r, _c.g, _c.b); M.count++;
+        const d = D.d;
+        placeLeaf(D);
         // the punch on the facade (only seen from outside the building)
         if (d.out && !inside && punch.count < MAXL) {
           const o = d.out * (0.09 + 0.13);   // half the wall (0.18 / 2) out to the shell's face, then clear of its door quad

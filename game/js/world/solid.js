@@ -18,7 +18,8 @@ import { roadAt, roadById } from './net.js';
 import { polesOf } from './layout.js';
 import { rng } from './rng.js';
 import { BOUND } from '../world.js';
-import { roomParts, floorHere, ENTERABLE, KEEP } from '../interiors/roomsolid.js';   // ngc/interiors: enterable buildings
+import { roomParts, floorHere, ENTERABLE, KEEP } from '../interiors/roomsolid.js';
+import { DOORS } from '../interiors/doors.js';   // ngc/interiors: enterable buildings
 
 // ngc/interiors: an enterable building is its rooms (walls with door gaps, furniture, live door leaves, floors and
 // stairs: interiors/rooms.js), plus whatever of its old solid stays outside them (the church tower, the canopy posts)
@@ -79,7 +80,7 @@ function fieldWalls(it, hf, out) {
   sides.forEach(([[ua, va], [ub, vb]], k) => {
     const len = Math.hypot((ub - ua) * it.w / 2, (vb - va) * it.d / 2), n = Math.max(1, Math.round(len / 6));
     for (let q = 0; q < n; q++) {
-      if (k === gap && q === Math.floor(n / 2)) continue;
+      if (k === gap && q === Math.floor(n / 2)) { fieldGate(it, hf, out, ua, va, ub, vb, q / n, (q + 1) / n); continue; }
       const t0 = q / n, t1 = (q + 1) / n;
       const [x0, z0] = W((ua + (ub - ua) * t0) * (it.w / 2 + 1), (va + (vb - va) * t0) * (it.d / 2 + 1)), [x1, z1] = W((ua + (ub - ua) * t1) * (it.w / 2 + 1), (va + (vb - va) * t1) * (it.d / 2 + 1));
       const h0 = hf(x0, z0), h1 = hf(x1, z1), l = Math.hypot(x1 - x0, z1 - z0) || 1;
@@ -87,6 +88,16 @@ function fieldWalls(it, hf, out) {
       out.push({ x: (x0 + x1) / 2, z: (z0 + z1) / 2, yaw: Math.atan2(x1 - x0, z1 - z0), hw: hedge ? 0.6 : 0.3, hl: l / 2, y0: Math.min(h0, h1) - 0.3, y1: Math.max(h0, h1) + (hedge ? 1.7 : 0.95), t: hedge ? 'hedge' : 'wall', soft: true });
     }
   });
+}
+// ngc/interiors: a five-bar gate hung in the field's gap (doors.js 'gate': F opens it; a tank goes through it)
+function fieldGate(it, hf, out, ua, va, ub, vb, t0, t1) {
+  const U = t => (ua + (ub - ua) * t) * (it.w / 2 + 1), V = t => (va + (vb - va) * t) * (it.d / 2 + 1);
+  const u0 = U(t0), v0 = V(t0), u1 = U(t1), v1 = V(t1), L = Math.hypot(u1 - u0, v1 - v0), ax = Math.abs(u1 - u0) > Math.abs(v1 - v0) ? 'u' : 'v';
+  const um = (u0 + u1) / 2, vm = (v0 + v1) / 2, c = Math.cos(it.yaw || 0), s = Math.sin(it.yaw || 0), gy = hf(it.x + c * um + s * vm, it.z - s * um + c * vm);
+  const d = { u: um, v: vm, y: 0, w: Math.min(L - 0.2, 3.6), h: 1.15, ax, hinge: -1, swing: 1, kind: 'gate', c: 0xc8c0a8, gate: true };
+  const host = { toWorld: (u, v, o) => { o[0] = it.x + c * u + s * v; o[1] = it.z - s * u + c * v; return o; }, yaw: () => it.yaw || 0, y0: () => gy };
+  const D = DOORS.register('gate:' + (it.seed | 0) + ':' + Math.round(it.x) + ':' + Math.round(it.z), d, host);
+  D.part.soft = true; out.push(D.part);
 }
 // the piers of a quay or a jetty: floors (rectangles in the item frame at a height)
 function pierFloors(it, out) {
@@ -131,7 +142,7 @@ export function createWorldSolid(ctx) {
         const k = kOf(i, j); let a = grid.get(k); if (!a) grid.set(k, a = []); a.push(p);
       }
     }
-    return { grid, floors, rooms, n: parts.length };
+    return { grid, floors, rooms, gates: parts.filter(p => p.D && p.D.d.gate).map(p => p.D), n: parts.length };
   }
   function chunk(i, j) {
     const k = kOf(i, j); let c = chunks.get(k); if (c) return c;
@@ -148,7 +159,7 @@ export function createWorldSolid(ctx) {
     if (chunks.size > 64) for (const [kk] of chunks) { chunks.delete(kk); if (chunks.size <= 48) break; }   // forget the oldest
     return c;
   }
-  const _seen = new Set(), _list = [], _rooms = [], _rseen = new Set();
+  const _seen = new Set(), _list = [], _rooms = [], _rseen = new Set(), _gates = [];
   const S = {
     stats: { chunks: 0, ms: 0 },
     // every solid part whose grid cell is within r of (x, z) (a reused array: don't keep it)
@@ -181,6 +192,12 @@ export function createWorldSolid(ctx) {
     // surface name of a road under (x, z), or null
     surface(x, z) { const R = roadAt(x, z); return R ? (R.surface === 'dirt' ? 'dirt' : 'road') : null; },
     chunkAt: (x, z) => chunk(Math.floor(x / CHUNK), Math.floor(z / CHUNK)),
+    // ngc/interiors: field gates within r of (x, z) (doors.js doors; a reused array)
+    gatesNear(x, z, r = 60) {
+      _gates.length = 0;
+      for (let j = Math.floor((z - r) / CHUNK); j <= Math.floor((z + r) / CHUNK); j++) for (let i = Math.floor((x - r) / CHUNK); i <= Math.floor((x + r) / CHUNK); i++) for (const D of chunk(i, j).gates) if (Math.abs(D.cx - x) < r && Math.abs(D.cz - z) < r && !_gates.includes(D)) _gates.push(D);
+      return _gates;
+    },
     // ngc/interiors: the enterable buildings within r of (x, z): [{ it, P }] (a reused array)
     roomsNear(x, z, r = 60) {
       _rooms.length = 0; _rseen.clear();
