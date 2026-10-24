@@ -115,6 +115,15 @@ export function buildParatrooper(o = {}) {
       E('upperArmL', 0, 0, -2.75); E('upperArmR', 0, 0, 2.75); E('forearmL', 0.35); E('forearmR', 0.35);
       E('thighL', 0.12); E('thighR', 0.12); E('shinL', -0.18); E('shinR', -0.18); E('footL', 0.35); E('footR', 0.35);
       kit.position.set(0, -2.4, -0.1); line.visible = true; line.scale.y = 1.9;
+    } else if (name === 'doorcheck') {   // the jumpmaster's door check: hands on both edges of the door, leaning out into
+      // the slipstream, head turned toward the nose to pick up the DZ and look along the fuselage (t: +1 left door, -1 right)
+      E('upperArmL', -0.75, 0, -0.95); E('upperArmR', -0.75, 0, 0.95); E('forearmL', 0.4); E('forearmR', 0.4);
+      E('spine', 0.55); E('chest', 0.15); E('head', -0.55, -1.0 * (t || 1), 0);
+      E('thighL', 0.3); E('shinL', -0.45); E('thighR', -0.1); E('shinR', -0.15); B.pelvis.position.y = 0.95;
+    } else if (name === 'safety') {   // standing at the aft edge of the door facing the stick: one arm out controlling the
+      // static lines, the other on the anchor cable; head turned to the door (t: +1 left door, -1 right)
+      E('upperArmL', -1.2, 0, -0.15); E('upperArmR', -2.3, 0, 0.25); E('forearmL', 0.5); E('forearmR', 0.3);
+      E('head', 0, 0.45 * (t || 1), 0); E('shinL', -0.05); E('shinR', -0.05);
     } else if (name === 'plf') {   // feet and knees together, rolling onto the side: thighs back, body over, arms over the head
       E('spine', 0.5); E('thighL', -0.9); E('thighR', -0.9); E('shinL', -0.6); E('shinR', -0.6);
       E('upperArmL', -2.4, 0, -0.4); E('upperArmR', -2.4, 0, 0.4); E('forearmL', 0.6); E('forearmR', 0.6); B.pelvis.position.y = 0.6;

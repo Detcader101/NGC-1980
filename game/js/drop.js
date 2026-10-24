@@ -125,7 +125,7 @@ export function createDrop(ctx) {
       plane: { u, sim, mesh: m.group, parts: m, p: sim.pos, entry: e, lastHp: u.hp }, ap: true, view: 'cockpit', ctl: { roll: 0, pitch: 0, yaw: 0, throttle: [0.5, 0.5, 0.5, 0.5] }, kb: { roll: 0, pitch: 0 },
       jumpers: [], left: N_JUMPERS, jumpCd: 0, work: 0, arrived: 0, fixed: false, t: 0, smokeT: 0, hadStick: false, apJump: true,
       cam: new THREE.Vector3().copy(sim.pos).add(_v.set(0, 25, 70)), look: new THREE.Vector3().copy(target), lost: 0, light: 'off', jumpSwitch: 'off', exits: 0,
-      doorMen: [null, null], doorT: [0, 0], hold: null, jm: { stage: 0, lastT: -9 }, bundle: null, bundleOut: false, bundleOK: false, statics: [], trail: [], retrieved: false, lastExitT: 0, noInput: 9, env: { groundY: (x, z) => Math.max(groundY(x, z), 0), water: (x, z) => isWater(x, z), wind: { x: 0, z: 0 } },
+      doorMen: [null, null], jmFig: null, safetyFig: null, doorT: [0, 0], hold: null, jm: { stage: 0, lastT: -9 }, bundle: null, bundleOut: false, bundleOK: false, statics: [], trail: [], retrieved: false, lastExitT: 0, noInput: 9, env: { groundY: (x, z) => Math.max(groundY(x, z), 0), water: (x, z) => isWater(x, z), wind: { x: 0, z: 0 } },
     };
     M.env.wind.x = M.wind.x; M.env.wind.z = M.wind.y;
     const dir = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(((Math.atan2(M.wind.x, -M.wind.y) + 6.283) % 6.283) / 0.785) % 8];
@@ -139,11 +139,23 @@ export function createDrop(ctx) {
   // ---------------------------------------------------------------- jumpers
   // where a jumper leaving the aircraft now lands if he does not steer: the static-line deployment (he slows to the
   // wind and falls), then the canopy drives along the run heading and drifts with the wind
-  function predict(out) { const S = M.plane.sim; return predictFrom(S.pos.x, S.pos.y, S.pos.z, S.vel.x, S.vel.z, S.vel.y, S.heading, out); }
-  function predictFrom(x, y, z, vx, vz, vy, h, out) {
+  // While the door bundle is still aboard the release point is set inside the pattern: the bundle (no drive, ~28 ft/s)
+  // lands short and the jumpers' unsteered point long; the aim sits 80 % of the way toward the bundle (it cannot steer,
+  // the men can: from 800 ft an MC1-1 has ~120 m of drive), so the bundle lands near the helicopter and the stick
+  // steers back onto it (a release point set for the men alone dropped the bundle ~120 m short, often in the sea).
+  function predict(out) { const S = M.plane.sim; return predictPattern(S.pos.x, S.pos.y, S.pos.z, S.vel.x, S.vel.z, S.vel.y, S.heading, out); }
+  const _pb = new THREE.Vector3();
+  function predictPattern(x, y, z, vx, vz, vy, h, out) {
+    predictFrom(x, y, z, vx, vz, vy, h, out);
+    if (M.bundleOut || M.left === 0) return out;
+    predictFrom(x, y, z, vx, vz, vy, h, _pb, true);
+    return out.set(out.x * 0.2 + _pb.x * 0.8, 0, out.z * 0.2 + _pb.z * 0.8).setY(groundY(out.x, out.z));
+  }
+  function predictFrom(x, y, z, vx, vz, vy, h, out, bundle = false) {
     const dt = 0.25;
     for (let t = 0; t < 90; t += dt) {
-      if (t < DEPLOY) { const k = Math.exp(-0.9 * dt); vx = M.wind.x + (vx - M.wind.x) * k; vz = M.wind.y + (vz - M.wind.y) * k; vy = t < 2 ? Math.max(vy - 9.8 * dt, -25) : vy + (-SINK - vy) * (1 - Math.exp(-3 * dt)); }
+      if (bundle) { const k = Math.exp(-0.9 * dt); vx = M.wind.x + (vx - M.wind.x) * k; vz = M.wind.y + (vz - M.wind.y) * k; vy = t < 1.8 ? Math.max(vy - 9.8 * dt, -25) : vy + (-8.5 - vy) * (1 - Math.exp(-3 * dt)); }
+      else if (t < DEPLOY) { const k = Math.exp(-0.9 * dt); vx = M.wind.x + (vx - M.wind.x) * k; vz = M.wind.y + (vz - M.wind.y) * k; vy = t < 2 ? Math.max(vy - 9.8 * dt, -25) : vy + (-SINK - vy) * (1 - Math.exp(-3 * dt)); }
       else { vx = fwdX(h) * DRIVE + M.wind.x; vz = fwdZ(h) * DRIVE + M.wind.y; vy = -SINK; }
       x += vx * dt; y += vy * dt; z += vz * dt;
       if (y < groundY(x, z) + 0.5) break;
@@ -162,6 +174,26 @@ export function createDrop(ctx) {
       M.plane.mesh.add(d.group); M.doorMen[i] = d;
     }
     if (d) d.group.visible = !!show;
+  }
+
+  // the jumpmaster and the safety (the loadmaster) in the hold, part of the aircraft: the jumpmaster does his door check
+  // in the left door (leaning out, looking toward the nose for the DZ) from doors open until he pushes the door bundle,
+  // then stands at the aft edge of the door facing the stick, controlling the static lines; the safety stands at the
+  // aft edge of the right door the whole time the doors are open. Both stay aboard (they retrieve the bags).
+  function holdCrew(S) {
+    const fig = (key, pose, t, x, z, ry, show) => {
+      let f = M[key];
+      if (show && !f) { f = buildJumper(); f.canopy.visible = false; f.rig.setKit?.(false); M.plane.mesh.add(f.group); M[key] = f; f.cur = ''; }
+      if (!f) return;
+      f.group.visible = !!show; if (!show) return;
+      if (f.cur !== pose) { f.rig.pose(pose, t); f.cur = pose; }
+      f.group.position.set(x, C130M.FLOOR_Y, z); f.group.rotation.y = ry;
+    };
+    const live = !M.plane.down && !M.plane.gone, dz = C130M.DOOR[0][2];
+    const check = live && !M.egress && M.jm.stage > DOORS_OPEN && !M.bundleOut && S.door[0] > 0.9;
+    if (check) fig('jmFig', 'doorcheck', 1, -1.84, dz, Math.PI / 2, true);
+    else fig('jmFig', 'safety', 1, -1.5, dz + 0.78, 0.35, live && S.door[0] > 0.3 && M.jm.stage > DOORS_OPEN);
+    fig('safetyFig', 'safety', -1, 1.5, dz + 0.78, -0.35, live && S.door[1] > 0.3 && M.jm.stage > DOORS_OPEN);
   }
 
   function jump(force) {
@@ -349,7 +381,7 @@ export function createDrop(ctx) {
   function planRun(h) {
     const T = M.target, alt = Math.max(T.y, 0) + DROP_AGL, rho = 4.9 * Math.exp(-alt / 6000), tas = DROP_KIAS / KT * Math.sqrt(1.225 / rho);
     const ux = fwdX(h), uz = fwdZ(h), along = tas + M.wind.x * ux + M.wind.y * uz;   // the autopilot crabs: ground track along the run
-    predictFrom(T.x, alt, T.z, ux * along, uz * along, 0, h, _w);
+    predictPattern(T.x, alt, T.z, ux * along, uz * along, 0, h, _w);
     M.run = { h, x: T.x - (_w.x - T.x), z: T.z - (_w.z - T.z), passes: 0, setup: false };
   }
   function runGeom() {   // along-track distance s (negative before the release point) and cross-track c (+ = right of it)
@@ -459,7 +491,8 @@ export function createDrop(ctx) {
     if (M.left === 0 && !M.egress) { M.egress = true; M.egressT = M.t; M.jumpSwitch = 'off'; }
     updateStatics(); updateTrail();
     // the next men stand in the open doors
-    for (let i = 0; i < 2; i++) { M.doorT[i] -= dt; const need = M.left > (i === M.exits % 2 ? 0 : 1); doorMan(i, need && S.door[i] > 0.9 && M.doorT[i] <= 0 && !P.down); }
+    for (let i = 0; i < 2; i++) { M.doorT[i] -= dt; const need = M.left > (i === M.exits % 2 ? 0 : 1); doorMan(i, need && S.door[i] > 0.9 && M.doorT[i] <= 0 && !P.down && (i === 1 || M.bundleOut || M.jm.stage <= DOORS_OPEN)); }
+    holdCrew(S);
     // warnings
     if (!P.down && hasStick) {
       if (S.buffet > 0.3) sfx.alarm?.();
@@ -488,7 +521,7 @@ export function createDrop(ctx) {
     const S = M.plane.sim; predict(_w); let miss = Math.hypot(_w.x - M.target.x, _w.z - M.target.z);
     // on the run: the stick goes when the predicted landing point comes abeam the helicopter (a little early for a stick
     // of three at a second's spacing) and no more than 90 m to the side (they can steer that out under canopy)
-    if (M.run && !M.run.setup) { const ax = _w.x - M.target.x, az = _w.z - M.target.z, al = ax * fwdX(M.run.h) + az * fwdZ(M.run.h), lat = ax * Math.cos(M.run.h) - az * Math.sin(M.run.h); if (al > -30 && al < 20 && Math.abs(lat) < 90) miss = 0; }
+    if (M.run && !M.run.setup) { const ax = _w.x - M.target.x, az = _w.z - M.target.z, al = ax * fwdX(M.run.h) + az * fwdZ(M.run.h), lat = ax * Math.cos(M.run.h) - az * Math.sin(M.run.h); if (al > (M.bundleOut ? -30 : 0) && al < 20 && Math.abs(lat) < 90) miss = 0; else if (!M.bundleOut) miss = 99; }   // the bundle goes first: no early green for it
     const onRun = !M.run || (!M.run.setup && Math.abs(angDiff(S.track(), M.run.h)) < 0.5);
     if (miss < 35 && onRun && aglOf(S.pos) > JUMP_MIN_AGL && S.kias < JUMP_MAX_KIAS) return 'green';
     if (!M.run) return 'off';
@@ -573,6 +606,10 @@ export function createDrop(ctx) {
       return;
     }
     hover = null;
+    if (api.camLocal) {   // test hook (scenes): camera at a point in the aeroplane's frame, looking at another
+      M.plane.mesh.updateMatrixWorld(); const [p, l] = api.camLocal;
+      cam.position.set(...p).applyMatrix4(M.plane.mesh.matrixWorld); cam.up.set(0, 1, 0); cam.lookAt(_w.set(...l).applyMatrix4(M.plane.mesh.matrixWorld)); return;
+    }
     if (L && !planeHasStick()) {
       const h = L.state === 'ff' ? S.heading : L.h;
       _v.set(L.p.x - fwdX(h) * 20, L.p.y + 9, L.p.z - fwdZ(h) * 20);   // far enough back to see the canopy over him
@@ -588,7 +625,7 @@ export function createDrop(ctx) {
   }
 
   const api = {
-    start, update, camera, cancel: cleanup,
+    start, update, camera, cancel: cleanup, camLocal: null,
     get active() { return !!M; },
     get camActive() { return !!M && (planeHasStick() || !!leadJumper()); },
     get controlling() { return this.camActive; },

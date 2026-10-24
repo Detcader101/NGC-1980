@@ -12,6 +12,7 @@ export default async function (h) {
   await h.eval(`(__C.head.yaw = 1.45, __C.head.pitch = -0.05, 1)`); await h.wait(600); await h.shot('deck_left_window_engines');
   await h.eval(`(__C.head.yaw = 0.0, __C.head.pitch = 0.8, 1)`); await h.wait(600); await h.shot('deck_overhead');
   await h.eval(`(__C.head.yaw = -1.3, __C.head.pitch = -0.1, 1)`); await h.wait(600); await h.shot('deck_copilot');
+  await h.eval(`(__C.head.yaw = 2.3, __C.head.pitch = -0.3, 1)`); await h.wait(900); await h.shot('deck_navigator');
   // autopilot holds height and speed
   await h.eval(`(__C.head.yaw = 0, __C.head.pitch = 0, __C.ap = true, window.__y0 = __C.S.pos.y, window.__k0 = __C.S.kias, 1)`);
   await h.wait(15000);

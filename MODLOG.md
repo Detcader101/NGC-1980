@@ -1985,3 +1985,24 @@ untouched (war.js's exported hitTest / damage / blast carry the gunnery).
 - Tests: c130bench 46/46; c130.mjs 8/8 (adds cold start 3-4-2-1 with TIT < 830 and the sound graph), c130jump.json
   (new: jumpmaster stages, doors, bundle, trailing bags, retrieval) 4/4, drop.json 5/5 (the F press waits for the
   bundle, then the first man).
+
+## 2026-10-24 — Hercules polish, part 2: crew in the hold, navigator, door bundle on the DZ (branch ngc/c130-polish)
+- Reviewed and kept the stopped session's work (ground start, jump procedure, checklist card, sound, markings, the
+  overhead gauges drawn three a frame); merged experimental (MODLOG conflict only: both sides kept).
+- **Jumpmaster and safety visible (drop.js holdCrew, jumper.js poses 'doorcheck' / 'safety')**: from DOORS OPEN the
+  jumpmaster does his door check in the left door (FM 3-21.220: hands on both edges, leaning into the slipstream,
+  looking toward the nose for the DZ); the next jumper only steps into that door after the jumpmaster has pushed the
+  door bundle. Then he stands at the aft edge of the left door facing the stick, controlling the static lines; the
+  safety (the loadmaster) does the same at the right door. Both stay aboard and retrieve the bags; gone with the doors.
+- **Navigator on the flight deck (c130cockpit.js)**: seated at the existing table (left, aft of the pilot), facing
+  outboard, grease pencil on a jump-run chart (IP, CARP, DZ circle); his panel has the APN-59 search radar scope
+  (green phosphor, 4 s sweep painting the DZ return at its bearing / range) and the APN-147 Doppler readout (ground
+  speed and drift angle, real-equivalent knots like the ASI and DME). `seated()` takes a parent group now.
+- **Door bundle on the DZ (drop.js predictPattern)**: the release point was set for the men alone, so the bundle (no
+  drive, ~28 ft/s) landed ~70-150 m short, on WELLSPRING usually in the sea (c130jump: bundleOK false, 148 m). While
+  the bundle is aboard, the computed impact point is 80 % of the way from the men's unsteered point to the bundle's,
+  and the green comes with that point at the helicopter, not up to 35 m early. Now the bundle lands ~25 m short and
+  the stick, which steers (~120 m of drive from 800 ft), still lands within 10 m (c130jump: bundle -24 m, men 1-13 m).
+- Test hook: `drop.camLocal = [[x,y,z],[lx,ly,lz]]` puts the camera at a point in the aeroplane's frame (scenes).
+- Tests: c130bench 46/46; c130.mjs 8/8 (new deck_navigator shot); c130jump.json 7/7 (adds the door check, the safeties,
+  the stick in the door, bundleOK); drop.json 5/5; dropflak.json 1/1; smoke.json 5/5.
