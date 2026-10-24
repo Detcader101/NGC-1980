@@ -1700,3 +1700,41 @@ untouched (war.js's exported hitTest / damage / blast carry the gunnery).
   4 fps: the carrier moved 2.2 m instead of 3 in 5 s of wall time - fixed by sleeping on decks), vehicle 14/14 (failed 13/17
   while the M60 and M113 were parked in the test car's path - moved), jettrap 7/7, world 4/4; foot.mjs 10/12 (the island
   roof ladder top and the medical slot check; the experimental base scored 6/18 on the same machine - load-dependent).
+
+## 2026-10-23 — Hercules polish: start flow, jump procedure, flight deck, sound, markings (branch ngc/c130-polish)
+- **Engine start (c130fm.js)**, after T.O. 1C-130H-1 normal start and the OPS card: battery; the GTC (the C-130H's
+  gas turbine compressor) comes on speed in ~20 s and puts bleed air on the manifold; with the condition lever at RUN
+  the start button engages the air turbine starter (~95 N m at the engine, x13.54); fuel and ignition at 16 %
+  (light-off ~3 s), TIT peaks ~775 C (normal start 750-830), the starter drops out at 60 % (~9 s), the fuel control's
+  acceleration schedule takes it to ground idle (~14 s). No battery or no bleed air: no start; >60 s below 60 %: hung
+  start, aborted. Later engines start on cross-bleed from a running one. Bench: 46/46 (the 38 plus 8 start checks).
+- **Checklists**: a checklist card on the flight deck (by the pilot's left knee) shows what the crew is working
+  through, ticked live: STARTING ENGINES (battery, GTC, bleed air, power levers ground idle, brakes, engines
+  3-4-2-1 with rpm / peak TIT) and BEFORE TAXI on the ground; DESCENT, SLOWDOWN / AIRDROP (drop altitude, flaps 50,
+  130 KIAS, stick hooked up, doors and deflectors, door bundle, jump lights) and COMPLETION OF DROP in the drop.
+  dev/c130.html?start=cold + K: the flight engineer runs the start himself (one action every ~1.2 s).
+- **Overhead**: BATTERY, GTC START, GTC BLEED AIR switches, GTC rpm gauge, engine oil pressure (50-60 psi) and
+  temperature (60-85 C) per engine (OPS card bands); condition-lever labels moved inside their box.
+- **Jump procedure (drop.js)**: the jumpmaster's commands by time to the release point (FM 3-21.220 order, compressed
+  like the run): GET READY, OUTBOARD PERSONNEL STAND UP, HOOK UP, CHECK STATIC LINES, CHECK EQUIPMENT, SOUND OFF FOR
+  EQUIPMENT CHECK ("OKAY!"), doors open / air deflectors out / platforms down, STAND BY on the red light, GO on the
+  green. No jump before HOOK UP ("NOT HOOKED UP - HOLD"). The door bundle (A-21 bag on a G-14 cargo chute, new
+  buildDoorBundle in jumper.js) goes out of the left door first; it lands short of the jumpers (no drive, ~28 ft/s);
+  within 200 m of the helicopter on dry land the tools are recovered and the repair goes 1.5x faster. Each jumper's
+  static line runs from the anchor cable over the door to his pack while it pays out (~0.6 s), then the spent line and
+  its deployment bag stream aft from the door, flapping, until the jumpmaster pulls them in (~7 s after the last man);
+  the doors close after that. The bail-out (alarm bell / shot down) skips all of it.
+- **Sound (c130audio.js)**: each engine on its own stereo position (on the flight deck #1/#2 on the left; outside
+  panned by where each prop is across the camera), the synchrophaser's slow hunting (the beat comes and goes), the
+  flat-pitch buzz-saw on the ground in beta, the GTC's thin scream and bleed-air hiss. c130.mjs checks the graph runs:
+  props 2-4 at 68 Hz (blade passage at 100 %), the feathered #1 winding down.
+- **Exterior**: red DANGER PROPELLER bands on the fuselage in the plane of the props, wing walkway lines, the HF long
+  wire from the flight deck roof to the fin.
+- **Landing on the home island: decided against for now.** HOME ISLAND is a 260 m, hilly island (hills up to ~40 m);
+  an assault strip needs a flattened bed in the terrain (world.js / world/net.js, other agents' files and the baked
+  terrain). In this world a C-130 landing roll is ~70-80 m (a quarter of the real ~1,000 ft), but the approach and
+  roll-out need a ~250 m flat, clear strip: the island has none. The test page lands on its runway; the bench lands.
+  Next step if wanted: a dirt strip as a flattened bed in net.js, then a landing mode in drop.js.
+- Tests: c130bench 46/46; c130.mjs 8/8 (adds cold start 3-4-2-1 with TIT < 830 and the sound graph), c130jump.json
+  (new: jumpmaster stages, doors, bundle, trailing bags, retrieval) 4/4, drop.json 5/5 (the F press waits for the
+  bundle, then the first man).

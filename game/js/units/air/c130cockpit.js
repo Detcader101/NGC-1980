@@ -232,7 +232,7 @@ export function buildC130Deck() {
   toggle('af', OH, 0.42, 0.28, 'AUTOFEATHER ARM');
   toggle('bat', OH, -0.47, -0.33, 'BATTERY'); toggle('gtc', OH, -0.47, -0.23, 'GTC (APU)  START / STOP'); toggle('bleed', OH, -0.47, -0.13, 'GTC BLEED AIR VALVE');
   // small round gauges on the overhead: GTC rpm, oil pressure and oil temperature per engine
-  const ohG = [];
+  const ohG = []; let ohRR = 0;
   const ohGauge = (x, y, d, face, dyn) => { const t = canvasTex(96, 96), o = new THREE.Mesh(new THREE.CircleGeometry(d / 2, 24), new THREE.MeshBasicMaterial({ map: t.tex, toneMapped: false, color: 0xe2e2e2 })); o.position.set(x, y, 0.004); OH.add(o);
     const bg = document.createElement('canvas'); bg.width = bg.height = 96; face(bg.getContext('2d'), 96); ohG.push({ ...t, bg, dyn, W: 96 }); };
   const opMap = lin(0, -140, 100, 140), otMap = lin(0, -140, 120, 140), gtcMap = lin(0, -140, 110, 140);
@@ -430,7 +430,7 @@ export function buildC130Deck() {
       for (const y of yokes) { y.col.rotation.x = clamp(c.pitch || 0, -1, 1) * 0.18; y.wheel.rotation.z = -clamp(c.roll || 0, -1, 1) * 1.1; }
       for (const pr of pedals) { pr[0].position.z = -11.55 + clamp(c.yaw || 0, -1, 1) * 0.06; pr[1].position.z = -11.55 - clamp(c.yaw || 0, -1, 1) * 0.06; }
       setToggle('bat', S.battery ? 1 : -1); setToggle('gtc', S.gtc.cmd ? 1 : -1); setToggle('bleed', S.bleedValve ? 1 : -1);
-      for (const G of ohG) { G.ctx.drawImage(G.bg, 0, 0); G.dyn(G.ctx, G.W, S); G.tex.needsUpdate = true; }
+      for (let i = 0; i < 3; i++) { const G = ohG[(ohRR++) % ohG.length]; G.ctx.drawImage(G.bg, 0, 0); G.dyn(G.ctx, G.W, S); G.tex.needsUpdate = true; }   // three a frame
       drawChecklist(X.checklist);
       setToggle('ap', X.ap ? 1 : -1); setToggle('apAlt', X.ap ? 1 : -1); setToggle('af', S.autoFeatherArm ? 1 : -1);
       setToggle('jump', X.jumpSwitch === 'green' ? 1 : X.jumpSwitch === 'red' ? -1 : 0);
