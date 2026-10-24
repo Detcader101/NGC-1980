@@ -336,7 +336,11 @@ export function createWar(ctx) {
     let avoid = null;
     if (pl && pl.alive && pl.pos && Math.abs(pl.pos.x - u.p.x) < 90 && Math.abs(pl.pos.z - u.p.z) < 90) {
       const [hx, hz] = toLocal(u, pl.pos.x, pl.pos.z), hy = pl.pos.y - u.p.y - u.dims.DECK;
-      if (hy < 14 && hy > -2) avoid = (x, z) => { const dx = x - hx, dz = z - hz, r = Math.hypot(dx, dz); return r < 9 ? [dx || 0.1, dz] : null; };
+      // QA (ngc/qa-ship): a Marine on foot or a vehicle on the deck is not a helicopter - the crew step aside out of
+      // his way (avoid.soft: they keep their pose, a body's width round him), they no longer scatter crouching from 9 m
+      const kind = pl.kind;
+      if (kind === 'foot' || kind === 'ground') { const R = kind === 'foot' ? 1.05 : 3.2; if (hy < 2.6 && hy > -0.6) { avoid = (x, z) => { const dx = x - hx, dz = z - hz, r = Math.hypot(dx, dz); return r < R ? [dx || 0.01, dz] : null; }; avoid.soft = R; } }
+      else if (hy < 14 && hy > -2) avoid = (x, z) => { const dx = x - hx, dz = z - hz, r = Math.hypot(dx, dz); return r < 9 ? [dx || 0.1, dz] : null; };
     }
     u.parts.tick(dt, W.time, d, avoid);
   }

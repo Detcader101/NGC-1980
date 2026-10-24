@@ -56,7 +56,9 @@ export function createAlbInterior(ship) {
   };
   const put = (k, tx, ty, tz, yaw = 0, o = {}, sz = null) => { furn.push({ k, x: X(tx), y: Y(ty), z: Z(tz), yaw, o }); if (sz) { const c = Math.abs(Math.cos(yaw)), s = Math.abs(Math.sin(yaw)), hx = (sz[0] * c + sz[1] * s) / 2, hz = (sz[0] * s + sz[1] * c) / 2; box(tx - hx, tx + hx, tz - hz, tz + hz, ty - 0.05, ty + sz[2], 0, { noDraw: true, furn: true }); } };
   const putAbs = (k, x, y, z, yaw = 0, o = {}, sz = null) => put(k, x - TX, y - DK, z - TZ, yaw, o, sz);
-  const man = (kind, pose, tx, ty, tz, yaw, o = {}) => crew.push({ kind, pose, x: X(tx), y: Y(ty), z: Z(tz), yaw, ...o });
+  // (QA ngc/qa-ship: a man standing at his station is solid - you walk round him, not through him; the helmsman, who
+  // steps aside for you, is not)
+  const man = (kind, pose, tx, ty, tz, yaw, o = {}) => { crew.push({ kind, pose, x: X(tx), y: Y(ty), z: Z(tz), yaw, ...o }); if (pose === 'stand' && !o.aside) box(tx - 0.22, tx + 0.22, tz - 0.22, tz + 0.22, ty, ty + 1.75, 0, { noDraw: true, crew: true }); };
   const doorsList = [];
   // a door in TOWER coordinates (u = x, v = z): the host is the ship (its frame moves; doors.js keeps world boxes up to date)
   const host = {
@@ -168,7 +170,8 @@ export function createAlbInterior(ship) {
   put('captainChair', -1.85, 9.1, -4.9, Math.PI + 0.25, {}, [0.75, 0.75, 1.3]); put('radarRepeater', 1.4, 9.1, -1.5, -0.6, {}, [0.8, 0.8, 1.2]);
   put('chartTable', -0.5, 9.1, 3.1, Math.PI, {}, [1.6, 1.0, 0.95]); put('console', 0, 9.1, -5.5, 0, { w: 4.2, windows: true }, [4.2, 0.6, 1.05]);
   put('binocs', 2.0, 9.1, -5.3, 0); put('phones', BR.x1 - 0.2, 10.4, 0.8, -Math.PI / 2);
-  man('sailor', 'stand', -0.2, 9.1, -3.0, Math.PI, { arms: 'wheel', hat: 'white' }); man('sailor', 'stand', 0.75, 9.1, -3.2, Math.PI, { arms: 'side', hat: 'white' });
+  // (QA: the helmsman steps back to port, aside, when you take the wheel - helm.js stands you where he stands)
+  man('sailor', 'stand', -0.2, 9.1, -3.0, Math.PI, { arms: 'wheel', hat: 'white', aside: [X(-1.15), Z(-2.35), Math.PI - 0.5] }); man('sailor', 'stand', 0.75, 9.1, -3.2, Math.PI, { arms: 'side', hat: 'white' });
   man('officer', 'seated', -1.85, 9.1, -4.9, Math.PI + 0.25, { hat: 'ball', seatH: 0.85 }); man('officer', 'stand', 1.9, 9.1, -4.6, Math.PI - 0.15, { arms: 'binocs' });
   // the ladder up to the top deck, through the hatch in the bridge roof (aft starboard corner)
   const dHatch = door('hatch', { u: 2.0, v: (hatchR[2] + hatchR[3]) / 2, y: 13.3, w: hatchR[3] - hatchR[2], h: hatchR[1] - hatchR[0], ax: 'v', hinge: -1, swing: 1, kind: 'hatch', c: 0x8c9296, horizontal: true });

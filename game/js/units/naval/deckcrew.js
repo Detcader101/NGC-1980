@@ -68,7 +68,7 @@ export function createCrew(members, { seed = 5 } = {}) {
     for (let i = 0; i < n; i++) {
       const p = members[i]; p.ph += dt;
       let { x, z, yaw } = p, lean = 0, drop = 0, aL = 0, aR = 0, aLz = 0.06, aRz = 0.06, lL = 0, lR = 0;
-      const push = p.mode !== 'seated' && avoid && avoid(x, z);
+      const push = p.mode !== 'seated' && avoid && !avoid.soft && avoid(x, z);
       if (push) {   // clear the area: walk briskly away, crouched against the downwash
         const len = Math.hypot(push[0], push[1]) || 1, sp = 2.4 * dt;
         p.x += push[0] / len * sp; p.z += push[1] / len * sp; x = p.x; z = p.z;
@@ -113,6 +113,9 @@ export function createCrew(members, { seed = 5 } = {}) {
           if (p.hands) { aL = -0.2; aR = -0.2; aLz = 0.5; aRz = 0.5; }   // hands on hips
         }
       }
+      // QA (ngc/qa-ship): someone on foot (or a vehicle) close by - step aside onto a circle round him (avoid.soft = its
+      // radius). Only the drawn spot moves (posts and paths stay), so he slides back as you walk on; walkers go round you.
+      if (avoid && avoid.soft && p.mode !== 'seated') { const s = avoid(x, z); if (s) { const d = Math.hypot(s[0], s[1]) || 0.01, k = avoid.soft / d; x = x + s[0] * (k - 1); z = z + s[1] * (k - 1); } }
       pose(i, x, p.mode === 'seated' ? p.ySeat : p.y, z, yaw, lean, drop, aL, aR, aLz, aRz, lL, lR);
     }
     J.instanceMatrix.needsUpdate = B.instanceMatrix.needsUpdate = A.instanceMatrix.needsUpdate = L.instanceMatrix.needsUpdate = true;
