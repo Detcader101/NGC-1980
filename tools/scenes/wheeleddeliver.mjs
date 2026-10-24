@@ -44,7 +44,7 @@ export default async function (h) {
   await h.wait(3000); await h.eval('(__DL.face(__L.x, 1, __L.z), 1)'); await h.wait(600); await h.shot('lcm8-running-in');
   await h.waitFor("__L.phase === 'ramp' || __L.phase === 'drive'", 90000);
   await h.wait(2500); await h.eval('(__DL.face(__L.x, 1, __L.z), 1)'); await h.wait(500); await h.shot('lcm8-ramp-down');
-  await h.waitFor("__L.phase === 'wait' || __L.phase === 'back' || __L.phase === 'gone'", 90000);
+  await h.waitFor("__L.phase === 'wait' || __L.phase === 'back' || __L.phase === 'gone' || (!__LV.slung && __G.terrainH(__LV.sim.pos[0], __LV.sim.pos[2]) > 1.5)", 150000);   // (ashore: the follower's last metres take game time a loaded machine is short of)
   await h.eval(`({ phase: __L.phase, st: { x: +__LV.sim.pos[0].toFixed(1), z: +__LV.sim.pos[2].toFixed(1), y: +__LV.sim.pos[1].toFixed(2), depth: +__LV.sim.depth.toFixed(2), run: __LV.sim.eng.running, up: +__LV.sim.up[1].toFixed(3) }, ground: +__G.terrainH(__LV.sim.pos[0], __LV.sim.pos[2]).toFixed(2) })`, 'the M35 ashore');
   await h.expect('!__LV.slung && __LV.sim.up[1] > 0.95 && __G.terrainH(__LV.sim.pos[0], __LV.sim.pos[2]) > 0.2 && __LV.sim.depth < 0.1', 'the M35 drove off the ramp up the beach onto dry sand');
   await h.eval('(__DL.face(__LV.sim.pos[0], 1.5, __LV.sim.pos[2]), 1)'); await h.wait(700); await h.shot('m35-ashore');

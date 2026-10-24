@@ -109,18 +109,21 @@ export default async function (h) {
   await h.expect('__WG.P().guns.fired - __f0 >= 15 && __TGT.hp < __hp0', 'the M60 fired through war.js and hit the building');
   await h.key('tap', 'KeyV'); await h.wait(900); await h.shot('m60-gunner-chase'); await h.key('tap', 'KeyV');
   // the enemy shoots back: rounds through the jeep (tyres, engine, fuel, the crew), then a blast
+  await h.eval(`(() => { window.__fh0 = __G.foot.hurt; __G.foot.hurt = (...a) => { __G.marine.hurt(...a); __G.marine.MS.M.restore(); __G.marine.MS.dead = false; }; setTimeout(() => { __G.foot.hurt = __fh0; }, 1200); return 1; })()`, 'the volley: the Marine is patched up after each wound (the next check is about him)');
   await h.eval(`(() => { const S = __M.sim, out = []; const T = __G.THREE; for (let k = 0; k < 10; k++) { const at = new T.Vector3(S.pos[0] + (Math.random() - 0.5) * 1.5, S.pos[1] + 0.5 + Math.random() * 0.8, S.pos[2] + (Math.random() - 0.5) * 2.5); __G.hurtPlayer(0.2, 'HIT', at, new T.Vector3(1, -0.2, 0.3).multiplyScalar(300), 'b'); } const d = __M.dmg.state; return { tyres: d.tyres.map(t => +t.pressure.toFixed(2)), engine: +d.engine.toFixed(2), fuelLeak: d.fuelLeak, fire: d.fire, health: __G.marine.MS.M.summary ? Object.keys(__G.marine.MS.M.summary()).length : null, bleeds: __G.marine.MS.M.bleeds.length, dead: __G.marine.MS.dead }; })()`, 'hit by ten rounds');
   await h.wait(1500);
   await h.eval('({ hud: __WG.hud(), bleeds: __G.marine.MS.M.bleeds.length, vol: Math.round(__G.marine.MS.M.vol) })');
   await h.expect('__M.dmg.state.tyres.some(t => t.leak > 0 || t.pressure < 1) || __M.dmg.state.engine < 1 || __M.dmg.state.fuelLeak > 0', 'enemy rounds damaged the jeep (vehicledamage.js)');
   await h.shot('hit-gunner-view');
   // a round straight through the gunner's place: the vehicle's crew hit becomes the Marine's wound (marine.js / MEDINV).
-  // (the jeep patched up first - a burning wreck takes no more rounds; the crew events land on the next sim step)
-  await h.eval(`(() => { __M.dmg.repair('all'); const M = __G.marine.MS.M; window.__hp = () => Object.values(M.regions).reduce((s, r) => s + r.hp, 0); window.__wound = { before: Math.round(__hp()), shots: 0 }; return __wound; })()`);
-  await h.eval(`(() => { const T = __G.THREE, S = __M.sim, q = new T.Quaternion(S.q[0], S.q[1], S.q[2], S.q[3]), s = __M.seats[__M.seat]; for (let n = 0; n < 3; n++) { const at = new T.Vector3(s.at[0], s.at[1] + 0.45, s.at[2]).applyQuaternion(q).add(new T.Vector3(S.pos[0], S.pos[1], S.pos[2])), dir = new T.Vector3(1, -0.1, 0).applyQuaternion(q); __G.hurtPlayer(0.2, 'HIT', at, dir.multiplyScalar(300), 'b'); __wound.shots++; } return __wound; })()`, 'rounds through the gunner');
+  // (the jeep patched up first - a burning wreck takes no more rounds; the crew event lands on the next sim step. A .50
+  // through the chest kills a man, so the wound is read off his medical and he is patched up before foot.js sees it)
+  await h.eval(`(() => { __M.dmg.repair('all'); const MS = __G.marine.MS, M = MS.M; M.restore(); window.__hp = () => Object.values(M.regions).reduce((s, r) => s + r.hp, 0); window.__wound = { before: Math.round(__hp()), shots: 0, calls: 0 };
+    window.__fh = __G.foot.hurt; __G.foot.hurt = (...a) => { __wound.calls++; __G.marine.hurt(...a); __wound.after = Math.round(__hp()); __wound.dead = MS.dead || M.dead; __wound.region = a[1]; M.restore(); MS.dead = false; };
+    const T = __G.THREE, S = __M.sim, q = new T.Quaternion(S.q[0], S.q[1], S.q[2], S.q[3]), s = __M.seats[__M.seat]; const at = new T.Vector3(s.at[0], s.at[1] + 0.45, s.at[2]).applyQuaternion(q).add(new T.Vector3(S.pos[0], S.pos[1], S.pos[2])), dir = new T.Vector3(1, -0.1, 0).applyQuaternion(q); __G.hurtPlayer(0.2, 'HIT', at, dir.multiplyScalar(300), 'b'); __wound.shots++; return __wound; })()`, 'a round through the gunner');
   await h.wait(800);
-  await h.eval('(Object.assign(__wound, { after: Math.round(__hp()), dead: __G.marine.MS.dead }))');
-  await h.expect('__wound.after < __wound.before || __wound.dead', 'the crew hit wounded the Marine riding in the jeep');
+  await h.eval('(__G.foot.hurt = __fh, __wound)');
+  await h.expect('__wound.calls > 0 && (__wound.after < __wound.before || __wound.dead) && __G.foot.alive', 'the crew hit wounded the Marine riding in the jeep');
   await h.eval('(__G.marine.MS.dead ? 0 : (__G.marine.MS.M.restore(), 1))');   // (patched up for the rest of the scene)
 
   // ---------------------------------------------------------------- 4. commandeer a civilian car parked in the village

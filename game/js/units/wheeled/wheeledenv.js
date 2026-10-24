@@ -51,7 +51,7 @@ export function createWorldEnv(o) {
     if (s === undefined) {
       const cx = i + 0.5, cz = j + 0.5, r = world.roadAt ? world.roadAt(cx, cz) : null;
       if (r && r.surface && r.road >= 0 || r && r.road === -1) { s = r.surface === 'dirt' ? S_DIRT : S_TARMAC; if (r.bridge) BR.set(k, r.y + (LIFT[r.type] ?? 0.12)); }
-      else { GR.sample(cx, cz, _s); s = FROM_GR[_s.surface] ?? SURF.grass; }
+      else { GR.sample(cx, cz, _s); s = FROM_GR[_s.surface] ?? SURF.grass; if (s === SURF.sand && _s.h < 0.8) s = S_DIRT; }   // wet sand at the tide line and under the shallows is firm (the soft dry sand is above it): a beach a jeep can drive into the surf on
       SU.set(k, s);
     }
     return s;

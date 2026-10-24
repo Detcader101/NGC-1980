@@ -1838,6 +1838,50 @@ lcm8model.js (CH-46 sling, LCM-8), wheeledbake.js (one-mesh far LOD and the WORL
   running one; silent in the pause menu (and the deliveries stop).
 - **The M35's troops.** B at one of our pads: six Marines board (105 kg each through sim.setLoad), sit on the benches,
   the capture time on a pad drops 8 -> 4 s; B again dismounts them.
+- **The working cab (cabin.js, on interior.js).** The vehicles stand cold. Look at a switch and click, as in the jets
+  (main.js's switch ray asks `craft.switches()` / `craft.click(id)`): M151A2 rotary ignition OFF / ON / START, M35A2
+  ENGINE switch + START button (TM 9-2320-209-10; the air gauge), the cars' key; the military main light switch OFF /
+  BO MARKER / BO DRIVE / SERVICE DRIVE (lamps as glow sprites: head, blackout drive, tail; no scene lights - they recompile
+  every shader), panel light, wipers that sweep (~45 a minute, back to park), horn button, front-drive / transfer levers,
+  parking brake (T-handle / lever), the fire extinguisher (2 on the military vehicles: X or click; works on a young fire).
+  T changes a flat for the spare (stopped, 25 s, the spare goes off the body). The driver's hands and arms on the wheel only
+  when somebody drives (you, traffic, an AI); his legs and boots on the pedals (right foot to the brake when braking, left
+  on the clutch) and his body in the seat in first person. The camera shakes with hits, crashes and a rough engine.
+- **Input.** Gamepad: A handbrake, B horn, X engine (gunner: reload), Y view, LB / RB seat, Back get out. HOTAS through
+  CTL's bindings: trigger = horn (gunner: the gun), pickle = engine, VIEW, GEAR = next seat, EJECT = get out, FLAPS =
+  lights, WHEEL BRAKE = parking brake. **Racing wheel** (wheelinput.js, pure; Logitech G27 / G29 / G920 / G923,
+  Thrustmaster T150 / T300 / TMX / T248, Fanatec, Moza ... by id): the rim is axis 0; the pedals are found from their rest
+  values (an axis sitting at +-1 when first seen; +1 or -1 released both work; one reported 0 until touched counts as
+  released; a hat axis at ~1.29 is not a pedal), in axis order gas, brake, clutch; `localStorage.tz_wheel_axes =
+  "0,1,2,3"` (`!` inverts) overrides. Paddles shift (semi / manual), the clutch pedal works the manual gearbox (C on the
+  keys, ramped), face buttons horn / engine / view / handbrake, 6 / 7 seats. A wheel replaces the gamepad and HOTAS paths
+  while you drive (its buttons would double up).
+- **COMMANDER hook (motorpool.js).** One function per vehicle type, no materiel, no delivery:
+  `pool.spawnM151(where, opt)`, `spawnM35`, `spawnLandRover`, `spawnHilux`, `spawnBeetle`, `spawnLada`, and the same as
+  `pool.spawners[type]`. where = an island (its motor pool spot), 'deck' (the deck park) or { x, z, yaw } (the nearest
+  clear, dry, level place within 40 m: no roof, wall, tree or vehicle; `plat` / `exact` place it as given); opt = {
+  running, owner, colour, home }; returns the craft (in pool.list and crafts) or null. `window.__G.pool` in ?debug.
+- **Fix: hits between sim steps were lost.** vehiclefm.js cleared `S.events` at the start of each step, so the events a
+  round raised through `dmg.hit` from war.js (between steps) - crewHit above all - never reached the craft: the seat
+  died silently and the Marine riding in it was never wounded. Events raised between steps are now queued
+  (`S._between`) and reported with the next step. (The scene's old check fired 12 rounds synchronously and read the
+  wound at once; it now waits a frame.)
+- **Tests.** wheeledbench 65/65; wheelinputbench 14/14 (fake pads: G29 / G920 / T150 / G923 reversed pedals / T300 at 0 /
+  Fanatec with an override; the HOTAS, T-Rudder and an Xbox pad are not wheels); wheeledgame.mjs (walk to the M151, the
+  cab's ignition ON / START, lights, wipers, keyboard drive, village street, bridge, farm field in 4x4, ford, M60 on an
+  enemy building, hits and the crew wound, commandeer a town car, the deck under way, the M35's troops and ring mount,
+  the commander spawners) 27/27 (tools/runs/2026-10-24_09-58-48-wheeledgame); vehicle 14/14, wheeleddeliver 6/6,
+  wheeledcockpit 12/12, wheeleddrive 7/7, wheeledmodel 6/6, wheeledaudio 10/10, smoke 5/5.
+- **Fix: a jeep could not drive into the surf.** vehicle.mjs's last leg had failed since the M151 went in (it dug in on
+  the beach: GR's 'sand' is all ground under 2.5 m, the soft dry kind, crr 0.12 and sinkage, a spinning tyre digs a 2WD
+  jeep in and even 4WD stalled on a twisted beach). Sand under 0.8 m (the tide line, the shallows) is now firm (dirt) for
+  the wheeled sim (wheeledenv.js): the soft sand is up the beach, as on a real one. The LCM-8's truck gets ashore on it too.
+- **One .50 hit kills.** A round through a seated man's chest is fatal (crewHit hands MEDINV the hit at the seat's chest
+  height); the scene reads the wound off his medical and patches him up before foot.js sees the death.
+- **Untested / next.** A real wheel's axis layout on Linux / macOS drivers (only Windows-style layouts assumed; the
+  override covers the rest); force feedback (the Gamepad API has none for wheels); night (the lamps are sprites: the game
+  has no night yet); the cab's switches in the M35 by eye in every light; AI crews in the other seats of a vehicle you
+  drive (only the M35's troops ride along).
 ## 2026-10-23 — NGC-1980 wave 2: INFANTRY DEPTH - buddy aid, the corpsman, casevac, AI Marines on the real sims, the grenade drill (branch ngc/infdepth)
 - **AI Marines on the real rifleman sim** (`units/groundwar/richmarine.js`, pure). Inside 120 m of the camera (up to 14
   men; `GW_T.RICH_R / RICH_MAX`) a ground-war Marine is promoted from marine.js's kinematic body to INFANTRY's rifleman
