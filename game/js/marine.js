@@ -25,6 +25,7 @@ import { createMedUI, createMedHud, createVisionFX, FEEDTXT } from './units/infa
 import { addSmoke } from './units/defence/cm.js';   // ngc/cmpolish: M18 smoke blocks sight lines and the LANCE beam
 import { createMarineCare } from './marinecare.js';   // ngc/infdepth: buddy aid both ways, drag / carry, the ground war's dead
 import { createThrowVM } from './units/infantry/throwvm.js';   // ngc/infdepth: the grenade drill in the viewmodel
+import { careHands, throwHands } from './units/infantry/carepose.js';   // ngc/infdepth-fix: the same in third person
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const SENS = 0.0022;   // mouse: rad per pixel (as foot.js)
@@ -543,7 +544,12 @@ export function createMarine(ctx) {
       me.root.position.set(S.pos.x, S.pos.y, S.pos.z); me.root.rotation.y = S.yaw;
       const key = R.carrier ? (R.carrier.key === 'M16A1' && R.carrier.gl ? 'M16A1/M203' : R.carrier.key) : null; if (me.weaponKey !== key) me.setWeapon(key);
       const p = S.pose(); p.cls = R.cls === 'gl' ? 'rifle' : R.cls; p.action = R.cur && R.cur.act ? { name: R.cur.act.name, p: R.cur.act.t / R.cur.act.dur } : null;
-      if (Mr.care.hold) { p.ads = 0; p.lower = 1; if (Mr.care.hold.mode === 'drag') { p.stance = p.stanceFrom = p.stanceTo = 'crouch'; p.stanceT = 1; } }   // ngc/infdepth: bent over a casualty (drag) or under one (carry), rifle slung
+      // ngc/infdepth: hands off the rifle (slung on the back): bent over a casualty on the drag strap, under one in a
+      // fireman's carry, or the grenade drill (carepose.js); the grenade in the right hand until it leaves it
+      p.hands = null; p.sling = 0;
+      if (Mr.care.hold) { p.ads = 0; p.sling = 1; p.hands = careHands(Mr.care.hold.mode, 0, p.gaitPhase || 0); if (Mr.care.hold.mode === 'drag') { p.stance = p.stanceFrom = p.stanceTo = 'crouch'; p.stanceT = 1; } }
+      else if (TH && TH.phase !== 'recover') { p.ads = 0; p.sling = 1; p.hands = throwHands(TH.phase, TH.p, TH.under); }
+      p.grenade = !!TH && TH.phase !== 'recover' && !(TH.phase === 'throw' && TH.gone);   // (in his right hand in third person, through the drill)
       if (W.swim) { p.stance = p.stanceFrom = p.stanceTo = 'prone'; p.stanceT = 1; }
       poseSkeleton(me, p, dt);
     }

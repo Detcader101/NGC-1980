@@ -34,6 +34,7 @@ export const SURF = {
   sand:  { mu: 0.5,  crr: 0.18,  sink: 0.06, speed: 0.8 },
   mud:   { mu: 0.35, crr: 0.13,  sink: 0.08, speed: 0.7 },
   water: { mu: 0.45, crr: 0.15,  sink: 0.05, speed: 0.5 },   // the (sandy) bottom under shallow water: wading drag is the sim's
+  dirt:  { mu: 0.65, crr: 0.04,  sink: 0.02, speed: 1 },     // SEAWORLD: a dirt / gravel farm track (Wong: gravel road mu 0.6-0.7, crr 0.02-0.05)
   hole:  { mu: 0,    crr: 1,     sink: 0,    speed: 0 },
 };
 export const GRAV = 9.81;
@@ -42,7 +43,7 @@ export const GRAV = 9.81;
 export function createGround(ctx) {
   const { war, terrainH, holeOf, PADS, CARRIER } = ctx;
   const ISLANDS = ctx.ISLANDS;
-  const providers = [], extra = [];
+  const providers = [], extra = [], floors = [], sources = [];   // SEAWORLD: floors (piers, bridge decks) and collider sources (the world's buildings)
   const GR = { G: GRAV, SURF };
 
   // ------------------------------------------------------------------ static circles: island trees in a hash grid
@@ -80,8 +81,11 @@ export function createGround(ctx) {
       if (y + tall < bottom) return t;                          // under a flying carrier: the ground below
       return Infinity;                                          // a hull side or a superstructure: a wall
     }
-    return t;
+    // SEAWORLD: piers and bridge decks you are on or above (world/solid.js); under them, the ground below
+    let f = t; for (const fl of floors) { const v = fl(x, z, y, step); if (v !== null && v > f) f = v; }
+    return f;
   };
+  GR.addFloor = fn => { floors.push(fn); };   // fn(x, z, y, step) -> a surface height at or below y + step, or null
 
   // ------------------------------------------------------------------ ships: frames, decks, carrying
   // wave 2 (ngc/foot2): the ALBATROSS island as NAVAL built it (units/naval/albatross.js buildIsland, tower frame:
@@ -105,8 +109,9 @@ export function createGround(ctx) {
   const isAlb = u => u.type === 'carrier' && u.side === 1;
   // height above the waterline of what you stand on at ship-local (lx, lz) on the ALBATROSS island, or null when
   // (lx, lz) is not over the island
-  function albIsland(D, lx, lz) {
+  function albIsland(D, lx, lz, parts) {
     const tx = lx - D.TOWER_X, tz = lz - D.TOWER_Z;
+    if (parts && parts.islandFloor) { const h = parts.islandFloor(tx, tz); return h === null ? null : D.DECK + h; }   // NAVAL: the model's own island
     if (tx < -3.4 || tx > 2.9 || tz < -9 || tz > 9.2) return null;
     let h = null;
     if (tx >= -2.3 && tx <= 2.6 && tz >= -8.5 && tz <= 8.8) h = 9.0;                       // lower levels' roofs
@@ -120,13 +125,14 @@ export function createGround(ctx) {
   function deckH(x, z) {
     const c = war.carrier;
     if (c && c.dims && c.side === 1 && Math.abs(x - c.p.x) < 70 && Math.abs(z - c.p.z) < 70 && !(c.sinking > 4)) {
-      const [lx, lz] = toLocal(c, x, z), h = albIsland(c.dims, lx, lz);
+      const [lx, lz] = toLocal(c, x, z), h = albIsland(c.dims, lx, lz, c.parts);
       if (h !== null) { const a = c.att; return a ? shipPointY(c.p.y, a.heave, a.pitch, a.roll, lx, h, lz) : c.p.y + h; }
     }
     return war.deckY(x, z);
   }
   GR.deckH = deckH;
-  const PF = createPlatforms({ deckY: deckH, shipAt: (x, z) => war.shipAt(x, z), alive: u => u.sinking === undefined || u.sinking < 4 ? war.units.includes(u) : false });
+  const PF = createPlatforms({ deckY: deckH, shipAt: (x, z) => war.shipAt(x, z), alive: u => u.sinking === undefined || u.sinking < 4 ? war.units.includes(u) : false,
+    subY: (u, lx, lz) => u.parts && u.parts.liftY ? u.parts.liftY(lx, lz) : null });   // SEAWORLD: the ALBATROSS's lifts carry
   const { toLocal, toWorld } = PF;
   const _w = { x: 0, z: 0 };
   GR.toLocal = toLocal; GR.toWorld = toWorld; GR.toShip = PF.toShip; GR.fromShip = PF.fromShip;
@@ -142,7 +148,8 @@ export function createGround(ctx) {
     { ship: 'carrier', side: 1, name: 'ISLAND LADDER', lx: CARRIER.TOWER_X - 2.75, lz: CARRIER.TOWER_Z - 6.6, yaw: -Math.PI / 2, y0: CARRIER.DECK, y1: CARRIER.DECK + ALB_TOP, w: 0.9, top: [1.0, 0.9] },
   ];
   GR.LADDERS = LADDERS;
-  GR.laddersOf = u => LADDERS.filter(L => L.ship === u.type && (L.side === undefined || L.side === u.side));
+  // NAVAL: a ship model that exports its ladders (parts.ladders, ship frame, drawn by the model) is the authority
+  GR.laddersOf = u => u.parts && u.parts.ladders ? u.parts.ladders : LADDERS.filter(L => L.ship === u.type && (L.side === undefined || L.side === u.side));
   const _lw = { x: 0, y: 0, z: 0 };
   // the world-space description of a ladder on ship u: base point, facing, top / bottom heights (deck motion included)
   GR.ladderWorld = (L, u, out = {}) => {
@@ -156,8 +163,7 @@ export function createGround(ctx) {
   GR.ladderAt = (x, z, y, r = 0.5) => {
     for (const u of war.units) {
       if (!u.dims || u.sinking !== undefined || Math.abs(x - u.p.x) > 80 || Math.abs(z - u.p.z) > 80) continue;
-      for (const L of LADDERS) {
-        if (L.ship !== u.type || (L.side !== undefined && L.side !== u.side)) continue;
+      for (const L of GR.laddersOf(u)) {
         const w = GR.ladderWorld(L, u, _lad);
         const dx = x - w.x, dz = z - w.z, along = dx * w.fz - dz * w.fx, off = -(dx * w.fx + dz * w.fz);   // off: how far in front of the rungs
         if (Math.abs(along) < w.w / 2 + 0.15 && off > -0.2 && off < r + 0.45 && y > w.y0 - 0.6 && y < w.y1 + 0.2) return w;
@@ -197,6 +203,7 @@ export function createGround(ctx) {
   // pushed out there, and the push is turned back into the world (so a rolling ship's island leans with her)
   const BS_BOXES = [[-4.5, 4.5, -10, 10, 0, 14]], FR_BOXES = [[-4.3, 4.3, -3.2, 3.2, 0, 6]];
   const _sl = { x: 0, y: 0, z: 0 }, _sl2 = { x: 0, y: 0, z: 0 };
+  const _rails = [];
   function shipBoxes(o, u, boxes, ox, oz, oy) {
     const top = Math.min(o.y1, o.y0 + 4), ym = (o.y0 + top) / 2, hh = (top - o.y0) / 2;
     PF.toShip(u, o.x, ym, o.z, _sl);
@@ -237,11 +244,19 @@ export function createGround(ctx) {
     for (const u of war.units) {
       if (!u.dims || Math.abs(o.x - u.p.x) > 70 || Math.abs(o.z - u.p.z) > 70) continue;
       const D = u.dims;
-      if (u.type === 'carrier') n += shipBoxes(o, u, isAlb(u) ? ALB_BOXES : KRK_BOXES, D.TOWER_X, D.TOWER_Z, D.DECK);
+      if (u.type === 'carrier') n += shipBoxes(o, u, u.parts.islandBoxes || (isAlb(u) ? ALB_BOXES : KRK_BOXES), D.TOWER_X, D.TOWER_Z, D.DECK);
       else if (u.type === 'battleship') n += shipBoxes(o, u, BS_BOXES, 0, 4, D.DECK);
       else if (u.type === 'freighter') n += shipBoxes(o, u, FR_BOXES, 0, D.L / 2 - 6, D.DECK);
+      if (u.parts && u.parts.boxes) {   // SEAWORLD: the lift railings (ship-frame boxes that move with each lift)
+        const bs = u.parts.boxes(); _rails.length = bs.length;
+        bs.forEach((b, i) => { const a = _rails[i] ||= []; a[0] = b.lx - b.hw; a[1] = b.lx + b.hw; a[2] = b.lz - b.hl; a[3] = b.lz + b.hl; a[4] = b.y0; a[5] = b.y1; });
+        n += shipBoxes(o, u, _rails, 0, 0, 0);
+      }
     }
     for (const c of extra) if (c.hl ? pushBox(o, c) : (o.y1 > (c.y0 ?? -1e9) && o.y0 < (c.y1 ?? 1e9) && pushCircle(o, c.x, c.z, c.r))) n++;
+    // SEAWORLD: the lived-in world's buildings, walls, hedges, parapets, poles (world/solid.js); o.crush (a tank) goes
+    // through the soft ones (field walls, hedges)
+    for (const src of sources) for (const c of src(o.x, o.z, o.r + 1)) { if (c.soft && o.crush) continue; if (c.hl !== undefined ? pushBox(o, c) : (o.y1 > c.y0 && o.y0 < c.y1 && pushCircle(o, c.x, c.z, c.r))) n++; }
     if (ctx.crafts) for (const b of ctx.crafts.bounds(skip)) if (pushBox(o, b)) n++;
     return n;
   };
@@ -261,6 +276,7 @@ export function createGround(ctx) {
     return best;
   };
   GR.addCollider = c => { extra.push(c); return c; };
+  GR.addColliderSource = fn => { sources.push(fn); };   // SEAWORLD: fn(x, z, r) -> boxes / circles near (x, z)
   GR.removeCollider = c => { const i = extra.indexOf(c); if (i >= 0) extra.splice(i, 1); };
   // third-person / chase cameras: pull the camera p {x, y, z} in along the line from the eye (ex, ey, ez) to in front of
   // the first thing in the way - the ground, a deck, a hull side, a craft's footprint (except `skip`'s)
@@ -281,12 +297,23 @@ export function createGround(ctx) {
   };
 
   // ------------------------------------------------------------------ spawn points
-  // carrier deck parking spots (local; starboard, forward of the island, clear of the catapult and the landing area)
-  const DECK_SPOTS = [{ name: 'ALBATROSS DECK PARK 1', lx: 9, lz: -24, yaw: 0 }, { name: 'ALBATROSS DECK PARK 2', lx: 9, lz: -34, yaw: 0 }, { name: 'ALBATROSS DECK PARK 3', lx: 9, lz: -44, yaw: 0 }];
+  // carrier deck parking spots (local; clear of the catapult and the landing area). SEAWORLD: moved to the port bow
+  // (were x 9 on the starboard side, nose to nose with the parked Hornets, which are solid now), clear 12 m ahead
+  const DECK_SPOTS = [{ name: 'ALBATROSS DECK PARK 1', lx: -10.5, lz: -16, yaw: 0 }, { name: 'ALBATROSS DECK PARK 2', lx: -10.5, lz: -29, yaw: 0 }, { name: 'ALBATROSS DECK PARK 3', lx: -10.5, lz: -42, yaw: 0 }];
   GR.DECK_SPOTS = DECK_SPOTS;
+  // SEAWORLD: parked aircraft are solid now, so a spot is used only when the deck round it is clear (flat at deck
+  // height over a car-sized 2.2 x 4.8 m footprint); else the next of these candidates (port side forward, aft of the island)
+  const DECK_SPARE = [{ lx: 9, lz: -20 }, { lx: 4.5, lz: 16 }, { lx: 11, lz: 12 }, { lx: -9.5, lz: 6 }];
+  const deckClear = (u, lx, lz) => {
+    if (!u.parts || !u.parts.localDeck) return true;
+    for (const [ox, oz] of [[0, 0], [1.1, 0], [-1.1, 0], [0, 2.4], [0, -2.4], [1.1, 2.4], [-1.1, 2.4], [1.1, -2.4], [-1.1, -2.4]]) if (Math.abs(u.parts.localDeck(lx + ox, lz + oz) - CARRIER.DECK) > 0.05) return false;
+    return true;
+  };
   GR.deckSpot = (k = 0) => {
     const u = war.carrier; if (!u || u.sinking !== undefined) return null;
-    const s = DECK_SPOTS[k % DECK_SPOTS.length]; toWorld(u, s.lx, s.lz, _w);
+    const cands = [...DECK_SPOTS, ...DECK_SPARE.map((s, i) => ({ name: `ALBATROSS DECK PARK ${DECK_SPOTS.length + i + 1}`, yaw: 0, ...s }))].filter(s => deckClear(u, s.lx, s.lz));
+    if (!cands.length) return null;
+    const s = cands[k % cands.length]; toWorld(u, s.lx, s.lz, _w);
     return { name: s.name, x: _w.x, z: _w.z, y: deckH(_w.x, _w.z), yaw: u.yaw + s.yaw, plat: u };
   };
   const _o = { x: 0, z: 0, r: 2.4 };

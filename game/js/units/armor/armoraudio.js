@@ -51,7 +51,13 @@ export class ArmorAudio {
     // ---- turret: hydraulic pump hum + servo whine
     this.hyd = c.createOscillator(); this.hyd.type = 'sawtooth'; this.hyd.frequency.value = 400; this.hydF = c.createBiquadFilter(); this.hydF.type = 'lowpass'; this.hydF.frequency.value = 900; this.hyd.connect(this.hydF); this.hydG = gain(this.hydF);
     this.srv = c.createOscillator(); this.srv.type = 'triangle'; this.srvG = gain(this.srv);
-    for (const o of [this.fire, this.sub, this.fan, this.sc, this.st, this.clk, this.clk2, this.sqLfo, this.hyd, this.srv]) o.start();
+    // polish: the second cooling fan (the AVDS has two; their beat is the M60's signature), the starter motor's gear
+    // whine, brake squeal, the turret's hydraulic valve hiss
+    this.fan2 = c.createOscillator(); this.fan2.type = 'sawtooth'; this.fan2F = c.createBiquadFilter(); this.fan2F.type = 'bandpass'; this.fan2F.Q.value = 6; this.fan2.connect(this.fan2F); this.fan2G = gain(this.fan2F);
+    this.stW = c.createOscillator(); this.stW.type = 'sawtooth'; this.stWF = c.createBiquadFilter(); this.stWF.type = 'bandpass'; this.stWF.Q.value = 4; this.stW.connect(this.stWF); this.stWG = gain(this.stWF);
+    this.brk = noise('bandpass', 3800, 22); this.brkG = gain(this.brk);
+    this.hiss = noise('bandpass', 2200, 1.5); this.hissG = gain(this.hiss);
+    for (const o of [this.fire, this.sub, this.fan, this.fan2, this.stW, this.sc, this.st, this.clk, this.clk2, this.sqLfo, this.hyd, this.srv]) o.start();
     this.built = true; this.on = true;
   }
   // V: the vehicle (createM60A3 / createM113); veh: 'm60' | 'm113'; o: { inside, view, dt, cam }
@@ -68,10 +74,17 @@ export class ArmorAudio {
     sp(this.sub.frequency, ff / 2); sp(this.subG.gain, (run ? 0.05 + 0.06 * load : 0) * (inside ? 1.8 : 1));
     // fans (M60: big cooling fans geared to the crank) / Roots blower (6V53)
     const fanHz = m60 ? rpm / 60 * 3.1 * 12 : rpm / 60 * 2 * 3 * 1.8;
-    sp(this.fan.frequency, Math.max(20, fanHz)); sp(this.fanF.frequency, Math.max(100, fanHz * 1.02)); sp(this.fanG.gain, run * (m60 ? 0.025 : 0.03) * Math.min(1, rpm / 1200));
-    sp(this.fanN.frequency, 600 + rpm * 0.6); sp(this.fanNG.gain, run * 0.05 * Math.min(1, rpm / 1500));
+    sp(this.fan.frequency, Math.max(20, fanHz)); sp(this.fanF.frequency, Math.max(100, fanHz * 1.02)); sp(this.fanG.gain, run * (m60 ? 0.03 : 0.045) * Math.min(1, rpm / 1200));
+    sp(this.fan2.frequency, Math.max(20, fanHz * (m60 ? 1.017 : 2.0))); sp(this.fan2F.frequency, Math.max(100, fanHz * (m60 ? 1.03 : 2.02))); sp(this.fan2G.gain, run * (m60 ? 0.026 : 0.015) * Math.min(1, rpm / 1200));
+    sp(this.fanN.frequency, (m60 ? 500 : 900) + rpm * 0.6); sp(this.fanNG.gain, run * (m60 ? 0.08 : 0.045) * Math.min(1, rpm / 1500));
     sp(this.sc.frequency, 1500 + rpm * (m60 ? 1.6 : 0.9)); sp(this.scG.gain, run * (m60 ? 0.006 : 0.01) * (0.3 + load));
-    sp(this.st.frequency, 18 + rpm / 60 * 3); sp(this.stG.gain, fm.ctl.starter && !e.running ? 0.12 : 0, 0.02);
+    const cranking = fm.ctl.starter && !e.running;
+    sp(this.st.frequency, 18 + rpm / 60 * 3); sp(this.stG.gain, cranking ? 0.12 : 0, 0.02);
+    sp(this.stW.frequency, 260 + rpm * 1.4); sp(this.stWF.frequency, 500 + rpm * 2.5); sp(this.stWG.gain, cranking ? 0.035 : 0, 0.03);
+    // one-shots on state changes: the engine catching (a cough, then it runs up), a range shift (the transmission's clunk)
+    if (this._run === false && e.running) { this.burst(500, 70, 0.7, 0.45, 'lowpass', 0.6); this.tone(55, 90, 0.4, 0.25, 'sine'); }
+    if (this._rng != null && this._rng !== fm.range && e.running) { this.burst(260, 70, 0.18, 0.3, 'bandpass', 1.2); this.tone(95, 60, 0.14, 0.18, 'sine'); }
+    this._run = e.running; this._rng = fm.range;
     // tracks
     const v = Math.abs((fm.spr[0] + fm.spr[1]) / 2 * fm.P.TRACK.SPROCKET_R), lf = v / fm.P.TRACK.PITCH;
     const onGround = fm.load[0] + fm.load[1] > 0.2 * fm.mass * 9.81 ? 1 : 0.2;
@@ -80,13 +93,15 @@ export class ArmorAudio {
     const turn = Math.abs(fm.out.yawRate), slipLat = Math.min(1, turn * (v + 1) * 0.3);
     sp(this.sqG.gain, onGround * slipLat * 0.05 + (v > 0.5 && v < 6 ? 0.006 : 0)); sp(this.sqLfoG.gain, 300 * slipLat); sp(this.sq.frequency, 2800 + v * 40);
     sp(this.rumG.gain, Math.min(0.3, v * 0.025) * onGround * (inside ? 1.6 : 1));
+    const vg = Math.abs(fm.out.fwd); sp(this.brkG.gain, (fm.ctl.brake || 0) > 0.2 && vg > 0.3 && vg < 6 ? 0.018 * (1 - vg / 6) : 0, 0.04);
     sp(this.watG.gain, fm.water.depth > 0.3 ? Math.min(0.25, 0.04 + v * 0.06) : 0); sp(this.windG.gain, inside ? 0 : Math.min(0.06, (fm.out.speed / 20) ** 2 * 0.06));
     // turret hydraulics (M60)
     if (m60 && V.hydP != null) {
       const tr = Math.abs(V.azRate || 0) + Math.abs(V.elRate || 0) * 2;
       sp(this.hydG.gain, V.hydP * (inside ? 0.03 : 0.008)); sp(this.hyd.frequency, 380 + 30 * V.hydP);
       sp(this.srv.frequency, 900 + tr * 1800); sp(this.srvG.gain, Math.min(0.05, tr * 0.12) * (inside ? 1 : 0.3));
-    } else { sp(this.hydG.gain, 0); sp(this.srvG.gain, 0); }
+      sp(this.hissG.gain, Math.min(0.04, tr * 0.1) * V.hydP * (inside ? 1 : 0.2));
+    } else { sp(this.hydG.gain, 0); sp(this.srvG.gain, 0); sp(this.hissG.gain, 0); }
     // inside: the hull filters the highs; outside: distance from the camera
     sp(this.muff.frequency, inside ? 1100 : 16000, 0.1);
     let g = 0.6; if (!inside && o.cam) { const p = fm.pos, d = Math.hypot(p[0] - o.cam.x, p[1] - o.cam.y, p[2] - o.cam.z); g = 0.6 * Math.min(1, 12 / Math.max(6, d)); }

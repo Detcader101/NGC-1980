@@ -67,6 +67,10 @@ export const DEF = {
     beam: { range: 150, charge: 1.8, on: 2.2, dwell: 0.45, dps: 3.2, playerDps: 0.26, cool: 5, width: 2.2, full: 60, falloff: 0.2 },
   },
 };
+// SEAWORLD: the RUNAWAY ships' mounts (brain.js refitShip). The same units on a deck; a ship's mount is tougher (the
+// old ship guns had 9 hp) and the LANCE's beam a little weaker (a moving, rolling platform; four of them on the LEVIATHAN)
+DEF.talonm = { ...DEF.talon, name: 'RW TALON (ship mount)', hp: 9, r: 2.4, h: 1.4 };
+DEF.lancem = { ...DEF.lance, name: 'RW-5 LANCE (ship mount)', hp: 9, beam: { ...DEF.lance.beam, dps: 2.6, playerDps: 0.2 } };
 // war-wide knobs
 export const DEF_WAR = {
   losStep: 6,          // m between terrain samples on a line-of-sight check
