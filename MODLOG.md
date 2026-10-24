@@ -2146,6 +2146,57 @@ buttons for the switches (keyboard I / E cover them).
   record is dropped while `u.able` is still true (the same frame he went down): set it after one step.
 - **Next**: the rich carrier walks at his rifleman's walk, not the carry speed (the body follows the soldier sim);
   a grenade in flight is not drawn; a man killed with a cooked grenade could drop it.
+## 2026-10-24 — NGC-1980: the TOMCAT cockpit, clickable, with a cold start (branch ngc/tomcat-cockpit)
+The player's F-14A pilot cockpit brought to the HORNET / HUEY bar: every control clickable with the hover frame and the
+placard + current position on the hint line ("L GENERATOR  NORM / OFF  [NORM  -  ON LINE]"), a real start sequence on
+the switches, real-state cautions, switch sounds, and the RIO visible behind you. Flight model untouched.
+- **Start / electrics** (tomcatsys.js, pure: createStart / startPress / startStep / startPost / startAuto). NATOPS order,
+  game-paced: deck power and the air start cart whenever the jet stands on the ALBATROSS; ENG CRANK R (a 3-way L - OFF - R
+  switch on the right console), the starter motors the TF30 to 20% (~6 s), the right throttle's finger lift OFF -> IDLE
+  (fuel + ignition), light-off at ~24% with TIT rising, the crank switch drops out at 50% (solenoid), the generator comes
+  on line at 55%, idle 68%; then the left. Throttle IDLE before the crank turns it = a WET start: the light-off is a hot
+  start (TIT ~1260 °C on the gauge, a little engine damage). Throttle OFF shuts an engine down. Airstarts use the same
+  switches (cross-bleed off the other engine, or windmill air above 225 KEAS). L / R GEN NORM / OFF; no generator in
+  flight = the EMERG GEN keeps the essential bus; no essential bus = every lamp and caption dark; no main bus = HUD, VDI,
+  HSD, TID / DDD off. I runs the whole start on the same switches (right engine first), or shuts both down. The sim's
+  e.start / e.run / e.n are the only things it moves (the motored rpm is set after each sim step).
+- **Cold jet**: Y out leaves it cold (throttles OFF, crank OFF); Y back in, start it on the switches or with I. 8 on deck
+  (respot) and a fresh Tomcat from the hangar are still hot on the cat.
+- **Cockpit** (tomcatcockpit.js): left console redone (throttles with OFF / IDLE finger lifts and an IDLE stop, FUEL DUMP,
+  AFCS: STAB AUG PITCH / ROLL / YAW + autopilot ENGAGE / ALT, VEC/PCD and ACL placards), right console redone (ELEC POWER:
+  L / R GEN, the EMERG GEN guard; ENG START: ENG CRANK, AIR SOURCE; EXT LTS; canopy and parking brake T-handles; ECS /
+  OXYGEN), panel placards per section. The emergency wing sweep handle now runs the right way (forward = 20°, aft = 68° /
+  OVER), the red guard over the slot's forward end is its own click (EMER / AUTO), and the handle steps 5° fore / aft by
+  click. Caution panel 28 captions (adds L / R OIL PRESS, EMERG GEN, TRANS/RECT), from the real state: GEN off line, OIL /
+  FUEL PRESS with an engine stopped, HYD PRESS with no pump turning, START VALVE while cranking, CANOPY whenever it is open,
+  the STAB channel switched off, plus the damage model's. Advisories (START VALVE, LADDER, SPD BRK, LAUNCH BAR) are green
+  and do not light MASTER CAUTION (they used to chime). The hint line walks you through the start.
+- **The RIO** as a figure: torso in the harness, white helmet with the visor down and a squadron stripe, oxygen mask and
+  hose, the right hand on the hand control unit, the left on his console; his head works the TID and checks six every
+  ~14 s, braced under g. Looking aft (head yaw past ~1.6) the eye swings round behind the neck and out beside the
+  headbox, and the shoulders twist (up to ~165°), so you see him over either shoulder (as in the jet, not through the seat).
+- **FUEL DUMP**: 1,500 lb/min from the mast at the tail, stops at 4,000 lb, not with weight on wheels; a white mist
+  trail, a torch in the afterburner plume (dump and burn). STAB AUG: three channels (all three = the sim's SAS; any off =
+  DIRECT and the autopilot drops).
+- **Sound** (tomcatsound.js): click(kind) for every control that moves (toggle snap, push-button tick, handle clunk,
+  throttle over its detent, guard, the crank solenoid in and its thump out at 50%, thumb switches); the huffer idles
+  beside a cold jet on deck and roars while it cranks one.
+- **Tests**: tomcatsysbench 43/43 (+11: motoring to 20% with no light-off on the starter alone, light-off / crank-out /
+  generator order, one GEN off line, throttle OFF shutdown, wet start, no air, the auto start R then L, EMERG GEN in
+  flight, an airstart on the crank switch). tomcatbench 32/32, airbench 28/28, jetbench 24/24, jetfingerprint
+  bit-identical. Scene tomcatcockpit.mjs (new): 8 -> cat, Y out / Y in (cold), then through the real mouse path (hover,
+  hint, mousedown): ENG CRANK R, throttle IDLE at 20%, light-off, crank out, R GEN, the left engine, MASTER CAUTION reset,
+  STAB AUG pitch off / on, L GEN off / on, FUEL DUMP, the emergency sweep guard and handle (the wings follow to 30°), a
+  wet / hot start, I shutdown and auto start, the RIO over both shoulders, back to the cat (MIL, the cat fires). The
+  old preview-page close-ups are now tomcatpanels.mjs.
+- **Known, not from this branch**: headless (SwiftShader, 3-4 fps) the Tomcat dies ('crash' at deck height, ~180 KEAS)
+  at the end of the catapult stroke, so tomcat.mjs fails from the shot on. Reproduced with experimental's own game code
+  (574ad1b) and a minimal 8 -> MIL -> shot scene; for whoever owns the deck / cat (something solid at the bow?).
+- **Gotchas**: headless game time runs well below real time (the auto start needs minutes of wall clock: wait on state);
+  the cockpit camera pulls the head back to centre unless the mouse is captured (scenes hold it with an interval, as
+  hueycockpit.mjs does); a hit box parented to a moving lever (the throttle finger lifts) picks fine.
+- **Untested**: by ear (headless is muted); the start on real HOTAS; the RIO's mirrors (the three canopy-bow mirrors
+  are still plain metal).
 
 ## 2026-10-23 — Hercules polish: start flow, jump procedure, flight deck, sound, markings (branch ngc/c130-polish)
 - **Engine start (c130fm.js)**, after T.O. 1C-130H-1 normal start and the OPS card: battery; the GTC (the C-130H's

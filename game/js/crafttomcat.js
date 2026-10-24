@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { TOMCAT, TOMCAT_AF } from './units/air/tomcatfm.js';
 import { createTomcatPlay } from './units/air/tomcatplay.js';
+import { startSet } from './units/air/tomcatsys.js';   // COMMANDER + TOMCAT cockpit: a jet you switch into is handed over hot
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -66,8 +67,8 @@ export function createTomcatCraft(ctx) {
       say(A.onGround ? 'YOU HAVE THE TOMCAT' : `YOU HAVE THE TOMCAT  -  ${Math.round(A.pos.y * 3.28)} FT  ${Math.round(A.eas * 1.944)} KT`, 2);
     }
     TP.seat = 0; if (seat === 1) TP.setSeat(1);
-    if (from === 'foot') { say(`IN THE TOMCAT  -  ${seat ? 'RIO' : 'PILOT'}  ·  I ENGINES  ·  8 TO THE CATAPULT  ·  [ ] SEAT  ·  Y CLIMB OUT`, 2.5); head.yaw = head.pitch = 0; A.canopyCmd = 0; }
-    if (from === 'command') { head.yaw = head.pitch = 0; TP.snapChase(); if (park.on) { A.canopyCmd = 0; TP.pbrake = true; for (const e of A.eng) if (!e.run && e.n < 0.5) e.start = 0.01; } }
+    if (from === 'foot') { say(`IN THE TOMCAT  -  ${seat ? 'RIO' : 'PILOT'}  ·  I: AUTO START (OR CRANK + THROTTLES BY HAND)  ·  8 TO THE CATAPULT  ·  [ ] SEAT  ·  Y CLIMB OUT`, 2.5); head.yaw = head.pitch = 0; A.canopyCmd = 0; }
+    if (from === 'command') { head.yaw = head.pitch = 0; TP.snapChase(); if (park.on) { A.canopyCmd = 0; TP.pbrake = true; startSet(TP.ss, true); for (const e of A.eng) if (!e.run && e.n < 0.5) e.start = 0.01; } }
     park.on = false; return true;
   };
   D.setSeat = i => TP.setSeat(i);
@@ -88,7 +89,7 @@ export function createTomcatCraft(ctx) {
   function parkHere() {   // the crew climbs down: engines off, canopy up, parking brake set; it rides the deck where it stopped
     D.wing = null;
     if (A.cat) { A.cat = null; A.launchBar = false; park.cat = true; } else park.cat = false;
-    for (const e of A.eng) { e.run = false; e.start = 0; e.stalled = false; }
+    TP.shutdown();   // throttles OFF, crank OFF: a cold jet for the next crew (the start on the switches, or I)
     A.canopyCmd = 1; TP.pbrake = true; TP.firing = false; TP.silence(); TP.seat = 0;
     park.x = A.pos.x; park.y = A.pos.y - H0; park.z = A.pos.z; park.yaw = yawOf(); park.plat = null; park.loc = null;
     ctx.GR.settle(park, true); park.on = true;
