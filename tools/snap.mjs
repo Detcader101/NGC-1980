@@ -239,7 +239,25 @@ async function main() {
       },
       async waitFor(expr, timeout = 10000) {
         log('waitFor', `${expr} (≤${timeout} ms)`);
-        try { await page.waitForFunction(expr, { timeout: +timeout, polling: 50 }); return true; }
+        // (ngc/bugsweep) the timeout is GAME time when the page has a game clock (__G.war.time): a scene's 30 s for an AI
+        // leg is 30 s of the game, however slowly the loaded machine renders it. It ends on wall time only while the game
+        // clock is stopped (title, pause), and at a wall cap of 3-20x. SNAP_WALL=1: plain wall-clock timeout.
+        timeout = +timeout;
+        if (!process.env.SNAP_WALL && (await gclock()) !== null) {
+          const t0 = Date.now(), cap = Math.max(3 * timeout, Math.min(20 * timeout, 600000));
+          let last = await gclock(), el = 0, tick = Date.now();
+          for (;;) {
+            const ok = await page.evaluate(expr).catch(() => false);
+            if (ok) return true;
+            const now = Date.now(), g = await gclock();
+            if (g !== null && g !== last) { el += g > last ? g - last : Math.max(0, g); last = g; tick = now; }
+            if (el * 1000 >= timeout || (now - t0 >= timeout && now - tick > 1000) || now - t0 > cap) break;
+            await sleep(50);
+          }
+          fail(`waitFor timed out: ${expr}`); return false;
+        }
+        // no game clock yet (page loading, dev pages): wall time, at least 60 s - the load at ~150 took 28 s to boot the game
+        try { await page.waitForFunction(expr, { timeout: process.env.SNAP_WALL ? timeout : Math.max(timeout, 60000), polling: 50 }); return true; }
         catch { fail(`waitFor timed out: ${expr}`); return false; }
       },
       async shot(sname) {
