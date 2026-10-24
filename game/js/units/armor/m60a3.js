@@ -54,7 +54,7 @@ export const M60A3 = {
     IDLE: 750, GOV: 2400, CUTOFF: 2560, STALL_RPM: 380, LIGHT_RPM: 160,   // idle U
     CURVE: [[0, 0], [500, 1050], [800, 1540], [1200, 1930], [1750, 1575 * LBFT], [2100, 2060], [2400, 643 * HP / (2400 / 9.549)], [2560, 1500], [2700, 0]],   // net N m, shape I
     FRICTION: [90, 70], J: 3.6, KGOV: 120, TAU: 0.15,
-    STARTER: 700, STARTER_RPM: 260,
+    STARTER: 700, STARTER_RPM: 260, CRANK_T: 2.5,   // cranks ~2.5 s before it catches (I)
     FAN_W: (750 - 643) * HP,                 // cooling fans etc. take the gross-net difference (fuel only) I
     SFC: 0.235 / 3.6e6, IDLE_FUEL: 0.0028, FUEL_DENS: 0.84,   // 235 g/kWh I (tuned to ~450-500 km road range, C)
   },
@@ -131,10 +131,10 @@ export const M60A3_ARMOR = (() => {
   P.push(plate('mantlet', T, [0, 0.38, -1.1], [0, 0.2, -1], [1, 0, 0], 0.5, 0.35, 180, { ext: 'gun' }));
   for (const s of [-1, 1]) {
     P.push(plate('turretFront', T, [s * 0.85, 0.42, -0.95], [s * 0.5, 0.35, -0.8], [0, 1, 0], 0.4, 0.45, 220));
-    P.push(plate('turretSide', T, [s * 1.3, 0.42, 0.1], [s, 0.3, 0], [0, 0, 1], 1.0, 0.4, 85));
+    P.push(plate('turretSide', T, [s * 1.33, 0.42, 0.35], [s, 0.3, 0], [0, 0, 1], 1.45, 0.4, 85));
   }
-  P.push(plate('bustle', T, [0, 0.45, 1.6], [0, 0.15, 1], [1, 0, 0], 1.0, 0.35, 50));
-  P.push(plate('turretRoof', T, [0, 0.9, 0.1], [0, 1, 0], [1, 0, 0], 1.2, 1.2, 25, { ext: 'sightThermal' }));
+  P.push(plate('bustle', T, [0, 0.62, 2.0], [0, 0.15, 1], [1, 0, 0], 1.1, 0.3, 50));
+  P.push(plate('turretRoof', T, [0, 0.95, 0.25], [0, 1, 0], [1, 0, 0], 1.25, 1.75, 25, { ext: 'sightThermal' }));
   P.push(plate('cupola', T, [0.6, 1.15, 0.3], [0, 0.6, -0.8], [1, 0, 0], 0.4, 0.25, 50, { ext: 'cupola' }));
   const C = [
     // hull
@@ -151,14 +151,14 @@ export const M60A3_ARMOR = (() => {
     { id: 'gunner', kind: 'crew', frame: T, c: [0.5, -0.1, -0.55], h: [0.3, 0.45, 0.35] },
     { id: 'commander', kind: 'crew', frame: T, c: [0.55, 0.15, 0.35], h: [0.3, 0.55, 0.35] },
     { id: 'loader', kind: 'crew', frame: T, c: [-0.6, -0.1, 0.0], h: [0.3, 0.6, 0.4] },
-    { id: 'readyAmmo', kind: 'ammo', frame: T, c: [0, 0.3, 1.45], h: [0.8, 0.25, 0.3] },
+    { id: 'readyAmmo', kind: 'ammo', frame: T, c: [0, 0.6, 1.72], h: [0.8, 0.22, 0.24] },
     { id: 'breech', kind: 'gun', frame: T, c: [0, 0.38, -0.2], h: [0.25, 0.25, 0.7] },
     { id: 'turretDrive', kind: 'hydraulic', frame: T, c: [0.2, -0.45, -0.3], h: [0.35, 0.2, 0.3] },
     { id: 'computer', kind: 'fc', frame: T, c: [0.85, 0.1, -0.2], h: [0.15, 0.2, 0.25] },
     { id: 'laser', kind: 'fc', frame: T, c: [0.55, 0.7, -0.75], h: [0.15, 0.15, 0.2] },
     { id: 'sightDay', kind: 'sight', frame: T, c: [0.5, 0.85, -0.7], h: [0.12, 0.12, 0.15] },
     { id: 'sightThermal', kind: 'sight', frame: T, c: [0.75, 0.85, -0.45], h: [0.18, 0.15, 0.2], ext: true },
-    { id: 'radio', kind: 'radio', frame: T, c: [0, 0.4, 1.2], h: [0.4, 0.2, 0.15] },
+    { id: 'radio', kind: 'radio', frame: T, c: [0.1, 0.75, 1.75], h: [0.4, 0.13, 0.13] },
     { id: 'gun', kind: 'gun', frame: T, c: [0, 0.38, -3.3], h: [0.12, 0.12, 2.3], ext: true },
     { id: 'cupola', kind: 'mg', frame: T, c: [0.6, 1.1, 0.3], h: [0.4, 0.2, 0.4], ext: true },
   ];
@@ -204,6 +204,7 @@ export function createM60A3(opt = {}) {
     coax: { ammo: 5950, t: 0, firing: false }, mg50: { ammo: 900, ready: 180, t: 0, az: 0, el: 0, firing: false },   // C: 5950 / 900 rounds
     crew: { driver: 1, gunner: 1, commander: 1, loader: 1 }, station: 'gunner',
     elec: { batt: 1, volts: 24, gen: false, master: true },
+    gyro: 1,                  // stabiliser gyros: 0 (stopped) .. 1 (run up); STAB works only when run up
     fire: { where: null, t: 0, halon: 2 }, bailed: false,
     events: [], time: 0,
   };
@@ -268,7 +269,7 @@ export function createM60A3(opt = {}) {
     const drv = T.crew.driver > 0;
     Object.assign(fm.ctl, {
       throttle: drv ? inp.throttle ?? fm.ctl.throttle : 0, brake: drv ? inp.brake ?? 0 : 0.3, steer: drv ? inp.steer ?? 0 : 0,
-      range: drv ? inp.range ?? fm.ctl.range : 'N', park: inp.park ?? fm.ctl.park, starter: !!inp.starter, fuelOn: inp.fuelOn ?? fm.ctl.fuelOn,
+      range: drv ? inp.range ?? fm.ctl.range : 'N', park: inp.park ?? fm.ctl.park, starter: !!inp.starter && T.elec.master && T.elec.batt > 0.05, fuelOn: inp.fuelOn ?? fm.ctl.fuelOn,
     });
     T.sightDir(_prevW);   // the sight line in space before the hull moves (for the stabiliser)
     for (const e of fm.step(dt, env)) {
@@ -281,6 +282,7 @@ export function createM60A3(opt = {}) {
     const draw = (T.power ? 0.0009 : 0) + (T.sight === 'tts' ? 0.0002 : 0);
     el.batt = Math.max(0, Math.min(1, el.batt + (el.gen ? 0.004 : -draw) * dt));
     el.volts = el.gen ? 28 : 22 + 3 * el.batt;
+    if (inp.master !== undefined) el.master = !!inp.master;   // the driver's MASTER switch: the starter, turret power and sights hang on it
     const pwr = (inp.power ?? T.power) && el.batt > 0.05 && el.master;
     T.power = inp.power ?? T.power;
     T.hydP += ((pwr && hp('turretDrive') > 0 ? 1 : 0) - T.hydP) * Math.min(1, dt / 1.5);   // pump spins up
@@ -295,7 +297,10 @@ export function createM60A3(opt = {}) {
     const tCmd = gun ? -shape(inp.trav || 0) * (powered ? TU.TRAVERSE * slow : TU.MANUAL_TRAV) : 0;   // + right -> az decreases
     const eCmd = gun ? shape(inp.elev || 0) * (powered ? TU.ELEV_RATE * slow : TU.MANUAL_ELEV) : 0;
     const hullYaw = fm.w[1];
-    const stab = powered && T.stab;
+    // start-up (TM order, game times): turret power -> hydraulic pressure (~1.5 s) -> the stabiliser's gyros run up (~20 s)
+    T.gyro = pwr ? Math.min(1, T.gyro + dt / 20) : Math.max(0, T.gyro - dt / 40);
+    const stab = powered && T.stab && T.gyro >= 1;
+    T.stabMode = !powered ? 'MANUAL' : T.stab && T.gyro < 1 ? 'STAB RUN-UP' : stab ? 'STAB' : 'POWER';
     // The handle commands a rate (servo lag + acceleration limit; manual handwheels respond directly). Stabilised, the
     // command is INERTIAL: the drives also take out STAB_GAIN of the hull's actual rotation over the frame (the sight line
     // held in space by the gyros), so only the rest of the hull's pitching and yawing reaches the reticle. Unstabilised,
@@ -396,9 +401,15 @@ export function createM60A3(opt = {}) {
     r.kill = killState(T.armor);
     return r;
   };
+  // o.cold: cold and dark - MASTER off, engine stopped, turret power off, gyros stopped, the TTS uncooled. The start-up
+  // order is then: MASTER on, START (hold until the engine catches), turret POWER on, wait for the gyros (STAB) and
+  // the thermal sight's cooler.
   T.reset = (x, z, yaw, env, o) => {
     fm.reset(x, z, yaw, env, o); T.az = T.losAz = 0; T.el = T.losEl = 0; T.azRate = T.elRate = 0; T.cmdAz = T.cmdEl = 0; T.hydP = 1; T.ttsCool = o?.cold ? 0 : 1;
-    T.fc.track = 0; T.laser.range = null; T.laser.t = 0; T.mg50.az = T.mg50.el = 0; T.gun.recoil = 0; solve(1200, true); return T;
+    T.fc.track = 0; T.laser.range = null; T.laser.t = 0; T.mg50.az = T.mg50.el = 0; T.gun.recoil = 0; solve(1200, true);
+    const cold = !!o?.cold; T.elec.master = !cold; T.power = !cold; T.hydP = cold ? 0 : 1; T.gyro = cold ? 0 : 1; T.ttsCool = cold ? 0 : 1;
+    if (cold) { fm.eng.running = false; fm.eng.w = 0; }
+    return T;
   };
   return T;
 }

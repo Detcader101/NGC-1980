@@ -61,7 +61,7 @@ export function createDefence(env) {
       o.hp = o.max = T.hp; o.r = T.r; o.h = T.h;
       if (terrain && env.terrainH) seat(o);
     }
-    if (type === 'lance') o.def.beam = makeBeam();
+    if (T.beam) o.def.beam = makeBeam();
     units.add(o);
     return o.def;
   }
@@ -95,6 +95,25 @@ export function createDefence(env) {
     for (const m of parts.guns) m.parent && m.parent.remove(m);
     parts.guns = list.map(l => { const m = buildDefence(l.type, side); m.position.copy(l.pos); m.rotation.y = l.yaw; g.add(m); return m; });
     return parts.guns;
+  }
+
+  // SEAWORLD: the RUNAWAY ships' fit, through NAVAL's parts.mounts ({ kind, pos, dir }): the seized RAM launchers
+  // become TALON gun / missile modules on deck pedestals, the RUNAWAY lasers become LANCE turrets (naval tune: DEF.talonm,
+  // DEF.lancem). The LEVIATHAN carries TALONs forward and LANCEs aft; the container ship a TALON on its forecastle.
+  // Game level only (bible section 3): the same search / lock / tell / fire behaviour as the island units.
+  function refitShip(parts, side = 2) {
+    const mounts = Array.isArray(parts.mounts) ? parts.mounts.filter(m => m.gun !== undefined && /ram|laser|ciws|sam/.test(m.kind)) : [];
+    if (!mounts.length) return parts.guns;
+    const lev = parts.motion === 'leviathan', box = parts.motion === 'container';
+    const g = parts.group, old = parts.guns.slice(), guns = [];
+    mounts.forEach((m, k) => {
+      const type = box ? 'talonm' : lev ? (m.pos.z < 0 ? 'talonm' : 'lancem') : m.kind === 'laser' ? 'lancem' : 'talonm';
+      const mesh = buildDefence(type, side); mesh.position.copy(m.pos); mesh.rotation.y = Math.atan2(-m.dir.x, -m.dir.z); g.add(mesh);
+      const was = old[m.gun]; if (was && was.parent) was.parent.remove(was);
+      m.node = mesh; m.gun = guns.length; m.def = type; guns.push(mesh);
+    });
+    for (const o of old) if (o.parent && !guns.includes(o)) o.parent.remove(o);
+    parts.guns = guns; return guns;
   }
 
   // ------------------------------------------------------------------ sight
@@ -496,7 +515,7 @@ export function createDefence(env) {
         ud.radar.rotation.y = D.radarA;
       } else { D.radarA += dt * (f ? 3.2 : 2.0); ud.radar.rotation.y = D.radarA; }
     }
-    if (ud.dish && D.type === 'talon') { ud.dish.rotation.z = t * (f ? 12 : 2); ud.dish.rotation.x = f ? Math.sin(t * 12) * 0.05 : 0; }
+    if (ud.dish && (D.type === 'talon' || D.type === 'talonm')) { ud.dish.rotation.z = t * (f ? 12 : 2); ud.dish.rotation.x = f ? Math.sin(t * 12) * 0.05 : 0; }
     // rotary barrels: spin up while locking (a tell you can hear), full speed while firing
     if (T.spin) {
       const want = firing || (f && D.lockT > T.lock * 0.4 && D.los) ? 1 : 0;
@@ -518,7 +537,7 @@ export function createDefence(env) {
       ud.lamp.visible = on;
     }
     // LANCE: seams brighten through the charge; the radiators glow red-hot after a shot and vent steam; shimmer
-    if (D.type === 'lance') {
+    if (D.T.beam) {
       const B = D.beam, BT = T.beam;
       const p = B.st === 'charge' ? 1 - Math.max(0, B.t) / BT.charge : B.st === 'on' ? 1 : 0;
       ud.glow.color.setRGB(0.22 + 0.7 * p, 0.55 + 0.45 * p, 0.66 + 0.34 * p);   // dim teal at rest, near white at full charge
@@ -552,5 +571,5 @@ export function createDefence(env) {
     for (const o of units) if (o.def.beam) { const B = o.def.beam; scene.remove(B.g, B.spot, B.line); }
     units.clear(); snd.silence(); resetCM();
   }
-  return { pick, model, attach, refitCarrier, update, tick, reset, units, missiles, los, smokeAlong, DEF, CM };
+  return { pick, model, attach, refitCarrier, refitShip, update, tick, reset, units, missiles, los, smokeAlong, DEF, CM };
 }

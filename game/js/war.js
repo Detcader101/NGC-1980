@@ -15,7 +15,8 @@ import { createRotary } from './units/air/rotary/rotary.js';   // NGC-1980: CH-4
 import { createGroundWar } from './units/groundwar/groundwar.js';   // NGC-1980 GROUND WAR: STRIDERs, RW-7s, seized MBTs and Marines fighting on the islands
 import { buildCarrier, buildBattleship, buildFreighter, buildDrone, buildTransport, buildGunship, buildTomcat, buildGun, buildStructure, buildRubble, CARRIER, BSHIP, FREIGHTER, TEAM } from './ships.js';
 // NAVAL: ship motion in a seaway (heave / pitch / roll by sea state and speed) and the naval effects
-import { SHIPS as SHIP_MOTION, makeSea, createShipMotion, shipPointY, shipPointVY } from './units/naval/seamotion.js';
+import { SHIPS as SHIP_MOTION, makeSea, createShipMotion, shipPointY, shipPointVY, retuneSea, advanceSea, seaElevation } from './units/naval/seamotion.js';
+import { createSeaWeather } from './units/naval/seaweather.js';   // SEAWORLD: the optional drifting sea state
 import { createNavalFx } from './units/naval/navalfx.js';
 import { createAirWar } from './units/air/airwar.js';             // AIR: sim-flown Tomcats, SHRIKE / REAPER / SHAHED (ngc/airfw)
 import { homeAAM, decoyCheck } from './units/air/gameproj.js';     // AIR: the shared game-level missile homing and decoy rule
@@ -41,8 +42,16 @@ export function createWar(ctx) {
   // NAVAL: the sea state (?sea=0..7, default 4 MODERATE; waves from the west-south-west) and the ships' wake / spray
   const _sq = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
   W.sea = makeSea(_sq && _sq.has('sea') ? +_sq.get('sea') : 4, -1.2, 11);
-  W.setSea = (ss, dir = W.sea.dir) => { W.sea = makeSea(ss, dir, 11); for (const u of W.units) if (u.mo) u.mo.setSea(W.sea); return W.sea.name; };
-  const nfx = createNavalFx(scene, fx);
+  // SEAWORLD: ONE live sea. main.js draws its surface from W.sea and every ship rides it (sailShip passes its
+  // position to the motion model); setSea retunes it in place (the waves keep their phases: nothing jumps).
+  // W.weather drifts the state over the war when the player turns WEATHER DRIFT on (pause menu; seaweather.js).
+  W.weather = createSeaWeather(W.sea.ss, W.sea.dir, 23);
+  W.setSea = (ss, dir = W.sea.dir) => { W.weather.set(ss); retuneSea(W.sea, ss, dir); return W.sea.name; };
+  W.setSeaDrift = on => { W.weather.set(W.weather.base, !!on); retuneSea(W.sea, W.weather.base, W.sea.dir); };
+  W.seaY = (x, z) => seaElevation(W.sea, x, z);   // the drawn surface height (game m) at a world point
+  // the sea's clock and the weather: main.js calls this every frame the game isn't paused (the title screen too)
+  W.tickSea = dt => { advanceSea(W.sea, dt); const w = W.weather.step(dt); if (w) { retuneSea(W.sea, w.ss, w.dir); if (w.msg) feed(w.msg); } };
+  const nfx = createNavalFx(scene, fx, W.seaY);
   const store = side => side === 1 ? W.P : W.E;
   // war sounds fall off with distance from the camera, so a battle across the map is a distant rumble
   const ear = ctx.ear;
@@ -135,7 +144,7 @@ export function createWar(ctx) {
     else { s.mesh.visible = false; s.rubble = buildRubble(s.r * 0.9); s.rubble.position.set(s.x, s.y, s.z); islandGroup.add(s.rubble); }
     if (s.chimneys) for (const c of s.chimneys) c.off = true;
     if (s.kind !== 'aa') s.rebuild = 60;
-    if (s.kind === 'shipyard') { W.E.bship = Math.max(0, W.E.bship - 30); feed('SHIPYARD DESTROYED  -  BATTLESHIP SET BACK', 'good'); }
+    if (s.kind === 'shipyard') { W.E.bship = Math.max(0, W.E.bship - 30); feed('SHIPYARD DESTROYED  -  LEVIATHAN SET BACK', 'good'); }
     if (!quiet && s.side === 2) { ctx.addScore(s.kind === 'aa' ? 250 : 600); feed(`${s.I.name}: ${s.kind === 'aa' ? 'AA GUN' : s.kind.toUpperCase()} DESTROYED`, 'good'); }
     if (!quiet && s.side === 1) feed(`${s.I.name}: OUR ${s.kind === 'aa' ? 'AA GUN' : s.kind.toUpperCase()} DESTROYED`, 'bad');
   }
@@ -150,6 +159,7 @@ export function createWar(ctx) {
   function makeShip(type, side, x, z, yaw) {
     const m = type === 'carrier' ? buildCarrier(side) : type === 'freighter' ? buildFreighter() : buildBattleship();
     if (type === 'carrier' && side === 1) defence.refitCarrier(m, 1);   // DEFENCE hook: the ALBATROSS's close-in guns and missile boxes
+    else if (side === 2) defence.refitShip(m, 2);   // SEAWORLD: KRAKEN / LEVIATHAN / container ship get TALON and LANCE mounts
     const dims = type === 'carrier' ? CARRIER : type === 'freighter' ? FREIGHTER : BSHIP;
     const u = { type, side, p: new THREE.Vector3(x, 0, z), v: new THREE.Vector3(), yaw, w: 0, speed: 0, max: { carrier: 6, freighter: 5, battleship: 7.5 }[type], hp: { carrier: 600, freighter: 70, battleship: 420 }[type], mesh: m.group, parts: m, dims, path: [], guns: [], wakeT: 0, launchT: 0 };
     u.hpMax = u.hp;
@@ -189,7 +199,7 @@ export function createWar(ctx) {
     }
     return best;
   };
-  W.shipAt = (x, z) => W.units.find(u => u.dims && Math.abs(x - u.p.x) < 70 && Math.abs(z - u.p.z) < 70 && (() => { const [lx, lz] = toLocal(u, x, z); return Math.abs(lx) < u.dims.W / 2 && Math.abs(lz) < u.dims.L / 2 + 4; })());
+  W.shipAt = (x, z) => W.units.find(u => u.dims && Math.abs(x - u.p.x) < 70 && Math.abs(z - u.p.z) < 70 && (() => { const [lx, lz] = toLocal(u, x, z); return Math.abs(lx) < (u.parts.halfW || u.dims.W / 2) && Math.abs(lz) < u.dims.L / 2 + 4; })());   // SEAWORLD: halfW reaches the outboard lifts
   // vy: the deck's vertical velocity there (heave + pitch + roll; the sky carrier's climb), for gear that wants it
   W.surfVel = (x, z) => { const u = W.shipAt(x, z); if (!u || u.sinking) return null; const a = u.att, [lx, lz] = toLocal(u, x, z), h = u.parts.localDeck ? Math.max(0, u.parts.localDeck(lx, lz)) : u.dims.DECK; return { vx: u.v.x, vz: u.v.z, w: u.w, cx: u.p.x, cz: u.p.z, vy: u.v.y + (a ? shipPointVY(a.vHeave, a.pitch, a.roll, a.vPitch, a.vRoll, lx, h, lz) : 0) }; };
   // the deck height of ship u under (x, z), moving with the sea (the jet's catapult and wires use it)
@@ -364,7 +374,7 @@ export function createWar(ctx) {
     u.v.set(fwdX(u.yaw) * u.speed, 0, fwdZ(u.yaw) * u.speed);
     u.p.addScaledVector(u.v, dt);
     // NAVAL: heave, pitch and roll in the seaway (and the list of a sinking ship); deckY() uses the same attitude
-    const a = u.att, mo = u.mo.step(dt, u.speed, u.yaw, u.w);
+    const a = u.att, mo = u.mo.step(dt, u.speed, u.yaw, u.w, u.p.x, u.p.z);   // SEAWORLD: on the live sea at its position
     a.heave = mo.heave; a.pitch = mo.pitch; a.roll = mo.roll; a.vHeave = mo.vHeave; a.vPitch = mo.vPitch; a.vRoll = mo.vRoll;
     if (u.sinking !== undefined) { a.roll += Math.min(0.35, u.sinking * 0.03) * (u.side === 1 ? 1 : -1); a.pitch -= Math.min(0.12, u.sinking * 0.01); }
     placeShip(u);
@@ -399,13 +409,16 @@ export function createWar(ctx) {
     const hq = W.islands.find(I => I.kind === 'hq' && I.owner0 === side); return [hq.pad.x, hq.pad.h + 4, hq.pad.z];
   }
   W.sendDrone = I => {
-    if (W.P.mat < COST.drone) return 'NOT ENOUGH MATERIEL';
+    // NGC-1980 ngc/infdepth hook: Marines back from the sickbay (casualty evacuation) fill seats: less materiel
+    const cost = COST.drone - (GW.CV ? GW.CV.poolCredit(COST.drone) : 0);
+    if (W.P.mat < cost) return 'NOT ENOUGH MATERIEL';
     const reinforce = I.owner === 1 && !I.cave && GW.presence(I, 2) > 0;   // NGC-1980 GROUND WAR hook: Marines to one of our islands the machines have landed on
     if (I.owner === 1 && !reinforce) return `${I.name} IS ALREADY OURS`;
     if (I.cave) return 'CAVE ISLANDS: STEAL THE POD FROM THE CAVE';
     if (W.units.filter(u => u.type === 'drone' && !u.dead).length >= 3) return 'THREE SEA KNIGHTS ALREADY OUT';
-    W.P.mat -= COST.drone; const [x, y, z] = launchPoint(1); makeAir('drone', 1, x, y, z, { target: I, reinforce });
-    sfx.dock(); return `SEA KNIGHT LAUNCHED  -  13 MARINES ${reinforce ? 'TO REINFORCE' : 'FOR'} ${I.name}`;
+    W.P.mat -= cost; const [x, y, z] = launchPoint(1); makeAir('drone', 1, x, y, z, { target: I, reinforce });
+    const back = GW.CV ? GW.CV.poolUse() : 0;   // (ngc/infdepth)
+    sfx.dock(); return `SEA KNIGHT LAUNCHED  -  13 MARINES${back ? ` (${back} BACK FROM THE SICKBAY)` : ''} ${reinforce ? 'TO REINFORCE' : 'FOR'} ${I.name}`;
   };
   W.orderAA = I => {
     if (I.owner !== 1) return 'GUNS CAN ONLY GO ON OUR ISLANDS';
@@ -551,7 +564,7 @@ export function createWar(ctx) {
   function damage(t, dmg, side) {
     if (t.player) { if (side === 2) ctx.hurtPlayer(Math.min(0.6, 0.06 * dmg), dmg >= 9 ? 'MISSILE' : 'HIT'); return; }   // AIR: the player as an air target
     if (t.ship) {   // a ship's gun mount
-      t.hp -= dmg; if (t.hp <= 0 && !t.dead) { t.dead = true; t.mesh.getWorldPosition(_w); fx.explode(_w.x, _w.y + 1, _w.z, 1.4, { debris: 5 }); t.mesh.visible = false; t.rebuild = 45; boomAt(_w.x, _w.y, _w.z, 0.5); if (t.ship.side === 2) { ctx.addScore(300); feed(`${t.ship.type === 'carrier' ? 'KRAKEN' : 'BATTLESHIP'} GUN DESTROYED`, 'good'); } }
+      t.hp -= dmg; if (t.hp <= 0 && !t.dead) { t.dead = true; t.mesh.getWorldPosition(_w); fx.explode(_w.x, _w.y + 1, _w.z, 1.4, { debris: 5 }); t.mesh.visible = false; t.rebuild = 45; boomAt(_w.x, _w.y, _w.z, 0.5); if (t.ship.side === 2) { ctx.addScore(300); feed(`${t.ship.type === 'carrier' ? 'KRAKEN' : t.ship.type === 'freighter' ? 'CONTAINER SHIP' : 'LEVIATHAN'} GUN DESTROYED`, 'good'); } }
       t.ship.hp -= dmg * 0.25; checkShip(t.ship); return;
     }
     if (t.dims) { t.hp -= dmg; t.lastHit = W.time; checkShip(t); return; }
@@ -568,8 +581,8 @@ export function createWar(ctx) {
     for (let i = 0; i < 6; i++) setTimeout(() => { toWorld(u, rnd(-10, 10), u.dims.DECK, rnd(-u.dims.L / 2, u.dims.L / 2)); fx.explode(_v.x, _v.y, _v.z, rnd(2.5, 4), { debris: 10, color: 0x4a4440, oil: true }); boomAt(_v.x, _v.y, _v.z, 1.2); }, i * 450);
     for (let i = 0; i < 4; i++) { const e = fx.burn(0, 0, 0, 60, 2.5, u.p); e.ox = rnd(-8, 8); e.oy = u.dims.DECK; e.oz = rnd(-40, 40); }
     for (let i = 0; i < 6; i++) fx.water.add({ x: u.p.x + rnd(-30, 30), y: 0.12, z: u.p.z + rnd(-30, 30), size: rnd(14, 26), grow: 0.25, a: 0.85, life: 300, tile: 3, fadeIn: 3 });
-    if (u.type === 'battleship') { W.battleship = null; ctx.addScore(5000); feed('ENEMY BATTLESHIP SUNK', 'good'); }
-    else if (u.type === 'freighter') { const salvage = Math.round(u.cargo * 0.5); W.P.mat += salvage; ctx.addScore(800); feed(`ENEMY FREIGHTER SUNK  -  ${salvage} MATERIEL SALVAGED`, 'good'); }
+    if (u.type === 'battleship') { W.battleship = null; ctx.addScore(5000); feed('LEVIATHAN SUNK', 'good'); }
+    else if (u.type === 'freighter') { const salvage = Math.round(u.cargo * 0.5); W.P.mat += salvage; ctx.addScore(800); feed(`ENEMY CONTAINER SHIP SUNK  -  ${salvage} MATERIEL SALVAGED`, 'good'); }
     else if (u.side === 2) { ctx.addScore(10000); feed('THE KRAKEN IS SINKING', 'good'); end('win', 'ENEMY CARRIER SUNK'); }
     else { feed('ALBATROSS IS SINKING', 'bad'); end('lose', 'OUR CARRIER WAS SUNK'); }
   }
@@ -794,7 +807,7 @@ export function createWar(ctx) {
       E.bship = 0; const I = W.islands.find(I => I.name === 'IRONHOLD'), y = I.yard || I;
       const [wx, wz] = nav.nearestWater(y.x + (0 - y.x) * 0.2, y.z + (0 - y.z) * 0.2);
       W.battleship = makeShip('battleship', 2, wx, wz, Math.atan2(-(0 - wx), -(0 - wz)));
-      feed('ENEMY BATTLESHIP LAUNCHED  -  IT IS HUNTING THE ALBATROSS', 'bad'); sfx.alarm?.();
+      feed('THE LEVIATHAN IS AT SEA  -  IT IS HUNTING THE ALBATROSS', 'bad'); sfx.alarm?.();
     }
     // the enemy carrier's course
     if (ec) {
@@ -909,7 +922,7 @@ export function createWar(ctx) {
   };
   W.setVisibility = fog => {   // enemy aircraft and ships only where we can see; buildings once explored
     GW.setVisibility(fog);   // NGC-1980 GROUND WAR hook: STRIDERs, RW-7s, MBTs and landing craft only where we can see
-    for (const u of W.units) if (u.side === 2) { u.mesh.visible = fog.visibleAt(u.p.x, u.p.z); if (u.mesh.visible && u.type === 'freighter' && !u.spotted) { u.spotted = true; feed('RADAR: ENEMY FREIGHTER SPOTTED  -  SINK IT TO CUT THEIR SUPPLY'); } }
+    for (const u of W.units) if (u.side === 2) { u.mesh.visible = fog.visibleAt(u.p.x, u.p.z); if (u.mesh.visible && u.type === 'freighter' && !u.spotted) { u.spotted = true; feed('RADAR: ENEMY CONTAINER SHIP SPOTTED  -  SINK IT TO CUT THEIR SUPPLY'); } }
     for (const I of W.islands) { const ex = fog.exploredAt(I.x, I.z) || fog.exploredAt(I.pad.x, I.pad.z); for (const s of I.structs) { s.mesh.visible = (!s.dead || !!s.mesh.userData.setState) && ex; if (s.rubble) s.rubble.visible = ex; } if (fog.visibleAt(I.pad.x, I.pad.z)) I.seen = I.owner; }
   };
   W.damage = damage; W.hitTest = hitTest; W.pickExpansion = pickExpansion;

@@ -39,7 +39,7 @@ export const MAR_T = {
   RUSH: [3, 5],                     // s per rush
   SUPP_DECAY: 0.15, PIN: 0.7, UNPIN: 0.35,
   THREAT: { strider: 2.2, hovertank: 6, mbt: 7, aa: 0.6, inf: 1, air: 1.5 },
-  POWER: { sl: 1, tl: 1, ar: 1.4, mg: 1.9, aar: 1, gren: 1.2 },
+  POWER: { sl: 1, tl: 1, ar: 1.4, mg: 1.9, aar: 1, gren: 1.2, doc: 0.6 },   // (doc: the corpsman, ngc/infdepth)
   RANGE: { rifle: 460, auto: 460, mg: 800, gl: 330, law: 200 },   // m: M16A1 / M60 / M203 / M72 effective-ish (game)
   WITHDRAW_RATIO: 0.45, ASSAULT_RATIO: 2.2,
 };

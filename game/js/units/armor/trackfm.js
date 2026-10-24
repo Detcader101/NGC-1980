@@ -596,8 +596,12 @@ export function createTrackSim(P, opt = {}) {
     const rpm = eng.w * RPM, gov = E.GOV * (eng.flooded ? 0 : 1);
     if (eng.running) {
       if (!ctl.fuelOn || eng.fuel <= 0 || eng.flooded || sim.dmg.engine <= 0) { eng.running = false; ev.push({ type: 'stall', why: eng.flooded ? 'flooded' : eng.fuel <= 0 ? 'fuel' : sim.dmg.engine <= 0 ? 'damage' : 'off' }); }
-      else if (rpm < E.STALL_RPM) { eng.running = false; ev.push({ type: 'stall', why: 'lugged' }); }
-    } else if (ctl.starter && ctl.fuelOn && eng.fuel > 0 && !eng.flooded && sim.dmg.engine > 0 && rpm > E.LIGHT_RPM) { eng.running = true; ev.push({ type: 'start' }); }
+      else if (rpm < E.STALL_RPM && !(eng.grace > 0)) { eng.running = false; ev.push({ type: 'stall', why: 'lugged' }); }
+    } else if (ctl.starter && ctl.fuelOn && eng.fuel > 0 && !eng.flooded && sim.dmg.engine > 0 && rpm > E.LIGHT_RPM) {
+      // a diesel catches after some cranking at light-off speed (compression heats the charge; the AVDS is slow, a 6V53 quick)
+      eng.crank += dt; if (eng.crank > (E.CRANK_T ?? 1.5)) { eng.running = true; eng.crank = 0; eng.grace = 1.5; ev.push({ type: 'start' }); }   // grace: it runs up from cranking speed
+    } else if (!eng.running) eng.crank = 0;
+    if (eng.grace > 0) eng.grace -= dt;
     const wSet = (E.IDLE + clamp(ctl.throttle, 0, 1) * (gov - E.IDLE)) / RPM;
     const tmax = Tmax(rpm) * (0.35 + 0.65 * sim.dmg.engine);
     let tCmd = eng.running ? clamp(E.KGOV * (wSet - eng.w), 0, tmax) : 0;
