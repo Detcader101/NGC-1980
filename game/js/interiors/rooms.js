@@ -29,9 +29,9 @@ export const hash01 = (seed, salt = 0) => { let h = (seed | 0) ^ Math.imul(salt 
 // the front door's centre (u) on a house / cottage front: models.js draws it there, the rooms leave the gap there
 export const doorU = it => (hash01(it.seed, 1) - 0.5) * (it.w - 2.4);
 // which terrace units are shops (models.js draws the shopfront)
-export const shopUnit = (it, i) => !!it.shops && hash01(it.seed, 10 + i) < 0.85;
+export const shopUnit = (it, i) => it.pub ? i === 0 : !!it.shops && hash01(it.seed, 10 + i) < 0.85;   // ngc/world-polish: a pub's bar is unit 0
 export const SHOP_KINDS = ['grocer', 'newsagent', 'hardware', 'cafe'];
-export const shopKind = (it, i) => SHOP_KINDS[Math.floor(hash01(it.seed, 20 + i) * 4)];
+export const shopKind = (it, i) => it.pub && i === 0 ? 'pub' : SHOP_KINDS[Math.floor(hash01(it.seed, 20 + i) * 4)];
 export const ENTERABLE = new Set(['house', 'cottage', 'terrace', 'church', 'petrol', 'barn', 'boatshed', 'garage', 'hall', 'barracks']);
 
 // ------------------------------------------------------------------ palettes (1980: magnolia, avocado, mustard, brown)
@@ -278,12 +278,13 @@ function terracePlan(it, hf) {
 // a 1980 village shop: the counter with the till, shelves of tins and packets, the goods by kind
 function shopFit(P, r, kind, u0, u1, v0, v1, y, doorU) {
   const cv = v0 + 1.0, cLen = Math.max(1.2, (u1 - u0) - 1.6);
-  P.put('counter', u0 + cLen / 2, cv, y, 0, { w: cLen, c: r.pick([0x6a4a2a, 0x8a6a40, 0x4a5a6a]), till: kind !== 'cafe' }, [cLen, 0.6, 0.95]);
+  P.put('counter', u0 + cLen / 2, cv, y, 0, { w: cLen, c: r.pick([0x6a4a2a, 0x8a6a40, 0x4a5a6a]), till: kind !== 'cafe' && kind !== 'pub' }, [cLen, 0.6, 0.95]);
   const sw = Math.max(1.0, Math.min(2.4, v1 - v0 - 2.6)); P.put('shelves', u0 + 0.22, cv + 0.8 + sw / 2, y, Math.PI / 2, { w: sw, goods: kind }, [sw, 0.4, 2.0]);
   P.put('shelves', u0 + cLen / 2, v0 + 0.22, y, 0, { w: cLen, goods: kind, low: true }, [cLen, 0.4, 1.8]);
   if (kind === 'grocer') { P.put('vegCrates', (u0 + u1) / 2 - 0.3, v1 - 0.5, y, Math.PI, {}, [1.4, 0.6, 0.8]); P.put('freezer', u0 + 1.3, cv + 1.4, y, 0, {}, [1.2, 0.7, 0.85]); }
   if (kind === 'newsagent') { P.put('newsRack', u1 - 0.3, (v0 + v1) / 2 + 0.3, y, -Math.PI / 2, {}, [1.4, 0.5, 1.4]); P.put('sweetJars', u0 + 0.6, cv, y + 0.95, 0, {}); }
   if (kind === 'hardware') { P.put('buckets', u0 + 0.9, v1 - 0.6, y, 0, {}, [0.9, 0.6, 0.7]); P.put('shelves', u1 - 0.22, (v0 + v1) / 2 + 0.1, y, -Math.PI / 2, { w: 1.6, goods: kind }, [1.6, 0.4, 2.0]); }
+  if (kind === 'pub') for (let k = 0; k < 3; k++) { const tu = u0 + 1.0 + k * 1.5, tv = v1 - 1.0; if (tu > u1 - 0.8) break; P.put('cafeTable', tu, tv, y, 0, { c: 0x5a3a22 }, [0.7, 0.7, 0.75]); }   // ngc/world-polish: the bar's tables
   if (kind === 'cafe') for (let k = 0; k < 2; k++) { const tu = u0 + 1.1 + k * 1.6, tv = v1 - 1.1; if (tu > u1 - 0.8) break; P.put('cafeTable', tu, tv, y, 0, { c: r.pick([0xc04030, 0x30a050, 0xe0e0d8]) }, [0.7, 0.7, 0.75]); }
   P.lights.push([(u0 + u1) / 2, y + 2.3, (v0 + v1) / 2]);
 }
