@@ -128,6 +128,26 @@ goes back to his platoon. Lives are the fleet: the HUD strip under the score sho
 the war). A lost unit is a loss to the fleet; when the unit you are in is lost the board opens and, unless you pick,
 hands you on to the Huey. The war is lost when the fleet is spent - nothing in reserve and nothing left out there.
 
+**AIR DROP (C-130 heavy drop).** On the board, select a vehicle row (M151A2, M35A2, M113A2) and an island, then **C**:
+a Marine KC-130 flies the run (1,100 ft, 130 KIAS), opens the ramp at the one-minute warning, and at the green light the
+extraction chute pulls the platform out over the ramp; the G-11A canopies open (reefed, then full), the load drifts down
+with the wind and lands on its honeycomb, and the DZ party de-rigs it - it is then a unit on that island. It costs the
+vehicle (reserve or bought) plus 10 materiel. The M60A3 is too heavy for a C-130 (the board says so). **V** on the board
+watches the run: V cycles the loadmaster at the ramp / the flight deck / the load / a chase view, **\\** or **Esc** returns.
+A drop can go wrong: a streaming canopy, trees, a steep slope or the sea. Keys 7 / 9 / 0 deliver by CH-46 and LCM-8 as before.
+
+### AIRLIFT (the Huey's cargo hook and troops)
+
+- **Sling load**: hover low over a vehicle - the crew chief talks you on (FORWARD / BACK / LEFT / RIGHT / DOWN / HOLD, the
+  APEX scope at the bottom shows where it is) and the hookup man stands on it with the sling. When he is ready press **R**
+  (or the HOTAS winch button) to hook it. Take the slack gently, lift it off, keep under the load's speed (60 kt for a
+  jeep). The HUD shows the load, the hook limit (4,000 lb), the gross weight, the tension, the swing (SWING scope) and the
+  torque. Set it down on its wheels (the pendant goes slack) and **R** releases it. In the air **R R** jettisons it. Only the
+  M151A2 and the civilian cars fit a Huey's hook; trucks and armour are TOO HEAVY (they go by LCM-8 or C-130).
+- **Troops**: landed on the ALBATROSS or a friendly pad, **.** (period) calls a squad of six Marines (30 materiel); they run
+  in and sit on the bench and in the doors. Land on an island and **.** again: they get out and join the ground war there.
+- A Marine on foot boards the Huey's cabin bench with **Y** at its door (as before).
+
 ### HORNET (jet)
 
 | Key | Action |
@@ -293,6 +313,7 @@ node tools/jetbench.mjs             # the jet's flight model against published F
 node tools/c130bench.mjs            # the C-130H flight model against published C-130H data (spec box, ops limits card, FM 3-21.38)
 node tools/tomcatsysbench.mjs       # the flyable F-14A's systems: wing sweep AUTO / MAN / EMER / OVERSWEEP, dead CADC, AFCS, the start on the switches (crank, throttles, wet start, auto start), generators / EMERG GEN, airstarts, stalls, damage
 node tools/hueybench.mjs            # the Huey's flight model against published UH-1H data (Heffley, Talbot, DCS / TM charts)
+node tools/slingbench.mjs           # AIRLIFT: sling-load pendulum, bounce, snatch, hook limits, the Huey hovering / cruising with a load; G-11A heavy-drop descents
 node tools/medinvbench.mjs          # medical (ATLS shock timing, tourniquets, drugs, IV), kit weights, inventory grids
 node tools/ch46bench.mjs            # CH-46E tandem rotor: max speed, climb, hover ceilings, single engine, autorotation, SAS
 node tools/mv22bench.mjs            # MV-22B tiltrotor: hover / download / figure of merit, the conversion corridor, 275 kt, 412 / 333 rpm
