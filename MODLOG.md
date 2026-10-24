@@ -1909,6 +1909,65 @@ untouched (war.js's exported hitTest / damage / blast carry the gunnery).
   Roots-blower scream; the starter motor's gear whine; a cough when the diesel catches; the transmission's clunk on a
   range shift; brake squeal at low speed; the turret's hydraulic valve hiss while laying.
 - **Tests**: tankbench 73/73 (+ the start-up check), armorgamebench 20/20, tankaudio 4/4, tankmodel 2/2 (M60, M113).
+
+## 2026-10-24 — NGC-1980 WATER + FISH (branch ngc/waterfish)
+What: fish schools round the camera, water clarity seen from above, the view under water, diving.
+- **fishsim.js** (pure, node): four species of a 1980 temperate archipelago, each with its body length, school size,
+  sea depth (habitat), swimming depth band, cruise / burst speed: pilchard (0.14-0.2 m, 50-90, near the surface),
+  mackerel (0.28-0.38 m, mid water), grey mullet (0.3-0.5 m, small groups grazing the bottom in 0.7-4.5 m by the
+  beaches), amberjack (~1 m, a few, deep near the bed). Boids per school (separation inside the nearest-neighbour
+  distance, alignment, cohesion, a wandering goal), depth band, sea bed below and shore ahead read through `terrainH`
+  (cached on a 2 m grid), so the coming beaches (ngc/terrain) need no change. Spawned only within 70-170 m of the
+  camera (more when higher; none above 160 m), dropped behind it; at most 760 fish / 14 schools.
+  Fright: hulls (box round the waterline, bow wave grows with speed, flee aside and down), point disturbances (rotor
+  downwash, swimmers, LCAC, RW-7 hover tanks), transient scares (splashes, gunfire on the water, wakes), and a wave of
+  alarm through the school at 8 m/s. Blasts in / on the water stun (belly up, float up, come to and bolt) or kill
+  (float, then sink); a burst in the air does next to nothing. Radii game-tuned.
+  Numbers: tail beat from Bainbridge 1958 U = L(3f-4)/4 (CONFIRMED form), amplitude ~0.2 L; cruise 1-3 BL/s, escape
+  ~10 BL/s (Videler 1993, Domenici & Blake 1997: INFERRED, per-species UNVERIFIED); NND ~1 BL (Pitcher & Partridge
+  1979, INFERRED); vessel avoidance (dive and move aside, Misund 1997 / Vabo 2002: form INFERRED, distances game-tuned).
+- **sealife.js** (THREE): one instanced draw for every fish (a 66-triangle fusiform body + forked tail, dorsal and
+  pectoral fins, bent by the tail-beat wave in the vertex shader, countershaded, species marks: mackerel bars, mullet
+  lines, amberjack stripe and eye band; silver flanks flash). From above, fish are seen THROUGH the water: light lost
+  on the path down and back, Fresnel, and their depth written at the sea's crest plane so the opaque sea does not hide
+  them (ships and land in front still do). Disturbances come from war.units (ships, low rotary units), war.ground (LCAC,
+  hover tanks), main.js `extra` (the Huey's downwash, the Marine in the water) and wrapped fx recipes (explode, splash,
+  impact on water, wake, water decals) - no edits to fx.js or war.js.
+  Under water (the rendering camera below the drawn surface: the same 8 waves the GPU draws): fog to the water colour
+  (~26 m visibility, less in a rough sea and deeper; greener near the top, darker down), the sky dome off, the terrain
+  drawn double-sided so the surface shows from below (Snell's window 48.6 deg, total reflection outside, bright rim,
+  foam), a 96 m sea bed mesh round the camera from the fish sim's bed cache (built a few hundred vertices a frame while
+  the camera is low over water, so a dive finds it ready), screen edges darkened. All switched in scene.onBeforeRender,
+  so scripted test cameras work too.
+- **seasurface.js**: `SEA_FS_WATER` replaces the flat shallows-to-deep ramp: refracted view ray (n = 1.333) to the bed,
+  per-channel extinction (red first: pure water ~0.35-0.45 / 0.06 / 0.02 per m, Pope & Fry 1997, a little lighter for
+  the look) plus turbidity with sea state, the water's own colour filling in with depth; deep water keeps the old
+  deep blue. `SEABED_GLSL`: sand with ripples, Posidonia sea grass from ~2 m, rock on steep bed, caustics (shared by the
+  clarity from above and the bed mesh below). `SEA_FS_UNDER`: the surface from below. New uniforms uSeaK, uUWCol.
+- **Diving**: footsim.js (I.dive: down at ~1 m/s to 4.5 m or just over the bottom, breath 45 s, forced up when out),
+  marinesim.js passes it, marine.js: hold C (pad B) in the water; HUD shows the breath.
+- Shared-file lines: main.js (import, `${SEA_FS_WATER}` in place of the `wc` ramp line, `${SEA_FS_UNDER}` after the
+  foam mix, `createSeaLife` block after the Marine, `sealife.update(dt)` after `fx.update`, `sealife` in `__G`);
+  footsim.js / marinesim.js / marine.js (dive, a few lines each).
+- **Tests**: `node tools/fishbench.mjs` 29/29 (Bainbridge, habitats, schooling NND / polarisation / cruise speed,
+  ship pass: aside, down, none inside the hull, calm again; downwash; swimmer; blast stun / kill / recover; airburst;
+  spawn / drop round the camera; real archipelago heights; cost 0.34 ms for 661 fish per frame in node).
+  `tools/scenes/fish.mjs` (PARTS=look,fps,hull,wash,blast,under) 10/10 after merging experimental: schools by the camera, hull,
+  downwash and fx.explode frighten / stun, dive -> under water with the bed built, back up. smoke 5/5, naval 5/5,
+  seaworld (sea, horizon) 9/9.
+- **fps**: same camera, fish on / off in alternating 50-frame blocks (SwiftShader, res 0.6, machine at load ~130):
+  median 272.6 ms on vs 274.6 ms off - no measurable cost; sealife CPU ~1 ms a frame (sim, threats, instance upload),
+  one draw call. Without culling, one run with all ~500 fish drawn showed ~20 % in SwiftShader (vertex-bound: a
+  software rasteriser runs the bending vertex shader on the CPU), so fish that cannot show are left out of the draw:
+  behind the camera, under a pixel, or behind more than ~28 m of water along the line of sight (40 m under water).
+- **Gotchas**: three's fog and background are colour-managed (converted to sRGB), the raw terrain / fish / bed shaders
+  are not: the underwater fog colour goes to them as a linear colour (convertSRGBToLinear) or the far water shows as a
+  pale band. foot.spawnAt refuses a spot in deep water unless `{ force: true }`.
+- **Untested / next**: fish sound none (bubbles under water would help); a swimmer at the surface does not ride the
+  waves (his eye is at +0.32 m, a big crest can cover the camera without the underwater switch); fish do not avoid
+  ship hulls they are not near when the hull is stationary (by design, fish shelter by moored hulls); the far terrain
+  grid could be culled under water for fps; amberjack rarely spawn in the zone's 14 m sea.
+
 ## 2026-10-24 — NGC-1980 infantry depth, fixes: the rich Marines' rounds, hands off the rifle in third person, AI grenades and carries (branch ngc/infdepth-fix)
 - **"Both sides fire" (groundwar scene), counted right**: every round the near (rich) Marines fire already went through
   groundsim's `shoot()` into `GS.stats.shots[1]`; what was wrong was the rest of the count and the men themselves.
