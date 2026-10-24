@@ -1700,3 +1700,33 @@ untouched (war.js's exported hitTest / damage / blast carry the gunnery).
   4 fps: the carrier moved 2.2 m instead of 3 in 5 s of wall time - fixed by sleeping on decks), vehicle 14/14 (failed 13/17
   while the M60 and M113 were parked in the test car's path - moved), jettrap 7/7, world 4/4; foot.mjs 10/12 (the island
   roof ladder top and the medical slot check; the experimental base scored 6/18 on the same machine - load-dependent).
+
+## 2026-10-23 — NGC-1980 wave 2: rotary polish (branch ngc/airrot-polish)
+
+Authenticity pass on the CH-46E, MV-22B and RW-3 WASP (game/js/units/air/rotary/*).
+
+- **RW-3 WASP redesign (waspmodel.js), per the bible.** A low lens-section ceramic disc (lathed, knife rim with a
+  white seam and a cyan lip seam, hair-thin panel seams), grilled 9-blade fans with crossed vanes that flutter, an
+  off-centre sensor spine forward-left carrying an eight-lens spider cluster that moves in saccades, an antenna blade
+  right-rear, a two-segment sting folded under the disc (seg 1 hangs back-down, the elbow takes the aim pitch), three
+  two-jointed insect legs that fold flush in flight.
+- **MV-22B.** Smooth one-piece proprotor blades (lens sections, chord 0.95 -> 0.53 m, ~47 deg twist) that feather
+  with the flight model's real blade angle (`S.th75`: fine in the hover, coarse in cruise); blunt dome spinners;
+  6 deg forward sweep on the leading edge and ~2 deg dihedral; the dorsal fairing over the stow ring; flaperons droop
+  in the hover (the download fix); cabin windows (one plated over in primer); the nacelle actuator eases into its stops
+  (conversion 12.6 s).
+- **CH-46E.** Two M2 .50 cal door guns on pintles (right crew door, left forward window) with gunners who swing onto
+  targets and flash; ramp hydraulic struts re-aimed every frame; short boxy aft sponsons as on the real aircraft;
+  lighter Marine green; sooty T58 exhaust. In the war (rotary.js `doorGuns`) the gun on the target's side fires short
+  bursts of game-level rounds at enemies below within ~150 m near the zone (transit < 450 m, wave-off, hover, ground).
+- **Marine-style procedures (transportai.js).** 10 deg approach (CH-46; MV-22 stays 7 deg) to a hover check at 5 m,
+  a proper flare (deceleration x1.5 over the last 70 m: ~12 deg nose-up), a hover check after every lift-off; approach
+  gates on the way in to an LZ - too high at 150-280 m (> 40 m above the path), too fast at short final (closing
+  actually flown > 1.6 x planned + 5 m/s), zone fouled (another aircraft within 16 m and below 15 m; rotary.js
+  `fouled`) -> WAVE-OFF: power on, straight ahead, climb, out to 320 m, come round again (gates off after two);
+  ship recovery from a hover off the port quarter (26 m aft, 22 m to port) with a sidestep over the spot.
+  `AI.homing()` replaces the old phase list in rotary.js. `AI.waveoffs / why / woLog` record it.
+- **Sound (rotorsound.js).** Blade-vortex slap on slow descents (the approach crack), CH-46 transmission whine,
+  MV-22 turbine whine + exhaust hiss + a chestier hover throb, WASP breathing hiss and slow pitch wander.
+- **Tests.** node: ch46bench 21/21, mv22bench 21/21, waspbench 13/13, waspmission 8/8, rotarymission 18/18 (new:
+  a fouled-zone run that waves off once and lands; normal approaches no longer wave off). Browser: see the report.
