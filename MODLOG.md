@@ -2205,3 +2205,67 @@ buttons for the switches (keyboard I / E cover them).
 - Test hook: `drop.camLocal = [[x,y,z],[lx,ly,lz]]` puts the camera at a point in the aeroplane's frame (scenes).
 - Tests: c130bench 46/46; c130.mjs 8/8 (new deck_navigator shot); c130jump.json 7/7 (adds the door check, the safeties,
   the stick in the door, bundleOK); drop.json 5/5; dropflak.json 1/1; smoke.json 5/5.
+
+## 2026-10-24 — NGC-1980 wave 3 #2: INTERIORS - enterable buildings, doors / gates / hatches, the ALBATROSS inside, seats and occupants (branch ngc/interiors)
+
+**What.** The lived-in world's buildings are now rooms you walk into, the carrier has a hangar deck, an island and a
+bridge you can reach on foot, and people sit in the seats.
+- **Buildings** (`game/js/interiors/rooms.js`, pure plans from the same seeded world items the worker draws): detached
+  houses (1-2 floors: living room with tiled fireplace, sofa, armchairs, the telly with its aerial, sideboard; lino
+  kitchen with units, cooker, sink, fridge, table; a 34-degree stair up the side wall to the bedrooms - double bed,
+  bedside tables, wardrobe, dressing table - and the bathroom), cottages, terrace units (shops on the ground floor:
+  grocer, newsagent, hardware, cafe - counter and till, shelves of goods, the freezer, sweet jars, news rack - or a
+  home; a stair to the first-floor flat), the parish church (porch, two blocks of pews, pulpit, lectern, font, organ,
+  chancel with altar and rail), the filling-station kiosk, barns (hay, sacks, the tractor), boat sheds (an upturned
+  clinker dinghy, pots, oars), lock-up garages (a car, the bench, tyres) and the task force's **quonset barracks** -
+  one by each island pad (bunks, footlockers, wall lockers, oil stove, the duty desk, rifle rack). Inner walls carry
+  real window holes where the shell has glass (sills, curtains), skirting, ceilings with pendant lights.
+- **Drawing** (`interiors/interiors.js`, `furniture.js`): rooms are built only within ~55 m of the camera (one merged
+  geometry per building, <=2 builds a frame, dropped beyond 80 m). The shells stay the world's closed chunk meshes:
+  rooms draw first (renderOrder -3), then a depth-only **punch** in front of each facade doorway (-2), then the world -
+  so an open front door shows the hall, and from inside the shell's faces are culled (windows are windows).
+  `world/kit.js` gable soffits now cover only the overhang (they were a false ceiling across every house).
+- **Doors, gates, hatches** (`interiors/doors.js`, one registry): hinged house / shop / church / hut doors, barn and
+  boat-shed double doors, up-and-over garage doors, ship's watertight doors (the dogs come off first), the bridge
+  hatch, and a five-bar **gate in every field wall's gap**. Each leaf is a live collider (walls, vehicles; gates are
+  soft: a tank goes through), drawn instanced, with synthesised latch / creak / dog / slam sounds. **F** opens or
+  shuts the door you face (HUD: "F: OPEN THE DOOR").
+- **Walking them** (`interiors/roomsolid.js`, `world/solid.js`): each enterable item is its walls with door gaps,
+  furniture boxes, door leaves and floors (ground floor, upper floor round its stairwell, stairs as ramps, the front
+  step and steps down a slope) instead of one box.
+- **ALBATROSS** (`interiors/shipint.js` pure plan, `shipgeo.js`): the **hangar deck** at the lifts' lower stop (y 4.25)
+  inside the hull's hangar sides, open to the three deck-edge lifts (chains across while a lift is up), deckhead
+  beams and lights, fire curtains, the hangar deck control booth, spare engines on stands, tow tractors, a crash
+  crane, tool boxes, drums, crates, fire stations, crew at work. The **island**: in through the port watertight door
+  to Flight Deck Control (the Ouija board with its aircraft templates), a watertight door and inclined ladder down
+  the trunk to the hangar deck, inclined ladders up to the O-5 **ready room** (16 ready-room chairs, status board,
+  pilots), O-7 **flag plot** and the O-9 **navigation bridge** (helm, engine order telegraph, captain's chair to port,
+  radar repeater, chart table, bridge-wing doors, glass all round), a ladder up through a **hatch** to the island top
+  deck. Sailors, officers and pilots at their stations.
+- **Seats and occupants** (`interiors/seats.js`, `crewfig.js`): a RIDE craft - Y at a free seat's door: the Huey's
+  four-man troop bench, two seats by a CH-46's ramp (the AI crew flies you out; Y once it has landed; [ ] along the
+  bench and on to the Huey's controls; V looks from outside); you are seen in the seat (a 1980 Marine, M16 between
+  the knees). The Hornet now shows its pilot (HGU-33, visor, mask, harness) while someone flies it; a CH-46's 13
+  Marines sit in the red troop seats until they file down the ramp; the MV-22's machine troopers stand in their racks.
+
+**Shared-file hooks** (commented ngc/interiors): `ground.js` (deckH(x, z, y): layered ship floors inside the ALBATROSS
+interior zones; interior walls replace ALB_BOXES when present; interior ladders; GR.stairAt / addStairs);
+`platform.js` (settle reads the deck under the man's feet); `footsim.js` (stairs at a stair's pace; the grade probe
+looks 0.8 m up, not 1.2 - the next deck overhead read as a wall); `units/infantry/soldier.js` + `marinesim.js`
+(env.onStair: stairs are not Tobler hills); `marine.js` (F use + hint); `world/solid.js` (rooms, gates, ramps,
+roomsNear / gatesNear / stairAt); `world/models.js` (door position / shop units from the seed, shared with the rooms);
+`world/kit.js` (soffit); `main.js` (create, update, afterWar, map skips the RIDE craft, debug handles).
+
+**Tests.** `tools/scenes/interiors.mjs` 18/18 (+ the gate when a farm is found): the island door blocks shut, opens,
+in to FDC, the trunk door, down to the hangar deck, up O-5 / O-7 / bridge, the hatch blocks the ladder until opened,
+out onto the top deck, Huey cabin seat in / out, a two-storey house's front door blocks / opens / the rooms, a CH-46
+with its squad seated. `tools/scenes/interiorsprev.mjs` shoots `game/dev/interiors.html` (every plan cut away, the
+ship interior, the crew figures). smoke 5/5, foot 12/12, marine 15/15; footbench, marinebench, infantrybench 90/90,
+worldsolidbench 9/9, worldbench pass.
+
+**Known / next.** Terraces' second floor and above, the church tower, pri-fly and the KRAKEN stay closed. Interiors
+are lit by the sun like the outside (no interior lighting model). The punch hides other figures standing just
+inside a doorway when seen from outside. AI soldiers do not open doors. Rounds do not hit the world's buildings
+(as before). Field gates exist only where the far world has farms. The ALBATROSS layout fits experimental's island
+model: if NAVAL's island changes (ngc/naval-polish: parts.islandBoxes / islandFloor), `shipint.js`'s ISL table and
+the punch positions must follow it.
