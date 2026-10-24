@@ -88,7 +88,7 @@ export function createMotorPool(o) {
   // ---------------------------------------------------------------- the craft context
   const ctx = {
     scene, GR, crafts, war, fx, sfx, say, feed, keyDown: o.keyDown, CTL: o.CTL, hwOn: o.hwOn, camZ: o.camZ, WENV, guns, models,
-    crewHit, rideTick, medLine: () => medLine(),
+    crewHit, rideTick, medLine: () => medLine(), hover: o.hover, getInOut: o.getInOut,
     silence: () => mute(),
     commandeer: V => commandeer(V),
     key: (V, code) => troopKey(V, code),

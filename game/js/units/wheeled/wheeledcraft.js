@@ -20,6 +20,7 @@ import { lookFrom, charModel } from './modelkit.js';
 import { bakeModel } from './wheeledbake.js';
 import { createMountedGun, GUN } from './vehicleguns.js';
 import { buildMarine } from '../air/rotary/figures.js';
+import { createCabin } from './cabin.js';
 
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const STEP = 1 / 60;
@@ -27,7 +28,7 @@ const STEP = 1 / 60;
 // sixteen troop places, three a side), the materiel cost of a delivery
 export const TYPES = {
   m151: { label: 'M151A2 MUTT', mil: true, variant: { top: 'off', mount: 'm60', screen: 'up' }, cost: 10,
-    gun: { seat: 'gunner', spec: GUN.M60, pivot: [0, 1.40, 0.62], muzzle: [0, 0.04, -1.02], eye: [0, 0.30, 0.72], elev: [-0.28, 0.75], stand: [0, 0.45, 1.05] } },
+    gun: { seat: 'gunner', spec: GUN.M60, pivot: [0, 1.40, 0.62], muzzle: [0, 0.04, -1.02], eye: [0.06, 0.34, 0.78], elev: [-0.28, 0.75], stand: [0, 0.45, 1.05] } },
   m35: { label: 'M35A2', mil: true, variant: { ring: true, cover: 'bows', seats: 'down' }, cost: 20, troops: ['troop0', 'troop3', 'troop6', 'troop8', 'troop11', 'troop14'],
     gun: { seat: 'ring', spec: GUN.M2, ring: [0.48, 2.62, -0.95], arm: [0, 0.12, -0.52], muzzle: [0, 0.07, -1.45], eye: [0, 0.55, 1.1], elev: [-0.22, 1.0], stand: [0.48, 1.42, -0.42] } },
   landrover: { label: 'LAND ROVER 109', civ: true }, hilux: { label: 'TOYOTA HILUX', civ: true },
@@ -88,6 +89,10 @@ export function createWheeledCraft(ctx, type, o = {}) {
     events: [], steer: 0, thr: 0, brk: 0, mode: 'auto', fwd: false, range: 'H', kit: false, lights: false, horn: false,
   };
   V.self = V;
+  V.cabin = createCabin(V, ctx);
+  // the cab's switches for main.js's switch ray (look at one and click, as in the jets): first person in this vehicle
+  V.switches = () => crafts.active === V && V.view === 'first' && V.model && V.model.group.visible ? { group: V.model.group, hitBoxes: V.cabin.hitBoxes } : null;
+  V.click = id => V.cabin.click(id);
   const env = ctx.WENV.forVehicle(V);
   V.env = env;
   // ---------------------------------------------------------------- model, interior, figures (built when first needed)
@@ -96,6 +101,7 @@ export function createWheeledCraft(ctx, type, o = {}) {
     const M = ctx.models && ctx.models.take(type, colour) || buildModel(type, colour, variant);
     V.model = M; M.setVariant?.(variant); scene.add(M.group);
     try { V.interior = M._interior || (M._interior = buildInterior(spec, M)); } catch (e) { console.warn('interior', e.message); }
+    try { V.cabin.attach(M, V.interior); } catch (e) { console.warn('cabin', e.message); }
     M.group.visible = false;
     if (V.wrecked) charModel(M.group, true);
   }
@@ -148,7 +154,7 @@ export function createWheeledCraft(ctx, type, o = {}) {
     V.wake(); V.seat = seat; V.head.yaw = V.head.pitch = 0; V.orbit.yaw = 0; V.view = 'first';
     occupy(seatOf(seat).sid);
     if (V.traffic) ctx.commandeer?.(V);
-    if (isDriver() && !S.eng.running && S.fuelL > 0) { V.crank = 2.5; say(`${T.label}  -  STARTING  ·  W / S DRIVE  ·  A / D STEER  ·  Y GET OUT`, 2.4); }
+    if (isDriver() && !S.eng.running) say(`${T.label}  -  ${T.mil ? (type === 'm35' ? 'ENGINE SWITCH ON, START BUTTON (CLICK THEM)' : 'IGNITION ON, THEN START (CLICK THE SWITCH)') : 'TURN THE KEY (CLICK IT)'}  ·  OR I: START  ·  Y GET OUT`, 3);   // a cold vehicle: the start-up is yours (I does it in one go)
     else if (isGunner()) say(`${T.label}  -  ${seatOf(seat).label}  ·  MOUSE AIMS  ·  CLICK / F FIRES  ·  R RELOAD`, 2.4);
     ctx.onEnter?.(V, from);
     return true;
@@ -197,9 +203,10 @@ export function createWheeledCraft(ctx, type, o = {}) {
     // the wheel: an analogue input sets it; the keys turn it at a hand's rate, quicker back to the centre
     if (analog) V.steer = clamp(steerT, -1, 1);
     else { const rate = (Math.abs(steerT) > 0.01 ? 2.2 : 3.2) * (Math.sign(steerT) !== Math.sign(V.steer) && V.steer !== 0 ? 1.6 : 1); V.steer += clamp(steerT - V.steer, -rate * dt, rate * dt); }
+    if (V.cabin.park) hand = 1;   // the parking brake lever / T-handle (clicked in the cab)
     if (thr < 0.05 && brk < 0.05 && Math.abs(S.speed) < 0.3) hand = 1;   // stopped with no pedal: the parking brake holds it (released as you pull away)
     inp.throttle = thr; inp.brake = brk; inp.steer = V.steer; inp.handbrake = hand; padSteer = steerT;
-    inp.horn = kd('KeyH');
+    inp.horn = kd('KeyH') || inp.horn;
     if (V.crank > 0) { inp.ignition = true; inp.starter = !S.eng.running; V.crank -= dt; if (S.eng.running || V.crank <= 0) { V.crank = 0; inp.starter = false; } }
     else inp.starter = false;
   }
@@ -209,10 +216,34 @@ export function createWheeledCraft(ctx, type, o = {}) {
     const ky = (kd('ArrowUp') ? 1 : 0) - (kd('ArrowDown') ? 1 : 0), kx = (kd('ArrowLeft') ? 1 : 0) - (kd('ArrowRight') ? 1 : 0);
     V.aim.yaw += kx * dt * 1.2; V.aim.pitch = clamp(V.aim.pitch + ky * dt * 0.8, g.elev[0], g.elev[1]);
     if (pad) { const rx = Math.abs(pad.axes[2] || 0) > 0.12 ? pad.axes[2] : 0, ry = Math.abs(pad.axes[3] || 0) > 0.12 ? pad.axes[3] : 0; V.aim.yaw -= rx * dt * 1.6; V.aim.pitch = clamp(V.aim.pitch - ry * dt * 1.1, g.elev[0], g.elev[1]); }
-    V.trigger = !!(input && input.fire) || !!(pad && pad.buttons[7] && pad.buttons[7].value > 0.3);
+    V.trigger = !!(input && input.fire) || !!(pad && pad.buttons[7] && pad.buttons[7].value > 0.3) || !!V._hotasFire;
+  }
+  // buttons: a standard gamepad (A handbrake, B horn, X engine / reload, Y view, LB / RB seat, Back get out) and the
+  // HOTAS through CTL's bindings (trigger: horn or the gun, pickle: engine, VIEW, GEAR: next seat, EJECT: get out,
+  // FLAPS: lights, WHEEL BRAKE: parking brake)
+  const padPrev = [];
+  function buttons(input) {
+    inp.horn = V.cabin.hornT > 0;   // (the horn button clicked in the cab: half a second)
+    const pad = input && input.pad && !input.keyboardOnly ? input.pad : null;
+    if (pad) {
+      const b = i => !!(pad.buttons[i] && pad.buttons[i].pressed), edge = i => b(i) && !padPrev[i];
+      if (edge(2)) V.key(isGunner() ? 'KeyR' : 'KeyI'); if (edge(3)) V.key('KeyV');
+      if (edge(4)) crafts.cycleSeat(-1); if (edge(5)) crafts.cycleSeat(1); if (edge(8)) ctx.getInOut?.();
+      if (b(1) && isDriver()) inp.horn = true;
+      for (let i = 0; i < 12; i++) padPrev[i] = b(i);
+    }
+    const st = ctx.CTL && ctx.CTL.state, hw = ctx.hwOn ? ctx.hwOn() : true;
+    if (hw && st && st.pressed && st.source && st.source !== 'NONE') {
+      const P = st.pressed, A = st.actions || {};
+      if (P.pickle) V.key('KeyI'); if (P.view) V.key('KeyV'); if (P.gear) crafts.cycleSeat(1); if (P.eject) ctx.getInOut?.(); if (P.flaps) V.cabin.click('lights');
+      if (P.wheelbrake) V.cabin.click('park');
+      if (A.fire && isDriver()) inp.horn = true;
+      V._hotasFire = !!A.fire && isGunner();
+    }
   }
   V.update = (dt, input) => {
     V.wake();
+    buttons(input);
     if (V.wrecked) { inp.throttle = 0; inp.brake = 1; inp.handbrake = 1; }
     else if (isDriver() && V.auto) { const a = V.auto.update(S); inp.throttle = a.throttle; inp.brake = a.brake; inp.steer = a.steer; inp.handbrake = a.handbrake; inp.starter = V.crank > 0 && !S.eng.running; if (V.crank > 0) V.crank -= dt; }   // tests: a driver.js follower at the wheel
     else if (isDriver()) readDriver(dt, input);
@@ -286,7 +317,7 @@ export function createWheeledCraft(ctx, type, o = {}) {
       case 'outOfFuel': if (me) say('OUT OF FUEL', 2); break;
       case 'seized': if (me) say('ENGINE SEIZED', 2); break;
       case 'rollover': if (me) say('ROLLED OVER', 2); ctx.sfx.thump?.(1); break;
-      case 'impact': if (e.speed > 3) ctx.sfx.thump?.(Math.min(1, e.speed / 12)); if (e.id && e.id.sim && e.id !== V) bump(e); break;
+      case 'impact': if (me) V.shake = Math.min(2, (V.shake || 0) + e.speed / 8); if (e.speed > 3) ctx.sfx.thump?.(Math.min(1, e.speed / 12)); if (e.id && e.id.sim && e.id !== V) bump(e); break;
       case 'overheat': if (me) say('OVERHEATING  -  WATER TEMPERATURE HIGH', 1.8); break;
       case 'lowAir': if (me) say('LOW AIR  -  BRAKES', 1.2); break;
       default: break;
@@ -340,6 +371,7 @@ export function createWheeledCraft(ctx, type, o = {}) {
   const toLocalD = (d, out) => { bodyQ(_inv).invert(); return out.set(d.x, d.y, d.z).applyQuaternion(_inv).normalize(); };
   V.damage = (power, why) => { V.wake(); dmg.blast([0, 0.8, 0], 5, power); };
   V.hurt = (amount, why, at, dirW, kind) => {
+    if (crafts.active === V) V.shake = Math.min(1.5, (V.shake || 0) + (kind === 'b' || kind === 'ciws' || kind === 'jb' ? 0.4 : 1.0));
     V.wake(); V.lastHitT = performance.now();
     const bullet = kind === 'b' || kind === 'ciws' || kind === 'jb';
     if (bullet && at) {
@@ -375,15 +407,17 @@ export function createWheeledCraft(ctx, type, o = {}) {
   V.key = code => {
     if (code === 'KeyV') { V.view = V.view === 'first' ? 'chase' : 'first'; say(V.view === 'first' ? `${seatOf(V.seat).label}'S VIEW` : 'CHASE VIEW', 1); return true; }
     if (isDriver()) {
-      if (code === 'KeyI') { if (S.eng.running) { inp.ignition = false; V.crank = 0; say('IGNITION OFF', 1.2); } else { inp.ignition = true; V.crank = 2.5; say(S.depth > 0.6 ? 'CRANKING  -  (DROWNED?)' : 'STARTER', 1); } return true; }
+      if (code === 'KeyI') { if (S.eng.running) { inp.ignition = false; V.crank = 0; say('IGNITION OFF', 1.2); } else { inp.ignition = true; V.crank = 2.5; say(S.depth > 0.6 ? 'CRANKING  -  (DROWNED?)' : S.battery < 0.15 ? 'CRANKING  -  THE BATTERY IS FLAT' : spec.engine.diesel && S.eng.temp < 30 ? 'STARTER  -  COLD MULTIFUEL, GIVE IT A MOMENT' : 'STARTER', 1.2); } return true; }
       if (code === 'KeyU' && spec.transfer.front === 'parttime') { inp.fwd = !inp.fwd; say(inp.fwd ? 'FRONT DRIVE ENGAGED (4x4)' : 'FRONT DRIVE OFF (4x2)', 1.4); return true; }
       if (code === 'KeyL' && spec.transfer.low) { inp.range = inp.range === 'H' ? 'L' : 'H'; say(`TRANSFER ${inp.range === 'L' ? 'LOW' : 'HIGH'} RANGE${Math.abs(S.speed) > 1.5 ? '  (STOP TO SHIFT)' : ''}`, 1.4); return true; }
       if (code === 'KeyG' && spec.water.kit) { if (Math.abs(S.speed) > 0.5) { say('STOP TO FIT THE FORDING KIT', 1.3); return true; } inp.kit = !inp.kit; say(inp.kit ? `DEEP-WATER FORDING KIT FITTED  -  ${spec.water.kitFord.toFixed(2)} m` : `FORDING KIT OFF  -  ${spec.water.ford.toFixed(2)} m`, 1.8); return true; }
-      if (code === 'KeyO') { S.lights = !S.lights; say(S.lights ? 'LIGHTS ON' : 'LIGHTS OFF', 1); return true; }
+      if (code === 'KeyO') { V.cabin.click('lights'); return true; }
+      if (code === 'KeyT') { V.cabin.changeWheel(); return true; }
       if (code === 'KeyN') { const m = ['auto', 'semi', 'manual'], i = (m.indexOf(D.mode) + 1) % 3; D.mode = V.mode = m[i]; say(`GEARBOX: ${m[i].toUpperCase()}${m[i] !== 'auto' ? '  -  E / Q CHANGE GEAR' + (m[i] === 'manual' ? '  ·  C CLUTCH' : '') : ''}`, 2); return true; }
       if (code === 'KeyE' && D.mode !== 'auto') { inp.shiftUp = true; return true; }
       if (code === 'KeyQ' && D.mode !== 'auto') { inp.shiftDown = true; return true; }
     }
+    if (code === 'KeyX' && !isGunner()) { V.cabin.extinguish(); return true; }
     if (isGunner() && code === 'KeyR') { if (V.gun.reload()) say(`${V.gun.spec.name}  -  RELOADING`, 1.2); else say(V.gun.boxes <= 0 ? `${V.gun.spec.name}  -  NO MORE AMMUNITION` : `${V.gun.spec.name}  -  BELT FULL`, 1); return true; }
     if (ctx.key && ctx.key(V, code)) return true;
     // keys that mean something on foot / in aircraft do nothing here (and must not fall through to the helicopter)
@@ -411,9 +445,12 @@ export function createWheeledCraft(ctx, type, o = {}) {
     if (V.view === 'first') {
       const s = seatOf(V.seat), e = s.eye || [0, 1.5, 0], base = s.face ? -s.face * Math.PI / 2 : 0;
       _v.set(e[0], e[1], e[2]).applyQuaternion(_q); cam.position.set(S.pos[0] + _v.x, S.pos[1] + _v.y, S.pos[2] + _v.z);
-      if (!view || !view.locked) { const k = Math.exp(-4 * dt); V.head.yaw *= k; V.head.pitch *= k; }
+      if ((!view || !view.locked) && !V.headHold) { const k = Math.exp(-4 * dt); V.head.yaw *= k; V.head.pitch *= k; }   // (headHold: tests)
       cam.quaternion.copy(_q).multiply(_q2.setFromEuler(_e.set(V.head.pitch - (s.role === 'driver' ? (T.civ ? 0.16 : type === 'm35' ? 0.24 : 0.3) : 0.08), base + V.head.yaw, 0, 'YXZ')));   // the driver looks down a little: road and gauges
-      const sh = Math.min(0.015, Math.abs(S.speed) * 0.001) * (S.wheels[0].surf <= 1 || S.wheels[0].surf === 6 ? 0.3 : 1); cam.position.y += (Math.random() - 0.5) * sh;
+      // feel: road / track roughness, a rough engine (damage) at idle, hits and crashes (V.shake decays)
+      const rough = S.eng.running ? (1 - dmg.state.engine) * 0.004 + (S.eng.misfire || 0) * 0.004 : 0;
+      const sh = Math.min(0.015, Math.abs(S.speed) * 0.001) * (S.wheels[0].surf <= 1 || S.wheels[0].surf === 6 ? 0.3 : 1) + rough + (V.shake || 0) * 0.05;
+      cam.position.x += (Math.random() - 0.5) * sh; cam.position.y += (Math.random() - 0.5) * sh; V.shake = Math.max(0, (V.shake || 0) - dt * 2.5);
       return;
     }
     // chase: behind and above, swinging round with the vehicle; the mouse orbits
@@ -453,7 +490,13 @@ export function createWheeledCraft(ctx, type, o = {}) {
         if (part) { if (g.ring) { gunPivot(_p); part.position.copy(_p); } part.rotation.set(V.aim.pitch, V.aim.yaw, 0, 'YXZ'); }
       }
       const inside = me && fp && V.view === 'first';
-      if (V.interior) V.interior.update(lastLook, dt, inside && (isDriver() || dist < 3));
+      if (V.interior) {
+        V.interior.update(lastLook, dt, inside && (isDriver() || dist < 3));
+        // hands on the wheel only with a driver: you in the driver's seat (first person), the civilian driving traffic, an AI
+        const drv = (me && isDriver() && inside) || !!V.traffic || !!V.auto;
+        if (V._drv !== drv) { V._drv = drv; V.interior.setDriver?.(drv, V.traffic ? { glove: 0xc89a78, sleeve: 0x7a4a3a } : T.mil ? { glove: 0x3a3626, sleeve: 0x4a5232 } : { glove: 0xc89a78, sleeve: 0x3a4a6a }); }
+      }
+      V.cabin.setBody(me && isDriver() && inside); V.cabin.update(dt, lastLook, { body: me && isDriver() && inside, interior: V.interior });
       for (const s of M.shell || []) s.visible = !inside;
     } else { if (V.model) V.model.group.visible = false; }
     if (far) { ensureFar(); V.far.visible = true; V.far.position.set(S.pos[0], S.pos[1], S.pos[2]); V.far.quaternion.set(S.q[0], S.q[1], S.q[2], S.q[3]); }
@@ -517,6 +560,8 @@ export function createWheeledCraft(ctx, type, o = {}) {
     const ford = S.depth > 0.05 ? `  ·  WADING ${S.depth.toFixed(2)} / ${(S.kit ? spec.water.kitFord : spec.water.ford).toFixed(2)} m` : '';
     const line = `${T.label}  ·  ${s.label}  ·  ${kmh.toFixed(0)} km/h  ·  ${S.eng.running ? `${GEAR(S.gear)}${spec.transfer.low ? (S.range === 'L' ? ' LOW' : '') : ''}  ${Math.round(S.eng.rpm)} RPM` : V.crank > 0 ? 'CRANKING' : 'ENGINE OFF'}${drive ? '  ·  ' + drive : ''}  ·  ${surf}${V.onBridge !== null ? ' (BRIDGE)' : ''}${ford}  ·  ${Math.round(S.eng.temp)}°C  ${Math.round(S.eng.oilP)} PSI${warn.length ? '  ·  ' + warn.join('  ') : ''}${ctx.medLine ? ctx.medLine() : ''}`;
     let hint;
+    const hv = ctx.hover ? ctx.hover() : null;
+    if (hv && V.cabin.labelOf) return { line, hint: `${V.cabin.labelOf(hv)}  -  CLICK`, weap: '', fuel: S.fuelL / spec.fuel.capacity * 100, fuelLabel: `FUEL ${Math.round(S.fuelL)} L` };
     if (V.wrecked) hint = 'WRECKED  -  Y TO GET OUT';
     else if (S.depth > spec.dims.H * 0.7) hint = 'UNDER WATER  -  Y TO GET OUT AND SWIM';
     else if (isGunner()) hint = `MOUSE / ARROWS AIM  ·  CLICK / F FIRE  ·  R RELOAD  ·  V VIEW  ·  [ ] SEAT  ·  Y GET OUT`;

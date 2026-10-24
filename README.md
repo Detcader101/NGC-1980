@@ -159,6 +159,8 @@ Compressor stall (a bang, the RPM rolls back, TIT climbs, L / R INLET on the cau
 | F | search a crate, a pile of dropped kit or a body; on a friendly pad or the carrier deck: rearm and resupply |
 | V | first / third person on foot; seat eye / chase in a vehicle (the mouse orbits) |
 | W / S, A / D, Space | vehicle: gas / brake (hold S when stopped: reverse), steer (the keys turn less at speed), handbrake |
+| click (cab) | vehicles stand cold: ignition (M151: OFF / ON / START rotary; M35: ENGINE switch + START button; cars: the key), the light switch (OFF, BO MARKER, BO DRIVE, SERVICE DRIVE), panel light, wipers, horn, front drive / transfer levers, parking brake, extinguisher - look at it, click |
+| X, T, O | vehicle: fire extinguisher, change a flat for the spare (stopped), lights |
 | I / H, U, L, G, N, E / Q | vehicle: engine / horn, front drive (4x4), low range (M35), deep-water fording kit, gearbox auto / semi / manual, gear up / down |
 | [ ] , mouse, LMB / F, R | change seat (driver, passengers, the M60 / M2 gunner, the M35's benches); the gunner lays the gun with the mouse (or the arrows), fires, reloads |
 | B | M35: six Marines board / dismount at a pad |

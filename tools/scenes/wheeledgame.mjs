@@ -36,7 +36,11 @@ export default async function (h) {
   await h.expect("document.getElementById('hint').textContent.startsWith('Y: GET IN THE M151A2 MUTT  (DRIVER)')", 'at the driver door');
   await h.key('tap', 'KeyY'); await h.wait(300);
   await h.expect("__G.G.craft === __M.id && __G.crafts.seat === 0 && !__G.foot.exists", 'in the driver seat');
+  await h.expect('!__M.sim.eng.running && __M.cabin.hitBoxes.length >= 6', 'a cold jeep; the cab has its switches');
+  await h.eval("(__M.click('ign'), [__M.cabin.labelOf('ign'), __M.inp.ignition])", 'ignition switch ON'); await h.wait(400);
+  await h.eval("(__M.click('ign'), __M.cabin.labelOf('ign'))", 'ignition switch to START');
   await h.waitFor('__M.sim.eng.running', 8000);
+  await h.eval("(__M.click('lights'), __M.click('lights'), __M.click('wiper'), [__M.cabin.labelOf('lights'), __M.cabin.labelOf('wiper')])", 'blackout drive lights, wipers');
   await h.eval('__WG.hud()'); await h.shot('driver-seat-gauges');
   // keyboard: W, then a gentle right (D) at speed: the steering narrows with speed
   await h.eval('(window.__p0 = [...__M.sim.pos], 1)');
@@ -129,7 +133,7 @@ export default async function (h) {
   await h.eval('__WG.hud().hint'); await h.shot('by-a-parked-car');
   await h.key('tap', 'KeyY'); await h.wait(400);
   await h.expect("__G.G.craft === __C.id && __C.owner === 'player'", 'commandeered the civilian car');
-  await h.waitFor('__C.sim.eng.running', 8000);
+  await h.key('tap', 'KeyI'); await h.waitFor('__C.sim.eng.running', 8000);
   await h.wait(500); await h.shot('civilian-car-driver');
   await h.key('down', 'KeyW'); await h.wait(5500); await h.key('up', 'KeyW');
   await h.key('tap', 'KeyV'); await h.wait(900); await h.shot('civilian-car-chase');
@@ -142,7 +146,7 @@ export default async function (h) {
   await h.eval(`(() => { const V = ${P}.list.find(V => V.type === 'm151' && V.home === 'deck'); window.__D = V; return __WG.near(V, [-1.6, 0, 0.05]); })()`);
   await h.wait(600); await h.key('tap', 'KeyY'); await h.wait(400);
   await h.expect("__G.G.craft === __D.id", 'in the deck M151');
-  await h.waitFor('__D.sim.eng.running', 8000);
+  await h.key('tap', 'KeyI'); await h.waitFor('__D.sim.eng.running', 8000);
   await h.eval(`(() => { const c = __G.war.carrier; __G.war.orderCarrier(c.p.x - Math.sin(c.yaw + 0.6) * 700, c.p.z - Math.cos(c.yaw + 0.6) * 700); window.__d0 = __WG.loc(__D); return __d0; })()`);
   await h.key('down', 'KeyW'); await h.waitFor('__d0.z - __WG.loc(__D).z > 12', 25000); await h.key('up', 'KeyW');
   await h.key('down', 'KeyS'); await h.waitFor('Math.abs(__D.sim.speed) < 0.2', 15000); await h.key('up', 'KeyS');
@@ -164,6 +168,7 @@ export default async function (h) {
   await h.wait(800); await h.eval('__WG.hud().hint');
   await h.key('tap', 'KeyY'); await h.wait(400);
   await h.expect("__G.G.craft === __T.id && __G.crafts.seat === 0", 'in the M35 cab');
+  await h.eval("(__T.click('ign'), __T.click('start'), [__T.cabin.labelOf('ign'), Math.round(__T.sim.airPsi)])", 'M35: ENGINE switch, START button');
   await h.waitFor('__T.sim.eng.running', 10000);
   await h.eval('(window.__m0 = __T.sim.massNow, 1)');
   await h.key('tap', 'KeyB'); await h.wait(400);

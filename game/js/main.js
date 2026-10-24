@@ -152,7 +152,7 @@ let switchHover = null;
 let mouseAimT = -1e9;
 addEventListener('mousemove', e => { mouseNdc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); mouseAimT = performance.now(); });
 function pickSwitch() {
-  const ck = G.craft === 'jet' ? JP.cockpit : G.craft === 'tomcat' ? tomcatC.cockpitObj() : G.craft === 'heli' ? cockpit : null;
+  const ck = G.craft === 'jet' ? JP.cockpit : G.craft === 'tomcat' ? tomcatC.cockpitObj() : G.craft === 'heli' ? cockpit : crafts.active && crafts.active.switches ? crafts.active.switches() : null;   // ngc/wheeledgame: a craft's own switches
   if (!ck || !ck.group.visible) return null;
   switchRay.setFromCamera(document.pointerLockElement === canvas ? _ndc0 : mouseNdc, zCam);
   const hit = switchRay.intersectObjects(ck.hitBoxes, false)[0];
@@ -162,7 +162,7 @@ const _ndc0 = new THREE.Vector2(0, 0);
 addEventListener('mousedown', e => {
   if (e.button !== 0 || G.state !== 'play') return;
   const id = pickSwitch(); if (!id) return;
-  e.stopImmediatePropagation(); e.preventDefault(); if (G.craft === 'jet') JP.click(id); else if (G.craft === 'tomcat') tomcatC.click(id); else doSwitch(id);
+  e.stopImmediatePropagation(); e.preventDefault(); if (G.craft === 'jet') JP.click(id); else if (G.craft === 'tomcat') tomcatC.click(id); else if (G.craft !== 'heli' && crafts.active && crafts.active.click) crafts.active.click(id); else doSwitch(id);
 }, { capture: true });
 // cockpit free look: click the view to capture the mouse (Esc releases it and the head re-centres; middle click centres)
 const head = { yaw: 0, pitch: 0 };
@@ -1040,7 +1040,7 @@ const vehCtx = {
   crewHit: (a, why, at) => foot.hurt(a, why, null),
   crewKilled: why => { say(`${why}  -  CREW KILLED`, 2.5); G.lives--; G.crewDownT = 3.5; feed(`CREW LOST  -  ${why}`, 'bad'); if (G.lives < 0) gameOver(); },
 };
-const pool = createMotorPool({ ...vehCtx, foot, marine, world, ISLANDS, G, Z, terrainH, serviceAt: (x, z) => serviceAt(x, z), selIsl: () => selIsl,
+const pool = createMotorPool({ ...vehCtx, foot, marine, world, ISLANDS, G, Z, terrainH, hover: () => switchHover, getInOut: () => getInOut(), serviceAt: (x, z) => serviceAt(x, z), selIsl: () => selIsl,
   holes: BASES.map(b => ({ x: b.x, z: b.z, r: HOLE_R + 0.6 })) });
 void createVehicleCraft;   // (vehicle.js stays the host for tracked units)
 // --- ARMOUR (wave 2, units/armor/): the M60A3 TTS and the M113A2 on their tracked-vehicle sim. armorworld.js is their
@@ -1661,7 +1661,7 @@ function updateHud() {
     for (const id of ['tl', 'hint', 'feed', 'war']) setStyle(id, 'display', bigMap ? 'none' : 'block');   // the command map has its own read-outs
     setStyle('radar', 'bottom', ck && !bigMap ? 'auto' : ''); setStyle('radar', 'top', ck && !bigMap ? '64px' : ''); setStyle('feed', 'top', ck ? '236px' : '');
   }
-  crossEl.style.display = document.pointerLockElement === canvas && (cockpit.group.visible || JP.cockpit.group.visible || tomcatC.TP.cockpit.group.visible) || (G.craft === 'foot' && !foot.marine && foot.alive && foot.firstPerson() && G.state === 'play') ? 'block' : 'none';
+  crossEl.style.display = document.pointerLockElement === canvas && (cockpit.group.visible || JP.cockpit.group.visible || tomcatC.TP.cockpit.group.visible) || (G.craft === 'foot' && !foot.marine && foot.alive && foot.firstPerson() && G.state === 'play') || (G.state === 'play' && crafts.active && crafts.active.switches && crafts.active.firstPerson()) ? 'block' : 'none';   // ngc/wheeledgame: a dot to work the cab's switches / lay the gun
   const ch = G.craft !== 'heli' && crafts.active ? crafts.active.hud() : null;   // FOUNDATION: any other craft's read-outs
   {   // g effects in the jet cockpit: grey tunnel closing in, black at G-LOC, red-out under negative g
     const gf = JP.cockpit.group.visible || (G.craft === 'jet' && JP.gloc > 0) ? JP.gfx() : tomcatC.TP.cockpit.group.visible || (G.craft === 'tomcat' && tomcatC.glocNow()) ? tomcatC.gfx() : { grey: 0, red: 0 };
@@ -1849,7 +1849,7 @@ function updateCamsAndMeshes(dt, time) {
   cockpit.group.visible = inCockpit; for (const o of heliShell) o.visible = !inCockpit;   // seen from inside, the outer shell only gets in the way
   const near = inCockpit || otherFP || drop.cockpitView || helm.bridgeView ? 0.05 : 0.5; if (zCam.near !== near) { zCam.near = near; zCam.updateProjectionMatrix(); }
   updateLandingLight(inCave || G.craft !== 'heli'); updateBombSight(inCave || e > 0.05 || G.craft !== 'heli' || drop.camActive || helm.active);
-  switchHover = inCockpit || jetCk ? pickSwitch() : null;
+  switchHover = inCockpit || jetCk || (crafts.active && crafts.active.switches && G.craft !== 'heli') ? pickSwitch() : null;   // ngc/wheeledgame: vehicle cabs too
   crafts.render(dt, time); if (G.state !== 'play') crafts.silence();   // every craft's model (the HORNET's cockpit, the soldier's arms...)
   if (inCockpit) cockpit.update(H, dt, heliPanel(switchHover));
   const caveAimOn = inCave && T.alive && T.aimX !== undefined && e > 0.9 && G.state === 'play';
