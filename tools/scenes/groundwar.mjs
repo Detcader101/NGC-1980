@@ -62,7 +62,7 @@ export default async function (h) {
   await h.eval(`(() => { const s = __G.war.ground.sim.units.find(u => u.kind === 'strider' && !u.alive) || __G.war.ground.sim.units.find(u => u.kind === 'strider'); window.__cam = { follow: s, yaw: 2.0, d: 8, h: 3 }; return true; })()`);
   await h.shot('strider-down');
   // ---- 3. a CH-46 with Marines to take it back from the survivors
-  await h.eval(`(() => { __G.G.mat = 200; __G.war.P.mat = 200; const r = __G.war.sendDrone(__I); const c = __G.war.units.find(u => u.kind === 'ch46'); window.__c = c; window.__cam = { follow: c, yaw: 2.4, d: 40, h: 10 }; return r; })()`);
+  await h.eval(`(() => { __G.G.mat = 200; __G.war.P.mat = 200; const r = __G.war.sendDrone(__I); const c = __G.war.units.find(u => u.kind === 'ch46'); window.__c = c; if (c) { c.hp = c.hpMax = 60; }   /* (the scene is about the fight on the ground: a coilgun hit or two on the Sea Knight on its way in must not end it; ngc/infdepth-fix) */ window.__cam = { follow: c, yaw: 2.4, d: 40, h: 10 }; return r; })()`);
   await h.expect(`!!window.__c`, 'a Sea Knight launched with Marines for SANDBAR');
   await h.eval(`__ff(260, 1 / 30, () => __c.rot.AI.phase === 'ground' || __c.dead)`);
   await h.eval(`(window.__cam = { follow: __c, yaw: 1.8, d: 26, h: 6 }, __ff(6), { ...__gw(), heli: __G.Z.alive, death: __G.Z.lastDeath, c: __c.dead || __c.dying, hp: __c.hp, lz: __c.lz })`);

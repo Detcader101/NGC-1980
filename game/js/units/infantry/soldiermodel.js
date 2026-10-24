@@ -295,6 +295,12 @@ export function poseSkeleton(sk, pose, dt = 0.016) {
     }
     const k2 = ads * ads * (3 - 2 * ads);
     g.position.copy(_b).lerp(_a, k2); g.quaternion.copy(_q2).slerp(_q, k2);
+    // ngc/infdepth: slung across the back, muzzle up over the left shoulder (both hands busy: a casualty, a grenade)
+    if (pose.sling) {
+      _b.set(0.02, 0.02, 0.2); B.chest.localToWorld(_b); sk.root.worldToLocal(_b);
+      B.chest.getWorldQuaternion(_wq); sk.root.getWorldQuaternion(_pq); _q.copy(_pq.invert().multiply(_wq)).multiply(_q2.setFromEuler(_e.set(1.35, 0, 0.55, 'XYZ')));
+      g.position.lerp(_b, pose.sling); g.quaternion.slerp(_q, pose.sling);
+    }
     if (pose.weaponState) W.setState(pose.weaponState);
     g.updateMatrixWorld(true);
     // hands to the anchors (reload: the left hand goes to the magazine / pouch)
@@ -318,6 +324,18 @@ export function poseSkeleton(sk, pose, dt = 0.016) {
     const s = Math.sin(pose.gaitPhase || 0) * clamp((pose.speed || 0) / 2, 0, 1);
     B.upperArmL.quaternion.setFromEuler(_e.set(-s * 0.5, 0, -0.08)); B.upperArmR.quaternion.setFromEuler(_e.set(s * 0.5, 0, 0.08));
     B.forearmL.quaternion.setFromEuler(_e.set(0.3, 0, 0)); B.forearmR.quaternion.setFromEuler(_e.set(0.3, 0, 0));
+  }
+  // ngc/infdepth: the hands somewhere else (drag strap, a casualty on the shoulders, a grenade drill, a wound being
+  // dressed): pose.hands = { L?: [x, y, z], R?: [x, y, z] } in the figure's own frame (feet origin, facing -z)
+  if (pose.hands) {
+    sk.root.updateMatrixWorld(true);
+    const poleR = _pR.set(0.6, -1, 0.3).applyQuaternion(sk.root.getWorldQuaternion(_wq)), poleL = _pL.set(-0.6, -1, 0.3).applyQuaternion(_wq);
+    for (const sd of ['L', 'R']) {
+      const t = pose.hands[sd]; if (!t) continue;
+      const T = sd === 'L' ? _hL : _hR; sk.root.localToWorld(T.set(t[0], t[1], t[2]));
+      ikArm(sk, sd, T, sd === 'L' ? poleL : poleR);
+      B['hand' + sd].quaternion.setFromEuler(_e.set(-0.3, 0, 0));
+    }
   }
   sk.root.updateMatrixWorld(true);
 }

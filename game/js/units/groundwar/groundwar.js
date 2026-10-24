@@ -18,6 +18,7 @@ import { buildMBT } from '../runaway/mbtmodel.js';
 import { RwAudio } from '../runaway/rwaudio.js';
 import { FIGURES } from '../air/rotary/figures.js';
 import { createCasevac } from './casevac.js';   // ngc/infdepth
+import { careHands } from '../infantry/carepose.js';   // ngc/infdepth-fix
 
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -109,6 +110,13 @@ export function createGroundWar(ctx) {
     root.remove(V.group); if (V.shadow && V.shadow !== V.group) root.remove(V.shadow);
     GW.views.delete(id);
   }
+  // ngc/infdepth-fix: a medic's or a dragger's hands (carepose.js): rifle slung, hands on the casualty
+  function careLook(u, p) {
+    const st = (u.ai && u.body.alive && u.body.able && u.ai.state) || '';
+    if (/dragging/.test(st)) { p.hands = careHands('drag'); p.sling = 1; p.ads = 0; p.stance = p.stanceFrom = p.stanceTo = 'crouch'; p.stanceT = 1; }
+    else if (/treating/.test(st)) { p.hands = careHands('treat', W.time + u.id); p.sling = 1; p.ads = 0; if (p.stance === 'stand') { p.stance = p.stanceFrom = p.stanceTo = 'crouch'; p.stanceT = 1; } }
+    else { p.hands = null; p.sling = 0; }
+  }
   const _pose = { stance: 'stand', stanceFrom: 'stand', stanceTo: 'stand', stanceT: 1, speed: 0, gaitPhase: 0, aimPitch: 0, down: false, cls: 'rifle', ads: 0, gait: 'walk' }, _rp = {};
   function renderUnits(dt) {
     const cx = ear.x, cy = ear.y, cz = ear.z;
@@ -131,6 +139,7 @@ export function createGroundWar(ctx) {
         if (u.viewAt) { const va = u.viewAt; g.visible = !va.hidden; g.position.set(va.x, va.y, va.z); g.quaternion.copy(va.q); _pose.down = true; _pose.speed = 0; _pose.stance = _pose.stanceFrom = _pose.stanceTo = 'stand'; _pose.stanceT = 1; V.poseFull(_pose, dt); continue; }
         if (u.richOn && u.rich && M.alive && (M.able || (u.crawl && u.crawl.walk))) {
           const R = u.rich.R, p = u.rich.S.pose(_rp); p.cls = R.cls === 'gl' ? 'rifle' : R.cls === 'none' ? 'rifle' : R.cls; p.action = R.cur && R.cur.act ? { name: R.cur.act.name, p: R.cur.act.t / R.cur.act.dur } : null; p.down = false;
+          careLook(u, p);
           if (V.skeleton && R.carrier && V.setWeapon) V.setWeapon(u.ai && u.ai.fire === 'law' && u.laws > 0 ? 'M72A2' : R.carrier.key === 'M16A1' && R.carrier.gl ? 'M16A1/M203' : R.carrier.key);
           V.poseFull(p, dt); continue;
         }
@@ -139,6 +148,7 @@ export function createGroundWar(ctx) {
         _pose.speed = M.speed; _pose.gaitPhase = M.gait; _pose.down = !M.able && !(u.crawl && u.crawl.walk); _pose.gait = M.speed > 3.5 ? 'sprint' : M.speed > 2 ? 'run' : 'walk';
         _pose.cls = u.ai && u.ai.fire === 'law' ? 'law' : 'rifle'; _pose.ads = u.ai && u.ai.fire && u.firedT < 1.5 ? 1 : 0;
         _pose.aimPitch = u.ai && u.ai.aim ? clamp(Math.atan2(u.ai.aim[1] - (M.y + 1.5), Math.hypot(u.ai.aim[0] - M.x, u.ai.aim[2] - M.z)), -0.6, 0.6) : 0;
+        careLook(u, _pose);
         // the dead lie still (posed once)
         if (!M.alive && u.posedDead) continue;
         V.poseFull(_pose, dt); if (!M.alive) u.posedDead = true;
