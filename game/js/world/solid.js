@@ -18,6 +18,14 @@ import { roadAt, roadById } from './net.js';
 import { polesOf } from './layout.js';
 import { rng } from './rng.js';
 import { BOUND } from '../world.js';
+import { roomParts, floorHere, ENTERABLE, KEEP } from '../interiors/roomsolid.js';   // ngc/interiors: enterable buildings
+
+// ngc/interiors: an enterable building is its rooms (walls with door gaps, furniture, live door leaves, floors and
+// stairs: interiors/rooms.js), plus whatever of its old solid stays outside them (the church tower, the canopy posts)
+function roomItem(it, hf, parts, floors, rooms) {
+  if (KEEP[it.t]) { const tmp = []; itemParts(it, hf, tmp); tmp.forEach((p, i) => { if (KEEP[it.t](i)) parts.push(p); }); }
+  const P = roomParts(it, hf, parts, floors); if (P) rooms.push({ it, P });
+}
 
 const GRID = 16, LIFT = { tarmac: 0.14, lane: 0.13, street: 0.12, dirt: 0.10 };
 const kOf = (i, j) => i * 100003 + j;
@@ -108,14 +116,14 @@ export function createWorldSolid(ctx) {
   let zoneSolid = null;
   function zone() {
     if (zoneSolid) return zoneSolid;
-    const parts = [], floors = [];
+    const parts = [], floors = [], rooms = [];
     for (const e of (ctx.zone ? ctx.zone() : [])) {
-      for (const it of e.items) { if (it.t === 'quay' || it.t === 'jetty') pierFloors(it, floors); else itemParts(it, ctx.zoneHf || ctx.hf, parts); }
+      for (const it of e.items) { if (it.t === 'quay' || it.t === 'jetty') pierFloors(it, floors); else if (ENTERABLE.has(it.t)) roomItem(it, ctx.zoneHf || ctx.hf, parts, floors, rooms); else itemParts(it, ctx.zoneHf || ctx.hf, parts); }
       for (const id of e.roads || []) { const R = roadById(id); if (R) parapets(R, R.xs.map((_, i) => i), parts); }
     }
-    return (zoneSolid = index(parts, floors));
+    return (zoneSolid = index(parts, floors, rooms));
   }
-  function index(parts, floors) {
+  function index(parts, floors, rooms = []) {
     const grid = new Map();
     for (const p of parts) {
       const rr = p.r || Math.hypot(p.hw, p.hl);
@@ -123,24 +131,24 @@ export function createWorldSolid(ctx) {
         const k = kOf(i, j); let a = grid.get(k); if (!a) grid.set(k, a = []); a.push(p);
       }
     }
-    return { grid, floors, n: parts.length };
+    return { grid, floors, rooms, n: parts.length };
   }
   function chunk(i, j) {
     const k = kOf(i, j); let c = chunks.get(k); if (c) return c;
     if (inZoneChunk(i, j)) { c = zone(); chunks.set(k, c); return c; }
     const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
-    const content = chunkContent(i, j, ctx.hf), parts = [], floors = [];
-    for (const it of content.items) { if (it.t === 'quay' || it.t === 'jetty') pierFloors(it, floors); else itemParts(it, ctx.hf, parts); }
+    const content = chunkContent(i, j, ctx.hf), parts = [], floors = [], rooms = [];
+    for (const it of content.items) { if (it.t === 'quay' || it.t === 'jetty') pierFloors(it, floors); else if (ENTERABLE.has(it.t)) roomItem(it, ctx.hf, parts, floors, rooms); else itemParts(it, ctx.hf, parts); }
     for (const [R, idx] of content.roads) {
       parapets(R, idx, parts);
       for (const p of polesOf(R)) if (p.x >= content.x0 && p.x < content.x1 && p.z >= content.z0 && p.z < content.z1) { const y = ctx.hf(p.x, p.z); parts.push({ x: p.x, z: p.z, r: 0.2, y0: y - 0.5, y1: y + 9, t: 'pole' }); }
     }
-    c = index(parts, floors); c.ms = (typeof performance !== 'undefined' ? performance.now() : 0) - t0;
+    c = index(parts, floors, rooms); c.ms = (typeof performance !== 'undefined' ? performance.now() : 0) - t0;
     chunks.set(k, c); S.stats.chunks++; S.stats.ms += c.ms;
     if (chunks.size > 64) for (const [kk] of chunks) { chunks.delete(kk); if (chunks.size <= 48) break; }   // forget the oldest
     return c;
   }
-  const _seen = new Set(), _list = [];
+  const _seen = new Set(), _list = [], _rooms = [], _rseen = new Set();
   const S = {
     stats: { chunks: 0, ms: 0 },
     // every solid part whose grid cell is within r of (x, z) (a reused array: don't keep it)
@@ -156,17 +164,31 @@ export function createWorldSolid(ctx) {
     floor(x, z, y, step = 0.45) {
       let best = null;
       const c = chunk(Math.floor(x / CHUNK), Math.floor(z / CHUNK));
-      for (const f of c.floors) {
-        const dx = x - f.x, dz = z - f.z, u = dx * f.c - dz * f.s, v = dx * f.s + dz * f.c;
-        if (u >= f.u0 && u <= f.u1 && v >= f.v0 && v <= f.v1 && f.y <= y + step && (best === null || f.y > best)) best = f.y;
+      for (const f of c.floors) {   // ngc/interiors: floorHere also reads the stairs (ramps)
+        const fy = floorHere(f, x, z);
+        if (fy !== null && fy <= y + step && (best === null || fy > best)) best = fy;
       }
       const R = roadAt(x, z);
       if (R && R.bridge) { const top = R.y + (LIFT[R.type] || 0.12); if (top <= y + step && (best === null || top > best)) best = top; }
       return best;
     },
+    // ngc/interiors: on a building's stairs (a ramp floor) at height y?
+    stairAt(x, z, y) {
+      const c = chunk(Math.floor(x / CHUNK), Math.floor(z / CHUNK));
+      for (const f of c.floors) { if (!f.ry) continue; const fy = floorHere(f, x, z); if (fy !== null && Math.abs(fy - y) < 0.35) return true; }
+      return false;
+    },
     // surface name of a road under (x, z), or null
     surface(x, z) { const R = roadAt(x, z); return R ? (R.surface === 'dirt' ? 'dirt' : 'road') : null; },
     chunkAt: (x, z) => chunk(Math.floor(x / CHUNK), Math.floor(z / CHUNK)),
+    // ngc/interiors: the enterable buildings within r of (x, z): [{ it, P }] (a reused array)
+    roomsNear(x, z, r = 60) {
+      _rooms.length = 0; _rseen.clear();
+      for (let j = Math.floor((z - r) / CHUNK); j <= Math.floor((z + r) / CHUNK); j++) for (let i = Math.floor((x - r) / CHUNK); i <= Math.floor((x + r) / CHUNK); i++) {
+        for (const R of chunk(i, j).rooms) { if (_rseen.has(R) || Math.abs(R.it.x - x) > r || Math.abs(R.it.z - z) > r) continue; _rseen.add(R); _rooms.push(R); }
+      }
+      return _rooms;
+    },
   };
   return S;
 }

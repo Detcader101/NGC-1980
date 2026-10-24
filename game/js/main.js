@@ -26,7 +26,10 @@ const isJet = () => G.craft === 'jet' || G.craft === 'tomcat';   // TOMCAT: the 
 import { createBoxCar } from './units/placeholder/boxcar.js';
 import { buildBoxCarMesh } from './units/placeholder/boxcarmodel.js';
 import { createSeaUniforms, updateSeaUniforms, SEA_VS_DECL, SEA_VS, SEA_FS_DECL, SEA_FS_NORMAL, SEA_FS_FOAM } from './units/naval/seasurface.js';   // SEAWORLD: the sea surface
-import { createWorldSolid } from './world/solid.js';   // SEAWORLD: buildings as colliders, piers and bridges as floors
+import { createWorldSolid } from './world/solid.js';
+import { createInteriors } from './interiors/interiors.js';   // ngc/interiors: enterable buildings, doors / hatches, the ALBATROSS inside
+import { createSeats } from './interiors/seats.js';           // ngc/interiors: passenger seats in the Huey / CH-46, the people in the seats
+import { DOORS } from './interiors/doors.js';   // SEAWORLD: buildings as colliders, piers and bridges as floors
 import { createWorldLife } from './world/life.js'; import { clearedAt } from './world/net.js';   // WORLD: the lived-in world (towns, roads, traffic, people, faction structures)
 // ARMOUR (wave 2): the M60A3 TTS and M113A2 as crafts on the island world, their sights, the LCM-8 delivery
 import { createArmorWorld } from './units/armor/armorworld.js';
@@ -1003,8 +1006,9 @@ const GR = createGround({ war, terrainH, holeOf, PADS, ISLANDS, CARRIER, trees: 
 // SEAWORLD: the lived-in world is solid - buildings, walls, hedges, parapets and poles collide; piers and bridge decks
 // are floors; roads are road / dirt surfaces (world/solid.js, from the same generators the world is drawn from)
 const worldSolid = createWorldSolid({ hf: islandH, zoneHf: terrainH, zone: () => world.zone || [] });
-GR.addColliderSource((x, z, r) => worldSolid.near(x, z, r)); GR.addFloor(worldSolid.floor); GR.addSurface((x, z) => worldSolid.surface(x, z));
+GR.addColliderSource((x, z, r) => worldSolid.near(x, z, r)); GR.addFloor(worldSolid.floor); GR.addStairs(worldSolid.stairAt);   // (ngc/interiors: stairs) GR.addSurface((x, z) => worldSolid.surface(x, z));
 if (params.has('debug')) window.__SOLID = worldSolid;
+if (params.has('debug')) { window.__DOORS = DOORS; Object.defineProperty(window, '__IN', { get: () => interiors }); Object.defineProperty(window, '__SEATS', { get: () => seats }); }   // ngc/interiors (tests)
 const yawOfQ = q => { const f = _yawF.set(0, 0, -1).applyQuaternion(q); return Math.atan2(-f.x, -f.z); };
 const _yawF = new THREE.Vector3();
 // --- the UH-1H: its flying, HUD and cameras stay in main.js; the craft entry makes it enterable, parkable, routable
@@ -1075,6 +1079,7 @@ const foot = crafts.register(createFootCraft({
 const marine = foot.setMarine(createMarine({
   scene: zScene, GR, war, fx, sfx, say, feed, keyDown: kd, crafts, canvas, hudEl: $('hud'), terrainH, ISLANDS,
   serviceAt: (x, z) => serviceAt(x, z), active: () => G.craft === 'foot' && G.state === 'play' && G.mode === 'zarch',
+  use: (x, y, z, yaw) => interiors.use(x, y, z, yaw), useHint: (x, y, z, yaw) => interiors.useHint(x, y, z, yaw),   // ngc/interiors: F opens doors and hatches
 }));
 // --- ground vehicles: the placeholder TEST CAR (the WHEELED agent's M151A2 takes its place)
 const vehCtx = {
@@ -1106,6 +1111,10 @@ const AW = createArmorWorld({
 const armCtx = { ...vehCtx, AW, SG: createSight({ canvas }), ground: (x, z) => Math.max(terrainH(x, z), war.deckY(x, z)), isWater, bail: def => { if (crafts.active === def) getInOut(); } };
 const m60C = crafts.register(createArmorCraft(armCtx, 'm60'));
 const m113C = crafts.register(createArmorCraft(armCtx, 'm113'));
+// ngc/interiors: the rooms of the lived-in world (built near the camera), the barracks huts, the ALBATROSS's hangar deck
+// and island; a passenger seat in the Huey's cabin or a CH-46 (the RIDE craft), the people seen in the seats
+const interiors = createInteriors({ scene: zScene, GR, war, worldSolid, sfx, say, terrainH, holeOf, ISLANDS });
+const seats = createSeats({ scene: zScene, crafts, war, foot, say, heli: { def: heliC, obj: () => shipMesh, landed: () => Z.alive && H.landed, vel: H.vel }, jet: { def: jetC, model: JP.model, P: JP } });
 const armDelivery = createArmorDelivery({ scene: zScene, AW, terrainH, hards: HARDS, beach: (I, tw) => GR.beach(I, tw), blocked: (x, z) => !GR.clearAt(x, z, 2.5), fx, sfx, say, feed, camZ: () => zCam });
 crafts.setActive('heli');
 crafts.onSwitch = (from, to) => {
@@ -1630,7 +1639,7 @@ function drawMap() {
   }
   // FOUNDATION: your parked crafts (the Huey you walked away from, a Hornet on deck, vehicles): hollow white marks
   for (const d of crafts.defs) {
-    if (d === crafts.active || d.kind === 'foot' || !d.present()) continue;
+    if (d === crafts.active || d.kind === 'foot' || d.id === 'ride' || !d.present()) continue;   // (ngc/interiors: the RIDE seats are not a vehicle)
     const f = d.frame(_mapF), X = px(f.x), Y = py(f.z), r = big ? 6 : 3.5;
     radar.strokeStyle = '#fff'; radar.lineWidth = big ? 2 : 1.2; radar.beginPath();
     if (d.kind === 'ground') radar.rect(X - r, Y - r, 2 * r, 2 * r); else { radar.moveTo(X, Y - r * 1.3); radar.lineTo(X + r, Y + r); radar.lineTo(X - r, Y + r); radar.closePath(); }
@@ -1965,7 +1974,7 @@ function frame(now) {
   if (G.state === 'play') {
     if (G.mode === 'zarch') updateZarch(dt, inp); else updateThrust(dt, inp);
     war.update(dt, PL, params.has('peace'));
-    if (G.mode === 'zarch') crafts.afterWar();   // FOUNDATION: decks moved - the soldier, vehicles, parked jets catch up
+    if (G.mode === 'zarch') { crafts.afterWar(); seats.afterWar(dt); }   // FOUNDATION: decks moved - the soldier, vehicles, parked jets catch up (ngc/interiors: the troops in their seats)
     fogT -= dt; if (fogT <= 0) { fogT = 0.25; fog.update(war.visionSources(PL)); war.setVisibility(fog); updateFogImg(); }
   } else if (G.state === 'trans') {
     const tr = G.tr; tr.t += dt; const D = 0.8;
@@ -1980,6 +1989,7 @@ function frame(now) {
   { const hide = drop.flying || helm.active ? 'none' : ''; setStyle('bot', 'display', hide); setStyle('caution', 'display', hide); }
   const t2 = performance.now();
   fx.setView(zCam, renderer.domElement.height, zScene.fog);
+  if (G.mode === 'zarch') interiors.update(G.state === 'paused' ? 0 : dt, zCam);   // ngc/interiors: doors swing, rooms near the camera, the carrier's inside
   { const a = G.craft !== 'heli' && G.state !== 'title' ? crafts.active : null; if (!(a && a.renderView && a.renderView(renderer, zScene, zCam))) renderer.render(zScene, zCam); }   // ARMOUR: a craft may draw the frame itself (the TTS thermal sight)
   if (G.craft === 'foot' && G.state !== 'title' && G.mode === 'zarch') foot.overlay(renderer, zCam);   // wave 2: the Marine's arms and weapon, their own pass
   const t3 = performance.now(), pk = 0.05;   // smoothed per-frame CPU cost: sim, scene/HUD prep, render submit
