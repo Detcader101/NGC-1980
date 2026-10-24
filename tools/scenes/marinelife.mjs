@@ -28,7 +28,7 @@ export default async function (h) {
   await h.eval(`(() => { const M = __G.marine.M; M.hit({ round: 'M193', velocity: 800, part: 'armL', zone: 'forearm', dir: [1, 0, 0] }); window.__hp = Math.round(M.regions.armL.hp); window.__mags = __G.marine.inv.slots.belt.slots.ammoL.grids.flat().length; return __hp; })()`);
   await h.eval(`(() => { const car = __G.carC; car.spawnAt({ x: __G.PAD.x + 14, y: __G.PAD.h, z: __G.PAD.z + 14, yaw: 0 }); const d = __G.crafts.toWorld(car, [-1.6, 0, -0.1]); return __G.foot.spawnAt({ x: d.x, y: d.y + 0.3, z: d.z, yaw: Math.PI / 2 }); })()`);
   await h.wait(500); await h.key('tap', 'KeyY'); await h.wait(500);
-  await h.expect("__G.G.craft === 'boxcar'", 'into the TEST CAR');
+  await h.expect("__G.G.craft === __G.carC.id", 'into the car');   // (ngc/bugsweep: since ngc/wheeledgame carC is the M151A2, not the boxcar)
   await h.key('tap', 'KeyY'); await h.wait(600);
   await h.expect("__G.G.craft === 'foot' && Math.round(__G.marine.M.regions.armL.hp) === __hp && __G.marine.inv.slots.belt.slots.ammoL.grids.flat().length === __mags", 'out of the car: the same Marine (wound and kit kept)');
   // 4. an untreated femoral bleed: he bleeds out -> the life ends

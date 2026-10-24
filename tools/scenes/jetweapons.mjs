@@ -25,7 +25,7 @@ export default async function (h) {
   await place(-900, 300, 150, 0, 75); await h.eval('(__G.JP.autopilot = (J) => ({ pitch: 0, roll: -J.attitude().roll * 2, yaw: 0, throttle: [0.7, 0.7], brakeL: 0, brakeR: 0 }), 1)');
   await h.eval(`(() => { const J = __G.JP.J, f = J.forward(); const u = __G.war.units.find(u => u.type === 'gunship' && !u.dead) ; const tgt = { p: new __G.THREE.Vector3() }; window.__tr = null; return 1; })()`);
   await h.eval(`(() => { __G.war.spawnGunship(2, [-900, 152, -30]); const u = __G.war.units[__G.war.units.length - 1]; u.type = 'gunship'; u.hp = u.hpMax = 6; window.__tr = u; window.__f0 = null; window.__trFix = setInterval(() => { const J = __G.JP.J; if (!__f0 && J.attitude().pitch !== undefined && performance.now() > window.__tPin) __f0 = J.forward().clone(); const f = __f0 || J.forward(); u.p.copy(J.worldPoint([0, 0.33, -7.05])).addScaledVector(f, 330); u.p.y -= 1.4; u.v.copy(J.vel); }, 10); return 1; })()`);
-  await h.eval('(window.__tPin = performance.now() + 2500, __G.cockpitCam = true, 1)'); await h.wait(2800);
+  await h.eval('(window.__tPin = Infinity, __G.cockpitCam = true, 1)'); await h.wait(2800); await h.eval('(window.__tPin = 0, 1)'); await h.wait(50);   // (ngc/bugsweep) pin the target on the gun line when the settle ends, not 2.5 s of wall time in (with game-clock waits the jet flew on and the line moved off it)
   await h.key('hold', 'KeyF', 1500);
   await h.shot('guns');
   await h.eval('({hp: __tr.hp, dying: !!__tr.dying, gun: __G.JP.J.gun})');
