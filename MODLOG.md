@@ -2130,8 +2130,9 @@ What: fish schools round the camera, water clarity seen from above, the view und
   jetbench 24/24, hueybench 41/41, tomcatbench 32/32, airbench 28/28, hotas self-test (+ rocker test).
 - **Scenes**: hornetcockpit.mjs 10/10 (panel, every display, cold and dark, battery-only cautions, APU, crank, checklist,
   voice alerts), hueycockpit.mjs 7/7, new hueyhotas.mjs 11/11 (a fake HOTAS 4 + T-Rudder through navigator.getGamepads:
-  starter on button 11 to light-off, buttons 6-9, collective and pedals, the panel), smoke 5/5.
+  starter on button 11 to light-off, buttons 6-9, collective and pedals, the panel), jet.mjs 8/8, smoke 5/5.
 - **Gotchas / untested**: the machine ran at load ~170 during testing, so wall-clock waits in the older scenes
   (hueystart.json, hueyhover.json, jets.json) time out at 1-5 fps (the game caps dt at 0.1 s, so sim time runs at a
-  third of real time); they fail the same way on `experimental`. Real HOTAS button numbering is from the Windows HID
+  third of real time); hueystart / hueyhover / jets fail identically on a clean `experimental` checkout (checked).
+  jets.json: the AI Tomcat stays on the cat there too; worth a look when the machine is quiet. hueyhotas waits on game state. Real HOTAS button numbering is from the Windows HID
   order (1 = trigger); not checked on the physical stick in this pass.

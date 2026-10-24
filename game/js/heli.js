@@ -138,8 +138,8 @@ export function createHeliInput({ keyDown, CTL, hwOn = () => true, say }) {
       if (hw && Math.abs(st.rudder || 0) > 0.001) out.pedal = st.rudder;
       if (hw && st.hasPedals) out.source += ' + PEDALS';
       if (hw) { const a = st.actions || {}; out.fire = !!a.fire; out.winch = out.winch || !!(a.pickle || a.airbrake); out.rocket = !!a.missile; out.bomb = !!a.bomb; out.hatX = st.hatX || 0; out.hatY = st.hatY || 0;
-        // ngc/hornethuey: the jets' buttons are the Huey's switches here (HOTAS 4 defaults: 5 STAB ASSIST, 6 FORCE TRIM,
-        // 7 LANDING LIGHT, 8 VIEW, 10 STARTER held - on the real collective the starter is the trigger under the grip)
+        // ngc/hornethuey: the jets' buttons are the Huey's switches here (HOTAS 4 defaults, numbered from 1: 6 STAB ASSIST, 7 FORCE TRIM,
+        // 8 LANDING LIGHT, 9 VIEW, 11 STARTER held - on the real collective the starter is the trigger under the grip)
         const pr = st.pressed || {}; out.starter = !!a.wheelbrake; out.press = { sas: !!pr.gear, trim: !!pr.flaps, light: !!pr.hook, view: !!pr.view }; }
       out.raw = { cx: out.cx, cy: out.cy, pedal: out.pedal };
       if (sas && H) assist(out, H, dt, mods);
