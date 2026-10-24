@@ -25,6 +25,8 @@ import { createTomcatCraft } from './crafttomcat.js';   // TOMCAT: the flyable F
 const isJet = () => G.craft === 'jet' || G.craft === 'tomcat';   // TOMCAT: the fixed-wing crafts share the HORNET's hooks below
 import { createBoxCar } from './units/placeholder/boxcar.js';
 import { buildBoxCarMesh } from './units/placeholder/boxcarmodel.js';
+import { createSeaUniforms, updateSeaUniforms, SEA_VS_DECL, SEA_VS, SEA_FS_DECL, SEA_FS_NORMAL, SEA_FS_FOAM } from './units/naval/seasurface.js';   // SEAWORLD: the sea surface
+import { createWorldSolid } from './world/solid.js';   // SEAWORLD: buildings as colliders, piers and bridges as floors
 import { createWorldLife } from './world/life.js'; import { clearedAt } from './world/net.js';   // WORLD: the lived-in world (towns, roads, traffic, people, faction structures)
 // ARMOUR (wave 2): the M60A3 TTS and M113A2 as crafts on the island world, their sights, the LCM-8 delivery
 import { createArmorWorld } from './units/armor/armorworld.js';
@@ -64,6 +66,7 @@ addEventListener('keydown', e => {
   if (G.state === 'play' && G.mode === 'zarch') {
     if (e.code === 'KeyY') { getInOut(); return; }
     if (e.code === 'BracketLeft' || e.code === 'BracketRight') { crafts.cycleSeat(e.code === 'BracketRight' ? 1 : -1); return; }
+    if (e.code === 'KeyU' && G.craft !== 'heli' && G.craft !== 'jet' && liftConsole()) return;   // SEAWORLD: run a deck-edge lift (before the craft: foot / vehicles swallow U)
     if (G.craft !== 'heli' && crafts.active && crafts.active.key(e.code, e)) return;
   }
   if (G.craft === 'heli') {   // the Huey's switches (heli.js / damage.js)
@@ -250,6 +253,17 @@ try { G.hi = +(localStorage.getItem('tz_hi') || 0); } catch (e) {}
 const CK_FOV = { min: 40, max: 100, def: 70 };
 let ckFov = CK_FOV.def; try { ckFov = clamp(+(localStorage.getItem('tz_ckfov') || CK_FOV.def), CK_FOV.min, CK_FOV.max) || CK_FOV.def; } catch (e) {}
 function setCkFov(v) { ckFov = clamp(Math.round(v), CK_FOV.min, CK_FOV.max); try { localStorage.setItem('tz_ckfov', ckFov); } catch (e) {} }
+// SEAWORLD: the sea state (pause menu SEA STATE slider, 0-7) and WEATHER DRIFT (the sea wanders round it over a war),
+// remembered per browser. A ?sea= in the URL wins (and leaves the drift off unless ?seadrift), so tests are repeatable.
+const SEA_PREF = { def: 4, ss: 4, drift: false };
+try { const v = localStorage.getItem('tz_sea'); if (v !== null && Number.isFinite(+v)) SEA_PREF.ss = clamp(Math.round(+v), 0, 7); SEA_PREF.drift = localStorage.getItem('tz_seadrift') === '1'; } catch (e) {}
+function setSeaPref(v) { SEA_PREF.ss = clamp(Math.round(v), 0, 7); try { localStorage.setItem('tz_sea', SEA_PREF.ss); } catch (e) {} if (war) war.setSea(SEA_PREF.ss); }
+function setSeaDrift(on) { SEA_PREF.drift = !!on; try { localStorage.setItem('tz_seadrift', on ? '1' : '0'); } catch (e) {} if (war) war.setSeaDrift(SEA_PREF.drift); }
+// the pause menu's sliders: value, range, label, the small print, the step for LEFT / RIGHT
+const SLIDERS = {
+  fov: { min: CK_FOV.min, max: CK_FOV.max, nudge: 5, get: () => ckFov, set: v => setCkFov(v), show: v => `${v}°`, small: `FIRST-PERSON VIEWS: HUEY, HORNET, DROPSHIP, ON FOOT, VEHICLES  ·  LEFT / RIGHT  ·  DEFAULT ${CK_FOV.def}°` },
+  sea: { min: 0, max: 7, nudge: 1, get: () => SEA_PREF.ss, set: v => setSeaPref(v), show: v => `${v}  ${war ? war.sea.name : ''}${SEA_PREF.drift && war ? `  (NOW ${war.sea.ss.toFixed(1)})` : ''}`, small: `SWELL, WHITECAPS AND HOW THE SHIPS PITCH AND ROLL  ·  0 GLASSY ... 7 HIGH  ·  DEFAULT ${4}` },
+};
 function addScore(n) { G.score += n; if (G.score > G.hi) { G.hi = G.score; try { localStorage.setItem('tz_hi', G.hi); } catch (e) {} } }
 let war = null;   // the island war (created once the world exists)
 const sayMsg = (t, s) => say(t, s);
@@ -372,9 +386,16 @@ const terrainUni = {
   uPadP: { value: PADS.map(p => new THREE.Vector4(p.x, p.z, p.isl.cave ? 1 : 0, 0)) }, uHM: { value: hmTex }, uDecor: { value: decorTex }, ...fog.uniforms,
   uHMN: { value: HW[0].tex }, uHMF: { value: HW[1].tex }, uHMNo: { value: new THREE.Vector3(-1e6, -1e6, 4) }, uHMFo: { value: new THREE.Vector3(-1e6, -1e6, 16) },
   uFogN: { value: DRAW * 0.5 }, uFogF: { value: DRAW * 0.97 }, uNear: { value: new THREE.Vector3(0, 0, 0) },
+  ...createSeaUniforms(),   // SEAWORLD: the live sea's waves, whitecaps, ships for the hull foam
 };
 const terrainVS = `
     varying vec3 vW; varying float vRaw; uniform sampler2D uHM, uHMN, uHMF; uniform vec3 uHMNo, uHMFo;
+    ${SEA_VS_DECL}
+    #ifdef FAR
+    const float CELL=24.0;   // FAR_C (declared further down)
+    #else
+    const float CELL=${TG.toFixed(1)};
+    #endif
     float bil(sampler2D t, vec2 g){   // bilinear by hand (float textures may not filter); g in texel units
       vec2 i=floor(g), f=g-i; float n=${HW_N.toFixed(1)};
       float a=texture2D(t,(i+.5)/n).r, b=texture2D(t,(i+vec2(1.5,.5))/n).r, c=texture2D(t,(i+vec2(.5,1.5))/n).r, d=texture2D(t,(i+1.5)/n).r;
@@ -388,13 +409,16 @@ const terrainVS = `
     void main(){
       vec4 w=modelMatrix*vec4(position,1.);
       float h=max(abs(w.x),abs(w.z))<${BOUND.toFixed(1)} ? texture2D(uHM,((w.xz+${BOUND.toFixed(1)})/${TG.toFixed(1)}+.5)/${HM_N.toFixed(1)}).r : hOut(w.xz);
-      vRaw=h; w.y=max(h,0.); vW=w.xyz;
+      vRaw=h; w.y=max(h,0.);
+      ${SEA_VS}
+      vW=w.xyz;
       gl_Position=projectionMatrix*viewMatrix*w;
     }`;
 const terrainFS = `
     varying vec3 vW; varying float vRaw; uniform vec3 uFog; uniform vec3 uSun; uniform vec4 uBases[${BASES.length}]; uniform vec3 uPadCol[${PADS.length}]; uniform vec4 uPadP[${PADS.length}];
     uniform float uTime; uniform sampler2D uDecor, uFogT; uniform float uFogB, uFogN, uFogF; uniform vec3 uNear;
     ${FOG_GLSL}
+    ${SEA_FS_DECL}
     void main(){
       #ifdef FAR
       if(max(abs(vW.x-uNear.x),abs(vW.z-uNear.y))<uNear.z) discard;   // the fine grid covers this
@@ -413,18 +437,20 @@ const terrainFS = `
       c=mix(c,vec3(.93,.95,.98),wild*smoothstep(430.,500.,vW.y+30.*sin(vW.x*.011)*cos(vW.z*.009))*smoothstep(.45,.7,n.y));
       c=mix(vec3(.78,.72,.45),c,smoothstep(0.,3.,vW.y));
       c*=l;
-      if(vRaw<=0.){   // sea: shallows to deep water, rolling glints, surf on the beaches
+      if(vRaw<=0.){   // sea: shallows to deep water, the swell (SEAWORLD: the live sea), whitecaps, surf, hull foam
         float d=-vRaw, t=uTime; vec2 p=vW.xz;
         float a1=p.x*.19+t*1.3+sin(p.y*.05), a2=p.y*.23-t*1.1+sin(p.x*.07), a3=(p.x+p.y)*.11+t*.7;
-        vec3 wn=normalize(vec3(cos(a1)*.12+cos(a3)*.07, 1., cos(a2)*.14+cos(a3)*.07));
+        ${SEA_FS_NORMAL}
         vec3 wc=mix(vec3(.09,.45,.55),vec3(.02,.13,.36),smoothstep(0.,9.,d));
+        wc=mix(wc,vec3(.1,.2,.27),sk*.4);   // a rough sea is darker and greyer
         vec3 V=normalize(cameraPosition-vW), L=normalize(uSun);
         float fr=1.-max(dot(V,wn),0.); fr*=fr; fr*=fr;
         wc=mix(wc,vec3(.62,.76,.9),fr*.55);
-        float sp=max(dot(reflect(-L,wn),V),0.); sp*=sp; sp*=sp; sp*=sp; sp*=sp; sp*=sp; sp*=sp;   // ~^64
-        wc+=vec3(1.,.95,.8)*sp*1.3;
-        float foam=(1.-smoothstep(0.,1.4,d))*(.55+.45*sin(d*8.-t*2.4+sin(a1)));
-        c=mix(wc*(.92+.05*(sin(a1)+sin(a2))),vec3(.88,.94,1.),clamp(foam,0.,1.)*.75);
+        wc*=.86+.2*max(dot(wn,L),0.);   // SEAWORLD: the swell's faces turned to the sun are lighter
+        float sp=max(dot(reflect(-L,wg),V),0.); sp*=sp; sp*=sp; sp*=sp; sp*=sp; sp*=sp; sp*=sp;   // ~^64, on the glitter normal
+        wc+=vec3(1.,.95,.8)*sp*1.3*(sp>.002?glitAt(p,t,sk):1.);
+        ${SEA_FS_FOAM}
+        c=mix(wc*(.92+.05*(sin(a1)+sin(a2))),vec3(.88,.94,1.),foam*.8);
       }
       if(bi>=0){ vec4 b=uBases[bi]; float d=length(vW.xz-b.xy);
         if(d<${BASE_R.toFixed(1)}){ vec3 pc=mix(vec3(.5,.52,.58),vec3(.36,.3,.3),b.w)*l;
@@ -442,6 +468,16 @@ terrain.frustumCulled = false; zScene.add(terrain);
 const FAR_C = 24, FAR_N = 220;   // far ring: 12 m cells out to ~1.5 km, only drawn while the view reaches past the fine grid
 const farTerrain = new THREE.Mesh(new THREE.PlaneGeometry(FAR_C * FAR_N, FAR_C * FAR_N, FAR_N, FAR_N).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({ uniforms: terrainUni, vertexShader: terrainVS, fragmentShader: terrainFS, defines: { FAR: 1 } }));
 farTerrain.frustumCulled = false; farTerrain.visible = false; zScene.add(farTerrain);
+// SEAWORLD (the black dome on the horizon): the sky dome and both terrain windows are centred on the camera that
+// actually renders, at render time. They used to be placed on zCam in updateCamsAndMeshes; any camera moved after that
+// (the tests' scripted cameras: renderer.render patched to move the camera) sat off-centre in a dome 0.97 x the draw
+// distance across while the far plane stayed at the draw distance, so the far side of the dome was clipped away and
+// the black clear colour showed as a dome above the horizon (and the terrain grid ended short of the view).
+sky.frustumCulled = false;
+sky.onBeforeRender = (r, s, cam) => { sky.position.copy(cam.position); sky.updateMatrixWorld(); };
+const _snapTerrain = cam => { const x = Math.round(cam.position.x / TG) * TG, z = Math.round(cam.position.z / TG) * TG; terrainUni.uNear.value.set(x, z, TG * TN / 2 - 3); return [x, z]; };
+terrain.onBeforeRender = (r, s, cam) => { const [x, z] = _snapTerrain(cam); terrain.position.set(x, 0, z); terrain.updateMatrixWorld(); };
+farTerrain.onBeforeRender = (r, s, cam) => { _snapTerrain(cam); farTerrain.position.set(Math.round(cam.position.x / FAR_C) * FAR_C, 0, Math.round(cam.position.z / FAR_C) * FAR_C); farTerrain.updateMatrixWorld(); };
 const _nrm = new THREE.Vector3();
 const normalAt = (x, z) => { const e = 1.5; return isWater(x, z) ? new THREE.Vector3(0, 1, 0) : _nrm.set(terrainH(x - e, z) - terrainH(x + e, z), 2 * e, terrainH(x, z - e) - terrainH(x, z + e)).normalize().clone(); };
 const fx = createFx(zScene, { groundY: (x, z) => Math.max(terrainH(x, z), 0), isWater, normalAt });
@@ -585,6 +621,7 @@ war = createWar({
   carrierStart: seaSpot(-300, 280), enemyStart: seaSpot(300, -280),
   player: () => PL, hurtPlayer: (a, why, at, dir, kind) => hurtPlayer(a, why, at, dir, kind), onOwner: islandOwnerChanged, onEnd: warOver,
 });
+if (params.has('sea')) war.setSeaDrift(params.has('seadrift')); else { war.setSea(SEA_PREF.ss); war.setSeaDrift(SEA_PREF.drift); }   // SEAWORLD
 const world = createWorldLife({ scene: zScene, fx, sfx, terrainH, isWater, nav, war, fog, uTime: terrainUni.uTime, view, ISLANDS, PADS, BASES });   // WORLD (world/life.js)
 // ---------------------------------------------------------------- the HORNET (jetplay.js)
 const jetGroundY = (x, z) => Math.max(terrainH(x, z), 0, war.deckY(x, z));   // no shaft holes for a jet: the apron is solid
@@ -650,7 +687,7 @@ function toggleHelm() {
   helm.take(); if (document.pointerLockElement) document.exitPointerLock();
 }
 function leaveHelm() { helm.leave(); HI.setCollective(G.heliColl ?? 0); }
-// commands (any time; the big map shows what is selected): 1 capture drone, 2 AA gun, 3 helicopter
+// commands (any time; the big map shows what is selected): 1 CH-46 Sea Knight with Marines, 2 AA gun, 3 helicopter
 let selIsl = null;
 function command(n) {
   if (G.state !== 'play') return;
@@ -797,13 +834,13 @@ const bearing = (dx, dz) => COMPASS[Math.round(((Math.atan2(dx, -dz) * 180 / Mat
 function advise(dt) {
   G.advT = (G.advT ?? 12) - dt; if (G.advT > 0) return; G.advT = 45;
   const P = Z.pos, b = war.battleship;
-  if (b && b.sinking === undefined) { feed(`ADVISOR: THE BATTLESHIP IS ${Math.round(Math.hypot(b.p.x - P.x, b.p.z - P.z))}m ${bearing(b.p.x - P.x, b.p.z - P.z)}  -  BOMB IT (B) BEFORE IT REACHES THE ALBATROSS`, 'bad'); return; }
-  if (war.E.bship > 55) { feed(`ADVISOR: ENEMY BATTLESHIP ${Math.floor(war.E.bship)}% BUILT  -  BOMB THEIR FACTORIES AND THE IRONHOLD SHIPYARD`, 'bad'); return; }
+  if (b && b.sinking === undefined) { feed(`ADVISOR: THE LEVIATHAN IS ${Math.round(Math.hypot(b.p.x - P.x, b.p.z - P.z))}m ${bearing(b.p.x - P.x, b.p.z - P.z)}  -  BOMB IT (B) BEFORE IT REACHES THE ALBATROSS`, 'bad'); return; }
+  if (war.E.bship > 55) { feed(`ADVISOR: THE LEVIATHAN IS ${Math.floor(war.E.bship)}% BUILT  -  BOMB THEIR FACTORIES AND THE IRONHOLD SHIPYARD`, 'bad'); return; }
   let best = null, bd = 1e9;
   for (const I of ISLANDS) if (I.owner !== 1 && !I.cave) { const d = Math.hypot(I.pad.x - P.x, I.pad.z - P.z) * (I.owner === 0 ? 1 : 1.6); if (d < bd) { bd = d; best = I; } }
   if (best) {
     const d = Math.round(Math.hypot(best.pad.x - P.x, best.pad.z - P.z)), dir = bearing(best.pad.x - P.x, best.pad.z - P.z);
-    feed(best.owner === 0 ? `ADVISOR: ${best.name} (${KIND_NAME[best.kind]}) IS UNCLAIMED, ${d}m ${dir}  -  LAND ON ITS PAD OR SEND A DRONE (M, 1)` : `ADVISOR: ${best.name} IS ENEMY-HELD, ${d}m ${dir}  -  SILENCE ITS GUNS, THEN LAND ON IT`);
+    feed(best.owner === 0 ? `ADVISOR: ${best.name} (${KIND_NAME[best.kind]}) IS UNCLAIMED, ${d}m ${dir}  -  LAND ON ITS PAD OR SEND A SEA KNIGHT (M, 1)` : `ADVISOR: ${best.name} IS ENEMY-HELD, ${d}m ${dir}  -  SILENCE ITS GUNS, THEN LAND ON IT`);
     return;
   }
   const f = ISLANDS.find(I => I.cave && I.owner === 2); if (f) feed(`ADVISOR: STEAL THE POD FROM THE CAVE UNDER ${f.name} TO TAKE IT`);
@@ -963,6 +1000,11 @@ function updateHeli(dt, inp, piloted) {
 // the HORNET (craftjet.js), the soldier on foot (foot.js) and ground vehicles (vehicle.js on the ground host,
 // ground.js). Wave-2 units register the same way - see docs/ngc1980/FOUNDATION.md.
 const GR = createGround({ war, terrainH, holeOf, PADS, ISLANDS, CARRIER, trees: TREES, crafts, inZone });
+// SEAWORLD: the lived-in world is solid - buildings, walls, hedges, parapets and poles collide; piers and bridge decks
+// are floors; roads are road / dirt surfaces (world/solid.js, from the same generators the world is drawn from)
+const worldSolid = createWorldSolid({ hf: islandH, zoneHf: terrainH, zone: () => world.zone || [] });
+GR.addColliderSource((x, z, r) => worldSolid.near(x, z, r)); GR.addFloor(worldSolid.floor); GR.addSurface((x, z) => worldSolid.surface(x, z));
+if (params.has('debug')) window.__SOLID = worldSolid;
 const yawOfQ = q => { const f = _yawF.set(0, 0, -1).applyQuaternion(q); return Math.atan2(-f.x, -f.z); };
 const _yawF = new THREE.Vector3();
 // --- the UH-1H: its flying, HUD and cameras stay in main.js; the craft entry makes it enterable, parkable, routable
@@ -1403,19 +1445,21 @@ function pressStart() { if (G.state === 'title') newGame(); }
 // Pause menu (Esc / P): resume, call a repair drop, or abandon the helicopter and start again on the carrier - the way
 // out of any stuck state (set down broken somewhere logistics can't help, wedged in a cave, out of fuel at sea).
 const menu = { items: [], sel: 0 };
+// SEAWORLD: the sea state slider and the weather drift switch (in every variant of the menu)
+const seaItems = () => [{ id: 'sea', label: 'SEA STATE', slider: true }, { id: 'seadrift', label: `WEATHER DRIFT: ${SEA_PREF.drift ? 'ON' : 'OFF'}`, note: SEA_PREF.drift ? 'THE SEA WANDERS UP TO 2 STATES ROUND YOUR CHOICE OVER THE WAR' : 'THE SEA STAYS WHERE YOU SET IT' }];
 function menuItems() {
   if (isJet()) return [   // flying the Hornet (or the TOMCAT): no logistics; 'respawn' writes the jet off and puts you back in the helicopter
     { id: 'resume', label: 'RESUME' },
     { id: 'logistics', label: 'CALL LOGISTICS', note: 'JETS ARE SERVICED ON THE ALBATROSS DECK', off: true },
     { id: 'respawn', label: 'BACK TO THE ALBATROSS', note: G.craft === 'tomcat' ? `WRITES OFF THIS TOMCAT (${G.tomcats} LEFT IN THE HANGAR)  -  YOU GO BACK TO THE HELICOPTER` : `WRITES OFF THIS HORNET (${G.jets} LEFT IN THE HANGAR)  -  YOU GO BACK TO THE HELICOPTER`, off: G.over },
-    { id: 'fov', label: 'COCKPIT FOV', slider: true },
+    { id: 'fov', label: 'COCKPIT FOV', slider: true }, ...seaItems(),
     { id: 'quit', label: 'QUIT TO TITLE', note: 'ENDS THIS WAR' },
   ];
   if (G.craft !== 'heli') return [   // on foot or in a ground vehicle: a pick-up back to the helicopter, nothing written off
     { id: 'resume', label: 'RESUME' },
     { id: 'logistics', label: 'CALL LOGISTICS', note: 'FOR THE HELICOPTER  -  GET BACK IN IT FIRST', off: true },
     { id: 'respawn', label: 'PICK-UP TO THE ALBATROSS', note: 'THE CREW IS FLOWN BACK AND THE HELICOPTER RECOVERED TO THE DECK', off: G.over || G.crewDownT > 0 },
-    { id: 'fov', label: 'COCKPIT FOV', slider: true },
+    { id: 'fov', label: 'COCKPIT FOV', slider: true }, ...seaItems(),
     { id: 'quit', label: 'QUIT TO TITLE', note: 'ENDS THIS WAR' },
   ];
   const alive = G.mode === 'zarch' ? Z.alive : T.alive, landed = G.mode === 'zarch' ? H.landed : T.landed, home = war.carrier && war.carrier.sinking === undefined ? 'THE ALBATROSS' : 'THE HOME PAD';
@@ -1424,7 +1468,7 @@ function menuItems() {
     { id: 'resume', label: 'RESUME' },
     { id: 'logistics', label: 'CALL LOGISTICS', note: G.rescue ? `INBOUND  -  ${rescueStatus()}` : landed ? (G.mode === 'zarch' ? 'A DROPSHIP FLIES OUT A PARA REPAIR TEAM' : 'FUEL DROP AND FIELD REPAIR WHERE YOU ARE') : 'LAND FIRST', off: !alive || !landed || !!G.rescue },
     { id: 'respawn', label: `RESPAWN ON ${home}`, note: last ? 'THIS IS YOUR LAST HELICOPTER  -  ABANDONING IT LOSES THE WAR' : `ABANDON THIS HELICOPTER  -  COSTS ONE (${G.lives} LEFT IN THE HANGAR)`, off: !alive || G.over },
-    { id: 'fov', label: 'COCKPIT FOV', slider: true },
+    { id: 'fov', label: 'COCKPIT FOV', slider: true }, ...seaItems(),
     { id: 'quit', label: 'QUIT TO TITLE', note: 'ENDS THIS WAR' },
   ];
 }
@@ -1440,10 +1484,10 @@ function renderMenu() {
   $('menuSub').textContent = `SCORE ${G.score}  ·  HELICOPTERS ${Math.max(0, G.lives)}  ·  HORNETS ${G.jets}  ·  TOMCATS ${G.tomcats}  ·  ${G.craft !== 'heli' && crafts.active.menuNote ? crafts.active.menuNote() : `FUEL ${Math.round(G.fuel)}%`}`;
   const box = $('menuItems'); box.textContent = '';
   menu.items.forEach((it, i) => {
-    if (it.slider) {   // COCKPIT FOV: drag, or LEFT / RIGHT while it's selected
-      const d = document.createElement('div'); d.className = 'slider' + (i === menu.sel ? ' sel' : '');
-      d.innerHTML = `<span>${it.label}  <b id="fovVal">${ckFov}°</b></span><input type="range" min="${CK_FOV.min}" max="${CK_FOV.max}" step="1" value="${ckFov}"><small>FIRST-PERSON VIEWS: HUEY, HORNET, DROPSHIP, ON FOOT, VEHICLES  ·  LEFT / RIGHT  ·  DEFAULT ${CK_FOV.def}°</small>`;
-      const r = d.querySelector('input'); r.oninput = () => { setCkFov(+r.value); $('fovVal').textContent = ckFov + '°'; };
+    if (it.slider) {   // COCKPIT FOV, SEA STATE: drag, or LEFT / RIGHT while it's selected
+      const S = SLIDERS[it.id], d = document.createElement('div'); d.className = 'slider' + (i === menu.sel ? ' sel' : '');
+      d.innerHTML = `<span>${it.label}  <b>${S.show(S.get())}</b></span><input type="range" min="${S.min}" max="${S.max}" step="1" value="${S.get()}"><small>${S.small}</small>`;
+      const r = d.querySelector('input'), val = d.querySelector('b'); r.oninput = () => { S.set(+r.value); val.textContent = S.show(S.get()); };
       d.onmouseenter = () => { menu.sel = i; for (const [k, c] of [...box.children].entries()) c.classList.toggle('sel', k === i); };
       box.appendChild(d); return;
     }
@@ -1464,7 +1508,7 @@ function menuKey(e) {
     menu.confirm = null; renderMenu(); sfx.ui?.('select');
   }
   const it = menu.items[menu.sel];
-  if (it && it.slider && ['ArrowLeft', 'KeyA', 'ArrowRight', 'KeyD'].includes(e.code)) { setCkFov(ckFov + (['ArrowLeft', 'KeyA'].includes(e.code) ? -5 : 5)); renderMenu(); sfx.ui?.('select'); return; }
+  if (it && it.slider && ['ArrowLeft', 'KeyA', 'ArrowRight', 'KeyD'].includes(e.code)) { const S = SLIDERS[it.id]; S.set(S.get() + (['ArrowLeft', 'KeyA'].includes(e.code) ? -S.nudge : S.nudge)); renderMenu(); sfx.ui?.('select'); return; }
   if (e.code === 'Enter' || e.code === 'Space') menuPick();
 }
 function menuPick() {
@@ -1473,8 +1517,21 @@ function menuPick() {
   if ((it.id === 'respawn' || it.id === 'quit') && menu.confirm !== it.id) { menu.confirm = it.id; renderMenu(); return; }
   if (it.id === 'resume') closeMenu();
   else if (it.id === 'logistics') { closeMenu(); callLogistics(); }
+  else if (it.id === 'seadrift') { setSeaDrift(!SEA_PREF.drift); renderMenu(); }   // SEAWORLD
   else if (it.id === 'respawn') { closeMenu(); abandonHeli(); }
   else if (it.id === 'quit') { closeMenu(); quitToTitle(); }
+}
+// SEAWORLD: U at a lift's console on the ALBATROSS's deck edge (or standing / parked on the lift) sends it up or down
+function liftConsole() {
+  const c = war.carrier; if (!c || c.sinking !== undefined || !c.parts.lifts) return false;
+  const [lx, lz] = GR.toLocal(c, Z.pos.x, Z.pos.z), yl = Z.pos.y - c.p.y;
+  for (const L of c.parts.lifts) {
+    const atConsole = Math.hypot(lx - L.con.lx, lz - L.con.lz) < 3 && Math.abs(yl - 8) < 2.5, onIt = c.parts.liftAt(lx, lz) === L && Math.abs(yl - L.y) < 2.5;
+    if (!atConsole && !onIt) continue;
+    const dir = c.parts.lift(L.i); say(`LIFT ${L.i + 1} ${dir === 'down' ? 'GOING DOWN TO THE HANGAR DECK' : 'COMING UP TO THE FLIGHT DECK'}`, 2); sfx.ui?.('select');
+    return true;
+  }
+  return false;
 }
 // the crew is picked up and the airframe written off; a fresh helicopter waits on the carrier
 function abandonHeli() {
@@ -1519,7 +1576,7 @@ function updateFogImg() {
   for (let k = 0; k < fog.N * fog.N; k++) { const e = fog.enabled ? fog.exp[k] : 1, v = fog.enabled ? fog.vis[k] : 1; d[k * 4] = 4; d[k * 4 + 1] = 8; d[k * 4 + 2] = 16; d[k * 4 + 3] = (1 - e) * 240 + e * (1 - v) * 110; }
   fogCtx.putImageData(fogData, 0, 0);
 }
-const shipName = u => ({ battleship: 'BATTLESHIP', freighter: 'FREIGHTER' }[u.type] || (u.side === 1 ? 'ALBATROSS' : 'KRAKEN'));
+const shipName = u => ({ battleship: 'LEVIATHAN', freighter: 'CONTAINER SHIP' }[u.type] || (u.side === 1 ? 'ALBATROSS' : 'KRAKEN'));
 const KIND_TAG = { hq: 'HQ', fortress: 'C', fuel: 'F', factory: 'M', radar: 'R' };
 const OWN_COL = ['#e8e4d0', '#4cf', '#f54'];
 let mapView = null;
@@ -1589,9 +1646,9 @@ function drawMap() {
     radar.font = '14px monospace'; radar.textAlign = 'center'; radar.fillStyle = '#bfe';
     radar.fillText('CLICK THE SEA: SAIL THE ALBATROSS THERE   ·   CLICK AN ISLAND: SELECT IT   ·   M: CLOSE', W / 2, Hh - 70);
     radar.fillStyle = '#ff8';
-    radar.fillText(`1: SEA KNIGHT + 13 MARINES (${COST.drone})  ·  2: AA GUN ON OUR ISLAND (${COST.aa})  ·  3: NEW HELICOPTER (${COST.heli})  ·  4: ESCORT FIGHTER (${COST.escort})  ·  6: SKY CARRIER REFIT (${COST.sky})  ·  8: FLY A TOMCAT     MATERIEL ${Math.floor(G.mat)}`, W / 2, Hh - 46);
+    radar.fillText(`1: SEA KNIGHT + 13 MARINES (${COST.drone})  ·  2: AA GUN ON OUR ISLAND (${COST.aa})  ·  3: NEW HELICOPTER (${COST.heli})  ·  4: TOMCAT ESCORT (${COST.escort})  ·  6: SKY CARRIER REFIT (${COST.sky})  ·  8: FLY A TOMCAT  ·  9 / 0: M60A3 / M113A2 BY LCM-8     MATERIEL ${Math.floor(G.mat)}`, W / 2, Hh - 46);
     radar.font = '12px monospace'; radar.fillStyle = '#8ab';
-    radar.fillText('HQ  HEADQUARTERS     C  CAVE FORTRESS (STEAL ITS POD)     F  FUEL     M  MATERIEL (FACTORY)     R  RADAR     ▲ AA GUNS', W / 2, Hh - 24);
+    radar.fillText('HQ  HEADQUARTERS     C  CAVE FORTRESS (STEAL ITS POD)     F  FUEL     M  MATERIEL (FACTORY)     R  RADAR     ▲ AA GUNS     SHIPS: ALBATROSS · KRAKEN · LEVIATHAN · CONTAINER SHIP', W / 2, Hh - 24);
     if (selIsl) {
       const I = selIsl, own = I.seen, info = [`${I.name}`, `${own < 0 ? 'UNKNOWN' : ['NEUTRAL', 'OURS', 'ENEMY'][own]}  ·  ${{ hq: 'HEADQUARTERS', fortress: 'CAVE FORTRESS', fuel: 'OIL - FUEL', factory: 'FACTORY - MATERIEL', radar: 'RADAR - LONG SIGHT' }[I.kind]}`];
       if (fog.visibleAt(I.pad.x, I.pad.z) && own > 0) info.push(`AA GUNS ${war.aliveAA(I)}`);
@@ -1697,7 +1754,7 @@ function updateHud() {
     const c = war.carrier, b = war.battleship, eb = war.E.bship;
     const html = `<span style="color:#4cf">OURS ${n[1]}</span> &nbsp; <span style="color:#f54">ENEMY ${n[2]}</span> &nbsp; <span style="color:#ddd">FREE ${n[0]}</span>` +
       ` &nbsp;·&nbsp; ALBATROSS <b style="color:${c && c.hp / c.hpMax < 0.4 ? '#f54' : '#9ff'}">${c ? Math.max(0, Math.round(100 * c.hp / c.hpMax)) : 0}%</b>` +
-      (b && b.sinking === undefined ? ` &nbsp;·&nbsp; <b style="color:#f54">BATTLESHIP AT SEA ${Math.round(100 * b.hp / b.hpMax)}%</b>` : ` &nbsp;·&nbsp; ENEMY BATTLESHIP <b style="color:${eb > 70 ? '#f54' : '#fb6'}">${Math.floor(eb)}%</b>`);
+      (b && b.sinking === undefined ? ` &nbsp;·&nbsp; <b style="color:#f54">LEVIATHAN AT SEA ${Math.round(100 * b.hp / b.hpMax)}%</b>` : ` &nbsp;·&nbsp; LEVIATHAN BUILT <b style="color:${eb > 70 ? '#f54' : '#fb6'}">${Math.floor(eb)}%</b>`);
     if (_hud.war !== html) { _hud.war = html; $('war').innerHTML = html; }
     const now = performance.now(), fh = feedItems.filter(f => now - f.at < 14000).map(f => `<div style="color:${f.kind === 'good' ? '#7f9' : f.kind === 'bad' ? '#f86' : '#cde'};opacity:${Math.min(1, (14000 - (now - f.at)) / 2000).toFixed(2)}">${f.t}</div>`).join('');
     if (_hud.feed !== fh) { _hud.feed = fh; $('feed').innerHTML = fh; }
@@ -1830,6 +1887,7 @@ function updateCamsAndMeshes(dt, time) {
   sky.scale.setScalar(view.draw / DRAW);
   if (fx.shake > 0.01) { const k = fx.shake * (cockpit.group.visible ? 0.1 : 0.4); zCam.position.x += rnd(-k, k); zCam.position.y += rnd(-k, k); zCam.position.z += rnd(-k, k); }
   fx.ear.copy(zCam.position); terrainUni.uTime.value = time;
+  updateSeaUniforms(terrainUni, war.sea, war.units, zCam.position);   // SEAWORLD
   sky.position.copy(zCam.position);
   terrainStream(zCam.position.x, zCam.position.z);
   terrain.position.set(Math.round(zCam.position.x / TG) * TG, 0, Math.round(zCam.position.z / TG) * TG);
@@ -1902,6 +1960,7 @@ function frame(now) {
   const inp = readInput();
   if (inp.start && !padWasStart) { sfx.init(); if (G.state === 'paused') menuPick(); else pressStart(); }
   padWasStart = inp.start;
+  if (G.state !== 'paused') war.tickSea(dt);   // SEAWORLD: the sea's clock and the weather (the title screen too)
   if (G.msgT > 0) { G.msgT -= dt; if (G.msgT <= 0 && G.state !== 'paused') say(''); }
   if (G.state === 'play') {
     if (G.mode === 'zarch') updateZarch(dt, inp); else updateThrust(dt, inp);

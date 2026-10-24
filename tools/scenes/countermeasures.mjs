@@ -17,6 +17,7 @@ const side = (a, b, off, up, k = 0.5) => `(() => { const a = ${a}, b = ${b}, mx 
 const ONE_TALON = `(() => { __G.G.bench = true; const I = __G.ISLANDS.find(I => I.name === 'ANVIL'); const t = I.structs.find(s => s.def && s.def.type === 'talon'); window.__t = t; window.__I = I;
   for (const J of __G.ISLANDS) for (const s of J.structs) if (s.kind === 'aa' && s !== t && s.side === 2) { s.dead = true; s.mesh.visible = false; }
   for (const u of __G.war.units) if (u.type === 'gunship') u.dead = true;
+  for (const u of __G.war.units) if (u.dims && u.side === 2) for (const g of u.guns) { g.dead = true; g.rebuild = 1e9; g.mesh.visible = false; }   // SEAWORLD: the RUNAWAY ships' TALON / LANCE mounts hold fire too
   return [t.x, t.y, t.z].map(v => +v.toFixed(1)); })()`;
 const CMS = '__G.war.defence.CM';
 // a camera beside the tracked missile (window.__m), across its flight line

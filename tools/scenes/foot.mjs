@@ -1,5 +1,5 @@
 // ON FOOT (FOUNDATION): get out of the Huey on the ALBATROSS's deck, walk the deck while the carrier sails and turns
-// (platform-relative: you stay on your deck spot), climb the island ladder to its roof, go over the side and swim to the
+// (platform-relative: you stay on your deck spot), climb the island ladders to its roof, go over the side and swim to the
 // stern ladder and climb back aboard, walk an island pad, get back in the Huey and take off.
 
 export default async function (h) {
@@ -31,10 +31,16 @@ export default async function (h) {
   await h.eval('({ from: __l1, to: __F.loc(), state: __F.state() })');
   await h.expect('Math.abs(__F.loc().x - __l1.x) < 1 && __G.foot.W.plat === __G.war.carrier');
   await h.shot('walking-the-deck-under-way');
-  // 4. the island ladder: walk into it, climb to the roof
-  await h.eval('(__F.place(5.2, -0.6, -Math.PI / 2), 1)');   // facing +x (starboard), the ladder on the island's port face
-  await h.key('down', 'KeyW'); await h.waitFor('__G.foot.W.ladder || __G.foot.W.y > __G.war.carrier.p.y + 20', 20000);
+  // 4. the island ladder (NAVAL: two flights from the model, parts.ladders): the lower one up the island's port face to
+  // the O-7 catwalk, aft along it, the caged upper one to the island top deck
+  await h.eval('(() => { const L = __G.war.carrier.parts.ladders[0]; __F.place(L.lx - 2.4, L.lz, -Math.PI / 2); return 1; })()');   // facing +x (starboard)
+  await h.key('down', 'KeyW'); await h.waitFor('!!__G.foot.W.ladder', 20000);
   await h.eval('__F.state()');
+  await h.waitFor('!__G.foot.W.ladder && __G.foot.W.onGround', 30000); await h.key('up', 'KeyW');
+  await h.eval("(__G.marine.aim(__G.war.carrier.yaw + Math.PI, 0), 1)");
+  await h.key('down', 'KeyW'); await h.waitFor('__F.loc().z > __G.war.carrier.parts.ladders[1].lz - 0.1', 20000); await h.key('up', 'KeyW');
+  await h.eval("(__G.marine.aim(__G.war.carrier.yaw - Math.PI / 2, 0), 1)");
+  await h.key('down', 'KeyW'); await h.waitFor('!!__G.foot.W.ladder', 20000);
   await h.waitFor('__G.foot.W.y > __G.war.carrier.p.y + 21 && !__G.foot.W.ladder', 60000); await h.key('up', 'KeyW');
   await h.eval('({ loc: __F.loc(), state: __F.state() })');
   await h.expect('Math.abs(__F.loc().y - 21.33) < 0.2 && __G.foot.W.onGround');
@@ -49,7 +55,7 @@ export default async function (h) {
   await h.eval('__F.state()'); await h.wait(300); await h.eval("(__G.marine.view = 'third', 1)"); await h.wait(500); await h.shot('stern-ladder');
   await h.waitFor('!__G.foot.W.ladder && __G.foot.W.onGround', 40000); await h.key('up', 'KeyW');
   await h.eval('({ loc: __F.loc(), state: __F.state() })');
-  await h.expect('Math.abs(__F.loc().y - 8) < 0.1 && __G.foot.W.plat === __G.war.carrier');
+  await h.expect('Math.abs(__G.foot.W.y - __G.war.deckY(__G.foot.W.x, __G.foot.W.z)) < 0.1 && __G.foot.W.plat === __G.war.carrier');
   await h.eval("(__G.marine.view = 'first', 1)");
   // 6. an island pad (the home island): walk onto it from the grass
   await h.eval('(() => { const p = __G.PAD; return __G.foot.spawnAt({ x: p.x + 16, y: p.h, z: p.z, yaw: Math.PI / 2 }); })()');
