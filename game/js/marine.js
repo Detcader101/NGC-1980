@@ -149,9 +149,6 @@ export function createMarine(ctx) {
   vm.lawLines = lawW()?.lawLines?.();
   const me = buildMarine({ seed: 1, weapon: 'M16A1', pack: true }); me.root.visible = false; scene.add(me.root);
   me.owner = 'player';
-  // (ngc/infdepth-fix: the grenade in his right hand in third person, through the drill)
-  const handGren = new THREE.Mesh(new THREE.SphereGeometry(0.034, 8, 6).scale(1, 1.2, 1), new THREE.MeshLambertMaterial({ color: 0x4d5636 }));
-  handGren.position.set(0, -0.08, -0.02); handGren.visible = false; me.bones.handR.add(handGren);
   const tracerGeo = new THREE.BufferGeometry(), tracerPos = new Float32Array(200 * 6); tracerGeo.setAttribute('position', new THREE.BufferAttribute(tracerPos, 3));
   const tracers = new THREE.LineSegments(tracerGeo, new THREE.LineBasicMaterial({ color: 0xff6a3a, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }));
   tracers.frustumCulled = false; scene.add(tracers);
@@ -550,9 +547,9 @@ export function createMarine(ctx) {
       // ngc/infdepth: hands off the rifle (slung on the back): bent over a casualty on the drag strap, under one in a
       // fireman's carry, or the grenade drill (carepose.js); the grenade in the right hand until it leaves it
       p.hands = null; p.sling = 0;
-      if (Mr.care.hold) { p.ads = 0; p.sling = 1; p.hands = careHands(Mr.care.hold.mode); if (Mr.care.hold.mode === 'drag') { p.stance = p.stanceFrom = p.stanceTo = 'crouch'; p.stanceT = 1; } }
+      if (Mr.care.hold) { p.ads = 0; p.sling = 1; p.hands = careHands(Mr.care.hold.mode, 0, p.gaitPhase || 0); if (Mr.care.hold.mode === 'drag') { p.stance = p.stanceFrom = p.stanceTo = 'crouch'; p.stanceT = 1; } }
       else if (TH && TH.phase !== 'recover') { p.ads = 0; p.sling = 1; p.hands = throwHands(TH.phase, TH.p, TH.under); }
-      handGren.visible = !!TH && TH.phase !== 'recover' && !(TH.phase === 'throw' && TH.gone);
+      p.grenade = !!TH && TH.phase !== 'recover' && !(TH.phase === 'throw' && TH.gone);   // (in his right hand in third person, through the drill)
       if (W.swim) { p.stance = p.stanceFrom = p.stanceTo = 'prone'; p.stanceT = 1; }
       poseSkeleton(me, p, dt);
     }

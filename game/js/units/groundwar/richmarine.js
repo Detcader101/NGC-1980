@@ -33,7 +33,7 @@ const angN = a => ((a % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI) - Math.PI;
 // squad role -> MEDINV loadout (inventory.js): the automatic rifleman carries the rifleman's kit with more magazines
 export const ROLE_KIT = { sl: 'rifleman', tl: 'rifleman', ar: 'rifleman', aar: 'rifleman', gren: 'grenadier', mg: 'mg', doc: 'corpsman' };
 // GAME: how fast a man turns his head and rifle onto a new bearing (rad / s), and how close is "on target" (rad)
-const TURN = 3.2, ON_TGT = 0.03;   // (~1.7 deg: a combat shot, not a range shot; ngc/infdepth-fix: 0.012 starved the fire)
+const TURN = 4.5, ON_TGT = 0.03;   // (~260 deg/s: a trained target transition, 90 deg in ~0.35 s; ~1.7 deg: a combat shot, not a range shot; ngc/infdepth-fix: 0.012 starved the fire, 3.2 rad/s left the near men firing half the cheap model's rounds)
 export const RICH_STEP = 1 / 30;   // rifleman sub-step for AI men (the player runs 1/120 s; AI aim needs less)
 
 export function createRichMarine(u, o = {}) {
@@ -137,9 +137,10 @@ export function createRichMarine(u, o = {}) {
       else if (fire && aim) {
         const off = Math.abs(angN(yawT - S.aimYaw)) + Math.abs(pT - S.aimPitch);
         RM.trigT -= dt;
-        // on the sights: within ON_TGT; moving (not rushing) he fires from the shoulder unsighted, twice as loose (the
-        // cheap model fires on the move too)
-        const tol = ON_TGT * (1 + 2 * (want.supp || 0)), aimedOk = S.ads > 0.5 ? off < tol : pace !== 'rush' && off < tol * 2;
+        // on the sights: within ON_TGT; off them (moving, or running to cover) he fires from the shoulder unsighted, twice
+        // as loose (the cheap model fires on the move and on the way to cover too; ngc/infdepth-fix: holding fire on every
+        // rush to cover cost the near men a third of their rounds)
+        const tol = ON_TGT * (1 + 2 * (want.supp || 0)), aimedOk = S.ads > 0.5 ? off < tol : off < tol * 2;
         const W8 = RM.stats.wait || (RM.stats.wait = { off: 0, ads: 0, ok: 0 }); if (aimedOk) W8.ok++; else if (off >= tol) W8.off++; else W8.ads++;
         if (aimedOk) {
           if (fire === 'auto' || fire === 'mg') { if (RM.burst <= 0 && RM.trigT <= 0) { RM.burst = want.burstS || 0.35; RM.trigT = want.pause || 1.2; } }
