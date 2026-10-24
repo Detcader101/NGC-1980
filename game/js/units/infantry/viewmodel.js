@@ -129,7 +129,7 @@ function buildSegment(len, r0, r1, side, watch) {   // along -y from the joint; 
   const g = new THREE.Group(); g.add(k.mesh(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide }))); return g;
 }
 const DOWN = V3(0, -1, 0);
-function solveArm(arm, wrist) {   // all in viewmodel (camera) space; arm = { up, fo, sh }
+export function solveArm(arm, wrist) {   // all in viewmodel (camera) space; arm = { up, fo, sh }  (exported: throwvm.js, ngc/infdepth)
   const S = arm.sh, d = _v.subVectors(wrist, S); let L = clamp(d.length(), 0.1, UPPER + FORE - 0.003); d.normalize();
   const x = (UPPER * UPPER - FORE * FORE + L * L) / (2 * L), h = Math.sqrt(Math.max(0, UPPER * UPPER - x * x));
   const pole = _w.copy(arm.pole); pole.addScaledVector(d, -pole.dot(d)).normalize();

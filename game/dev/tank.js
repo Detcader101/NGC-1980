@@ -113,7 +113,8 @@ if (VEH === 'm60') { model.hull.add(interior.group); model.turret.add(interior.g
 else { model.hull.add(interior.group); model.ramp.add(interior.rampIn); model.hatches.cargo.add(interior.cargoIn); }
 let gunLook = false;   // gunner: E looks up from the sight into the station
 const at = (Q.get('at') || '0,40,0').split(',').map(Number);
-V.reset(at[0], at[1], at[2] || 0, env, { range: 'N' });
+const COLD = Q.has('cold');   // ?cold: cold and dark - 0 MASTER, I (hold) START, 9 turret POWER, wait for the gyros and the TTS
+V.reset(at[0], at[1], at[2] || 0, env, { range: 'N', cold: COLD, running: !COLD });
 const audio = new ArmorAudio();
 
 // ------------------------------------------------------------------------------------------------ input
@@ -159,6 +160,8 @@ function readInput(dt) {
   if (o('BracketLeft')) IN.ttsMag = 3; if (o('BracketRight')) IN.ttsMag = 8;
   if (o('KeyU')) IN.ttsPolarity = IN.ttsPolarity === 'wh' ? 'bh' : 'wh';
   if (o('KeyK')) IN.light = IN.light ? 0 : 1;
+  if (o('Digit0')) { IN.master = !(IN.master ?? !COLD); say('MASTER ' + (IN.master ? 'ON' : 'OFF')); }
+  if (o('Digit9')) { IN.power = !(IN.power ?? !COLD); say('TURRET POWER ' + (IN.power ? 'ON' : 'OFF')); }
   IN.fire50 = (view === 'commander' && k('Space')) || k('KeyM');
   IN.cupTrav = view === 'commander' ? (k('ArrowRight') ? 1 : 0) - (k('ArrowLeft') ? 1 : 0) : 0; IN.cupElev = view === 'commander' ? (k('ArrowUp') ? 1 : 0) - (k('ArrowDown') ? 1 : 0) : 0;
   IN.mgTrav = IN.cupTrav; IN.mgElev = IN.cupElev;
@@ -333,7 +336,7 @@ function drawSight() {
   c.fillStyle = tts ? 'rgba(170,255,150,0.95)' : 'rgba(255,90,40,0.95)';
   c.fillText(txt, cx, cy + R * 0.82);
   c.font = `${Math.round(H / 48)}px "Courier New", monospace`;
-  c.fillText(`${tts ? 'TTS ' + V.ttsMag + 'X ' + (V.ttsPolarity === 'wh' ? 'WH' : 'BH') : 'DAY 8X'}   ${V.stab && V.hydP > 0.5 ? 'STAB' : 'POWER'}${V.fc.solved ? '   COMP ' + V.fc.range : '   BS 1200'}`, cx, cy - R * 0.85);
+  c.fillText(`${tts ? 'TTS ' + V.ttsMag + 'X ' + (V.ttsPolarity === 'wh' ? 'WH' : 'BH') : 'DAY 8X'}   ${V.stabMode === 'STAB RUN-UP' ? 'STAB RUN-UP ' + Math.round(V.gyro * 100) + '%' : V.stabMode || (V.hydP > 0.5 ? (V.stab ? 'STAB' : 'POWER') : 'MANUAL')}${V.fc.solved ? '   COMP ' + V.fc.range : '   BS 1200'}`, cx, cy - R * 0.85);
   if (tts && V.ttsCool <= 0.95) c.fillText(`COOLING ${Math.round(V.ttsCool * 100)} %`, cx, cy - R * 0.2);
 }
 
@@ -346,7 +349,7 @@ function hudText() {
     `pitch ${(a.pitch * 57.3).toFixed(1)}°  roll ${(a.roll * 57.3).toFixed(1)}°   soil ${fm.soil.join('/')}  sink ${(fm.sink[0] * 100).toFixed(0)} cm  slip ${fm.slip.map(v => (v * 100).toFixed(0)).join('/')} %`,
     `water ${fm.water.depth.toFixed(2)} m${fm.water.afloat ? ' AFLOAT' : ''}  inside ${fm.water.inside.toFixed(2)} m3${fm.dmg.thrown[0] || fm.dmg.thrown[1] ? '  TRACK THROWN' : ''}${fm.state.bellied ? '  BELLIED' : ''}`,
   ];
-  if (VEH === 'm60') lines.push(`turret ${(V.az * 57.3).toFixed(1)}° gun ${(V.el * 57.3).toFixed(2)}°  ${V.stab ? 'STAB' : 'POWER'}  gun ${V.gun.state} ${V.gun.round || ''}  next ${V.next}  rounds ${V.ammoTotal()}  coax ${V.coax.ammo}  .50 ${V.mg50.ammo}`);
+  if (VEH === 'm60') lines.push(`turret ${(V.az * 57.3).toFixed(1)}° gun ${(V.el * 57.3).toFixed(2)}°  ${V.stabMode || 'POWER'}  gun ${V.gun.state} ${V.gun.round || ''}  next ${V.next}  rounds ${V.ammoTotal()}  coax ${V.coax.ammo}  .50 ${V.mg50.ammo}`);
   else lines.push(`ramp ${(V.ramp * 100).toFixed(0)} %  vane ${(V.vane * 100).toFixed(0)} %  pumps ${fm.water.pumps ? 'ON' : 'off'}  troops ${V.seats.filter(Boolean).length}/11  .50 ${V.mg.ammo}`);
   hud.textContent = lines.join('\n');
 }

@@ -43,7 +43,7 @@ export function createSight({ canvas }) {
     c.fillStyle = tts ? 'rgba(170,255,150,0.95)' : 'rgba(255,90,40,0.95)';
     c.fillText(`${rng}  ${ROUNDS[gun.round || V.next].short}  ${gun.state === 'ready' ? 'READY' : gun.state === 'loading' ? 'LOAD ' : 'EMPTY'}`, cx, cy + R * 0.82);
     c.font = `${Math.round(H / 48)}px "Courier New", monospace`;
-    c.fillText(`${tts ? 'TTS ' + V.ttsMag + 'X ' + (V.ttsPolarity === 'wh' ? 'WH' : 'BH') : 'DAY 8X'}   ${V.hydP > 0.5 ? (V.stab ? 'STAB' : 'POWER') : 'MANUAL'}${V.fc.solved ? '   COMP ' + V.fc.range : '   BS 1200'}`, cx, cy - R * 0.85);
+    c.fillText(`${tts ? 'TTS ' + V.ttsMag + 'X ' + (V.ttsPolarity === 'wh' ? 'WH' : 'BH') : 'DAY 8X'}   ${V.stabMode === 'STAB RUN-UP' ? 'STAB RUN-UP ' + Math.round(V.gyro * 100) + '%' : V.stabMode || (V.hydP > 0.5 ? (V.stab ? 'STAB' : 'POWER') : 'MANUAL')}${V.fc.solved ? '   COMP ' + V.fc.range : '   BS 1200'}`, cx, cy - R * 0.85);
     if (tts && !cool) c.fillText(`COOLING ${Math.round(V.ttsCool * 100)} %`, cx, cy - R * 0.2);
     if (s.note) { c.font = `${Math.round(H / 52)}px "Courier New", monospace`; c.fillText(s.note, cx, cy + R * 0.92); }
   };

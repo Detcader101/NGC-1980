@@ -1183,6 +1183,90 @@ worldprev.mjs, structprev.mjs, worldperf.mjs, worldjet.mjs.
   on the road graph; civilians react to explosions and impacts only (not aircraft overhead); no night lighting; the
   zone villages are small (the islands are steep and mostly base). A Huey NaN was seen once at the very start of a run
   at load average ~70, with and without the world (not reproduced).
+## 2026-10-23 — NGC-1980 wave 2: SEAWORLD (the live sea, the lifts, solid villages, RUNAWAY ship mounts; ngc/seaworld2)
+Files: game/js/units/naval/seasurface.js (GLSL + uniforms), seaweather.js, game/js/world/solid.js, tools/seabench.mjs,
+tools/worldsolidbench.mjs, tools/scenes/seaworld.mjs. Changed: seamotion.js, navalfx.js, albatross.js, defence/
+(models, brain, tune), ground.js, platform.js, world/life.js (zone roads kept), main.js, war.js, index.html, jetplay.js.
+- **One live sea.** seamotion.js: makeSea takes a fractional sea state (Hs, Tp interpolated between the NATO rows) and
+  keeps each component's random draws, so retuneSea() moves the same sea to another state without the waves jumping
+  (integer states give exactly the old numbers: navalbench 22/22 unchanged). advanceSea() is the sea's clock (main.js
+  calls war.tickSea every frame but in the pause menu, the title screen too). The surface is drawn at the ALBATROSS's
+  0.44 scale in height AND wavelength (steepness stays real) with the real periods; then k_game U_game = k U_real, so a
+  carrier's encounter frequency is exactly its motion model's, and each ship now reads its phases off the surface at its
+  position (step(.., x, z)): the ships ride the waves you see (seabench: position phases == encounter integration to
+  1e-12 over 60 s; a ship at rest heaves with the drawn surface, r = 0.70; the waterplane averaging takes the rest).
+- **The surface** (seasurface.js, plugged into main.js's terrain shader where the ground is below sea level): the 14
+  wave components displace the sea VERTICES and give the slope per vertex (no per-pixel wave sums); a grid only carries
+  waves longer than 5 cells (the 24 m far ring shows the long swell only, never aliasing; the jet's long view works);
+  waves die out over the last metres of depth (the coast stays put). Fragment: the swell's normal shades and Fresnels,
+  a separate mostly-ripple "glitter" normal with a sparkle mask carries the sun (a glint on whole wave faces looked like
+  white blobs), whitecaps on the crests (coverage per state roughly Monahan's W(U) for the state's wind, lifted at the
+  low end: 0.4 % SS2 ... 26 % SS7), wind-aligned foam streaks at 6-7, surf whose band widens and pulses with the swell,
+  foam round each of the six nearest ships' waterline (thicker at the bow and with speed; parts.waterline per hull), a
+  darker greyer sea when rough. The wake ribbons ride the waves (navalfx seaY).
+- **SEA STATE slider and WEATHER DRIFT** in the pause menu (all three variants), remembered per browser (tz_sea,
+  tz_seadrift); ?sea= wins and leaves the drift off unless ?seadrift. Drift (seaweather.js): a new target every 3-7 min
+  within +-2 of your choice, at most one state per 4 min, the main direction veers up to 25 deg, a feed line when the
+  rounded state changes ("WEATHER: THE SEA IS GETTING UP - SEA STATE 5 ROUGH"). Over 4 h: 2.4 .. 4.9 round SS4.
+- **ALBATROSS deck-edge lifts.** The three ELEVATORS are now platforms OUTBOARD of the deck edge (real Midway /
+  Forrestal practice; the old ones were painted inside the deck), 9 m x 13-14 m, flush with the flight deck when up,
+  down at the hangar-deck door (y 4.25) when lowered, 0.42 m/s; railings, guide posts, a sill, hazard strips on the deck
+  edge, a console forward of each with a lamp that flashes amber while it moves. U at a console (or standing / parked on
+  the lift) runs it, on foot or in a vehicle (before the craft's key: foot / vehicles swallow U). A Hornet is spotted on
+  lift 1 (lengthwise; real-size aircraft overhang a 0.44-scale lift as they do). The forward port Sea Sparrow sponson moved
+  to z -20.5 (it sat where the port lift goes). platform.js subY: whoever stands on a lift goes up and down with it.
+- **Parked aircraft are solid.** heightField() rasterises the baked geometry (edges + covered cell centres, 0.5 m) into
+  a plan of tops; the ALBATROSS's localDeck includes them (and the lifts), so war.js deckY sees them: the Hornet's hull
+  points / gear (airframe.js) and the Huey's skids meet them, walkers and vehicles find a wall (GR.floor). Deck spots for
+  vehicles must be clear (a car footprint); spare spots port-side forward and aft of the island.
+- **The world is solid** (world/solid.js, through new ground.js hooks GR.addColliderSource / GR.addFloor and the existing
+  addSurface): houses, cottages, terraces, halls, the church (nave, porch, chancel, tower, churchyard wall), filling
+  station kiosk and canopy posts, barns, Dutch-barn posts, silos, boat sheds, garages, sheds, lighthouses + keeper's
+  cottage, masts + huts, phone / post boxes, bus shelters, memorials, parked cars, tractors, wood piles, garden trees,
+  power poles, field walls and hedges (segment by segment with the same gate gap chunkgen leaves), bridge parapets.
+  Walls / hedges are `soft` (o.crush in GR.collide skips them: for the tanks). Piers and jetties (deck + T head) and
+  BRIDGE DECKS (roadAt().y + the ribbon lift) are floors for anyone at or above them; underneath you are under them.
+  Roads are 'road' / 'dirt' surfaces (new SURF.dirt: mu 0.65, crr 0.04, INFERRED Wong). Built per 400 m chunk from the
+  same seeded generators the worker draws (chunkContent / zone items), 27 ms for a town chunk, once, in a 16 m grid.
+- **RUNAWAY ship mounts** (DEFENCE, game level): defence.refitShip(parts) replaces the RAM launchers and RW lasers on
+  NAVAL's parts.mounts: KRAKEN 2 TALON modules (on a deck pedestal: buildTalon(side, { mount: true })) + 2 LANCE,
+  LEVIATHAN TALONs forward / LANCEs aft, the container ship a TALON on the forecastle. DEF.talonm / lancem: hp 9 (the
+  old ship guns), the ship LANCE's beam a little weaker (dps 2.6, player 0.2). The units behave exactly as on the islands
+  (see, lock with tells, fire); the brain's LANCE checks now go by T.beam, not the type name.
+- **Authentic sea states (polish).** Each state looks like its WMO code 3700 / Douglas description and the Beaufort
+  wind that raises it: 0 a mirror with one hard sun glint, 1 ripples, 2 glassy wavelets that never break, 3 scattered
+  white horses, 4 fairly frequent, 5 many, 6 foam crests everywhere and the first streaks, 7 well-marked streaks along
+  the wind. Whitecap coverage per state from Monahan and O'Muircheartaigh's W = 3.84e-6 U^3.41 for the state's Beaufort
+  wind (0.06 % at Bf 3 to 8 % at Bf 8), about 3x so it reads at game distances; the shader's foam threshold is that
+  coverage turned into a noise quantile (an inverse-normal fit), so the coverage is what the table says, not a guess.
+  The sun's glitter is a fine sparkle (it lit whole wave faces in white patches before).
+- **The black dome on the horizon (root cause).** The sky dome (radius 0.97 x the draw distance) and the terrain windows
+  were centred on zCam in updateCamsAndMeshes. Any camera moved after that - every test scene's scripted camera patches
+  renderer.render to move the camera - sat off-centre, the far side of the dome fell beyond the far plane (draw + 15 m)
+  and was clipped, and the black clear colour showed as a dome above the horizon (the terrain grid also ended short).
+  Now sky, fine grid and far ring are centred on the rendering camera in their onBeforeRender. seaworld 'horizon' part:
+  deck and 600 m, chase and cockpit, two scripted cameras: < 0.2 % pure black above the horizon (without the fix the
+  high scripted camera shows 100 %).
+- **Cost.** Software WebGL pays per pixel: the first version's per-pixel six-ship hull-foam loop cost ~25 % of a frame over
+  the sea; the foam is now found per vertex (the pixel only adds the noise), the noise for whitecaps / streaks / glint
+  only runs where it can show, and the GPU draws the 8 largest of the 14 components.
+- **Names** (HUD, feed, advisor, map, title help, the Hornet's target box): LEVIATHAN, CONTAINER SHIP, SEA KNIGHT,
+  MV-22 OSPREY, RW-3 WASP, TOMCAT ESCORT; the map legend lists the ships.
+- **Tests.** seabench 15/15, worldsolidbench 9/9, navalbench 22/22, footbench, boxcarbench pass. seaworld.mjs 25/25
+  (lift: soldier and Hornet ride it down and up, the hull is a wall from below, a parked Hornet stops a walker; the
+  horizon from six views; a village
+  house wall stops a walker; a wild-lands bridge is crossed on its deck 12 m over the valley; the KRAKEN's TALON and
+  LANCE mounts lock and fire; SS 1 / 4 / 7 from the deck, 100 m and a Hornet at 600 m). Regression results and fps in
+  the branch report.
+- **Gotchas.** A trailing `//` comment inside a scene's eval swallowed the rest of the expression again (the page then
+  sat in a never-ending evaluate); `out` is a GLSL keyword; the deck stops at 0.985 of its half width, so a soldier walked
+  off the lift through a 0.2 m seam into the sea (the lift's footprint reaches 0.3 m inboard); deck-relative heights in
+  tests must use deckY (the ships really move now).
+- **Untested / next.** Swimmers and wading soldiers still float at y = 0 (the waves pass through them: GR could offer
+  W.seaY); fx splashes / rotor-wash rings sit at y = 0; the KRAKEN's own elevators and the parked RW drones are not solid
+  yet; the hangar itself is not modelled (the lift stops at its door); LANCE / TALON balance on ships against a real
+  player in a war (driven directly in the test); wheeled / tracked vehicles over bridges (the floor hook is generic, only
+  a walker was tested); whether the weather feed lines are too chatty (one per state change, ~6 min apart).
 ## 2026-10-23 — NGC-1980: the C-130H / KC-130R Hercules replaces the MULE 1 dropship (para-drop)
 Files: game/js/units/air/c130fm.js (flight model, pure), c130model.js (exterior), c130cockpit.js (flight deck),
 c130audio.js (sound), jumper.js (1980 paratrooper + MC1-1); drop.js rewritten for them; ships.js buildDropship /
@@ -1754,3 +1838,99 @@ lcm8model.js (CH-46 sling, LCM-8), wheeledbake.js (one-mesh far LOD and the WORL
   running one; silent in the pause menu (and the deliveries stop).
 - **The M35's troops.** B at one of our pads: six Marines board (105 kg each through sim.setLoad), sit on the benches,
   the capture time on a pad drops 8 -> 4 s; B again dismounts them.
+## 2026-10-23 — NGC-1980 wave 2: INFANTRY DEPTH - buddy aid, the corpsman, casevac, AI Marines on the real sims, the grenade drill (branch ngc/infdepth)
+- **AI Marines on the real rifleman sim** (`units/groundwar/richmarine.js`, pure). Inside 120 m of the camera (up to 14
+  men; `GW_T.RICH_R / RICH_MAX`) a ground-war Marine is promoted from marine.js's kinematic body to INFANTRY's rifleman
+  (soldier.js inertia, load, Tobler, timed stance transitions, stamina; weapons.js magazines out of his own MEDINV rig
+  through invbridge.js, stoppages, SPORTS immediate action / remedial action, tactical reloads in lulls) and MEDINV's
+  medical sim. The squad AI still decides; its intent becomes the rifleman's input (move vector in his frame, walk /
+  run / sprint, one-shot stances, look deltas at a human turn rate, trigger pulls on the sights, the AR's selector on
+  AUTO and bursts). His rounds stay GAME-LEVEL: each rifleman `shot` (real muzzle, real swaying bore) becomes one of
+  groundsim's projectiles. M203 and LAW keep the cheap firing. Hits go to MEDINV (`RICH_HIT` table, game damage on
+  MEDINV's HP scale); a GAME rule decides "down": dead, unconscious, both arms out, shock class III, crawl only, a bleed
+  over 120 ml/min, a blacked chest or belly; once down he goes back in only with no tourniquet, no unsplinted fracture
+  and class I. Self aid (FM 21-11) from his own kit while conscious. Far away the cheap model runs; a man keeps his
+  medical state (and bleeds) wherever the camera is; a cheap man promoted while hurt gets MEDINV wounds of the same size.
+  **Cost: 1.3-1.9 ms of CPU per simulated second per rich Marine (0.04 ms per man per 1/30 s frame in a fight; 14 men
+  ~0.6 ms a frame).** Balance (`buddyaidbench cmp 4`, 4 fights, 13 vs 8 STRIDERs): cheap 32 KIA / 25 WIA, rich 24 / 15,
+  machines left 30 / 30 - the near men are not weaker than the far ones.
+- **Casualty care** (`units/groundwar/fieldcare.js`, pure, run by groundsim after the squad AI): the wounded call out
+  ("I'M HIT!", "CORPSMAN UP!"), crawl to a spot the enemy can't see; the squad's **Navy corpsman** (HM3, the 13th man off
+  every Sea Knight) goes to the worst casualty, rushing when far, crawling the last metres under fire, kneels on the far
+  side from the enemy and works with MEDINV's buddy-aid API (`startTreatment({ item, region, by: { self: false, skill:
+  'corpsman' } })`, buddy times x0.8, the casualty's own kit first, IV and needle decompression corpsman-only), takes
+  over a man's self aid; up to two riflemen do buddy aid at the same time (when the squad isn't in the thick of it).
+  Treatment choice follows 1980 doctrine (FM 21-11): field dressing and pressure first, a tourniquet for a spurting
+  artery or a limb bleeding through its dressing (the best one for that limb by MEDINV's success odds: a cravat windlass
+  beats the strap-and-buckle on a thigh), never on an ooze; then chest seals, needle, IV in shock, splints, morphine
+  (never in shock), salts. Once quiet, the walking wounded walk to the casualty collection point by the pad, litter cases
+  are dragged there by the drag strap at MEDINV's `BUDDY.dragSpeed` (0.97 m/s). Cheap model: GAME timers (dies of wounds
+  in 4-12 min untreated, 20-45 s corpsman / 40-80 s buddy treatment, back in the fight if half his body is left).
+- **The player's side** (`marinecare.js`): F by a wounded Marine opens HIS HEALTH screen with YOUR kit (buddy aid at
+  buddy times; walking away cancels: `BUDDY.treatRangeM`); Shift+F drags him (you back up at `BUDDY.dragSpeed` for your
+  wounds, his 80 kg + kit and your load; stamina drain x2.2), F lifts him into a fireman's carry (`BUDDY.carrySpeed`,
+  both arms and good legs; x3.5), Shift+F puts him down; F at the Huey's door loads him. Bleeding near a squad, the
+  corpsman (or a buddy) comes and treats you - stand still. A dead Marine's kit is searchable (his own rig if he died on
+  the rich model; else his role's loadout with the magazines he had left). The rifle is slung (viewmodel lowered) while
+  your hands are full.
+- **CASEVAC and the pool** (`units/groundwar/casevac.js`): land the Huey within 45 m of wounded and stay down - walking
+  wounded walk to the cabin, buddies carry the litter cases (~5 s each), six litters (UH-1H medevac fit). Land on the
+  ALBATROSS (or a friendly HQ pad): delivered to the sickbay. A Sea Knight that has put its stick down keeps its ramp
+  down while the island's wounded are carried aboard (up to 12, max 90 s), flies them home; lost with it if it goes
+  down. After 4 min (GAME) the evacuated are back in the pool: each fills a seat on the next Sea Knight (a 13th of its
+  materiel; war.js hook, feed "13 MARINES (2 BACK FROM THE SICKBAY)").
+- **First-person polish**: the **M67 / M18 drill** in the viewmodel (`units/infantry/throwvm.js`): rifle down to the
+  slung side, draw from the pouch, safety clip off and the pin pulled by the left forefinger (the ring stays on it), arm
+  cocked back, the off hand pointing at the target; HOLD G to cook (the spoon flies off, the fuse burns: thrown with
+  4.5 s less the cook, and too long it goes off in your hand), the overhand arc and follow-through (RMB: underhand lob,
+  8 m/s), the grenade leaves the hand where the hand is. **Weapon rest** on walls and windows: a wall top or sill under
+  the handguard with nothing over it, or a wall / frame beside it (GR.collide probes: buildings, superstructures, parked
+  crafts) - HUD "RESTED ON A WALL, RIGHT". **Breath in the camera**: the chest rises with each breath (deeper with the
+  oxygen debt), blown the head sways and drops on the exhale, a heart over 120 knocks the view each beat; less on the
+  sights. Lean (Q / E) was already there; checked in the scene (view rolls).
+- **Fixes on the way**: the player's rounds never reached the ground war (STRIDERs, hover tanks, MBTs, Marines - friendly
+  fire is real now: "CEASE FIRE!") - marine.js raycasts groundsim's hit volumes and hits go to `GS.hitUnit`; the war's
+  squad proxies (`noHit`) no longer stop the player's rounds as an invisible 3.6 m sphere; marine.mjs's leg-bleed check
+  is deterministic (`MS.reseed`, and it waits for an arterial bleed).
+- **Shared-file changes** (all commented ngc/infdepth): war.js (`W.sendDrone` cost less the pool credit, 3 lines);
+  marine.js (imports, raycast into the ground war + noHit, warHit gw branch, F / Shift+F, the throw drill replacing the
+  instant throw, care update / HUD hints, camera breath, rested label, the drag pose in third person); marinesim.js
+  (`MS.burden` speed cap + stamina, wall / window rest, `reseed`); viewmodel.js (`solveArm` exported); groundsim.js
+  (rich / care options off by default - the balance benches are unchanged -, `place`, `enrich`, `unitT`, `hitUnit`,
+  `casualties`, `evacuate`, bodies stay 7 min with care on); groundwar.js (rich + care on, corpsman role, names and
+  ranks, rich poses, the carried casualty, care news, CV); marine.js (ground war body: crawl / walking-wounded movement,
+  doc load), marineai.js (doc power); scenes groundwar.mjs (counts the evacuated) and marine.mjs (deterministic).
+- **Tests**: `buddyaidbench` 23/23; `buddyaid.mjs` 23/23 (run `tools/runs/2026-10-23_15-15-15-buddyaid`: the drill
+  phase by phase, the cooked throw, a dead Marine searched, drag, fireman's carry, the cravat on his thigh from your
+  kit, the corpsman at work, a Marine treating you, rested on the Huey's cabin, lean, casevac to the ALBATROSS, the pool);
+  marine 15/15, marinelife 11/11, groundwar 10/10, ch46capture 4/4, foot 12/12, smoke 5/5; benches medinv 109, infantry
+  90, marine all, groundwar 33/33.
+- **Gotchas**: (1) a trailing `//` comment swallowed a line again (groundsim's body removal) - comments on their own
+  line. (2) MEDINV's corpsman fixes nearly everything (wound care restores ruined limbs, salts wake the knocked out), so a
+  "down" man treated would always get up: the return-to-duty rule (no tourniquet, class I) is what makes casevac matter.
+  (3) A single care job per squad left the player bleeding while the corpsman was busy: up to three jobs. (4) Headless
+  frames are ~0.3 s: the drill's phases are frozen for the screenshots (`marine.freezeThrow`).
+- **Untested / next**: AI Marines throwing grenades and the third-person throw / drag hand poses (the body only kneels
+  and slings the rifle); voices for the callouts (text only); casevac by a dedicated CH-46 flight (only Sea Knights that
+  land anyway take the wounded); the Huey crew chief loading in the cabin (the wounded vanish at the door); a gamepad
+  binding for drag / carry; real mouse feel of cooking with G; the M18's colour choice (always the first in the rig).
+## 2026-10-23 — armour polish: M60A3 TTS and M113A2 authenticity (branch ngc/tank-polish)
+- **M60A3 turret** re-lofted after Hunnicutt's drawings: the M60A1 / A3 "needle nose" (a long wedge in plan narrowing to
+  the gun shield, the roof sloping down to it, the chin undercut), full width ~2.8 m over the ring, and a long bustle that
+  overhangs the engine deck (its floor well above the ring) to a near-vertical rear plate: ~3.95 m of casting, plus the
+  rack. The AN/VSS-1 xenon searchlight is now the big box it is (0.82 x 0.7 m, 0.6 m lens) on brackets over the shield,
+  elevating with the gun; the shield wears its laced canvas dust cover; the M85 has its armoured mantlet in the M19's
+  front. Bustle rack rebuilt round the new rear plate (bedrolls, duffels, ammo cans, a water can, the tarp). The bustle's
+  armour plate, the ready rack and radio, and the gunner's / loader's room follow the longer bustle.
+- **Markings** were never visible: the bumper-code decals faced into the hull (wrong sign on their tilt - the M113's too).
+  Fixed; added the US Army registration on the glacis (subdued black) and the yellow NATO bridge-classification disc
+  (MLC 60) on the right front light guard. M113A2: M243 smoke dischargers on the roof corners, a tow cable.
+- **Driver's M27 periscopes**: slim olive bodies with a rubber brow pad, not black slabs crowding the windows.
+- **Start-up (TM order, game times)**: the MASTER switch gates the starter, turret power and the sights; the diesel cranks
+  ~2.5 s (AVDS) / 1.2 s (6V53) before it catches and has a run-up grace (it caught below its stall speed and died);
+  turret POWER builds hydraulic pressure, then the stabiliser's gyros run up for ~20 s (POWER mode until then: the sights
+  show STAB RUN-UP nn %); the TTS cooler as before. Dev page: ?cold, 0 MASTER, hold I START, 9 turret POWER. Bench check.
+- **Sound**: the AVDS's two cooling fans (a detuned pair: the beat is the M60's signature) and more fan roar; the 6V53's
+  Roots-blower scream; the starter motor's gear whine; a cough when the diesel catches; the transmission's clunk on a
+  range shift; brake squeal at low speed; the turret's hydraulic valve hiss while laying.
+- **Tests**: tankbench 73/73 (+ the start-up check), armorgamebench 20/20, tankaudio 4/4, tankmodel 2/2 (M60, M113).
