@@ -218,7 +218,7 @@ async function main() {
         log('key', `${action} ${code}${ms ? ' ' + ms + 'ms' : ''}`);
         if (action === 'down') await page.keyboard.down(code);
         else if (action === 'up') await page.keyboard.up(code);
-        else if (action === 'tap') { await page.keyboard.down(code); await sleep(+ms || 60); await page.keyboard.up(code); }
+        else if (action === 'tap') { await page.keyboard.down(code); await sleep(+ms || 60); if (!process.env.SNAP_WALL) await Promise.race([page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(1))))).catch(() => 0), sleep(10000)]); await page.keyboard.up(code); }   // (ngc/bugsweep) a tap lasts at least one game frame: at 0-2 fps a 60 ms tap fell between frames and the game, which reads the keys each frame, never saw it
         else if (action === 'hold') { await page.keyboard.down(code); await gameSleep(+ms || 60); await page.keyboard.up(code); }
         else throw new Error('key action must be down|up|tap|hold');
       },
