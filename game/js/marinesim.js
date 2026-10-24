@@ -65,6 +65,7 @@ export function createMarineSim(o = {}) {
     groundY: (x, z) => { if (!GRc) return W.y; const f = GRc.floor(x, z, W.y + 0.3, 0.75); return f === Infinity || f < W.y - 3 ? W.y : f; },
     surface: () => W.swim || W.wade > 0.05 ? 'water' : SURF_MAP[W.surface] || 'grass',
     waterDepth: () => W.swim ? 2 : W.wade * 1.3,
+    onStair: () => !!(GRc && GRc.stairAt && GRc.stairAt(W.x, W.z, W.y)),   // ngc/interiors
     move: pos => ({ x: pos.x, z: pos.z }),
     // a ledge under the handguard (sandbags, a deck-edge coaming, a wall top): rested aim
     restAt: (x, y, z, yaw) => {
@@ -139,6 +140,7 @@ export function createMarineSim(o = {}) {
     const st = S.stanceT < 1 ? S.stanceTo : S.stance;
     intent.mx = (inp.move || [0, 0])[0]; intent.mz = (inp.move || [0, 0])[1]; intent.stance = st; intent.jump = jumped; intent.yaw = S.yaw;
     intent.vel.x = S.vel.x; intent.vel.z = S.vel.z;
+    intent.dive = !!inp.dive;   // ngc/waterfish: hold C in the water to dive
     // ngc/infdepth: a casualty in his hands (marinecare.js sets MS.burden = { v: MEDINV BUDDY drag / carry speed, drain }):
     // no faster than that, and the effort comes out of his anaerobic reserve on top of the walking demand
     if (MS.burden) {
