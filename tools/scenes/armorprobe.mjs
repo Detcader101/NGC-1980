@@ -1,11 +1,11 @@
-// quick probe (not a test): what the armour costs per frame on the title-free game start
+// quick probe (not a test): why doesn't the gunner fire at the hard top
 export default async function (h) {
-  await h.goto('?debug&kb&peace&res=0.45');
-  await h.waitFor('window.__G', 10000);
-  await h.key('tap', 'Enter'); await h.wait(4000);
-  const m = `(() => { const t0 = performance.now(), s0 = __G.war.time; return new Promise(r => setTimeout(() => r({ simPerWall: +((__G.war.time - s0) / ((performance.now() - t0) / 1000)).toFixed(2), prof: JSON.stringify(Object.fromEntries(Object.entries(__G.PROF).map(([k, v]) => [k, +v.toFixed(1)]))), fps: document.getElementById('dbg').textContent, m113: __G.m113C.asleep, m60: __G.m60C.asleep }), 4000)); })()`;
-  await h.eval(m);
-  await h.eval(`(__G.m113C.stow(), __G.m60C.stow(), 1)`);
-  await h.wait(1500);
-  await h.eval(m);
+  await h.goto('?debug&auto&kb&peace&res=0.45');
+  await h.waitFor("window.__G && __G.G.state==='play' && __G.H.landed", 30000);
+  await h.eval(`(__G.crafts.control('m60', 1, 'foot'), 1)`);
+  await h.waitFor("__G.m60C.V.gun.state === 'ready' && __G.m60C.fm.eng.running", 30000);
+  const st = `(() => { const T = __G.m60C, V = T.V; return { gun: V.gun.state, hp: V.armor.COMPS.find(c => c.id === 'gun').hp, breech: V.armor.COMPS.find(c => c.id === 'breech').hp, master: V.elec.master, batt: +V.elec.batt.toFixed(2), power: V.power, hyd: +V.hydP.toFixed(2), crew: JSON.stringify(V.crew), msg: document.getElementById('msg').textContent, shots: T.gunnery.stats.shots, seat: __G.crafts.seat, tap: T.fireTap }; })()`;
+  await h.eval(st);
+  await h.key('down', 'KeyF'); await h.wait(700); await h.key('up', 'KeyF'); await h.wait(300);
+  await h.eval(st);
 }

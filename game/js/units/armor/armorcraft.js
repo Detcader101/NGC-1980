@@ -166,6 +166,7 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
     newSim(); env.prep(sp.x, sp.z);
     V.reset(sp.x, sp.z, sp.yaw ?? 0, env, { range: 'N', park: true, running: false, ramp: false });
     st.plat = null; st.loc = null; AW.settle(fm, st);
+    if (M60) { V.muzzle(_w); const g = env.height(_w[0], _w[2]); if (_w[1] < g + 0.6) { V.losEl = V.el = Math.min(0.34, Math.atan2(g + 1 - _w[1], 6) + 0.05); } }   // parked facing a rise: the crew lays the gun up clear of the ground
     D.exists = true; D.dead = false; D.asleep = false; D.still = 0; D.wreckT = 0; D.sunkT = 0; D.why = ''; D.lowRange = false; D.crank = 0;
     for (const [m, c] of origColors) m.color.copy(c);
     if (turretRest) { model.turret.position.y = turretRest.y; model.turret.rotation.z = turretRest.rz; model.turret.rotation.x = turretRest.rx; }
@@ -281,7 +282,8 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
     if (pad) { const x = pad.axes[2] || 0, y = pad.axes[3] || 0; if (Math.abs(x) > 0.15) ra = x * Math.abs(x); if (Math.abs(y) > 0.15) re = -y * Math.abs(y); }
     if (hw && cs && cs.source === 'HOTAS' && cs.stick && s.role !== 'driver') { if (Math.abs(cs.stick.x) > 0.05) ra = cs.stick.x; if (Math.abs(cs.stick.y) > 0.05) re = -cs.stick.y; }   // the stick is the power control handle
     const manual = ra !== 0 || re !== 0;
-    const trig = input.fire || (pad && btn(pad, 5)) || (hw && cs && cs.actions && cs.actions.fire);
+    const trig = input.fire || D.fireTap || (pad && btn(pad, 5)) || (hw && cs && cs.actions && cs.actions.fire);
+    if (D.fireTap && !input.fire) D.trigWas = false; D.fireTap = false;   // a tap shorter than a frame still fires (low frame rates)
     const second = kd('KeyG') || (pad && btn(pad, 4)) || (hw && cs && cs.actions && cs.actions.pickle);
     if (s.role === 'gunner' && M60) {
       const cur = dirYP(V.sightDir(_d));
@@ -520,6 +522,7 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
   // ---------------------------------------------------------------- keys
   D.key = code => {
     const s = seatOf(), role = s.role;
+    if (code === "KeyF" || code === "KeyX") D.fireTap = true;   // (the held key is read in update; the tap is latched here)
     switch (code) {
       case 'KeyV': D.view = D.view === 'eye' ? 'chase' : 'eye'; D.aim.set = false; say(D.view === 'eye' ? `${s.label}'S VIEW` : 'CHASE VIEW  -  MOUSE ORBITS', 1); return true;
       case 'KeyH': if (s.hatch) { D.hatchWant[s.hatch] = D.hatchWant[s.hatch] > 0.5 ? 0 : 1; say(D.hatchWant[s.hatch] ? (role === 'troop' ? 'CARGO HATCH OPEN  -  STANDING UP' : 'HATCH OPEN  -  HEAD OUT') : 'HATCH CLOSED  -  BUTTONED UP', 1.2); } return true;
