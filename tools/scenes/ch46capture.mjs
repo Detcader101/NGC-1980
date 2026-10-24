@@ -44,7 +44,7 @@ export default async function (h) {
   await h.eval(`(window.__cam = { mode: 'chase', d: 40, h: 10 }, true)`);
   await h.waitFor(`__u.rot.AI.phase === 'rtb' || __u.dead`, 40000); await h.wait(4000); await h.shot('08-rtb');
   await h.eval(`(() => { const c = __G.war.carrier, lx = -2, lz = 32, cs = Math.cos(c.yaw), sn = Math.sin(c.yaw); __G.H.reset(new __G.THREE.Vector3(c.p.x + lx * cs + lz * sn, 8 + 1.9, c.p.z - lx * sn + lz * cs), c.yaw, true, 1); __G.HI.setCollective(0); window.__cam = { mode: 'orbit', yaw: 2.4, d: 45, h: 14 }; return true; })()`);
-  await h.waitFor(`__u.rot.AI.phase === 'descend2' || __u.dead`, 120000); await h.shot('09-deck-approach');
+  for (let k = 0; k < 50 && !(await h.eval(`!!(__u.rot.AI.phase === 'descend2' || __u.dead)`)); k++) await h.wait(10000);   // (polled: puppeteer caps one wait at 180 s, a loaded machine needs longer) await h.shot('09-deck-approach');
   await h.waitFor(`__u.dead`, 60000);
   await h.eval(`({ stowed: __u.stowed, crashed: __u.crashed, units: __G.war.units.filter(u => u.kind === 'ch46').length, alive: __G.Z.alive })`);
   await h.expect(`__u.stowed && !__u.crashed`, 'back aboard the ALBATROSS (stowed)');

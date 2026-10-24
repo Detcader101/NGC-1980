@@ -1836,7 +1836,12 @@ Authenticity pass on the CH-46E, MV-22B and RW-3 WASP (game/js/units/air/rotary/
   plan the CH-46 pilot may now flare to ~15 deg and ask for 2.6 m/s2 (`flareTilt`, `flareA`). Now it arrives over the
   spot at ~1.4 m/s. `cmd.turning` no longer sticks on.
 - **Tests.** node: embarkbench 12/12 (new), rotarymission 18/18, ch46bench 21/21, mv22bench 21/21, waspbench 13/13,
-  waspmission 8/8. Browser: see below.
+  waspmission 8/8. Browser (load average ~140 on the shared machine): ch46capture 5/5 (new check: the waiting stick stands
+  on the flight deck, clear of the island - it first stood on the starboard side, inside the island; moved to port),
+  rotarydev ch46 2/2 (new shots 01b-boarding, 01c-lse-signal), smoke 5/5, rescue 2/2, drop 5/5; mv22landing 3/5 and
+  rotarydamage 5/9 fail only on waits: the Osprey's 6.5 km trip home outlasts puppeteer's 180 s cap per wait at this
+  load (now polled), and rotarydamage's squad part reads `s.squad` which the GROUND WAR's squad proxy no longer has
+  (stale since that merge, not this work). Scene timeouts raised for the ~20-28 s of loading.
 
 ## 2026-10-23 — NAVAL polish (authenticity pass)
 - ALBATROSS: crew placed by role round each aircraft and station (plane captain brown at the nose, blue chockers at
