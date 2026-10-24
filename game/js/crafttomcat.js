@@ -51,7 +51,7 @@ export function createTomcatCraft(ctx) {
   D.enter = (seat, from) => {
     if (!D.present()) return false;
     TP.seat = 0; if (seat === 1) TP.setSeat(1);
-    if (from === 'foot') { say(`IN THE TOMCAT  -  ${seat ? 'RIO' : 'PILOT'}  ·  I ENGINES  ·  8 TO THE CATAPULT  ·  [ ] SEAT  ·  Y CLIMB OUT`, 2.5); head.yaw = head.pitch = 0; A.canopyCmd = 0; }
+    if (from === 'foot') { say(`IN THE TOMCAT  -  ${seat ? 'RIO' : 'PILOT'}  ·  I: AUTO START (OR CRANK + THROTTLES BY HAND)  ·  8 TO THE CATAPULT  ·  [ ] SEAT  ·  Y CLIMB OUT`, 2.5); head.yaw = head.pitch = 0; A.canopyCmd = 0; }
     park.on = false; return true;
   };
   D.setSeat = i => TP.setSeat(i);
@@ -59,7 +59,7 @@ export function createTomcatCraft(ctx) {
   D.exitSpots = () => { const s = D.seats[crafts.seat] || D.seats[0], w = crafts.toWorld(D, s.exit), w2 = crafts.toWorld(D, [2.2, -H0, -5.0]), w3 = crafts.toWorld(D, [0, -H0, -12]); return [w, w2, w3].filter(Boolean).map(p => ({ x: p.x, y: p.y, z: p.z, yaw: yawOf() })); };
   D.exit = () => {   // the crew climbs down: engines off, canopy up, parking brake set; it rides the deck where it stopped
     if (A.cat) { A.cat = null; A.launchBar = false; }
-    for (const e of A.eng) { e.run = false; e.start = 0; e.stalled = false; }
+    TP.shutdown();   // throttles OFF, crank OFF: a cold jet for the next crew (the start on the switches, or I)
     A.canopyCmd = 1; TP.pbrake = true; TP.firing = false; TP.silence(); TP.seat = 0;
     park.x = A.pos.x; park.y = A.pos.y - H0; park.z = A.pos.z; park.yaw = yawOf(); park.plat = null; park.loc = null;
     ctx.GR.settle(park, true); park.on = true;
