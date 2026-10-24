@@ -76,6 +76,7 @@ addEventListener('keydown', e => {
   // (jetplay.js, foot.js, vehicle.js ...); what it leaves falls through to the helicopter and the global keys below.
   if (G.state === 'play' && commandKey(e.code)) return;   // COMMANDER: \ the command board, / the next unit out
   if (G.state === 'play' && G.mode === 'zarch') {
+    if (e.code === 'Digit6' && e.shiftKey && !e.repeat) { say(war.upgradeCarrier({ free: true, instant: true }), 2.5); return; }   // SHIFT+6: the SKY CARRIER now, free, from any unit (6 alone is the 300-materiel refit)
     if (motorKey(e.code)) return;   // ngc/wheeledgame: 7 then 1 / 2 picks the motor pool's delivery
     if (e.code === 'KeyY') { getInOut(); return; }
     if (e.code === 'BracketLeft' || e.code === 'BracketRight') { crafts.cycleSeat(e.code === 'BracketRight' ? 1 : -1); return; }

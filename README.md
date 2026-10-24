@@ -74,6 +74,7 @@ update it. The launcher lives in `%LOCALAPPDATA%\ThrustZarch` (log: `launcher.lo
 | 1-4, 6 | send drone, build AA gun, spare helicopter, Tomcat escort (CAP over the selected island, else over the ALBATROSS), SKY CARRIER refit |
 | 1-5 | send a Sea Knight + Marines, build AA gun, spare helicopter, escort fighter, SKY CARRIER refit |
 | Tab | take / leave the SKY CARRIER helm (landed on her deck) |
+| Shift+6 | SKY CARRIER now: the ALBATROSS lifts off at once, no materiel, from any unit (6 alone is the 300-materiel, 24 s refit) |
 | V / C | cockpit view / chase camera |
 | H | stability assist on/off (on: the cyclic holds attitude, pedals hold heading; default for keyboard) |
 | J | controls panel: bind and calibrate HOTAS / pedals (throttle lever = collective, pedals or twist = anti-torque) |

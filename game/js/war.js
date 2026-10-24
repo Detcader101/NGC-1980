@@ -214,14 +214,15 @@ export function createWar(ctx) {
   // and the lift lever all move slowly, and the ship answers them slowly - minutes of inertia, not seconds.
   // sky.manual: someone is at the helm (main.js sets sky.tel / sky.helmIn / sky.lift each frame).
   const SKY = { VMAX: 16, ACC: 0.3, DEC: 0.45, YAW: 0.06, YAW_ACC: 0.01, CLIMB: 3.2, V_ACC: 0.32, CEIL: 230, CRUISE: 70 };
-  W.upgradeCarrier = () => {
+  W.upgradeCarrier = (o = {}) => {   // o.free: no materiel; o.instant: no 24 s refit (SHIFT+6 in main.js)
     const u = W.carrier;
     if (!u || u.sinking !== undefined) return 'NO CARRIER TO REFIT';
-    if (u.sky) return u.sky.up ? 'THE ALBATROSS ALREADY FLIES' : `REFIT UNDER WAY  -  ${Math.ceil(u.sky.refit)}s`;
-    if (W.P.mat < COST.sky) return `SKY CARRIER REFIT NEEDS ${COST.sky} MATERIEL`;
-    W.P.mat -= COST.sky; u.path = []; u.goal = null;
+    if (u.sky) { if (!u.sky.up && o.instant) { u.sky.refit = 0.01; return 'SKY CARRIER  -  LIFT FANS COMING ONLINE'; } return u.sky.up ? 'THE ALBATROSS ALREADY FLIES' : `REFIT UNDER WAY  -  ${Math.ceil(u.sky.refit)}s`; }
+    if (!o.free && W.P.mat < COST.sky) return `SKY CARRIER REFIT NEEDS ${COST.sky} MATERIEL`;
+    if (!o.free) W.P.mat -= COST.sky; u.path = []; u.goal = null;
     addLiftFans(u.parts);
-    u.sky = { refit: 24, up: false, deploy: 0, spin: 0, tel: 0, helmIn: 0, lift: 0, telV: 0, helmV: 0, liftV: 0, yawRate: 0, vy: 0, pitch: 0, roll: 0, manual: false, hold: 0, scrapeT: 0 };
+    u.sky = { refit: o.instant ? 0.01 : 24, up: false, deploy: 0, spin: 0, tel: 0, helmIn: 0, lift: 0, telV: 0, helmV: 0, liftV: 0, yawRate: 0, vy: 0, pitch: 0, roll: 0, manual: false, hold: 0, scrapeT: 0 };
+    if (o.instant) { sfx.dock(); return 'SKY CARRIER  -  LIFT FANS COMING ONLINE  -  TAB AT THE HELM'; }
     feed('SKY CARRIER REFIT STARTED  -  LIFT FANS GOING ON THE ALBATROSS (24s)', 'good'); sfx.dock();
     return 'SKY CARRIER REFIT  -  STAND CLEAR OF THE OUTRIGGERS';
   };
