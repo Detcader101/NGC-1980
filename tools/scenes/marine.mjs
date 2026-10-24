@@ -52,9 +52,9 @@ export default async function (h) {
   await h.expect('__F.rifle().slots.mag !== __mag0 && __G.marine.R.cur.mag.inst === __F.rifle().slots.mag && __G.marine.I.isWithin(__mag0, __G.marine.inv) && !__G.marine.I.isWithin(__mag0, __F.rifle())', 'tactical reload: a fresh magazine from the pouches in the rifle, the old one back in a pouch');
   await h.eval('({ newMag: __F.rifle().slots.mag.uid, newRounds: __F.rifle().slots.mag.ammo.reduce((a, x) => a + x[1], 0), hud: document.getElementById("weap").textContent })');
   // 5. a WASP round through the left thigh: bleeding (made arterial, the worst case, for the treatment)
-  await h.eval(`(() => { const W = __G.foot.W, M = __G.marine.M, fx = Math.cos(W.yaw), fz = -Math.sin(W.yaw); __G.hurtPlayer(0.2, 'HIT', { x: W.x - fx * 0.1, y: W.y + 0.6, z: W.z - fz * 0.1 }, { x: -30, y: 0, z: 10 }, 'b');
-      if (!M.bleeds.some(b => b.region.startsWith('leg') && !b.stopped && b.type !== 'light')) M.bleeds.push({ id: 900, region: 'legL', zone: 'thigh', type: 'arterial', rate: 500, ctl: 'tq', name: 'FEMORAL A.', clot: 0, ctrl: 1, t: 0, dressed: false, packed: false, stopped: false });
-      window.__leg = M.bleeds.find(b => b.region.startsWith('leg') && !b.stopped && b.type !== 'light').region; return { hits: M.log.filter(e => e.type === 'hit').map(e => e.region + '/' + e.zone), bleed: Math.round(M.bleedRate()), leg: __leg }; })()`);
+  await h.eval(`(() => { __G.marine.MS.reseed(1980); const W = __G.foot.W, M = __G.marine.M, fx = Math.cos(W.yaw), fz = -Math.sin(W.yaw); __G.hurtPlayer(0.2, 'HIT', { x: W.x - fx * 0.1, y: W.y + 0.6, z: W.z - fz * 0.1 }, { x: -30, y: 0, z: 10 }, 'b');
+      if (!M.bleeds.some(b => b.region.startsWith('leg') && !b.stopped && b.type === 'arterial')) M.bleeds.push({ id: 900, region: 'legL', zone: 'thigh', type: 'arterial', rate: 500, ctl: 'tq', name: 'FEMORAL A.', clot: 0, ctrl: 1, t: 0, dressed: false, packed: false, stopped: false });
+      window.__leg = M.bleeds.find(b => b.region.startsWith('leg') && !b.stopped && b.type === 'arterial').region; return { hits: M.log.filter(e => e.type === 'hit').map(e => e.region + '/' + e.zone), bleed: Math.round(M.bleedRate()), leg: __leg }; })()`);
   await h.wait(1500);
   await h.expect('__G.marine.M.bleedRate() > 200 && __G.foot.alive', 'hit in the leg and bleeding hard');
   await h.shot('bleeding');

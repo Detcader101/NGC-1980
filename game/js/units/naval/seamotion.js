@@ -59,23 +59,66 @@ export function spectrum(w, hs, tp) { const wp = TAU / tp; return 5 / 16 * hs * 
 
 // A regular-wave decomposition of a sea state. dir = direction the waves travel TOWARDS (rad, the game's yaw
 // convention: travelling along (-sin dir, -cos dir)).
+// ss may be fractional (a sea that is getting up or easing): Hs and Tp are interpolated between the table rows.
+// The random draws (frequency jitter, spread angle, phase) are kept on each component, so retuneSea() can move the
+// same sea to another state without the waves jumping (an integer ss gives exactly the draws and numbers it always did).
 export function makeSea(ss = 3, dir = 0, seed = 1, n = 14, spread = true) {
-  const S = SEA_STATES[clamp(Math.round(ss), 0, SEA_STATES.length - 1)], r = rng(seed);
-  const comps = [];
-  if (S.hs > 0) {
-    const wp = TAU / S.tp, w0 = 0.45 * wp, w1 = 2.6 * wp, dw = (w1 - w0) / n;
-    let m0 = 0;
-    for (let i = 0; i < n; i++) {
-      const w = w0 + (i + 0.3 + 0.4 * r()) * dw, a = Math.sqrt(2 * spectrum(w, S.hs, S.tp) * dw);
-      // cos^2 spreading: sample the angle with rejection
-      let th = 0; if (spread) do { th = (r() - 0.5) * Math.PI; } while (r() > Math.cos(th) ** 2);
-      comps.push({ w, k: w * w / G, a, dir: dir + th, ph0: r() * TAU });
-      m0 += a * a / 2;
-    }
-    // renormalise so the discretised sea has exactly the table's Hs (4 sqrt(m0))
-    const f = S.hs / (4 * Math.sqrt(m0)); for (const c of comps) c.a *= f;
+  const r = rng(seed), comps = [];
+  for (let i = 0; i < n; i++) {
+    const u = r();
+    // cos^2 spreading: sample the angle with rejection
+    let th = 0; if (spread) do { th = (r() - 0.5) * Math.PI; } while (r() > Math.cos(th) ** 2);
+    const ph0 = r() * TAU;
+    comps.push({ i, u, th, ph0, ph: ph0, w: 0, k: 0, kg: 0, a: 0, dir: 0, dx: 0, dz: 1 });
   }
-  return { ss: S.ss, hs: S.hs, tp: S.tp, name: S.name, dir, comps };
+  const sea = { ss: 0, hs: 0, tp: 0, name: '', dir, n, comps, t: 0 };
+  retuneSea(sea, ss, dir);
+  if (sea.hs <= 0) sea.comps = [];   // a glassy sea: nothing to excite (the comps stay reachable for retuneSea)
+  return sea;
+}
+// The table row for a (fractional) sea state
+export function seaRow(ss) {
+  const s = clamp(ss, 0, SEA_STATES.length - 1), i = Math.min(SEA_STATES.length - 2, Math.floor(s)), f = s - i, A = SEA_STATES[i], B = SEA_STATES[i + 1];
+  return { hs: A.hs + (B.hs - A.hs) * f, tp: A.tp + (B.tp - A.tp) * f, name: SEA_STATES[Math.round(s)].name };
+}
+// Move a sea to another (fractional) state and main direction, keeping each component's running phase.
+export function retuneSea(sea, ss, dir = sea.dir) {
+  const S = seaRow(ss), all = sea._all || (sea._all = sea.comps), n = all.length;
+  sea.ss = clamp(ss, 0, SEA_STATES.length - 1); sea.hs = S.hs; sea.tp = S.tp; sea.name = S.name; sea.dir = dir;
+  const wp = TAU / S.tp, w0 = 0.45 * wp, w1 = 2.6 * wp, dw = (w1 - w0) / n;
+  let m0 = 0;
+  for (const c of all) {
+    c.w = w0 + (c.i + 0.3 + 0.4 * c.u) * dw; c.a = S.hs > 0 ? Math.sqrt(2 * spectrum(c.w, S.hs, S.tp) * dw) : 0;
+    c.k = c.w * c.w / G; c.kg = c.k / SEA_GAME_SCALE; c.dir = dir + c.th; c.dx = -Math.sin(c.dir); c.dz = -Math.cos(c.dir);
+    m0 += c.a * c.a / 2;
+  }
+  // renormalise so the discretised sea has exactly the table's Hs (4 sqrt(m0))
+  if (m0 > 0) { const f = S.hs / (4 * Math.sqrt(m0)); for (const c of all) c.a *= f; }
+  sea.comps = all;
+  return sea;
+}
+
+// ------------------------------------------------------------------------------------- the live sea (the game)
+// The game shows ONE sea: main.js draws its surface from these components and every ship moves on it. It is drawn
+// at the game's scale (the ALBATROSS's 0.44: heights AND wavelengths, so the steepness stays real) with the real
+// periods: then a carrier modelled at that scale meets the waves at exactly the encounter frequency its motion model
+// uses (k_game U_game = k U_real), and a ship's phases can be read off the surface at its position (step(.., x, z)).
+export const SEA_GAME_SCALE = 120 / 274;
+// the sea's clock: every component's phase runs at its own frequency (call once per frame)
+export function advanceSea(sea, dt) {
+  sea.t += dt;
+  for (const c of sea._all || sea.comps) { c.ph += c.w * dt; if (c.ph > 1e4) c.ph -= TAU * Math.floor(c.ph / TAU); }
+}
+// surface elevation (game metres above y = 0) at a world point (game metres), and the slope if `out` is given
+export function seaElevation(sea, x, z, out) {
+  let e = 0, sx = 0, sz = 0;
+  for (const c of sea.comps) {
+    const ph = c.ph - c.kg * (c.dx * x + c.dz * z), a = c.a * SEA_GAME_SCALE;
+    e += a * Math.cos(ph);
+    if (out) { const s = a * Math.sin(ph) * c.kg; sx += s * c.dx; sz += s * c.dz; }
+  }
+  if (out) { out.e = e; out.sx = sx; out.sz = sz; }
+  return e;
 }
 
 // The motion of one ship. step(dt, speed, yaw, yawRate) advances it; the state is read from mo.heave (game m),
@@ -86,9 +129,11 @@ export function createShipMotion(P, sea, seed = 1) {
   const wnH = TAU / P.TnH, wnP = TAU / P.TnP, wnR = TAU / P.TnR;
   // |H| and phase lag of a damped oscillator at frequency we
   const resp = (we, wn, z) => { const q = Math.abs(we) / wn, re = 1 - q * q, im = 2 * z * q; return [1 / Math.hypot(re, im), Math.atan2(im, re)]; };
-  mo.setSea = s => { mo.sea = s; mo.ph = s.comps.map(c => c.ph0 + r() * TAU); };
+  mo.setSea = s => { mo.sea = s; mo.ph = (s._all || s.comps).map(c => c.ph0 + r() * TAU); };
   mo.setSea(sea);
-  mo.step = (dt, U = 0, yaw = 0, yawRate = 0) => {
+  // x, z (optional, game metres): the ship's position on the LIVE sea (advanceSea): its phases are then read off the
+  // surface there, so it rides the waves main.js draws; without them the phases integrate the encounter frequency.
+  mo.step = (dt, U = 0, yaw = 0, yawRate = 0, x, z) => {
     mo.t += dt;
     const sea = mo.sea, L = P.L * 0.7, B = P.B * 0.8, smith = P.T;   // effective waterplane: the ends are fine (Cwp ~0.75), so less cancellation than a rectangle
     const zR = P.zR + 0.004 * Math.abs(U) / P.scale;   // roll damping grows with speed (bilge keels, fins, lift)
@@ -97,7 +142,7 @@ export function createShipMotion(P, sea, seed = 1) {
       const c = sea.comps[i], mu = c.dir - yaw, cm = Math.cos(mu), sm = Math.sin(mu);
       // ship speed in REAL m/s: game speeds are game metres per second, so divide the carrier's by its scale
       const Ur = U / P.scale, we = c.w - c.k * Ur * cm;   // following seas (cos mu = 1) stretch it, head seas shorten it
-      mo.ph[i] += we * dt;
+      if (x !== undefined) mo.ph[i] = c.ph - c.kg * (c.dx * x + c.dz * z); else mo.ph[i] += we * dt;
       const att = Math.exp(-c.k * smith * 0.5);            // pressure falls off with depth (Smith correction)
       const xL = c.k * L * cm / 2, xB = c.k * B * sm / 2;
       // heave: elevation averaged over the waterplane

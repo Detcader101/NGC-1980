@@ -48,3 +48,24 @@ The orchestrator (main Claude session) keeps this file current. Read [BIBLE.md](
 | Next: wheeled in game; rotary/defence/C-130 follow-ups (soldier figures, WASP balance, RWR lamps, flares); wave 3 regression + perf + playtest | | 2-3 | queued | |
 
 Rule learned: keep weapons at game level (headline figures, game-tuned damage, no guidance/seeker/penetration research). Deep real-world weapon modelling trips auto mode's safety check and stops the agent.
+
+## Wave 3 (user request 2026-10-23 ~16:00): realism foundation for everything
+User: "vehicles at the same quality as the jet fighters; redo the main control zone terrain and physics to be more
+realistic, full collision with every unit, interiors for infantry to sit inside and open doors; leave no stone
+unturned, every feature its needed quality boost, focused agents that know the priority."
+
+Priority order (each a focused agent; later ones build on earlier ones):
+1. **TERRAIN-ZONE** (ngc/terrain): rebuild the 17 control-zone islands as real-feeling 1980 islands - geology,
+   beaches and coves (not cliffs everywhere), dunes, cliffs where they belong, river valleys, real scale, finer
+   heightmap near the camera, surface materials; keeps pads, caves and bases working; replaces the armour "landing
+   hards" with real beaches; WORLD roads and villages re-fit to it. Physics: ground friction and soil types per
+   surface feed every sim.
+2. **INTERIORS** (ngc/interiors): enterable buildings (houses, bunkers, quonsets, church, hangar, ship spaces: the
+   ALBATROSS hangar deck, island bridge and ready rooms), doors and hatches that open and close (all units),
+   infantry sitting in any seat of any craft (Huey cabin, CH-46 benches, trucks, APC), visible occupants.
+3. **COLLISION** (ngc/collision, after 1): one collision world for every unit - aircraft, rotors, ships,
+   vehicles, infantry, structures, trees, buildings, parked crafts - with shapes per unit, broadphase, contact
+   response appropriate to each sim (crash, bump, push, rotor strike), and AI avoidance using it.
+4. **VEHICLES AT JET QUALITY** (armorgame-polish, wheeledgame running): every station a clickable working
+   interior, crew visible, procedures, failures, damage, inside/outside sound, HOTAS.
+5. Then: a full regression + performance pass on a mid-range GPU budget, and a playtest pass (balance, UX, help).
