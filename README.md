@@ -180,7 +180,9 @@ Compressor stall (a bang, the RPM rolls back, TIT climbs, L / R INLET on the cau
 |---|---|
 | Y, [ / ] | get in at a hatch (walk up to the hull side) / out; change seat (M60: driver, gunner, commander, loader; M113: driver, commander, troops) |
 | W / S, A / D | drive (from any seat: orders to the driver). Steering narrows with speed; Right Shift = full steer. S brakes, then reverses. At a standstill A / D pivot (M60) |
-| Space, Z, I, H | brake; low / high range; engine; hatch (head out / buttoned up; troops stand in the cargo hatch) |
+| Space, Z, I, H | brake; low / high range; your station's power (driver: MASTER + START, or engine off; gunner: TURRET POWER; anyone else: tells the driver to start / stop); hatch (head out / buttoned up; troops stand in the cargo hatch) |
+| look + click | every station's controls work like the Huey's: put the crosshair on a switch, handle or rack (it is framed in yellow and named on the hint line) and click. Driver: MASTER, START, parking brake, range, fire pull, hatch (M113: RAMP, VANE, BILGE too). Gunner (E: look up from the sight): TURRET POWER, STAB, the computer panel (lase, dump, SABOT / HEAT / HEP), the TTS knobs. Loader: a round out of the ready rack, the breech, hatch, radio. Commander (E: look about the cupola): hatch, OVERRIDE (the turret slews onto the cupola's line), a new .50 can; the M113's commander also the ramp and the radio |
+| cold start | vehicles stand cold and dark. Get in at the driver's hatch and it is your start-up (I, or click MASTER then START); in any other seat the crew does it, each man his own part (driver: MASTER, START; gunner: TURRET POWER, then ~20 s for the stab to run up) |
 | V | the seat's view / chase (the mouse orbits; as gunner the turret lays on what the ring is on) |
 | mouse / arrows (Shift: fine) | gunner: lay the gun (the sight follows); commander: the .50 |
 | click / F, G, T, R | fire (main gun / .50), coax, lase, dump the computer |
