@@ -74,6 +74,21 @@ export default async function (h) {
     await h.key('tap', 'KeyY'); await h.waitFor("__G.G.craft === 'foot'", 10000);
   }
 
+  // ================================================================== seats: the Huey's troop bench, the vehicles on the deck
+  if (PARTS.includes('seats')) {
+    if (await h.eval("__G.G.craft !== 'foot'")) { await h.key('tap', 'KeyY'); await h.waitFor("__G.G.craft === 'foot'", 8000); }
+    const back = `(() => { const c = __G.war.carrier, w = __G.GR.toWorld(c, 4.5, -8); __G.foot.spawnAt({ x: w.x, y: c.p.y + 8, z: w.z, yaw: c.yaw }); return __G.crafts.control('foot', 0, 'ride'); })()`;
+    await h.wait(1500);
+    await h.eval(`__G.seats ? 1 : __G.crafts.get('ride') && __G.crafts.get('ride').seats.map(s => s.label)`, 'ride seats');
+    for (const k of [0, 1, 3]) {
+      if (await h.eval(`__G.crafts.control('ride', ${k}, 'door')`)) { await fp('fp-huey-troop-seat-' + (k + 1)); await h.eval("(__G.crafts.active.key('KeyV'), 1)"); await h.wait(900); await h.shot('huey-troop-seat-' + (k + 1) + '-outside'); await h.eval(back); await h.wait(500); }
+    }
+    for (const id of ['m113', 'm60', 'm151']) {
+      const ok = await h.eval(`(() => { const d = __G.crafts.get('${id}') || (${id === 'm151'} && __G.carC); if (!d || !d.present()) return 'absent'; return __G.crafts.control(d.id, 0, 'door'); })()`, id);
+      if (ok === true) { await h.wait(2000); await h.eval(`(() => { const a = __G.crafts.active; if (a && a.view !== undefined) a.view = 'first'; return a && a.id; })()`); await fp('fp-in-' + id); await h.eval(back); await h.wait(500); }
+    }
+  }
+
   // ================================================================== inside: every space, first and third person
   if (PARTS.includes('inside')) {
     if (await h.eval("__G.G.craft !== 'foot'")) { await h.key('tap', 'KeyY'); await h.waitFor("__G.G.craft === 'foot'", 8000); }
