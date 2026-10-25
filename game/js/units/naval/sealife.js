@@ -1,133 +1,36 @@
-// SEALIFE (ngc/waterfish): life under the sea, and the view from under it.
+// SEALIFE: life in the sea, the birds over it, and the view from under it.
 //
 //   const sealife = createSeaLife({ scene, uniforms: terrainUni, terrain, sky, fx, war, depthAt: terrainH, isWater, cell: TG,
-//                                   canvas, extra: S => {...}, active: () => bool });
+//                                   canvas, extra: (S, L) => {...}, active: () => bool, trawlers: () => [...] });
 //   each frame: sealife.update(dt)   (the drawing side runs at render time, from scene.onBeforeRender)
+//   sealife.setQuality('off' | 'low' | 'medium' | 'high')
 //
-// - FISH: fishsim.js simulates schools round the camera; here they are one instanced draw (a low-poly fish body that
-//   bends with its tail beat, countershaded, silver flanks that flash when they turn). Seen from above they are seen
-//   THROUGH the water: dimmed and tinted by the light's path down to them and back, behind the surface's reflection
-//   (their depth is drawn at the surface so the opaque sea does not hide them). Under water they are fogged like the rest.
-// - DISTURBANCE: ships (hulls, wakes), aircraft low over the water (downwash), the LCAC, RW-7 hover tanks, swimmers,
-//   splashes, gunfire into the water and explosions (fx.js recipes are wrapped: anything that splashes, wakes or blows up
-//   in the water reaches the fish without touching the callers).
+// - THE LIFE (fishsim.js): schools round the camera and round every unit on the water (ships under way and at anchor,
+//   the LCAC and LCM-8s, trawlers, low helicopters, swimmers) - pilchard balled up by bonito, mackerel, grey mullet that
+//   leap, flying fish gliding off a bow wave, sea bream and damselfish over the rocks, eagle rays, a sandbar shark,
+//   barrel jellyfish, and common dolphins that ride the bow of a ship under way and porpoise. Drawn instanced (one draw
+//   per kind of body; a pilchard or mackerel boid draws a cluster of four fish), seen THROUGH the water from above (and
+//   in the air when they leave it), fogged under it (sealifegfx.js).
+// - THE BIRDS (seabirds.js): gannets, terns and gulls find bait balls, dead fish after a blast, trawlers and ships'
+//   wakes, plunge and pick and sit on the swell; flushed by aircraft passing low.
+// - SIGNS ON THE TOP, to read the sea from the air: nervous water over a school at the top, the boil and froth of a
+//   bait ball, rings and spray where a fish jumps, a dolphin breathes or a gannet goes in - all riding the drawn waves.
+// - DISTURBANCE: ships (hulls, wakes, prop wash), aircraft low over the water (downwash), the LCAC, RW-7 hover tanks,
+//   swimmers, splashes, gunfire into the water and explosions (fx.js recipes are wrapped: anything that splashes, wakes
+//   or blows up in the water reaches the fish without touching the callers).
 // - UNDER WATER: when the camera that renders is below the drawn surface (the same waves the GPU draws), the scene's fog
 //   becomes the water (visibility ~25 m, greener near the top, darker deeper, murkier in a rough sea), the sky dome goes,
 //   the surface is drawn from below (Snell's window, seasurface.js SEA_FS_UNDER), a sea bed mesh is built round the camera
-//   from the same heights the physics uses (with the caustics and sea grass of the clarity seen from above), and the
-//   screen edges darken a little.
+//   from the same heights the physics uses, motes drift in the water, and the screen edges darken a little.
 import * as THREE from 'three';
-import { createFishSim, SPECIES } from './fishsim.js';
-import { SEA_NOISE_GLSL, SEABED_GLSL, SEA_EXT_GLSL } from './seasurface.js';
+import { createFishSim, SPECIES, SUB, QUALITY } from './fishsim.js';
+import { createSeaBirds } from './seabirds.js';
+import { SEA_NOISE_GLSL, SEABED_GLSL, SEA_NV } from './seasurface.js';
+import { SHADERS, GEOMETRY, fishUniforms, viewUniforms, birdUniforms, signGeometry, SIGN_VS, SIGN_FS } from './sealifegfx.js';
 
 const TAU = Math.PI * 2;
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-
-// ---------------------------------------------------------------------------------------------- the fish body
-// Unit length along +z (nose at +0.5), stations from the caudal peduncle to the snout: (s 0 tail tip .. 1 nose, half
-// height, half width), a fusiform (mackerel-like) profile, scaled per species in the shader.
-const STATIONS = [[0.12, 0.022, 0.012], [0.24, 0.05, 0.028], [0.42, 0.088, 0.052], [0.6, 0.1, 0.06], [0.76, 0.09, 0.055], [0.89, 0.06, 0.04]];
-const RING = 6;
-function fishGeometry() {
-  const P = [], N = [], S = [], T = [], F = [], I = [];
-  const v = (x, y, z, nx, ny, nz, s, tone, fin) => { P.push(x, y, z); N.push(nx, ny, nz); S.push(s); T.push(tone); F.push(fin); return P.length / 3 - 1; };
-  const rings = STATIONS.map(([s, hh, hw]) => {
-    const r = [];
-    for (let k = 0; k < RING; k++) {
-      const a = k / RING * TAU, sy = Math.cos(a), sx = Math.sin(a), nl = Math.hypot(sx / hw, sy / hh);
-      r.push(v(sx * hw, sy * hh, s - 0.5, sx / hw / nl, sy / hh / nl, 0, s, 0.5 + 0.5 * sy, 0));
-    }
-    return r;
-  });
-  for (let i = 0; i + 1 < rings.length; i++) for (let k = 0; k < RING; k++) { const a = rings[i][k], b = rings[i][(k + 1) % RING], c = rings[i + 1][k], d = rings[i + 1][(k + 1) % RING]; I.push(a, c, b, b, c, d); }
-  const nose = v(0, -0.008, 0.5, 0, 0, 1, 1, 0.5, 0), last = rings[rings.length - 1];
-  for (let k = 0; k < RING; k++) I.push(last[k], nose, last[(k + 1) % RING]);
-  // tail fin (forked): peduncle top / bottom, the two lobe tips, the fork
-  const pt = v(0, 0.022, -0.38, 1, 0, 0, 0.12, 0.8, 1), pb = v(0, -0.022, -0.38, 1, 0, 0, 0.12, 0.8, 1);
-  const tt = v(0, 0.13, -0.535, 1, 0, 0, 0, 0.8, 1), tb = v(0, -0.13, -0.535, 1, 0, 0, 0, 0.8, 1), fk = v(0, 0, -0.455, 1, 0, 0, 0.05, 0.8, 1);
-  I.push(pt, tt, fk, pb, fk, tb, pt, fk, pb);
-  // first dorsal fin
-  const d0 = v(0, 0.092, 0.02, 1, 0, 0, 0.52, 0.95, 2), d1 = v(0, 0.088, 0.16, 1, 0, 0, 0.66, 0.95, 2), dp = v(0, 0.16, 0.06, 1, 0, 0, 0.56, 0.95, 2);
-  I.push(d0, dp, d1);
-  // pectoral fins (small, flat, angled out and down)
-  for (const sd of [-1, 1]) { const a = v(sd * 0.05, -0.03, 0.22, 0, -1, 0, 0.72, 0.4, 3), b = v(sd * 0.05, -0.035, 0.3, 0, -1, 0, 0.8, 0.4, 3), c = v(sd * 0.12, -0.07, 0.17, 0, -1, 0, 0.67, 0.4, 3); I.push(a, b, c); }
-  const g = new THREE.InstancedBufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));
-  g.setAttribute('aS', new THREE.Float32BufferAttribute(S, 1)); g.setAttribute('aTone', new THREE.Float32BufferAttribute(T, 1)); g.setAttribute('aFin', new THREE.Float32BufferAttribute(F, 1));
-  g.setIndex(I);
-  return g;
-}
-// per species (fishsim.js SPECIES order): shape (height, width, tail span, dorsal), back / flank / belly / fin colours,
-// marks (x: mackerel bars, y: mullet lines, z: amberjack band and stripe)
-const LOOK = {
-  sardine: { shape: [0.85, 0.72, 0.95, 0.75], back: 0x1f4f63, side: 0x9aa8b2, belly: 0xdfe5ea, fin: 0x6c7a80, mark: [0, 0, 0, 0] },
-  mackerel: { shape: [0.82, 0.8, 1.15, 0.9], back: 0x1b4f4a, side: 0x8ca2a6, belly: 0xe2e6e6, fin: 0x52605e, mark: [1, 0, 0, 0] },
-  mullet: { shape: [1.0, 0.95, 0.85, 1.0], back: 0x46504f, side: 0x8f9696, belly: 0xd0d2cc, fin: 0x5c6260, mark: [0, 1, 0, 0] },
-  amberjack: { shape: [1.12, 0.8, 1.3, 0.9], back: 0x4a4650, side: 0xa3a39e, belly: 0xd8d5cc, fin: 0x8c7a42, mark: [0, 0, 1, 0] },
-};
-
-const FISH_VS = `
-  ${SEA_EXT_GLSL}
-  attribute vec4 iA, iB, iC; attribute float aS, aTone, aFin;
-  uniform vec4 uShape[4], uMark[4]; uniform vec3 uBack[4], uSide[4], uBelly[4], uFinC[4];
-  uniform vec4 uUW;      // (camera under water 0/1, sea top y for the depth trick, turbidity 1/m, -)
-  uniform vec4 uFogP;    // (fog near, fog far) for the side the camera is on
-  uniform vec3 uFogC, uSunD;
-  varying vec3 vCol; varying float vA;
-  vec3 rotP(vec3 p, float yaw, float pitch, float roll){
-    float c=cos(roll), s=sin(roll); p=vec3(c*p.x-s*p.y, s*p.x+c*p.y, p.z);
-    c=cos(-pitch); s=sin(-pitch); p=vec3(p.x, c*p.y-s*p.z, s*p.y+c*p.z);
-    c=cos(yaw); s=sin(yaw); return vec3(c*p.x+s*p.z, p.y, -s*p.x+c*p.z);
-  }
-  void main(){
-    int sp=int(iB.w+.5); vec4 sh=uShape[sp];
-    vec3 p=position, nrm=normal;
-    if(aFin>.5&&aFin<1.5) p.y*=sh.z; else { p.y*=sh.x; p.x*=sh.y; if(aFin>1.5&&aFin<2.5) p.y+=(p.y-.09*sh.x)*(sh.w-1.); }
-    // the tail beat: a wave running back along the body, growing to ~0.1 L each side at the tail (Bainbridge 1958)
-    float s=clamp(aS,0.,1.), env=.06+.94*pow(1.-s,2.2), amp=.1*(.45+.55*iC.y);
-    float bend=sin(iC.x-5.4*(1.-s));
-    p.x+=amp*env*bend; nrm.x-=amp*env*cos(iC.x-5.4*(1.-s))*5.4*.3;
-    if(aFin>2.5) p.y+=.02*sin(iC.x*.5+p.x*40.);   // pectorals flutter
-    vec3 wp=iA.xyz+rotP(p*iA.w, iB.x, iB.y, iB.z), n=normalize(rotP(nrm, iB.x, iB.y, iB.z));
-    // colour: countershading, the species' marks, fins
-    float tone=aTone; vec3 col=tone>.5?mix(uSide[sp],uBack[sp],smoothstep(.62,.85,tone)):mix(uBelly[sp],uSide[sp],smoothstep(.2,.45,tone));
-    vec4 mk=uMark[sp];
-    if(mk.x>.5&&tone>.6&&aFin<.5) col=mix(col,vec3(.03,.06,.07),step(.45,sin(s*58.+position.y*120.+sin(s*21.)*2.))*.85);      // mackerel: the wavy black bars
-    if(mk.y>.5&&tone>.35&&tone<.85&&aFin<.5) col*=.82+.18*step(.5,fract(position.y*95.));                               // mullet: dark lines along the flank
-    if(mk.z>.5&&aFin<.5){ col=mix(col,vec3(.83,.66,.28),smoothstep(.06,.0,abs(tone-.6))*.8); if(s>.8&&s<.88&&tone>.62) col*=.45; }   // amberjack: the amber stripe, the dark band through the eye
-    if(aFin>.5) col=uFinC[sp];
-    if(aFin<.5&&s>.86&&abs(position.x)>.02&&tone>.5&&tone<.75) col=vec3(.04);   // the eye
-    // light from above: dimmer and bluer with depth; the silver flank as a vertical mirror that flashes when it turns to you
-    float dpt=max(-wp.y,0.);
-    vec3 light=exp(-(SEA_EXT+uUW.z)*dpt*1.3);
-    vec3 V=normalize(cameraPosition-wp), L=normalize(uSunD);
-    float dif=.5+.5*max(dot(n,L),0.)+.15*n.y;
-    float fl=smoothstep(.2,.4,tone)*smoothstep(.85,.6,tone)*step(aFin,.5);
-    float sp2=pow(max(dot(reflect(-L,n),V),0.),8.)*fl*.9 + pow(max(dot(reflect(vec3(0.,1.,0.),n),-V),0.),6.)*fl*.35;
-    col=(col*dif+vec3(.9,.95,1.)*sp2)*light;
-    vA=iC.z;
-    vec4 clip=projectionMatrix*viewMatrix*vec4(wp,1.);
-    float dist=length(cameraPosition-wp);
-    if(uUW.x>.5){   // the camera under water: fog to the water
-      vCol=mix(col,uFogC,smoothstep(uFogP.x,uFogP.y,dist));
-    } else {
-      // seen from above, through the surface: what is lost on the way up from the fish, and the surface's reflection
-      vec3 ray=wp-cameraPosition; float cy=cameraPosition.y;
-      float top=min(uUW.y,max(cy*.5,.02)), tt=clamp((cy-top)/max(cy-wp.y,1e-3),0.,1.);
-      vec3 sp3=cameraPosition+ray*tt;
-      float path=length(wp-sp3);
-      vec3 T=exp(-(SEA_EXT+uUW.z)*path);
-      float ca=clamp((cy-wp.y)/max(dist,1e-3),0.,1.), fres=.02+.98*pow(1.-ca,5.);
-      vCol=col*T/max(dot(T,vec3(.33)),.05);
-      vA*=clamp(dot(T,vec3(.2,.5,.3))*1.15,0.,1.)*(1.-fres)*(1.-smoothstep(uFogP.x,uFogP.y,dist));
-      vec4 cs=projectionMatrix*viewMatrix*vec4(sp3,1.);   // drawn at the surface's depth: in front of the opaque sea
-      clip.z=(cs.z/cs.w)*clip.w-1e-4*clip.w;
-    }
-    gl_Position=clip;
-  }`;
-const FISH_FS = `
-  varying vec3 vCol; varying float vA;
-  void main(){ if(vA<.01) discard; gl_FragColor=vec4(vCol,vA); }`;
+const rnd = (a, b) => a + Math.random() * (b - a);   // (looks only: spray jitter; the sims are seeded)
 
 // ---------------------------------------------------------------------------------------------- the sea bed mesh
 const BED_N = 48, BED_C = 2;   // 96 m square at 2 m (the fish sim's bed cells, so fish and bed agree)
@@ -150,28 +53,89 @@ const BED_FS = `
     float fd=length(cameraPosition-vW);
     gl_FragColor=vec4(mix(c,uUWCol,smoothstep(uFogP.x,uFogP.y,fd)),1.);
   }`;
+// motes: what hangs in sea water (plankton, silt) - drifting specks round a camera under water, the cue for depth and
+// for the water moving past you
+const MOTE_N = 420;
+const MOTE_VS = `
+  uniform vec3 uCam; uniform float uTime, uPx; uniform vec2 uFogP;
+  attribute vec4 aM;
+  varying float vA;
+  void main(){
+    vec3 p=aM.xyz*24.+vec3(uTime*.06,sin(uTime*.2+aM.w*6.)*.3,uTime*.04);
+    p=uCam+mod(p-uCam+12.,24.)-12.;                                      // a 24 m box that follows the camera
+    vec4 mv=viewMatrix*vec4(p,1.); float d=-mv.z;
+    vA=(1.-smoothstep(uFogP.x*.2,uFogP.y*.6,d))*smoothstep(.3,1.2,d)*(.25+.35*aM.w);
+    gl_PointSize=max(1.,uPx*.035/max(d,.3)); gl_Position=projectionMatrix*mv;
+  }`;
+const MOTE_FS = `
+  uniform vec3 uCol; varying float vA;
+  void main(){ vec2 q=gl_PointCoord-.5; float a=vA*(1.-smoothstep(.2,.5,length(q))); if(a<.01) discard; gl_FragColor=vec4(uCol,a); }`;
+
+// per-mesh instance capacity
+const CAP = { school: QUALITY.high.MAX_FISH, fish: 640, dolphin: 24, ray: 12, jelly: 48 };
+const BIRD_CAP = 64, SIGN_CAP = 120;
+const BIRD_Q = { low: 24, medium: 44, high: 64 };
 
 export function createSeaLife(ctx) {
   const { scene, uniforms: U, terrain, sky, fx, war, depthAt, isWater, cell = 2.5 } = ctx;
   const active = ctx.active || (() => true);
-  const sim = createFishSim({ depthAt, seed: 1980 });
-  const L = { sim, under: false, camDepth: 0, surfY: 0, enabled: true, fishOn: true, fishDrawn: 0, ms: 0, cam: new THREE.Vector3(0, 30, 0), bedReady: false };
+  // ------------------------------------------------------------------ the drawn surface at a point (what the GPU draws)
+  // elevation and slope from the components the sea shader uses, the same grid filter, the same fade over the shallows
+  let sim = null;
+  function surfaceAt(x, z, out) {
+    let e = 0, sx = 0, sz = 0;
+    for (const c of U.uWave.value) {
+      const kk = Math.hypot(c.x, c.y); if (kk < 1e-5) continue;
+      const a = c.z * smooth(cell * 2.5, cell * 5, TAU / kk); if (a < 1e-4) continue;
+      const ph = c.w - (c.x * x + c.y * z);
+      e += a * Math.cos(ph); if (out) { const s = a * Math.sin(ph); sx += s * c.x; sz += s * c.y; }
+    }
+    const att = sim ? smooth(0.3, 7, -sim.bed(x, z)) : 1;
+    if (out) { out.e = e * att; out.sx = sx * att; out.sz = sz * att; }
+    return e * att;
+  }
+  sim = createFishSim({ depthAt, seed: 1980, surf: surfaceAt });
+  const birds = createSeaBirds({ seed: 77, surf: surfaceAt });
+  const L = { sim, birds, under: false, camDepth: 0, surfY: 0, enabled: true, fishOn: true, fishDrawn: 0, birdsDrawn: 0, signsDrawn: 0, ms: 0, cam: new THREE.Vector3(0, 30, 0), bedReady: false, quality: 'medium', counts: {} };
 
-  // ------------------------------------------------------------------ fish mesh
-  const MAX = 760, geo = fishGeometry();
-  const A = new THREE.InstancedBufferAttribute(new Float32Array(MAX * 4), 4), B = new THREE.InstancedBufferAttribute(new Float32Array(MAX * 4), 4), C = new THREE.InstancedBufferAttribute(new Float32Array(MAX * 4), 4);
-  for (const a of [A, B, C]) a.setUsage(THREE.DynamicDrawUsage);
-  geo.setAttribute('iA', A); geo.setAttribute('iB', B); geo.setAttribute('iC', C); geo.instanceCount = 0;
-  const col = h => new THREE.Color(h);
-  const looks = SPECIES.map(s => LOOK[s.key]);
-  const fishU = {
-    uShape: { value: looks.map(l => new THREE.Vector4(...l.shape)) }, uMark: { value: looks.map(l => new THREE.Vector4(...l.mark)) },
-    uBack: { value: looks.map(l => col(l.back)) }, uSide: { value: looks.map(l => col(l.side)) }, uBelly: { value: looks.map(l => col(l.belly)) }, uFinC: { value: looks.map(l => col(l.fin)) },
-    uUW: { value: new THREE.Vector4(0, 0.5, 0.05, 0) }, uFogP: { value: new THREE.Vector4(125, 250, 0, 0) }, uFogC: { value: new THREE.Color() }, uSunD: { value: new THREE.Vector3(0.5, 1, 0.3) },
+  // ------------------------------------------------------------------ the bodies: one instanced mesh per kind
+  const bufs = {}, meshes = {};
+  const mkInst = (geo, max, per = 1) => {
+    const O = { max, n: 0, A: new Float32Array(max * 4), B: new Float32Array(max * 4), C: new Float32Array(max * 4), D: new Float32Array(max * 4) };
+    O.attrs = ['A', 'B', 'C', 'D'].map(k => { const a = new THREE.InstancedBufferAttribute(O[k], 4, false, per); a.setUsage(THREE.DynamicDrawUsage); geo.setAttribute('i' + k, a); return a; });
+    geo.instanceCount = 0; return O;
   };
-  const fishMat = new THREE.ShaderMaterial({ uniforms: fishU, vertexShader: FISH_VS, fragmentShader: FISH_FS, transparent: true, depthWrite: false, side: THREE.DoubleSide });
-  const fishMesh = new THREE.Mesh(geo, fishMat); fishMesh.frustumCulled = false; fishMesh.renderOrder = 1.5; fishMesh.name = 'sealife-fish';
-  scene.add(fishMesh);
+  const fishU = fishUniforms();
+  const mkMesh = (name, geo, vs, uni, opt = {}) => {
+    const mat = new THREE.ShaderMaterial({ uniforms: uni, vertexShader: vs, fragmentShader: SHADERS.FRAG, transparent: true, depthWrite: !!opt.depthWrite, side: opt.side ?? THREE.DoubleSide });
+    const m = new THREE.Mesh(geo, mat); m.frustumCulled = false; m.renderOrder = opt.order ?? 1.5; m.name = 'sealife-' + name; scene.add(m); meshes[name] = m; return m;
+  };
+  {   // pilchard / mackerel / damselfish: a cluster of SUB fish per boid (the boid's attributes advance every SUB instances)
+    const g = GEOMETRY.fishGeometry(); bufs.school = mkInst(g, CAP.school, SUB);
+    const k = new Float32Array(CAP.school * SUB); for (let i = 0; i < k.length; i++) k[i] = i % SUB;
+    g.setAttribute('iK', new THREE.InstancedBufferAttribute(k, 1));
+    mkMesh('school', g, SHADERS.FISH_VS(true), fishU);
+  }
+  { const g = GEOMETRY.fishGeometry(); bufs.fish = mkInst(g, CAP.fish); mkMesh('fish', g, SHADERS.FISH_VS(false), fishU); }
+  const shareView = () => { const u = viewUniforms(); for (const k of ['uUW', 'uFogP', 'uFogC', 'uSunD', 'uTime']) u[k] = fishU[k]; return u; };
+  { const g = GEOMETRY.dolphinGeometry(); bufs.dolphin = mkInst(g, CAP.dolphin); mkMesh('dolphin', g, SHADERS.DOLPHIN_VS, shareView(), { depthWrite: true, side: THREE.FrontSide, order: 1.45 }); }
+  { const g = GEOMETRY.rayGeometry(); bufs.ray = mkInst(g, CAP.ray); mkMesh('ray', g, SHADERS.RAY_VS, shareView(), { depthWrite: true, side: THREE.FrontSide, order: 1.45 }); }
+  { const g = GEOMETRY.jellyGeometry(); bufs.jelly = mkInst(g, CAP.jelly); mkMesh('jelly', g, SHADERS.JELLY_VS, shareView(), { order: 1.55 }); }
+  const birdU = birdUniforms(); for (const k of ['uUW', 'uFogP', 'uFogC', 'uSunD', 'uTime']) birdU[k] = fishU[k];
+  const birdBuf = (() => { const g = GEOMETRY.birdGeometry(); const O = mkInst(g, BIRD_CAP); mkMesh('birds', g, SHADERS.BIRD_VS, birdU, { depthWrite: true, order: 1.6 }); return O; })();
+  // birds in the air are opaque: no blending (depth-sorted against everything); under water they fade like the fish
+  meshes.birds.material.transparent = true;
+
+  // ------------------------------------------------------------------ signs on the top (ride the drawn waves)
+  const signGeo = signGeometry();
+  const SP = new Float32Array(SIGN_CAP * 4), SQ = new Float32Array(SIGN_CAP * 4), SR = new Float32Array(SIGN_CAP * 4);
+  const signAttr = [['iP', SP], ['iQ', SQ], ['iR', SR]].map(([k, a]) => { const b = new THREE.InstancedBufferAttribute(a, 4); b.setUsage(THREE.DynamicDrawUsage); signGeo.setAttribute(k, b); return b; });
+  signGeo.instanceCount = 0;
+  const signU = { uWave: U.uWave, uCell: { value: cell }, uTime: fishU.uTime, uSea: { value: 0 }, uFogP2: { value: new THREE.Vector2(125, 250) } };
+  const signMesh = new THREE.Mesh(signGeo, new THREE.ShaderMaterial({ uniforms: signU, vertexShader: SIGN_VS(SEA_NV), fragmentShader: SIGN_FS, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+  signMesh.frustumCulled = false; signMesh.renderOrder = 2.1; signMesh.name = 'sealife-signs'; scene.add(signMesh);
+  const marks = [];   // short-lived rings and foam: { x, z, r, kind, k, t, life, seed }
+  const mark = (x, z, r, kind, k, life) => { if (marks.length >= 60) marks.shift(); marks.push({ x, z, r, kind, k, t: 0, life, seed: Math.random() }); };
 
   // ------------------------------------------------------------------ sea bed mesh (under water only)
   const bedGeo = new THREE.PlaneGeometry(BED_N * BED_C, BED_N * BED_C, BED_N, BED_N).rotateX(-Math.PI / 2);
@@ -196,17 +160,11 @@ export function createSeaLife(ctx) {
     bedJob.next = [cx, cz]; bedJob.i = 0;
     if (now || Math.abs(cx - bedJob.cx) > 40 || Math.abs(cz - bedJob.cz) > 40) bedStep(1e9);   // too far: build it at once
   }
-
-  // ------------------------------------------------------------------ the drawn surface at a point (what the GPU draws)
-  function surfaceAt(x, z) {
-    let e = 0;
-    for (const c of U.uWave.value) {
-      const kk = Math.hypot(c.x, c.y); if (kk < 1e-5) continue;
-      const a = c.z * smooth(cell * 2.5, cell * 5, TAU / kk); if (a < 1e-4) continue;
-      e += a * Math.cos(c.w - (c.x * x + c.y * z));
-    }
-    return e * smooth(0.3, 7, -sim.bed(x, z));
-  }
+  // the motes (under water only)
+  const moteGeo = new THREE.BufferGeometry(); { const m = new Float32Array(MOTE_N * 4); for (let i = 0; i < m.length; i++) m[i] = Math.random(); moteGeo.setAttribute('aM', new THREE.BufferAttribute(m, 4)); moteGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MOTE_N * 3), 3)); }
+  const moteU = { uCam: { value: new THREE.Vector3() }, uTime: fishU.uTime, uPx: { value: 720 }, uFogP: { value: new THREE.Vector2(1, 25) }, uCol: { value: new THREE.Color(0.6, 0.75, 0.72) } };
+  const motes = new THREE.Points(moteGeo, new THREE.ShaderMaterial({ uniforms: moteU, vertexShader: MOTE_VS, fragmentShader: MOTE_FS, transparent: true, depthWrite: false }));
+  motes.frustumCulled = false; motes.visible = false; motes.renderOrder = 1.7; motes.name = 'sealife-motes'; scene.add(motes);
 
   // ------------------------------------------------------------------ under water: fog, sky, surface from below
   let tint = null;
@@ -220,14 +178,13 @@ export function createSeaLife(ctx) {
     if (sky) sky.visible = !on;
     if (on) { saved.uFog = U.uFog.value; U.uFog.value = fogUW; saved.bg = scene.background; scene.background = linUW; }
     else { if (saved.uFog) U.uFog.value = saved.uFog; scene.background = saved.bg; }
-    fishMat.depthWrite = on;
-    bedMesh.visible = on;
+    for (const k of ['school', 'fish', 'jelly']) meshes[k].material.depthWrite = on;
+    bedMesh.visible = on; motes.visible = on && L.quality !== 'low';
     if (ctx.canvas && typeof document !== 'undefined') {
       if (!tint) { tint = document.createElement('div'); tint.id = 'uwTint'; Object.assign(tint.style, { position: 'fixed', inset: '0', pointerEvents: 'none', display: 'none', background: 'radial-gradient(ellipse at 50% 42%, rgba(0,40,50,0) 48%, rgba(0,18,28,.55) 100%)' }); ctx.canvas.after(tint); }
       tint.style.display = on ? 'block' : 'none';
     }
   }
-  const _ft = { near: 0, far: 0 };
   scene.onBeforeRender = ((prev) => function (renderer, sc, camera) {
     if (prev) prev.call(this, renderer, sc, camera);
     const p = camera.position; L.cam.copy(p); L.camObj = camera;
@@ -242,18 +199,19 @@ export function createSeaLife(ctx) {
     uwCol.copy(OPEN).lerp(DEEP, smooth(0, 22, L.camDepth)).lerp(_c.copy(MURK).multiplyScalar(0.8), 0.35 * sk);
     U.uUWCol.value.copy(uwCol);
     setUnder(under);
-    // the fish: the fog of the side the camera is on
-    fishU.uUW.value.set(under ? 1 : 0, Math.max(0.15, U.uSeaP.value.x * 0.7 + 0.1), U.uSeaK.value.z, 0);
+    fishU.uUW.value.set(under ? 1 : 0, 0, U.uSeaK.value.z, 0);
     if (U.uSun) fishU.uSunD.value.copy(U.uSun.value);
+    signU.uSea.value = sk;
     if (under) {
       const vis = 26 * (1 - 0.45 * sk) * (1 - 0.25 * smooth(0, 20, L.camDepth));
       fogUW.copy(uwCol); linUW.copy(uwCol).convertSRGBToLinear();
       if (sc.fog) { sc.fog.color.copy(linUW); sc.fog.near = 0.5; sc.fog.far = vis; }
       U.uFogN.value = 0.5; U.uFogF.value = vis;
-      bedU.uFogP.value.set(0.5, vis); fishU.uFogP.value.set(0.5, vis, 0, 0); fishU.uFogC.value.copy(uwCol);
+      bedU.uFogP.value.set(0.5, vis); fishU.uFogP.value.set(0.5, vis, 0, 0); fishU.uFogC.value.copy(uwCol); moteU.uFogP.value.set(0.5, vis); moteU.uCam.value.copy(p); moteU.uCol.value.copy(uwCol).lerp(_c.setRGB(0.85, 0.92, 0.9), 0.55);
+      moteU.uPx.value = renderer.domElement.height;
       if (fx) for (const q of [fx.add, fx.mix]) { if (q && q.uni && q.uni.uFogNear) { q.uni.uFogNear.value = 0.5; q.uni.uFogFar.value = vis; q.uni.uFogCol && q.uni.uFogCol.value.copy(uwCol); } }
       bedWant(p.x, p.z, !L.bedReady);
-    } else if (sc.fog) { fishU.uFogP.value.set(sc.fog.near, sc.fog.far, 0, 0); fishU.uFogC.value.copy(sc.fog.color); }
+    } else if (sc.fog) { fishU.uFogP.value.set(sc.fog.near, sc.fog.far, 0, 0); fishU.uFogC.value.copy(sc.fog.color); signU.uFogP2.value.set(sc.fog.near, sc.fog.far); }
   })(scene.onBeforeRender && scene.onBeforeRender !== THREE.Object3D.prototype.onBeforeRender ? scene.onBeforeRender : null);
 
   // ------------------------------------------------------------------ disturbances from fx (wrapped once)
@@ -266,43 +224,117 @@ export function createSeaLife(ctx) {
     wrap(fx.water, 'add', d => { if (d && d.y < 0.6 && d.tile === 1 && d.life < 4 && isWater(d.x, d.z)) sim.scare(d.x, 0, d.z, 4 + d.size + d.grow * 0.35, Math.min(1, 0.4 + d.a), 1.2, 3); });   // rotor wash spray, splash rings
   }
 
+  // ------------------------------------------------------------------ what the life does to the top: spray and rings
+  // (fx.mix directly, not fx.splash: a bird going in is not a shell landing - it must not frighten the fish it hunts)
+  function spray(x, y, z, n, up, size, spread = 1) {
+    if (!fx || !fx.mix) return;
+    for (let i = 0; i < n; i++) { const a = rnd(0, TAU), s = rnd(0.3, 1) * spread; fx.mix.spawn(x + Math.cos(a) * s * 0.3, y + 0.05, z + Math.sin(a) * s * 0.3, Math.cos(a) * s, up * rnd(0.6, 1.2), Math.sin(a) * s, rnd(0.5, 1.1), size * 0.5, size * 1.6, 0.86, 0.93, 0.97, 0.7, 12, 0.6); }
+  }
+  function onEvent(e, cam) {
+    const d = Math.hypot(e.x - cam.x, e.z - cam.z); if (d > 320) return;
+    const s = e.s;
+    switch (e.kind) {
+      case 'jump': mark(e.x, e.z, 0.5 + s * 3, 2, 0.8, 1.2); if (d < 200) spray(e.x, e.y, e.z, 3 + (s * 8 | 0), 2 + s * 2, 0.12 + s * 0.3); break;
+      case 'enter': mark(e.x, e.z, 0.6 + s * 3.5, 2, 0.9, 1.5); mark(e.x, e.z, 0.3 + s * 1.2, 3, 0.7, 2.5); if (d < 200) spray(e.x, e.y, e.z, 4 + (s * 10 | 0), 2.2 + s * 2.5, 0.14 + s * 0.35); break;
+      case 'boil': mark(e.x, e.z, 1.5 + s * 2, 3, 0.8, 3); mark(e.x, e.z, 2 + s * 3, 2, 0.7, 1.6); if (d < 220) spray(e.x, e.y, e.z, 5, 3, 0.25, 1.5); break;
+      case 'blow':   // a dolphin's breath: a short puff of vapour and spray off the blowhole
+        mark(e.x, e.z, 1.5, 2, 0.6, 1.3);
+        if (fx && fx.mix && d < 220) for (let i = 0; i < 4; i++) fx.mix.spawn(e.x + rnd(-0.1, 0.1), e.y + 0.3, e.z + rnd(-0.1, 0.1), rnd(-0.3, 0.3), rnd(1.5, 2.5), rnd(-0.3, 0.3), rnd(0.5, 0.9), 0.15, 0.9, 0.9, 0.94, 0.96, 0.45, 2, 1.2);
+        break;
+      case 'taxi': mark(e.x, e.z, 0.8, 2, 0.6, 0.9); if (d < 160) spray(e.x, e.y, e.z, 3, 1.5, 0.1); break;
+      case 'fin': mark(e.x, e.z, 1.4, 2, 0.45, 1.4); break;
+      case 'plunge':   // a gannet going in: a white column, a ring, the foam where it went
+        mark(e.x, e.z, 3.5, 2, 1, 2); mark(e.x, e.z, 1.1, 3, 1, 4);
+        if (d < 260) spray(e.x, e.y, e.z, 9, 5.5, 0.35, 0.8);
+        break;
+      case 'dip': mark(e.x, e.z, 1.4, 2, 0.8, 1.3); if (d < 200) spray(e.x, e.y, e.z, 3, 1.8, 0.15); break;
+      case 'surface': mark(e.x, e.z, 1.2, 2, 0.5, 1.2); break;
+      case 'patter': mark(e.x, e.z, 0.7, 2, 0.35, 0.8); break;
+    }
+  }
+
   // ------------------------------------------------------------------ each frame
-  const ROTARY = { drone: 1, transport: 1, gunship: 1 }, _view = {};
+  const ROTARY = { drone: 1, transport: 1, gunship: 1 }, _view = {}, signs = [], foci = [], flush = [], _so = {};
+  const ids = new WeakMap(); let idN = 0; const idOf = o => { let i = ids.get(o); if (i === undefined) { i = ++idN; ids.set(o, i); } return i; };
+  const pool = []; let poolN = 0; const take = () => { let o = pool[poolN]; if (!o) { o = {}; pool.push(o); } poolN++; return o; };
+  L.flush = (x, y, z, r) => { const o = take(); o.x = x; o.y = y; o.z = z; o.r = r; flush.push(o); };   // (extra: the player's aircraft)
+  L.focus = (id, kind, x, z, k = 1, vx = 0, vz = 0, r = 3) => { const o = take(); o.id = id; o.kind = kind; o.x = x; o.z = z; o.k = k; o.vx = vx; o.vz = vz; o.r = r; foci.push(o); };
+  const write = (O, mesh) => {
+    const g = mesh.geometry, per = O.attrs[0].meshPerAttribute || 1;
+    g.instanceCount = O.n * per;
+    if (O.n) for (const a of O.attrs) { a.clearUpdateRanges(); a.addUpdateRange(0, O.n * 4); a.needsUpdate = true; }
+  };
   L.update = dt => {
-    if (!L.enabled || !active()) { sim.clearThreats(); geo.instanceCount = 0; fishMesh.visible = false; L.ms = 0; return; }
-    fishMesh.visible = true;
+    if (!L.enabled || !active()) { sim.clearThreats(); for (const k in meshes) { meshes[k].geometry.instanceCount = 0; meshes[k].visible = false; } signGeo.instanceCount = 0; signMesh.visible = false; L.ms = 0; return; }
+    for (const k in meshes) meshes[k].visible = true; signMesh.visible = true;
     const t0 = performance.now(), c = L.cam;
-    sim.clearThreats();
+    fishU.uTime.value += dt;
+    sim.clearThreats(); foci.length = 0; flush.length = 0; poolN = 0;
+    sim.sea = U.uSeaP.value.z; birds.sea = sim.sea;
+    if (U.uSun) { const s = U.uSun.value, l = s.y / (s.length() || 1); sim.light = birds.light = smooth(-0.05, 0.25, l); }
     if (war && war.units) for (const u of war.units) {
       if (!u.p || u.gone) continue;
-      if (Math.abs(u.p.x - c.x) > 260 || Math.abs(u.p.z - c.z) > 260) continue;
+      if (Math.abs(u.p.x - c.x) > 560 || Math.abs(u.p.z - c.z) > 560) continue;
       if (u.dims && u.p.y < 3 && !(u.sinking > 8)) {   // a ship
-        const wl = (u.parts && u.parts.waterline) || { hl: u.dims.L * 0.5, hw: u.dims.W * 0.4 };
-        sim.hull(u.p.x, u.p.z, u.yaw || 0, wl.hl, wl.hw, Math.min(9, Math.max(2, u.dims.W * 0.3)), u.speed || 0);
-      } else if (ROTARY[u.type] && u.p.y < 32 && isWater(u.p.x, u.p.z)) {   // downwash on the water under a low helicopter / tilt-rotor / drone
-        const k = 1 - u.p.y / 32; sim.point(u.p.x, 0, u.p.z, 10 + 16 * k, 0.4 + 0.7 * k, 0, 0, 2 + 3 * k);
+        const wl = (u.parts && u.parts.waterline) || { hl: u.dims.L * 0.5, hw: u.dims.W * 0.4 }, v = u.speed || 0;
+        sim.hull(u.p.x, u.p.z, u.yaw || 0, wl.hl, wl.hw, Math.min(9, Math.max(2, u.dims.W * 0.3)), v);
+        if (Math.abs(v) > 2.5 && wl.hl > 15) L.focus('w' + idOf(u), 'wake', u.p.x + Math.sin(u.yaw) * wl.hl, u.p.z + Math.cos(u.yaw) * wl.hl, 1, -Math.sin(u.yaw) * v, -Math.cos(u.yaw) * v);
+        if (Math.abs(v) > 1) L.flush(u.p.x - Math.sin(u.yaw) * wl.hl, 1, u.p.z - Math.cos(u.yaw) * wl.hl, wl.hw + 18);
+      } else if (u.p.y > 2 && !u.dims) {   // aircraft: rotor wash on the water, and the birds flush from anything low
+        if (ROTARY[u.type] && u.p.y < 32 && isWater(u.p.x, u.p.z)) { const k = 1 - u.p.y / 32; sim.point(u.p.x, 0, u.p.z, 10 + 16 * k, 0.4 + 0.7 * k, 0, 0, 2 + 3 * k, { wash: true, w: 0.6 }); }
+        if (u.p.y < 90) L.flush(u.p.x, u.p.y, u.p.z, ROTARY[u.type] ? 45 : 110);
       }
     }
     const G = war && war.ground;
-    if (G && G.lcacs) for (const q of G.lcacs) if (Math.abs(q.x - c.x) < 260 && Math.abs(q.z - c.z) < 260) { sim.hull(q.x, q.z, q.yaw, 13, 7, 1, q.v || 0); sim.point(q.x, 0, q.z, 22, 0.9, 0, 0, 3); }   // the LCAC: skirt, spray, props
-    if (G && G.sim && G.sim.units) for (const u of G.sim.units) if (u.kind === 'hovertank' && u.alive && Math.abs(u.x - c.x) < 200 && Math.abs(u.z - c.z) < 200 && isWater(u.x, u.z)) sim.point(u.x, 0, u.z, 14, 0.8, 0, 0, 2.5);
-    if (ctx.extra) ctx.extra(sim);
+    if (G && G.lcacs) for (const q of G.lcacs) if (Math.abs(q.x - c.x) < 400 && Math.abs(q.z - c.z) < 400) { sim.hull(q.x, q.z, q.yaw, 13, 7, 1, q.v || 0); sim.point(q.x, 0, q.z, 22, 0.9, 0, 0, 3, { wash: true, w: 0.3 }); L.flush(q.x, 2, q.z, 50); }   // the LCAC: skirt, spray, props
+    if (G && G.sim && G.sim.units) for (const u of G.sim.units) if (u.kind === 'hovertank' && u.alive && Math.abs(u.x - c.x) < 200 && Math.abs(u.z - c.z) < 200 && isWater(u.x, u.z)) sim.point(u.x, 0, u.z, 14, 0.8, 0, 0, 2.5, { wash: true, w: 0.3 });
+    // trawlers working (world ambient): hull, life round the fishing ground, gulls astern (the ambient ones step aside)
+    if (ctx.trawlers) { const T = ctx.trawlers(); if (T) for (let i = 0; i < T.length; i++) { const w = T[i]; if (Math.abs(w.x - c.x) > 520 || Math.abs(w.z - c.z) > 520) continue; sim.hull(w.x, w.z, w.yaw + Math.PI, 6.5, 2.4, 2, w.v || 0); if (w.gulls) L.focus('t' + idOf(w), 'boat', w.x, w.z, 1, Math.sin(w.yaw) * (w.v || 0), Math.cos(w.yaw) * (w.v || 0)); } }
+    sim.lastDt = dt; if (ctx.extra) ctx.extra(sim, L);
     sim.enabled = L.fishOn; if (!L.fishOn && sim.schools.length) sim.clear();
     sim.update(dt, c);
-    let n = 0;
-    if (L.camObj) {   // the camera that last rendered: its forward and field of view for the cull
+    // the birds: bait balls, dead fish, trawlers, wakes
+    sim.signs(signs);
+    for (const s of signs) if (s.kind === 1) L.focus('b' + s.sc.id, 'ball', s.x, s.z, s.k, 0, 0, s.r);
+    for (const st of sim.sites) { const k = Math.min(1, st.n / 20) * (1 - st.t / 120); if (k > 0.05 && st.t > 4) L.focus('d' + idOf(st), 'dead', st.x, st.z, k, 0, 0, 4); }
+    birds.update(L.fishOn ? dt : 0, c, { foci, threats: flush });
+    if (!L.fishOn && birds.birds.length) birds.clear();
+    for (let i = 0; i < sim.nEv; i++) onEvent(sim.events[i], c);
+    for (let i = 0; i < birds.nEv; i++) onEvent(birds.events[i], c);
+    // draw: the camera that last rendered (its forward and field of view) culls what cannot show
+    let view = null;
+    if (L.camObj) {
       const cm = L.camObj, e = cm.matrixWorld.elements, fl = Math.hypot(e[8], e[9], e[10]) || 1, fov = (cm.fov || 60) * Math.PI / 180, asp = cm.aspect || 1.6;
-      const half = Math.atan(Math.tan(fov / 2) * Math.hypot(1, asp)) + 0.15;
-      Object.assign(_view, { x: c.x, y: c.y, z: c.z, fx: -e[8] / fl, fy: -e[9] / fl, fz: -e[10] / fl, cos: Math.cos(Math.min(half, 3)), px: (ctx.heightPx ? ctx.heightPx() : 720) / fov });
-      n = sim.write(A.array, B.array, C.array, MAX, _view);
-    } else n = sim.write(A.array, B.array, C.array, MAX);
-    geo.instanceCount = n; L.fishDrawn = n; L.culled = sim.culled;
-    if (n) { A.addUpdateRange(0, n * 4); B.addUpdateRange(0, n * 4); C.addUpdateRange(0, n * 4); A.needsUpdate = B.needsUpdate = C.needsUpdate = true; }
+      const hf = Math.atan(Math.tan(fov / 2) * Math.hypot(1, asp)) + 0.15;
+      Object.assign(_view, { x: c.x, y: c.y, z: c.z, fx: -e[8] / fl, fy: -e[9] / fl, fz: -e[10] / fl, cos: Math.cos(Math.min(hf, 3)), px: (ctx.heightPx ? ctx.heightPx() : 720) / fov });
+      view = _view;
+    }
+    sim.write(bufs, view);
+    for (const k in bufs) { write(bufs[k], meshes[k]); L.counts[k] = bufs[k].n; }
+    birds.write(birdBuf, view); write(birdBuf, meshes.birds);
+    L.fishDrawn = bufs.school.n * SUB + bufs.fish.n + bufs.dolphin.n + bufs.ray.n + bufs.jelly.n; L.culled = sim.culled; L.birdsDrawn = birdBuf.n;
+    // signs: the schools' (nervous water, bait balls) and the marks left by jumps, breaths and dives
+    let ns = 0;
+    const put = (x, z, r, kind, k, age, seed, life) => {
+      if (ns >= SIGN_CAP) return; if (Math.hypot(x - c.x, z - c.z) > 420) return;
+      const j = ns * 4; SP[j] = x; SP[j + 1] = z; SP[j + 2] = r; SP[j + 3] = kind; SQ[j] = k; SQ[j + 1] = age; SQ[j + 2] = seed; SQ[j + 3] = life; SR[j] = smooth(0.3, 7, -sim.bed(x, z)); ns++;
+    };
+    if (!L.under) {
+      for (const s of signs) put(s.x, s.z, s.r, s.kind, s.k, 0, (s.sc.id * 0.618) % 1, 1);
+      for (let i = marks.length - 1; i >= 0; i--) { const m = marks[i]; m.t += dt; if (m.t >= m.life) { marks.splice(i, 1); continue; } put(m.x, m.z, m.r, m.kind, m.k, m.t, m.seed, m.life); }
+    } else marks.length = 0;
+    signGeo.instanceCount = ns; L.signsDrawn = ns;
+    if (ns) for (const a of signAttr) { a.clearUpdateRanges(); a.addUpdateRange(0, ns * 4); a.needsUpdate = true; }
     // the sea bed: kept warm while the camera is low over the water (so a dive finds it built), stepped a little a frame
     if (c.y < 4 && isWater(c.x, c.z)) { bedWant(c.x, c.z, false); bedStep(500); }
     L.ms = performance.now() - t0;
   };
-  L.setEnabled = on => { L.enabled = !!on; if (!on) { sim.clear(); geo.instanceCount = 0; setUnder(false); } };
-  L.fishMesh = fishMesh; L.bedMesh = bedMesh;
+  L.setEnabled = on => { L.enabled = !!on; if (!on) { sim.clear(); birds.clear(); for (const k in meshes) meshes[k].geometry.instanceCount = 0; signGeo.instanceCount = 0; setUnder(false); } };
+  L.setQuality = q => {
+    L.quality = q;
+    if (q === 'off') { L.fishOn = false; return; }
+    L.fishOn = true; sim.setQuality(q); birds.max = BIRD_Q[q] || BIRD_Q.medium; motes.visible = L.under && q !== 'low';
+  };
+  L.fishMesh = meshes.school; L.meshes = meshes; L.bedMesh = bedMesh; L.signMesh = signMesh; L.surfaceAt = surfaceAt;
   return L;
 }

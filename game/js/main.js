@@ -1119,18 +1119,34 @@ const marine = foot.setMarine(createMarine({
   serviceAt: (x, z) => serviceAt(x, z), active: () => G.craft === 'foot' && G.state === 'play' && G.mode === 'zarch',
   use: (x, y, z, yaw) => interiors.use(x, y, z, yaw), useHint: (x, y, z, yaw) => interiors.useHint(x, y, z, yaw),   // ngc/interiors: F opens doors and hatches
 }));
-// SEALIFE (ngc/waterfish, units/naval/sealife.js): fish round the camera that flee ships, wash, swimmers and blasts; the
-// sea bed and the view from under the surface. The player's own disturbances come from here (the AI's from war.units).
-const _slF = {};
+// SEALIFE (units/naval/sealife.js): fish, dolphins, rays, jellyfish round the camera and round every unit on the water,
+// seabirds over the bait balls, trawlers and wakes; they flee ships, wash, swimmers and blasts. The sea bed and the view
+// from under the surface. The player's own disturbances come from here (the AI's from war.units); quality in the menu.
+const _slF = {}, _slP = { x: 0, z: 0, ok: false }, _slR = new WeakMap();
+const SL_Q = ['off', 'low', 'medium', 'high'];
+let slQ = 'medium'; try { const q = params.get('sealife') || localStorage.getItem('tz_sealife'); if (SL_Q.includes(q)) slQ = q; } catch (e) {}
 const sealife = createSeaLife({
   scene: zScene, uniforms: terrainUni, terrain, sky, fx, war, depthAt: terrainH, isWater, cell: TG, canvas,
   active: () => G.mode === 'zarch' && camB < 0.01,
   heightPx: () => renderer.domElement.height,
-  extra: S => {
-    if (G.craft === 'heli' && Z.alive && !G.heliStowed && H.agl < 25 && waterAt(H.pos.x, H.pos.z)) S.point(H.pos.x, 0, H.pos.z, 8 + 14 * (1 - H.agl / 25), Math.min(1, H.thrust / 40000) * (1.1 - H.agl / 25), 0, 0, 2 + 3 * (1 - H.agl / 25));   // the Huey's downwash
-    if (G.craft === 'foot' && foot.exists) { const f = foot.frame(_slF); if (f.y < 0.3 && isWater(f.x, f.z)) S.point(f.x, f.y + 0.6, f.z, 4.5, 0.65, 0, 0, 2.5); }   // a man in the water
+  trawlers: () => world.ambient && world.ambient.trawlers,
+  extra: (S, SL) => {
+    if (G.craft === 'heli' && Z.alive && !G.heliStowed && H.agl < 25 && waterAt(H.pos.x, H.pos.z)) S.point(H.pos.x, 0, H.pos.z, 8 + 14 * (1 - H.agl / 25), Math.min(1, H.thrust / 40000) * (1.1 - H.agl / 25), 0, 0, 2 + 3 * (1 - H.agl / 25), { wash: true, w: 0.8 });   // the Huey's downwash
+    if (G.craft === 'heli' && Z.alive && !G.heliStowed && H.agl < 60) SL.flush(H.pos.x, H.pos.y, H.pos.z, 55);
+    if (G.craft === 'foot' && foot.exists) {   // a man in the water (the curious come to look while he keeps still)
+      const f = foot.frame(_slF), vx = _slP.ok ? (f.x - _slP.x) / Math.max(1e-3, S.lastDt || 1 / 60) : 0, vz = _slP.ok ? (f.z - _slP.z) / Math.max(1e-3, S.lastDt || 1 / 60) : 0;
+      _slP.x = f.x; _slP.z = f.z; _slP.ok = true;
+      if (f.y < 0.3 && isWater(f.x, f.z)) { S.point(f.x, f.y + 0.6, f.z, 4.5, 0.65, Math.max(-3, Math.min(3, vx)), Math.max(-3, Math.min(3, vz)), 2.5, { swim: true, w: 0.7 }); SL.flush(f.x, 0, f.z, 14); }
+    } else _slP.ok = false;
+    if ((G.craft === 'jet' || G.craft === 'tomcat') && crafts.active && crafts.active.frame) { const f = crafts.active.frame(_slF); if (f && f.y < 90) SL.flush(f.x, f.y, f.z, 130); }   // a jet low over the water
+    for (const r of armDelivery.runs) if (!r.P.gone) {   // LCM-8s (22.4 x 6.4 m): their speed from how far they moved
+      const q = _slR.get(r) || { x: r.P.p.x, z: r.P.p.z, v: 0 }, v = Math.hypot(r.P.p.x - q.x, r.P.p.z - q.z) / Math.max(1e-3, S.lastDt || 1 / 60);
+      q.v += (Math.min(8, v) - q.v) * 0.2; q.x = r.P.p.x; q.z = r.P.p.z; _slR.set(r, q); S.hull(r.P.p.x, r.P.p.z, r.P.yaw, 10.5, 3.2, 1.3, q.v);
+    }
   },
 });
+sealife.setQuality(slQ); if (world.ambient) world.ambient.seaBirds = slQ !== 'off';
+function setSeaLifeQ(q) { slQ = q; sealife.setQuality(q); if (world.ambient) world.ambient.seaBirds = q !== 'off'; try { localStorage.setItem('tz_sealife', q); } catch (e) {} }
 // --- ground vehicles (ngc/wheeledgame): the WHEELED M151A2s, M35A2s and civilian cars, through units/wheeled/motorpool.js
 const vehCtx = {
   scene: zScene, GR, crafts, war, fx, sfx, say, feed, keyDown: kd, CTL, hwOn: () => !keyboardOnly, camZ: () => zCam,
@@ -1690,7 +1706,8 @@ function pressStart() { if (G.state === 'title') newGame(); }
 // out of any stuck state (set down broken somewhere logistics can't help, wedged in a cave, out of fuel at sea).
 const menu = { items: [], sel: 0 };
 // SEAWORLD: the sea state slider and the weather drift switch (in every variant of the menu)
-const seaItems = () => [{ id: 'sea', label: 'SEA STATE', slider: true }, { id: 'seadrift', label: `WEATHER DRIFT: ${SEA_PREF.drift ? 'ON' : 'OFF'}`, note: SEA_PREF.drift ? 'THE SEA WANDERS UP TO 2 STATES ROUND YOUR CHOICE OVER THE WAR' : 'THE SEA STAYS WHERE YOU SET IT' }];
+const seaItems = () => [{ id: 'sea', label: 'SEA STATE', slider: true }, { id: 'seadrift', label: `WEATHER DRIFT: ${SEA_PREF.drift ? 'ON' : 'OFF'}`, note: SEA_PREF.drift ? 'THE SEA WANDERS UP TO 2 STATES ROUND YOUR CHOICE OVER THE WAR' : 'THE SEA STAYS WHERE YOU SET IT' },
+  { id: 'sealife', label: `SEA LIFE: ${slQ.toUpperCase()}`, note: 'FISH, DOLPHINS AND SEABIRDS ROUND THE SHIPS AND THE CAMERA  ·  OFF / LOW / MEDIUM / HIGH' }];   // SEALIFE
 function menuItems() {
   if (isJet()) return [   // flying the Hornet (or the TOMCAT): no logistics; 'respawn' writes the jet off and puts you back in the helicopter
     { id: 'resume', label: 'RESUME' },
@@ -1766,6 +1783,7 @@ function menuPick() {
   if (it.id === 'resume') closeMenu();
   else if (it.id === 'logistics') { closeMenu(); callLogistics(); }
   else if (it.id === 'seadrift') { setSeaDrift(!SEA_PREF.drift); renderMenu(); }   // SEAWORLD
+  else if (it.id === 'sealife') { setSeaLifeQ(SL_Q[(SL_Q.indexOf(slQ) + 1) % SL_Q.length]); renderMenu(); }   // SEALIFE
   else if (it.id === 'respawn') { closeMenu(); abandonHeli(); }
   else if (it.id === 'command') { closeMenu(); commander.open(); }   // COMMANDER
   else if (it.id === 'quit') { closeMenu(); quitToTitle(); }
