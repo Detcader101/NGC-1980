@@ -166,7 +166,7 @@ export function createAlbInterior(ship) {
   slab(-3.62, -2.3, -7.2, 5.2, 6.4, deckc, { roof: true, noCeil: true });   // the O-7 catwalk on the port face (NAVAL's ladders land on it)
   const dWP = door('wingP', { u: BR.x0 + W / 2, v: WZ[-1], y: 9.1, w: 0.84, h: 1.85, ax: 'v', hinge: 1, swing: 1, kind: 'wt', c: 0x8c9296, out: -1 });
   const dWS = door('wingS', { u: BR.x1 - W / 2, v: -4.6, y: 9.1, w: 0.84, h: 1.85, ax: 'v', hinge: 1, swing: -1, kind: 'wt', c: 0x8c9296, out: 1 });
-  put('helm', -0.2, 9.1, -3.6, 0, {}, [0.9, 0.7, 1.3]); put('telegraph', 0.75, 9.1, -3.75, 0, {}, [0.5, 0.5, 1.2]);
+  put('helm', -0.2, 9.1, -3.6, 0, { noWheel: true }, [0.9, 0.7, 1.3]); const wheelAt = [X(-0.2), Y(9.1 + 1.05), Z(-3.6 + 0.12)]; put('telegraph', 0.75, 9.1, -3.75, 0, {}, [0.5, 0.5, 1.2]);
   put('captainChair', -1.85, 9.1, -4.9, Math.PI + 0.25, {}, [0.75, 0.75, 1.3]); put('radarRepeater', 1.4, 9.1, -1.5, -0.6, {}, [0.8, 0.8, 1.2]);
   put('chartTable', -0.5, 9.1, 3.1, Math.PI, {}, [1.6, 1.0, 0.95]); put('console', 0, 9.1, -5.5, 0, { w: 4.2, windows: true }, [4.2, 0.6, 1.05]);
   put('binocs', 2.0, 9.1, -5.3, 0); put('phones', BR.x1 - 0.2, 10.4, 0.8, -Math.PI / 2);
@@ -197,7 +197,7 @@ export function createAlbInterior(ship) {
     island: { x0: X(-3.96), x1: X(3.96), z0: Z(-9.3), z1: Z(9.4), y0: H.y - 0.6 },
     hangar: { x0: -14.06, x1: 14.06, z0: H.z0, z1: H.z1, y0: H.y - 0.6, y1: H.top + 0.1 },
   };
-  const INT = { ship, plan: P, walls, floors, furn, crew, doors: doorsList, ladders, punches, zones, hatch: dHatch, H };
+  const INT = { ship, wheelAt, plan: P, walls, floors, furn, crew, doors: doorsList, ladders, punches, zones, hatch: dHatch, H };
   INT.zoneOf = (lx, ly, lz) => {
     const I = zones.island; if (lx > I.x0 && lx < I.x1 && lz > I.z0 && lz < I.z1 && ly > I.y0) return 'island';
     const G = zones.hangar; if (lz > G.z0 && lz < G.z1 && ly > G.y0 && ly < G.y1) {

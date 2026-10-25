@@ -21,7 +21,7 @@ import { buildRoomsGeo, leafGeo, RECIPES } from './furniture.js';
 import { planOf, QUONSET } from './rooms.js';
 import { roomParts, floorHere } from './roomsolid.js';
 import { createAlbInterior, HANGAR } from './shipint.js';
-import { buildShipGeo } from './shipgeo.js';
+import { buildShipGeo, helmWheelGeo } from './shipgeo.js';
 import { crewMesh } from './crewfig.js';
 
 const NEAR = 55, FAR = 80, MAXL = 160;
@@ -184,6 +184,8 @@ export function createInteriors(ctx) {
     const INT = createAlbInterior(u); u.interior = INT;
     const group = new THREE.Group(); group.name = 'albatross-interior';
     const g = buildShipGeo(INT), mesh = new THREE.Mesh(geoFrom(g.build()), MAT); mesh.renderOrder = -3; group.add(mesh);
+    // the bridge's wheel on its own (QA ngc/qa-ship): helm.js turns it when you have the helm (it drew a second wheel of its own)
+    const wheel = new THREE.Mesh(geoFrom(helmWheelGeo().build()), MAT); wheel.name = 'helm-wheel'; wheel.renderOrder = -3; wheel.position.set(...INT.wheelAt); group.add(wheel); INT.wheel = wheel;
     // QA (ngc/qa-ship): one mesh per figure (was all merged), so a man can step aside when the player stands where he
     // is - the helmsman when you take the wheel (his `aside` spot), anyone else hides rather than fill the first-person view
     const crew = new THREE.Group(); crew.name = 'crew-figs'; group.add(crew);

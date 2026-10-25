@@ -18,7 +18,7 @@ export default async function (h) {
       const C = window.__cam; if (C && C.u) { W(C.u, C.p, a); W(C.u, C.t, b); cam.position.copy(a); cam.up.set(0, 1, 0); cam.lookAt(b); cam.updateMatrixWorld(); }
       if (sc.isScene && (!window.__sc || sc === window.__sc || sc.children.length >= window.__sc.children.length)) { window.__sc = sc; window.__rc = cam; }
       orig(sc, cam); };
-    const PERSON = /deckcrew|crew-fig|soldier|rider|pilot|marine|figure|man\\b|sailor|crew/i;
+    const PERSON = /deckcrew|crew-fig|soldier|rider|pilot|marine|figure|man\\b|sailor|crew|gunner|squad|trooper/i;
     window.__Q = {
       cam: (u, p, t) => { window.__cam = { u, p, t }; return 1; },
       off: () => (window.__cam = null, 1),
@@ -28,24 +28,26 @@ export default async function (h) {
       look: (yawRel, pitch = 0) => (G.marine.aim(G.war.carrier.yaw + yawRel, pitch), 1),
       loc: () => { const c = G.war.carrier, F = G.foot.W, s = G.GR.toShip(c, F.x, F.y, F.z); return [+s.x.toFixed(2), +s.y.toFixed(2), +s.z.toFixed(2)]; },
       // rays from the rendering camera: every object within D m, by its name chain; persons flagged
-      front: (D = 0.6) => {
+      front: (D = 0.8) => {
         const cam = window.__rc, sc = window.__sc; if (!cam || !sc) return { err: 'no camera' };
-        const rc = new T.Raycaster(), q = cam.getWorldQuaternion(new T.Quaternion()), o = cam.getWorldPosition(new T.Vector3()); rc.near = 0; rc.far = D; rc.camera = cam;
-        const out = {}, persons = [];
+        cam.updateMatrixWorld(); sc.updateMatrixWorld();
+        const q = cam.getWorldQuaternion(new T.Quaternion()), o = cam.getWorldPosition(new T.Vector3());
+        // the visible meshes (whole parent chain visible), named by their chain; raycast one by one (a sprite or a
+        // custom object that cannot be raycast is skipped, not fatal)
+        const meshes = [];
+        (function walk(ob, chain) { if (!ob.visible) return; const c = [ob.name || ob.type, ...chain].slice(0, 4); if (ob.isMesh && !ob.isSprite) { if (ob.isInstancedMesh) ob.boundingSphere = null; meshes.push([ob, c.join('<')]); } for (const k of ob.children) walk(k, c); })(sc, []);
+        const out = {}, persons = [], hits = [], rc = new T.Raycaster(); rc.near = 0; rc.far = D; rc.camera = cam;
         for (let i = -4; i <= 4; i++) for (let j = -3; j <= 3; j++) {
           rc.set(o, new T.Vector3(i * 0.11, j * 0.11, -1).normalize().applyQuaternion(q));
-          for (const x of rc.intersectObjects(sc.children, true)) {
-            let ob = x.object, vis = true, nm = []; while (ob) { if (!ob.visible) vis = false; if (nm.length < 4) nm.push(ob.name || ob.type); ob = ob.parent; }
-            if (!vis) continue;
-            const k = nm.join('<'); out[k] = Math.min(out[k] ?? 9, +x.distance.toFixed(2)); if (PERSON.test(k) && !persons.includes(k)) persons.push(k);
-          }
+          for (const [m, k] of meshes) { hits.length = 0; try { m.raycast(rc, hits); } catch (e) { continue; }
+            for (const x of hits) { if (x.distance > D) continue; out[k] = Math.min(out[k] ?? 9, +x.distance.toFixed(2)); if (PERSON.test(k) && !persons.includes(k)) persons.push(k); } }
         }
         return { persons, near: out };
       },
     };
-    const c = G.war.carrier; c.path = []; c.goal = null; c.speed = 0; c.v.set(0, 0, 0);
+    if (!${process.env.QA_MOVE ? 1 : 0}) { const c = G.war.carrier; c.path = []; c.goal = null; c.speed = 0; c.v.set(0, 0, 0); }   // QA_MOVE=1: under way
     return 1; })()`);
-  const fp = async (name) => { await h.wait(900); await h.shot(name); const r = await h.eval('__Q.front()', name); await h.expect('__Q.front().persons.length === 0', `${name}: no person within 0.6 m of the eye`); return r; };
+  const fp = async (name) => { await h.wait(900); await h.shot(name); await h.eval('__Q.front(1.6).persons', name + ' (persons within 1.6 m)'); const r = await h.eval('__Q.front()', name); await h.expect('__Q.front().persons.length === 0', `${name}: no person within 0.8 m of the eye`); return r; };
 
   // ================================================================== the Huey and the deck spawn, first person
   if (PARTS.includes('fp')) {
@@ -66,9 +68,9 @@ export default async function (h) {
     }
     // the Hornet on cat 1 and its cockpit
     await h.eval(`__Q.at(-2, 8, 32, 0)`);
-    await h.key('tap', 'Digit5'); await h.waitFor("__G.G.craft === 'jet'", 15000); await h.wait(2500);
+    await h.key('tap', 'Digit5'); await h.waitFor("__G.G.craft === 'jet'", 15000); await h.wait(2500); await h.eval('(__G.cockpitCam = true, 1)');
     await fp('fp-hornet-cockpit-on-the-cat');
-    await h.eval(`__Q.cam(__G.war.carrier, [-14, 9.5, 8], [-2.5, 9.5, -8])`); await h.wait(1200); await h.shot('ext-hornet-on-the-cat'); await h.eval('__Q.off()');
+    await h.eval(`__Q.cam(__G.war.carrier, [-14, 9.5, 8], [-2.5, 9.5, -8])`); await h.wait(1200); await h.shot('ext-hornet-on-the-cat'); await h.eval('(__Q.off(), __G.cockpitCam = false, 1)');
     await h.key('tap', 'KeyY'); await h.waitFor("__G.G.craft === 'foot'", 10000);
   }
 
@@ -150,6 +152,8 @@ export default async function (h) {
     await h.waitFor('__G.H.landed', 30000);
     await h.key('tap', 'Tab'); await h.wait(1500);
     await fp('fp-sky-carrier-helm');
+    for (const [n, y] of [['stbd', -1.1], ['port', 1.1]]) { await h.eval(`(__G.head.yaw = ${y}, 1)`); await h.shot('fp-sky-carrier-helm-' + n); }
+    await h.eval('(__G.head.yaw = 0, 1)');
     await h.eval('({ helm: __G.helm.active, view: __G.helm.bridgeView })');
     await h.key('tap', 'Tab'); await h.wait(800);
   }
