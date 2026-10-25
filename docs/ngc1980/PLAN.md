@@ -83,4 +83,5 @@ react to the physics and school around."
 | SEA LIFE 2 (fish round units, physics reactions, bait balls, dolphins, birds, surface signs) | ngc/sealife2 | running | builds on fishsim.js / sealife.js |
 | UNIT PARITY (equivalent unit per role, size, power on both sides; PARITY.md matrix) | ngc/parity | running | user request |
 | HEALTH BAR ICONS (role icon + health bar per unit, toggle all / damaged / off, on in ?sim) | ngc/healthbars | running | user request |
+| FLYABLE CH-46 SEA KNIGHT (fleet spawn from deck/pad, cockpit, Marines in the back) | ngc/ch46fly | running | user request |
 | Next: BALANCE pass driven by the sim's tournament (apply SIMREPORT tuning, re-run until no dominant doctrine) | | queued | after techtree + simmode merge |
