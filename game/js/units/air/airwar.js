@@ -36,9 +36,11 @@ export function createAirWar(W, ctx, H) {
       groundY: (x, z) => Math.max(terrainH(x, z), 0, W.deckY(x, z)),
       water: (x, z) => isWater(x, z) && W.deckY(x, z) < -1e8,
       surfVel: W.surfVel,
+      deckClear: side === 1 ? () => W.deck ? W.deck.deckClear() : '' : null,   // DECK OPS: the pattern holds while a jet is in the landing area
+      wantDeck: side === 1 ? () => { if (W.deck) W.deck.wantT = W.time; } : null,
       carrier: () => {
         const c = carrierOf(side); if (!c) return null;
-        return { x: c.p.x, z: c.p.z, yaw: c.yaw, deck: CARRIER.DECK + c.p.y, vx: c.v.x, vz: c.v.z, speed: c.speed, w: c.w || 0 };
+        return { x: c.p.x, z: c.p.z, yaw: c.yaw, deck: CARRIER.DECK + c.p.y, vx: c.v.x, vz: c.v.z, speed: c.speed, w: c.w || 0, att: c.att, deckAt: W.deckAt ? (x, z) => W.deckAt(c, x, z) : null };   // (ngc/bugsweep: + the live deck - the cat held the AI's jets on the flat deck height while the gear met the heaving, rolling one)
       },
       foes: function* (s) {
         for (const u of W.units) if (u.side !== s && u.p && !u.dims && !u.dead && !u.dying && !u.gone) yield u;
@@ -73,7 +75,32 @@ export function createAirWar(W, ctx, H) {
     if (pending) AW.pending.push(u); else { scene.add(model.group); W.units.push(u); }
     return u;
   }
-  function activate(u) { const i = AW.pending.indexOf(u); if (i >= 0) AW.pending.splice(i, 1); scene.add(u.mesh); W.units.push(u); }
+  function activate(u) { const i = AW.pending.indexOf(u); if (i >= 0) AW.pending.splice(i, 1); if (!W.units.includes(u)) { scene.add(u.mesh); W.units.push(u); } }
+  function deactivate(u) { const i = W.units.indexOf(u); if (i >= 0) { W.units.splice(i, 1); scene.remove(u.mesh); } if (!AW.pending.includes(u)) AW.pending.push(u); }
+
+  // ---------------------------------------------------------------- DECK OPS (ngc/bugsweep): every jet off the ALBATROSS goes
+  // through W.deck (units/naval/deckops.js): it waits in the hangar (AW.pending) until it is spotted, the director taxis
+  // it to cat 1, then its own pilot runs up on the cat and flies off. opts.onAirborne(u) when off the bow.
+  AW.deckLaunch = (u, opts = {}) => {
+    const P = u.ai; P.set('deck');
+    if (W.units.includes(u)) deactivate(u); else if (!AW.pending.includes(u)) AW.pending.push(u);
+    u.deckE = W.deck.request({
+      name: u.name, A: u.sim, kind: u.type,
+      attach: () => { const ok = u.ai.launch(ENV[u.side]); if (ok) feed(`${u.name} ON CAT 1  -  ${opts.what || 'CAP'}`); return ok; },
+      onSpot: () => { activate(u); if (W.deck.place(u.deckE) > 1) feed(`${u.name} SPOTTED  -  NUMBER ${W.deck.place(u.deckE)} FOR CAT 1`); },
+      onUnspot: () => deactivate(u),
+      onAirborne: () => { u.deckE = null; opts.onAirborne && opts.onAirborne(u); },
+      onCancel: (e, why) => { u.deckE = null; if (why === 'NO DECK') { const i = AW.pending.indexOf(u); if (i >= 0) AW.pending.splice(i, 1); u.dead = true; } opts.onCancel && opts.onCancel(u, why); },
+    });
+    if (u.deckE.state !== 'hangar') activate(u);
+    return u.deckE;
+  };
+  const _idle = { pitch: 0, roll: 0, yaw: 0, brakeL: 1, brakeR: 1, throttle: [0.3, 0.3] };
+  function onDeck(u, dt) {   // spotted / taxiing: the deck ops hold the airframe (A.tow), the engines turn at idle
+    const A = u.sim;
+    if (u.dying || u.dead || A.dead) { W.deck.cancel(u.deckE, 'LOST'); u.deckE = null; return; }
+    A.step(dt, _idle, ENV[u.side]); pose(u, dt);
+  }
 
   // ---------------------------------------------------------------- our escorts
   AW.sendEscort = (I) => {
@@ -91,9 +118,9 @@ export function createAirWar(W, ctx, H) {
       if (call) feed(`${name}: ${call}`);
     } });
     A.reset(c.p.x, CARRIER.DECK + c.p.y, c.p.z, c.yaw, { running: true }); A.lights = true;
-    addSimUnit('escort', 1, A, P, model, { name, cap: I && I.pad ? I : null, queued: true, decoys: 6 }, true);
-    P.state = 'queued';
-    return I && I.pad ? `TOMCAT ${modex} TO THE CAT  -  CAP OVER ${I.name}` : `TOMCAT ${modex} TO THE CAT  -  CAP OVER THE ALBATROSS`;
+    const u = addSimUnit('escort', 1, A, P, model, { name, cap: I && I.pad ? I : null, decoys: 6 }, true);
+    const e = AW.deckLaunch(u, { what: u.cap ? 'CAP ' + u.cap.name : 'CAP OVER THE SHIP' }), place = W.deck.place(e);   // DECK OPS
+    return `TOMCAT ${modex} ${e.state === 'hangar' ? 'IN THE HANGAR' : 'SPOTTED'}  -  NUMBER ${place} FOR CAT 1  -  CAP OVER ${I && I.pad ? I.name : 'THE ALBATROSS'}`;
   };
   function laneClear(c, yaw = c.yaw, max = 400) {   // open water ahead of the bow along heading yaw
     const fx_ = -Math.sin(yaw), fz = -Math.cos(yaw);
@@ -107,14 +134,6 @@ export function createAirWar(W, ctx, H) {
       const y = c.yaw + s * k * Math.PI / 12;
       if (laneClear(c, y, 700)) { W.orderCarrier(c.p.x - Math.sin(y) * 500, c.p.z - Math.cos(y) * 500); feed('ALBATROSS: TURNING INTO CLEAR WATER TO LAUNCH THE TOMCATS'); return; }
     }
-  }
-  function launchQueued(u, dt) {
-    const c = carrierOf(1); if (!c) { AW.pending.splice(AW.pending.indexOf(u), 1); return; }
-    const busy = W.units.some(o => o.type === 'escort' && o.ai && o.ai.state === 'cat') || AW.pending.find(o => o.queued) !== u;   // one at a time, in order
-    if (busy || W.time - AW.lastCat < AIR.CAT_GAP) return;
-    u.waitT = (u.waitT || 0) + dt;
-    const env = ENV[1];
-    if (u.ai.launch(env)) { u.queued = false; activate(u); AW.lastCat = W.time; feed(`${u.name} ON CAT 2  -  ${u.cap ? 'CAP ' + u.cap.name : 'CAP OVER THE SHIP'}`); }
   }
 
   // ---------------------------------------------------------------- the RUNAWAY air arm
@@ -155,6 +174,7 @@ export function createAirWar(W, ctx, H) {
     AW.pl = pl;
     if (u.drone) return updateShahed(u, dt);
     const A = u.sim, P = u.ai;
+    if (u.deckE && A.tow) return onDeck(u, dt);   // DECK OPS: on a spot or taxiing
     if (u.type === 'escort') {   // CAP point: the ordered island, else the ship
       const c = carrierOf(1);
       if (P.state === 'cat') {   // the shooter only fires with open water ahead of the bow; the ship turns into clear water for the launch
@@ -230,7 +250,6 @@ export function createAirWar(W, ctx, H) {
       else if (u.type === 'reaper') { feed('ENEMY REAPER SHOT DOWN', 'good'); ctx.addScore?.(300); }
     }
     for (const u of AW.pending.slice()) {
-      if (u.queued) { launchQueued(u, dt); continue; }
       if (u.drone && (u.delay -= dt) <= 0) {   // off the rail with a booster
         const D = u.drone; activate(u); if (hear(D.pos.x, D.pos.y, D.pos.z, 400) > 0) sfx.rocket?.();
         for (let i = 0; i < 8; i++) fx.mix?.spawn(D.pos.x, D.pos.y, D.pos.z, rnd(-2, 2), rnd(0, 2), rnd(-2, 2), rnd(0.8, 1.6), 1.2, 3, .85, .85, .85, 0.5, -0.2, 1, 0.4);

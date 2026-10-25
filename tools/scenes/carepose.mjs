@@ -50,7 +50,7 @@ export default async function (h) {
   await h.eval(`__ff(90, 1 / 30, () => __GS.units.some(u => u.ai && /dragging/.test(u.ai.state)))`);
   await h.eval(`(() => { window.__drg = __GS.units.find(u => u.ai && /dragging/.test(u.ai.state)); __GS.enrich(__drg); __ff(0.4); window.__cam = { follow: __drg, rel: true, yaw: 1.35, d: 3.6, h: 0.9, ty: 0.7 }; return { who: __drg && __drg.name, state: __drg && __drg.ai.state, d: __drg && +Math.hypot(__drg.x - __cas.x, __drg.z - __cas.z).toFixed(2) }; })()`);
   await h.expect(`!!window.__drg`, 'a buddy takes him by the drag strap');
-  await h.wait(1500);   // (the hands blend off the rifle)
+  await h.eval('__ff(0.8, 1 / 30, () => !/dragging/.test(__drg.ai.state))');   // the hands blend off the rifle (ngc/bugsweep: 0.8 s stepped here - a 1.5 s game-clock wait let him switch to the fireman's carry first)
   await h.eval(`({ handR: __hand(__drg), handL: __hand(__drg, 'L'), rifle: __rifle(__drg), state: __drg.ai.state })`);
   await h.expect(`/dragging/.test(__drg.ai.state) && __hand(__drg).y < 0.8 && __hand(__drg, 'L').y < 0.8 && __hand(__drg).fwd > 0.25 && __rifle(__drg).fwd < 0.2`, 'dragging: crouched, both hands low in front on the strap, the rifle slung on his back');
   await h.shot('ai-drag');

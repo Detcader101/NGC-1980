@@ -68,7 +68,7 @@ export function createCrew(members, { seed = 5 } = {}) {
     for (let i = 0; i < n; i++) {
       const p = members[i]; p.ph += dt;
       let { x, z, yaw } = p, lean = 0, drop = 0, aL = 0, aR = 0, aLz = 0.06, aRz = 0.06, lL = 0, lR = 0;
-      const push = p.mode !== 'seated' && avoid && avoid(x, z);
+      const push = p.mode !== 'seated' && p.director === undefined && avoid && avoid(x, z);   // (DECK OPS: the directors are placed by deckops.js)
       if (push) {   // clear the area: walk briskly away, crouched against the downwash
         const len = Math.hypot(push[0], push[1]) || 1, sp = 2.4 * dt;
         p.x += push[0] / len * sp; p.z += push[1] / len * sp; x = p.x; z = p.z;
@@ -86,6 +86,10 @@ export function createCrew(members, { seed = 5 } = {}) {
           p.s += p.speed * dt; if (p.s >= L) { p.s -= L; p.seg = (p.seg + 1) % P.length; }
           const k = p.s / L; x = p.x = a[0] + dx * k; z = p.z = a[1] + dz * k; yaw = Math.atan2(-dx, -dz);
           const w = p.ph * p.speed * 5.2; lL = Math.sin(w) * 0.5; lR = -lL; aL = -lL * 0.7; aR = lL * 0.7; drop = -Math.abs(Math.cos(w)) * 0.03 + 0.03;
+          break;
+        }
+        case 'march': {   // (DECK OPS) walking where the deck ops put him (x, z, yaw set from outside)
+          const w = p.ph * 6.2; lL = Math.sin(w) * 0.5; lR = -lL; aL = -lL * 0.7; aR = lL * 0.7; drop = -Math.abs(Math.cos(w)) * 0.03 + 0.03;
           break;
         }
         case 'signal': {   // marshalling: both arms up, alternating "come ahead"

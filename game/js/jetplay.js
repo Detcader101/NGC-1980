@@ -49,7 +49,7 @@ export function createJetPlay(ctx) {
   const cmPose = { get vel() { return J.vel; }, toWorld: (l, o) => { _cmv.set(l[0], l[1], l[2]).applyQuaternion(J.q).add(J.pos); o.x = _cmv.x; o.y = _cmv.y; o.z = _cmv.z; return o; }, dirWorld: (l, o) => { _cmv.set(l[0], l[1], l[2]).normalize().applyQuaternion(J.q); o.x = _cmv.x; o.y = _cmv.y; o.z = _cmv.z; return o; } };
   const env = {
     groundY: ctx.groundY, water: ctx.waterAt, surfVel: war.surfVel, mods: null,
-    carrier: () => { const c = war.carrier; return c && c.sinking === undefined ? { x: c.p.x, z: c.p.z, yaw: c.yaw, deck: ctx.CARRIER.DECK + c.p.y, deckAt: war.deckAt ? (x, z) => war.deckAt(c, x, z) : null } : null; },   // NAVAL: deckAt = the deck moving with the sea
+    carrier: () => { const c = war.carrier; return c && c.sinking === undefined ? { x: c.p.x, z: c.p.z, yaw: c.yaw, deck: ctx.CARRIER.DECK + c.p.y, deckAt: war.deckAt ? (x, z) => war.deckAt(c, x, z) : null, att: c.att } : null; },   // NAVAL: deckAt = the deck moving with the sea
   };
 
   // ---------------------------------------------------------------- life cycle
@@ -57,14 +57,15 @@ export function createJetPlay(ctx) {
     D.reset(); P.cm.reset(); J.stores.aam = [true, true]; J.stores.bomb = [true, true, true, true]; J.gun = HORNET.GUN_MAX; J.dead = false;
     J.fuel = Math.min(HORNET.FUEL_MAX, Math.max(HORNET.FUEL_MAX * 0.35, ctx.takeFuel(100) * KG_PER_UNIT));
     for (const e of J.eng) { e.run = true; e.n = 0.68; e.egt = 430; }
-    if (!J.attachCat(env)) return false;
+    const how = ctx.deckSpot ? ctx.deckSpot(J, env, 'HORNET') : (J.attachCat(env) ? 'cat' : '');   // (ngc/bugsweep) DECK OPS: on cat 1 if it is free, else spotted in the queue
+    if (!how) return false;
     for (const e of J.eng) { e.run = true; e.n = 0.68; e.egt = 430; }
     Object.assign(P, { active: true, alive: true, ejected: null, mode: 'NAV', arm: true, tgt: null, lockT: 0, thr: 0, thrSrc: 'kb', blood: 0, red: 0, gloc: 0, deadT: 0, ejectHold: 0, batt: true, apu: 'OFF', crank: -1, autoStart: null });
     J.nzMax = J.nzMin = 1; P.mcSeen.clear(); P.serviced = true; model.group.visible = true; chute.visible = false;
-    say('HORNET ON CAT 1  -  THROTTLE TO MIL (OR AB) TO LAUNCH', 3); return true;
+    say(how === 'cat' ? 'HORNET ON CAT 1  -  THROTTLE TO MIL (OR AB) TO LAUNCH' : `HORNET SPOTTED  -  ${ctx.deckStatus(J)}  ·  5 AGAIN: PRIORITY`, 3); return true;
   };
   P.stow = () => { P.active = false; P.alive = false; model.group.visible = false; shadow.visible = false; chute.visible = false; cockpit.group.visible = false; sfx.jet?.(0, 0, 0, false, false); sfx.seeker?.(0); sfx.jetGun?.(false); };
-  P.respot = () => { if (!J.attachCat(env)) return; if (J.eng.some(e => !e.run)) P.autoStart = 'batt'; say('SPOTTED ON CAT 1  -  MIL POWER TO LAUNCH', 2.5); };
+  P.respot = () => { const how = ctx.deckSpot ? ctx.deckSpot(J, env, 'HORNET') : (J.attachCat(env) ? 'cat' : ''); if (!how) return; if (how !== 'cat') { if (J.eng.some(e => !e.run)) P.autoStart = 'batt'; say(how === 'bump' ? `PRIORITY  -  NEXT FOR CAT 1  ·  ${ctx.deckStatus(J)}` : `SPOTTED  -  ${ctx.deckStatus(J)}`, 2.5); return; } if (J.eng.some(e => !e.run)) P.autoStart = 'batt'; say('SPOTTED ON CAT 1  -  MIL POWER TO LAUNCH', 2.5); };
   P.stoppedOnDeck = () => P.alive && !P.ejected && J.onGround && !J.wire && !J.cat && relSpeed() < 0.6 && !!ctx.onCarrier(J.pos.x, J.pos.z);
   function relSpeed() { const sv = war.surfVel(J.pos.x, J.pos.z); return Math.hypot(J.vel.x - (sv ? sv.vx : 0), J.vel.z - (sv ? sv.vz : 0)); }
   function lose(why) {
@@ -240,7 +241,7 @@ export function createJetPlay(ctx) {
     if (!P.alive) { P.deadT -= dt; updateChute(dt); return; }
     const c = P.autopilot ? P.autopilot(J, dt, P.ctl) : readControls(dt); buttons();   // autopilot: test hook
     if (J.cat) J.catClear = ctx.catClear();
-    war.carrier?.parts.setJBD?.(J.cat ? 1 : 0, dt);   // NAVAL: the jet blast deflector comes up behind a jet on the catapult
+    // (the JBD behind cat 1 follows the deck ops queue: war.js deckFrame)
     // eject: hold the HOTAS eject button or Backspace for a second
     const held = ctx.keyDown('Backspace') || CTL.state.actions.eject, now = performance.now();   // real time: a hold is a human second
     if (!held) P.ejectHold = 0; else if (!P.ejectHold) P.ejectHold = now; else if (now - P.ejectHold > 900) eject();
@@ -320,7 +321,7 @@ export function createJetPlay(ctx) {
     if (D.damaged()) D.repair(0.2 * dt);
     P.cm.rearm(dt);   // CM
     const full = P.cm.full() && J.fuel > HORNET.FUEL_MAX - 1 && J.stores.aam.every(Boolean) && J.stores.bomb.every(Boolean) && J.gun >= HORNET.GUN_MAX && !D.damaged();
-    if (full && !P.serviced) { P.serviced = true; say('ALBATROSS DECK CREW  -  FUELLED AND ARMED  -  5: CAT  ·  Y: HELICOPTER', 3); }
+    if (full && !P.serviced) { P.serviced = true; say(J.tow ? 'ALBATROSS DECK CREW  -  FUELLED AND ARMED ON THE SPOT' : 'ALBATROSS DECK CREW  -  FUELLED AND ARMED  -  5: CAT  ·  Y: HELICOPTER', 3); }
   }
   // pilot g tolerance: above ~5 g blood drains from the head (grey-out, tunnel vision, then G-LOC for a few
   // seconds with the hands off the stick); below -2.5 g, red-out
@@ -482,6 +483,7 @@ export function createJetPlay(ctx) {
   P.hint = () => {
     if (!P.alive) return P.ejected ? 'UNDER THE CANOPY  -  WAITING FOR RESCUE' : '';
     if (J.onGround && !J.eng[0].run && !J.eng[1].run) return P.crank >= 0 ? `CRANKING ${P.crank ? 'RIGHT' : 'LEFT'}  -  LIGHT-OFF AT 24%` : P.apu === 'START' ? 'APU STARTING  -  WAIT FOR THE GREEN READY LIGHT' : P.apu === 'READY' ? 'APU READY  -  ENG CRANK R, THEN L (RIGHT CONSOLE)' : 'ENGINES OFF  -  I: FULL START, OR BATT, APU, ENG CRANK ON THE RIGHT CONSOLE';
+    if (J.tow && ctx.deckStatus) return `${ctx.deckStatus(J)}  ·  5: PRIORITY (SKIP THE QUEUE)`;   // DECK OPS
     if (J.cat && J.cat.state === 'hold' && J.catClear === false) return 'CAT 1 HOLD  -  THE ALBATROSS IS TURNING INTO CLEAR WATER FOR THE LAUNCH';
     if (J.cat && J.cat.state === 'hold') return J.eng[0].n > 0.95 ? 'MIL POWER  -  STAND BY FOR THE SHOT' : 'HOOKED UP ON CAT 1  -  THROTTLE TO MIL (80%+) OR AFTERBURNER';
     if (J.wire && J.wire.held > 0) return 'TRAPPED  -  THROTTLE TO IDLE, HOOK UP (H)';

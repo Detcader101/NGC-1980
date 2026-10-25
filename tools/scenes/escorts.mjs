@@ -16,7 +16,7 @@ export default async function (h) {
   await h.expect('__G.war.air.pending.length + __esc().length === 2');
   await h.waitFor('__esc().length >= 1 && __esc()[0].ai.state === "cat"', 15000);
   await h.eval('(window.__cam = { u: __esc()[0], off: [-14, 6, 22] }, 1)'); await h.wait(3000); await h.shot('on_the_cat');
-  await h.waitFor('__esc()[0] && __esc()[0].ai.state === "climb"', 20000);
+  await h.waitFor('__esc()[0] && __esc()[0].ai.state === "climb"', 90000);   // (the shot waits for the carrier to turn into clear water: ~25 s of game time, ~40 s headless)
   await h.eval('(window.__cam = { u: __esc()[0], off: [-10, 4, 30] }, 1)'); await h.wait(600); await h.shot('cat_shot');
   await h.waitFor('__esc().length === 2 && __esc().every(u => u.ai.state === "cap")', 90000);
   await h.eval('__esc().map(u => ({ name: u.name, state: u.ai.state, y: Math.round(u.p.y), eas: Math.round(u.sim.eas * 1.944), fuel: Math.round(u.sim.fuel), log: u.ai.log.map(l => l.t + " " + l.msg).join("; ") }))');

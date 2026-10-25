@@ -45,7 +45,7 @@ export function createTomcatCraft(ctx) {
       if (!crafts.control('tomcat', 0, 'command')) return false;
       TP.snapChase(); head.yaw = head.pitch = 0; ctx.turnIntoClear(); return true;
     }
-    if (G.craft === 'tomcat') { if (TP.stoppedOnDeck() || A.cat) { TP.respot(); ctx.turnIntoClear(); } else say('TRAP ON THE ALBATROSS FIRST: GEAR, FLAPS DN, HOOK DOWN', 2); return; }
+    if (G.craft === 'tomcat') { if (TP.stoppedOnDeck() || A.cat || A.tow) { TP.respot(); ctx.turnIntoClear(); } else say('TRAP ON THE ALBATROSS FIRST: GEAR, FLAPS DN, HOOK DOWN', 2); return; }
     if (D.present() && !park.on) { crafts.control('tomcat', 0, 'command'); return; }   // COMMANDER: out with the wingman - take her where she is
     if (G.craft !== 'heli') { say(D.present() && park.on ? 'WALK TO THE PARKED TOMCAT AND CLIMB IN (Y AT THE LADDER, LEFT SIDE)' : 'LAND THE HELICOPTER ON THE ALBATROSS TO TAKE A TOMCAT', 1.8); return; }
     if (!ctx.heliOnDeck()) { say('LAND ON THE ALBATROSS TO TAKE A TOMCAT', 1.8); return; }
@@ -87,6 +87,7 @@ export function createTomcatCraft(ctx) {
   D.recall = () => { if (D.wing) D.wing.recall(); };
   D.status = () => !D.present() ? '' : D.wing ? (D.wing.state === 'cap' || D.wing.state === 'climb' ? 'CAP' : D.wing.state === 'trapped' ? 'RECOVERING' : D.wing.state === 'cat' ? 'LAUNCHING' : 'RETURNING') : park.on ? 'PARKED ON DECK' : 'FLYING';
   function parkHere() {   // the crew climbs down: engines off, canopy up, parking brake set; it rides the deck where it stopped
+    if (A.tow) ctx.deckCancel?.(A);   // (ngc/bugsweep) DECK OPS: out of the launch queue, parked where the director had her
     D.wing = null;
     if (A.cat) { A.cat = null; A.launchBar = false; park.cat = true; } else park.cat = false;
     TP.shutdown();   // throttles OFF, crank OFF: a cold jet for the next crew (the start on the switches, or I)
@@ -126,12 +127,13 @@ export function createTomcatCraft(ctx) {
     }
   };
   D.lost = (why, ejected) => {
+    ctx.deckCancel?.(A);   // DECK OPS
     const mine = crafts.active === D; park.on = false; D.wing = null;   // COMMANDER: the fleet's loss (craftjet.js has the same)
     feed(ejected ? 'TOMCAT LOST  -  CREW RECOVERED' : 'TOMCAT AND CREW LOST', 'bad');
     if (mine) { G.tomcatDownT = ejected ? 0.5 : 3; if (ejected) say(why, 2.5); }
     ctx.onUnitLost?.('tomcat', why, mine);
   };
-  D.writeOff = () => { TP.stow(); park.on = false; G.tomcatDownT = 0; D.wing = null; };
+  D.writeOff = () => { ctx.deckCancel?.(A); TP.stow(); park.on = false; G.tomcatDownT = 0; D.wing = null; };
   D.key = code => {
     if (code === 'KeyJ') { CTL.toggle(); return true; }
     if (TP.key(code)) return true;

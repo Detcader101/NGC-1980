@@ -463,14 +463,18 @@ export function buildAlbatross(side = 1, opts = {}) {
   for (const L of [...ISLAND_LADDERS, STERN_LADDER]) buildLadderGeo(kit, L);
   // vehicles and deck clutter
   // (the port strip from z -6 to -36 is the vehicle park: ground.js DECK_SPOTS put the Marines' jeep and armour there)
-  tractor(kit, 5.6, -1.5, 0.4); tractor(kit, 12.2, 38, Math.PI); tractor(kit, -10.6, -45, -0.25, 0xe8e8e2);
-  tilly(kit, 5.9, 12.5, 0.05); bowser(kit, 11.4, -14.5, Math.PI); huffer(kit, 4.6, -16, 1.2); huffer(kit, 4.3, 46, -0.6);
+  // (ngc/bugsweep) DECK OPS: Tilly and the aft tractor moved off the taxi lane and the jet spots (units/naval/deckops.js)
+  tractor(kit, 5.6, -1.5, 0.4); tractor(kit, 5.5, 58.6, Math.PI / 2); tractor(kit, -10.6, -45, -0.25, 0xe8e8e2);
+  tilly(kit, 10.6, -7.2, 0.05); bowser(kit, 11.4, -14.5, Math.PI); huffer(kit, 4.6, -16, 1.2); huffer(kit, 4.3, 46, -0.6);
   for (const [x, z] of [[4.2, -25], [6.4, 24], [12.4, 15.8], [-12.6, 2], [-12.4, -40]]) fireBottle(kit, x, z);
   for (let i = 0; i < 4; i++) kit.box(0.6, 0.15, 3.2, 0x2a2a2a, -13.0 + i * 0.7, DECK + 0.08, 6 + i * 0.4, 0, 0.1, 0);   // tow bars stacked at the edge
-  // parked aircraft: two Hornets forward of the island (tails over the starboard edge), two Tomcats aft (oversweep)
-  const hornets = [[8.9, -47, 0.62], [9.2, -33.2, 0.62]], cats = [[9.0, 27, 0.06], [9.3, 46.5, -0.1]];
+  // parked aircraft: two Hornets forward of the island (tails over the starboard edge); a Tomcat (oversweep) on the aft
+  // starboard lift, below. (ngc/bugsweep: the two Tomcats parked aft of the island, solid since SEAWORLD, were in the landing
+  // area - a Tomcat landing on the centre line (x -2.5, wings at 20 deg: tip at x 7.25) struck the aft one's tail with its
+  // right wingtip; the landing area is kept clear, as on a real deck)
+  const hornets = [[12.6, -47, 0.62], [13.0, -33.2, 0.62]], cats = [];
   const hornetMesh = instanced(hornetGeo(), hornets, 2.05); hornetMesh.name = 'parked-hornets'; g.add(hornetMesh);
-  if (opts.buildTomcat) { const tm = instanced(tomcatGeo(opts.buildTomcat), cats, 0); tm.name = 'parked-tomcats'; g.add(tm); for (const [x, z, yw] of cats) chocks(kit, x, z, yw, 2.6, 0.9, -6.4); }
+  if (opts.buildTomcat && cats.length) { const tm = instanced(tomcatGeo(opts.buildTomcat), cats, 0); tm.name = 'parked-tomcats'; g.add(tm); for (const [x, z, yw] of cats) chocks(kit, x, z, yw, 2.6, 0.9, -6.4); }
   for (const [x, z, yw] of hornets) chocks(kit, x, z, yw, 1.6, 0.6, -4.6);
   // hull decals: the name across the stern, draft marks, rust from the hawse pipes and the scuppers
   const name = sheet.draw(16, 8, 1, (x, w, h) => drawText(x, w, h, 'ALBATROSS', { size: 0.62, color: '#e4e4dc', shadow: '#1a1a1a' }));
@@ -563,10 +567,12 @@ export function buildAlbatross(side = 1, opts = {}) {
       { mode: 'walk', jersey: 'yellow', path: [[3.8, 18], [3.8, 46], [3.8, 18]], speed: 1.1 },
       { mode: 'walk', jersey: 'green', path: [[-8.9, -36], [-8.9, -6], [-8.9, -36]], speed: 1.4 },
       { mode: 'walk', jersey: 'purple', path: [[12.8, -34], [12.8, -12], [12.8, -34]], speed: 0.9 },
-      { mode: 'walk', jersey: 'brown', path: [[12.6, 18], [12.6, 54], [12.6, 18]], speed: 1.2 },
+      { mode: 'walk', jersey: 'brown', path: [[13.5, 18], [13.5, 54], [13.5, 18]], speed: 1.2 },   // (outboard of the jets on the deck-ops spots)
     ];
     for (const p of C) { p.y ??= DECK; if (p.path) { p.x = p.path[0][0]; p.z = p.path[0][1]; } }
     C.push({ mode: 'seated', jersey: 'blue', at: () => tug.seat });
+    // (ngc/bugsweep) DECK OPS: the taxi director and the cat director (yellow), moved by war.js from units/naval/deckops.js
+    C.push({ x: 6.3, z: -3.8, yaw: 2.8, jersey: 'yellow', director: 0, y: DECK }, { x: -9.6, z: -1, yaw: 0.6, jersey: 'yellow', director: 1, y: DECK });
     crew = createCrew(C, { seed: 21 }); g.add(crew.group);
   }
   // ---- SEAWORLD: the deck-edge elevators. Each lift is a group (the platform, its railings, whatever is parked on it)
@@ -595,12 +601,19 @@ export function buildAlbatross(side = 1, opts = {}) {
   const L1 = lifts[0], liftJet = new THREE.Mesh(hornetGeo(), hullMat()); liftJet.name = 'lift-hornet';
   liftJet.position.set(L1.cx + 0.2, 2.05, L1.cz); L1.grp.add(liftJet);
   { const k = new Kit({ wear: 0 }); chocks(k, L1.cx + 0.2, L1.cz, 0, 1.6, 0.6, -4.6); const m = k.mesh(); m.position.y = -DECK; L1.grp.add(m); }
+  // and a Tomcat in oversweep on the aft starboard lift (its wings clear the landing area: inboard tip at x ~10.7)
+  const L2 = lifts[1];
+  if (opts.buildTomcat) {
+    const liftCat = new THREE.Mesh(tomcatGeo(opts.buildTomcat), hullMat()); liftCat.name = 'lift-tomcat'; liftCat.position.set(L2.cx, 0, L2.cz); L2.grp.add(liftCat);
+    const k = new Kit({ wear: 0 }); chocks(k, L2.cx, L2.cz, 0, 2.6, 0.9, -6.4); const m = k.mesh(); m.position.y = -DECK; L2.grp.add(m);
+  }
   // everything parked, as footprints in the ship frame: { x, z, c, s (heading), fp, base() (y of the geometry origin) }
   const parked = [];
   const park = (geo, x, z, yaw, base) => parked.push({ x, z, c: Math.cos(yaw), s: Math.sin(yaw), fp: heightField(geo), base });
   for (const [x, z, yw] of hornets) park(hornetGeo(), x, z, yw, () => DECK + 2.05);
   if (opts.buildTomcat) for (const [x, z, yw] of cats) park(tomcatGeo(opts.buildTomcat), x, z, yw, () => DECK);
   park(hornetGeo(), L1.cx + 0.2, L1.cz, 0, () => L1.y + 2.05);
+  if (opts.buildTomcat) park(tomcatGeo(opts.buildTomcat), L2.cx, L2.cz, 0, () => L2.y);
   // the deck with the lifts and the parked aircraft in it (war.js deckY: parts.localDeck)
   // (0.3 m inboard of the platform too: the deck stops at 0.985 of its half width, and nobody falls through the seam)
   const liftAt = (lx, lz) => { for (const L of lifts) if ((L.sd > 0 ? lx > L.E.x0 - 0.3 && lx < L.E.x1 : lx > L.E.x0 && lx < L.E.x1 + 0.3) && lz > L.E.z0 && lz < L.E.z1) return L; return null; };

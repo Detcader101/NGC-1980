@@ -318,11 +318,13 @@ export function createGround(ctx) {
   // ------------------------------------------------------------------ spawn points
   // carrier deck parking spots (local; clear of the catapult and the landing area). SEAWORLD: moved to the port bow
   // (were x 9 on the starboard side, nose to nose with the parked Hornets, which are solid now), clear 12 m ahead
-  const DECK_SPOTS = [{ name: 'ALBATROSS DECK PARK 1', lx: -10.5, lz: -16, yaw: 0 }, { name: 'ALBATROSS DECK PARK 2', lx: -10.5, lz: -29, yaw: 0 }, { name: 'ALBATROSS DECK PARK 3', lx: -10.5, lz: -42, yaw: 0 }];
+  // (ngc/bugsweep) DECK OPS: the first two between the island and the parked Hornets, clear of cat 1 (a Tomcat on the
+  // shot spreads its wings to x -12.3 .. 7.3 at 2.4 m: a truck at the port bow stood in their way)
+  const DECK_SPOTS = [{ name: 'ALBATROSS DECK PARK 1', lx: 9.2, lz: -19, yaw: 0 }, { name: 'ALBATROSS DECK PARK 2', lx: 9, lz: -25, yaw: 0 }, { name: 'ALBATROSS DECK PARK 3', lx: -10.5, lz: -16, yaw: 0 }, { name: 'ALBATROSS DECK PARK 4', lx: -10.5, lz: -29, yaw: 0 }, { name: 'ALBATROSS DECK PARK 5', lx: -10.5, lz: -42, yaw: 0 }];
   GR.DECK_SPOTS = DECK_SPOTS;
   // SEAWORLD: parked aircraft are solid now, so a spot is used only when the deck round it is clear (flat at deck
   // height over a car-sized 2.2 x 4.8 m footprint); else the next of these candidates (port side forward, aft of the island)
-  const DECK_SPARE = [{ lx: 9, lz: -20 }, { lx: 4.5, lz: 16 }, { lx: 11, lz: 12 }, { lx: -9.5, lz: 6 }];
+  const DECK_SPARE = [{ lx: -9.5, lz: 6 }];   // (ngc/bugsweep: x 4.5 / 11 by the island are the deck-ops taxi lane now)
   const deckClear = (u, lx, lz) => {
     if (!u.parts || !u.parts.localDeck) return true;
     for (const [ox, oz] of [[0, 0], [1.1, 0], [-1.1, 0], [0, 2.4], [0, -2.4], [1.1, 2.4], [-1.1, 2.4], [1.1, -2.4], [-1.1, -2.4]]) if (Math.abs(u.parts.localDeck(lx + ox, lz + oz) - CARRIER.DECK) > 0.05) return false;

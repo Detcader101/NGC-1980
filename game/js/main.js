@@ -661,7 +661,24 @@ const jetPlayCtx = {   // TOMCAT: shared by the HORNET (jetplay.js) and the TOMC
   takeFuel: u => { const t = Math.max(0, Math.min(u, G.res)); G.res -= t; return t; },
   onCarrier: (x, z) => { const u = war.shipAt(x, z); return !!u && u === war.carrier && u.sinking === undefined; },
   selectedIsland: () => selIsl, drawMap: (c, k) => drawJetMap(c, k), catClear: () => { const c = war.carrier; return !!c && laneClear(c, c.yaw) > 320; },
+  deckSpot: (A, env, who) => deckSpot(A, env, who), deckStatus: A => { const e = war.deck.entries.find(e => e.A === A); return e ? war.deck.status(e) : ''; },
 };
+// (ngc/bugsweep) DECK OPS: the player's jet joins the ALBATROSS launch queue (units/naval/deckops.js). Straight onto cat 1
+// when nobody is ahead and the deck is open (as before); else spotted, and the director taxis her up. Asked again while
+// in the queue: the commander's priority - next onto the cat, straight from the spot. -> 'cat' | 'spot' | 'bump' | ''
+function deckSpot(A, env, who) {
+  const DO = war.deck, c = war.carrier; if (!c || c.sinking !== undefined) return '';
+  const old = DO.entries.find(e => e.A === A);
+  if (old) { if (A.cat) return 'cat'; DO.bump(old); return A.cat ? 'cat' : 'bump'; }
+  A.cat = null; A.tow = null;
+  const e = DO.request({ name: who === 'TOMCAT' ? 'TOMCAT (YOU)' : 'HORNET (YOU)', A, kind: who.toLowerCase(), player: true,
+    attach: () => { const ok = A.attachCat(env); if (ok) say(`${who} ON CAT 1  -  ${who === 'TOMCAT' ? 'THROTTLES' : 'THROTTLE'} TO MIL FOR THE SHOT`, 3); return ok; },
+    onCancel: () => {} });
+  if (DO.quick(e)) return 'cat';
+  if (e.state === 'hangar') { DO.cancel(e, 'DECK FULL'); say('DECK FULL  -  EVERY SPOT IS TAKEN, TRY AGAIN SHORTLY', 2.5); return ''; }
+  return 'spot';
+}
+const deckCancel = A => { const e = war.deck.entries.find(e => e.A === A); if (e) war.deck.cancel(e, 'STOOD DOWN'); A.tow = null; };
 const JP = createJetPlay({
   ...jetPlayCtx,
   onLost: (why, ejected) => jetC.lost(why, ejected), onEject: () => {}, toggleView: () => { cockpitCam = !cockpitCam; if (!cockpitCam) JP.snapChase(); },
@@ -681,6 +698,16 @@ function turnIntoClear() {
   war.orderCarrier(c.p.x - Math.sin(best) * 500, c.p.z - Math.cos(best) * 500); feed('ALBATROSS: TURNING INTO CLEAR WATER FOR THE LAUNCH'); return true;
 }
 // 5 on the ALBATROSS deck: climb into a Hornet on the catapult (craftjet.js); Y on deck: get out and walk
+war.deckHooks.obstacles = (c, toL) => {   // DECK OPS: what the player leaves on the deck fouls it
+  const out = [];
+  if (Z.alive && !G.heliStowed && G.mode === 'zarch') { const [lx, lz] = toL(H.pos.x, H.pos.z), hy = H.pos.y - c.p.y - CARRIER.DECK; if (hy < 12 && Math.abs(lx) < 16 && Math.abs(lz) < 64) out.push({ lx, lz, r: 7.5, why: 'THE HUEY IS ON THE DECK' }); }
+  for (const [D, A] of [[jetC, JP.J], [tomcatC, tomcatC.TP.A]]) if (D.present() && D.park.on) { const [lx, lz] = toL(A.pos.x, A.pos.z); if (Math.abs(lx) < 16 && Math.abs(lz) < 64) out.push({ lx, lz, r: 4, why: `THE ${D.label} IS PARKED IN THE WAY` }); }
+  return out;
+};
+war.deckHooks.landing = (c) => {   // the player's jet on approach: hook and gear down, behind the ship, inside 3 km, below 400 m
+  for (const [D, A] of [[jetC, JP.J], [tomcatC, tomcatC.TP.A]]) if (D.present() && !D.park.on && !A.onGround && A.hookCmd && A.gearCmd && Math.hypot(A.pos.x - c.p.x, A.pos.z - c.p.z) < 3000 && A.pos.y < c.p.y + 400) return true;
+  return false;
+};
 const launchJet = () => jetC.launch();
 const swapToHeli = () => getInOut();
 // the AMPCD moving map (drawn in world metres; k = pixels per metre)
@@ -1097,8 +1124,8 @@ const heliC = crafts.register({
 });
 // COMMANDER: what both jets get for the wingman (units/commander/wingman.js), the fleet's losses and cat 1
 const jetCmd = {
-  createWingman, onUnitLost: (id, why, mine) => onUnitLost(id, why, mine), catBusy: D => catBusy(D),
-  aiEnv: wingmanEnv({ terrain: (x, z) => Math.max(terrainH(x, z), 0), carrier: () => war.carrier && war.carrier.sinking === undefined ? war.carrier : null, deckAt: war.deckAt, DECK: CARRIER.DECK }),
+  createWingman, onUnitLost: (id, why, mine) => onUnitLost(id, why, mine), catBusy: D => catBusy(D), deckCancel: A => deckCancel(A),
+  aiEnv: wingmanEnv({ terrain: (x, z) => Math.max(terrainH(x, z), 0), carrier: () => war.carrier && war.carrier.sinking === undefined ? war.carrier : null, deckAt: war.deckAt, DECK: CARRIER.DECK, deckClear: () => war.deck.deckClear(), wantDeck: () => { war.deck.wantT = war.time; } }),
 };
 // --- the HORNET
 const jetC = crafts.register(createJetCraft({
@@ -1984,8 +2011,10 @@ const tagPool = [], _tv = new THREE.Vector3();
 const KIND_NAME = { hq: 'HEADQUARTERS', fortress: 'CAVE FORTRESS', fuel: 'FUEL', factory: 'FACTORY', radar: 'RADAR' };
 function updateTags() {
   let n = 0; markers.avoid(null);   // (UNIT MARKERS: this frame's tags)
+  const jetCk = JP.cockpit.group.visible || tomcatC.TP.cockpit.group.visible;
   const put = (x, y, z, html, d) => {
     _tv.set(x, y, z).project(zCam); if (_tv.z > 1 || Math.abs(_tv.x) > 1.05 || Math.abs(_tv.y) > 1.05) return;
+    if (jetCk && _tv.y < -0.05) return;   // (ngc/bugsweep) in a jet cockpit, nothing under the glareshield: a tag below it was drawn over the instrument panel
     if (n >= tagPool.length) { const e = document.createElement('div'); e.style.cssText = 'position:absolute;left:0;top:0;width:240px;margin-left:-120px;text-align:center;font-size:12px;line-height:1.35;white-space:nowrap;text-shadow:0 0 3px #000,0 0 5px #000'; tagBox.appendChild(e); tagPool.push(e); }
     const e = tagPool[n++]; if (e._h !== html) { e._h = html; e.innerHTML = html; }
     e.style.display = 'block'; e.style.transform = `translate(${((_tv.x + 1) / 2 * innerWidth).toFixed(0)}px,${((1 - _tv.y) / 2 * innerHeight - 30).toFixed(0)}px)`; e.style.opacity = clamp(1.4 - d / 380, 0.25, 1).toFixed(2);
@@ -2012,7 +2041,7 @@ function updateHud() {
   {   // in the cockpit the instruments carry fuel / rpm / speed, so the bottom text block steps aside and the map moves up
     const ck = cockpit.group.visible || JP.cockpit.group.visible || tomcatC.TP.cockpit.group.visible; setStyle('bot', 'display', ck || bigMap ? 'none' : 'block');
     for (const id of ['tl', 'hint', 'feed', 'war']) setStyle(id, 'display', bigMap ? 'none' : 'block');   // the command map has its own read-outs
-    setStyle('radar', 'bottom', ck && !bigMap ? 'auto' : ''); setStyle('radar', 'top', ck && !bigMap ? '64px' : ''); setStyle('feed', 'top', ck ? '236px' : '');
+    setStyle('radar', 'bottom', ck && !bigMap ? 'auto' : ''); setStyle('radar', 'top', ck && !bigMap ? '64px' : ''); setStyle('feed', 'top', ck ? 'calc(max(22%, 236px) + 76px)' : '');   // (ngc/bugsweep) under the map and under the centre message (#msg: up to two lines at max(22%, 236px)) - at 236px the feed ran through it
   }
   crossEl.style.display = document.pointerLockElement === canvas && (cockpit.group.visible || JP.cockpit.group.visible || tomcatC.TP.cockpit.group.visible || armCk()) || (G.craft === 'foot' && !foot.marine && foot.alive && foot.firstPerson() && G.state === 'play') || (G.state === 'play' && crafts.active && crafts.active.switches && crafts.active.firstPerson()) ? 'block' : 'none';   // ngc/wheeledgame: a dot to work the cab's switches / lay the gun
   const ch = G.craft !== 'heli' && crafts.active ? crafts.active.hud() : null;   // FOUNDATION: any other craft's read-outs
@@ -2302,6 +2331,6 @@ function markerView() {
 }
 buildCaves(); war.reset(); resetZarch(true); placeVehicles(); updateFogImg(); terrainStream(Z.pos.x, Z.pos.z);
 requestAnimationFrame(frame);
-if (params.has('debug')) { window.__G = { G, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, forest, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, get tech() { return war.tech; }, techUI /* TECH TREE: tech = [null, player, enemy] */ }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); enterCave(b); } }
+if (params.has('debug')) { window.__G = { G, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, forest, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, get tech() { return war.tech; }, techUI /* TECH TREE: tech = [null, player, enemy] */ }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); H.reset(H.pos.clone(), 0, false, 1); SY.grip = 1; SY.auto = null; enterCave(b); }   /* (ngc/bugsweep) ?thrust=N starts in the cave already flying: engine at flight power, throttle rolled on (it came in at ground idle with the throttle rolling on, the rotor drooped and caveaim / caves crashed in the shaft) */ }
 // SIM MODE (?sim): both sides CPU commanders, the player's Huey parked out of the war, a spectator camera and overlay
 if (params.has('sim')) { SIM = createSpectator({ war, THREE, params, scene: zScene, terrainH, nav, groundY, sfx, fog, feed, say, newGame, stowHeli }); SIM.start(); }

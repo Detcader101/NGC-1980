@@ -13,7 +13,8 @@ export function flyMV22(S, P, st, cmd, dt, agl) {
   const c = P.ctl;
   if (cmd.ground) {
     P.reset(cmd.collFix ?? 0); P.nacT = 90;
-    c.tcl = cmd.collFix ?? 0; c.lon = c.lat = c.ped = 0; c.nac = cmd.fold ? 0 : 90; c.gear = 1; c.flap = 1;
+    const k = Math.exp(-dt / 0.8);   // (ngc/bugsweep) stick and pedals wash out from where they were, as ch46ai.js
+    c.tcl = cmd.collFix ?? 0; c.lon *= k; c.lat *= k; c.ped *= k; c.nac = cmd.fold ? 0 : 90; c.gear = 1; c.flap = 1;
     return c;
   }
   if (S.body.contacts >= 2) { P.i.lon = P.i.lat = P.i.th = P.i.ph = 0; P.i.tcl = Math.min(P.i.tcl, S.c.tcl + 0.04); }

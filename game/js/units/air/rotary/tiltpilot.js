@@ -28,7 +28,7 @@ export function createTiltPilot(G, sim) {
       const V = Math.hypot(s.vx, s.vz), ias = sim.ias, nac = sim.nac / D2R;
       // ---- the velocity error and the acceleration it asks for (heading frame)
       const evx = (cmd.vx ?? 0) - s.vx, evz = (cmd.vz ?? 0) - s.vz, ef = evx * fx + evz * fz, er = evx * -fz + evz * fx;
-      const af = clamp(ef * G.kv, -G.aMax, G.aMax) + ((cmd.ax ?? 0) * fx + (cmd.az ?? 0) * fz), ar = clamp(er * G.kv, -G.aMax, G.aMax);
+      const af = clamp(ef * G.kv, -G.aMax, G.aMax) + ((cmd.ax ?? 0) * fx + (cmd.az ?? 0) * fz), ar = clamp(er * G.kv, -G.aMax, G.aMax) + ((cmd.ax ?? 0) * -fz + (cmd.az ?? 0) * fx);   // (ngc/bugsweep: + the sideways feed-forward, as pilot.js: a turning deck spot)
       // ---- nacelles: a tiltrotor pilot accelerates and slows with the nacelle thumbwheel, attitude near level: the
       // schedule for the present airspeed plus a lead from the acceleration wanted, held inside the corridor
       // (slowing down from airplane mode: on power first - the nacelles only lead the slowdown once below 1.15 Vs)

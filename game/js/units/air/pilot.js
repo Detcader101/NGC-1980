@@ -32,7 +32,7 @@ const _d = new THREE.Vector3(), _t = new THREE.Vector3(), _r = new THREE.Vector3
 export const PILOTS = {
   TOMCAT: {
     climbEAS: 150, capEAS: 128, corner: 170, fightTop: 200, vmin: 82, gmax: 6.5, gfight: 6.8, tactic: 'energy', aoaApp: 10.5 * D2R, capAlt: 240, capR: 520,
-    radar: 1700, leash: 1900, bingo: 1900, patAlt: 110, gs: 3.5 * D2R, landX: -4.5, catX: 4.5, abFight: true,
+    radar: 1700, leash: 1900, bingo: 1900, patAlt: 110, gs: 3.5 * D2R, landX: -4.5, catX: -2.5, abFight: true,   // (ngc/bugsweep) catX: the port bow cat - the starboard one (4.5) is fouled by the two Hornets SEAWORLD parks on the starboard bow, solid now: the right main ran into one at the end of the stroke (55 g, breakup)
     weapons: [   // game ranges for a 1.3 km map: long shots with the AIM-54 / AIM-7, the AIM-9 close, then the gun
       { w: 'aim54', rmin: 650, rmax: 1500, cone: 0.35, life: 10, v0: 25, every: 4 },
       { w: 'aim7', rmin: 380, rmax: 1000, cone: 0.3, life: 8, v0: 20, every: 3 },
@@ -267,9 +267,11 @@ export function createPilot(A, o = {}) {
     const [lx, lz] = deck(c, A.pos.x, A.pos.z), aimZ = DK.WIRES[2] - A.P.HOOK_TIP[2] - (T.hookLead ?? 20);   // the hook hangs ~3.4 m under the CG at ~7° nose up and a wire catches it within 0.45 m of the deck: aiming the CG's glideslope this far up the deck takes the 3 wire
     const R = lz - aimZ, hdgS = -c.yaw, hdgA = hdgOf(A.vel), herr = wrap(hdgA - hdgS);   // ship's bow along -z: heading -yaw
     const patH = c.deck + T.patAlt;
+    if (env.wantDeck && Math.hypot(c.x - A.pos.x, c.z - A.pos.z) < 3200) env.wantDeck();   // (ngc/bugsweep) DECK OPS: a recovery is wanted - no new taxi into the landing area
+    const foul = env.deckClear ? env.deckClear() : '';   // and a jet still in the landing area keeps the pattern going round
     if (PL.state === 'rtb') {
       // straight in when already behind the ship, roughly lined up; else round the pattern
-      if (R > 1300 && R < 3200 && Math.abs(lx - A.landX) < R * 0.45 && Math.abs(herr) < 1.0) { set('final', 'STRAIGHT IN'); return; }
+      if (R > 1300 && R < 3200 && Math.abs(lx - A.landX) < R * 0.45 && Math.abs(herr) < 1.0 && !foul) { set('final', 'STRAIGHT IN'); return; }
       if (PL.wp === 0) PL.wp = R < 600 ? 1 : 3;   // ahead or abeam: upwind first; behind: direct to the base turn
       const w = PATTERN[Math.min(PL.wp, 3) - 1];
       world(c, w[0], w[1], _t); _t.y = c.deck + T.patAlt * w[2];
@@ -277,7 +279,7 @@ export function createPilot(A, o = {}) {
       _t.x += (c.vx || 0) * 8; _t.z += (c.vz || 0) * 8;
       dirTo(_t.x, _t.y, _t.z, 0.25);
       fly(_d, dt, env, { speed: PL.wp >= 3 ? 118 : 130, g: 3 }); A.brakeCmd = A.eas > 140 ? 1 : 0;
-      if (Math.hypot(_t.x - A.pos.x, _t.z - A.pos.z) < 300) { if (PL.wp >= 3) set('final', 'BASE'); else PL.wp++; }
+      if (Math.hypot(_t.x - A.pos.x, _t.z - A.pos.z) < 300) { if (PL.wp >= 3) { if (foul) { PL.wp = 1; say('FOUL DECK  -  GOING ROUND'); } else set('final', 'BASE'); } else PL.wp++; }
       return;
     }
     // ---- final: dirty up, carrot onto the centreline, then the LSO controller

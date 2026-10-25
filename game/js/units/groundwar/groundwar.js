@@ -76,7 +76,7 @@ export function createGroundWar(ctx) {
     const P = pl();
     if (P.alive && !P.inCave && !GW.godPlayer) {
       const [k, d] = segPoint(ax, ay, az, bx, by, bz, P.pos.x, P.pos.y, P.pos.z), r = P.hitR || 2.6;
-      if (d < r && (!best || k < best.t)) best = { t: k, apply: (x, y, z) => { _at.set(x, y, z); _dir.set(p.vx, p.vy, p.vz); ctx.hurtPlayer(P.kind === 'air' ? H.heli : H.war, p.ammo === 'coil120' ? 'COILGUN' : p.ammo.startsWith('mbt') ? 'TANK FIRE' : 'STRIDER FIRE', _at, _dir); } };
+      if (d < r && (!best || k < best.t)) best = { t: k, apply: (x, y, z) => { _at.set(x, y, z); _dir.set(p.vx, p.vy, p.vz); ctx.hurtPlayer(P.kind === 'air' ? H.heli : H.war, p.ammo === 'coil120' ? 'COILGUN' : p.ammo.startsWith('mbt') ? 'TANK FIRE' : 'STRIDER FIRE', _at, _dir, p.ammo); } };   // kind = the round (ngc/bugsweep): the Marine takes it as a bullet wound on the body part it passed
     }
     const mx = (ax + bx) / 2, mz = (az + bz) / 2, I = GS.maps.at(mx, mz);
     if (I) for (const s of I.structs) if (s.kind === 'aa' && s.side === 1 && !s.dead) {

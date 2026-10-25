@@ -95,7 +95,7 @@ export function createAirframe(P, GRAV = 9.0) {
       Object.assign(A.surf, { stab: 0, ail: 0, rud: 0, flap: 0, lef: 0, brake: 0 });
       A.gear = A.gearCmd = airborne ? 0 : 1; A.hook = A.hookCmd = 0; A.flapSel = airborne ? 0 : 1; A.brakeCmd = 0; A.canopy = A.canopyCmd = 0;
       A.onGround = !airborne; A.cat = null; A.wire = null; A.launchBar = false; A.wow = [0, 0, 0]; A.nzMax = A.nzMin = 1; A.events.length = 0;
-      A.trapWire = 0; A.dead = false; A.nInt = 0;
+      A.trapWire = 0; A.dead = false; A.nInt = 0; flyT = 0;
       if (P.onReset) P.onReset(A, airborne);
     },
     // ctl: { pitch (+aft), roll (+right), yaw (+right), throttle [per engine] 0..1, brakeL, brakeR 0..1 }
@@ -189,10 +189,17 @@ export function createAirframe(P, GRAV = 9.0) {
   // gearing that falls off with dynamic pressure (the feel system), plus pitch / roll / yaw dampers, an aileron-rudder
   // interconnect that grows with AoA, and a trim the pilot sets (A.trim). No g or AoA limiter: the pilot (or the AI)
   // keeps the aircraft inside the envelope.
+  let flyT = 0;   // (SAS law) the hands-off flyaway after the cat shot
   function sasLaw(h, ctl, st, K, att) {
     const { a, b, V, qb } = st, p = A.w.x, q = A.w.y, r = A.w.z, cth = Math.cos(att.pitch);
     const g = sasGearing(FC, qb);   // stick-to-stab gearing (feel / bobweight)
-    const de = (A.trim || 0) + ctl.pitch * K.LIM.stab * g + FC.kq * q * g;
+    let de = (A.trim || 0) + ctl.pitch * K.LIM.stab * g + FC.kq * q * g;
+    // (ngc/bugsweep) hands off the stick off the cat, the launch trim rotates her to the flyaway attitude (~10 deg)
+    // and holds it while she accelerates (NDI law: the launchT ncmd bias). Without it the stab ran back to the cruise trim at
+    // the end of the stroke and a hands-off Tomcat settled off the bow into the sea in ~4 s (catdeckbench.mjs). The pilot
+    // takes it with the stick; hands off, it eases out over the last 2 s of 7.
+    if (A.launchT > 0) { A.launchT = 0; flyT = 7; }
+    if (flyT > 0) { flyT -= h; if (Math.abs(ctl.pitch) > 0.3) flyT = 0; else de += clamp(0.9 * (0.18 - att.pitch) - 0.4 * q, 0, 0.14) * Math.min(1, flyT / 2); }
     const da = ctl.roll * K.LIM.ail * clamp(FC.q0r / Math.max(qb, 1), FC.gminr, 1) - FC.kp * p;
     const rss = GRAV / Math.max(V, 12) * cth * Math.sin(att.roll) + p * Math.sin(a);   // turn-coordinated yaw rate
     const dr = ctl.yaw * K.LIM.rud - FC.kr * (r - rss) - FC.kb * b + FC.kari * clamp(a / 0.35, -0.3, 1) * da;
@@ -228,6 +235,7 @@ export function createAirframe(P, GRAV = 9.0) {
 
     if (P.engineFn) P.engineFn(A, h, ctl, M, mods); else engines(h, ctl, M, mods);
     // catapult: held on the shuttle, then a 2 g shot down the track (kinematic along the deck, the rest is simulated)
+    if (A.tow) { towed(h, env); return; }   // (ngc/bugsweep) DECK OPS: spotted / taxied on the deck by the director (units/naval/deckops.js)
     if (A.cat) { catapult(h, ctl, env); return; }
 
     const K = P.aeroAt ? P.aeroAt(A) : P.aero;
@@ -366,11 +374,27 @@ export function createAirframe(P, GRAV = 9.0) {
       A.nz = 1; A.nx = (DK.CAT_V ** 2 / (2 * stroke)) / GRAV;
     }
     deckWorld(c, A.catX, DK.CAT_Z0 - C.s, A.pos); A.pos.y = deckH(c, A.pos.x, A.pos.z) + P.REST_H - (C.state === 'hold' ? 0.12 : 0);
-    A.q.setFromEuler(_e.set(C.state === 'hold' ? -0.012 : 0.0, c.yaw, 0, 'YXZ'));
+    // (ngc/bugsweep) on the shuttle the jet lies on the deck as it pitches and rolls (NAVAL / SEAWORLD's live sea, the heel
+    // in a turn): held level on a deck rolled 2.5 deg, the low main gear was 0.3 m into the deck when the shot ended and the
+    // first free step threw it off at 46 g (overstress, breakup) - every Tomcat launched while the carrier was heeling died
+    const ca = c.att;
+    A.q.setFromEuler(_e.set((C.state === 'hold' ? -0.012 : 0.0) + (ca ? ca.pitch : 0), c.yaw, ca ? ca.roll : 0, 'YXZ'));
     surfaceVel(env, A.pos.x, A.pos.z, A.vel); A.vel.x += fx * C.v; A.vel.z += fz * C.v;   // vy: the deck's (a flying carrier climbs)
     A.w.set(0, 0, 0); A.wow = [0.12, 0.13, 0.13]; A.onGround = true;
     A.surf.stab += clamp(P.CAT_STAB - A.surf.stab, -0.7 * h, 0.7 * h);   // trimmed nose-up for the rotation off the bow
     if (C.s >= DK.CAT_Z0 - DK.CAT_Z1) { A.cat = null; A.launchBar = false; A.onGround = false; A.w.y = 0.12; A.launchT = 2.5; ev('catend', { v: C.v }); }
+  }
+  // (ngc/bugsweep) DECK OPS: the jet on the deck under a director - A.tow = { lx, lz, hdg, v } in the ship frame (x starboard,
+  // z aft; hdg 0 = nose to the bow, + to starboard; v the taxi speed along the nose): kinematic like the cat, lying on the
+  // live deck, moving with the ship plus the taxi speed. units/naval/deckops.js moves lx / lz / hdg along its routes.
+  function towed(h, env) {
+    const c = env.carrier && env.carrier(), T = A.tow;
+    if (!c) { A.tow = null; return; }
+    const yaw = c.yaw - (T.hdg || 0);
+    deckWorld(c, T.lx, T.lz, A.pos); A.pos.y = deckH(c, A.pos.x, A.pos.z) + P.REST_H;
+    const ca = c.att; A.q.setFromEuler(_e.set(ca ? ca.pitch : 0, yaw, ca ? ca.roll : 0, "YXZ"));
+    surfaceVel(env, A.pos.x, A.pos.z, A.vel); A.vel.x += -Math.sin(yaw) * (T.v || 0); A.vel.z += -Math.cos(yaw) * (T.v || 0);
+    A.w.set(0, 0, 0); A.wow = [0.12, 0.13, 0.13]; A.onGround = true; A.wire = null;
   }
   // the hook tip crossing a wire near the deck catches it; the wire then pays out to stop the jet in ~26 m
   const _hk = new THREE.Vector3();

@@ -1,4 +1,5 @@
 // WHEELED in the game (ngc/wheeledgame): the Marine walks to an M151A2 at the home island's motor pool and gets in,
+// (ngc/bugsweep) wall timeouts x4 (min 30 s) for 1-5 fps headless; h.wait / key hold run on the game clock (snap.mjs)
 // drives on the island, then (teleported with the jeep to the wild lands 4 km east) along a village street, over a
 // bridge, off the road and through a ford; lays the M60 from the pedestal seat on an enemy building and fires; the
 // enemy shoots back (tyres, engine, the Marine's wounds); commandeers a civilian car parked in the village; drives an
@@ -7,7 +8,7 @@
 // island and on the deck, a driver.js follower (the AI's own path follower) at the wheel on the long legs.
 export default async function (h) {
   await h.goto('?debug&auto&kb&peace&res=0.45');
-  await h.waitFor("window.__G && __G.G.state==='play' && __G.H.landed && __G.H.rpm > 0.9", 40000);
+  await h.waitFor("window.__G && __G.G.state==='play' && __G.H.landed && __G.H.rpm > 0.9", 160000);
   await h.eval(`(window.__WG = {
     P: () => __G.pool,
     st: V => { const S = V.sim; return { id: V.id, seat: V.seats[V.seat].label, x: +S.pos[0].toFixed(1), y: +S.pos[1].toFixed(2), z: +S.pos[2].toFixed(1), kmh: +S.kmh.toFixed(1), gear: S.gear, rpm: Math.round(S.eng.rpm), run: S.eng.running, surf: ['tarmac','wet','dirt','grass','sand','mud','deck','rock','snow'][S.wheels[0].surf], depth: +S.depth.toFixed(2), bridge: V.onBridge !== null, plat: V.P.plat ? V.P.plat.type : null, pitch: +S.pitch.toFixed(3), roll: +S.roll.toFixed(3), up: +S.up[1].toFixed(3), fuel: +S.fuelL.toFixed(1), wreck: V.wrecked }; },
@@ -30,7 +31,7 @@ export default async function (h) {
   await h.wait(300);
   await h.eval("(__G.foot.view = 'third', 1)");
   await h.key('down', 'KeyW');
-  await h.waitFor("Math.hypot(__G.foot.W.x - __door.x, __G.foot.W.z - __door.z) < 1.6 || document.getElementById('hint').textContent.startsWith('Y: GET IN THE M151A2')", 30000);
+  await h.waitFor("Math.hypot(__G.foot.W.x - __door.x, __G.foot.W.z - __door.z) < 1.6 || document.getElementById('hint').textContent.startsWith('Y: GET IN THE M151A2')", 120000);
   await h.key('up', 'KeyW'); await h.wait(300);
   await h.eval('__WG.hud().hint'); await h.shot('walk-up-to-the-m151');
   await h.expect("document.getElementById('hint').textContent.startsWith('Y: GET IN THE M151A2 MUTT  (DRIVER)')", 'at the driver door');
@@ -39,17 +40,17 @@ export default async function (h) {
   await h.expect('!__M.sim.eng.running && __M.cabin.hitBoxes.length >= 6', 'a cold jeep; the cab has its switches');
   await h.eval("(__M.click('ign'), [__M.cabin.labelOf('ign'), __M.inp.ignition])", 'ignition switch ON'); await h.wait(400);
   await h.eval("(__M.click('ign'), __M.cabin.labelOf('ign'))", 'ignition switch to START');
-  await h.waitFor('__M.sim.eng.running', 8000);
+  await h.waitFor('__M.sim.eng.running', 32000);
   await h.eval("(__M.click('lights'), __M.click('lights'), __M.click('wiper'), [__M.cabin.labelOf('lights'), __M.cabin.labelOf('wiper')])", 'blackout drive lights, wipers');
   await h.eval('__WG.hud()'); await h.shot('driver-seat-gauges');
   // keyboard: W, then a gentle right (D) at speed: the steering narrows with speed
   await h.eval('(window.__p0 = [...__M.sim.pos], 1)');
-  await h.key('down', 'KeyW'); await h.waitFor('__M.sim.kmh > 20 || Math.hypot(__M.sim.pos[0] - __p0[0], __M.sim.pos[2] - __p0[2]) > 35', 20000);
+  await h.key('down', 'KeyW'); await h.waitFor('__M.sim.kmh > 20 || Math.hypot(__M.sim.pos[0] - __p0[0], __M.sim.pos[2] - __p0[2]) > 35', 80000);
   await h.key('down', 'KeyD'); await h.wait(1200);
   await h.eval('({ st: __WG.st(__M), steer: __M.inp.steer, kmh: __M.sim.kmh })', 'steer at speed (keyboard)');
   await h.expect('__M.inp.steer < 0.75 && __M.inp.steer > 0.1', 'the keyboard steering is narrowed at speed');
   await h.key('up', 'KeyD'); await h.key('up', 'KeyW');
-  await h.key('down', 'KeyS'); await h.waitFor('Math.abs(__M.sim.speed) < 0.4', 15000); await h.key('up', 'KeyS');
+  await h.key('down', 'KeyS'); await h.waitFor('Math.abs(__M.sim.speed) < 0.4', 60000); await h.key('up', 'KeyS');
   await h.eval('__WG.st(__M)');
   await h.expect('Math.hypot(__M.sim.pos[0] - __p0[0], __M.sim.pos[2] - __p0[2]) > 7 && !__M.wrecked && __M.sim.up[1] > 0.9', 'drove on the island and stopped upright');
 
@@ -58,20 +59,20 @@ export default async function (h) {
   await h.eval(`(() => { const q = __WORLD.net.nearestRoad(3697, 1233, 80); const R = q.R; window.__VR = { id: R.id, s: q.s }; const p = __WORLD.roadPoint(R, Math.max(5, q.s - 90), 1.4), yaw = Math.atan2(-p.dx, -p.dz); __WG.put(__M, p.x, p.z, yaw); return { road: R.id, type: R.type, kind: R.kind, s: q.s, len: R.len }; })()`);
   await h.wait(2500);
   await h.eval(`(() => { const pts = ${P}.roadPath(__VR.id, Math.max(5, __VR.s - 85), Math.min(__WORLD.roadById(__VR.id).len - 5, __VR.s + 110), 1.4); ${P}.autopilot(__M, pts, 9); __WG.track(__M); return pts.length; })()`);
-  await h.waitFor('__WG.trk.length > 12', 30000);
+  await h.waitFor('__WG.trk.length > 12', 120000);
   await h.key('tap', 'KeyV'); await h.wait(900); await h.shot('village-street-chase');
   await h.eval('({ traffic: __WG.P().list.filter(V => V.traffic).map(V => [V.type, Math.round(V.sim.kmh)]), parked: __WG.P().parked.size, near: __WG.P().list.filter(V => V.owner === "civ").length })', 'town cars and traffic on the sim');
-  await h.waitFor('__M.auto.done || __WG.trk.length > 70', 60000);
+  await h.waitFor('__M.auto.done || __WG.trk.length > 70', 240000);
   await h.eval('__WG.trk.filter((t, i) => i % 4 === 0).map(t => [t.x, t.z, t.kmh, t.surf])');
   await h.expect("__WG.trk.filter(t => t.surf === 'tarmac').length > __WG.trk.length * 0.7 && __WG.trk.some(t => t.kmh > 20)", 'on the village street (tarmac)');
   // the bridge: a 96 m tarmac viaduct ~4.2 km east
   await h.eval(`(() => { const q = __WORLD.roadAt(4180, -556), R = __WORLD.roadById(q.road); window.__BR = { id: R.id, s: q.s }; const p = __WORLD.roadPoint(R, q.s - 120, 1.4), yaw = Math.atan2(-p.dx, -p.dz); __WG.put(__M, p.x, p.z, yaw); return q; })()`);
   await h.wait(2000);
   await h.eval(`(() => { const pts = ${P}.roadPath(__BR.id, __BR.s - 115, __BR.s + 150, 1.4); ${P}.autopilot(__M, pts, 13); __WG.track(__M); return pts.length; })()`);
-  await h.waitFor('__WG.trk.some(t => t.bridge)', 60000); await h.wait(2500);
+  await h.waitFor('__WG.trk.some(t => t.bridge)', 240000); await h.wait(2500);
   await h.shot('over-the-bridge-chase');
   await h.key('tap', 'KeyV'); await h.wait(700); await h.shot('over-the-bridge-driver');
-  await h.waitFor('__M.auto.done || __WG.trk.length > 120', 60000);
+  await h.waitFor('__M.auto.done || __WG.trk.length > 120', 240000);
   await h.eval(`(() => { const b = __WG.trk.filter(t => t.bridge); return { n: b.length, minY: Math.min(...b.map(t => t.y)), maxY: Math.max(...b.map(t => t.y)), ground: b.map(t => +__G.terrainH(t.x, t.z).toFixed(1)).slice(0, 6), kmh: b.map(t => t.kmh).slice(0, 6) }; })()`, 'on the bridge deck');
   await h.expect(`__WG.trk.filter(t => t.bridge).length >= 4 && __WG.trk.filter(t => t.bridge).every(t => { const r = __WORLD.roadAt(t.x, t.z); return r && Math.abs(t.y - r.y - 0.14) < 0.35 && t.kmh > 25; }) && __WG.trk.some(t => t.bridge && t.y > __G.terrainH(t.x, t.z) + 4) && __WG.trk.every(t => t.up > 0.9)`, 'over the bridge on its deck (high over the ground), upright');
   // off road: across a farm's fields (the WORLD's farms near the village; the 70 m line through a field with the gentlest
@@ -79,7 +80,7 @@ export default async function (h) {
   await h.eval(`(() => { const T = __G.terrainH, WO = ${P}.WO; let best = null; for (const f of __WORLD.net.netState.farms.values()) { if (!f || Math.hypot(f.x - 3697, f.z - 1233) > 2500) continue; for (const F of f.fields || []) for (let k = 0; k < 16; k++) { const a = k / 16 * 6.283, ux = Math.sin(a), uz = Math.cos(a), sx = F.x - ux * 35, sz = F.z - uz * 35; let worst = 0, ok = true, h0 = T(sx, sz); for (let d = 3; d <= 70 && ok; d += 3) { const x = sx + ux * d, z = sz + uz * d, hh = T(x, z); if (hh < 1 || WO.near(x, z, 3).boxes.length || __WORLD.roadAt(x, z)) ok = false; worst = Math.max(worst, Math.abs(hh - h0) / 3, Math.hypot(T(x + 2, z) - T(x - 2, z), T(x, z + 2) - T(x, z - 2)) / 4); h0 = hh; } if (ok && (!best || worst < best.worst)) best = { sx, sz, ux, uz, worst, crop: F.crop }; } } if (!best) return null; const pts = []; for (let d = 8; d <= 70; d += 6) pts.push({ x: best.sx + best.ux * d, z: best.sz + best.uz * d }); window.__OP = pts; __WG.put(__M, best.sx, best.sz, Math.atan2(-best.ux, -best.uz)); return { at: [Math.round(best.sx), Math.round(best.sz)], worstSlope: +best.worst.toFixed(3), crop: best.crop }; })()`, 'a way across a farm field');
   await h.wait(1500); await h.key('tap', 'KeyU'); await h.wait(200);
   await h.eval(`(${P}.autopilot(__M, __OP, 7), __WG.track(__M), __M.inp.fwd)`, '4x4 engaged');
-  await h.waitFor('__M.auto.done || __WG.trk.length > 60', 60000);
+  await h.waitFor('__M.auto.done || __WG.trk.length > 60', 240000);
   await h.eval('__WG.trk.filter((t, i) => i % 3 === 0).map(t => [t.surf, t.kmh, t.pitch, t.roll])', 'off road');
   await h.key('tap', 'KeyV'); await h.wait(900); await h.shot('off-road-chase');
   await h.expect("__WG.trk.filter(t => t.surf !== 'tarmac').length > 5 && __WG.trk.some(t => t.kmh > 15) && __WG.trk.every(t => t.up > 0.85)", 'off the road (grass / dirt / rock), upright');
@@ -88,9 +89,9 @@ export default async function (h) {
   await h.eval(`(() => { const T = __G.terrainH; for (const C of [[4155, 2584], [4215, 2630], [4235, 2644], [4271, 2676], [4287, 2693], [4183, 2561]]) for (let k = 0; k < 48; k++) { const a = k / 48 * 6.283, ux = Math.sin(a), uz = Math.cos(a); let P = null, dP = 0; for (let d = 0; d < 70; d += 1.5) { const hh = T(C[0] + ux * d, C[1] + uz * d); if (hh < -0.44) break; if (hh <= -0.27) { P = [C[0] + ux * d, C[1] + uz * d]; dP = d; break; } } if (!P || T(C[0], C[1]) < 0.3) continue; for (const s of [1, -1]) { const tx = -uz * s, tz = ux * s; let ok = true; for (let q = 0; q <= 16 && ok; q += 2) { const hh = T(P[0] + tx * q, P[1] + tz * q); if (hh < -0.45 || hh > 0.1) ok = false; } if (!ok) continue; const Q = [P[0] + tx * 16, P[1] + tz * 16]; let R = null; for (let d = 0; d < 60; d += 2) { const x = Q[0] - ux * d, z = Q[1] - uz * d, hh = T(x, z); if (hh < -0.45) { R = null; break; } if (hh > 0.4) { R = [x - ux * 8, z - uz * 8]; break; } } if (!R) continue; const pts = [], seg = (A, B, n) => { for (let i = 1; i <= n; i++) pts.push({ x: A[0] + (B[0] - A[0]) * i / n, z: A[1] + (B[1] - A[1]) * i / n }); }; const S0 = [C[0] - ux * 14, C[1] - uz * 14]; seg(S0, P, Math.ceil((dP + 14) / 4)); seg(P, Q, 4); seg(Q, R, 8); window.__FP = pts; __WG.put(__M, S0[0] - ux * 4, S0[1] - uz * 4, Math.atan2(-ux, -uz)); return { from: C, P: P.map(Math.round), Q: Q.map(Math.round), R: R.map(Math.round), depthP: +T(P[0], P[1]).toFixed(2), depthQ: +T(Q[0], Q[1]).toFixed(2) }; } } return null; })()`, 'a ford (into the shallows and out)');
   await h.wait(1500);
   await h.eval(`(${P}.autopilot(__M, __FP, 5), __WG.track(__M), 1)`);
-  await h.waitFor('__WG.trk.some(t => t.depth > 0.15)', 120000); await h.wait(1800);
+  await h.waitFor('__WG.trk.some(t => t.depth > 0.15)', 480000); await h.wait(1800);
   await h.shot('fording-chase');
-  await h.waitFor('__M.auto.done || __WG.trk.length > 260', 120000);
+  await h.waitFor('__M.auto.done || __WG.trk.length > 260', 480000);
   await h.eval('({ maxDepth: Math.max(...__WG.trk.map(t => t.depth)), run: __M.sim.eng.running, st: __WG.st(__M), hud: __WG.hud().line })', 'through the ford');
   await h.expect('Math.max(...__WG.trk.map(t => t.depth)) > 0.15 && __M.sim.eng.running && !__M.sim.eng.hydrolock && __M.sim.depth < 0.05', 'forded (in and out again) and the engine ran on');
 
@@ -131,7 +132,7 @@ export default async function (h) {
   await h.wait(2500);
   await h.key('tap', 'BracketLeft'); await h.wait(200); await h.key('tap', 'BracketLeft'); await h.wait(200);
   await h.eval(`${P}.list.filter(V => V.owner === 'civ').map(V => [V.id, Math.round(V.sim.pos[0]), Math.round(V.sim.pos[2])])`, 'parked town cars');
-  await h.waitFor(`${P}.list.some(V => V.owner === 'civ')`, 20000);
+  await h.waitFor(`${P}.list.some(V => V.owner === 'civ')`, 80000);
   await h.key('tap', 'KeyY'); await h.wait(400);
   await h.expect("__G.G.craft === 'foot'", 'out of the jeep');
   await h.eval(`(() => { const S = __M.sim; let best = null, bd = 1e9; for (const V of ${P}.list) if (V.owner === 'civ') { const d = Math.hypot(V.sim.pos[0] - S.pos[0], V.sim.pos[2] - S.pos[2]); if (d < bd) { bd = d; best = V; } } window.__C = best; __WG.near(best, best.seats[0].door.map((v, i) => i === 0 ? v * 1.6 : v)); return { car: best.id, label: best.label, d: Math.round(bd), drv: best.seats[0].label }; })()`);
@@ -140,23 +141,23 @@ export default async function (h) {
   await h.eval('__WG.hud().hint'); await h.shot('by-a-parked-car');
   await h.key('tap', 'KeyY'); await h.wait(400);
   await h.expect("__G.G.craft === __C.id && __C.owner === 'player'", 'commandeered the civilian car');
-  await h.key('tap', 'KeyI'); await h.waitFor('__C.sim.eng.running', 8000);
+  await h.key('tap', 'KeyI'); await h.waitFor('__C.sim.eng.running', 32000);
   await h.wait(500); await h.shot('civilian-car-driver');
   await h.key('down', 'KeyW'); await h.wait(5500); await h.key('up', 'KeyW');
   await h.key('tap', 'KeyV'); await h.wait(900); await h.shot('civilian-car-chase');
   await h.eval('__WG.st(__C)');
   await h.expect('__C.sim.kmh > 8 || Math.abs(__C.sim.speed) > 2', 'the commandeered car drives');
-  await h.key('down', 'KeyS'); await h.waitFor('Math.abs(__C.sim.speed) < 0.4', 15000); await h.key('up', 'KeyS');
+  await h.key('down', 'KeyS'); await h.waitFor('Math.abs(__C.sim.speed) < 0.4', 60000); await h.key('up', 'KeyS');
 
   // ---------------------------------------------------------------- 5. an M151 on the ALBATROSS's deck while she sails and turns
   await h.key('tap', 'KeyY'); await h.wait(400);
   await h.eval(`(() => { const V = ${P}.list.find(V => V.type === 'm151' && V.home === 'deck'); window.__D = V; return __WG.near(V, [-1.6, 0, 0.05]); })()`);
   await h.wait(600); await h.key('tap', 'KeyY'); await h.wait(400);
   await h.expect("__G.G.craft === __D.id", 'in the deck M151');
-  await h.key('tap', 'KeyI'); await h.waitFor('__D.sim.eng.running', 8000);
+  await h.key('tap', 'KeyI'); await h.waitFor('__D.sim.eng.running', 32000);
   await h.eval(`(() => { const c = __G.war.carrier; __G.war.orderCarrier(c.p.x - Math.sin(c.yaw + 0.6) * 700, c.p.z - Math.cos(c.yaw + 0.6) * 700); window.__d0 = __WG.loc(__D); return __d0; })()`);
-  await h.key('down', 'KeyW'); await h.waitFor('__d0.z - __WG.loc(__D).z > 12', 25000); await h.key('up', 'KeyW');
-  await h.key('down', 'KeyS'); await h.waitFor('Math.abs(__D.sim.speed) < 0.2', 15000); await h.key('up', 'KeyS');
+  await h.key('down', 'KeyW'); await h.waitFor('__d0.z - __WG.loc(__D).z > 12', 100000); await h.key('up', 'KeyW');
+  await h.key('down', 'KeyS'); await h.waitFor('Math.abs(__D.sim.speed) < 0.2', 60000); await h.key('up', 'KeyS');
   await h.eval('({ from: __d0, to: __WG.loc(__D), st: __WG.st(__D), ship: { spd: +Math.hypot(__G.war.carrier.v?.x || 0, __G.war.carrier.v?.z || 0).toFixed(2), yaw: +__G.war.carrier.yaw.toFixed(3) } })', 'drove along the deck');
   await h.expect('__D.P.plat === __G.war.carrier && Math.abs(__WG.loc(__D).x - __d0.x) < 1.5', 'on the deck, straight along it');
   await h.key('tap', 'KeyV'); await h.wait(1500); await h.shot('deck-under-way-chase');
@@ -176,13 +177,13 @@ export default async function (h) {
   await h.key('tap', 'KeyY'); await h.wait(400);
   await h.expect("__G.G.craft === __T.id && __G.crafts.seat === 0", 'in the M35 cab');
   await h.eval("(__T.click('ign'), __T.click('start'), [__T.cabin.labelOf('ign'), Math.round(__T.sim.airPsi)])", 'M35: ENGINE switch, START button');
-  await h.waitFor('__T.sim.eng.running', 10000);
+  await h.waitFor('__T.sim.eng.running', 40000);
   await h.eval('(window.__m0 = __T.sim.massNow, 1)');
   await h.key('tap', 'KeyB'); await h.wait(400);
   await h.eval('({ troops: __T.troops, mass0: Math.round(__m0), mass: Math.round(__T.sim.massNow), msg: document.getElementById("msg").textContent, cap: __G.PL.capTime })', 'troops aboard');
   await h.expect('__T.troops === 6 && __T.sim.massNow > __m0 + 500 && __G.PL.capTime === 4', 'six Marines aboard (load, capture time)');
   await h.key('down', 'KeyW'); await h.wait(5000); await h.key('up', 'KeyW');
-  await h.key('down', 'KeyS'); await h.waitFor('Math.abs(__T.sim.speed) < 0.4', 15000); await h.key('up', 'KeyS');
+  await h.key('down', 'KeyS'); await h.waitFor('Math.abs(__T.sim.speed) < 0.4', 60000); await h.key('up', 'KeyS');
   await h.eval('__WG.st(__T)');
   await h.key('tap', 'KeyV'); await h.wait(1200); await h.shot('m35-troops-chase'); await h.key('tap', 'KeyV');
   await h.key('tap', 'BracketRight'); await h.key('tap', 'BracketRight'); await h.key('tap', 'BracketRight'); await h.wait(500);

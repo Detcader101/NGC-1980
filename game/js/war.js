@@ -18,6 +18,7 @@ import { buildCarrier, buildBattleship, buildFreighter, buildDrone, buildTranspo
 import { SHIPS as SHIP_MOTION, makeSea, createShipMotion, shipPointY, shipPointVY, retuneSea, advanceSea, seaElevation } from './units/naval/seamotion.js';
 import { createSeaWeather } from './units/naval/seaweather.js';   // SEAWORLD: the optional drifting sea state
 import { createNavalFx } from './units/naval/navalfx.js';
+import { createDeckOps } from './units/naval/deckops.js';   // (ngc/bugsweep) DECK OPS: the ALBATROSS launch queue and taxi simulation
 import { createAirWar } from './units/air/airwar.js';             // AIR: sim-flown Tomcats, SHRIKE / REAPER / SHAHED (ngc/airfw)
 import { homeAAM, decoyCheck } from './units/air/gameproj.js';     // AIR: the shared game-level missile homing and decoy rule
 import { createTech, unitAllowed, gateMsg, aiPickResearch, techStartFromQuery } from './techtree.js';   // TECH TREE: research gates every buy / build / launch
@@ -25,6 +26,7 @@ import { createTech, unitAllowed, gateMsg, aiPickResearch, techStartFromQuery } 
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const angDiff = (a, b) => { let d = (b - a) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return d; };
+const YAW_ACC = 0.015;   // ships: yaw acceleration, rad/s2 (ngc/bugsweep: 0 -> the 0.09 rad/s turn rate in 6 s)
 export const COST = { drone: 40, aa: 30, heli: 60, escort: 30, jet: 80, sky: 300 };
 export const SIDE_NAME = ['NEUTRAL', 'FRIENDLY', 'ENEMY'];
 export const CAP_TIME = { heli: 6, drone: 9, transport: 10 };   // (SIM MODE: exported so a sweep can tune them)
@@ -362,6 +364,7 @@ export function createWar(ctx) {
       const [hx, hz] = toLocal(u, pl.pos.x, pl.pos.z), hy = pl.pos.y - u.p.y - u.dims.DECK;
       if (hy < 14 && hy > -2) avoid = (x, z) => { const dx = x - hx, dz = z - hz, r = Math.hypot(dx, dz); return r < 9 ? [dx || 0.1, dz] : null; };
     }
+    if (u === W.carrier && W.deck) { const a0 = avoid; avoid = (x, z) => (a0 && a0(x, z)) || W.deck.crewAvoid(x, z); }   // DECK OPS: out of a taxiing jet's way, off the cat lane
     u.parts.tick(dt, W.time, d, avoid);
   }
   function sailShip(u, dt) {
@@ -385,7 +388,11 @@ export function createWar(ctx) {
       else { tgtYaw = Math.atan2(-(tx - u.p.x), -(tz - u.p.z)); const last = u.path.length === 1; want = u.max * (last ? clamp(d / 80, 0.15, 1) : 1); }
     }
     const turn = angDiff(u.yaw, tgtYaw), rate = 0.09 * clamp(u.speed / 3, 0.3, 1);
-    u.w = clamp(turn, -rate, rate) * (Math.abs(turn) > 0.02 ? 1 : 0); u.yaw += u.w * dt;
+    // ngc/bugsweep: the yaw rate builds and eases off (YAW_ACC, with a stopping rule so it doesn't overshoot) instead
+    // of stepping: a stepped yaw rate jerked a deck spot 35 m from the middle sideways by ~3 m/s in one frame, and the
+    // gear friction rolled the Ospreys / Sea Knights parked there over (tools/rotarydeck.mjs)
+    const wT = Math.abs(turn) > 0.004 ? Math.sign(turn) * Math.min(rate, Math.sqrt(2 * YAW_ACC * Math.abs(turn))) : 0;
+    u.w += clamp(wT - u.w, -YAW_ACC * dt, YAW_ACC * dt); u.yaw += u.w * dt;
     if (Math.abs(turn) > 1.2) want *= 0.35;
     u.speed += clamp(want - u.speed, -0.6 * dt, 0.35 * dt);
     // never run aground: if the bow would be in the shallows, brake hard
@@ -414,7 +421,7 @@ export function createWar(ctx) {
   // NGC-1980 GROUND WAR hook (units/groundwar/): the troops the transports land fight on the islands - STRIDERs off the
   // MV-22s, the CH-46's Marines, RW-7 hover tanks over the sea and seized MBTs by landing craft. Squads stand in W.units
   // as 'squad' proxies (capture, gunship targets, expansion); the war's rounds and blasts reach them through GW below.
-  const GW = createGroundWar({ W, scene, fx, sfx, terrainH, nav, feed, hear, boomAt, ear, addScore: ctx.addScore, player: ctx.player, hurtPlayer: (a, why, at, dir) => ctx.hurtPlayer(a, why, at, dir) });
+  const GW = createGroundWar({ W, scene, fx, sfx, terrainH, nav, feed, hear, boomAt, ear, addScore: ctx.addScore, player: ctx.player, hurtPlayer: (a, why, at, dir, kind) => ctx.hurtPlayer(a, why, at, dir, kind) });   // (ngc/bugsweep: + kind, the round, for the Marine's wounds)
   W.ground = GW; ROT.ground = GW;
   function makeAir(type, side, x, y, z, extra = {}) {
     const hpMod = u => { const k = W.techMod(side, 'hp.' + type); if (k !== 1) { u.hp *= k; u.hpMax *= k; } return u; };   // TECH: armour upgrades
@@ -927,6 +934,7 @@ export function createWar(ctx) {
     W.enemyCarrier = makeShip('carrier', 2, ctx.enemyStart[0], ctx.enemyStart[1], ctx.enemyStart[2]);
     for (const I of W.islands) ctx.onOwner(I, I.owner);
     W.air.reset();   // AIR
+    W.deck.reset();   // DECK OPS
   };
   W.update = (dt, pl, peace) => {
     W.time += dt; W._pl = pl; W.peace = peace;
@@ -950,6 +958,7 @@ export function createWar(ctx) {
     updateBattleship(dt); updateFreighters(dt);
     if (!peace) { W.thinkT -= dt; if (W.thinkT <= 0) { W.thinkT = 2; if (W.redAI) W.redAI.think(pl, think); else { GW.think(pl); think(pl); W.air.think(pl); } } }   // SIM MODE hook: a CPU doctrine (sim/redai.js) can stand in for the enemy commander; GROUND WAR: its ground plans first (armour is saved up for); AIR: + the enemy air arm's plans
     W.air.frame(dt, pl);   // AIR: launch queue, drone rails, engine sounds
+    deckFrame(dt);   // DECK OPS: the ALBATROSS flight deck (units/naval/deckops.js)
     // buildings animate
     for (const I of W.islands) for (const s of I.structs) {
       s.mesh.userData.tick?.(dt, W.time);   // WORLD: faction structures animate themselves
@@ -968,6 +977,30 @@ export function createWar(ctx) {
   W.damage = damage; W.hitTest = hitTest; W.pickExpansion = pickExpansion;
   W.sim = { makeAir, buildAA, makeShip, launchPoint, nearestLaunch, end, COST };   // SIM MODE hook: what the CPU commanders (game/js/sim/) build with
   W.makeShip = makeShip;   // NAVAL: tests and the dev tools place ships with it
+  // ---------------------------------------------------------------- DECK OPS (ngc/bugsweep): the ALBATROSS flight deck
+  // what fouls it: a helicopter sitting or hovering low on it (the war's CH-46s, the player's Huey via deckHooks), a jet
+  // the player parked; who wants to land: an AI pilot in the pattern (W.deck.wantT, pilot.js env.wantDeck) or the
+  // player's jet on approach (deckHooks.landing). The JBD and the two directors follow the queue.
+  W.deck = createDeckOps({ feed, now: () => W.time });
+  W.deckHooks = { obstacles: null, landing: null };
+  function deckFrame(dt) {
+    const c = W.carrier, ok = !!c && c.sinking === undefined && !(c.sky && c.sky.up);
+    const obs = [];
+    if (ok) {
+      for (const u of W.units) {
+        if (!u.rot || u.dead || u.stowed || u.side !== 1 || Math.abs(u.p.x - c.p.x) > 80 || Math.abs(u.p.z - c.p.z) > 80) continue;
+        const [lx, lz] = toLocal(c, u.p.x, u.p.z), hy = u.p.y - c.p.y - c.dims.DECK;
+        if (hy < 14 && Math.abs(lx) < 16 && Math.abs(lz) < 64) obs.push({ lx, lz, r: 9, why: `A ${u.kind === 'ch46' ? 'SEA KNIGHT' : 'HELICOPTER'} ON THE DECK` });
+      }
+      const ex = W.deckHooks.obstacles && W.deckHooks.obstacles(c, (x, z) => toLocal(c, x, z)); if (ex) obs.push(...ex);
+    }
+    const landing = ok && (W.time - (W.deck.wantT ?? -1e9) < 0.6 || !!(W.deckHooks.landing && W.deckHooks.landing(c, (x, z) => toLocal(c, x, z))));
+    W.deck.update(dt, { ship: ok, obstacles: obs, landing });
+    if (ok && c.parts) {
+      c.parts.setJBD?.(W.deck.jbd);
+      const m = c.parts.crew && c.parts.crew.members; if (m) for (const p of m) if (p.director !== undefined) { const d = W.deck.directors[p.director]; p.x = p.x0 = d.lx; p.z = p.z0 = d.lz; p.yaw = d.yaw; p.mode = d.walking ? 'march' : d.mode === 'signal' ? 'signal' : 'idle'; }
+    }
+  }
   W.air = createAirWar(W, ctx, { shoot, damage, blast, hear, boomAt, feed, CARRIER, COST_ESCORT: COST.escort });   // AIR (units/air/airwar.js)
   return W;
 }
