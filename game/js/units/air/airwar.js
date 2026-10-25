@@ -186,7 +186,7 @@ export function createAirWar(W, ctx, H) {
       if (A.fuel <= 0 && !u.ejected && !A.onGround && A.eng.every(e => !e.run)) { u.ejected = true; feed(`${u.name}: FLAMED OUT  -  CREW EJECTED`, 'bad'); u.hp = 0; u.dying = true; u.v.y = 2; }
     } else if (u.type === 'shrike' || u.type === 'reaper') {
       if (A.fuel < (u.type === 'shrike' ? 220 : 120) && !u.goingHome) { u.goingHome = true; P.T.radar = 0; P.tgt = null; P.anchor = u.home; P.set('cap', 'HOME'); }
-      if (u.goingHome && Math.hypot(A.pos.x - u.home.x, A.pos.z - u.home.z) < 260) { u.dead = true; W.E.mat += AIR.COST[u.type] * 0.5; return; }   // recovered aboard
+      if (u.goingHome && Math.hypot(A.pos.x - u.home.x, A.pos.z - u.home.z) < 260) { u.dead = true; u.stowed = true; W.E.mat += AIR.COST[u.type] * 0.5; return; }   // recovered aboard
       if (u.type === 'reaper') spotting(u);
     }
     P.update(dt, ENV[u.side]);
@@ -194,7 +194,7 @@ export function createAirWar(W, ctx, H) {
       u.dying = true; u.hp = 0; u.v.multiplyScalar(0.3);
       if (u.side === 1) feed(`${u.name} ${A.dead === 'water' ? 'WENT IN THE WATER' : 'CRASHED'}`, 'bad');
     }
-    if (P.recovered) { u.recT = (u.recT || 0) + dt; if (u.recT > 2.5) { u.dead = true; feed(`${u.name} RECOVERED  -  ${P.trapped ? P.trapped.wire + ' WIRE' : 'ON DECK'}`, 'good'); W.P.mat += 15; } }
+    if (P.recovered && !A.dead && !u.dying) { u.recT = (u.recT || 0) + dt; if (u.recT > 2.5) { u.dead = true; u.stowed = true; feed(`${u.name} RECOVERED  -  ${P.trapped ? P.trapped.wire + ' WIRE' : 'ON DECK'}`, 'good'); W.P.mat += 15; } }
     pose(u, dt);
   };
   function _anchor(u, x, y, z) { const a = u._anc || (u._anc = { x: 0, y: 0, z: 0 }); a.x = x; a.y = Math.max(0, y); a.z = z; return a; }
