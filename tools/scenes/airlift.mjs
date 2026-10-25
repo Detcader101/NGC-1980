@@ -83,9 +83,12 @@ export default {
 
     // ---- 5. fly them to the other island, land, put them out: they join the ground war there
     await h.eval(`(() => { const p = __B.pad; window.__T3 = { x: p.x - 18, y: __G.groundY(p.x - 18, p.z - 6), z: p.z - 6, vx: 0, vz: 0, hdg: null }; window.__mar0 = __G.war.ground.presence(__B, 1); __G.heliAI.engage(__G.H, () => __T3); __G.heliAI.phase = 'transit'; return { ai: __G.heliAI.phase, mar0: __mar0 }; })()`);
+    await h.eval('(window.__troopLosses = __G.fleet.lost.heli, 1)');
     await h.waitFor('!__G.H.landed', 60000);
     await h.wait(3000); await h.shot('troop-lift-flying');
-    await h.waitFor(`__G.heliAI.phase === 'landed' && __G.H.landed`, 600000);
+    await h.waitFor(`(__G.heliAI.phase === 'landed' && __G.H.landed) || __G.fleet.lost.heli > __troopLosses`, 600000);
+    await h.expect('__G.fleet.lost.heli === __troopLosses', 'the loaded troop flight reaches its destination without losing the Huey');
+    if (await h.eval('__G.fleet.lost.heli > __troopLosses')) throw new Error('Huey lost during the troop flight');
     await h.eval('(__G.heliAI.off(), 1)'); await h.wait(500);
     await h.key('tap', 'Period'); await h.wait(500);
     await h.expect(`!${AL}.troops && __G.war.ground.landings.some(L => L.I === __B)`, '. on the island: the squad dismounts into the ground war');

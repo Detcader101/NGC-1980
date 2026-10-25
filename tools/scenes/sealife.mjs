@@ -90,18 +90,34 @@ export default async function (h) {
   }
 
   if (want('bow')) {
-    // under way at ~5.5 m/s: dolphins come to her bow; from the forward end of the flight deck, looking down
-    await h.eval(`(() => { window.__cam = null; const c = __G.war.carrier; c.speed = 5.5; const fx = -Math.sin(c.yaw), fz = -Math.cos(c.yaw); __G.war.orderCarrier(c.p.x + fx * 1500, c.p.z + fz * 1500); return 1; })()`);
+    // A straight, verified deep-water corridor keeps the carrier under way for the bow-riding observation.
+    // Her initial heading points toward FORGE; a blind order that way stops her at the shoal during this check.
+    await h.eval(`(() => {
+      clearInterval(window.__ap); window.__cam = null; const c = __G.war.carrier;
+      const route = [[-900, 600, 0], [900, 600, 0], [0, 900, Math.PI / 2], [0, -900, -Math.PI / 2]].find(([x, z, yaw]) => {
+        const fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+        for (let d = -90; d <= 700; d += 20) for (const w of [-45, 0, 45]) if (__G.terrainH(x + fx * d - fz * w, z + fz * d + fx * w) > -8) return false;
+        return true;
+      });
+      if (!route) throw new Error('No clear bow-riding test corridor');
+      const [x, z, yaw] = route; c.p.x = x; c.p.z = z; c.yaw = yaw; c.w = 0; c.speed = 5.5;
+      c.path = [[x - Math.sin(yaw) * 600, z - Math.cos(yaw) * 600]]; c.goal = c.path[0];
+      __G.toHeli(); __G.foot.spawnAt({ x, y: c.p.y + 9, z, yaw }, { force: true }); __G.crafts.control('foot', 0, __G.crafts.active.id);
+      return { route, goal: c.goal };
+    })()`);
     await waitGame(8);
-    await h.eval(`(() => { const c = __G.war.carrier, S = __G.sealife.sim, fx = -Math.sin(c.yaw), fz = -Math.cos(c.yaw); const p = S.spawnSchool('dolphin', c.p.x + fx * 150 + fz * 40, c.p.z + fz * 150 - fx * 40, true); window.__POD = p; S.spawnSchool('flyingfish', c.p.x + fx * 120 - fz * 20, c.p.z + fz * 120 + fx * 20, true); return { n: p && p.n, v: c.speed }; })()`);
+    // Recruit a pod close to this bow; distant pods may choose another passing ship. Wait for the behavior,
+    // rather than assuming every randomized pod has arrived after exactly thirty seconds.
+    await h.eval(`(() => { const c = __G.war.carrier, S = __G.sealife.sim, fx = -Math.sin(c.yaw), fz = -Math.cos(c.yaw), lead = c.parts.waterline.hl + 32; const p = S.spawnSchool('dolphin', c.p.x + fx * lead + fz * 20, c.p.z + fz * lead - fx * 20, true); window.__POD = p; S.spawnSchool('flyingfish', c.p.x + fx * 120 - fz * 20, c.p.z + fz * 120 + fx * 20, true); return { n: p && p.n, v: c.speed }; })()`);
     if (await h.eval("__G.G.craft !== 'foot'")) { await h.eval('(__G.toHeli(), 1)'); await h.key('tap', 'KeyY'); await h.wait(800); }
-    await waitGame(30);
+    const atBow = `__G.war.carrier.speed > 2.2 && __G.sealife.sim.fish().filter(f => f.school === __POD).some(f => { const c = __G.war.carrier, dx = f.x - c.p.x, dz = f.z - c.p.z, lx = dx * Math.cos(c.yaw) - dz * Math.sin(c.yaw), lz = dx * Math.sin(c.yaw) + dz * Math.cos(c.yaw); return Math.abs(lx) < c.parts.waterline.hw + 5 && lz < -c.parts.waterline.hl + 2 && lz > -c.parts.waterline.hl - 16; })`;
+    await h.waitFor(atBow, 120000);
     // (the flight deck overhangs the stem: from the port deck edge well forward, looking ahead and down past it)
     await h.eval(`(() => { const c = __G.war.carrier, lz = -50, lx = -(c.parts.deckHalf(lz) * 0.985 - 0.35), w = __G.GR.toWorld(c, lx, lz); __G.foot.spawnAt({ x: w.x, y: c.p.y + 9, z: w.z, yaw: c.yaw + 0.3 }); if (__G.marine) { __G.marine.view = 'first'; __G.marine.aim(c.yaw + 0.3, -0.5); } return { lx, lz }; })()`);
     await waitGame(3);
     await h.eval(`(() => { const c = __G.war.carrier, W = __G.foot.W, cam = __G.zCam, d = new __G.THREE.Vector3(); cam.getWorldDirection(d); const [lx, lz] = __G.GR.toLocal(c, W.x, W.z); return { foot: [+lx.toFixed(2), +lz.toFixed(2), +(W.y - c.p.y).toFixed(2)], dirLocal: [d.x * Math.cos(c.yaw) - d.z * Math.sin(c.yaw), d.y, d.x * Math.sin(c.yaw) + d.z * Math.cos(c.yaw)].map(v => +v.toFixed(2)) }; })()`);
     await h.eval(`(() => { const c = __G.war.carrier, wl = c.parts.waterline, fs = __G.sealife.sim.fish().filter(f => f.school === __POD); return { v: +c.speed.toFixed(1), pod: fs.map(f => { const dx = f.x - c.p.x, dz = f.z - c.p.z; return [+(dx * Math.cos(c.yaw) - dz * Math.sin(c.yaw)).toFixed(1), +(dx * Math.sin(c.yaw) + dz * Math.cos(c.yaw)).toFixed(1), +f.y.toFixed(1)]; }), hl: wl.hl, stats: __G.sealife.sim.stats }; })()`);
-    await h.expect(`__G.sealife.sim.fish().filter(f => f.school === __POD).some(f => { const c = __G.war.carrier, dx = f.x - c.p.x, dz = f.z - c.p.z, lz = dx * Math.sin(c.yaw) + dz * Math.cos(c.yaw); return lz < -c.parts.waterline.hl + 2 && lz > -c.parts.waterline.hl - 16; })`, 'dolphins at her bow');
+    await h.expect(atBow, 'dolphins at her bow');
     await h.shot('bow-dolphins-from-deck');
     await h.eval(`(() => { const c = __G.war.carrier, wl = c.parts.waterline, fx = -Math.sin(c.yaw), fz = -Math.cos(c.yaw), sx = Math.cos(c.yaw), sz = -Math.sin(c.yaw); const bx = c.p.x + fx * (wl.hl + 4), bz = c.p.z + fz * (wl.hl + 4); window.__cam = { p: [bx + sx * 16 + fx * 10, 7, bz + sz * 16 + fz * 10], t: [bx, -0.5, bz] }; return 1; })()`);
     await waitGame(1);
