@@ -322,7 +322,7 @@ export function createGround(ctx) {
   GR.DECK_SPOTS = DECK_SPOTS;
   // SEAWORLD: parked aircraft are solid now, so a spot is used only when the deck round it is clear (flat at deck
   // height over a car-sized 2.2 x 4.8 m footprint); else the next of these candidates (port side forward, aft of the island)
-  const DECK_SPARE = [{ lx: 9, lz: -20 }, { lx: 4.5, lz: 16 }, { lx: 11, lz: 12 }, { lx: -9.5, lz: 6 }];
+  const DECK_SPARE = [{ lx: 9, lz: -20 }, { lx: 4.5, lz: 17.5 }, { lx: 11, lz: 12 }, { lx: -9.5, lz: 6 }];   // (QA ngc/qa-ship: 4.5, 16 sat on the Tilly crane at 5.9, 12.5)
   const deckClear = (u, lx, lz) => {
     if (!u.parts || !u.parts.localDeck) return true;
     for (const [ox, oz] of [[0, 0], [1.1, 0], [-1.1, 0], [0, 2.4], [0, -2.4], [1.1, 2.4], [-1.1, 2.4], [1.1, -2.4], [-1.1, -2.4]]) if (Math.abs(u.parts.localDeck(lx + ox, lz + oz) - CARRIER.DECK) > 0.05) return false;

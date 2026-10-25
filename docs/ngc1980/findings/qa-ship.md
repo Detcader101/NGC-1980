@@ -70,5 +70,19 @@ Hornet's wheels); after `tools/runs/2026-10-25_15-32-23-qa_ship/25-deck-crew-at-
 deck, torso forward).
 **Cause**: deckcrew.js kneel used lean +0.3; a + rotation about x tips the body aft, and the legs (one piece each,
 0.9 m hip to sole) are posed relative to the lean, so the front leg ended at 1.75 rad - above level.
-**Action**: fixed in the next commit: torso 0.25 forward, hip 0.57 m, legs at +/-0.88 rad absolute, both on the deck
+**Action**: fixed in e9010bc: torso 0.25 forward, hip 0.57 m, legs at +/-0.88 rad absolute, both on the deck
 (a one-piece leg cannot fold a knee: it reads as a low crouch at the wheel). The wash crouch leans forward too.
+
+## 2026-10-25 - The M113 on DECK PARK 3 stood in two deck crewmen and a tow tractor
+**Finding**: The M113 that starts on the ALBATROSS (ground.js DECK PARK 3, ship frame x -10.5, z -42) had two
+blue-shirt plane handlers standing inside its hull and the white bow tractor through its tail; the green-shirt walker
+walked down x -8.9 through anything parked on DECK PARK 1 and 2 (an M60 is 3.6 m wide); a fire bottle at -12.4, -40
+touched a tank's side; spare spot 4.5, 16 overlapped the Tilly crane.
+**Evidence**: positions read in game (M113 at -10.5, -42; crew at -9.4, -42.6 and -9.0, -43.6; tractor at -10.6, -45);
+after `tools/runs/2026-10-25_15-44-10-qa_ship/17-deck-park-3.png` (the M113 alone, tractor and crew beside it) and
+`18-deck-bow-walk.png` (the walker crossing the bow).
+**Cause**: NAVAL dressed the deck before ground.js chose the park spots; `deckClear` checks only the deck height, not
+the props or the crew.
+**Action**: fixed in the next commit (albatross.js, ground.js): tractor to z -49.2, the pair to -8.6/-9.0, -48, the
+safety man to -36.4, the walker across the bow, the fire bottle to -12.8, -36.4, the spare spot to 4.5, 17.5.
+**OPEN**: deckClear still ignores props; a new prop or crew post must keep clear of DECK_SPOTS / DECK_SPARE by hand.

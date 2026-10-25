@@ -131,7 +131,7 @@ export default async function (h) {
       C('deck-island-street', [4.5, 9.7, -16], [8, 10, 10]), C('deck-island-base', [3, 9.8, 6], [8.2, 10, 2]), C('deck-island-high', [-6, 28, -14], [10.5, 22, 4]),
       C('deck-vehicle-park', [-4, 10, -6], [-10.5, 8.5, -30]), C('deck-lso', [-10, 10, 34], [-15.5, 8.4, 43]), C('deck-fantail', [8, 11, 64], [-4, 8, 50]),
       C('deck-overhead', [0, 90, 0], [0, 8, -1]), C('deck-mast', [-4, 24, -10], [10.6, 28, 5]), C('deck-funnel', [-2, 25, 18], [10.5, 22, 12]),
-      C('deck-crew-at-work', [2, 9.8, -48], [7, 8.8, -41]), C('deck-lift1', [6, 11, -26], [18, 8, -17]), C('deck-ladders', [-0.5, 10.5, -4], [8.1, 12, -1.5]),
+      C('deck-crew-at-work', [2, 9.8, -48], [7, 8.8, -41]), C('deck-park-3', [-4, 10.5, -33], [-10.5, 8.5, -44]), C('deck-bow-walk', [-1, 11, -38], [-4, 8.5, -52]), C('deck-lift1', [6, 11, -26], [18, 8, -17]), C('deck-ladders', [-0.5, 10.5, -4], [8.1, 12, -1.5]),
     ]) { await h.eval(`__Q.cam(__G.war.carrier, ${JSON.stringify(p)}, ${JSON.stringify(t)})`); await h.wait(1200); await h.shot(n); }
     await h.eval('__Q.off()');
   }
