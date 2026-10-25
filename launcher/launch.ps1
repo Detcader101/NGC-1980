@@ -6,11 +6,14 @@
 # Safe to click repeatedly: one launcher per build at a time, a running server for the same checkout is reused, and a
 # second click within a few seconds of opening the game does nothing.
 param([string]$Build = 'main')
+# A build may share another's checkout and port and only add a URL query (config "query", e.g. sim for ?sim):
+# experimental-sim and experimental-tech open the experimental server with ?sim / ?tech=max.
 $ErrorActionPreference = 'SilentlyContinue'
 $cfg = Get-Content (Join-Path $PSScriptRoot 'config.json') -Raw | ConvertFrom-Json
 $b = $cfg.builds.$Build
 if (-not $b) { exit 1 }
 $root = $b.root; $port = [int]$b.port
+$query = if ($b.query) { "&$($b.query)" } else { '' }
 $log = Join-Path $PSScriptRoot 'launcher.log'
 if ((Test-Path $log) -and (Get-Item $log).Length -gt 256KB) { Remove-Item $log }
 function Log($m) { "$(Get-Date -Format s) [$Build] $m" | Out-File $log -Append -Encoding utf8 }
@@ -39,7 +42,7 @@ try {
     Log "server started"
   }
 
-  Start-Process "http://127.0.0.1:$port/?v=$($running.commit)-$([DateTimeOffset]::Now.ToUnixTimeSeconds())"
+  Start-Process "http://127.0.0.1:$port/?v=$($running.commit)-$([DateTimeOffset]::Now.ToUnixTimeSeconds())$query"
   New-Item -ItemType File -Force $last | Out-Null
   Log "opened build $($running.commit)"
 } finally { $mutex.ReleaseMutex() }
