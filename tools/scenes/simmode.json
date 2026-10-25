@@ -1,6 +1,6 @@
 {
   "name": "simmode",
-  "query": "?sim&debug&res=0.45&speed=16&seed=3&patch=catlane&blue=AIRPOWER&red=DEFAULT&tech=all",
+  "query": "?sim&debug&res=0.45&speed=16&seed=3&blue=AIRPOWER&red=DEFAULT&tech=all",
   "steps": [
     "log SIM MODE in the browser: both sides CPU, the spectator camera and overlay. Waits on GAME time (headless runs ~4-8 fps).",
     "waitFor 30000 window.__SIM && __SIM.built && __G.G.state==='play'",

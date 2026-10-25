@@ -11,4 +11,4 @@ parentPort.on('message', async job => {
 });
 parentPort.postMessage({ ready: true });
 // samples every 30 s are plenty for the curves; decisions are kept (they are the strategy log)
-function slim(r, keep) { if (keep) return r; return { ...r, samples: r.samples.filter((s, i) => i % 6 === 0) }; }
+function slim(r, keep) { if (keep) return r; return { ...r, samples: r.samples.filter((s, i, a) => i % 6 === 0 || i === a.length - 1) }; }

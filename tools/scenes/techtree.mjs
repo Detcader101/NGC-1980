@@ -14,9 +14,11 @@ export default {
     // ---- the orders say what they need
     await h.eval('(__G.G.mat = 400, __G.command(9), 1)'); await h.wait(150);
     await h.expect(`/NEEDS HEAVY ARMOUR RESEARCH/.test(${msg})`, '9 (M60A3): NEEDS HEAVY ARMOUR RESEARCH');
-    await h.expect(`/NEEDS FLEET AIR DEFENCE/.test(__G.war.sendEscort(null)) && /NEEDS SKY CARRIER PROGRAMME/.test(__G.war.upgradeCarrier()) && __G.G.mat === 400`, 'Tomcat escort and sky carrier refit locked, nothing paid');
-    await h.eval('(__G.command(3), 1)'); await h.wait(150);
-    await h.expect(`/NEW HELICOPTER/.test(${msg}) && __G.G.mat === 340`, '3 (a new Huey) still works: in the opening set');
+    // Compare each transaction inside one frame: even in peace the islands keep producing materiel.
+    await h.eval(`(window.__locked = (() => { const m = __G.G.mat; const escort = __G.war.sendEscort(null), sky = __G.war.upgradeCarrier(); return { escort, sky, paid: m - __G.G.mat }; })())`);
+    await h.expect(`/NEEDS FLEET AIR DEFENCE/.test(__locked.escort) && /NEEDS SKY CARRIER PROGRAMME/.test(__locked.sky) && __locked.paid === 0`, 'Tomcat escort and sky carrier refit locked, nothing paid');
+    await h.eval(`(window.__buy = (() => { const m = __G.G.mat, n = __G.fleet.n.heli; __G.command(3); return { paid: m - __G.G.mat, added: __G.fleet.n.heli - n, msg: ${msg} }; })())`);
+    await h.expect(`/NEW HELICOPTER/.test(__buy.msg) && __buy.paid === 60 && __buy.added === 1`, '3 (a new Huey) still works: 60 materiel buys one reserve');
     // ---- the board: locked rows
     await h.key('tap', 'Backslash'); await h.wait(400);
     await h.expect('__G.commander.isOpen && [...document.querySelectorAll("#cmdBoard .row.lock")].length >= 3', 'the board greys the locked types (Tomcat, M60A3, M113A2)');

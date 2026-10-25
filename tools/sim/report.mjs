@@ -1,7 +1,6 @@
 // SIM MODE: the numbers of a batch of CPU vs CPU wars (tools/warsim.mjs): win rates with 95% intervals, game length,
 // how wars end, island control and materiel over time, units built / lost, research, the fun metrics, and the
 // dominant-strategy check. aggregate(records, meta) -> summary (plain JSON); renderReport(summary) -> markdown.
-import { judge, fun } from '../../game/js/sim/telemetry.js';
 const CURVE_T = [5, 10, 15, 20, 30, 45, 60];   // minutes
 const mean = a => a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0;
 const median = a => { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
@@ -45,8 +44,8 @@ function cell(rs) {
 }
 
 export function aggregate(recs, meta) {
-  // the verdicts and the fun metrics from each war's own samples, with the current rules (telemetry.js judge / fun)
-  for (const r of recs) if (!r.failed && r.samples) { if (!r.decisive) r.winner = judge(r.samples, null); Object.assign(r, fun(r.samples, r.minutes || [], r.winner)); }
+  // Keep the worker's verdict and metrics, measured from its full timeline. The stored
+  // samples may be thinned for plots; recomputing here changed winners and missed comebacks.
   const ok = recs.filter(r => !r.failed && r.reason !== 'error');
   const key = r => `${r.blue}|${r.red}${r.sweep ? '|' + r.sweep.value : ''}`;
   const cells = {}; for (const [k, rs] of group(recs, key)) cells[k] = cell(rs);
@@ -94,7 +93,8 @@ export function renderReport(S) {
     for (const b of M.blues) { const row = M.reds.map(r => S.cells[`${b}|${r}`]); L.push(`| **${b}** | ` + row.map(c => c ? pct(c.blueRate) : '-').join(' | ') + ` | ${row.some(Boolean) ? pct(mean(row.filter(Boolean).map(c => c.blueRate))) : "-"} |`); }
     L.push(`| **mean (RUNAWAY's view: 1 - this)** | ` + M.reds.map(r => pct(mean(M.blues.map(b => S.cells[`${b}|${r}`]).filter(Boolean).map(c => c.blueRate)))).join(' | ') + ' | |');
   }
-  L.push('', '## Dominant strategies', '', S.dominant.length ? S.dominant.map(d => `- **${d.side === 1 ? 'TASK FORCE' : 'RUNAWAY'} ${d.name}** wins over 70% against every opponent (worst ${pct(d.worst)})${d.sure ? ', and the 95% interval stays above 50% everywhere' : ''}`).join('\n') : '- none: no doctrine beats every opponent more than 70% of the time');
+  L.push('', 'Timeout outcomes are points leaders, not decisive victories. Draws count as half a point in rates; the Wilson intervals describe outright wins. A small or incomplete matrix does not establish balance.');
+  L.push('', '## Dominant strategies', '', S.dominant.length ? S.dominant.map(d => `- **${d.side === 1 ? 'TASK FORCE' : 'RUNAWAY'} ${d.name}** scores over 70% against every tested opponent (worst ${pct(d.worst)})${d.sure ? ', and the 95% win interval stays above 50% everywhere' : ''}`).join('\n') : '- No dominance flagged in the tested matchups; at least two opponent doctrines are needed to flag a candidate.');
   L.push('', '## Fun metrics', '', '| matchup | lead changes | comeback rate | decisive moments | snowball (0 = winner clear from the start) | dead minutes | longest lull min | first shot min | first loss min | first capture min |', '|---|---|---|---|---|---|---|---|---|---|');
   for (const k of ck) { const f = S.cells[k].fun; L.push(`| ${k.replace(/\|/g, ' vs ').replace(/ vs ([\d.]+)$/, ' @ $1')} | ${f.leadChanges} | ${pct(f.comebackRate)} | ${f.decisiveMoments} | ${f.snowball} | ${pct(f.deadShare)} | ${f.longestLull} | ${f.firstShot ?? '-'} | ${f.firstLoss ?? '-'} | ${f.firstCapture ?? '-'} |`); }
   const O = S.overall;
@@ -117,7 +117,7 @@ export function renderReport(S) {
 
 // dead branches: tech nodes no war researched (only for a side that started with something left to research)
 export function deadBranches(recs, base, TECH) {
-  const ok = recs.filter(r => !r.failed), never = [];
+  const ok = recs.filter(r => !r.failed && r.reason !== 'error'), never = [];
   for (const side of [1, 2]) {
     const runs = ok.filter(r => (side === 1 ? r.tech : r.etech) !== 'all'); if (!runs.length) continue;
     const start = side === 1 ? base.tech : (base.etech ?? base.tech);

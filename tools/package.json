@@ -4,6 +4,10 @@
   "type": "module",
   "description": "Headless browser oracle harness for the Thrust/Zarch game",
   "scripts": {
+    "start": "node serve.mjs --port 8766",
+    "check": "node check.mjs syntax",
+    "test": "node check.mjs",
+    "bench": "node check.mjs bench",
     "smoke": "node snap.mjs scenes/smoke.json",
     "cave": "node snap.mjs scenes/cave.json"
   },
