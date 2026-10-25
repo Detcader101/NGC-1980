@@ -78,7 +78,7 @@ react to the physics and school around."
 
 | Feature | Branch | Status | Notes |
 |---|---|---|---|
-| TECH TREE (game/js/techtree.js API, both sides, research UI, gates every buy) | ngc/techtree | running | API is the contract simmode merges |
+| TECH TREE (game/js/techtree.js API, both sides, research UI, gates every buy) | ngc/techtree | merged | techbench 95/95, techtree.mjs 26/26, smoke 5/5; Shift+\\ or T on the board opens RESEARCH |
 | SIM MODE (CPU vs CPU, doctrines, tools/warsim.mjs batch/tournament/sweep, ?sim spectator, fun metrics, SIMREPORT.md) | ngc/simmode | running | merges ngc/techtree when its API lands |
 | SEA LIFE 2 (fish round units, physics reactions, bait balls, dolphins, birds, surface signs) | ngc/sealife2 | running | builds on fishsim.js / sealife.js |
 | Next: BALANCE pass driven by the sim's tournament (apply SIMREPORT tuning, re-run until no dominant doctrine) | | queued | after techtree + simmode merge |
