@@ -4,7 +4,8 @@
 //   traffic     1980 cars, vans, trucks and tractors drive the road network on the right, slow for bends and for each
 //               other, turn at junctions; flee or burn when the war comes close. Models are swappable:
 //                 traffic.setModel(kind, { geometry, length } | { object, length })   (see MODLOG)
-//   boats       dinghies and crabbers bobbing at the piers; trawlers working offshore with gulls behind them
+//   boats       dinghies and crabbers bobbing at the piers; trawlers working offshore with gulls behind them (SEALIFE:
+//               while A.seaBirds is set, seabirds.js flies the trawlers' gulls instead)
 //   smoke       a few chimneys and stoves lit near the camera (fx.chimney)
 //   livestock   cows and sheep in the pastures
 // Deserted where the machines hold an island (no people, no smoke, no traffic).
@@ -301,6 +302,7 @@ export function createAmbient(ctx) {
   dMesh.count = tMesh.count = 0; dMesh.frustumCulled = tMesh.frustumCulled = false; root.add(dMesh, tMesh);
   const HULLS = [0x2a4a7a, 0xc8281e, 0x2f5a3a, 0xe8e4d8, 0x1e1e22, 0x3f6f7f, 0xd8b030];
   const moored = new Map(), workers = [];
+  A.trawlers = workers;   // SEALIFE: the trawlers working (fish and gulls gather round them; sealife.js reads x, z, yaw, v, gulls)
   function addMoorings(src) {
     const ms = src.dyn && src.dyn.moorings; if (!ms || !ms.length) return;
     const r = rng((Math.round(src.x) * 13 + Math.round(src.z) * 7) | 0), list = [];
@@ -348,7 +350,7 @@ export function createAmbient(ctx) {
   function updateGulls(dt, cam, t) {
     let n = 0; const cx = cam.position.x, cz = cam.position.z;
     const flock = (x, y, z, k, seed) => { for (let i = 0; i < k && n < MAXG; i++) { const a = t * (0.35 + (i % 3) * 0.08) + i * 2.4 + seed, r = 12 + (i * 7 % 15), hx = x + Math.cos(a) * r, hz = z + Math.sin(a) * r, hy = y + 8 + (i % 4) * 2.5 + Math.sin(t * 0.7 + i) * 1.5; _p.set(hx, hy, hz); _e.set(0, a + Math.PI, Math.sin(t + i) * 0.3); _q.setFromEuler(_e); _m.compose(_p, _q, _s); gMesh.setMatrixAt(n, _m); gWalk.setXY(n, t * (5 + (i % 3)) + i, 0.5 + 0.2 * Math.sin(t * 0.5 + i)); n++; } };
-    for (const w of workers) if (w.gulls && Math.hypot(w.x - cx, w.z - cz) < 500) flock(w.x - Math.sin(w.yaw) * 10, 2, w.z - Math.cos(w.yaw) * 10, 7, w.hx);
+    for (const w of workers) if (w.gulls && !A.seaBirds && Math.hypot(w.x - cx, w.z - cz) < 500) flock(w.x - Math.sin(w.yaw) * 10, 2, w.z - Math.cos(w.yaw) * 10, 7, w.hx);
     for (const [src, list] of moored) if (list.length && Math.hypot(list[0].x - cx, list[0].z - cz) < 500) flock(list[0].x, 4, list[0].z, 5, list[0].ph);
     gMesh.count = n; gMesh.instanceMatrix.needsUpdate = true; gWalk.needsUpdate = true; A.stats.gulls = n;
   }
