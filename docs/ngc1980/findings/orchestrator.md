@@ -22,3 +22,10 @@ sinkings (vs SWARM, HORDE), 1 RUNAWAY carrier sunk (vs DREADNOUGHT), out of 42 g
 **Finding:** the player F-14 is destroyed at the end of the catapult stroke and the AI Tomcat never leaves the cat
 (jets.json); known since 2026-10-24. User asked for a launch queue, one aircraft at a time, and a taxi coordination sim.
 **Action:** OPEN - ngc/bugsweep owns the catapult fix + new deck ops module (launch queue, taxi, fouled-deck holds).
+
+## 2026-10-25 - USER REPORT: the sides aren't symmetrical
+**Finding:** the user wants each side to have an equivalent for every unit, matched in role, size and power. Two
+examples they gave: the KRAKEN has container freighters that the ALBATROSS lacks, and only the ALBATROSS can be refitted
+into a flying SKY CARRIER.
+**Action:** OPEN - ngc/parity. First a role-by-role matrix (docs/ngc1980/PARITY.md), then every gap filled across the
+game, tech tree, AI and sim, with sim win rates measured before and after.
