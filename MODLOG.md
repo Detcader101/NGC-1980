@@ -2651,3 +2651,58 @@ ngc/simmode (CPU vs CPU) plugs it into its commanders through the API below.
   times, the enemy's 25-materiel reserve) is a first cut for the sim to tune; the player has no CPU research policy in
   the live game (W.researchPolicy[1] = aiPickResearch turns one on); the enemy sees no fog (its "situation" counts every
   unit); research is one programme at a time with no queue.
+
+## 2026-10-25 — NGC-1980 BUGSWEEP: the catapult crash, flight-deck operations (launch queue + taxi), flaky scenes (branch ngc/bugsweep)
+Findings with causes: `docs/ngc1980/findings/bugsweep.md`.
+- **Catapult crash / AI Tomcat stuck on the cat** (experimental: jets.json 0/5, the player's F-14 dying at the end of the
+  stroke): the parked Hornets on the starboard bow became solid (SEAWORLD) and the shuttle held every jet level on the
+  flat deck height while the real deck heaved and heeled; at the end of the stroke the gear was inside the deck (or a
+  parked jet) and the first free step threw the jet off at 46-55 g. Fixed in b44b44d (port cat for everyone, Hornets
+  outboard, the jet lies at the deck's pitch / roll on the shuttle). jets.json 2/2 with every wait met, tomcat.mjs 15/15.
+- **Hands-off Tomcat off the cat** (cad0596): the F-14A's SAS law had no launch rotation (the Hornet's NDI law does);
+  hands off she settled into the sea ~4 s after the shot. The launch trim now rotates her to ~10 deg and holds it 7 s
+  (stick > 0.3 takes over). `tools/catdeckbench.mjs` (Tomcat + Hornet, game deck with the parked aircraft, sea states
+  3/5/6, straight and heeling in a turn, frames 1/60, 1/30, 0.1 s): Tomcat 0/54 -> 54/54 away, Hornet 54/54 and
+  bit-identical (jetfingerprint SAME). Scene `catshot.mjs` 5/5 (first and third person, Hornet, AI Tomcat).
+- **DECK OPS** (user request: "the tomcats can't fly off albatross, need to Q the fly one aircraft at a time, make a taxi
+  coordination simulation"): `game/js/units/naval/deckops.js` (pure; contract in its header). One launch queue for every
+  jet off the ALBATROSS - the player's Hornet / Tomcat (5 / 8, the command board), the AI escorts (4), the wingmen, sim
+  mode's strike Hornets (they were spawned in the air at 60 m) - one at a time off cat 1, in order:
+  hangar -> spot (two, in file aft of the island; the one behind moves up) -> the taxi director walks the next round the
+  island's after corner to the hold-short line behind the JBD -> the cat director brings it over the JBD onto the shuttle
+  (JBD up) -> tension (its own pilot / the player runs up) -> the shot -> an 8 s cat reset -> the next. One aircraft per
+  segment; a helicopter (the war's CH-46s, the player's Huey) or a parked jet on the lane holds the queue; cycle ops with
+  recoveries (an AI pilot in the pattern or the player's jet on approach stops new moves into the landing area; the
+  pattern goes round, FOUL DECK, while a jet is in it). The player: straight onto cat 1 when nobody is ahead (as before),
+  else spotted with the place on the HUD (NUMBER 2 FOR CAT 1 - HOLD SHORT - CAT 1 IS BUSY); 5 / 8 again = the commander's
+  priority (next, straight to the cat). Tomcats wait and taxi in oversweep and spread at the hold-short line.
+  - airframe.js: `A.tow = { lx, lz, hdg, v }` (kinematic on the live deck in the ship frame, like the cat).
+  - war.js: `W.deck`, `W.deckHooks` (main.js: the Huey and parked jets as obstacles, the player's approach); the JBD and
+    two yellow-shirt directors (albatross.js crew members, deckcrew.js 'march') follow the queue; the crew step out of a
+    taxiing jet's way and off the cat lane. airwar.js `AW.deckLaunch(u)` (the escorts' old timer queue is gone).
+    pilot.js: `env.wantDeck` / `env.deckClear` in the pattern.
+  - Deck clutter off the lane: Tilly by the island's forward face, the aft tractor to the fantail, the brown walker
+    outboard of the spots; the motor pool's deck park between the island and the parked Hornets (ground.js DECK_SPOTS;
+    the M35 at x 3.5 stood under a Tomcat's wing on the cat; motorpool.js).
+  - Tests: `tools/deckopsbench.mjs` 15/15 (real airframes on the game deck in a seaway, 1/30 and 0.1 s: order, one per
+    segment, closest pair >= 10.5 m, 5 launches 20-23 s apart = 2.6 a minute, all climbing; fouled lane and a recovery
+    hold the queue; the bump; the player preempting a full deck). Scene `deckseq.mjs` 4/4: three escorts and the
+    player's Hornet, launched at 32 / 54 / 78 / 101 s game time, all airborne (screenshots: the escort taxiing behind
+    the director, hold short, the player's cockpit and chase on the spot and taxiing, the escort on the cat with the JBD
+    up, the player on the cat).
+  - Shared-file lines: war.js (import, W.deck / deckHooks / deckFrame, reset, update, tickParts avoid), main.js
+    (jetPlayCtx deckSpot / deckStatus, deckSpot(), deckCancel, war.deckHooks, jetCmd.deckCancel), jetplay.js /
+    tomcatplay.js (launch / respot through ctx.deckSpot, hint, the JBD line removed, service message), craftjet.js /
+    crafttomcat.js (5 / 8 while towed, parkHere / lost / writeOff cancel, hud hint), airwar.js, pilot.js, sim/strike.js,
+    albatross.js (directors, Tilly, tractor, walker), deckcrew.js ('march', directors not pushed), ground.js
+    (DECK_SPOTS), motorpool.js (the M35's deck spot).
+  - Untested / OPEN: the player cannot taxi by hand under signals (the director moves the jet); a landing's runout can
+    still meet a jet at the hold-short line when the landing started first (no aircraft-aircraft collision); the
+    port-bow vehicle parks sit under a Tomcat's wingtip on the shot; the KRAKEN's SHRIKEs still spawn in the air; a
+    player who sits on the cat without running up holds the queue.
+- **Cockpit HUD**: in a jet cockpit the feed sat at 236 px, exactly on the centre message (#msg); it moves two lines lower
+  and is capped in height; island tags below the glareshield are not drawn in a jet cockpit (6053c13).
+- **Rotary rollover / flaky scenes** (earlier on this branch, see the findings file): rotarydeck 0/16 -> 16/16 (yaw-rate
+  step in sailShip, transportai's contacts, the touchdown); snap.mjs waits / holds / waitFor timeouts in game time, taps
+  last a game frame, 30 min protocol timeout; rescue / damage / hueyauto / cave autopilots per game frame; drop.json
+  measures the bank D adds while held; armorgame measures the M113 in the ship frame; war.json waits game time.

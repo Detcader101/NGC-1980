@@ -103,6 +103,7 @@ export function createDeckOps({ feed = () => {}, now = () => 0, O = DECK_OPS } =
     for (let i = 0; i < O.SPOTS.length; i++) if (spotFree(i, obstacles)) {
       const S = O.SPOTS[i]; e.spotI = i; e.state = 'spot'; e.t = 0; e.s = 0;
       e.A.tow = { lx: S.lx, lz: S.lz, hdg: S.hdg, v: 0 }; e.A.cat = null;
+      if (e.A.sweepMode !== undefined) e.A.sweepMode = 'over';   // a Tomcat waits and taxis in oversweep (10.2 m span)
       e.onSpot && e.onSpot(e);
       return true;
     }
@@ -115,7 +116,7 @@ export function createDeckOps({ feed = () => {}, now = () => 0, O = DECK_OPS } =
     return toCat(e);
   };
   function toCat(e) {
-    e.A.tow = null; e.spotI = -1;
+    e.A.tow = null; e.spotI = -1; if (e.A.sweepMode === 'over') e.A.sweepMode = 'auto';
     if (!e.attach(e)) { e.state = 'hangar'; return false; }
     e.state = 'tension'; e.t = 0; return true;
   }
@@ -162,7 +163,7 @@ export function createDeckOps({ feed = () => {}, now = () => 0, O = DECK_OPS } =
           break;
         }
         case 'moveup': if (follow(e, dt)) e.state = 'spot'; break;
-        case 'taxi': if (e.s > 9) e.spotI = -1; if (follow(e, dt)) { e.state = 'hold'; e.t = 0; e.A.tow.v = 0; } break;
+        case 'taxi': if (e.s > 9) e.spotI = -1; if (follow(e, dt)) { e.state = 'hold'; e.t = 0; e.A.tow.v = 0; if (e.A.sweepMode === 'over') e.A.sweepMode = 'auto'; } break;   // (wings spread at the hold-short line)
         case 'hold': {
           if (e.t < O.HOLD_T) break;
           if (D.entries.some(o => ['oncat', 'tension', 'shot'].includes(o.state)) || D.catGap > 0) { e.why = D.catGap > 0 ? 'THE CAT IS BEING RESET' : 'CAT 1 IS BUSY'; break; }
