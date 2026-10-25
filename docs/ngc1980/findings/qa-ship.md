@@ -93,7 +93,7 @@ safety man to -36.4, the walker across the bow, the fire bottle to -12.8, -36.4,
 **Evidence**: before `tools/runs/2026-10-25_14-53-52-qa_ship/08-in-ready-room.png`, `02-in-fdc-board.png`,
 `29-in-hangar-mid.png`; after `tools/runs/2026-10-25_15-50-36-qa_ship/08-in-ready-room.png`.
 **Cause**: main.js updateTags projects every island / ship in range with no notion of being indoors.
-**Action**: fixed in the next commit: interiors.js sets `IN.inShip` (camera inside the island below the bridge, or in
+**Action**: fixed in 6b9c831: interiors.js sets `IN.inShip` (camera inside the island below the bridge, or in
 the hangar); updateTags draws none then. The bridge keeps them (glass all round, and the helm needs them).
 **OPEN**: the same is true inside buildings ashore (houses, bunkers); not changed here.
 
@@ -101,4 +101,4 @@ the hangar); updateTags draws none then. The bridge keeps them (glass all round,
 **Finding**: Walking up to the wheel on foot, the lee helmsman (0.75, -3.2 in the tower frame) stood 1 m to your right
 and filled a third of the view.
 **Evidence**: `tools/runs/2026-10-25_15-50-36-qa_ship/18-in-bridge-at-the-wheel.png`.
-**Action**: moved to starboard of his telegraph (1.2, -3.4, turned 20 deg) in the next commit.
+**Action**: moved to starboard of his telegraph (1.2, -3.4, turned 20 deg) in 6b9c831.
