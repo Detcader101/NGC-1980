@@ -178,6 +178,7 @@ const canvas = $('gl');
 // cockpit switches: what the crosshair / cursor is over, and click to operate it
 const switchRay = new THREE.Raycaster(), mouseNdc = new THREE.Vector2();
 let switchHover = null;
+let switchClick = false;
 let mouseAimT = -1e9;
 addEventListener('mousemove', e => { mouseNdc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); mouseAimT = performance.now(); });
 function pickSwitch() {
@@ -189,8 +190,11 @@ function pickSwitch() {
 }
 const _ndc0 = new THREE.Vector2(0, 0);
 addEventListener('mousedown', e => {
-  if (e.button !== 0 || G.state !== 'play') return;
+  if (e.button !== 0) return;
+  switchClick = false;
+  if (G.state !== 'play' || e.target !== canvas) return;
   const id = pickSwitch(); if (!id) return;
+  switchClick = true;
   e.stopImmediatePropagation(); e.preventDefault(); if (G.craft === 'jet') JP.click(id); else if (G.craft === 'tomcat') tomcatC.click(id); else if (armCk()) crafts.active.click(id); else if (G.craft !== 'heli' && crafts.active && crafts.active.click) crafts.active.click(id); else doSwitch(id);
 }, { capture: true });
 function armCk() { const a = crafts.active; return a && (a === m60C || a === m113C) && G.state === 'play' ? a.cockpitObj() : null; }   // ARMOUR: clickable crew stations (armorstations.js)
@@ -204,7 +208,11 @@ function toggleFreeLook() {
 }
 // on foot and in ground vehicles the mouse always looks (the craft's look()); in the aircraft it moves the head
 const craftLooks = () => G.craft !== 'heli' && !isJet() && crafts.active && G.mode === 'zarch';
-canvas.addEventListener('click', () => { if ((((cockpitCam || helm.bridgeView || drop.cockpitView) && freeLook) || craftLooks()) && G.state === 'play' && !document.pointerLockElement) canvas.requestPointerLock?.(); });
+canvas.addEventListener('click', () => {
+  // A switch's mousedown already consumed the action; its following click must not capture the cursor.
+  if (switchClick) { switchClick = false; return; }
+  if ((((cockpitCam || helm.bridgeView || drop.cockpitView) && freeLook) || craftLooks()) && G.state === 'play' && !document.pointerLockElement) canvas.requestPointerLock?.();
+});
 addEventListener('mousemove', e => {
   if (document.pointerLockElement !== canvas) return;
   if (craftLooks()) { if (G.state === 'play') crafts.active.look(e.movementX, e.movementY); return; }

@@ -71,6 +71,7 @@ export default {
     };
     await clickSw('bat');
     await h.expect(`${C}.P.sys.bat`, 'mouse click on the overhead BATTERY switch: battery on');
+    await h.expect('!document.pointerLockElement', 'operating a cockpit switch leaves the cursor free for the next switch');
     await clickSw('apu');
     await h.expect(`${C}.P.sys.apu !== 'off'`, 'mouse click on APU: the APU starts');
     await h.waitFor(`${C}.P.sys.apu === 'on'`, 60000);
