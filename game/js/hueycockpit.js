@@ -641,3 +641,5 @@ export function buildHueyCockpit() {
 }
 const NOCAUT = { cautions: [] };
 const _e = new THREE.Vector3(); function V3e(x, y, z) { return _e.set(x, y, z); }
+// ngc/ch46fly: the dial kit, shared with the CH-46 cockpit (units/air/rotary/ch46cockpit.js)
+export { canvasTex, P2, txt, faceBg, band, radial, needle, hub, offFlag, lin, dialFace };

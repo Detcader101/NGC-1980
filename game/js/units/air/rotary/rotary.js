@@ -43,7 +43,7 @@ export function createRotary(ctx) {
   function homePad(side) { const I = W.islands.find(I => I.kind === 'hq' && I.owner0 === side); return { x: I.pad.x + 14, y: I.pad.h, z: I.pad.z, hdg: 0, vx: 0, vz: 0 }; }
   function freeSpot(kind, side) {   // a deck spot nobody of ours is sitting on
     const c = carrierOf(side); if (!c) return null;
-    for (const [lx, lz] of SPOTS[kind]) { const s = deckSpot(c, lx, lz); if (!W.units.some(u => u.rot && Math.hypot(u.p.x - s.x, u.p.z - s.z) < 14 && u.p.y < s.y + 6)) return { lx, lz, ...s }; }
+    for (const [lx, lz] of SPOTS[kind]) { const s = deckSpot(c, lx, lz); if (!W.units.some(u => u.rot && Math.hypot(u.p.x - s.x, u.p.z - s.z) < 14 && u.p.y < s.y + 6) && !(R.blocked && R.blocked(s.x, s.z))) return { lx, lz, ...s }; }   // (ngc/ch46fly: R.blocked = the player's Sea Knight on a spot)
     return null;
   }
   // a landing zone beside the island's pad: room for the rotors and the fuselage clear of every building, flat ground,

@@ -73,7 +73,7 @@ export function createCH46Sim(G = 9.81) {
     get rpm() { return S.omega / C.OMEGA; }, xmsn: C.XMSN,
     reset(pos, yaw = 0, landed = true, env = null) {
       S.body.reset(pos, yaw, landed, env); S.omega = C.OMEGA; S.dead = false;
-      rf.reset(landed ? 0.01 : 0.05); ra.reset(landed ? 0.01 : 0.05); for (const e of S.eng) { e.on = true; e.n1 = landed ? 0.8 : 0.9; e.ok = true; }
+      rf.reset(landed ? 0.01 : 0.05); ra.reset(landed ? 0.01 : 0.05); for (const e of S.eng) { e.on = true; e.lit = true; e.n1 = landed ? 0.8 : 0.9; e.ok = true; }
       S.c.coll = landed ? 0 : 0.5; S.c.lon = S.c.lat = S.c.ped = 0; S.landed = landed; S.events.length = 0;
     },
     step(dt, ctl, env) {
@@ -84,8 +84,11 @@ export function createCH46Sim(G = 9.81) {
     },
     attitude(out) { return attitude(S.body.q, out); },
   };
-  function mkEng() { return { on: true, ok: true, n1: 0.9, p: 0, q: 0 }; }
-  const body = S.body = createBody({ mass: () => S.mass, I: C.I, gear: C.GEAR.map(([x, y]) => ({ at: [x, y, C.CG_H], k: 260000, c: 30000, mu: 0.7 })) });
+  function mkEng() { return { on: true, ok: true, lit: true, n1: 0.9, p: 0, q: 0 }; }
+  // ngc/ch46fly: a cold airframe (engines out, rotor stopped) for the player's start sequence
+  S.coldStart = () => { for (const e of S.eng) { e.lit = false; e.n1 = 0; e.p = e.q = 0; } S.omega = 0; S.govI = 0.75; };
+  const GEARS = C.GEAR.map(([x, y]) => ({ at: [x, y, C.CG_H], k: 260000, c: 30000, mu: 0.7 }));
+  const body = S.body = createBody({ mass: () => S.mass, I: C.I, gear: GEARS });
 
   // shaft axes for each rotor: tilted forward by the shaft angle (FRD, rotations about y)
   const sh = (t) => ({ X: [Math.cos(t), 0, Math.sin(t)], Y: [0, 1, 0], Z: [-Math.sin(t), 0, Math.cos(t)] });
@@ -110,6 +113,9 @@ export function createCH46Sim(G = 9.81) {
     S.rho = env.rho ?? 1.225;
     // controls: servos follow at a finite rate (boosted controls); SAS rate damping (+-15% authority)
     const c = S.c, mv = (cur, t, r) => cur + clamp(t - cur, -r * h, r * h);
+    // ngc/ch46fly: wheel brakes (ctl.brake 0..1; not given = set, the AI's always-braked gear). Off, the wheels roll
+    // (rolling resistance ~0.03, INFERRED) and the twin nose wheels caster (low side friction; swivel lock not modelled)
+    if (ctl.brake !== undefined) { const b = clamp(ctl.brake, 0, 1); for (let i = 0; i < 4; i++) { const G = GEARS[i]; G.mu = 0.03 + (i < 2 ? 0 : 0.67 * b); G.muS = i < 2 ? 0.03 + 0.67 * b : 0.7; } }
     c.coll = mv(c.coll, clamp(ctl.coll ?? 0, 0, 1), 1.5); c.lon = mv(c.lon, clamp(ctl.lon ?? 0, -1, 1), 4); c.lat = mv(c.lat, clamp(ctl.lat ?? 0, -1, 1), 4); c.ped = mv(c.ped, clamp(ctl.ped ?? 0, -1, 1), 4);
     body.bodyVel(_vb); const wb = body.w, V = Math.hypot(_vb[0], _vb[1]);
     S.ias = V * KT;
@@ -154,19 +160,32 @@ export function createCH46Sim(G = 9.81) {
     S.govI = clamp((S.govI ?? 0.75) + err * 3 * h, 0.3, 1.05);
     let qe = 0, live = 0;
     for (let i = 0; i < 2; i++) {
-      const e = S.eng[i], ok = e.ok && e.on && (M['eng' + i] ?? true) && ctl['eng' + i] !== false && (M.fuel ?? 1) > 0;
+      // ngc/ch46fly: the engine condition lever (ctl.ecl0 / ecl1: 0 STOP = fuel off, 0.5 GROUND IDLE, 1 FLY = governed;
+      // not given = FLY) and the starter (ctl.start0 / start1: the starter turns the gas generator toward ~26% N1; with
+      // fuel on it lights off past 12% N1 and accelerates itself to idle). INFERRED from the T58 start sequence (ECL to
+      // GND IDLE, starter, light-off, starter out at ~45% Ng). The AI sets none of these: its engines stay lit.
+      const e = S.eng[i], ecl = ctl['ecl' + i] ?? 1, fuel = (M.fuel ?? 1) > 0 && ecl > 0.05;
+      if (!fuel) e.lit = false;
+      if (!e.lit && fuel && e.ok && e.n1 > 0.12 && (ctl['start' + i] || e.n1 > 0.2)) e.lit = true;   // light-off
+      const ok = e.ok && e.on && e.lit && (M['eng' + i] ?? true) && ctl['eng' + i] !== false && fuel;
       // demand: governor PI + collective anticipator, topped so the pair can't push the drive train past ~105% torque
-      // (a governor recovering a drooped rotor would otherwise dump full engine torque into it; INFERRED topping)
+      // (a governor recovering a drooped rotor would otherwise dump full engine torque into it; INFERRED topping);
+      // the ECL caps it: GROUND IDLE holds the gas generator at idle, FLY lets the N2 governor have it
       const share = 1.05 * C.XMSN / Math.max(1, S.live ?? 2) / Math.max(0.5, 2 - nr), top = 0.6 + 0.4 * Math.min(1.1, share / (C.P_ENG * lapse)) ** (2 / 3);
-      const dem = ok ? clamp(Math.min(S.govI + err * 8 + 0.25 * S.c.coll - 0.1, top), 0.62, 1.02) : 0;
-      e.n1 += clamp((dem - e.n1) * 1.8, -0.3, 0.12) * h;   // acceleration-limited spool (~4 s idle -> max, INFERRED)
+      const dem = ok ? clamp(Math.min(S.govI + err * 8 + 0.25 * S.c.coll - 0.1, top, 0.62 + 0.42 * clamp((ecl - 0.5) * 2, 0, 1)), 0.62, 1.02) : 0;
+      if (ok && e.n1 < 0.6) e.n1 += clamp((0.62 - e.n1) * 0.3, 0.004, 0.045) * h;   // lit: accelerating to idle by itself (~12 s)
+      else if (!ok && ctl['start' + i]) e.n1 += clamp((0.26 - e.n1) * 0.25, -0.3, 0.03) * h;   // the starter turning it
+      else e.n1 += clamp((dem - e.n1) * 1.8, -0.3, 0.12) * h;   // acceleration-limited spool (~4 s idle -> max, INFERRED)
       e.p = ok ? C.P_ENG * lapse * Math.max(0, (e.n1 - 0.6) / 0.4) ** 1.5 : 0;
       e.q = e.p / C.OMEGA * Math.max(0, 2 - nr);   // free-turbine torque at the rotor falls with N2
       if (ok) live++; qe += e.q;
     }
     S.live = live;
     const qLoad = rf.Q + ra.Q + 0.03 * C.P_ENG / C.OMEGA * nr;   // + accessories / transmission loss (~3%, INFERRED)
-    S.omega = Math.max(0, S.omega + (qe - qLoad) / C.I_ROTOR * h);
+    // ngc/ch46fly: the rotor brake (ctl.rbrake) holds a stopped rotor against ground-idle torque and stops a slowing one
+    // (INFERRED: ~25 kN m at the rotor; NATOPS applies it below ~30% NR only - the host warns, the FM just brakes)
+    const qBrake = ctl.rbrake ? Math.min(25000, S.omega * C.I_ROTOR / h + Math.max(0, qe - qLoad)) : 0;
+    S.omega = Math.max(0, S.omega + (qe - qLoad - qBrake) / C.I_ROTOR * h);
     S.power = qe * S.omega; S.torque = qe * C.OMEGA / C.XMSN;   // transmission torque, fraction of the limit (100% at 2,800 shp)
     S.pAvail = S.eng.reduce((a, e) => a + (e.ok && e.on ? C.P_ENG * lapse : 0), 0);
   }

@@ -21,6 +21,8 @@ export const FLEET_TYPES = [
   { id: 'm151', label: 'M151A2 MUTT', short: 'JEEP', cost: 10, start: 2, at: ['ship', 'island'], kind: 'ground', note: 'JEEP  -  M60 ON A PEDESTAL' },
   { id: 'm35', label: 'M35A2', short: 'TRUCK', cost: 20, start: 1, at: ['ship', 'island'], kind: 'ground', note: 'TWO AND A HALF TON TRUCK' },
   { id: 'marine', label: 'MARINE RIFLEMAN', short: 'MARINES', cost: 5, start: 6, at: ['ship', 'island'], kind: 'foot', note: 'ON FOOT  -  M16A1, ALICE GEAR' },
+  // ngc/ch46fly: the flyable Sea Knight (last: the board's older keys stay where they were); a stick of 13 Marines boards on deck or at a pad (B)
+  { id: 'ch46', label: 'CH-46F SEA KNIGHT', short: 'CH-46', cost: 70, start: 2, at: ['ship', 'island'], kind: 'air', note: 'MEDIUM ASSAULT HELICOPTER  -  13 MARINES' },
 ];
 
 export function createFleet(types = FLEET_TYPES) {
