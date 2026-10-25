@@ -1,6 +1,7 @@
 // SIM MODE: the numbers of a batch of CPU vs CPU wars (tools/warsim.mjs): win rates with 95% intervals, game length,
 // how wars end, island control and materiel over time, units built / lost, research, the fun metrics, and the
 // dominant-strategy check. aggregate(records, meta) -> summary (plain JSON); renderReport(summary) -> markdown.
+import { judge, fun } from '../../game/js/sim/telemetry.js';
 const CURVE_T = [5, 10, 15, 20, 30, 45, 60];   // minutes
 const mean = a => a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0;
 const median = a => { if (!a.length) return 0; const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
@@ -44,6 +45,8 @@ function cell(rs) {
 }
 
 export function aggregate(recs, meta) {
+  // the verdicts and the fun metrics from each war's own samples, with the current rules (telemetry.js judge / fun)
+  for (const r of recs) if (!r.failed && r.samples) { if (!r.decisive) r.winner = judge(r.samples, null); Object.assign(r, fun(r.samples, r.minutes || [], r.winner)); }
   const ok = recs.filter(r => !r.failed && r.reason !== 'error');
   const key = r => `${r.blue}|${r.red}${r.sweep ? '|' + r.sweep.value : ''}`;
   const cells = {}; for (const [k, rs] of group(recs, key)) cells[k] = cell(rs);
@@ -88,7 +91,7 @@ export function renderReport(S) {
   }
   if (!M.sweep && M.blues.length > 1 && M.reds.length > 1) {
     L.push('', '## Round robin: TASK FORCE win rate', '', '| | ' + M.reds.join(' | ') + ' | mean |', '|---|' + M.reds.map(() => '---').join('|') + '|---|');
-    for (const b of M.blues) { const row = M.reds.map(r => S.cells[`${b}|${r}`]); L.push(`| **${b}** | ` + row.map(c => c ? pct(c.blueRate) : '-').join(' | ') + ` | ${pct(mean(row.filter(Boolean).map(c => c.blueRate)))} |`); }
+    for (const b of M.blues) { const row = M.reds.map(r => S.cells[`${b}|${r}`]); L.push(`| **${b}** | ` + row.map(c => c ? pct(c.blueRate) : '-').join(' | ') + ` | ${row.some(Boolean) ? pct(mean(row.filter(Boolean).map(c => c.blueRate))) : "-"} |`); }
     L.push(`| **mean (RUNAWAY's view: 1 - this)** | ` + M.reds.map(r => pct(mean(M.blues.map(b => S.cells[`${b}|${r}`]).filter(Boolean).map(c => c.blueRate)))).join(' | ') + ' | |');
   }
   L.push('', '## Dominant strategies', '', S.dominant.length ? S.dominant.map(d => `- **${d.side === 1 ? 'TASK FORCE' : 'RUNAWAY'} ${d.name}** wins over 70% against every opponent (worst ${pct(d.worst)})${d.sure ? ', and the 95% interval stays above 50% everywhere' : ''}`).join('\n') : '- none: no doctrine beats every opponent more than 70% of the time');
@@ -110,4 +113,18 @@ export function renderReport(S) {
   if (O.strike) L.push('', `## The AI Hornet strike wing`, '', `${O.strike.sorties} sorties, ${O.strike.bombs} bombs, ${O.strike.kills} targets destroyed, ${O.strike.lost} Hornets lost per war (mean).`);
   if (O.anomalies) L.push('', '## Anomalies (game bugs the sim tripped over)', '', `${O.anomalies} in ${M.n} wars:`, ...O.anomalyText.map(a => `- ${a}`));
   return L.join('\n') + '\n';
+}
+
+// dead branches: tech nodes no war researched (only for a side that started with something left to research)
+export function deadBranches(recs, base, TECH) {
+  const ok = recs.filter(r => !r.failed), never = [];
+  for (const side of [1, 2]) {
+    const runs = ok.filter(r => (side === 1 ? r.tech : r.etech) !== 'all'); if (!runs.length) continue;
+    const start = side === 1 ? base.tech : (base.etech ?? base.tech);
+    for (const n of TECH.filter(n => n.side === side || n.side === 0)) {
+      if ((start === 'default' || !start) && n.tier === 0) continue;   // (owned from the start)
+      if (!runs.some(r => r.research[side].some(x => x[0] === n.id))) never.push({ side, id: n.id, name: n.name, tier: n.tier });
+    }
+  }
+  return never;
 }

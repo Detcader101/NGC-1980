@@ -19,7 +19,8 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 const TOOLS = path.dirname(fileURLToPath(import.meta.url));
 const { BLUE, RED } = await import('../game/js/sim/doctrine.js');
-const { aggregate, renderReport } = await import('./sim/report.mjs');
+const { aggregate, renderReport, deadBranches } = await import('./sim/report.mjs');
+const { TECH } = await import('../game/js/techtree.js');
 
 const A = parseArgs(process.argv.slice(2));
 if (A.list) {
@@ -86,19 +87,7 @@ await new Promise(resolve => {
 log.end();
 const wall = (Date.now() - t0) / 1000;
 const S = aggregate(recs, { blues, reds, sweep, tmax, wall, simSec, workers, base });
-{   // dead branches: tech nodes no war researched (only when a side started with something left to research)
-  const { TECH } = await import('../game/js/techtree.js');
-  const ok = recs.filter(r => !r.failed), never = [];
-  for (const side of [1, 2]) {
-    const runs = ok.filter(r => (side === 1 ? r.tech : r.etech) !== 'all'); if (!runs.length) continue;
-    const start = side === 1 ? base.tech : (base.etech ?? base.tech);
-    for (const n of TECH.filter(n => n.side === side || n.side === 0)) {
-      if ((start === 'default' || !start) && n.tier === 0) continue;   // (owned from the start)
-      if (!runs.some(r => r.research[side].some(x => x[0] === n.id))) never.push({ side, id: n.id, name: n.name, tier: n.tier });
-    }
-  }
-  S.techNever = never;
-}
+S.techNever = deadBranches(recs, base, TECH);
 fs.writeFileSync(path.join(out, 'summary.json'), JSON.stringify(S, null, 1));
 const md = renderReport(S);
 fs.writeFileSync(path.join(out, 'report.md'), md);

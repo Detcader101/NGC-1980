@@ -69,29 +69,37 @@ export function createTelemetry(W, o = {}) {
   };
   T.finish = (reason, extra = {}) => {
     const S = T.samples, last = S[S.length - 1] || { s1: 0, s2: 0, own: [0, 0, 0] };
-    let winner = 0, how = 'timeout';
-    if (W.over) { winner = W.over.result === 'win' ? 1 : 2; how = W.over.why; }
-    else { const lead = last.s1 - last.s2; winner = Math.abs(lead) < 5 ? 0 : lead > 0 ? 1 : 2; how = 'timeout'; }
-    return { time: Math.round(W.time), winner, decisive: !!W.over, how, reason, ...fun(T, winner), first: T.first, built: T.built, lost: T.lost,
+    const winner = judge(S, W.over), how = W.over ? W.over.why : 'timeout';
+    return { time: Math.round(W.time), winner, decisive: !!W.over, how, reason, ...fun(S, T.minute, winner), first: T.first, built: T.built, lost: T.lost,
       owner: T.events.filter(e => e.e === 'owner'), samples: S, minutes: T.minute.map(m => [m.shots, m.lost, m.caps, m.kills]), decisions: T.decisions, ...extra };
   };
   return T;
 }
 
-// the fun metrics of one war, from its samples
-export function fun(T, winner) {
-  const S = T.samples; if (!S.length) return {};
-  const lead = S.map(s => s.s1 - s.s2), H = 6;   // hysteresis: a lead must exceed 6 points to count
+// the lead: TASK FORCE strength minus RUNAWAY strength, measured from where the war started (the RUNAWAY starts with
+// the cave islands and IRONHOLD - worth ~80 points on paper - so the raw difference says little about who is winning)
+export function leads(samples) { const z = samples.length ? samples[0].s1 - samples[0].s2 : 0; return samples.map(s => s.s1 - s.s2 - z); }
+// who won: the side that sank the other's carrier (or took IRONHOLD); at the time limit, the side ahead on the lead
+export function judge(samples, over) {
+  if (over) return over.result === 'win' ? 1 : 2;
+  const L = leads(samples), l = L.length ? L[L.length - 1] : 0; return Math.abs(l) < 5 ? 0 : l > 0 ? 1 : 2;
+}
+// the fun metrics of one war, from its samples (any spacing) and its minutes ([shots, lost, captures, buildings down])
+export function fun(samples, minutes, winner) {
+  const S = samples; if (!S.length) return {};
+  const lead = leads(S), H = 6, dt = S.length > 1 ? (S[S.length - 1].t - S[0].t) / (S.length - 1) || 5 : 5, k = Math.max(1, Math.round(60 / dt));
   let sign = 0, changes = 0, behind = { 1: 0, 2: 0 }, decisive = 0;
   for (const l of lead) { const s = l > H ? 1 : l < -H ? -1 : 0; if (s && sign && s !== sign) changes++; if (s) sign = s; if (l < -H) behind[1] = Math.max(behind[1], -l); if (l > H) behind[2] = Math.max(behind[2], l); }
-  // decisive moments: the lead swings by 15+ points within a minute (12 samples at 5 s)
-  for (let i = 12; i < lead.length; i++) if (Math.abs(lead[i] - lead[i - 12]) > 15 && (i < 24 || Math.abs(lead[i - 12] - lead[i - 24]) <= 15)) decisive++;
+  // decisive moments: the lead swings by 25+ points inside a minute (an island and its garrison, a carrier hurt);
+  // one swing counts once
+  for (let i = k; i < lead.length; i++) if (Math.abs(lead[i] - lead[i - k]) > 25) { decisive++; i += k; }
   // snowball: the share of the war after which the eventual winner was ahead every sample from then on
+  // (0: ahead from the first minute and never caught; 1: only got ahead at the very end)
   let snow = 1;
-  if (winner) { const w = winner === 1 ? 1 : -1; let k = lead.length; while (k > 0 && lead[k - 1] * w > 0) k--; snow = k / lead.length; }
-  const comeback = winner ? behind[winner] > 15 : false;
+  if (winner) { const w = winner === 1 ? 1 : -1; let j = lead.length; while (j > 0 && lead[j - 1] * w > 0) j--; snow = j / lead.length; }
+  const comeback = winner ? behind[winner] > 20 : false;
   // dead minutes: no losses, no captures, no buildings down, under 20 rounds fired
-  const mins = T.minute, dead = mins.filter(m => m.lost === 0 && m.caps === 0 && m.kills === 0 && m.shots < 20).length;
-  let run = 0, longest = 0; for (const m of mins) { if (m.lost === 0 && m.caps === 0 && m.kills === 0 && m.shots < 20) { run++; longest = Math.max(longest, run); } else run = 0; }
-  return { leadChanges: changes, comeback, maxDeficit: winner ? Math.round(behind[winner]) : 0, decisiveMoments: decisive, snowball: +snow.toFixed(3), deadMinutes: dead, longestLull: longest, minutesTotal: mins.length };
+  const M = minutes.map(m => Array.isArray(m) ? m : [m.shots, m.lost, m.caps, m.kills]), quiet = m => m[1] === 0 && m[2] === 0 && m[3] === 0 && m[0] < 20;
+  let run = 0, longest = 0; for (const m of M) { if (quiet(m)) { run++; longest = Math.max(longest, run); } else run = 0; }
+  return { leadChanges: changes, comeback, maxDeficit: winner ? Math.round(behind[winner]) : 0, decisiveMoments: decisive, snowball: +snow.toFixed(3), deadMinutes: M.filter(quiet).length, longestLull: longest, minutesTotal: M.length };
 }

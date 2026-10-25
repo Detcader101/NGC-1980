@@ -13,7 +13,7 @@
 import { createCommanderAI } from './commanderai.js';
 import { createRedAI } from './redai.js';
 import { createStrikeWing } from './strike.js';
-import { createTelemetry, strength } from './telemetry.js';
+import { createTelemetry, strength, leads } from './telemetry.js';
 import { doctrine } from './doctrine.js';
 import { seedMath } from './rng.js';
 import { techNode } from '../techtree.js';
@@ -119,7 +119,7 @@ export function createSpectator(h) {
     if (cam.chase && S.shot && S.shot.unit !== cam.chase) cam.chase = null;
     if (cam.focus.distanceTo(cam.want) > 450) { cam.focus.copy(cam.want); S.camInit = false; }   // far away: a cut, not a long pan across the map
     cam.focus.lerp(cam.want, 1 - Math.exp(-(cam.chase ? 7 : 1.6) * dtReal));
-    if (cam.chase && Math.hypot(cam.chase.v.x, cam.chase.v.z) > 3) { const want = Math.atan2(-cam.chase.v.x, -cam.chase.v.z) + 0.35; let d = want - cam.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); cam.yaw += d * Math.min(1, 1.5 * dtReal); cam.pitch += (0.3 - cam.pitch) * Math.min(1, dtReal); return; }   // a craft on the move: ride along behind and above it
+    if (cam.chase && Math.hypot(cam.chase.v.x, cam.chase.v.z) > 3) { const want = Math.atan2(-cam.chase.v.x, -cam.chase.v.z) + 0.35; let d = want - cam.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); cam.yaw += d * Math.min(1, 1.5 * dtReal); cam.pitch += (0.55 - cam.pitch) * Math.min(1, dtReal); return; }   // a craft on the move: ride along behind and above it
     cam.yaw += dtReal * 0.05;
   }
   function biggestFight() {
@@ -266,9 +266,9 @@ body.simmode #tl,body.simmode #tr,body.simmode #bot,body.simmode #radar,body.sim
     x.font = '10px Consolas, monospace'; x.fillStyle = '#687'; x.strokeStyle = 'rgba(140,170,150,.25)';
     for (let t = 0; t <= span; t += 300) { x.beginPath(); x.moveTo(px(t), 12); x.lineTo(px(t), hgt - 4); x.stroke(); if (px(t) + 30 < w) x.fillText(`${t / 60}M`, px(t) + 2, 10); }
     // the lead: TASK FORCE strength minus RUNAWAY's (above the line: TASK FORCE ahead)
-    const s = T.samples, mid = hgt * 0.55; let mx = 30; for (const q of s) mx = Math.max(mx, Math.abs(q.s1 - q.s2));
+    const s = T.samples, L = leads(s), mid = hgt * 0.55; let mx = 30; for (const l of L) mx = Math.max(mx, Math.abs(l));
     x.strokeStyle = 'rgba(200,200,180,.35)'; x.beginPath(); x.moveTo(px(0), mid); x.lineTo(px(span), mid); x.stroke();
-    x.lineWidth = 1.5; x.beginPath(); s.forEach((q, i) => { const y = mid - (q.s1 - q.s2) / mx * (hgt * 0.32); if (i) x.lineTo(px(q.t), y); else x.moveTo(px(q.t), y); }); x.strokeStyle = '#ec6'; x.stroke(); x.lineWidth = 1;
+    x.lineWidth = 1.5; x.beginPath(); s.forEach((q, i) => { const y = mid - L[i] / mx * (hgt * 0.32); if (i) x.lineTo(px(q.t), y); else x.moveTo(px(q.t), y); }); x.strokeStyle = '#ec6'; x.stroke(); x.lineWidth = 1;
     x.fillStyle = '#7df'; x.fillText('TASK FORCE AHEAD', w - 120, 22); x.fillStyle = '#fa7'; x.fillText('RUNAWAY AHEAD', w - 120, hgt - 6);
     for (const e of S.events) {
       if (e.kind === 'launch' && e.w < 6) continue;
