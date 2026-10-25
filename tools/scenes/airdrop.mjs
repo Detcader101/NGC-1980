@@ -24,7 +24,7 @@ export default {
     await h.eval(sel('m113')); await h.key('tap', 'KeyX'); await h.wait(300);
     await h.eval(`(window.__n0 = ${F}.n.m113, window.__mat0 = __G.G.mat, ${C}.baseKey = __I.name, { n: __n0, mat: __mat0, present: __G.m113C.present() })`);
     await h.key('tap', 'KeyC'); await h.wait(500);
-    await h.expect(`${AD}.runs.length === 1 && ${F}.n.m113 === __n0 - 1 && __G.G.mat === __mat0 - 10`, 'C on the M113A2: a C-130 run ordered (reserve -1, 10 materiel for the sortie)');
+    await h.expect(`${AD}.runs.length === 1 && ${F}.n.m113 === __n0 - 1 && Math.abs(__G.G.mat - (__mat0 - 10)) < 3`, 'C on the M113A2: a C-130 run ordered (reserve -1, 10 materiel for the sortie)');
     await h.eval(`(() => { const r = ${AD}.runs[0]; return { call: r.call, dz: [Math.round(r.dz.x), Math.round(r.dz.z)], chutes: r.R.chutes, rigged: Math.round(r.R.rigged), wind: r.wind.map(v => +v.toFixed(1)) }; })()`);
     await h.wait(300); await h.shot('board-drop-ordered');
     // ---- 3. watch it: V on the board

@@ -1178,7 +1178,8 @@ const airlift = createAirlift({ scene: zScene, H, heliObj: () => shipMesh, rotor
   gate: { sling: () => war.allow(1, 'sling') ? '' : war.gateMsg(1, 'sling'), troops: () => war.allow(1, 'trooplift') ? '' : war.gateMsg(1, 'trooplift') } });   // TECH TREE: AIRMOBILE LOGISTICS
 const airdrop = createAirdrop({ scene: zScene, war, fx, sfx, say, feed, terrainH, groundY, isWater, GR, pool, armour: { m113: m113C, m60: m60C }, crafts, hud: $('hud'),
   head, camZ: () => zCam, onLost: (id, why) => onUnitLost(id, why, false), whereIs: (x, z) => whereIs(x, z),
-  gate: () => war.allow(1, 'logistics') ? '' : war.gateMsg(1, 'logistics') });   // TECH TREE: heavy drop is FIELD LOGISTICS
+  gate: () => war.allow(1, 'logistics') ? '' : war.gateMsg(1, 'logistics'),   // TECH TREE: heavy drop is FIELD LOGISTICS
+  avoid: (x, z, pads = true) => BASES.some(b => Math.hypot(x - b.x, z - b.z) < HOLE_R + 48) || (pads && PADS.some(p => Math.hypot(x - p.x, z - p.z) < (p.r1 || p.r) + 6)) });   // (a DZ off the cave mouths and the pads)
 crafts.setActive('heli');
 crafts.onSwitch = (from, to) => {
   if (to.kind === 'foot' || to.kind === 'ground') { if (bigMap) { bigMap = false; setMapSize(); } }   // a click captures the mouse (as in the cockpits)
@@ -1447,6 +1448,7 @@ function updateZarch(dt, inp) {
   crafts.update(dt, inp);
   armDelivery.update(dt);   // ARMOUR: landing craft under way
   airdrop.update(dt);   // AIRLIFT: C-130 heavy drops under way
+  { const w = !!airdrop.watching; if (w !== G.adWatch) { G.adWatch = w; $('bot').style.visibility = w ? 'hidden' : ''; } }   // AIRLIFT: watching a drop - your own unit's instrument line steps aside
   if (G.crewDownT > 0) { G.crewDownT -= dt; if (G.crewDownT <= 0 && !G.over) autoNext(war.carrier && war.carrier.sinking === undefined ? 'NEW CREW  -  IN THE HELICOPTER ON THE ALBATROSS' : 'NEW CREW  -  ON THE HOME PAD'); }   // COMMANDER: the next unit
 }
 function refuelAtBase() {

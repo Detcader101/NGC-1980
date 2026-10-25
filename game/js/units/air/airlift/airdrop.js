@@ -47,18 +47,24 @@ export function createAirdrop(ctx) {
   AD.can = type => TYPES.includes(type) || type === 'm60' ? c130Check(type) : 'NOT AN AIR DROP LOAD';
   // a drop zone on island I: flat (under ~1 in 8 over the platform's length), dry, clear of trees and buildings, near the
   // pad but not on it (the DZ party marks it with panels and smoke)
-  function dropZone(I, R) {
-    const p = I.pad || I, slope = (x, z) => { let lo = 1e9, hi = -1e9; for (let k = 0; k < 8; k++) { const a = k * 0.785; for (const r of [4, 9]) { const h = terrainH(x + Math.cos(a) * r, z + Math.sin(a) * r); lo = Math.min(lo, h); hi = Math.max(hi, h); } } return (hi - lo) / 18; };
+  // A heavy drop scatters: the DZ wants open, gentle ground well beyond the platform (the ring at 30 m counts).
+  const DZ_TRIES = [[true, 11], [true, 7], [false, 7], [false, 3], [false, 0]];   // (avoid pads?, open-ground samples of 12 needed)
+  function dropZone(I, R, tryN = 0) {
+    const [pads, need] = DZ_TRIES[tryN];
+    const p = I.pad || I, slope = (x, z, rs) => { let lo = 1e9, hi = -1e9; for (let k = 0; k < 8; k++) { const a = k * 0.785; for (const r of rs) { const h = terrainH(x + Math.cos(a) * r, z + Math.sin(a) * r); lo = Math.min(lo, h); hi = Math.max(hi, h); } } return (hi - lo) / (2 * rs[rs.length - 1]); };
     let best = null;
-    for (let d = 30; d <= Math.max(60, (I.r || 90) * 0.75); d += 8) for (let k = 0; k < 16; k++) {
-      const a = k / 16 * Math.PI * 2 + d * 0.13, x = p.x + Math.cos(a) * d, z = p.z + Math.sin(a) * d, h = terrainH(x, z);
-      if (h < 1.2 || isWater(x, z)) continue;
-      const s = slope(x, z); if (s > 0.12) continue;
+    for (let d = 20; d <= Math.max(70, (I.r || 90) * 0.8); d += 8) for (let k = 0; k < 20; k++) {
+      const a = k / 20 * Math.PI * 2 + d * 0.13, x = p.x + Math.cos(a) * d, z = p.z + Math.sin(a) * d, h = terrainH(x, z);
+      if (h < 1.2 || isWater(x, z) || (ctx.avoid && ctx.avoid(x, z, pads))) continue;
+      const s1 = slope(x, z, [4, 9]); if (s1 > 0.12) continue;
       if (!GR.clearAt(x, z, 7)) continue;
-      const sc = s * 300 + d * 0.3;
+      const s3 = slope(x, z, [15, 30]), open = [12, 22].reduce((n, r) => n + [0, 1, 2, 3, 4, 5].filter(j => GR.clearAt(x + Math.cos(j * 1.047) * r, z + Math.sin(j * 1.047) * r, 4)).length, 0);
+      let wet = 0; for (let j = 0; j < 8; j++) if (terrainH(x + Math.cos(j * 0.785) * 35, z + Math.sin(j * 0.785) * 35) < 0.5) wet++;
+      if (open < need) continue;   // open ground all round: no houses or woods within ~20 m
+      const sc = s1 * 300 + s3 * 500 + (12 - open) * 6 + wet * 8 + d * 0.12;
       if (!best || sc < best.sc) best = { x, z, y: h, sc };
     }
-    return best;
+    return best || (tryN < DZ_TRIES.length - 1 ? dropZone(I, R, tryN + 1) : null);   // (a small or wooded island: less open ground, then the pad's apron; never a cave mouth)
   }
   // ---------------------------------------------------------------- ordering a drop
   AD.order = (type, I, o = {}) => {
@@ -78,7 +84,7 @@ export function createAirdrop(ctx) {
     const ex = dz.x + Math.cos(a) * ENTRY, ez = dz.z + Math.sin(a) * ENTRY, h = Math.atan2(-(dz.x - ex), -(dz.z - ez));
     const wa = o.wind !== undefined ? o.wind[0] : Math.random() * 6.283, ws = o.wind !== undefined ? o.wind[1] : 1.5 + Math.random() * 3.5;   // up to ~10 kt: inside the heavy-drop surface wind limit (13 kt)
     const wind = [Math.cos(wa) * ws, Math.sin(wa) * ws];
-    const m = buildDropship(); scene.add(m.group);
+    const m = buildDropship(); scene.add(m.group); m.parts?.stowSeats?.(true);   // rigged for heavy drop: the troop seats folded up
     const S = createC130Sim(), alt = Math.max(dz.y, 0) + DROP_AGL, rho = 4.9 * Math.exp(-alt / 6000), tas = CRUISE_KIAS / KT * Math.sqrt(1.225 / rho);
     S.reset(new THREE.Vector3(ex, alt + 60, ez), h, tas, { flap: 0, gear: 0, lever: 55 });
     S.fuel = 9000; S.payload = 900 + R.rigged;   // crew, kit, the rigged load
@@ -100,13 +106,17 @@ export function createAirdrop(ctx) {
     return run;
   }
   // the computed air release point: where the load must leave the ramp so that its ballistics plus the drift land it on the DZ
-  function planRP(r) {
-    const S = r.S, alt = DROP_AGL, rho = 4.9 * Math.exp(-(r.dz.y + alt) / 6000), tas = DROP_KIAS / KT * Math.sqrt(1.225 / rho);
-    const ux = fwdX(r.h), uz = fwdZ(r.h), gs = tas + r.wind[0] * ux + r.wind[1] * uz;
-    const d = simulateDrop(r.R, { v0: [ux * gs, 0, uz * gs], alt, wind: r.wind });
-    const lead = gs * 2.3;   // green light -> extraction chute -> the platform off the ramp
-    r.rp = { x: r.dz.x - d.x - ux * lead, z: r.dz.z - d.z - uz * lead, t: d.t, vz: d.vz };
-    void S;
+  // live: from the aeroplane's actual ground velocity and height over the DZ (the navigator updates it on the run-in);
+  // the extraction: 0.6 s for the chute to fill, then the platform runs aft d metres at 0.9 g, leaving the ramp vRel slower
+  function planRP(r, live = false) {
+    const S = r.S, ux = fwdX(r.h), uz = fwdZ(r.h);
+    let alt = DROP_AGL, vx, vz;
+    if (live) { alt = S.pos.y - Math.max(r.dz.y, 0) - 2.6; vx = S.vel.x; vz = S.vel.z; }
+    else { const rho = 4.9 * Math.exp(-(r.dz.y + alt) / 6000), tas = DROP_KIAS / KT * Math.sqrt(1.225 / rho), gs = tas; vx = ux * gs; vz = uz * gs; }
+    const gs = Math.hypot(vx, vz) || 1, dx = vx / gs, dz = vz / gs;
+    const run = C130M.RAMP_HINGE[2] + 3.12 - 0.3 - (r.z0 - r.R.len / 2), a = 0.9 * 9.81, tExt = 0.6 + Math.sqrt(2 * run / a), vRel = Math.sqrt(2 * a * run);
+    const d = simulateDrop(r.R, { v0: [vx - dx * vRel, 0, vz - dz * vRel], alt, wind: r.wind, h: 1 / 60 });
+    r.rp = { x: r.dz.x - d.x - dx * gs * tExt, z: r.dz.z - d.z - dz * gs * tExt, t: d.t, vz: d.vz };
   }
   const runGeom = r => { const rx = r.S.pos.x - r.rp.x, rz = r.S.pos.z - r.rp.z; return { s: rx * fwdX(r.h) + rz * fwdZ(r.h), c: rx * Math.cos(r.h) - rz * Math.sin(r.h) }; };
 
@@ -144,6 +154,7 @@ export function createAirdrop(ctx) {
   function extraction(r, dt) {
     const S = r.S;
     if (r.phase === 'inbound') {
+      if (r.rp && runGeom(r).s > -900 && r.t - (r.rpT || 0) > 0.5) { r.rpT = r.t; planRP(r, true); }   // the CARP, updated on the run-in
       const { s, c } = runGeom(r);
       const ready = S.ramp > 0.97 && Math.abs(c) < 60 && Math.abs(angDiff(S.track(), r.h)) < 0.3 && S.kias < 150;
       if (s >= 0 && ready) { r.phase = 'green'; r.light = 'green'; r.gT = r.t; feed(`${r.call}: GREEN LIGHT  -  EXTRACTION CHUTE AWAY`, 'good'); snd.crack(camDist(S.pos)); }
@@ -202,10 +213,11 @@ export function createAirdrop(ctx) {
     P.group.quaternion.copy(qt).multiply(_q);
     P.group.position.set(L.p[0], L.p[1], L.p[2]);
     // the clevis in the world, the canopies above it (leaning out of the cluster, up along the relative wind)
-    P.group.updateMatrixWorld(true); const clv = _v.set(0, P.clevisY, 0).applyMatrix4(P.group.matrixWorld).clone();
+    P.rig(clamp((L.t - TL.deploy * 0.3) / (TL.deploy * 0.9), 0, 1));   // the slings come up off the load as the bags pull
+    P.group.updateMatrixWorld(true); const clv = _v.set(0, P.clevisY, P.clevisZ || 0).applyMatrix4(P.group.matrixWorld).clone();
     const open = openFrac(L.t), up = new THREE.Vector3(-(L.v[0] - L.wind[0]), -L.v[1], -(L.v[2] - L.wind[1])).normalize();
     for (const M of r.mains) {
-      const o = M.streamer ? Math.min(open, 0.05) : open, spread = 0.22 * Math.min(1, open * 2) * (r.R.chutes > 1 ? 1 : 0);
+      const o = M.streamer ? Math.min(open, 0.05) : open, n = r.R.chutes, spread = n > 1 ? (11.6 * 0.92 / Math.sin(Math.PI / n)) / 33 * Math.min(1, open * 1.6) : 0;   // a cluster: the canopies lean apart until their skirts touch (centres on a ring, 33 m out along the lines)
       const dirv = up.clone().add(new THREE.Vector3(Math.cos(M.a) * spread, 0, Math.sin(M.a) * spread)).normalize();
       M.c.group.position.copy(clv); M.c.group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirv);
       const deployK = clamp((L.t - TL.deploy * 0.5) / (TL.deploy * 0.8), 0, 1);   // the bags stream out, lines stretch
@@ -257,11 +269,31 @@ export function createAirdrop(ctx) {
   function settle(r, dt) {   // after landing: the canopies collapse and lie down wind, the crew de-rigs, then the unit is ready
     const L = r.L, k = clamp((r.t - r.downT) / 3, 0, 1);
     const wx = L.wind[0], wz = L.wind[1], wl = Math.hypot(wx, wz) || 1;
-    for (const M of r.mains) {
-      const g = M.c.group; g.quaternion.slerp(_q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(wx / wl, 0.12, wz / wl).normalize()), Math.min(1, dt * 1.2));
-      M.c.animate(M.streamer ? 0.05 : 1, k, r.t);
-      if (k >= 1) { g.position.y = Math.max(g.position.y - dt * 2, groundY(g.position.x, g.position.z)); }
-    }
+    // the M-1 releases cut the canopies away: each sags and settles down wind of the load as a flat spread of nylon
+    // with its lines lying out to the riser (a canopy on its side would stand 23 m tall)
+    const e = k * k * (3 - 2 * k);
+    r.mains.forEach((M, i) => {
+      const g = M.c.group, C = M.c;
+      if (!M.p0) {
+        M.p0 = g.position.clone(); M.q0 = g.quaternion.clone();
+        // where it lies: down wind of the load if the ground there is open, else the nearest open patch around it
+        // (not over a roof, a tree line or a cave mouth); the last resort is across the load itself
+        const used = r.mains.slice(0, i).map(o => o.p1), wa = Math.atan2(wz, wx);
+        let tx = L.p[0], tz = L.p[2];
+        search: for (const dd of [17, 23, 29]) for (const da of [0, 0.5, -0.5, 1, -1, 1.6, -1.6, 2.3, -2.3, 3.1]) {
+          const a = wa + da + (i - (r.mains.length - 1) / 2) * 0.55, x = L.p[0] + Math.cos(a) * dd, z = L.p[2] + Math.sin(a) * dd;
+          if (!GR.clearAt(x, z, 8) || (ctx.avoid && ctx.avoid(x, z, false)) || isWater(x, z) || [0, 1.57, 3.14, 4.71].some(q => Math.abs(groundY(x + Math.cos(q) * 9, z + Math.sin(q) * 9) - groundY(x, z)) > 1.2) || used.some(u => Math.hypot(u.x - x, u.z - z) < 15)) continue;
+          tx = x; tz = z; break search;
+        }
+        M.p1 = new THREE.Vector3(tx, Math.max(groundY(tx, tz), isWater(tx, tz) ? 0 : -1e9), tz);
+      }
+      g.position.lerpVectors(M.p0, M.p1, e); g.quaternion.slerpQuaternions(M.q0, _q.identity(), e);
+      C.animate(M.streamer ? 0.05 : 1, 0, r.t);
+      const lat = C.dome.scale.x * (1 + 0.15 * e), sy = C.dome.scale.y * (1 - e) + 0.03 * e;
+      C.dome.scale.set(lat, sy, lat); C.dome.position.y = C.dome.position.y * (1 - e) - 0.62 * e;
+      C.lines.scale.set(lat, sy, lat); C.lines.position.y = -0.0; C.lines.material.opacity = 0.7 - 0.3 * e;
+    });
+    r.P.rig(1 - e);   // the slings fall back onto the load
     for (const c of r.crew) {
       const dx = c.tx - c.x, dz = c.tz - c.z, d = Math.hypot(dx, dz), v = 3.6 * dt;
       if (c.st === 'run' && d > v) { c.x += dx / d * v; c.z += dz / d * v; c.ph += dt * 9.5; c.F.pose('run', c.ph); c.yaw = Math.atan2(-dx, -dz); }
@@ -376,15 +408,18 @@ export function createAirdrop(ctx) {
       cam.position.copy(camP); cam.up.set(0, 1, 0).applyQuaternion(S.q); cam.lookAt(camL); cam.up.set(0, 1, 0);
       return;
     }
-    const k = 1 - Math.exp(-3 * dt);
+    let k = 1 - Math.exp(-3 * dt);
+    if (AD.lastView !== view || AD.lastRun !== r) { AD.lastView = view; AD.lastRun = r; k = 1; }   // a new view: cut to it (no slow pan across the sky)
     if (view === 'chase') {
       const f = S.forward(_w).clone(); f.y = 0; f.normalize();
       _v.set(S.pos.x - f.x * 60 + f.z * 25, S.pos.y + 14, S.pos.z - f.z * 60 - f.x * 25); camP.lerp(_v, k); camL.lerp(S.pos, k);
     } else {   // the load: beside and a little above, looking at the platform with the canopies over it
       const p = r.L ? r.L.p : [r.P.group.getWorldPosition(_w).x, _w.y, _w.z], wl = r.L ? Math.hypot(r.L.wind[0], r.L.wind[1]) || 1 : 1;
       const sx = r.L ? -r.L.wind[1] / wl : 1, sz = r.L ? r.L.wind[0] / wl : 0;
-      _v.set(p[0] + sx * 34, p[1] + 6, p[2] + sz * 34); _w.set(p[0], p[1] + (r.phase === 'falling' ? 10 : 2), p[2]);
-      if (camP.lengthSq() === 0) camP.copy(_v);
+      // back far enough to frame the cluster (six G-11As span ~50 m); near and on the ground, higher so trees and the
+      // slope do not hide it
+      const far = 26 + 9 * Math.sqrt(r.R.chutes), agl = p[1] - Math.max(groundY(p[0], p[2]), 0), low = Math.max(0, 40 - agl);
+      _v.set(p[0] + sx * far, p[1] + 6 + low * 0.45, p[2] + sz * far); _w.set(p[0], p[1] + (r.phase === 'falling' ? 10 : 2), p[2]);
       camP.lerp(_v, k); camL.lerp(_w, k);
     }
     camP.y = Math.max(camP.y, groundY(camP.x, camP.z) + 2);

@@ -287,10 +287,17 @@ export function buildC130Mesh() {
     body.add(new THREE.ShapeGeometry(sh).translate(0, 0, -9.35), darkM);
   }
   // troop seats: red nylon webbing benches along both sides and down the middle, as in the 1980 hold
+  // (their own meshes: rigged for a heavy drop the side seats are folded up against the wall and the centre line comes
+  // out - parts.stowSeats(true), AIRLIFT airdrop.js)
+  const seatB = bucket(), seatSB = bucket();
   for (const x of [-1.72, -0.25, 0.25, 1.72]) {
-    body.add(boxG(0.42, 0.05, 11.5, x + (x < 0 ? 0.0 : 0.0), -1.0, 0.6), seatM);
-    body.add(boxG(0.05, 0.5, 11.5, x + (Math.abs(x) > 1 ? Math.sign(x) * 0.2 : -Math.sign(x) * 0.2), -0.7, 0.6), seatM);
+    seatB.add(boxG(0.42, 0.05, 11.5, x + (x < 0 ? 0.0 : 0.0), -1.0, 0.6), seatM);
+    seatB.add(boxG(0.05, 0.5, 11.5, x + (Math.abs(x) > 1 ? Math.sign(x) * 0.2 : -Math.sign(x) * 0.2), -0.7, 0.6), seatM);
   }
+  const wallM = M(0x5d645a);   // the lower sidewall lining the folded seats sit against (it hides the main gear wells)
+  for (const s of [-1, 1]) { seatSB.add(boxG(0.05, 0.5, 11.5, s * 1.92, -0.05, 0.6), seatM); seatSB.add(boxG(0.06, 0.42, 11.5, s * 1.87, -0.07, 0.6), seatM); seatSB.add(boxG(0.03, 1.0, 11.5, s * 1.57, -0.99, 0.6), wallM); seatSB.add(boxG(0.36, 0.03, 11.5, s * 1.74, -0.49, 0.6), wallM); }
+  const seatsDown = group(g, 'troopSeats'), seatsUp = group(g, 'troopSeatsStowed'); seatB.flush(seatsDown, 'seats'); seatSB.flush(seatsUp, 'seatsStowed'); seatsUp.visible = false;
+  const stowSeats = v => { seatsDown.visible = !v; seatsUp.visible = !!v; };
   // portholes (small round windows along the hold), crew entrance door outline, escape hatches
   const portG = new THREE.CircleGeometry(0.17, 10);
   for (const s of [-1, 1]) for (const z of [-7.2, -3.4, 0.9, 3.9]) { const p = portG.clone().rotateY(s * Math.PI / 2).translate(s * 2.112, 0.35, z); body.add(p, portM); }
@@ -553,5 +560,5 @@ export function buildC130Mesh() {
     for (const o of shell) o.visible = !inside;
   }
   animate({});
-  return { group: g, shell, animate, parts: { props, flaps, ails, elevs, rudder: rudG, mainG, noseGear: noseG, ramp: rampG, cargoDoor: doorUG, paraDoors, beacons, jumpLights } };
+  return { group: g, shell, animate, parts: { props, flaps, ails, elevs, rudder: rudG, mainG, noseGear: noseG, ramp: rampG, cargoDoor: doorUG, paraDoors, beacons, jumpLights, stowSeats } };
 }

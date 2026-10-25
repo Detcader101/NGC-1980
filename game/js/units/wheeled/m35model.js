@@ -92,9 +92,12 @@ export function buildM35Mesh(o = {}) {
   const spare = wheelMesh({ r: R, w: TW, rim: 'truck', tread: 'ndt' }, 1, tyreM, rimM);
   spare.rotation.y = Math.PI / 2; spare.position.set(-0.55, 1.62, D.CAB1 + 0.2); g.add(spare);
   B.add(box(0.08, 0.9, 0.08, -0.55, 1.4, D.CAB1 + 0.32), steelD);          // spare carrier davit
-  B.add(cylY(0.055, 1.35, 0.95, 2.0, D.CAB1 + 0.18, 10), steelD);           // exhaust stack
-  B.add(cylY(0.09, 0.85, 0.95, 2.05, D.CAB1 + 0.18, 10), mat(PAL.odDark));  // perforated heat shield
-  B.add(cylY(0.06, 0.08, 0.95, 2.72, D.CAB1 + 0.18, 10, 0.045), black);     // rain cap
+  // the exhaust stack is its own group (AIRLIFT: it comes off to rig the truck for a C-130 heavy drop - the hold is 2.74 m)
+  const XB = builder({ dust: 0.55, mud: 0, grime: 0.3, yDust: 1.35 });
+  XB.add(cylY(0.055, 1.35, 0.95, 2.0, D.CAB1 + 0.18, 10), steelD);          // exhaust stack
+  XB.add(cylY(0.09, 0.85, 0.95, 2.05, D.CAB1 + 0.18, 10), mat(PAL.odDark)); // perforated heat shield
+  XB.add(cylY(0.06, 0.08, 0.95, 2.72, D.CAB1 + 0.18, 10, 0.045), black);    // rain cap
+  { const st = new THREE.Group(); st.name = 'exhaustStack'; g.add(st); XB.build(st, 'm35Stack'); }
   B.add(rod([0.95, 1.33, D.CAB1 + 0.18], [0.6, 0.95, -1.6], 0.08, 8), steelD);
   // ------------------------------------------------------------------ cargo bed: floor, sides, racks, tailgate, troop seats
   const bz0 = D.BED0, bz1 = D.REAR - 0.02, bl = bz1 - bz0, bzc = (bz0 + bz1) / 2;

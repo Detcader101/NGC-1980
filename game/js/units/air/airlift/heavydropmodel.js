@@ -18,9 +18,23 @@ function merge(list, mat) {   // geometries of one material into one mesh
 }
 
 // R: heavydrop.js rigging(type); vehicle: the vehicle's model group (origin at its wheels / tracks, nose -z)
+// The C-130's hold is 2.74 m (108 in) floor to ceiling, so a load is rigged low (FM 10-500 series practice): whip
+// antennas off, an M35A2 with its cab top, bows, cover, ring mount and exhaust stack off and the windshield folded. The G-11A bags ride on a
+// parachute stand at the platform's tail when there is room behind the vehicle (else on top of it / in the bed), and
+// the suspension slings are folded on the load with the clevis on the stand until the canopies deploy (rig(k)).
+export const HOLD_H = 2.74;
+const STOW = { m35: ['cabTop', 'bows', 'cover', 'ringMount', 'exhaustStack'], m151: ['top', 'antenna', 'm60mount'] };
 export function buildPlatform(R, vehicle) {
   const g = new THREE.Group(); g.name = 'hdPlatform';
-  const L = R.len, W = R.wid, T = 0.12, HC = R.type === 'm113' ? 0.45 : 0.3;   // deck thickness; honeycomb stack height (INFERRED)
+  const L = R.len, W = R.wid, T = 0.12, HC = 0.3;   // deck thickness; honeycomb stack height (INFERRED)
+  // stow what stands above the hold's height: named parts, then any thin mast (antennas) above it
+  vehicle.updateMatrixWorld(true);
+  for (const n of STOW[R.type] || []) { const o = vehicle.getObjectByName(n); if (o) o.visible = false; }
+  for (const n of ['windshield', 'windscreen']) { const ws = vehicle.getObjectByName(n); if (ws) ws.rotation.x = -Math.PI / 2 + 0.05; }   // folded flat on the hood
+  const _b = new THREE.Box3();
+  vehicle.traverse(o => { if (!o.isMesh || !o.visible) return; _b.setFromObject(o); const w = Math.min(_b.max.x - _b.min.x, _b.max.z - _b.min.z); if (_b.max.y > HOLD_H - T - HC && w < 0.12) o.visible = false; });
+  const vb = new THREE.Box3(); vehicle.traverseVisible(o => { if (o.isMesh) vb.expandByObject(o); });
+  const vTop = vb.isEmpty() ? R.tall : vb.max.y, vLen = vb.isEmpty() ? L - 1 : vb.max.z - vb.min.z, vZ = vb.isEmpty() ? 0 : -(vb.min.z + vb.max.z) / 2;   // centred on the platform
   const alu = [], aluD = [], kraft = [], kraftD = [], od = [], chain = [], ring = [];
   // the deck: 2 ft panels with joint lines, side rails with notches for the rail locks, nose and tail bumpers
   for (let z = -L / 2; z < L / 2 - 0.01; z += 0.61) alu.push(box(W - 0.2, T, 0.59, 0, T / 2, z + 0.305));
@@ -31,28 +45,48 @@ export function buildPlatform(R, vehicle) {
   // paper honeycomb: stacks under the axles / hull, a lighter face and the darker cut edges
   const stacks = R.type === 'm113' ? [[0, -L * 0.3, W - 0.5, L * 0.28], [0, 0, W - 0.5, L * 0.22], [0, L * 0.3, W - 0.5, L * 0.28]] : [[0, -L * 0.28, W - 0.6, 0.9], [0, L * 0.26, W - 0.6, 0.9], ...(R.type === 'm35' ? [[0, 0.05, W - 0.6, 0.9]] : [])];
   for (const [x, z, w, d] of stacks) { kraft.push(box(w, HC, d, x, T + HC / 2, z)); kraftD.push(box(w + 0.02, 0.03, d + 0.02, x, T + HC * 0.33, z), box(w + 0.02, 0.03, d + 0.02, x, T + HC * 0.66, z)); }
-  // packed G-11A bags on top of the vehicle (one per canopy) and the extraction pack at the rear; the clevis + M-1 release
-  const top = R.tall + T + HC;
-  for (let i = 0; i < R.chutes; i++) { const c = i % 2 ? 1 : -1, k = Math.floor(i / 2); od.push(box(0.75, 0.5, 0.9, c * 0.45 * (R.chutes > 1 ? 1 : 0), top + 0.25, -L * 0.2 + k * 0.95)); }
-  od.push(box(0.5, 0.35, 0.55, 0, T + 0.3, L / 2 - 0.35));
+  // packed G-11A bags (one per canopy) and the extraction pack at the rear; the clevis + M-1 release
+  const top = vTop + T + HC, spare = (L - vLen) / 2 * (L - vLen > 2 ? 2 : 1);   // (a long platform: the vehicle forward, the stand behind it)
+  let standTop = T + 0.1;
+  if (spare >= 0.95) {   // a parachute stand behind the vehicle: up to three across, stacked two high
+    const across = Math.min(3, R.chutes), zc = L / 2 - spare / 2 - 0.05;
+    aluD.push(box(W - 0.4, 0.06, 0.95, 0, T + 0.25, zc)); for (const sx of [-1, 1]) for (const sz of [-1, 1]) aluD.push(box(0.06, 0.25, 0.06, sx * (W / 2 - 0.3), T + 0.12, zc + sz * 0.42));
+    for (let i = 0; i < R.chutes; i++) { const col = i % across, row = Math.floor(i / across); od.push(box(0.72, 0.48, 0.88, (col - (across - 1) / 2) * 0.76, T + 0.28 + 0.24 + row * 0.5, zc)); standTop = Math.max(standTop, T + 0.28 + 0.48 + row * 0.5); }
+  } else if (R.type === 'm35') {   // in the cargo bed (cover and bows stowed), two by two
+    for (let i = 0; i < R.chutes; i++) { const c = i % 2 ? 1 : -1, k = Math.floor(i / 2); od.push(box(0.72, 0.48, 0.88, c * 0.42, T + HC + 1.3 + 0.24, 0.9 + k * 0.95)); standTop = T + HC + 1.3 + 0.48; }
+  } else {   // the jeep: its one bag in the rear cargo space, behind the seats
+    for (let i = 0; i < R.chutes; i++) { const y = T + HC + 0.72; od.push(box(0.72, 0.48, 0.8, 0, y + 0.24, vZ + 1.2 - i * 0.85)); standTop = y + 0.48; }
+  }
+  od.push(box(0.5, 0.35, 0.55, 0, T + 0.3, L / 2 - 0.35 + (spare >= 0.95 ? 0.05 : 0)));
   const g1 = merge(alu, M(PAL.alu)), g2 = merge(aluD, M(PAL.aluD)), g3 = merge(kraft, M(PAL.kraft)), g4 = merge(kraftD, M(PAL.kraftD)), g5 = merge(od, M(PAL.od)), g6 = merge(ring, M(PAL.ring));
   for (const m of [g1, g2, g3, g4, g6]) g.add(m);
   const bags = g5; g.add(bags);
   // the vehicle on its honeycomb
-  vehicle.position.set(0, T + HC, 0); g.add(vehicle);
+  vehicle.position.set(0, T + HC, spare >= 0.95 && L - vLen > 2 ? vZ - (L - vLen) / 2 + 0.15 : vZ); g.add(vehicle);
   // chain tie-downs: rail rings to the vehicle's tie-down points (lines)
   const pts = [];
   for (const s of [-1, 1]) for (const z of [-L * 0.38, -L * 0.12, L * 0.12, L * 0.38]) pts.push(s * (W / 2 - 0.22), T + 0.05, z, s * 0.6, T + HC + 0.45, z * 0.8);
-  // the suspension slings: platform corners up to the clevis 3.2 m above the deck's centre (drawn while it is rigged)
-  const clevisY = top + 1.4, slings = [];
-  for (const s of [-1, 1]) for (const z of [-L / 2 + 0.3, L / 2 - 0.3]) slings.push(s * (W / 2 - 0.15), T + 0.1, z, 0, clevisY, 0);
+  // the suspension slings: platform corners up to the clevis 1.4 m over the load's top once deployed; folded on the
+  // load (not drawn) with the clevis on the stand / the bags while it is in the hold
+  const clevisY = top + 1.4, slings = [], corners = [];
+  for (const s of [-1, 1]) for (const z of [-L / 2 + 0.3, L / 2 - 0.3]) { corners.push([s * (W / 2 - 0.15), T + 0.1, z]); slings.push(s * (W / 2 - 0.15), T + 0.1, z, 0, clevisY, 0); }
+  const stowed = [0, Math.min(standTop + 0.12, HOLD_H - 0.2), spare >= 0.95 ? L / 2 - spare / 2 - 0.05 : R.type === 'm35' ? 1.4 : vZ + 1.2];
   const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute([...pts], 3));
   const chains = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: PAL.chain })); g.add(chains);
   const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.Float32BufferAttribute(slings, 3));
   const susp = new THREE.LineSegments(sg, new THREE.LineBasicMaterial({ color: PAL.nylon })); g.add(susp);
-  const clevis = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.3, 0.16), M(PAL.aluD)); clevis.position.set(0, clevisY, 0); g.add(clevis);
-  return { group: g, vehicle, bags, susp, clevis, clevisY, top, deck: T + HC,
+  const clevis = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.3, 0.16), M(PAL.aluD)); g.add(clevis);
+  const sp = sg.attributes.position;
+  const P = { group: g, vehicle, bags, susp, clevis, clevisY, top, deck: T + HC, stowed,
+    // k 0: stowed in the hold; 1: the slings stretched to the clevis over the load (the canopies pull it up)
+    rig(k) {
+      const x = stowed[0], y = stowed[1] + (clevisY - stowed[1]) * k, z = stowed[2] * (1 - k);
+      clevis.position.set(x, y, z); P.clevisY = y; P.clevisZ = z; susp.visible = k > 0.02;
+      corners.forEach((c, i) => { sp.setXYZ(i * 2, c[0], c[1], c[2]); sp.setXYZ(i * 2 + 1, x, y, z); }); sp.needsUpdate = true;
+    },
     crush(k) { for (const m of [g3, g4]) m.scale.y = 1 - 0.45 * k; vehicle.position.y = T + HC * (1 - 0.45 * k); } };
+  P.rig(0);
+  return P;
 }
 
 // a G-11A canopy: 30.5 m nominal (inflated ~23 m across, ~10 m deep), 120 gores; the suspension lines (~1 D) meet at the

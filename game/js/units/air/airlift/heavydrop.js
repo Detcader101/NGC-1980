@@ -29,7 +29,7 @@ const ringCdS = ft => Math.PI * RING[ft] ** 2 / 4 * 0.55;   // Cd0 0.55 for a ri
 export const RIGGING = {
   m151: { label: 'M151A2', mass: 1100, platform: 650, chutes: 1, ext: 15, len: 3.7, wid: 2.74, tall: 1.8 },
   m35: { label: 'M35A2', mass: 13030 * LB, platform: 1450, chutes: 4, ext: 22, len: 7.3, wid: 2.74, tall: 2.9 },
-  m113: { label: 'M113A2', mass: 11343, platform: 1800, chutes: 6, ext: 28, len: 6.1, wid: 2.74, tall: 2.5 },
+  m113: { label: 'M113A2', mass: 11343, platform: 1800, chutes: 6, ext: 28, len: 7.3, wid: 2.74, tall: 2.5 },
   m60: { label: 'M60A3', mass: 52617, platform: 3000, chutes: 8, ext: 28, len: 9.0, wid: 3.6, tall: 3.3 },
 };
 export function rigging(type) {

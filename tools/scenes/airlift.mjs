@@ -50,6 +50,8 @@ export default {
     await h.waitFor(`__G.H.ias > 25 && ${AL}.load && !${AL}.load.S.ground`, 240000);
     await h.eval(`({ ias: Math.round(__G.H.ias), swing: ${AL}.load.S.swingDeg.toFixed(1), y: Math.round(__G.H.pos.y) })`, 'en route');
     await h.wait(800); await h.shot('load-in-transit');
+    await h.eval(`(${AL}.camLocal = [[-22, -3, 4], [0, -6, 0.5]], 1)`); await h.wait(900); await h.shot('load-in-transit-side'); await h.eval(`(${AL}.camLocal = null, 1)`);
+    await h.eval('(__G.cockpitCam = true, __G.head.pitch = -0.55, __G.head.yaw = 0.5, 1)'); await h.wait(1200); await h.shot('cockpit-in-transit-chin-window'); await h.eval('(__G.cockpitCam = false, __G.head.pitch = 0, __G.head.yaw = 0, 1)');
     await h.waitFor(`${AL}.load && ${AL}.load.S.ground && ${AL}.load.S.Tg < 0.35 && Math.hypot(__G.H.pos.x - __T2.x, __G.H.pos.z - __T2.z) < 6`, 600000);
     await h.shot('load-set-down');
     await h.eval(`${AL}.button()`);
