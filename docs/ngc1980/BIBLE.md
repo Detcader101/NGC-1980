@@ -3,6 +3,10 @@
 Every agent working on NGC-1980 reads this first. It is the shared contract: setting, factions, the unit roster, the
 quality bar, and how to work without breaking each other's work.
 
+**Status, 2026-10-25:** the current finish line is the playable sandbox described in [PLAN.md](PLAN.md).
+This bible retains the wider design ambition. Integrated does not mean every quality-bar item is complete;
+see [VALIDATION.md](VALIDATION.md) for evidence and limits, and PLAN for deferred branches.
+
 ## 1. Setting
 
 **NGC-1980.** Far in the future, a machine civilisation (the **RUNAWAY**, after the runaway star they fled from in the
@@ -28,39 +32,39 @@ Tone: grounded and realistic, not campy. The machines are uncanny and precise; t
 
 ## 2. Roster
 
-Status: EXISTS = in the game now; REDO = rebuild to the quality bar; NEW = to build. Real designations are used for
-real hardware; RUNAWAY units get `RW-` designations and short names.
+Status: INTEGRATED = present in the playable sandbox, subject to the limits in PLAN; PLANNED = a remaining ambition.
+Real designations are used for real hardware; RUNAWAY units get `RW-` designations and short names.
 
 ### Player (1980)
 | Role | Unit | Status | Notes |
 |---|---|---|---|
-| Carrier | ALBATROSS, 1980 conventional carrier (Midway/Forrestal style), haze grey | REDO | deck crew in coloured jerseys, tractors, parked aircraft, Phalanx (1980 fit), Sea Sparrow, SPS-48/49 radars, wear |
-| Utility helicopter | UH-1H Huey | EXISTS (quality reference) | |
-| Strike fighter | F/A-18A Hornet (full-scale development jets, 1980) | EXISTS (quality reference) | |
-| Fleet fighter | F-14A Tomcat (AI escorts; later flyable) | REDO | AI flies a real flight model, not steering |
-| Transport / capture | CH-46 Sea Knight with a Marine squad (replaces the MANTA capture drone) | REDO | lands the squad, who take the pad |
-| Para-drop | C-130H Hercules (replaces the MULE 1 dropship) | REDO | 4 x T56, flight deck, para doors, flyable |
-| AA gun | M163 VADS (Vulcan) on our islands; Soviet ZSU-23-4 Shilka from the contingent | REDO | real fire control, radar, lead computing |
-| Paratroopers | 1980 US Army/Marines: M1 steel helmet, OG-107 / ERDL woodland, ALICE gear, MC1-1 steerable round canopies | REDO | |
-| Infantry (player-controlled) | Marine rifleman 1980: M16A1, M60, M203, M72 LAW, M1911, ALICE | NEW | Tarkov / Arma Reforger depth: inventory, medical, ballistics |
-| Light vehicle | M151A2 MUTT jeep | NEW | drivable, full dynamics |
-| Truck | M35A2 "deuce and a half" | NEW | drivable, cargo, troop transport |
-| APC | M113A2 | NEW | tracked, drivable |
-| Tank | M60A3 TTS (plus Soviet T-72A from the contingent later) | NEW | crew stations, fire control, armour model |
-| Bases / structures | HQ bunker, fuel farm, depot (was factory), radar site, AA site, pads | REDO | quonset huts, sandbags, antennas, generators, floodlights, vehicles parked |
+| Carrier | ALBATROSS, 1980 conventional carrier (Midway/Forrestal style), haze grey | INTEGRATED | deck crew in coloured jerseys, tractors, parked aircraft, Phalanx (1980 fit), Sea Sparrow, SPS-48/49 radars, wear |
+| Utility helicopter | UH-1H Huey | INTEGRATED (quality reference) | |
+| Strike fighter | F/A-18A Hornet (full-scale development jets, 1980) | INTEGRATED (quality reference) | |
+| Fleet fighter | F-14A Tomcat (AI escorts and player craft) | INTEGRATED | AI flies a real flight model, not steering |
+| Transport / capture | CH-46 Sea Knight with a Marine squad (replaces the MANTA capture drone) | INTEGRATED | lands the squad, who take the pad |
+| Para-drop | KC-130R Hercules (C-130H flight-model baseline) | INTEGRATED | 4 x T56, flight deck, para doors, flyable |
+| AA gun | M163 VADS (Vulcan) on our islands; Soviet ZSU-23-4 Shilka from the contingent | INTEGRATED | game-level tracking, readable cues and fire control |
+| Paratroopers | 1980 US Army/Marines: M1 steel helmet, OG-107 / ERDL woodland, ALICE gear, MC1-1 steerable round canopies | INTEGRATED | |
+| Infantry (player-controlled) | Marine rifleman 1980: M16A1, M60, M203, M72 LAW, M1911, ALICE | INTEGRATED | inventory, medical, weapons; further depth remains an ambition |
+| Light vehicle | M151A2 MUTT jeep | INTEGRATED | drivable, full dynamics |
+| Truck | M35A2 "deuce and a half" | INTEGRATED | drivable, cargo, troop transport |
+| APC | M113A2 | INTEGRATED | tracked, drivable |
+| Tank | M60A3 TTS (plus Soviet T-72A from the contingent later) | INTEGRATED | crew stations, fire control, armour model |
+| Bases / structures | HQ bunker, fuel farm, depot (was factory), radar site, AA site, pads | INTEGRATED | quonset huts, sandbags, antennas, generators, floodlights, vehicles parked |
 
 ### Enemy (RUNAWAY + modern brought back)
 | Role | Unit | Era | Status |
 |---|---|---|---|
-| Carrier | KRAKEN: a seized 2030s nuclear supercarrier with RUNAWAY refit | modern + RW | REDO |
-| Capital ship | RW-9 LEVIATHAN railgun monitor (was the battleship) | futuristic | REDO |
-| Supply ship | autonomous container ship (modern, unmanned) | modern | REDO |
-| Troop transport | MV-22B Osprey with machine troops (was the twin-rotor transport) | modern | REDO |
-| Attack drones | RW-3 WASP hover drone (was the saucer gunship); MQ-9 Reaper; Shahed-style loitering munitions | RW + modern | REDO / NEW |
-| Air defence | Pantsir-S1 (seized); RW-5 lance laser turret | modern + RW | REDO |
-| Infantry | RW-1 STRIDER walker (bipedal machine soldier); modern-equipped machine squads | RW | NEW |
-| Armour | RW-7 hover tank; seized M1A2 SEPv3 / T-90M | RW + modern | NEW |
-| Structures | fabricator (was factory), sensor spire (radar), power pylon, fortress (cave), IRONHOLD HQ | RW | REDO |
+| Carrier | KRAKEN: a seized 2030s nuclear supercarrier with RUNAWAY refit | modern + RW | INTEGRATED |
+| Capital ship | RW-9 LEVIATHAN railgun monitor (was the battleship) | futuristic | INTEGRATED |
+| Supply ship | autonomous container ship (modern, unmanned) | modern | INTEGRATED |
+| Troop transport | MV-22B Osprey with machine troops (was the twin-rotor transport) | modern | INTEGRATED |
+| Attack drones | RW-3 WASP hover drone (was the saucer gunship); MQ-9 Reaper; Shahed-style loitering munitions | RW + modern | INTEGRATED |
+| Air defence | Pantsir-S1 (seized); RW-5 lance laser turret | modern + RW | INTEGRATED |
+| Infantry | RW-1 STRIDER walker (bipedal machine soldier); modern-equipped machine squads | RW | INTEGRATED |
+| Armour | RW-7 hover tank; seized M1A2 SEPv3 / T-90M | RW + modern | INTEGRATED |
+| Structures | fabricator (was factory), sensor spire (radar), power pylon, fortress (cave), IRONHOLD HQ | RW | INTEGRATED |
 
 ### Neutral / civilian (lived-in world)
 Fishing villages and harbours, trawlers and dinghies, dirt and tarmac roads with 1980 civilian cars and trucks, farms,
@@ -93,9 +97,11 @@ no per-frame allocations in hot loops, `?res=` respected.
 ## 4. How to work (agents)
 
 - **Branch**: start with `git switch -c ngc/<feature> experimental` in your worktree (the integration branch is
-  `experimental`). Commit there in steps. Never push. Never merge into experimental or main yourself.
-- **Commit identity**: `git -c user.name="Jason" -c user.email="8167600+gnutgnut@users.noreply.github.com" commit`,
-  message ending with a blank line and `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+  `experimental`). Commit there in steps. The integration owner advances `experimental` after review and tests
+  within the user's authorized scope. Keep the classic `main` separate. Push only when the user requests it.
+- **Commit identity**: use the contributor's configured identity (this workspace uses Jason,
+  `8167600+gnutgnut@users.noreply.github.com`). Any co-author attribution must name an actual contributor;
+  the historical Claude/Opus attribution is not a template for other tools.
 - **Own your files.** Put new work in new files (`game/js/units/<group>/<unit>*.js`, `game/dev/<unit>.html`,
   `tools/<unit>bench.mjs`, `tools/scenes/<unit>*.mjs`). Touch shared files (`main.js`, `war.js`, `ships.js`,
   `audio.js`, `world.js`, `index.html`) only where your brief allows, with small, clearly commented hooks, so merges

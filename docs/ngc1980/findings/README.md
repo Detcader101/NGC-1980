@@ -12,3 +12,6 @@ Rules for agents:
 - Open problems you found but did not fix go here too, marked **OPEN**.
 
 The orchestrator keeps `orchestrator.md` (cross-branch findings, merges, user reports).
+
+Current integration findings: [finish.md](finish.md). The older reports remain as branch-specific evidence;
+their OPEN/PAUSED labels are historical unless confirmed in the current [PLAN](../PLAN.md).

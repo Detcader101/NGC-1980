@@ -4,7 +4,7 @@
 war machines and modern weapons from our future. A joint Cold War task force is sent to stop them.
 
 A browser game in Three.js (formerly *Thrust Zarch: The Island War*) that grew out of *Zarch*, *Thrust*, *Raid on
-Bungeling Bay* and *Carrier Command*. Design bible: [docs/ngc1980/BIBLE.md](docs/ngc1980/BIBLE.md).
+Bungeling Bay* and *Carrier Command*. Design bible: [BIBLE.md](docs/ngc1980/BIBLE.md). Current scope, branch audit and remaining work: [PLAN.md](docs/ngc1980/PLAN.md).
 You fly a simulated helicopter from the deck of your carrier, the ALBATROSS, across a sea of 17 islands.
 The enemy carrier KRAKEN is out there doing the same, and whoever controls the map wins.
 
@@ -24,17 +24,15 @@ The enemy carrier KRAKEN is out there doing the same, and whoever controls the m
 - **Fly the CH-46 SEA KNIGHT.** The command board (\\, then 9) puts a CH-46F on the ALBATROSS deck or beside a friendly pad, on the same validated tandem-rotor flight model the AI Sea Knights fly: differential collective on the stick, differential lateral cyclic on the pedals, longitudinal cyclic trim, two T58s on one drive train. The dual SAS and an AFCS (attitude command, hands-off hover hold relative to the deck under you, heading hold) are on by default (H, Shift+H). A 1980 cockpit (dual torquemeter, triple tach, N1 gauges, flight instruments for both pilots, the caution panel, an overhead you start it from with the mouse: battery, APU, start switches, engine condition levers, rotor brake), a chase view and the cabin (troop seats, door gunners, the ramp). Lower the ramp on deck or at a pad and a stick of 13 Marines files aboard (B); land at an island and they come off the ramp into the ground war. Rotor strikes, hard landings, single-engine flight and battle damage are simulated; leave her in the air and the crew flies her home. `?fly=ch46` starts you in one.
 - **Fly the TOMCAT.** Land on the ALBATROSS and press 8: an F-14A on cat 1 (two in the hangar). The AI escorts' real flight model (swing wings on the CADC, TF30s that stall at high AoA, a mechanical stick with stability augmentation and no limiter) with a 1980 analog cockpit: the AVG-12 HUD, the VDI and HSD CRTs, steam gauges (AoA in units, airspeed / Mach, altimeter, VSI, accelerometer, the wing sweep indicator, TF30 RPM / TIT / fuel flow / nozzles, fuel), the caution panel, the throttles' sweep switch and the emergency sweep handle (OVERSWEEP on deck), pitch trim and the autopilot; every switch clickable, and a cold start on them (ENG CRANK, the throttles OFF -> IDLE at 20%, generators, a wet start if you rush it). The RIO sits behind you. Change to the RIO's seat for the AWG-9's TID and DDD (hook, lock, launch Phoenix and Sparrow) while the pilot flies where you tell him. Warnings are 1980 tones and lights, not a voice. Ejection takes both of you.
 - **Tomcat escorts and the RUNAWAY air arm.** Press 4: an F-14A Tomcat goes to the ALBATROSS's bow catapult and an AI pilot flies its real flight model (swing wings, TF30s, mechanical stick) through stick, pedals and throttle: catapult shot, CAP over the ship or the island you selected, intercepts and dogfights with game-level missiles and the gun, bingo, the carrier pattern and an arrested landing (with wave-offs and bolters). The enemy answers with RW-4 SHRIKE fighter drones off the KRAKEN, an MQ-9 REAPER that hunts for the ALBATROSS and SHAHED drone salvos. Watch them alone on `game/dev/air.html`.
-- **Para-drop repair team.** Downed on land? Press L and home base sends a steel dropship from over the horizon. You fly it in from the flight deck with a real fixed-wing flight model (or let the autopilot), line up the jump run against the wind, jump on the green light, then steer the canopies down; whoever lands on dry ground runs over with fuel and fixes the helicopter. Enemy flak can bring the dropship down.
 - **Para-drop repair team: the KC-130 Hercules.** Downed on land? Press L and home base sends a Marine KC-130R from over the horizon with a repair team. Fly it in from a full 1980 flight deck (or let the crew and autopilot do it) on a real C-130H flight model: four T56 turboprops with governed propellers, beta, feathering and engine-out handling, Fowler flaps, the blown wing. Slow to 130 KIAS with 50% flaps, call the green light, and the stick goes out of both para doors under MC1-1 canopies that you steer down. Whoever lands on dry ground runs over with fuel and fixes the helicopter. Flak knocks out engines and can bring the Hercules down.
 - **SKY CARRIER.** Spend 300 materiel (6 on the map) and the ALBATROSS is refitted with four ducted lift fans and takes to the air. Land on her and press Tab to stand on the bridge: wheel, speed telegraph and lift lever, all slow and heavy. Send her anywhere from the map and she flies over the islands; flak can bring her down.
 - **UH-1H Huey.** A Bell UH-1H with a validated flight model (teetering two-blade rotor with the Bell stabilizer bar, translational lift, ground effect, vortex ring state, retreating blade stall, a T53 engine with governor and freewheel so autorotations work), a full 3D cockpit with live instruments and the real caution panel, an authentic (optional) start sequence, the two-blade "wop wop", and a damage model where hits cause failures you can survive and repair. Built for a T.Flight HOTAS 4 + T-Rudder pedals: stick = cyclic, throttle lever = collective, pedals (or twist) = anti-torque; keyboard works too with the stability assist.
 - **Flight-deck operations.** One launch queue for every jet off the ALBATROSS (your Hornet and Tomcat, the Tomcat escorts, the wingmen, sim mode's strike Hornets): one at a time off cat 1, in order. Jets wait on two spots aft of the island, a yellow-shirt director walks the next one round the island to the hold-short line, the cat director brings it over the JBD onto the shuttle, the JBD comes up, tension, the shot, the cat resets. A helicopter or a parked jet on the lane holds the queue; launches and recoveries take turns (the pattern goes round while a jet is in the landing area). `game/js/units/naval/deckops.js`, `node tools/deckopsbench.mjs`, scene `deckseq.mjs`.
 - **Ships that live and move.** The ALBATROSS is a 1980 Midway-class big deck in haze grey with a working deck: crew in coloured jerseys, tractors, Tilly, parked Hornets and Tomcats, an LSO team, the meatball, SPS-48 and SPS-49 turning, boiler smoke from the funnel. The enemy has a seized 2030s Ford-class supercarrier (the KRAKEN) refitted by the machines, the RW-9 LEVIATHAN railgun monitor and autonomous container ships. Every ship heaves, pitches and rolls on one live sea, the same waves you see: a swell from the west-south-west, whitecaps that build with the sea state, wind streaks in a gale, surf on the beaches and foam round every hull. Set the SEA STATE (0 glassy to 7 high) in the pause menu, or turn on WEATHER DRIFT and let it wander over the war. The ALBATROSS's three deck-edge lifts work: walk to the console at the deck edge (or stand on a lift) and press U to take it down to the hangar door with whatever is spotted on it. Parked aircraft are solid. Wakes, bow spray and smoke follow each ship's real track.
 - **Air defences you can read.** Our islands are guarded by the Soviet contingent's ZSU-23-4s, and command 2 builds M163 Vulcans; the ALBATROSS carries two white-domed close-in guns and two box missile launchers. The RUNAWAY field seized 8x8 gun-missile trucks and, on their strongholds, the RW-5 LANCE laser; their ships carry the same TALON gun-missile modules and LANCE turrets on deck. Every one of them has to see you (terrain blocks it) and lock on before it fires, and shows it: radars stop and point, barrels spin up, lamps blink faster, the LANCE glows and paints you with an aiming line, and a lock and missile warning sounds in the cockpit. Missiles steer but turn at a capped rate and go dumb if you drop behind a hill; smoke stops the laser. Stay low.
-- **Get out and walk.** Land the Huey (or stop a Hornet on deck), press Y and climb out: walk the carrier's deck while she sails and turns (you stay where you stand), climb the island ladder to its roof, go over the side and swim to the stern ladder, walk onto an island pad and hold it. Villages are solid: houses, churches, field walls and hedges stop you, piers and bridges carry you. A placeholder Marine with an M16 for now; the real infantry, weapons, medical and inventory plug into slots (see [docs/ngc1980/FOUNDATION.md](docs/ngc1980/FOUNDATION.md)).
+- **Get out and walk.** Land the Huey (or stop a Hornet on deck), press Y and climb out: walk the carrier's deck while she sails and turns (you stay where you stand), climb the island ladder to its roof, go over the side and swim to the stern ladder, walk onto an island pad and hold it. Villages are solid: houses, churches, field walls and hedges stop you, piers and bridges carry you. The playable Marine has weapons, inventory, wounds and treatment integrated through the craft host (see [docs/ngc1980/FOUNDATION.md](docs/ngc1980/FOUNDATION.md)).
 - **Drive.** M151A2 MUTTs and M35A2 trucks wait at every friendly island's motor pool and on the ALBATROSS's deck park; walk up to a door and press Y. The real wheeled sim (tyres, suspension, gearbox, fording, rollovers) on the roads, bridges and fields of the lived-in world, through fords and on a carrier deck that sails and turns under you. Man the M151's pedestal M60 or the M35's ring-mount M2 and fire on the RUNAWAY; their fire punctures tyres, holes radiators and fuel tanks, sets the truck alight and wounds the Marine riding in it. Board six Marines into an M35 at a pad (B) and they take the next pad with you. Commandeer the 1980 Land Rovers, Hilux pickups, Beetles and Ladas parked in the towns (the traffic on the roads is the same cars). More from the motor pool: 7 then 1 = an M151 slung in under a CH-46 (10 materiel), 7 then 2 = an M35 landed on the island's beach by an LCM-8 (20). They stand cold: start them in the cab (ignition / ENGINE switch, START; every switch and lever clicks: blackout lights, wipers, parking brake, extinguisher), and they stall, overheat, get flat tyres (T: the spare) and burn. Keyboard, gamepad, HOTAS or a racing wheel and pedals (paddles shift, clutch pedal for the manual box).
 - **AI rotorcraft that really fly.** The CH-46E Sea Knight (tandem rotors, differential collective, longitudinal cyclic trim), the RUNAWAY's seized MV-22B Osprey (tiltrotor: nacelles convert from helicopter to airplane mode inside the conversion corridor) and the RW-3 WASP (ducted fan) each have a physical flight model checked against published data, and an AI pilot that flies it through stick, collective, pedals and nacelles: deck launches from a moving carrier, terrain-following transits, decelerating approaches, touchdowns beside the pad. On deck the stick waits in two files clear of the rotors and files up the ramp, the blue shirts pull the chocks and chains and the LSE (yellow; cyan on the KRAKEN) signals the lift; approaches are flown down a glide path with a real flare, with a wave-off when too high, too fast or the zone is fouled. Marines run off the Sea Knight's ramp and take the pad; the Osprey's machine troopers march out in lock-step. WASPs strafe, snipe from a hover, lie in ambush behind hills and circle in eerie swarms. Watch them on `game/dev/rotary.html`.
-- **Armour: M60A3 TTS and M113A2** (on their test ground for now, `dev/tank.html`; they join the war in the next wave). A tracked-vehicle simulation with torsion-bar roadwheels, track-soil shear and sinkage on road, grass, sand, mud and bog, a real drivetrain (diesel, torque converter, cross-drive with pivot turns / controlled differential), steps, trenches, slopes, fording, and the M113 swims on its tracks. The tank has a stabilised turret, laser rangefinder and ballistic computer, day and thermal (TTS) sights, a loader, coax and .50; both have full crew interiors (driver's periscopes and gauges, gunner's station, commander's cupola, the M113's troop compartment) and synthesised engine, track and gun sound.
 - **Wheeled vehicles (NGC-1980).** M151A2 MUTT, M35A2 6x6 "deuce", Land Rover 109, Toyota Hilux, VW Beetle and Lada 2101, all drivable on one shared vehicle model: real tyres, suspension, gearboxes, transfer cases and diffs, engines that stall and drown, fording, rollovers, damage that punctures tyres and sets fuel tanks alight, 3D cabs with live gauges and synthesised engine sound. Test drive them on `game/dev/vehicle.html`.
 - **The ground war.** The islands are fought over on the ground. The Osprey's machine troopers come off the ramp as RW-1 STRIDERs (balancing bipeds that stumble when hit, fall, get up) in squads of four that bound, flank and suppress, take the pad and hold the islands the machines own; from four minutes in the enemy sends RW-7 hover tanks across the sea from the KRAKEN, and from nine a seized LCAC runs a seized M1A2 or T-90M (on the TANK track sim) up a beach. Your CH-46 lands a reinforced Marine squad (SL, three fire teams, an attached M60: M16s, an automatic rifleman, M203s and M72 LAWs, the INFANTRY agent's soldier model) that moves, gets down under fire, bounds by fire teams round the flank with more cover, aims for the STRIDERs' legs and sensor heads, and takes casualties (killed and wounded). Command 1 can now also send Marines to reinforce one of your islands the machines have landed on. The machines shoot back at you, your Huey, your AA sites and your Marines; your door gun, rockets, bombs and the Hornet's cannon hurt them, and a helicopter overhead decides a fight. Clear the LZ first: a Sea Knight landing next to a TALON or a squad of STRIDERs gets shot up.
 - **Wounded and the corpsman.** Each Sea Knight stick brings its Navy corpsman (HM3). Marines near you fight on the real rifleman and medical sims: a hit man bleeds, goes down, calls out ("CORPSMAN UP!"), crawls to cover and treats himself; the corpsman runs to him under fire and works out of his Unit One bag (tourniquets, dressings, morphine, the IV only he may start); buddies drag the litter cases to the casualty collection point by the pad, the walking wounded walk. You can treat them (F: their HEALTH screen with your kit), drag them (Shift+F) or fireman-carry them (F) and load them into your Huey; bleeding yourself, the corpsman comes to you. Land the Huey by the wounded and they come aboard (six litters); a Sea Knight takes the island's wounded home too. Delivered to the ALBATROSS, they are back in the pool four minutes later and fill seats on the next Sea Knight (less materiel). The dead keep their kit for you to search.
@@ -44,24 +42,26 @@ The enemy carrier KRAKEN is out there doing the same, and whoever controls the m
 
 - **Effects that build up.** Smoke columns, fires, scorch marks, debris and oil slicks stay on the map.
 
-Win by sinking the KRAKEN or taking IRONHOLD. You lose if the ALBATROSS sinks or you run out of helicopters.
+Win by sinking the KRAKEN or taking IRONHOLD. You lose if the ALBATROSS sinks or the fleet is exhausted. Losing your current vehicle opens the command board so you can take another unit.
 
 ## Run it
 
 It's static files with no build step. Serve the `game/` folder and open it in a browser:
 
 ```
-node tools/serve.mjs          # http://127.0.0.1:8765/
+node tools/serve.mjs --port 8766   # http://127.0.0.1:8766/
 ```
 
-Any static server works (for example `npx serve game`). On Windows, `game/start.bat` does the same and opens the browser.
+Node 22 or newer is recommended for the developer tools. The game needs no npm install; `npm --prefix tools start` runs the same server on port 8766. Any static server can serve `game/`. On this Windows/WSL installation, the **Thrust Zarch EXPERIMENTAL** shortcut opens NGC-1980.
 
-**Desktop launchers (Windows + WSL).** `bash launcher/install.sh` (run in WSL) puts two icons on the Windows desktop:
-**Thrust Zarch** runs this checkout (`main`, port 8765) and **Thrust Zarch EXPERIMENTAL** runs the `experimental`
+For a first session, press Enter, open the map with M, select an unclaimed island and order a Sea Knight with 1.
+Use `\` to choose your own vehicle and Shift+`\` to research locked units. Start with `?tech=all` to explore the
+available hardware immediately, or `?sim` to watch both commanders. Esc provides the pause menu and recovery options.
+
+**Desktop launchers (Windows + WSL).** Run `bash launcher/install.sh` from the classic `/home/jayjay/thrust-zarch` checkout in WSL to install both icons:
+**Thrust Zarch** runs the classic checkout (`main`, port 8765) and **Thrust Zarch EXPERIMENTAL** runs the `experimental`
 worktree next to it (port 8766, the icon with the orange EXP band). Each click starts that build's server inside WSL
-(or reuses it) and opens the browser, so both builds can run side by side. Set up the experimental worktree once with
-`git worktree add --track -b experimental ../thrust-zarch-experimental origin/experimental`, and `git pull` there to
-update it. The launcher lives in `%LOCALAPPDATA%\ThrustZarch` (log: `launcher.log`).
+(or reuses it) and opens the browser, so both builds can run side by side. The existing NGC-1980 checkout is `/home/jayjay/thrust-zarch-experimental`; run commands there. `main` preserves the older Thrust Zarch build. The local integration commits have not been pushed. The launcher lives in `%LOCALAPPDATA%\ThrustZarch` (log: `launcher.log`).
 
 **World preview and checks.** `game/dev/world.html` shows the lived-in world on its own (`?focus=town|village|hamlet|harbour|farm|bridge|zone`, `?structs=1` for every faction structure in every state, `?lod=far`). `node tools/worldbench.mjs` checks the road network and its determinism in node and draws a map to `tools/runs/`. `?noworld` turns the towns and traffic off (for A/B frame timing).
 
@@ -77,7 +77,6 @@ update it. The launcher lives in `%LOCALAPPDATA%\ThrustZarch` (log: `launcher.lo
 | R | winch (pick up the pod in a cave) |
 | M | command map: click the sea to sail the carrier, click an island to select it |
 | 1-4, 6 | send drone, build AA gun, spare helicopter, Tomcat escort (CAP over the selected island, else over the ALBATROSS), SKY CARRIER refit |
-| 1-5 | send a Sea Knight + Marines, build AA gun, spare helicopter, escort fighter, SKY CARRIER refit |
 | Tab | take / leave the SKY CARRIER helm (landed on her deck) |
 | Shift+6 | SKY CARRIER now: the ALBATROSS lifts off at once, no materiel, from any unit (6 alone is the 300-materiel, 24 s refit) |
 | V / C | cockpit view / chase camera |
@@ -122,9 +121,9 @@ anti-torque, toe brakes = wheel brakes, hat = look around (Huey: door gun aim), 
 
 You are TASK FORCE ALBATROSS's commander, not one helicopter crew. **\\** opens the command board (the war keeps
 running while it is open): every unit type of the fleet - UH-1H Huey, F/A-18A Hornet, F-14A Tomcat, M60A3, M113A2,
-M151A2 jeep, M35A2 truck, a Marine rifleman - with how many are in reserve and the one that is out (where it is, what
+M151A2 jeep, M35A2 truck, a Marine rifleman and CH-46F Sea Knight - with how many are in reserve and the one that is out (where it is, what
 it is doing). Pick the base with LEFT / RIGHT (the ALBATROSS, or any friendly island: jets only from the carrier's cat 1),
-ENTER (or 1-8) takes a unit out there and puts you in it, or switches you to the one already out; with none left in
+ENTER (or 1-9) takes a unit out there and puts you in it, or switches you to the one already out; with none left in
 reserve the board buys one for materiel. **/** jumps straight to the next unit that is out. On the board, R recalls a
 jet on CAP, X stands a parked unit down into reserve, N takes another jeep or truck out (several can be out). **5** / **8** work from any unit (no need to land the Huey).
 
@@ -183,13 +182,8 @@ says NO SLING GEAR over a vehicle and no squad comes for the Huey.
 | J | controls panel: live view of every axis and button, bind and calibrate HOTAS / pedals |
 | Y | stopped on the deck: climb out (the Hornet stays parked; the deck crew brings the Huey up) |
 
-### On foot: the 1980 Marine, and in vehicles
+Cockpit switches are clickable (gear and hook handles, flaps, master arm, FCS CAS/DIRECT, engine cranks, fire lights, master caution, jettison, eject, DDI pages). To land: gear down, flaps FULL, hook down, fly the ICLS needles at 8° AoA (the green/amber/red indexer) into the wires.
 
-Get out of the landed Huey, a stopped vehicle or the Hornet stopped on deck (Y) and you are an M16A1 rifleman of 1980:
-the rifleman's kit from the inventory (M16A1 with six 20-round magazines in the ammo pouches and two in the vest, an
-M72 LAW slung, a bandolier in the pack, grenades, two canteens, a field dressing and a cravat), real ballistics, wounds
-that bleed and a body that tires. Iron sights only, no crosshair. The ship decks carry you as they sail, heave, pitch
-and roll; the ALBATROSS island has a ladder on its port face up to the top deck, the carriers a stern ladder from the sea.
 ### TOMCAT (F-14A)
 
 | Key | Action |
@@ -215,6 +209,12 @@ and roll; the ALBATROSS island has a ladder on its port face up to the top deck,
 Compressor stall (a bang, the RPM rolls back, TIT climbs, L / R INLET on the caution panel, the jet yaws): throttles to idle, nose down below 15 units, wait for it to clear, then power up slowly. Holding power and the pull flames it out; airstart: ENG CRANK on that side (cross-bleed off the other engine, or windmill air above 225 KEAS) with its throttle at IDLE, or I. HOTAS: bind WING SWEEP FWD / AFT / AUTO to buttons in the J panel.
 
 ### On foot and in vehicles
+
+Get out of the landed Huey, a stopped vehicle or the Hornet stopped on deck (Y) and you are an M16A1 rifleman of 1980:
+the rifleman's kit from the inventory (M16A1 with six 20-round magazines in the ammo pouches and two in the vest, an
+M72 LAW slung, a bandolier in the pack, grenades, two canteens, a field dressing and a cravat), real ballistics, wounds
+that bleed and a body that tires. Iron sights only, no crosshair. The ship decks carry you as they sail, heave, pitch
+and roll; the ALBATROSS island has a ladder on its port face up to the top deck, the carriers a stern ladder from the sea.
 
 | Key | Action |
 |---|---|
@@ -274,10 +274,8 @@ Gamepad: left stick steers, RT / LT drive / brake-reverse, right stick lays the 
 Wounds: enemy rounds, flak, blasts and lasers hit body parts (MEDINV's wound model behind the M1 helmet and M69 vest);
 bleeding drains blood volume through the shock classes (tunnel vision, grey, unconsciousness). Treat yourself on the
 HEALTH screen: drag the field dressing onto the wound, the cravat onto a limb as a tourniquet. Bleeding out costs a
-life like a lost helicopter; your body stays where you fell with your kit on it. Crates: an ammunition crate and a
+Marine from the fleet; your body stays where you fell with your kit on it. Crates: an ammunition crate and a
 medical chest on the ALBATROSS deck forward of the island, one by every island pad (RUNAWAY caches on enemy islands).
-
-Cockpit switches are clickable (gear and hook handles, flaps, master arm, FCS CAS/DIRECT, engine cranks, fire lights, master caution, jettison, eject, DDI pages). To land: gear down, flaps FULL, hook down, fly the ICLS needles at 8° AoA (the green/amber/red indexer) into the wires.
 
 ### KC-130 Hercules (para-drop)
 
@@ -294,14 +292,15 @@ The flight deck is clickable: the four condition levers on the overhead (click: 
 
 The in-game help screen has the full list.
 
-### On foot: medical and inventory (NGC-1980, work in progress)
+### Medical and inventory
 
-The 1980 Marine gets Tarkov-style gear and a deep medical model (`game/js/units/infantry/`). Try it in the sandbox at
+The playable Marine uses the inventory and medical systems in `game/js/units/infantry/`. Their isolated sandbox is
 `dev/medinv.html`: pack a rifleman, grenadier, M60 gunner or Navy corpsman, take hits, watch the bleeding and shock
 develop at x1 to x60, then treat him.
 
 - **Gear (Tab):** drag and drop between pockets, the LC-2 belt and its ALICE pouches, the M69 vest and the ALICE pack. **R** rotates while dragging, **Shift-drag** splits a stack, **Ctrl-click** quick-moves, double-click inspects or opens a container, right-click opens the menu (unload, fill from rig, reload, quick slot, drop). Drop rounds on a magazine to load it (stripper clips are faster than thumbing). Bodies and crates are searched item by item. Arrows and Enter (or a gamepad d-pad and A) work as a cursor.
-- **Health (H):** drag a dressing, tourniquet, splint, morphine syrette, IV (corpsman only) or canteen onto the body. Right-click a limb to tighten or remove a tourniquet. Blood volume follows the ATLS shock classes I-IV. A tourniquet is safe for 2 hours. The modern CAT tourniquet and QuikClot looted from the RUNAWAY's seized stocks are anachronisms that work far better than the 1980 strap-and-buckle.
+- **Health (H):** drag a dressing, tourniquet, splint, morphine syrette, IV (corpsman only) or canteen onto the body. Right-click a limb to tighten or remove a tourniquet. Blood volume follows the ATLS shock classes I-IV. The game models a two-hour tourniquet timer. The modern CAT tourniquet and QuikClot looted from the RUNAWAY's seized stocks are anachronisms that work far better than the 1980 strap-and-buckle.
+
 ### Infantry (NGC-1980 Marine rifleman, dev range)
 
 `game/dev/infantry.html` is a firing range for the on-foot Marine of 1980 (M16A1 with M203, M60, M72 LAW, M1911A1):
@@ -323,10 +322,14 @@ sight line, time of flight, speed), reload and malfunction drills, stamina on th
 
 ## Tests
 
+Run `npm --prefix tools test` for module syntax checks and every `tools/*bench.mjs`, plus HOTAS and moving-deck checks. It writes per-check logs and a JSON summary under `tools/runs/check-*/` and exits nonzero on failure. `npm --prefix tools run check` runs syntax alone; `npm --prefix tools run bench` runs the benches alone.
+
+Browser checks need `npm --prefix tools ci` and an installed Chrome/Chromium. Set `CHROME_PATH` to its executable, then run `npm --prefix tools run smoke`. The integration evidence and limits are in [VALIDATION.md](docs/ngc1980/VALIDATION.md). Use one browser at a time.
+
 `tools/` has a headless test harness: Puppeteer drives the game in software WebGL and takes screenshots. See [tools/README.md](tools/README.md).
 
 ```
-cd tools && npm install && node snap.mjs scenes/war.json
+node tools/snap.mjs tools/scenes/war.json
 node tools/jetbench.mjs             # the jet's flight model against published F/A-18C figures, in plain node
 node tools/c130bench.mjs            # the C-130H flight model against published C-130H data (spec box, ops limits card, FM 3-21.38)
 node tools/tomcatsysbench.mjs       # the flyable F-14A's systems: wing sweep AUTO / MAN / EMER / OVERSWEEP, dead CADC, AFCS, the start on the switches (crank, throttles, wet start, auto start), generators / EMERG GEN, airstarts, stalls, damage
@@ -340,7 +343,7 @@ node tools/rotarymission.mjs        # CH-46 and MV-22 fly their whole missions (
 node tools/embarkbench.mjs          # deck ops: the stick boards by the ramp, chocks and chains off, the LSE signals the lift; chocked back on deck
 node tools/waspmission.mjs          # WASP swarm, strafing and ambush behaviours
 node tools/healthbarbench.mjs       # unit markers: every unit a whole war builds gets a health 0..1, a role and a side (ui/unitmarkers.js)
-cd tools && node snap.mjs scenes/healthbars.mjs   # unit markers in every view (chase, cockpit, foot, M60A3, Hornet, map, sim cameras), damage, F8 modes
+node tools/snap.mjs tools/scenes/healthbars.mjs   # unit markers in every view (chase, cockpit, foot, M60A3, Hornet, map, sim cameras), damage, F8 modes
 ```
 
 SIM MODE (CPU vs CPU, docs/ngc1980/SIMREPORT.md):
@@ -351,12 +354,14 @@ node tools/warsim.mjs --tournament --seeds 8 --tech default                     
 node tools/warsim.mjs --blue BALANCED --red DEFAULT --sweep COST.drone=25,40,60          # one knob (a game tunable, or blue.<knob> / red.<knob>)
 node tools/warsim.mjs --list                                                             # doctrines and sweepable tunables
 node tools/simbench.mjs             # determinism per seed, the commanders play, the doctrine copy replays war.js, speed
-cd tools && node snap.mjs scenes/simmode.json   # the browser spectator: cameras, overlay, the sim ground = main.js ground
+node tools/snap.mjs tools/scenes/simmode.json   # the browser spectator: cameras, overlay, the sim ground = main.js ground
 ```
 
-Output goes to `tools/runs/sim/<stamp>-<name>/` (report.md, summary.json, runs.jsonl). Options: --workers (3), --tmax, --tech / --etech (all | default | max | ids), --pilot ai | none (the AI Hornet strike wing), --patch catlane (works round the cat-2 launch bug, see SIMREPORT), --exact.
+Output goes to `tools/runs/sim/<stamp>-<name>/` (report.md, summary.json, runs.jsonl). Options: --workers (3), --tmax, --tech / --etech (default | all | max | none | ids; default is the normal opening tree), --pilot ai | none (the AI Hornet strike wing), --patch catlane (legacy diagnostic only; normal launches use the fixed cat-1 queue), --exact.
 
 Medical and inventory scenes: `medinv.mjs` (hits, bleeding, a mouse-dragged tourniquet, gear, looting, inspect, death) and `medinv_ui.mjs` (rotate, split, menu, container window, quick move, cursor, corpsman IV, class IV vision).
+
+```
 node tools/navalbench.mjs           # ship motion in a seaway: sea states, carrier pitch / heave / roll, turn heel, deck maths
 node tools/seabench.mjs             # the live sea: fractional sea states, phases kept on retune, ships riding the drawn waves, weather drift
 node tools/worldsolidbench.mjs      # the lived-in world as colliders: houses stop a walker, field walls, bridge decks and parapets
@@ -371,8 +376,7 @@ Tech tree: `node tools/techbench.mjs` (97 checks: acyclic, reachable, start sets
 Deck ops: `node tools/deckopsbench.mjs` (the launch queue with real airframes on the live deck), `node tools/catdeckbench.mjs` (the cat shot, Tomcat and Hornet, heeling deck, 1/60-0.1 s frames), scenes `deckseq.mjs`, `catshot.mjs`, `jets.json`.
 
 Air AI: `node tools/airbench.mjs` (a Tomcat sortie cat -> CAP -> bingo -> trap off a fake carrier, wave-off and bolter, terrain, Tomcat vs SHRIKE), `node tools/tomcatbench.mjs` (the F-14A flight model vs published data), scenes `escorts.mjs`, `airfly.mjs`, `airmodels.mjs`.
-node tools/wheeledbench.mjs         # the wheeled vehicles against TM / factory figures (speed, grades, fording, stability, fuel)
-```
+`node tools/wheeledbench.mjs` checks wheeled vehicle speed, grades, fording, stability and fuel against TM/factory figures.
 
 Wheeled vehicle scenes: `wheeledmodel.mjs` (exteriors and variants), `wheeledcockpit.mjs` (cabs, gauges, driving), `wheeleddrive.mjs` (dirt loop, 60% ramp, twist ditch, ford, side slope, mud, fire and wreck), `wheeledaudio.mjs` (engine sound); add `--query "?only=m151"` to the first two.
 

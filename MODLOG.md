@@ -1,4 +1,41 @@
-# MODLOG — Thrust/Zarch experimental (helicopter build)
+# MODLOG — NGC-1980 (formerly Thrust/Zarch)
+
+## 2026-10-25 — playable sandbox integration
+
+Scope agreed with the user: integrate completed work, fix gameplay blockers, and document remaining ambitions.
+Baseline `experimental` was `72e27dd`; it has been fast-forwarded to `ngc/finish`, preserving `main`, all other branch
+tips/worktrees and the paused Claude/Opus findings. No remote push or branch cleanup.
+
+- Merged the completed `bugsweep`, `simmode`, `airlift`, `qa-ship`, `sealife2` and `ch46fly` tips. Resolved the shared
+  main/debug hooks, sea/menu controls and deck layout together. The playable Sea Knight remains board row 9.
+- Fixed the starting Huey's overlap with the AI taxi clearance, included the Sea Knight as a deck obstacle, and
+  retained the escort-order success contract used by the CPU commander. Player and AI catshots pass in the browser.
+- Protected RUNAWAY research budgets before military purchases. Capped raid and salvo purchases to affordable group
+  sizes; both the built-in commander and doctrine copy follow the same rules.
+- Bounded rotorcraft gear forces on deep contact and reported an obstruction as a collision. CH-46/MV-22/WASP now
+  remain finite rather than being thrown off the map by an elevated deck.
+- Made boarding restraints follow the deck, kept lift guidance over the current spot, and included hull separation
+  in ship surface velocity before updating aircraft. Enemy transports can now unload and capture islands.
+- Counted aircraft crashes removed between telemetry samples, preserved the free cursor after cockpit switch clicks,
+  and made the Huey AI climb clear before accelerating on a troop departure.
+- Preserved simulation verdicts and metrics through sample thinning, kept final samples, logged failed workers and
+  made failed batches return a nonzero exit code. Validated CLI inputs and made its default tech match normal play.
+- Added `npm --prefix tools test` (syntax plus all Node benches), targeted economy/contact/report/CLI regressions,
+  and frame-independent research purchase assertions in the browser scene.
+- Reconciled README, the design roster and foundation status; archived the old wave board; recorded all 16 deferred
+  branch tips, actual evidence and remaining work. Current references: [PLAN](docs/ngc1980/PLAN.md),
+  [VALIDATION](docs/ngc1980/VALIDATION.md), [SIMREPORT](docs/ngc1980/SIMREPORT.md),
+  [integration findings](docs/ngc1980/findings/finish.md).
+
+Validation: 429 syntax checks and 45 Node regression programs; 11 selected browser scenes (160 assertions), plus a
+7-assertion normal-startup check on the updated experimental server; 24 completed CPU wars (1,020 simulated minutes).
+Browser runs recorded no page/console errors, and the final wars recorded no numerical anomalies. Evidence and
+coverage limits are retained in the linked reports and their compact JSON summaries.
+
+Broader faction parity, terrain/collision integration, human balance testing and hardware performance qualification
+remain open.
+
+---
 
 Own browser game (Three.js r170), no third-party game files. Route: direct source changes (we own the code).
 Oracle: tools/snap.mjs headless Chrome (SwiftShader) driving the real game with keyboard + debug bridge
@@ -885,7 +922,7 @@ waspmission,rotaryperf,rotarykit,runscenes}.mjs, scenes ch46capture / mv22landin
   wrappers that build the CH-46 / MV-22 / WASP.
 
 ### Troops (figures.js, squad.js)
-- Stand-in soldiers, deliberately simple and SWAPPABLE: FIGURES[kind](opts) -> { group, pose(state, phase) }, states
+- Stand-in soldiers, deliberately simple and SWAPPABLE: `FIGURES[kind](opts) -> { group, pose(state, phase) }`, states
   run / walk / stand / kneel / aim / fall / dead / seated. 1980 Marine (M1 helmet with the leaf cover, ERDL utilities,
   M1955 flak vest, ALICE pack + canteens, M16A1; four skin tones) and RUNAWAY machine trooper (ceramic plates, cyan
   sensor slit, seized carbine with a cyan optic). 6 meshes each with one shared vertex-colour material. The INFANTRY

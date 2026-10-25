@@ -295,16 +295,19 @@ steering in the sim, `controls` for the turret seats (gunner sight eye in `seats
 - Headless gotcha: `requestPointerLock` must only come from a click; requested on a key press it froze headless
   screenshots (the scenes set `foot.W.yaw` / `pitch` instead of moving the mouse).
 
-## 8. Known limitations and next steps
+## 8. Integration status and limitations (2026-10-25)
 
 - The Huey's crew figures are merged into its model, so a pilot still sits in it after you get out (call him the
   copilot). Parked crafts are not war.js targets (only the player's craft is); `pl` is per active craft.
-- The sky-carrier helm is still Huey-only (Tab when landed on its deck); walking to the bridge is a natural next step.
-- No ceilings: the soldier can't go inside buildings / hangar decks (the carrier's hangar and elevators are not
-  modelled yet - NAVAL can add them as `GR.addCollider` walls plus a lift platform that `carry` already handles).
-- Vehicles collide with each other through `bounds()` (pushed, no momentum exchange); no rollover in the test car.
+- The sky-carrier helm, enterable buildings and ship spaces, doors, seats, hangar and deck elevators have since been
+  integrated. Their implementation is in `interiors/`, `units/naval/` and the main craft hooks; the original
+  foundation preview below is not the complete current feature list.
+- The placeholder car remains a development fixture. Playable wheeled/tracked units use their own dynamics,
+  damage and rollover models. A complete shared collision world remains deferred on `ngc/collision`.
 - Ejected Hornet pilots still go straight to the rescue; landing on foot after an ejection would be a small change
   in `craftjet.js` (`updateChute` -> `foot.spawnAt`).
+
+Current release scope, branch disposition and testing are in [PLAN.md](PLAN.md) and [VALIDATION.md](VALIDATION.md).
 
 ## 9. Wave 2: the Marine on this craft (ngc/foot2)
 

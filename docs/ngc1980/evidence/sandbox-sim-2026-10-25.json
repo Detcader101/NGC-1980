@@ -1,0 +1,2859 @@
+{
+  "source": "01d0d05 (campaign gameplay and telemetry); browser cursor fix 2216951 does not run in the Node harness",
+  "command": "node tools/warsim.mjs --blue BALANCED,RUSH,AIRPOWER --red DEFAULT,SWARM,HORDE,DREADNOUGHT --seeds 2 --tmax 2700 --workers 2 --name finish-release",
+  "artifacts": "tools/runs/sim/2026-10-25-18-32-59-finish-release",
+  "meta": {
+    "blues": [
+      "BALANCED",
+      "RUSH",
+      "AIRPOWER"
+    ],
+    "reds": [
+      "DEFAULT",
+      "SWARM",
+      "HORDE",
+      "DREADNOUGHT"
+    ],
+    "sweep": null,
+    "tmax": 2700,
+    "wall": 968.133,
+    "simSec": 61170,
+    "workers": 2,
+    "base": {
+      "tmax": 2700,
+      "dt": 0.03333333333333333,
+      "tech": "default",
+      "pilot": "ai",
+      "patch": [],
+      "exact": false
+    },
+    "n": 24,
+    "failed": 0
+  },
+  "cells": {
+    "BALANCED|SWARM": {
+      "n": 2,
+      "failed": 0,
+      "blue": 2,
+      "red": 0,
+      "draw": 0,
+      "blueDecisive": 0,
+      "redDecisive": 0,
+      "blueRate": 1,
+      "blueCI": [
+        0.34237195288961925,
+        1
+      ],
+      "redCI": [
+        0,
+        0.6576280471103807
+      ],
+      "decisiveRate": 0,
+      "lenMean": 45,
+      "lenMedian": 45,
+      "how": {
+        "timeout (TASK FORCE ahead)": 2
+      },
+      "fun": {
+        "leadChanges": 0,
+        "comebackRate": 0,
+        "decisiveMoments": 6.5,
+        "snowball": 0.04,
+        "deadShare": 0.12,
+        "longestLull": 2,
+        "firstShot": 1.7,
+        "firstLoss": 1.5,
+        "firstCapture": 1.9
+      },
+      "curves": [
+        {
+          "t": 5,
+          "own1": 3,
+          "own2": 5,
+          "m1": 45,
+          "m2": 13,
+          "s1": 123,
+          "s2": 182.7,
+          "alive": 2
+        },
+        {
+          "t": 10,
+          "own1": 5,
+          "own2": 5,
+          "m1": 51,
+          "m2": 83,
+          "s1": 175,
+          "s2": 188.2,
+          "alive": 2
+        },
+        {
+          "t": 15,
+          "own1": 7.5,
+          "own2": 5,
+          "m1": 67,
+          "m2": 9,
+          "s1": 240.2,
+          "s2": 178.4,
+          "alive": 2
+        },
+        {
+          "t": 20,
+          "own1": 8.5,
+          "own2": 5,
+          "m1": 37,
+          "m2": 2,
+          "s1": 256.6,
+          "s2": 176.1,
+          "alive": 2
+        },
+        {
+          "t": 30,
+          "own1": 12,
+          "own2": 4,
+          "m1": 310,
+          "m2": 9,
+          "s1": 347.8,
+          "s2": 154.4,
+          "alive": 2
+        },
+        {
+          "t": 45,
+          "own1": 13,
+          "own2": 4,
+          "m1": 1501,
+          "m2": 46,
+          "s1": 372.4,
+          "s2": 167.3,
+          "alive": 2
+        },
+        {
+          "t": 60,
+          "own1": 13,
+          "own2": 4,
+          "m1": 1501,
+          "m2": 46,
+          "s1": 372.4,
+          "s2": 167.3,
+          "alive": 0
+        }
+      ],
+      "units": {
+        "1": {
+          "carrier": {
+            "built": 1,
+            "lost": 0
+          },
+          "drone": {
+            "built": 29,
+            "lost": 16
+          },
+          "strike": {
+            "built": 5,
+            "lost": 2
+          },
+          "g.marine": {
+            "built": 156,
+            "lost": 5.5
+          },
+          "escort": {
+            "built": 42,
+            "lost": 41
+          }
+        },
+        "2": {
+          "carrier": {
+            "built": 1,
+            "lost": 0
+          },
+          "gunship": {
+            "built": 22.5,
+            "lost": 20.5
+          },
+          "freighter": {
+            "built": 4,
+            "lost": 0
+          },
+          "reaper": {
+            "built": 3,
+            "lost": 2
+          },
+          "g.hovertank": {
+            "built": 3,
+            "lost": 0.5
+          },
+          "shahed": {
+            "built": 14,
+            "lost": 14
+          },
+          "s.factory": {
+            "built": 0,
+            "lost": 2
+          },
+          "s.aa": {
+            "built": 0,
+            "lost": 2
+          },
+          "s.hq": {
+            "built": 0,
+            "lost": 1.5
+          }
+        }
+      },
+      "anomalies": 0,
+      "anomalyText": [],
+      "speed": 0.78,
+      "strike": {
+        "sorties": 5,
+        "bombs": 11,
+        "lost": 2,
+        "kills": 3
+      }
+    },
+    "BALANCED|DEFAULT": {
+      "n": 2,
+      "failed": 0,
+      "blue": 1,
+      "red": 0,
+      "draw": 1,
+      "blueDecisive": 0,
+      "redDecisive": 0,
+      "blueRate": 0.75,
+      "blueCI": [
+        0.09452865480086614,
+        0.9054713451991339
+      ],
+      "redCI": [
+        0,
+        0.6576280471103807
+      ],
+      "decisiveRate": 0,
+      "lenMean": 45,
+      "lenMedian": 45,
+      "how": {
+        "timeout (even ahead)": 1,
+        "timeout (TASK FORCE ahead)": 1
+      },
+      "fun": {
+        "leadChanges": 0,
+        "comebackRate": 0,
+        "decisiveMoments": 6,
+        "snowball": 0.52,
+        "deadShare": 0.13,
+        "longestLull": 1.5,
+        "firstShot": 1.8,
+        "firstLoss": 1.5,
+        "firstCapture": 1.9
+      },
+      "curves": [
+        {
+          "t": 5,
+          "own1": 3,
+          "own2": 5,
+          "m1": 30,
+          "m2": 7,
+          "s1": 123.3,
+          "s2": 180.4,
+          "alive": 2
+        },
+        {
+          "t": 10,
+          "own1": 5.5,
+          "own2": 6,
+          "m1": 46,
+          "m2": 10,
+          "s1": 189.6,
+          "s2": 202.1,
+          "alive": 2
+        },
+        {
+          "t": 15,
+          "own1": 6,
+          "own2": 6.5,
+          "m1": 41,
+          "m2": 13,
+          "s1": 204.5,
+          "s2": 223.2,
+          "alive": 2
+        },
+        {
+          "t": 20,
+          "own1": 6.5,
+          "own2": 7.5,
+          "m1": 44,
+          "m2": 37,
+          "s1": 210.1,
+          "s2": 253.2,
+          "alive": 2
+        },
+        {
+          "t": 30,
+          "own1": 7,
+          "own2": 7.5,
+          "m1": 72,
+          "m2": 30,
+          "s1": 225.8,
+          "s2": 251.4,
+          "alive": 2
+        },
+        {
+          "t": 45,
+          "own1": 8,
+          "own2": 7,
+          "m1": 92,
+          "m2": 8,
+          "s1": 248.5,
+          "s2": 247.9,
+          "alive": 2
+        },
+        {
+          "t": 60,
+          "own1": 8,
+          "own2": 7,
+          "m1": 92,
+          "m2": 8,
+          "s1": 248.5,
+          "s2": 247.9,
+          "alive": 0
+        }
+      ],
+      "units": {
+        "1": {
+          "carrier": {
+            "built": 1,
+            "lost": 0
+          },
+          "drone": {
+            "built": 45.5,
+            "lost": 35.5
+          },
+          "strike": {
+            "built": 14.5,
+            "lost": 9.5
+          },
+          "g.marine": {
+            "built": 104,
+            "lost": 21
+          },
+          "escort": {
+            "built": 14.5,
+            "lost": 14
+          },
+          "s.aa": {
+            "built": 0,
+            "lost": 3.5
+          }
+        },
+        "2": {
+          "carrier": {
+            "built": 1,
+            "lost": 0
+          },
+          "gunship": {
+            "built": 13,
+            "lost": 12.5
+          },
+          "freighter": {
+            "built": 7,
+            "lost": 1.5
+          },
+          "transport": {
+            "built": 9.5,
+            "lost": 7.5
+          },
+          "g.strider": {
+            "built": 20,
+            "lost": 0.5
+          },
+          "g.hovertank": {
+            "built": 4,
+            "lost": 0
+          },
+          "g.mbt": {
+            "built": 2,
+            "lost": 0
+          },
+          "s.aa": {
+            "built": 0,
+            "lost": 2
+          },
+          "s.radar": {
+            "built": 0,
+            "lost": 0.5
+          },
+          "s.hq": {
+            "built": 0,
+            "lost": 0.5
+          },
+          "s.fuel": {
+            "built": 0,
+            "lost": 0.5
+          }
+        }
+      },
+      "anomalies": 0,
+      "anomalyText": [],
+      "speed": 0.52,
+      "strike": {
+        "sorties": 14.5,
+        "bombs": 20,
+        "lost": 9.5,
+        "kills": 3
+      }
+    },
+    "BALANCED|HORDE": {
+      "n": 2,
+      "failed": 0,
+      "blue": 2,
+      "red": 0,
+      "draw": 0,
+      "blueDecisive": 0,
+      "redDecisive": 0,
+      "blueRate": 1,
+      "blueCI": [
+        0.34237195288961925,
+        1
+      ],
+      "redCI": [
+        0,
+        0.6576280471103807
+      ],
+      "decisiveRate": 0,
+      "lenMean": 45,
+      "lenMedian": 45,
+      "how": {
+        "timeout (TASK FORCE ahead)": 2
+      },
+      "fun": {
+        "leadChanges": 0,
+        "comebackRate": 0,
+        "decisiveMoments": 6,
+        "snowball": 0.04,
+        "deadShare": 0.14,
+        "longestLull": 2,
+        "firstShot": 1.6,
+        "firstLoss": 1.5,
+        "firstCapture": 1.9
+      },
+      "curves": [
+        {
+          "t": 5,
+          "own1": 3,
+          "own2": 5,
+          "m1": 50,
+          "m2": 62,
+          "s1": 123.3,
+          "s2": 181.1,
+          "alive": 2
+        },
+        {
+          "t": 10,
+          "own1": 5.5,
+          "own2": 5,
+          "m1": 62,
+          "m2": 14,
+          "s1": 192.5,
+          "s2": 188.3,
+          "alive": 2
+        },
+        {
+          "t": 15,
+          "own1": 6.5,
+          "own2": 5.5,
+          "m1": 59,
+          "m2": 64,
+          "s1": 221.2,
+          "s2": 201.6,
+          "alive": 2
+        },
+        {
+          "t": 20,
+          "own1": 6.5,
+          "own2": 6,
+          "m1": 58,
+          "m2": 74,
+          "s1": 223.5,
+          "s2": 211.1,
+          "alive": 2
+        },
+        {
+          "t": 30,
+          "own1": 7.5,
+          "own2": 6,
+          "m1": 84,
+          "m2": 29,
+          "s1": 248.5,
+          "s2": 203,
+          "alive": 2
+        },
+        {
+          "t": 45,
+          "own1": 7.5,
+          "own2": 6.5,
+          "m1": 105,
+          "m2": 73,
+          "s1": 263.8,
+          "s2": 228.3,
+          "alive": 2
+        },
+        {
+          "t": 60,
+          "own1": 7.5,
+          "own2": 6.5,
+          "m1": 105,
+          "m2": 73,
+          "s1": 263.8,
+          "s2": 228.3,
+          "alive": 0
+        }
+      ],
+      "units": {
+        "1": {
+          "carrier": {
+            "built": 1,
+            "lost": 0
+          },
+          "drone": {
+            "built": 41,
+            "lost": 24.5
+          },
+          "strike": {
+            "built": 10.5,
+            "lost": 5.5
+          },
+          "g.marine": {
+            "built": 136.5,
+            "lost": 21.5
+          },
+          "escort": {
+            "built": 26,
+            "lost": 23.5
+          },
+          "s.aa": {
+            "built": 0,
+            "lost": 5.5
+          }
+        },
+        "2": {
+          "carrier": {
+            "built": 1,
+            "lost": 0
+          },
+          "freighter": {
+            "built": 5,
+            "lost": 0
+          },
+          "gunship": {
+            "built": 22,
+            "lost": 19
+          },
+          "g.hovertank": {
+            "built": 6.5,
+            "lost": 3
+          },
+          "transport": {
+            "built": 1,
+            "lost": 0
+          },
+          "g.strider": {
+            "built": 8,
+            "lost": 3
+          },
+          "reaper": {
+            "built": 3,
+            "lost": 2.5
+          },
+          "g.mbt": {
+            "built": 1,
+            "lost": 0
+          },
+          "s.hq": {
+            "built": 0,
+            "lost": 1.5
+          },
+          "s.aa": {
+            "built": 0,
+            "lost": 1.5
+          },
+          "s.factory": {
+            "built": 0,
+            "lost": 1.5
+          },
+          "shahed": {
+            "built": 2.5,
+            "lost": 2.5
+          }
+        }
+      },
+      "anomalies": 0,
+      "anomalyText": [],
+      "speed": 0.55,
+      "strike": {
+        "sorties": 10.5,
+        "bombs": 18,
+        "lost": 5.5,
+        "kills": 2.5
+      }
+    },
+    "BALANCED|DREADNOUGHT": {
+      "n": 2,
+      "failed": 0,
+      "blue": 0,
+      "red": 2,
+      "draw": 0,
+      "blueDecisive": 0,
+      "redDecisive": 2,
+      "blueRate": 0,
+      "blueCI": [
+        0,
+        0.6576280471103807
+      ],
+      "redCI": [
+        0.34237195288961925,
+        1
+      ],
+      "decisiveRate": 1,
+      "lenMean": 41.8,
+      "lenMedian": 41.8,
+      "how": {
+        "OUR CARRIER WAS SUNK": 2
+      },
+      "fun": {
+        "leadChanges": 0,
+        "comebackRate": 1,
+        "decisiveMoments": 8.5,
+        "snowball": 1,
+        "deadShare": 0.12,
+        "longestLull": 2,
+        "firstShot": 1.6,
+        "firstLoss": 1.5,
+        "firstCapture": 1.9
+      },
+      "curves": [
+        {
+          "t": 5,
+          "own1": 3,
+          "own2": 5,
+          "m1": 35,
+          "m2": 65,
+          "s1": 123.5,
+          "s2": 181.3,
+          "alive": 2
+        },
+        {
+          "t": 10,
+          "own1": 5.5,
+          "own2": 5,
+          "m1": 78,
+          "m2": 24,
+          "s1": 195,
+          "s2": 183.2,
+          "alive": 2
+        },
+        {
+          "t": 15,
+          "own1": 7,
+          "own2": 5.5,
+          "m1": 43,
+          "m2": 15,
+          "s1": 231.4,
+          "s2": 188.1,
+          "alive": 2
+        },
+        {
+          "t": 20,
+          "own1": 8,
+          "own2": 5.5,
+          "m1": 111,
+          "m2": 48,
+          "s1": 259.2,
+          "s2": 192.2,
+          "alive": 2
+        },
+        {
+          "t": 30,
+          "own1": 11,
+          "own2": 4.5,
+          "m1": 481,
+          "m2": 30,
+          "s1": 334,
+          "s2": 178.6,
+          "alive": 2
+        },
+        {
+          "t": 45,
+          "own1": 12.5,
+          "own2": 4.5,
+          "m1": 63,
+          "m2": 57,
+          "s1": 287.5,
+          "s2": 208.1,
+          "alive": 0
+        },
+        {
+          "t": 60,
+          "own1": 12.5,
+          "own2": 4.5,
+          "m1": 63,
+          "m2": 57,
+          "s1": 287.5,
+          "s2": 208.1,
+          "alive": 0
+        }
+      ],
+      "units": {
+        "1": {
+          "carrier": {
+            "built": 1,
+            "lost": 1
+          },
+          "drone": {
+            "built": 32,
+            "lost": 15
+          },
+          "strike": {
+            "built": 17,
+            "lost": 14
+          },
+          "g.marine": {
+            "built": 156,
+            "lost": 41.5
+          },
+          "escort": {
+            "built": 30.5,
+            "lost": 30.5
+          },
+          "s.aa": {
+            "built": 0,
+            "lost": 11
+          },
+          "s.hq": {
+            "built": 0,
+            "lost": 4
+          },
+          "s.factory": {
+            "built": 0,
+            "lost": 2
+          },
+          "s.fuel": {
+            "built": 0,
+            "lost": 1
+          }
+        },
+        "2": {
+          "carrier": {
+            "built": 1,
+            "lost": 0
+          },
+          "freighter": {
+            "built": 4,
+            "lost": 0
+          },
+          "gunship": {
+            "built": 19,
+            "lost": 17
+          },
+          "transport": {
+            "built": 1.5,
+            "lost": 0
+          },
+          "g.hovertank": {
+            "built": 4,
+            "lost": 0
+          },
+          "g.strider": {
+            "built": 8,
+            "lost": 1
+          },
+          "reaper": {
+            "built": 2,
+            "lost": 1
+          },
+          "g.mbt": {
+            "built": 1.5,
+            "lost": 0
+          },
+          "battleship": {
+            "built": 1,
+            "lost": 0
+          },
+          "s.aa": {
+            "built": 0,
+            "lost": 3
+          },
+          "s.factory": {
+            "built": 0,
+            "lost": 1.5
+          },
+          "s.hq": {
+            "built": 0,
+            "lost": 1
+          }
+        }
+      },
+      "anomalies": 0,
+      "anomalyText": [],
+      "speed": 0.54,
+      "strike": {
+        "sorties": 17,
+        "bombs": 12,
+        "lost": 14,
+        "kills": 3
+      }
+    },
+    "RUSH|SWARM": {
+      "n": 2,
+      "failed": 0,
+      "blue": 2,
+      "red": 0,
+      "draw": 0,
+      "blueDecisive": 1,
+      "redDecisive": 0,
+      "blueRate": 1,
+      "blueCI": [
+        0.34237195288961925,
+        1
+      ],
+      "redCI": [
+        0,
+        0.6576280471103807
+      ],
+      "decisiveRate": 0.5,
+      "lenMean": 41.8,
+      "lenMedian": 41.8,
+      "how": {
+        "ENEMY CARRIER SUNK": 1,
+        "timeout (TASK FORCE ahead)": 1
+      },
+      "fun": {
+        "leadChanges": 0,
+        "comebackRate": 0,
+        "decisiveMoments": 9,
+        "snowball": 0.01,
+        "deadShare": 0.34,
+        "longestLull": 9,
+        "firstShot": 1.6,
+        "firstLoss": 1,
+        "firstCapture": 1.8
+      },
+      "curves": [
+        {
+          "t": 5,
+          "own1": 4,
+          "own2": 5,
+          "m1": 22,
+          "m2": 29,
+          "s1": 163.5,
+          "s2": 179.5,
+          "alive": 2
+        },
+        {
+          "t": 10,
+          "own1": 6,
+          "own2": 5,
+          "m1": 39,
+          "m2": 18,
+          "s1": 200.1,
+          "s2": 171.1,
+          "alive": 2
+        },
+        {
+          "t": 15,
+          "own1": 8,
+          "own2": 5,
+          "m1": 53,
+          "m2": 67,
+          "s1": 255.9,
+          "s2": 177.4,
+          "alive": 2
+        },
+        {
+          "t": 20,
+          "own1": 11.5,
+          "own2": 4.5,
+          "m1": 99,
+          "m2": 32,
+          "s1": 328,
+          "s2": 167.2,
+          "alive": 2
+        },
+        {
+          "t": 30,
+          "own1": 12,
+          "own2": 5,
+          "m1": 735,
+          "m2": 20,
+          "s1": 333.6,
+          "s2": 170.5,
+          "alive": 2
+        },
+        {
+          "t": 45,
+          "own1": 12.5,
+          "own2": 4.5,
+          "m1": 1556,
+          "m2": 27,
+          "s1": 354.7,
+          "s2": 156.1,
+          "alive": 1
+        },
+        {
+          "t": 60,
+          "own1": 12.5,
+          "own2": 4.5,
+          "m1": 1556,
+          "m2": 27,
+          "s1": 354.7,
+          "s2": 156.1,
+          "alive": 0
+        }
+      ],
+      "units": {
+        "1": {
+          "carrier": {
+            "built": 1,
+            "lost": 0
+          },
+          "drone": {
+            "built": 56.5,
+            "lost": 41.5
+          },
+          "strike": {
+            "built": 21.5,
+            "lost": 1.5
+          },
+          "g.marine": {
+            "built": 149.5,
+            "lost": 8.5
+          }
+        },
+        "2": {
+          "carrier": {
+            "built": 1,
+            "lost": 0.5
+          },
+          "gunship": {
+            "built": 5,
+            "lost": 2
+          },
+          "freighter": {
+            "built": 4.5,
+            "lost": 0
+          },
+          "s.aa": {
+            "built": 0,
+            "lost": 2
+          },
+          "s.hq": {
+            "built": 0,
+            "lost": 1.5
+          },
+          "reaper": {
+            "built": 0.5,
+            "lost": 0
+          },
+          "transport": {
+            "built": 0.5,
+            "lost": 0
+          },
+          "g.strider": {
+            "built": 4,
+            "lost": 4
+          },
+          "shahed": {
+            "built": 14.5,
+            "lost": 14.5
+          },
+          "g.hovertank": {
+            "built": 1,
+            "lost": 0
+          },
+          "s.factory": {
+            "built": 0,
+            "lost": 1
+          }
+        }
+      },
+      "anomalies": 0,
+      "anomalyText": [],
+      "speed": 0.76,
+      "strike": {
+        "sorties": 21.5,
+        "bombs": 74,
+        "lost": 1.5,
+        "kills": 1
+      }
+    },
+    "RUSH|DEFAULT": {
+      "n": 2,
+      "failed": 0,
+      "blue": 2,
+      "red": 0,
+      "draw": 0,
+      "blueDecisive": 0,
+      "redDecisive": 0,
+      "blueRate": 1,
+      "blueCI": [
+        0.34237195288961925,
+        1
+      ],
+      "redCI": [
+        0,
+        0.6576280471103807
+      ],
+      "decisiveRate": 0,
+      "lenMean": 45,
+      "lenMedian": 45,
+      "how": {
+        "timeout (TASK FORCE ahead)": 2
+      },
+      "fun": {
+        "leadChanges": 0,
+        "comebackRate": 0,
+        "decisiveMoments": 11.5,
+        "snowball": 0.01,
+        "deadShare": 0.12,
+        "longestLull": 1.5,
+        "firstShot": 1.6,
+        "firstLoss": 1,
+        "firstCapture": 1.8
+      },
+      "curves": [
+        {
+          "t": 5,
+          "own1": 4,
+          "own2": 5,
+          "m1": 22,
+          "m2": 37,
+          "s1": 163.5,
+          "s2": 179.9,
+          "alive": 2
+        },
+        {
+          "t": 10,
+          "own1": 6,
+          "own2": 5,
+          "m1": 25,
+          "m2": 52,
+          "s1": 202.5,
+          "s2": 173.6,
+          "alive": 2
+        },
+        {
+          "t": 15,
+          "own1": 8,
+          "own2": 5.5,
+          "m1": 79,
+          "m2": 24,
+          "s1": 258.7,
+          "s2": 188,
+          "alive": 2
+        },
+        {
+          "t": 20,
+          "own1": 9.5,
+          "own2": 6,
+          "m1": 64,
+          "m2": 56,
+          "s1": 278.2,
+          "s2": 211.4,
+          "alive": 2
+        },
+        {
+          "t": 30,
+          "own1": 9.5,
+          "own2": 7,
+          "m1": 15,
+          "m2": 6,
+          "s1": 273.4,
+          "s2": 236.9,
+          "alive": 2
+        },
+        {
+          "t": 45,
+          "own1": 10,
+          "own2": 7,
+          "m1": 26,
+          "m2": 40,
+          "s1": 278.1,
+          "s2": 250.1,
+          "alive": 2
+        },
+        {
+          "t": 60,
+          "own1": 10,
+          "own2": 7,
+          "m1": 26,
+          "m2": 40,
+          "s1": 278.1,
+          "s2": 250.1,
+          "alive": 0
+        }
+      ],
+      "units": {
+        "1": {
+          "carrier": {
+            "built": 1,
+            "lost": 0
+          },
+          "drone": {
+            "built": 87.5,
+            "lost": 72
+          },
+          "strike": {
+            "built": 16,
+            "lost": 5
+          },
+          "g.marine": {
+            "built": 182,
+            "lost": 63
+          },
+          "s.aa": {
+            "built": 0,
+            "lost": 2
+          }
+        },
+        "2": {
+          "carrier": {
+            "built": 1,
+            "lost": 0
+          },
+          "gunship": {
+            "built": 4.5,
+            "lost": 2
+          },
+          "freighter": {
+            "built": 5.5,
+            "lost": 0
+          },
+          "transport": {
+            "built": 6.5,
+            "lost": 2
+          },
+          "g.strider": {
+            "built": 36,
+            "lost": 20
+          },
+          "g.hovertank": {
+            "built": 4,
+            "lost": 0
+          },
+          "reaper": {
+            "built": 1,
+            "lost": 0
+          },
+          "shahed": {
+            "built": 8,
+            "lost": 8
+          },
+          "s.aa": {
+            "built": 0,
+            "lost": 1.5
+          },
+          "s.hq": {
+            "built": 0,
+            "lost": 2.5
+          },
+          "s.radar": {
+            "built": 0,
+            "lost": 1.5
+          },
+          "s.factory": {
+            "built": 0,
+            "lost": 1
+          }
+        }
+      },
+      "anomalies": 0,
+      "anomalyText": [],
+      "speed": 0.44,
+      "strike": {
+        "sorties": 16.5,
+        "bombs": 42,
+        "lost": 5,
+        "kills": 1.5
+      }
+    },
+    "RUSH|HORDE": {
+      "n": 2,
+      "failed": 0,
+      "blue": 2,
+      "red": 0,
+      "draw": 0,
+      "blueDecisive": 0,
+      "redDecisive": 0,
+      "blueRate": 1,
+      "blueCI": [
+        0.34237195288961925,
+        1
+      ],
+      "redCI": [
+        0,
+        0.6576280471103807
+      ],
+      "decisiveRate": 0,
+      "lenMean": 45,
+      "lenMedian": 45,
+      "how": {
+        "timeout (TASK FORCE ahead)": 2
+      },
+      "fun": {
+        "leadChanges": 0,
+        "comebackRate": 0,
+        "decisiveMoments": 5.5,
+        "snowball": 0.01,
+        "deadShare": 0.09,
+        "longestLull": 1,
+        "firstShot": 1.6,
+        "firstLoss": 1,
+        "firstCapture": 1.8
+      },
+      "curves": [
+        {
+          "t": 5,
+          "own1": 4,
+          "own2": 5,
+          "m1": 22,
+          "m2": 47,
+          "s1": 163.5,
+          "s2": 176.9,
+          "alive": 2
+        },
+        {
+          "t": 10,
+          "own1": 6,
+          "own2": 5,
+          "m1": 39,
+          "m2": 30,
+          "s1": 203.2,
+          "s2": 179.8,
+          "alive": 2
+        },
+        {
+          "t": 15,
+          "own1": 7,
+          "own2": 5,
+          "m1": 17,
+          "m2": 45,
+          "s1": 226,
+          "s2": 189.5,
+          "alive": 2
+        },
+        {
+          "t": 20,
+          "own1": 8,
+          "own2": 5,
+          "m1": 55,
+          "m2": 40,
+          "s1": 248.1,
+          "s2": 193.8,
+          "alive": 2
+        },
+        {
+          "t": 30,
+          "own1": 9.5,
+          "own2": 4.5,
+          "m1": 156,
+          "m2": 16,
+          "s1": 286.9,
+          "s2": 184.6,
+          "alive": 2
+        },
+        {
+          "t": 45,
+          "own1": 9.5,
+          "own2": 4.5,
+          "m1": 845,
+          "m2": 14,
+          "s1": 306.6,
+          "s2": 185,
+          "alive": 2
+        },
+        {
+          "t": 60,
+          "own1": 9.5,
+          "own2": 4.5,
+          "m1": 845,
+          "m2": 14,
+          "s1": 306.6,
+          "s2": 185,
+          "alive": 0
+        }
+      ],
+      "units": {
+        "1": {
+          "carrier": {
+            "built": 1,
+            "lost": 0
+          },
+          "drone": {
+            "built": 79,
+            "lost": 64.5
+          },
+          "strike": {
+            "built": 17,
+            "lost": 2
+          },
+          "g.marine": {
+            "built": 143,
+            "lost": 11
+          },
+          "s.aa": {
+            "built": 0,
+            "lost": 1.5
+          }
+        },
+        "2": {
+          "carrier": {
+            "built": 1,
+            "lost": 0
+          },
+          "freighter": {
+            "built": 4.5,
+            "lost": 0
+          },
+          "gunship": {
+            "built": 6,
+            "lost": 2
+          },
+          "g.hovertank": {
+            "built": 4.5,
+            "lost": 0.5
+          },
+          "transport": {
+            "built": 3.5,
+            "lost": 2.5
+          },
+          "reaper": {
+            "built": 0.5,
+            "lost": 0
+          },
+          "shahed": {
+            "built": 10,
+            "lost": 10
+          },
+          "g.mbt": {
+            "built": 1,
+            "lost": 0
+          },
+          "g.strider": {
+            "built": 8,
+            "lost": 8
+          },
+          "s.aa": {
+            "built": 0,
+            "lost": 1.5
+          },
+          "s.hq": {
+            "built": 0,
+            "lost": 2
+          },
+          "s.factory": {
+            "built": 0,
+            "lost": 1
+          }
+        }
+      },
+      "anomalies": 0,
+      "anomalyText": [],
+      "speed": 0.51,
+      "strike": {
+        "sorties": 17,
+        "bombs": 58,
+        "lost": 2,
+        "kills": 1
+      }
+    },
+    "RUSH|DREADNOUGHT": {
+      "n": 2,
+      "failed": 0,
+      "blue": 0,
+      "red": 2,
+      "draw": 0,
+      "blueDecisive": 0,
+      "redDecisive": 2,
+      "blueRate": 0,
+      "blueCI": [
+        0,
+        0.6576280471103807
+      ],
+      "redCI": [
+        0.34237195288961925,
+        1
+      ],
+      "decisiveRate": 1,
+      "lenMean": 32.4,
+      "lenMedian": 32.4,
+      "how": {
+        "OUR CARRIER WAS SUNK": 2
+      },
+      "fun": {
+        "leadChanges": 0,
+        "comebackRate": 1,
+        "decisiveMoments": 7.5,
+        "snowball": 1,
+        "deadShare": 0.18,
+        "longestLull": 1,
+        "firstShot": 1.6,
+        "firstLoss": 1,
+        "firstCapture": 1.8
+      },
+      "curves": [
+        {
+          "t": 5,
+          "own1": 4,
+          "own2": 5,
+          "m1": 22,
+          "m2": 49,
+          "s1": 162.5,
+          "s2": 177.9,
+          "alive": 2
+        },
+        {
+          "t": 10,
+          "own1": 6,
+          "own2": 5,
+          "m1": 19,
+          "m2": 64,
+          "s1": 203.1,
+          "s2": 179.2,
+          "alive": 2
+        },
+        {
+          "t": 15,
+          "own1": 7.5,
+          "own2": 5,
+          "m1": 27,
+          "m2": 62,
+          "s1": 250.5,
+          "s2": 181.9,
+          "alive": 2
+        },
+        {
+          "t": 20,
+          "own1": 9.5,
+          "own2": 4.5,
+          "m1": 66,
+          "m2": 53,
+          "s1": 288.4,
+          "s2": 177.1,
+          "alive": 2
+        },
+        {
+          "t": 30,
+          "own1": 12.5,
+          "own2": 4.5,
+          "m1": 485,
+          "m2": 51,
+          "s1": 326.3,
+          "s2": 190.9,
+          "alive": 1
+        },
+        {
+          "t": 45,
+          "own1": 12,
+          "own2": 5,
+          "m1": 605,
+          "m2": 52,
+          "s1": 295.5,
+          "s2": 214.9,
+          "alive": 0
+        },
+        {
+          "t": 60,
+          "own1": 12,
+          "own2": 5,
+          "m1": 605,
+          "m2": 52,
+          "s1": 295.5,
+          "s2": 214.9,
+          "alive": 0
+        }
+      ],
+      "units": {
+        "1": {
+          "carrier": {
+            "built": 1,
+            "lost": 1
+          },
+          "drone": {
+            "built": 47.5,
+            "lost": 36
+          },
+          "strike": {
+            "built": 17.5,
+            "lost": 6
+          },
+          "g.marine": {
+            "built": 162.5,
+            "lost": 22.5
+          },
+          "s.aa": {
+            "built": 0,
+            "lost": 3
+          },
+          "s.hq": {
+            "built": 0,
+            "lost": 1.5
+          },
+          "s.factory": {
+            "built": 0,
+            "lost": 0.5
+          },
+          "s.radar": {
+            "built": 0,
+            "lost": 0.5
+          }
+        },
+        "2": {
+          "carrier": {
+            "built": 1,
+            "lost": 0
+          },
+          "freighter": {
+            "built": 4.5,
+            "lost": 0
+          },
+          "gunship": {
+            "built": 6,
+            "lost": 2.5
+          },
+          "g.hovertank": {
+            "built": 4.5,
+            "lost": 0.5
+          },
+          "battleship": {
+            "built": 1,
+            "lost": 0
+          },
+          "s.shipyard": {
+            "built": 0,
+            "lost": 2
+          },
+          "transport": {
+            "built": 0.5,
+            "lost": 0
+          },
+          "g.strider": {
+            "built": 4,
+            "lost": 0
+          },
+          "s.aa": {
+            "built": 0,
+            "lost": 2
+          },
+          "s.hq": {
+            "built": 0,
+            "lost": 1
+          }
+        }
+      },
+      "anomalies": 0,
+      "anomalyText": [],
+      "speed": 0.57,
+      "strike": {
+        "sorties": 17.5,
+        "bombs": 44,
+        "lost": 6,
+        "kills": 3
+      }
+    },
+    "AIRPOWER|SWARM": {
+      "n": 2,
+      "failed": 0,
+      "blue": 2,
+      "red": 0,
+      "draw": 0,
+      "blueDecisive": 1,
+      "redDecisive": 0,
+      "blueRate": 1,
+      "blueCI": [
+        0.34237195288961925,
+        1
+      ],
+      "redCI": [
+        0,
+        0.6576280471103807
+      ],
+      "decisiveRate": 0.5,
+      "lenMean": 35.4,
+      "lenMedian": 35.4,
+      "how": {
+        "ENEMY CARRIER SUNK": 1,
+        "timeout (TASK FORCE ahead)": 1
+      },
+      "fun": {
+        "leadChanges": 0,
+        "comebackRate": 0,
+        "decisiveMoments": 7,
+        "snowball": 0.05,
+        "deadShare": 0.14,
+        "longestLull": 1.5,
+        "firstShot": 1.5,
+        "firstLoss": 1,
+        "firstCapture": 1.9
+      },
+      "curves": [
+        {
+          "t": 5,
+          "own1": 3.5,
+          "own2": 5,
+          "m1": 27,
+          "m2": 13,
+          "s1": 137,
+          "s2": 182.7,
+          "alive": 2
+        },
+        {
+          "t": 10,
+          "own1": 6,
+          "own2": 5,
+          "m1": 34,
+          "m2": 83,
+          "s1": 206.9,
+          "s2": 183.2,
+          "alive": 2
+        },
+        {
+          "t": 15,
+          "own1": 8.5,
+          "own2": 5,
+          "m1": 48,
+          "m2": 66,
+          "s1": 263.6,
+          "s2": 175.3,
+          "alive": 2
+        },
+        {
+          "t": 20,
+          "own1": 10.5,
+          "own2": 4,
+          "m1": 163,
+          "m2": 39,
+          "s1": 316.5,
+          "s2": 145.1,
+          "alive": 2
+        },
+        {
+          "t": 30,
+          "own1": 12.5,
+          "own2": 4,
+          "m1": 547,
+          "m2": 4,
+          "s1": 359.9,
+          "s2": 133.5,
+          "alive": 1
+        },
+        {
+          "t": 45,
+          "own1": 12.5,
+          "own2": 4,
+          "m1": 1109,
+          "m2": 39,
+          "s1": 364.8,
+          "s2": 140.7,
+          "alive": 1
+        },
+        {
+          "t": 60,
+          "own1": 12.5,
+          "own2": 4,
+          "m1": 1109,
+          "m2": 39,
+          "s1": 364.8,
+          "s2": 140.7,
+          "alive": 0
+        }
+      ],
+      "units": {
+        "1": {
+          "carrier": {
+            "built": 1,
+            "lost": 0
+          },
+          "drone": {
+            "built": 21.5,
+            "lost": 10.5
+          },
+          "strike": {
+            "built": 10,
+            "lost": 2.5
+          },
+          "g.marine": {
+            "built": 143,
+            "lost": 0
+          },
+          "escort": {
+            "built": 38,
+            "lost": 34
+          }
+        },
+        "2": {
+          "carrier": {
+            "built": 1,
+            "lost": 0.5
+          },
+          "gunship": {
+            "built": 15,
+            "lost": 14
+          },
+          "freighter": {
+            "built": 4,
+            "lost": 0
+          },
+          "reaper": {
+            "built": 1.5,
+            "lost": 1
+          },
+          "s.aa": {
+            "built": 0,
+            "lost": 2
+          },
+          "s.hq": {
+            "built": 0,
+            "lost": 1
+          },
+          "s.factory": {
+            "built": 0,
+            "lost": 1
+          },
+          "transport": {
+            "built": 0.5,
+            "lost": 0.5
+          },
+          "shahed": {
+            "built": 9.5,
+            "lost": 9.5
+          },
+          "g.hovertank": {
+            "built": 1.5,
+            "lost": 0
+          }
+        }
+      },
+      "anomalies": 0,
+      "anomalyText": [],
+      "speed": 0.75,
+      "strike": {
+        "sorties": 10,
+        "bombs": 28,
+        "lost": 2.5,
+        "kills": 2.5
+      }
+    },
+    "AIRPOWER|DEFAULT": {
+      "n": 2,
+      "failed": 0,
+      "blue": 2,
+      "red": 0,
+      "draw": 0,
+      "blueDecisive": 0,
+      "redDecisive": 0,
+      "blueRate": 1,
+      "blueCI": [
+        0.34237195288961925,
+        1
+      ],
+      "redCI": [
+        0,
+        0.6576280471103807
+      ],
+      "decisiveRate": 0,
+      "lenMean": 45,
+      "lenMedian": 45,
+      "how": {
+        "timeout (TASK FORCE ahead)": 2
+      },
+      "fun": {
+        "leadChanges": 0,
+        "comebackRate": 0,
+        "decisiveMoments": 6.5,
+        "snowball": 0.04,
+        "deadShare": 0.18,
+        "longestLull": 2,
+        "firstShot": 1.9,
+        "firstLoss": 1,
+        "firstCapture": 1.9
+      },
+      "curves": [
+        {
+          "t": 5,
+          "own1": 3.5,
+          "own2": 5,
+          "m1": 42,
+          "m2": 7,
+          "s1": 136.8,
+          "s2": 180.4,
+          "alive": 2
+        },
+        {
+          "t": 10,
+          "own1": 5.5,
+          "own2": 6,
+          "m1": 43,
+          "m2": 5,
+          "s1": 192.4,
+          "s2": 198.9,
+          "alive": 2
+        },
+        {
+          "t": 15,
+          "own1": 7,
+          "own2": 6.5,
+          "m1": 55,
+          "m2": 24,
+          "s1": 234.7,
+          "s2": 214,
+          "alive": 2
+        },
+        {
+          "t": 20,
+          "own1": 7.5,
+          "own2": 6.5,
+          "m1": 73,
+          "m2": 53,
+          "s1": 250.1,
+          "s2": 219,
+          "alive": 2
+        },
+        {
+          "t": 30,
+          "own1": 10,
+          "own2": 6,
+          "m1": 227,
+          "m2": 22,
+          "s1": 317,
+          "s2": 201.8,
+          "alive": 2
+        },
+        {
+          "t": 45,
+          "own1": 10.5,
+          "own2": 6,
+          "m1": 416,
+          "m2": 9,
+          "s1": 331.8,
+          "s2": 220.8,
+          "alive": 2
+        },
+        {
+          "t": 60,
+          "own1": 10.5,
+          "own2": 6,
+          "m1": 416,
+          "m2": 9,
+          "s1": 331.8,
+          "s2": 220.8,
+          "alive": 0
+        }
+      ],
+      "units": {
+        "1": {
+          "carrier": {
+            "built": 1,
+            "lost": 0
+          },
+          "drone": {
+            "built": 34.5,
+            "lost": 16
+          },
+          "strike": {
+            "built": 28.5,
+            "lost": 12.5
+          },
+          "g.marine": {
+            "built": 182,
+            "lost": 17
+          },
+          "escort": {
+            "built": 26,
+            "lost": 24
+          },
+          "s.aa": {
+            "built": 0,
+            "lost": 0.5
+          }
+        },
+        "2": {
+          "carrier": {
+            "built": 1,
+            "lost": 0
+          },
+          "gunship": {
+            "built": 9,
+            "lost": 8
+          },
+          "freighter": {
+            "built": 5,
+            "lost": 0
+          },
+          "transport": {
+            "built": 7,
+            "lost": 4.5
+          },
+          "g.strider": {
+            "built": 20,
+            "lost": 4
+          },
+          "g.hovertank": {
+            "built": 4.5,
+            "lost": 0.5
+          },
+          "g.mbt": {
+            "built": 0.5,
+            "lost": 0
+          },
+          "reaper": {
+            "built": 0.5,
+            "lost": 0
+          },
+          "s.aa": {
+            "built": 0,
+            "lost": 2.5
+          },
+          "s.factory": {
+            "built": 0,
+            "lost": 1.5
+          },
+          "s.hq": {
+            "built": 0,
+            "lost": 1.5
+          }
+        }
+      },
+      "anomalies": 0,
+      "anomalyText": [],
+      "speed": 0.44,
+      "strike": {
+        "sorties": 28.5,
+        "bombs": 59,
+        "lost": 12.5,
+        "kills": 3
+      }
+    },
+    "AIRPOWER|HORDE": {
+      "n": 2,
+      "failed": 0,
+      "blue": 2,
+      "red": 0,
+      "draw": 0,
+      "blueDecisive": 0,
+      "redDecisive": 0,
+      "blueRate": 1,
+      "blueCI": [
+        0.34237195288961925,
+        1
+      ],
+      "redCI": [
+        0,
+        0.6576280471103807
+      ],
+      "decisiveRate": 0,
+      "lenMean": 45,
+      "lenMedian": 45,
+      "how": {
+        "timeout (TASK FORCE ahead)": 2
+      },
+      "fun": {
+        "leadChanges": 0,
+        "comebackRate": 0,
+        "decisiveMoments": 6.5,
+        "snowball": 0.04,
+        "deadShare": 0.07,
+        "longestLull": 1,
+        "firstShot": 1.8,
+        "firstLoss": 1,
+        "firstCapture": 1.9
+      },
+      "curves": [
+        {
+          "t": 5,
+          "own1": 4,
+          "own2": 5,
+          "m1": 38,
+          "m2": 62,
+          "s1": 150.5,
+          "s2": 181.1,
+          "alive": 2
+        },
+        {
+          "t": 10,
+          "own1": 6,
+          "own2": 5,
+          "m1": 51,
+          "m2": 22,
+          "s1": 210.7,
+          "s2": 176.9,
+          "alive": 2
+        },
+        {
+          "t": 15,
+          "own1": 7.5,
+          "own2": 5,
+          "m1": 77,
+          "m2": 9,
+          "s1": 249.4,
+          "s2": 180,
+          "alive": 2
+        },
+        {
+          "t": 20,
+          "own1": 7.5,
+          "own2": 5,
+          "m1": 91,
+          "m2": 56,
+          "s1": 259.3,
+          "s2": 181.2,
+          "alive": 2
+        },
+        {
+          "t": 30,
+          "own1": 10,
+          "own2": 4,
+          "m1": 372,
+          "m2": 36,
+          "s1": 326.7,
+          "s2": 168.4,
+          "alive": 2
+        },
+        {
+          "t": 45,
+          "own1": 11,
+          "own2": 5,
+          "m1": 283,
+          "m2": 17,
+          "s1": 332.5,
+          "s2": 212.7,
+          "alive": 2
+        },
+        {
+          "t": 60,
+          "own1": 11,
+          "own2": 5,
+          "m1": 283,
+          "m2": 17,
+          "s1": 332.5,
+          "s2": 212.7,
+          "alive": 0
+        }
+      ],
+      "units": {
+        "1": {
+          "carrier": {
+            "built": 1,
+            "lost": 0
+          },
+          "drone": {
+            "built": 35.5,
+            "lost": 17
+          },
+          "strike": {
+            "built": 14.5,
+            "lost": 11
+          },
+          "g.marine": {
+            "built": 201.5,
+            "lost": 42.5
+          },
+          "escort": {
+            "built": 51,
+            "lost": 50.5
+          },
+          "s.aa": {
+            "built": 0,
+            "lost": 6.5
+          }
+        },
+        "2": {
+          "carrier": {
+            "built": 1,
+            "lost": 0
+          },
+          "freighter": {
+            "built": 5,
+            "lost": 0
+          },
+          "gunship": {
+            "built": 19,
+            "lost": 16
+          },
+          "g.hovertank": {
+            "built": 5.5,
+            "lost": 1.5
+          },
+          "reaper": {
+            "built": 1,
+            "lost": 0
+          },
+          "transport": {
+            "built": 3,
+            "lost": 0.5
+          },
+          "g.strider": {
+            "built": 20,
+            "lost": 10
+          },
+          "g.mbt": {
+            "built": 1.5,
+            "lost": 0
+          },
+          "shahed": {
+            "built": 5,
+            "lost": 5
+          },
+          "s.factory": {
+            "built": 0,
+            "lost": 1
+          },
+          "s.hq": {
+            "built": 0,
+            "lost": 2
+          },
+          "s.aa": {
+            "built": 0,
+            "lost": 2
+          }
+        }
+      },
+      "anomalies": 0,
+      "anomalyText": [],
+      "speed": 0.48,
+      "strike": {
+        "sorties": 15,
+        "bombs": 13,
+        "lost": 11.5,
+        "kills": 2.5
+      }
+    },
+    "AIRPOWER|DREADNOUGHT": {
+      "n": 2,
+      "failed": 0,
+      "blue": 1,
+      "red": 1,
+      "draw": 0,
+      "blueDecisive": 0,
+      "redDecisive": 1,
+      "blueRate": 0.5,
+      "blueCI": [
+        0.09452865480086614,
+        0.9054713451991339
+      ],
+      "redCI": [
+        0.09452865480086614,
+        0.9054713451991339
+      ],
+      "decisiveRate": 0.5,
+      "lenMean": 43.3,
+      "lenMedian": 43.3,
+      "how": {
+        "OUR CARRIER WAS SUNK": 1,
+        "timeout (TASK FORCE ahead)": 1
+      },
+      "fun": {
+        "leadChanges": 0,
+        "comebackRate": 0.5,
+        "decisiveMoments": 7.5,
+        "snowball": 0.51,
+        "deadShare": 0.13,
+        "longestLull": 1,
+        "firstShot": 1.8,
+        "firstLoss": 1,
+        "firstCapture": 1.9
+      },
+      "curves": [
+        {
+          "t": 5,
+          "own1": 4,
+          "own2": 5,
+          "m1": 38,
+          "m2": 65,
+          "s1": 150.5,
+          "s2": 181.3,
+          "alive": 2
+        },
+        {
+          "t": 10,
+          "own1": 6,
+          "own2": 5,
+          "m1": 41,
+          "m2": 49,
+          "s1": 209.2,
+          "s2": 176.4,
+          "alive": 2
+        },
+        {
+          "t": 15,
+          "own1": 8,
+          "own2": 5,
+          "m1": 75,
+          "m2": 16,
+          "s1": 262.7,
+          "s2": 176.4,
+          "alive": 2
+        },
+        {
+          "t": 20,
+          "own1": 8.5,
+          "own2": 4.5,
+          "m1": 75,
+          "m2": 79,
+          "s1": 275.3,
+          "s2": 171.2,
+          "alive": 2
+        },
+        {
+          "t": 30,
+          "own1": 10.5,
+          "own2": 4.5,
+          "m1": 520,
+          "m2": 35,
+          "s1": 329.4,
+          "s2": 177.1,
+          "alive": 2
+        },
+        {
+          "t": 45,
+          "own1": 13,
+          "own2": 4,
+          "m1": 42,
+          "m2": 39,
+          "s1": 314.8,
+          "s2": 200.9,
+          "alive": 1
+        },
+        {
+          "t": 60,
+          "own1": 13,
+          "own2": 4,
+          "m1": 42,
+          "m2": 39,
+          "s1": 314.8,
+          "s2": 200.9,
+          "alive": 0
+        }
+      ],
+      "units": {
+        "1": {
+          "carrier": {
+            "built": 1,
+            "lost": 0.5
+          },
+          "drone": {
+            "built": 39,
+            "lost": 26.5
+          },
+          "strike": {
+            "built": 23.5,
+            "lost": 15.5
+          },
+          "g.marine": {
+            "built": 162.5,
+            "lost": 41
+          },
+          "escort": {
+            "built": 39,
+            "lost": 35
+          },
+          "s.hq": {
+            "built": 0,
+            "lost": 3.5
+          },
+          "s.factory": {
+            "built": 0,
+            "lost": 1
+          },
+          "s.aa": {
+            "built": 0,
+            "lost": 4
+          },
+          "s.fuel": {
+            "built": 0,
+            "lost": 1
+          },
+          "s.radar": {
+            "built": 0,
+            "lost": 1
+          }
+        },
+        "2": {
+          "carrier": {
+            "built": 1,
+            "lost": 0
+          },
+          "freighter": {
+            "built": 4,
+            "lost": 0
+          },
+          "gunship": {
+            "built": 19.5,
+            "lost": 17.5
+          },
+          "g.hovertank": {
+            "built": 4,
+            "lost": 0
+          },
+          "reaper": {
+            "built": 1.5,
+            "lost": 0.5
+          },
+          "g.mbt": {
+            "built": 2,
+            "lost": 0
+          },
+          "transport": {
+            "built": 1,
+            "lost": 0
+          },
+          "battleship": {
+            "built": 1,
+            "lost": 0
+          },
+          "g.strider": {
+            "built": 8,
+            "lost": 4
+          },
+          "s.aa": {
+            "built": 0,
+            "lost": 3
+          },
+          "s.hq": {
+            "built": 0,
+            "lost": 2.5
+          },
+          "s.factory": {
+            "built": 0,
+            "lost": 1.5
+          }
+        }
+      },
+      "anomalies": 0,
+      "anomalyText": [],
+      "speed": 0.49,
+      "strike": {
+        "sorties": 23.5,
+        "bombs": 28,
+        "lost": 15.5,
+        "kills": 4
+      }
+    }
+  },
+  "overall": {
+    "n": 24,
+    "failed": 0,
+    "blue": 18,
+    "red": 5,
+    "draw": 1,
+    "blueDecisive": 2,
+    "redDecisive": 5,
+    "blueRate": 0.7708333333333334,
+    "blueCI": [
+      0.5510017468789357,
+      0.8800079652065766
+    ],
+    "redCI": [
+      0.0924468910478809,
+      0.40470844485235474
+    ],
+    "decisiveRate": 0.2916666666666667,
+    "lenMean": 42.5,
+    "lenMedian": 45,
+    "how": {
+      "timeout (TASK FORCE ahead)": 16,
+      "timeout (even ahead)": 1,
+      "OUR CARRIER WAS SUNK": 5,
+      "ENEMY CARRIER SUNK": 2
+    },
+    "fun": {
+      "leadChanges": 0,
+      "comebackRate": 0.21,
+      "decisiveMoments": 7.33,
+      "snowball": 0.27,
+      "deadShare": 0.15,
+      "longestLull": 2.13,
+      "firstShot": 1.7,
+      "firstLoss": 1.2,
+      "firstCapture": 1.9
+    },
+    "curves": [
+      {
+        "t": 5,
+        "own1": 3.6,
+        "own2": 5,
+        "m1": 33,
+        "m2": 38,
+        "s1": 143.4,
+        "s2": 180.4,
+        "alive": 24
+      },
+      {
+        "t": 10,
+        "own1": 5.8,
+        "own2": 5.2,
+        "m1": 44,
+        "m2": 38,
+        "s1": 198.3,
+        "s2": 183.4,
+        "alive": 24
+      },
+      {
+        "t": 15,
+        "own1": 7.4,
+        "own2": 5.4,
+        "m1": 53,
+        "m2": 34,
+        "s1": 241.5,
+        "s2": 189.5,
+        "alive": 24
+      },
+      {
+        "t": 20,
+        "own1": 8.5,
+        "own2": 5.3,
+        "m1": 78,
+        "m2": 47,
+        "s1": 266.1,
+        "s2": 191.5,
+        "alive": 24
+      },
+      {
+        "t": 30,
+        "own1": 10.3,
+        "own2": 5.1,
+        "m1": 333,
+        "m2": 24,
+        "s1": 309.1,
+        "s2": 187.6,
+        "alive": 22
+      },
+      {
+        "t": 45,
+        "own1": 11,
+        "own2": 5.2,
+        "m1": 553,
+        "m2": 35,
+        "s1": 312.6,
+        "s2": 202.7,
+        "alive": 17
+      },
+      {
+        "t": 60,
+        "own1": 11,
+        "own2": 5.2,
+        "m1": 553,
+        "m2": 35,
+        "s1": 312.6,
+        "s2": 202.7,
+        "alive": 0
+      }
+    ],
+    "units": {
+      "1": {
+        "carrier": {
+          "built": 1,
+          "lost": 0.2
+        },
+        "drone": {
+          "built": 45.7,
+          "lost": 31.3
+        },
+        "strike": {
+          "built": 16.3,
+          "lost": 7.3
+        },
+        "g.marine": {
+          "built": 156.5,
+          "lost": 24.6
+        },
+        "escort": {
+          "built": 22.3,
+          "lost": 21
+        },
+        "s.aa": {
+          "built": 0,
+          "lost": 3.1
+        },
+        "s.hq": {
+          "built": 0,
+          "lost": 0.8
+        },
+        "s.factory": {
+          "built": 0,
+          "lost": 0.3
+        },
+        "s.fuel": {
+          "built": 0,
+          "lost": 0.2
+        },
+        "s.radar": {
+          "built": 0,
+          "lost": 0.1
+        }
+      },
+      "2": {
+        "carrier": {
+          "built": 1,
+          "lost": 0.1
+        },
+        "gunship": {
+          "built": 13.4,
+          "lost": 11.1
+        },
+        "freighter": {
+          "built": 4.8,
+          "lost": 0.1
+        },
+        "reaper": {
+          "built": 1.2,
+          "lost": 0.6
+        },
+        "g.hovertank": {
+          "built": 3.9,
+          "lost": 0.5
+        },
+        "shahed": {
+          "built": 5.3,
+          "lost": 5.3
+        },
+        "s.factory": {
+          "built": 0,
+          "lost": 1.1
+        },
+        "s.aa": {
+          "built": 0,
+          "lost": 2.1
+        },
+        "s.hq": {
+          "built": 0,
+          "lost": 1.5
+        },
+        "transport": {
+          "built": 2.9,
+          "lost": 1.5
+        },
+        "g.strider": {
+          "built": 11.3,
+          "lost": 4.5
+        },
+        "g.mbt": {
+          "built": 0.8,
+          "lost": 0
+        },
+        "battleship": {
+          "built": 0.3,
+          "lost": 0
+        },
+        "s.radar": {
+          "built": 0,
+          "lost": 0.2
+        },
+        "s.shipyard": {
+          "built": 0,
+          "lost": 0.2
+        },
+        "s.fuel": {
+          "built": 0,
+          "lost": 0
+        }
+      }
+    },
+    "anomalies": 0,
+    "anomalyText": [],
+    "speed": 0.57,
+    "strike": {
+      "sorties": 16.4,
+      "bombs": 33.9,
+      "lost": 7.3,
+      "kills": 2.5
+    }
+  },
+  "research": {
+    "1": {
+      "p.cap": {
+        "share": 0.96,
+        "meanT": 11.5,
+        "winWith": 0.74,
+        "winWithout": 1,
+        "n": 23
+      },
+      "p.amtrac": {
+        "share": 0.96,
+        "meanT": 16.2,
+        "winWith": 0.74,
+        "winWithout": 1,
+        "n": 23
+      },
+      "p.logistics": {
+        "share": 0.88,
+        "meanT": 14.8,
+        "winWith": 0.76,
+        "winWithout": 0.67,
+        "n": 21
+      },
+      "p.airmobile": {
+        "share": 0.96,
+        "meanT": 16.9,
+        "winWith": 0.74,
+        "winWithout": 1,
+        "n": 23
+      },
+      "p.picket": {
+        "share": 0.88,
+        "meanT": 16.9,
+        "winWith": 0.76,
+        "winWithout": 0.67,
+        "n": 21
+      },
+      "p.medicine": {
+        "share": 0.96,
+        "meanT": 17.3,
+        "winWith": 0.74,
+        "winWithout": 1,
+        "n": 23
+      },
+      "p.yield": {
+        "share": 0.88,
+        "meanT": 18.4,
+        "winWith": 0.76,
+        "winWithout": 0.67,
+        "n": 21
+      },
+      "p.helo": {
+        "share": 0.88,
+        "meanT": 20.1,
+        "winWith": 0.76,
+        "winWithout": 0.67,
+        "n": 21
+      },
+      "p.mbt": {
+        "share": 0.88,
+        "meanT": 22.1,
+        "winWith": 0.76,
+        "winWithout": 0.67,
+        "n": 21
+      },
+      "p.seabees": {
+        "share": 0.88,
+        "meanT": 21.3,
+        "winWith": 0.76,
+        "winWithout": 0.67,
+        "n": 21
+      },
+      "p.tomcat": {
+        "share": 0.88,
+        "meanT": 20.7,
+        "winWith": 0.76,
+        "winWithout": 0.67,
+        "n": 21
+      },
+      "p.damagectl": {
+        "share": 0.88,
+        "meanT": 26.9,
+        "winWith": 0.76,
+        "winWithout": 0.67,
+        "n": 21
+      },
+      "p.sky": {
+        "share": 0.75,
+        "meanT": 23.9,
+        "winWith": 0.78,
+        "winWithout": 0.67,
+        "n": 18
+      }
+    },
+    "2": {
+      "e.reaper": {
+        "share": 0.92,
+        "meanT": 6.9,
+        "winWith": 0.18,
+        "winWithout": 0.5,
+        "n": 22
+      },
+      "e.ceramic": {
+        "share": 0.63,
+        "meanT": 23.8,
+        "winWith": 0,
+        "winWithout": 0.56,
+        "n": 15
+      },
+      "e.shrike": {
+        "share": 0.83,
+        "meanT": 17.5,
+        "winWith": 0.15,
+        "winWithout": 0.5,
+        "n": 20
+      },
+      "e.shahed": {
+        "share": 0.67,
+        "meanT": 24.4,
+        "winWith": 0,
+        "winWithout": 0.63,
+        "n": 16
+      },
+      "e.fab": {
+        "share": 0.92,
+        "meanT": 13.6,
+        "winWith": 0.23,
+        "winWithout": 0,
+        "n": 22
+      },
+      "e.lance": {
+        "share": 0.75,
+        "meanT": 29,
+        "winWith": 0.17,
+        "winWithout": 0.33,
+        "n": 18
+      },
+      "e.hover": {
+        "share": 0.92,
+        "meanT": 10.6,
+        "winWith": 0.23,
+        "winWithout": 0,
+        "n": 22
+      },
+      "e.assault": {
+        "share": 0.54,
+        "meanT": 23.5,
+        "winWith": 0,
+        "winWithout": 0.45,
+        "n": 13
+      },
+      "e.nanorepair": {
+        "share": 0.71,
+        "meanT": 37.1,
+        "winWith": 0.29,
+        "winWithout": 0,
+        "n": 17
+      },
+      "e.mbt": {
+        "share": 0.83,
+        "meanT": 28.2,
+        "winWith": 0.25,
+        "winWithout": 0,
+        "n": 20
+      },
+      "e.leviathan": {
+        "share": 0.33,
+        "meanT": 31.4,
+        "winWith": 0.63,
+        "winWithout": 0,
+        "n": 8
+      },
+      "e.yards": {
+        "share": 0.21,
+        "meanT": 37.9,
+        "winWith": 0.8,
+        "winWithout": 0.05,
+        "n": 5
+      }
+    }
+  },
+  "contrib": {
+    "1": {
+      "carrier": {
+        "inWins": 1,
+        "inLosses": 1,
+        "lostPerWar": 0.2
+      },
+      "drone": {
+        "inWins": 47.6,
+        "inLosses": 38.8,
+        "lostPerWar": 31.3
+      },
+      "strike": {
+        "inWins": 16.2,
+        "inLosses": 17.8,
+        "lostPerWar": 7.3
+      },
+      "g.marine": {
+        "inWins": 159.6,
+        "inLosses": 161.2,
+        "lostPerWar": 24.6
+      },
+      "escort": {
+        "inWins": 23.9,
+        "inLosses": 19.6,
+        "lostPerWar": 21
+      }
+    },
+    "2": {
+      "carrier": {
+        "inWins": 1,
+        "inLosses": 1,
+        "lostPerWar": 0.1
+      },
+      "gunship": {
+        "inWins": 13.6,
+        "inLosses": 13.2,
+        "lostPerWar": 11.1
+      },
+      "freighter": {
+        "inWins": 4.2,
+        "inLosses": 4.7,
+        "lostPerWar": 0.1
+      },
+      "reaper": {
+        "inWins": 1.2,
+        "inLosses": 1.3,
+        "lostPerWar": 0.6
+      },
+      "g.hovertank": {
+        "inWins": 4.2,
+        "inLosses": 3.8,
+        "lostPerWar": 0.5
+      },
+      "shahed": {
+        "inWins": 0,
+        "inLosses": 7.1,
+        "lostPerWar": 5.3
+      },
+      "transport": {
+        "inWins": 1.2,
+        "inLosses": 2.9,
+        "lostPerWar": 1.5
+      },
+      "g.strider": {
+        "inWins": 8,
+        "inLosses": 11.6,
+        "lostPerWar": 4.5
+      },
+      "g.mbt": {
+        "inWins": 1,
+        "inLosses": 0.7,
+        "lostPerWar": 0
+      },
+      "battleship": {
+        "inWins": 1,
+        "inLosses": 0.1,
+        "lostPerWar": 0
+      }
+    }
+  },
+  "dominant": [],
+  "techNodes": null,
+  "techNever": [],
+  "observations": {
+    "outcomes": {
+      "taskForceDecisive": 2,
+      "runawayDecisive": 5,
+      "taskForceTimeoutLead": 16,
+      "timeoutDraw": 1
+    },
+    "badRuns": 0,
+    "anomalies": 0,
+    "negativeSampledStores": 0,
+    "enemyCaptures": 26,
+    "warsWithEnemyCaptures": 14,
+    "enemyCapturesByDoctrine": {
+      "DEFAULT": 17,
+      "HORDE": 6,
+      "DREADNOUGHT": 2,
+      "SWARM": 1
+    },
+    "warsWithEnemyResearch": 24,
+    "enemyResearchCountRange": [
+      2,
+      12
+    ],
+    "warsResearchingShrike": 20,
+    "shrikesBuilt": 0
+  }
+}

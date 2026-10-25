@@ -7,7 +7,7 @@ script and writes evidence. Agents can use it to see and drive the game without 
 
 ```
 cd tools
-set PUPPETEER_SKIP_DOWNLOAD=1 && npm install        # puppeteer-core only, no bundled browser
+npm ci        # pinned puppeteer-core only, no bundled browser
 ```
 
 The harness uses installed Chrome (`C:\Program Files\Google\Chrome\Application\chrome.exe`) and falls back to Edge.
@@ -16,6 +16,11 @@ Under WSL use a Linux headless Chrome through `CHROME_PATH` (a wrapper that unse
 Override it with `--browser <exe>` or the `CHROME_PATH` environment variable.
 
 ## Run
+
+From the repository root, `npm --prefix tools test` checks module syntax and runs the Node regression programs.
+`npm --prefix tools run check` is syntax only; `npm --prefix tools run bench` is the benches only.
+Logs and a machine-readable summary are saved to `tools/runs/check-*/`; failures produce a nonzero exit code.
+These checks do not need a browser. Current integration evidence: [VALIDATION.md](../docs/ngc1980/VALIDATION.md).
 
 ```
 node snap.mjs scenes/smoke.json                     # serves ../game on a free port itself
@@ -44,13 +49,13 @@ Each step can be a string `"key hold Space 1000"`, an array `["key","hold","Spac
 
 | step | meaning |
 |---|---|
-| `wait <ms>` | sleep in real time |
+| `wait <ms>` | wait on the game's clock when available; wall time on menus/dev pages or with `SNAP_WALL=1` |
 | `key down <code>` / `key up <code>` | press or release a key. Codes are `KeyboardEvent.code` values: `Space`, `ArrowLeft`, `KeyF`, `Enter`, `ShiftLeft`... |
 | `key tap <code> [ms]` / `key hold <code> <ms>` | press, wait (default 60 ms), release. `tap`/`hold`/`down`/`up` also work as top-level ops |
 | `click <x> <y>` | left-click at viewport coordinates |
 | `eval <js expr>` | evaluate in the page (async OK) and log the JSON result. Assigning to `window.foo` keeps a value for later steps |
 | `expect <js expr>` | fail the run if the result is falsy or throws |
-| `waitFor [timeoutMs] <js expr>` | poll until truthy (default 10000 ms), fail on timeout |
+| `waitFor [timeoutMs] <js expr>` | poll until truthy (default 10000 ms of game time); bounded wall-time fallback when the clock stops |
 | `shot [name]` | PNG screenshot and pixel stats |
 | `notblank [minLitFraction]` | fail if the last shot is mostly black (default 0.05) or has 8 or fewer colours |
 | `goto [query]` | navigate to another query string on the same server |
