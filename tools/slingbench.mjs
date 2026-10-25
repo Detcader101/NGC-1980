@@ -14,7 +14,7 @@ const h = 1 / 240;
 
 // a load hanging from a hook held still (kinematic), released at an angle: zero crossings give the period
 function swingTest(type, deg0 = 5, secs = 60, hookV = [0, 0, 0]) {
-  const L = LOADS[type], S = createSling(L), hp = [0, 100, 0];
+  const L = typeof type === 'string' ? LOADS[type] : type, S = createSling(L), hp = [0, 100, 0];
   const a = deg0 * Math.PI / 180, Ls = S.L * (1 + 0.08 * L.strop / S.L);   // hanging at its stretched length
   S.p[0] = Math.sin(a) * Ls; S.p[1] = 100 - Math.cos(a) * Ls; S.p[2] = 0;
   const xs = [], amp = []; let last = S.p[0], t = 0, peak = 0;
@@ -32,6 +32,15 @@ console.log('--- the pendant: pendulum, bounce, tension ---');
 for (const type of ['m151', 'm35']) {
   const r = swingTest(type), L = LOADS[type], T0 = 2 * Math.PI * Math.sqrt((r.S.L + 0.08 * L.strop) / G);
   check(`${L.label}: pendulum period (hook fixed, 5° swing)`, Math.abs(r.T - T0) / T0 < 0.03, `${r.T.toFixed(2)} s (L ${r.S.L.toFixed(1)} m)`, `2π√(L/g) = ${T0.toFixed(2)} s`, 'CONFIRMED (mechanics)');
+}
+{
+  // the period against the line length: an M151A2 on pendants of 1.5 to 9 m (L = pendant + apex-to-CG, stretched 8 %)
+  const rows = [];
+  for (const strop of [1.5, 3, 4.5, 6, 9]) { const spec = { ...LOADS.m151, strop }, r = swingTest(spec, 5, 80), L = r.S.L + 0.08 * strop, T0 = 2 * Math.PI * Math.sqrt(L / G); rows.push({ strop, L, T: r.T, T0 }); }
+  const worst = Math.max(...rows.map(r => Math.abs(r.T - r.T0) / r.T0));
+  check('M151A2: swing period vs pendant length (1.5 / 3 / 4.5 / 6 / 9 m)', worst < 0.03, rows.map(r => `${r.strop} m: ${r.T.toFixed(2)} s`).join(', '), '2π√(L/g) each, within 3 %', 'CONFIRMED (mechanics)');
+  const ratio = rows[4].T / rows[0].T, want = Math.sqrt(rows[4].L / rows[0].L);
+  check('...the period grows as √L (9 m vs 1.5 m pendant)', Math.abs(ratio / want - 1) < 0.03, `x${ratio.toFixed(2)}`, `x${want.toFixed(2)}`, 'CONFIRMED (mechanics)');
 }
 {
   const r = swingTest('m151', 10, 70), a0 = r.amp[1], a10 = r.amp[Math.min(11, r.amp.length - 1)], ratio = a10 / a0;
@@ -123,6 +132,23 @@ const hoverTrim = (type, mass) => { const { H, S, env } = hueyWith(type); if (ma
   P.vz = -0.5; let down = 0;
   fly(H, 40, (H) => { if (S.ground && S.Tg < 0.2) P.vz = 0; return P.step(H, DT); }, env, (H, t) => { if (!down && S.ground && S.Tg < 0.2) down = t; });
   check('set-down: the load\'s wheels take the weight, the pendant slackens', down > 0 && S.ground && !H.landed && S.impact < 1.5, `at ${down.toFixed(1)} s, touch ${S.impact.toFixed(2)} m/s, Huey ${(H.pos.y - 1.84).toFixed(1)} m up`, 'load down, helicopter still hovering', '');
+}
+
+{
+  // release in the hover: the load goes, the helicopter balloons with the collective still set for the load; the pilot's
+  // loops then settle her back to the clean trim (the attitude barely changes: the hook is near the CG)
+  const box = { S: null }, H0 = air(9.81, { alt: 300, fuel: 50 }), S0 = createSling(LOADS.m151);
+  const ext = hookExt(() => box.S, HOOKS.uh1h.at, (H, S) => (env.sl.wash = downwashAt(H, FM.UH1H.R, S.p[0], S.p[2]), env.sl.hookYaw = 0, env.sl));
+  const env = { ...sea, ext, sl: { ground: () => -500, water: () => false, wind: null, wash: 0, limit: HOOKS.uh1h.limit, ult: 2.5 } };
+  box.S = S0; { const hk = ext.hookWorld(H0); S0.p[0] = hk[0]; S0.p[1] = hk[1] - S0.L - 0.08 * S0.strop; S0.p[2] = hk[2]; }
+  const P = pilot({ V: 0 }), before = trim(H0, P, 40, 4, env);
+  const c0 = { ...P.step(H0, DT) };
+  box.S = null;   // R: the hook opens
+  let vz2 = 0; fly(H0, 2, () => c0, env, (H, t) => { if (t <= 2) vz2 = H.vel.y; });
+  const after = trim(H0, P, 30, 4, env), clean = hoverTrim(null).r;
+  if (V) console.log(`   release: vz after 2 s with the collective held ${vz2.toFixed(2)} m/s; torque ${before.psi.toFixed(1)} -> ${after.psi.toFixed(1)} psi (clean ${clean.psi.toFixed(1)})`);
+  check('release in the hover, collective held: she balloons', vz2 > 1.0 && vz2 < 6, `+${vz2.toFixed(1)} m/s after 2 s`, '1-6 m/s up (1,100 kg off a ~4,500 kg machine)', 'model');
+  check('...retrimmed: torque back to the clean hover, attitude close', Math.abs(after.psi - clean.psi) < 1.5 && Math.abs(deg(after.pitch - before.pitch)) < 2 && Math.abs(deg(after.roll - before.roll)) < 2, `${after.psi.toFixed(1)} psi (clean ${clean.psi.toFixed(1)}), pitch ${deg(before.pitch).toFixed(1)}° -> ${deg(after.pitch).toFixed(1)}°`, 'clean torque, < 2° attitude change', 'model');
 }
 
 console.log('--- C-130 heavy drop: G-11A clusters ---');
