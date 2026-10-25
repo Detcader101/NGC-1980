@@ -83,7 +83,8 @@ update it. The launcher lives in `%LOCALAPPDATA%\ThrustZarch` (log: `launcher.lo
 | I | engine: cut the fuel (autorotate) / with the engine stopped, the one-key start |
 | PgUp / PgDn, Home | throttle twist grip (idle detent ... full open), starter (hold to 40% N1) |
 | U / N / O / L | hydraulic control, landing light, fire extinguisher, call logistics (on the ground) |
-| Esc / P | menu: resume, call logistics, respawn on the carrier if stuck, cockpit FOV slider, quit |
+| Esc / P | menu: resume, call logistics, respawn on the carrier if stuck, cockpit FOV slider, unit markers, quit |
+| F8 | unit markers: an icon + health bar over every unit you can see - ALL UNITS / DAMAGED ONLY / OFF (remembered; on by default in `?sim`) |
 
 Radar warning: the Huey has an AN/APR-39 scope right of the pilot's instruments (a green strobe toward each radar painting
 you, longer as its lock builds) with LOCK / MISSILE / LASER lamps and the M130's FLARE / CHAFF counters; the Hornet has an
@@ -310,6 +311,8 @@ node tools/waspbench.mjs            # RW-3 WASP ducted fan against shrouded-fan 
 node tools/rotarymission.mjs        # CH-46 and MV-22 fly their whole missions (deck -> LZ -> deck) physically
 node tools/embarkbench.mjs          # deck ops: the stick boards by the ramp, chocks and chains off, the LSE signals the lift; chocked back on deck
 node tools/waspmission.mjs          # WASP swarm, strafing and ambush behaviours
+node tools/healthbarbench.mjs       # unit markers: every unit a whole war builds gets a health 0..1, a role and a side (ui/unitmarkers.js)
+cd tools && node snap.mjs scenes/healthbars.mjs   # unit markers in every view (chase, cockpit, foot, M60A3, Hornet, map, sim cameras), damage, F8 modes
 ```
 
 SIM MODE (CPU vs CPU, docs/ngc1980/SIMREPORT.md):
