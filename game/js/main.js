@@ -27,6 +27,7 @@ const isJet = () => G.craft === 'jet' || G.craft === 'tomcat';   // TOMCAT: the 
 // the Huey's AI crew and the jets' wingman who fly a unit the commander leaves
 import { createFleet } from './units/commander/fleet.js';
 import { createCommander } from './units/commander/board.js';
+import { createTechUI } from './techui.js';   // TECH TREE: the RESEARCH page (the tree itself is war.tech, techtree.js)
 import { createHeliAI } from './units/commander/heliai.js';
 import { createWingman, wingmanEnv } from './units/commander/wingman.js';
 import { createAirlift } from './units/air/airlift/airlift.js';   // AIRLIFT: the Huey's cargo hook (sling loads) and troop lift
@@ -68,6 +69,7 @@ addEventListener('keydown', e => {
   // COMMANDER: the command board has the keyboard while it is open (the unit you are in gets nothing; the war goes on)
   if (commander.isOpen && G.state === 'play' && !CTL.isOpen) { if (e.repeat || commander.key(e)) { e.preventDefault(); sfx.init(); return; } }
   if (airdrop.watching && G.state === 'play' && !CTL.isOpen && !e.repeat && airdrop.key(e.code)) { e.preventDefault(); return; }   // AIRLIFT: watching a C-130 drop (V views, \ / Esc back)
+  if (techUI.isOpen && G.state === 'play' && !CTL.isOpen) { if (e.repeat || techUI.key(e)) { e.preventDefault(); sfx.init(); return; } }   // TECH TREE
   keys.add(e.code);
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
   sfx.init();
@@ -77,8 +79,9 @@ addEventListener('keydown', e => {
   if (e.code === 'Escape' && G.state === 'play') { openMenu(); return; }
   // FOUNDATION key routing: Y gets in / out, [ ] change seat, then the craft you are in has first pick of every key
   // (jetplay.js, foot.js, vehicle.js ...); what it leaves falls through to the helicopter and the global keys below.
-  if (G.state === 'play' && commandKey(e.code)) return;   // COMMANDER: \ the command board, / the next unit out
+  if (G.state === 'play' && commandKey(e.code, e.shiftKey)) return;   // COMMANDER: \ the command board, / the next unit out
   if (G.state === 'play' && G.mode === 'zarch') {
+    if (((e.code === 'Digit6' && e.shiftKey) || e.code === 'F6') && !e.repeat) { e.preventDefault(); say(war.upgradeCarrier({ free: true, instant: true }), 2.5); return; }   // SHIFT+6 (or F6 where the browser lets it through): the SKY CARRIER now, free, from any unit (6 alone is the 300-materiel refit)
     if (motorKey(e.code)) return;   // ngc/wheeledgame: 7 then 1 / 2 picks the motor pool's delivery
     if (e.code === 'KeyY') { getInOut(); return; }
     if (e.code === 'BracketLeft' || e.code === 'BracketRight') { crafts.cycleSeat(e.code === 'BracketRight' ? 1 : -1); return; }
@@ -724,7 +727,7 @@ function command(n) {
   if (n === 9 || n === 0) { deliverArmour(n === 9 ? 'm60' : 'm113'); return; }   // ARMOUR: by LCM-8 to a friendly beach (9 M60A3, 0 M113A2; 8 is the TOMCAT)
   if (n === 4) { say(war.sendEscort(selIsl), 2); return; }   // AIR: CAP over the selected island, else over the ALBATROSS
   if (n === 6) { say(war.upgradeCarrier(), 2.5); return; }
-  if (n === 3) { if (G.mat < COST.heli) say('NOT ENOUGH MATERIEL FOR A HELICOPTER', 1.6); else { G.mat -= COST.heli; G.lives++; say('NEW HELICOPTER IN THE HANGAR', 1.6); sfx.dock(); } return; }
+  if (n === 3) { if (!war.allow(1, 'heli')) say(war.gateMsg(1, 'heli'), 1.8); else if (G.mat < COST.heli) say('NOT ENOUGH MATERIEL FOR A HELICOPTER', 1.6); else { G.mat -= COST.heli; G.lives++; say('NEW HELICOPTER IN THE HANGAR', 1.6); sfx.dock(); } return; }
   if (!selIsl) { say('SELECT AN ISLAND ON THE MAP FIRST (M)', 1.8); return; }
   say(n === 1 ? war.sendDrone(selIsl) : war.orderAA(selIsl), 2);
 }
@@ -819,6 +822,7 @@ function hurtHeli(amount, why, part) {
 }
 function callLogistics() {
   const landed = G.mode === 'zarch' ? H.landed : T.landed, alive = G.mode === 'zarch' ? Z.alive : T.alive;
+  if (!war.allow(1, 'logistics')) { say(war.gateMsg(1, 'logistics'), 1.8); return; }   // TECH TREE
   if (G.rescue) { say(`LOGISTICS ALREADY INBOUND  -  ${rescueStatus()}`, 1.5); return; }
   if (!alive || !landed) { say('LAND FIRST TO CALL LOGISTICS', 1.5); return; }
   if (G.mode === 'zarch' && Z.svc) { say(`ON ${Z.svc.name}  -  REPAIRS AND FUEL ARE AUTOMATIC HERE`, 1.8); return; }
@@ -1170,9 +1174,11 @@ const seats = createSeats({ scene: zScene, crafts, war, foot, say, heli: { def: 
 const armDelivery = createArmorDelivery({ scene: zScene, AW, terrainH, hards: HARDS, beach: (I, tw) => GR.beach(I, tw), blocked: (x, z) => !GR.clearAt(x, z, 2.5), fx, sfx, say, feed, camZ: () => zCam });
 // AIRLIFT (units/air/airlift/): the Huey's cargo hook and troop lift; the C-130 heavy drop the command board orders
 const airlift = createAirlift({ scene: zScene, H, heliObj: () => shipMesh, rotorR: HELI.ROTOR_R, crafts, pool, war, fx, sfx, say, feed, groundY, waterAt, G, ISLANDS, hud: $('hud'),
-  serviceAt: (x, z) => serviceAt(x, z), whereIs: (x, z) => whereIs(x, z), armour: [m60C, m113C], riderSeat: () => crafts.active === seats.ride ? seats.ride.hueySeat() : null, crewFlying: () => heliAI.phase !== 'off' && !G.benchAI });
+  serviceAt: (x, z) => serviceAt(x, z), whereIs: (x, z) => whereIs(x, z), armour: [m60C, m113C], riderSeat: () => crafts.active === seats.ride ? seats.ride.hueySeat() : null, crewFlying: () => heliAI.phase !== 'off' && !G.benchAI,
+  gate: { sling: () => war.allow(1, 'sling') ? '' : war.gateMsg(1, 'sling'), troops: () => war.allow(1, 'trooplift') ? '' : war.gateMsg(1, 'trooplift') } });   // TECH TREE: AIRMOBILE LOGISTICS
 const airdrop = createAirdrop({ scene: zScene, war, fx, sfx, say, feed, terrainH, groundY, isWater, GR, pool, armour: { m113: m113C, m60: m60C }, crafts, hud: $('hud'),
-  head, camZ: () => zCam, onLost: (id, why) => onUnitLost(id, why, false), whereIs: (x, z) => whereIs(x, z) });
+  head, camZ: () => zCam, onLost: (id, why) => onUnitLost(id, why, false), whereIs: (x, z) => whereIs(x, z),
+  gate: () => war.allow(1, 'logistics') ? '' : war.gateMsg(1, 'logistics') });   // TECH TREE: heavy drop is FIELD LOGISTICS
 crafts.setActive('heli');
 crafts.onSwitch = (from, to) => {
   if (to.kind === 'foot' || to.kind === 'ground') { if (bigMap) { bigMap = false; setMapSize(); } }   // a click captures the mouse (as in the cockpits)
@@ -1217,14 +1223,15 @@ function placeVehicles() {
   pool.newGame();   // ngc/wheeledgame: M151s and M35s at every friendly motor pool and on the deck park
   // ARMOUR: the M60A3 waits at the top of the home island's landing hard, the M113A2 on the ALBATROSS's forward deck park (cold, parked)
   armDelivery.clear();
-  const hh = HARDS.find(h => h.I === HOME_B.isl), hp = hh && hh.at(hh.u1 - 5), ts = hp ? { x: hp[0], z: hp[1], yaw: hh.yaw } : GR.motorPool(HOME_B.isl, 4.6); if (ts) m60C.spawnAt(ts); else m60C.stow();   // (on the concrete just below the top, nose inland: past the top it stood on mud and slid)
-  const as = GR.deckSpot(2) || GR.motorPool(HOME_B.isl, 3.6); if (as) m113C.spawnAt(as); else m113C.stow();
+  const hh = HARDS.find(h => h.I === HOME_B.isl), hp = hh && hh.at(hh.u1 - 5), ts = hp ? { x: hp[0], z: hp[1], yaw: hh.yaw } : GR.motorPool(HOME_B.isl, 4.6); if (ts && war.allow(1, 'm60')) m60C.spawnAt(ts); else m60C.stow();   // (TECH TREE: only when researched)   // (on the concrete just below the top, nose inland: past the top it stood on mud and slid)
+  const as = GR.deckSpot(2) || GR.motorPool(HOME_B.isl, 3.6); if (as && war.allow(1, 'm113')) m113C.spawnAt(as); else m113C.stow();
 }
 // ARMOUR: 8 / 9 - an LCM-8 from the amphibious group lands an M113A2 (30 materiel) / an M60A3 TTS (60) on the beach of the
 // selected friendly island (else the nearest one to you). The vehicle's crew drives it off and up the beach.
 const COST_ARMOUR = { m113: 30, m60: 60 };
 function deliverArmour(kind) {
   const def = kind === 'm60' ? m60C : m113C, cost = COST_ARMOUR[kind];
+  if (!war.allow(1, kind)) { say(war.gateMsg(1, kind), 1.8); return; }   // TECH TREE
   if (crafts.active === def) { say(`YOU ARE IN THE ${def.label}`, 1.2); return; }
   if (armDelivery.busy(def)) { say(`THE ${def.label} IS ALREADY ON ITS WAY IN`, 1.6); return; }
   if (G.mat < cost) { say(`AN ${def.label} NEEDS ${cost} MATERIEL`, 1.6); return; }
@@ -1239,7 +1246,7 @@ function deliverArmour(kind) {
 }
 // 7 (ngc/wheeledgame): the motor pool - then 1 = an M151A2 slung in by a CH-46 (10 materiel), 2 = an M35A2 run in by an
 // LCM-8 (20), to the selected friendly island (else the nearest friendly island, else the carrier deck)
-function deliverVehicle(type = 'm151') { return pool.deliver(type); }
+function deliverVehicle(type = 'm151') { if (!war.allow(1, type)) { say(war.gateMsg(1, type), 1.8); return false; } return pool.deliver(type); }   // (TECH TREE gate)
 let motorPick = 0;
 function motorChoice() { motorPick = 3; say('MOTOR POOL  -  1: M151A2 BY CH-46 (10 MATERIEL)  ·  2: M35A2 BY LCM-8 (20)', 3); }
 function motorKey(code) { if (motorPick <= 0 || (code !== 'Digit1' && code !== 'Digit2')) return false; motorPick = 0; deliverVehicle(code === 'Digit2' ? 'm35' : 'm151'); return true; }
@@ -1415,6 +1422,8 @@ function clearHandOn() {   // the commander picked a unit: no automatic hand-on 
 const commander = createCommander({
   fleet, say, feed, sfx, hud: $('hud'), roster, bases: commandBases, store: PSTORE,
   airdrop: { cost: AIR_COST, lines: () => airdrop.lines(), watch: () => airdrop.watch() },   // AIRLIFT: C on the board, V to watch
+  gate: id => war.allow(1, id) ? '' : war.gateMsg(1, id), research: () => techUI.open(),   // TECH TREE
+  researchLine: () => { const T = war.tech[1], c = T.current && T.node(T.current.id); return c ? `<br>RESEARCH <b>${c.name}  ${Math.round(T.progress * 100)}%  (${Math.ceil(T.remaining)} s)</b>  ·  T: THE RESEARCH PAGE` : '<br>RESEARCH <b>IDLE</b>  ·  T: THE RESEARCH PAGE'; },
   here: () => Z.pos, mat: () => G.mat, fuelStores: () => G.res,
   onOpen: () => { if (document.pointerLockElement) document.exitPointerLock(); if (bigMap) { bigMap = false; setMapSize(); } },
   picked: () => clearHandOn(),
@@ -1423,10 +1432,13 @@ const commander = createCommander({
   leaving: () => ({ foot: crafts.active === foot && foot.exists && foot.alive && foot.fromReserve }),
   left: tok => { if (tok && tok.foot && crafts.active !== foot) { fleet.give('marine'); foot.fromReserve = false; feed('THE RIFLEMAN IS BACK WITH HIS PLATOON  -  MARINES IN RESERVE +1', 'info'); } },
 });
-function commandKey(code) {   // \ the board, / the next unit out (main's keydown, before the craft's own keys)
+// TECH TREE: the RESEARCH page (techui.js); the command board's T and SHIFT+\ open it, T / \ go back to the board
+const techUI = createTechUI({ war, hud: $('hud'), say, feed, sfx, store: PSTORE, onBoard: () => commander.open(),
+  onOpen: () => { if (document.pointerLockElement) document.exitPointerLock(); if (bigMap) { bigMap = false; setMapSize(); } } });
+function commandKey(code, shift = false) {   // \ the board, SHIFT+\ the RESEARCH page, / the next unit out (main's keydown, before the craft's own keys)
   if (code !== 'Backslash' && code !== 'IntlBackslash' && code !== 'Slash') return false;
   if (G.mode !== 'zarch') { say('CLIMB OUT OF THE CAVE FIRST', 1.4); return true; }
-  if (code === 'Slash') commander.next(); else commander.toggle();
+  if (code === 'Slash') commander.next(); else if (shift) { commander.close(); techUI.toggle(); } else commander.toggle();
   return true;
 }
 // the per-frame entry for the surface: the active craft flies / drives / walks, the parked ones idle (craft.js)
@@ -1693,7 +1705,7 @@ function gameOver() {
 function startTransition(label, swap) { G.state = 'trans'; G.tr = { t: 0, phase: 0, swap }; $('fadeText').textContent = label; }
 function newGame() {
   cancelRescue(); D.reset(); stowCrafts(); G.jetDownT = 0; G.tomcatDownT = 0;
-  fleet.reset(); commander.close(); commander.lossMode = false; foot.fromReserve = false; heliAI.off();   // COMMANDER: a full fleet in reserve
+  fleet.reset(); commander.close(); techUI.close(); commander.lossMode = false; foot.fromReserve = false; heliAI.off();   // COMMANDER: a full fleet in reserve
   airlift.reset(); airdrop.clear();   // AIRLIFT
   G.score = 0; G.fuel = 100; G.visit = 0; G.mode = 'zarch'; G.over = false; G.state = 'play';
   G.res = 250; G.mat = 90; G.rockets = ROCKETS_MAX; G.bombs = BOMBS_MAX; G.cargo = 0; cmH.reset(); selIsl = null; feedItems.length = 0; G.advT = 12;
@@ -1923,9 +1935,13 @@ function drawMap() {
   radar.restore();
   if (big) {
     radar.font = '14px monospace'; radar.textAlign = 'center'; radar.fillStyle = '#bfe';
-    radar.fillText('CLICK THE SEA: SAIL THE ALBATROSS THERE   ·   CLICK AN ISLAND: SELECT IT   ·   M: CLOSE', W / 2, Hh - 70);
+    // (TECH TREE: the orders on two lines, each shrunk to fit - the one long line ran off both edges at 1280 px)
+    const fit = (t, y, px) => { radar.font = `${px}px monospace`; const w = radar.measureText(t).width; if (w > W - 24) radar.font = `${Math.floor(px * (W - 24) / w)}px monospace`; radar.fillText(t, W / 2, y); };
+    fit('CLICK THE SEA: SAIL THE ALBATROSS THERE   ·   CLICK AN ISLAND: SELECT IT   ·   SHIFT+\\ RESEARCH   ·   M: CLOSE', Hh - 86, 14);
     radar.fillStyle = '#ff8';
-    radar.fillText(`1: SEA KNIGHT + 13 MARINES (${COST.drone})  ·  2: AA GUN ON OUR ISLAND (${COST.aa})  ·  3: NEW HELICOPTER (${COST.heli})  ·  4: TOMCAT ESCORT (${COST.escort})  ·  6: SKY CARRIER REFIT (${COST.sky})  ·  8: FLY A TOMCAT  ·  9 / 0: M60A3 / M113A2 BY LCM-8     MATERIEL ${Math.floor(G.mat)}`, W / 2, Hh - 46);
+    const lk = (key, t) => war.allow(1, key) ? t : `${t.replace(/ \(\d+\)$/, '')} [RESEARCH]`;   // TECH TREE: locked orders say so
+    fit(`1: ${lk('drone', `SEA KNIGHT + 13 MARINES (${COST.drone})`)}  ·  2: ${lk('aa', `AA GUN ON OUR ISLAND (${COST.aa})`)}  ·  3: ${lk('heli', `NEW HELICOPTER (${COST.heli})`)}  ·  4: ${lk('escort', `TOMCAT ESCORT (${COST.escort})`)}`, Hh - 64, 14);
+    fit(`6: ${lk('sky', `SKY CARRIER REFIT (${COST.sky})`)}  ·  8: ${lk('tomcat', 'FLY A TOMCAT')}  ·  9: ${lk('m60', 'M60A3')} / 0: ${lk('m113', 'M113A2')} BY LCM-8     MATERIEL ${Math.floor(G.mat)}`, Hh - 44, 14);
     radar.font = '12px monospace'; radar.fillStyle = '#8ab';
     radar.fillText('HQ  HEADQUARTERS     C  CAVE FORTRESS (STEAL ITS POD)     F  FUEL     M  MATERIEL (FACTORY)     R  RADAR     ▲ AA GUNS     SHIPS: ALBATROSS · KRAKEN · LEVIATHAN · CONTAINER SHIP', W / 2, Hh - 24);
     if (selIsl) {
@@ -2260,6 +2276,7 @@ function frame(now) {
   updateCamsAndMeshes(dt, now / 1000);
   world.update(dt, zCam, G.state === 'play');   // WORLD: stream the lived-in world round the camera, ambient life
   commander.update(dt, G.state !== 'title');   // COMMANDER: the fleet strip under the score, the open board's statuses
+  techUI.update(dt);   // TECH TREE: the open RESEARCH page refreshes ~4x a second
   pool.update(dt, G.state === 'play' && G.mode === 'zarch'); if (motorPick > 0) motorPick -= dt;   // ngc/wheeledgame: parked / town / traffic vehicles, MG rounds, engine sound
   updateHud();
   { const hide = drop.flying || helm.active ? 'none' : ''; setStyle('bot', 'display', hide); setStyle('caution', 'display', hide); }
@@ -2274,4 +2291,4 @@ function frame(now) {
 const PROF = { sim: 0, prep: 0, render: 0 };
 buildCaves(); war.reset(); resetZarch(true); placeVehicles(); updateFogImg(); terrainStream(Z.pos.x, Z.pos.z);
 requestAnimationFrame(frame);
-if (params.has('debug')) { window.__G = { G, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, forest, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, airlift, airdrop, heliAIenv }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); enterCave(b); } }
+if (params.has('debug')) { window.__G = { G, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, forest, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, airlift, airdrop, heliAIenv, get tech() { return war.tech; }, techUI /* TECH TREE: tech = [null, player, enemy] */ }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); enterCave(b); } }

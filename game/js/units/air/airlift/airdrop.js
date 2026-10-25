@@ -396,7 +396,7 @@ export function createAirdrop(ctx) {
   AD.decorate = roster => {
     for (const r of roster) {
       if (!TYPES.includes(r.id) && r.id !== 'm60') continue;
-      r.airdropWhy = () => AD.can(r.id);
+      r.airdropWhy = () => AD.can(r.id) || (ctx.gate ? ctx.gate() : '');   // (TECH TREE: FIELD LOGISTICS)
       r.airdrop = b => b && b.kind === 'island' ? AD.order(r.id, b.I) : 'AIR DROP: PICK AN ISLAND  -  NOT ONTO THE CARRIER';
     }
     return roster;

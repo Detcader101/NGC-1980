@@ -158,7 +158,8 @@ export function createAirlift(ctx) {
     const fx_ = -Math.sin(yawOf(H.q)), fz_ = -Math.cos(yawOf(H.q));   // the Huey's nose (horizontal)
     const ox = ax - hookWorld.x, oz = az - hookWorld.z, fwd = ox * fx_ + oz * fz_, right = ox * -fz_ + oz * fx_, dy = hookWorld.y - ay;
     const rel = Math.hypot(H.vel.x, H.vel.z, H.vel.y);
-    const why = hookCheck(HK, sp);
+    const gm = ctx.gate && ctx.gate.sling ? ctx.gate.sling() : '';   // TECH TREE: AIRMOBILE LOGISTICS (the sling gear and the hookup teams)
+    const why = gm ? `NO SLING GEAR  -  ${gm}` : hookCheck(HK, sp);
     const N = { V: best, sp, fwd, right, dy, d: Math.hypot(fwd, right), why, ready: false, steady: prev && prev.V === best ? prev.steady : 0 };
     const inPos = N.d < 1.3 && dy > -0.4 && dy < 1.6 && rel < 1.4;
     N.steady = inPos ? N.steady + dt : 0;
@@ -169,10 +170,11 @@ export function createAirlift(ctx) {
     if (Math.abs(fwd) > 0.7) parts.push(`${fwd > 0 ? 'FORWARD' : 'BACK'} ${m(fwd)}`);
     if (Math.abs(right) > 0.7) parts.push(`${right > 0 ? 'RIGHT' : 'LEFT'} ${m(right)}`);
     if (dy > 1.4) parts.push(`DOWN ${m(dy - 0.6)}`); else if (dy < -0.3) parts.push(`UP ${m(-dy + 0.5)}`);
-    N.call = why ? `${sp.label} BELOW  -  TOO HEAVY FOR OUR HOOK` : parts.length ? parts.join('  ·  ') : N.ready ? 'HOLD  -  HOOKUP MAN ON  -  R: HOOK IT' : 'HOLD ... HOLD ...';
+    N.call = gm ? why : why ? `${sp.label} BELOW  -  TOO HEAVY FOR OUR HOOK` : parts.length ? parts.join('  ·  ') : N.ready ? 'HOLD  -  HOOKUP MAN ON  -  R: HOOK IT' : 'HOLD ... HOLD ...';
     AL.near = N;
     // the hookup man: up on the load while we come in (waves us off if it is too heavy)
-    if (man.st === 'off' || man.st === 'gone' || (man.st === 'on' && man.V !== best)) { man.st = 'on'; man.V = best; man.t = 0; }
+    if (gm) { if (man.st === 'on') man.st = 'off'; }   // (no hookup team without the research)
+    else if (man.st === 'off' || man.st === 'gone' || (man.st === 'on' && man.V !== best)) { man.st = 'on'; man.V = best; man.t = 0; }
     if (man.st === 'on') { man.x = ax + 0.2; man.z = az + 0.3; man.y = p.y + Math.max(0.9, sp.top - 0.6); man.yaw = Math.atan2(-(hookWorld.x - man.x), -(hookWorld.z - man.z)); }
     if (why && (!prev || prev.V !== best)) { say(`CREW CHIEF: ${why}`, 3); feed(`CREW CHIEF: ${why}`, 'bad'); }
   }
@@ -292,6 +294,7 @@ export function createAirlift(ctx) {
     const T = AL.troops;
     if (T && T.st === 'boarding') { say('THE SQUAD IS STILL BOARDING', 1.2); return true; }
     if (T && T.st === 'aboard') { dismount(); return true; }
+    const gt = ctx.gate && ctx.gate.troops ? ctx.gate.troops() : ''; if (gt) { say(`NO SQUAD FOR THE HUEY  -  ${gt}`, 2.2); return true; }   // TECH TREE: AIRMOBILE LOGISTICS
     const svc = ctx.serviceAt(H.pos.x, H.pos.z);
     if (!svc) { say('NO SQUAD HERE  -  PICK ONE UP ON THE ALBATROSS OR A FRIENDLY PAD (BARRACKS)', 2); return true; }
     if (G.mat < TROOPS.COST) { say(`A SQUAD NEEDS ${TROOPS.COST} MATERIEL  -  YOU HAVE ${Math.floor(G.mat)}`, 1.8); return true; }
@@ -386,7 +389,7 @@ export function createAirlift(ctx) {
       lines.push(S.ground && S.Tg < 0.35 ? '<b class="g">R: RELEASE THE LOAD</b>' : AL.jettisonT > 0 ? '<b class="r">R AGAIN: JETTISON</b>' : 'R R: EMERGENCY RELEASE  ·  SET IT DOWN ON ITS WHEELS, THEN R');
     } else if (L && L.phase === 'falling') lines.push('<b class="r">LOAD FALLING</b>');
     else if (N) {
-      lines.push(`HOOK <b>OPEN</b>  ·  BELOW: ${N.sp.label} <b>${kg(N.sp.mass)} KG</b>${N.why ? `  <b class="r">TOO HEAVY (HOOK ${kg(HK.limit)} KG)</b>` : ''}  ·  ${N.d.toFixed(1)} m OFF  ·  HOOK ${N.dy.toFixed(1)} m OVER THE APEX`);
+      lines.push(`HOOK <b>OPEN</b>  ·  BELOW: ${N.sp.label} <b>${kg(N.sp.mass)} KG</b>${N.why ? `  <b class="r">${/TOO HEAVY/.test(N.why) ? `TOO HEAVY (HOOK ${kg(HK.limit)} KG)` : 'NO SLING GEAR'}</b>` : ''}  ·  ${N.d.toFixed(1)} m OFF  ·  HOOK ${N.dy.toFixed(1)} m OVER THE APEX`);
       lines.push(`CREW CHIEF: <b class="${N.why ? 'r' : N.ready ? 'g' : 'w'}">${N.call}</b>`);
     }
     const T = AL.troops;
