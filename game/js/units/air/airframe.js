@@ -235,6 +235,7 @@ export function createAirframe(P, GRAV = 9.0) {
 
     if (P.engineFn) P.engineFn(A, h, ctl, M, mods); else engines(h, ctl, M, mods);
     // catapult: held on the shuttle, then a 2 g shot down the track (kinematic along the deck, the rest is simulated)
+    if (A.tow) { towed(h, env); return; }   // (ngc/bugsweep) DECK OPS: spotted / taxied on the deck by the director (units/naval/deckops.js)
     if (A.cat) { catapult(h, ctl, env); return; }
 
     const K = P.aeroAt ? P.aeroAt(A) : P.aero;
@@ -382,6 +383,18 @@ export function createAirframe(P, GRAV = 9.0) {
     A.w.set(0, 0, 0); A.wow = [0.12, 0.13, 0.13]; A.onGround = true;
     A.surf.stab += clamp(P.CAT_STAB - A.surf.stab, -0.7 * h, 0.7 * h);   // trimmed nose-up for the rotation off the bow
     if (C.s >= DK.CAT_Z0 - DK.CAT_Z1) { A.cat = null; A.launchBar = false; A.onGround = false; A.w.y = 0.12; A.launchT = 2.5; ev('catend', { v: C.v }); }
+  }
+  // (ngc/bugsweep) DECK OPS: the jet on the deck under a director - A.tow = { lx, lz, hdg, v } in the ship frame (x starboard,
+  // z aft; hdg 0 = nose to the bow, + to starboard; v the taxi speed along the nose): kinematic like the cat, lying on the
+  // live deck, moving with the ship plus the taxi speed. units/naval/deckops.js moves lx / lz / hdg along its routes.
+  function towed(h, env) {
+    const c = env.carrier && env.carrier(), T = A.tow;
+    if (!c) { A.tow = null; return; }
+    const yaw = c.yaw - (T.hdg || 0);
+    deckWorld(c, T.lx, T.lz, A.pos); A.pos.y = deckH(c, A.pos.x, A.pos.z) + P.REST_H;
+    const ca = c.att; A.q.setFromEuler(_e.set(ca ? ca.pitch : 0, yaw, ca ? ca.roll : 0, "YXZ"));
+    surfaceVel(env, A.pos.x, A.pos.z, A.vel); A.vel.x += -Math.sin(yaw) * (T.v || 0); A.vel.z += -Math.cos(yaw) * (T.v || 0);
+    A.w.set(0, 0, 0); A.wow = [0.12, 0.13, 0.13]; A.onGround = true; A.wire = null;
   }
   // the hook tip crossing a wire near the deck catches it; the wire then pays out to stop the jet in ~26 m
   const _hk = new THREE.Vector3();
