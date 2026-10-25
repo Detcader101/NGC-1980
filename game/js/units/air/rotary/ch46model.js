@@ -28,6 +28,7 @@ const FZ = FUS.map(f => f[0]);
 function skinMat(z0, z1, qh, s) {
   if (z0 >= -6.56 && z1 <= -6.42 && qh <= 3) return 2;                    // anti-glare above the windscreens
   if (z0 >= -6.56 && z1 <= -5.42 && qh >= 2 && qh <= 6) return 1;         // windscreens wrapping round to the side windows
+  if (z0 >= -6.42 && z1 <= -5.82 && qh <= 1) return 1;                      // the two big front windscreens either side of the centre post (ngc/ch46fly)
   if (z0 >= -5.82 && z1 <= -5.0 && qh <= 1) return 1;                      // overhead windows
   if (z0 >= -6.56 && z1 <= -6.18 && qh >= 8 && qh <= 10) return 1;         // chin windows
   if (s > 0 && z0 >= -4.6 && z1 <= -3.8 && qh >= 5 && qh <= 11) return -1; // crew door (right), open
@@ -103,7 +104,10 @@ export function buildCH46Mesh(o = {}) {
   body.add(boxG(0.03, 0.4, 0.3, 0, 1.35, 1.0), blackM); body.add(rodG([0, -1.28, -2.0], [0, -1.6, -1.7], 0.02, 4), blackM); body.add(boxG(0.03, 0.22, 0.3, 0, -1.4, 0.5), blackM);
 
   // ---- crew in the cockpit (two pilots), instrument panel, seats; crew chief who stands at the ramp when it opens
-  const seated = (x, y, z, rotY = 0) => {
+  // (ngc/ch46fly: the cockpit's crew, seats and panel are their own meshes, parts.cockpitBits, so the player's first-person
+  // cockpit (ch46cockpit.js) can take their place)
+  const ck = bucket();
+  const seated = (x, y, z, rotY = 0, body = ck) => {
     const p = (geo) => geo.rotateY(rotY).translate(x, y, z);
     body.add(p(boxG(0.36, 0.14, 0.42, 0, 0.06, -0.17)), crew.suit); body.add(p(boxG(0.34, 0.36, 0.13, 0, -0.14, -0.42)), crew.suit);
     body.add(p(boxG(0.38, 0.5, 0.24, 0, 0.36, 0.02)), crew.suit); body.add(p(boxG(0.41, 0.36, 0.27, 0, 0.4, 0)), crew.vest);
@@ -111,8 +115,9 @@ export function buildCH46Mesh(o = {}) {
     body.add(p(boxG(0.2, 0.06, 0.04, 0, 0.73, -0.13)), crew.visor);
     for (const k of [-1, 1]) body.add(p(rodG([k * 0.22, 0.55, 0], [k * 0.12, 0.42, -0.4], 0.09)), crew.suit);
   };
-  for (const s of [-1, 1]) { seated(s * 0.5, -0.5, -5.55); body.add(boxG(0.5, 0.06, 0.5, s * 0.5, -0.54, -5.55), darkM); body.add(boxG(0.5, 0.8, 0.08, s * 0.5, -0.1, -5.28), darkM); }
-  body.add(boxG(1.9, 0.5, 0.1, 0, -0.18, -6.2), blackM); body.add(boxG(2.0, 0.05, 0.36, 0, 0.09, -6.12), blackM); body.add(boxG(0.4, 0.5, 0.9, 0, -0.75, -5.7), darkM);
+  for (const s of [-1, 1]) { seated(s * 0.5, -0.5, -5.55); ck.add(boxG(0.5, 0.06, 0.5, s * 0.5, -0.54, -5.55), darkM); ck.add(boxG(0.5, 0.8, 0.08, s * 0.5, -0.1, -5.28), darkM); }
+  ck.add(boxG(1.9, 0.5, 0.1, 0, -0.18, -6.2), blackM); ck.add(boxG(2.0, 0.05, 0.36, 0, 0.09, -6.12), blackM); ck.add(boxG(0.4, 0.5, 0.9, 0, -0.75, -5.7), darkM);
+  const cockpitBits = ck.flush(g, 'cockpitBits');
   const chief = group(g, 'crewChief', 0.55, -0.95, 3.4);
   { const cb = bucket(); cb.add(boxG(0.17, 0.8, 0.2, -0.1, 0.4, 0), crew.suit); cb.add(boxG(0.17, 0.8, 0.2, 0.1, 0.4, 0), crew.suit); cb.add(boxG(0.4, 0.55, 0.26, 0, 1.08, 0), crew.suit);
     cb.add(boxG(0.43, 0.4, 0.29, 0, 1.12, 0), crew.vest); cb.add(sphG(0.1, 0, 1.48, -0.02), crew.skin); cb.add(new THREE.SphereGeometry(0.14, 8, 5, 0, Math.PI * 2, 0, 1.9).translate(0, 1.52, 0.01), crew.helmet);
@@ -224,5 +229,5 @@ export function buildCH46Mesh(o = {}) {
   animate({});
   // the lowered ramp's lip (where the squad steps off), local
   const a = -CH46M.RAMP_DOWN, RAMP_END = V(hx, hy - Math.sin(-CH46M.RAMP_DOWN) * L, hz + Math.cos(a) * L);
-  return { group: g, animate, RAMP_END, GUNS: guns.map(G => G.yaw.position), parts: { ramp, chief, rotors: RF, guns } };
+  return { group: g, animate, RAMP_END, GUNS: guns.map(G => G.yaw.position), parts: { ramp, chief, rotors: RF, guns, cockpitBits, glassM, lensM } };
 }

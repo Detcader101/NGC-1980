@@ -54,7 +54,7 @@ export const TECH = [
     desc: 'HUEYS FOR THE HANGAR: COMMAND 3 AND THE BOARD BUY SPARE HELICOPTERS' },
   { id: 'p.marines', side: 1, tier: 0, name: 'MARINE RIFLE COMPANY', cost: { mat: 20 }, time: 20, requires: [], unlocks: { units: ['marine'] },
     desc: 'MARINE RIFLEMEN ON FOOT FROM THE BARRACKS' },
-  { id: 'p.airassault', side: 1, tier: 0, name: 'MARINE AIR ASSAULT', cost: { mat: 30 }, time: 30, requires: ['p.huey', 'p.marines'], unlocks: { units: ['drone'] },
+  { id: 'p.airassault', side: 1, tier: 0, name: 'MARINE AIR ASSAULT', cost: { mat: 30 }, time: 30, requires: ['p.huey', 'p.marines'], unlocks: { units: ['drone', 'ch46'] },
     desc: 'CH-46 SEA KNIGHTS LIFT 13 MARINES ONTO AN ISLAND PAD (COMMAND 1)' },
   { id: 'p.aaa', side: 1, tier: 0, name: 'AIR DEFENCE BATTERIES', cost: { mat: 30 }, time: 30, requires: [], unlocks: { units: ['aa'] },
     desc: 'M163 VADS GUNS ON OUR ISLANDS (COMMAND 2)' },
@@ -133,7 +133,7 @@ export const GATES = {
   jet: { side: 1, where: ['game/js/units/commander/fleet.js'] }, m113: { side: 1, where: ['game/js/main.js'] },
   escort: { side: 1, where: ['game/js/units/air/airwar.js'] }, logistics: { side: 1, where: ['game/js/main.js'] },
   m60: { side: 1, where: ['game/js/main.js'] }, tomcat: { side: 1, where: ['game/js/units/commander/fleet.js'] },
-  sky: { side: 1, where: ['game/js/war.js'] },
+  sky: { side: 1, where: ['game/js/war.js'] }, ch46: { side: 1, where: ['game/js/units/commander/fleet.js'] },   // ngc/ch46fly: the flyable Sea Knight (the board asks)
   transport: { side: 2, where: ['game/js/war.js'] }, gunship: { side: 2, where: ['game/js/war.js'] },
   freighter: { side: 2, where: ['game/js/war.js'] }, reaper: { side: 2, where: ['game/js/units/air/airwar.js'] },
   hovertank: { side: 2, where: ['game/js/units/groundwar/groundwar.js'] }, lance: { side: 2, where: ['game/js/units/defence/brain.js'] },

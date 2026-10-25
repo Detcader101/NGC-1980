@@ -111,6 +111,7 @@ export function createCH46Play(o = {}) {
   };
   function syncAfcs() { const s = stateOf(S.body, st); P.I.th = clamp(s.pitch, -0.2, 0.2); P.I.ph = clamp(s.roll, -0.2, 0.2); P.I.lon = S.c.lon; P.I.lat = S.c.lat; P.I.ped = S.c.ped; P.I.hdg = null; }
   P.setCollective = v => { P.coll = clamp(v, 0, 1); P.collSrc = 'kb'; };
+  P.sync = syncAfcs;   // take over from where someone else left the controls (the AI crew): no jump in the stick
 
   // ------------------------------------------------------------------------------------------- input
   // inp: { kd(...codes) -> bool, hw: hotas.js state or null (keyboard only) }
