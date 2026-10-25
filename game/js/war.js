@@ -27,8 +27,8 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const angDiff = (a, b) => { let d = (b - a) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return d; };
 export const COST = { drone: 40, aa: 30, heli: 60, escort: 30, jet: 80, sky: 300 };
 export const SIDE_NAME = ['NEUTRAL', 'FRIENDLY', 'ENEMY'];
-const CAP_TIME = { heli: 6, drone: 9, transport: 10 };
-const PROD = { fuel: { fuel: 0.55 }, factory: { mat: 0.4 }, radar: {}, hq: { fuel: 0.3, mat: 0.3 }, fortress: { fuel: 0.6 } };
+export const CAP_TIME = { heli: 6, drone: 9, transport: 10 };   // (SIM MODE: exported so a sweep can tune them)
+export const PROD = { fuel: { fuel: 0.55 }, factory: { mat: 0.4 }, radar: {}, hq: { fuel: 0.3, mat: 0.3 }, fortress: { fuel: 0.6 } };
 const SIGHT = { heli: 180, carrier: 230, drone: 100, island: 130, radar: 380 };
 const PROD_KIND = { fuel: 'fuel', factory: 'factory', radar: 'radar', fortress: 'fuel' };
 
@@ -68,6 +68,7 @@ export function createWar(ctx) {
   // the sea's clock and the weather: main.js calls this every frame the game isn't paused (the title screen too)
   W.tickSea = dt => { advanceSea(W.sea, dt); const w = W.weather.step(dt); if (w) { retuneSea(W.sea, w.ss, w.dir); if (w.msg) feed(w.msg); } };
   const nfx = createNavalFx(scene, fx, W.seaY);
+  const headless = !!ctx.headless;   // SIM MODE hook (tools/warsim.mjs): no renderer - skip the purely visual ship work (wakes, deck crew)
   const store = side => side === 1 ? W.P : W.E;
   // war sounds fall off with distance from the camera, so a battle across the map is a distant rumble
   const ear = ctx.ear;
@@ -353,6 +354,7 @@ export function createWar(ctx) {
   const _pl = new THREE.Vector3();
   function tickParts(u, dt) {
     if (!u.parts.tick) return;
+    if (headless) { u.parts.tick(dt, W.time, 1e9, null); return; }   // SIM MODE: lifts and mounts move, no crowd on deck
     const d = Math.hypot(u.p.x - ear.x, u.p.y - ear.y, u.p.z - ear.z), pl = W._pl;
     // deck crew clear out from under a helicopter or jet coming down close to them
     let avoid = null;
@@ -400,7 +402,7 @@ export function createWar(ctx) {
     a.heave = mo.heave; a.pitch = mo.pitch; a.roll = mo.roll; a.vHeave = mo.vHeave; a.vPitch = mo.vPitch; a.vRoll = mo.vRoll;
     if (u.sinking !== undefined) { a.roll += Math.min(0.35, u.sinking * 0.03) * (u.side === 1 ? 1 : -1); a.pitch -= Math.min(0.12, u.sinking * 0.01); }
     placeShip(u);
-    if (u.sinking === undefined) nfx.ship(u, dt, ear);   // bow wave, wake, spray, funnel smoke
+    if (headless) { /* SIM MODE: no wakes */ } else if (u.sinking === undefined) nfx.ship(u, dt, ear);   // bow wave, wake, spray, funnel smoke
     else if (u.sinking > 6) nfx.remove(u);
     if (u.parts.dish) u.parts.dish.rotation.y += dt * 1.6;
     if (u.parts.lamp) u.parts.lamp.visible = (W.time % 1.4) < 0.15;
@@ -950,7 +952,7 @@ export function createWar(ctx) {
     updateCapture(dt, pl);
     updateEconomy(dt);
     updateBattleship(dt); updateFreighters(dt);
-    if (!peace) { W.thinkT -= dt; if (W.thinkT <= 0) { W.thinkT = 2; GW.think(pl); think(pl); W.air.think(pl); } }   // GROUND WAR: its ground plans first (armour is saved up for); AIR: + the enemy air arm's plans
+    if (!peace) { W.thinkT -= dt; if (W.thinkT <= 0) { W.thinkT = 2; if (W.redAI) W.redAI.think(pl, think); else { GW.think(pl); think(pl); W.air.think(pl); } } }   // SIM MODE hook: a CPU doctrine (sim/redai.js) can stand in for the enemy commander; GROUND WAR: its ground plans first (armour is saved up for); AIR: + the enemy air arm's plans
     W.air.frame(dt, pl);   // AIR: launch queue, drone rails, engine sounds
     // buildings animate
     for (const I of W.islands) for (const s of I.structs) {
@@ -968,6 +970,7 @@ export function createWar(ctx) {
     for (const I of W.islands) { const ex = fog.exploredAt(I.x, I.z) || fog.exploredAt(I.pad.x, I.pad.z); for (const s of I.structs) { s.mesh.visible = (!s.dead || !!s.mesh.userData.setState) && ex; if (s.rubble) s.rubble.visible = ex; } if (fog.visibleAt(I.pad.x, I.pad.z)) I.seen = I.owner; }
   };
   W.damage = damage; W.hitTest = hitTest; W.pickExpansion = pickExpansion;
+  W.sim = { makeAir, buildAA, makeShip, launchPoint, nearestLaunch, end, COST };   // SIM MODE hook: what the CPU commanders (game/js/sim/) build with
   W.makeShip = makeShip;   // NAVAL: tests and the dev tools place ships with it
   W.air = createAirWar(W, ctx, { shoot, damage, blast, hear, boomAt, feed, CARRIER, COST_ESCORT: COST.escort });   // AIR (units/air/airwar.js)
   return W;

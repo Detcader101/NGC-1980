@@ -6,6 +6,7 @@ import { createDamage, PARTS } from './damage.js';
 import { HELI, EYE, buildHeliMesh, buildCockpit, createHeliSim, createHeliInput, createHeliSystems, fuelBurnPct } from './heli.js';
 import { BOUND, ISLANDS, islandH, createNav, SEA_FLOOR, inZone } from './world.js';
 import { createWar, COST } from './war.js';
+import { createSpectator } from './sim/spectator.js';   // SIM MODE
 import { CARRIER } from './ships.js';
 import { createFog, FOG_GLSL, fogPatch } from './fog.js';
 import { createFx } from './fx.js';
@@ -287,6 +288,7 @@ const SLIDERS = {
 };
 function addScore(n) { G.score += n; if (G.score > G.hi) { G.hi = G.score; try { localStorage.setItem('tz_hi', G.hi); } catch (e) {} } }
 let war = null;   // the island war (created once the world exists)
+let SIM = null;   // SIM MODE (?sim): CPU vs CPU, you watch (sim/spectator.js)
 const sayMsg = (t, s) => say(t, s);
 function say(t, secs = 2) { const m = $('msg'); m.textContent = t; m.style.opacity = t ? 1 : 0; G.msgT = secs; }
 
@@ -2105,7 +2107,8 @@ function updateCamsAndMeshes(dt, time) {
   }
   for (const b of BASES) if (b.group) b.group.visible = b === T.base && inCave || Math.hypot(zCam.position.x - b.x, zCam.position.z - b.z) < 140;
   baseGroup.userData.ring.material.color.setHSL((time * 0.5) % 1, 1, 0.6);
-  if (G.state === 'title') {
+  if (SIM && SIM.built) SIM.camera(camA, dt);   // SIM MODE: the spectator's camera
+  else if (G.state === 'title') {
     const a = time * 0.07, c = war.carrier.p; camA.position.set(c.x + Math.cos(a) * 95, 30, c.z + Math.sin(a) * 95); camA.lookAt(c.x, 8, c.z);   // the ALBATROSS on station
   } else if (G.craft !== 'heli' && crafts.active) {   // FOUNDATION: the HORNET, the soldier, vehicles - each craft's own rigs
     crafts.active.camera(camA, dt, { locked: document.pointerLockElement === canvas, head });
@@ -2237,7 +2240,7 @@ function frame(now) {
   if (G.msgT > 0) { G.msgT -= dt; if (G.msgT <= 0 && G.state !== 'paused') say(''); }
   if (G.state === 'play') {
     if (G.mode === 'zarch') updateZarch(dt, inp); else updateThrust(dt, inp);
-    war.update(dt, PL, params.has('peace'));
+    if (SIM) SIM.step(dt, params.has('peace')); else war.update(dt, PL, params.has('peace'));   // SIM MODE: the CPU commanders' war (time x 1 / 4 / 16)
     if (G.mode === 'zarch') { crafts.afterWar(); seats.afterWar(dt); }   // FOUNDATION: decks moved - the soldier, vehicles, parked jets catch up (ngc/interiors: the troops in their seats)
     fogT -= dt; if (fogT <= 0) { fogT = 0.25; fog.update(war.visionSources(PL)); war.setVisibility(fog); updateFogImg(); }
   } else if (G.state === 'trans') {
@@ -2267,3 +2270,5 @@ const PROF = { sim: 0, prep: 0, render: 0 };
 buildCaves(); war.reset(); resetZarch(true); placeVehicles(); updateFogImg(); terrainStream(Z.pos.x, Z.pos.z);
 requestAnimationFrame(frame);
 if (params.has('debug')) { window.__G = { G, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, forest, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, get tech() { return war.tech; }, techUI /* TECH TREE: tech = [null, player, enemy] */ }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); enterCave(b); } }
+// SIM MODE (?sim): both sides CPU commanders, the player's Huey parked out of the war, a spectator camera and overlay
+if (params.has('sim')) { SIM = createSpectator({ war, THREE, params, scene: zScene, terrainH, nav, groundY, sfx, fog, feed, say, newGame, stowHeli }); SIM.start(); }

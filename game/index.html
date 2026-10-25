@@ -38,6 +38,8 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
 #feed{position:absolute;right:16px;top:64px;width:460px;text-align:right;font-size:14px;line-height:1.5;text-shadow:0 0 4px #000,0 0 6px #000}
 #weap{color:#fd8;max-width:calc(100vw - 520px)}   /* wraps before the message feed on the right (a long armour weapons line ran under it) */
 #radar.big{pointer-events:auto;cursor:crosshair;opacity:1}
+#simlink{display:inline-block;margin-top:12px;font-size:14px;letter-spacing:3px;color:#8cf;text-decoration:none;border:1px solid #2a5566;padding:4px 12px}   /* SIM MODE */
+#simlink:hover{color:#ff8;border-color:#ff8}
 #result{font-size:22px;color:#ff8;margin:6px 0 14px}
 #menu{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,10,25,.6);pointer-events:auto}
 #menu.on{display:flex}
@@ -83,6 +85,7 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
       <p><b>FLIGHT STICK</b> &nbsp;stick = cyclic &middot; twist = pedals &middot; throttle = collective &middot; trigger = gun &middot; button 3 = rockets &middot; button 5 = bombs &middot; hat = nudge aim &middot; J = calibrate &middot; K = keyboard only</p>
     </details>
     <div class="go">PRESS ENTER / SPACE / TRIGGER</div>
+    <a id="simlink" href="?sim">OR WATCH CPU vs CPU  &middot;  SIM MODE</a>
     <p id="gpuinfo" style="color:#789;margin-top:20px"></p>
   </div>
 </div>
