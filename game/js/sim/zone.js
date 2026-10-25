@@ -2,7 +2,7 @@
 // same way - the cave bases' aprons, the flat pads, the ground over the caves, the armour landing hards - without the
 // renderer. main.js keeps its own copy (it is the live game's and is not touched); tools/scenes/simmode.json checks the
 // two agree point for point in the browser, so a change to main.js's terrain shows up as a failed scene.
-// It mutates ISLANDS (I.base, I.pad) exactly as main.js does: import it only where main.js is not running.
+// It mutates ISLANDS (I.base, I.pad) exactly as main.js does, unless createZone({ pure: true }) (copies: the browser check).
 import { ISLANDS, islandH, createNav } from '../world.js';
 import { planHards, hardsH } from '../units/armor/landinghard.js';
 import { clearedAt } from '../world/net.js';
@@ -15,10 +15,12 @@ const PAD_R = 8.5, BASE_R = 18, STRIP_X = 76, STRIP_Z = 9;
 
 let ZONE = null;
 export const GRID = { RES: 0.5, EXT: 900, N: 3601 };   // the baked table: -900..900 m at 0.5 m (the jets range out past the zone)
-export function createZone() {
-  if (ZONE) return ZONE;
-  const BASES = ISLANDS.filter(I => I.cave).sort((a, b) => a.tier - b.tier).map(I => I.base = { kind: I.owner === 1 ? 'home' : 'enemy', name: I.name, tier: I.tier, x: I.x, z: I.z, h: clamp(Math.round(islandH(I.x, I.z)), 4, 16), isl: I });
-  const PADS = ISLANDS.map(I => I.pad = I.cave ? { x: I.x, z: I.z + 30, h: I.base.h, r0: 12, r1: 34, r: PAD_R, isl: I } : { x: I.x, z: I.z, h: clamp(Math.round(islandH(I.x, I.z)), 3, 14), r0: 30, r1: 52, r: PAD_R, isl: I });
+export function createZone(o = {}) {   // o.pure: on copies of the islands (a check in the live game must not touch its ISLANDS)
+  if (ZONE && !o.pure) return ZONE;
+  const ISL = o.pure ? ISLANDS.map(I => ({ ...I })) : ISLANDS;
+  let Z = null;
+  const BASES = ISL.filter(I => I.cave).sort((a, b) => a.tier - b.tier).map(I => I.base = { kind: I.owner === 1 ? 'home' : 'enemy', name: I.name, tier: I.tier, x: I.x, z: I.z, h: clamp(Math.round(islandH(I.x, I.z)), 4, 16), isl: I });
+  const PADS = ISL.map(I => I.pad = I.cave ? { x: I.x, z: I.z + 30, h: I.base.h, r0: 12, r1: 34, r: PAD_R, isl: I } : { x: I.x, z: I.z, h: clamp(Math.round(islandH(I.x, I.z)), 3, 14), r0: 30, r1: 52, r: PAD_R, isl: I });
   const stripW = (x, z, b) => smooth(0, 14, Math.hypot(Math.max(Math.abs(x - b.x) - STRIP_X, 0), Math.max(Math.abs(z - b.z) - STRIP_Z, 0)));
   const terrainH0 = (x, z) => {
     let h = islandH(x, z);
@@ -27,15 +29,15 @@ export function createZone() {
     for (const b of BASES) h = lerp(Math.max(h, b.h), h, stripW(x, z, b));
     return h;
   };
-  const HARDS = planHards(ISLANDS, terrainH0, {
+  const HARDS = planHards(ISL, terrainH0, {
     pads: PADS, holes: BASES, cleared: (x, z) => clearedAt(x, z),
     keepOut: I => { if (I.name !== 'IRONHOLD') return []; const a = Math.atan2(-I.z, -I.x); for (let r = 20; r < I.r + 60; r += 2) { const x = I.x + Math.cos(a) * r, z = I.z + Math.sin(a) * r; if (terrainH0(x, z) < 2.5) return [{ x, z, r: 40 }]; } return []; },
   });
   // the hot path: terrainH is called a great deal (every round, every unit, every frame) and was ~40% of a headless
-  // war. ZONE.useGrid(table) swaps in a baked 0.5 m table with bilinear filtering inside +-900 m (the exact function
+  // war. Z.useGrid(table) swaps in a baked 0.5 m table with bilinear filtering inside +-900 m (the exact function
   // outside it): heights agree to a few cm (tools/simbench.mjs measures it). warsim --exact keeps the exact function.
   const exact = (x, z) => {
-    if (!(Math.abs(x) < 3e4 && Math.abs(z) < 3e4)) { if (!ZONE.bad && globalThis.__simStack) console.error(new Error("bad ground").stack); ZONE.bad = ZONE.bad || `ground asked at ${x}, ${z}`; return -14; }   // (NaN or far off the map: the sim reports it, the run goes on)
+    if (!(Math.abs(x) < 3e4 && Math.abs(z) < 3e4)) { if (!Z.bad && globalThis.__simStack) console.error(new Error("bad ground").stack); Z.bad = Z.bad || `ground asked at ${x}, ${z}`; return -14; }   // (NaN or far off the map: the sim reports it, the run goes on)
     return hardsH(HARDS, x, z, terrainH0(x, z));
   };
   let grid = null;
@@ -47,11 +49,12 @@ export function createZone() {
     return a + (b - a) * fx + (c - a) * fz + (a - b - c + d) * fx * fz;
   };
   const isWater = (x, z) => terrainH(x, z) <= 0;
-  ZONE = { ISLANDS, BASES, PADS, HARDS, terrainH, terrainH0, exact, isWater, nav: null, carrierStart: null, enemyStart: null, GRID };
+  Z = { ISLANDS: ISL, BASES, PADS, HARDS, terrainH, terrainH0, exact, isWater, nav: null, carrierStart: null, enemyStart: null, GRID };
   // bake: the table for useGrid (N x N floats, row-major in z); useGrid(table) before anything reads the ground
-  ZONE.bake = () => { const t = new Float32Array(GRID.N * GRID.N); for (let j = 0; j < GRID.N; j++) for (let i = 0; i < GRID.N; i++) t[j * GRID.N + i] = exact(i * GRID.RES - GRID.EXT, j * GRID.RES - GRID.EXT); return t; };
-  ZONE.useGrid = t => { grid = t; ZONE.nav = null; return ZONE; };
+  Z.bake = () => { const t = new Float32Array(GRID.N * GRID.N); for (let j = 0; j < GRID.N; j++) for (let i = 0; i < GRID.N; i++) t[j * GRID.N + i] = exact(i * GRID.RES - GRID.EXT, j * GRID.RES - GRID.EXT); return t; };
+  Z.useGrid = t => { grid = t; Z.nav = null; return Z; };
   // the sea lanes are planned on whichever ground is in use (built on first ask)
-  Object.defineProperty(ZONE, 'navReady', { get: () => { if (!ZONE.nav) { ZONE.nav = createNav(terrainH); const seaSpot = (x, z) => { const [wx, wz] = ZONE.nav.nearestWater(x, z); return [wx, wz, Math.atan2(wx, wz)]; }; ZONE.carrierStart = seaSpot(-300, 280); ZONE.enemyStart = seaSpot(300, -280); } return ZONE; } });
-  return ZONE;
+  Object.defineProperty(Z, 'navReady', { get: () => { if (!Z.nav) { Z.nav = createNav(terrainH); const seaSpot = (x, z) => { const [wx, wz] = Z.nav.nearestWater(x, z); return [wx, wz, Math.atan2(wx, wz)]; }; Z.carrierStart = seaSpot(-300, 280); Z.enemyStart = seaSpot(300, -280); } return ZONE; } });
+  if (!o.pure) ZONE = Z;
+  return Z;
 }

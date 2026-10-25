@@ -16,8 +16,10 @@ import { createStrikeWing } from './strike.js';
 import { createTelemetry, strength } from './telemetry.js';
 import { doctrine } from './doctrine.js';
 import { seedMath } from './rng.js';
-import { createTech, techStartFromQuery, techNode } from '../techtree.js';
+import { techNode } from '../techtree.js';
 import { createFleet } from '../units/commander/fleet.js';
+import { buildJetMesh } from '../jetmodel.js';
+import { installResearch } from './policy.js';
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const SPEEDS = [1, 4, 16];
@@ -32,26 +34,25 @@ export function createSpectator(h) {
   // the war's view of "the player": nobody (the Huey parked on deck is scenery while the CPUs fight)
   S.pl = { alive: false, landed: false, inCave: false, pos: new THREE.Vector3(0, -1e4, 0), vel: new THREE.Vector3(), hitR: 2.6, detect: 1, kind: 'none' };
   const blueD = doctrine(1, params.get('blue') || 'BALANCED'), redD = doctrine(2, params.get('red') || 'DEFAULT');
-  const tq = { has: k => params.has(k === 'tech' ? 'tech' : 'etech'), get: k => params.get(k) };
-  const techStart = side => { const q = side === 2 && params.has('etech') ? params.get('etech') : params.get('tech'); return !q ? 'all' : techStartFromQuery({ has: k => k === 'tech', get: () => q }, side); };
-  void tq;
 
   // ---------------------------------------------------------------- the commanders
   let C = null, T = null, SW = null, fleet = null, techB = null, techR = null;
   S.start = () => {
     if (params.has('seed')) S.rng = seedMath(S.seed);   // (the war's dice from the seed; the renderer's effects still vary)
     h.newGame();
+    h.stowHeli?.();   // the player's Huey goes below: not simulated, not in the war
     if (h.fog) h.fog.enabled = false;   // a spectator sees both sides
-    techB = createTech(1, { start: techStart(1) }); techR = createTech(2, { start: techStart(2) });
+    techB = W.tech[1]; techR = W.tech[2];   // the war's own trees (?tech= / ?etech=, as in normal play)
     fleet = createFleet();
     if ((params.get('patch') || '').includes('catlane') && W.carrier.parts.parked) { const P = W.carrier.parts.parked; for (let i = P.length - 1; i >= 0; i--) if (P[i].z < -20) P.splice(i, 1); }
     T = createTelemetry(W, { every: 5 });
     const log = (side, what, extra) => { T.decision(side, what, extra); (side === 1 ? S.logB : S.logR).unshift({ t: W.time, what }); if (S.logB.length > 6) S.logB.length = 6; if (S.logR.length > 6) S.logR.length = 6; };
     S.logB = []; S.logR = [];
-    SW = createStrikeWing({ W, terrainH: h.terrainH, scene: h.scene, feed: h.feed, fleet, THREE, buildMesh: h.buildJetMesh ? () => { const m = h.buildJetMesh(1); return m.group || m; } : null });
+    SW = createStrikeWing({ W, terrainH: h.terrainH, scene: h.scene, feed: h.feed, fleet, THREE, buildMesh: () => buildJetMesh(1) });
     C = createCommanderAI({ W, nav: h.nav, doctrine: blueD, tech: techB, strike: SW, fleet, log, terrainH: h.terrainH });
-    W.redAI = createRedAI({ W, nav: h.nav, feed: h.feed, sfx: h.sfx || {}, doctrine: redD, tech: techR, log });
-    const onOwner0 = W._simOnOwner; void onOwner0;
+    W.redAI = createRedAI({ W, nav: h.nav, feed: h.feed, sfx: h.sfx || {}, doctrine: redD, log });
+    installResearch(W, 1, blueD, log); installResearch(W, 2, redD, log);
+    window.__SIM = S; S.C = C; S.T = T; S.SW = SW;   // (tests)
     S.owner0 = W.islands.map(I => I.owner);
     document.body.classList.add('simmode');
     build(); S.built = true;
@@ -81,10 +82,15 @@ export function createSpectator(h) {
     for (const u of W.units) {
       if (u._specSeen) { if ((u.dying || (u.dims && u.sinking !== undefined)) && !u._specDown) { u._specDown = true; const big = u.dims ? 12 : u.type === 'strike' || u.type === 'drone' || u.type === 'transport' ? 5 : 2; S.events.push({ t: W.time, kind: 'loss', side: u.side, x: u.p.x, y: u.p.y, z: u.p.z, text: `${u.side === 1 ? 'TASK FORCE' : 'RUNAWAY'} ${label(u)} DOWN`, w: big }); } continue; }
       u._specSeen = true;
+      if (u.side === 2 && W.redAI && W.redAI.builtin && RED_SEEN[u.type]) {   // the game's own commander keeps no log: read its orders off what it launches
+        const what = `${RED_SEEN[u.type]}${u.target && u.target.name ? ' TO ' + u.target.name : u.raid && u.raid.I ? ' RAID ON ' + u.raid.I.name : u.raid && u.raid === W.carrier ? ' RAID ON THE ALBATROSS' : u.type === 'gunship' ? (u.target === 'player' ? ' HUNTS' : ' GUARD') : ''}`, L = S.logR, top = L[0];
+        if (top && top.base === what && W.time - top.t < 4) { top.n++; top.what = `${top.n} x ${what}`; } else { L.unshift({ t: W.time, what, base: what, n: 1 }); if (L.length > 6) L.length = 6; }
+      }
       if (u.type === 'strike' || u.type === 'drone' || u.type === 'transport' || u.type === 'battleship' || u.type === 'shrike') S.events.push({ t: W.time, kind: 'launch', side: u.side, unit: u, x: u.p.x, y: u.p.y, z: u.p.z, text: `${label(u)} ${u.side === 1 ? 'OUT' : 'INBOUND'}${u.target && u.target.name ? ' FOR ' + u.target.name : ''}`, w: u.type === 'battleship' ? 12 : u.type === 'strike' ? 6 : 4 });
     }
     if (S.events.length > 400) S.events.splice(0, S.events.length - 400);
   }
+  const RED_SEEN = { transport: 'MV-22', gunship: 'WASP', freighter: 'CONTAINER SHIP SAILS', battleship: 'LEVIATHAN LAUNCHED', shrike: 'SHRIKE', reaper: 'REAPER', shahed: 'SHAHED' };
   const LABEL = { drone: 'SEA KNIGHT', transport: 'MV-22', gunship: 'WASP', escort: 'TOMCAT', strike: 'HORNET', shrike: 'SHRIKE', reaper: 'REAPER', shahed: 'SHAHED', carrier: 'CARRIER', battleship: 'LEVIATHAN', freighter: 'CONTAINER SHIP', squad: 'LANDING PARTY' };
   const label = u => u.type === 'carrier' ? (u.side === 1 ? 'ALBATROSS' : 'KRAKEN') : u.name && u.type === 'strike' ? u.name : LABEL[u.type] || u.type.toUpperCase();
 
@@ -107,9 +113,13 @@ export function createSpectator(h) {
     } else {
       const e = S.shot, u = e.unit && !e.unit.dead && !e.unit.gone ? e.unit : null;
       if (u) cam.want.set(u.p.x, u.p.y, u.p.z); else cam.want.set(e.x, e.y, e.z);
-      cam.dist += ((u && (u.type === 'strike' || u.type === 'shrike') ? 140 : u && u.dims ? 260 : 200) - cam.dist) * 0.02;
+      cam.dist += ((u && u.air ? 75 : u && u.dims ? 260 : u ? 110 : 200) - cam.dist) * 0.04;
+      cam.chase = u && (u.air || !u.dims) && u.v ? u : null;
     }
-    cam.focus.lerp(cam.want, 1 - Math.exp(-1.6 * dtReal));
+    if (cam.chase && S.shot && S.shot.unit !== cam.chase) cam.chase = null;
+    if (cam.focus.distanceTo(cam.want) > 450) { cam.focus.copy(cam.want); S.camInit = false; }   // far away: a cut, not a long pan across the map
+    cam.focus.lerp(cam.want, 1 - Math.exp(-(cam.chase ? 7 : 1.6) * dtReal));
+    if (cam.chase && Math.hypot(cam.chase.v.x, cam.chase.v.z) > 3) { const want = Math.atan2(-cam.chase.v.x, -cam.chase.v.z) + 0.35; let d = want - cam.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); cam.yaw += d * Math.min(1, 1.5 * dtReal); cam.pitch += (0.3 - cam.pitch) * Math.min(1, dtReal); return; }   // a craft on the move: ride along behind and above it
     cam.yaw += dtReal * 0.05;
   }
   function biggestFight() {
@@ -134,8 +144,8 @@ export function createSpectator(h) {
       if (k.KeyQ) cam.yaw += dtReal * 1.2; if (k.KeyE) cam.yaw -= dtReal * 1.2;
       cam.focus.y = Math.max(h.groundY(cam.focus.x, cam.focus.z), 0) + 4;
     }
-    const map = S.cam === 'MAP';
-    const dist = map ? 1500 : cam.dist, pitch = map ? 1.45 : cam.pitch, yaw = map ? 0 : cam.yaw, fc = map ? _v.set(0, 0, 0) : cam.focus;
+    const map = false; if (S.cam === 'MAP') director(dtReal);   // (MAP: the big plot over the action camera)
+    const dist = map ? 760 : cam.dist, pitch = map ? 1.3 : cam.pitch, yaw = map ? 0 : cam.yaw, fc = map ? _v.set(0, 0, 0) : cam.focus;
     cam.tgt.set(fc.x + Math.sin(yaw) * Math.cos(pitch) * dist, fc.y + Math.sin(pitch) * dist, fc.z + Math.cos(yaw) * Math.cos(pitch) * dist);
     // never in the ground or the sea, never inside a hull
     const floor = Math.max(h.groundY(cam.tgt.x, cam.tgt.z), 0) + 6;
@@ -178,9 +188,9 @@ export function createSpectator(h) {
   function build() {
     const css = document.createElement('style');
     css.textContent = `
-body.simmode #tl,body.simmode #tr,body.simmode #bot,body.simmode #radar,body.simmode #hint,body.simmode #war,body.simmode #feed,body.simmode #title{display:none!important}
+body.simmode #tl,body.simmode #tr,body.simmode #bot,body.simmode #radar,body.simmode #hint,body.simmode #war,body.simmode #feed,body.simmode #title,body.simmode #cmdBoard,body.simmode #caution,body.simmode #fleet{display:none!important}
 #simov{position:fixed;inset:0;pointer-events:none;font-family:Consolas,"Courier New",monospace;color:#cfe;text-shadow:0 0 4px #000;z-index:5}
-#simov .pan{position:absolute;top:12px;width:300px;max-width:calc(50vw - 24px);box-sizing:border-box;padding:8px 10px 6px;background:rgba(6,14,12,.78);border:1px solid #3d5a4a;box-shadow:inset 0 0 18px rgba(0,0,0,.6)}
+#simov .pan{position:absolute;top:12px;width:300px;max-width:calc(50vw - 24px);box-sizing:border-box;padding:8px 10px 6px;background:rgba(6,14,12,.93);border:1px solid #3d5a4a;box-shadow:inset 0 0 18px rgba(0,0,0,.6)}
 #simov .pan.b{left:12px;border-left:3px solid #4cf}
 #simov .pan.r{right:12px;border-right:3px solid #f74}
 #simov h4{margin:0 0 2px;font-size:15px;letter-spacing:4px;font-weight:normal}
@@ -201,10 +211,11 @@ body.simmode #tl,body.simmode #tr,body.simmode #bot,body.simmode #radar,body.sim
 #simov .isl{display:flex;gap:3px;justify-content:center;margin-top:5px}
 #simov .isl i{width:12px;height:12px;border:1px solid rgba(255,255,255,.35);box-sizing:border-box}
 #simov .isl i.c{border-radius:0;outline:1px solid rgba(255,255,255,.5);outline-offset:1px}
-#simov .tl{position:absolute;left:12px;right:250px;bottom:12px;height:92px;background:rgba(6,14,12,.78);border:1px solid #3d5a4a}
+#simov .tl{position:absolute;left:12px;right:250px;bottom:12px;height:92px;background:rgba(6,14,12,.93);border:1px solid #3d5a4a}
 #simov .tl canvas{position:absolute;inset:0;width:100%;height:100%}
-#simov .map{position:absolute;right:12px;bottom:12px;width:226px;height:226px;background:rgba(6,14,12,.78);border:1px solid #3d5a4a}
+#simov .map{position:absolute;right:12px;bottom:12px;width:226px;height:226px;background:rgba(6,14,12,.93);border:1px solid #3d5a4a}
 #simov .map canvas{width:100%;height:100%}
+#simov .map.big{left:50%;top:50%;right:auto;bottom:auto;width:min(560px,calc(100vh - 200px));height:min(560px,calc(100vh - 200px));transform:translate(-50%,-50%);z-index:2}
 #simov .keys{position:absolute;left:12px;bottom:110px;font-size:11px;letter-spacing:1px;color:#8a9;background:rgba(6,14,12,.6);padding:3px 8px;border:1px solid #2c3f35}
 #simov .keys b{color:#ec6;font-weight:normal}
 #simov .end{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);padding:14px 26px;background:rgba(6,14,12,.88);border:1px solid #ec6;text-align:center;display:none}
@@ -241,7 +252,7 @@ body.simmode #tl,body.simmode #tr,body.simmode #bot,body.simmode #radar,body.sim
     const ownCol = o => o === 1 ? '#4cf' : o === 2 ? '#f74' : '#776';
     elTop.innerHTML = `<div class="clock">${mmss(W.time)}</div><div class="spd">${S.paused ? 'PAUSED' : S.speed + 'X'}  &middot;  CAMERA ${S.cam}${S.cam === 'FOLLOW' && S.follow ? ' ' + esc(label(S.follow)) : S.cam === 'ACTION' && S.shot ? ': ' + esc(S.shot.text) : ''}  &middot;  SEED ${S.seed}</div>
       <div class="isl">${W.islands.map(I => `<i class="${I.cave ? 'c' : ''}" title="${esc(I.name)}" style="background:${ownCol(I.owner)}"></i>`).join('')}</div>`;
-    timeline(); minimap();
+    elMap.parentNode.classList.toggle('big', S.cam === 'MAP'); timeline(); minimap();
     if (W.over && elEnd.style.display !== 'block') {
       elEnd.style.display = 'block';
       elEnd.innerHTML = `<h3>${W.over.result === 'win' ? 'TASK FORCE WINS' : 'RUNAWAY WINS'}</h3><p>${esc(W.over.why)} AFTER ${mmss(W.time)}</p><p>${esc(blueD.name)} vs ${esc(redD.name)}  &middot;  R: THE NEXT WAR (SEED ${S.seed + 1})</p>`;
@@ -253,7 +264,7 @@ body.simmode #tl,body.simmode #tr,body.simmode #bot,body.simmode #radar,body.sim
     const x = cv.getContext('2d'), span = Math.max(600, Math.ceil((W.time + 60) / 600) * 600), px = t => 8 + (w - 16) * t / span;
     x.clearRect(0, 0, w, hgt);
     x.font = '10px Consolas, monospace'; x.fillStyle = '#687'; x.strokeStyle = 'rgba(140,170,150,.25)';
-    for (let t = 0; t <= span; t += 300) { x.beginPath(); x.moveTo(px(t), 12); x.lineTo(px(t), hgt - 4); x.stroke(); x.fillText(`${t / 60}M`, px(t) + 2, 10); }
+    for (let t = 0; t <= span; t += 300) { x.beginPath(); x.moveTo(px(t), 12); x.lineTo(px(t), hgt - 4); x.stroke(); if (px(t) + 30 < w) x.fillText(`${t / 60}M`, px(t) + 2, 10); }
     // the lead: TASK FORCE strength minus RUNAWAY's (above the line: TASK FORCE ahead)
     const s = T.samples, mid = hgt * 0.55; let mx = 30; for (const q of s) mx = Math.max(mx, Math.abs(q.s1 - q.s2));
     x.strokeStyle = 'rgba(200,200,180,.35)'; x.beginPath(); x.moveTo(px(0), mid); x.lineTo(px(span), mid); x.stroke();
@@ -270,12 +281,14 @@ body.simmode #tl,body.simmode #tr,body.simmode #bot,body.simmode #radar,body.sim
     x.fillStyle = '#fff'; x.fillRect(px(W.time) - 1, 12, 2, hgt - 16);
   }
   function minimap() {
-    const x = mapCtx, N = 226, k = N / 1400, P = (a, b) => [N / 2 + a * k, N / 2 + b * k];
+    const big = S.cam === 'MAP', N0 = big ? 560 : 226; if (elMap.width !== N0) { elMap.width = elMap.height = N0; }
+    const x = mapCtx, N = N0, k = N / 1400, P = (a, b) => [N / 2 + a * k, N / 2 + b * k];
     x.clearRect(0, 0, N, N); x.fillStyle = 'rgba(10,30,40,.5)'; x.fillRect(0, 0, N, N);
-    for (const I of W.islands) { const [cx, cz] = P(I.x, I.z); x.fillStyle = I.owner === 1 ? 'rgba(70,190,255,.55)' : I.owner === 2 ? 'rgba(255,110,60,.55)' : 'rgba(170,160,120,.45)'; x.beginPath(); x.arc(cx, cz, Math.max(3, I.r * k * 0.8), 0, 6.283); x.fill(); if (I.cave) { x.strokeStyle = '#eee'; x.stroke(); } }
+    for (const I of W.islands) { const [cx, cz] = P(I.x, I.z); x.fillStyle = I.owner === 1 ? 'rgba(70,190,255,.55)' : I.owner === 2 ? 'rgba(255,110,60,.55)' : 'rgba(170,160,120,.45)'; x.beginPath(); x.arc(cx, cz, Math.max(3, I.r * k * 0.8), 0, 6.283); x.fill(); if (I.cave) { x.strokeStyle = '#eee'; x.stroke(); } if (big) { x.font = '11px Consolas, monospace'; x.fillStyle = '#dde'; x.textAlign = 'center'; x.fillText(I.name, cx, cz - Math.max(3, I.r * k * 0.8) - 4); x.textAlign = 'left'; } }
+    if (big) { x.font = '12px Consolas, monospace'; x.fillStyle = '#ec6'; x.fillText('STRATEGIC PLOT  -  SQUARES: SHIPS  DOTS: AIRCRAFT  SPECKS: TROOPS  RINGED: CAVE ISLANDS', 10, N - 10); }
     for (const u of W.units) {
       if (u.dead || u.gone || !u.p) continue; const [cx, cz] = P(u.p.x, u.p.z); x.fillStyle = u.side === 1 ? '#9ef' : '#fb8';
-      if (u.dims) { x.fillRect(cx - 3, cz - 3, 6, 6); } else if (!u.ground) x.fillRect(cx - 1, cz - 1, 2, 2);
+      const q = big ? 2 : 1; if (u.dims) { x.fillRect(cx - 3 * q, cz - 3 * q, 6 * q, 6 * q); } else if (!u.ground) x.fillRect(cx - q, cz - q, 2 * q, 2 * q);
     }
     const GS = W.ground && W.ground.sim; if (GS) for (const u of GS.units) if (u.alive) { const [cx, cz] = P(u.x, u.z); x.fillStyle = u.side === 1 ? '#bff' : '#fc9'; x.fillRect(cx, cz, 1, 1); }
     if (S.focus) { const [cx, cz] = P(S.focus.x, S.focus.z); x.strokeStyle = '#ec6'; x.strokeRect(cx - 6, cz - 6, 12, 12); }

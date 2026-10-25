@@ -42,8 +42,8 @@ export function createStrikeWing({ W, terrainH, scene, feed = () => {}, fleet = 
     A.reset(c.p.x, CARRIER.DECK + c.p.y, c.p.z, c.yaw, { running: true, airborne: true, alt: 60, speed: 95 });
     for (const e of A.eng) e.n = 0.95;
     P.anchor = { x: c.p.x, y: 0, z: c.p.z }; P.spawnAir('climb');
-    const mesh = buildMesh ? buildMesh() : new THREE.Object3D();
-    const u = { type: 'strike', side: 1, sim: A, ai: P, p: A.pos, v: A.vel, yaw: 0, hp: STRIKE.HP, hpMax: STRIKE.HP, mesh, parts: { group: mesh, animate() {} }, r: STRIKE.R, cd: 0, ph: 0, air: true, name,
+    const model = buildMesh ? buildMesh() : null, mesh = model ? model.group : new THREE.Object3D();   // (the browser: the HORNET model, control surfaces and gear moving)
+    const u = { type: 'strike', side: 1, sim: A, ai: P, p: A.pos, v: A.vel, yaw: 0, hp: STRIKE.HP, hpMax: STRIKE.HP, mesh, parts: { group: mesh, animate: model ? (A, dt, t) => model.animate({ ...A.surf, gear: A.gear, wow: A.wow }, dt, t) : () => {} }, r: STRIKE.R, cd: 0, ph: 0, air: true, name,
       tgt: target, why, phase: 'ingress', bombs: STRIKE.BOMBS, aim: new THREE.Vector3(), t: 0, released: 0 };
     scene.add(mesh); W.units.push(u); SW.jets.push(u); SW.stats.sorties++; SW.turnT = STRIKE.TURN;
     feed(`${name} OFF THE ALBATROSS  -  STRIKE ${why}`);
@@ -65,6 +65,7 @@ export function createStrikeWing({ W, terrainH, scene, feed = () => {}, fleet = 
       const u = SW.jets[i], A = u.sim, P = u.ai; u.t += dt;
       if (u.dead || u.dying || A.dead) {
         SW.jets.splice(i, 1); if (u.recovered) continue;
+        if (P.recovered && !u.dying && !A.dead) { u.recovered = true; SW.stats.recovered++; if (fleet) fleet.give('jet'); continue; }   // (trapped by the pilot's own pattern: airwar.js stows it)
         SW.stats.lost++; if (fleet) fleet.lose('jet', 'SHOT DOWN'); continue;
       }
       if (u.phase !== 'home' && gone(u.tgt) && !retarget(u)) home(u, 'TARGET GONE');
