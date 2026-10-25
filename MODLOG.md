@@ -2596,3 +2596,53 @@ the terrain rebuild (ngc/terrain) will change which lots take them.
   aid; AI Marines don't react to a dropped live grenade (no dive for cover: they take the fragments); the first-person
   fists stay fists when swimming (no open-hand mesh); hands on the rails are placed for the island ladders' width, not
   each ladder's real rails; the AI's grenades are drawn within 260 m only.
+
+## 2026-10-25 — NGC-1980 SEALIFE 2: a living sea that reacts to the units (branch ngc/sealife2)
+User: "Make sea biology sim for graphical pop in that when units are moving through or near the sea the fish react to
+the physics and school around." Before: fish only round the camera, 2-5 px dark specks, nothing at or above the top
+(see docs/ngc1980/findings/sealife2.md for the before shots and every bug met on the way).
+- **fishsim.js** (pure, node; same API plus anchors, events, signs, quality): schools spawn and stay round the camera AND
+  round every unit on the water (ship hulls, LCAC, LCM-8, trawlers, low helicopters, swimmers; units within 520 m of the
+  camera; at most 45 % of the budget away from the camera). Budget by quality (boids: low 420 / medium 760 / high
+  1100; pilchard, mackerel and damselfish boids are drawn as a cluster of 4 fish ~1 BL apart). Schools fade in and out
+  (never popped), far ones (> 230 m) move as one. Boids on a per-school grid; bank into turns (the flash of flanks),
+  frightened fish twist and roll. Physics of the disturbances: bow pressure field (further ahead with speed), prop wash
+  (turbulence, the following current carries fish astern), rotor downwash (radial outflow in the top metre), hulls at
+  anchor are a FAD (fish gather in the shade 4-12 m off the side), a school split by a hull re-forms in her wake,
+  predators follow wakes. Everything rides the live waves: `surf()` is the drawn sea (same components, grid filter,
+  shallow fade as the GPU).
+  New species (12): bonito and amberjack hunt pilchard: the prey ball up, mill, are driven to the top, split round each
+  predator (fountain effect, Pitcher & Parrish 1993), one prey per strike with 4-10 s handling, passes throw up boils,
+  bonito leap clear; grey mullet leap from a boat in the shallows (Hoese 1985); flying fish taxi and glide 0.5-1.2 m over
+  the waves, tens of metres (Davenport 1994); common dolphins ride the bow of a ship under way in slots that scale with
+  her length, breathe every 10-35 s, porpoise above ~4.4 m/s (Au & Weihs 1980), hunt balls, flee blasts; sea bream and
+  damselfish hold station over the bed and come to look at a still swimmer; eagle rays; a sandbar shark that comes up
+  under a blast's dead fish (its fin cuts the top); barrel jellyfish near the top (sink out of a rough sea). Pilchard
+  have surface-feeding spells on calm days (nervous water). Rough sea: deeper; night: looser schools, no birds.
+- **seabirds.js** (pure, node): yellow-legged gull, common tern, northern gannet. They fly in from 170-230 m out of sight
+  to bait balls, surface-feeding pilchard, dead fish after a blast, trawlers and ships' wakes; gannets plunge folded at
+  ~19-24 m/s (Lee & Reddish 1981), stay down a few seconds and sit on the swell, run to take off; terns hover and dip;
+  gulls pick and sit; all flush from aircraft (helicopter 45-55 m, jet 110-130 m) and boats; they leave when the food
+  goes. The world's circling trawler gulls step aside while sea life is on (ambient.js `A.seaBirds`).
+- **sealifegfx.js / sealife.js**: instanced meshes (school clusters with a per-fish stable hash for the cluster shape,
+  single fish, dolphin with horizontal flukes and the Delphinus hourglass, eagle ray, jellyfish, birds with inner and
+  outer wing panels that flap and fold), one "where against the sea" rule per vertex using each body's local wave
+  height: in the air drawn normally, under it seen through the water at a depth just in front of the surface point and
+  ordered by water path (no self-z-fighting, nothing shows through hulls). Surface signs on a grid that rides the drawn
+  waves: nervous water, the bait ball's dark stain and froth, ripple rings, foam; spray from fx.mix for jumps, boils,
+  plunges, dolphin blows. Motes under water. Quality: pause menu SEA LIFE off / low / medium / high, `?sealife=`.
+- **Shared-file lines**: main.js (createSeaLife block: trawlers getter, LCM-8 and floating-vehicle hulls, swimmer flags,
+  bird flushing by the player's helicopter / jet; SEA LIFE menu item and handler); world/ambient.js (`A.trawlers`,
+  `A.seaBirds` guard on the trawler gulls).
+- **Tests**: `node tools/fishbench.mjs` 76/76 (was 29: bait ball, milling, fountain effect, flying-fish glides over the
+  live waves, mullet leaps, bow-riding / breathing / porpoising, FAD, wake re-forming, prop wash, curious bream,
+  unit-anchored spawning and budget, no popping, determinism, wave consistency at SS5, birds arrive out of sight /
+  plunge / dip / sit on the swell / flush / leave, gulls and the shark at a blast, storm and night, cost).
+  `tools/scenes/sealife.mjs` (PARTS=huey,deck,bow,swim,jet,lcm,fps,diag). navalbench 22/22, seabench 15/15, worldbench pass.
+- **Cost**: node, steady state: 811 boids HIGH 1.3 ms / frame; bench 1010 boids HIGH 1.74 ms avg, MEDIUM 690 1.36 ms;
+  30 birds ~0.04 ms. The first ~30 s of a new sea cost 2-3x while V8 meets every branch (see findings).
+  Browser (SwiftShader, res 0.6, HIGH, Huey by a bait ball, 520-740 fish + 25 birds): 263 ms on vs 271 ms off median
+  frame - no measurable cost; sealife CPU 1.5-2.4 ms a frame.
+- **Untested / next**: a bait ball 70 m off from the Huey's chase camera at a grazing angle is small (the birds over it
+  are the tell); seabird and fish sound; dolphins don't yet use the LCM-8 or trawlers much (bigger bows win); the
+  LEVIATHAN / KRAKEN draw dolphins like any ship; probabilistic bench tests are single-seed.

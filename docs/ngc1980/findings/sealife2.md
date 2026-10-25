@@ -75,10 +75,35 @@ the error correctly.
 **Action** Fixed both lines. Suggestion for every agent: check game files with
 `node --input-type=module --check < game/js/<file>.js` (the brief's `node --check game/js/*.js` can miss this).
 
+## 2026-10-25 - Mixed object shapes made the fish sim 2-3x slower and churn ~8 MB of garbage a frame
+**Finding** A heavy sea (HIGH, 788 boids, a hunt, a ship) cost 4.2-4.8 ms a 30 Hz frame in node, a third of it in the
+garbage collector (~1 400 scavenges in 27 s); in the browser sealife.ms read 4.7 ms.
+**Evidence** `node --cpu-prof` / `--trace-gc` / `--trace-deopt` on a scratch probe: "wrong map" deopts in stepSchool,
+planSchool, buildGrid; stepSchool re-optimised 24-26 times in 27 s.
+**Cause** School objects gained properties after creation (topT, surfacing, wasBall, held) and threats, transient
+scares and anchors were three different object shapes read by the same code, so the hot loops went polymorphic and fell
+back to baseline code that boxes every double. Separately, every new rare branch (a leap, a strike, a breath) the giant
+stepSchool meets for the first time deoptimises it once: warm-up, gone after ~30 s.
+**Action** Fixed in 50ca565: one shape for threats / transients / anchors (a factory), all school and bird fields in
+their literals, neighbour sums in plain locals. Steady state 811 boids HIGH: 1.27 ms / frame; bench HIGH 1.74 ms avg
+(was 2.10), MEDIUM 1.36 ms (was 1.59). Suggestion (OPEN): split stepSchool's rare branches (air, stunned, mammal,
+predator) into their own functions to shorten the warm-up.
+
+## 2026-10-25 - Bench outcomes are single-seed
+**Finding** Adding one random draw to school creation shifted the seeded stream and flipped 6 probabilistic tests
+(a kill at a blast, a mullet leap, the shark's arrival, a swimmer's distance).
+**Action** Restored the stream (the new timer does not draw from it). OPEN: run the behaviour tests over several seeds
+and assert rates rather than single outcomes.
+
 ## 2026-10-25 - Cost
 **Finding / Evidence** node fishbench: 1010 boids (HIGH budget 1100, each pilchard / mackerel boid drawn as 4 fish)
 with a hunt and birds: 2.10 ms average, 3.24 ms worst per 60 Hz frame; 10 seabirds 0.014 ms. Medium budget (760) round
 HOME ISLAND: 1.24 ms average (old sim: 0.24 ms for 552 fish). In game (SwiftShader, res 0.6): sealife.ms 1.6-2.7 ms
-a frame incl. instance upload during the Huey bait-ball part. fps on/off: see the entry below when measured.
+a frame incl. instance upload during the Huey bait-ball part.
+fps (SwiftShader software GL, res 0.6, HIGH, the Huey hovering by a bait ball: 520-740 fish drawn, 23-28 birds,
+signs; life on vs suspended in alternating 40-frame blocks, median): 263.2 ms on vs 270.6 ms off - no measurable cost
+(noise larger than the effect); sealife CPU 1.5-2.4 ms a frame. Full tour tools/scenes/sealife.mjs 12/12, run
+tools/runs/2026-10-25_15-42-38-sealife. An earlier run with my node bench running alongside measured 229 vs 199 ms and
+4.7 ms CPU (contended machine, before the shape fix).
 **Action** Far schools (> 230 m) move as one (no boids); neighbour search on a per-school grid; fish that cannot show
 are not drawn; quality setting SEA LIFE off / low / medium / high in the pause menu.
