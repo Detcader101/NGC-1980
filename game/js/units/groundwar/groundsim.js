@@ -460,8 +460,8 @@ export function createGroundSim(o) {
   function lod(B) {
     const c = GS.cam, I = B.I, d = Math.hypot(c.x - I.x, c.z - I.z) - I.r;
     const near = d < NEAR || o.full;
-    if (near === B.near) return;
-    B.near = near;
+    if (near === B.near && B.units.length === B.lodN) return;   // (SIM MODE fix: units that join a far fight later go to the distant level too - they ran the full walker sim before)
+    B.near = near; B.lodN = B.units.length;
     for (const u of B.units) {
       if (u.kind === 'strider') {
         if (!near && u.sim.up && u.alive) { u.lite = true; }
