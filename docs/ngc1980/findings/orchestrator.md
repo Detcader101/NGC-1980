@@ -29,3 +29,8 @@ examples they gave: the KRAKEN has container freighters that the ALBATROSS lacks
 into a flying SKY CARRIER.
 **Action:** OPEN - ngc/parity. First a role-by-role matrix (docs/ngc1980/PARITY.md), then every gap filled across the
 game, tech tree, AI and sim, with sim win rates measured before and after.
+
+## 2026-10-25 - Paused at the user's request (weekly usage)
+**Action:** all agents stopped, every worktree checkpoint-committed. Merged into experimental: techtree, the simmode
+first cut, healthbars. Paused mid-work: simmode (tournament, SIMREPORT), sealife2, bugsweep (catapult fix + deck
+ops), commander2, qa-ship, airlift, parity, ch46fly. The repo was made public at the user's request.
