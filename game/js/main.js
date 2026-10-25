@@ -2043,7 +2043,7 @@ function updateTags() {
     e.style.display = 'block'; e.style.transform = `translate(${((_tv.x + 1) / 2 * innerWidth).toFixed(0)}px,${((1 - _tv.y) / 2 * innerHeight - 30).toFixed(0)}px)`; e.style.opacity = clamp(1.4 - d / 380, 0.25, 1).toFixed(2);
     markers.avoid((_tv.x + 1) / 2 * innerWidth, (1 - _tv.y) / 2 * innerHeight - 30);   // UNIT MARKERS: a marker under this tag is drawn faint
   };
-  if (G.state === 'play' && G.mode === 'zarch' && !bigMap && camB < 0.05) {
+  if (G.state === 'play' && G.mode === 'zarch' && !bigMap && camB < 0.05 && !interiors.inShip) {   // (QA ngc/qa-ship: not through the ALBATROSS's bulkheads)
     const cx = zCam.position.x, cz = zCam.position.z;
     for (const I of ISLANDS) {
       const p = I.pad, d = Math.hypot(p.x - cx, p.z - cz); if (d > 430 || d < 25 || !fog.exploredAt(p.x, p.z)) continue;

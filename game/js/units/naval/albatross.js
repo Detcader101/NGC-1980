@@ -464,9 +464,9 @@ export function buildAlbatross(side = 1, opts = {}) {
   // vehicles and deck clutter
   // (the port strip from z -6 to -36 is the vehicle park: ground.js DECK_SPOTS put the Marines' jeep and armour there)
   // (ngc/bugsweep) DECK OPS: Tilly and the aft tractor moved off the taxi lane and the jet spots (units/naval/deckops.js)
-  tractor(kit, 5.6, -1.5, 0.4); tractor(kit, 5.5, 58.6, Math.PI / 2); tractor(kit, -10.6, -45, -0.25, 0xe8e8e2);
+  tractor(kit, 5.6, -1.5, 0.4); tractor(kit, 5.5, 58.6, Math.PI / 2); tractor(kit, -10.6, -49.2, -0.25, 0xe8e8e2);
   tilly(kit, 10.6, -7.2, 0.05); bowser(kit, 11.4, -14.5, Math.PI); huffer(kit, 4.6, -16, 1.2); huffer(kit, 4.3, 46, -0.6);
-  for (const [x, z] of [[4.2, -25], [6.4, 24], [12.4, 15.8], [-12.6, 2], [-12.4, -40]]) fireBottle(kit, x, z);
+  for (const [x, z] of [[4.2, -25], [6.4, 24], [12.4, 15.8], [-12.6, 2], [-12.8, -36.4]]) fireBottle(kit, x, z);   // (QA: the last was at -12.4, -40, against a tank on DECK PARK 3)
   for (let i = 0; i < 4; i++) kit.box(0.6, 0.15, 3.2, 0x2a2a2a, -13.0 + i * 0.7, DECK + 0.08, 6 + i * 0.4, 0, 0.1, 0);   // tow bars stacked at the edge
   // parked aircraft: two Hornets forward of the island (tails over the starboard edge); a Tomcat (oversweep) on the aft
   // starboard lift, below. (ngc/bugsweep: the two Tomcats parked aft of the island, solid since SEAWORLD, were in the landing
@@ -547,8 +547,9 @@ export function buildAlbatross(side = 1, opts = {}) {
       // catapult crew at the deck-edge control station and the hold-back bar, a white-shirt safety petty officer
       { x: -9.4, z: -4.2, yaw: 0.8, jersey: 'green', mode: 'kneel' }, { x: 4.0, z: -12, yaw: -0.5, jersey: 'green' }, { x: -9.6, z: -10, yaw: 0.5, jersey: 'yellow', mode: 'signal' },
       { x: -9.3, z: 1.5, yaw: 0.3, jersey: 'green', mode: 'talk' }, { x: 3.9, z: 1.2, yaw: -0.6, jersey: 'white', hands: true },
-      // the bow: the bow tractor's crew and a blue-shirt pair with chains
-      { x: -9.0, z: -43.6, yaw: 0.4, jersey: 'blue', mode: 'talk' }, { x: -9.4, z: -42.6, yaw: -2.6, jersey: 'blue' }, { x: -9.6, z: -38, yaw: 1.4, jersey: 'white', hands: true },
+      // the bow: the bow tractor's crew and a blue-shirt pair with chains (QA ngc/qa-ship: clear of ground.js's DECK
+      // PARK spots at x -10.5, z -16 / -29 / -42 - a vehicle parked there, an M113 from the start, stood in two of them)
+      { x: -8.6, z: -48.4, yaw: 0.4, jersey: 'blue', mode: 'talk' }, { x: -9.0, z: -47.4, yaw: -2.6, jersey: 'blue' }, { x: -9.6, z: -36.4, yaw: 1.4, jersey: 'white', hands: true },
       // each parked Hornet: the plane captain (brown) at the nose, a blue chocker at the mains, the fuel crew (purple)
       // at the single-point refuel on the left side, ordnancemen (red) at the wing stations
       { x: 5.6, z: -50.6, yaw: 0.6, jersey: 'brown', hands: true }, { x: 8.4, z: -44.0, yaw: 2.4, jersey: 'blue', mode: 'kneel' }, { x: 6.8, z: -40.5, yaw: 2.4, jersey: 'purple', mode: 'kneel' },
@@ -565,7 +566,7 @@ export function buildAlbatross(side = 1, opts = {}) {
       // people walking the deck: along the street by the island, across the bow, round the fantail
       { mode: 'walk', jersey: 'blue', path: [[4.4, -48], [4.4, -6], [6.6, -4], [6.6, 16], [6.6, -4], [4.4, -6]], speed: 1.3 },
       { mode: 'walk', jersey: 'yellow', path: [[3.8, 18], [3.8, 46], [3.8, 18]], speed: 1.1 },
-      { mode: 'walk', jersey: 'green', path: [[-8.9, -36], [-8.9, -6], [-8.9, -36]], speed: 1.4 },
+      { mode: 'walk', jersey: 'green', path: [[-9.0, -52], [2.0, -52], [-9.0, -52]], speed: 1.4 },   // (QA: across the bow; was down x -8.9, through vehicles on the DECK PARK spots)
       { mode: 'walk', jersey: 'purple', path: [[12.8, -34], [12.8, -12], [12.8, -34]], speed: 0.9 },
       { mode: 'walk', jersey: 'brown', path: [[13.5, 18], [13.5, 54], [13.5, 18]], speed: 1.2 },   // (outboard of the jets on the deck-ops spots)
     ];

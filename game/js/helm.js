@@ -9,11 +9,17 @@ import { CARRIER } from './ships.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const EYE = new THREE.Vector3(-0.2, 10.9, -1.9);   // in the tower's frame: standing at the wheel, looking forward
+// QA (ngc/qa-ship): on the INTERIORS bridge you stand where the helmsman stood, at the spokes (he steps aside to port);
+// from 1.1 m behind him the lee helmsman at the telegraph filled the right of the view
+const EYE_IN = new THREE.Vector3(-0.2, 10.78, -2.9);
 const KT = 1.944;
 
 function buildBridge() {
   const g = new THREE.Group(), M = (c, o) => new THREE.MeshLambertMaterial({ color: c, ...o }), dark = M(0x23272c), steel = M(0x4c5560), wood = M(0x6b4a2a), brass = M(0xb08a3a);
-  const box = (w, h, d, m, x, y, z, p = g) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); p.add(b); return b; };
+  // QA (ngc/qa-ship): `room` is the stand-in bridge (shell, console, chart table, wheel, telegraph) for a carrier with
+  // no INTERIORS bridge; with one, only the console face and the lift lever are added to it and its own wheel turns
+  const room = new THREE.Group(); g.add(room);
+  const box = (w, h, d, m, x, y, z, p = room) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); p.add(b); return b; };
   // the room: floor, ceiling, sills and window frames (the tower's own walls are invisible from inside)
   box(4.8, 0.1, 9.6, M(0x3b3530), 0, 9.05, -1);                     // deck plates
   box(4.8, 0.1, 9.6, M(0x30353a), 0, 12.95, -1);                    // deckhead
@@ -29,20 +35,20 @@ function buildBridge() {
   box(1.6, 0.9, 1.0, wood, 1.3, 9.5, 2.6); box(1.5, 0.04, 0.9, M(0xd8cfb0), 1.3, 9.97, 2.6);     // chart table + chart
   // the wheel: spokes and rim on a pedestal
   box(0.3, 0.8, 0.3, brass, -0.2, 9.45, -3.75);
-  const wheel = new THREE.Group(); wheel.position.set(-0.2, 10.05, -3.6); g.add(wheel);
+  const wheel = new THREE.Group(); wheel.position.set(-0.2, 10.05, -3.6); room.add(wheel);
   wheel.add(new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.035, 6, 24), wood));
   for (let i = 0; i < 8; i++) { const sp = new THREE.Mesh(new THREE.BoxGeometry(0.03, 1.08, 0.03), wood); sp.rotation.z = i * Math.PI / 8; wheel.add(sp); }
   wheel.add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.1, 10).rotateX(Math.PI / 2), brass));
   // speed telegraph (right of the wheel) and lift lever (left): handles on pivots
-  const mkLever = (x, col) => {
-    box(0.25, 0.6, 0.25, steel, x, 9.35, -3.85);
-    const piv = new THREE.Group(); piv.position.set(x, 9.65, -3.85); g.add(piv);
+  const mkLever = (x, col, p) => {
+    box(0.25, 0.6, 0.25, steel, x, 9.35, -3.85, p);
+    const piv = new THREE.Group(); piv.position.set(x, 9.65, -3.85); p.add(piv);
     const arm = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.45, 0.05), M(0x999999)); arm.position.y = 0.22; piv.add(arm);
     const knob = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), M(col)); knob.position.y = 0.46; piv.add(knob);
     return piv;
   };
-  const tel = mkLever(0.75, 0xcc2a1e), lift = mkLever(-1.15, 0x2a8cdd);
-  return { group: g, cv, tex, wheel, tel, lift };
+  const tel = mkLever(0.75, 0xcc2a1e, room), lift = mkLever(-1.15, 0x2a8cdd, g);
+  return { group: g, room, face, cv, tex, wheel, ownWheel: wheel, tel, lift };
 }
 
 function drawConsole(B, u, S, info) {
@@ -83,6 +89,15 @@ export function createHelm(ctx) {
     if (carrier === u && B) return;
     B = buildBridge(); carrier = u; u.parts.tower.add(B.group); B.group.visible = false;
   }
+  // QA (ngc/qa-ship): the INTERIORS bridge is there (its own deck, glass, console, wheel, helmsman): no second room,
+  // wheel or telegraph on top of it (they z-fought and stood two wheels in front of you); the console face sits on
+  // its console and its wheel is the one that turns
+  function fit(u) {
+    const IW = u.interior && u.interior.wheel;
+    B.room.visible = !IW; B.wheel = IW || B.ownWheel;
+    if (IW) { B.face.position.set(0, 10.12, -5.4); B.face.scale.set(0.56, 0.56, 1); B.face.rotation.x = -Math.PI / 2 + 0.7; }
+    else { B.face.position.set(0, 10.14, -5.0); B.face.scale.set(1, 1, 1); B.face.rotation.x = -Math.PI / 2 + 0.45; }
+  }
   const helm = {
     get active() { return active; },
     get bridgeView() { return active && view === 'bridge'; },
@@ -121,10 +136,10 @@ export function createHelm(ctx) {
     },
     camera(camA, dt, head) {
       const u = war.carrier;
-      B.group.visible = view === 'bridge'; if (u.parts.band) u.parts.band.visible = view !== 'bridge';
+      B.group.visible = view === 'bridge'; if (u.parts.band) u.parts.band.visible = view !== 'bridge'; fit(u);
       if (view === 'bridge') {
         u.mesh.updateMatrixWorld();
-        camA.position.copy(EYE).applyMatrix4(u.parts.tower.matrixWorld);
+        camA.position.copy(u.interior && u.interior.wheel ? EYE_IN : EYE).applyMatrix4(u.parts.tower.matrixWorld);
         u.mesh.getWorldQuaternion(_q);
         camA.quaternion.copy(_q).multiply(_q2.setFromEuler(_e.set(-0.2 + (head?.pitch || 0), head?.yaw || 0, 0, 'YXZ')));
         cam.copy(camA.position); return;

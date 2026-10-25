@@ -68,12 +68,12 @@ export function createCrew(members, { seed = 5 } = {}) {
     for (let i = 0; i < n; i++) {
       const p = members[i]; p.ph += dt;
       let { x, z, yaw } = p, lean = 0, drop = 0, aL = 0, aR = 0, aLz = 0.06, aRz = 0.06, lL = 0, lR = 0;
-      const push = p.mode !== 'seated' && p.director === undefined && avoid && avoid(x, z);   // (DECK OPS: the directors are placed by deckops.js)
+      const push = p.mode !== 'seated' && p.director === undefined && avoid && !avoid.soft && avoid(x, z);   // directors are placed by deckops.js; pedestrians use the soft avoidance below
       if (push) {   // clear the area: walk briskly away, crouched against the downwash
         const len = Math.hypot(push[0], push[1]) || 1, sp = 2.4 * dt;
         p.x += push[0] / len * sp; p.z += push[1] / len * sp; x = p.x; z = p.z;
         yaw = p.yaw = Math.atan2(-push[0], -push[1]); p.fled = 4;
-        const w = p.ph * 9; lL = Math.sin(w) * 0.6; lR = -lL; aL = -lL * 0.5; aR = lL * 0.5; lean = 0.25;
+        const w = p.ph * 9; lean = -0.25; lL = Math.sin(w) * 0.6 - lean; lR = -Math.sin(w) * 0.6 - lean; aL = -lL * 0.5; aR = lL * 0.5;   // (QA: lean - is forward, into the wash; legs relative to it)
         pose(i, x, p.y, z, yaw, lean, 0.04, aL, aR, aLz, aRz, lL, lR); continue;
       }
       if (p.fled > 0) {   // drift back to the post once it is clear
@@ -97,7 +97,11 @@ export function createCrew(members, { seed = 5 } = {}) {
           yaw += Math.sin(p.ph * 0.3) * 0.2; break;
         }
         case 'kneel': {    // at a wheel: one knee down, working with the hands
-          drop = 0.45; lL = 1.45; lR = -0.35; lean = 0.3; aL = 0.9 + Math.sin(p.ph * 3) * 0.2; aR = 1.0 - Math.sin(p.ph * 3.3) * 0.2; break;
+          // QA (ngc/qa-ship): was drop 0.45, legs +1.45 / -0.35 with lean +0.3 (which tips the body BACK: + about x is aft):
+          // the front leg stuck out level at hip height, the back one sank 0.3 m into the deck. One-piece legs (0.9 m hip to
+          // sole) in a kneel: torso forward, the front leg down to its foot, the back one down to the knee-on-deck line,
+          // both ending on the deck (hip 0.9 cos 0.25 - 0.3 = 0.57 m = 0.9 cos 0.88; leg angles are relative to the lean)
+          drop = 0.3; lean = -0.25; lL = 0.88 + 0.25; lR = -0.88 + 0.25; aL = 1.1 + Math.sin(p.ph * 3) * 0.2; aR = 1.2 - Math.sin(p.ph * 3.3) * 0.2; break;
         }
         case 'lso': {      // the pickle held up, eyes aft on the groove
           aR = 1.9 + Math.sin(p.ph * 0.7) * 0.08; aRz = 0.1; aL = -0.2; yaw += Math.sin(p.ph * 0.4) * 0.15; break;
@@ -117,6 +121,9 @@ export function createCrew(members, { seed = 5 } = {}) {
           if (p.hands) { aL = -0.2; aR = -0.2; aLz = 0.5; aRz = 0.5; }   // hands on hips
         }
       }
+      // QA (ngc/qa-ship): someone on foot (or a vehicle) close by - step aside onto a circle round him (avoid.soft = its
+      // radius). Only the drawn spot moves (posts and paths stay), so he slides back as you walk on; walkers go round you.
+      if (avoid && avoid.soft && p.mode !== 'seated') { const s = avoid(x, z); if (s) { const d = Math.hypot(s[0], s[1]) || 0.01, k = avoid.soft / d; x = x + s[0] * (k - 1); z = z + s[1] * (k - 1); } }
       pose(i, x, p.mode === 'seated' ? p.ySeat : p.y, z, yaw, lean, drop, aL, aR, aLz, aRz, lL, lR);
     }
     J.instanceMatrix.needsUpdate = B.instanceMatrix.needsUpdate = A.instanceMatrix.needsUpdate = L.instanceMatrix.needsUpdate = true;

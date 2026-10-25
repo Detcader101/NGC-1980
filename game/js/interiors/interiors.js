@@ -21,7 +21,7 @@ import { buildRoomsGeo, leafGeo, RECIPES } from './furniture.js';
 import { planOf, QUONSET } from './rooms.js';
 import { roomParts, floorHere } from './roomsolid.js';
 import { createAlbInterior, HANGAR } from './shipint.js';
-import { buildShipGeo } from './shipgeo.js';
+import { buildShipGeo, helmWheelGeo } from './shipgeo.js';
 import { crewMesh } from './crewfig.js';
 
 const NEAR = 55, FAR = 80, MAXL = 160;
@@ -184,7 +184,13 @@ export function createInteriors(ctx) {
     const INT = createAlbInterior(u); u.interior = INT;
     const group = new THREE.Group(); group.name = 'albatross-interior';
     const g = buildShipGeo(INT), mesh = new THREE.Mesh(geoFrom(g.build()), MAT); mesh.renderOrder = -3; group.add(mesh);
-    const crew = crewMesh(INT.crew); crew.renderOrder = -3; group.add(crew);
+    // the bridge's wheel on its own (QA ngc/qa-ship): helm.js turns it when you have the helm (it drew a second wheel of its own)
+    const wheel = new THREE.Mesh(geoFrom(helmWheelGeo().build()), MAT); wheel.name = 'helm-wheel'; wheel.renderOrder = -3; wheel.position.set(...INT.wheelAt); group.add(wheel); INT.wheel = wheel;
+    // QA (ngc/qa-ship): one mesh per figure (was all merged), so a man can step aside when the player stands where he
+    // is - the helmsman when you take the wheel (his `aside` spot), anyone else hides rather than fill the first-person view
+    const crew = new THREE.Group(); crew.name = 'crew-figs'; group.add(crew);
+    for (const c of INT.crew) { const m = crewMesh([{ ...c, x: 0, y: 0, z: 0, yaw: 0 }]); m.name = 'crew-fig'; m.renderOrder = -3; m.position.set(c.x, c.y, c.z); m.rotation.y = c.yaw || 0; m.userData.c = c; crew.add(m);
+      if (c.aside) { const a = crewMesh([{ ...c, arms: 'side', x: 0, y: 0, z: 0, yaw: 0 }]); a.name = 'crew-fig'; a.renderOrder = -3; a.visible = false; a.userData.isAlt = true; m.userData.alt = a; crew.add(a); } }
     // the watertight doors' leaves (in the ship frame) and the hatch lid
     const leaves = INT.doors.map(D => {
       const k = D.d.kind === 'hatch' ? 'hatch' : 'wt', geo = geoFrom(leafGeo(k).build());
@@ -205,13 +211,24 @@ export function createInteriors(ctx) {
     if (!u || u.side !== 1 || !u.parts || !u.mesh || u.sinking !== undefined) return;
     if (!alb) attachCarrier(u);
     const near = Math.hypot(cam.position.x - u.p.x, cam.position.z - u.p.z) < 260;
-    alb.group.visible = near; if (!near) return;
+    alb.group.visible = near; IN.inShip = false; if (!near) return;
     // the camera in the ship frame: inside the island / the hangar (no punches) or outside
     _sh.copy(cam.position); u.mesh.worldToLocal(_sh);
     const zn = alb.INT.zoneOf(_sh.x, _sh.y, _sh.z), inIsland = zn === 'island' && _sh.y > 7.9 && insideIsland(_sh), inHangar = zn === 'hangar' || (zn === 'island' && _sh.y < 7.9);
     for (const { p, obj } of alb.punches) obj.visible = p.hangar ? !inHangar : !inIsland;
+    IN.inShip = (inIsland && _sh.y < 16.9) || zn === 'hangar';   // QA (ngc/qa-ship): main.js hides the island / ship name tags in here, below the bridge's glass (they showed through the bulkheads)
     for (const { D, obj } of alb.leaves) placeShipLeaf(D, obj);
+    for (const m of alb.crew.children) if (!m.userData.isAlt) stepAside(m, _sh);
     DOORS.refresh(alb.INT.doors);
+  }
+  // QA (ngc/qa-ship): the camera (ship frame) at a man's spot - within a metre, his head height or so - he steps to his
+  // aside spot if he has one (and it is clear of the camera), else he is not drawn; back at his post once you move off
+  const near1 = (v, x, y, z, r = 1.0) => Math.hypot(v.x - x, v.z - z) < r && v.y > y - 0.3 && v.y < y + 2.2;
+  function stepAside(m, v) {
+    const c = m.userData.c, alt = m.userData.alt; if (alt) alt.visible = false;
+    if (!near1(v, c.x, c.y, c.z, c.aside ? 1.6 : 1.0)) { m.visible = true; return; }
+    m.visible = false;
+    const a = c.aside; if (a && alt && !near1(v, a[0], c.y, a[1])) { alt.visible = true; alt.position.set(a[0], c.y, a[1]); alt.rotation.y = a[2]; }
   }
   const insideIsland = v => { const tx = v.x - 10.5, tz = v.z - 6; return tx > -2.3 && tx < 2.6 && tz > -8.5 && tz < 8.8 && v.y < 8 + 13.1; };
   function placeShipLeaf(D, obj) {

@@ -27,9 +27,9 @@ const S = {
   tvSet(g) { g.box(0, 0, 0, 0.55, 0.45, 0.45, C(0x2a2a2a)); g.box(0, 0.06, 0.226, 0.42, 0.32, 0.01, C(0x3a5050), 1); g.box(0, -0.3, -0.1, 0.1, 0.3, 0.1, GREY_D); },
   plotTable(g) { g.box(0, 0, 0, 1.6, 0.9, 2.4, GREY_D); g.box(0, 0.9, 0, 1.6, 0.06, 2.4, C(0x7a9aa8)); g.box(0, 0.96, 0, 1.4, 0.005, 2.2, C(0xc8d8d8), 1); for (let i = 0; i < 6; i++) g.box(-0.5 + (i % 3) * 0.5, 0.97, -0.6 + Math.floor(i / 3) * 1.1, 0.06, 0.02, 0.06, i % 2 ? RED : BLUE, 1); },
   flagChair(g) { S.captainChair(g); },
-  helm(g) {   // the wheel on its pedestal, the rudder angle indicator and the gyro repeater on the console behind it
+  helm(g, o) {   // the wheel on its pedestal, the rudder angle indicator and the gyro repeater on the console behind it
     g.box(0, 0, -0.3, 0.9, 1.1, 0.35, GREY_D); g.box(-0.25, 1.1, -0.3, 0.25, 0.25, 0.05, C(0x30353a)); g.cyl(0.2, 1.1, -0.3, 0.12, 0.08, 10, WHITE);
-    g.cyl(0, 0, 0.05, 0.08, 1.0, 6, GREY_D, 0); g.push(0, 1.05, 0.12, 0, Math.PI / 2); for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; g.strut([0, 0, 0], [Math.cos(a) * 0.32, 0, Math.sin(a) * 0.32], 0.025, BRASS); } for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8, b = (i + 1) * Math.PI / 8; g.strut([Math.cos(a) * 0.32, 0, Math.sin(a) * 0.32], [Math.cos(b) * 0.32, 0, Math.sin(b) * 0.32], 0.03, WOOD); } g.pop();
+    g.cyl(0, 0, 0.05, 0.08, 1.0, 6, GREY_D, 0); if (!o.noWheel) { g.push(0, 1.05, 0.12); wheel(g); g.pop(); }   // (QA ngc/qa-ship: the ALBATROSS's wheel is its own mesh - helmWheelGeo - that helm.js turns)
   },
   telegraph(g) { g.cyl(0, 0, 0, 0.13, 0.9, 8, GREY_D, 0); g.push(0, 1.05, 0, 0, Math.PI / 2); g.cyl(0, -0.08, 0, 0.2, 0.16, 12, BRASS, 3); g.cyl(0, 0.08, 0, 0.17, 0.005, 12, WHITE, 2); g.pop(); g.strut([0, 1.05, 0], [0, 1.25, 0.08], 0.03, BRASS); },
   captainChair(g) { g.box(0, 0, 0, 0.4, 0.75, 0.4, GREY_D); g.box(0, 0.75, 0, 0.65, 0.14, 0.6, LEATHER); g.box(0, 0.85, -0.28, 0.65, 0.7, 0.1, LEATHER); for (const s of [-1, 1]) g.box(s * 0.3, 0.89, 0, 0.08, 0.2, 0.55, LEATHER); g.box(0, 0.35, 0.3, 0.5, 0.05, 0.25, GREY_D); },
@@ -46,6 +46,10 @@ const S = {
   crates(g) { g.box(-0.5, 0, 0, 1.2, 0.9, 1.3, C(0x6a6a48)); g.box(0.65, 0, 0.1, 0.9, 1.2, 1.1, C(0x5a5e3e)); g.box(-0.45, 0.9, 0.05, 0.9, 0.6, 1.0, C(0x7a7a58)); for (const x of [-0.5, 0.65]) g.box(x, 0.5, 0.66, 0.5, 0.12, 0.01, WHITE, 1); },
   fireStation(g) { g.box(0, 0.9, 0, 1.0, 1.1, 0.2, RED); g.cyl(0, 1.0, 0.12, 0.35, 0.18, 12, RED, 3); g.cyl(0.35, 0.2, 0.15, 0.12, 0.6, 8, RED); g.box(0, 2.1, 0.02, 0.8, 0.18, 0.02, WHITE, 1); },
 };
+
+// the ship's wheel round its hub (the origin), in the x-y plane: turn it about z
+function wheel(g) { g.push(0, 0, 0, 0, Math.PI / 2); for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; g.strut([0, 0, 0], [Math.cos(a) * 0.32, 0, Math.sin(a) * 0.32], 0.025, BRASS); } for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8, b = (i + 1) * Math.PI / 8; g.strut([Math.cos(a) * 0.32, 0, Math.sin(a) * 0.32], [Math.cos(b) * 0.32, 0, Math.sin(b) * 0.32], 0.03, WOOD); } g.pop(); }
+export function helmWheelGeo(g = new Geo()) { wheel(g); return g; }
 
 export function buildShipGeo(INT, g = new Geo()) {
   // bulkheads (the ones the model's skin covers outside are inset; collision-only boxes are not drawn)
