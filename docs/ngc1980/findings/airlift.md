@@ -83,3 +83,10 @@ grass strips beside pads; the board could show which islands have a proper DZ.
 - Heavy-drop outcomes (slope / trees / sea / streamer) are random per drop (1.5 % streamer per canopy); no balance pass.
 - Troop lift: the squad is six Marines (630 kg); the Huey seats are four on the bench plus two in the doors - the
   player riding on the bench shifts one man to the floor.
+
+## 2026-10-25 - Crew chief called onto parked jeeps on every take-off; HUD over the panel
+**Finding**: lifting off from a pad with parked jeeps nearby, the crew chief started "BACK 9 · RIGHT 10 · UP 2"; in the
+cockpit view the hook HUD sat over the instrument panel; the gross weight read "4,410 KG OVER 9,500 LB" (mixed units).
+**Evidence**: runs/2026-10-25_15-47-26-airlift/18-troop-lift-flying.png, 10-cockpit-in-transit-chin-window.png.
+**Action**: fixed: talk-on only in a slow hover (< 4 m/s) within 16 m; the HUD moves up in the cockpit view; gross shows
+kg and lb. runs/2026-10-25_15-58-08-airlift (12/12).

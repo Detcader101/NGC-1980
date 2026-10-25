@@ -1174,7 +1174,7 @@ const seats = createSeats({ scene: zScene, crafts, war, foot, say, heli: { def: 
 const armDelivery = createArmorDelivery({ scene: zScene, AW, terrainH, hards: HARDS, beach: (I, tw) => GR.beach(I, tw), blocked: (x, z) => !GR.clearAt(x, z, 2.5), fx, sfx, say, feed, camZ: () => zCam });
 // AIRLIFT (units/air/airlift/): the Huey's cargo hook and troop lift; the C-130 heavy drop the command board orders
 const airlift = createAirlift({ scene: zScene, H, heliObj: () => shipMesh, rotorR: HELI.ROTOR_R, crafts, pool, war, fx, sfx, say, feed, groundY, waterAt, G, ISLANDS, hud: $('hud'),
-  serviceAt: (x, z) => serviceAt(x, z), whereIs: (x, z) => whereIs(x, z), armour: [m60C, m113C], riderSeat: () => crafts.active === seats.ride ? seats.ride.hueySeat() : null, crewFlying: () => heliAI.phase !== 'off' && !G.benchAI,
+  serviceAt: (x, z) => serviceAt(x, z), whereIs: (x, z) => whereIs(x, z), armour: [m60C, m113C], riderSeat: () => crafts.active === seats.ride ? seats.ride.hueySeat() : null, crewFlying: () => heliAI.phase !== 'off' && !G.benchAI, cockpitView: () => cockpitCam,
   gate: { sling: () => war.allow(1, 'sling') ? '' : war.gateMsg(1, 'sling'), troops: () => war.allow(1, 'trooplift') ? '' : war.gateMsg(1, 'trooplift') } });   // TECH TREE: AIRMOBILE LOGISTICS
 const airdrop = createAirdrop({ scene: zScene, war, fx, sfx, say, feed, terrainH, groundY, isWater, GR, pool, armour: { m113: m113C, m60: m60C }, crafts, hud: $('hud'),
   head, camZ: () => zCam, onLost: (id, why) => onUnitLost(id, why, false), whereIs: (x, z) => whereIs(x, z),

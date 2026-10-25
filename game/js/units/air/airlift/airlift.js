@@ -144,11 +144,12 @@ export function createAirlift(ctx) {
   function lookForLoad(dt) {
     const prev = AL.near; AL.near = null;
     if (H.landed || H.rpm < 0.85) return;
+    if (Math.hypot(H.vel.x, H.vel.z) > 4 && !(prev && prev.d < 6)) return;   // the crew chief talks you on only in a slow hover (not on every take-off past a parked jeep)
     updateHookWorld();
     let best = null, bd = 1e9;
     for (const V of candidates()) {
       const p = posOf(V, _v), d = Math.hypot(p.x - hookWorld.x, p.z - hookWorld.z);
-      if (d > 22 || hookWorld.y - p.y > 26 || hookWorld.y < p.y) continue;
+      if (d > 16 || hookWorld.y - p.y > 26 || hookWorld.y < p.y) continue;
       if (d < bd) { bd = d; best = V; }
     }
     if (!best) { if (man.st === 'on') man.st = 'off'; return; }
@@ -367,7 +368,7 @@ export function createAirlift(ctx) {
   // ---------------------------------------------------------------- the HUD: hook status, load, swing scope, crew chief
   const css = document.createElement('style');
   css.textContent = `#airlift{position:absolute;left:50%;bottom:112px;transform:translateX(-50%);display:none;align-items:flex-end;gap:10px;font-size:13px;color:#cfe;letter-spacing:1px;text-shadow:0 0 3px #000,0 0 6px #000;pointer-events:none;max-width:calc(100vw - 32px)}
-#airlift.on{display:flex}#airlift .ln{white-space:pre-wrap;line-height:1.45}#airlift b{color:#fff;font-weight:normal}#airlift .w{color:#fc6}#airlift .r{color:#f86}#airlift .g{color:#8f9}
+#airlift.on{display:flex}#airlift.hi{bottom:auto;top:150px}#airlift .ln{white-space:pre-wrap;line-height:1.45}#airlift b{color:#fff;font-weight:normal}#airlift .w{color:#fc6}#airlift .r{color:#f86}#airlift .g{color:#8f9}
 #airlift canvas{width:74px;height:74px;flex:none;background:rgba(0,20,25,.45);border:1px solid #3a8}`;
   document.head.appendChild(css);
   const el = document.createElement('div'); el.id = 'airlift';
@@ -377,14 +378,14 @@ export function createAirlift(ctx) {
   let lastHtml = '', scopeT = 0;
   function hud(piloted) {
     const show = piloted && (AL.load || AL.near || AL.troops) && G.craft === 'heli';
-    el.classList.toggle('on', !!show);
+    el.classList.toggle('on', !!show); el.classList.toggle('hi', !!(ctx.cockpitView && ctx.cockpitView()));   // (in the cockpit: up off the instrument panel)
     if (!show) return;
     const L = AL.load, N = AL.near, lines = [];
     const kg = v => Math.round(v).toLocaleString('en-US'), lb = v => Math.round(v / LB / 10) * 10;
     const gross = H.mass + (L && L.phase === 'hooked' ? L.S.m : 0), over = gross > HK.maxGross;
     if (L && L.phase === 'hooked') {
       const S = L.S, fast = (H.ias || 0) > L.sp.vKt, sw = S.swingDeg;
-      lines.push(`HOOK <b class="g">LOADED</b>  ${L.sp.label}  <b>${kg(S.m)} KG</b> / LIMIT ${kg(HK.limit)} KG (${lb(HK.limit).toLocaleString('en-US')} LB)  ·  GROSS <b class="${over ? 'r' : ''}">${kg(gross)} KG${over ? ' OVER 9,500 LB' : ''}</b>`);
+      lines.push(`HOOK <b class="g">LOADED</b>  ${L.sp.label}  <b>${kg(S.m)} KG</b> / LIMIT ${kg(HK.limit)} KG (${lb(HK.limit).toLocaleString('en-US')} LB)  ·  GROSS <b class="${over ? 'r' : ''}">${kg(gross)} KG (${lb(gross).toLocaleString('en-US')} LB)${over ? ' - OVER 9,500 LB MAX' : ''}</b>`);
       lines.push(`${S.ground ? '<b class="g">LOAD ON THE GROUND</b>' : S.taut ? `TENSION <b class="${S.Tg > 1.6 ? 'r' : S.Tg > 1.25 ? 'w' : ''}">${S.Tg.toFixed(2)} g</b>` : '<b class="w">SLACK</b>'}  ·  SWING <b class="${sw > 15 ? 'r' : sw > 8 ? 'w' : ''}">${Math.round(sw)}°</b>  ·  ${Math.round(H.ias || 0)} KT <b class="${fast ? 'r' : ''}">(LOAD ${L.sp.vKt} KT MAX)</b>  ·  TQ <b class="${H.torque > 50 ? 'r' : ''}">${H.torque.toFixed(0)} PSI</b>`);
       lines.push(S.ground && S.Tg < 0.35 ? '<b class="g">R: RELEASE THE LOAD</b>' : AL.jettisonT > 0 ? '<b class="r">R AGAIN: JETTISON</b>' : 'R R: EMERGENCY RELEASE  ·  SET IT DOWN ON ITS WHEELS, THEN R');
     } else if (L && L.phase === 'falling') lines.push('<b class="r">LOAD FALLING</b>');

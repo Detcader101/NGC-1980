@@ -2651,3 +2651,55 @@ ngc/simmode (CPU vs CPU) plugs it into its commanders through the API below.
   times, the enemy's 25-materiel reserve) is a first cut for the sim to tune; the player has no CPU research policy in
   the live game (W.researchPolicy[1] = aiPickResearch turns one on); the enemy sees no fog (its "situation" counts every
   unit); research is one programme at a time with no queue.
+
+## 2026-10-25 — NGC-1980 AIRLIFT: Huey sling loads, troop lift, C-130 heavy drop (branch ngc/airlift)
+User: "Huey sling-load (cargo / vehicles on a hook, pendulum load feeding back into the validated UH-1H flight model)
+and troop lift to the islands (Marines board, fly, dismount and fight in the ground war); C-130 para-dropped vehicles
+as a command-board spawn option."
+- **units/air/airlift/sling.js** (pure): the load is a rigid body on a nylon pendant (pulls only, 8 % stretch at 1 g,
+  15 % damping) from the hook to the sling's apex, then the bridle; bluff-body drag on front / side / top areas in the
+  wind and the rotor's downwash (momentum theory, 2 vi under the disc, blown back with speed), the ground (tyres / soil
+  spring-damper, friction) and the sea; above the load's steady-ride speed (FM 55-450-2 practice: 60 kt for a jeep) it
+  sails and oscillates near the pendulum frequency; a snatch past 2.5 x the hook rating parts it. **It runs inside
+  hueyfm.js's 240 Hz substep through one hook (`env.ext(h, H, Fw, Tw)`)**: the rope's pull is a world force and a
+  torque about the CG at the hook (TM 55-1520-210-10: 4,000 lb hook under the cabin floor), so weight, drag, download
+  and swing reach the validated flight model as physics. HOOKS (UH-1H 4,000 lb, CH-46E 10,000 lb, CH-53D), LOADS (M151A2,
+  civilian cars, M35A2, M113A2, M60A3), hookCheck (TOO HEAVY with kg / lb).
+- **units/air/airlift/airlift.js** (the game side): the crew chief talks you on (FORWARD / BACK / LEFT / RIGHT / DOWN /
+  HOLD, in a slow hover within 16 m), the APEX / SWING scope, a hookup man (FIGURES marine) stands on the load with the
+  apex and runs clear; **R** (or the HOTAS winch button) hooks, releases once the load's wheels have it (pendant
+  slack), **R R** in the air jettisons; calls for tension, off the ground, clear, swinging, too fast, overload; the HUD
+  line (load, hook limit, gross in kg and lb, tension, swing, IAS vs the load's limit, torque; it moves up off the
+  panel in the cockpit view). Troops: **.** landed at the ALBATROSS or a friendly pad calls six Marines (30 materiel,
+  105 kg each): they kneel off the nose, run in under the disc, four on the bench and two in the doors; **.** landed
+  on an island puts them out of both doors into `war.ground.landing` (they fight / capture there). The squad goes down
+  with a lost Huey; the load is jettisoned. CH-46 jeep deliveries (wheeled/delivery.js) now swing on the same physics.
+- **units/air/airlift/heavydrop.js** (pure) + **heavydropmodel.js** + **airdrop.js**: C-130H heavy-equipment drop.
+  G-11A clusters (100 ft, CdS 504 m² each, 0.92 cluster efficiency: 7.8-8.7 m/s ≈ the published 28 ft/s), ring-slot
+  extraction chutes, reefed opening (shock 2.3-3 g), wind drift, landing outcomes (slope, trees, surf / sea, streamer).
+  Board **C** on M151A2 / M35A2 / M113A2 rows with an island selected (vehicle from reserve or bought + 10 materiel);
+  the M60A3 is TOO HEAVY (55.6 t rigged vs 19.4 t). A KC-130 (c130fm on its autopilot) flies the run at 1,100 ft /
+  130 KIAS, ramp at one minute, green at the navigator's CARP (re-planned every 0.5 s from the real ground velocity
+  and height, with the extraction kinematics), the platform runs aft and out, the canopies deploy, the DZ party
+  de-rigs it and it is a unit there. **V** watches (loadmaster / flight deck / the load / chase; Esc back).
+  The loads are rigged to fit the 2.74 m hold (stowage per vehicle; bags on a parachute stand; seats folded).
+- **Tech tree**: new node **p.airmobile AIRMOBILE LOGISTICS** (tier 1, needs p.huey + p.marines, 30 materiel, 35 s)
+  unlocks abilities `sling` and `trooplift` (main.js asks `war.allow(1, 'sling' | 'trooplift')`, airlift.js shows NO
+  SLING GEAR / no squad until then); heavy drop sits under **p.logistics** (FIELD LOGISTICS). `?debug` ('all') opens
+  both, so older scenes are unchanged. Doctrines balanced / ground include it.
+- **Huey AI with a load** (commander/heliai.js, T.gentle): straight up until the load is clear, climb held at the
+  50 psi torque limit, full loop gains with smaller attitudes, a doubled approach radius, a 15 m approach hover. The
+  crew taking the Huey home with a load sets it down beside the spot, releases it, then lands.
+- **Tests**: slingbench 37/37 (pendulum period vs pendant 1.5-9 m within 3 %, coupled mode, bounce 1.01 Hz, damping,
+  snatch / weak link, hook limits, hover OGE torque 33.8 -> 49.8 psi with the jeep slung, trim attitude change < 1°,
+  trail angle at 50 kt, divergence at 95 kt, release balloon +4.5 m/s, AI ferry 900 m in 93 s 0.2 m off; G-11A rates,
+  opening shock, drift, payload limit, landing outcomes). Scenes airlift.mjs 12/12, airdrop.mjs 10/10. techbench
+  97/97, hueybench 41/41, commanderbench 32/32. Findings: docs/ngc1980/findings/airlift.md.
+- **Shared-file lines**: hueyfm.js (one line: `env.ext`), main.js (imports, airlift / airdrop create + update +
+  camera + keys + reset + silence + lost, H.extraMass, heliHome load handling, G.benchAI AI hook, roster decorate,
+  board airdrop hook, the HUD line while watching, __G), board.js (C / V keys, the C-130 row note, the drops list),
+  heliai.js (gentle), seats.js (hueySeat), wheeled/delivery.js (sling physics), m35model.js (exhaust stack its own
+  group), c130model.js (seats as their own meshes, parts.stowSeats), techtree.js (node, GATES, doctrines), index.html.
+- **Untested / next**: heavy drops onto islands other than HOME ISLAND; the M35A2 seen from the hold; a player-flown
+  lift with a real HOTAS (the scenes fly it with the crew AI through the same flight model); the home island has
+  little open ground for a DZ (falls back to the pad apron) - a marked DZ field per island would help.

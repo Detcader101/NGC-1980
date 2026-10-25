@@ -51,7 +51,7 @@ export default {
     await h.eval(`({ ias: Math.round(__G.H.ias), swing: ${AL}.load.S.swingDeg.toFixed(1), y: Math.round(__G.H.pos.y) })`, 'en route');
     await h.wait(800); await h.shot('load-in-transit');
     await h.eval(`(${AL}.camLocal = [[-22, -3, 4], [0, -6, 0.5]], 1)`); await h.wait(900); await h.shot('load-in-transit-side'); await h.eval(`(${AL}.camLocal = null, 1)`);
-    await h.eval('(__G.cockpitCam = true, __G.head.pitch = -0.55, __G.head.yaw = 0.5, 1)'); await h.wait(1200); await h.shot('cockpit-in-transit-chin-window'); await h.eval('(__G.cockpitCam = false, __G.head.pitch = 0, __G.head.yaw = 0, 1)');
+    await h.eval('(__G.cockpitCam = true, __G.head.pitch = -0.55, __G.head.yaw = 0.5, 1)'); await h.wait(1200); await h.shot('cockpit-in-transit'); await h.eval('(__G.cockpitCam = false, __G.head.pitch = 0, __G.head.yaw = 0, 1)');
     await h.waitFor(`${AL}.load && ${AL}.load.S.ground && ${AL}.load.S.Tg < 0.35 && Math.hypot(__G.H.pos.x - __T2.x, __G.H.pos.z - __T2.z) < 6`, 600000);
     await h.shot('load-set-down');
     await h.eval(`${AL}.button()`);
@@ -76,7 +76,7 @@ export default {
     await h.waitFor(`${AL}.troops && ${AL}.troops.st === 'aboard'`, 240000);
     await h.expect(`${AL}.troops.aboard() === 6 && __G.airlift.mass() === 630`, 'six aboard (630 kg on the airframe)');
     await h.wait(600);
-    await h.eval(`(${AL}.camLocal = [[3.4, 0.2, 1.4], [0, -0.7, 1.6]], 1)`); await h.wait(900); await h.shot('troops-aboard-outside');
+    await h.eval(`(${AL}.camLocal = [[6.5, 0.6, 1.0], [0, -0.8, 1.5]], 1)`); await h.wait(900); await h.shot('troops-aboard-outside');
     await h.eval(`(${AL}.camLocal = [[-4.2, 1.2, -1.2], [0, -0.8, 1.4]], 1)`); await h.wait(900); await h.shot('troops-aboard-left');
     await h.eval(`(${AL}.camLocal = [[0.05, 0.3, -1.25], [0, -0.75, 2.1]], 1)`); await h.wait(900); await h.shot('troops-from-the-cockpit-looking-aft');
     await h.eval(`(${AL}.camLocal = null, 1)`);
@@ -89,7 +89,7 @@ export default {
     await h.eval('(__G.heliAI.off(), 1)'); await h.wait(500);
     await h.key('tap', 'Period'); await h.wait(500);
     await h.expect(`!${AL}.troops && __G.war.ground.landings.some(L => L.I === __B)`, '. on the island: the squad dismounts into the ground war');
-    await h.eval(`(${AL}.camLocal = [[9, 1.5, -6], [0, -1.5, 1]], 1)`); await h.wait(1500); await h.shot('squad-dismounting');
+    await h.eval(`(${AL}.camLocal = [[7, 9, -12], [0, -1.6, 2]], 1)`); await h.wait(1500); await h.shot('squad-dismounting');
     await h.waitFor(`__G.war.ground.presence(__B, 1) >= __mar0 + 4`, 240000);
     await h.expect(`__G.war.ground.presence(__B, 1) >= __mar0 + 4`, 'the Marines are fighting units on the island now');
     await h.eval(`({ marines: __G.war.ground.presence(__B, 1), was: __mar0 })`);
