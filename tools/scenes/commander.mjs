@@ -56,13 +56,13 @@ export default {
     await h.expect(`__G.Z.alive && __G.H.landed && __G.war.shipAt(__G.H.pos.x, __G.H.pos.z) === __G.war.carrier`, 'the Huey crew landed her on the ALBATROSS');
     await h.eval('({ landedAfter: Math.round(__G.war.time - __tq), pos: __G.H.pos.toArray().map(Math.round) })');
 
-    // ---- 5. Slash: the next unit that is out (the Huey, landed), then the Tomcat on cat 1 from the board API
+    // ---- 5. Slash: the next unit that is out (the Huey, landed), then a Tomcat in the shared launch queue
     await h.key('tap', 'Slash'); await h.wait(500);
     await h.expect(`__G.G.craft !== 'm113'`, 'Slash jumps to the next unit out');
     await h.eval('({ craft: __G.G.craft })');
     await h.eval('__G.commander.deploy("tomcat")'); await h.wait(700);
-    await h.expect(`__G.G.craft === 'tomcat' && !!__G.tomcatC.TP.A.cat && ${F}.n.tomcat === 1`, 'a Tomcat on cat 1 from the reserve (2 -> 1)');
-    await h.wait(800); await h.shot('tomcat-on-cat');
+    await h.expect(`__G.G.craft === 'tomcat' && (!!__G.tomcatC.TP.A.cat || __G.war.deck.entries.some(e => e.A === __G.tomcatC.TP.A)) && ${F}.n.tomcat === 1`, 'a Tomcat assigned to cat 1 from reserve (2 -> 1), queued while recovery uses the deck');
+    await h.wait(800); await h.shot('tomcat-in-launch-queue');
 
     // ---- 6. losses: the M60A3 knocked out (out at the home island) - counted; a new one from the reserve at the island motor pool
     await h.eval('(__G.m60C.wreck("KNOCKED OUT (TEST)", true), 1)');
@@ -99,7 +99,7 @@ export default {
 
     // ---- 10. the unit you are in is lost: the board opens on the next unit, the hand-on comes after the crew timer
     await h.eval('__G.commander.deploy("tomcat")'); await h.wait(500);
-    await h.expect(`__G.G.craft === 'tomcat'`, 'back in the Tomcat (it was out on cat 1)');
+    await h.expect(`__G.G.craft === 'tomcat'`, 'back in the deployed Tomcat');
     await h.eval('(__G.tomcatC.TP.A.dead = "crash", 1)'); await h.wait(600);
     await h.expect(`${F}.lost.tomcat === 1 && __G.commander.isOpen && __G.commander.lossMode`, 'the Tomcat lost: counted, the board opens');
     await h.shot('loss-board');
@@ -108,7 +108,7 @@ export default {
 
     // ---- 11. the wingman brought the Hornet home on the recall (pattern, glideslope, trap) and she parks on deck
     for (let k = 0; k < 75; k++) {   // (polls: a single wait is capped by the browser protocol at 180 s)
-      const r = await h.eval('(() => { const w = __G.jetC.wing; return w ? { t: Math.round(__G.war.time), st: w.state, R: w.lso ? Math.round(w.lso.R) : null, y: Math.round(__G.JP.J.pos.y) } : { done: true }; })()');
+      const r = await h.eval('(() => { const w = __G.jetC.wing; return w ? { t: Math.round(__G.war.time), st: w.state, R: w.lso ? Math.round(w.lso.R) : null, y: Math.round(__G.JP.J.pos.y), why: w.why, waveoffs: w.waveoffs, bolters: w.bolters } : { done: true }; })()');
       if (!r || r.done) break; await h.wait(8000);
     }
     await h.eval('({ alive: __G.JP.alive, park: __G.jetC.park.on, onDeck: __G.war.shipAt(__G.JP.J.pos.x, __G.JP.J.pos.z) === __G.war.carrier, loss: __G.JP.lastLoss })');
