@@ -90,6 +90,7 @@ export function createWaspSim(G = 9.81) {
     body.M[0] -= 60 * w[0]; body.M[1] -= 60 * w[1]; body.M[2] -= 120 * w[2];
     body.integrate(h, env, G);
     S.agl = body.agl; S.landed = body.landed;
+    if (body.obstructed) { S.events.push('crash'); S.dead = 'collision'; }
     if (body.touch) { const t = body.touch; body.touch = null; S.events.push(t.vy < -5 ? 'crash' : 'land'); if (t.vy < -5) S.dead = 'crash'; }
     if (body.wet) { S.events.push('water'); S.dead = 'water'; }
     const a = S.attitude({}); if (body.contacts && Math.abs(a.roll) > 0.9) { S.events.push('crash'); S.dead = 'rollover'; }

@@ -258,8 +258,8 @@ export function unitAllowed(T, key) { return !T || T.allows(key); }
 export function gateMsg(T, key) { const n = T && T.needFor(key); return n ? `NEEDS ${n.name} RESEARCH` : ''; }
 
 // the default research policy: walk the doctrine's order, skip what can't start, keep a reserve of materiel for units;
-// a couple of readable reactions to what the other side fields. Returns an id to research, or null (wait).
-export function aiPickResearch(T, econ, situation = {}, doctrine = 'balanced') {
+// a couple of readable reactions to what the other side fields. Returns the next programme's budget, or null.
+export function aiResearchPlan(T, situation = {}, doctrine = 'balanced') {
   if (!T || T.current) return null;
   const S = situation, reserve = S.reserve ?? 25;
   const D = DOCTRINES[T.side] || {}, order = (D[doctrine] || D.balanced || []).slice();
@@ -274,11 +274,18 @@ export function aiPickResearch(T, econ, situation = {}, doctrine = 'balanced') {
   for (const id of [...order, ...rest]) {
     if (T.done.has(id)) continue;
     const n = T.node(id); if (!n || !n.requires.every(r => T.done.has(r))) continue;
-    if ((econ.mat ?? 0) - (n.cost.mat || 0) < reserve || (econ.fuel ?? 0) < (n.cost.fuel || 0)) return null;   // the next one in line waits for the money
-    return id;
+    return { id, mat: (n.cost.mat || 0) + reserve, fuel: n.cost.fuel || 0 };
   }
   return null;
 }
+
+// The commander reserves the next programme's budget before buying units. Planning must not
+// log a research start or pay anything: the same policy is used by live play and CPU wars.
+export function aiPickResearch(T, econ, situation = {}, doctrine = 'balanced') {
+  const p = aiResearchPlan(T, situation, doctrine);
+  return p && (econ.mat ?? 0) >= p.mat && (econ.fuel ?? 0) >= p.fuel ? p.id : null;
+}
+aiPickResearch.plan = aiResearchPlan;
 
 // ?tech= / ?etech= (URLSearchParams or a plain object with get / has)
 export function techStartFromQuery(q, side) {

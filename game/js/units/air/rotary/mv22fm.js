@@ -177,6 +177,7 @@ export function createMV22Sim(G = 9.81) {
     S.agl = body.gearDown ? body.agl : Math.max(0, body.pos[1] - C.CG_H - env.groundY(body.pos[0], body.pos[2]));   // gear up: from the belly
     S.landed = body.landed;
     if (!body.gearDown && body.pos[1] - env.groundY(body.pos[0], body.pos[2]) < 1.6) { S.events.push(env.water && env.water(body.pos[0], body.pos[2]) ? 'water' : 'crash'); S.dead = 'belly'; }
+    if (body.obstructed) { S.events.push('crash'); S.dead = 'collision'; }
     if (body.touch) { const t = body.touch; body.touch = null; S.events.push(t.vy < -4 || t.hs > 10 ? 'hardland' : 'land'); if (t.vy < -9 || (!body.gearDown && t.hs > 2)) { S.events.push('crash'); S.dead = 'crash'; } }
     if (body.wet && !env.floats) { S.events.push('water'); S.dead = 'water'; }
     S.attitude(_att); if (body.contacts && Math.abs(_att.roll) > 0.5) { S.events.push('crash'); S.dead = 'rollover'; }

@@ -59,6 +59,8 @@ export function createWar(ctx) {
   W.gateMsg = (side, key) => gateMsg(W.tech[side], key);
   W.techMod = (side, key) => W.tech[side] ? W.tech[side].mod(key) : 1;
   W.researchPolicy = [null, null, W.tech[2].mode === 'all' ? null : aiPickResearch];
+  W.researchHold = [0, 0, 0];
+  W.spendable = side => Math.max(0, (side === 1 ? W.P : W.E).mat - W.researchHold[side]);
   W.doctrine = [null, 'balanced', 'balanced'];
   W.research = (side, id) => W.tech[side].research(id, side === 1 ? W.P : W.E);   // pays from the side's store
   W.cancelResearch = side => W.tech[side].cancel(side === 1 ? W.P : W.E);
@@ -802,6 +804,7 @@ export function createWar(ctx) {
   }
   // TECH TREE: a side's research, by its policy (the enemy: techtree.js aiPickResearch; the sim can swap policies in)
   function research(side, pl) {
+    W.researchHold[side] = 0;
     const T = W.tech[side], pol = W.researchPolicy[side]; if (!T || !pol || T.current) return;
     const foe = side === 1 ? 2 : 1, n = f => W.units.filter(u => u.side === foe && !u.dead && !u.dying && f(u)).length;
     const plAir = side === 2 && pl && pl.alive && !pl.inCave && (pl.kind === 'jet' || pl.kind === 'tomcat') ? 1 : 0;
@@ -810,10 +813,12 @@ export function createWar(ctx) {
       mine: W.islands.filter(I => I.owner === side).length };
     const id = pol(T, side === 1 ? W.P : W.E, sit, W.doctrine[side]);
     if (id) W.research(side, id);
+    // Protect the RUNAWAY's next programme from its competing air/ground/expansion buyers.
+    // Player orders continue to spend freely; the blue CPU already keeps its own reserve.
+    else if (side === 2 && pol.plan) W.researchHold[side] = pol.plan(T, sit, W.doctrine[side])?.mat || 0;
   }
   W.researchTick = research;
   function think(pl) {
-    research(2, pl); research(1, pl);   // TECH TREE: the commanders' research (the player's policy is null: the RESEARCH page)
     const E = W.E, ec = W.enemyCarrier && W.enemyCarrier.sinking === undefined ? W.enemyCarrier : null;
     const air = W.units.filter(u => u.side === 2 && u.p && !u.dims && !u.dead && !u.dying);
     const guns = air.filter(u => u.type === 'gunship'), trans = air.filter(u => u.type === 'transport');
@@ -822,25 +827,25 @@ export function createWar(ctx) {
     if (pl.alive && !pl.inCave) {
       const near = [...mine.map(I => [I.x, I.z]), ...(ec ? [[ec.p.x, ec.p.z]] : [])].some(([x, z]) => Math.hypot(pl.pos.x - x, pl.pos.z - z) < 260 * (pl.detect ?? 1));
       const hunting = guns.filter(g => g.target === 'player').length;
-      if (near && hunting < 2 + Math.floor(W.time / 300) && guns.length < cap && E.mat >= 12 && W.allow(2, 'gunship')) { E.mat -= 12; W.spawnGunship(2, nearestLaunch(pl.pos.x, pl.pos.z)).target = 'player'; }
+      if (near && hunting < 2 + Math.floor(W.time / 300) && guns.length < cap && W.spendable(2) >= 12 && W.allow(2, 'gunship')) { E.mat -= 12; W.spawnGunship(2, nearestLaunch(pl.pos.x, pl.pos.z)).target = 'player'; }
     }
     // 2. expand: send transports at neutral (or undefended player) islands
     W.transT -= 2;
-    if (trans.length < 2 && E.mat >= 25 && W.transT <= 0 && W.allow(2, 'transport')) { const I = pickExpansion(); if (I) { W.transT = Math.max(18, 40 - W.time / 30); E.mat -= 25; const [x, y, z] = launchPoint(2); makeAir('transport', 2, x, y, z, { target: I }); } }
+    if (trans.length < 2 && W.spendable(2) >= 25 && W.transT <= 0 && W.allow(2, 'transport')) { const I = pickExpansion(); if (I) { W.transT = Math.max(18, 40 - W.time / 30); E.mat -= 25; const [x, y, z] = launchPoint(2); makeAir('transport', 2, x, y, z, { target: I }); } }
     // 3. fortify: guns on islands that have few
-    for (const I of mine) if (E.mat >= 30 && W.allow(2, 'aa') && W.aliveAA(I) + I.structs.filter(s => s.kind === 'aa' && s.building > 0).length < (I.kind === 'factory' || I.kind === 'hq' ? 3 : 2)) { const s = buildAA(I, 2); if (s) { E.mat -= 30; s.building = 14 * W.techMod(2, 'aa.build'); } break; }
+    for (const I of mine) if (W.spendable(2) >= 30 && W.allow(2, 'aa') && W.aliveAA(I) + I.structs.filter(s => s.kind === 'aa' && s.building > 0).length < (I.kind === 'factory' || I.kind === 'hq' ? 3 : 2)) { const s = buildAA(I, 2); if (s) { E.mat -= 30; s.building = 14 * W.techMod(2, 'aa.build'); } break; }
     // 4. raid: every so often, a strike group at the player's weakest guarded island or the carrier
     W.raidT -= 2;
-    if (W.raidT <= 0 && E.mat >= 36 && guns.length < cap && W.allow(2, 'gunship')) {
+    if (W.raidT <= 0 && W.spendable(2) >= 36 && guns.length < cap && W.allow(2, 'gunship')) {
       W.raidT = Math.max(50, 110 - W.time / 20);
       const ours = W.islands.filter(I => I.owner === 1 && I.kind !== 'hq');
       let tgt = null;
       if (ours.length && Math.random() < 0.65) { const I = ours.sort((a, b) => W.aliveAA(a) - W.aliveAA(b))[0]; tgt = I.structs.find(s => s.kind === 'aa' && !s.dead) || I.structs.find(s => !s.dead); }
       else if (W.carrier && W.carrier.sinking === undefined) tgt = W.carrier;
-      if (tgt) { const n = 2 + Math.min(3, Math.floor(W.time / 240)); E.mat -= 12 * n; for (let i = 0; i < n; i++) W.spawnGunship(2, null, tgt); feed(tgt === W.carrier ? 'RADAR: ENEMY STRIKE INBOUND ON THE ALBATROSS' : `RADAR: ENEMY STRIKE HEADING FOR ${tgt.I.name}`, 'bad'); }
+      if (tgt) { const n = Math.min(2 + Math.min(3, Math.floor(W.time / 240)), cap - guns.length, Math.floor(W.spendable(2) / 12)); E.mat -= 12 * n; for (let i = 0; i < n; i++) W.spawnGunship(2, null, tgt); feed(tgt === W.carrier ? 'RADAR: ENEMY STRIKE INBOUND ON THE ALBATROSS' : `RADAR: ENEMY STRIKE HEADING FOR ${tgt.I.name}`, 'bad'); }
     }
     // 5. a couple of guards over the carrier
-    if (ec && guns.filter(g => !g.target && Math.hypot(g.home[0] - ec.p.x, g.home[1] - ec.p.z) < 200).length < 2 && E.mat >= 12 && guns.length < cap && W.allow(2, 'gunship')) { E.mat -= 12; W.spawnGunship(2); }
+    if (ec && guns.filter(g => !g.target && Math.hypot(g.home[0] - ec.p.x, g.home[1] - ec.p.z) < 200).length < 2 && W.spendable(2) >= 12 && guns.length < cap && W.allow(2, 'gunship')) { E.mat -= 12; W.spawnGunship(2); }
     // 6. supply: a freighter takes an island's stockpile to the KRAKEN (or IRONHOLD)
     W.freightT -= 2;
     if (W.freightT <= 0 && W.allow(2, 'freighter')) {
@@ -932,7 +937,7 @@ export function createWar(ctx) {
     islandGroup.clear(); fx.emitters.length = 0;
     for (const I of W.islands) { I.owner = I.owner0 ?? I.owner; I.lostT = -1e9; I.stock = 0; }
     buildIslands();
-    W.E.fuel = 200; W.E.mat = 50; W.E.bship = 0; W.time = 0; W.over = null; W.raidT = 150; W.thinkT = 3; W.transT = 20; W.freightT = 30; W.battleship = null;
+    W.researchHold.fill(0); W.E.fuel = 200; W.E.mat = 50; W.E.bship = 0; W.time = 0; W.over = null; W.raidT = 150; W.thinkT = 3; W.transT = 20; W.freightT = 30; W.battleship = null;
     W.tech[1].reset(); W.tech[2].reset();   // TECH TREE: a new war starts from the start sets
     W.carrier = makeShip('carrier', 1, ctx.carrierStart[0], ctx.carrierStart[1], ctx.carrierStart[2]);
     W.enemyCarrier = makeShip('carrier', 2, ctx.enemyStart[0], ctx.enemyStart[1], ctx.enemyStart[2]);
@@ -960,7 +965,7 @@ export function createWar(ctx) {
     updateCapture(dt, pl);
     updateEconomy(dt);
     updateBattleship(dt); updateFreighters(dt);
-    if (!peace) { W.thinkT -= dt; if (W.thinkT <= 0) { W.thinkT = 2; if (W.redAI) W.redAI.think(pl, think); else { GW.think(pl); think(pl); W.air.think(pl); } } }   // SIM MODE hook: a CPU doctrine (sim/redai.js) can stand in for the enemy commander; GROUND WAR: its ground plans first (armour is saved up for); AIR: + the enemy air arm's plans
+    if (!peace) { W.thinkT -= dt; if (W.thinkT <= 0) { W.thinkT = 2; research(2, pl); research(1, pl); if (W.redAI) W.redAI.think(pl, think); else { GW.think(pl); think(pl); W.air.think(pl); } } }   // SIM MODE hook: a CPU doctrine (sim/redai.js) can stand in for the enemy commander; GROUND WAR: its ground plans first (armour is saved up for); AIR: + the enemy air arm's plans
     W.air.frame(dt, pl);   // AIR: launch queue, drone rails, engine sounds
     deckFrame(dt);   // DECK OPS: the ALBATROSS flight deck (units/naval/deckops.js)
     // buildings animate

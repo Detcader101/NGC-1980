@@ -23,7 +23,7 @@ function war(cfg) {
   });
 }
 const hash = (r, dec = true) => crypto.createHash('sha1').update(JSON.stringify({ s: r.samples, d: dec ? r.decisions : r.decisions.filter(x => x.side === 1), b: r.built, l: r.lost, n: r.rngCalls, t: r.time })).digest('hex').slice(0, 12);
-const base = { tmax: 420, patch: ['catlane'] };
+const base = { tmax: 420 };
 
 // 1. determinism, and the RUNAWAY doctrine copy vs war.js's own commander, all at once on 3 threads
 const red = doctrine(2, 'DEFAULT'), copy = { ...red, builtin: false, name: 'DEFAULT-COPY' };
@@ -38,12 +38,12 @@ check(hash(d, false) === hash(a, false), 'the RUNAWAY doctrine copy at DEFAULT k
 check(!a.bad && !a.anomalies.length && !c.bad, 'no NaN, no runaway units, no errors', JSON.stringify([a.bad, a.anomalies, c.bad]));
 check((a.decisions.filter(x => x.side === 1).length > 5) && a.spent[1].drone > 0, 'the TASK FORCE commander gives orders and spends', `${a.decisions.filter(x => x.side === 1).length} orders, ${a.spent[1].drone} on Sea Knights, ${a.spent[1].aa} on guns`);
 check((a.built[2].transport || 0) + (a.built[2].gunship || 0) > 0, 'the RUNAWAY commander builds', JSON.stringify(a.built[2]));
-{ const rs = s => e.decisions.filter(x => x.side === s && /RESEARCH/.test(x.what)).map(x => x.what.slice(9)); check(rs(1).length > 0, 'under tech=default the TASK FORCE researches (the RUNAWAY count is a balance number, see SIMREPORT)', `TF ${rs(1).join(', ') || '-'}  RW ${rs(2).join(', ') || '-'}`); }
+{ const rs = s => e.research[s].map(x => x[0]); check(rs(1).length > 0 && rs(2).length > 0, 'under tech=default both sides complete research', `TF ${rs(1).join(', ') || '-'}  RW ${rs(2).join(', ') || '-'}`); }
 { const cap = (e.research[1].find(x => x[0] === 'p.cap') || [0, 1e9])[1], first = (e.decisions.find(x => x.side === 1 && /TOMCAT/.test(x.what)) || { t: 1e9 }).t; check(first >= cap - 2 && !(e.built[2].shrike && !e.research[2].some(x => x[0] === 'e.shrike')), 'tech=default: Tomcats only after FLEET AIR DEFENCE, no SHRIKEs without their research', `first Tomcat ${first < 1e9 ? Math.round(first) + ' s' : 'never'}, research done ${cap < 1e9 ? cap + ' s' : 'never'}`); }
 
 // 2. a longer war: the TASK FORCE takes islands, the war moves, the speed
 const t0 = performance.now();
-const L = await war({ tmax: 1200, patch: ['catlane'], blue: 'BALANCED', red: 'DEFAULT', seed: 4 });
+const L = await war({ tmax: 1200, blue: 'BALANCED', red: 'DEFAULT', seed: 4 });
 const w = (performance.now() - t0) / 1000, own0 = L.samples[0].own[1], own1 = Math.max(...L.samples.map(s => s.own[1]));
 check(own1 > own0, 'the TASK FORCE CPU takes islands', `${own0} -> ${own1} at best, ${L.owner.filter(o => o.to === 1).length} captures`);
 check(L.first.shot !== null && L.first.shot < 300, 'first contact inside 5 minutes', `${(L.first.shot / 60).toFixed(1)} min`);

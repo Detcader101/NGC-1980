@@ -120,7 +120,7 @@ export function createAirWar(W, ctx, H) {
     A.reset(c.p.x, CARRIER.DECK + c.p.y, c.p.z, c.yaw, { running: true }); A.lights = true;
     const u = addSimUnit('escort', 1, A, P, model, { name, cap: I && I.pad ? I : null, decoys: 6 }, true);
     const e = AW.deckLaunch(u, { what: u.cap ? 'CAP ' + u.cap.name : 'CAP OVER THE SHIP' }), place = W.deck.place(e);   // DECK OPS
-    return `TOMCAT ${modex} ${e.state === 'hangar' ? 'IN THE HANGAR' : 'SPOTTED'}  -  NUMBER ${place} FOR CAT 1  -  CAP OVER ${I && I.pad ? I.name : 'THE ALBATROSS'}`;
+    return `TOMCAT ${modex} TO THE CAT  -  ${e.state === 'hangar' ? 'IN THE HANGAR' : 'SPOTTED'}  -  NUMBER ${place} FOR CAT 1  -  CAP OVER ${I && I.pad ? I.name : 'THE ALBATROSS'}`;
   };
   function laneClear(c, yaw = c.yaw, max = 400) {   // open water ahead of the bow along heading yaw
     const fx_ = -Math.sin(yaw), fz = -Math.cos(yaw);
@@ -260,26 +260,27 @@ export function createAirWar(W, ctx, H) {
   // ---------------------------------------------------------------- the enemy commander's air plans (every 2 s)
   AW.think = (pl) => {
     const E = W.E, t = W.time, alive = type => W.units.filter(u => u.type === type && !u.dead && !u.dying).length;
+    const spendable = () => W.spendable ? W.spendable(2) : E.mat;
     const escorts = alive('escort'), shrikes = alive('shrike'), ok = k => !W.allow || W.allow(2, k);   // TECH TREE gates
     // (a locked type's timer keeps running: it launches on the first tick after the research is done)
     // fighters: answer our Tomcats, and sweep now and then
     AW.shrikeT -= 2;
-    if (((escorts > shrikes && t > 90) || AW.shrikeT <= 0) && shrikes < AIR.SHRIKE_MAX && E.mat >= AIR.COST.shrike * 2 && ok('shrike')) {
+    if (((escorts > shrikes && t > 90) || AW.shrikeT <= 0) && shrikes < AIR.SHRIKE_MAX && spendable() >= AIR.COST.shrike * 2 && ok('shrike')) {
       AW.shrikeT = Math.max(150, 260 - t / 10); E.mat -= AIR.COST.shrike * 2;
       const b = enemyBase(); for (let i = 0; i < 2; i++) AW.spawnShrike({ ...b, x: b.x + i * 30, z: b.z + i * 30 }, W.carrier ? W.carrier.p : null);
       feed('RADAR: TWO RUNAWAY FIGHTERS (RW-4 SHRIKE) AIRBORNE', 'bad');
     }
     // a REAPER to find the ALBATROSS
     AW.reaperT -= 2;
-    if (AW.reaperT <= 0 && alive('reaper') < 1 && E.mat >= AIR.COST.reaper && carrierOf(1) && ok('reaper')) { AW.reaperT = 200; E.mat -= AIR.COST.reaper; AW.spawnReaper(carrierOf(1).p); }
+    if (AW.reaperT <= 0 && alive('reaper') < 1 && spendable() >= AIR.COST.reaper && carrierOf(1) && ok('reaper')) { AW.reaperT = 200; E.mat -= AIR.COST.reaper; AW.spawnReaper(carrierOf(1).p); }
     // SHAHED salvos: at the spotted ALBATROSS, else at one of our islands' buildings
     AW.shahedT -= 2;
-    if (AW.shahedT <= 0 && E.mat >= AIR.COST.shahed * 4 && ok('shahed')) {
+    if (AW.shahedT <= 0 && spendable() >= AIR.COST.shahed * 4 && ok('shahed')) {
       AW.shahedT = Math.max(110, 190 - t / 15);
       let tgt = null;
       if (AW.spot && t - AW.spot.t < 40 && AW.spot.ship.sinking === undefined) tgt = { ship: AW.spot.ship, x: AW.spot.ship.p.x, y: CARRIER.DECK, z: AW.spot.ship.p.z };
       else { const ours = W.islands.filter(I => I.owner === 1 && I.kind !== 'hq'); const I = ours[Math.floor(Math.random() * ours.length)]; const s = I && I.structs.find(s => !s.dead && s.kind !== 'aa'); if (s) tgt = { x: s.x, y: s.y + 2, z: s.z, I }; }
-      if (tgt) { const n = 3 + Math.min(3, Math.floor(t / 400)); if (AW.salvo(tgt, n).length) { E.mat -= AIR.COST.shahed * n; feed(tgt.ship ? `RADAR: ${n} SHAHED DRONES INBOUND ON THE ALBATROSS` : `RADAR: ${n} SHAHED DRONES HEADING FOR ${tgt.I.name}`, 'bad'); } }
+      if (tgt) { const n = Math.min(3 + Math.min(3, Math.floor(t / 400)), Math.floor(spendable() / AIR.COST.shahed)); if (AW.salvo(tgt, n).length) { E.mat -= AIR.COST.shahed * n; feed(tgt.ship ? `RADAR: ${n} SHAHED DRONES INBOUND ON THE ALBATROSS` : `RADAR: ${n} SHAHED DRONES HEADING FOR ${tgt.I.name}`, 'bad'); } }
     }
     void pl; void SHRIKE; void cadcSweep;
   };

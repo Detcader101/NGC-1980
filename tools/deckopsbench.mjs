@@ -39,7 +39,7 @@ function makeShip(ss, seed) {
 }
 
 // one deck cycle: requests at the given times, optional foul / landing windows; returns the record
-function run({ dt = 0.1, jets, foul = null, landing = null, bumpAt = null, T = 420, seed = 1 }) {
+function run({ dt = 0.1, jets, foul = null, landing = null, bumpAt = null, obstacles = [], T = 420, seed = 1 }) {
   const { u, env } = makeShip(4, seed);
   let t = 0;
   const DO = createDeckOps({ now: () => t });
@@ -54,7 +54,7 @@ function run({ dt = 0.1, jets, foul = null, landing = null, bumpAt = null, T = 4
     if (bumpAt && t >= bumpAt.t && !bumpAt.done) { bumpAt.done = true; const j = J.find(j => j.name === bumpAt.name); DO.bump(j.e); }
     const fouled = foul && t >= foul.t0 && t < foul.t1, land = landing && t >= landing.t0 && t < landing.t1;
     const before = DO.entries.map(e => [e, e.state]);
-    DO.update(dt, { ship: true, obstacles: fouled ? [{ lx: 4.5, lz: 16, r: 7.5, why: 'HELICOPTER ON THE LANE' }] : [], landing: land });
+    DO.update(dt, { ship: true, obstacles: [...obstacles, ...(fouled ? [{ lx: 4.5, lz: 16, r: 7.5, why: 'HELICOPTER ON THE LANE' }] : [])], landing: land });
     for (const [e, s] of before) if (DO.entries.includes(e) && s === 'spot' && e.state === 'taxi') { if (fouled) rec.movedInFoul++; if (land) rec.movedInLanding++; }
     if (DO.deckClear() === '' && DO.entries.some(e => ['taxi', 'hold'].includes(e.state))) rec.deckClearBad++;
     // one per segment
@@ -116,6 +116,10 @@ for (const dt of [1 / 30, 0.1]) {
   const r = run({ jets: [...five.slice(0, 2), five[3], { name: 'HORNET (YOU)', kind: 'hornet', at: 4, player: true }] });
   const order = r.launches.map(l => l.name);
   check('the player is spotted at once and goes after the jet ahead on the deck', order.join() === ['VICTORY 201', 'HORNET (YOU)', 'VICTORY 202', 'VICTORY 203'].join() && !r.crashed.length && r.minSep > 2 * O.JET_R - 1.5, order.join(' > ') + `, closest ${r.minSep.toFixed(1)} m`, '201 > YOU > 202 > 203, no crash');
+}
+{
+  const r = run({ jets: five.slice(0, 3), obstacles: [{ ...O.HELO_START, r: 7.5, why: 'HUEY ON ITS STARTING SPOT' }] });
+  check('the starting Huey leaves the AI launch route clear', r.launches.length === 3 && !r.crashed.length, `${r.launches.length} launched, ${r.crashed.length} crashed`, 'all three launched and alive');
 }
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

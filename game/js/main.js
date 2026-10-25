@@ -26,6 +26,7 @@ import { createVehicleCraft } from './vehicle.js';
 import { createJetCraft } from './craftjet.js';
 import { createTomcatCraft } from './crafttomcat.js';   // TOMCAT: the flyable F-14A (crafttomcat.js, units/air/tomcatplay.js)
 import { createCH46Craft } from './units/air/rotary/ch46craft.js';   // ngc/ch46fly: the flyable CH-46F Sea Knight
+import { DECK_OPS } from './units/naval/deckops.js';
 const isJet = () => G.craft === 'jet' || G.craft === 'tomcat';   // TOMCAT: the fixed-wing crafts share the HORNET's hooks below
 // COMMANDER: the player commands the task force - the fleet ledger (lives -> unit counts), the command board (\),
 // the Huey's AI crew and the jets' wingman who fly a unit the commander leaves
@@ -705,6 +706,10 @@ function turnIntoClear() {
 // 5 on the ALBATROSS deck: climb into a Hornet on the catapult (craftjet.js); Y on deck: get out and walk
 war.deckHooks.obstacles = (c, toL) => {   // DECK OPS: what the player leaves on the deck fouls it
   const out = [];
+  if (ch46C.present()) {
+    const p = ch46C.P.S.body.pos, [lx, lz] = toL(p[0], p[2]), hy = p[1] - c.p.y - CARRIER.DECK;
+    if (hy < 14 && Math.abs(lx) < 16 && Math.abs(lz) < 64) out.push({ lx, lz, r: 12, why: 'THE SEA KNIGHT IS ON THE DECK' });
+  }
   if (Z.alive && !G.heliStowed && G.mode === 'zarch') { const [lx, lz] = toL(H.pos.x, H.pos.z), hy = H.pos.y - c.p.y - CARRIER.DECK; if (hy < 12 && Math.abs(lx) < 16 && Math.abs(lz) < 64) out.push({ lx, lz, r: 7.5, why: 'THE HUEY IS ON THE DECK' }); }
   for (const [D, A] of [[jetC, JP.J], [tomcatC, tomcatC.TP.A]]) if (D.present() && D.park.on) { const [lx, lz] = toL(A.pos.x, A.pos.z); if (Math.abs(lx) < 16 && Math.abs(lz) < 64) out.push({ lx, lz, r: 4, why: `THE ${D.label} IS PARKED IN THE WAY` }); }
   return out;
@@ -770,8 +775,8 @@ function command(n) {
 // where a fresh helicopter starts: the carrier deck while it is afloat, else the home pad
 function spawnSpot() {
   const c = war && war.carrier;
-  // the aft helicopter spot (H3): the Huey's 48 ft disc clears the island there
-  if (c && c.sinking === undefined && !params.has('homepad')) { const lx = -2, lz = 32, cs = Math.cos(c.yaw), sn = Math.sin(c.yaw), x = c.p.x + lx * cs + lz * sn, z = c.p.z - lx * sn + lz * cs, dy = war.deckY(x, z); return { x, z, y: dy > -1e8 ? dy : CARRIER.DECK + Math.max(0, c.p.y), yaw: c.yaw }; }   // NAVAL: deckY moves with the sea
+  // the aft helicopter spot (H3): the Huey's 48 ft disc clears the island and the jets' taxi route
+  if (c && c.sinking === undefined && !params.has('homepad')) { const { lx, lz } = DECK_OPS.HELO_START, cs = Math.cos(c.yaw), sn = Math.sin(c.yaw), x = c.p.x + lx * cs + lz * sn, z = c.p.z - lx * sn + lz * cs, dy = war.deckY(x, z); return { x, z, y: dy > -1e8 ? dy : CARRIER.DECK + Math.max(0, c.p.y), yaw: c.yaw }; }   // NAVAL: deckY moves with the sea
   return { x: PAD.x, z: PAD.z, y: PAD_H, yaw: 0 };
 }
 function resetZarch(fromPad, spot = null) {   // COMMANDER: spot = a friendly island's pad (else the deck / home pad)

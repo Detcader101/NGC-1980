@@ -148,6 +148,7 @@ export function createCH46Sim(G = 9.81) {
     // read-outs, events
     S.vz = body.vel[1]; S.agl = body.agl; S.landed = body.landed;
     S.vib = Math.min(1, 0.6 * Math.max(rf.vrs, ra.vrs) + 0.5 * Math.max(rf.stall, ra.stall) + (M.vib || 0));
+    if (body.obstructed) { S.events.push('crash'); S.dead = 'collision'; }
     if (body.touch) { const t = body.touch; body.touch = null; S.events.push(t.vy < -4.5 || t.hs > 8 ? 'hardland' : 'land'); if (t.vy < -9) { S.events.push('crash'); S.dead = 'crash'; } }
     if (body.wet && !env.floats) { S.events.push('water'); S.dead = 'water'; }
     S.attitude(_att); if (body.contacts && Math.abs(_att.roll) > 0.6) { S.events.push('crash'); S.dead = 'rollover'; }

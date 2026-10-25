@@ -33,6 +33,7 @@ export const DECK_OPS = {
   // spot 1 far enough aft that the nose clears the island's after face at z 15). The jet on spot 2 moves up when spot 1
   // empties; newcomers come up behind the last one (the rest wait in the hangar).
   SPOTS: [{ lx: 10.5, lz: 27, hdg: 0 }, { lx: 10.5, lz: 46, hdg: 0 }],
+  HELO_START: { lx: -5.5, lz: 32 },         // Huey's aft spot; its rotor clears the starboard taxi route
   LANE: [[7.5, 21], [4.2, 15.5]],           // round the island's after corner to the hold-short line
   HOLD: { lx: 2.4, lz: 10.5, hdg: -0.55 },  // hold short: behind the JBD (z 3.2..5.6), nose angled at the cat
   ENTRY: [[-1.6, 3.5]],                     // over the lowered JBD onto the track

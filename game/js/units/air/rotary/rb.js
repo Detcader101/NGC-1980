@@ -50,10 +50,10 @@ export function createBody(P) {
   const B = {
     pos: [0, 0, 0], vel: [0, 0, 0], q: [0, 0, 0, 1], w: [0, 0, 0],   // w = FRD body rates (p, q, r)
     F: [0, 0, 0], M: [0, 0, 0],                                          // FRD force / moment accumulators (cleared by integrate)
-    contacts: 0, load: 0, landed: false, agl: 0, touch: null, wet: false, gearDown: true, maxSink: 0,
+    contacts: 0, load: 0, landed: false, agl: 0, touch: null, wet: false, gearDown: true, maxSink: 0, obstructed: false,
     reset(pos, yaw = 0, onGround = true, env = null) {
       B.pos[0] = pos[0]; B.pos[1] = pos[1]; B.pos[2] = pos[2]; B.vel.fill(0); B.w.fill(0); qFromYPR(yaw, 0, 0, B.q);
-      B.landed = onGround; B.touch = null; for (const s of slip) s[0] = s[1] = 0; wasDown = onGround;
+      B.landed = onGround; B.touch = null; B.obstructed = false; for (const s of slip) s[0] = s[1] = 0; wasDown = onGround;
       if (onGround && env) {   // stand on the gear at the highest ground below it
         let g = -1e9, low = 0;
         for (const G of P.gear) { B.worldPoint(G.at, _p); g = Math.max(g, env.groundY(_p[0], _p[2])); low = Math.max(low, G.at[2]); }
@@ -68,6 +68,7 @@ export function createBody(P) {
     integrate(h, env, g = 9.81) {
       const m = P.mass(), [Ixx, Iyy, Izz] = P.I;
       _Fw[0] = _Fw[1] = _Fw[2] = 0; _Tw[0] = _Tw[1] = _Tw[2] = 0;
+      B.obstructed = false;
       if (B.gearDown) gear(h, env, m); else B.contacts = 0;
       fromF(B.F, _t); qrot(B.q, _t, _f); _f[0] += _Fw[0]; _f[1] += _Fw[1] - m * g; _f[2] += _Fw[2];
       for (let i = 0; i < 3; i++) { B.vel[i] += _f[i] * h / m; B.pos[i] += B.vel[i] * h; }
@@ -104,11 +105,14 @@ export function createBody(P) {
       fromF(G.at, _t); qrot(B.q, _t, _r); _p[0] = _r[0] + B.pos[0]; _p[1] = _r[1] + B.pos[1]; _p[2] = _r[2] + B.pos[2];
       const gy = env.groundY(_p[0], _p[2]), pen = gy - _p[1]; if (-pen < gmin) gmin = -pen;
       if (pen <= 0) { slip[i][0] = slip[i][1] = 0; continue; }
+      // A raised deck or steep obstacle can appear above the whole aircraft. That is
+      // a collision, not metres of spring travel; do not turn it into an explosive impulse.
+      if (pen > 2) B.obstructed = true;
       if (env.water && env.water(_p[0], _p[2])) B.wet = true;
       cross(_ow, _r, _w); _w[0] += B.vel[0] - surfVel(env, _p[0], _p[2], _sv)[0]; _w[1] += B.vel[1]; _w[2] += B.vel[2] - _sv[2];
       if (!first) first = { vy: _w[1], hs: Math.hypot(_w[0], _w[2]) };
       let N = G.k * Math.min(pen, 0.3) - G.c * _w[1] * (_w[1] < 0 ? 1 : 0.3) + (pen > 0.3 ? 40 * G.k * (pen - 0.3) : 0);
-      N = Math.max(0, N); n++; nsum += N;
+      N = clamp(N, 0, m * 9.81 * 8 / P.gear.length); n++; nsum += N;
       // friction (brakes set / skids): deadbeat on the effective mass, shared by load, with a slip anchor so it holds still
       const vl = dot(_w, _fwd), vs = dot(_w, _lat), share = N / Math.max(N, nsumPrev, 1) * 0.5 / h;
       slip[i][0] += vl * h; slip[i][1] += vs * h;

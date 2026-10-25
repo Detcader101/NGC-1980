@@ -499,7 +499,7 @@ export function createGroundWar(ctx) {
     const wantH = t >= GW_T.HOVER_AT && hovers < Math.min(4, 1 + Math.floor(t / 420)) && ok('hovertank'), wantM = t >= GW_T.MBT_AT && mbts < Math.min(3, Math.floor(t / 540)) && ok('mbt');
     // (the KRAKEN's own vehicle deck: a steady armour budget, plus any surplus the commander has lying about - the air
     // arm and the expansion keep first call on the materiel)
-    if ((wantH || wantM) && GW.bank < GW_T.MBT_COST) { const take = Math.max(0, Math.min(E.mat - 60, 4)); E.mat -= take; GW.bank += take + GW_T.DECK_RATE * 2; }
+    if ((wantH || wantM) && GW.bank < GW_T.MBT_COST) { const take = Math.max(0, Math.min((W.spendable ? W.spendable(2) : E.mat) - 60, 4)); E.mat -= take; GW.bank += take + GW_T.DECK_RATE * 2; }
     if (wantH && GW.hoverT <= 0 && GW.bank >= GW_T.HOVER_COST) {
       const I = pickGroundTarget(true); if (I && GW.launchHover(I)) { GW.bank -= GW_T.HOVER_COST; GW.hoverT = GW_T.HOVER_GAP; feed(`RADAR: RW-7 HOVER TANK LEAVING THE KRAKEN  -  HEADING FOR ${I.name}`, 'bad'); }
     }

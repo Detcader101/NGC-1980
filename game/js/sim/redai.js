@@ -21,7 +21,6 @@ export function createRedAI({ W, nav, feed = () => {}, sfx = {}, doctrine, log =
 
   // ---------------------------------------------------------------- war.js think(), with the knobs
   function think(pl) {
-    W.researchTick(2, pl); W.researchTick(1, pl);   // (as war.js think opens)
     const E = W.E, ec = W.enemyCarrier && W.enemyCarrier.sinking === undefined ? W.enemyCarrier : null;
     const air = W.units.filter(u => u.side === 2 && u.p && !u.dims && !u.dead && !u.dying);
     const guns = air.filter(u => u.type === 'gunship'), trans = air.filter(u => u.type === 'transport');
@@ -31,25 +30,25 @@ export function createRedAI({ W, nav, feed = () => {}, sfx = {}, doctrine, log =
     if (pl.alive && !pl.inCave && allow('gunship')) {
       const near = [...mine.map(I => [I.x, I.z]), ...(ec ? [[ec.p.x, ec.p.z]] : [])].some(([x, z]) => Math.hypot(pl.pos.x - x, pl.pos.z - z) < 260 * (pl.detect ?? 1));
       const hunting = guns.filter(g => g.target === 'player').length;
-      if (near && hunting < Math.round((2 + Math.floor(W.time / 300)) * F) && guns.length < cap && E.mat >= 12) { E.mat -= 12; W.spawnGunship(2, nearestLaunch(pl.pos.x, pl.pos.z)).target = 'player'; note('WASPS HUNT THE PLAYER'); }
+      if (near && hunting < Math.round((2 + Math.floor(W.time / 300)) * F) && guns.length < cap && W.spendable(2) >= 12) { E.mat -= 12; W.spawnGunship(2, nearestLaunch(pl.pos.x, pl.pos.z)).target = 'player'; note('WASPS HUNT THE PLAYER'); }
     }
     // 2. expand: send transports at neutral (or undefended player) islands
     W.transT -= 2;
-    if (allow('transport') && trans.length < Math.max(1, Math.round(2 * X)) && E.mat >= 25 + keep && W.transT <= 0) { const I = W.pickExpansion(); if (I) { W.transT = Math.max(18, 40 - W.time / 30) / Math.max(0.25, X); E.mat -= 25; const [x, y, z] = launchPoint(2); makeAir('transport', 2, x, y, z, { target: I }); note(`MV-22 TO ${I.name}`, { order: 'transport', I: I.name }); } }
+    if (allow('transport') && trans.length < Math.max(1, Math.round(2 * X)) && W.spendable(2) >= 25 + keep && W.transT <= 0) { const I = W.pickExpansion(); if (I) { W.transT = Math.max(18, 40 - W.time / 30) / Math.max(0.25, X); E.mat -= 25; const [x, y, z] = launchPoint(2); makeAir('transport', 2, x, y, z, { target: I }); note(`MV-22 TO ${I.name}`, { order: 'transport', I: I.name }); } }
     // 3. fortify: guns on islands that have few
-    if (allow('aa')) for (const I of mine) if (E.mat >= 30 + keep * 0.5 && W.aliveAA(I) + I.structs.filter(s => s.kind === 'aa' && s.building > 0).length < Math.round((I.kind === 'factory' || I.kind === 'hq' ? 3 : 2) * F)) { const s = buildAA(I, 2); if (s) { E.mat -= 30; s.building = 14 * W.techMod(2, 'aa.build'); note(`TALON ON ${I.name}`, { order: 'aa', I: I.name }); } break; }
+    if (allow('aa')) for (const I of mine) if (W.spendable(2) >= 30 + keep * 0.5 && W.aliveAA(I) + I.structs.filter(s => s.kind === 'aa' && s.building > 0).length < Math.round((I.kind === 'factory' || I.kind === 'hq' ? 3 : 2) * F)) { const s = buildAA(I, 2); if (s) { E.mat -= 30; s.building = 14 * W.techMod(2, 'aa.build'); note(`TALON ON ${I.name}`, { order: 'aa', I: I.name }); } break; }
     // 4. raid: every so often, a strike group at the player's weakest guarded island or the carrier
     W.raidT -= 2;
-    if (allow('gunship') && W.raidT <= 0 && E.mat >= 36 + keep && guns.length < cap) {
+    if (allow('gunship') && W.raidT <= 0 && W.spendable(2) >= 36 + keep && guns.length < cap) {
       W.raidT = Math.max(50, 110 - W.time / 20) / Math.max(0.25, A);
       const ours = W.islands.filter(I => I.owner === 1 && I.kind !== 'hq');
       let tgt = null;
       if (ours.length && Math.random() < 0.65) { const I = ours.sort((a, b) => W.aliveAA(a) - W.aliveAA(b))[0]; tgt = I.structs.find(s => s.kind === 'aa' && !s.dead) || I.structs.find(s => !s.dead); }
       else if (W.carrier && W.carrier.sinking === undefined) tgt = W.carrier;
-      if (tgt) { const n = Math.max(1, Math.round((2 + Math.min(3, Math.floor(W.time / 240))) * Math.min(2, A * Math.max(0.5, M.air)))); E.mat -= 12 * n; for (let i = 0; i < n; i++) W.spawnGunship(2, null, tgt); feed(tgt === W.carrier ? 'RADAR: ENEMY STRIKE INBOUND ON THE ALBATROSS' : `RADAR: ENEMY STRIKE HEADING FOR ${tgt.I.name}`, 'bad'); note(`${n} WASPS RAID ${tgt === W.carrier ? 'THE ALBATROSS' : tgt.I.name}`, { order: 'raid', n }); }
+      if (tgt) { const n = Math.min(Math.max(1, Math.round((2 + Math.min(3, Math.floor(W.time / 240))) * Math.min(2, A * Math.max(0.5, M.air)))), cap - guns.length, Math.floor((W.spendable(2) - keep) / 12)); E.mat -= 12 * n; for (let i = 0; i < n; i++) W.spawnGunship(2, null, tgt); feed(tgt === W.carrier ? 'RADAR: ENEMY STRIKE INBOUND ON THE ALBATROSS' : `RADAR: ENEMY STRIKE HEADING FOR ${tgt.I.name}`, 'bad'); note(`${n} WASPS RAID ${tgt === W.carrier ? 'THE ALBATROSS' : tgt.I.name}`, { order: 'raid', n }); }
     }
     // 5. a couple of guards over the carrier
-    if (allow('gunship') && ec && guns.filter(g => !g.target && Math.hypot(g.home[0] - ec.p.x, g.home[1] - ec.p.z) < 200).length < Math.round(2 * F) && E.mat >= 12 && guns.length < cap) { E.mat -= 12; W.spawnGunship(2); }
+    if (allow('gunship') && ec && guns.filter(g => !g.target && Math.hypot(g.home[0] - ec.p.x, g.home[1] - ec.p.z) < 200).length < Math.round(2 * F) && W.spendable(2) >= 12 && guns.length < cap) { E.mat -= 12; W.spawnGunship(2); }
     // 6. supply: a freighter takes an island's stockpile to the KRAKEN (or IRONHOLD)
     W.freightT -= 2;
     if (W.freightT <= 0 && allow('freighter')) {
