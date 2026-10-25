@@ -19,6 +19,7 @@ import { RwAudio } from '../runaway/rwaudio.js';
 import { FIGURES } from '../air/rotary/figures.js';
 import { createCasevac } from './casevac.js';   // ngc/infdepth
 import { careHands, throwHands } from '../infantry/carepose.js';   // ngc/infdepth-fix
+import { m67Geometry, grenadeMaterial } from '../infantry/grenademodel.js';   // ngc/marine-polish: the AI's M67s drawn in flight
 
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -184,6 +185,7 @@ export function createGroundWar(ctx) {
       else if (e.e === 'medic' && e.ext) say('"HANG ON, I GOT YOU"  -  THE CORPSMAN IS COMING TO YOU', 1e9, 10, 'good');
       else if (e.e === 'treat') say(e.ext ? `CORPSMAN: ${e.label} (${e.time} S)  -  STAY STILL` : `${who === 'MARINE' ? 'CORPSMAN' : GS.units.find(q => q.id === e.medic)?.name || 'CORPSMAN'}: ${e.label}`, e.ext ? 1e9 : 40, 2, 'good');
       else if (e.e === 'rtd') say(`${who} IS BACK ON HIS FEET`, 120, 10, 'good');
+      else if (e.e === 'fragDropped') say(`${who}: GRENADE!  -  HE DROPPED IT LIVE`, 90, 3);   // ngc/marine-polish
       else if (e.e === 'drag') say(`${GS.units.find(q => q.id === e.id)?.name || 'A MARINE'} DRAGGING ${GS.units.find(q => q.id === e.to)?.name || 'A CASUALTY'} TO THE CCP`, 80, 10, 'good');
     }
   }
@@ -493,7 +495,8 @@ export function createGroundWar(ctx) {
     GW.hoverT -= 2; GW.mbtT -= 2;
     // the ground arm saves up: when armour is due it takes a share of the materiel as it comes in (the air arm would
     // otherwise spend every point on WASPs), and pays for the launch out of that
-    const wantH = t >= GW_T.HOVER_AT && hovers < Math.min(4, 1 + Math.floor(t / 420)), wantM = t >= GW_T.MBT_AT && mbts < Math.min(3, Math.floor(t / 540));
+    const ok = k => !W.allow || W.allow(2, k);   // TECH TREE gates: no armour budget for a type not yet researched
+    const wantH = t >= GW_T.HOVER_AT && hovers < Math.min(4, 1 + Math.floor(t / 420)) && ok('hovertank'), wantM = t >= GW_T.MBT_AT && mbts < Math.min(3, Math.floor(t / 540)) && ok('mbt');
     // (the KRAKEN's own vehicle deck: a steady armour budget, plus any surplus the commander has lying about - the air
     // arm and the expansion keep first call on the materiel)
     if ((wantH || wantM) && GW.bank < GW_T.MBT_COST) { const take = Math.max(0, Math.min(E.mat - 60, 4)); E.mat -= take; GW.bank += take + GW_T.DECK_RATE * 2; }
@@ -539,6 +542,23 @@ export function createGroundWar(ctx) {
   // war.js blast hook (bombs, rockets, shells, crashes): the ground units in reach
   GW.blast = (x, y, z, r, dmg, side) => { if (GS.units.length) GS.blast(x, y, z, r * 0.9, dmg / 4, side); };
 
+  // ngc/marine-polish: the AI's hand grenades in flight and lying where they came to rest (groundsim projectiles with
+  // p.frag), one instanced draw: tumbling in the air, on its side on the ground. A dropped live one ('fragDropped': a
+  // man hit with the pin out) gets a shout.
+  const GREN_MAX = 24, grenIM = new THREE.InstancedMesh(m67Geometry(), grenadeMaterial(), GREN_MAX);
+  grenIM.frustumCulled = false; grenIM.count = 0; grenIM.name = 'gw-grenades'; root.add(grenIM);
+  const _gm = new THREE.Matrix4(), _gq = new THREE.Quaternion(), _ge = new THREE.Euler(), _gp = new THREE.Vector3(), _gs = new THREE.Vector3(1, 1, 1);
+  function drawGrenades() {
+    let n = 0;
+    for (const p of GS.proj) {
+      if (!p.frag || n >= GREN_MAX || !near(p.x, p.z, 260)) continue;
+      const k = (p.src || 0) * 1.7, spin = p.rest ? 0 : (W.time * 9 + k) % (Math.PI * 2);
+      _gq.setFromEuler(_ge.set(p.rest ? Math.PI / 2 : spin, k, p.rest ? 0 : spin * 0.4, 'XYZ'));
+      _gm.compose(_gp.set(p.x, p.y + (p.rest ? -0.015 : 0), p.z), _gq, _gs); grenIM.setMatrixAt(n++, _gm);
+    }
+    grenIM.count = n; if (n) grenIM.instanceMatrix.needsUpdate = true;
+  }
+  GW.drawGrenades = drawGrenades;
   // ------------------------------------------------------------------------------------------- the frame
   GW.update = (dt, P, peace) => {
     GW.playerFiredT += dt;
@@ -560,6 +580,7 @@ export function createGroundWar(ctx) {
     updateProxies();
     updateLCACs(dt);
     renderUnits(dt);
+    drawGrenades();   // ngc/marine-polish
     effects(evs);
     flushTallies(dt);
     sound(dt, evs);
