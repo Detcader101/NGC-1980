@@ -57,10 +57,10 @@ export function createDeckOps({ feed = () => {}, now = () => 0, O = DECK_OPS } =
   D.place = e => order().indexOf(e) + 1;
   D.status = e => {
     if (!e || !D.entries.includes(e)) return '';
-    const n = D.place(e), why = D.why ? `  -  ${D.why}` : '';
+    const n = D.place(e), why = e.why ? `  -  ${e.why}` : '';
     if (e.state === 'hangar') return `NUMBER ${n} FOR CAT 1  -  IN THE HANGAR, WAITING FOR A SPOT${why}`;
     if (e.state === 'moveup') return `NUMBER ${n} FOR CAT 1  -  MOVING UP TO SPOT 1`;
-    if (e.state === 'spot') return `NUMBER ${n} FOR CAT 1  -  ON THE SPOT, CHAINED${n > 1 || D.why ? why : '  -  TAXI CLEARED SHORTLY'}`;
+    if (e.state === 'spot') return `NUMBER ${n} FOR CAT 1  -  ON THE SPOT, CHAINED${e.why ? why : n > 1 ? '' : '  -  TAXI CLEARED SHORTLY'}`;
     if (e.state === 'taxi') return `NUMBER ${n} FOR CAT 1  -  TAXIING, FOLLOW THE DIRECTOR`;
     if (e.state === 'hold') return `NUMBER ${n} FOR CAT 1  -  HOLD SHORT${why}`;
     if (e.state === 'oncat') return 'TAXIING ONTO CAT 1  -  THE CAT DIRECTOR HAS YOU';
@@ -93,7 +93,10 @@ export function createDeckOps({ feed = () => {}, now = () => 0, O = DECK_OPS } =
   D.request = r => {
     const e = { ...r, seq: ++D.seq, prio: r.prio || 0, state: 'hangar', t: 0, s: 0, spotI: -1, path: [], k: 0, asked: now() };
     D.entries.push(e);
-    spot(e, null);
+    if (!spot(e, null) && e.player) {   // the player's jet bumps the last AI jet spotted back down to the hangar
+      const o = D.entries.filter(o => o !== e && !o.player && o.state === 'spot').sort((a, b) => b.spotI - a.spotI)[0];
+      if (o && o.spotI === Math.max(...D.entries.map(x => x.spotI))) { o.state = 'hangar'; o.spotI = -1; o.A.tow = null; o.onUnspot && o.onUnspot(o); if (spot(e, null)) e.seq = Math.min(...D.entries.filter(x => x.state === 'hangar').map(x => x.seq)) - 0.5; }   // (and goes ahead of the ones sent down)
+    }
     return e;
   };
   function spot(e, obstacles) {   // up from the hangar onto a free spot
@@ -142,18 +145,18 @@ export function createDeckOps({ feed = () => {}, now = () => 0, O = DECK_OPS } =
       if (e && !D.entries.some(o => o.spotI === i) && !pathOk([[e.A.tow.lx, e.A.tow.lz], [O.SPOTS[i].lx, O.SPOTS[i].lz]], obstacles)) { e.spotI = i; e.state = 'moveup'; setPath(e, [[O.SPOTS[i].lx, O.SPOTS[i].lz]], O.SPOTS[i].hdg); }
     }
     for (const e of order()) {
-      e.t += dt;
+      e.t += dt; e.why = '';
       switch (e.state) {
-        case 'hangar': if (e.skip && D.quick(e)) break; if (!spot(e, obstacles)) D.why ||= 'ALL SPOTS TAKEN'; break;   // (bumped: up on the lift and straight to the cat)
+        case 'hangar': if (e.skip && D.quick(e)) break; if (!spot(e, obstacles)) e.why = 'ALL SPOTS TAKEN'; break;   // (bumped: up on the lift and straight to the cat)
         case 'spot': {
           if (e.t < O.SPOT_T && !e.skip) break;
           if (order().find(o => o.state === 'spot') !== e) break;   // someone spotted before me goes first
           if (D.entries.some(o => o.skip && o !== e && o.prio > e.prio && (o.state === 'hangar' || o.state === 'spot'))) break;   // the commander's jet goes next
           if (busy('taxi') || busy('hold')) break;
           if (e.skip && D.quick(e)) break;
-          if (D.landing) { D.why = 'RECOVERY IN PROGRESS'; break; }
+          if (D.landing) { D.why = e.why = 'RECOVERY IN PROGRESS'; break; }
           const pts = [...O.SPOTS.slice(0, e.spotI).reverse().map(S => [S.lx, S.lz]), ...O.LANE, [O.HOLD.lx, O.HOLD.lz]];
-          const f = pathOk([[e.A.tow.lx, e.A.tow.lz], ...pts], [...obstacles, ...parked(e)]); if (f) { D.why = f; break; }
+          const f = pathOk([[e.A.tow.lx, e.A.tow.lz], ...pts], [...obstacles, ...parked(e)]); if (f) { D.why = e.why = f; break; }
           e.state = 'taxi'; e.t = 0; e.s = 0; setPath(e, pts, O.HOLD.hdg);
           if (e.player) feed(`${e.name}: TAXI  -  FOLLOW THE YELLOW SHIRT TO CAT 1`);
           break;
@@ -162,9 +165,9 @@ export function createDeckOps({ feed = () => {}, now = () => 0, O = DECK_OPS } =
         case 'taxi': if (e.s > 9) e.spotI = -1; if (follow(e, dt)) { e.state = 'hold'; e.t = 0; e.A.tow.v = 0; } break;
         case 'hold': {
           if (e.t < O.HOLD_T) break;
-          if (D.entries.some(o => ['oncat', 'tension', 'shot'].includes(o.state)) || D.catGap > 0) { D.why ||= D.catGap > 0 ? 'THE CAT IS BEING RESET' : 'CAT 1 IS BUSY'; break; }
+          if (D.entries.some(o => ['oncat', 'tension', 'shot'].includes(o.state)) || D.catGap > 0) { e.why = D.catGap > 0 ? 'THE CAT IS BEING RESET' : 'CAT 1 IS BUSY'; break; }
           const pts = [...O.ENTRY, [O.CAT.x, O.CAT.z0]], f = pathOk([[O.HOLD.lx, O.HOLD.lz], ...pts], obstacles);
-          if (f) { D.why = f; break; }
+          if (f) { D.why = e.why = f; break; }
           e.state = 'oncat'; e.t = 0; setPath(e, pts, 0);   // (allowed in a recovery: it takes her out of the landing area)
           break;
         }

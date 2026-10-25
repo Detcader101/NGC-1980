@@ -18,6 +18,7 @@ import { buildCarrier, buildBattleship, buildFreighter, buildDrone, buildTranspo
 import { SHIPS as SHIP_MOTION, makeSea, createShipMotion, shipPointY, shipPointVY, retuneSea, advanceSea, seaElevation } from './units/naval/seamotion.js';
 import { createSeaWeather } from './units/naval/seaweather.js';   // SEAWORLD: the optional drifting sea state
 import { createNavalFx } from './units/naval/navalfx.js';
+import { createDeckOps } from './units/naval/deckops.js';   // (ngc/bugsweep) DECK OPS: the ALBATROSS launch queue and taxi simulation
 import { createAirWar } from './units/air/airwar.js';             // AIR: sim-flown Tomcats, SHRIKE / REAPER / SHAHED (ngc/airfw)
 import { homeAAM, decoyCheck } from './units/air/gameproj.js';     // AIR: the shared game-level missile homing and decoy rule
 import { createTech, unitAllowed, gateMsg, aiPickResearch, techStartFromQuery } from './techtree.js';   // TECH TREE: research gates every buy / build / launch
@@ -363,6 +364,7 @@ export function createWar(ctx) {
       const [hx, hz] = toLocal(u, pl.pos.x, pl.pos.z), hy = pl.pos.y - u.p.y - u.dims.DECK;
       if (hy < 14 && hy > -2) avoid = (x, z) => { const dx = x - hx, dz = z - hz, r = Math.hypot(dx, dz); return r < 9 ? [dx || 0.1, dz] : null; };
     }
+    if (u === W.carrier && W.deck) { const a0 = avoid; avoid = (x, z) => (a0 && a0(x, z)) || W.deck.crewAvoid(x, z); }   // DECK OPS: out of a taxiing jet's way, off the cat lane
     u.parts.tick(dt, W.time, d, avoid);
   }
   function sailShip(u, dt) {
@@ -932,6 +934,7 @@ export function createWar(ctx) {
     W.enemyCarrier = makeShip('carrier', 2, ctx.enemyStart[0], ctx.enemyStart[1], ctx.enemyStart[2]);
     for (const I of W.islands) ctx.onOwner(I, I.owner);
     W.air.reset();   // AIR
+    W.deck.reset();   // DECK OPS
   };
   W.update = (dt, pl, peace) => {
     W.time += dt; W._pl = pl; W.peace = peace;
@@ -955,6 +958,7 @@ export function createWar(ctx) {
     updateBattleship(dt); updateFreighters(dt);
     if (!peace) { W.thinkT -= dt; if (W.thinkT <= 0) { W.thinkT = 2; if (W.redAI) W.redAI.think(pl, think); else { GW.think(pl); think(pl); W.air.think(pl); } } }   // SIM MODE hook: a CPU doctrine (sim/redai.js) can stand in for the enemy commander; GROUND WAR: its ground plans first (armour is saved up for); AIR: + the enemy air arm's plans
     W.air.frame(dt, pl);   // AIR: launch queue, drone rails, engine sounds
+    deckFrame(dt);   // DECK OPS: the ALBATROSS flight deck (units/naval/deckops.js)
     // buildings animate
     for (const I of W.islands) for (const s of I.structs) {
       s.mesh.userData.tick?.(dt, W.time);   // WORLD: faction structures animate themselves
@@ -973,6 +977,30 @@ export function createWar(ctx) {
   W.damage = damage; W.hitTest = hitTest; W.pickExpansion = pickExpansion;
   W.sim = { makeAir, buildAA, makeShip, launchPoint, nearestLaunch, end, COST };   // SIM MODE hook: what the CPU commanders (game/js/sim/) build with
   W.makeShip = makeShip;   // NAVAL: tests and the dev tools place ships with it
+  // ---------------------------------------------------------------- DECK OPS (ngc/bugsweep): the ALBATROSS flight deck
+  // what fouls it: a helicopter sitting or hovering low on it (the war's CH-46s, the player's Huey via deckHooks), a jet
+  // the player parked; who wants to land: an AI pilot in the pattern (W.deck.wantT, pilot.js env.wantDeck) or the
+  // player's jet on approach (deckHooks.landing). The JBD and the two directors follow the queue.
+  W.deck = createDeckOps({ feed, now: () => W.time });
+  W.deckHooks = { obstacles: null, landing: null };
+  function deckFrame(dt) {
+    const c = W.carrier, ok = !!c && c.sinking === undefined && !(c.sky && c.sky.up);
+    const obs = [];
+    if (ok) {
+      for (const u of W.units) {
+        if (!u.rot || u.dead || u.stowed || u.side !== 1 || Math.abs(u.p.x - c.p.x) > 80 || Math.abs(u.p.z - c.p.z) > 80) continue;
+        const [lx, lz] = toLocal(c, u.p.x, u.p.z), hy = u.p.y - c.p.y - c.dims.DECK;
+        if (hy < 14 && Math.abs(lx) < 16 && Math.abs(lz) < 64) obs.push({ lx, lz, r: 9, why: `A ${u.kind === 'ch46' ? 'SEA KNIGHT' : 'HELICOPTER'} ON THE DECK` });
+      }
+      const ex = W.deckHooks.obstacles && W.deckHooks.obstacles(c, (x, z) => toLocal(c, x, z)); if (ex) obs.push(...ex);
+    }
+    const landing = ok && (W.time - (W.deck.wantT ?? -1e9) < 0.6 || !!(W.deckHooks.landing && W.deckHooks.landing(c, (x, z) => toLocal(c, x, z))));
+    W.deck.update(dt, { ship: ok, obstacles: obs, landing });
+    if (ok && c.parts) {
+      c.parts.setJBD?.(W.deck.jbd);
+      const m = c.parts.crew && c.parts.crew.members; if (m) for (const p of m) if (p.director !== undefined) { const d = W.deck.directors[p.director]; p.x = p.x0 = d.lx; p.z = p.z0 = d.lz; p.yaw = d.yaw; p.mode = d.walking ? 'march' : d.mode === 'signal' ? 'signal' : 'idle'; }
+    }
+  }
   W.air = createAirWar(W, ctx, { shoot, damage, blast, hear, boomAt, feed, CARRIER, COST_ESCORT: COST.escort });   // AIR (units/air/airwar.js)
   return W;
 }

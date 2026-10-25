@@ -39,14 +39,14 @@ export function createStrikeWing({ W, terrainH, scene, feed = () => {}, fleet = 
     if (fleet && !fleet.take('jet')) { const r = fleet.buy('jet', W.P); if (r) return r; fleet.take('jet'); }
     const A = createJetSim(9), name = `RAIDER ${++SW.modex}`;
     const P = createPilot(A, { ...WINGMAN.HORNET, side: 1, name });
-    A.reset(c.p.x, CARRIER.DECK + c.p.y, c.p.z, c.yaw, { running: true, airborne: true, alt: 60, speed: 95 });
-    for (const e of A.eng) e.n = 0.95;
-    P.anchor = { x: c.p.x, y: 0, z: c.p.z }; P.spawnAir('climb');
+    A.reset(c.p.x, CARRIER.DECK + c.p.y, c.p.z, c.yaw, { running: true });   // (ngc/bugsweep) DECK OPS: off cat 1 through the launch queue, not spawned in the air
+    P.anchor = { x: c.p.x, y: 0, z: c.p.z };
     const model = buildMesh ? buildMesh() : null, mesh = model ? model.group : new THREE.Object3D();   // (the browser: the HORNET model, control surfaces and gear moving)
     const u = { type: 'strike', side: 1, sim: A, ai: P, p: A.pos, v: A.vel, yaw: 0, hp: STRIKE.HP, hpMax: STRIKE.HP, mesh, parts: { group: mesh, animate: model ? (A, dt, t) => model.animate({ ...A.surf, gear: A.gear, wow: A.wow }, dt, t) : () => {} }, r: STRIKE.R, cd: 0, ph: 0, air: true, name,
-      tgt: target, why, phase: 'ingress', bombs: STRIKE.BOMBS, aim: new THREE.Vector3(), t: 0, released: 0 };
-    scene.add(mesh); W.units.push(u); SW.jets.push(u); SW.stats.sorties++; SW.turnT = STRIKE.TURN;
-    feed(`${name} OFF THE ALBATROSS  -  STRIKE ${why}`);
+      tgt: target, why, phase: 'deck', bombs: STRIKE.BOMBS, aim: new THREE.Vector3(), t: 0, released: 0 };
+    SW.jets.push(u); SW.stats.sorties++; SW.turnT = STRIKE.TURN;
+    if (W.air && W.air.deckLaunch && W.deck) W.air.deckLaunch(u, { what: `STRIKE ${why}`, onAirborne: () => { u.phase = 'ingress'; P.set('climb'); feed(`${name} OFF THE ALBATROSS  -  STRIKE ${why}`); }, onCancel: () => { u.dead = true; } });
+    else { A.reset(c.p.x, CARRIER.DECK + c.p.y, c.p.z, c.yaw, { running: true, airborne: true, alt: 60, speed: 95 }); for (const e of A.eng) e.n = 0.95; P.spawnAir('climb'); u.phase = 'ingress'; scene.add(mesh); W.units.push(u); }
     return '';
   };
   function retarget(u) {   // the target went down before we got there: anything else of theirs on that island, else home
@@ -68,6 +68,7 @@ export function createStrikeWing({ W, terrainH, scene, feed = () => {}, fleet = 
         if (P.recovered && !u.dying && !A.dead) { u.recovered = true; SW.stats.recovered++; if (fleet) fleet.give('jet'); continue; }   // (trapped by the pilot's own pattern: airwar.js stows it)
         SW.stats.lost++; if (fleet) fleet.lose('jet', 'SHOT DOWN'); continue;
       }
+      if (u.phase === 'deck') continue;   // DECK OPS: still on the deck, in the queue
       if (u.phase !== 'home' && gone(u.tgt) && !retarget(u)) home(u, 'TARGET GONE');
       if (u.phase === 'ingress') {   // to the IP: DIVE_R short of the target on the line in, at height
         tpos(u.tgt, _t); const dx = A.pos.x - _t.x, dz = A.pos.z - _t.z, d = Math.hypot(dx, dz) || 1;

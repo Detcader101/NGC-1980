@@ -463,8 +463,9 @@ export function buildAlbatross(side = 1, opts = {}) {
   for (const L of [...ISLAND_LADDERS, STERN_LADDER]) buildLadderGeo(kit, L);
   // vehicles and deck clutter
   // (the port strip from z -6 to -36 is the vehicle park: ground.js DECK_SPOTS put the Marines' jeep and armour there)
-  tractor(kit, 5.6, -1.5, 0.4); tractor(kit, 12.2, 38, Math.PI); tractor(kit, -10.6, -45, -0.25, 0xe8e8e2);
-  tilly(kit, 5.9, 12.5, 0.05); bowser(kit, 11.4, -14.5, Math.PI); huffer(kit, 4.6, -16, 1.2); huffer(kit, 4.3, 46, -0.6);
+  // (ngc/bugsweep) DECK OPS: Tilly and the aft tractor moved off the taxi lane and the jet spots (units/naval/deckops.js)
+  tractor(kit, 5.6, -1.5, 0.4); tractor(kit, 5.5, 58.6, Math.PI / 2); tractor(kit, -10.6, -45, -0.25, 0xe8e8e2);
+  tilly(kit, 10.6, -7.2, 0.05); bowser(kit, 11.4, -14.5, Math.PI); huffer(kit, 4.6, -16, 1.2); huffer(kit, 4.3, 46, -0.6);
   for (const [x, z] of [[4.2, -25], [6.4, 24], [12.4, 15.8], [-12.6, 2], [-12.4, -40]]) fireBottle(kit, x, z);
   for (let i = 0; i < 4; i++) kit.box(0.6, 0.15, 3.2, 0x2a2a2a, -13.0 + i * 0.7, DECK + 0.08, 6 + i * 0.4, 0, 0.1, 0);   // tow bars stacked at the edge
   // parked aircraft: two Hornets forward of the island (tails over the starboard edge); a Tomcat (oversweep) on the aft
@@ -566,10 +567,12 @@ export function buildAlbatross(side = 1, opts = {}) {
       { mode: 'walk', jersey: 'yellow', path: [[3.8, 18], [3.8, 46], [3.8, 18]], speed: 1.1 },
       { mode: 'walk', jersey: 'green', path: [[-8.9, -36], [-8.9, -6], [-8.9, -36]], speed: 1.4 },
       { mode: 'walk', jersey: 'purple', path: [[12.8, -34], [12.8, -12], [12.8, -34]], speed: 0.9 },
-      { mode: 'walk', jersey: 'brown', path: [[12.6, 18], [12.6, 54], [12.6, 18]], speed: 1.2 },
+      { mode: 'walk', jersey: 'brown', path: [[13.5, 18], [13.5, 54], [13.5, 18]], speed: 1.2 },   // (outboard of the jets on the deck-ops spots)
     ];
     for (const p of C) { p.y ??= DECK; if (p.path) { p.x = p.path[0][0]; p.z = p.path[0][1]; } }
     C.push({ mode: 'seated', jersey: 'blue', at: () => tug.seat });
+    // (ngc/bugsweep) DECK OPS: the taxi director and the cat director (yellow), moved by war.js from units/naval/deckops.js
+    C.push({ x: 6.3, z: -3.8, yaw: 2.8, jersey: 'yellow', director: 0, y: DECK }, { x: -9.6, z: -1, yaw: 0.6, jersey: 'yellow', director: 1, y: DECK });
     crew = createCrew(C, { seed: 21 }); g.add(crew.group);
   }
   // ---- SEAWORLD: the deck-edge elevators. Each lift is a group (the platform, its railings, whatever is parked on it)

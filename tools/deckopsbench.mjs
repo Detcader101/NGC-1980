@@ -49,7 +49,7 @@ function run({ dt = 0.1, jets, foul = null, landing = null, bumpAt = null, T = 4
   for (; t < T; t += dt) {
     u.sail(dt);
     for (const j of J) if (!j.e && !j.up && t >= j.at) {
-      j.e = DO.request({ name: j.name, A: j.A, kind: j.kind, attach: () => j.A.attachCat(env), onAirborne: () => { j.up = t; rec.launches.push({ name: j.name, t }); } });
+      j.e = DO.request({ name: j.name, A: j.A, kind: j.kind, player: !!j.player, attach: () => j.A.attachCat(env), onAirborne: () => { j.up = t; rec.launches.push({ name: j.name, t }); } });
     }
     if (bumpAt && t >= bumpAt.t && !bumpAt.done) { bumpAt.done = true; const j = J.find(j => j.name === bumpAt.name); DO.bump(j.e); }
     const fouled = foul && t >= foul.t0 && t < foul.t1, land = landing && t >= landing.t0 && t < landing.t1;
@@ -110,6 +110,12 @@ for (const dt of [1 / 30, 0.1]) {
   const r = run({ jets: five, bumpAt: { t: 6, name: 'HORNET (YOU)' } });
   const order = r.launches.map(l => l.name);
   check('the bumped jet goes next, the rest keep their order', order[1] === 'HORNET (YOU)' && order.filter(n => n !== 'HORNET (YOU)').join() === five.map(j => j.name).filter(n => n !== 'HORNET (YOU)').join() && !r.crashed.length, order.join(' > '), 'VICTORY 201 (already on the cat) > HORNET (YOU) > the rest');
+}
+{
+  console.log('--- three AI Tomcats, then the player asks (every spot taken: the last AI one goes back down) ---');
+  const r = run({ jets: [...five.slice(0, 2), five[3], { name: 'HORNET (YOU)', kind: 'hornet', at: 4, player: true }] });
+  const order = r.launches.map(l => l.name);
+  check('the player is spotted at once and goes after the jet ahead on the deck', order.join() === ['VICTORY 201', 'HORNET (YOU)', 'VICTORY 202', 'VICTORY 203'].join() && !r.crashed.length && r.minSep > 2 * O.JET_R - 1.5, order.join(' > ') + `, closest ${r.minSep.toFixed(1)} m`, '201 > YOU > 202 > 203, no crash');
 }
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

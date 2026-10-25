@@ -54,7 +54,7 @@ export default async function (h) {
   await h.key("tap", "Enter"); await h.waitFor("__G.G.state === 'play'", 10000); await h.wait(1200);
   await h.eval(FOLLOW);
   await h.eval("(() => { const W = __G.war, c = W.carrier; __G.G.mat = 200; __G.selIsl = null; __G.command(4); return W.air.pending.length; })()");
-  await h.waitFor("__G.war.units.some(u => u.type === 'escort' && u.ai.state === 'cat')", 30000);
+  await h.waitFor("__G.war.units.some(u => u.type === 'escort' && u.ai.state === 'cat')", 90000);
   await h.eval("(window.__j = __G.war.units.find(u => u.type === 'escort'), window.__follow = __j, window.__cam = { side: 1, d: 26, h: 7 }, 1)");
   await h.wait(1500); await h.shot("ai-tomcat-on-the-cat");
   await h.waitFor("__j.sim.cat && __j.sim.cat.state === 'stroke' || !__j.sim.cat", 90000);

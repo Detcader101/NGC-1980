@@ -80,17 +80,18 @@ export function createTomcatPlay(ctx) {
     A.fuel = Math.min(TOMCAT.FUEL_MAX, Math.max(TOMCAT.FUEL_MAX * 0.35, ctx.takeFuel(100) * KG_PER_UNIT));
     for (const e of A.eng) { e.run = true; e.n = 0.68; e.egt = 430; e.stalled = false; }
     A.sweep = 20; A.sweepMode = 'auto'; A.sweepCmd = 20; A.trim = 0.02; A.cas = true;
-    if (!A.attachCat(env)) return false;
+    const how = ctx.deckSpot ? ctx.deckSpot(A, env, 'TOMCAT') : (A.attachCat(env) ? 'cat' : '');   // (ngc/bugsweep) DECK OPS: on cat 1 if it is free, else spotted in the queue
+    if (!how) return false;
     A.flapSel = 2; for (const e of A.eng) { e.run = true; e.n = 0.68; e.egt = 430; }
     Object.assign(P, { active: true, alive: true, ejected: null, seat: 0, thr: 0, thrSrc: 'kb', blood: 0, red: 0, gloc: 0, deadT: 0, ejectHold: 0, hook: null, lock: false, tgt: null, sas: true, hudMode: 'T.O.', hudAuto: true, arm: true, wpn: 'SW' });
     P.sweep = createSweepControl(); P.ap = createAfcs(); startSet(P.ss, true); P.sasCh = [true, true, true]; P.dump = false;
     A.nzMax = A.nzMin = 1; P.mcSeen.clear(); P.serviced = true; model.group.visible = true; for (const c of chutes) c.visible = false;
     model.parts.canopy.visible = true; for (const m of crewMeshes) m.visible = true;
-    say('TOMCAT ON CAT 1  -  THROTTLES TO MIL (OR ZONE 5) FOR THE SHOT', 3); return true;
+    say(how === 'cat' ? 'TOMCAT ON CAT 1  -  THROTTLES TO MIL (OR ZONE 5) FOR THE SHOT' : `TOMCAT SPOTTED  -  ${ctx.deckStatus(A)}  ·  8 AGAIN: PRIORITY`, 3); return true;
   };
   P.stow = () => { P.active = false; P.alive = false; model.group.visible = false; shadow.visible = false; for (const c of chutes) c.visible = false; cockpit.group.visible = false; P.silence(); };
   P.silence = () => { snd.silence(); sfx.seeker?.(0); sfx.jetGun?.(false); };
-  P.respot = () => { if (!A.attachCat(env)) return; A.flapSel = 2; P.ss.thrOff = [false, false]; P.ss.crank = 'OFF'; P.ss.auto = null; for (const e of A.eng) if (!e.run) e.start = 0.01; say('SPOTTED ON CAT 1  -  MIL POWER FOR THE SHOT', 2.5); };
+  P.respot = () => { const how = ctx.deckSpot ? ctx.deckSpot(A, env, 'TOMCAT') : (A.attachCat(env) ? 'cat' : ''); if (!how) return; if (how !== 'cat') { say(how === 'bump' ? `PRIORITY  -  NEXT FOR CAT 1  ·  ${ctx.deckStatus(A)}` : `SPOTTED  -  ${ctx.deckStatus(A)}`, 2.5); return; } A.flapSel = 2; P.ss.thrOff = [false, false]; P.ss.crank = 'OFF'; P.ss.auto = null; for (const e of A.eng) if (!e.run) e.start = 0.01; say('SPOTTED ON CAT 1  -  MIL POWER FOR THE SHOT', 2.5); };
   P.shutdown = () => { startSet(P.ss, false); P.dump = false; for (const e of A.eng) { e.run = false; e.start = 0; e.stalled = false; } };   // the crew climbs out: cold
   P.stoppedOnDeck = () => P.alive && !P.ejected && A.onGround && !A.wire && !A.cat && relSpeed() < 0.6 && !!ctx.onCarrier(A.pos.x, A.pos.z);
   function relSpeed() { const sv = war.surfVel(A.pos.x, A.pos.z); return Math.hypot(A.vel.x - (sv ? sv.vx : 0), A.vel.z - (sv ? sv.vz : 0)); }
@@ -354,7 +355,6 @@ export function createTomcatPlay(ctx) {
     else sweepCtl(dt);
     A.cas = P.sas;
     if (A.cat) A.catClear = ctx.catClear();
-    war.carrier?.parts.setJBD?.(A.cat ? 1 : 0, dt);
     const held = ctx.keyDown('Backspace') || CTL.state.actions.eject, now = performance.now();   // real time: a hold is a human second
     if (!held) P.ejectHold = 0; else if (!P.ejectHold) P.ejectHold = now; else if (now - P.ejectHold > 900) eject();
     if (P.ejected) { c.pitch = c.roll = c.yaw = 0; updateChutes(dt); }
@@ -439,7 +439,7 @@ export function createTomcatPlay(ctx) {
     if (P.rearmT <= 0) { P.rearmT = 0.6; const s = A.stores.find(s => !s.on); if (s) s.on = true; else A.gun = Math.min(TOMCAT.GUN_MAX, A.gun + 30); }
     if (D.damaged()) D.repair(0.2 * dt);
     const full = A.fuel > TOMCAT.FUEL_MAX - 1 && A.stores.every(s => s.on) && A.gun >= TOMCAT.GUN_MAX && !D.damaged();
-    if (full && !P.serviced) { P.serviced = true; say('ALBATROSS DECK CREW  -  FUELLED AND ARMED  -  8: CAT  ·  Y: CLIMB OUT', 3); }
+    if (full && !P.serviced) { P.serviced = true; say(A.tow ? 'ALBATROSS DECK CREW  -  FUELLED AND ARMED ON THE SPOT' : 'ALBATROSS DECK CREW  -  FUELLED AND ARMED  -  8: CAT  ·  Y: CLIMB OUT', 3); }
   }
   // crew g tolerance (as the HORNET's): grey-out past ~5 g, G-LOC with the hands off the stick; red-out below -2.5 g
   function pilotG(dt) {
@@ -595,6 +595,7 @@ export function createTomcatPlay(ctx) {
     if (!P.alive) return P.ejected ? 'UNDER THE CANOPY  -  WAITING FOR RESCUE' : '';
     if (P.stallCue) return `${P.stallCue}  -  THROTTLES TO IDLE, NOSE DOWN BELOW 15 UNITS, THEN POWER UP SLOWLY`;
     if (P.seat === 0 && (!A.eng.every(e => e.run) || P.ss.auto || P.ss.crank !== 'OFF')) { const h = startHint(); if (h) return h; }
+    if (A.tow && ctx.deckStatus) return `${ctx.deckStatus(A)}  ·  8: PRIORITY (SKIP THE QUEUE)`;   // DECK OPS
     if (A.cat && A.cat.state === 'hold' && A.catClear === false) return 'CAT 1 HOLD  -  THE ALBATROSS IS TURNING INTO CLEAR WATER FOR THE LAUNCH';
     if (A.cat && A.cat.state === 'hold') return A.eng[0].n > 0.95 ? 'MIL POWER  -  SALUTE, STAND BY FOR THE SHOT' : 'HOOKED UP ON CAT 1  -  THROTTLES TO MIL (80%+) OR ZONE 5 AFTERBURNER';
     if (A.wire && A.wire.held > 0) return 'TRAPPED  -  THROTTLES TO IDLE, HOOK UP (H)';

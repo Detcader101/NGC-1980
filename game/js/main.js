@@ -655,7 +655,24 @@ const jetPlayCtx = {   // TOMCAT: shared by the HORNET (jetplay.js) and the TOMC
   takeFuel: u => { const t = Math.max(0, Math.min(u, G.res)); G.res -= t; return t; },
   onCarrier: (x, z) => { const u = war.shipAt(x, z); return !!u && u === war.carrier && u.sinking === undefined; },
   selectedIsland: () => selIsl, drawMap: (c, k) => drawJetMap(c, k), catClear: () => { const c = war.carrier; return !!c && laneClear(c, c.yaw) > 320; },
+  deckSpot: (A, env, who) => deckSpot(A, env, who), deckStatus: A => { const e = war.deck.entries.find(e => e.A === A); return e ? war.deck.status(e) : ''; },
 };
+// (ngc/bugsweep) DECK OPS: the player's jet joins the ALBATROSS launch queue (units/naval/deckops.js). Straight onto cat 1
+// when nobody is ahead and the deck is open (as before); else spotted, and the director taxis her up. Asked again while
+// in the queue: the commander's priority - next onto the cat, straight from the spot. -> 'cat' | 'spot' | 'bump' | ''
+function deckSpot(A, env, who) {
+  const DO = war.deck, c = war.carrier; if (!c || c.sinking !== undefined) return '';
+  const old = DO.entries.find(e => e.A === A);
+  if (old) { if (A.cat) return 'cat'; DO.bump(old); return A.cat ? 'cat' : 'bump'; }
+  A.cat = null; A.tow = null;
+  const e = DO.request({ name: who === 'TOMCAT' ? 'TOMCAT (YOU)' : 'HORNET (YOU)', A, kind: who.toLowerCase(), player: true,
+    attach: () => { const ok = A.attachCat(env); if (ok) say(`${who} ON CAT 1  -  ${who === 'TOMCAT' ? 'THROTTLES' : 'THROTTLE'} TO MIL FOR THE SHOT`, 3); return ok; },
+    onCancel: () => {} });
+  if (DO.quick(e)) return 'cat';
+  if (e.state === 'hangar') { DO.cancel(e, 'DECK FULL'); say('DECK FULL  -  EVERY SPOT IS TAKEN, TRY AGAIN SHORTLY', 2.5); return ''; }
+  return 'spot';
+}
+const deckCancel = A => { const e = war.deck.entries.find(e => e.A === A); if (e) war.deck.cancel(e, 'STOOD DOWN'); A.tow = null; };
 const JP = createJetPlay({
   ...jetPlayCtx,
   onLost: (why, ejected) => jetC.lost(why, ejected), onEject: () => {}, toggleView: () => { cockpitCam = !cockpitCam; if (!cockpitCam) JP.snapChase(); },
@@ -675,6 +692,16 @@ function turnIntoClear() {
   war.orderCarrier(c.p.x - Math.sin(best) * 500, c.p.z - Math.cos(best) * 500); feed('ALBATROSS: TURNING INTO CLEAR WATER FOR THE LAUNCH'); return true;
 }
 // 5 on the ALBATROSS deck: climb into a Hornet on the catapult (craftjet.js); Y on deck: get out and walk
+war.deckHooks.obstacles = (c, toL) => {   // DECK OPS: what the player leaves on the deck fouls it
+  const out = [];
+  if (Z.alive && !G.heliStowed && G.mode === 'zarch') { const [lx, lz] = toL(H.pos.x, H.pos.z), hy = H.pos.y - c.p.y - CARRIER.DECK; if (hy < 12 && Math.abs(lx) < 16 && Math.abs(lz) < 64) out.push({ lx, lz, r: 7.5, why: 'THE HUEY IS ON THE DECK' }); }
+  for (const [D, A] of [[jetC, JP.J], [tomcatC, tomcatC.TP.A]]) if (D.present() && D.park.on) { const [lx, lz] = toL(A.pos.x, A.pos.z); if (Math.abs(lx) < 16 && Math.abs(lz) < 64) out.push({ lx, lz, r: 4, why: `THE ${D.label} IS PARKED IN THE WAY` }); }
+  return out;
+};
+war.deckHooks.landing = (c) => {   // the player's jet on approach: hook and gear down, behind the ship, inside 3 km, below 400 m
+  for (const [D, A] of [[jetC, JP.J], [tomcatC, tomcatC.TP.A]]) if (D.present() && !D.park.on && !A.onGround && A.hookCmd && A.gearCmd && Math.hypot(A.pos.x - c.p.x, A.pos.z - c.p.z) < 3000 && A.pos.y < c.p.y + 400) return true;
+  return false;
+};
 const launchJet = () => jetC.launch();
 const swapToHeli = () => getInOut();
 // the AMPCD moving map (drawn in world metres; k = pixels per metre)
@@ -1091,7 +1118,7 @@ const heliC = crafts.register({
 });
 // COMMANDER: what both jets get for the wingman (units/commander/wingman.js), the fleet's losses and cat 1
 const jetCmd = {
-  createWingman, onUnitLost: (id, why, mine) => onUnitLost(id, why, mine), catBusy: D => catBusy(D),
+  createWingman, onUnitLost: (id, why, mine) => onUnitLost(id, why, mine), catBusy: D => catBusy(D), deckCancel: A => deckCancel(A),
   aiEnv: wingmanEnv({ terrain: (x, z) => Math.max(terrainH(x, z), 0), carrier: () => war.carrier && war.carrier.sinking === undefined ? war.carrier : null, deckAt: war.deckAt, DECK: CARRIER.DECK }),
 };
 // --- the HORNET

@@ -151,7 +151,7 @@ export function createMotorPool(o) {
     for (const I of ISLANDS) I._wheeled = false;
     for (const I of ISLANDS) if (I.owner === 1 && I.pad) stockIsland(I);
     // the deck park: an M151 on spot 1; the M35 forward of the island, inboard of the park (spots 2 and 3: room to drive, the armour's M113)
-    const d0 = GR.deckSpot(0), c = war.carrier, d2 = c && c.sinking === undefined ? (() => { const w = GR.toWorld(c, 3.5, -13); return { name: 'ALBATROSS DECK', x: w.x, z: w.z, y: GR.deckH(w.x, w.z), yaw: c.yaw, plat: c }; })() : null;
+    const d0 = GR.deckSpot(0), c = war.carrier, d2 = GR.deckSpot(1) || (c && c.sinking === undefined ? (() => { const w = GR.toWorld(c, 3.5, -13); return { name: 'ALBATROSS DECK', x: w.x, z: w.z, y: GR.deckH(w.x, w.z), yaw: c.yaw, plat: c }; })() : null)   /* (ngc/bugsweep) DECK OPS: spot 2 by the island - at x 3.5 the truck stood under a Tomcat's wing on cat 1 */;
     if (d0) spawn('m151', d0, { home: 'deck' }); if (d2) spawn('m35', d2, { home: 'deck' });
   }
   // ---------------------------------------------------------------- deliveries (key 7 / 9): the delivery module flies / ships it in
