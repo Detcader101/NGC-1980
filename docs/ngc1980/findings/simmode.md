@@ -71,3 +71,15 @@ A Hornet strike doctrine sinks the KRAKEN in 5-22 minutes every time.
 **Evidence**: tools/simbench.mjs "under tech=default..." line (seed 21, 1200 s): RW none.
 **Cause**: aiPickResearch keeps a 25 materiel reserve; the RUNAWAY never holds 25 + the node's cost.
 **Action**: OPEN, see SIMREPORT tuning.
+
+## 2026-10-25 - Normal play (tech=default): the RUNAWAY stays on tier 0 and the TASK FORCE wins nearly every war
+**Finding**: with both trees starting 'default' (normal play since 047a748), the RUNAWAY researched something in 5% of
+wars (REAPER, once a SHRIKE); RW-7 hover tanks, LANCE, SHAHEDs, MBTs and the LEVIATHAN programme were never
+researched. The TASK FORCE researched its whole tree by ~22 min and won 63 of 65 wars (BALANCED: 45 of 47 on points
+at the 45 min limit; RUSH: 18 of 18, 13 by sinking the KRAKEN).
+**Evidence**: tools/runs/sim/2026-10-25-14-41-30-tournament-default (65 wars, stopped early; the doctrines BALANCED and
+RUSH against all six RUNAWAY doctrines, 8 seeds each), report.md "RUNAWAY research" and "Never researched".
+**Cause**: aiPickResearch keeps 25 materiel in reserve plus the node's cost; the RUNAWAY commander's think() spends
+every point on WASPs, transports and guns, so its store sits at 0-10 and research never starts. The RUNAWAY doctrines
+that keep a reserve (FORTRESS, DREADNOUGHT) did not get there either in these runs.
+**Action**: OPEN - see SIMREPORT tuning suggestions (research budget for the RUNAWAY).

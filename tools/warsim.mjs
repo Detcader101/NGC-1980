@@ -39,7 +39,7 @@ if (A.sweep) { const [k, vs] = A.sweep.split('='); sweep = { key: k, values: vs.
 const parseTech = t => !t ? undefined : ['all', 'default', 'max', 'none'].includes(t) ? t : t.split(',');
 const base = { tmax, dt: A.dt ? +A.dt : 1 / 30, tech: parseTech(A.tech) ?? 'all', etech: parseTech(A.etech), pilot: A.pilot || 'ai', patch: A.patch ? A.patch.split(',') : [], exact: !!A.exact };
 const jobs = [];
-for (const b of blues) for (const r of reds) for (const sv of sweep ? sweep.values : [null]) for (let s = 0; s < seeds; s++) {
+for (let s = 0; s < seeds; s++) for (const b of blues) for (const r of reds) for (const sv of sweep ? sweep.values : [null]) {   // (seed-major: a run stopped early still covers every matchup evenly)
   const cfg = { ...base, blue: b, red: r, seed: seed0 + s };
   if (sv !== null) {
     if (sweep.key.startsWith('blue.')) cfg.blueKnobs = { [sweep.key.slice(5)]: sv };
