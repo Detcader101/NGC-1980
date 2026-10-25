@@ -20,7 +20,7 @@ export const BLUE = {
     desc: 'guns on everything it holds, CAP over the carrier, the carrier kept back; expands slowly' },
   BOOM: { name: 'BOOM', aggression: 0.6, expansion: 1.4, defence: 0.8, reserve: 60, mix: { air: 0.8, ground: 1, naval: 1 }, research: { order: 'econ', spend: 1.6 }, risk: 0.4, target: 'value', strikeEvery: 120, escorts: 1, sky: 1,
     desc: 'factories and fuel first, research the production upgrades, build the military later' },
-  AIRPOWER: { name: 'AIR POWER', aggression: 1.3, expansion: 0.9, defence: 0.8, reserve: 15, mix: { air: 2, ground: 0.6, naval: 0.6 }, research: { order: 'air', spend: 1 }, risk: 0.6, target: 'weak', strikeEvery: 40, escorts: 3, sky: 0.3,
+  AIRPOWER: { name: 'AIRPOWER', aggression: 1.3, expansion: 0.9, defence: 0.8, reserve: 15, mix: { air: 2, ground: 0.6, naval: 0.6 }, research: { order: 'air', spend: 1 }, risk: 0.6, target: 'weak', strikeEvery: 40, escorts: 3, sky: 0.3,
     desc: 'Hornet strikes on the guns and the KRAKEN, Tomcat CAP; Sea Knights only to take what the jets have cleared' },
   AMPHIBIOUS: { name: 'AMPHIBIOUS', aggression: 1.2, expansion: 1.6, defence: 0.7, reserve: 10, mix: { air: 0.6, ground: 2, naval: 1.4 }, research: { order: 'ground', spend: 1 }, risk: 0.7, target: 'value', strikeEvery: 90, escorts: 1, sky: 0, carrierForward: true,
     desc: 'the ALBATROSS steams up to the next island, Sea Knights in waves, Marines to reinforce' },

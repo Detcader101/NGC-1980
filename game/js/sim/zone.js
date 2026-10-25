@@ -37,7 +37,10 @@ export function createZone(o = {}) {   // o.pure: on copies of the islands (a ch
   // war. Z.useGrid(table) swaps in a baked 0.5 m table with bilinear filtering inside +-900 m (the exact function
   // outside it): heights agree to a few cm (tools/simbench.mjs measures it). warsim --exact keeps the exact function.
   const exact = (x, z) => {
-    if (!(Math.abs(x) < 3e4 && Math.abs(z) < 3e4)) { if (!Z.bad && globalThis.__simStack) console.error(new Error("bad ground").stack); Z.bad = Z.bad || `ground asked at ${x}, ${z}`; return -14; }   // (NaN or far off the map: the sim reports it, the run goes on)
+    if (!(Math.abs(x) < 3e4 && Math.abs(z) < 3e4)) {   // (NaN or far off the map: the sim reports who asked, the run goes on)
+      if (!Z.bad) { const st = String(new Error().stack).split("\n").map(l => (l.match(/\/js\/(units\/[^:]+|[a-z]+\.js)/) || [])[1]).filter(f => f && !/zone\.js/.test(f)); Z.bad = `ground asked far off the map (${Math.round(x)}, ${Math.round(z)}) by ${[...new Set(st)].slice(0, 3).join(" < ") || "?"}`; }
+      return -14;
+    }
     return hardsH(HARDS, x, z, terrainH0(x, z));
   };
   let grid = null;
