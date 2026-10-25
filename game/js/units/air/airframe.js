@@ -95,7 +95,7 @@ export function createAirframe(P, GRAV = 9.0) {
       Object.assign(A.surf, { stab: 0, ail: 0, rud: 0, flap: 0, lef: 0, brake: 0 });
       A.gear = A.gearCmd = airborne ? 0 : 1; A.hook = A.hookCmd = 0; A.flapSel = airborne ? 0 : 1; A.brakeCmd = 0; A.canopy = A.canopyCmd = 0;
       A.onGround = !airborne; A.cat = null; A.wire = null; A.launchBar = false; A.wow = [0, 0, 0]; A.nzMax = A.nzMin = 1; A.events.length = 0;
-      A.trapWire = 0; A.dead = false; A.nInt = 0;
+      A.trapWire = 0; A.dead = false; A.nInt = 0; flyT = 0;
       if (P.onReset) P.onReset(A, airborne);
     },
     // ctl: { pitch (+aft), roll (+right), yaw (+right), throttle [per engine] 0..1, brakeL, brakeR 0..1 }
@@ -189,10 +189,17 @@ export function createAirframe(P, GRAV = 9.0) {
   // gearing that falls off with dynamic pressure (the feel system), plus pitch / roll / yaw dampers, an aileron-rudder
   // interconnect that grows with AoA, and a trim the pilot sets (A.trim). No g or AoA limiter: the pilot (or the AI)
   // keeps the aircraft inside the envelope.
+  let flyT = 0;   // (SAS law) the hands-off flyaway after the cat shot
   function sasLaw(h, ctl, st, K, att) {
     const { a, b, V, qb } = st, p = A.w.x, q = A.w.y, r = A.w.z, cth = Math.cos(att.pitch);
     const g = sasGearing(FC, qb);   // stick-to-stab gearing (feel / bobweight)
-    const de = (A.trim || 0) + ctl.pitch * K.LIM.stab * g + FC.kq * q * g;
+    let de = (A.trim || 0) + ctl.pitch * K.LIM.stab * g + FC.kq * q * g;
+    // (ngc/bugsweep) hands off the stick off the cat, the launch trim rotates her to the flyaway attitude (~10 deg)
+    // and holds it while she accelerates (NDI law: the launchT ncmd bias). Without it the stab ran back to the cruise trim at
+    // the end of the stroke and a hands-off Tomcat settled off the bow into the sea in ~4 s (catdeckbench.mjs). The pilot
+    // takes it with the stick; hands off, it eases out over the last 2 s of 7.
+    if (A.launchT > 0) { A.launchT = 0; flyT = 7; }
+    if (flyT > 0) { flyT -= h; if (Math.abs(ctl.pitch) > 0.3) flyT = 0; else de += clamp(0.9 * (0.18 - att.pitch) - 0.4 * q, 0, 0.14) * Math.min(1, flyT / 2); }
     const da = ctl.roll * K.LIM.ail * clamp(FC.q0r / Math.max(qb, 1), FC.gminr, 1) - FC.kp * p;
     const rss = GRAV / Math.max(V, 12) * cth * Math.sin(att.roll) + p * Math.sin(a);   // turn-coordinated yaw rate
     const dr = ctl.yaw * K.LIM.rud - FC.kr * (r - rss) - FC.kb * b + FC.kari * clamp(a / 0.35, -0.3, 1) * da;
