@@ -57,10 +57,12 @@ export function createHeliAI() {
     if (AI.phase === 'transit') {
       let sp = clamp(Math.sqrt(2 * (T.gentle ? 0.45 : 0.9) * Math.max(0, d - 8)), 6, T.cruise || HELI_AI.CRUISE);   // brakes in time: ~0.9 m/s2 (AIRLIFT: T.gentle with a load on the hook)
       if (T.gentle) sp = Math.min(sp, 2 + Math.max(0, P.y - env.ground(P.x, P.z) - 16) * 0.8);   // (AIRLIFT: straight up first - the load clear of the ground - then away)
-      wx = tvx + dx / d * sp; wz = tvz + dz / d * sp;
+      else sp = Math.min(sp, Math.max(0, P.y - env.ground(P.x, P.z) - HELI_AI.SKID - 8) * 1.2);   // clear the pad and nearby terrain before accelerating
+      const ux = d > 0.01 ? dx / d : 0, uz = d > 0.01 ? dz / d : 0;
+      wx = tvx + ux * sp; wz = tvz + uz * sp;
       // cruise height: over the highest ground along the next ~10 s of the track and over the target
       let hi = Math.max(T.y, env.ground(P.x, P.z));
-      for (const k of [0.25, 0.5, 0.75, 1]) { const L = Math.min(d, sp * 10) * k; hi = Math.max(hi, env.ground(P.x + dx / d * L, P.z + dz / d * L)); }
+      for (const k of [0.25, 0.5, 0.75, 1]) { const L = Math.min(d, sp * 10) * k; hi = Math.max(hi, env.ground(P.x + ux * L, P.z + uz * L)); }
       yDes = hi + HELI_AI.CRUISE_AGL + HELI_AI.SKID;
       if (d < AR) AI.phase = 'approach';
     } else {

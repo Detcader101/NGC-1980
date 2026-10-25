@@ -12,6 +12,7 @@
 // update(dt, time, phase), dispose() }. Positions in the aircraft's frame: x right, z aft (nose -z).
 import * as THREE from 'three';
 import { createCrew } from '../../naval/deckcrew.js';
+import { qFromYPR, qrot } from './rb.js';
 
 const _v = new THREE.Vector3(), _e = new THREE.Euler();
 // per type: where the stick waits, the way in, the cabin floor, where the crew stand (local, metres)
@@ -48,6 +49,24 @@ export function createEmbark(o) {
   }
   const go = (p, tx, tz, final) => { if (Math.hypot(tx - p.x, tz - p.z) < 0.2) { p.mode = final; return; } p.path = [[p.x, p.z], [tx, tz]]; p.seg = 0; p.s = 0; p.mode = 'walk'; p.final = final; p.speed = 2.2; };
   const B = { step: 0, t: 0, chocked: true };
+  const offset = [0, 0, 0], omega = [0, 0, 0];
+  // Chocks and chains restrain the airframe throughout boarding. Wheel friction alone cannot hold it through a
+  // carrier turn while the stick files aboard. Engines and rotors still run; release as soon as the pilot lifts.
+  B.hold = cg => {
+    if (U.AI.phase !== 'spool' || U.dead || U.S.dead) return;
+    const d = o.deck && o.deck(); if (!d) return;
+    const b = U.S.body, pitch = d.pitch || 0, roll = d.roll || 0, cy = Math.cos(d.hdg), sy = Math.sin(d.hdg);
+    qFromYPR(d.hdg, pitch, -roll, b.q);
+    offset[0] = offset[2] = 0; offset[1] = cg - 0.02; qrot(b.q, offset, offset);
+    b.pos[0] = d.x + offset[0]; b.pos[1] = d.y + offset[1]; b.pos[2] = d.z + offset[2];
+    omega[0] = cy * (d.vPitch || 0) + sy * Math.cos(pitch) * (d.vRoll || 0);
+    omega[1] = (d.w || 0) - Math.sin(pitch) * (d.vRoll || 0);
+    omega[2] = -sy * (d.vPitch || 0) + cy * Math.cos(pitch) * (d.vRoll || 0);
+    b.toBody(omega, b.w);
+    b.vel[0] = (d.vx || 0) + omega[1] * offset[2] - omega[2] * offset[1];
+    b.vel[1] = (d.vy || 0) + omega[2] * offset[0] - omega[0] * offset[2];
+    b.vel[2] = (d.vz || 0) + omega[0] * offset[1] - omega[1] * offset[0];
+  };
   B.clear = () => !members || members.slice(1).every(p => p.mode !== 'walk' && p.mode !== 'kneel');
   // transportai 'spool' hook: true when the aircraft may lift
   B.board = (ai, dt) => {

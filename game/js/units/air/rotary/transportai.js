@@ -79,7 +79,9 @@ export function createTransportAI(o, hooks) {
       switch (AI.phase) {
         case 'spool': {   // engines to flight rpm, rotors spinning up on the deck
           AI.spot = AI.spot || { x: st.x, z: st.z, hdg: st.yaw };
-          const h = hooks.home && hooks.home(); hold(st, { ...AI.spot, vx: h ? h.vx : 0, vz: h ? h.vz : 0 }, 0, 0, c);
+          const h = hooks.home && hooks.home();
+          if (h) Object.assign(AI.spot, { x: h.x, z: h.z, hdg: h.hdg });
+          hold(st, { ...AI.spot, vx: h ? h.vx : 0, vz: h ? h.vz : 0 }, 0, 0, c);
           c.collFix = 0; c.ground = true;
           const ready = !hooks.board || hooks.board(AI, dt);   // troops loading, chocks and chains, the LSE's signal (embark.js)
           if (AI.t > o.spool && ready) AI.set('lift');
@@ -87,9 +89,9 @@ export function createTransportAI(o, hooks) {
         }
         case 'lift': case 'lift2': {   // straight up off the deck / pad, keeping station over it, then away
           const h = AI.phase === 'lift' ? (hooks.home && hooks.home()) : null, sp = AI.spot;
-          const tgt = { x: sp.x, z: sp.z, hdg: sp.hdg, vx: h ? h.vx : 0, vz: h ? h.vz : 0 };
-          if (h) { sp.x += (h.vx || 0) * dt; sp.z += (h.vz || 0) * dt; }   // the deck moves on
+          const tgt = h || { x: sp.x, z: sp.z, hdg: sp.hdg, vx: 0, vz: 0 };
           hold(st, tgt, sim.agl < 1 ? 1.2 : clamp((o.liftAgl + 2 - sim.agl) * 0.6, 0.5, 3), 0.22, c);
+          if (h) { const T = AI.track(h, dt); c.ax += T.ax; c.az += T.az; c.vy += h.vy || 0; }
           if (sim.agl > o.liftAgl) { AI.chk = (AI.chk || 0) + dt; if (AI.chk > (o.liftCheck ?? 1.2)) { AI.chk = 0; AI.set(AI.phase === 'lift' ? 'transit' : 'rtb'); } }
           break;
         }

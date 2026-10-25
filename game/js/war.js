@@ -948,7 +948,10 @@ export function createWar(ctx) {
   W.update = (dt, pl, peace) => {
     W.time += dt; W._pl = pl; W.peace = peace;
     W.tech[1].update(dt); W.tech[2].update(dt);   // TECH TREE: research runs on game time
-    for (const u of W.units) { if (u.ext) continue; if (u.dims) sailShip(u, dt); else updateAir(u, dt, pl); }
+    // Finish the deck motion before aircraft use it, including the separation between overlapping hulls.
+    for (const u of W.units) if (!u.ext && u.dims) {
+      (u._frameP || (u._frameP = new THREE.Vector3())).copy(u.p); sailShip(u, dt);
+    }
     {   // ships keep clear of each other (a gentle shove when two hulls would overlap)
       const sh = W.units.filter(u => u.dims && u.sinking === undefined && !(u.sky && u.p.y > 12));
       for (let i = 0; i < sh.length; i++) for (let j = i + 1; j < sh.length; j++) {
@@ -956,6 +959,13 @@ export function createWar(ctx) {
         if (d < min) { const k = Math.min(8, (min - d)) * dt / d; a.p.x -= dx * k; a.p.z -= dz * k; b.p.x += dx * k; b.p.z += dz * k; }
       }
     }
+    for (const u of W.units) if (!u.ext && u.dims && u._frameP) {
+      // Surface velocity must include the hull separation above; otherwise a deck can slide metres per second
+      // beneath wheels whose friction and guidance still see only its propulsion velocity.
+      if (dt > 0) u.v.subVectors(u.p, u._frameP).multiplyScalar(1 / dt);
+      placeShip(u);
+    }
+    for (const u of W.units) if (!u.ext && !u.dims) updateAir(u, dt, pl);
     for (let i = W.units.length - 1; i >= 0; i--) if (W.units[i].dead || W.units[i].gone) { const u = W.units[i]; if (!u.gone) scene.remove(u.mesh); W.units.splice(i, 1); if (u.dims) nfx.remove(u); }
     ROT.tick(dt);   // NGC-1980 hook: garrisons and fallen troops after their units are gone
     updateProj(dt, pl);

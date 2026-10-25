@@ -46,11 +46,13 @@ export function createCH46Unit(o) {
     // the pilot works at >= 30 Hz however long the frame (a 0.1 s frame = 3 control steps)
     const nS = Math.max(1, Math.ceil(dt * 30 - 1e-6)), h = dt / nS;
     for (let i = 0; i < nS && !U.dead; i++) {
+      if (U.embark) U.embark.hold(CH46.CG_H);
       stateOf(S.body, st);
       const cmd = AI.step(st, S, h, o.world), c = flyCH46(S, P, st, cmd, h);
       if (!U.engines) { c.eng0 = c.eng1 = false; }
       U.ev = S.step(h, c, o.env) || U.ev;
       if (S.dead) U.dead = S.dead;
+      if (U.embark) U.embark.hold(CH46.CG_H);
     }
     U.ramp += Math.max(-dt / 2.5, Math.min(dt / 2.5, U.rampT - U.ramp));
     U.sync(dt, time);

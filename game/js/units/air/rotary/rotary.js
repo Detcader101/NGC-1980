@@ -38,7 +38,8 @@ export function createRotary(ctx) {
   function carrierOf(side) { const c = side === 1 ? W.carrier : W.enemyCarrier; return c && c.sinking === undefined && !(c.sky && c.sky.up) ? c : null; }
   function deckSpot(c, lx, lz) {
     const cs = Math.cos(c.yaw), sn = Math.sin(c.yaw), x = c.p.x + lx * cs + lz * sn, z = c.p.z - lx * sn + lz * cs;
-    return { x, y: 8 + Math.max(0, c.p.y), z, hdg: c.yaw, vx: c.v.x + c.w * (z - c.p.z), vz: c.v.z - c.w * (x - c.p.x) };
+    return { x, y: W.deckAt(c, x, z), z, hdg: c.yaw, vx: c.v.x + c.w * (z - c.p.z), vz: c.v.z - c.w * (x - c.p.x),
+      vy: W.surfVel(x, z)?.vy || 0, w: c.w, ...c.att };
   }
   function homePad(side) { const I = W.islands.find(I => I.kind === 'hq' && I.owner0 === side); return { x: I.pad.x + 14, y: I.pad.h, z: I.pad.z, hdg: 0, vx: 0, vz: 0 }; }
   function freeSpot(kind, side) {   // a deck spot nobody of ours is sitting on
@@ -84,8 +85,9 @@ export function createRotary(ctx) {
     const I = extra.target, lz = (R.ground && R.ground.hotLZ(I, side, CH46_FOOT, chooseLZ)) || chooseLZ(I, CH46_FOOT);   // GROUND WAR hook: a hot island: land away from the fighting
     const u = { type: 'drone', kind: 'ch46', side, p: new THREE.Vector3(start.x, start.y + 2, start.z), v: new THREE.Vector3(), yaw: start.yaw, hp: 10, hpMax: 10, r: 7, cd: 0, ph: 0, state: 'go', landed: false, ...extra };
     const spot = sp ? [sp.lx, sp.lz] : null;
-    const home = () => { const c = carrierOf(side); return c && spot ? deckSpot(c, spot[0], spot[1]) : homePad(side); };
-    const U = createCH46Unit({ parent: scene, env, world, lz: () => u.lz, home, pad: I.pad, start, modex: 1 + Math.floor(rnd(30)), squad: 13, board: true, deck: spot ? home : null,   // the stick boards on deck (embark.js)
+    const deck = () => { const c = carrierOf(side); return c && spot ? deckSpot(c, spot[0], spot[1]) : null; };
+    const home = () => deck() || homePad(side);
+    const U = createCH46Unit({ parent: scene, env, world, lz: () => u.lz, home, pad: I.pad, start, modex: 1 + Math.floor(rnd(30)), squad: 13, board: true, deck: spot ? deck : null,   // the stick boards on deck (embark.js)
       onParked: () => { u.dead = true; u.stowed = true; if (!U.squadExternal) U.squad.dispose(); } });
     u.lz = lz; u.rot = U; u.mesh = U.model.group; U.AI.hooks.fouled = () => fouled(u); crews.push(u);
     // the Marines become a ground unit of their own when they come off the ramp
@@ -99,9 +101,10 @@ export function createRotary(ctx) {
     const sp = freeSpot('mv22', side), start = sp ? { x: sp.x, y: sp.y, z: sp.z, yaw: sp.hdg } : { ...homePad(side), yaw: 0 };
     const u = { type: 'transport', kind: 'mv22', side, p: new THREE.Vector3(start.x, start.y + 2, start.z), v: new THREE.Vector3(), yaw: start.yaw, hp: 12, hpMax: 12, r: 7.5, cd: 0, ph: 0, state: 'go', landed: false, ...extra };
     const spot = sp ? [sp.lx, sp.lz] : null;
-    const home = () => { const c = carrierOf(side); return c && spot ? deckSpot(c, spot[0], spot[1]) : homePad(side); };
+    const deck = () => { const c = carrierOf(side); return c && spot ? deckSpot(c, spot[0], spot[1]) : null; };
+    const home = () => deck() || homePad(side);
     u.lz = (R.ground && R.ground.hotLZ(u.target, side, MV22_FOOT, chooseLZ)) || chooseLZ(u.target, MV22_FOOT);   // GROUND WAR hook
-    const U = createMV22Unit({ parent: scene, env, world, lz: () => u.lz, home, pad: u.target.pad, start, squad: 12, board: true, deck: spot ? home : null,
+    const U = createMV22Unit({ parent: scene, env, world, lz: () => u.lz, home, pad: u.target.pad, start, squad: 12, board: true, deck: spot ? deck : null,
       onParked: () => { u.dead = true; u.stowed = true; if (!U.squadExternal) U.squad.dispose(); } });
     u.rot = U; u.mesh = U.model.group; U.AI.hooks.fouled = () => fouled(u); crews.push(u);
     const unload = U.AI.hooks.unload;
@@ -145,7 +148,7 @@ export function createRotary(ctx) {
     if (!u.dying && I && I.owner === u.side && !u.reinforce && !U.deployed && !U.AI.homing()) {
       // the enemy commander re-tasks its Osprey to the next island; ours bring the Marines home
       const next = u.side === 2 && W.pickExpansion ? W.pickExpansion() : null;
-      if (next && !next.cave) { u.target = next; u.lz = chooseLZ(next, MV22_FOOT); U.setPad && U.setPad(next.pad); if (['ground', 'descend'].includes(U.AI.phase)) U.AI.set('lift2'); else U.AI.set('transit'); }
+      if (next && !next.cave) { u.target = next; u.lz = chooseLZ(next, MV22_FOOT); U.setPad && U.setPad(next.pad); if (['ground', 'descend'].includes(U.AI.phase)) U.AI.set('lift2'); else if (!['spool', 'lift'].includes(U.AI.phase)) U.AI.set('transit'); }
       else { U.AI.goHome(); u.target = null; }
     }
     // damage: below half an engine quits (single-engine: abort, go home); dying = both out, autorotate down

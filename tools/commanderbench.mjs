@@ -99,6 +99,14 @@ function run(H, AI, env, secs, ctlBase = { throttle: 1, gov: 'AUTO', fuel: true 
   run(H, AI, env, 5);
   check('huey AI: a landed Huey stays landed', H.landed && H.pos.y < 3, `y ${H.pos.y.toFixed(2)}`);
 }
+{   // loaded departure beside rising ground: climb clear before accelerating toward the destination
+  const ground = (x, z) => 12 + 10 * Math.exp(-((x - 35) ** 2 + z * z) / 300);
+  const env = { groundY: ground, water: false, ground }, H = FM.createHueySim(9.81), AI = createHeliAI();
+  H.reset(V(0, ground(0, 0) + 1.9, 0), 0.3, true, 1); H.extraMass = 630;
+  AI.engage(H, () => ({ x: 230, y: 12, z: 0 })); AI.phase = 'transit';
+  const r = run(H, AI, env, 160), d = Math.hypot(H.pos.x - 230, H.pos.z);
+  check('huey AI: troop departure clears nearby rising ground', !r.dead && r.landed && d < 4, `${r.dead || r.phase}, ${d.toFixed(1)} m from pad`);
+}
 // ------------------------------------------------------------------ the jets' wingman (pilot.js on the player's airframes)
 {
   const { createJetSim } = await import('../game/js/jetfm.js');

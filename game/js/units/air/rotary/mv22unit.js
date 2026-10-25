@@ -45,6 +45,7 @@ export function createMV22Unit(o) {
     U.time = time;
     const nS = Math.max(1, Math.ceil(dt * 30 - 1e-6)), h = dt / nS;   // the pilot works at >= 30 Hz however long the frame
     for (let i = 0; i < nS && !U.dead; i++) {
+      if (U.embark) U.embark.hold(MV22.CG_H);
       stateOf(S.body, st);
       const cmd = AI.step(st, S, h, o.world);
       if (U.folding) { cmd.fold = U.fold > 0.45; }
@@ -52,6 +53,7 @@ export function createMV22Unit(o) {
       if (U.folding) { c.eng0 = c.eng1 = false; c.rotorBrake = true; }   // shut down and brake the rotors for the fold
       U.ev = S.step(h, c, o.env) || U.ev;
       if (S.dead) U.dead = S.dead;
+      if (U.embark) U.embark.hold(MV22.CG_H);
     }
     // stowing on the carrier: rotors spin down, nacelles to 0, blades fold, wing swings round (a real ~90 s, here 16 s)
     if (U.folding) { U.fold = Math.min(1, U.fold + dt / 16); if (U.fold >= 1 && !U.parked) { U.parked = true; if (o.onParked) o.onParked(U); } }

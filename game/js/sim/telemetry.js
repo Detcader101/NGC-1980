@@ -1,6 +1,6 @@
 // SIM MODE: what a CPU vs CPU war records - every few seconds the islands, the stores, the carriers, the forces in
 // the field; every unit that comes and goes (by type and side); the commanders' decisions; and at the end the fun
-// metrics (lead changes, dead minutes, the snowball point...). Pure: reads the war object, never changes it.
+// metrics (lead changes, dead minutes, the snowball point...). Adds bookkeeping flags to observed entities.
 // The headless runner (tools/warsim.mjs) and the browser spectator (sim/spectator.js) both use it.
 //
 //   const T = createTelemetry(W, { every: 5 })   T.sample() each frame (it keeps its own clock), T.onOwner(I, was),
@@ -34,15 +34,21 @@ export function createTelemetry(W, o = {}) {
     curMinute().caps++; if (T.first.capture === null) T.first.capture = W.time;
   };
   T.decision = (side, what, extra = {}) => { T.decisions.push({ t: +W.time.toFixed(1), side, what, ...extra }); };
+  function loss(u) {
+    if (u._simDown || u.recovered || u.stowed) return;
+    u._simDown = true; bump(T.lost[u.side] || (T.lost[u.side] = {}), typeOf(u)); curMinute().lost++;
+    if (T.first.loss === null) T.first.loss = W.time;
+    T.events.push({ t: +W.time.toFixed(1), e: 'lost', side: u.side, type: typeOf(u) });
+  }
   function scanUnits() {
     const seen = new Set();
     for (const u of W.units) {
       const ty = typeOf(u); if (!ty) continue;
       seen.add(u);
       if (!T.known.has(u)) { T.known.add(u); bump(T.built[u.side] || (T.built[u.side] = {}), ty); u._simT0 = W.time; }
-      if ((u.dying || (u.dims && u.sinking !== undefined)) && !u._simDown) { u._simDown = true; bump(T.lost[u.side] || (T.lost[u.side] = {}), ty); curMinute().lost++; if (T.first.loss === null) T.first.loss = W.time; T.events.push({ t: +W.time.toFixed(1), e: 'lost', side: u.side, type: ty }); }
+      if (u.dead || u.dying || u.hp <= 0 || (u.dims && u.sinking !== undefined)) loss(u);
     }
-    for (const u of T.known) if (!seen.has(u)) { T.known.delete(u); if (!u._simDown && !u.recovered && !u.stowed && (u.hp <= 0)) { bump(T.lost[u.side] || (T.lost[u.side] = {}), typeOf(u)); curMinute().lost++; } }
+    for (const u of T.known) if (!seen.has(u)) { T.known.delete(u); if (u.hp <= 0 || u.dead || u.dying) loss(u); }
     const GS = W.ground && W.ground.sim;
     if (GS) for (const u of GS.units) {
       if (!T.gwKnown.has(u.id)) { T.gwKnown.add(u.id); bump(T.built[u.side], 'g.' + u.kind); }
