@@ -909,8 +909,7 @@ export function createWar(ctx) {
     if (pl.alive && pl.sources) s.push(...pl.sources);
     for (const u of W.units) if (u.side === 1 && !u.dead && !u.gone) s.push({ x: u.p.x, z: u.p.z, r: u.dims ? SIGHT.carrier * (1 + clamp(u.p.y / 120, 0, 0.8)) : SIGHT.drone });
     for (const I of W.islands) if (I.owner === 1) s.push({ x: I.x, z: I.z, r: I.kind === 'radar' && I.structs.some(q => q.kind === 'radar' && !q.dead) ? SIGHT.radar : SIGHT.island + I.r * 0.4 });
-    if (sm !== 1) for (const v of s) v.r *= sm;
-    return s;
+    return sm === 1 ? s : s.map(v => ({ ...v, r: v.r * sm }));   // (copies: pl.sources may be the caller's own objects)
   };
   W.reset = () => {
     for (const u of W.units) scene.remove(u.mesh); W.units.length = 0; nfx.sweep(W.units); ROT.reset();
