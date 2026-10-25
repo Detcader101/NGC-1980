@@ -167,7 +167,8 @@ const runSea = (S, sea, secs, cam, each, dt = 1 / 30) => { for (let t = 0; t < s
   const depth = seaElevation(sea, prey.cx, prey.cz) - prey.cy;
   check(maxBall > 0.6 && S.stats.balls >= 1, 'bait ball: the pilchard ball up when the bonito come (Pitcher & Parrish 1993)', `ball ${maxBall.toFixed(2)}, balls ${S.stats.balls}`, '> 0.6');
   check(depth < 2.5, '... and are driven up to the top', `centre ${depth.toFixed(2)} m under the swell`, '< 2.5 m');
-  check(prey.rad < r0 * 2 + 3, '... a tight ball, not scattered', `radius ${r0.toFixed(1)} -> ${prey.rad.toFixed(1)} m`);
+  const md = mean(S.fish().filter(f => f.school === prey).map(f => Math.hypot(f.x - prey.cx, f.y - prey.cy, f.z - prey.cz)));
+  check(md < 3, '... a ball a few metres across, not scattered', `mean ${md.toFixed(2)} m from its centre`, '< 3 m');
   check(S.stats.eaten > 3 && S.stats.eaten < n0 * 0.8, 'the bonito take some (not all) of them', `${S.stats.eaten} of ${n0} eaten`);
   check(boils > 0, 'strikes at the top boil', `${boils} boils`);
   const sg = S.signs(); check(sg.some(s => s.kind === 1), 'the bait ball is marked on the top (a sign the birds and the pilot see)', sg.map(s => s.kind).join(',') || '-');

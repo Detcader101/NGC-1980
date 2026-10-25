@@ -340,7 +340,9 @@ const BIRD_VS = `
     vec3 wp=iA.xyz+rotP(p*iA.w,iB.x,iB.y,iB.z), n=normalize(rotP(vec3(0.,1.,0.),iB.x,iB.y,iB.z));
     vec3 col=aTone<.5?uBody[sp]:aTone<1.5?uWingC[sp]:aTone<2.5?uTip[sp]:aTone<3.5?uHead[sp]:uBill[sp];
     if(aTone>.5&&aTone<1.5&&position.y<0.) col=uBody[sp];
-    float top=iD.x, dif=.62+.38*abs(dot(n,normalize(uSunD)));
+    // the face you see: the back from above, the underside from below (in its own shade against a bright sky)
+    vec3 nf=dot(n,cameraPosition-wp)>0.?n:-n;
+    float top=iD.x, dif=.34+.66*max(dot(nf,normalize(uSunD)),0.)+.08*nf.y;
     waterView(wp,col*dif*lightAt(wp,top),top,iC.w);
   }`;
 
@@ -378,12 +380,13 @@ export const SIGN_FS = `
     if(kind<.5){            // nervous water: a riffle darker than the sea round it, glinting
       float edge=1.-smoothstep(.45,1.,r+.25*sNoise(w*.6+sd*9.));
       float rip=sNoise(w*3.1+vec2(uTime*1.7,-uTime*1.3))*.6+sNoise(w*6.3-uTime*2.2)*.4;
-      c=vec4(mix(vec3(.02,.08,.1),vec3(.85,.92,.95),smoothstep(.72,.9,rip)),edge*(.32+.5*smoothstep(.72,.9,rip))*k);
+      float gl=smoothstep(.8,.92,rip)*sNoise(w*11.+uTime*4.);                // a riffle, glinting here and there (not foam)
+      c=vec4(mix(vec3(.02,.07,.09),vec3(.8,.88,.92),gl),edge*(.38+.25*gl)*k);
     } else if(kind<1.5){    // a bait ball at the top: dark water, froth that comes and goes, white where it boils
       float edge=1.-smoothstep(.35,1.,r+.3*sNoise(w*.4+sd*5.));
       float boil=sNoise(w*1.3+vec2(uTime*.9,uTime*.6))*.55+sNoise(w*3.7-uTime*1.8)*.45;
-      float froth=smoothstep(.6,.78,boil), dark=.5*edge;
-      c=vec4(mix(vec3(.01,.06,.08),vec3(.92,.95,.96),froth),edge*(dark+.6*froth)*k);
+      float froth=smoothstep(.6,.78,boil), dark=.62*edge;                 // (a bait ball from the air: a dark brown-olive stain)
+      c=vec4(mix(vec3(.04,.05,.035),vec3(.92,.95,.96),froth),edge*(dark+.6*froth)*k);
     } else if(kind<2.5){    // a ring running out
       float life=max(vQ.w,.1), t=age/life, rr=t, ring=exp(-pow((r-rr)/(.05+.06*t),2.));
       c=vec4(vec3(.9,.95,.97),ring*(1.-t)*.65*k);

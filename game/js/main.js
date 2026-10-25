@@ -1139,6 +1139,9 @@ const sealife = createSeaLife({
       if (f.y < 0.3 && isWater(f.x, f.z)) { S.point(f.x, f.y + 0.6, f.z, 4.5, 0.65, Math.max(-3, Math.min(3, vx)), Math.max(-3, Math.min(3, vz)), 2.5, { swim: true, w: 0.7 }); SL.flush(f.x, 0, f.z, 14); }
     } else _slP.ok = false;
     if ((G.craft === 'jet' || G.craft === 'tomcat') && crafts.active && crafts.active.frame) { const f = crafts.active.frame(_slF); if (f && f.y < 90) SL.flush(f.x, f.y, f.z, 130); }   // a jet low over the water
+    else if (G.craft !== 'heli' && G.craft !== 'foot' && crafts.active && crafts.active.frame) {   // a vehicle swimming (the M113)
+      const f = crafts.active.frame(_slF); if (f && f.y < 0.8 && isWater(f.x, f.z) && terrainH(f.x, f.z) < -1) { const q = _slR.get(crafts.active) || { x: f.x, z: f.z, v: 0 }; q.v += (Math.min(4, Math.hypot(f.x - q.x, f.z - q.z) / Math.max(1e-3, S.lastDt || 1 / 60)) - q.v) * 0.2; q.x = f.x; q.z = f.z; _slR.set(crafts.active, q); S.hull(f.x, f.z, f.yaw, 2.5, 1.4, 1.2, q.v); }
+    }
     for (const r of armDelivery.runs) if (!r.P.gone) {   // LCM-8s (22.4 x 6.4 m): their speed from how far they moved
       const q = _slR.get(r) || { x: r.P.p.x, z: r.P.p.z, v: 0 }, v = Math.hypot(r.P.p.x - q.x, r.P.p.z - q.z) / Math.max(1e-3, S.lastDt || 1 / 60);
       q.v += (Math.min(8, v) - q.v) * 0.2; q.x = r.P.p.x; q.z = r.P.p.z; _slR.set(r, q); S.hull(r.P.p.x, r.P.p.z, r.P.yaw, 10.5, 3.2, 1.3, q.v);

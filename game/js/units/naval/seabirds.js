@@ -44,6 +44,7 @@ export function createSeaBirds({ seed = 77, surf = null } = {}) {
     if (B.light < 0.25) return null;   // (they roost at night)
     const storm = B.sea > 0.8 ? 0.4 : 1;
     if (f.kind === 'ball') { const n = Math.round((4 + 14 * f.k) * storm); return [Math.round(n * 0.35), Math.round(n * 0.3), n - Math.round(n * 0.35) - Math.round(n * 0.3)]; }   // gull, tern, gannet
+    if (f.kind === 'top') return [Math.round(2 * storm), Math.round(3 * storm), 0];   // pilchard dimpling the top: terns pick at them
     if (f.kind === 'dead') return [Math.round((3 + 8 * Math.min(1, f.k)) * storm), 0, 0];
     if (f.kind === 'boat') return [Math.round(6 * storm), 0, 0];
     if (f.kind === 'wake') return [Math.round(3 * storm), 0, 0];
@@ -59,7 +60,7 @@ export function createSeaBirds({ seed = 77, surf = null } = {}) {
     let x = f.x + ux * d, z = f.z + uz * d; if (Math.hypot(x - cam.x, z - cam.z) < 150) { x = f.x - ux * d; z = f.z - uz * d; }
     const y = 18 + r() * 22, hx = f.x - x, hz = f.z - z, hl = Math.hypot(hx, hz) || 1;
     const b = { sp: spi, x, y, z, vx: hx / hl * sp.cruise, vy: 0, vz: hz / hl * sp.cruise, st: FLY, t: 0, f: f.id, fx: f.x, fz: f.z, ph: r() * TAU, amp: 1, fold: 0, roll: 0, fade: 0,
-      orbit: sp.orbit[0] + r() * (sp.orbit[1] - sp.orbit[0]), dir: r() < 0.5 ? 1 : -1, alt: 0, u: r(), next: 3 + r() * 8, sitY: 0, flushT: 0, yaw: Math.atan2(hx, hz), pitch: 0 };
+      orbit: sp.orbit[0] + r() * (sp.orbit[1] - sp.orbit[0]), dir: r() < 0.5 ? 1 : -1, alt: 0, u: r(), next: 3 + r() * 8, sitY: 0, flushT: 0, yaw: Math.atan2(hx, hz), pitch: 0, ex: 0.5, ez: 0.5, tx: f.x + 0.5, tz: f.z + 0.5, hy: 5.5, dep: 2.5, sitT: 4.5 };   // (every field here: one shape)
     b.alt = spi === 2 ? 15 + r() * 15 : spi === 1 ? 5 + r() * 5 : 7 + r() * 9;
     B.birds.push(b); B.stats.spawned++; return b;
   }
@@ -108,7 +109,7 @@ export function createSeaBirds({ seed = 77, surf = null } = {}) {
         if (!f && b.st === FLY) { b.st = LEAVE; b.t = 0; B.stats.left++; }
         // flush: a low aircraft or a boat coming at it - up off the water, away and climbing
         const thr = threats.length ? flushFrom(b, threats) : null;
-        if (thr && b.flushT <= 0) {
+        if (thr && (b.flushT <= 0 || b.st === SIT)) {
           b.flushT = 3 + r() * 2; B.stats.flushed++;
           if (b.st === SIT) { b.st = TAKEOFF; b.t = 0; }
           else if (b.st !== UNDER && b.st !== TAKEOFF) { b.st = FLY; b.t = 0; }

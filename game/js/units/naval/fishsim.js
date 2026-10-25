@@ -46,6 +46,7 @@
 
 const TAU = Math.PI * 2, G = 9.81;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const hyp = (a, b, c = 0) => Math.sqrt(a * a + b * b + c * c);   // (Math.hypot is variadic: slow, and it allocated in the hot loops)
 
 // The species: the real fish of a 1980 warm-temperate archipelago (NE Atlantic / Mediterranean coasts). The game's sea
 // is shallow (the zone's floor ~14 m, a little deeper offshore), so the depth bands are squeezed into it.
@@ -202,11 +203,14 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
   //   hull: c, s (cos / sin of the heading: forward = (-s, -c) as the game's units), hl, hw (half length / beam), dr, v
   //   swim: a swimmer (reef fish come and look); wash: rotor downwash (water pushed out from under it)
   // Every threat this frame is also an ANCHOR: life spawns and stays round it (weight w).
-  const threat = () => { let t = S.threats[S.nThreats]; if (!t) { t = { kind: 0, x: 0, y: 0, z: 0, r: 1, k: 1, vx: 0, vz: 0, c: 1, s: 0, hl: 0, hw: 0, dr: 0, v: 0, deep: 0, swim: false, wash: false, w: 0 }; S.threats.push(t); } S.nThreats++; t.vx = t.vz = 0; t.deep = 0; t.swim = t.wash = false; t.v = 0; t.w = 0.5; return t; };
+  // (threats, transients and anchors share ONE object shape, and every number field starts as a double: the hot loops
+  // then stay monomorphic - mixed shapes deoptimised them and boxed every double, ~8 MB of garbage a frame)
+  const mkThreat = () => ({ kind: 0, x: 0.5, y: 0.5, z: 0.5, r: 1.5, k: 1.5, vx: 0.5, vz: 0.5, c: 0.5, s: 0.5, hl: 0.5, hw: 0.5, dr: 0.5, v: 0.5, deep: 0.5, swim: false, wash: false, w: 0.5, life: 0.5, t: 0.5 });
+  const threat = () => { let t = S.threats[S.nThreats]; if (!t) { t = mkThreat(); S.threats.push(t); } t.life = 0; t.t = 0; S.nThreats++; t.vx = t.vz = 0; t.deep = 0; t.swim = t.wash = false; t.v = 0; t.w = 0.5; return t; };
   S.clearThreats = () => { S.nThreats = 0; S.nAnchors = 0; };
   // a point disturbance (rotor wash, a swimmer, a craft): r metres at strength k; deep: how far down it reaches (m)
   S.point = (x, y, z, r, k = 1, vx = 0, vz = 0, deep = 4, o) => {
-    const t = threat(); t.kind = 0; t.x = x; t.y = y; t.z = z; t.r = r; t.k = k; t.vx = vx; t.vz = vz; t.deep = deep; t.v = Math.hypot(vx, vz);
+    const t = threat(); t.kind = 0; t.x = x; t.y = y; t.z = z; t.r = r; t.k = k; t.vx = vx; t.vz = vz; t.deep = deep; t.v = hyp(vx, vz);
     if (o) { t.swim = !!o.swim; t.wash = !!o.wash; if (o.w !== undefined) t.w = o.w; }
     return t;
   };
@@ -220,11 +224,12 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
     return t;
   };
   // something that keeps life round it without frightening anything (a trawler's fishing ground, a buoy): weight w
-  S.anchor = (x, z, w = 1, vx = 0, vz = 0) => { let a = S.anchors[S.nAnchors]; if (!a) { a = { x: 0, z: 0, w: 0, vx: 0, vz: 0, kind: 2 }; S.anchors.push(a); } S.nAnchors++; a.x = x; a.z = z; a.w = w; a.vx = vx; a.vz = vz; return a; };
+  S.anchor = (x, z, w = 1, vx = 0, vz = 0) => { let a = S.anchors[S.nAnchors]; if (!a) { a = mkThreat(); a.kind = 2; a.r = 0; a.k = 0; a.hl = a.hw = 0; S.anchors.push(a); } S.nAnchors++; a.x = x; a.z = z; a.w = w; a.vx = vx; a.vz = vz; return a; };
   // something brief: a splash, a burst of gunfire on the water, a wake patch (lasts `life` s, fading)
   S.scare = (x, y, z, r, k = 1, life = 1.5, deep = 5) => {
     if (S.transient.length > 48) S.transient.shift();
-    S.transient.push({ x, y, z, r, k, life, t: life, deep, kind: 0, swim: false, wash: false, vx: 0, vz: 0, c: 1, s: 0, hl: 0, hw: 0, dr: 0, v: 0 });
+    const t = mkThreat(); t.kind = 0; t.x = x; t.y = y; t.z = z; t.r = r; t.k = k; t.life = life; t.t = life; t.deep = deep; t.vx = t.vz = t.v = t.hl = t.hw = t.dr = 0; t.c = 1; t.s = 0; t.w = 0;
+    S.transient.push(t);
   };
   // an explosion at (x, y, z) of size s (the fx scale: a grenade ~0.8, a shell 1-2, a ship's magazine 5)
   S.blast = (x, y, z, s = 1) => {
@@ -234,13 +239,13 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
     let hit = 0;
     for (const sc of S.schools) {
       const sp = SPECIES[sc.sp];
-      if (Math.hypot(sc.cx - x, sc.cz - z) > rStun + sc.rad + 2) continue;
+      if (hyp(sc.cx - x, sc.cz - z) > rStun + sc.rad + 2) continue;
       if (sp.role === 'drift') continue;   // (no swim bladder: a jellyfish just rocks)
       if (sp.role === 'mammal') { sc.flee = 60; sc.fx = x; sc.fz = z; continue; }   // dolphins: away, and far
       const a = sc.a;
       for (let i = 0; i < sc.n; i++) {
         const o = i * STRIDE; if (a[o + F_DEAD] > 0) continue;
-        const d = Math.hypot(a[o] - x, (a[o + F_Y] - Math.min(y, 0)), a[o + F_Z] - z);
+        const d = hyp(a[o] - x, (a[o + F_Y] - Math.min(y, 0)), a[o + F_Z] - z);
         if (d > rStun) continue;
         hit++; a[o + F_AIR] = 0;
         if (d < rKill * (0.7 + 0.6 * r())) { a[o + F_DEAD] = 1; a[o + F_STUN] = FISH.DEAD_T; S.stats.killed++; }
@@ -285,7 +290,7 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
       fade: fadeIn ? 0 : 1, leave: false, L: L0, vx: 0, vz: 0, id: S.stats.spawned, live: n, coarse: false, anchored,
       hx: x, hz: z,                              // home (reef fish)
       ball: 0, mill: r() < 0.5 ? 1 : -1, preds: [], prey: null, huntT: 0, fullT: 0, fed: 0, flee: 0, fx: 0, fz: 0,
-      ship: null, se: 0, ssx: 0, ssz: 0, eaten: 0,
+      ship: null, se: 0, ssx: 0, ssz: 0, eaten: 0, held: n, topT: 10 + (S.stats.spawned * 7.3) % 30, surfacing: false, wasBall: false,   // (all fields here: one shape)
     };
     // a ball of fish, nnd apart, all heading roughly one way
     const spread = Math.cbrt(n) * sp.nnd * L0 * 0.9;
@@ -301,7 +306,12 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
     S.schools.push(sc); S.nFish += n; S.stats.spawned++; if (anchored) S.stats.anchored++;
     return sc;
   }
-  S.spawnSchool = (key, x, z, fadeIn = false, anchored = false) => spawnSchool(typeof key === 'number' ? key : SPECIES_INDEX[key], x, z, fadeIn, anchored);
+  // (the host / scenes / tests: a school here now - if the budget is full the schools furthest from the camera go)
+  S.spawnSchool = (key, x, z, fadeIn = false, anchored = false) => {
+    const spi = typeof key === 'number' ? key : SPECIES_INDEX[key], need = SPECIES[spi].n[1];
+    while (S.nFish + need > FISH.MAX_FISH && S.schools.length) { let wi = 0, wd = -1; for (let q = 0; q < S.schools.length; q++) { const sc = S.schools[q], d = hyp(sc.cx - S.cam.x, sc.cz - S.cam.z) + (sc.leave ? 1e5 : 0); if (d > wd) { wd = d; wi = q; } } dropSchool(wi); }
+    return spawnSchool(spi, x, z, fadeIn, anchored);
+  };
   function dropSchool(i) { const sc = S.schools[i]; S.nFish -= sc.n; S.schools.splice(i, 1); S.stats.despawned++; for (const o of S.schools) { if (o.prey === sc) o.prey = null; const k = o.preds.indexOf(sc); if (k >= 0) o.preds.splice(k, 1); } }
   S.clear = () => { S.schools.length = 0; S.nFish = 0; S.transient.length = 0; S.sites.length = 0; };
   // tests / scenes: a pilchard school with bonito already closing on it
@@ -357,12 +367,12 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
           continue;
         }
         const ox = Math.max(0, Math.abs(lx) - t.hw), oz = lz < 0 ? Math.max(0, -lz - t.hl) * 0.6 : Math.max(0, lz - t.hl) * 1.4;
-        d = Math.hypot(ox, oz) + below * 0.8;
+        d = hyp(ox, oz) + below * 0.8;
         // flee sideways, away from the keel line, and down
         const side = lx >= 0 ? 1 : -1; dx = side * t.c; dz = -side * t.s;
         if (lz < -t.hl) { dx += -t.s * -0.3; dz += -t.c * -0.3; }
       } else {
-        dx = x - t.x; dz = z - t.z; const h = Math.hypot(dx, dz) || 1e-3; dx /= h; dz /= h;
+        dx = x - t.x; dz = z - t.z; const h = hyp(dx, dz) || 1e-3; dx /= h; dz /= h;
         d = h + Math.max(0, below - t.deep) * 2;
         // rotor downwash: the top metre of water runs out from under it
         if (t.wash && d < t.r * 1.2 && y > -1.6) { const kk = t.k * (1 - d / (t.r * 1.2)) * Math.exp(y / 0.8) * 1.6; wx += dx * kk; wz += dz * kk; }
@@ -372,7 +382,7 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
           if (h > 1.4) continue;
         }
       }
-      if (mammal) { if (t.kind === 0 && !t.swim && life < 1 && d < t.r) { best = Math.max(best, 0.3 * t.k); fx += dx; fz += dz; } continue; }   // big bangs only
+      if (mammal) { if (t.kind === 0 && !t.swim && life < 1 && t.k > 1.1 && d < t.r) { /* (explosions only: a bow's spray is what they come for) */ best = Math.max(best, 0.3 * t.k); fx += dx; fz += dz; } continue; }   // big bangs only
       if (d >= R) continue;
       const f = t.k * life * (1 - d / R) * (1 - d / R) * 2.2;
       if (f > best) best = f;
@@ -383,7 +393,7 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
   }
 
   // ------------------------------------------------------------------ neighbour grid (per school, reused buffers)
-  let gHead = new Int32Array(1024), gNext = new Int32Array(256);
+  let gHead = new Int32Array(1024), gNext = new Int32Array(256), nbBuf = new Int32Array(256);
   let gx0 = 0, gz0 = 0, gcs = 1, gnx = 1, gnz = 1;
   function buildGrid(sc, cell) {
     const a = sc.a, n = sc.n;
@@ -402,12 +412,19 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
     sc.goalT -= h; if (sc.goalT <= 0) newGoal(sc);
     sc.alarm = Math.max(0, sc.alarm - h / sp.calm);
     sc.flee = Math.max(0, sc.flee - h);
+    // pilchard feeding on plankton at the top on a quiet day: spells of a minute or two right under it (the "nervous
+    // water" a fisherman or a tern looks for); not in a rough sea, not at night, not with something after them
+    if (sp.ball) {
+      sc.topT -= h;
+      if (sc.topT <= 0) { sc.surfacing = !sc.surfacing && S.sea < 0.6 && S.light > 0.3 && r() < 0.55; sc.topT = sc.surfacing ? 50 + r() * 70 : 30 + r() * 60; }
+      if (sc.alarm > 0.3 || sc.prey) sc.surfacing = false;
+    }
     // a bait ball relaxes slowly once the predators are gone
-    if (sp.ball) { let close = false; for (const p of sc.preds) if (Math.hypot(p.cx - sc.cx, p.cz - sc.cz) < 22 + sc.rad) { close = true; break; } sc.ball = close ? Math.min(1, sc.ball + h * 0.45) : Math.max(0, sc.ball - h * 0.035); if (close && sc.ball > 0.3 && !sc.wasBall) { sc.wasBall = true; S.stats.balls++; } if (sc.ball <= 0) sc.wasBall = false; }
+    if (sp.ball) { let close = false; for (const p of sc.preds) if (hyp(p.cx - sc.cx, p.cz - sc.cz) < 22 + sc.rad) { close = true; break; } sc.ball = close ? Math.min(1, sc.ball + h * 0.45) : Math.max(0, sc.ball - h * 0.035); if (close && sc.ball > 0.3 && !sc.wasBall) { sc.wasBall = true; S.stats.balls++; } if (sc.ball <= 0) sc.wasBall = false; }
     // fish gather in the shade of a hull at anchor (and amberjack and bonito follow a ship's wake for what it stirs up)
     if (!sc.prey && sc.flee <= 0) for (let k = 0; k < S.nThreats; k++) {
       const t = S.threats[k]; if (t.kind !== 1) continue;
-      const dx = sc.cx - t.x, dz = sc.cz - t.z, d = Math.hypot(dx, dz); if (d > 90 + t.hl) continue;
+      const dx = sc.cx - t.x, dz = sc.cz - t.z, d = hyp(dx, dz); if (d > 90 + t.hl) continue;
       if (t.v < 0.6 && sp.fad) {   // alongside, in her shade, 4-12 m off the side the school is on
         const lx = dx * t.c - dz * t.s, lz = dx * t.s + dz * t.c, side = lx >= 0 ? 1 : -1, off = t.hw + 4 + 8 * ((sc.id * 0.37) % 1), along = clamp(lz, -t.hl * 0.8, t.hl * 0.8);
         sc.gx = t.x + side * off * t.c + along * t.s; sc.gz = t.z - side * off * t.s + along * t.c; sc.goalT = Math.max(sc.goalT, 2);
@@ -421,7 +438,7 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
       if (sc.prey && (sc.prey.leave || sc.prey.live < 6 || sc.huntT > 150 || sc.fed > sc.n * 4 || sc.flee > 0)) { if (sc.huntT > 150 || sc.fed > sc.n * 4) sc.fullT = 80 + r() * 60; unhunt(sc); }
       if (!sc.prey && sc.fullT <= 0 && sc.flee <= 0 && r() < h * 0.5) {
         let best = null, bd = 150;
-        for (const o of S.schools) { if (o === sc || o.leave || o.live < 10 || !sp.huntsI.includes(o.sp)) continue; const d = Math.hypot(o.cx - sc.cx, o.cz - sc.cz); if (d < bd) { bd = d; best = o; } }
+        for (const o of S.schools) { if (o === sc || o.leave || o.live < 10 || !sp.huntsI.includes(o.sp)) continue; const d = hyp(o.cx - sc.cx, o.cz - sc.cz); if (d < bd) { bd = d; best = o; } }
         if (best) { sc.prey = best; sc.huntT = 0; }
       }
       if (sc.prey) { if (!sc.prey.preds.includes(sc)) sc.prey.preds.push(sc); sc.huntT += h; sc.gx = sc.prey.cx; sc.gz = sc.prey.cz; sc.goalT = Math.max(sc.goalT, 1); }
@@ -429,9 +446,9 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
     // dolphins: a ship under way within 250 m - go and ride her bow
     if (sp.role === 'mammal') {
       sc.ship = null;
-      if (sc.flee <= 0) { let bd = 250; for (let k = 0; k < S.nThreats; k++) { const t = S.threats[k]; if (t.kind !== 1 || t.v < 2.2 || t.v > 16 || t.hl < 5) continue; const d = Math.hypot(t.x - sc.cx, t.z - sc.cz); if (d < bd) { bd = d; sc.ship = t; } } }
+      if (sc.flee <= 0) { let bd = 250; for (let k = 0; k < S.nThreats; k++) { const t = S.threats[k]; if (t.kind !== 1 || t.v < 2.2 || t.v > 16 || t.hl < 5) continue; const d = hyp(t.x - sc.cx, t.z - sc.cz) - t.hl * 1.5; if (d < bd) { bd = d; sc.ship = t; } } }   // (a big bow wave beats a near one)
       if (sc.ship) { unhunt(sc); const t = sc.ship; sc.gx = t.x - t.s * (t.hl + 6); sc.gz = t.z - t.c * (t.hl + 6); sc.goalT = Math.max(sc.goalT, 1); }
-      if (sc.flee > 0) { const dx = sc.cx - sc.fx, dz = sc.cz - sc.fz, d = Math.hypot(dx, dz) || 1; sc.gx = sc.cx + dx / d * 60; sc.gz = sc.cz + dz / d * 60; }
+      if (sc.flee > 0) { const dx = sc.cx - sc.fx, dz = sc.cz - sc.fz, d = hyp(dx, dz) || 1; sc.gx = sc.cx + dx / d * 60; sc.gz = sc.cz + dz / d * 60; }
     }
   }
 
@@ -440,23 +457,17 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
   function stepSchool(sc, h) {
     const sp = SPECIES[sc.sp], a = sc.a, n = sc.n, role = sp.role, mammal = role === 'mammal';
     const night = 1 + (1 - S.light) * 0.6;   // schools loosen at night
-    const L = sc.L, R = sp.view * night, R2 = R * R, sep = sp.nnd * L * night * (1 - 0.35 * sc.ball), sep2 = sep * sep;
+    const L = sc.L, R = sp.view * night, R2 = R * R, sep = sp.nnd * L * night * (1 - 0.15 * sc.ball), sep2 = sep * sep;
     const alarmR = (S.t - sc.at) * FISH.ALARM_V;
     const near = nearThreats(sc, sp);
-    const ball = sc.ball, ballR = Math.cbrt(sc.live) * sp.nnd * L * 0.55;
+    const ball = sc.ball, ballR = Math.cbrt(sc.live) * sp.nnd * L * 1.05;   // (each boid is a cluster of SUB fish: a ball a few metres across)
     const useGrid = n > 28 && R > 0; if (useGrid) buildGrid(sc, R);
     const se = sc.se, ssx = sc.ssx, ssz = sc.ssz, scx = sc.cx, scz = sc.cz;
     const surfY = (x, z) => se + ssx * (x - scx) + ssz * (z - scz);
     let cx = 0, cy = 0, cz = 0, vxs = 0, vzs = 0, live = 0, held = 0;
-    // the neighbour sums (one closure per school step, not per fish)
-    let nN = 0, ax = 0, ay = 0, az = 0, mx = 0, my = 0, mz = 0, sx = 0, sy = 0, sz = 0, X = 0, Y = 0, Zz = 0;
-    const nb_ = (j) => {
-      const q = j * STRIDE; if (a[q + F_STUN] > 0 || a[q + F_DEAD] > 0 || a[q + F_AIR] > 0) return;
-      const dx = a[q] - X, dy = a[q + F_Y] - Y, dz = a[q + F_Z] - Zz, d2 = dx * dx + dy * dy * 1.5 + dz * dz;
-      if (d2 > R2) return;
-      nN++; mx += dx; my += dy; mz += dz; ax += a[q + F_VX]; ay += a[q + F_VY]; az += a[q + F_VZ];
-      if (d2 < sep2) { const k = (sep2 - d2) / (d2 + 0.02 * sep2); sx -= dx * k; sy -= dy * k; sz -= dz * k; }
-    };
+    // (neighbour candidates are gathered into a typed array and summed in plain locals: a closure writing captured
+    // doubles made V8 box every store - most of the sim's time went to the garbage collector)
+    if (nbBuf.length < n) nbBuf = new Int32Array(n * 2);
     for (let i = 0; i < n; i++) {
       const o = i * STRIDE;
       if (a[o + F_DEAD] > 1) continue;   // eaten
@@ -470,7 +481,7 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
           const want = top + 0.55 + 0.6 * a[o + F_JIT];
           vy += ((want - y) * 3 - vy) * Math.min(1, h * 4) - 0.6 * h; const sl = Math.exp(-h * 0.085); vx *= sl; vz *= sl;
           a[o + F_COOL] -= h; a[o + F_WING] = Math.min(1, a[o + F_WING] + h * 6);
-          const hs = Math.hypot(vx, vz);
+          const hs = hyp(vx, vz);
           if (a[o + F_COOL] <= 0 || hs < 7) {
             if (r() < 0.35 && hs > 6) { a[o + F_COOL] = 1.6 + r() * 1.8; vx *= 1.25; vz *= 1.25; event('taxi', x, top, z, len, sc.sp); }   // a tail-beat taxi off the top: another glide
             else { a[o + F_AK] = 1; vy = -2.5; }   // down: fold and fall in
@@ -478,7 +489,7 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
         } else vy -= G * h;
         x += vx * h; y += vy * h; z += vz * h;
         // a glide skims the waves: a crest it meets is a tail touch (another taxi) or the end of it, never flown through
-        if (a[o + F_AK] === 2) { const t2 = surfAt(x, z).e; if (y < t2 + 0.12) { if (Math.hypot(vx, vz) > 8 && r() < 0.6) { y = t2 + 0.12; vy = Math.max(vy, 1.2); event('taxi', x, t2, z, len, sc.sp); } else { a[o + F_AK] = 1; vy = Math.min(vy, -1); } } }
+        if (a[o + F_AK] === 2) { const t2 = surfAt(x, z).e; if (y < t2 + 0.12) { if (hyp(vx, vz) > 8 && r() < 0.6) { y = t2 + 0.12; vy = Math.max(vy, 1.2); event('taxi', x, t2, z, len, sc.sp); } else { a[o + F_AK] = 1; vy = Math.min(vy, -1); } } }
         if (vy < 0 && y < top - len * 0.15 && a[o + F_AIR] > 0.15) {   // back in
           event('enter', x, top, z, len * (mammal ? 1.4 : 1), sc.sp);
           a[o + F_AIR] = 0; a[o + F_AK] = 0; a[o + F_WING] = 0; vy *= 0.35; a[o + F_COOL] = mammal ? 0.6 + r() * 1.5 : 2 + r() * 5;
@@ -508,57 +519,71 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
         continue;
       }
       // ---- neighbours (the school only)
-      nN = 0; ax = 0; ay = 0; az = 0; mx = 0; my = 0; mz = 0; sx = 0; sy = 0; sz = 0; X = x; Y = y; Zz = z;
+      let nN = 0, ax = 0, ay = 0, az = 0, mx = 0, my = 0, mz = 0, sx = 0, sy = 0, sz = 0, nc = 0;
       if (role !== 'drift') {
         if (useGrid) {
           const ix = Math.floor((x - gx0) / gcs), iz = Math.floor((z - gz0) / gcs);
-          for (let u = Math.max(0, ix - 1); u <= Math.min(gnx - 1, ix + 1); u++) for (let w = Math.max(0, iz - 1); w <= Math.min(gnz - 1, iz + 1); w++) for (let j = gHead[u + w * gnx]; j >= 0; j = gNext[j]) if (j !== i) nb_(j);
-        } else for (let j = 0; j < n; j++) if (j !== i) nb_(j);
+          for (let u = Math.max(0, ix - 1); u <= Math.min(gnx - 1, ix + 1); u++) for (let w = Math.max(0, iz - 1); w <= Math.min(gnz - 1, iz + 1); w++) for (let j = gHead[u + w * gnx]; j >= 0; j = gNext[j]) if (j !== i) nbBuf[nc++] = j;
+        } else for (let j = 0; j < n; j++) if (j !== i) nbBuf[nc++] = j;
       }
-      const spd = Math.hypot(vx, vy, vz) || 1e-4;
+      for (let c = 0; c < nc; c++) {
+        const q = nbBuf[c] * STRIDE; if (a[q + F_STUN] > 0 || a[q + F_DEAD] > 0 || a[q + F_AIR] > 0) continue;
+        const ex = a[q] - x, ey = a[q + F_Y] - y, ez = a[q + F_Z] - z, d2 = ex * ex + ey * ey * 1.5 + ez * ez;
+        if (d2 > R2) continue;
+        nN++; mx += ex; my += ey; mz += ez; ax += a[q + F_VX]; ay += a[q + F_VY]; az += a[q + F_VZ];
+        if (d2 < sep2) { const k = (sep2 - d2) / (d2 + 0.02 * sep2); sx -= ex * k; sy -= ey * k; sz -= ez * k; }
+      }
+      const spd = hyp(vx, vy, vz) || 1e-4;
       // desired direction: keep going, plus the rules
       let dx = vx / spd, dy = vy / spd, dz = vz / spd;
       const coh = 0.5 * (1 + 3 * ball);
       if (nN) {
-        const al = Math.hypot(ax, ay, az) || 1, aw = 0.9 * (1.4 - 0.5 * night) * (1 - 0.5 * ball); dx += ax / al * aw; dy += ay / al * aw; dz += az / al * aw;   // alignment
-        const ml = Math.hypot(mx, my, mz) / nN; if (ml > sep) { dx += mx / nN / ml * coh; dy += my / nN / ml * coh; dz += mz / nN / ml * coh; }   // cohesion
+        const al = hyp(ax, ay, az) || 1, aw = 0.9 * (1.4 - 0.5 * night) * (1 - 0.5 * ball); dx += ax / al * aw; dy += ay / al * aw; dz += az / al * aw;   // alignment
+        const ml = hyp(mx, my, mz) / nN; if (ml > sep) { dx += mx / nN / ml * coh; dy += my / nN / ml * coh; dz += mz / nN / ml * coh; }   // cohesion
         dx += sx / sep * 1.6; dy += sy / sep * 1.6; dz += sz / sep * 1.6;   // separation
       }
       // back to the school: always a little (a split school re-forms), more when alone
       if (role !== 'drift') {
-        const gx = scx - x, gy = sc.cy - y, gz = scz - z, gl = Math.hypot(gx, gy, gz) || 1, over = Math.max(0, gl - Math.max(2, sc.rad * 0.6));
+        const gx = scx - x, gy = sc.cy - y, gz = scz - z, gl = hyp(gx, gy, gz) || 1, over = Math.max(0, gl - Math.max(2, sc.rad * 0.6));
         const k = nN ? Math.min(0.9, over * 0.06) * (1 - 0.7 * a[o + F_FEAR]) : 1.2;
         dx += gx / gl * k; dy += gy / gl * k * 0.5; dz += gz / gl * k;
       }
       // the school's goal (wander, home, prey, the shade of a hull, the wake, a bow)
-      { const gx = sc.gx - x, gz = sc.gz - z, gl = Math.hypot(gx, gz); if (gl > 2) { const k = sc.prey || sc.ship ? 0.9 : sc.flee > 0 ? 1.4 : 0.25; dx += gx / gl * k; dz += gz / gl * k; } }
+      { const gx = sc.gx - x, gz = sc.gz - z, gl = hyp(gx, gz); if (gl > 2) { const k = sc.prey || sc.ship ? 0.9 : sc.flee > 0 ? 1.4 : 0.25; dx += gx / gl * k; dz += gz / gl * k; } }
       // depth band, the bed, the surface
       band(sp, b, len, _b);
       let lo = _b[0], hi = Math.min(_b[1], surfY(x, z) - 0.12 - len * 0.3);
+      if (sc.surfacing && ball < 0.05) { const t2 = surfY(x, z); hi = t2 - 0.12 - len * 0.3; lo = Math.max(lo, Math.min(t2 - 1.2, hi - 0.2)); }
       if (ball > 0.05) { const by = surfY(x, z) - 0.22 - ballR * 0.6; hi = Math.min(hi, Math.max(by + ballR, lo)); lo = Math.max(lo, Math.min(by - ballR, hi)); }
       // ---- role extras
       let want = -1;
       if (ball > 0.05) {   // a bait ball: tight, milling round its centre, driven up to the top
-        const rx = x - scx, rz = z - scz, rr = Math.hypot(rx, rz) || 1e-3;
+        const rx = x - scx, rz = z - scz, rr = hyp(rx, rz) || 1e-3;
         dx += (-rz / rr) * sc.mill * ball * 1.1; dz += (rx / rr) * sc.mill * ball * 1.1;
         if (rr > ballR) { dx -= rx / rr * ball * 1.2 * (rr - ballR) / ballR; dz -= rz / rr * ball * 1.2 * (rr - ballR) / ballR; }
       }
       if (sc.prey && role !== 'mammal') {   // predators: passes through the prey, curving in from the side
-        const p = sc.prey, px = p.cx - x, pz = p.cz - z, pd = Math.hypot(px, pz) || 1, side = (a[o + F_JIT] > 0.5 ? 1 : -1);
+        const p = sc.prey, px = p.cx - x, pz = p.cz - z, pd = hyp(px, pz) || 1, side = (a[o + F_JIT] > 0.5 ? 1 : -1);
         dx += px / pd * 1.6 + (-pz / pd) * side * 0.5; dz += pz / pd * 1.6 + (px / pd) * side * 0.5; dy += (p.cy - y) * 0.4;
         if (pd < 30) want = len * (sp.cruise + (sp.burst - sp.cruise) * (0.45 + 0.35 * Math.sin(S.t * 0.7 + a[o + F_JIT] * 9)));
+        // slashing through a ball at the top: the water thrown up on a pass (taken or not), now and then clear of it
+        const tp = surfY(x, z);
+        if (p.ball > 0.3 && pd < p.rad + 2 && y > tp - 1.1 && r() < h * 0.5) {
+          event('boil', x, tp, z, 0.4 + len, sc.sp);
+          if (sp.leap === 'hop' && a[o + F_COOL] <= 0 && r() < 0.18) { a[o + F_AIR] = 1e-3; a[o + F_AK] = 1; vy = 2.6 + r() * 1.6; y = tp; a[o + F_COOL] = 8; event('jump', x, tp, z, len, sc.sp); S.stats.leaps++; }
+        }
       }
       if (mammal) {
         const ship = sc.ship;
         if (ship) {   // bow-riding: each dolphin its own slot in the pressure field ahead of the stem, moving with her
-          const u = a[o + F_JIT], side = (i % 2 ? 1 : -1), lx = side * ship.hw * (0.15 + 0.55 * u), lz = -ship.hl - 1.5 - 6 * ((u * 7.3) % 1);
-          const tx = ship.x + lx * ship.c + lz * ship.s, tz = ship.z - lx * ship.s + lz * ship.c, ex = tx - x, ez = tz - z, ed = Math.hypot(ex, ez);
-          const wvx = ship.vx + ex * 0.8, wvz = ship.vz + ez * 0.8, wl = Math.hypot(wvx, wvz) || 1;
+          const u = a[o + F_JIT], side = (i % 2 ? 1 : -1), lx = side * ship.hw * (0.15 + 0.6 * u), lz = -ship.hl - 2 - ship.hl * 0.16 * ((u * 7.3) % 1);   // (the pressure field ahead of the stem grows with her length)
+          const tx = ship.x + lx * ship.c + lz * ship.s, tz = ship.z - lx * ship.s + lz * ship.c, ex = tx - x, ez = tz - z, ed = hyp(ex, ez);
+          const wvx = ship.vx + ex * 0.8, wvz = ship.vz + ez * 0.8, wl = hyp(wvx, wvz) || 1;
           dx = wvx / wl * 3 + dx * 0.3; dz = wvz / wl * 3 + dz * 0.3;
           want = Math.min(len * sp.burst * 1.1, wl);
           if (ed < 6) { lo = Math.max(lo, surfY(x, z) - 2.2); }
         } else if (sc.prey) {   // herding: circle the ball 4-8 m out, dash through it now and then
-          const p = sc.prey, px = p.cx - x, pz = p.cz - z, pd = Math.hypot(px, pz) || 1, ring = 4 + 4 * a[o + F_JIT], dash = Math.sin(S.t * 0.4 + a[o + F_JIT] * 11) > 0.7;
+          const p = sc.prey, px = p.cx - x, pz = p.cz - z, pd = hyp(px, pz) || 1, ring = 4 + 4 * a[o + F_JIT], dash = Math.sin(S.t * 0.4 + a[o + F_JIT] * 11) > 0.7;
           if (dash) { dx += px / pd * 2; dz += pz / pd * 2; } else { dx += (-pz / pd) * sc.mill * 1.4 + px / pd * (pd - ring) * 0.25; dz += (px / pd) * sc.mill * 1.4 + pz / pd * (pd - ring) * 0.25; }
           dy += (p.cy - y) * 0.3; want = len * (sp.cruise + (sp.burst - sp.cruise) * (dash ? 0.8 : 0.35));
         }
@@ -575,13 +600,13 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
       }
       if (sp.huntsI.length && sp.leap !== 'glide') a[o + F_HANDLE] -= h;
       if (role === 'reef') {   // hold station over home ground
-        const hx = sc.hx - x, hz = sc.hz - z, hd = Math.hypot(hx, hz); if (hd > sp.home) { dx += hx / hd * (hd - sp.home) * 0.3; dz += hz / hd * (hd - sp.home) * 0.3; }
+        const hx = sc.hx - x, hz = sc.hz - z, hd = hyp(hx, hz); if (hd > sp.home) { dx += hx / hd * (hd - sp.home) * 0.3; dz += hz / hd * (hd - sp.home) * 0.3; }
       }
       if (role === 'drift') {   // a jellyfish: carried along, a slow pulse up against a slow sink
         dx = 0.25; dz = 0.1; dy = Math.sin(a[o + F_PH] * 0.5 + a[o + F_JIT] * 5) * 0.5;
       }
       if (sp.scav && S.sites.length) {   // the shark: up under the dead fish after a blast
-        let bd = 160, s = null; for (const q of S.sites) { const d = Math.hypot(q.x - x, q.z - z); if (d < bd && q.t < 80) { bd = d; s = q; } }
+        let bd = 160, s = null; for (const q of S.sites) { const d = hyp(q.x - x, q.z - z); if (d < bd && q.t < 80) { bd = d; s = q; } }
         if (s) { dx += (s.x - x) / (bd || 1) * 2.5; dz += (s.z - z) / (bd || 1) * 2.5; want = len * sp.cruise * (bd > 12 ? 2.6 : 1.2); /* (smells them: comes at ~2 m/s) */ if (bd < 12) { lo = Math.max(lo, surfY(x, z) - 0.6); hi = surfY(x, z) - 0.25; dy += 1; if (a[o + F_COOL] <= 0) { event('fin', x, surfY(x, z), z, len, sc.sp); a[o + F_COOL] = 0.5; } } }
         a[o + F_COOL] -= h;
       }
@@ -590,7 +615,7 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
       {
         const look = 1.5 + spd * 1.2, hx = x + vx / spd * look, hz = z + vz / spd * look, ah = bed(hx, hz);
         if (-ah < sp.water[0] * 0.8 || ah > y - len) {
-          const gxx = bed(x + 2, z) - bed(x - 2, z), gzz = bed(x, z + 2) - bed(x, z - 2), gl = Math.hypot(gxx, gzz) || 1;
+          const gxx = bed(x + 2, z) - bed(x - 2, z), gzz = bed(x, z + 2) - bed(x, z - 2), gl = hyp(gxx, gzz) || 1;
           dx -= gxx / gl * 2.2; dz -= gzz / gl * 2.2; dy -= 0.2;
         }
       }
@@ -598,11 +623,11 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
       fearAt(x, y, z, sp, near, _f, mammal);
       let pf = 0, pfx = 0, pfz = 0;
       for (let pi = 0; pi < sc.preds.length; pi++) {   // each predator is a moving threat 2-4 m round it: the prey split round it
-        const p = sc.preds[pi], pa = p.a, pr = 1.8 + p.L * 2.5;
+        const p = sc.preds[pi], pa = p.a, pr = 1.0 + p.L * 1.6;   // (a vacuole a body length or two round each one)
         if (Math.abs(p.cx - x) > p.rad + pr + 2 || Math.abs(p.cz - z) > p.rad + pr + 2) continue;
         for (let j = 0; j < p.n; j++) {
           const q = j * STRIDE; if (pa[q + F_DEAD] > 0 || pa[q + F_STUN] > 0) continue;
-          const ex = x - pa[q], ey = y - pa[q + F_Y], ez = z - pa[q + F_Z], ed = Math.hypot(ex, ey, ez);
+          const ex = x - pa[q], ey = y - pa[q + F_Y], ez = z - pa[q + F_Z], ed = hyp(ex, ey, ez);
           if (ed > pr) continue;
           // taken: close enough to the jaws, now and then
           // (one at a strike: 4-10 s to turn and come again; ~1 strike in 3 takes one - game-tuned)
@@ -623,18 +648,18 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
       if (a[o + F_DEAD] > 1) continue;
       let fear = a[o + F_FEAR] * Math.exp(-h / Math.max(0.5, sp.calm));
       if (_f[0] > fear) { fear = _f[0]; if (_f[0] > 0.35 && _f[0] > sc.alarm) { if (sc.alarm < 0.2) S.stats.fled++; sc.alarm = _f[0]; sc.ax = x; sc.az = z; sc.at = S.t; } }
-      if (sc.alarm > 0 && Math.hypot(x - sc.ax, z - sc.az) < alarmR) fear = Math.max(fear, sc.alarm * 0.75);
+      if (sc.alarm > 0 && hyp(x - sc.ax, z - sc.az) < alarmR) fear = Math.max(fear, sc.alarm * 0.75);
       if (pf > fear) fear = pf;
       a[o + F_FEAR] = fear;
-      if (_f[0] > 0.02) { const fl = Math.hypot(_f[1], _f[2], _f[3]) || 1; const w = 1 + 5 * _f[0]; dx += _f[1] / fl * w; dy += _f[2] / fl * w * (y > lo + 0.3 ? 1 : 0); dz += _f[3] / fl * w; }
+      if (_f[0] > 0.02) { const fl = hyp(_f[1], _f[2], _f[3]) || 1; const w = 1 + 5 * _f[0]; dx += _f[1] / fl * w; dy += _f[2] / fl * w * (y > lo + 0.3 ? 1 : 0); dz += _f[3] / fl * w; }
       else if (fear > 0.2 && ball < 0.2) { dy -= 0.3 * fear * (y > lo + 0.3 ? 1 : 0); }   // alarmed but nothing seen: go down
-      if (pf > 0.02) { const fl = Math.hypot(pfx, pfz) || 1; dx += pfx / fl * (1 + 4 * pf); dz += pfz / fl * (1 + 4 * pf); }
+      if (pf > 0.02) { const fl = hyp(pfx, pfz) || 1; dx += pfx / fl * (1 + 4 * pf); dz += pfz / fl * (1 + 4 * pf); }
       dx += _f[6]; dz += _f[7];   // the curious
       // speed: cruise with a little life in it, up to a burst when frightened
       const jit = 0.85 + 0.3 * (0.5 + 0.5 * Math.sin(S.t * (0.3 + a[o + F_JIT]) + a[o + F_JIT] * 9));
       if (want < 0) want = len * (sp.cruise * jit + (sp.burst - sp.cruise) * fear * fear);
       if (role === 'drift') want = 0.05 + 0.1 * Math.max(0, Math.sin(a[o + F_PH]));
-      const dl = Math.hypot(dx, dy * 1.4, dz) || 1;
+      const dl = hyp(dx, dy * 1.4, dz) || 1;
       let tvx = dx / dl * want, tvy = dy / dl * want * 0.6, tvz = dz / dl * want;
       const ag = Math.min(1, h * sp.agility * (1 + 4 * fear));
       const ohx = vx, ohz = vz;
@@ -642,7 +667,7 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
       // the water itself moving: prop wash and the wake's following current, a rotor's outflow (fish are carried)
       x += _f[4] * h; z += _f[5] * h;
       // bank into the turn (yaw rate x speed: the lateral acceleration), the flank flashing at the sky
-      { const yr = (ohx * vz - ohz * vx) / Math.max(1e-4, (ohx * ohx + ohz * ohz)) / h, bank = clamp(-yr * Math.hypot(vx, vz) * 0.09, -1.1, 1.1); a[o + F_ROLL] += (bank - a[o + F_ROLL]) * Math.min(1, h * 6); }
+      { const yr = (ohx * vz - ohz * vx) / Math.max(1e-4, (ohx * ohx + ohz * ohz)) / h, bank = clamp(-yr * hyp(vx, vz) * 0.09 + fear * 1.1 * Math.sin(S.t * 5.5 + a[o + F_JIT] * 40), -1.3, 1.3); a[o + F_ROLL] += (bank - a[o + F_ROLL]) * Math.min(1, h * 6); }   // (frightened fish twist and roll: the flashing of a school in a panic)
       // integrate, never through the bed or out of the water
       const ox = x, oy = y, oz = z;
       x += vx * h; y += vy * h; z += vz * h;
@@ -664,7 +689,7 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
       if (sp.leap && !mammal && a[o + F_COOL] <= 0 && y > top - 1.6 && b < -0.9) {
         const trig = sp.leap === 'glide' ? (_f[0] > 0.3 ? h * 2.5 * _f[0] : 0) : (_f[0] > 0.4 ? h * 1.2 * _f[0] : h * sp.jumpy * 0.1);
         if (trig > 0 && r() < trig) {
-          const fl = Math.hypot(_f[1], _f[3]), ux = fl > 1e-3 ? _f[1] / fl : vx / (Math.hypot(vx, vz) || 1), uz = fl > 1e-3 ? _f[3] / fl : vz / (Math.hypot(vx, vz) || 1);
+          const fl = hyp(_f[1], _f[3]), ux = fl > 1e-3 ? _f[1] / fl : vx / (hyp(vx, vz) || 1), uz = fl > 1e-3 ? _f[3] / fl : vz / (hyp(vx, vz) || 1);
           a[o + F_AIR] = 1e-3; y = top;
           if (sp.leap === 'glide') { const v0 = 11 + 5 * r(); vx = ux * v0; vz = uz * v0; vy = 2 + r(); a[o + F_AK] = 2; a[o + F_COOL] = 2 + 2 * r(); S.stats.glides++; event('taxi', x, top, z, len, sc.sp); }
           else { const v0 = 1.5 + 1.5 * r(); vx = ux * v0; vz = uz * v0; vy = 3 + 1.4 * r(); a[o + F_AK] = 1; a[o + F_ROLL] = (r() < 0.5 ? 1 : -1) * (0.6 + r()); }
@@ -672,7 +697,7 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
         }
       }
       // the tail: Bainbridge (a jellyfish: its bell's own slow pulse, ~0.8 Hz)
-      a[o + F_PH] = (a[o + F_PH] + TAU * (role === 'drift' ? 0.8 : tailBeatHz(Math.hypot(vx, vy, vz), len)) * h) % TAU;
+      a[o + F_PH] = (a[o + F_PH] + TAU * (role === 'drift' ? 0.8 : tailBeatHz(hyp(vx, vy, vz), len)) * h) % TAU;
       a[o] = x; a[o + F_Y] = y; a[o + F_Z] = z; a[o + F_VX] = vx; a[o + F_VY] = vy; a[o + F_VZ] = vz;
       cx += x; cy += y; cz += z; vxs += vx; vzs += vz; live++;
     }
@@ -682,7 +707,7 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
   }
   // a far school: moved as one towards its goal at cruise (no boids, no fright); phases still run
   function stepCoarse(sc, h) {
-    const sp = SPECIES[sc.sp], a = sc.a, gx = sc.gx - sc.cx, gz = sc.gz - sc.cz, gl = Math.hypot(gx, gz);
+    const sp = SPECIES[sc.sp], a = sc.a, gx = sc.gx - sc.cx, gz = sc.gz - sc.cz, gl = hyp(gx, gz);
     const v = sp.cruise * sc.L, ux = gl > 1 ? gx / gl : 0, uz = gl > 1 ? gz / gl : 0;
     let mx = ux * v * h, mz = uz * v * h;
     if (-bed(sc.cx + mx * 20, sc.cz + mz * 20) < sp.water[0]) { mx = mz = 0; sc.goalT = 0; }
@@ -692,7 +717,7 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
 
   // ------------------------------------------------------------------ the frame
   // where life is kept: the camera's circle, and round anchors within view of the camera
-  const anchorW = (x, z) => { let best = 0; for (let k = 0; k < S.nThreats + S.nAnchors; k++) { const t = k < S.nThreats ? S.threats[k] : S.anchors[k - S.nThreats]; if (t.w <= 0) continue; if (Math.hypot(t.x - S.cam.x, t.z - S.cam.z) > FISH.ANCHOR_VIEW) continue; const d = Math.hypot(t.x - x, t.z - z); if (d < FISH.ANCHOR_R + (t.hl || 0)) best = Math.max(best, t.w); } return best; };
+  const anchorW = (x, z) => { let best = 0; for (let k = 0; k < S.nThreats + S.nAnchors; k++) { const t = k < S.nThreats ? S.threats[k] : S.anchors[k - S.nThreats]; if (t.w <= 0) continue; if (hyp(t.x - S.cam.x, t.z - S.cam.z) > FISH.ANCHOR_VIEW) continue; const d = hyp(t.x - x, t.z - z); if (d < FISH.ANCHOR_R + (t.hl || 0)) best = Math.max(best, t.w); } return best; };
   S.anchorW = anchorW;
   // cam: the camera position. The host fills threats / anchors first (clearThreats, hull, point, anchor).
   S.update = (dt, cam) => {
@@ -708,7 +733,7 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
     for (let i = S.sites.length - 1; i >= 0; i--) { S.sites[i].t += dt; if (S.sites[i].t > 120) S.sites.splice(i, 1); }
     // which schools stay: near the camera, or near a unit that keeps life; the rest fade out, then go
     for (let i = S.schools.length - 1; i >= 0; i--) {
-      const sc = S.schools[i], dc = Math.hypot(sc.cx - cam.x, sc.cz - cam.z);
+      const sc = S.schools[i], dc = hyp(sc.cx - cam.x, sc.cz - cam.z);
       const keep = (!off && dc < S.radius + 45) || anchorW(sc.cx, sc.cz) > 0;
       if (!keep && dc > S.radius + 400) { dropSchool(i); continue; }   // (a jump: far out of sight, no need to fade)
       const empty = (sc.held ?? sc.live) === 0;
@@ -727,10 +752,10 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
         if (S.schools.length >= FISH.MAX_SCHOOLS) break;
         let x, z, near = null, anch = false;
         if (nA && (off || r() < 0.5)) {   // round a unit (nearer the camera is likelier)
-          let tot = 0; for (let q = 0; q < nA; q++) { const t = q < S.nThreats ? S.threats[q] : S.anchors[q - S.nThreats]; const d = Math.hypot(t.x - cam.x, t.z - cam.z); if (d < FISH.ANCHOR_VIEW && t.w > 0) tot += t.w / (1 + (d / 160) ** 2); }
+          let tot = 0; for (let q = 0; q < nA; q++) { const t = q < S.nThreats ? S.threats[q] : S.anchors[q - S.nThreats]; const d = hyp(t.x - cam.x, t.z - cam.z); if (d < FISH.ANCHOR_VIEW && t.w > 0) tot += t.w / (1 + (d / 160) ** 2); }
           if (!tot) continue;
           let u = r() * tot, t = null;
-          for (let q = 0; q < nA; q++) { const tt = q < S.nThreats ? S.threats[q] : S.anchors[q - S.nThreats]; const d = Math.hypot(tt.x - cam.x, tt.z - cam.z); if (d < FISH.ANCHOR_VIEW && tt.w > 0) { u -= tt.w / (1 + (d / 160) ** 2); if (u <= 0) { t = tt; break; } } }
+          for (let q = 0; q < nA; q++) { const tt = q < S.nThreats ? S.threats[q] : S.anchors[q - S.nThreats]; const d = hyp(tt.x - cam.x, tt.z - cam.z); if (d < FISH.ANCHOR_VIEW && tt.w > 0) { u -= tt.w / (1 + (d / 160) ** 2); if (u <= 0) { t = tt; break; } } }
           if (!t) continue;
           const big = (t.hl || 0) + (t.hw || 0), a = r() * TAU, rr = big + 10 + r() * (t.kind === 1 && t.v > 1 ? 80 : 45);
           // under way: mostly ahead of her (so the bow meets them); at anchor: alongside
@@ -746,21 +771,23 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
         let spi = pickSpecies(depth, near); if (spi < 0) continue;
         // predators where there is prey to take (a hunt is what draws the birds); one kind in a place
         const sp = SPECIES[spi];
-        let crowd = 0; for (const sc of S.schools) if (Math.hypot(sc.cx - x, sc.cz - z) < 30) crowd += sc.sp === spi ? 2 : 1;
+        let crowd = 0; for (const sc of S.schools) if (hyp(sc.cx - x, sc.cz - z) < 30) crowd += sc.sp === spi ? 2 : 1;
         if (crowd >= 2) continue;
         let same = 0; for (const sc of S.schools) if (sc.sp === spi) same++;
         if (same >= sp.max) continue;
-        if (sp.huntsI.length && sp.role !== 'mammal' && !S.schools.some(o => sp.huntsI.includes(o.sp) && Math.hypot(o.cx - x, o.cz - z) < 150)) continue;   // hunters only where there is prey
+        if (sp.huntsI.length && sp.role !== 'mammal' && !S.schools.some(o => sp.huntsI.includes(o.sp) && hyp(o.cx - x, o.cz - z) < 150)) continue;   // hunters only where there is prey
+        // the life round units out of the camera's own circle gets at most ~45 % of the budget (the camera comes first)
+        if (hyp(x - cam.x, z - cam.z) > S.radius + 45) { let far = 0; for (const sc of S.schools) if (hyp(sc.cx - cam.x, sc.cz - cam.z) > S.radius + 45) far += sc.n; if (far + sp.n[1] > FISH.MAX_FISH * 0.45) continue; }
         if (S.nFish + sp.n[1] > FISH.MAX_FISH) {   // full: make room if this spot is much nearer the camera than the furthest school
-          let wi = -1, wd = 0; for (let q = 0; q < S.schools.length; q++) { const sc = S.schools[q]; if (sc.leave) continue; const d = Math.hypot(sc.cx - cam.x, sc.cz - cam.z); if (d > wd) { wd = d; wi = q; } }
-          if (wi >= 0 && Math.hypot(x - cam.x, z - cam.z) < wd * 0.5) S.schools[wi].leave = true;
+          let wi = -1, wd = 0; for (let q = 0; q < S.schools.length; q++) { const sc = S.schools[q]; if (sc.leave) continue; const d = hyp(sc.cx - cam.x, sc.cz - cam.z); if (d > wd) { wd = d; wi = q; } }
+          if (wi >= 0 && hyp(x - cam.x, z - cam.z) < wd * 0.5) S.schools[wi].leave = true;
           continue;
         }
         spawnSchool(spi, x, z, !empty, anch);
       }
     }
     // the wave plane over each school (once a frame) and the coarse / fine split
-    for (const sc of S.schools) { surfAt(sc.cx, sc.cz); sc.se = _so.e; sc.ssx = _so.sx; sc.ssz = _so.sz; sc.coarse = !under && Math.hypot(sc.cx - cam.x, sc.cz - cam.z) > FISH.COARSE && sc.ball <= 0 && !sc.prey && !sc.ship; }
+    for (const sc of S.schools) { surfAt(sc.cx, sc.cz); sc.se = _so.e; sc.ssx = _so.sx; sc.ssz = _so.sz; sc.coarse = !under && hyp(sc.cx - cam.x, sc.cz - cam.z) > FISH.COARSE && sc.ball <= 0 && !sc.prey && !sc.ship; }
     // step (substeps at low frame rates)
     let left = Math.min(dt, 0.25);
     while (left > 1e-6) { const h = Math.min(FISH.STEP, left); left -= h; for (const sc of S.schools) { planSchool(sc, SPECIES[sc.sp], h); if (sc.coarse) stepCoarse(sc, h); else stepSchool(sc, h); } }
@@ -784,14 +811,14 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
       const A = O.A, B = O.B, C = O.C, D = O.D, sub = sp.draw === 'school' ? 2.2 : 1;
       for (let i = 0; i < sc.n && O.n < O.max; i++) {
         const o = i * STRIDE; if (a[o + F_DEAD] > 1) continue;
-        const vx = a[o + F_VX], vy = a[o + F_VY], vz = a[o + F_VZ], hs = Math.hypot(vx, vz), len = a[o + F_LEN];
+        const vx = a[o + F_VX], vy = a[o + F_VY], vz = a[o + F_VZ], hs = hyp(vx, vz), len = a[o + F_LEN];
         const air = a[o + F_AIR] > 0, floating = a[o + F_STUN] > 0 && a[o + F_Y] > sc.se - 0.6;
         let top = sc.se + sc.ssx * (a[o] - sc.cx) + sc.ssz * (a[o + F_Z] - sc.cz);
         if (air || floating || sp.role === 'mammal' || sp.scav) top = surfAt(a[o], a[o + F_Z]).e;   // exact where it crosses the top
         let y = a[o + F_Y];
         if (floating && a[o + F_STUN] > 8 && y > top - 0.6) y = top - 0.04 - len * 0.12;   // riding the swell as it goes by
         if (view) {
-          const dx = a[o] - view.x, dy = y - view.y, dz = a[o + F_Z] - view.z, d = Math.hypot(dx, dy, dz) + 1e-6;
+          const dx = a[o] - view.x, dy = y - view.y, dz = a[o + F_Z] - view.z, d = hyp(dx, dy, dz) + 1e-6;
           const above = y > top - len * 0.3;
           const vis = (dx * view.fx + dy * view.fy + dz * view.fz) / d > view.cos && len * sub / d * view.px > 0.9
             && (above || (view.y < top ? d < 40 : (top - y) * d / Math.max(view.y - y, 0.1) < 28));   // (water path, m: green ~exp(-0.07 x 28) ~ 0.14)
@@ -801,8 +828,8 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
         A[j] = a[o]; A[j + 1] = y; A[j + 2] = a[o + F_Z]; A[j + 3] = len;
         B[j] = Math.atan2(vx, vz); B[j + 1] = Math.atan2(vy, Math.max(hs, 1e-4)) * (a[o + F_STUN] > 0 ? 0.2 : air && a[o + F_AK] === 2 ? 0.3 : 1); B[j + 2] = a[o + F_ROLL]; B[j + 3] = sc.sp;
         const dead = a[o + F_DEAD] > 0, sinkFade = dead ? clamp(a[o + F_STUN] / 6, 0, 1) : 1;
-        C[j] = a[o + F_PH]; C[j + 1] = a[o + F_STUN] > 0 ? 0 : air && a[o + F_AK] === 2 ? 0 : clamp(Math.hypot(vx, vy, vz) / (len * sp.burst), 0.15, 1); C[j + 2] = Math.max(0, sc.fade) * sinkFade; C[j + 3] = top;
-        D[j] = a[o + F_WING]; D[j + 1] = a[o + F_FEAR]; D[j + 2] = a[o + F_JIT]; D[j + 3] = air ? 1 : 0;
+        C[j] = a[o + F_PH]; C[j + 1] = a[o + F_STUN] > 0 ? 0 : air && a[o + F_AK] === 2 ? 0 : clamp(hyp(vx, vy, vz) / (len * sp.burst), 0.15, 1); C[j + 2] = Math.max(0, sc.fade) * sinkFade; C[j + 3] = top;
+        D[j] = sp.leap === 'glide' ? clamp(a[o + F_WING], 0, 1) : 0; D[j + 1] = a[o + F_FEAR];   // (F_WING is a predator's strike timer) D[j + 2] = a[o + F_JIT]; D[j + 3] = air ? 1 : 0;
         O.n++;
       }
     }
@@ -813,7 +840,7 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
   const _sub = [0, 0, 0, 0];
   S.drawnPos = (sc, i, k) => {
     const a = sc.a, o = i * STRIDE, len = a[o + F_LEN], vx = a[o + F_VX], vy = a[o + F_VY], vz = a[o + F_VZ];
-    const yaw = Math.atan2(vx, vz), pitch = Math.atan2(vy, Math.max(Math.hypot(vx, vz), 1e-4));
+    const yaw = Math.atan2(vx, vz), pitch = Math.atan2(vy, Math.max(hyp(vx, vz), 1e-4));
     const spread = len * (1 + 0.6 * a[o + F_FEAR]); subOffset(a[o + F_JIT], k, _sub);
     let px = _sub[0] * spread, py = _sub[1] * spread, pz = _sub[2] * spread;
     const cp = Math.cos(-pitch), sp_ = Math.sin(-pitch); const y1 = cp * py - sp_ * pz, z1 = sp_ * py + cp * pz; py = y1; pz = z1;
@@ -827,8 +854,9 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
     for (const sc of S.schools) {
       const sp = SPECIES[sc.sp]; if (sc.fade <= 0 || sp.role === 'drift' || sp.role === 'mammal' || sp.role === 'reef' || sp.role === 'solo') continue;
       const depth = sc.se - sc.cy;
-      if (sc.ball > 0.15) out.push({ x: sc.cx, z: sc.cz, r: Math.max(2.5, sc.rad * 0.7 + 1.5), k: Math.min(1, sc.ball) * sc.fade, kind: 1, sc });
-      else if (depth < 1.6 && sp.len[1] < 0.6) { const k = (1 - depth / 1.6) * (0.35 + 0.65 * Math.min(1, sc.alarm + 0.2)) * sc.fade; if (k > 0.08) out.push({ x: sc.cx, z: sc.cz, r: Math.max(2, sc.rad * 0.6 + 1), k, kind: 0, sc }); }
+      const rr = clamp(sc.rad * 0.5 + 1.5, 2.5, 7);   // (rad is the outermost fish: half of it, capped, is the school's body)
+      if (sc.ball > 0.15) out.push({ x: sc.cx, z: sc.cz, r: rr + 1, k: Math.min(1, sc.ball) * sc.fade, kind: 1, sc });
+      else if (depth < 1.8 && sp.len[1] < 0.6) { const k = Math.min(1, (1.15 - depth / 1.8) * (0.55 + 0.45 * Math.min(1, sc.alarm + 0.2))) * sc.fade; if (k > 0.08) out.push({ x: sc.cx, z: sc.cz, r: rr, k, kind: 0, sc }); }
     }
     return out;
   };

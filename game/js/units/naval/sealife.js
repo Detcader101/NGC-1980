@@ -265,7 +265,7 @@ export function createSeaLife(ctx) {
     if (O.n) for (const a of O.attrs) { a.clearUpdateRanges(); a.addUpdateRange(0, O.n * 4); a.needsUpdate = true; }
   };
   L.update = dt => {
-    if (!L.enabled || !active()) { sim.clearThreats(); for (const k in meshes) { meshes[k].geometry.instanceCount = 0; meshes[k].visible = false; } signGeo.instanceCount = 0; signMesh.visible = false; L.ms = 0; return; }
+    if (!L.enabled || !active() || L.suspend) { sim.clearThreats(); /* (suspend: tests - no sim, no draw, the state kept) */ for (const k in meshes) { meshes[k].geometry.instanceCount = 0; meshes[k].visible = false; } signGeo.instanceCount = 0; signMesh.visible = false; L.ms = 0; return; }
     for (const k in meshes) meshes[k].visible = true; signMesh.visible = true;
     const t0 = performance.now(), c = L.cam;
     fishU.uTime.value += dt;
@@ -295,7 +295,7 @@ export function createSeaLife(ctx) {
     sim.update(dt, c);
     // the birds: bait balls, dead fish, trawlers, wakes
     sim.signs(signs);
-    for (const s of signs) if (s.kind === 1) L.focus('b' + s.sc.id, 'ball', s.x, s.z, s.k, 0, 0, s.r);
+    for (const s of signs) if (s.kind === 1) L.focus('b' + s.sc.id, 'ball', s.x, s.z, s.k, 0, 0, s.r); else if (s.sc.surfacing) L.focus('n' + s.sc.id, 'top', s.x, s.z, s.k, 0, 0, s.r);
     for (const st of sim.sites) { const k = Math.min(1, st.n / 20) * (1 - st.t / 120); if (k > 0.05 && st.t > 4) L.focus('d' + idOf(st), 'dead', st.x, st.z, k, 0, 0, 4); }
     birds.update(L.fishOn ? dt : 0, c, { foci, threats: flush });
     if (!L.fishOn && birds.birds.length) birds.clear();
@@ -307,7 +307,7 @@ export function createSeaLife(ctx) {
       const cm = L.camObj, e = cm.matrixWorld.elements, fl = Math.hypot(e[8], e[9], e[10]) || 1, fov = (cm.fov || 60) * Math.PI / 180, asp = cm.aspect || 1.6;
       const hf = Math.atan(Math.tan(fov / 2) * Math.hypot(1, asp)) + 0.15;
       Object.assign(_view, { x: c.x, y: c.y, z: c.z, fx: -e[8] / fl, fy: -e[9] / fl, fz: -e[10] / fl, cos: Math.cos(Math.min(hf, 3)), px: (ctx.heightPx ? ctx.heightPx() : 720) / fov });
-      view = _view;
+      view = _view; L.view = _view;
     }
     sim.write(bufs, view);
     for (const k in bufs) { write(bufs[k], meshes[k]); L.counts[k] = bufs[k].n; }
@@ -335,6 +335,6 @@ export function createSeaLife(ctx) {
     if (q === 'off') { L.fishOn = false; return; }
     L.fishOn = true; sim.setQuality(q); birds.max = BIRD_Q[q] || BIRD_Q.medium; motes.visible = L.under && q !== 'low';
   };
-  L.fishMesh = meshes.school; L.meshes = meshes; L.bedMesh = bedMesh; L.signMesh = signMesh; L.surfaceAt = surfaceAt;
+  L.fishMesh = meshes.school; L.meshes = meshes; L.bufs = bufs; L.bedMesh = bedMesh; L.signMesh = signMesh; L.surfaceAt = surfaceAt;
   return L;
 }
