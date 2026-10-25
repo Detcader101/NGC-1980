@@ -18,7 +18,7 @@ The enemy carrier KRAKEN is out there doing the same, and whoever controls the m
 - **Archipelago and fog of war.** You only see what your helicopter, carrier, drones and islands can see. Radar islands see further.
 - **Capture islands.** Silence the owner's AA guns, then land on the pad or send a CH-46 Sea Knight with a Marine squad (command 1). Fortress islands hide a cave: fly down the shaft, Thrust-style, and steal the pod. Every cave is procedurally generated (the same island always has the same cave), and the heavier the fortress, the deeper and more twisted its cave and the more turrets guard it.
 - **Economy.** Islands produce fuel and materiel. Spend materiel on Sea Knight landings, AA guns, spare helicopters and escort fighters.
-- **A tech tree for both sides.** TASK FORCE ALBATROSS sails with Hueys, Marines, CH-46 air assault, AA batteries, the motor pool and the Hornets; Tomcat escorts and the flyable F-14A, LCM-8 armour (M113A2, then the M60A3), C-130 logistics, field medicine, radar pickets, Seabees, island production, heliborne doctrine, damage control and the SKY CARRIER refit are researched with materiel on war time (SHIFT+\\ or T on the command board: the RESEARCH page, a grease-pencil plotting board). The RUNAWAY commander researches its own tree (REAPER, RW-7 hover tanks, LANCE lasers, SHRIKEs, SHAHEDs, seized MBTs, the LEVIATHAN programme) and the feed reports what it fields. Pure logic in `game/js/techtree.js`, so the CPU-vs-CPU simulation explores the same trees.
+- **A tech tree for both sides.** TASK FORCE ALBATROSS sails with Hueys, Marines, CH-46 air assault, AA batteries, the motor pool and the Hornets; Tomcat escorts and the flyable F-14A, LCM-8 armour (M113A2, then the M60A3), C-130 logistics, airmobile logistics (the Huey's cargo hook and troop lift), field medicine, radar pickets, Seabees, island production, heliborne doctrine, damage control and the SKY CARRIER refit are researched with materiel on war time (SHIFT+\\ or T on the command board: the RESEARCH page, a grease-pencil plotting board). The RUNAWAY commander researches its own tree (REAPER, RW-7 hover tanks, LANCE lasers, SHRIKEs, SHAHEDs, seized MBTs, the LEVIATHAN programme) and the feed reports what it fields. Pure logic in `game/js/techtree.js`, so the CPU-vs-CPU simulation explores the same trees.
 - **An enemy commander.** It sends RUNAWAY MV-22 Ospreys full of machine troopers to take islands, swarms of RW-3 WASP ducted-fan drones to hunt you, fortifies, raids your carrier, ships supplies in autonomous container ships, and builds the LEVIATHAN railgun monitor in its factories to hunt the ALBATROSS. Bomb the factories to slow it down.
 - **HORNET carrier jet.** Land on the ALBATROSS and press 5: an F/A-18-style fighter on the catapult. Full 6-DOF flight model with a Hornet-like flight computer, a 3D cockpit with a conformal HUD and working displays, catapult launches, arrested landings, gun, AIM-9s and CCIP bombs, ejection. Built for a T.Flight HOTAS 4 and rudder pedals with toe brakes (any stick, pad or keyboard works).
 - **Fly the TOMCAT.** Land on the ALBATROSS and press 8: an F-14A on cat 1 (two in the hangar). The AI escorts' real flight model (swing wings on the CADC, TF30s that stall at high AoA, a mechanical stick with stability augmentation and no limiter) with a 1980 analog cockpit: the AVG-12 HUD, the VDI and HSD CRTs, steam gauges (AoA in units, airspeed / Mach, altimeter, VSI, accelerometer, the wing sweep indicator, TF30 RPM / TIT / fuel flow / nozzles, fuel), the caution panel, the throttles' sweep switch and the emergency sweep handle (OVERSWEEP on deck), pitch trim and the autopilot; every switch clickable, and a cold start on them (ENG CRANK, the throttles OFF -> IDLE at 20%, generators, a wet start if you rush it). The RIO sits behind you. Change to the RIO's seat for the AWG-9's TID and DDD (hook, lock, launch Phoenix and Sparrow) while the pilot flies where you tell him. Warnings are 1980 tones and lights, not a voice. Ejection takes both of you.
@@ -139,6 +139,30 @@ over the carrier, home at bingo or on recall, the pattern, the glideslope, a tra
 goes back to his platoon. Lives are the fleet: the HUD strip under the score shows each type's reserve (+1 = out in
 the war). A lost unit is a loss to the fleet; when the unit you are in is lost the board opens and, unless you pick,
 hands you on to the Huey. The war is lost when the fleet is spent - nothing in reserve and nothing left out there.
+
+**AIR DROP (C-130 heavy drop).** On the board, select a vehicle row (M151A2, M35A2, M113A2) and an island, then **C**:
+a Marine KC-130 flies the run (1,100 ft, 130 KIAS), opens the ramp at the one-minute warning, and at the green light the
+extraction chute pulls the platform out over the ramp; the G-11A canopies open (reefed, then full), the load drifts down
+with the wind and lands on its honeycomb, and the DZ party de-rigs it - it is then a unit on that island. It costs the
+vehicle (reserve or bought) plus 10 materiel, and needs FIELD LOGISTICS researched (the board says so until then). The M60A3 is too heavy for a C-130 (the board says so). **V** on the board
+watches the run: V cycles the loadmaster at the ramp / the flight deck / the load / a chase view, **\\** or **Esc** returns.
+A drop can go wrong: a streaming canopy, trees, a steep slope or the sea. Keys 7 / 9 / 0 deliver by CH-46 and LCM-8 as before.
+
+### AIRLIFT (the Huey's cargo hook and troops)
+
+Research **AIRMOBILE LOGISTICS** first (tier 1, after the Huey and the Marines; 30 materiel, 35 s): until then the crew chief
+says NO SLING GEAR over a vehicle and no squad comes for the Huey.
+
+
+- **Sling load**: hover low over a vehicle - the crew chief talks you on (FORWARD / BACK / LEFT / RIGHT / DOWN / HOLD, the
+  APEX scope at the bottom shows where it is) and the hookup man stands on it with the sling. When he is ready press **R**
+  (or the HOTAS winch button) to hook it. Take the slack gently, lift it off, keep under the load's speed (60 kt for a
+  jeep). The HUD shows the load, the hook limit (4,000 lb), the gross weight, the tension, the swing (SWING scope) and the
+  torque. Set it down on its wheels (the pendant goes slack) and **R** releases it. In the air **R R** jettisons it. Only the
+  M151A2 and the civilian cars fit a Huey's hook; trucks and armour are TOO HEAVY (they go by LCM-8 or C-130).
+- **Troops**: landed on the ALBATROSS or a friendly pad, **.** (period) calls a squad of six Marines (30 materiel); they run
+  in and sit on the bench and in the doors. Land on an island and **.** again: they get out and join the ground war there.
+- A Marine on foot boards the Huey's cabin bench with **Y** at its door (as before).
 
 ### HORNET (jet)
 
@@ -305,6 +329,7 @@ node tools/jetbench.mjs             # the jet's flight model against published F
 node tools/c130bench.mjs            # the C-130H flight model against published C-130H data (spec box, ops limits card, FM 3-21.38)
 node tools/tomcatsysbench.mjs       # the flyable F-14A's systems: wing sweep AUTO / MAN / EMER / OVERSWEEP, dead CADC, AFCS, the start on the switches (crank, throttles, wet start, auto start), generators / EMERG GEN, airstarts, stalls, damage
 node tools/hueybench.mjs            # the Huey's flight model against published UH-1H data (Heffley, Talbot, DCS / TM charts)
+node tools/slingbench.mjs           # AIRLIFT: sling-load pendulum (period vs pendant length), bounce, snatch, hook limits, the Huey hovering / cruising / releasing with a load, the AI ferrying one; G-11A heavy-drop descents
 node tools/medinvbench.mjs          # medical (ATLS shock timing, tourniquets, drugs, IV), kit weights, inventory grids
 node tools/ch46bench.mjs            # CH-46E tandem rotor: max speed, climb, hover ceilings, single engine, autorotation, SAS
 node tools/mv22bench.mjs            # MV-22B tiltrotor: hover / download / figure of merit, the conversion corridor, 275 kt, 412 / 333 rpm
@@ -339,7 +364,7 @@ Sea and world: `seaworld.mjs` (`PARTS=lift,house,bridge,mounts,horizon,sea`): th
 
 Naval: `game/dev/ships.html` orbits each ship on a sea with sea-state, speed and turn sliders (`?ship=albatross|kraken|leviathan|container`). Scenes: `naval.mjs` (every ship in the game, the deck moving with the sea, crew clearing out from under a helicopter), `shipsdev.mjs` (the preview page from many angles, draw calls).
 
-Tech tree: `node tools/techbench.mjs` (95 checks: acyclic, reachable, start sets ('all' = the game before the tree), gates, mods, timing in war seconds, refunds, snapshot / restore, determinism, the AI policy and doctrines, every gate asked by the game code), scene `techtree.mjs` (the locked board and orders, the RESEARCH page, a programme on war time, cancel, the enemy researching, 300 war seconds on the default trees, `?debug` = the old game).
+Tech tree: `node tools/techbench.mjs` (97 checks: acyclic, reachable, start sets ('all' = the game before the tree), gates, mods, timing in war seconds, refunds, snapshot / restore, determinism, the AI policy and doctrines, every gate asked by the game code), scene `techtree.mjs` (the locked board and orders, the RESEARCH page, a programme on war time, cancel, the enemy researching, 300 war seconds on the default trees, `?debug` = the old game).
 
 Deck ops: `node tools/deckopsbench.mjs` (the launch queue with real airframes on the live deck), `node tools/catdeckbench.mjs` (the cat shot, Tomcat and Hornet, heeling deck, 1/60-0.1 s frames), scenes `deckseq.mjs`, `catshot.mjs`, `jets.json`.
 

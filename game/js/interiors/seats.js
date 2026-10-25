@@ -103,6 +103,7 @@ export function createSeats(ctx) {
     look(dx, dy) { if (!cur) return; cur.look.yaw = Math.max(-2.4, Math.min(2.4, cur.look.yaw - dx * 0.0022)); cur.look.pitch = Math.max(-1.2, Math.min(1.2, cur.look.pitch - dy * 0.0022)); },
     key(code) { if (code === 'KeyV' && cur) { cur.view = cur.view === 'first' ? 'third' : 'first'; say(cur.view === 'first' ? 'FROM THE SEAT' : 'OUTSIDE VIEW', 1); return true; } return false; },
     firstPerson: () => !!cur && cur.view === 'first',
+    hueySeat: () => cur && cur.host.key === 'huey' ? cur.seat.at : null,   // AIRLIFT: the Huey troop seat the player rides in (the squad keeps off it)
     camera(cam, dt) {
       if (!cur) return;
       const o = cur.host.obj; o.updateMatrixWorld(true);

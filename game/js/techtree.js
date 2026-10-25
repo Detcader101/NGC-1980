@@ -68,7 +68,9 @@ export const TECH = [
   { id: 'p.cap', side: 1, tier: 1, name: 'FLEET AIR DEFENCE', cost: { mat: 50 }, time: 45, requires: ['p.airwing'], unlocks: { units: ['escort'] },
     desc: 'F-14A TOMCAT ESCORTS FLY CAP OVER THE ALBATROSS OR AN ISLAND (COMMAND 4)' },
   { id: 'p.logistics', side: 1, tier: 1, name: 'FIELD LOGISTICS', cost: { mat: 30 }, time: 30, requires: ['p.huey'], unlocks: { abilities: ['logistics'] },
-    desc: 'C-130H PARA-DROPS AND THE FUEL TEAM FOR A DOWNED HUEY (RADIO / L)' },
+    desc: 'C-130H PARA-DROPS, THE FUEL TEAM FOR A DOWNED HUEY (RADIO / L) AND HEAVY DROP OF VEHICLES (BOARD: C)' },
+  { id: 'p.airmobile', side: 1, tier: 1, name: 'AIRMOBILE LOGISTICS', cost: { mat: 30 }, time: 35, requires: ['p.huey', 'p.marines'], unlocks: { abilities: ['sling', 'trooplift'] },
+    desc: 'THE HUEY\'S CARGO HOOK (R: SLING A JEEP OR A CAR) AND A SQUAD OF SIX LIFTED TO THE ISLANDS (. ON A PAD)' },
   { id: 'p.medicine', side: 1, tier: 1, name: 'FIELD MEDICINE', cost: { mat: 25 }, time: 30, requires: ['p.marines'], unlocks: { mods: { medic: 1.6 } },
     desc: 'THE SICKBAY RETURNS EVACUATED MARINES 1.6 X FASTER (CHEAPER SEA KNIGHT STICKS)' },
   { id: 'p.picket', side: 1, tier: 1, name: 'RADAR PICKET', cost: { mat: 35 }, time: 40, requires: ['p.aaa'], unlocks: { mods: { sight: 1.25 } },
@@ -132,6 +134,7 @@ export const GATES = {
   m151: { side: 1, where: ['game/js/units/commander/fleet.js'] }, m35: { side: 1, where: ['game/js/units/commander/fleet.js'] },
   jet: { side: 1, where: ['game/js/units/commander/fleet.js'] }, m113: { side: 1, where: ['game/js/main.js'] },
   escort: { side: 1, where: ['game/js/units/air/airwar.js'] }, logistics: { side: 1, where: ['game/js/main.js'] },
+  sling: { side: 1, where: ['game/js/main.js'] }, trooplift: { side: 1, where: ['game/js/main.js'] },   // AIRLIFT (units/air/airlift/airlift.js asks through ctx.gate)
   m60: { side: 1, where: ['game/js/main.js'] }, tomcat: { side: 1, where: ['game/js/units/commander/fleet.js'] },
   sky: { side: 1, where: ['game/js/war.js'] },
   transport: { side: 2, where: ['game/js/war.js'] }, gunship: { side: 2, where: ['game/js/war.js'] },
@@ -158,9 +161,9 @@ export const MODS = {
 // research orders for the default policy (any node left out is tried afterwards, by tier)
 export const DOCTRINES = {
   1: {
-    balanced: ['p.cap', 'p.amtrac', 'p.logistics', 'p.picket', 'p.medicine', 'p.yield', 'p.helo', 'p.mbt', 'p.seabees', 'p.tomcat', 'p.damagectl', 'p.sky'],
+    balanced: ['p.cap', 'p.amtrac', 'p.logistics', 'p.airmobile', 'p.picket', 'p.medicine', 'p.yield', 'p.helo', 'p.mbt', 'p.seabees', 'p.tomcat', 'p.damagectl', 'p.sky'],
     air: ['p.cap', 'p.tomcat', 'p.picket', 'p.logistics', 'p.yield', 'p.helo', 'p.seabees', 'p.sky'],
-    ground: ['p.amtrac', 'p.medicine', 'p.mbt', 'p.helo', 'p.logistics', 'p.yield', 'p.seabees'],
+    ground: ['p.amtrac', 'p.airmobile', 'p.medicine', 'p.mbt', 'p.helo', 'p.logistics', 'p.yield', 'p.seabees'],
     econ: ['p.logistics', 'p.yield', 'p.seabees', 'p.damagectl', 'p.picket', 'p.sky'],
   },
   2: {

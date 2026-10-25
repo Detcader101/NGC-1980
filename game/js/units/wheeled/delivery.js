@@ -14,6 +14,7 @@ import { buildCH46Mesh } from '../air/rotary/ch46model.js';
 import { createRotorSound } from '../air/rotary/rotorsound.js';
 import { buildLCM8Mesh } from './lcm8model.js';
 import { createFollower } from './driver.js';
+import { createSling, LOADS } from '../air/airlift/sling.js';   // AIRLIFT: the load swings on real pendulum physics
 
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const SLING = 5.5;   // m of strop from the hook to the load's lifting eyes (INFERRED, a single-point sling + 4-leg bridle)
@@ -68,7 +69,7 @@ export function createDelivery(o) {
     const M = buildCH46Mesh(); scene.add(M.group);
     const c = war.carrier, from = c && c.sinking === undefined ? { x: c.p.x, z: c.p.z, y: c.p.y + 28 } : { x: spot.x + 900, z: spot.z, y: 60 };
     const line = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(15), 3)), lineMat); line.frustumCulled = false; scene.add(line);
-    const job = { kind: 'ch46', type, V, I, spot, M, line, t: 0, phase: 'out', x: from.x, y: from.y, z: from.z, vx: 0, vz: 0, home: from, yaw: Math.atan2(-(spot.x - from.x), -(spot.z - from.z)), swing: [0, 0], label: 'M151A2' };
+    const job = { kind: 'ch46', type, V, I, spot, M, line, t: 0, phase: 'out', x: from.x, y: from.y, z: from.z, vx: 0, vz: 0, home: from, yaw: Math.atan2(-(spot.x - from.x), -(spot.z - from.z)), swing: [0, 0], label: 'M151A2', sl: createSling({ ...LOADS.m151, strop: SLING + 1.55 - LOADS.m151.apex }) };   // (AIRLIFT: hook -> apex = the old strop + eyes)
     jobs.push(job);
     say(`M151A2 ON ITS WAY  -  A CH-46 IS SLINGING IT TO ${spot.name}`, 2.6); feed(`MOTOR POOL: CH-46 WITH AN M151A2 FOR ${I.name}`, 'good');
     return V;
@@ -104,14 +105,16 @@ export function createDelivery(o) {
     } else if (j.phase === 'lower') {   // hover, let the load down onto its wheels, release the hook
       j.pitch += (0 - j.pitch) * Math.min(1, dt * 2);
       const g = Math.max(terrainH(sp.x, sp.z), sp.y);
-      if (loadY() > g + 0.15) j.y -= Math.min(1.2 * dt, loadY() - g - 0.15);
+      const sl = j.sl, down = sl ? (sl.ground && sl.Tg < 0.3) || loadY() < g - 1.2 : loadY() <= g + 0.15;   // AIRLIFT: the load's wheels have its weight, the pendant is slack
+      if (!down) j.y -= Math.min(1.2 * dt, Math.max(0.05, loadY() - g + 0.4));
       else {
-        V.slung = false; V.spawnAt({ x: sp.x, z: sp.z, yaw: sp.yaw, plat: sp.plat || null });
+        V.slung = false; V.spawnAt(sl ? { x: sl.p[0], z: sl.p[2], yaw: sl.yaw, plat: sp.plat || null } : { x: sp.x, z: sp.z, yaw: sp.yaw, plat: sp.plat || null });
         j.phase = 'release'; j.rt = 0; feed(`M151A2 DELIVERED  -  ${sp.name}`, 'good'); say(`M151A2 SET DOWN AT ${sp.name}  -  THE SEA KNIGHT IS GOING HOME`, 2.2);
       }
     } else if (j.phase === 'release') { j.rt += dt; j.y += 2.5 * dt; if (j.rt > 2.5) { j.phase = 'home'; j.t = 0; } }
     // the load swings behind / under the hook
-    if (V.slung) {
+    if (V.slung && j.sl) swingSling(j, dt);   // AIRLIFT: the real pendulum (units/air/airlift/sling.js), the hook moved by the AI
+    else if (V.slung) {
       const ax = clamp(-(j.vx - (j.lvx ?? j.vx)) / Math.max(dt, 1e-3), -6, 6), az = clamp(-(j.vz - (j.lvz ?? j.vz)) / Math.max(dt, 1e-3), -6, 6); j.lvx = j.vx; j.lvz = j.vz;
       j.swing[0] += (ax * 0.12 - j.swing[0]) * Math.min(1, dt * 1.5); j.swing[1] += (az * 0.12 - j.swing[1]) * Math.min(1, dt * 1.5);
       const h = hookOf(j, new THREE.Vector3());
@@ -119,13 +122,29 @@ export function createDelivery(o) {
     }
     // the strop (hook to the load's four lifting eyes)
     const pos = j.line.geometry.attributes.position, h = hookOf(j, new THREE.Vector3());
-    if (V.slung) { const top = [S.pos[0], S.pos[1] + 1.55, S.pos[2]]; pos.setXYZ(0, h.x, h.y, h.z); pos.setXYZ(1, top[0], top[1], top[2]); j.line.visible = true; }
+    if (V.slung) { const top = j.sl ? [j.sl.p[0], j.sl.p[1] + j.sl.Lb, j.sl.p[2]] : [S.pos[0], S.pos[1] + 1.55, S.pos[2]]; pos.setXYZ(0, h.x, h.y, h.z); pos.setXYZ(1, top[0], top[1], top[2]); j.line.visible = true; }
     else j.line.visible = false;
     pos.needsUpdate = true;
     // the model: rotors turning, gear down, ramp up
     j.M.group.position.set(j.x, j.y, j.z); j.M.group.rotation.set(j.pitch || 0, j.yaw, j.roll || 0, 'YXZ');
     j.M.animate({ nr: 1, run: true, n1: 0.95, coll: j.phase === 'lower' ? 0.55 : 0.45, cone: 0.07, F: { tx: -(j.pitch || 0) * 0.5, ty: 0 }, A: { tx: -(j.pitch || 0) * 0.5, ty: 0 } }, dt, performance.now() / 1000);
     if (j.phase !== 'out' && j.phase !== 'home' && j.y - terrainH(j.x, j.z) < 22 && Math.random() < dt * 8) fx.trail?.(j.x + (Math.random() - 0.5) * 14, terrainH(j.x, j.z) + 0.5, j.z + (Math.random() - 0.5) * 14, 1.2);   // rotor wash
+  }
+  // AIRLIFT: the slung jeep on the sling physics with the CH-46's hook as a moving (kinematic) point
+  const _hp = [0, 0, 0], _hv = [0, 0, 0], _up = new THREE.Vector3(0, 1, 0), _d = new THREE.Vector3(), _sq = new THREE.Quaternion(), _sq2 = new THREE.Quaternion();
+  function swingSling(j, dt) {
+    const S = j.sl, h = hookOf(j, new THREE.Vector3()), V = j.V;
+    if (!j.slInit) { j.slInit = true; S.p[0] = h.x; S.p[1] = h.y - S.L - 0.08 * S.strop; S.p[2] = h.z; S.v[0] = j.vx; S.v[2] = j.vz; S.yaw = j.yaw; j.lh = h.clone(); }
+    const n = Math.max(1, Math.ceil(dt / (1 / 120))), env = { ground: (x, z) => Math.max(terrainH(x, z), o.deckY ? o.deckY(x, z) : -1e9), water: (x, z) => terrainH(x, z) < 0, hookYaw: j.yaw };
+    _hv[0] = (h.x - j.lh.x) / Math.max(dt, 1e-3); _hv[1] = (h.y - j.lh.y) / Math.max(dt, 1e-3); _hv[2] = (h.z - j.lh.z) / Math.max(dt, 1e-3);
+    for (let i = 1; i <= n; i++) { const k = i / n; _hp[0] = j.lh.x + (h.x - j.lh.x) * k; _hp[1] = j.lh.y + (h.y - j.lh.y) * k; _hp[2] = j.lh.z + (h.z - j.lh.z) * k; S.step(dt / n, _hp, _hv, env); }
+    j.lh.copy(h);
+    // the jeep hangs along the pendant (its apex above the CG), stands upright on the ground
+    _d.set(h.x - S.p[0], h.y - S.p[1], h.z - S.p[2]).normalize(); if (S.ground) _d.copy(_up);
+    _sq.setFromUnitVectors(_up, _d); _sq2.setFromAxisAngle(_up, S.yaw); _sq.multiply(_sq2);
+    const cg = S.spec.cg, ox = S.p[0] - _d.x * cg, oy = S.p[1] - _d.y * cg, oz = S.p[2] - _d.z * cg, s = V.sim;
+    s.pos[0] = ox; s.pos[1] = oy; s.pos[2] = oz; s.q[0] = _sq.x; s.q[1] = _sq.y; s.q[2] = _sq.z; s.q[3] = _sq.w;
+    for (const m of [V.model && V.model.group, V.far]) if (m) { m.position.set(ox, oy, oz); m.quaternion.copy(_sq); }
   }
   function updateLCM(j, dt) {
     const V = j.V, M = j.M;
