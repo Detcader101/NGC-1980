@@ -52,23 +52,25 @@ export function createHeliAI() {
     const s = state(H), P = H.pos, dx = T.x - P.x, dz = T.z - P.z, d = Math.hypot(dx, dz), tvx = T.vx || 0, tvz = T.vz || 0;
     AI.err = d;
     // ---- where to go: a ground velocity (world) and a height
-    let wx, wz, yDes, vzMax = 4;
+    let wx, wz, yDes, vzMax = T.gentle ? 2.5 : 4;   // (AIRLIFT: T.gentle - a load on the hook: slower climbs keep the torque in limits)
+    const AR = T.gentle ? HELI_AI.APPROACH_R * 2 : HELI_AI.APPROACH_R;   // (and a longer approach: it brakes at 0.45 m/s2)
     if (AI.phase === 'transit') {
-      const sp = clamp(Math.sqrt(2 * (T.gentle ? 0.45 : 0.9) * Math.max(0, d - 8)), 6, T.cruise || HELI_AI.CRUISE);   // brakes in time: ~0.9 m/s2 (AIRLIFT: T.gentle with a load on the hook)
+      let sp = clamp(Math.sqrt(2 * (T.gentle ? 0.45 : 0.9) * Math.max(0, d - 8)), 6, T.cruise || HELI_AI.CRUISE);   // brakes in time: ~0.9 m/s2 (AIRLIFT: T.gentle with a load on the hook)
+      if (T.gentle) sp = Math.min(sp, 2 + Math.max(0, P.y - env.ground(P.x, P.z) - 16) * 0.8);   // (AIRLIFT: straight up first - the load clear of the ground - then away)
       wx = tvx + dx / d * sp; wz = tvz + dz / d * sp;
       // cruise height: over the highest ground along the next ~10 s of the track and over the target
       let hi = Math.max(T.y, env.ground(P.x, P.z));
       for (const k of [0.25, 0.5, 0.75, 1]) { const L = Math.min(d, sp * 10) * k; hi = Math.max(hi, env.ground(P.x + dx / d * L, P.z + dz / d * L)); }
       yDes = hi + HELI_AI.CRUISE_AGL + HELI_AI.SKID;
-      if (d < HELI_AI.APPROACH_R) AI.phase = 'approach';
+      if (d < AR) AI.phase = 'approach';
     } else {
-      const sp = Math.min(d * 0.18, Math.sqrt(2 * 0.6 * d), 7);
+      const sp = Math.min(d * 0.18, Math.sqrt(2 * (T.gentle ? 0.35 : 0.6) * d), T.gentle ? 9 : 7);
       wx = tvx + (d > 0.01 ? dx / d * sp : 0); wz = tvz + (d > 0.01 ? dz / d * sp : 0);
       const rel = Math.hypot(H.vel.x - tvx, H.vel.z - tvz);
       if (AI.phase === 'approach') {
-        yDes = Math.max(T.y + HELI_AI.HOVER_H, env.ground(P.x, P.z) + 6) + HELI_AI.SKID;
+        yDes = Math.max(T.y + (T.gentle ? 15 : HELI_AI.HOVER_H), env.ground(P.x, P.z) + (T.gentle ? 13 : 6)) + HELI_AI.SKID;   // (AIRLIFT: the load hangs ~8 m under the skids)
         if (d < 3.5 && rel < 1.5 && Math.abs(P.y - yDes) < 3) AI.phase = 'descend';
-        if (d > HELI_AI.APPROACH_R * 1.6) AI.phase = 'transit';
+        if (d > AR * 1.6) AI.phase = 'transit';
       } else {   // descend: straight down, slowing to a gentle touchdown; back up if it drifts off the spot
         const agl = P.y - HELI_AI.SKID - T.y;
         yDes = null; vzMax = -clamp(agl * 0.35, 0.45, 2.2);
@@ -82,15 +84,16 @@ export function createHeliAI() {
     // ---- the bench pilot's loops, on body-axis velocity errors
     const uDes = wx * s.fx + wz * s.fz, vDes = wx * -s.fz + wz * s.fx;
     I.th = clamp(I.th + (s.u - uDes) * 0.012 * dt, -0.3, 0.3);
-    const g = T.gentle ? 0.4 : 1, thT = clamp(I.th + (s.u - uDes) * 0.045 * g, -0.26 * g, 0.3 * g);
+    const g = T.gentle ? 0.55 : 1, thT = clamp(I.th + (s.u - uDes) * 0.045, -0.26 * g, 0.3 * g);   // (gentle: the same loops, smaller attitudes)
     I.ph = clamp(I.ph - (s.v - vDes) * 0.012 * dt, -0.2, 0.2);
-    const phT = clamp(I.ph - (s.v - vDes) * 0.045 * g, -0.3 * g, 0.3 * g);
+    const phT = clamp(I.ph - (s.v - vDes) * 0.045, -0.3 * g, 0.3 * g);
     I.lon = clamp(I.lon + (thT - s.pitch) * 1.2 * dt, -1, 1); I.lat = clamp(I.lat + (phT - s.roll) * 1.5 * dt, -1, 1);
     c.cy = clamp(I.lon + (thT - s.pitch) * 3 - s.q * 1.2, -1, 1);
     c.cx = clamp(I.lat + (phT - s.roll) * 3 - s.p * 0.8, -1, 1);
     const dh = wrap(AI.hdg - s.hdg), dhc = clamp(dh, -0.6, 0.6);
     I.ped = clamp(I.ped + (dhc * 1.0 - s.r) * 0.8 * dt, -1, 1); c.pedal = clamp(I.ped + dhc * 1.5 - s.r * 1.2, -1, 1);
-    const vzDes = yDes === null ? vzMax : clamp((yDes - P.y) * 0.45, -3, vzMax);
+    let vzDes = yDes === null ? vzMax : clamp((yDes - P.y) * 0.45, T.gentle ? -2 : -3, vzMax);
+    if (T.gentle && H.torque > 49.5) vzDes = Math.min(vzDes, s.vz - (H.torque - 49.5) * 0.15);   // (AIRLIFT: a heavy load - keep the torque near the 50 psi limit)
     I.c = clamp(I.c + (vzDes - s.vz) * 0.05 * dt, 0, 1); c.coll = clamp(I.c + (vzDes - s.vz) * 0.08, 0, 1);
     return c;
   };

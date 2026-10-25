@@ -4,6 +4,7 @@
 import { FM, THREE, air, pilot, trim, fly, state, DT, deg, sea } from './hueypilot.mjs';
 const SL = await import('../game/js/units/air/airlift/sling.js');
 const HD = await import('../game/js/units/air/airlift/heavydrop.js');
+const { createHeliAI } = await import('../game/js/units/commander/heliai.js');
 const { createSling, LOADS, HOOKS, hookCheck, coupledPeriod, hookExt, downwashAt, G } = SL;
 const KT = 1.94384, LB = 0.45359237;
 let pass = 0, fail = 0;
@@ -149,6 +150,41 @@ const hoverTrim = (type, mass) => { const { H, S, env } = hueyWith(type); if (ma
   if (V) console.log(`   release: vz after 2 s with the collective held ${vz2.toFixed(2)} m/s; torque ${before.psi.toFixed(1)} -> ${after.psi.toFixed(1)} psi (clean ${clean.psi.toFixed(1)})`);
   check('release in the hover, collective held: she balloons', vz2 > 1.0 && vz2 < 6, `+${vz2.toFixed(1)} m/s after 2 s`, '1-6 m/s up (1,100 kg off a ~4,500 kg machine)', 'model');
   check('...retrimmed: torque back to the clean hover, attitude close', Math.abs(after.psi - clean.psi) < 1.5 && Math.abs(deg(after.pitch - before.pitch)) < 2 && Math.abs(deg(after.roll - before.roll)) < 2, `${after.psi.toFixed(1)} psi (clean ${clean.psi.toFixed(1)}), pitch ${deg(before.pitch).toFixed(1)}° -> ${deg(after.pitch).toFixed(1)}°`, 'clean torque, < 2° attitude change', 'model');
+}
+
+{
+  // the crew's AI pilot (units/commander/heliai.js, T.gentle: a load on the hook) ferries the M151A2 900 m: straight up
+  // until the load is clear, a 20 m/s transit, a long braking approach, the load set down on the spot (hover 4 m)
+  // (the same AI flies the airlift scene and takes the Huey home with a load when you leave her)
+  function ferry({ dist = 500, T2 = {}, secs = 240, log = false } = {}) {
+    const H = FM.createHueySim(9.81); H.reset(new THREE.Vector3(0, 1.9 + 4, 0), 0, false, 1); H.fuelKg = FM.UH1H.FUEL_KG * 0.5; H.c.coll = 0.5;
+    const S = createSling(LOADS.m151); S.place(0, 0, 0.15, 0);
+    const sl = { ground: () => 0, water: () => false, wind: null, wash: 0, limit: HOOKS.uh1h.limit, ult: 2.5, hookYaw: 0 };
+    const ext = hookExt(() => S, HOOKS.uh1h.at, (H, S) => (sl.wash = downwashAt(H, FM.UH1H.R, S.p[0], S.p[2]), sl));
+    const env = { groundY: () => 0, water: () => false, ext };
+    const AI = createHeliAI();
+    // first: hold the hover over the load for 3 s (AI with hover 4 at the start spot), then go
+    const T = { x: 0, y: 0, z: 0, vx: 0, vz: 0, hdg: null, hover: 4.0, gentle: true, cruise: 20, ...T2 };
+    let tgt = { ...T, x: 0, z: 0 };
+    AI.engage(H, () => tgt); AI.phase = 'descend';
+    let t = 0, Tgmax = 0, swMax = 0, arrive = null, tqMax = 0, lifted = false, minLoadAgl = 1e9;
+    for (; t < secs; t += DT) {
+      if (t > 3 && tgt.x === 0) { tgt = { ...T, x: dist * 0.6, z: -dist * 0.8 }; AI.phase = 'transit'; }
+      const c = AI.step(H, DT, { ground: () => 0 });
+      H.step(DT, { throttle: 1, gov: 'AUTO', fuel: true, ...c }, env);
+      if (H.dead) return { dead: H.dead, t };
+      if (!S.ground && S.taut) lifted = true;
+      if (lifted) { Tgmax = Math.max(Tgmax, S.Tg); tqMax = Math.max(tqMax, H.torque); }
+      if (AI.phase === 'transit' && lifted && t > 15) { swMax = Math.max(swMax, S.swingDeg); minLoadAgl = Math.min(minLoadAgl, S.p[1] - LOADS.m151.cg); }
+      const dd = Math.hypot(H.pos.x - tgt.x, H.pos.z - tgt.z);
+      if (lifted && tgt.x !== 0 && S.ground && S.Tg < 0.35 && dd < 6) { arrive = t; break; }
+    }
+    return { arrive, t, Tgmax, swMax, tqMax, minLoadAgl, d: Math.hypot(S.p[0] - tgt.x, S.p[2] - tgt.z), parted: S.parted };
+  }
+  const r = ferry({ dist: 900, secs: 300 });
+  check('AI ferry (900 m): arrives and sets the load down on the spot', r.arrive && r.d < 4 && !r.parted, r.arrive ? `${r.arrive.toFixed(0)} s, ${r.d.toFixed(1)} m off` : 'NOT THERE', '< 4 m', 'model');
+  check('...cruise swing stays moderate, the load clears the ground', r.swMax < 22 && r.minLoadAgl > 5, `max ${r.swMax.toFixed(0)}°, load ${r.minLoadAgl.toFixed(0)} m up`, '< 22°, > 5 m', 'model');
+  check('...torque held at the 50 psi limit, no snatch', r.tqMax < 54 && r.Tgmax < 2.5, `${r.tqMax.toFixed(1)} psi peak, ${r.Tgmax.toFixed(2)} g`, '< 54 psi (OVERTORQUE at 52 is a flash), < 2.5 g', 'model');
 }
 
 console.log('--- C-130 heavy drop: G-11A clusters ---');
