@@ -126,7 +126,7 @@ export function createMarkerLayer({ war, fog, sim = false, before = null, query 
     const n = collectUnits(war, ents, opts);
     S.units = n + (view.self ? 1 : 0);
     // project, cull, fade
-    const m = cam.matrixWorldInverse.elements, p = cam.projectionMatrix.elements, rk = view.rangeK || 1, far = view.draw ? view.draw + 120 : 1e9;
+    const m = cam.matrixWorldInverse.elements, p = cam.projectionMatrix.elements, rk = view.rangeK || 1, far = view.draw || 1e9;   // the scene fog: thick by view.draw (250 m round the islands, 1100+ m in a jet)
     const cx = W / 2, cy = H / 2, guard = view.firstP ? Math.min(W, H) * 0.075 : 0, panel = view.panelY ? H * view.panelY : 1e9;
     const MW = 22 * scale / dpr, MH = 25 * scale / dpr;   // a marker's footprint (css px): icon + bar
     let k = 0;
@@ -140,12 +140,12 @@ export function createMarkerLayer({ war, fog, sim = false, before = null, query 
       if (mode === 'damaged' && e.hp > 0.985 && h.flash <= 0 && h.ghost <= e.hp + 0.01) continue;
       const vx = m[0] * e.x + m[4] * e.y + m[8] * e.z + m[12], vy = m[1] * e.x + m[5] * e.y + m[9] * e.z + m[13], vz = m[2] * e.x + m[6] * e.y + m[10] * e.z + m[14];
       if (vz > -1) continue;   // behind the camera (or in it)
-      const d = Math.sqrt(vx * vx + vy * vy + vz * vz), maxD = Math.min((RANGE[e.role] || 800) * rk, far);
+      const d = Math.sqrt(vx * vx + vy * vy + vz * vz), maxD = Math.min((RANGE[e.role] || 800) * rk, far * 1.8);
       if (d > maxD) continue;
       if (view.firstP && d < Math.max(12, (e.r || 3) * 2.2)) continue;   // the craft you sit in
-      const w = -vz, X = cx + (p[0] * vx + p[8] * vz) / w * cx, Y = cy - (p[5] * vy + p[9] * vz) / w * cy + (e === selfE ? MH + 2 : 0);   // (your own craft: the marker hangs under it, clear of what you look at)
+      const w = -vz, own = e === selfE, X = cx + (p[0] * vx + p[8] * vz) / w * cx + (own ? Math.min(W * 0.2, Math.max(18, e.r * p[0] * cx / w)) + MW * 0.6 : 0), Y = cy - (p[5] * vy + p[9] * vz) / w * cy + (own ? MH * 0.5 : 0);   // (your own craft: the marker sits beside it, clear of what you look at)
       if (X < -30 || X > W + 30 || Y < -30 || Y > H + 40) continue;
-      let a = Math.max(0.3, Math.min(1, 1.3 - d / maxD));
+      let a = Math.max(0.3, Math.min(1, 1.3 - d / maxD)) * (d < far * 0.7 ? 1 : Math.max(0.35, 1 - (d - far * 0.7) / (far * 1.1)));   // faint where the fog hides the unit itself
       if (guard) { const r = Math.hypot(X - cx, Y - cy); if (r < guard) continue; if (r < guard * 1.8) a *= (r - guard) / (guard * 0.8); }
       if (Y > panel) continue;   // under the cockpit's instrument panel line
       for (let r = 0; r < nKeep; r += 4) if (X > keep[r] && X < keep[r + 2] && Y - MH * 0.5 > keep[r + 1] && Y - MH * 0.5 < keep[r + 3]) { a *= 0.3; break; }   // under a HUD read-out: faint, the text stays readable
@@ -161,7 +161,7 @@ export function createMarkerLayer({ war, fog, sim = false, before = null, query 
       const gx = Math.floor(x / GS), gy = Math.floor(y / GS);
       for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
         const qx = gx + ox, qy = gy + oy; if (qx < 0 || qy < 0 || qx >= gw || qy >= gh || qy * gw + qx >= cells) continue;
-        for (let q = head[qy * gw + qx]; q >= 0; q = next[q]) { const Q = P[q]; if (Math.abs(Q.x - x) < MW * 0.85 && Math.abs(Q.y - y) < MH * 0.8 && (same ? Q.side === side : Q.side !== side)) return q; }
+        for (let q = head[qy * gw + qx]; q >= 0; q = next[q]) { const Q = P[q]; if (Math.abs(Q.x - x) < MW && Math.abs(Q.y - y) < MH * 0.9 && (same ? Q.side === side : Q.side !== side)) return q; }
       }
       return -1;
     };

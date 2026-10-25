@@ -2651,3 +2651,41 @@ ngc/simmode (CPU vs CPU) plugs it into its commanders through the API below.
   times, the enemy's 25-materiel reserve) is a first cut for the sim to tune; the player has no CPU research policy in
   the live game (W.researchPolicy[1] = aiPickResearch turns one on); the enemy sees no fog (its "situation" counts every
   unit); research is one programme at a time with no queue.
+
+## 2026-10-25 — NGC-1980 UNIT MARKERS: an icon and a health bar over every unit (branch ngc/healthbars)
+
+User: "allow healthbar icon UI for each unit".
+- **What**: over every unit you can see, a NATO-style frame in the side's colour (TASK FORCE cyan rectangle, RUNAWAY
+  orange diamond, neutral sand square) with the role inside (X infantry squad, oval armour, wheels vehicle, bow tie
+  helicopter, cross jet, chevron drone, hull ship, dome AA, block building) and a health bar under it, green -> amber
+  -> red. A hit flashes the marker white and leaves a white "lost" segment on the bar that fades; a destroyed unit drops
+  its marker at once. **F8** (or UNIT MARKERS in the pause menu) cycles ALL UNITS / DAMAGED ONLY / OFF, remembered per
+  browser (`tz_markers`, default DAMAGED ONLY; `tz_markers_sim` in `?sim`, default ALL UNITS; `?markers=` for tests).
+  The command map (M) shows the same bars under ships and aircraft.
+- **How**: game/js/ui/unitmarkers.js is the one adapter (pure, node-tested): `hpOf` reads the seven shapes the game
+  keeps health in (war hp/hpMax, structures hp/max, the ground sim's 0..1, Huey / jet part maps, the Marine's
+  medical.js, armour COMPS, wheeled component state, vehicle.js sim.hp), `roleOf` matches kind / type / id names and
+  falls back on shape, `sideOf`; `collectUnits(war)` walks war.units, the ground sim (foot soldiers grouped into one
+  marker per squad with the squad's aggregate bar; RW-7s and MBTs on their own), the island structures and any
+  `war.markerExtra` source. New units get a marker with no change. game/js/ui/markerlayer.js draws them: one 2D
+  canvas under the HUD, a pre-rendered icon atlas (9 roles x 3 sides x normal / flash), no per-unit DOM.
+- **Readability**: off-screen and behind-camera units skipped; a range per role (infantry 520 m ... ships 2300 m, x1.6
+  in the sim) capped by the view's draw distance; markers fade and shrink with distance; markers of one side that
+  overlap merge into one with a count (x3, mean bar), a marker that would sit on another side's stacks above it; fog
+  of war as the 3D view (enemies only where the task force can see); in first person no marker on the craft you sit
+  in, the centre of the screen (sight / HUD) kept clear and nothing under the instrument panel line (Huey 57 %, jets
+  50 %, dropship 62 %, vehicles 72 % of the screen height); in the M60A3 / M113A2's vision blocks and sights none; the
+  craft you are in has its own marker beside it in the outside views; markers under a HUD read-out or an island / ship
+  name tag are drawn faint. Hidden on the title, in the cave, under the command map, the command board and RESEARCH.
+- **Cost**: collectUnits 0.19 ms per call with ~70 units (node, a 900 s war); the whole layer (collect + project + declutter + draw) median 0.4-0.6 ms a frame with ~330 units (225 soldiers, ~50 war units, ~55 buildings -> ~115 markers after squads) in headless SwiftShader.
+- **Tests**: `node tools/healthbarbench.mjs` 36/36 (every shape; a 900 s CPU war: every entry 0..1 with a known role
+  and side, all roles seen incl. RW-7s, squads aggregated, fog hides every enemy). Scene `tools/scenes/healthbars.mjs`
+  12/12 (deck chase, battle chase / above, hit flash, WASP destroyed, Huey cockpit, F8 modes, pause menu,
+  command map, on foot first / third person, M60A3 inside / outside, ~300 units, Hornet cockpit / chase, sim mode
+  action / free / follow / map cameras). smoke 5/5, simmode 6/6.
+- **Shared-file lines**: main.js only (imports; F8 in keydown; the layer's creation; the menu item + pick; markerFP in
+  updateCamsAndMeshes; markers.draw after the render; markerView(); the tag positions in updateTags; the map bars in
+  drawMap). war.js untouched.
+- **Untested / next**: the AI Hueys / wingmen flown by the commander's AI and parked crafts have no marker (they are
+  not war units); LCAC landing craft have no health to show; markers are not occluded by terrain or buildings (a 2D
+  layer: a unit behind a hill keeps its marker; fog of war still applies); the sim's strategic plot has no bars.

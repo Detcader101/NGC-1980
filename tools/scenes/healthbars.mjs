@@ -113,8 +113,11 @@ export default async function (h) {
   await h.key('tap', 'Digit5'); await h.wait(800);
   await h.expect(`__G.G.craft === 'jet'`, 'in the Hornet');
   await h.eval(`(() => { const W = __G.war, c = W.carrier, I = __G.ISLANDS.filter(i => !i.cave && i.owner === 0).sort((a, b) => Math.hypot(a.x - c.p.x, a.z - c.p.z) - Math.hypot(b.x - c.p.x, b.z - c.p.z))[0]; window.__I = I; W.E.mat = 0; W.transT = 1e9; __G.G.bench = true; W.ground.godPlayer = true;
-    const p = I.pad; W.ground.addSquad(1, I, 13, p.x - 30, p.z + 10); W.ground.addSquad(2, I, 8, p.x + 30, p.z - 8); window.__wasps = [0, 1, 2].map(k => W.spawnGunship(2, [p.x + 40 + k * 16, p.h + 50, p.z - 40]));
-    const J = __G.JP.J, x = p.x - 520, z = p.z + 380, yaw = Math.atan2(-(p.x - x), -(p.z - z)); J.reset(x, 140, z, yaw, { running: true, airborne: true, alt: 140, speed: 140 }); __G.cockpitCam = true; return I.name; })()`);
+    const p = I.pad; W.ground.addSquad(1, I, 13, p.x - 30, p.z + 10); W.ground.addSquad(2, I, 8, p.x + 30, p.z - 8); 
+    const J = __G.JP.J, x = p.x - 900, z = p.z + 660, yaw = Math.atan2(-(p.x - x), -(p.z - z)); J.reset(x, 110, z, yaw, { running: true, airborne: true, alt: 110, speed: 140 }); __G.cockpitCam = true;
+    // WASPs high ahead (over the nose: the Hornet's glare shield hides the ground ahead in level flight); fog of war off for this shot (the bench checks it)
+    __G.fog.enabled = false; window.__wasps = [0, 1, 2].map(k => W.spawnGunship(2, [x + (p.x - x) * 0.55 + k * 30, 250 + k * 12, z + (p.z - z) * 0.55 + k * 10])); W.damage(window.__wasps[1], 2, 1);
+    return I.name; })()`);
   await h.wait(1500);
   await h.eval(`({ craft: __G.G.craft, ...__mk() })`);
   await h.shot('16-hornet-cockpit');

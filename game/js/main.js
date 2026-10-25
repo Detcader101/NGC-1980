@@ -2289,8 +2289,13 @@ function markerView() {
   if (!hide && !markerFP && !SIM) {
     const a = G.craft !== 'heli' ? crafts.active : null, src = !a ? (Z.alive && !G.heliStowed ? D : null) : a === jetC ? JP.D : a === tomcatC ? tomcatC.TP.D : a === foot ? (foot.marine ? foot.marine.M : foot.slots.medical) : a;
     if (src && (G.craft === 'heli' || a.present())) {
-      _mkSelf.key = a || heliC; _mkSelf.x = Z.pos.x; _mkSelf.y = Z.pos.y - (!a ? 2.2 : a.kind === 'foot' ? 0.2 : a.kind === 'ground' ? 0.3 : 2); _mkSelf.z = Z.pos.z; _mkSelf.hp = hpOf(src);
-      _mkSelf.role = !a ? 'heli' : a.kind === 'foot' ? 'inf' : a.kind === 'ground' ? (a === m60C || a === m113C ? 'armour' : 'vehicle') : 'air'; self = _mkSelf;
+      // where it is: the Huey and the jets by the avatar, the soldier and vehicles by their own frame (feet / ground)
+      const f = a && a.kind !== 'air' ? a.frame(_mapF) : null, M = _mkSelf;
+      M.key = a || heliC; M.hp = hpOf(src);
+      if (f) { M.x = f.x; M.y = f.y + (a.kind === 'foot' ? 0.9 : 1.4); M.z = f.z; } else { M.x = Z.pos.x; M.y = Z.pos.y; M.z = Z.pos.z; }
+      M.role = !a ? 'heli' : a.kind === 'foot' ? 'inf' : a.kind === 'ground' ? (a === m60C || a === m113C ? 'armour' : 'vehicle') : 'air';
+      M.r = !a ? 7 : a.kind === 'foot' ? 0.5 : a.kind === 'ground' ? 3 : 6;   // the layer puts your marker beside the craft, this far out
+      self = M;
     }
   }
   return { hide, firstP: !!markerFP, panelY: MARKER_PANEL[markerFP] || 0, self, draw: view.draw, rangeK: SIM ? 1.6 : 1 };
