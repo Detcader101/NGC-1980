@@ -1119,7 +1119,7 @@ const heliC = crafts.register({
 // COMMANDER: what both jets get for the wingman (units/commander/wingman.js), the fleet's losses and cat 1
 const jetCmd = {
   createWingman, onUnitLost: (id, why, mine) => onUnitLost(id, why, mine), catBusy: D => catBusy(D), deckCancel: A => deckCancel(A),
-  aiEnv: wingmanEnv({ terrain: (x, z) => Math.max(terrainH(x, z), 0), carrier: () => war.carrier && war.carrier.sinking === undefined ? war.carrier : null, deckAt: war.deckAt, DECK: CARRIER.DECK }),
+  aiEnv: wingmanEnv({ terrain: (x, z) => Math.max(terrainH(x, z), 0), carrier: () => war.carrier && war.carrier.sinking === undefined ? war.carrier : null, deckAt: war.deckAt, DECK: CARRIER.DECK, deckClear: () => war.deck.deckClear(), wantDeck: () => { war.deck.wantT = war.time; } }),
 };
 // --- the HORNET
 const jetC = crafts.register(createJetCraft({

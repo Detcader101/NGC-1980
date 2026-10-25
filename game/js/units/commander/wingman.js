@@ -15,10 +15,10 @@ export const WINGMAN = {
 
 // the world as the pilot sees it, from the game's: terrain(x, z) (sea = 0), carrier() -> the war.js ship or null,
 // deckAt(c, x, z) (the deck moving with the sea), CARRIER_DECK (deck height over the hull origin)
-export function wingmanEnv({ terrain, carrier, deckAt, DECK }) {
+export function wingmanEnv({ terrain, carrier, deckAt, DECK, deckClear = null, wantDeck = null }) {
   const none = function* () {};
   return {
-    terrain,
+    terrain, deckClear, wantDeck,   // (ngc/bugsweep) DECK OPS: the pattern holds while a jet is in the landing area
     carrier: () => {
       const c = carrier(); if (!c) return null;
       return { x: c.p.x, z: c.p.z, yaw: c.yaw, deck: DECK + c.p.y, deckAt: deckAt ? (x, z) => deckAt(c, x, z) : null, vx: c.v ? c.v.x : 0, vz: c.v ? c.v.z : 0, speed: c.speed || 0, w: c.w || 0 };
