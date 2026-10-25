@@ -19,6 +19,10 @@ const now = () => (typeof performance !== 'undefined' ? performance.now() : Date
 export function createIslandMaps(o) {
   const { terrainH, islands } = o, RES = o.res ?? 2, PAD = o.pad ?? 50;
   const maps = new Map(), queue = [];
+  // the cell index for api.at: each 40 m cell keeps the islands whose reach (r + PAD * 0.6) touches it
+  const AT = { C: 40, E: 0, N: 0, cells: [] };
+  { let ext = 0; for (const I of islands) ext = Math.max(ext, Math.abs(I.x) + I.r + PAD, Math.abs(I.z) + I.r + PAD); AT.E = Math.ceil(ext / AT.C) * AT.C; AT.N = Math.round(2 * AT.E / AT.C);
+    for (let j = 0; j < AT.N; j++) for (let i = 0; i < AT.N; i++) { const cx = -AT.E + (i + 0.5) * AT.C, cz = -AT.E + (j + 0.5) * AT.C, h = AT.C * 0.7072; AT.cells.push(islands.filter(I => Math.hypot(cx - I.x, cz - I.z) < I.r + PAD * 0.6 + h)); } }
   function make(I) {
     const half = I.r + PAD, x0 = I.x - half, z0 = I.z - half, n = Math.ceil(2 * half / RES) + 1;
     const grid = new Float32Array(n * n);
@@ -52,7 +56,10 @@ export function createIslandMaps(o) {
     get: I => maps.get(I) || make(I),
     has: I => maps.has(I),
     // the island a point is on (its bake box), or null
-    at(x, z) { let best = null, bd = 1e9; for (const I of islands) { const d = Math.hypot(x - I.x, z - I.z); if (d < I.r + PAD * 0.6 && d < bd) { bd = d; best = I; } } return best; },
+    at(x, z) {   // (SIM MODE perf: a 40 m cell index of the islands that can answer there - the same answer, a fraction of the work)
+      const ci = Math.floor((x + AT.E) / AT.C), cj = Math.floor((z + AT.E) / AT.C), list = ci >= 0 && cj >= 0 && ci < AT.N && cj < AT.N ? AT.cells[cj * AT.N + ci] : islands;
+      let best = null, bd = 1e9; for (const I of list) { const d = Math.hypot(x - I.x, z - I.z); if (d < I.r + PAD * 0.6 && d < bd) { bd = d; best = I; } } return best;
+    },
     tick(ms = 2) {
       const t0 = now();
       while (queue.length) {
