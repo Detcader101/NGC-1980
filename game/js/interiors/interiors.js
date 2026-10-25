@@ -211,11 +211,12 @@ export function createInteriors(ctx) {
     if (!u || u.side !== 1 || !u.parts || !u.mesh || u.sinking !== undefined) return;
     if (!alb) attachCarrier(u);
     const near = Math.hypot(cam.position.x - u.p.x, cam.position.z - u.p.z) < 260;
-    alb.group.visible = near; if (!near) return;
+    alb.group.visible = near; IN.inShip = false; if (!near) return;
     // the camera in the ship frame: inside the island / the hangar (no punches) or outside
     _sh.copy(cam.position); u.mesh.worldToLocal(_sh);
     const zn = alb.INT.zoneOf(_sh.x, _sh.y, _sh.z), inIsland = zn === 'island' && _sh.y > 7.9 && insideIsland(_sh), inHangar = zn === 'hangar' || (zn === 'island' && _sh.y < 7.9);
     for (const { p, obj } of alb.punches) obj.visible = p.hangar ? !inHangar : !inIsland;
+    IN.inShip = (inIsland && _sh.y < 16.9) || zn === 'hangar';   // QA (ngc/qa-ship): main.js hides the island / ship name tags in here, below the bridge's glass (they showed through the bulkheads)
     for (const { D, obj } of alb.leaves) placeShipLeaf(D, obj);
     for (const m of alb.crew.children) if (!m.userData.isAlt) stepAside(m, _sh);
     DOORS.refresh(alb.INT.doors);

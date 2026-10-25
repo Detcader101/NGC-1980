@@ -83,6 +83,22 @@ after `tools/runs/2026-10-25_15-44-10-qa_ship/17-deck-park-3.png` (the M113 alon
 `18-deck-bow-walk.png` (the walker crossing the bow).
 **Cause**: NAVAL dressed the deck before ground.js chose the park spots; `deckClear` checks only the deck height, not
 the props or the crew.
-**Action**: fixed in the next commit (albatross.js, ground.js): tractor to z -49.2, the pair to -8.6/-9.0, -48, the
+**Action**: fixed in b717314 (albatross.js, ground.js): tractor to z -49.2, the pair to -8.6/-9.0, -48, the
 safety man to -36.4, the walker across the bow, the fire bottle to -12.8, -36.4, the spare spot to 4.5, 17.5.
 **OPEN**: deckClear still ignores props; a new prop or crew post must keep clear of DECK_SPOTS / DECK_SPARE by hand.
+
+## 2026-10-25 - Island and ship name tags showed through the ALBATROSS's bulkheads
+**Finding**: Inside the island (FDC, ready room, flag plot) and the hangar, the floating HUD tags ("FORGE FACTORY
+135m / NEUTRAL - LAND TO TAKE", "PELICAN FUEL") were drawn over the bulkheads.
+**Evidence**: before `tools/runs/2026-10-25_14-53-52-qa_ship/08-in-ready-room.png`, `02-in-fdc-board.png`,
+`29-in-hangar-mid.png`; after `tools/runs/2026-10-25_15-50-36-qa_ship/08-in-ready-room.png`.
+**Cause**: main.js updateTags projects every island / ship in range with no notion of being indoors.
+**Action**: fixed in the next commit: interiors.js sets `IN.inShip` (camera inside the island below the bridge, or in
+the hangar); updateTags draws none then. The bridge keeps them (glass all round, and the helm needs them).
+**OPEN**: the same is true inside buildings ashore (houses, bunkers); not changed here.
+
+## 2026-10-25 - The lee helmsman at your shoulder at the wheel
+**Finding**: Walking up to the wheel on foot, the lee helmsman (0.75, -3.2 in the tower frame) stood 1 m to your right
+and filled a third of the view.
+**Evidence**: `tools/runs/2026-10-25_15-50-36-qa_ship/18-in-bridge-at-the-wheel.png`.
+**Action**: moved to starboard of his telegraph (1.2, -3.4, turned 20 deg) in the next commit.
