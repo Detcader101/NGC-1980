@@ -88,11 +88,12 @@ export default {
     await h.key('tap', 'KeyR'); await h.waitFor(`${C}.P.ramp > 0.95`, 60000);
     await h.eval(`(window.__mat0 = __G.G.mat, 1)`);
     await h.key('tap', 'KeyB'); await h.wait(600);
-    await h.expect(`${C}.troops.state === 'boarding' && __G.G.mat === window.__mat0 - 20`, 'B: a stick of 13 Marines called (20 materiel)');
+    await h.expect(`${C}.troops.state === 'boarding' && Math.abs(__G.G.mat - (window.__mat0 - 20)) < 2`, 'B: a stick of 13 Marines called (20 materiel, island income continues)');
     await h.waitFor(`${C}.troops.Q && ${C}.troops.Q.figs.some(F => F.st === 'embark' && F.delay <= 0)`, 60000); await h.wait(1500);
     await h.shot('marines-boarding');
     await h.expect(`${C}.troops.Q.figs.filter(F => F.st === 'stick' || F.st === 'embark').every(F => Math.abs(F.y - __G.groundY(F.x, F.z)) < 0.35 || F.wp >= 2)`, 'the stick stands on the deck (no floating, no sinking)');
-    await h.waitFor(`${C}.troops.state === 'aboard'`, 120000);
+    // Troops update after the flight model; allow its next frame to receive the final passenger's mass.
+    await h.waitFor(`${C}.troops.state === 'aboard' && Math.abs(${C}.P.S.payload - 13 * 118) < 1`, 120000);
     await h.expect(`${C}.P.marines === 13 && Math.abs(${C}.P.S.payload - 13 * 118) < 1`, '13 Marines aboard, their weight in the flight model');
     await h.eval(`(${C}.view = 'cabin', 1)`); await h.wait(1500); await h.shot('cabin-marines-seated');
     await h.eval(`(${C}.lookAt(Math.PI, -0.1), 1)`); await h.wait(1200); await h.shot('cabin-aft-ramp');
@@ -127,7 +128,8 @@ export default {
     await h.eval(`(${C}.orbitTo(Math.PI * 0.85, 0.18, 30), 1)`);
     await h.waitFor(`${C}.troops.Q && ${C}.troops.Q.figs.filter(F => F.st === 'gone' || F.st === 'path').length >= 3`, 60000); await h.wait(600);
     await h.shot('marines-dismounting');
-    await h.waitFor(`${C}.troops.state === 'empty'`, 120000); await h.wait(1500);
+    // Empty seats precede the last men clearing the ramp and transferring to ground-war control.
+    await h.waitFor(`${C}.troops.state === 'empty' && __G.war.ground.sim.units.filter(u => u.side === 1 && u.kind === 'marine').length - window.__gs0 >= 13`, 120000);
     await h.eval(`({ proxies: __G.war.ground.proxies.length - window.__px0, marines: __G.war.ground.sim.units.filter(u => u.side === 1 && u.kind === 'marine').length - window.__gs0, aboard: ${C}.P.marines })`, 'handed over');
     await h.expect(`${C}.P.marines === 0 && __G.war.ground.sim.units.filter(u => u.side === 1 && u.kind === 'marine').length - window.__gs0 >= 13`, 'all 13 off the ramp and fighting as ground-war Marines');
     await h.shot('marines-on-the-ground');
