@@ -58,6 +58,17 @@ the sides), `06-huey-troop-seat-4-outside.png` (the rider seen in the right door
 gunner and the crew chief at x -/+0.72, inboard of their pintles, 1.7 m forward of the bench - the outer places shared
 their line. (Moving the gunners to the real "hell hole" positions does not fit: this cabin has no wells beside the
 bench, and a door seat forward of them looks into the rocket pod.)
-**Action**: fixed in the next commit (seats.js): the outer two places are LEFT DOOR / RIGHT DOOR - on the floor in the
+**Action**: fixed in 063eb46 (seats.js): the outer two places are LEFT DOOR / RIGHT DOOR - on the floor in the
 cargo door aft of the gunner / chief, facing out, legs over the sill, as troops rode a slick; the two bench places
 stay. The model, the gunners and the guns are unchanged.
+
+## 2026-10-25 - Kneeling deck crew: a leg stuck out level, the other in the deck
+**Finding**: The plane handlers and fuel crew kneeling at the wheels (chocks and chains) had one leg straight out in
+front at hip height and the other sunk 0.3 m into the deck; the crew walking away from the rotor wash leaned back.
+**Evidence**: before `tools/runs/2026-10-25_15-25-09-qa_ship/16-deck-crew-at-work.png` (blue and purple shirts at the
+Hornet's wheels); after `tools/runs/2026-10-25_15-32-23-qa_ship/25-deck-crew-at-work.png` (both legs down to the
+deck, torso forward).
+**Cause**: deckcrew.js kneel used lean +0.3; a + rotation about x tips the body aft, and the legs (one piece each,
+0.9 m hip to sole) are posed relative to the lean, so the front leg ended at 1.75 rad - above level.
+**Action**: fixed in the next commit: torso 0.25 forward, hip 0.57 m, legs at +/-0.88 rad absolute, both on the deck
+(a one-piece leg cannot fold a knee: it reads as a low crouch at the wheel). The wash crouch leans forward too.

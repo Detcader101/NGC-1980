@@ -73,7 +73,7 @@ export function createCrew(members, { seed = 5 } = {}) {
         const len = Math.hypot(push[0], push[1]) || 1, sp = 2.4 * dt;
         p.x += push[0] / len * sp; p.z += push[1] / len * sp; x = p.x; z = p.z;
         yaw = p.yaw = Math.atan2(-push[0], -push[1]); p.fled = 4;
-        const w = p.ph * 9; lL = Math.sin(w) * 0.6; lR = -lL; aL = -lL * 0.5; aR = lL * 0.5; lean = 0.25;
+        const w = p.ph * 9; lean = -0.25; lL = Math.sin(w) * 0.6 - lean; lR = -Math.sin(w) * 0.6 - lean; aL = -lL * 0.5; aR = lL * 0.5;   // (QA: lean - is forward, into the wash; legs relative to it)
         pose(i, x, p.y, z, yaw, lean, 0.04, aL, aR, aLz, aRz, lL, lR); continue;
       }
       if (p.fled > 0) {   // drift back to the post once it is clear
@@ -93,7 +93,11 @@ export function createCrew(members, { seed = 5 } = {}) {
           yaw += Math.sin(p.ph * 0.3) * 0.2; break;
         }
         case 'kneel': {    // at a wheel: one knee down, working with the hands
-          drop = 0.45; lL = 1.45; lR = -0.35; lean = 0.3; aL = 0.9 + Math.sin(p.ph * 3) * 0.2; aR = 1.0 - Math.sin(p.ph * 3.3) * 0.2; break;
+          // QA (ngc/qa-ship): was drop 0.45, legs +1.45 / -0.35 with lean +0.3 (which tips the body BACK: + about x is aft):
+          // the front leg stuck out level at hip height, the back one sank 0.3 m into the deck. One-piece legs (0.9 m hip to
+          // sole) in a kneel: torso forward, the front leg down to its foot, the back one down to the knee-on-deck line,
+          // both ending on the deck (hip 0.9 cos 0.25 - 0.3 = 0.57 m = 0.9 cos 0.88; leg angles are relative to the lean)
+          drop = 0.3; lean = -0.25; lL = 0.88 + 0.25; lR = -0.88 + 0.25; aL = 1.1 + Math.sin(p.ph * 3) * 0.2; aR = 1.2 - Math.sin(p.ph * 3.3) * 0.2; break;
         }
         case 'lso': {      // the pickle held up, eyes aft on the groove
           aR = 1.9 + Math.sin(p.ph * 0.7) * 0.08; aRz = 0.1; aL = -0.2; yaw += Math.sin(p.ph * 0.4) * 0.15; break;
