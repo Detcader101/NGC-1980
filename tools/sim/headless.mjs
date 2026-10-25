@@ -32,6 +32,7 @@ const { createTelemetry } = await import('../../game/js/sim/telemetry.js');
 const { doctrine, tweak } = await import('../../game/js/sim/doctrine.js');
 const { seedMath } = await import('../../game/js/sim/rng.js');
 const { createTech } = await import('../../game/js/techtree.js');
+const { installResearch } = await import('../../game/js/sim/policy.js');
 const { createFleet } = await import('../../game/js/units/commander/fleet.js');
 const GWM = await import('../../game/js/units/groundwar/groundwar.js');
 const AWM = await import('../../game/js/units/air/airwar.js');
@@ -89,6 +90,7 @@ export async function runWar(cfg) {
     player: () => PL, hurtPlayer: noop, onOwner: (I, was) => T && T.onOwner(I, was), onEnd: noop,
   };
   const W = WAR.createWar(ctx);
+  W.tech[1] = techB; W.tech[2] = techR;   // TECH TREE: this run's start sets (W.reset resets them to these)
   W.reset();
   // --patch catlane: the two Hornets parked on the ALBATROSS's bow are solid deck (albatross.js height fields) and the
   // F-14's right main gear runs into the forward one at the end of the cat 2 stroke: every escort breaks up on launch
@@ -96,10 +98,11 @@ export async function runWar(cfg) {
   if ((cfg.patch || []).includes('catlane') && W.carrier.parts.parked) { const P = W.carrier.parts.parked; for (let i = P.length - 1; i >= 0; i--) if (P[i].z < -20) P.splice(i, 1); }
   T = createTelemetry(W, { every: cfg.every ?? 5 });
   const log = (side, what, extra) => T.decision(side, what, extra);
+  installResearch(W, 1, blue, log); installResearch(W, 2, red, log);
   const fleet = createFleet();
   const strike = cfg.pilot === 'none' || !(blue.mix.air > 0) ? null : createStrikeWing({ W, terrainH: z.terrainH, scene, feed: cfg.feed || noop, fleet, THREE });
   const C = createCommanderAI({ W, nav: z.nav, doctrine: blue, tech: techB, strike, fleet, log, terrainH: z.terrainH });
-  W.redAI = createRedAI({ W, nav: z.nav, feed: cfg.feed || noop, sfx, doctrine: red, tech: techR, log });
+  W.redAI = createRedAI({ W, nav: z.nav, feed: cfg.feed || noop, sfx, doctrine: red, log });
   const t0 = performance.now(); let bad = null; const anomalies = [];
   const n = Math.round(tmax / dt);
   if (cfg.hook) cfg.hook({ W, C, strike, T, z, fleet, techB, techR });   // (dev scripts and the bench look inside)

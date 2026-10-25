@@ -60,24 +60,28 @@ const { loadGrid } = await import('./sim/headless.mjs');
 const grid = base.exact ? null : await loadGrid();
 const recs = [], log = fs.createWriteStream(path.join(out, 'runs.jsonl'));
 const t0 = Date.now(); let next = 0, done = 0, simSec = 0;
+// one fresh worker thread per war: some game modules keep counters at module level (model seeds, item ids), so a
+// war run after another in the same thread is not quite the war run alone - a fresh thread makes every seed exact
 await new Promise(resolve => {
   let live = 0;
-  for (let k = 0; k < Math.min(workers, jobs.length); k++) {
-    live++;
+  const spawn = () => {
+    if (next >= jobs.length) { if (live === 0) resolve(); return; }
+    const job = jobs[next++]; live++;
     const w = new Worker(path.join(TOOLS, 'sim', 'worker.mjs'), { workerData: { grid: grid ? grid.buffer : null }, resourceLimits: { maxOldGenerationSizeMb: 1400 } });
-    const feed = () => { if (next < jobs.length) w.postMessage(jobs[next++]); else { w.postMessage('exit'); } };
-    w.on('message', m => {
-      if (m.ready) { feed(); return; }
-      done++;
-      if (m.error) { console.log(`  war ${m.id} FAILED: ${m.error.split('\n')[0]}`); recs.push({ ...jobs[m.id].cfg, error: m.error, failed: true }); }
-      else { const r = { ...m.rec, sweep: jobs[m.id].cfg.sweep }; recs.push(r); log.write(JSON.stringify(r) + '\n'); simSec += r.time; }
+    let got = false;
+    const finish = m => {
+      got = true; done++;
+      if (m.error) { console.log(`  war ${job.id} FAILED: ${m.error.split('\n')[0]}`); recs.push({ ...job.cfg, error: m.error, failed: true }); }
+      else { const r = { ...m.rec, sweep: job.cfg.sweep }; recs.push(r); log.write(JSON.stringify(r) + '\n'); simSec += r.time; }
       const el = (Date.now() - t0) / 1000, r = m.rec;
       console.log(`  [${String(done).padStart(4)}/${jobs.length}] ${r ? `${r.blue.padEnd(11)} vs ${r.red.padEnd(11)} seed ${String(r.seed).padStart(3)}${r.sweep ? ` ${r.sweep.key}=${r.sweep.value}` : ''}: ${r.winner === 1 ? 'TASK FORCE' : r.winner === 2 ? 'RUNAWAY   ' : 'DRAW      '} ${r.decisive ? 'by ' + r.how : '(timeout, on points)'} at ${Math.round(r.time / 60)} min  (${r.speed} sim-min/s)` : ''}  ${(el / 60).toFixed(1)} min elapsed, ~${((el / done) * (jobs.length - done) / 60).toFixed(0)} min left`);
-      feed();
-    });
-    w.on('exit', () => { if (--live === 0) resolve(); });
-    w.on('error', e => { console.log('worker error', e); });
-  }
+      w.postMessage('exit');
+    };
+    w.on('message', m => { if (m.ready) w.postMessage(job); else finish(m); });
+    w.on('error', e => { if (!got) finish({ error: String(e && e.stack || e) }); });
+    w.on('exit', () => { if (!got) finish({ error: 'worker exited' }); live--; spawn(); });
+  };
+  for (let k = 0; k < Math.min(workers, jobs.length); k++) spawn();
 });
 log.end();
 const wall = (Date.now() - t0) / 1000;

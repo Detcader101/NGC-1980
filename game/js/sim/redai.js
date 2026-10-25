@@ -1,35 +1,27 @@
 // SIM MODE: the RUNAWAY commander under a doctrine (sim/doctrine.js RED). war.js calls W.redAI.think(pl, think) every
 // 2 s in place of its own enemy plans when a sim installs one (the hook in W.update); nothing changes otherwise.
 //
-// DEFAULT with the whole tech tree ('all', today's game) runs war.js's own think() and the ground and air arms'
-// plans exactly as the game does. Every other doctrine - and DEFAULT under a tech tree that still has things to
-// research - runs think() below: a line-for-line copy of war.js think() with the doctrine's knobs where the game has
-// fixed numbers (at 1 the knob is the game's number; tools/simbench.mjs checks the copy replays the original), plus
-// research, and the ground (GW.think) and air (AW.think) arms throttled by the doctrine's mix and gated by the tree.
-import { unitAllowed, aiPickResearch } from '../techtree.js';
+// DEFAULT runs war.js's own think() and the ground and air arms' plans exactly as the game does (the tech tree gates
+// them inside war.js; research is war.js's own tick under the policy sim/policy.js installs). Every other doctrine
+// runs think() below: a line-for-line copy of war.js think() with the doctrine's knobs where the game has fixed
+// numbers (at 1 the knob is the game's number; tools/simbench.mjs checks the copy replays the original), and the
+// ground (GW.think) and air (AW.think) arms throttled by the doctrine's mix.
 import { GW_T } from '../units/groundwar/groundwar.js';
 import { AIR } from '../units/air/airwar.js';
 
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
 const BASE_GW = { ...GW_T }, BASE_AIR = { SHRIKE_MAX: AIR.SHRIKE_MAX };
 
-export function createRedAI({ W, nav, feed = () => {}, sfx = {}, doctrine, tech = null, log = null }) {
+export function createRedAI({ W, nav, feed = () => {}, sfx = {}, doctrine, log = null }) {
   const D = doctrine, A = D.aggression, X = D.expansion, F = D.defence, M = D.mix || { air: 1, ground: 1, naval: 1 };
-  const R = { side: 2, doctrine: D, tech, decisions: [], last: '', spent: { research: 0 }, builtin: !!D.builtin && (!tech || tech.mode === 'all') };
-  const allow = k => unitAllowed(tech, k);
+  const R = { side: 2, doctrine: D, decisions: [], last: '', spent: { research: 0 }, builtin: !!D.builtin };
+  const allow = k => W.allow(2, k);
   const note = (what, extra) => { R.last = what; if (log) log(2, what, extra); };
   const { makeAir, buildAA, makeShip, launchPoint, nearestLaunch } = W.sim;
 
-  // ---------------------------------------------------------------- research
-  function research() {
-    if (!tech || tech.mode === 'all' || tech.current || (D.research && D.research.spend <= 0)) return;   // ('all' is today's game: nothing to research)
-    const air = W.units.filter(u => u.side === 1 && u.p && !u.dims && !u.ground && !u.dead).length;
-    const id = aiPickResearch(tech, W.E, { time: W.time, reserve: Math.round(25 / (D.research.spend || 1)) + D.reserve, foeAir: air, foeArmour: 0 }, D.research.order);
-    if (id && tech.research(id, W.E) === true) { R.spent.research += tech.node(id).cost.mat || 0; note(`RESEARCH ${tech.node(id).name}`, { research: id }); }
-  }
-
   // ---------------------------------------------------------------- war.js think(), with the knobs
   function think(pl) {
+    W.researchTick(2, pl); W.researchTick(1, pl);   // (as war.js think opens)
     const E = W.E, ec = W.enemyCarrier && W.enemyCarrier.sinking === undefined ? W.enemyCarrier : null;
     const air = W.units.filter(u => u.side === 2 && u.p && !u.dims && !u.dead && !u.dying);
     const guns = air.filter(u => u.type === 'gunship'), trans = air.filter(u => u.type === 'transport');
@@ -45,7 +37,7 @@ export function createRedAI({ W, nav, feed = () => {}, sfx = {}, doctrine, tech 
     W.transT -= 2;
     if (allow('transport') && trans.length < Math.max(1, Math.round(2 * X)) && E.mat >= 25 + keep && W.transT <= 0) { const I = W.pickExpansion(); if (I) { W.transT = Math.max(18, 40 - W.time / 30) / Math.max(0.25, X); E.mat -= 25; const [x, y, z] = launchPoint(2); makeAir('transport', 2, x, y, z, { target: I }); note(`MV-22 TO ${I.name}`, { order: 'transport', I: I.name }); } }
     // 3. fortify: guns on islands that have few
-    if (allow('aa')) for (const I of mine) if (E.mat >= 30 + keep * 0.5 && W.aliveAA(I) + I.structs.filter(s => s.kind === 'aa' && s.building > 0).length < Math.round((I.kind === 'factory' || I.kind === 'hq' ? 3 : 2) * F)) { const s = buildAA(I, 2); if (s) { E.mat -= 30; s.building = 14; note(`TALON ON ${I.name}`, { order: 'aa', I: I.name }); } break; }
+    if (allow('aa')) for (const I of mine) if (E.mat >= 30 + keep * 0.5 && W.aliveAA(I) + I.structs.filter(s => s.kind === 'aa' && s.building > 0).length < Math.round((I.kind === 'factory' || I.kind === 'hq' ? 3 : 2) * F)) { const s = buildAA(I, 2); if (s) { E.mat -= 30; s.building = 14 * W.techMod(2, 'aa.build'); note(`TALON ON ${I.name}`, { order: 'aa', I: I.name }); } break; }
     // 4. raid: every so often, a strike group at the player's weakest guarded island or the carrier
     W.raidT -= 2;
     if (allow('gunship') && W.raidT <= 0 && E.mat >= 36 + keep && guns.length < cap) {
@@ -60,16 +52,16 @@ export function createRedAI({ W, nav, feed = () => {}, sfx = {}, doctrine, tech 
     if (allow('gunship') && ec && guns.filter(g => !g.target && Math.hypot(g.home[0] - ec.p.x, g.home[1] - ec.p.z) < 200).length < Math.round(2 * F) && E.mat >= 12 && guns.length < cap) { E.mat -= 12; W.spawnGunship(2); }
     // 6. supply: a freighter takes an island's stockpile to the KRAKEN (or IRONHOLD)
     W.freightT -= 2;
-    if (W.freightT <= 0) {
+    if (W.freightT <= 0 && allow('freighter')) {
       W.freightT = 16;
-      const I = allow('freighter') && mine.filter(I => (I.stock || 0) >= 18 && !W.units.some(u => u.type === 'freighter' && u.from === I)).sort((a, b) => b.stock - a.stock)[0];
+      const I = mine.filter(I => (I.stock || 0) >= 18 && !W.units.some(u => u.type === 'freighter' && u.from === I)).sort((a, b) => b.stock - a.stock)[0];
       if (I) {
         const [x, z] = nav.nearestWater(I.x, I.z), f = makeShip('freighter', 2, x, z, rnd(6.283));
         f.cargo = I.stock; f.from = I; I.stock = 0; f.repath = 0; note(`FREIGHTER FROM ${I.name}`);
       }
     }
     // 7. the battleship
-    if (E.bship >= 100 && !W.battleship) {
+    if (E.bship >= 100 && !W.battleship && allow('battleship')) {
       E.bship = 0; const I = W.islands.find(I => I.name === 'IRONHOLD'), y = I.yard || I;
       const [wx, wz] = nav.nearestWater(y.x + (0 - y.x) * 0.2, y.z + (0 - y.z) * 0.2);
       W.battleship = makeShip('battleship', 2, wx, wz, Math.atan2(-(0 - wx), -(0 - wz)));
@@ -93,35 +85,28 @@ export function createRedAI({ W, nav, feed = () => {}, sfx = {}, doctrine, tech 
     }
   }
 
-  // ---------------------------------------------------------------- the ground and air arms, throttled and gated
+  // ---------------------------------------------------------------- the ground and air arms, throttled by the mix
+  // (the tech tree gates them inside groundwar.js / airwar.js; at mix 1 they are the game's own plans untouched)
   function groundArm(pl) {
     const g = Math.max(0.05, M.ground);
-    GW_T.HOVER_AT = allow('hovertank') ? BASE_GW.HOVER_AT / g : Infinity; GW_T.HOVER_GAP = BASE_GW.HOVER_GAP / g;
-    GW_T.MBT_AT = allow('mbt') ? BASE_GW.MBT_AT / g : Infinity; GW_T.MBT_GAP = BASE_GW.MBT_GAP / g;
+    GW_T.HOVER_AT = BASE_GW.HOVER_AT / g; GW_T.HOVER_GAP = BASE_GW.HOVER_GAP / g; GW_T.MBT_AT = BASE_GW.MBT_AT / g; GW_T.MBT_GAP = BASE_GW.MBT_GAP / g;
     const GW = W.ground, h0 = GW.hoverT, m0 = GW.mbtT;
     try { GW.think(pl); } finally { Object.assign(GW_T, BASE_GW); }
     if (GW.hoverT === h0 - 2) GW.hoverT -= 2 * (g - 1);   // a heavier ground mix readies armour sooner (timer runs g x as fast)
     if (GW.mbtT === m0 - 2) GW.mbtT -= 2 * (g - 1);
   }
   function airArm(pl) {
-    const AW = W.air, a = Math.max(0.05, M.air), save = { r: AW.reaperT, s: AW.shahedT };
-    if (!allow('reaper')) AW.reaperT = 1e9;
-    if (!allow('shahed')) AW.shahedT = 1e9;
-    AIR.SHRIKE_MAX = allow('shrike') ? Math.round(BASE_AIR.SHRIKE_MAX * Math.min(2, a)) : 0;
+    const AW = W.air, a = Math.max(0.05, M.air);
+    AIR.SHRIKE_MAX = Math.round(BASE_AIR.SHRIKE_MAX * Math.min(2, a));
     try { AW.think(pl); } finally { AIR.SHRIKE_MAX = BASE_AIR.SHRIKE_MAX; }
-    if (!allow('reaper')) AW.reaperT = save.r - 2;
-    if (!allow('shahed')) AW.shahedT = save.s - 2;
     AW.shrikeT -= 2 * (a - 1); AW.shahedT -= 2 * (a - 1);   // the air mix: the arm's timers run a x as fast
   }
-  function naval() {
-    if (!allow('battleship')) { W.E.bship = 0; return; }
-    if (M.naval !== 1 && !W.battleship) W.E.bship = Math.max(0, W.E.bship + 2 * 0.14 * (M.naval - 1) * (tech ? tech.mod('bship.rate') : 1));   // the yards' rate (war.js: ~0.14 / s) scaled
+  function naval() {   // the naval mix: the yards' rate (war.js ~0.14 / s with ANVIL and the yard) scaled
+    if (M.naval !== 1 && !W.battleship && allow('battleship')) W.E.bship = Math.max(0, W.E.bship + 2 * 0.14 * (M.naval - 1) * W.techMod(2, 'bship.rate'));
   }
 
   R.think = (pl, builtinThink) => {
-    if (tech) tech.update(2);
     if (R.builtin) { W.ground.think(pl); builtinThink(pl); W.air.think(pl); return; }
-    research();
     groundArm(pl); think(pl); airArm(pl); naval();
   };
   return R;

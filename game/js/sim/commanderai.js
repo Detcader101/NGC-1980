@@ -16,7 +16,7 @@ const VALUE = { factory: 1.5, fuel: 1.15, radar: 0.8, hq: 2, fortress: 1.2 };
 export function createCommanderAI({ W, nav, doctrine, tech = null, strike = null, fleet = null, log = null, terrainH }) {
   const D = doctrine, A = D.aggression, X = D.expansion, F = D.defence, M = D.mix || { air: 1, ground: 1, naval: 1 };
   const C = { side: 1, doctrine: D, tech, t: 0, thinkT: 1, last: '', strikeT: 30, escortT: 20, moveT: 0, aaT: 0, plan: null, spent: { research: 0, drone: 0, aa: 0, escort: 0, sky: 0, strike: 0 } };
-  const allow = k => unitAllowed(tech, k);
+  const allow = k => W.allow ? W.allow(1, k) : unitAllowed(tech, k);   // the war's own gate (W.tech[1])
   const note = (what, extra) => { C.last = what; if (log) log(1, what, extra); };
   const P = () => W.P;
   const mat = () => P().mat;
@@ -49,18 +49,10 @@ export function createCommanderAI({ W, nav, doctrine, tech = null, strike = null
     }
     return best ? { I: best, danger: danger(best) } : null;
   }
-  function research() {
-    if (!tech || tech.mode === 'all' || tech.current || !(D.research && D.research.spend > 0)) return;   // ('all' is today's game: nothing to research)
-    const foeAir = W.units.filter(u => u.side === 2 && u.p && !u.dims && !u.ground && alive(u)).length;
-    const foeShips = W.battleship && W.battleship.sinking === undefined ? 1 : 0;
-    const id = aiPickResearch(tech, P(), { time: W.time, reserve: Math.round(30 / D.research.spend) + D.reserve, foeAir, foeShips }, D.research.order);
-    if (id && tech.research(id, P()) === true) { C.spent.research += tech.node(id).cost.mat || 0; note(`RESEARCH ${tech.node(id).name}`, { research: id }); }
-  }
   // ---------------------------------------------------------------- the 2 s decision
   C.think = () => {
-    if (tech) tech.update(2);
     const t = W.time, keep = D.reserve;
-    research();
+    // (research: war.js asks W.researchPolicy[1] in its 2 s tick - sim/policy.js installs the doctrine's)
     // 0. the ALBATROSS's course (every 20 s; every 6 s with the LEVIATHAN at sea)
     const levOut = W.battleship && W.battleship.sinking === undefined;
     C.moveT -= 2;
