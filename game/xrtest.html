@@ -4,10 +4,62 @@
 <p>Bare WebXR test (no game). Click, then look in the headset: it should glow green, pulsing.</p>
 <button id="go">ENTER VR TEST</button> <button id="go2">TEST 2 (layers, like the game)</button>
 <label><input id="hands" type="checkbox"> request hand tracking</label>
+<h3>SOUND TEST</h3>
+<p>PLAY TEST TONE beeps 1 s on / 1 s off until you press it again. It keeps going inside the VR tests above, so you can
+start it, put the headset on and listen. The meter shows what the page itself is producing.</p>
+<button id="tone">PLAY TEST TONE</button> <button id="grant">SHOW DEVICE NAMES (asks for the mic once)</button>
+<span id="meter">level -</span>
+<p>Send the tone to: <span id="sinks">(press PLAY TEST TONE)</span></p>
 <pre id="out"></pre>
 <script>
 const out = document.getElementById('out');
 const log = m => { out.textContent += m + '\n'; try { navigator.sendBeacon('/__log', 'XRTEST ' + m); } catch (e) {} };
+// ---- SOUND TEST: a looping 1 s beep (660 Hz) through an AudioContext, routable with AudioContext.setSinkId
+let actx = null, beep = null, tap = null, tapBuf = null;
+const sinkBox = document.getElementById('sinks'), meter = document.getElementById('meter'), toneBtn = document.getElementById('tone');
+const sinkName = () => actx && typeof actx.sinkId === 'string' ? (actx.sinkId || 'default') : 'n/a';
+async function listSinks() {
+  try {
+    const outs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audiooutput');
+    log('TONE outputs (' + outs.length + '): ' + outs.map(d => (d.label || '(no label)') + ' [' + d.deviceId.slice(0, 12) + ']').join(' | '));
+    sinkBox.textContent = outs.length ? '' : 'no output devices listed - the tone plays on the default device';
+    if (!actx || typeof actx.setSinkId !== 'function') { sinkBox.textContent = 'setSinkId not supported in this browser - the tone plays on the default device'; log('TONE setSinkId unsupported'); return; }
+    for (const d of outs) {
+      const b = document.createElement('button'); b.style.font = '18px Consolas'; b.style.padding = '8px'; b.style.margin = '4px';
+      b.textContent = d.label || ('device ' + d.deviceId.slice(0, 8));
+      b.onclick = async () => {
+        try { await actx.setSinkId(d.deviceId === 'default' ? '' : d.deviceId); log('TONE routed to "' + b.textContent + '" sinkId ' + sinkName()); }
+        catch (e) { log('TONE setSinkId ERROR ' + e.name + ': ' + e.message); }
+      };
+      sinkBox.append(b);
+    }
+  } catch (e) { log('TONE enumerateDevices ERROR ' + e.name + ': ' + e.message); }
+}
+toneBtn.onclick = async () => {
+  try {
+    if (!actx) {
+      actx = new AudioContext(); tap = actx.createAnalyser(); tap.fftSize = 2048; tapBuf = new Float32Array(2048); tap.connect(actx.destination);
+      setInterval(() => { tap.getFloatTimeDomainData(tapBuf); let p = 0; for (const v of tapBuf) p = Math.max(p, Math.abs(v)); meter.textContent = 'level ' + p.toFixed(2) + ' ' + actx.state + ' ' + actx.sampleRate + 'Hz sink ' + sinkName(); }, 100);
+      setInterval(() => { if (beep) log('TONE alive: ' + meter.textContent + ' doc ' + document.visibilityState); }, 5000);
+      navigator.mediaDevices?.addEventListener?.('devicechange', () => { log('TONE devicechange'); listSinks(); });
+      listSinks();
+    }
+    if (actx.state !== 'running') await actx.resume();
+    if (beep) { beep.o.stop(); beep = null; toneBtn.textContent = 'PLAY TEST TONE'; log('TONE stopped'); return; }
+    const o = actx.createOscillator(), g = actx.createGain(), lfo = actx.createOscillator(), depth = actx.createGain();
+    o.frequency.value = 660; g.gain.value = 0;                       // gain = 0.25 + 0.25 * square(0.5 Hz): 1 s on, 1 s off
+    lfo.type = 'square'; lfo.frequency.value = 0.5; depth.gain.value = 0.25; lfo.connect(depth); depth.connect(g.gain);
+    const bias = actx.createConstantSource(); bias.offset.value = 0.25; bias.connect(g.gain);
+    o.connect(g); g.connect(tap); o.start(); lfo.start(); bias.start();
+    o.onended = () => { lfo.stop(); bias.stop(); g.disconnect(); };
+    beep = { o }; toneBtn.textContent = 'STOP TEST TONE (beeping)';
+    log('TONE playing: ' + actx.state + ' ' + actx.sampleRate + 'Hz baseLatency ' + actx.baseLatency + ' outputLatency ' + actx.outputLatency + ' sink ' + sinkName());
+  } catch (e) { log('TONE ERROR ' + e.name + ': ' + e.message); }
+};
+document.getElementById('grant').onclick = async () => {   // Chromium hides device labels until a media permission is granted
+  try { const s = await navigator.mediaDevices.getUserMedia({ audio: true }); s.getTracks().forEach(t => t.stop()); log('TONE mic permission granted (labels visible)'); listSinks(); }
+  catch (e) { log('TONE getUserMedia ERROR ' + e.name + ': ' + e.message); }
+};
 navigator.xr ? navigator.xr.isSessionSupported('immersive-vr').then(ok => log('supported ' + ok)) : log('no navigator.xr');
 document.getElementById('go').onclick = async () => {
   try {
