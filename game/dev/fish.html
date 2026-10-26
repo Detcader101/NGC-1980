@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sea life — species inspection</title>
+<script type="importmap">{"imports":{"three":"../vendor/three.module.min.js"}}</script>
+<style>
+:root{color-scheme:dark;font:14px system-ui,sans-serif;color:#e4f3f3;background:#081b24}
+*{box-sizing:border-box}body{margin:0;display:flex;flex-direction:column;min-height:100vh;height:100vh}
+header{padding:16px 22px 12px;border-bottom:1px solid #31505a;display:flex;gap:20px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+h1{font-size:22px;line-height:1.2;margin:0 0 5px;font-weight:650;letter-spacing:.02em}.subtitle{margin:0;color:#a8c5cb;font-size:12px}
+.controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}button,select,a{font:inherit;color:inherit}button,select{background:#163440;border:1px solid #4b6c77;border-radius:5px;padding:8px 11px}button{cursor:pointer}button:hover,button:focus-visible,select:focus-visible{background:#214b59;outline:2px solid #78cec9;outline-offset:2px}label{font-size:12px;color:#bdd1d6}a{color:#91d6d2;text-underline-offset:3px}
+#stage{position:relative;flex:1;min-height:360px;overflow:hidden;touch-action:none}#stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}#cards{position:absolute;inset:12px;display:grid;gap:12px;pointer-events:none}.card{position:relative;min-width:0;min-height:0;border:1px solid #35545d;border-radius:7px;overflow:hidden}.card-heading{position:absolute;top:10px;left:12px;right:12px;z-index:2}.species{padding:0;background:none;border:0;color:#eef7ef;font-size:14px;font-weight:650;letter-spacing:.03em;text-align:left;pointer-events:auto}.species:hover{background:none}.shape-note{margin:4px 0;color:#9abcc5;font-size:11px}.card-footer{position:absolute;left:12px;right:12px;bottom:9px;display:grid;gap:3px;font-size:11px;line-height:1.25;color:#b8cdd1}.size{font-variant-numeric:tabular-nums;color:#f0db9e}.behavior{color:#9ebfc7}.focus .species{font-size:19px}.focus .shape-note,.focus .card-footer{font-size:13px}#status{color:#e5cd8d}
+footer{padding:9px 22px 12px;border-top:1px solid #31505a;display:flex;gap:12px;justify-content:space-between;font-size:11px;color:#8db0b9;line-height:1.4}.explanation{max-width:900px}#error{position:absolute;inset:20px;color:#ffbca9;z-index:5;white-space:pre-wrap}.hidden{display:none}
+@media(max-width:760px){header{padding:12px;gap:10px}h1{font-size:18px}button,select{padding:6px}footer{padding:8px 12px}.card-heading{left:8px;right:8px;top:7px}.card-footer{left:8px;right:8px;font-size:10px}.species{font-size:12px}.shape-note{font-size:10px}}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Sea life · species inspection</h1><p class="subtitle">Drag to orbit · scroll or pinch to zoom · choose a species for a close view</p></div>
+  <div class="controls"><label for="species">View</label><select id="species" aria-label="Species view"><option value="all">All 12 species</option></select><button id="reset" type="button">Reset view</button><button id="pause" type="button" aria-pressed="false">Pause animation</button><a href="../?auto&kb">Sandbox</a></div>
+</header>
+<main id="stage" aria-label="Animated sea-life models"><div id="cards"></div><div id="error" class="hidden" role="alert"></div></main>
+<footer><span class="explanation">Actual game models at their in-game size. Each view fits its own camera; image sizes are not a shared scale. Clear shallow-water lighting. <strong>Inspection animation</strong>, not autonomous swimming or population evidence.</span><span id="status" aria-live="polite">Loading models…</span></footer>
+<script type="module" src="./fish.js"></script>
+</body>
+</html>
