@@ -86,7 +86,7 @@ try {
   });
   await check('large unit reports collapse detail while keeping failed runs open', () => {
     const many = Array.from({ length: 9 }, (_, i) => ({ id: 'case' + i, dir }));
-    const report = buildDevlog({ notes: { title: 'Unit catalog', changes: [] }, runs: many, out: path.join(root, 'many') });
+    const report = buildDevlog({ notes: { title: 'Unit catalog', summary: 'Many units', changes: [{ title: 'Units', change: 'Cases', observed: 'Failures retained', media: [] }] }, runs: many, out: path.join(root, 'many') });
     const html = fs.readFileSync(report.file, 'utf8');
     assert.ok(html.includes('<details class="unit-detail" open>'));
     assert.equal(report.passing, false); assert.ok(html.includes('input remained stuck'));
