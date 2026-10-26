@@ -1,5 +1,28 @@
 # MODLOG — NGC-1980 (formerly Thrust/Zarch)
 
+## 2026-10-26 — 48 unit benchmarks and role/visual corrections
+
+Three agents audited aircraft, ground and naval/defence units; the integration adds both factions' structure cases,
+a selectable serial browser runner, registry coverage checks and stricter benchmark comparison provenance.
+`node tools/unit-benchmark.mjs --list` lists every case. The installed DCS UH-1H manual informed the instrument audit;
+the models and code remain original. Weapons retain their existing gameplay abstractions.
+
+- Aligned CH-46E names, corrected stopped Reaper/SHAHED pushers and Reaper shutdown gauges.
+- Added M35 rear dual tyres with aggregate contact physics, preserved captured-tank reverse motion through detail
+  transitions, and repaired the RUNAWAY preview lineup's missing idle controller.
+- Matched feeder/LCM roof support to visible geometry, exposed actual ship refits/cargo in previews, and made
+  launcher covers retain full-bank use through ordinary salvos and the existing reload cooldown.
+- Screenshot review caught cropped parachutes, a Marine knee below ground and an Osprey delivery camera looking at
+  terrain. Corrected the gameplay camera/pose and added geometry/visibility checks to the fixtures.
+- Added the [unit guide](docs/ngc1980/UNIT-BENCHMARKS.md), source findings and
+  [offline devlog](docs/devlogs/2026-10-26-units/devlog.html), including earlier failed attempts and remaining limits.
+
+Validation: 48 verified cases / 198 passing assertions (47 final-sweep cases plus one successful rerun on identical
+game content), five desktop smoke checks, 65 unit screenshots, nine clips and 1,440 frame samples. The full Node gate
+passed 525 runner checks before final visual fixes; affected checks and syntax passed again afterward. HTML review
+passed 17/17, including all nine clips. SwiftShader timings do not qualify hardware performance or physical VR.
+Detailed provenance and failures: [VALIDATION](docs/ngc1980/VALIDATION.md).
+
 ## 2026-10-26 — benchmark and HTML devlog skills
 
 Added separate versioned `$benchmark` and `$devlog` skills plus a local installer. The benchmark extends the existing

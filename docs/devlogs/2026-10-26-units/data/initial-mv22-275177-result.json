@@ -1,0 +1,540 @@
+{
+  "schemaVersion": 2,
+  "name": "unit-mv22",
+  "query": "dev/rotary.html?ac=mv22&paused",
+  "seed": 1980,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "9b4d94e9b670d25470bf7edad0954330b14ef6fbc453e5a71b479c1abd373b84",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/snap.mjs",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/scenes/unit.mjs",
+    "--out",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/runs/units-2026-10-26-initial/mv22",
+    "--frames",
+    "30"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "bcd621f6f4d34b8c98fcec652082035da96275fa",
+    "branch": "ngc/unit-bench",
+    "gameTree": "0dfd01ee02de1e644007fd0f2016feb100fe03c0",
+    "gameSha256": "279ee6c4ad4159fd9dc4892a2f80b9bd261365f6941a2c5d35a1b272937569be",
+    "dirty": false,
+    "status": ""
+  },
+  "url": "http://127.0.0.1:43267/dev/rotary.html?ac=mv22&paused",
+  "ok": true,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": null,
+  "shots": [
+    {
+      "name": "mv22",
+      "file": "01-mv22.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 180.2,
+      "litFraction": 0.9999,
+      "colors": 77
+    },
+    {
+      "name": "mv22-delivery",
+      "file": "02-mv22-delivery.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 103.5,
+      "litFraction": 1,
+      "colors": 55
+    }
+  ],
+  "clips": [],
+  "benchmarks": [
+    {
+      "name": "mv22",
+      "policy": {
+        "frames": 30,
+        "warmup": 30,
+        "timeoutMs": 120000
+      },
+      "rows": [
+        {
+          "frame": 38,
+          "ms": 16.700000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 39,
+          "ms": 16.600000008940697,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 40,
+          "ms": 16.599999994039536,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 41,
+          "ms": 16.700000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 42,
+          "ms": 16.899999991059303,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 43,
+          "ms": 17.400000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 44,
+          "ms": 15.700000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 45,
+          "ms": 17.299999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 46,
+          "ms": 16.299999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 47,
+          "ms": 16.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 48,
+          "ms": 16.700000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 49,
+          "ms": 16.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 50,
+          "ms": 17.099999994039536,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 51,
+          "ms": 16.400000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 52,
+          "ms": 16.700000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 53,
+          "ms": 16.299999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 54,
+          "ms": 16.799999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 55,
+          "ms": 16.600000008940697,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 56,
+          "ms": 16.799999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 57,
+          "ms": 16.700000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 58,
+          "ms": 16.399999991059303,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 59,
+          "ms": 17,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 60,
+          "ms": 16.600000008940697,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 61,
+          "ms": 16.399999991059303,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 62,
+          "ms": 17.299999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 63,
+          "ms": 16.200000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 64,
+          "ms": 16.799999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 65,
+          "ms": 16.400000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 66,
+          "ms": 17,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        },
+        {
+          "frame": 67,
+          "ms": 16.700000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 78,
+          "triangles": 7336,
+          "textures": 3,
+          "geometries": 74
+        }
+      ],
+      "xr": false,
+      "host": "dev-rotary",
+      "state": "live",
+      "mode": "preview",
+      "drawingBuffer": [
+        768,
+        432
+      ],
+      "eyeViewports": [],
+      "summary": {
+        "samples": 30,
+        "frameMs": {
+          "count": 30,
+          "mean": 16.670000000298025,
+          "p50": 16.700000002980232,
+          "p95": 17.299999997019768,
+          "p99": 17.299999997019768,
+          "min": 15.700000002980232,
+          "max": 17.400000005960464
+        },
+        "observedFps": 59.988002398447634,
+        "cpuMs": {
+          "sim": null,
+          "prep": null,
+          "renderSubmit": null
+        },
+        "drawCalls": {
+          "count": 30,
+          "mean": 78,
+          "p50": 78,
+          "p95": 78,
+          "p99": 78,
+          "min": 78,
+          "max": 78
+        },
+        "triangles": {
+          "count": 30,
+          "mean": 7336,
+          "p50": 7336,
+          "p95": 7336,
+          "p99": 7336,
+          "min": 7336,
+          "max": 7336
+        },
+        "textures": {
+          "count": 30,
+          "mean": 3,
+          "p50": 3,
+          "p95": 3,
+          "p99": 3,
+          "min": 3,
+          "max": 3
+        },
+        "geometries": {
+          "count": 30,
+          "mean": 74,
+          "p50": 74,
+          "p95": 74,
+          "p99": 74,
+          "min": 74,
+          "max": 74
+        }
+      },
+      "qualification": "Wall-clock intervals between observed rendered frames. CPU phases are game-smoothed CPU timings, not GPU durations. Render counters describe the last render pass. No capture during sampling."
+    }
+  ],
+  "evals": [
+    {
+      "expr": "(__R.runUntil(() => __R.unit.U.S.nac < 0.03 && __R.unit.U.S.ias > 190, 200), __R.camMode = \"chase\", __R.render(), true)",
+      "value": true
+    },
+    {
+      "expr": "(__R.paused = false, true)",
+      "value": true
+    },
+    {
+      "expr": "(__R.paused = true, __R.runUntil(() => __R.unit.U.squad.holding >= 10, 400), __R.camMode = \"lz\", __R.render(), true)",
+      "value": true
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__R.unit.U.S.nac < 0.03 && __R.unit.U.S.ias > 190 && __R.unit.U.S.wingL > 100000 && !__R.unit.U.dead",
+      "label": "Osprey converts from vertical departure to wing-borne flight",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(mv22)",
+      "ok": true,
+      "value": 0.9999
+    },
+    {
+      "expr": "__R.unit.U.squad.holding >= 10 && !__R.unit.U.dead",
+      "label": "Osprey reconverts and delivers its machine troop squad",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(mv22-delivery)",
+      "ok": true,
+      "value": 1
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-26T13:50:22.397Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "bcd621f6f4d34b8c98fcec652082035da96275fa",
+    "branch": "ngc/unit-bench",
+    "gameTree": "0dfd01ee02de1e644007fd0f2016feb100fe03c0",
+    "gameSha256": "279ee6c4ad4159fd9dc4892a2f80b9bd261365f6941a2c5d35a1b272937569be",
+    "dirty": false,
+    "status": ""
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": null,
+    "state": null
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "bcd621f6f4d34b8c98fcec652082035da96275fa",
+    "branch": "ngc/unit-bench",
+    "gameTree": "0dfd01ee02de1e644007fd0f2016feb100fe03c0",
+    "gameSha256": "279ee6c4ad4159fd9dc4892a2f80b9bd261365f6941a2c5d35a1b272937569be",
+    "dirty": false,
+    "status": ""
+  },
+  "summary": "PASS: 4/4 expects, 0 page errors, 0 console errors",
+  "durationMs": 2933,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/runs/units-2026-10-26-initial/mv22"
+}

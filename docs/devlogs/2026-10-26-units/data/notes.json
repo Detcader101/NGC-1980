@@ -1,0 +1,594 @@
+{
+  "title": "48 units: roles, readable models and repeatable checks",
+  "date": "2026-10-26",
+  "summary": "All 48 unit/variant fixtures and 198 current browser assertions are verified: 47 cases passed the final sweep, and the parachute case passed its targeted rerun after correcting a conservative framing test, capturing 65 screenshots, 9 short clips and 1,440 measured frame intervals. Aircraft, ground and naval/defence agents audited the production units; the integration added structure cases and a serial runner. Visual review found and fixed a cropped parachute camera and a broken prone-leg pose. Earlier attempts remain in this report, including the failed hover and conservative framing checks; they are labelled initial or earlier.",
+  "reproduce": [
+    "Install the locked tools with npm --prefix tools ci, then set CHROME_PATH to your installed Chrome. Use node tools/unit-benchmark.mjs --list to see every case and its scope.",
+    "Final capture: node tools/unit-benchmark.mjs --frames 30 --clips ch46,reaper,paratrooper,m35,marine,naval-container,defence-sparrow,human-radar --out tools/runs/units-2026-10-26-final",
+    "Parachute rerun: node tools/unit-benchmark.mjs --unit paratrooper --frames 30 --capture --out tools/runs/units-paratrooper-verified. The earlier sweep is retained unchanged; the selected passing cases have identical game content.",
+    "A small selection: node tools/unit-benchmark.mjs --unit m35,reaper --frames 30 --clips m35,reaper --out tools/runs/unit-selection. The default is 120 intervals; these 30-interval runs are smoke evidence.",
+    "The full Node gate passed 525/525 runner checks (471 syntax modules and 54 regression programs). After visual corrections, syntax, infantry (90), ground role/geometry (15), Marine, transport, evidence-tool (16) and catalog (7) checks passed again. The desktop smoke scene is included below. Sources and confidence limits are in docs/ngc1980/UNIT-BENCHMARKS.md and findings/unit-air.md, unit-ground.md and unit-naval.md."
+  ],
+  "changes": [
+    {
+      "title": "The images caught what nonblank checks missed",
+      "change": "The parachute camera blended its aim down toward the ground as altitude increased, cropping the canopy. It now keeps body and canopy together while retaining a bounded horizontal landing-zone cue. The prone Marine bent a knee through the terrain and brought the boot back up, making the leg look detached; the knee pull now stays in the prone ground plane. The Osprey delivery fixture now snaps its inspection camera after simulation fast-forwarding.",
+      "observed": "The original screenshots show the cropped parachutes, disconnected-looking boot and an Osprey delivery view aimed at a hillside. Current images show the complete lead canopy, continuous prone legs, and the Osprey with its landed troops. The before/after labels identify those actual captured versions. These are visual corrections, not frame-rate improvement claims.",
+      "checks": [
+        "The canopy case projects actual visible mesh/line vertices through the game camera before and after sampling/capture. An intermediate test used a world-aligned box; its impossible corners wrongly failed the margin even though every visible vertex fit. That failed run is retained.",
+        "The production prone model passes a 72-phase mesh/joint clearance scan: the original knee reached 16.4 cm below flat ground; corrected leg/boot vertices stay above it.",
+        "Both transport delivery views require the aircraft and at least three landed troops in frame, with terrain line of sight."
+      ],
+      "limitations": [
+        "The scripted parachute release bypasses the approach and jumpmaster checklist. The camera test is desktop only.",
+        "The prone correction does not add terrain-following foot IK. Transport delivery framing uses a dev camera snap, while troop motion remains the production simulation."
+      ],
+      "media": [
+        {
+          "run": "initial-paratrooper",
+          "shot": "paratrooper",
+          "label": "Before: canopy cropped",
+          "caption": "Original gameplay camera at the scripted parachute descent; canopies are above the frame.",
+          "reviewed": true
+        },
+        {
+          "run": "paratrooper",
+          "shot": "paratrooper",
+          "label": "After: complete lead canopy",
+          "caption": "Corrected gameplay camera keeps the lead Marine and canopy in view.",
+          "reviewed": true
+        },
+        {
+          "run": "paratrooper",
+          "clip": "paratrooper",
+          "label": "Canopy descent",
+          "caption": "Short live descent after timing; the camera follows the actual jumpers.",
+          "reviewed": true
+        },
+        {
+          "run": "initial-marine",
+          "shot": "marine",
+          "label": "Before: knee below ground",
+          "caption": "The original prone pose hides the connecting leg below the ground.",
+          "reviewed": true
+        },
+        {
+          "run": "marine",
+          "shot": "marine",
+          "label": "After: connected prone legs",
+          "caption": "Corrected live crawl pose on the infantry practice terrain.",
+          "reviewed": true
+        },
+        {
+          "run": "marine",
+          "clip": "marine",
+          "label": "Prone crawl",
+          "caption": "A short interval of the corrected crawl animation.",
+          "reviewed": true
+        },
+        {
+          "run": "initial-mv22",
+          "shot": "mv22-delivery",
+          "label": "Before: delivery camera lag",
+          "caption": "Troop delivery passed, but the old dev camera screenshot showed a hillside.",
+          "reviewed": true
+        },
+        {
+          "run": "mv22",
+          "shot": "mv22-delivery",
+          "label": "After: visible delivery",
+          "caption": "The fixture now frames the Osprey and its landed machine troops.",
+          "reviewed": true
+        }
+      ]
+    },
+    {
+      "title": "Aircraft retain distinct flight and engine roles",
+      "change": "The CH-46 player placards and board now agree on CH-46E, matching the existing tandem-rotor model. Reaper fuel cutoff removes reported power/fuel flow, cools its gauges and lets oil pressure fall; a zero shaft signal stops the pusher animation. A stopped SHAHED-style pusher shows solid blades without a blur disc. Each active aircraft has an individual role check and capture fixture.",
+      "observed": "The gallery distinguishes tandem rotors, converting Osprey nacelles, the long-wing Reaper, variable-wing Tomcat and the four-engine Hercules. The stopped Reaper close-up and startup clip show the propeller presentation change. Sea Knight images show Marines delivered to the pad.",
+      "checks": [
+        "22 targeted Node checks cover the ten aircraft: collective lift, independent engines, wing sweep, nacelle conversion, cross-shaft behavior, feathering and shutdown.",
+        "Rendered cases exercise real player catapult entry, AI patrols and transport missions. Every sample records actual buffer/route/renderer configuration."
+      ],
+      "limitations": [
+        "KC-130R retains the existing H-model performance proxy; the older Hornet envelope bench uses some C reference figures behind the A designation.",
+        "DCS UH-1H manual pages informed the control/instrument audit. This is an original gameplay sandbox, with fictional RUNAWAY units and abstract weapons."
+      ],
+      "media": [
+        {
+          "run": "huey",
+          "shot": "huey",
+          "label": "UH-1H Huey",
+          "caption": "Current UH-1H Huey fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "hornet",
+          "shot": "hornet",
+          "label": "F/A-18A Hornet",
+          "caption": "Current F/A-18A Hornet fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "tomcat",
+          "shot": "tomcat",
+          "label": "F-14A Tomcat",
+          "caption": "Current F-14A Tomcat fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "ch46",
+          "shot": "ch46",
+          "label": "CH-46E Sea Knight",
+          "caption": "Current CH-46E Sea Knight fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "c130",
+          "shot": "c130",
+          "label": "KC-130R Hercules",
+          "caption": "Current KC-130R Hercules fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "mv22",
+          "shot": "mv22",
+          "label": "MV-22B Osprey",
+          "caption": "Current MV-22B Osprey fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "wasp",
+          "shot": "wasp",
+          "label": "RW-3 WASP",
+          "caption": "Current RW-3 WASP fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "shrike",
+          "shot": "shrike",
+          "label": "RW-4 SHRIKE",
+          "caption": "Current RW-4 SHRIKE fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "reaper",
+          "shot": "reaper",
+          "label": "MQ-9 Reaper",
+          "caption": "Current MQ-9 Reaper fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "shahed",
+          "shot": "shahed",
+          "label": "SHAHED-style drone",
+          "caption": "Current SHAHED-style drone fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "huey",
+          "shot": "huey-exterior",
+          "label": "Huey on the carrier",
+          "caption": "The running Huey exterior on the main-game deck.",
+          "reviewed": true
+        },
+        {
+          "run": "hornet",
+          "shot": "hornet-exterior",
+          "label": "Hornet on the catapult",
+          "caption": "Player Hornet attached to the main-game catapult.",
+          "reviewed": true
+        },
+        {
+          "run": "ch46",
+          "shot": "ch46-delivery",
+          "label": "Sea Knight delivery",
+          "caption": "Transport and landed Marines at the controlled landing pad.",
+          "reviewed": true
+        },
+        {
+          "run": "ch46",
+          "clip": "ch46",
+          "label": "Tandem-rotor departure",
+          "caption": "Live flight after the Sea Knight payload/departure checks.",
+          "reviewed": true
+        },
+        {
+          "run": "reaper",
+          "shot": "reaper-prop-stopped",
+          "label": "Stopped Reaper pusher",
+          "caption": "Solid pusher blades at zero shaft signal in the model host.",
+          "reviewed": true
+        },
+        {
+          "run": "reaper",
+          "clip": "reaper",
+          "label": "Reaper live loiter",
+          "caption": "Live patrol after the aircraft role checks.",
+          "reviewed": true
+        },
+        {
+          "run": "shahed",
+          "shot": "shahed-prop-stopped",
+          "label": "Stopped delta-drone pusher",
+          "caption": "The stopped pusher shows solid blades with no blur disc.",
+          "reviewed": true
+        },
+        {
+          "run": "reaper",
+          "clip": "reaper-prop-start",
+          "label": "Reaper propeller starts",
+          "caption": "Recording begins with a stopped propeller; the fixture then raises the shaft animation signal.",
+          "reviewed": true
+        },
+        {
+          "run": "c130",
+          "shot": "c130-engine-panel",
+          "label": "Hercules engine panel",
+          "caption": "The flight deck after number one is feathered; its three-engine flight is asserted separately.",
+          "reviewed": true
+        }
+      ]
+    },
+    {
+      "title": "Ground vehicles and readable movement",
+      "change": "The M35A2 now has two front singles and four rear dual pairs, with 9.00-20 tyres and aggregate dual-tyre physics at the existing six suspension stations. Captured tracked tanks preserve reverse speed/range when returning from distant lightweight motion. A missing idle controller in the RUNAWAY preview lineup is fixed. Civilian vehicles are included because they are actually driveable.",
+      "observed": "The truck rear view exposes the dual pairs. The civilian silhouettes, M60 pivot, open M113 ramp, STRIDER and hover hull are all visible in their individual fixtures. The initial RW-7 assertion incorrectly demanded every fan be powered during initial settling; the corrected fixture waits for trim and checks sustained clearance, pressure and lift. The earlier failed raw run remains visible below.",
+      "checks": [
+        "15 focused ground checks cover all thirteen types, the live lineup and a full prone-pose cycle.",
+        "The existing M35 regression passed 23/23 after tyre changes; the full shared wheeled regression also passed.",
+        "Both captured MBT cases inject the same full track adapter as the active game, and the Node checks preserve reverse motion through its detail transition."
+      ],
+      "limitations": [
+        "Dual inner/outer tyres share a contact and damage state. Independent punctures and terrain contact remain future work.",
+        "Isolated patrol/road fixtures are not endurance, vehicle-delivery or complete ground-war certification."
+      ],
+      "media": [
+        {
+          "run": "m151",
+          "shot": "m151",
+          "label": "M151A2 MUTT",
+          "caption": "Current M151A2 MUTT fixture. Isolated rendered dev fixture using production wheeled physics and model.",
+          "reviewed": true
+        },
+        {
+          "run": "m35",
+          "shot": "m35",
+          "label": "M35A2 cargo truck",
+          "caption": "Current M35A2 cargo truck fixture. Isolated rendered dev fixture using production wheeled physics and model.",
+          "reviewed": true
+        },
+        {
+          "run": "landrover",
+          "shot": "landrover",
+          "label": "Land Rover Series III 109",
+          "caption": "Current Land Rover Series III 109 fixture. Isolated rendered dev fixture using production wheeled physics and model.",
+          "reviewed": true
+        },
+        {
+          "run": "hilux",
+          "shot": "hilux",
+          "label": "Toyota Hilux RN37",
+          "caption": "Current Toyota Hilux RN37 fixture. Isolated rendered dev fixture using production wheeled physics and model.",
+          "reviewed": true
+        },
+        {
+          "run": "beetle",
+          "shot": "beetle",
+          "label": "Volkswagen Beetle 1200",
+          "caption": "Current Volkswagen Beetle 1200 fixture. Isolated rendered dev fixture using production wheeled physics and model.",
+          "reviewed": true
+        },
+        {
+          "run": "lada",
+          "shot": "lada",
+          "label": "Lada 2101",
+          "caption": "Current Lada 2101 fixture. Isolated rendered dev fixture using production wheeled physics and model.",
+          "reviewed": true
+        },
+        {
+          "run": "m60",
+          "shot": "m60",
+          "label": "M60A3 TTS",
+          "caption": "Current M60A3 TTS fixture. Isolated rendered dev fixture using production track physics and M60 model.",
+          "reviewed": true
+        },
+        {
+          "run": "m113",
+          "shot": "m113",
+          "label": "M113A2 APC",
+          "caption": "Current M113A2 APC fixture. Isolated rendered dev fixture using production APC ramp, trim-vane and pump controls.",
+          "reviewed": true
+        },
+        {
+          "run": "rw1",
+          "shot": "rw1",
+          "label": "RW-1 STRIDER",
+          "caption": "Current RW-1 STRIDER fixture. Single selected unit in the rendered runaway dev terrain; captured MBTs use live-game track physics, not the default preview fallback.",
+          "reviewed": true
+        },
+        {
+          "run": "rw7",
+          "shot": "rw7",
+          "label": "RW-7 hover tank",
+          "caption": "Current RW-7 hover tank fixture. Single selected unit in the rendered runaway dev terrain; captured MBTs use live-game track physics, not the default preview fallback.",
+          "reviewed": true
+        },
+        {
+          "run": "m1a2",
+          "shot": "m1a2",
+          "label": "Captured M1A2 SEPv3",
+          "caption": "Current Captured M1A2 SEPv3 fixture. Single selected unit in the rendered runaway dev terrain; captured MBTs use live-game track physics, not the default preview fallback.",
+          "reviewed": true
+        },
+        {
+          "run": "t90m",
+          "shot": "t90m",
+          "label": "Captured T-90M",
+          "caption": "Current Captured T-90M fixture. Single selected unit in the rendered runaway dev terrain; captured MBTs use live-game track physics, not the default preview fallback.",
+          "reviewed": true
+        },
+        {
+          "run": "m35",
+          "shot": "m35-rear-dual-tyres",
+          "label": "M35 rear duals",
+          "caption": "Rear view after the benchmark exposes the inner and outer rear tyres.",
+          "reviewed": true
+        },
+        {
+          "run": "m35",
+          "clip": "m35",
+          "label": "Loaded M35 rolling",
+          "caption": "The truck rolls in the production wheeled dev host after its timed sample.",
+          "reviewed": true
+        }
+      ]
+    },
+    {
+      "title": "Ship surfaces and real delivery models",
+      "change": "The feeder roof support used to sit 1.8 m above its visible roof; its forecastle and the armour LCM-8 pilothouse now also return their visible surface heights. The ship preview now installs the same active deck mounts as the war and shows the SKY refit, both LCM prefabs and the LCAC with their actual vehicle cargo.",
+      "observed": "The eight ship/landing-craft silhouettes and cargo arrangements are visible. The container-ship clip shows sea motion and the refitted deck. Mesh raycasts, rather than the image alone, establish that standing surfaces match visible geometry.",
+      "checks": [
+        "16 new naval geometry/role checks and the existing 22-check naval regression passed.",
+        "The rendered cases check moving deck lift support, roof raycasts, fan/prop articulation, cargo-well fit and forward-opening ramps."
+      ],
+      "limitations": [
+        "Carrier proportions are intentionally compressed for gameplay. Both LCM prefabs retain their existing different detail/ramp conventions.",
+        "These previews do not certify beach pathfinding, supply voyages or SKY CARRIER flight control."
+      ],
+      "media": [
+        {
+          "run": "naval-albatross",
+          "shot": "naval-albatross",
+          "label": "ALBATROSS",
+          "caption": "Current ALBATROSS fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "naval-kraken",
+          "shot": "naval-kraken",
+          "label": "KRAKEN",
+          "caption": "Current KRAKEN fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "naval-leviathan",
+          "shot": "naval-leviathan",
+          "label": "RW-9 LEVIATHAN",
+          "caption": "Current RW-9 LEVIATHAN fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "naval-container",
+          "shot": "naval-container",
+          "label": "Autonomous container feeder",
+          "caption": "Current Autonomous container feeder fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "naval-sky",
+          "shot": "naval-sky",
+          "label": "SKY CARRIER refit",
+          "caption": "Current SKY CARRIER refit fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "naval-lcm8-armor",
+          "shot": "naval-lcm8-armor",
+          "label": "LCM-8 — armour delivery",
+          "caption": "Current LCM-8 — armour delivery fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "naval-lcm8-truck",
+          "shot": "naval-lcm8-truck",
+          "label": "LCM-8 — truck delivery",
+          "caption": "Current LCM-8 — truck delivery fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "naval-lcac",
+          "shot": "naval-lcac",
+          "label": "Seized LCAC",
+          "caption": "Current Seized LCAC fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "naval-container",
+          "clip": "naval-container",
+          "label": "Feeder in sea state 4",
+          "caption": "Controlled sea-motion preview using the actual hull and deck refit.",
+          "reviewed": true
+        }
+      ]
+    },
+    {
+      "title": "Defence identity and visible state feedback",
+      "change": "Names now identify the 1980 Phalanx Block 0, Shilka and seized Pantsir-S1/TALON. Sea Sparrow and TALON covers progress through their visible launcher banks instead of resetting after each salvo; an empty bank replenishes on the existing gameplay cooldown. Launch cadence, damage and guidance are unchanged.",
+      "observed": "The gallery shows the tracked gun systems, radome-topped Phalanx, box launcher, seized truck/pedestal variants and fictional LANCE beam. The Sparrow clip is a short firing-preview interval; the full-bank progression is established by the automated checks.",
+      "checks": [
+        "All eight defence types passed production-model behavior checks, including complete launcher-bank use/replenishment and LANCE charge/beam/cooling states.",
+        "The rendered fixtures verify distinct roles against a durable practice drone before timing."
+      ],
+      "limitations": [
+        "These are abstract game fire-control systems. The naval TALON is a fictional refit and does not claim to model Pantsir-M."
+      ],
+      "media": [
+        {
+          "run": "defence-vads",
+          "shot": "defence-vads",
+          "label": "M163 VADS",
+          "caption": "Current M163 VADS fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "defence-shilka",
+          "shot": "defence-shilka",
+          "label": "ZSU-23-4 SHILKA",
+          "caption": "Current ZSU-23-4 SHILKA fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "defence-ciws",
+          "shot": "defence-ciws",
+          "label": "Phalanx CIWS — Block 0",
+          "caption": "Current Phalanx CIWS — Block 0 fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "defence-sparrow",
+          "shot": "defence-sparrow",
+          "label": "Sea Sparrow",
+          "caption": "Current Sea Sparrow fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "defence-talon",
+          "shot": "defence-talon",
+          "label": "Pantsir-S1 / RW TALON",
+          "caption": "Current Pantsir-S1 / RW TALON fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "defence-talonm",
+          "shot": "defence-talonm",
+          "label": "RW TALON — ship mount",
+          "caption": "Current RW TALON — ship mount fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "defence-lance",
+          "shot": "defence-lance",
+          "label": "RW-5 LANCE",
+          "caption": "Current RW-5 LANCE fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "defence-lancem",
+          "shot": "defence-lancem",
+          "label": "RW-5 LANCE — ship mount",
+          "caption": "Current RW-5 LANCE — ship mount fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "defence-sparrow",
+          "clip": "defence-sparrow",
+          "label": "Sea Sparrow preview",
+          "caption": "Used covers remain open between ordinary game salvos.",
+          "reviewed": true
+        }
+      ]
+    },
+    {
+      "title": "Structures keep their faction and damage state",
+      "change": "A single-site inspection host exercises the actual HQ, fuel, depot and radar models for both factions. Buttons call their production damage, destruction, rebuild and capture hooks; the benchmark reloads a pristine site so reclaimed wreckage does not silently change the sampled geometry.",
+      "observed": "Human bunkers, tanks, huts and radar equipment contrast with machine spires and the fabricator. Destruction swaps them for distinct wreckage; the radar clip shows its rotating array. The controls make these states directly reviewable.",
+      "checks": [
+        "Each of the eight structure cases passes ownership and visible-geometry transition checks, followed by a live rendered sample and screenshot.",
+        "Fleet, wheeled and defence registry coverage is guarded by the catalog regression."
+      ],
+      "limitations": [
+        "These tests exercise model state hooks, not a strategic battle capturing the island. Ambient people, wildlife, scenery vehicles and cave turrets remain covered by their existing world/cave suites."
+      ],
+      "media": [
+        {
+          "run": "human-hq",
+          "shot": "human-hq",
+          "label": "HQ bunker",
+          "caption": "Current HQ bunker fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "human-fuel",
+          "shot": "human-fuel",
+          "label": "Fuel farm",
+          "caption": "Current Fuel farm fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "human-factory",
+          "shot": "human-factory",
+          "label": "Supply depot",
+          "caption": "Current Supply depot fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "human-radar",
+          "shot": "human-radar",
+          "label": "Radar site",
+          "caption": "Current Radar site fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "runaway-hq",
+          "shot": "runaway-hq",
+          "label": "RUNAWAY command node",
+          "caption": "Current RUNAWAY command node fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "runaway-fuel",
+          "shot": "runaway-fuel",
+          "label": "RUNAWAY siphon spire",
+          "caption": "Current RUNAWAY siphon spire fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "runaway-factory",
+          "shot": "runaway-factory",
+          "label": "RUNAWAY fabricator",
+          "caption": "Current RUNAWAY fabricator fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "runaway-radar",
+          "shot": "runaway-radar",
+          "label": "RUNAWAY sensor spire",
+          "caption": "Current RUNAWAY sensor spire fixture. Production model in the controlled scene described in the raw run.",
+          "reviewed": true
+        },
+        {
+          "run": "human-radar",
+          "shot": "human-radar-wreck",
+          "label": "Radar wreckage",
+          "caption": "The same production site after destruction through the preview control.",
+          "reviewed": true
+        },
+        {
+          "run": "human-radar",
+          "clip": "human-radar",
+          "label": "Radar rotation",
+          "caption": "Pristine radar site after the damage/rebuild/capture assertions.",
+          "reviewed": true
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "All 48 current unit cases are verified on identical game content (47 from the final sweep and one targeted rerun). The report deliberately retains the initial RW7 fixture failure, conservative framing-check failure and visually inadequate earlier shots, each labelled separately.",
+    "Chrome 156 / SwiftShader / WSL, 1280×720 screenshots, seed 1980, 30 warmup frames and 30 measured intervals per unit. No other test browser or CPU regression batch ran during the measurements. Recording followed sampling.",
+    "These are short controlled-scene observations. Fixtures differ in scene complexity, internal resolution and squad/load content, so frame costs are not equal-load unit rankings. No performance improvement is claimed without a matching baseline.",
+    "CPU phase costs are unavailable for preview hosts without profiling. Native video duration can differ from the requested six-second wall window; encoding FPS is not game FPS.",
+    "Physical Quest 3 comfort/controllers/hands, sustained hardware FPS, busy-war endurance, deeper vehicle systems and overall strategy balance remain open. The existing desktop VR-status panel still overlaps part of some HUD/modal views."
+  ]
+}

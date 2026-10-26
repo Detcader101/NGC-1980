@@ -1,5 +1,54 @@
 # Sandbox validation
 
+## Individual units and identity fixes — 2026-10-26
+
+The [unit devlog](../devlogs/2026-10-26-units/devlog.html) contains the reviewed evidence and retained failures.
+[UNIT-BENCHMARKS](UNIT-BENCHMARKS.md) lists the 48 cases, selectors, scope and reference findings. Aircraft, ground,
+and naval/defence agents worked in isolated branches; the integration added structures, catalog guards and serial
+execution. The installed DCS UH-1H manual informed the control/instrument audit; no DCS code or assets were copied.
+
+**All 48 cases are verified, with 198/198 current unit assertions and 5/5 desktop smoke checks.** This is a collection
+of 47 passing final-sweep cases plus a successful parachute rerun, all with game tree
+`c6ca65541018026803cf95832e727145b28b8c45` and content SHA-256
+`b810b4dc3116a695bf8d3d9e8746aaa39cc31e7384b05057753805d478cda386`.
+The last game change is `90f7cf6`; sweep source is `57ff156`, and the fixture-only rerun/smoke source is `59beb4e`.
+[Verified summary](evidence/units-2026-10-26/verified-summary.json) records every selected source and result.
+
+| Group | Cases | Principal coverage |
+|---|---:|---|
+| Aircraft and parachute deployment | 11 | Engines, flight roles, transports, stopped pushers and canopy framing |
+| Ground | 13 | Tyres/tracks, driving, prone crawl, walker/hover roles and captured tank transitions |
+| Naval | 8 | Actual hull/refit/cargo geometry, deck support and ramps |
+| Defence | 8 | Model identity and launcher/beam state feedback |
+| Structures | 8 | Both factions' ownership, damage, wreckage and rebuilding |
+
+The initial sweep passed 47/48 cases: its RW-7 assertion incorrectly demanded every fan be powered during settling.
+The corrected fixture waits for trim, then checks sustained lift, pressure and clearance. Visual review separately
+exposed cropped parachutes, a Marine knee passing through terrain and a delivery camera aimed at a hillside. Those
+were corrected. The final sweep also passed 47/48: its parachute test projected empty corners of a world-aligned box
+and failed a margin although the actual geometry fit. The rerun projects drawn vertices at the same margin and
+passes 6/6. [Initial suite](evidence/units-2026-10-26/initial-suite.json),
+[final sweep](evidence/units-2026-10-26/final-sweep.json) and
+[rerun](evidence/units-2026-10-26/paratrooper-rerun.json) retain their original verdicts. The report deliberately says
+“failures included”; its aggregate includes historical attempts as well as the current passing collection.
+
+The full [Node gate](evidence/units-2026-10-26/node-full.json) passed **525/525 runner checks**: 471 syntax modules
+and 54 regression programs. After the final visual fixes, **471/471 syntax checks** and the affected infantry (90),
+ground role/geometry (15), Marine, transport, evidence-tool (16) and catalog (7) checks passed again. Their logs are
+preserved in the same evidence directory. This does not relabel the earlier full gate as a post-fix rerun.
+
+The verified unit collection contains **65 PNGs, nine clips and 1,440 measured frame intervals**, with zero page or
+console errors. All current screenshots were inspected, as were the selected original comparison images. Nine clips
+were reviewed through decoded contacts and six additional frames each; the offline report played and sought all
+nine. Its [review](evidence/units-2026-10-26/report-checks.json) passed **17/17 checks**, including hashes, local links,
+image decoding, desktop/390 px layout and no browser errors. The complete portable report is under `docs/devlogs/`.
+
+Runs used Chrome 156 / SwiftShader / WSL, seed 1980, 1280×720 output, 30 warmup frames and 30 measured intervals per
+case. Browsers ran serially, without CPU regression batches during timing; media capture followed timing. Actual
+drawing buffers and scene complexity vary. These short samples are smoke evidence, not comparable unit rankings,
+hardware FPS or performance-improvement claims. Physical Quest 3 behavior, busy-war endurance and deeper systems
+remain open. The existing VR-status panel still overlaps portions of some desktop HUD/modal views.
+
 ## Benchmark and devlog workflow — 2026-10-26
 
 The two independent skills are [benchmark](../../skills/benchmark/SKILL.md) and

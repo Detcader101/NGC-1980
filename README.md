@@ -22,6 +22,7 @@ tracking share the desktop sandbox; menus and keyboard actions are available on 
 evidence into an offline HTML development report. Install the two versioned skills with `node tools/install-skills.mjs`.
 Commands and report format: [tools guide](tools/README.md#benchmark-and-html-devlog-skills).
 [Open the example HTML devlog](docs/devlogs/2026-10-26-evidence/devlog.html), including playable desktop and VR clips.
+[Unit audit devlog](docs/devlogs/2026-10-26-units/devlog.html): 48 selectable unit cases, reviewed screenshots and nine clips.
 [Per-unit benchmark coverage](docs/ngc1980/UNIT-BENCHMARKS.md): `node tools/unit-benchmark.mjs --list` lists individual unit fixtures.
 
 ![The KRAKEN and the enemy battleship](docs/screenshot.png)

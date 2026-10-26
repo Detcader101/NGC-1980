@@ -1,0 +1,542 @@
+{
+  "schemaVersion": 2,
+  "name": "unit-naval-kraken",
+  "query": "dev/ships.html?ship=kraken&sea=4&speed=4&ui=0&cam=0.8,0.32,195,0,9,0",
+  "seed": 1980,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "870a8f2d7461a16ad15cadc2eef0c3d076e1960adf9a379dbb5640b75cadcf88",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/snap.mjs",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/scenes/unit.mjs",
+    "--out",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/runs/units-2026-10-26-final/naval-kraken",
+    "--frames",
+    "30"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "57ff1564f84d3ecc75ac7e7fe66457a97d582293",
+    "branch": "ngc/unit-bench",
+    "gameTree": "c6ca65541018026803cf95832e727145b28b8c45",
+    "gameSha256": "b810b4dc3116a695bf8d3d9e8746aaa39cc31e7384b05057753805d478cda386",
+    "dirty": false,
+    "status": ""
+  },
+  "url": "http://127.0.0.1:36429/dev/ships.html?ship=kraken&sea=4&speed=4&ui=0&cam=0.8,0.32,195,0,9,0",
+  "ok": true,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": null,
+  "shots": [
+    {
+      "name": "naval-kraken",
+      "file": "01-naval-kraken.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 77.4,
+      "litFraction": 0.9977,
+      "colors": 181
+    }
+  ],
+  "clips": [],
+  "benchmarks": [
+    {
+      "name": "naval-kraken",
+      "policy": {
+        "frames": 30,
+        "warmup": 30,
+        "timeoutMs": 120000
+      },
+      "rows": [
+        {
+          "frame": 36,
+          "ms": 17,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 37,
+          "ms": 16.600000008940697,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 38,
+          "ms": 16.299999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 39,
+          "ms": 17,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 40,
+          "ms": 16.200000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 41,
+          "ms": 16.799999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 42,
+          "ms": 16.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 43,
+          "ms": 17.700000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 44,
+          "ms": 15.899999991059303,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 45,
+          "ms": 16.799999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 46,
+          "ms": 16.30000001192093,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 47,
+          "ms": 17.19999998807907,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 48,
+          "ms": 16.30000001192093,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 49,
+          "ms": 16.69999998807907,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 50,
+          "ms": 16.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 51,
+          "ms": 17.100000008940697,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 52,
+          "ms": 16.200000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 53,
+          "ms": 16.599999994039536,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 54,
+          "ms": 16.799999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 55,
+          "ms": 16.900000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 56,
+          "ms": 16.399999991059303,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 57,
+          "ms": 16.900000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 58,
+          "ms": 16.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 59,
+          "ms": 16.599999994039536,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 60,
+          "ms": 17.100000008940697,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 61,
+          "ms": 16.099999994039536,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 62,
+          "ms": 17.100000008940697,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 63,
+          "ms": 16.299999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 64,
+          "ms": 16.899999991059303,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 104,
+          "triangles": 20329,
+          "textures": 2,
+          "geometries": 105
+        },
+        {
+          "frame": 65,
+          "ms": 16.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 105,
+          "triangles": 20365,
+          "textures": 2,
+          "geometries": 105
+        }
+      ],
+      "xr": false,
+      "host": "dev-ships",
+      "route": "/dev/ships.html?ship=kraken&sea=4&speed=4&ui=0&cam=0.8,0.32,195,0,9,0",
+      "state": "live",
+      "mode": "preview",
+      "drawingBuffer": [
+        1280,
+        720
+      ],
+      "eyeViewports": [],
+      "summary": {
+        "samples": 30,
+        "frameMs": {
+          "count": 30,
+          "mean": 16.65999999990066,
+          "p50": 16.599999994039536,
+          "p95": 17.100000008940697,
+          "p99": 17.19999998807907,
+          "min": 15.899999991059303,
+          "max": 17.700000002980232
+        },
+        "observedFps": 60.02400960419945,
+        "cpuMs": {
+          "sim": null,
+          "prep": null,
+          "renderSubmit": null
+        },
+        "drawCalls": {
+          "count": 30,
+          "mean": 104.03333333333333,
+          "p50": 104,
+          "p95": 104,
+          "p99": 104,
+          "min": 104,
+          "max": 105
+        },
+        "triangles": {
+          "count": 30,
+          "mean": 20330.2,
+          "p50": 20329,
+          "p95": 20329,
+          "p99": 20329,
+          "min": 20329,
+          "max": 20365
+        },
+        "textures": {
+          "count": 30,
+          "mean": 2,
+          "p50": 2,
+          "p95": 2,
+          "p99": 2,
+          "min": 2,
+          "max": 2
+        },
+        "geometries": {
+          "count": 30,
+          "mean": 105,
+          "p50": 105,
+          "p95": 105,
+          "p99": 105,
+          "min": 105,
+          "max": 105
+        }
+      },
+      "qualification": "Wall-clock intervals between observed rendered frames. CPU phases are game-smoothed CPU timings, not GPU durations. Render counters describe the last render pass. No capture during sampling."
+    }
+  ],
+  "evals": [
+    {
+      "expr": "(function exercise(ship) {\n  const p = __S.cur.parts, T = __S.THREE, out = {};\n  if (__S.mo) {\n    let lo = Infinity, hi = -Infinity;\n    for (let i = 0; i < 360; i++) { __S.step(1 / 30); lo = Math.min(lo, __S.mo.heave); hi = Math.max(hi, __S.mo.heave); }\n    out.motion = hi - lo; out.finite = [__S.mo.heave, __S.mo.pitch, __S.mo.roll].every(Number.isFinite);\n    out.mounts = p.guns.map(g => g.userData.defType);\n  }\n  if (ship === 'albatross') {\n    const L = p.lifts[2], before = p.localDeck(L.cx, L.cz);\n    p.lift(2, 'down'); for (let i = 0; i < 300; i++) p.tick(1 / 30, i / 30, 1000);\n    out.liftDrop = before - p.localDeck(L.cx, L.cz); out.liftMatches = Math.abs(p.localDeck(L.cx, L.cz) - L.grp.position.y) < 1e-5;\n    p.setJBD(1); out.jbdRaised = p.jbd.rotation.x < -0.8; p.lift(2, 'up');\n  } else if (ship === 'kraken') {\n    out.broadBow = p.localDeck(7, -64) > 0; out.aftIsland = p.tower.position.z > 20; out.exhaust = p.fx.smoke;\n  } else if (ship === 'leviathan') {\n    const a = p.turrets[0].userData, b = p.turrets[1].userData, rest = a.barrels.position.z;\n    a.fire(); out.recoil = a.barrels.position.z - rest; out.otherCold = b.heat === 0;\n    for (let i = 0; i < 240; i++) p.tick(1 / 30);\n    out.recovered = Math.abs(a.barrels.position.z - rest) < 1e-4; out.turrets = p.turrets.length;\n  } else if (ship === 'container') {\n    p.group.updateMatrixWorld(true);\n    const q = p.group.getWorldQuaternion(new T.Quaternion());\n    const dir = new T.Vector3(0, -1, 0).applyQuaternion(q);\n    const points = [[3, -30.3], [-4, -31], [6, -30.3], [1.2, -34.5], [-1.5, -37.5]];\n    out.surfaceError = Math.max(...points.map(([x, z]) => {\n      const origin = p.group.localToWorld(new T.Vector3(x, 100, z));\n      const hit = new T.Raycaster(origin, dir).intersectObject(p.hull, true)[0];\n      return hit ? Math.abs(p.group.worldToLocal(hit.point.clone()).y - p.localDeck(x, z)) : 1e9;\n    }));\n    out.noPhantomLedge = p.localDeck(6.3, -30.3) < p.localDeck(6, -30.3);\n    out.containers = p.group.getObjectByName('containers').count; out.exhaust = p.fx.smoke;\n  } else if (ship === 'sky') {\n    const angles = p.fans.map(f => f.rotor.rotation.y); __S.step(0.1); p.group.updateMatrixWorld(true);\n    out.fans = p.fans.length;\n    out.rotating = p.fans.every((f, i) => f.rotor.rotation.y > angles[i]);\n    out.outboard = p.fans.every(f => Math.abs(f.rotor.getWorldPosition(new T.Vector3()).x) > p.dims.W / 2);\n  } else {\n    const cargo = new T.Box3().setFromObject(p.cargo.group).getSize(new T.Vector3());\n    out.cargoWidth = cargo.x; out.cargoPresent = !!p.cargo.group.parent;\n    if (ship === 'lcm8') {\n      p.animate({ ramp: 1.42 }); p.group.updateMatrixWorld(true); const a = p.ramp.localToWorld(new T.Vector3(0, 0, -3.7));\n      p.animate({ ramp: -0.42 }); p.group.updateMatrixWorld(true); const b = p.ramp.localToWorld(new T.Vector3(0, 0, -3.7));\n      out.rampLowers = b.y < a.y - 3 && b.z < a.z - 2;\n      const hit = new T.Raycaster(new T.Vector3(1, 100, 5.6), new T.Vector3(0, -1, 0)).intersectObject(p.group, true)[0];\n      out.roofMatches = !!hit && Math.abs(hit.point.y - p.localDeck(1, 5.6)) < 1e-4;\n    } else if (ship === 'lcm8truck') {\n      p.ramp.rotation.x = 0; p.group.updateMatrixWorld(true); const a = p.ramp.localToWorld(new T.Vector3(0, 2, 0));\n      p.ramp.rotation.x = -1.32; p.group.updateMatrixWorld(true); const b = p.ramp.localToWorld(new T.Vector3(0, 2, 0));\n      out.rampLowers = b.y < a.y - 1 && b.z < a.z - 1.5;\n    } else {\n      p.animate({ ramp: 0, prop: 0, lift: 1 }, 0); p.group.updateMatrixWorld(true); const a = p.ramp.localToWorld(new T.Vector3(0, 0, -4.6));\n      p.animate({ ramp: 1, prop: 0.5, lift: 1 }, 0.5); p.group.updateMatrixWorld(true); const b = p.ramp.localToWorld(new T.Vector3(0, 0, -4.6));\n      out.rampLowers = b.y < 0.1 && b.z < a.z - 2;\n      out.props = p.props.length; out.rotating = p.props.every(prop => prop.rotation.z > 0);\n    }\n  }\n  window.__navalCase = out; return out;\n})(\"kraken\")",
+      "label": "KRAKEN role checks",
+      "value": {
+        "motion": 0.026745597203266913,
+        "finite": true,
+        "mounts": [
+          "talonm",
+          "talonm",
+          "lancem",
+          "lancem"
+        ],
+        "broadBow": true,
+        "aftIsland": true,
+        "exhaust": 0
+      }
+    },
+    {
+      "expr": "(delete window.__navalCase, true)",
+      "value": true
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__navalCase.finite && __navalCase.motion > 0.01",
+      "label": "finite rendered vessel motion in sea state 4",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__navalCase.mounts.length > 0 && __navalCase.mounts.every(Boolean)",
+      "label": "active war mounts replace placeholders",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__navalCase.broadBow && __navalCase.aftIsland && __navalCase.exhaust === 0",
+      "label": "distinct seized nuclear carrier identity",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(naval-kraken)",
+      "ok": true,
+      "value": 0.9977
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-26T14:18:34.828Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "57ff1564f84d3ecc75ac7e7fe66457a97d582293",
+    "branch": "ngc/unit-bench",
+    "gameTree": "c6ca65541018026803cf95832e727145b28b8c45",
+    "gameSha256": "b810b4dc3116a695bf8d3d9e8746aaa39cc31e7384b05057753805d478cda386",
+    "dirty": false,
+    "status": ""
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": null,
+    "state": null
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "57ff1564f84d3ecc75ac7e7fe66457a97d582293",
+    "branch": "ngc/unit-bench",
+    "gameTree": "c6ca65541018026803cf95832e727145b28b8c45",
+    "gameSha256": "b810b4dc3116a695bf8d3d9e8746aaa39cc31e7384b05057753805d478cda386",
+    "dirty": false,
+    "status": ""
+  },
+  "summary": "PASS: 4/4 expects, 0 page errors, 0 console errors",
+  "durationMs": 2559,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/runs/units-2026-10-26-final/naval-kraken"
+}

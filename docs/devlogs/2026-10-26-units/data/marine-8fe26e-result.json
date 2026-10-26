@@ -1,0 +1,555 @@
+{
+  "schemaVersion": 2,
+  "name": "unit-marine",
+  "query": "dev/infantry.html?debug&third&weapon=1&res=0.5&ui=0",
+  "seed": 1980,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "fa476a11145ad750d1ac6924ae71c0fc26cfce0260734e9491232a39496c9930",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/snap.mjs",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/scenes/unit.mjs",
+    "--out",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/runs/units-2026-10-26-final/marine",
+    "--capture",
+    "--frames",
+    "30"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "57ff1564f84d3ecc75ac7e7fe66457a97d582293",
+    "branch": "ngc/unit-bench",
+    "gameTree": "c6ca65541018026803cf95832e727145b28b8c45",
+    "gameSha256": "b810b4dc3116a695bf8d3d9e8746aaa39cc31e7384b05057753805d478cda386",
+    "dirty": false,
+    "status": ""
+  },
+  "url": "http://127.0.0.1:45995/dev/infantry.html?debug&third&weapon=1&res=0.5&ui=0",
+  "ok": true,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": null,
+  "shots": [
+    {
+      "name": "marine",
+      "file": "01-marine.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 118.3,
+      "litFraction": 0.9865,
+      "colors": 130
+    }
+  ],
+  "clips": [
+    {
+      "name": "marine",
+      "file": "01-marine.mp4",
+      "contact": "01-marine-contact.png",
+      "poster": "01-marine-poster.png",
+      "requestedDurationMs": 6000,
+      "wallMs": 6009.77078,
+      "requestedFps": 15,
+      "bytes": 164854,
+      "audio": false,
+      "durationSeconds": 5.366933,
+      "width": 800,
+      "height": 450,
+      "samples": [
+        {
+          "time": 0.6440319600000001,
+          "litFraction": 0.9820601851851852,
+          "fingerprint": "402a8bc8"
+        },
+        {
+          "time": 2.6834665,
+          "litFraction": 0.9839409722222222,
+          "fingerprint": "a3539c8b"
+        },
+        {
+          "time": 4.72290104,
+          "litFraction": 0.9867380401234568,
+          "fingerprint": "6fc823b9"
+        }
+      ],
+      "qualification": "Wall-time page capture, including DOM UI. Encoded duration may be shorter than the requested wall window; capture overhead and dropped frames affect playback. Encoded FPS is not game FPS. Contact sheet is decoded from this MP4."
+    }
+  ],
+  "benchmarks": [
+    {
+      "name": "marine",
+      "policy": {
+        "frames": 30,
+        "warmup": 30,
+        "timeoutMs": 120000
+      },
+      "rows": [
+        {
+          "frame": 157,
+          "ms": 29.100000008940697,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 158,
+          "ms": 27.899999991059303,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 159,
+          "ms": 25.900000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 160,
+          "ms": 56.8999999910593,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 161,
+          "ms": 29.900000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 162,
+          "ms": 25.799999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 163,
+          "ms": 27.400000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 164,
+          "ms": 22.399999991059303,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 165,
+          "ms": 10.300000011920929,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 166,
+          "ms": 23.19999998807907,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 167,
+          "ms": 27.400000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 168,
+          "ms": 26,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 169,
+          "ms": 25.900000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 170,
+          "ms": 32.19999998807907,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 171,
+          "ms": 29.900000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 172,
+          "ms": 26.200000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 173,
+          "ms": 26.399999991059303,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 174,
+          "ms": 27.200000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 175,
+          "ms": 27.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 176,
+          "ms": 28.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 177,
+          "ms": 25,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 178,
+          "ms": 27.100000008940697,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 179,
+          "ms": 31.899999991059303,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 180,
+          "ms": 55.900000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 181,
+          "ms": 28.700000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 182,
+          "ms": 25.299999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 183,
+          "ms": 27.399999991059303,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 184,
+          "ms": 20.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 185,
+          "ms": 7.800000011920929,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        },
+        {
+          "frame": 186,
+          "ms": 25.399999991059303,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 133,
+          "triangles": 80262,
+          "textures": 9,
+          "geometries": 133
+        }
+      ],
+      "xr": false,
+      "host": "dev-infantry",
+      "route": "/dev/infantry.html?debug&third&weapon=1&res=0.5&ui=0",
+      "state": "live",
+      "mode": "preview",
+      "drawingBuffer": [
+        640,
+        360
+      ],
+      "eyeViewports": [],
+      "summary": {
+        "samples": 30,
+        "frameMs": {
+          "count": 30,
+          "mean": 27.7,
+          "p50": 27.100000008940697,
+          "p95": 32.19999998807907,
+          "p99": 55.900000005960464,
+          "min": 7.800000011920929,
+          "max": 56.8999999910593
+        },
+        "observedFps": 36.101083032490976,
+        "cpuMs": {
+          "sim": null,
+          "prep": null,
+          "renderSubmit": null
+        },
+        "drawCalls": {
+          "count": 30,
+          "mean": 133,
+          "p50": 133,
+          "p95": 133,
+          "p99": 133,
+          "min": 133,
+          "max": 133
+        },
+        "triangles": {
+          "count": 30,
+          "mean": 80262,
+          "p50": 80262,
+          "p95": 80262,
+          "p99": 80262,
+          "min": 80262,
+          "max": 80262
+        },
+        "textures": {
+          "count": 30,
+          "mean": 9,
+          "p50": 9,
+          "p95": 9,
+          "p99": 9,
+          "min": 9,
+          "max": 9
+        },
+        "geometries": {
+          "count": 30,
+          "mean": 133,
+          "p50": 133,
+          "p95": 133,
+          "p99": 133,
+          "min": 133,
+          "max": 133
+        }
+      },
+      "qualification": "Wall-clock intervals between observed rendered frames. CPU phases are game-smoothed CPU timings, not GPU durations. Render counters describe the last render pass. No capture during sampling."
+    }
+  ],
+  "evals": [
+    {
+      "expr": "(__I.input({move:[0,1]}),true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.input({stance:\"prone\",move:[0,1]}),true)",
+      "value": true
+    },
+    {
+      "expr": "__I.clear()",
+      "value": true
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__I.S.eyeH<.8 && __I.R.cur.key===\"M16A1\" && __I.me.root.visible",
+      "label": "low prone pose retains the period rifle and third-person body",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(marine)",
+      "ok": true,
+      "value": 0.9865
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-26T14:17:59.888Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "57ff1564f84d3ecc75ac7e7fe66457a97d582293",
+    "branch": "ngc/unit-bench",
+    "gameTree": "c6ca65541018026803cf95832e727145b28b8c45",
+    "gameSha256": "b810b4dc3116a695bf8d3d9e8746aaa39cc31e7384b05057753805d478cda386",
+    "dirty": false,
+    "status": ""
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": null,
+    "state": null
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "57ff1564f84d3ecc75ac7e7fe66457a97d582293",
+    "branch": "ngc/unit-bench",
+    "gameTree": "c6ca65541018026803cf95832e727145b28b8c45",
+    "gameSha256": "b810b4dc3116a695bf8d3d9e8746aaa39cc31e7384b05057753805d478cda386",
+    "dirty": false,
+    "status": ""
+  },
+  "summary": "PASS: 2/2 expects, 0 page errors, 0 console errors",
+  "durationMs": 13747,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/runs/units-2026-10-26-final/marine"
+}

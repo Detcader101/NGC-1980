@@ -1,0 +1,535 @@
+{
+  "schemaVersion": 2,
+  "name": "unit-defence-vads",
+  "query": "dev/defence.html?mode=fight&unit=vads&drones=1&hill=0&ui=0&cam=0.8,0.26,12,0,2,0",
+  "seed": 1980,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "c294a528933dd1902eac1575ddd6c9b232100cd6b402f880bfb402f72604ea6b",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/snap.mjs",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/scenes/unit.mjs",
+    "--out",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/runs/units-2026-10-26-final/defence-vads",
+    "--frames",
+    "30"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "57ff1564f84d3ecc75ac7e7fe66457a97d582293",
+    "branch": "ngc/unit-bench",
+    "gameTree": "c6ca65541018026803cf95832e727145b28b8c45",
+    "gameSha256": "b810b4dc3116a695bf8d3d9e8746aaa39cc31e7384b05057753805d478cda386",
+    "dirty": false,
+    "status": ""
+  },
+  "url": "http://127.0.0.1:38525/dev/defence.html?mode=fight&unit=vads&drones=1&hill=0&ui=0&cam=0.8,0.26,12,0,2,0",
+  "ok": true,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": null,
+  "shots": [
+    {
+      "name": "defence-vads",
+      "file": "01-defence-vads.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 98.7,
+      "litFraction": 0.9959,
+      "colors": 81
+    }
+  ],
+  "clips": [],
+  "benchmarks": [
+    {
+      "name": "defence-vads",
+      "policy": {
+        "frames": 30,
+        "warmup": 30,
+        "timeoutMs": 120000
+      },
+      "rows": [
+        {
+          "frame": 36,
+          "ms": 16.200000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 17,
+          "triangles": 49635,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 37,
+          "ms": 16.700000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 17,
+          "triangles": 49635,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 38,
+          "ms": 16.399999991059303,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 17,
+          "triangles": 49635,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 39,
+          "ms": 16.700000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 17,
+          "triangles": 49635,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 40,
+          "ms": 16.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 11,
+          "triangles": 49607,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 41,
+          "ms": 16.900000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 17,
+          "triangles": 49635,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 42,
+          "ms": 16.200000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 11,
+          "triangles": 49607,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 43,
+          "ms": 16.899999991059303,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 11,
+          "triangles": 49607,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 44,
+          "ms": 16.600000008940697,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 11,
+          "triangles": 49607,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 45,
+          "ms": 16.599999994039536,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 11,
+          "triangles": 49607,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 46,
+          "ms": 16.700000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 11,
+          "triangles": 49607,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 47,
+          "ms": 16.899999991059303,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 11,
+          "triangles": 49607,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 48,
+          "ms": 16.400000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 11,
+          "triangles": 49607,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 49,
+          "ms": 17,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 11,
+          "triangles": 49607,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 50,
+          "ms": 16.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 11,
+          "triangles": 49607,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 51,
+          "ms": 366.40000000596046,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 11,
+          "triangles": 49607,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 52,
+          "ms": 0.3999999910593033,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 11,
+          "triangles": 49607,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 53,
+          "ms": 16.600000008940697,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 11,
+          "triangles": 49607,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 54,
+          "ms": 16.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 11,
+          "triangles": 49607,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 55,
+          "ms": 16.69999998807907,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 11,
+          "triangles": 49607,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 56,
+          "ms": 17,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 11,
+          "triangles": 49607,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 57,
+          "ms": 16.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 11,
+          "triangles": 49607,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 58,
+          "ms": 16.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 11,
+          "triangles": 49607,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 59,
+          "ms": 16.80000001192093,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 11,
+          "triangles": 49607,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 60,
+          "ms": 16.599999994039536,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 11,
+          "triangles": 49607,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 61,
+          "ms": 16.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 11,
+          "triangles": 49607,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 62,
+          "ms": 16.700000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 11,
+          "triangles": 49607,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 63,
+          "ms": 16.799999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 11,
+          "triangles": 49607,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 64,
+          "ms": 16.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 11,
+          "triangles": 49607,
+          "textures": 3,
+          "geometries": 24
+        },
+        {
+          "frame": 65,
+          "ms": 16.599999994039536,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 11,
+          "triangles": 49607,
+          "textures": 3,
+          "geometries": 24
+        }
+      ],
+      "xr": false,
+      "host": "dev-defence",
+      "route": "/dev/defence.html?mode=fight&unit=vads&drones=1&hill=0&ui=0&cam=0.8,0.26,12,0,2,0",
+      "state": "live",
+      "mode": "preview",
+      "drawingBuffer": [
+        1280,
+        720
+      ],
+      "eyeViewports": [],
+      "summary": {
+        "samples": 30,
+        "frameMs": {
+          "count": 30,
+          "mean": 27.74333333323399,
+          "p50": 16.599999994039536,
+          "p95": 17,
+          "p99": 17,
+          "min": 0.3999999910593033,
+          "max": 366.40000000596046
+        },
+        "observedFps": 36.04469542245275,
+        "cpuMs": {
+          "sim": null,
+          "prep": null,
+          "renderSubmit": null
+        },
+        "drawCalls": {
+          "count": 30,
+          "mean": 12,
+          "p50": 11,
+          "p95": 17,
+          "p99": 17,
+          "min": 11,
+          "max": 17
+        },
+        "triangles": {
+          "count": 30,
+          "mean": 49611.666666666664,
+          "p50": 49607,
+          "p95": 49635,
+          "p99": 49635,
+          "min": 49607,
+          "max": 49635
+        },
+        "textures": {
+          "count": 30,
+          "mean": 3,
+          "p50": 3,
+          "p95": 3,
+          "p99": 3,
+          "min": 3,
+          "max": 3
+        },
+        "geometries": {
+          "count": 30,
+          "mean": 24,
+          "p50": 24,
+          "p95": 24,
+          "p99": 24,
+          "min": 24,
+          "max": 24
+        }
+      },
+      "qualification": "Wall-clock intervals between observed rendered frames. CPU phases are game-smoothed CPU timings, not GPU durations. Render counters describe the last render pass. No capture during sampling."
+    }
+  ],
+  "evals": [
+    {
+      "expr": "(function exercise(type) {\n  __D.pause(); __D.setUnit(type);\n  const d = __D.drones[0]; Object.assign(d, { R: ['sparrow', 'talon', 'talonm'].includes(type) ? 100 : 35, alt: 20, spd: 0, ph: 0, hp: 1e6, hpMax: 1e6 });\n  const u = __D.unit, ud = u.mesh.userData, D = u.def, result = { states: [], spin: 0, maxSpent: 0, muzzles: ud.muzzles.length, cells: ud.cells?.length || 0, searchRadar: !!ud.radar };\n  const states = new Set();\n  for (let i = 0; i < 900; i++) {\n    __D.run(1 / 30); states.add(D.beam?.st || D.mode);\n    result.spin = Math.max(result.spin, D.spin); result.maxSpent = Math.max(result.maxSpent, D.cellsSpent || 0);\n    if (D.beam) { result.chargeLine ||= D.beam.st === 'charge' && D.beam.line.visible; result.beam ||= D.beam.st === 'on' && D.beam.g.visible; result.hotRadiators ||= D.beam.st === 'cool' && ud.finM.color.r > 0.5; }\n  }\n  result.states = [...states]; result.hits = __D.S.hits; result.finite = [D.yaw, D.pitch, D.err].every(Number.isFinite);\n  // Keep the role exercised during the rendered sample. The parked, durable practice drone is a fixture.\n  __D.pause(false); window.__defenceCase = result; return result;\n})(\"vads\")",
+      "label": "M163 VADS role checks",
+      "value": {
+        "states": [
+          "track"
+        ],
+        "spin": 1,
+        "maxSpent": 0,
+        "muzzles": 1,
+        "cells": 0,
+        "searchRadar": false,
+        "hits": 324,
+        "finite": true
+      }
+    },
+    {
+      "expr": "(__D.pause(false), delete window.__defenceCase, true)",
+      "value": true
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__defenceCase.finite && __defenceCase.hits > 0",
+      "label": "finite unit articulation and practice-drone hit feedback",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__defenceCase.spin > 0.7 && !__defenceCase.searchRadar",
+      "label": "VADS spins its gun, not a search-radar dish",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(defence-vads)",
+      "ok": true,
+      "value": 0.9959
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-26T14:18:59.336Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "57ff1564f84d3ecc75ac7e7fe66457a97d582293",
+    "branch": "ngc/unit-bench",
+    "gameTree": "c6ca65541018026803cf95832e727145b28b8c45",
+    "gameSha256": "b810b4dc3116a695bf8d3d9e8746aaa39cc31e7384b05057753805d478cda386",
+    "dirty": false,
+    "status": ""
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": null,
+    "state": null
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "57ff1564f84d3ecc75ac7e7fe66457a97d582293",
+    "branch": "ngc/unit-bench",
+    "gameTree": "c6ca65541018026803cf95832e727145b28b8c45",
+    "gameSha256": "b810b4dc3116a695bf8d3d9e8746aaa39cc31e7384b05057753805d478cda386",
+    "dirty": false,
+    "status": ""
+  },
+  "summary": "PASS: 3/3 expects, 0 page errors, 0 console errors",
+  "durationMs": 2262,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/runs/units-2026-10-26-final/defence-vads"
+}

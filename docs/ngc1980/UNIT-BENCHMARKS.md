@@ -1,5 +1,10 @@
 # Unit benchmarks and identity audit
 
+The completed [HTML devlog](../devlogs/2026-10-26-units/devlog.html) documents all **48 verified cases**, **198 passing
+unit assertions**, 65 screenshots and nine clips. The verified collection combines 47 final-sweep cases with one
+successful parachute rerun on identical game content. [Validation](VALIDATION.md) and the
+[machine-readable summary](evidence/units-2026-10-26/verified-summary.json) preserve both earlier failed attempts.
+
 The active roster has individually selectable fixtures in `tools/unit-cases/`. Each case describes its setup,
 checks a unit-specific behavior, samples actual rendered frames, then captures a screenshot. Optional short clips
 run after sampling. The suite includes civilian vehicles, captured modern hardware, landing-craft variants,
