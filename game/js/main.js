@@ -2445,7 +2445,7 @@ function frame(now, xrFrame) {
   if (!XR?.render(drawDesktop)) drawDesktop();
   markers.draw(zCam, markerView());   // UNIT MARKERS: icons + health bars, one 2D layer over the frame
   const t3 = performance.now(), pk = 0.05;   // smoothed per-frame CPU cost: sim, scene/HUD prep, render submit
-  if (window.__xrlog && XR?.active && (XR.state.frames < 40 || XR.state.frames % 60 === 0)) window.__xrlog(`XRFRAME ${XR.state.frames} dt ${(now - now0 < 0 ? 0 : rdt * 1000).toFixed(0)}ms sim ${(t1 - now0).toFixed(0)} prep ${(t2 - t1).toFixed(0)} render ${(t3 - t2).toFixed(0)} flat ${XR.state.flat} track ${XR.state.tracking} vis ${document.visibilityState} state ${G.state} ${XR.state.error}`);
+  if (window.__xrlog && XR?.active && (XR.state.frames < 40 || XR.state.frames % 60 === 0)) window.__xrlog(`XRFRAME ${XR.state.frames} dt ${(now - now0 < 0 ? 0 : rdt * 1000).toFixed(0)}ms sim ${(t1 - now0).toFixed(0)} prep ${(t2 - t1).toFixed(0)} render ${(t3 - t2).toFixed(0)} calls ${XR.state.calls} tris ${XR.state.triangles} flat ${XR.state.flat} track ${XR.state.tracking} vis ${document.visibilityState} state ${G.state} ${XR.state.error}`);
   PROF.sim += ((t1 - now0) - PROF.sim) * pk; PROF.prep += ((t2 - t1) - PROF.prep) * pk; PROF.render += ((t3 - t2) - PROF.render) * pk;
 }
 const PROF = { sim: 0, prep: 0, render: 0 };

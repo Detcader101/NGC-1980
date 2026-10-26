@@ -11,7 +11,7 @@ export function createXR(h) {
   const rt=new THREE.WebGLRenderTarget(1024,576,{depthBuffer:true});
   const screen=new THREE.Mesh(new THREE.PlaneGeometry(2.8,2.8*9/16),new THREE.MeshBasicMaterial({map:rt.texture,toneMapped:false}));
   screen.name='VR optical/cave display'; rig.add(screen); screen.visible=false;
-  const state={active:false,supported:false,requesting:false,physical:false,flat:false,frames:0,error:'',hands:0,controllers:0,tracking:false,footYaw:0};
+  const state={calls:0,triangles:0,active:false,supported:false,requesting:false,physical:false,flat:false,frames:0,error:'',hands:0,controllers:0,tracking:false,footYaw:0};
   const controls=[], raycaster=new THREE.Raycaster(), q=new THREE.Quaternion(), v=new THREE.Vector3(), euler=new THREE.Euler(0,0,0,'YXZ');
   const calibration={p:new THREE.Vector3(),q:new THREE.Quaternion(),needed:true};
   let session=null, visible=true, context='', previousFlat=false, pendingResize=false;
@@ -159,7 +159,7 @@ export function createXR(h) {
         const oldTarget=renderer.getRenderTarget();manager.enabled=false;
         try {renderer.setRenderTarget(rt);drawDesktop();} finally{renderer.setRenderTarget(oldTarget);manager.enabled=true;}
         renderer.render(room,xrCamera);
-      }else {renderer.render(scene,xrCamera);h.overlay(xrCamera);}
+      }else {renderer.render(scene,xrCamera);state.calls=renderer.info.render.calls;state.triangles=renderer.info.render.triangles;h.overlay(xrCamera);}
       return true;
     },
     resize(){if(state.active){pendingResize=true;return true;}return false;}
@@ -168,7 +168,8 @@ export function createXR(h) {
   const scale=Number(new URLSearchParams(location.search).get('xrscale'))||.8;
   manager.setFramebufferScaleFactor(Math.max(.5,Math.min(1,scale)));manager.setFoveation(1);
   manager.addEventListener('sessionstart',()=>{
-    window.__xrlog?.('SESSIONSTART '+JSON.stringify(manager.getSession()?.renderState?.baseLayer?{w:manager.getSession().renderState.baseLayer.framebufferWidth,h:manager.getSession().renderState.baseLayer.framebufferHeight}:{}));
+    if(window.__xrlog){const s=manager.getSession(),l=manager.getBaseLayer?.()||s?.renderState?.baseLayer;   // renderState.baseLayer only applies on the next XR frame, so ask Three for the layer it made
+      window.__xrlog('SESSIONSTART '+JSON.stringify({w:l?.framebufferWidth,h:l?.framebufferHeight,antialias:l?.antialias,foveation:l?.fixedFoveation??null,frameRate:s?.frameRate??null,supportedFrameRates:s?.supportedFrameRates?Array.from(s.supportedFrameRates):null,scale}));}
     document.documentElement.classList.add('ngc-vr');
     state.active=true;visible=true;state.frames=0;calibration.needed=true;context='';rig.visible=true;panel.enable(true);entry.style.display='none';
     if(document.pointerLockElement)document.exitPointerLock();h.session(true);enter.textContent='EXIT VR';
