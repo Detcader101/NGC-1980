@@ -1,5 +1,89 @@
 # Sandbox validation
 
+## WebXR VR — 2026-10-26
+
+The VR follow-up shares the completed sandbox and its gameplay hosts. The target is immersive VR with tracked
+controllers and optional hands; AR/mixed reality is deferred. [WEBXR](WEBXR.md) contains startup and controls;
+[the implementation report](findings/webxr.md) records the shared hooks, fixes and remaining ambitions.
+
+Release gameplay source: `bfd019b` after implementation `e91f0a8`, panel `b1ea595` and pointer `433395b`, with game tree
+`79685ee0377afe0eb907f098387cd237132f5261`. Later documentation/evidence commits do not change this game tree.
+
+The full Node gate passed **447 syntax checks and all 48 regression programs** (495/495 runner checks).
+After the final UI/pointer/world-camera corrections and release-startup test, **448/448 syntax checks** passed again.
+The affected browser scenes cover the later changes. Targeted results include **20/20 XR input/projectile checks**
+and **8/8 HTTP/HTTPS server checks**. The dependency audit found zero known vulnerabilities.
+[Committed Node evidence](evidence/webxr-2026-10-26/node-checks.json) retains the individual results and timing.
+
+Browser tests use Chrome Headless 156, SwiftShader and Meta IWER 2.7.0 under WSL, one browser at a time. The game
+requests an emulated `immersive-vr` session and receives actual XR frame/select/input-source events. The emulator
+is test-only. These checks establish browser integration; physical headset comfort, text readability, hand tracking
+quality, sound and sustained GPU frame rate remain unqualified.
+
+Nine selected scenes passed **110 assertions**, produced **51 screenshots**, and recorded **zero page or console
+errors**. The five VR scenes account for 72 assertions. The lifecycle scene also checks for WebGL validation
+warnings. [Committed browser evidence](evidence/webxr-2026-10-26/browser-checks.json) preserves the fixtures,
+assertions, evaluations, artifact names and source qualifications.
+
+| Scene | Assertions | Coverage |
+|---|---|---|
+| VR entry/research/hands | 19/19 | Two eyes, metre-scale head motion, world-centred sky/terrain, controller research spending, hand flight/command and exit |
+| VR infantry/vehicles/crew | 25/25 | Walking, snap turn, firing, virtual keys, medical drag, inventory, jeep, M60/M113, Sea Knight, Hornet and Tomcat/RIO |
+| VR lifecycle | 15/15 | Map, disconnect/focus loss, cave screen, bridge, controllers-only re-entry, resize/fit, declined entry and spectator |
+| VR cockpit/input details | 11/11 | Rendered UI hit policy, Huey/C-130 switches, hand fire, modifier release and C-130 stick takeover |
+| VR benchmark | 2/2 | Two 30-frame stereo samples and bounded texture allocation |
+| Desktop smoke | 5/5 | Startup, keyboard flight input and rendered world after the camera-hook change |
+| Desktop infantry | 15/15 | Moving deck, fire/hits, reload, treatment, inventory and reboarding |
+| Desktop catapults | 5/5 | Player Hornet/Tomcat and AI Tomcat launches |
+| Normal experimental startup | 13/13 | Clean served source `bfd019b`, desktop without a headset, research entry points and medium sea-life default |
+
+The desktop infantry/catapult regressions preceded the final VR/render-hook changes; the final smoke and VR scenes
+cover those later changes. The release-server check used the existing experimental listener on port 8766 without
+the debug bridge, automatic start or emulator. Subsequent documentation commits preserve the tested game tree.
+
+Reviewed screenshots include [Huey](evidence/webxr-2026-10-26/huey-cockpit.png),
+[research](evidence/webxr-2026-10-26/research.png), [hand command](evidence/webxr-2026-10-26/hands-command.png),
+[virtual controls](evidence/webxr-2026-10-26/virtual-controls.png), [medical](evidence/webxr-2026-10-26/medical.png),
+[inventory](evidence/webxr-2026-10-26/inventory.png), [Marine](evidence/webxr-2026-10-26/marine-controller.png),
+[jeep](evidence/webxr-2026-10-26/jeep-cab.png), [tank day sight](evidence/webxr-2026-10-26/tank-day-sight.png),
+[thermal sight](evidence/webxr-2026-10-26/tank-thermal.png), [Sea Knight](evidence/webxr-2026-10-26/sea-knight.png),
+[Hornet](evidence/webxr-2026-10-26/hornet.png), [Tomcat RIO](evidence/webxr-2026-10-26/tomcat-rio.png),
+[C-130](evidence/webxr-2026-10-26/c130-flight-deck.png), [cave screen](evidence/webxr-2026-10-26/cave-screen.png),
+[carrier bridge](evidence/webxr-2026-10-26/carrier-bridge.png), [spectator](evidence/webxr-2026-10-26/spectator.png)
+and [ordinary startup](evidence/webxr-2026-10-26/experimental-startup.png).
+
+The tests exercise real research spending, original DOM medical drags, controller flight/walking/driving inputs,
+infantry fire, cockpit switches and the existing craft registry. Debug fixtures position vehicles and unlock
+units to reach those cases; they are not unscripted headset play sessions. The normal-startup scene uses no debug
+bridge or emulator. Caves and magnified/thermal optics are spatial screens; other tested crew views are stereo.
+
+The benchmark samples 30 distinct rendered XR frames after warmup for the cockpit and open research. It records
+wall-clock frame intervals, smoothed game CPU phases, draw calls, submitted triangles, texture counts and UI-capture
+elapsed time. The CPU regression gate and other browser tests do not run concurrently with these samples.
+`res=0.45` is the desktop setting; XR requests scale 0.8. IWER's mirror has two 640×720 eye viewports in a 1280×720
+canvas, so these samples do not predict the much larger framebuffer or hardware behavior of a physical headset.
+
+| Case | Frame mean / median / p95 (ms) | CPU sim / prep / render medians (ms) | Draw calls | Triangles | Textures |
+|---|---|---|---|---|---|
+| Huey cockpit | 438.2 / 18.6 / 1,256.2 | 8.8 / 2.5 / 17.9 | 1,234 | 896,540 | 75 |
+| Research open | 439.6 / 89.5 / 1,567.1 | 4.1 / 29.9 / 8.5 | 1,246 | 908,648 | 76 |
+
+Frame intervals are highly uneven; the low median does not represent sustained frame rate. These SwiftShader
+samples do not establish playable VR performance. Research capture's median **2,509.9 ms elapsed** includes
+asynchronous work and intervening game frames; it is not a CPU-only cost. Earlier profiling, before the world-camera
+correction, measured preparation CPU of 203.7 ms for full-document capture and 24.3 ms for visible-panel capture.
+The table above uses the corrected release world. [Raw benchmark](evidence/webxr-2026-10-26/benchmark.json),
+[research screenshot](evidence/webxr-2026-10-26/research-benchmark.png).
+
+The first benchmark exposed expensive full-document menu copies. Capture now prunes hidden screens and retains
+only visible modal roots and the spatial toolbar. The earlier measurements and failed development runs remain in
+ignored `tools/runs/`; only passing, identified scenes are included in the committed release totals.
+
+Reproduce the XR scenes, performance probe and release-server startup using the commands in [WEBXR](WEBXR.md).
+Desktop regressions use `tools/scenes/smoke.json`, `marine.mjs` and `catshot.mjs`. Local raw artifacts are in
+`/home/jayjay/thrust-zarch/.claude/worktrees/webxr/tools/runs/`. Physical-headset qualification and the sandbox's
+remaining design/balance work are recorded in [PLAN](PLAN.md).
+
 ## Visibility and expanded islands — 2026-10-26
 
 Follow-up to experimental `fcf6b0e`, developed in `ngc/visibility-ui`. All current Markdown documentation and

@@ -12,7 +12,8 @@ research, vehicle switching, airlift and CPU spectator. It does not mean every a
 has been implemented or the factions have been proven balanced.
 
 The playable build is `experimental`, in `/home/jayjay/thrust-zarch-experimental` (desktop EXPERIMENTAL,
-port 8766). It has been fast-forwarded to the reviewed `ngc/finish` integration and the visibility/island follow-up in `ngc/visibility-ui`.
+port 8766). It has been fast-forwarded through the reviewed `ngc/finish` integration, the visibility/island follow-up
+in `ngc/visibility-ui`, and the VR port in `ngc/webxr` (gameplay source `bfd019b`).
 `main` remains the older Thrust Zarch build on port 8765. Nothing is pushed automatically.
 
 ```sh
@@ -35,6 +36,12 @@ The command-board key is `\`, research is Shift+`\`, and Esc opens recovery/menu
 | Logistics | Huey sling loads and six-man lift; Sea Knight ramp and 13-man stick; C-130 repair teams and heavy drops |
 | World | Towns/forests with stable tiles and blended LOD, continuous radial haze, roads/traffic, interiors, sea motion and aerial shoals |
 | Strategy tools | Default research for both factions, CPU doctrines/spectator, seeded headless batches/tournaments/sweeps |
+| WebXR | Immersive VR host, tracked controllers and optional hands, spatial menus/virtual keys, shared gameplay; physical-headset qualification remains open ([setup and limits](WEBXR.md)) |
+
+The VR follow-up was developed in `ngc/webxr` from `2745fb2` and integrated locally into `experimental`. It preserves the sandbox's completed work. Its explicit
+scope is VR headsets, controllers and hand-tracking options; AR/mixed reality comes later. Magnified optics and cave
+play use a spatial screen. Direct hand manipulation/reloading, room-scale collision/locomotion, device-specific
+comfort/readability checks and sustained hardware benchmarks remain ambitions, not completed claims.
 
 The October 25 integration merged the completed branch tips below and resolved shared-file hooks against the current integration
 branch. The carrier queue, starting helicopter clearance, enemy research budget, raid/salvo spending, rotorcraft
@@ -75,11 +82,12 @@ Remaining ambitions, in priority order:
 5. **World/crew depth.** Extended weather, persistent personnel, further defence/ground/air AI polish, and broader
    airdrop-zone coverage. The home-island drop is tested; every island and payload is not certified.
 6. **Hardware and endurance.** Actual mid-range GPU profiling, physical HOTAS/wheel verification, long human sessions
-   and visual review beyond the selected regression scenes. SwiftShader browser timings are not GPU benchmarks.
+   and visual review beyond the selected regression scenes. VR adds headset comfort/readability, controller profiles,
+   hand occlusion/reacquisition and sustained performance under a busy war. SwiftShader timings are not GPU benchmarks.
 
 ## Preserved branches and worktrees
 
-The latest audit found 115 local branches and 57 registered worktrees after adding `ngc/visibility-ui`; one registered temporary
+The latest audit found 116 local branches and 58 registered worktrees after adding `ngc/webxr`; one registered temporary
 worktree is already missing. All current Markdown docs and the extra commander2/parity documents on other branches were reviewed. No separate
 AGENTS/Claude/Opus-named file was found; historical agent instructions are in the bible, archive and findings.
 Existing worktrees, locks, commits and remotes are retained. No cleanup/prune or push

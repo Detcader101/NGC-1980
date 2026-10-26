@@ -7,7 +7,7 @@ script and writes evidence. Agents can use it to see and drive the game without 
 
 ```
 cd tools
-npm ci        # pinned puppeteer-core only, no bundled browser
+npm ci        # browser harness, IWER XR test runtime and html2canvas source; no bundled browser
 ```
 
 The harness uses installed Chrome (`C:\Program Files\Google\Chrome\Application\chrome.exe`) and falls back to Edge.
@@ -21,6 +21,11 @@ From the repository root, `npm --prefix tools test` checks module syntax and run
 `npm --prefix tools run check` is syntax only; `npm --prefix tools run bench` is the benches only.
 Logs and a machine-readable summary are saved to `tools/runs/check-*/`; failures produce a nonzero exit code.
 These checks do not need a browser. Current integration evidence: [VALIDATION.md](../docs/ngc1980/VALIDATION.md).
+
+WebXR emulation, screenshots, benchmarks and HTTPS serving are described in [WEBXR.md](../docs/ngc1980/WEBXR.md).
+`xrbench.mjs` tests input release/capture, hand gestures and the existing infantry projectile path. `servebench.mjs`
+tests HTTP/HTTPS with owned temporary listeners and an OpenSSL-generated test certificate. `scenes/xr*.mjs` inject
+IWER only into the test browser; the shipped game has no emulator. Run these browser scenes sequentially.
 
 World visibility follow-up (run one browser at a time, from this directory):
 

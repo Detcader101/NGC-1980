@@ -1,5 +1,39 @@
 # MODLOG — NGC-1980 (formerly Thrust/Zarch)
 
+## 2026-10-26 — WebXR VR host, controllers and hands
+
+Follow-up on `ngc/webxr` from the completed sandbox at `2745fb2`. The requested target is VR headsets with controllers
+and optional hand tracking; AR/mixed reality is deferred. [WEBXR.md](docs/ngc1980/WEBXR.md) documents launch, controls,
+technical sources and the remaining hardware qualification. The desktop game remains available in the same build.
+
+- One Three XR animation loop and a separate tracked camera rig preserve metre-scale head motion and existing craft
+  simulation. Entry uses cockpit/eye views; synthetic camera shake/bob is suppressed. Native headset projection stays
+  authoritative. Magnified/thermal optics and the side-view cave game use spatial screens.
+  Sky and terrain render hooks read each eye's world matrix, fixing a black dome and misplaced terrain found in
+  screenshot review. The sea-life scene callback already receives the world-positioned stereo camera.
+- Standard XR controllers drive flight, walking, snap turns and vehicles; weapon triggers are separate from driving
+  axes. Right-controller/hand aim feeds the existing infantry projectile path. Controller rays also operate cockpit
+  switches, including the C-130 flight deck. Physical HOTAS/keyboard can be selected while retaining head tracking.
+- Optional hand joints and pinch rays support UI, relative flight controls, walking and infantry firing. The spatial
+  toolbar, virtual keyboard, held action buttons and scroll/secondary-click controls expose the original game actions.
+  Gear/medical drags operate on their real DOM targets; research clicks spend real resources.
+  Hidden desktop HUD buttons cannot intercept headset rays.
+- The HUD uses a lightweight canvas; modal HTML/canvas/SVG copies use lazy, pinned html2canvas 1.4.1 with its MIT
+  license. Test-only Meta IWER 2.7.0 supplies emulated headsets, eyes, controllers and hands. No emulator ships in the
+  game. The dependency audit reports no known vulnerabilities at this pass.
+- Hidden sessions, lost inputs, denied entry, re-entry, resizing and exit release inputs and preserve desktop use.
+  Resizing now reallocates the spatial texture, avoiding a WebGL texture-dimension error caught by the emulator.
+  Panel width fits both eyes. Modal capture skips unrelated and hidden UI subtrees; the research sample's preparation
+  CPU fell from 203.7 to 24.3 ms, while overall software-rendered frame pacing remains poor and hardware is unqualified.
+- Standing down a Hornet/Tomcat now releases its stale catapult state; the next aircraft can use the cat. This was
+  exposed by the VR craft-switching regression and fixes the same desktop commander path.
+- `tools/serve.mjs` adds explicit host and certificate/key options for HTTPS, retaining loopback HTTP by default.
+  Server checks cover HTTPS, cache headers, version reporting and malformed/traversal requests.
+
+Screenshots, regression counts and measured software-rendering timings are recorded in
+[VALIDATION.md](docs/ngc1980/VALIDATION.md). These prove automated integration, not physical-headset comfort or
+performance. Direct hand grabbing/reloads, room-scale body collision and AR remain documented ambitions.
+
 ## 2026-10-26 — visible sea life, continuous scenery and wider islands
 
 Follow-up to the playable-sandbox integration, based on experimental `fcf6b0e`, developed in `ngc/visibility-ui`.

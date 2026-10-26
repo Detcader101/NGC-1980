@@ -7,6 +7,8 @@ quality bar, and how to work without breaking each other's work.
 The control zone is now 2.56 km across, with varied island geology, blended world LOD, visible aerial shoals and
 direct research controls. This bible retains the wider design ambition. Integrated does not mean every quality-bar item is complete;
 see [VALIDATION.md](VALIDATION.md) for evidence and limits, and PLAN for deferred branches.
+The experimental [WebXR port](WEBXR.md) provides VR views, controller input and optional hand tracking. AR/mixed reality,
+native hand manipulation and physical-headset performance/comfort qualification remain separate work.
 
 ## 1. Setting
 

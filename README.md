@@ -14,6 +14,10 @@ Fish schools now populate the water ahead of the flying camera: look for moving 
 individual fish are easiest to see low over the sea or while swimming. Esc → **SEA LIFE: MEDIUM** enables them
 if your saved preference is Off. See [validation and screenshots](docs/ngc1980/VALIDATION.md).
 
+**Experimental VR:** select **ENTER VR** in a WebXR headset browser. Head tracking, controllers and optional hand
+tracking share the desktop sandbox; menus and keyboard actions are available on a spatial panel. See the
+[VR setup and controls](docs/ngc1980/WEBXR.md), including HTTPS/USB setup and hardware-testing limits. AR comes later.
+
 ![The KRAKEN and the enemy battleship](docs/screenshot.png)
 
 ## What's in it
