@@ -21,6 +21,7 @@ tracking share the desktop sandbox; menus and keyboard actions are available on 
 **Development evidence:** `$benchmark` measures scenes and captures screenshots/short clips; `$devlog` turns reviewed
 evidence into an offline HTML development report. Install the two versioned skills with `node tools/install-skills.mjs`.
 Commands and report format: [tools guide](tools/README.md#benchmark-and-html-devlog-skills).
+[Open the example HTML devlog](docs/devlogs/2026-10-26-evidence/devlog.html), including playable desktop and VR clips.
 
 ![The KRAKEN and the enemy battleship](docs/screenshot.png)
 

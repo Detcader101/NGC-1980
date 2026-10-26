@@ -17,6 +17,9 @@ Native recording uses [Puppeteer Page.record](https://pptr.dev/api/puppeteer.pag
 Encoded duration can be shorter than requested wall time. Clips are silent and recording affects playback;
 software-renderer timings and emulated XR do not establish hardware performance. Validation and the completed example
 report are recorded in [VALIDATION](docs/ngc1980/VALIDATION.md).
+The completed [HTML devlog](docs/devlogs/2026-10-26-evidence/devlog.html) was reviewed at desktop and mobile widths;
+all three selected videos loaded, sought and played offline. Tool checks: 14/14; game browser assertions: 17/17;
+report checks: 11/11. The report also records the observed desktop VR-panel/research overlap as remaining UI work.
 
 ## 2026-10-26 — WebXR VR host, controllers and hands
 

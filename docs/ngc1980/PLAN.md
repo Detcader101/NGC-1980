@@ -65,6 +65,10 @@ game fuel endurance for the wider map. Details: [findings/visibility-ui.md](find
 
 ## Validation and limits
 
+The [benchmark/devlog example](../devlogs/2026-10-26-evidence/devlog.html) adds replayable development evidence.
+Its screenshot review exposed a desktop UI follow-up: the VR-availability panel overlaps the lower-right research
+area even though opening/closing research passes functional checks. The tooling pass records this issue.
+
 [VALIDATION.md](VALIDATION.md) records the checks actually run, screenshot review and reproducible commands.
 [SIMREPORT.md](SIMREPORT.md) records the strategy evidence and its limitations. The repeatable Node gate is
 `npm --prefix tools test`; browser scenes use `tools/snap.mjs` and a local Chrome/Chromium.

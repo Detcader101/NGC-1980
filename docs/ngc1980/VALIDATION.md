@@ -1,5 +1,46 @@
 # Sandbox validation
 
+## Benchmark and devlog workflow — 2026-10-26
+
+The two independent skills are [benchmark](../../skills/benchmark/SKILL.md) and
+[devlog](../../skills/devlog/SKILL.md). The completed [HTML devlog](../devlogs/2026-10-26-evidence/devlog.html)
+contains selected screenshots, three playable clips, decoded contact sheets, raw data, source/environment details,
+benchmark traces and authored observations. It works offline with its `assets/`, `data/` and manifest alongside it.
+
+This pass changes developer tooling only. The game tree remains `79685ee0377afe0eb907f098387cd237132f5261`.
+Implementation started at `0b02de1`; the offline report reviewer was added in `aa8c5a8` and then extended with
+viewport/section screenshots. Run JSON retains the exact source and dirty state; game content is fingerprinted at
+both ends of each run. Screenshot/clip sampling cannot overlap a benchmark, and recording errors fail the run.
+
+Validation passed **457 syntax checks**, **14 evidence-tool checks**, and **both skill validations**. Four selected
+browser runs passed **17 assertions**, captured **7 screenshots and 5 MP4 clips**, and recorded **zero page/console
+errors**. The report selects four screenshots and three clips; it retains raw results for all four included runs.
+The HTML review passed **11/11 checks**: artifact hashes, local links, decoded images, offline video loading/seeking/
+playback, desktop/390 px layout, and no browser errors. Desktop/mobile/interaction-section screenshots were inspected.
+[Committed check evidence](evidence/devlog-checks-2026-10-26.json) records these results and the report hash.
+
+| Run | Assertions | Captures | Frame samples |
+|---|---|---|---|
+| Seeded coastal flight / research baseline | 5/5 | 2 PNG + 2 MP4 | 30 per case after 30 warmup frames |
+| Same fixture repeated | 5/5 | 2 PNG + 2 MP4 | 30 per case after 30 warmup frames |
+| Emulated VR cockpit | 2/2 | 1 PNG + 1 MP4 | 30 after 8 warmup frames |
+| Existing desktop smoke | 5/5 | 2 PNG | None |
+
+The repeated desktop run measured mean/p95 intervals of **120.4/225.9 ms** over the coast and **141.6/231.2 ms** with
+research open. The emulated VR cockpit measured **426.4/1,257.2 ms**. These short Chrome 156 / SwiftShader / WSL
+samples validate collection, not hardware performance. The two desktop runs have identical game content; their
+comparison is explicitly labelled repeatability, not an improvement. No other browser or CPU test batch ran during
+the measurements. Recordings follow each measurement; their requested six-second wall windows produced roughly
+4.2–4.7 seconds of encoded video in the selected report, which records both durations. Video FPS is not game FPS.
+
+Visual review found an existing issue beyond the passing assertions: the desktop VR-availability panel overlaps
+part of the research screen. The devlog records that finding as a UI follow-up. It also distinguishes populated
+sea life from visually proved fish, scripted hover from piloting, and XR mirrors from physical headset evidence.
+
+Reproduce with [the benchmark workflow](../../skills/benchmark/references/workflow.md) and
+[devlog schema/reviewer](../../skills/devlog/references/workflow.md). Raw local runs are in
+`/home/jayjay/thrust-zarch/.claude/worktrees/evidence/tools/runs/evidence-*`.
+
 ## WebXR VR — 2026-10-26
 
 The VR follow-up shares the completed sandbox and its gameplay hosts. The target is immersive VR with tracked

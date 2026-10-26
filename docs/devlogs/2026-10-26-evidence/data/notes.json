@@ -1,0 +1,110 @@
+{
+  "title": "Gameplay evidence you can replay",
+  "date": "2026-10-26",
+  "summary": "Two separate skills now measure the running sandbox and turn reviewed evidence into an offline HTML devlog. This report exercises that workflow on the current game; this pass changes developer tooling, not gameplay.",
+  "reproduce": [
+    "Desktop: CHROME_PATH=/path/to/chrome node tools/benchmark.mjs --frames 30 --out tools/runs/evidence-baseline. Repeat with --baseline tools/runs/evidence-baseline/result.json --out tools/runs/evidence-release.",
+    "VR: CHROME_PATH=/path/to/chrome node tools/benchmark.mjs tools/scenes/evidence-xr.mjs --frames 30 --out tools/runs/evidence-xr. Desktop regression: node tools/snap.mjs tools/scenes/smoke.json with the same CHROME_PATH.",
+    "Build: node tools/devlog.mjs --notes docs/devlogs/evidence-notes.json --run baseline=tools/runs/evidence-baseline --run current=tools/runs/evidence-release --run vr=tools/runs/evidence-xr --run smoke=tools/runs/evidence-smoke --out docs/devlogs/2026-10-26-evidence. Review: node tools/devlogcheck.mjs docs/devlogs/2026-10-26-evidence/devlog.html with CHROME_PATH set."
+  ],
+  "changes": [
+    {
+      "title": "Capture the running world",
+      "change": "The benchmark skill now records frame intervals and render counters, takes screenshots, and saves short MP4 clips of the full game page. Each run identifies its source, game content, scene, seed, browser, renderer and viewport. Recordings happen after measurement; decoding the saved clip produces a poster and a three-frame contact sheet.",
+      "observed": "The coastal view shows the Huey above the water, distant haze, small clusters of specks below the aircraft and the normal HUD. The decoded clip frames show changes in the sea and rotor. The two runs use unchanged game content, so differences in their timings show repeatability limits rather than a performance gain.",
+      "checks": [
+        "Both desktop runs keep the helicopter alive, retain naturally populated sea life and produce nonblank coastal images.",
+        "The saved clips decode at three different times; their actual encoded duration and requested wall window are both preserved."
+      ],
+      "limitations": [
+        "This is a seeded, peaceful hover fixture with an automatic collective adjustment. It does not establish manual flight endurance or busy-war performance.",
+        "A population assertion alone cannot prove visible fish. The visual observation is limited to the selected screenshots and sampled clip frames."
+      ],
+      "media": [
+        {
+          "run": "baseline",
+          "shot": "coastal-flight",
+          "label": "Repeat A — unchanged game",
+          "caption": "A seeded coastal hover at about 80 m.",
+          "reviewed": true
+        },
+        {
+          "run": "current",
+          "shot": "coastal-flight",
+          "label": "Repeat B — unchanged game",
+          "caption": "The same fixture and source game content in the second run.",
+          "reviewed": true
+        },
+        {
+          "run": "current",
+          "clip": "coastal-flight",
+          "label": "Coastal flight clip",
+          "caption": "Full-page capture preserves the world and the ordinary HUD together.",
+          "reviewed": true
+        }
+      ]
+    },
+    {
+      "title": "Show the interaction, not just the result",
+      "change": "Short clips can run a bounded input action while recording. This example closes and reopens the research screen, making the route from the HUD to the tech tree visible. The devlog keeps the video, screenshot and actual assertions together.",
+      "observed": "The research screen appears with its tier columns. The clip returns to the flight view and then opens research again. The final game assertion confirms that the research UI is open and the helicopter is still alive. The desktop VR-availability panel also remains visible over the lower-right research area; the screenshot exposes this existing overlap even though the functional checks pass.",
+      "checks": [
+        "HUD opens research.",
+        "Research remains open and usable after recording.",
+        "Both coastal and research screenshots pass the existing nonblank checks."
+      ],
+      "limitations": [
+        "This capture checks opening and closing research. It does not purchase a technology or prove research balance.",
+        "The VR-availability panel overlaps part of the research UI on desktop. This tooling pass records the visual issue; it does not change that UI."
+      ],
+      "media": [
+        {
+          "run": "current",
+          "shot": "research-open",
+          "caption": "Research is visible from the ordinary HUD entry point.",
+          "reviewed": true
+        },
+        {
+          "run": "current",
+          "clip": "research-navigation",
+          "caption": "Research → flight → research, captured as an actual interaction.",
+          "reviewed": true
+        }
+      ]
+    },
+    {
+      "title": "Keep VR evidence in the same workflow",
+      "change": "The same benchmark API can sample the XR session and save the browser’s stereo mirror. A dedicated scene uses the existing IWER headset fixture; the game itself contains no emulator dependency.",
+      "observed": "The cockpit mirror shows two eye views of the Huey instruments, carrier deck, nearby island and spatial toolbar. The decoded clip frames retain both eyes and show rotor movement while the viewpoint remains seated on deck.",
+      "checks": [
+        "An active immersive session exposes two eye cameras.",
+        "The saved cockpit image passes the nonblank check."
+      ],
+      "limitations": [
+        "This is a desktop mirror of an emulated headset. It does not qualify physical headset comfort, tracking, readability, audio or GPU frame rate."
+      ],
+      "media": [
+        {
+          "run": "vr",
+          "shot": "vr-cockpit",
+          "caption": "Two eye views in the emulated VR cockpit mirror.",
+          "reviewed": true
+        },
+        {
+          "run": "vr",
+          "clip": "vr-cockpit",
+          "caption": "A short recording of the VR mirror using the same capture path.",
+          "reviewed": true
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "These short 30-interval samples verify the workflow. Use longer repeated samples on the intended GPU for performance decisions.",
+    "All included game runs use Chrome 156 and SwiftShader under WSL. Software rendering is slow and uneven; the reported values do not predict headset or consumer GPU performance.",
+    "Native MP4 capture is silent and can drop initial or intermediate frames. Encoded duration can be shorter than its requested wall-time window; encoded frame rate is never game FPS.",
+    "Three decoded frames help inspect a clip but cannot prove every transition is free of pop-in. This report makes no new scenery-LOD correctness claim.",
+    "The game content is unchanged in this tooling pass. Existing war-balance, direct-hand-interaction and hardware-qualification ambitions remain open.",
+    "Visual finding: the desktop VR-availability panel overlaps the lower-right research area. Functional assertions pass, but this overlap deserves a follow-up UI fix."
+  ]
+}

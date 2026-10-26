@@ -31,6 +31,8 @@ SwiftShader results and XR emulation do not certify physical GPU/headset perform
 
 `node tools/evidencebench.mjs` checks timing statistics, comparison rejection, capture exclusion/cleanup,
 artifact boundaries and report behavior. Browser capture and HTML playback checks are separate.
+`CHROME_PATH=/path/to/chrome node tools/devlogcheck.mjs PATH/devlog.html` checks the offline report and captures
+desktop/mobile previews. [Completed example devlog](../docs/devlogs/2026-10-26-evidence/devlog.html).
 
 ## Screenshot harness
 

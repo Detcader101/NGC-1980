@@ -66,10 +66,15 @@ try {
     }, i);
     check(played.duration > 0 && played.width > 0, `Clip ${i + 1} loads, seeks and plays offline`, played);
   }
-  await page.screenshot({ path: path.join(out, 'desktop.png'), fullPage: true });
+  await page.screenshot({ path: path.join(out, 'desktop.png') });
+  await page.screenshot({ path: path.join(out, 'desktop-full.png'), fullPage: true });
+  const change = await page.$('#change-2');
+  if (change) await change.screenshot({ path: path.join(out, 'interaction-section.png') });
   await page.setViewport({ width: 390, height: 844 });
+  await page.evaluate(() => scrollTo(0, 0));
   const mobile = await layout(); check(!mobile.overflow, '390 px layout has no document overflow');
-  await page.screenshot({ path: path.join(out, 'mobile.png'), fullPage: true });
+  await page.screenshot({ path: path.join(out, 'mobile.png') });
+  await page.screenshot({ path: path.join(out, 'mobile-full.png'), fullPage: true });
   check(errors.length === 0, 'No report browser errors', errors);
 } catch (e) { errors.push(e.message); console.error(e.stack); }
 finally { if (browser) await browser.close(); }

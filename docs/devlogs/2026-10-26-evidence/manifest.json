@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "title": "Gameplay evidence you can replay",
+  "createdAt": "2026-10-26T12:29:51.692Z",
+  "artifacts": [
+    {
+      "file": "data/baseline-8ba849-result.json",
+      "bytes": 29914,
+      "sha256": "f88bea6c57df9cab6e01dde25464f95951a39c1d84edf129a87bcbe56cc38260"
+    },
+    {
+      "file": "data/baseline-8ba849-benchmark.json",
+      "bytes": 24871,
+      "sha256": "f97eaaf19e4e629e987ebb63ea6e3e2e49fccec4f7fb2dd6c6d36dd826568163"
+    },
+    {
+      "file": "data/current-97b056-result.json",
+      "bytes": 29874,
+      "sha256": "2b8093bdddf85a8ca1ca31fea6ab232c57597e9a03bd59ee281a7bf1f577c561"
+    },
+    {
+      "file": "data/current-97b056-benchmark.json",
+      "bytes": 25579,
+      "sha256": "33a343ebaa9ce5b6f786f53050c54d286a88af57c4d65d869d2bc71cc77e4929"
+    },
+    {
+      "file": "data/vr-6a1648-result.json",
+      "bytes": 17314,
+      "sha256": "53dd4341a68d04088111751ebd46c0170672bee041221b2c8dcebede0430e03c"
+    },
+    {
+      "file": "data/vr-6a1648-benchmark.json",
+      "bytes": 13430,
+      "sha256": "81289ed0fa5c477569b2203438f39c1a63448bacc0e65cb93832ca7a188207c4"
+    },
+    {
+      "file": "data/smoke-04d588-result.json",
+      "bytes": 4692,
+      "sha256": "d163f4d27ed38fd154b94f47c29a70fc6ab7f19ec10272de19bd1320d82a8906"
+    },
+    {
+      "file": "data/notes.json",
+      "bytes": 7243,
+      "sha256": "bb83ba0157adc91e74cd26b42b252a4aba406dedf785e167540514dba7a985fe"
+    },
+    {
+      "file": "assets/280fcc4c6e50-01-coastal-flight.png",
+      "bytes": 477927,
+      "sha256": "280fcc4c6e508962998971cae3ba24c79512a62c4e0ada1d1540befe1d611114"
+    },
+    {
+      "file": "assets/24ed63854a19-01-coastal-flight.png",
+      "bytes": 476928,
+      "sha256": "24ed63854a1941b3b252d3821ccf385224edad9c9c266fea3a8624217d47cb91"
+    },
+    {
+      "file": "assets/6559c4492dca-01-coastal-flight.mp4",
+      "bytes": 64218,
+      "sha256": "6559c4492dca637506904577beeac4d5e2d59b40ee14b0ee1687900da8301cf3"
+    },
+    {
+      "file": "assets/6a1c2333be58-01-coastal-flight-poster.png",
+      "bytes": 130987,
+      "sha256": "6a1c2333be582e4c69fbc23d6a1c2c20121f7dc963c38625c0619f4eb78c0ab1"
+    },
+    {
+      "file": "assets/6f3480bd137d-01-coastal-flight-contact.png",
+      "bytes": 402526,
+      "sha256": "6f3480bd137dab5bf7b06f0ecbbf4b947c58a48e4b55f50125491c2f3567b105"
+    },
+    {
+      "file": "assets/1819b36787d8-02-research-open.png",
+      "bytes": 310284,
+      "sha256": "1819b36787d8708e79ebe146477af952aac8b11e1671c77d1dd6cc601be9f4a1"
+    },
+    {
+      "file": "assets/c9de8382fc55-02-research-navigation.mp4",
+      "bytes": 151141,
+      "sha256": "c9de8382fc557d63807af534b1e93a86939af039e0832aeaf93afa4f25646765"
+    },
+    {
+      "file": "assets/a4501715feb3-02-research-navigation-poster.png",
+      "bytes": 152277,
+      "sha256": "a4501715feb38c8c390beb9ee086248075aa64881c8c9359c8df1faf57050d8a"
+    },
+    {
+      "file": "assets/ae726e119b8f-02-research-navigation-contact.png",
+      "bytes": 439269,
+      "sha256": "ae726e119b8f8fef0398f4cf84369b900e414d29a65bdf381ea37a7595b77cb9"
+    },
+    {
+      "file": "assets/3254469ae453-01-vr-cockpit.png",
+      "bytes": 485398,
+      "sha256": "3254469ae4531f3b2fdc4485b2e613d987cad7b5133e67a03de279a510a30141"
+    },
+    {
+      "file": "assets/12e1a70c0a58-01-vr-cockpit.mp4",
+      "bytes": 36611,
+      "sha256": "12e1a70c0a58efb0a5e5e71b26895de5a5416e4c2b3d2b69557d1bd24ab610d6"
+    },
+    {
+      "file": "assets/99d6e8bc5178-01-vr-cockpit-poster.png",
+      "bytes": 152304,
+      "sha256": "99d6e8bc517807a9775885d36ef607e652cedcf338b1a49673fa7cb95dc4ea96"
+    },
+    {
+      "file": "assets/dbbb07fce7bb-01-vr-cockpit-contact.png",
+      "bytes": 437348,
+      "sha256": "dbbb07fce7bb6fdd37d5deb64ca04e1f41897f0673650d2d2d53fc3147b5a10a"
+    },
+    {
+      "file": "devlog.html",
+      "bytes": 28760,
+      "sha256": "681b412b1bb4d5ffc45f1694fd19fe115a3550472d084208fb9d2b0ea92456b0"
+    }
+  ]
+}
