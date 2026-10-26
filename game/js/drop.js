@@ -613,7 +613,12 @@ export function createDrop(ctx) {
     if (L && !planeHasStick()) {
       const h = L.state === 'ff' ? S.heading : L.h;
       _v.set(L.p.x - fwdX(h) * 20, L.p.y + 9, L.p.z - fwdZ(h) * 20);   // far enough back to see the canopy over him
-      _w.set(L.p.x + fwdX(h) * 12, L.p.y + 1, L.p.z + fwdZ(h) * 12).lerp(M.target, 0.15);
+      // Frame the jumper and the ~10 m high canopy together. Blending toward the ground in y used to crop
+      // the canopy at jump altitude. Keep a limited horizontal DZ cue without pulling the subject off screen.
+      _w.set(L.p.x + fwdX(h) * 12, L.p.y + (L.state === 'canopy' ? 5 : 1), L.p.z + fwdZ(h) * 12);
+      const dx = (M.target.x - _w.x) * 0.15, dz = (M.target.z - _w.z) * 0.15;
+      const lead = Math.min(1, 6 / Math.max(1e-6, Math.hypot(dx, dz)));
+      _w.x += dx * lead; _w.z += dz * lead;
     } else {
       const f = S.forward(_w).clone(); f.y = 0; f.normalize();
       _v.set(S.pos.x - f.x * 58, S.pos.y + 16, S.pos.z - f.z * 58);

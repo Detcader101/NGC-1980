@@ -19,6 +19,12 @@ existing envelope, deck-operations, startup or transport-mission suites with a c
 - **SHAHED-style delta drone:** a stopped pusher shows its two solid blades without a motion disc. As it runs,
   the disc appears and the solid blades hide. The previous disc remained visible at zero throttle. No guidance,
   launch, impact or damage rules changed.
+- **Paratrooper camera:** the first integrated screenshot exposed a framing error: bodies and suspension lines
+  were visible, but the canopies were above the viewport. The actual drop camera now centers its vertical view
+  between the lead jumper and canopy, keeping a bounded horizontal cue toward the landing zone. The previous
+  full 3D blend toward the ground tipped the view farther downward at greater altitude. The rendered case now
+  projects the complete lead canopy/body bounds through the actual game camera and requires visible margins
+  before and after sampling; a nonblank scenery image alone cannot pass that coverage.
 - Aircraft flight/rotary/C-130 dev hosts expose the small `__BENCH` renderer bridge. CPU phase timings are absent
   unless the host measures them; missing measurements must be reported as `null`, not invented zeroes.
 
@@ -39,7 +45,7 @@ writes the assertion results. `tools/unit-cases/air.mjs` supplies the rendered c
 | `shrike` | Fictional single-engine bank response without afterburner | Live patrol with the demo opponent disabled |
 | `reaper` | Shutdown power/fuel/gauges; cold engine; stationary/running prop transforms | Live loiter plus stopped pusher close-up and optional start clip |
 | `shahed` | Simplified finite forward turn; stopped/running pusher transforms | Isolated four-drone flight sample and stopped pusher close-up |
-| `paratrooper` | Reuses the Marine ground unit covered by the ground suite | Scripted emergency release of three Marines, canopy inflation/descent, dry-pad landing |
+| `paratrooper` | Reuses the Marine ground unit covered by the ground suite | Scripted emergency release, complete canopy/body camera projection, descent, dry-pad landing |
 
 Every rendered case records its own benchmark sample, PNG and nonblank assertion, plus a six-second clip when
 capture is enabled. Additional stills show troop delivery, cockpit gauges or stopped propellers where relevant.

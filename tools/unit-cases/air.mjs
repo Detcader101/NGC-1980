@@ -174,7 +174,7 @@ export const cases = [
   },
   {
     id: 'paratrooper', name: 'Marine paratrooper / repair team', category: 'air', kind: 'ai', query: GAME,
-    description: 'Scripted main-game emergency release: place the real KC-130R above the home pad, ring its bailout bell, and advance to canopy inflation. Benchmark three live descending Marines and check landing. Aircraft approach, jumpmaster checklist and static-line sequencing are bypassed in this short fixture.',
+    description: 'Scripted main-game emergency release: place the real KC-130R above the home pad, ring its bailout bell, and advance to canopy inflation. Project the lead jumper/canopy bounds through the actual game camera, benchmark three live descending Marines and check landing. Aircraft approach, jumpmaster checklist and static-line sequencing are bypassed.',
     async run(h) {
       await game(h);
       await h.eval(`(() => {
@@ -191,11 +191,34 @@ export const cases = [
         return true;
       })()`);
       await h.expect('__G.drop.state.left === 0 && __G.drop.state.jumpers.length === 3 && __G.drop.state.jumpers.every(j => j.state === "canopy" && j.m.canopy.visible && j.v.y < 0)', 'three Marines leave the aircraft and inflate visible descending canopies');
-      await rendered(h); await evidence(h, 'paratrooper');
+      await h.page.evaluate(() => {
+        // Project the whole lead canopy/body, not just its origin or a nonblank scenery image.
+        window.__paraBounds = () => {
+          const G = __G, L = G.drop.state?.jumpers.find(j => j.state === 'ff' || j.state === 'canopy');
+          if (!L || L.state !== 'canopy' || !L.m.canopy.visible) return null;
+          L.m.group.updateWorldMatrix(true, true); G.zCam.updateMatrixWorld();
+          const box = new G.THREE.Box3().setFromObject(L.m.group), p = new G.THREE.Vector3();
+          const b = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity, minZ: Infinity, maxZ: -Infinity };
+          for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) {
+            p.set(x, y, z).project(G.zCam);
+            b.minX = Math.min(b.minX, p.x); b.maxX = Math.max(b.maxX, p.x);
+            b.minY = Math.min(b.minY, p.y); b.maxY = Math.max(b.maxY, p.y);
+            b.minZ = Math.min(b.minZ, p.z); b.maxZ = Math.max(b.maxZ, p.z);
+          }
+          b.framed = b.minX > -0.9 && b.maxX < 0.9 && b.minY > -0.9 && b.maxY < 0.9
+            && b.minZ > -1 && b.maxZ < 1 && b.maxY - b.minY > 0.15;
+          return b;
+        };
+      });
+      await h.waitFor('window.__paraBounds()?.framed', 30000);
+      await h.eval('__paraBounds()', 'projected bounds before canopy evidence');
+      await h.expect('__paraBounds()?.framed', 'lead Marine and complete canopy fit inside the actual rendered camera with margin');
+      await evidence(h, 'paratrooper');
+      await h.expect('__paraBounds()?.framed', 'camera keeps the descending Marine and canopy framed through sampling/capture');
       await h.eval('(() => { for (let i = 0; i < 60 * 75 && __G.drop.state.jumpers.some(j => j.state === "ff" || j.state === "canopy"); i++) __G.drop.update(1 / 60, {}, __G.H); return true; })()');
       await h.expect('__G.drop.state.jumpers.every(j => j.state === "run" || j.state === "work")', 'all three land on the scripted dry pad and transition to ground movement');
       await rendered(h); await h.shot('paratrooper-landed'); await h.notblank();
-      await h.eval('(__G.drop.cancel(), true)');
+      await h.eval('(__G.drop.cancel(), delete window.__paraBounds, true)');
     },
   },
 ];
