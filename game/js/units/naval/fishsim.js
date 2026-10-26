@@ -43,6 +43,7 @@
 // Coordinates: world metres, y up, the mean sea surface at y = 0. depthAt(x, z) is the ground height (negative under
 // the sea), the same function the physics uses; surf(x, z, out) the drawn sea's elevation and slope there (optional).
 // Every random draw comes from the seeded generator: the same seed and inputs give the same sea.
+import { underwaterVisibility } from './seavisibility.js';
 
 const TAU = Math.PI * 2, G = 9.81;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -127,7 +128,7 @@ export const QUALITY = {
 export const FISH = {
   MAX_FISH: 760,        // the most boids alive at once (the instance buffers are sized for QUALITY.high)
   MAX_SCHOOLS: 18,
-  R_UNDER: 70,          // sim radius round the camera when it is under water (visibility ~30 m)
+  R_UNDER: 70,          // sim radius round the camera under water; close schools also serve swimmers/divers
   R_MIN: 70, R_MAX: 220, // above water: grows with the camera's height
   ALT_MAX: 1200,        // aerial shoals fade before high-altitude flight stops local simulation
   ANCHOR_VIEW: 520,     // units further than this from the camera keep no life round them
@@ -288,7 +289,7 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
     const hd = r() * TAU, sp0 = sp.cruise * L0;
     const sc = {
       sp: spi, n, a: new Float32Array(n * STRIDE), cx: x, cy: yc, cz: z, rad: 2, gx: x, gz: z, goalT: 0, alarm: 0, ax: 0, az: 0, at: -99,
-      fade: fadeIn ? 0 : 1, leave: false, L: L0, vx: 0, vz: 0, id: S.stats.spawned, live: n, coarse: false, anchored,
+      fade: fadeIn ? 0 : 1, leave: false, retiring: false, L: L0, vx: 0, vz: 0, id: S.stats.spawned, live: n, coarse: false, anchored,
       hx: x, hz: z,                              // home (reef fish)
       ball: 0, mill: r() < 0.5 ? 1 : -1, preds: [], prey: null, huntT: 0, fullT: 0, fed: 0, flee: 0, fx: 0, fz: 0,
       ship: null, se: 0, ssx: 0, ssz: 0, eaten: 0, held: n, topT: 10 + (S.stats.spawned * 7.3) % 30, surfacing: false, wasBall: false,   // (all fields here: one shape)
@@ -720,13 +721,50 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
   // where life is kept: the camera's circle, and round anchors within view of the camera
   const anchorW = (x, z) => { let best = 0; for (let k = 0; k < S.nThreats + S.nAnchors; k++) { const t = k < S.nThreats ? S.threats[k] : S.anchors[k - S.nThreats]; if (t.w <= 0) continue; if (hyp(t.x - S.cam.x, t.z - S.cam.z) > FISH.ANCHOR_VIEW) continue; const d = hyp(t.x - x, t.z - z); if (d < FISH.ANCHOR_R + (t.hl || 0)) best = Math.max(best, t.w); } return best; };
   S.anchorW = anchorW;
+  const localVisibility = {}, drawVisibility = {};
+  // Intersect a school-sized sphere with the camera cone. With no view (pure sim callers)
+  // all directions count; looking vertically does not need a made-up horizontal heading.
+  const inView = (sc, cam, view, d) => !view ||
+    ((sc.cx - cam.x) * view.fx + (sc.cy - cam.y) * view.fy + (sc.cz - cam.z) * view.fz + sc.rad) / Math.max(d, 0.01) > (view.cos ?? 0);
+  const nearbySchools = (cam, view) => {
+    let n = 0;
+    for (const sc of S.schools) {
+      const d = hyp(sc.cx - cam.x, sc.cy - cam.y, sc.cz - cam.z);
+      if (!sc.leave && sc.live > 0 && d < 30 && inView(sc, cam, view, d)) n++;
+    }
+    return n;
+  };
+  // A swimmer can arrive after distant ship/aerial schools have filled every slot. Retire
+  // only schools outside their close view, wait for the ordinary fade, and keep that slot
+  // available for normal habitat/species selection nearby. Anchors must not revive them.
+  function makeNearbyRoom(spi, same, deficit, cam, view) {
+    let slots = 0, fish = 0, matching = 0, retiring = 0;
+    for (const sc of S.schools) if (sc.leave) { slots++; fish += sc.n; if (sc.sp === spi) matching++; if (sc.retiring) retiring++; }
+    const sp = SPECIES[spi], speciesFull = same - matching >= sp.max;
+    if (retiring >= deficit || (!speciesFull && S.schools.length - slots < FISH.MAX_SCHOOLS && S.nFish - fish + sp.n[1] <= FISH.MAX_FISH)) return;
+    let best = null, score = -1;
+    for (const sc of S.schools) {
+      if (sc.leave || (speciesFull && sc.sp !== spi)) continue;
+      const d = hyp(sc.cx - cam.x, sc.cy - cam.y, sc.cz - cam.z);
+      if (d < 32 || (d - sc.rad < localVisibility.far && inView(sc, cam, view, d))) continue;
+      const priority = d + Math.min(sc.n, 80) * 0.5;
+      if (priority > score) { score = priority; best = sc; }
+    }
+    if (best) { best.leave = true; best.retiring = true; }
+  }
   // cam: the camera position. The host fills threats / anchors first (clearThreats, hull, point, anchor).
   S.update = (dt, cam, view = null) => {
     S.nEv = 0;
     if (!S.enabled) { S.ms = 0; return; }
     const t0 = (typeof performance !== 'undefined' ? performance.now() : 0);
     S.t += dt; S.cam.x = cam.x; S.cam.y = cam.y; S.cam.z = cam.z;
-    const under = cam.y < 0, alt = Math.max(0, cam.y);
+    const surface = surfAt(cam.x, cam.z).e;
+    const under = cam.y < surface - 0.03 && cam.y > bed(cam.x, cam.z) - 0.5, alt = Math.max(0, cam.y);
+    // The infantry eye is slightly above mean sea level while surface swimming. Its existing
+    // swim threat identifies that case without treating a low aircraft or ship as a diver.
+    let swimmer = false;
+    for (let i = 0; i < S.nThreats && !swimmer; i++) { const t = S.threats[i]; swimmer = t.swim && Math.abs(cam.y - t.y) < 6 && hyp(cam.x - t.x, cam.z - t.z) < 12; }
+    const closeLife = under || swimmer, closeTarget = S.quality === 'low' ? 2 : 3;
     S.radius = under ? FISH.R_UNDER : clamp(FISH.R_MIN + alt * 1.1, FISH.R_MIN, FISH.R_MAX);
     const spawnRadius = view && !under ? clamp(FISH.R_MIN + alt * 0.55, FISH.R_MIN, FISH.R_MAX) : S.radius;
     const off = alt > FISH.ALT_MAX;
@@ -742,7 +780,7 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
       const keep = (!off && dc < S.radius + 45) || anchorW(sc.cx, sc.cz) > 0;
       if (!keep && dc > S.radius + 400) { dropSchool(i); continue; }   // (a jump: far out of sight, no need to fade)
       const empty = (sc.held ?? sc.live) === 0;
-      if (!keep || empty) sc.leave = true; else if (sc.leave && sc.fade > 0.3) sc.leave = false;
+      if (!keep || empty || sc.retiring) sc.leave = true; else if (sc.leave && sc.fade > 0.3) sc.leave = false;
       if (sc.leave) { sc.fade -= dt / FISH.FADE; if (sc.fade <= 0) dropSchool(i); }
       else sc.fade = Math.min(1, sc.fade + dt / FISH.FADE);
     }
@@ -753,10 +791,20 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
       const empty = S.schools.length === 0;
       S.spawnT = FISH.SPAWN_DT;
       const nA = S.nThreats + S.nAnchors;
-      for (let k = 0; k < (empty ? 24 : 3); k++) {
-        if (S.schools.length >= FISH.MAX_SCHOOLS) break;
+      let closeCount = closeLife ? nearbySchools(cam, view) : closeTarget;
+      if (closeLife) underwaterVisibility(S.sea * 7, surface - cam.y, localVisibility);
+      for (let k = 0; k < (empty ? 24 : closeLife ? 6 : 3); k++) {
+        const close = closeCount < closeTarget;
+        if (S.schools.length >= FISH.MAX_SCHOOLS && !close) break;
         let x, z, near = null, anch = false;
-        if (nA && (off || r() < 0.5)) {   // round a unit (nearer the camera is likelier)
+        if (close) {
+          // Ordinary schools, in suitable water, 8-24 m away. Most candidates lie ahead,
+          // with room either side; subsequent movement/curiosity/avoidance is unchanged.
+          const ahead = view && hyp(view.fx, view.fz) > 0.1;
+          const a = ahead ? Math.atan2(view.fz, view.fx) + (r() - 0.5) * Math.PI : r() * TAU;
+          const rr = 8 + r() * 16;
+          x = cam.x + Math.cos(a) * rr; z = cam.z + Math.sin(a) * rr; anch = swimmer;
+        } else if (nA && (off || r() < 0.5)) {   // round a unit (nearer the camera is likelier)
           let tot = 0; for (let q = 0; q < nA; q++) { const t = q < S.nThreats ? S.threats[q] : S.anchors[q - S.nThreats]; const d = hyp(t.x - cam.x, t.z - cam.z); if (d < FISH.ANCHOR_VIEW && t.w > 0) tot += t.w / (1 + (d / 160) ** 2); }
           if (!tot) continue;
           let u = r() * tot, t = null;
@@ -776,11 +824,15 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
         let spi = pickSpecies(depth, near); if (spi < 0) continue;
         // predators where there is prey to take (a hunt is what draws the birds); one kind in a place
         const sp = SPECIES[spi];
-        let crowd = 0; for (const sc of S.schools) if (hyp(sc.cx - x, sc.cz - z) < 30) crowd += sc.sp === spi ? 2 : 1;
+        let crowd = 0; for (const sc of S.schools) if ((!close || !sc.leave) && hyp(sc.cx - x, sc.cz - z) < (close ? 14 : 30)) crowd += sc.sp === spi ? 2 : 1;
         if (crowd >= 2) continue;
         let same = 0; for (const sc of S.schools) if (sc.sp === spi) same++;
-        if (same >= sp.max) continue;
         if (sp.huntsI.length && sp.role !== 'mammal' && !S.schools.some(o => sp.huntsI.includes(o.sp) && hyp(o.cx - x, o.cz - z) < 150)) continue;   // hunters only where there is prey
+        if (close && (same >= sp.max || S.schools.length >= FISH.MAX_SCHOOLS || S.nFish + sp.n[1] > FISH.MAX_FISH)) {
+          makeNearbyRoom(spi, same, closeTarget - closeCount, cam, view);
+          continue;
+        }
+        if (same >= sp.max) continue;
         // the life round units out of the camera's own circle gets at most ~45 % of the budget (the camera comes first)
         if (hyp(x - focus.x, z - focus.z) > S.radius + 45) { let far = 0, slots = 0; for (const sc of S.schools) if (hyp(sc.cx - focus.x, sc.cz - focus.z) > S.radius + 45) { far += sc.n; slots++; } if (far + sp.n[1] > FISH.MAX_FISH * 0.45 || slots >= Math.floor(FISH.MAX_SCHOOLS * 0.4)) continue; }
         if (S.nFish + sp.n[1] > FISH.MAX_FISH) {   // full: make room if this spot is much nearer the camera than the furthest school
@@ -788,7 +840,8 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
           if (wi >= 0 && hyp(x - focus.x, z - focus.z) < wd * 0.5) S.schools[wi].leave = true;
           continue;
         }
-        spawnSchool(spi, x, z, !empty, anch);
+        const spawned = spawnSchool(spi, x, z, close || !empty, anch);
+        if (close && spawned) closeCount++;
       }
     }
     // the wave plane over each school (once a frame) and the coarse / fine split
@@ -811,6 +864,10 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
   S.write = (out, view) => {
     S.culled = 0;
     for (const k in out) out[k].n = 0;
+    if (!S.enabled) return out;
+    const surface = view ? surfAt(view.x, view.z).e : 0;
+    const under = view && view.y < surface - 0.03;
+    if (under) underwaterVisibility(S.sea * 7, surface - view.y, drawVisibility);
     for (const sc of S.schools) {
       const a = sc.a, sp = SPECIES[sc.sp], O = out[sp.draw]; if (!O) continue;
       const A = O.A, B = O.B, C = O.C, D = O.D, sub = sp.draw === 'school' ? 2.2 : 1;
@@ -826,7 +883,7 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
           const dx = a[o] - view.x, dy = y - view.y, dz = a[o + F_Z] - view.z, d = hyp(dx, dy, dz) + 1e-6;
           const above = y > top - len * 0.3;
           const vis = (dx * view.fx + dy * view.fy + dz * view.fz) / d > view.cos && len * sub / d * view.px > 0.9
-            && (above || (view.y < top ? d < 40 : (top - y) * d / Math.max(view.y - y, 0.1) < 28));   // (water path, m: green ~exp(-0.07 x 28) ~ 0.14)
+            && (above || (under ? d < drawVisibility.bodyRange : (top - y) * d / Math.max(view.y - y, 0.1) < 28));   // (surface water path, m: green ~exp(-0.07 x 28) ~ 0.14)
           if (!vis) { S.culled++; continue; }
         }
         const j = O.n * 4;
