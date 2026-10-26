@@ -42,6 +42,13 @@ const wheeled = [
         await h.expect('!!__V.sim.spec.components.radiator && !__V.sim.spec.transfer.low && __V.sim.spec.axles.every(a=>a.driven!=="F")','Lada retains liquid cooling and rear drive');
       }
       await capture(h,id);
+      if(id==='m35'){
+        // The side view hides the inner tyres. Capture a low rear view after timing,
+        // and let two real renderer frames adopt the camera before taking the shot.
+        const frame=await h.eval('(__V.cam("orbit",{yaw:0,pitch:-.145,dist:6}),__V.renderer.info.render.frame)');
+        await h.waitFor(`__V.renderer.info.render.frame >= ${frame+2}`,15000);
+        await h.shot('m35-rear-dual-tyres');await h.notblank();
+      }
     } finally { await h.eval('(__V.drive(null), __V.pause(true), true)'); }
   },
 }));
@@ -114,16 +121,42 @@ const runaway=[
         b.units.splice(0,b.units.length,m);
         for(const [other,v] of r.views){if(v.group)v.group.visible=other===m;if(v.shadow)v.shadow.visible=other===m;}
         const sq=b.ai.squads.find(s=>s.members.includes(m));b.ai.squads.splice(0,b.ai.squads.length,sq);
-        b.ai.order(sq.id,{type:'patrol',points:[[m.x,m.z-35],[m.x+18,m.z-35],[m.x,m.z]]});
+        b.ai.order(sq.id,type==='hovertank'?{type:'hold'}:{type:'patrol',points:[[m.x,m.z-35],[m.x+18,m.z-35],[m.x,m.z]]});
         r.lookAt(m.x,m.y+(m.vehicle?1.5:1),m.z,m.vehicle?20:7,2.5,-.15);r.follow(m.id);r.paused=false;
       },type);
+      if(id==='rw7'){
+        // place() initially lays a horizontal cushion over sloped ground. Allow the
+        // actual ride controller to trim before asking for a moving-hover sample.
+        await h.waitFor('__RW.B.time >= 3',15000);
+        await h.page.evaluate(()=>{
+          const m=__unitGround,b=__RW.B;__unitStart=[m.x,m.z];
+          b.ai.order(b.ai.squads[0].id,{type:'patrol',points:[[m.x,m.z-35],[m.x+18,m.z-35],[m.x,m.z]]});
+        });
+      }
       await h.waitFor('Math.hypot(__unitGround.x-__unitStart[0],__unitGround.z-__unitStart[1])>1',30000);
       await h.expect('__unitGround.alive && Number.isFinite(__unitGround.y)','selected unit remains live and grounded');
       if(id==='rw1')await h.expect('__unitGround.sim.stats.maxStretch<=1.01 && __unitGround.sim.mode!=="fallen"','STRIDER legs stay in reach while walking');
-      else if(id==='rw7')await h.expect('__unitGround.sim.fan.every(f=>f>0) && __unitGround.sim.p[1]-__RW.B.isl.height(__unitGround.x,__unitGround.z)>.5','RW-7 fan lift maintains a visible cushion gap');
+      else if(id==='rw7'){
+        await h.page.evaluate(async()=>{
+          const rows=window.__hoverEvidence=[],end=__RW.B.time+1;
+          await new Promise((resolve,reject)=>{
+            const timeout=setTimeout(()=>{cancelAnimationFrame(window.__hoverSampleFrame);reject(Error('Hover evidence window timed out'));},12000);
+            let last=-1;
+            const sample=()=>{
+              const t=__RW.B.time,s=__unitGround.sim;
+              if(t!==last){last=t;rows.push({t,clearance:s.p[1]-__RW.B.isl.height(s.p[0],s.p[2]),gap:s.gap.reduce((a,b)=>a+b,0)/4,pressure:s.press.reduce((a,b)=>a+b,0)/4,lift:s.lift,fans:[...s.fan]});}
+              if(t>=end){clearTimeout(timeout);resolve();}else window.__hoverSampleFrame=requestAnimationFrame(sample);
+            };sample();
+          });
+        });
+        await h.eval('({samples:__hoverEvidence.length,duration:__hoverEvidence.at(-1).t-__hoverEvidence[0].t,minClearance:Math.min(...__hoverEvidence.map(s=>s.clearance)),meanSkirtGap:__hoverEvidence.reduce((a,s)=>a+s.gap,0)/__hoverEvidence.length,meanPressure:__hoverEvidence.reduce((a,s)=>a+s.pressure,0)/__hoverEvidence.length})','RW-7 moving cushion evidence');
+        // Individual fans legitimately cut to zero while correcting excess height.
+        // Check sustained cushion support instead of requiring all actuators on at once.
+        await h.expect('__hoverEvidence.length>=4 && __hoverEvidence.at(-1).t-__hoverEvidence[0].t>=.99 && __hoverEvidence.every(s=>Number.isFinite(s.lift)&&s.lift>0&&s.clearance>.55) && __hoverEvidence.reduce((a,s)=>a+s.gap,0)/__hoverEvidence.length>.05 && __hoverEvidence.reduce((a,s)=>a+s.pressure,0)/__hoverEvidence.length>1000','RW-7 sustains pressurised cushion clearance through a full moving second');
+      }
       else await h.expect(`__unitGround.sim.drive.full && __unitGround.sim.drive.sim.eng.running && __unitGround.sim.P.wheels===${id==='m1a2'?7:6}`,'captured hull uses full tracked physics and its own roadwheel count');
       await capture(h,id);
-    }finally{await h.eval('(__RW.paused=true,true)');}
+    }finally{await h.eval('(cancelAnimationFrame(window.__hoverSampleFrame),__RW.paused=true,true)');}
   },
 }));
 export const cases=[...wheeled,m60,m113,marine,...runaway];
