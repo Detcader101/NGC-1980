@@ -88,7 +88,7 @@ export const cases = [
     },
   },
   {
-    id: 'c130', name: 'KC-130R Hercules', category: 'air', kind: 'ai', query: 'dev/c130.html?start=air&view=orbit&res=0.6',
+    id: 'c130', name: 'KC-130R Hercules', category: 'air', kind: 'playable', query: 'dev/c130.html?start=air&view=orbit&res=0.6',
     description: 'KC-130R dev flight host with the production four-engine transport model: feather engine one, keep the other three governed and verify autopilot flight. The existing transport/drop suites cover parachute deployment; this is not a C-130J avionics fixture.',
     async run(h) {
       await h.goto('dev/c130.html?start=air&view=orbit&res=0.6');
