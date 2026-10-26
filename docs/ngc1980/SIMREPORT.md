@@ -1,4 +1,46 @@
-# Sandbox strategy report — 2026-10-25
+# Sandbox strategy report
+
+## Expanded control zone — 2026-10-26
+
+The 2.56 km map was rerun with the current terrain, navigation and recovery code, default research, the AI strike
+wing, a 1/30-second step, no patches, and seeds 1–2. **8/8 wars completed**, covering **360 simulated minutes in
+5.0 wall-clock minutes** on two workers. No failed workers, numerical anomalies or negative stores appeared in the
+saved samples. These are regression observations; this small sample does not establish balance.
+
+All eight reached the 45-minute limit: **seven Task Force points leads and one RUNAWAY points lead, no decisive
+victories**. Both factions researched and captured islands. The Task Force made 59 captures; RUNAWAY made 12 across
+five wars. Task Force completed 13 research programmes in each run; RUNAWAY completed 5–10.
+
+| Task Force doctrine | DEFAULT | SWARM |
+|---|---|---|
+| BALANCED | 1 TF lead, 1 RW lead | 2 TF leads |
+| AIRPOWER | 2 TF leads | 2 TF leads |
+
+First shots averaged 2.12 minutes, first captures 2.88 minutes, quiet minutes 18.6%, and longest lulls 2 minutes.
+These coarse pacing measures do not measure enjoyment. The smaller-map October 25 matrix below is historical;
+it is not a controlled before/after comparison because the map, recovery behavior and selected doctrines differ.
+
+Three ambitions remain concrete:
+
+- **Decisive endings:** none of these wars finished within 45 minutes. Wider-map campaign pacing needs human play
+  sessions and broader doctrine/seed coverage, including DREADNOUGHT and HORDE.
+- **Research into production:** every RUNAWAY researched SHRIKE, but none built one. Military spending still competes
+  with aircraft purchase cost after the research gate opens.
+- **Aircraft attrition:** Task Force escorts averaged 33.5 built / 32.4 lost; Sea Knights 29.4 / 18.5. The ten isolated
+  real-island recovery trials all trapped, but that does not explain contested combat losses or certify endurance.
+
+```sh
+node tools/warsim.mjs --blue BALANCED,AIRPOWER --red DEFAULT,SWARM \
+  --seeds 2 --tmax 2700 --workers 2 --tech default --name expanded-visibility
+```
+
+[Committed results](evidence/sandbox-sim-2026-10-26.json) retain configuration, aggregate results and the capture,
+research, attrition and numerical-state audit. Raw records/report:
+`tools/runs/sim/2026-10-26-08-32-27-expanded-visibility/` in the visibility-ui worktree. Headless wars use the game's
+war/unit/commander code with baked terrain and renderer stubs; browser behavior is checked separately in
+[VALIDATION](VALIDATION.md).
+
+## Historical smaller-map integration — 2026-10-25
 
 This pass uses CPU wars to find broken gameplay loops and record pacing. These are regression observations,
 not proof of faction balance or a substitute for playing the game.

@@ -3,8 +3,9 @@
 Every agent working on NGC-1980 reads this first. It is the shared contract: setting, factions, the unit roster, the
 quality bar, and how to work without breaking each other's work.
 
-**Status, 2026-10-25:** the current finish line is the playable sandbox described in [PLAN.md](PLAN.md).
-This bible retains the wider design ambition. Integrated does not mean every quality-bar item is complete;
+**Status, 2026-10-26:** the current finish line is the playable sandbox described in [PLAN.md](PLAN.md).
+The control zone is now 2.56 km across, with varied island geology, blended world LOD, visible aerial shoals and
+direct research controls. This bible retains the wider design ambition. Integrated does not mean every quality-bar item is complete;
 see [VALIDATION.md](VALIDATION.md) for evidence and limits, and PLAN for deferred branches.
 
 ## 1. Setting

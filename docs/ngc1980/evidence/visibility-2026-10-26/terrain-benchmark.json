@@ -1,0 +1,172 @@
+{
+  "date": "2026-10-26",
+  "command": "node tools/visibilitybench.mjs",
+  "artifacts": "tools/runs/check-2026-10-26T08-27-08-115Z/visibilitybench.mjs.log",
+  "checks": 11,
+  "terrainBakeMs": 1118.3954,
+  "totalMs": 1842.7044819999999,
+  "forestMs": 262.54364899999996,
+  "tiles": [
+    {
+      "x": 3200,
+      "z": 1600,
+      "trees": 506
+    },
+    {
+      "x": 3600,
+      "z": 1600,
+      "trees": 510
+    },
+    {
+      "x": 4000,
+      "z": 1600,
+      "trees": 496
+    },
+    {
+      "x": 3200,
+      "z": 2000,
+      "trees": 40
+    }
+  ],
+  "chunkMs": 11.96826400000009,
+  "nearTris": 6478,
+  "farTris": 2080,
+  "areas": [
+    {
+      "name": "HOME ISLAND",
+      "geology": "granite",
+      "landM2": 149000,
+      "waterFraction": 0.5861111111111111,
+      "min": -14,
+      "max": 27.037087631225596
+    },
+    {
+      "name": "IRONHOLD",
+      "geology": "volcanic",
+      "landM2": 177225,
+      "waterFraction": 0.5805325443786983,
+      "min": -14,
+      "max": 32.80368423461913
+    },
+    {
+      "name": "NORTH ROCK",
+      "geology": "granite",
+      "landM2": 102000,
+      "waterFraction": 0.583715947352311,
+      "min": -14,
+      "max": 35.07128448486327
+    },
+    {
+      "name": "SOUTH REEF",
+      "geology": "limestone",
+      "landM2": 76475,
+      "waterFraction": 0.5863980530016225,
+      "min": -14,
+      "max": 33.713986816406305
+    },
+    {
+      "name": "CITADEL",
+      "geology": "sandstone",
+      "landM2": 190225,
+      "waterFraction": 0.5497633136094675,
+      "min": -14,
+      "max": 31.835247039794922
+    },
+    {
+      "name": "PELICAN",
+      "geology": "limestone",
+      "landM2": 18300,
+      "waterFraction": 0.5187376725838264,
+      "min": -14,
+      "max": 5.098423351287776
+    },
+    {
+      "name": "ANVIL",
+      "geology": "volcanic",
+      "landM2": 39100,
+      "waterFraction": 0.5931321540062435,
+      "min": -14,
+      "max": 29.07305068054195
+    },
+    {
+      "name": "LOOKOUT",
+      "geology": "granite",
+      "landM2": 26000,
+      "waterFraction": 0.5085066162570888,
+      "min": -14,
+      "max": 14.339092410278228
+    },
+    {
+      "name": "BEACON",
+      "geology": "limestone",
+      "landM2": 17200,
+      "waterFraction": 0.5235457063711911,
+      "min": -14,
+      "max": 18.612564755249046
+    },
+    {
+      "name": "FORGE",
+      "geology": "volcanic",
+      "landM2": 72250,
+      "waterFraction": 0.5904195011337868,
+      "min": -14,
+      "max": 24.026225128173795
+    },
+    {
+      "name": "CINDER",
+      "geology": "volcanic",
+      "landM2": 39200,
+      "waterFraction": 0.5920915712799167,
+      "min": -14,
+      "max": 34.432884680175746
+    },
+    {
+      "name": "WELLSPRING",
+      "geology": "sandstone",
+      "landM2": 28675,
+      "waterFraction": 0.5021701388888888,
+      "min": -14,
+      "max": 6.52504642715447
+    },
+    {
+      "name": "SANDBAR",
+      "geology": "limestone",
+      "landM2": 49925,
+      "waterFraction": 0.6252580221429912,
+      "min": -14,
+      "max": 5.853413406750221
+    },
+    {
+      "name": "DRIFTWOOD",
+      "geology": "sandstone",
+      "landM2": 16000,
+      "waterFraction": 0.5325054784514244,
+      "min": -14,
+      "max": 9.654734039306643
+    },
+    {
+      "name": "KILN",
+      "geology": "volcanic",
+      "landM2": 59300,
+      "waterFraction": 0.5893351800554016,
+      "min": -14,
+      "max": 31.748265762329112
+    },
+    {
+      "name": "SPIRE",
+      "geology": "granite",
+      "landM2": 14450,
+      "waterFraction": 0.5281632653061225,
+      "min": -14,
+      "max": 12.922232868957495
+    },
+    {
+      "name": "ECHO",
+      "geology": "limestone",
+      "landM2": 28050,
+      "waterFraction": 0.5850591715976331,
+      "min": -14,
+      "max": 31.705962066650205
+    }
+  ]
+}

@@ -22,6 +22,23 @@ From the repository root, `npm --prefix tools test` checks module syntax and run
 Logs and a machine-readable summary are saved to `tools/runs/check-*/`; failures produce a nonzero exit code.
 These checks do not need a browser. Current integration evidence: [VALIDATION.md](../docs/ngc1980/VALIDATION.md).
 
+World visibility follow-up (run one browser at a time, from this directory):
+
+```sh
+node visibilitybench.mjs
+CHROME_PATH=/path/to/chrome node snap.mjs scenes/visibility.mjs
+CHROME_PATH=/path/to/chrome node snap.mjs scenes/worldvisibility.mjs
+PARTS=swim CHROME_PATH=/path/to/chrome node snap.mjs scenes/sealife.mjs
+```
+
+`visibility.mjs` enters a normal default-tech game, opens research through the HUD/menu/board and checks naturally
+spawned medium-quality shoals at 25/80/220 m through the chase camera. Same-frame on/off pixel comparisons prove that
+sea life contributes to the actual image. `worldvisibility.mjs` approaches a real streamed town, moves the terrain
+window, flies a scripted 2 km camera path, crosses the control-zone edge and surveys four island shapes. It records
+frame-time percentiles, draw calls, triangles and streaming bounds. These SwiftShader timings are software-renderer
+measurements, not consumer GPU performance. The island survey explicitly disables strategic masking; normal flight
+and fish tests retain it.
+
 ```
 node snap.mjs scenes/smoke.json                     # serves ../game on a free port itself
 node snap.mjs scenes/cave.json --url http://127.0.0.1:8765/   # reuse a running server (start.bat)

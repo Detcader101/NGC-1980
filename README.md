@@ -8,6 +8,12 @@ Bungeling Bay* and *Carrier Command*. Design bible: [BIBLE.md](docs/ngc1980/BIBL
 You fly a simulated helicopter from the deck of your carrier, the ALBATROSS, across a sea of 17 islands.
 The enemy carrier KRAKEN is out there doing the same, and whoever controls the map wins.
 
+The experimental build now has a 2.56 km control zone, varied rocky and sandy islands, and continuous distance haze
+with blended scenery LOD. Click **RESEARCH / TECH TREE** on the HUD or in the Esc menu to open research.
+Fish schools now populate the water ahead of the flying camera: look for moving dark shoals and silver flashes;
+individual fish are easiest to see low over the sea or while swimming. Esc → **SEA LIFE: MEDIUM** enables them
+if your saved preference is Off. See [validation and screenshots](docs/ngc1980/VALIDATION.md).
+
 ![The KRAKEN and the enemy battleship](docs/screenshot.png)
 
 ## What's in it
@@ -127,7 +133,7 @@ ENTER (or 1-9) takes a unit out there and puts you in it, or switches you to the
 reserve the board buys one for materiel. **/** jumps straight to the next unit that is out. On the board, R recalls a
 jet on CAP, X stands a parked unit down into reserve, N takes another jeep or truck out (several can be out). **5** / **8** work from any unit (no need to land the Huey).
 
-**RESEARCH**: **SHIFT+\\** (or **T** on the board) opens the research page: the task force's programmes by tier, what each needs
+**RESEARCH**: click **RESEARCH / TECH TREE** on the HUD, command board or Esc menu. **SHIFT+\\** (or **T** on the board) also opens the research page: the task force's programmes by tier, what each needs
 (pencilled lines), its cost in materiel (paid up front) and its time in war seconds. ENTER starts the selected one, X
 cancels it with a full refund, one at a time; the war goes on while it runs. Locked types on the board and locked orders
 on the map say which research they need. `?tech=all` (and any `?debug` run without `?tech`) is the war without the tree:

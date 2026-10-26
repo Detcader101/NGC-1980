@@ -1,0 +1,846 @@
+{
+  "date": "2026-10-26",
+  "sourceCommit": "a141dd463f1a3eb229c7e731e7c4a356ab31cc0e",
+  "gameTree": "facda38801b4d1d1a35f0dad4a82d39c9d5234ee",
+  "environment": {
+    "browser": "Chrome Headless 156",
+    "renderer": "SwiftShader",
+    "viewport": [
+      1280,
+      720
+    ]
+  },
+  "runs": [
+    {
+      "scene": "simmode.json",
+      "env": {},
+      "query": "?sim&debug&res=0.45&speed=16&seed=3&blue=AIRPOWER&red=DEFAULT&tech=all",
+      "artifacts": "tools/runs/2026-10-26_08-12-34-simmode",
+      "startedAt": "2026-10-26T08:12:34.811Z",
+      "seconds": 97.5,
+      "summary": "PASS: 6/6 expects, 0 page errors, 0 console errors",
+      "assertions": [
+        {
+          "expression": "__G.war.redAI.builtin === true && !!__SIM.C && __SIM.pl.alive === false",
+          "ok": true
+        },
+        {
+          "expression": "window.__terr < 1e-6",
+          "ok": true
+        },
+        {
+          "expression": "__SIM.T.decisions.filter(d => d.side === 1).length >= 3",
+          "ok": true
+        },
+        {
+          "expression": "notblank(action_camera)",
+          "ok": true
+        },
+        {
+          "expression": "__G.zCam.position.y > Math.max(__G.terrainH(__G.zCam.position.x, __G.zCam.position.z), 0) + 3",
+          "ok": true
+        },
+        {
+          "expression": "__SIM.speed === 1",
+          "ok": true
+        }
+      ],
+      "screenshots": [
+        "01-action_camera.png",
+        "02-free_camera.png",
+        "03-follow_camera.png",
+        "04-map_camera.png",
+        "05-later_action.png",
+        "06-overlay_hidden.png"
+      ],
+      "pageErrors": [],
+      "consoleErrors": []
+    },
+    {
+      "scene": "airdrop.mjs",
+      "env": {},
+      "query": "?debug&auto&kb&res=0.45",
+      "artifacts": "tools/runs/2026-10-26_08-21-26-airdrop",
+      "startedAt": "2026-10-26T08:21:26.029Z",
+      "seconds": 220.4,
+      "summary": "PASS: 10/10 expects, 0 page errors, 0 console errors",
+      "assertions": [
+        {
+          "label": "the board shows AIR DROP on the vehicles, TOO HEAVY on the M60A3",
+          "expression": "/TOO HEAVY TO DROP/.test(document.getElementById('cmdBoard').textContent) && /C: AIR DROP/.test(document.getElementById('cmdBoard').textContent)",
+          "ok": true
+        },
+        {
+          "label": "C on the M60A3: refused, too heavy (52.6 t vs 19.4 t)",
+          "expression": "__G.airdrop.runs.length === 0 && /TOO HEAVY FOR A C-130.*MAX PAYLOAD 19.4 t/.test(__G.airdrop.can('m60'))",
+          "ok": true
+        },
+        {
+          "label": "C on the M113A2: a C-130 run ordered (reserve -1, 10 materiel for the sortie)",
+          "expression": "__G.airdrop.runs.length === 1 && __G.fleet.n.m113 === __n0 - 1 && Math.abs(__G.G.mat - (__mat0 - 10)) < 3",
+          "ok": true
+        },
+        {
+          "label": "V: watching the run from the C-130",
+          "expression": "__G.airdrop.watching && !__G.commander.isOpen",
+          "ok": true
+        },
+        {
+          "label": "green light at the release point",
+          "expression": "__G.airdrop.runs[0].phase === 'green' || __G.airdrop.runs[0].phase === 'falling'",
+          "ok": true
+        },
+        {
+          "label": "descent ~28 ft/s under six G-11As",
+          "expression": "(() => { const L = __G.airdrop.runs[0].L; return -L.v[1] > 6 && -L.v[1] < 10; })()",
+          "ok": true
+        },
+        {
+          "label": "landed within 200 m of the DZ, not lost",
+          "expression": "__G.airdrop.runs[0].out && __G.airdrop.runs[0].out.ok && Math.hypot(__G.airdrop.runs[0].L.p[0] - __G.airdrop.runs[0].dz.x, __G.airdrop.runs[0].L.p[2] - __G.airdrop.runs[0].dz.z) < 200",
+          "ok": true
+        },
+        {
+          "label": "de-rigged: the M113A2 is a unit at the island (on the command board)",
+          "expression": "__G.m113C.present() && !__G.m113C.dead && __G.roster.find(r => r.id === 'm113').out()",
+          "ok": true
+        },
+        {
+          "label": "Esc: back from watching",
+          "expression": "!__G.airdrop.watching",
+          "ok": true
+        },
+        {
+          "label": "switched into the air-dropped M113A2",
+          "expression": "__G.G.craft === 'm113'",
+          "ok": true
+        }
+      ],
+      "screenshots": [
+        "01-board-m60-too-heavy.png",
+        "02-board-drop-ordered.png",
+        "03-hold-inbound.png",
+        "04-flight-deck.png",
+        "05-chase-inbound.png",
+        "06-hold-ramp-open.png",
+        "07-hold-extraction.png",
+        "08-chase-load-out.png",
+        "09-load-reefed.png",
+        "10-load-under-canopy.png",
+        "11-landed.png",
+        "12-canopies-collapsed.png",
+        "13-ready-derigged.png",
+        "14-in-the-m113.png"
+      ],
+      "pageErrors": [],
+      "consoleErrors": []
+    },
+    {
+      "scene": "techtree.mjs",
+      "env": {},
+      "query": "?debug&auto&kb&peace&res=0.45&tech=default",
+      "artifacts": "tools/runs/2026-10-26_08-34-44-techtree",
+      "startedAt": "2026-10-26T08:34:44.905Z",
+      "seconds": 121.7,
+      "summary": "PASS: 26/26 expects, 0 page errors, 0 console errors",
+      "assertions": [
+        {
+          "label": "?tech=default: both trees on their opening sets; __G.tech is the war's",
+          "expression": "__G.war.tech[1].mode === 'default' && __G.war.tech[2].mode === 'default' && __G.tech === __G.war.tech",
+          "ok": true
+        },
+        {
+          "label": "the opening is open (CH-46, AA, Huey, Hornet), the rest is locked",
+          "expression": "__G.war.allow(1, 'drone') && __G.war.allow(1, 'aa') && __G.war.allow(1, 'heli') && __G.war.allow(1, 'jet') && !__G.war.allow(1, 'm60') && !__G.war.allow(1, 'escort')",
+          "ok": true
+        },
+        {
+          "label": "no M60A3 / M113A2 parked before their research",
+          "expression": "!__G.m60C.present() && !__G.m113C.present()",
+          "ok": true
+        },
+        {
+          "label": "9 (M60A3): NEEDS HEAVY ARMOUR RESEARCH",
+          "expression": "/NEEDS HEAVY ARMOUR RESEARCH/.test(document.getElementById('msg').textContent)",
+          "ok": true
+        },
+        {
+          "label": "Tomcat escort and sky carrier refit locked, nothing paid",
+          "expression": "/NEEDS FLEET AIR DEFENCE/.test(__locked.escort) && /NEEDS SKY CARRIER PROGRAMME/.test(__locked.sky) && __locked.paid === 0",
+          "ok": true
+        },
+        {
+          "label": "3 (a new Huey) still works: 60 materiel buys one reserve",
+          "expression": "/NEW HELICOPTER/.test(__buy.msg) && __buy.paid === 60 && __buy.added === 1",
+          "ok": true
+        },
+        {
+          "label": "the board greys the locked types (Tomcat, M60A3, M113A2)",
+          "expression": "__G.commander.isOpen && [...document.querySelectorAll(\"#cmdBoard .row.lock\")].length >= 3",
+          "ok": true
+        },
+        {
+          "label": "the rows say what they need; the sub line shows research",
+          "expression": "/NEEDS TOMCAT CONVERSION RESEARCH/.test(document.getElementById(\"cmdBoard\").textContent) && /RESEARCH <b>IDLE/.test(document.querySelector(\"#cmdBoard .sub\").innerHTML)",
+          "ok": true
+        },
+        {
+          "label": "T on the board opens the RESEARCH page",
+          "expression": "!__G.commander.isOpen && __G.techUI.isOpen && document.getElementById(\"techBoard\").classList.contains(\"on\")",
+          "ok": true
+        },
+        {
+          "label": "ENTER starts FLEET AIR DEFENCE, 50 materiel paid (the islands still produce meanwhile)",
+          "expression": "__G.war.tech[1].current && __G.war.tech[1].current.id === 'p.cap' && Math.abs(__G.G.mat - (__m0 - 50)) < 2",
+          "ok": true
+        },
+        {
+          "label": "research runs on war time (progress = war seconds / 45)",
+          "expression": "Math.abs((__G.war.tech[1].progress - __p0) - (__G.war.time - __w0) / 45) < 0.02",
+          "ok": true
+        },
+        {
+          "label": "done: Tomcat escorts allowed, the feed says so",
+          "expression": "__G.war.tech[1].has('p.cap') && __G.war.allow(1, 'escort') && /RESEARCH COMPLETE: FLEET AIR DEFENCE/.test(document.getElementById('feed').textContent)",
+          "ok": true
+        },
+        {
+          "label": "4 now launches a Tomcat escort",
+          "expression": "/TOMCAT .* TO THE CAT/.test(__G.war.sendEscort(null))",
+          "ok": true
+        },
+        {
+          "label": "X cancels with a full refund",
+          "expression": "!__G.war.tech[1].current && Math.abs(__G.G.mat - (__m1 + 40)) < 2 && !__G.war.tech[1].has('p.amtrac')",
+          "ok": true
+        },
+        {
+          "label": "arrows move the selection across tiers",
+          "expression": "__G.techUI.sel !== 'p.huey' && __G.war.tech[1].node(__G.techUI.sel).tier === 1",
+          "ok": true
+        },
+        {
+          "label": "AMPHIBIOUS ARMOUR + HEAVY ARMOUR researched",
+          "expression": "__G.war.allow(1, 'm60') && __G.war.allow(1, 'm113')",
+          "ok": true
+        },
+        {
+          "label": "ESC closes the page (not the pause menu)",
+          "expression": "!__G.techUI.isOpen && __G.G.state === \"play\"",
+          "ok": true
+        },
+        {
+          "label": "the RUNAWAY commander starts its first research (MQ-9 REAPER, 30 materiel)",
+          "expression": "__G.war.tech[2].current && __G.war.tech[2].current.id === 'e.reaper' && __G.war.E.mat === 170",
+          "ok": true
+        },
+        {
+          "label": "the feed reports what the enemy fields",
+          "expression": "/INTEL: THE RUNAWAY HAVE FIELDED MQ-9 REAPER/.test(document.getElementById('feed').textContent)",
+          "ok": true
+        },
+        {
+          "label": "SHIFT+\\ opens the RESEARCH page",
+          "expression": "__G.techUI.isOpen",
+          "ok": true
+        },
+        {
+          "label": "the war ran 300 s on the default trees without an error",
+          "expression": "!__ff.err && __ff.dt >= 299",
+          "ok": true
+        },
+        {
+          "label": "the RUNAWAY researched on its own (3+ programmes in 300 s)",
+          "expression": "__G.war.tech[2].log.filter(l => l.e === 'done').length >= 3",
+          "ok": true
+        },
+        {
+          "label": "?debug alone: both trees all, no enemy research",
+          "expression": "__G.war.tech[1].mode === 'all' && __G.war.tech[2].mode === 'all' && __G.war.researchPolicy[2] === null",
+          "ok": true
+        },
+        {
+          "label": "every gate open on both sides",
+          "expression": "['drone','aa','heli','jet','escort','m60','m113','tomcat','sky','logistics','m151','m35','marine'].every(k => __G.war.allow(1, k)) && ['transport','gunship','aa','freighter','reaper','hovertank','lance','shrike','shahed','mbt','battleship'].every(k => __G.war.allow(2, k))",
+          "ok": true
+        },
+        {
+          "label": "no upgrades: every mod 1",
+          "expression": "['econ.mat','econ.fuel','cap.time','sight','aa.build','aa.hp','rebuild','ship.repair','bship.rate','hp.drone','hp.gunship','medic'].every(k => __G.war.techMod(1, k) === 1 && __G.war.techMod(2, k) === 1)",
+          "ok": true
+        },
+        {
+          "label": "the M60A3 and M113A2 parked as before",
+          "expression": "__G.m60C.present() && __G.m113C.present()",
+          "ok": true
+        }
+      ],
+      "screenshots": [
+        "01-board-locked.png",
+        "02-research-page.png",
+        "03-research-under-way.png",
+        "04-research-done.png",
+        "05-research-armour.png",
+        "06-map-orders.png",
+        "07-research-intel.png",
+        "08-after-300s.png"
+      ],
+      "pageErrors": [],
+      "consoleErrors": []
+    },
+    {
+      "scene": "catshot.mjs",
+      "env": {},
+      "query": "?debug&auto",
+      "artifacts": "tools/runs/2026-10-26_08-36-46-catshot",
+      "startedAt": "2026-10-26T08:36:46.713Z",
+      "seconds": 259.4,
+      "summary": "PASS: 5/5 expects, 0 page errors, 0 console errors",
+      "assertions": [
+        {
+          "label": "Tomcat on cat 1",
+          "expression": "__G.G.craft === \"tomcat\" && __G.tomcatC.TP.A.cat && __G.tomcatC.TP.A.cat.state === \"hold\"",
+          "ok": true
+        },
+        {
+          "label": "Tomcat: hands off, she flies away off the cat and climbs",
+          "expression": "T.alive && A.pos.y > 20 && A.vel.y > 0 && window.__min > 7",
+          "ok": true
+        },
+        {
+          "label": "Hornet on cat 1",
+          "expression": "__G.G.craft === \"jet\" && __G.JP.J.cat && __G.JP.J.cat.state === \"hold\"",
+          "ok": true
+        },
+        {
+          "label": "Hornet: hands off, she flies away off the cat",
+          "expression": "__G.JP.alive !== false && J.pos.y > 15 && J.vel.y > 0",
+          "ok": true
+        },
+        {
+          "label": "AI Tomcat: off the cat and climbing",
+          "expression": "!__j.dead && !__j.dying && __j.p.y > 20",
+          "ok": true
+        }
+      ],
+      "screenshots": [
+        "01-tomcat-cockpit-on-the-cat.png",
+        "02-tomcat-chase-on-the-cat.png",
+        "03-tomcat-chase-mid-stroke.png",
+        "04-tomcat-chase-flyaway.png",
+        "05-tomcat-cockpit-flyaway.png",
+        "06-hornet-chase-on-the-cat.png",
+        "07-hornet-chase-flyaway.png",
+        "08-ai-tomcat-on-the-cat.png",
+        "09-ai-tomcat-stroke.png",
+        "10-ai-tomcat-climb-out.png"
+      ],
+      "pageErrors": [],
+      "consoleErrors": []
+    },
+    {
+      "scene": "visibility.mjs",
+      "env": {},
+      "query": "?debug&kb&peace&res=0.6&tech=default",
+      "artifacts": "tools/runs/visibility-final",
+      "startedAt": "2026-10-26T08:41:06.269Z",
+      "seconds": 119.2,
+      "summary": "PASS: 10/10 expects, 0 page errors, 0 console errors",
+      "assertions": [
+        {
+          "expression": "__G.techUI.isOpen && !__G.commander.isOpen && !document.pointerLockElement",
+          "ok": true
+        },
+        {
+          "expression": "__G.techUI.isOpen && __G.G.state===\"play\"",
+          "ok": true
+        },
+        {
+          "expression": "__G.techUI.isOpen && !__G.commander.isOpen",
+          "ok": true
+        },
+        {
+          "expression": "__pixelResult.schools>0 && __pixelResult.signs>0 && __pixelResult.changed>80",
+          "ok": true
+        },
+        {
+          "expression": "notblank(natural-fish-25m)",
+          "ok": true
+        },
+        {
+          "expression": "__pixelResult.schools>0 && __pixelResult.signs>0 && __pixelResult.changed>80",
+          "ok": true
+        },
+        {
+          "expression": "notblank(natural-fish-80m)",
+          "ok": true
+        },
+        {
+          "expression": "__pixelResult.schools>0 && __pixelResult.signs>0 && __pixelResult.changed>80",
+          "ok": true
+        },
+        {
+          "expression": "notblank(natural-fish-220m)",
+          "ok": true
+        },
+        {
+          "expression": "__pixelResult.changed===0 && __G.sealife.sim.schools.length===0",
+          "ok": true
+        }
+      ],
+      "screenshots": [
+        "01-tech-tree-from-hud.png",
+        "02-natural-fish-25m.png",
+        "03-natural-fish-80m.png",
+        "04-natural-fish-220m.png",
+        "05-sea-life-off.png"
+      ],
+      "pageErrors": [],
+      "consoleErrors": []
+    },
+    {
+      "scene": "worldvisibility.mjs",
+      "env": {},
+      "query": "?debug&auto&kb&peace&res=0.5",
+      "artifacts": "tools/runs/worldvisibility-final",
+      "startedAt": "2026-10-26T08:43:05.512Z",
+      "seconds": 190.2,
+      "summary": "PASS: 17/17 expects, 0 page errors, 0 console errors",
+      "assertions": [
+        {
+          "expression": "__WORLD.stats.forestTrees>100 && __WORLD.stats.prefetch>__WORLD.stats.draw",
+          "ok": true
+        },
+        {
+          "expression": "notblank(town-680m)",
+          "ok": true
+        },
+        {
+          "expression": "__WORLD.stats.forestTrees>100 && __WORLD.stats.prefetch>__WORLD.stats.draw",
+          "ok": true
+        },
+        {
+          "expression": "notblank(town-520m)",
+          "ok": true
+        },
+        {
+          "expression": "[...__WORLD.chunks.values()].some(c=>c.state===\"ready\" && c.sN?.visible && c.sF?.visible)",
+          "ok": true
+        },
+        {
+          "expression": "__WORLD.stats.forestTrees>100 && __WORLD.stats.prefetch>__WORLD.stats.draw",
+          "ok": true
+        },
+        {
+          "expression": "notblank(town-360m)",
+          "ok": true
+        },
+        {
+          "expression": "__transitionSeen",
+          "ok": true
+        },
+        {
+          "expression": "[...__WORLD.chunks].every(([k,c])=>c.state!==\"ready\"||!__trees.has(k)||__trees.get(k)===c.forestTrees)",
+          "ok": true
+        },
+        {
+          "expression": "__WORLD.stats.chunks<180 && __WORLD.stats.pending<=2",
+          "ok": true
+        },
+        {
+          "expression": "__flight.maxChunks<180 && __flight.maxPending<=2 && __G.Z.alive",
+          "ok": true
+        },
+        {
+          "expression": "notblank(continuous-flight-2km)",
+          "ok": true
+        },
+        {
+          "expression": "0.06305349591320919<12",
+          "ok": true
+        },
+        {
+          "expression": "notblank(island-home-island)",
+          "ok": true
+        },
+        {
+          "expression": "notblank(island-pelican)",
+          "ok": true
+        },
+        {
+          "expression": "notblank(island-citadel)",
+          "ok": true
+        },
+        {
+          "expression": "notblank(island-sandbar)",
+          "ok": true
+        }
+      ],
+      "screenshots": [
+        "01-town-680m.png",
+        "02-town-520m.png",
+        "03-town-360m.png",
+        "04-forest-after-window-move.png",
+        "05-continuous-flight-2km.png",
+        "06-zone-edge-inside.png",
+        "07-zone-edge-outside.png",
+        "08-island-home-island.png",
+        "09-island-pelican.png",
+        "10-island-citadel.png",
+        "11-island-sandbar.png"
+      ],
+      "pageErrors": [],
+      "consoleErrors": []
+    },
+    {
+      "scene": "airlift.mjs",
+      "env": {},
+      "query": "?debug&auto&kb&res=0.45",
+      "artifacts": "tools/runs/airlift-visibility-final",
+      "startedAt": "2026-10-26T08:46:15.775Z",
+      "seconds": 435.3,
+      "summary": "PASS: 14/14 expects, 0 page errors, 0 console errors",
+      "assertions": [
+        {
+          "label": "the crew chief: the M35A2 is TOO HEAVY for the hook (numbers shown)",
+          "expression": "/TOO HEAVY/.test(__G.airlift.near.why) && /4,000 LB/.test(__G.airlift.near.why)",
+          "ok": true
+        },
+        {
+          "label": "the crew chief talks the pilot on; the hook HUD is up",
+          "expression": "/FORWARD|BACK|LEFT|RIGHT|DOWN|UP|HOLD/.test(__G.airlift.near.call) && document.getElementById('airlift').classList.contains('on')",
+          "ok": true
+        },
+        {
+          "label": "R: hooked up - the M151A2 is on the hook",
+          "expression": "!!__G.airlift.load && __G.airlift.load.V === __V && __V.slung",
+          "ok": true
+        },
+        {
+          "label": "the load is off the ground: tension on the hook, torque up",
+          "expression": "__G.airlift.load.S.Tg > 0.8 && __G.H.torque > 30",
+          "ok": true
+        },
+        {
+          "label": "the longer island flight retains fuel through delivery",
+          "expression": "__G.G.fuel > 0 && __G.Z.alive",
+          "ok": true
+        },
+        {
+          "label": "R: released - the M151A2 is on its wheels",
+          "expression": "!__G.airlift.load && !__V.slung && __V.exists && !__V.wrecked",
+          "ok": true
+        },
+        {
+          "label": "the jeep is at the other island (a unit out on the command board)",
+          "expression": "__G.roster.find(r => r.id === 'm151').out() && Math.hypot(__V.sim.pos[0] - __B.pad.x, __V.sim.pos[2] - __B.pad.z) < 60",
+          "ok": true
+        },
+        {
+          "label": "switched into the delivered M151A2",
+          "expression": "__G.crafts.active === __V",
+          "ok": true
+        },
+        {
+          "label": "back in the Huey",
+          "expression": "__G.G.craft === 'heli'",
+          "ok": true
+        },
+        {
+          "label": ". on the pad: a squad called from the barracks",
+          "expression": "__G.airlift.troops && __G.airlift.troops.st === 'boarding'",
+          "ok": true
+        },
+        {
+          "label": "six aboard (630 kg on the airframe)",
+          "expression": "__G.airlift.troops.aboard() === 6 && __G.airlift.mass() === 630",
+          "ok": true
+        },
+        {
+          "label": "the loaded troop flight reaches its destination without losing the Huey",
+          "expression": "__G.fleet.lost.heli === __troopLosses",
+          "ok": true
+        },
+        {
+          "label": ". on the island: the squad dismounts into the ground war",
+          "expression": "!__G.airlift.troops && __G.war.ground.landings.some(L => L.I === __B)",
+          "ok": true
+        },
+        {
+          "label": "the Marines are fighting units on the island now",
+          "expression": "__G.war.ground.presence(__B, 1) >= __mar0 + 4",
+          "ok": true
+        }
+      ],
+      "screenshots": [
+        "01-m35-too-heavy.png",
+        "02-hookup-approach.png",
+        "03-hookup-man-ready.png",
+        "04-hookup-man-from-the-door.png",
+        "05-hookup-man-clear.png",
+        "06-load-lifted.png",
+        "07-cockpit-hooked.png",
+        "08-load-in-transit.png",
+        "09-load-in-transit-side.png",
+        "10-cockpit-in-transit.png",
+        "11-load-set-down.png",
+        "12-in-the-delivered-jeep.png",
+        "13-squad-waiting.png",
+        "14-squad-running-in.png",
+        "15-troops-aboard-outside.png",
+        "16-troops-aboard-left.png",
+        "17-troops-from-the-cockpit-looking-aft.png",
+        "18-troop-lift-flying.png",
+        "19-squad-dismounting.png",
+        "20-squad-on-the-island.png"
+      ],
+      "pageErrors": [],
+      "consoleErrors": []
+    },
+    {
+      "scene": "ch46fly.mjs",
+      "env": {},
+      "query": "?debug&auto&kb&res=0.35&cold",
+      "artifacts": "tools/runs/ch46-visibility-final",
+      "startedAt": "2026-10-26T08:53:31.117Z",
+      "seconds": 325.6,
+      "summary": "PASS: 17/17 expects, 0 page errors, 0 console errors",
+      "assertions": [
+        {
+          "label": "two Sea Knights in reserve, MARINE AIR ASSAULT researched at the start",
+          "expression": "__G.fleet.n.ch46 === 2 && __G.war.allow(1, 'ch46')",
+          "ok": true
+        },
+        {
+          "label": "the command board lists the CH-46F",
+          "expression": "/CH-46/.test(document.getElementById('cmdBoard').textContent)",
+          "ok": true
+        },
+        {
+          "label": "board 9: a CH-46F out of the reserve (2 -> 1), you are in it",
+          "expression": "__G.G.craft === 'ch46' && __G.fleet.n.ch46 === 1 && __G.ch46C.present()",
+          "ok": true
+        },
+        {
+          "label": "on its spot on the ALBATROSS deck, on the wheels",
+          "expression": "__G.war.shipAt(__G.ch46C.P.S.body.pos[0], __G.ch46C.P.S.body.pos[2]) === __G.war.carrier && __G.ch46C.P.S.landed",
+          "ok": true
+        },
+        {
+          "label": "cold and dark (?cold): engines out, rotors stopped, battery off",
+          "expression": "!__G.ch46C.P.running() && __G.ch46C.P.S.rpm < 0.01 && !__G.ch46C.P.sys.bat",
+          "ok": true
+        },
+        {
+          "label": "mouse click on the overhead BATTERY switch: battery on",
+          "expression": "__G.ch46C.P.sys.bat",
+          "ok": true
+        },
+        {
+          "label": "operating a cockpit switch leaves the cursor free for the next switch",
+          "expression": "!document.pointerLockElement",
+          "ok": true
+        },
+        {
+          "label": "mouse click on APU: the APU starts",
+          "expression": "__G.ch46C.P.sys.apu !== 'off'",
+          "ok": true
+        },
+        {
+          "label": "both engines on line, generators on, still on the spot",
+          "expression": "__G.ch46C.P.sys.g1 && __G.ch46C.P.sys.g2 && __G.ch46C.P.S.landed",
+          "ok": true
+        },
+        {
+          "label": "B: a stick of 13 Marines called (20 materiel, island income continues)",
+          "expression": "__G.ch46C.troops.state === 'boarding' && Math.abs(__G.G.mat - (window.__mat0 - 20)) < 2",
+          "ok": true
+        },
+        {
+          "label": "the stick stands on the deck (no floating, no sinking)",
+          "expression": "__G.ch46C.troops.Q.figs.filter(F => F.st === 'stick' || F.st === 'embark').every(F => Math.abs(F.y - __G.groundY(F.x, F.z)) < 0.35 || F.wp >= 2)",
+          "ok": true
+        },
+        {
+          "label": "13 Marines aboard, their weight in the flight model",
+          "expression": "__G.ch46C.P.marines === 13 && Math.abs(__G.ch46C.P.S.payload - 13 * 118) < 1",
+          "ok": true
+        },
+        {
+          "label": "lifted off the moving deck",
+          "expression": "__G.ch46C.P.alive",
+          "ok": true
+        },
+        {
+          "label": "landed at the LZ within limits (no hard landing)",
+          "expression": "__G.ch46C.P.alive && __G.ch46C.P.S.landed && __G.ch46C.P.maxSink < 4.5 && __G.ch46C.P.hp.gear === 1",
+          "ok": true
+        },
+        {
+          "label": "B at the LZ: the troops go out by the ramp",
+          "expression": "__G.ch46C.troops.state === 'deploying'",
+          "ok": true
+        },
+        {
+          "label": "all 13 off the ramp and fighting as ground-war Marines",
+          "expression": "__G.ch46C.P.marines === 0 && __G.war.ground.sim.units.filter(u => u.side === 1 && u.kind === 'marine').length - window.__gs0 >= 13",
+          "ok": true
+        },
+        {
+          "expression": "notblank(cockpit-at-lz)",
+          "ok": true
+        }
+      ],
+      "screenshots": [
+        "01-board.png",
+        "02-cold-on-deck.png",
+        "03-cockpit-overhead-cold.png",
+        "04-cockpit-starting.png",
+        "05-cockpit-running.png",
+        "06-marines-boarding.png",
+        "07-cabin-marines-seated.png",
+        "08-cabin-aft-ramp.png",
+        "09-liftoff-chase.png",
+        "10-cockpit-cruise.png",
+        "11-cruise-chase.png",
+        "12-approach-hover.png",
+        "13-landed-lz.png",
+        "14-marines-dismounting.png",
+        "15-marines-on-the-ground.png",
+        "16-cockpit-at-lz.png"
+      ],
+      "pageErrors": [],
+      "consoleErrors": []
+    },
+    {
+      "scene": "sealife.mjs",
+      "env": {
+        "PARTS": "swim"
+      },
+      "query": "?debug&auto",
+      "artifacts": "tools/runs/swim-visibility-final",
+      "startedAt": "2026-10-26T08:58:56.846Z",
+      "seconds": 80.5,
+      "summary": "PASS: 3/3 expects, 0 page errors, 0 console errors",
+      "assertions": [
+        {
+          "label": "found open deep water near the ALBATROSS",
+          "expression": "!!window.__P",
+          "ok": true
+        },
+        {
+          "label": "found a rocky shelf 4-8 m deep",
+          "expression": "!!window.__SW",
+          "ok": true
+        },
+        {
+          "label": "back up at the surface",
+          "expression": "!__G.sealife.under",
+          "ok": true
+        }
+      ],
+      "screenshots": [
+        "01-swimmer-at-surface.png",
+        "02-underwater-reef.png",
+        "03-underwater-reef-2.png",
+        "04-underwater-looking-up.png"
+      ],
+      "pageErrors": [],
+      "consoleErrors": []
+    }
+  ],
+  "totals": {
+    "scenes": 9,
+    "assertions": 108,
+    "screenshots": 94,
+    "pageErrors": 0,
+    "consoleErrors": 0
+  },
+  "earlierFailures": [
+    {
+      "artifacts": "tools/runs/2026-10-26_08-14-12-airlift",
+      "finding": "Fuel exhausted before the wider-map sling delivery; game fuel acceleration changed from 50 to 25 and complete scene rerun."
+    },
+    {
+      "artifacts": "tools/runs/2026-10-26_08-25-06-ch46fly",
+      "finding": "The scene missed the transient down state after an already successful landing; wait now accepts landed too. Closed stalled browser; complete scene rerun."
+    }
+  ],
+  "releaseStartup": {
+    "artifacts": "tools/runs/visibility-release-startup-final",
+    "url": "http://127.0.0.1:8766/?kb&res=0.5",
+    "startedAt": "2026-10-26T09:05:49.609Z",
+    "summary": "PASS: 11/11 expects, 0 page errors, 0 console errors",
+    "assertions": [
+      {
+        "label": "ordinary title, no debug bridge or automatic start",
+        "expression": "!window.__G && getComputedStyle(document.getElementById(\"title\")).display!==\"none\"",
+        "ok": true
+      },
+      {
+        "label": "server identifies the clean reviewed experimental commit",
+        "expression": "__releaseVersion.commit===\"a141dd4\" && !__releaseVersion.dirty",
+        "ok": true
+      },
+      {
+        "label": "normal play exposes command and research buttons",
+        "expression": "!!document.querySelector(\"#fleet [data-command]\") && !!document.querySelector(\"#fleet [data-research]\")",
+        "ok": true
+      },
+      {
+        "expression": "notblank(normal-start)",
+        "ok": true
+      },
+      {
+        "label": "HUD research opens with normal starting gates",
+        "expression": "document.getElementById(\"techBoard\").classList.contains(\"on\") && document.getElementById(\"techBoard\").innerText.includes(\"6 / 19\")",
+        "ok": true
+      },
+      {
+        "label": "pause menu offers research",
+        "expression": "getComputedStyle(document.getElementById(\"menu\")).display!==\"none\" && !!document.querySelector(\"#menu [data-action=research]\")",
+        "ok": true
+      },
+      {
+        "label": "pause-menu research resumes and opens",
+        "expression": "document.getElementById(\"techBoard\").classList.contains(\"on\") && getComputedStyle(document.getElementById(\"menu\")).display===\"none\"",
+        "ok": true
+      },
+      {
+        "label": "HUD command button opens the board",
+        "expression": "document.getElementById(\"cmdBoard\").classList.contains(\"on\")",
+        "ok": true
+      },
+      {
+        "label": "board research opens without overlapping command",
+        "expression": "document.getElementById(\"techBoard\").classList.contains(\"on\") && !document.getElementById(\"cmdBoard\").classList.contains(\"on\")",
+        "ok": true
+      },
+      {
+        "label": "normal sea-life default is medium",
+        "expression": "/SEA LIFE.*MEDIUM/.test(document.getElementById(\"menu\").innerText)",
+        "ok": true
+      },
+      {
+        "label": "normal play resumes",
+        "expression": "getComputedStyle(document.getElementById(\"menu\")).display===\"none\"",
+        "ok": true
+      }
+    ],
+    "pageErrors": [],
+    "consoleErrors": [],
+    "version": {
+      "root": "/home/jayjay/thrust-zarch-experimental",
+      "commit": "a141dd4",
+      "dirty": false,
+      "date": "2026-10-26_08:59",
+      "served": "2026-10-26T09:05:55.845Z"
+    },
+    "screenshots": [
+      "01-title.png",
+      "02-normal-start.png",
+      "03-research.png",
+      "04-pause-settings.png"
+    ]
+  }
+}

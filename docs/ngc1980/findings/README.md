@@ -13,5 +13,5 @@ Rules for agents:
 
 The orchestrator keeps `orchestrator.md` (cross-branch findings, merges, user reports).
 
-Current integration findings: [finish.md](finish.md). The older reports remain as branch-specific evidence;
+Current integration findings: [visibility-ui.md](visibility-ui.md) and [finish.md](finish.md). The older reports remain as branch-specific evidence;
 their OPEN/PAUSED labels are historical unless confirmed in the current [PLAN](../PLAN.md).

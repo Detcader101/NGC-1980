@@ -1,5 +1,41 @@
 # MODLOG — NGC-1980 (formerly Thrust/Zarch)
 
+## 2026-10-26 — visible sea life, continuous scenery and wider islands
+
+Follow-up to the playable-sandbox integration, based on experimental `fcf6b0e`, developed in `ngc/visibility-ui`.
+Reviewed all current Markdown docs and the additional commander2/parity documents on unmerged branches. Historical
+Claude/Opus findings remain intact; PLAN distinguishes selectively reused code from deferred branch histories.
+
+- Fish now spawn around the water ahead of the camera. The old 160 m cutoff is raised to 1,200 m, with aggregate
+  live-shoal cues fading before that limit. Individual bodies still handle close/underwater views; the off/low/medium/high
+  budgets and preference remain. Aerial views no longer depend on a rare bait-ball event. Medium uses at most 760 boids.
+- Added RESEARCH / TECH TREE buttons on the HUD, command board and Esc menu, plus UK backslash handling. The pause
+  menu scrolls on smaller displays. Research and command overlays close each other and release pointer lock.
+- One radial haze policy applies inside and outside the control zone. Towns and forests cross-fade between near and
+  far silhouettes; detail dissolves; chunks prefetch 600 m beyond draw distance and fade in over 1.4 seconds. Forests
+  belong to stable 400 m tiles instead of being regenerated and truncated whenever the terrain window moves.
+- Terrain resolutions blend spatially; moving near-height windows also blend over 1.2 seconds. Custom terrain/fish
+  fog colours now match built-in material fog. The strategic mask softens at the zone edge; unit intelligence rules
+  remain in the fog grid.
+- Doubled the control zone's width to 2.56 km (four times the area), retaining 17 objectives. Selectively adapted
+  `ngc/terrain`'s granite/volcanic/limestone/sandstone geology, coves, cliffs, beaches and valleys. Island radii range
+  from 66 to 250 m, with different land/water proportions. Existing pads, cave aprons and logistics hards remain.
+- Fleet starts follow the new islands. Ship-route smoothing now traverses every crossed navigation cell, preventing
+  corner cuts through blocked water cells. Spectator maps and cached headless terrain cover the expanded area.
+- Adapted `ngc/commander2`'s terrain-aware CAP/pattern/final protection while retaining the current deck queue. The
+  ship can choose a navigable recovery course when high ground blocks the final. Ten real-island recovery trials
+  exercise Hornets and Tomcats. The synthetic test carrier must follow a sea lane, never sail through an island.
+- Huey game fuel acceleration is 25× instead of 50× for the longer routes (roughly 6 minutes hover / 10 cruise on a
+  tank, load-dependent). The physical fuel-flow model is unchanged. The wider-map transport bench permits 11 minutes;
+  its real transport returned and stowed at about 560 simulated seconds, beyond the old 480-second timeout.
+
+Evidence, screenshots, measured costs and remaining limits: [VALIDATION](docs/ngc1980/VALIDATION.md),
+[SIMREPORT](docs/ngc1980/SIMREPORT.md), [visibility findings](docs/ngc1980/findings/visibility-ui.md).
+Validation: 435 syntax checks, all 46 Node regression programs, nine browser scenes (108 assertions / 94 screenshots)
+with no page/console errors, and eight CPU wars (360 simulated minutes) without numerical anomalies.
+Natural-beach delivery/shared surface friction, larger crew/roster integration, comprehensive collision/parity,
+human balance testing and hardware performance qualification remain in [PLAN](docs/ngc1980/PLAN.md).
+
 ## 2026-10-25 — playable sandbox integration
 
 Scope agreed with the user: integrate completed work, fix gameplay blockers, and document remaining ambitions.
