@@ -49,3 +49,11 @@ Review at desktop and narrow widths, open the assertion details, play and seek e
 selected images load. Contact sheets are useful for inspecting motion but can miss transient defects. For a claim
 about pop-in or smooth transitions, inspect the interval around the actual transition, not just three samples.
 For a durable checked-in report, use a dated directory under `docs/devlogs/` and link it from the current docs.
+
+```sh
+CHROME_PATH=/path/to/chrome node tools/devlogcheck.mjs tools/runs/devlog-change/devlog.html
+```
+
+This checks artifact hashes, links, decoded images, offline video seek/playback, document overflow at 1280 and 390 px,
+and browser errors. It captures desktop/mobile report screenshots for visual review. These layout/playback checks
+do not substitute for reading the prose and inspecting the game's selected media.
