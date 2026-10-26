@@ -45,7 +45,10 @@ branches are not represented as completed units.
 
 The fixes align visible models, names and feedback with their represented roles: the CH-46E variant, the M35's dual
 rear tyres, stopped pusher propellers, physical ship deck heights and readable defence launcher cells. Captured tank
-detail transitions preserve reverse motion. These are concrete fidelity improvements within the existing game.
+detail transitions preserve reverse motion. Screenshot review also exposed cropped parachutes and a prone Marine
+whose knee passed through the ground: the gameplay camera now frames the canopy, and the prone pose keeps the
+legs connected above the surface. The transport delivery fixture now snaps its camera after fast-forwarding.
+These are concrete fidelity improvements within the existing game.
 
 The installed DCS UH-1H manual was consulted for controls and instrument-feedback conventions. No DCS assets or
 code are used. The game retains its own original procedural models and gameplay systems. Aircraft variant caveats,

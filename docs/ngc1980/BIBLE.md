@@ -112,8 +112,9 @@ no per-frame allocations in hot loops, `?res=` respected.
 - **Keep interfaces**: if you replace a model in `ships.js`, keep the export name, return type and the dimensions or
   `userData` that `war.js` relies on (read the callers first).
 - **Tests**: headless Chrome under WSL: from `tools/`, `CHROME_PATH=/home/jayjay/.cache/chs/chrome.sh node snap.mjs
-  scenes/<scene>`. A scene `query` can open a dev page (`"query": "dev/tank.html?debug"`). Create the symlink
-  `tools/node_modules -> /home/jayjay/thrust-zarch/tools/node_modules` in your worktree first (do not commit it).
+  scenes/<scene>`. A scene `query` can open a dev page (`"query": "dev/tank.html?debug"`). Install the locked tools with `npm --prefix tools ci`, or share the tested experimental dependencies
+  via `tools/node_modules -> /home/jayjay/thrust-zarch-experimental/tools/node_modules` (do not commit the symlink).
+  The classic main checkout can have older tools without the XR/capture dependencies.
   Many agents share the machine (15 GB RAM): run one browser at a time, prefer node benches, use `res=0.45`.
 - **Don't break the game**: before you finish, run `scenes/smoke.json` plus the scenes for the units you touched.
 - **Report**: what you built, branch and commits, test results with run folders, screenshots worth looking at, the
