@@ -18,6 +18,10 @@ if your saved preference is Off. See [validation and screenshots](docs/ngc1980/V
 tracking share the desktop sandbox; menus and keyboard actions are available on a spatial panel. See the
 [VR setup and controls](docs/ngc1980/WEBXR.md), including HTTPS/USB setup and hardware-testing limits. AR comes later.
 
+**Development evidence:** `$benchmark` measures scenes and captures screenshots/short clips; `$devlog` turns reviewed
+evidence into an offline HTML development report. Install the two versioned skills with `node tools/install-skills.mjs`.
+Commands and report format: [tools guide](tools/README.md#benchmark-and-html-devlog-skills).
+
 ![The KRAKEN and the enemy battleship](docs/screenshot.png)
 
 ## What's in it

@@ -37,6 +37,7 @@ The command-board key is `\`, research is Shift+`\`, and Esc opens recovery/menu
 | World | Towns/forests with stable tiles and blended LOD, continuous radial haze, roads/traffic, interiors, sea motion and aerial shoals |
 | Strategy tools | Default research for both factions, CPU doctrines/spectator, seeded headless batches/tournaments/sweeps |
 | WebXR | Immersive VR host, tracked controllers and optional hands, spatial menus/virtual keys, shared gameplay; physical-headset qualification remains open ([setup and limits](WEBXR.md)) |
+| Development evidence | Separate benchmark/devlog skills; seeded frame samples, screenshots, native MP4 clips, decoded contact sheets and offline HTML reports ([tools](../../tools/README.md)) |
 
 The VR follow-up was developed in `ngc/webxr` from `2745fb2` and integrated locally into `experimental`. It preserves the sandbox's completed work. Its explicit
 scope is VR headsets, controllers and hand-tracking options; AR/mixed reality comes later. Magnified optics and cave
@@ -87,7 +88,7 @@ Remaining ambitions, in priority order:
 
 ## Preserved branches and worktrees
 
-The latest audit found 116 local branches and 58 registered worktrees after adding `ngc/webxr`; one registered temporary
+The latest audit found 117 local branches and 59 registered worktrees after adding `ngc/evidence`; one registered temporary
 worktree is already missing. All current Markdown docs and the extra commander2/parity documents on other branches were reviewed. No separate
 AGENTS/Claude/Opus-named file was found; historical agent instructions are in the bible, archive and findings.
 Existing worktrees, locks, commits and remotes are retained. No cleanup/prune or push

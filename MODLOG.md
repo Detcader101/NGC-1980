@@ -1,5 +1,23 @@
 # MODLOG — NGC-1980 (formerly Thrust/Zarch)
 
+## 2026-10-26 — benchmark and HTML devlog skills
+
+Added separate versioned `$benchmark` and `$devlog` skills plus a local installer. The benchmark extends the existing
+browser harness with seeded fixtures, source/game-content fingerprints, host/browser/GPU metadata, raw frame samples
+and guarded baseline comparisons. Recording and sampling cannot overlap. Native Chrome MP4 capture includes DOM UI;
+decoded contact sheets and posters come from the saved video. Capture errors fail the run. No FFmpeg or game runtime
+dependency was added. The actual game tree is unchanged.
+
+The devlog builder turns authored observations and selected run evidence into an offline HTML report with playable
+clips, image galleries, frame traces, comparisons, assertions and source details. It copies the media/data and hashes
+the bundle. Missing media fails explicitly; failures and unreviewed media remain visible; text is escaped.
+Instructions and schema are in [the tools guide](tools/README.md) and the two skills under `skills/`.
+
+Native recording uses [Puppeteer Page.record](https://pptr.dev/api/puppeteer.page.record), tested here with Chrome 156.
+Encoded duration can be shorter than requested wall time. Clips are silent and recording affects playback;
+software-renderer timings and emulated XR do not establish hardware performance. Validation and the completed example
+report are recorded in [VALIDATION](docs/ngc1980/VALIDATION.md).
+
 ## 2026-10-26 — WebXR VR host, controllers and hands
 
 Follow-up on `ngc/webxr` from the completed sandbox at `2745fb2`. The requested target is VR headsets with controllers

@@ -118,3 +118,7 @@ no per-frame allocations in hot loops, `?res=` respected.
 - **Don't break the game**: before you finish, run `scenes/smoke.json` plus the scenes for the units you touched.
 - **Report**: what you built, branch and commits, test results with run folders, screenshots worth looking at, the
   shared-file lines you touched, what's untested, and what the next step for your feature should be.
+  For gameplay/visual work, use the separate [benchmark](../../skills/benchmark/SKILL.md) and
+  [devlog](../../skills/devlog/SKILL.md) skills to capture relevant running-game evidence and finish with an HTML
+  devlog. Reuse valid existing evidence where appropriate; keep recording outside benchmark samples and explain
+  actual observations, failures and limits. The report builder copies its media so the HTML remains reviewable.

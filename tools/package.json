@@ -8,6 +8,9 @@
     "check": "node check.mjs syntax",
     "test": "node check.mjs",
     "bench": "node check.mjs bench",
+    "benchmark": "node benchmark.mjs",
+    "devlog": "node devlog.mjs",
+    "skills": "node install-skills.mjs",
     "smoke": "node snap.mjs scenes/smoke.json",
     "cave": "node snap.mjs scenes/cave.json"
   },

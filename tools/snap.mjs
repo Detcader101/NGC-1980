@@ -13,6 +13,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import puppeteer from 'puppeteer-core';
+import { sourceInfo, hostInfo, digest } from './evidence.mjs';
+import { createEvidenceCapture } from './browser-evidence.mjs';
 
 const TOOLS = path.dirname(fileURLToPath(import.meta.url));
 const GAME = path.resolve(TOOLS, '..', 'game');
@@ -36,6 +38,10 @@ function parseArgs(argv) {
     else if (a === '--out') o.out = next();
     else if (a === '--browser') o.browser = next();
     else if (a === '--headful') o.headful = true;
+    else if (a === '--gpu') o.gpu = next();
+    else if (a === '--seed') o.seed = +next();
+    else if (a === '--frames') o.frames = +next();
+    else if (a === '--capture') o.capture = true;
     else if (a === '--allow-console-errors') o.allowConsoleErrors = true;
     else if (a === '--width') o.width = +next();
     else if (a === '--height') o.height = +next();
@@ -65,12 +71,12 @@ const MIME = {
   '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json', '.bin': 'application/octet-stream', '.wasm': 'application/wasm',
   '.txt': 'text/plain', '.ico': 'image/x-icon',
 };
-function startServer(root) {
+function startServer(root, source) {
   return new Promise((resolve, reject) => {
     const srv = http.createServer((req, res) => {
       let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
       if (p === '/favicon.ico' && !fs.existsSync(path.join(root, 'favicon.ico'))) { res.writeHead(204); return res.end(); }
-      if (p === '/version.json') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end('{"commit":"harness","dirty":false,"date":""}'); }
+      if (p === '/version.json') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(source)); }
       if (p.endsWith('/')) p += 'index.html';
       const f = path.resolve(root, '.' + p);
       if (!f.startsWith(root)) { res.writeHead(403); return res.end(); }
@@ -107,6 +113,8 @@ function normStep(s) {
       case 'eval': case 'expect': case 'log': return [op, r.expr ?? r.msg, r.label];
       case 'waitFor': case 'waitfor': return ['waitFor', r.expr, r.timeout];
       case 'shot': return ['shot', r.name];
+      case 'clip': return ['clip', r.name, r.ms];
+      case 'benchmark': return ['benchmark', r.name, r.frames];
       case 'goto': return ['goto', r.query];
       case 'click': return ['click', r.x, r.y];
       case 'notblank': return ['notblank', r.min];
@@ -132,6 +140,10 @@ async function main() {
   const query = args.query ?? scene.query ?? '?debug&auto';
   const W = args.width || scene.width || 1280, H = args.height || scene.height || 720;
   const allowConsoleErrors = args.allowConsoleErrors || scene.allowConsoleErrors || false;
+  const rendererMode = args.gpu || 'swiftshader';
+  if (!['swiftshader', 'hardware'].includes(rendererMode)) throw new Error('--gpu must be swiftshader or hardware');
+  const seed = args.seed ?? scene.seed ?? null;
+  if (seed !== null && !Number.isInteger(seed)) throw new Error('--seed must be an integer');
 
   const runDir = path.resolve(args.out || path.join(TOOLS, 'runs', `${stamp()}-${name}`));
   fs.mkdirSync(runDir, { recursive: true });
@@ -142,16 +154,24 @@ async function main() {
     logLines.push(line);
     console.log(line);
   };
-  const result = { name, query, url: null, ok: false, browser: null, gpu: null, fps: null, shots: [], evals: [], expects: [], errors: [], consoleErrors: [], startedAt: new Date(t0).toISOString() };
+  const result = { schemaVersion: 2, name, query, seed, viewport: { width: W, height: H, deviceScaleFactor: 1 },
+    sceneSha256: digest(args.script ? fs.readFileSync(path.resolve(args.script)) : JSON.stringify(args.steps)),
+    command: [process.execPath, ...process.argv.slice(1)],
+    rendererMode, host: hostInfo(), source: sourceInfo(path.resolve(TOOLS, '..')),
+    url: null, ok: false, browser: null, gpu: null, fps: null, shots: [], clips: [], benchmarks: [],
+    evals: [], expects: [], errors: [], consoleErrors: [], startedAt: new Date(t0).toISOString() };
 
   let server = null, browser = null;
   try {
     let base = args.url;
     if (!base) {
-      server = await startServer(GAME);
+      server = await startServer(GAME, result.source);
       base = `http://127.0.0.1:${server.address().port}/`;
       log('server', `serving ${GAME} at ${base}`);
     } else log('server', `using existing ${base}`);
+    result.servedSource = await fetch(new URL('/version.json', base), { signal: AbortSignal.timeout(5000) }).then(r => r.json()).catch(() => ({ unknown: true }));
+    result.sourceQualification = server ? 'Owned server serves the fingerprinted local game tree.'
+      : 'External server version is recorded separately; the local source fingerprint alone does not prove remote content.';
     const pageUrl = new URL(query, base).href;
     result.url = pageUrl;
 
@@ -165,13 +185,20 @@ async function main() {
       defaultViewport: { width: W, height: H, deviceScaleFactor: 1 },
       args: [
         `--window-size=${W},${H}`,
-        '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--enable-webgl',
+        ...(rendererMode === 'swiftshader' ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : []),
+        '--ignore-gpu-blocklist', '--enable-webgl',
         '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows',
         '--autoplay-policy=no-user-gesture-required', '--mute-audio', '--no-first-run', '--no-default-browser-check',
       ],
     });
-    log('browser', `${exe} ${await browser.version()}`);
+    result.browserVersion = await browser.version();
+    log('browser', `${exe} ${result.browserVersion}`);
     const page = await browser.newPage();
+    if (seed !== null) await page.evaluateOnNewDocument(seed => {
+      let state = seed >>> 0;
+      Math.random = () => { state += 0x6D2B79F5; let x = state; x = Math.imul(x ^ x >>> 15, x | 1); x ^= x + Math.imul(x ^ x >>> 7, x | 61); return ((x ^ x >>> 14) >>> 0) / 4294967296; };
+    }, seed);
+    const evidence = createEvidenceCapture({ page, runDir, result, log, frames: args.frames });
 
     page.on('console', m => {
       const loc = m.location?.(); const where = loc?.url ? ` (${loc.url.replace(base, '')}:${loc.lineNumber ?? '?'})` : '';
@@ -180,7 +207,7 @@ async function main() {
     });
     page.on('pageerror', e => { log('PAGEERR', e.stack || e.message || String(e)); result.errors.push(String(e.message || e)); });
     page.on('requestfailed', r => { log('REQFAIL', `${r.url()} ${r.failure()?.errorText}`); result.errors.push(`request failed: ${r.url()}`); });
-    page.on('response', r => { if (r.status() >= 400) log('HTTP', `${r.status()} ${r.url()}`); });
+    page.on('response', r => { if (r.status() >= 400) { log('HTTP', `${r.status()} ${r.url()}`); result.errors.push(`HTTP ${r.status()}: ${r.url()}`); } });
 
     const fail = (msg) => { log('FAIL', msg); result.expects.push({ ok: false, msg }); };
     let lastShot = null;
@@ -205,8 +232,9 @@ async function main() {
       }
     }
     const ctx = {
-      page, log,
+      page, log, capture: !!args.capture, benchmark: evidence.benchmark, clip: evidence.clip,
       async goto(q) {
+        evidence.assertIdle();
         const u = new URL(q ?? query, base).href;
         log('goto', u);
         await page.goto(u, { waitUntil: 'load' });
@@ -263,6 +291,7 @@ async function main() {
         fail(`waitFor timed out: ${expr}`); return false;
       },
       async shot(sname) {
+        evidence.assertIdle();
         sname = (sname || `shot${result.shots.length + 1}`).replace(/[^\w.-]+/g, '_');
         const file = path.join(runDir, `${String(result.shots.length + 1).padStart(2, '0')}-${sname}.png`);
         const buf = await page.screenshot({ path: file, type: 'png' });
@@ -303,6 +332,7 @@ async function main() {
       return { webgl: !!g, renderer: ext ? g.getParameter(ext.UNMASKED_RENDERER_WEBGL) : null };
     });
     log('webgl', JSON.stringify(gl));
+    result.gpu = gl.renderer;
     if (!gl.webgl) result.errors.push('WebGL unavailable in this browser');
 
     if (typeof scene.run === 'function') {
@@ -320,6 +350,8 @@ async function main() {
           case 'expect': await ctx.expect(a[0], a[1]); break;
           case 'waitFor': case 'waitfor': await ctx.waitFor(a[0], a[1]); break;
           case 'shot': await ctx.shot(a[0]); break;
+          case 'clip': await ctx.clip(a[0], a[1] ? { durationMs: +a[1] } : {}); break;
+          case 'benchmark': await ctx.benchmark(a[0], a[1] ? { frames: +a[1] } : {}); break;
           case 'notblank': await ctx.notblank(a[0]); break;
           case 'goto': await ctx.goto(a[0]); break;
           case 'log': await ctx.logmsg(a[0]); break;
@@ -334,7 +366,7 @@ async function main() {
       fps: document.getElementById('dbg')?.textContent || null,
       mode: window.__G?.G?.mode ?? null, state: window.__G?.G?.state ?? null,
     })).catch(() => ({}));
-    result.gpu = tail.gpu || (gl.renderer ? 'GPU: ' + gl.renderer : null);
+    result.gpu = gl.renderer || tail.gpu;
     result.fps = tail.fps;
     result.final = { mode: tail.mode, state: tail.state };
     log('final', JSON.stringify(tail));
@@ -347,6 +379,8 @@ async function main() {
   }
 
   const failedExpects = result.expects.filter(x => !x.ok).length;
+  result.sourceEnd = sourceInfo(path.resolve(TOOLS, '..'));
+  if (result.source.gameSha256 && result.sourceEnd.gameSha256 !== result.source.gameSha256) result.errors.push('Game source changed during this run');
   const consoleFail = !allowConsoleErrors && result.consoleErrors.length > 0;
   result.ok = result.errors.length === 0 && failedExpects === 0 && !consoleFail;
   result.summary = `${result.ok ? 'PASS' : 'FAIL'}: ${result.expects.length - failedExpects}/${result.expects.length} expects, ${result.errors.length} page errors, ${result.consoleErrors.length} console errors${consoleFail ? ' (fatal)' : ''}`;
