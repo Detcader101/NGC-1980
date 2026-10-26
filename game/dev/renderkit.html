@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Continuum / RenderKit</title>
+  <script type="importmap">{"imports":{"three":"../vendor/three.module.min.js"}}</script>
+  <link rel="stylesheet" href="../js/renderkit/design.css">
+  <style>
+    body { margin: 0; }
+    .intro { padding: 44px 0 32px; display: flex; align-items: end; justify-content: space-between; gap: 32px; }
+    .intro p { max-width: 285px; font-size: 13px; }
+    .intro h1 span { color: var(--rk-muted); }
+    .section-index { color: var(--rk-time); font: 12px var(--rk-mono); margin-bottom: 20px; }
+    .stage { position: relative; height: 430px; overflow: hidden; background: #182124; }
+    .stage canvas { display: block; width: 100%; height: 100%; }
+    .stage-note { position: absolute; left: 24px; bottom: 20px; pointer-events: none; font: 11px/1.8 var(--rk-mono); color: #bdccc5; }
+    .stage-tag { position: absolute; left: 24px; top: 20px; pointer-events: none; }
+    .stage-axis { position: absolute; top: 20px; right: 24px; font: 11px var(--rk-mono); color: var(--rk-muted); }
+    .catalog-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 20px 0 28px; }
+    .catalog-nav .rk-button { font-size: 12px; padding: 10px 13px; }
+    .caption { display: grid; grid-template-columns: 1fr 1.25fr; gap: 32px; margin: 0 0 36px; }
+    .caption p { font-size: 13px; color: var(--rk-muted); }
+    .swatches { display: grid; grid-template-columns: repeat(6,1fr); gap: 16px; margin-top: 24px; }
+    .swatch { font: 10px var(--rk-mono); color: var(--rk-muted); }
+    .swatch i { height: 3px; display: block; margin-bottom: 10px; background: var(--swatch); }
+    .foot { border-top: 1px solid var(--rk-line); margin-top: 28px; padding-top: 20px; display: flex; justify-content: space-between; gap: 20px; }
+    #notice { color: var(--rk-warning); }
+    @media (max-width: 900px) { .intro { padding-top: 32px; } .stage { height: 360px; } }
+    @media (max-width: 520px) { .intro { display: block; } .intro p { margin-top: 24px; } .caption { grid-template-columns: 1fr; gap: 16px; } .swatches { grid-template-columns: repeat(3,1fr); } .stage { height: 300px; } .foot { flex-direction: column; } }
+  </style>
+</head>
+<body class="rk-ui">
+  <main class="rk-shell">
+    <header class="rk-header">
+      <div class="rk-brand"><span class="rk-mark" aria-hidden="true"></span>CONTINUUM <span class="rk-eyebrow">/ RenderKit</span></div>
+      <span class="rk-eyebrow">FIELD SYSTEMS &nbsp; 1980 — 2086</span>
+    </header>
+    <div class="rk-layout">
+      <section aria-label="Material preview">
+        <div class="intro">
+          <div><div class="section-index">01 / VISUAL LANGUAGE</div><h1>Grounded.<br><span>Out of time.</span></h1></div>
+          <p class="rk-muted">Physical surfaces. Quiet instruments.<br>A familiar world with traces of<br>an unfamiliar future.</p>
+        </div>
+        <div class="stage" id="stage" role="img" aria-label="Live GPU preview of the selected material family">
+          <div class="stage-tag rk-chip" id="stage-label">SURFACE STUDY / HORNET</div>
+          <div class="stage-axis" aria-hidden="true">Y ↑ &nbsp; / &nbsp; Z −</div>
+          <div class="stage-note" id="stage-note">PAINTED ALLOY<br>WEATHERING / PHYSICAL LIGHT</div>
+        </div>
+        <nav class="catalog-nav" aria-label="Shader families">
+          <button class="rk-button" data-view="surface" aria-pressed="true">01 &nbsp; Models</button>
+          <button class="rk-button" data-view="terrain" aria-pressed="false">02 &nbsp; World</button>
+          <button class="rk-button" data-view="particles" aria-pressed="false">03 &nbsp; Particles</button>
+          <button class="rk-button" data-view="interface" aria-pressed="false">04 &nbsp; Interface</button>
+          <button class="rk-button" data-view="temporal" aria-pressed="false">05 &nbsp; Time</button>
+        </nav>
+        <div class="caption"><div><div class="rk-rule"></div><h2 id="caption-title">Built to feel real.</h2></div><p id="caption-copy">Paint, exposed alloy and accumulated dust respond to the same light. The future appears in the details, while the material stays believable.</p></div>
+        <div class="rk-eyebrow">A restrained field palette</div>
+        <div class="swatches" aria-label="Design palette">
+          <div class="swatch" style="--swatch:#e7e9df"><i></i>CHALK</div><div class="swatch" style="--swatch:#a6cfbb"><i></i>SIGNAL</div>
+          <div class="swatch" style="--swatch:#bdb1d9"><i></i>TEMPORAL</div><div class="swatch" style="--swatch:#7a8465"><i></i>FIELD</div>
+          <div class="swatch" style="--swatch:#e8bc7c"><i></i>CAUTION</div><div class="swatch" style="--swatch:#f2a399"><i></i>CRITICAL</div>
+        </div>
+      </section>
+      <aside class="rk-rail" aria-label="Preview controls">
+        <section class="rk-panel"><div class="rk-eyebrow">02 / Material response</div>
+          <label class="rk-field" for="wetness">Surface wetness <input id="wetness" type="range" min="0" max="1" step="0.01" value="0.08"></label>
+          <label class="rk-field" for="dust">Dust coverage <input id="dust" type="range" min="0" max="1" step="0.01" value="0.18"></label>
+          <label class="rk-field" for="camo">Camouflage <input id="camo" type="range" min="0" max="1" step="0.01" value="0"></label>
+        </section>
+        <section class="rk-panel"><div class="rk-eyebrow">03 / Atmosphere</div>
+          <label class="rk-field" for="particle">Particle study <select id="particle"><option>smoke</option><option>dust</option><option>fire</option><option>sparks</option><option>rain</option><option>snow</option><option>temporal</option></select></label>
+          <label class="rk-field" for="temporal">Temporal disturbance <input id="temporal" type="range" min="0" max="1" step="0.01" value="0"></label>
+          <button class="rk-button" id="motion" aria-pressed="false">Pause motion</button>
+        </section>
+        <section class="rk-panel"><div class="rk-eyebrow">04 / Display</div>
+          <label class="rk-field" for="quality">Pixel density <select id="quality"><option value="1">Balanced / 1×</option><option value="0.75">Economy / 0.75×</option><option value="2">Fine / up to 2×</option></select></label>
+          <dl><div class="rk-stat"><dt>Material language</dt><dd>PBR / GLSL</dd></div><div class="rk-stat"><dt>Temporal state</dt><dd id="time-readout">00.00</dd></div><div class="rk-stat"><dt>Library</dt><dd>1.0 / r170</dd></div></dl>
+          <p class="rk-muted" style="font-size:12px">Optical balance, generous margins, one accent at a time. Motion follows your system preference.</p>
+          <p id="notice" role="status"></p>
+        </section>
+      </aside>
+    </div>
+    <footer class="foot rk-eyebrow"><span>NGC–1980 / MATERIAL & INTERFACE LIBRARY</span><span>REALISM WITH A TEMPORAL OFFSET &nbsp; ↗</span></footer>
+  </main>
+  <script type="module" src="./renderkit.js"></script>
+</body>
+</html>

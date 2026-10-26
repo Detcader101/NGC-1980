@@ -1,0 +1,753 @@
+{
+  "schemaVersion": 2,
+  "name": "renderkit",
+  "query": "/dev/renderkit.html?still",
+  "seed": 1980,
+  "viewport": {
+    "width": 1440,
+    "height": 1080,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "9982d7204024d10a60cb6b9e00f0182abcbae1736c4e41c9e4e8329e0ae35aca",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/shader-library/tools/snap.mjs",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/shader-library/tools/scenes/renderkit.mjs",
+    "--out",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/shader-library/tools/runs/renderkit-release",
+    "--browser",
+    "/home/jayjay/.cache/chs/chrome.sh",
+    "--width",
+    "1440",
+    "--height",
+    "1080"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/shader-library",
+    "commit": "4017e45a47476642c8ee0c5b1f81ebac1c092a1b",
+    "branch": "ngc/shader-library",
+    "gameTree": "8144c7f60fc5e0ebc859c990f4688c90654ede87",
+    "gameSha256": "799d179e748f133d123d7be2243e06df9cdcbde7e61a50760da4370bd5fdbe27",
+    "dirty": true,
+    "status": "M README.md\n?? docs/renderkit-claude.md\n?? docs/renderkit.md\n?? game/dev/renderkit-checks.js\n?? game/dev/renderkit.html\n?? game/dev/renderkit.js\n?? game/js/renderkit/\n?? tools/scenes/renderkit.mjs"
+  },
+  "url": "http://127.0.0.1:44599/dev/renderkit.html?still",
+  "ok": true,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": null,
+  "shots": [
+    {
+      "name": "models",
+      "file": "01-models.png",
+      "w": 1440,
+      "h": 1080,
+      "meanLuma": 27.3,
+      "litFraction": 0.7704,
+      "colors": 156
+    },
+    {
+      "name": "terrain",
+      "file": "02-terrain.png",
+      "w": 1440,
+      "h": 1080,
+      "meanLuma": 28.1,
+      "litFraction": 0.7683,
+      "colors": 130
+    },
+    {
+      "name": "particles",
+      "file": "03-particles.png",
+      "w": 1440,
+      "h": 1080,
+      "meanLuma": 26.9,
+      "litFraction": 0.7759,
+      "colors": 94
+    },
+    {
+      "name": "interface",
+      "file": "04-interface.png",
+      "w": 1440,
+      "h": 1080,
+      "meanLuma": 22.8,
+      "litFraction": 0.7249,
+      "colors": 102
+    },
+    {
+      "name": "temporal",
+      "file": "05-temporal.png",
+      "w": 1440,
+      "h": 1080,
+      "meanLuma": 27.4,
+      "litFraction": 0.7746,
+      "colors": 115
+    },
+    {
+      "name": "mobile",
+      "file": "06-mobile.png",
+      "w": 390,
+      "h": 844,
+      "meanLuma": 34,
+      "litFraction": 0.7953,
+      "colors": 163
+    }
+  ],
+  "clips": [],
+  "benchmarks": [
+    {
+      "name": "model-preview",
+      "policy": {
+        "frames": 30,
+        "warmup": 10,
+        "timeoutMs": 120000
+      },
+      "rows": [
+        {
+          "frame": 131,
+          "ms": 15.799999999813735,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 133,
+          "ms": 17.600000000093132,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 135,
+          "ms": 16.700000000186265,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 137,
+          "ms": 15.599999999627471,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 139,
+          "ms": 17,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 141,
+          "ms": 17.200000000186265,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 143,
+          "ms": 15.700000000186265,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 145,
+          "ms": 16.699999999720603,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 147,
+          "ms": 17.399999999906868,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 149,
+          "ms": 16.600000000093132,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 151,
+          "ms": 16.600000000093132,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 153,
+          "ms": 16.100000000093132,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 155,
+          "ms": 17.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 157,
+          "ms": 16.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 159,
+          "ms": 16.899999999906868,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 161,
+          "ms": 15.899999999906868,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 163,
+          "ms": 16.899999999906868,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 165,
+          "ms": 16.40000000037253,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 167,
+          "ms": 17.199999999720603,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 169,
+          "ms": 16,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 171,
+          "ms": 17.300000000279397,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 173,
+          "ms": 15.899999999906868,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 175,
+          "ms": 17.399999999906868,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 177,
+          "ms": 16.799999999813735,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 179,
+          "ms": 16.40000000037253,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 181,
+          "ms": 16.699999999720603,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 183,
+          "ms": 16.300000000279397,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 185,
+          "ms": 17.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 187,
+          "ms": 16.799999999813735,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        },
+        {
+          "frame": 189,
+          "ms": 15.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 1,
+          "textures": 11,
+          "geometries": 108
+        }
+      ],
+      "xr": false,
+      "host": "renderkit",
+      "route": "/dev/renderkit.html?still",
+      "state": "paused",
+      "mode": "preview",
+      "drawingBuffer": [
+        1012,
+        430
+      ],
+      "eyeViewports": [],
+      "summary": {
+        "samples": 30,
+        "frameMs": {
+          "count": 30,
+          "mean": 16.629999999996894,
+          "p50": 16.699999999720603,
+          "p95": 17.5,
+          "p99": 17.5,
+          "min": 15.5,
+          "max": 17.600000000093132
+        },
+        "observedFps": 60.13229104029987,
+        "cpuMs": {
+          "sim": null,
+          "prep": null,
+          "renderSubmit": null
+        },
+        "drawCalls": {
+          "count": 30,
+          "mean": 1,
+          "p50": 1,
+          "p95": 1,
+          "p99": 1,
+          "min": 1,
+          "max": 1
+        },
+        "triangles": {
+          "count": 30,
+          "mean": 1,
+          "p50": 1,
+          "p95": 1,
+          "p99": 1,
+          "min": 1,
+          "max": 1
+        },
+        "textures": {
+          "count": 30,
+          "mean": 11,
+          "p50": 11,
+          "p95": 11,
+          "p99": 11,
+          "min": 11,
+          "max": 11
+        },
+        "geometries": {
+          "count": 30,
+          "mean": 108,
+          "p50": 108,
+          "p95": 108,
+          "p99": 108,
+          "min": 108,
+          "max": 108
+        }
+      },
+      "qualification": "Wall-clock intervals between observed rendered frames. CPU phases are game-smoothed CPU timings, not GPU durations. Render counters describe the last render pass. No capture during sampling."
+    }
+  ],
+  "evals": [
+    {
+      "expr": "(async()=>{const {runRenderKitChecks}=await import('/dev/renderkit-checks.js'); window.__RKChecks=runRenderKitChecks(__RK.renderer,__RK.scene.environment); return __RKChecks;})()",
+      "label": "GPU contracts",
+      "value": {
+        "passed": 74,
+        "checks": [
+          "tested Three revision",
+          "invalid surface preset rejected",
+          "surface detail rejects an unlit material",
+          "zero terrain scale rejected",
+          "invalid particle count rejected",
+          "zero particle lifetime rejected",
+          "invalid text atlas rejected",
+          "invalid HUD size rejected",
+          "RenderKit/paintedMetal: visible pixels",
+          "RenderKit/armor: visible pixels",
+          "RenderKit/steel: visible pixels",
+          "RenderKit/aluminum: visible pixels",
+          "RenderKit/rubber: visible pixels",
+          "RenderKit/fabric: visible pixels",
+          "RenderKit/skin: visible pixels",
+          "RenderKit/concrete: visible pixels",
+          "RenderKit/asphalt: visible pixels",
+          "RenderKit/wood: visible pixels",
+          "RenderKit/ceramic: visible pixels",
+          "RenderKit/wreck: visible pixels",
+          "surface detail rejects duplicate application",
+          "RenderKit/paintedMetal: visible pixels",
+          "live wetness changes pixels without material recreation",
+          "material uniforms are independent",
+          "texture roles distinguish color from data",
+          "RenderKit/armor: visible pixels",
+          "masked and unmasked variants have distinct cache keys",
+          "RenderKit/glass: visible pixels",
+          "RenderKit/foliage: visible pixels",
+          "RenderKit/decal: visible pixels",
+          "RenderKit/terrain: visible pixels",
+          "RenderKit/water: visible pixels",
+          "water time changes optical surface",
+          "PBR instance transforms compile and render",
+          "PBR skinning compiles and renders",
+          "PBR morph target: visible pixels",
+          "PBR morph influences render",
+          "existing fogPatch chained before detail: visible pixels",
+          "built-in distance fog: visible pixels",
+          "smoke: instanced particle pixels",
+          "dust: instanced particle pixels",
+          "fire: instanced particle pixels",
+          "sparks: instanced particle pixels",
+          "rain: instanced particle pixels",
+          "snow: instanced particle pixels",
+          "temporal: instanced particle pixels",
+          "soft particles fade behind perspective scene depth",
+          "orthographic depth conversion fades occluded particles",
+          "depth fade can be disabled",
+          "non-looping emitter expires",
+          "RenderKit/temporal: visible pixels",
+          "sky: visible pixels",
+          "RenderKit/HUD/panel: visible pixels",
+          "RenderKit/HUD/reticle: visible pixels",
+          "sdf: distance-field glyph pixels",
+          "sdf: kerning and multiline layout",
+          "sdf: empty text draws nothing",
+          "sdf: missing glyph without fallback rejected",
+          "msdf: distance-field glyph pixels",
+          "msdf: kerning and multiline layout",
+          "msdf: empty text draws nothing",
+          "msdf: missing glyph without fallback rejected",
+          "text disposal preserves borrowed atlas",
+          "canvas label update replaces glyph pixels (before=31318, after=0)",
+          "RenderKit/paintedMetal: visible pixels",
+          "post restores render target",
+          "post restores viewport and scissor",
+          "post restores clear, autoClear and XR state",
+          "post output contains the scene",
+          "post resizes owned target",
+          "disposed post refuses rendering",
+          "neutral post applies display conversion exactly once (151,151,151 / 151,151,151)",
+          "all linked shader programs runnable",
+          "WebGL reports no error"
+        ],
+        "programs": 39
+      }
+    },
+    {
+      "expr": "window.__previousRKTime=__RK.time.value",
+      "value": 2
+    },
+    {
+      "expr": "window.__previousRKTime=__RK.time.value",
+      "value": 2.1667
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__RKChecks.passed>=60",
+      "label": "shader families and lifecycle contracts",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(models)",
+      "ok": true,
+      "value": 0.7704
+    },
+    {
+      "expr": "__RK.selected===\"terrain\"",
+      "label": "preview navigation",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(terrain)",
+      "ok": true,
+      "value": 0.7683
+    },
+    {
+      "expr": "__RK.selected===\"particles\"",
+      "label": "preview navigation",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(particles)",
+      "ok": true,
+      "value": 0.7759
+    },
+    {
+      "expr": "__RK.selected===\"interface\"",
+      "label": "preview navigation",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(interface)",
+      "ok": true,
+      "value": 0.7249
+    },
+    {
+      "expr": "__RK.selected===\"temporal\"",
+      "label": "preview navigation",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(temporal)",
+      "ok": true,
+      "value": 0.7746
+    },
+    {
+      "expr": "__RK.selected===\"particles\" && __RK.emitters.fire.mesh.visible",
+      "label": "particle selector",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__RK.surfaceMaterials.every(m=>m.userData.renderkit.uniforms.rkWet.value===0.8)",
+      "label": "live material slider",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__RK.post.uniforms.rkTemporal.value===0.75",
+      "label": "post control",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "!__RK.paused",
+      "label": "motion can resume",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__RK.time.value>__previousRKTime",
+      "label": "simulation clock advances",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__RK.paused && __RK.time.value===__previousRKTime",
+      "label": "pause freezes simulation time",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__RK.renderer.getPixelRatio()===0.75",
+      "label": "density control",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "document.documentElement.scrollWidth<=390",
+      "label": "mobile layout fits viewport",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(mobile)",
+      "ok": true,
+      "value": 0.7953
+    },
+    {
+      "expr": "__RK.paused",
+      "label": "reduced motion pauses GPU effects",
+      "ok": true,
+      "value": true
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-26T18:42:16.083Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/shader-library",
+    "commit": "4017e45a47476642c8ee0c5b1f81ebac1c092a1b",
+    "branch": "ngc/shader-library",
+    "gameTree": "8144c7f60fc5e0ebc859c990f4688c90654ede87",
+    "gameSha256": "799d179e748f133d123d7be2243e06df9cdcbde7e61a50760da4370bd5fdbe27",
+    "dirty": true,
+    "status": "M README.md\n?? docs/renderkit-claude.md\n?? docs/renderkit.md\n?? game/dev/renderkit-checks.js\n?? game/dev/renderkit.html\n?? game/dev/renderkit.js\n?? game/js/renderkit/\n?? tools/scenes/renderkit.mjs"
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": null,
+    "state": null
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/shader-library",
+    "commit": "4017e45a47476642c8ee0c5b1f81ebac1c092a1b",
+    "branch": "ngc/shader-library",
+    "gameTree": "8144c7f60fc5e0ebc859c990f4688c90654ede87",
+    "gameSha256": "799d179e748f133d123d7be2243e06df9cdcbde7e61a50760da4370bd5fdbe27",
+    "dirty": true,
+    "status": "M README.md\n?? docs/renderkit-claude.md\n?? docs/renderkit.md\n?? game/dev/renderkit-checks.js\n?? game/dev/renderkit.html\n?? game/dev/renderkit.js\n?? game/js/renderkit/\n?? tools/scenes/renderkit.mjs"
+  },
+  "summary": "PASS: 20/20 expects, 0 page errors, 0 console errors",
+  "durationMs": 7512,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/shader-library/tools/runs/renderkit-release"
+}

@@ -1,0 +1,63 @@
+/* Opt-in DOM counterpart to RenderKit's GPU UI. Everything is scoped to .rk-ui. */
+.rk-ui {
+  --rk-bg: #101719; --rk-panel: #182124; --rk-raised: #202b2d;
+  --rk-ink: #e7e9df; --rk-muted: #a7b4b0; --rk-line: #394747;
+  --rk-accent: #a6cfbb; --rk-time: #bdb1d9; --rk-warning: #e8bc7c; --rk-danger: #f2a399;
+  --rk-space-1: 4px; --rk-space-2: 8px; --rk-space-3: 12px;
+  --rk-space-4: 20px; --rk-space-5: 32px; --rk-space-6: 52px; --rk-space-7: 84px;
+  --rk-font: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  --rk-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+  color: var(--rk-ink); background: var(--rk-bg); font: 15px/1.55 var(--rk-font);
+  color-scheme: dark; -webkit-font-smoothing: antialiased;
+}
+.rk-ui *, .rk-ui *::before, .rk-ui *::after { box-sizing: border-box; }
+.rk-ui h1, .rk-ui h2, .rk-ui h3, .rk-ui p { margin: 0; }
+.rk-ui h1 { font-size: clamp(38px, 5vw, 76px); line-height: .97; font-weight: 450; letter-spacing: -.055em; }
+.rk-ui h2 { font-size: 24px; font-weight: 450; letter-spacing: -.025em; }
+.rk-ui h3 { font-size: 16px; font-weight: 550; }
+.rk-ui a { color: var(--rk-accent); text-underline-offset: .3em; }
+.rk-ui :is(button, input, select) { font: inherit; accent-color: var(--rk-accent); }
+.rk-ui :is(button, a, input, select):focus-visible { outline: 2px solid var(--rk-accent); outline-offset: 4px; }
+.rk-ui .rk-eyebrow { font: 11px/1.5 var(--rk-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--rk-muted); }
+.rk-ui .rk-muted { color: var(--rk-muted); }
+.rk-ui .rk-mono { font-family: var(--rk-mono); font-variant-numeric: tabular-nums; }
+.rk-ui .rk-shell { max-width: 1600px; margin: auto; padding: 28px 52px 52px 36px; }
+.rk-ui .rk-header { display: flex; justify-content: space-between; align-items: center; gap: 32px; padding-bottom: 24px; border-bottom: 1px solid var(--rk-line); }
+.rk-ui .rk-brand { display: inline-flex; align-items: center; gap: 12px; font-size: 14px; letter-spacing: .13em; }
+/* Two unequal bars and the empty interval form the mark; clearspace is >= one cap height. */
+.rk-ui .rk-mark { display: inline-block; width: 29px; height: 31px; position: relative; margin-right: 4px; }
+.rk-ui .rk-mark::before, .rk-ui .rk-mark::after { content: ''; position: absolute; width: 8px; background: var(--rk-accent); transform: skewY(-24deg); }
+.rk-ui .rk-mark::before { height: 29px; left: 0; top: 2px; }
+.rk-ui .rk-mark::after { height: 19px; right: 1px; top: 0; }
+.rk-ui .rk-layout { display: grid; grid-template-columns: minmax(0, 1fr) 288px; column-gap: 52px; }
+.rk-ui .rk-stack { display: grid; gap: 20px; }
+.rk-ui .rk-panel { border-top: 1px solid var(--rk-line); padding: 20px 0 28px; }
+.rk-ui .rk-panel > * + * { margin-top: 16px; }
+.rk-ui .rk-rail { border-left: 1px solid var(--rk-line); padding: 32px 0 0 28px; }
+.rk-ui .rk-button { min-height: 44px; padding: 10px 16px; background: transparent; color: var(--rk-ink); border: 1px solid var(--rk-line); border-radius: 2px; cursor: pointer; text-align: left; transition: background .15s, border-color .15s; }
+.rk-ui .rk-button:hover { background: var(--rk-raised); border-color: var(--rk-muted); }
+.rk-ui .rk-button[aria-pressed='true'], .rk-ui .rk-button-primary { background: var(--rk-accent); border-color: var(--rk-accent); color: #10201b; }
+.rk-ui .rk-button:disabled { opacity: .5; cursor: default; }
+.rk-ui .rk-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+.rk-ui .rk-field { display: grid; gap: 8px; font-size: 13px; }
+.rk-ui .rk-field input[type='range'] { width: 100%; min-height: 44px; margin: 0; }
+.rk-ui .rk-field select { min-height: 44px; padding: 8px; background: var(--rk-panel); color: var(--rk-ink); border: 1px solid var(--rk-line); border-radius: 2px; }
+.rk-ui .rk-stat { display: flex; justify-content: space-between; align-items: baseline; gap: 24px; padding: 12px 0; border-bottom: 1px solid var(--rk-line); }
+.rk-ui .rk-stat dt { color: var(--rk-muted); font-size: 12px; }
+.rk-ui .rk-stat dd { margin: 0; font: 13px var(--rk-mono); }
+.rk-ui .rk-chip { display: inline-flex; gap: 8px; align-items: center; font: 11px var(--rk-mono); color: var(--rk-accent); }
+.rk-ui .rk-chip::before { content: ''; width: 5px; height: 5px; background: currentColor; }
+.rk-ui .rk-rule { width: 44px; height: 3px; background: var(--rk-time); margin-bottom: 20px; }
+.rk-ui .rk-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+.rk-ui .rk-table :is(th, td) { padding: 12px 20px 12px 0; border-bottom: 1px solid var(--rk-line); }
+.rk-ui .rk-table th { font-weight: 500; color: var(--rk-muted); }
+@media (max-width: 900px) {
+  .rk-ui .rk-shell { padding: 20px 24px 36px 20px; }
+  .rk-ui .rk-layout { grid-template-columns: 1fr; }
+  .rk-ui .rk-rail { border-left: 0; padding: 24px 0 0; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; }
+}
+@media (max-width: 520px) {
+  .rk-ui .rk-header { gap: 16px; align-items: flex-start; }
+  .rk-ui .rk-rail { grid-template-columns: 1fr; gap: 8px; }
+}
+@media (prefers-reduced-motion: reduce) { .rk-ui *, .rk-ui *::before, .rk-ui *::after { transition: none !important; animation: none !important; } }

@@ -1,5 +1,10 @@
 # NGC-1980
 
+**Shader library branch:** this checkout includes the opt-in **Continuum RenderKit** for models,
+terrain/water, particles, GPU text/HUD, minimalist UI and temporal post effects. Read the
+[library guide](docs/renderkit.md) or [Claude handoff](docs/renderkit-claude.md); preview
+`/dev/renderkit.html` on the static server. The game entry point remains unchanged.
+
 **1980.** Machines from the runaway star NGC-1980 have made a one-way jump back in time to Earth, bringing their own
 war machines and modern weapons from our future. A joint Cold War task force is sent to stop them.
 

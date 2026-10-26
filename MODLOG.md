@@ -1,5 +1,18 @@
 # MODLOG — NGC-1980 (formerly Thrust/Zarch)
 
+## 2026-10-26 — Continuum reusable shader and UI library
+
+Added an opt-in Three r170/WebGL2 library on `ngc/shader-library`: physical surface presets and
+weathering, terrain/water/sky, glass/foliage/decals, GPU particles, temporal materials, GPU HUD,
+canvas and SDF/MSDF text, and a small linear post-processing pipeline. Scoped UI components use
+asymmetric optical spacing, negative space and muted temporal accents. The game entry point is unchanged.
+
+The [gallery](game/dev/renderkit.html), [guide](docs/renderkit.md) and
+[Claude handoff](docs/renderkit-claude.md) make the library available for later integration.
+Validation passes 74 GPU/API checks, 20/20 browser assertions and 488/488 syntax checks. A pixel
+regression caught and fixed stale glyphs when shrinking a canvas label. Screenshot inspection,
+recorded source hashes and software-renderer limits are in the [validation record](docs/renderkit-validation.md).
+
 ## 2026-10-26 — readable underwater infantry view and fish species
 
 The natural first-person dive reproduced the user's issue: about 19 m visibility and zero visible fish pixels,
