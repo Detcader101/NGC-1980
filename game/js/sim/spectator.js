@@ -10,6 +10,7 @@
 //
 //   const S = createSpectator(h)   h: { war, THREE, params, groundY, newGame, fog, feed, say, buildJetMesh, hud }
 //   S.start()   S.step(dt) in place of war.update (the frame's game time)   S.camera(cam, dt)   S.pl (the war's player)
+import { BOUND } from '../world.js';
 import { createCommanderAI } from './commanderai.js';
 import { createRedAI } from './redai.js';
 import { createStrikeWing } from './strike.js';
@@ -282,7 +283,7 @@ body.simmode #tl,body.simmode #tr,body.simmode #bot,body.simmode #radar,body.sim
   }
   function minimap() {
     const big = S.cam === 'MAP', N0 = big ? 560 : 226; if (elMap.width !== N0) { elMap.width = elMap.height = N0; }
-    const x = mapCtx, N = N0, k = N / 1400, P = (a, b) => [N / 2 + a * k, N / 2 + b * k];
+    const x = mapCtx, N = N0, k = N / (2 * BOUND + 120), P = (a, b) => [N / 2 + a * k, N / 2 + b * k];
     x.clearRect(0, 0, N, N); x.fillStyle = 'rgba(10,30,40,.5)'; x.fillRect(0, 0, N, N);
     for (const I of W.islands) { const [cx, cz] = P(I.x, I.z); x.fillStyle = I.owner === 1 ? 'rgba(70,190,255,.55)' : I.owner === 2 ? 'rgba(255,110,60,.55)' : 'rgba(170,160,120,.45)'; x.beginPath(); x.arc(cx, cz, Math.max(3, I.r * k * 0.8), 0, 6.283); x.fill(); if (I.cave) { x.strokeStyle = '#eee'; x.stroke(); } if (big) { x.font = '11px Consolas, monospace'; x.fillStyle = '#dde'; x.textAlign = 'center'; x.fillText(I.name, cx, cz - Math.max(3, I.r * k * 0.8) - 4); x.textAlign = 'left'; } }
     if (big) { x.font = '12px Consolas, monospace'; x.fillStyle = '#ec6'; x.fillText('STRATEGIC PLOT  -  SQUARES: SHIPS  DOTS: AIRCRAFT  SPECKS: TROOPS  RINGED: CAVE ISLANDS', 10, N - 10); }

@@ -4,13 +4,16 @@ import { buildCaveMesh, makeTurret, makeTank, makePod, makeRope } from './cave3d
 import { Sfx } from './audio.js';
 import { createDamage, PARTS } from './damage.js';
 import { HELI, EYE, buildHeliMesh, buildCockpit, createHeliSim, createHeliInput, createHeliSystems, fuelBurnPct } from './heli.js';
-import { BOUND, ISLANDS, islandH, createNav, SEA_FLOOR, inZone } from './world.js';
+import { BOUND, ISLANDS, islandH, createNav, SEA_FLOOR, inZone, fleetStart } from './world.js';
 import { createWar, COST } from './war.js';
 import { createSpectator } from './sim/spectator.js';   // SIM MODE
 import { createMarkerLayer, mapBar } from './ui/markerlayer.js';   // UNIT MARKERS (ngc/healthbars): icon + health bar over every unit
 import { hpOf } from './ui/unitmarkers.js';
 import { CARRIER } from './ships.js';
 import { createFog, FOG_GLSL, fogPatch } from './fog.js';
+import { drawDistance, radialFog } from './world/visibility.js';
+import { zoneGrid, SURF_NAMES, GEOLOGY, geologyOf } from './world/terrain.js';
+radialFog(THREE);
 import { createFx } from './fx.js';
 import { createControls } from './hotas.js';
 import { createJetPlay } from './jetplay.js';
@@ -376,33 +379,50 @@ const hmTex = (() => {
   for (let j = 0; j < HM_N; j++) for (let i = 0; i < HM_N; i++) a[j * HM_N + i] = terrainH(-BOUND + i * TG, -BOUND + j * TG);
   const t = new THREE.DataTexture(a, HM_N, HM_N, THREE.RedFormat, THREE.FloatType); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t;
 })();
+const SURF_W = { grass: [0,0,0,0], sand: [255,0,0,0], wetsand: [255,0,0,0], rock: [0,255,0,0], mud: [0,0,255,0], dirt: [0,0,0,255], shingle: [0,150,0,105], marsh: [0,0,150,0] };
+const surfTex = (() => {
+  const Z = zoneGrid(), a = new Uint8Array(HM_N * HM_N * 4), weights = SURF_NAMES.map(n => SURF_W[n]);
+  for (let j=0;j<HM_N;j++) for(let i=0;i<HM_N;i++) {
+    const zi=Math.round((-BOUND+i*TG+Z.E)/Z.C), zj=Math.round((-BOUND+j*TG+Z.E)/Z.C);
+    a.set(weights[Z.s[zj*Z.N+zi]], (j*HM_N+i)*4);
+  }
+  const t = new THREE.DataTexture(a, HM_N, HM_N, THREE.RGBAFormat); t.minFilter = t.magFilter = THREE.LinearFilter; t.needsUpdate = true; return t;
+})();
 const decorTex = (() => {   // r = nearest pad index + 1, g = nearest shaft index + 1 (0 = none near)
   const a = new Uint8Array(DEC_N * DEC_N * 4);
   for (let j = 0; j < DEC_N; j++) for (let i = 0; i < DEC_N; i++) {
     const x = -BOUND + (i + 0.5) * DEC_C, z = -BOUND + (j + 0.5) * DEC_C, k = (j * DEC_N + i) * 4;
     PADS.forEach((p, n) => { if (Math.hypot(x - p.x, z - p.z) < 33) a[k] = n + 1; });
     BASES.forEach((b, n) => { if (Math.hypot(x - b.x, z - b.z) < 25) a[k + 1] = n + 1; });
+    let bd = 200; ISLANDS.forEach((I, n) => { const d = Math.hypot(x-I.x,z-I.z)-I.r; if(d<bd){bd=d;a[k+2]=n+1;} });
   }
   const t = new THREE.DataTexture(a, DEC_N, DEC_N, THREE.RGBAFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t;
 })();
 // Past the control zone the world goes on for ever (world.js: continents, mountain ranges, forests). Inside the zone
 // the terrain reads the baked core heightmap above; outside it reads two heightmaps baked around the camera by a
 // worker (terrainworker.js) from the same height function the physics uses: 2 km at 4 m and 8 km at 16 m. They are
-// re-baked as you travel and swapped in when ready; the near bake also scatters the forest trees.
+// re-baked as you travel. The near window blends from its previous coverage; forests stream in stable world chunks.
 const HW_N = 512;
-const HW = [{ c: 4, recentre: 280, trees: 9000, uni: 'uHMNo' }, { c: 16, recentre: 1000, trees: 0, uni: 'uHMFo' }].map(L => {
+const HW = [{ c: 4, recentre: 280, trees: 0, uni: 'uHMNo' }, { c: 16, recentre: 1000, trees: 0, uni: 'uHMFo' }].map(L => {
   const tex = new THREE.DataTexture(new Float32Array(HW_N * HW_N).fill(SEA_FLOOR), HW_N, HW_N, THREE.RedFormat, THREE.FloatType);
   tex.minFilter = tex.magFilter = THREE.NearestFilter; tex.needsUpdate = true; return { ...L, tex, cx: 1e9, cz: 1e9, busy: false };
 });
+const previousNear = new THREE.DataTexture(HW[0].tex.image.data.slice(), HW_N, HW_N, THREE.RedFormat, THREE.FloatType);
+previousNear.minFilter = previousNear.magFilter = THREE.NearestFilter; previousNear.needsUpdate = true;
 const terrainWorker = new Worker(new URL('./terrainworker.js', import.meta.url), { type: 'module' });
 terrainWorker.onmessage = ({ data: d }) => {
-  const L = HW[d.id]; L.busy = false; L.tex.image.data = d.h; L.tex.needsUpdate = true; terrainUni[L.uni].value.set(d.ox, d.oz, d.c);
-  if (d.trees) fillForest(d.trees);
+  const L = HW[d.id]; L.busy = false;
+  if (d.id === 0 && L.ready) {
+    previousNear.image = { ...L.tex.image }; previousNear.needsUpdate = true;
+    terrainUni.uHMNpo.value.copy(terrainUni.uHMNo.value); terrainUni.uHMNblend.value = 0;
+  }
+  L.tex.image.data = d.h; L.tex.needsUpdate = true; L.ready = true; terrainUni[L.uni].value.set(d.ox, d.oz, d.c);
   if (d.id === 1) buildFarMap(d);
 };
-function terrainStream(x, z) {
+function terrainStream(x, z, dt = 0) {
+  terrainUni.uHMNblend.value = Math.min(1, terrainUni.uHMNblend.value + dt / 1.2);
   HW.forEach((L, id) => {
-    if (L.busy) return;
+    if (L.busy || (id === 0 && terrainUni.uHMNblend.value < 1)) return;
     const step = L.c * 32, cx = Math.round(x / step) * step, cz = Math.round(z / step) * step;
     if (Math.abs(cx - L.cx) < L.recentre && Math.abs(cz - L.cz) < L.recentre) return;
     L.busy = true; L.cx = cx; L.cz = cz;
@@ -420,17 +440,19 @@ function buildFarMap(d) {
   }
   x.putImageData(im, 0, 0); Object.assign(farMap, { ox: d.ox, oz: d.oz, size: d.n * d.c, ready: true });
 }
-const fog = createFog(BOUND); fog.enabled = false; fog.update([]);
+const fog = createFog(BOUND, 224); fog.enabled = false; fog.update([]);
 const terrainGeo = new THREE.PlaneGeometry(TG * TN, TG * TN, TN, TN); terrainGeo.rotateX(-Math.PI / 2);
 const terrainUni = {
-  uFog: { value: HORIZON }, uSun: { value: new THREE.Vector3(.5, 1, .3) }, uBases: { value: baseUniform }, uPadCol: { value: padUniform }, uTime: { value: 0 },
+  uFog: { value: HORIZON.clone().convertLinearToSRGB() }, uSun: { value: new THREE.Vector3(.5, 1, .3) }, uBases: { value: baseUniform }, uPadCol: { value: padUniform }, uTime: { value: 0 },
   uPadP: { value: PADS.map(p => new THREE.Vector4(p.x, p.z, p.isl.cave ? 1 : 0, 0)) }, uHM: { value: hmTex }, uDecor: { value: decorTex }, ...fog.uniforms,
   uHMN: { value: HW[0].tex }, uHMF: { value: HW[1].tex }, uHMNo: { value: new THREE.Vector3(-1e6, -1e6, 4) }, uHMFo: { value: new THREE.Vector3(-1e6, -1e6, 16) },
+  uHMNprev: { value: previousNear }, uHMNpo: { value: new THREE.Vector3(-1e6, -1e6, 4) }, uHMNblend: { value: 1 },
   uFogN: { value: DRAW * 0.5 }, uFogF: { value: DRAW * 0.97 }, uNear: { value: new THREE.Vector3(0, 0, 0) },
+  uSurf: { value: surfTex }, uSandC: { value: ISLANDS.map(I => new THREE.Color(...GEOLOGY[geologyOf(I)].sand)) }, uRockC: { value: ISLANDS.map(I => new THREE.Color(...GEOLOGY[geologyOf(I)].rock)) },
   ...createSeaUniforms(),   // SEAWORLD: the live sea's waves, whitecaps, ships for the hull foam
 };
 const terrainVS = `
-    varying vec3 vW; varying float vRaw; uniform sampler2D uHM, uHMN, uHMF; uniform vec3 uHMNo, uHMFo;
+    varying vec3 vW; varying float vRaw; uniform sampler2D uHM, uHMN, uHMF, uHMNprev; uniform vec3 uHMNo, uHMFo, uNear, uHMNpo; uniform float uHMNblend;
     ${SEA_VS_DECL}
     #ifdef FAR
     const float CELL=24.0;   // FAR_C (declared further down)
@@ -442,30 +464,47 @@ const terrainVS = `
       float a=texture2D(t,(i+.5)/n).r, b=texture2D(t,(i+vec2(1.5,.5))/n).r, c=texture2D(t,(i+vec2(.5,1.5))/n).r, d=texture2D(t,(i+1.5)/n).r;
       return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);
     }
-    float hOut(vec2 p){   // the 4 m near window where it reaches, else the 16 m far window
-      vec2 g=(p-uHMNo.xy)/uHMNo.z;
-      if(g.x>1.&&g.y>1.&&g.x<${(HW_N - 2).toFixed(1)}&&g.y<${(HW_N - 2).toFixed(1)}) return bil(uHMN,g);
-      return bil(uHMF,(p-uHMFo.xy)/uHMFo.z);
+    float nearH(sampler2D tex,vec2 g,float farH){
+      float edge=min(min(g.x,g.y),min(${(HW_N - 1).toFixed(1)}-g.x,${(HW_N - 1).toFixed(1)}-g.y));
+      return edge>1.?mix(farH,bil(tex,g),smoothstep(1.,34.,edge)):farH;
+    }
+    float hOut(vec2 p){
+      float farH=bil(uHMF,(p-uHMFo.xy)/uHMFo.z), h=nearH(uHMN,(p-uHMNo.xy)/uHMNo.z,farH);
+      if(uHMNblend<1.) h=mix(nearH(uHMNprev,(p-uHMNpo.xy)/uHMNpo.z,farH),h,smoothstep(0.,1.,uHMNblend));
+      return h;
+    }
+    float hAt(vec2 p){ return max(abs(p.x),abs(p.y))<${BOUND.toFixed(1)} ? texture2D(uHM,((p+${BOUND.toFixed(1)})/${TG.toFixed(1)}+.5)/${HM_N.toFixed(1)}).r : hOut(p); }
+    float coarseH(vec2 p){
+      vec2 a=floor(p/24.)*24., f=fract(p/24.);
+      float h00=hAt(a),h10=hAt(a+vec2(24.,0.)),h01=hAt(a+vec2(0.,24.)),h11=hAt(a+vec2(24.));
+      return f.x+f.y<=1.?h00+(h10-h00)*f.x+(h01-h00)*f.y:h11+(h01-h11)*(1.-f.x)+(h10-h11)*(1.-f.y);
     }
     void main(){
       vec4 w=modelMatrix*vec4(position,1.);
-      float h=max(abs(w.x),abs(w.z))<${BOUND.toFixed(1)} ? texture2D(uHM,((w.xz+${BOUND.toFixed(1)})/${TG.toFixed(1)}+.5)/${HM_N.toFixed(1)}).r : hOut(w.xz);
+      float h=hAt(w.xz), drawCell=CELL;
+      #ifndef FAR
+      float edge=max(abs(w.x-uNear.x),abs(w.z-uNear.y));
+      float morph=smoothstep(uNear.z-70.,uNear.z,edge);
+      if(morph>0.) h=mix(h,coarseH(w.xz),morph);
+      drawCell=mix(CELL,24.,morph);
+      #endif
       vRaw=h; w.y=max(h,0.);
-      ${SEA_VS}
+      ${SEA_VS.replaceAll('CELL', 'drawCell')}
       vW=w.xyz;
       gl_Position=projectionMatrix*viewMatrix*w;
     }`;
 const terrainFS = `
     varying vec3 vW; varying float vRaw; uniform vec3 uFog; uniform vec3 uSun; uniform vec4 uBases[${BASES.length}]; uniform vec3 uPadCol[${PADS.length}]; uniform vec4 uPadP[${PADS.length}];
     uniform float uTime; uniform sampler2D uDecor, uFogT; uniform float uFogB, uFogN, uFogF; uniform vec3 uNear;
+    uniform sampler2D uSurf; uniform vec3 uSandC[${ISLANDS.length}], uRockC[${ISLANDS.length}];
     ${FOG_GLSL}
     ${SEA_FS_DECL}
     void main(){
       #ifdef FAR
       if(max(abs(vW.x-uNear.x),abs(vW.z-uNear.y))<uNear.z) discard;   // the fine grid covers this
       #endif
-      vec2 dc=texture2D(uDecor,(vW.xz+${BOUND.toFixed(1)})/${(2 * BOUND).toFixed(1)}).rg*255.;
-      int pi=int(dc.r+.5)-1, bi=int(dc.g+.5)-1;
+      vec3 dc=texture2D(uDecor,(vW.xz+${BOUND.toFixed(1)})/${(2 * BOUND).toFixed(1)}).rgb*255.;
+      int pi=int(dc.r+.5)-1, bi=int(dc.g+.5)-1, gi=int(dc.b+.5)-1;
       if(bi>=0 && length(vW.xz-uBases[bi].xy)<${HOLE_R.toFixed(1)}) discard;   // the shaft
       vec3 n=normalize(cross(dFdx(vW),dFdy(vW))); if(n.y<0.) n=-n;
       float l=max(dot(n,normalize(uSun)),0.)*.75+.4;
@@ -477,6 +516,13 @@ const terrainFS = `
       vec3 c=mix(land*mix(1.,.8+.2*sin(vW.x*.0021)*sin(vW.z*.0017),wild),rock,rk);
       c=mix(c,vec3(.93,.95,.98),wild*smoothstep(430.,500.,vW.y+30.*sin(vW.x*.011)*cos(vW.z*.009))*smoothstep(.45,.7,n.y));
       c=mix(vec3(.78,.72,.45),c,smoothstep(0.,3.,vW.y));
+      if(wild<.5 && vRaw>0.) {
+        vec4 sw=texture2D(uSurf,((vW.xz+${BOUND.toFixed(1)})/${TG.toFixed(1)}+.5)/${HM_N.toFixed(1)});
+        vec3 sd=gi>=0?uSandC[gi]:vec3(.86,.79,.6), rkC=gi>=0?uRockC[gi]:vec3(.55,.53,.5);
+        float grass=max(0.,1.-dot(sw,vec4(1.)));
+        sd*=mix(.72,1.,smoothstep(0.,.8,vRaw));
+        c=(mix(vec3(.2,.43,.14),vec3(.29,.5,.17),chk*.45)*grass+sd*sw.r+rkC*sw.g+vec3(.31,.27,.18)*sw.b+vec3(.47,.38,.26)*sw.a)/max(1.,grass+dot(sw,vec4(1.)));
+      }
       c*=l;
       if(vRaw<=0.){   // sea: shallows to deep water, the swell (SEAWORLD: the live sea), whitecaps, surf, hull foam
         float d=-vRaw, t=uTime; vec2 p=vW.xz;
@@ -539,17 +585,11 @@ const TREES = [];
   }
   mesh.count = n; zScene.add(mesh); TREES.mesh = mesh;   // ARMOUR: the instances a tank pushes over (felled in place)
 }
-// forest trees out in the wild lands (scattered by the terrain worker on a fixed jittered grid: the same every time)
-const forest = (() => { const geo = new THREE.ConeGeometry(1.3, 5, 6); geo.translate(0, 2.5, 0); const t = new THREE.InstancedMesh(geo, fogPatch(new THREE.MeshLambertMaterial({ color: 0x1b6a26, flatShading: true }), fog, terrainUni.uTime), 9000); t.count = 0; t.frustumCulled = false; zScene.add(t); return t; })();
+// Wild forests stream with towns in stable tiles (world/life.js).
 {   // ARMOUR: the landing hards' concrete, kerbs, marker posts and signs (under the fog of war like the rest of the zone)
   const fp = m => fogPatch(m, fog, terrainUni.uTime);
   const mats = { concrete: fp(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide })), post: fp(new THREE.MeshLambertMaterial({ color: 0x8c8a84, flatShading: true })), red: fp(new THREE.MeshLambertMaterial({ color: 0xb02a20, flatShading: true })), white: fp(new THREE.MeshLambertMaterial({ color: 0xe8e8e0, flatShading: true })), green: fp(new THREE.MeshLambertMaterial({ color: 0x2f7a3a, flatShading: true })), sign: t => fp(new THREE.MeshLambertMaterial({ map: t, side: THREE.DoubleSide })) };
   for (const h of HARDS) zScene.add(buildHardMesh(h, mats));
-}
-function fillForest(a) {
-  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), p = new THREE.Vector3(); let n = 0;
-  for (let k = 0; k + 3 < a.length && n < 9000; k += 4) { const s = a[k + 3]; sc.set(s, s * (0.9 + (k % 7) * 0.06), s); m4.compose(p.set(a[k], a[k + 1] - 0.3, a[k + 2]), q, sc); forest.setMatrixAt(n++, m4); }
-  forest.count = n; forest.instanceMatrix.needsUpdate = true;
 }
 // base
 const baseGroup = new THREE.Group(); baseGroup.position.set(HOME_B.x, PAD_H, HOME_B.z); zScene.add(baseGroup);
@@ -661,7 +701,7 @@ function showEnd(title, why) {
 }
 war = createWar({
   scene: zScene, fx, sfx, terrainH, isWater, nav, ISLANDS, BASES, G: PSTORE, feed, addScore, ear: zCam.position,
-  carrierStart: seaSpot(-300, 280), enemyStart: seaSpot(300, -280),
+  carrierStart: seaSpot(...fleetStart(1)), enemyStart: seaSpot(...fleetStart(2)),
   player: () => PL, hurtPlayer: (a, why, at, dir, kind) => hurtPlayer(a, why, at, dir, kind), onOwner: islandOwnerChanged, onEnd: warOver,
 });
 if (params.has('sea')) war.setSeaDrift(params.has('seadrift')); else { war.setSea(SEA_PREF.ss); war.setSeaDrift(SEA_PREF.drift); }   // SEAWORLD
@@ -726,6 +766,7 @@ war.deckHooks.landing = (c) => {   // the player's jet on approach: hook and gea
   for (const [D, A] of [[jetC, JP.J], [tomcatC, tomcatC.TP.A]]) if (D.present() && !D.park.on && !A.onGround && A.hookCmd && A.gearCmd && Math.hypot(A.pos.x - c.p.x, A.pos.z - c.p.z) < 3000 && A.pos.y < c.p.y + 400) return true;
   return false;
 };
+war.deckHooks.recovery = () => [jetC, tomcatC].some(d => d.present() && d.wing?.needsLane);
 const launchJet = () => jetC.launch();
 const swapToHeli = () => getInOut();
 // the AMPCD moving map (drawn in world metres; k = pixels per metre)
@@ -1501,6 +1542,7 @@ function clearHandOn() {   // the commander picked a unit: no automatic hand-on 
 const commander = createCommander({
   fleet, say, feed, sfx, hud: $('hud'), roster, bases: commandBases, store: PSTORE,
   airdrop: { cost: AIR_COST, lines: () => airdrop.lines(), watch: () => airdrop.watch() },   // AIRLIFT: C on the board, V to watch
+  canOpen: () => { if (G.state !== 'play') return false; if (G.mode !== 'zarch') { say('CLIMB OUT OF THE CAVE FIRST', 1.4); return false; } return true; },
   gate: id => war.allow(1, id) ? '' : war.gateMsg(1, id), research: () => techUI.open(),   // TECH TREE
   researchLine: () => { const T = war.tech[1], c = T.current && T.node(T.current.id); return c ? `<br>RESEARCH <b>${c.name}  ${Math.round(T.progress * 100)}%  (${Math.ceil(T.remaining)} s)</b>  ·  T: THE RESEARCH PAGE` : '<br>RESEARCH <b>IDLE</b>  ·  T: THE RESEARCH PAGE'; },
   here: () => Z.pos, mat: () => G.mat, fuelStores: () => G.res,
@@ -1513,7 +1555,7 @@ const commander = createCommander({
 });
 // TECH TREE: the RESEARCH page (techui.js); the command board's T and SHIFT+\ open it, T / \ go back to the board
 const techUI = createTechUI({ war, hud: $('hud'), say, feed, sfx, store: PSTORE, onBoard: () => commander.open(),
-  onOpen: () => { if (document.pointerLockElement) document.exitPointerLock(); if (bigMap) { bigMap = false; setMapSize(); } } });
+  onOpen: () => { commander.close(); if (document.pointerLockElement) document.exitPointerLock(); if (bigMap) { bigMap = false; setMapSize(); } } });
 function commandKey(code, shift = false) {   // \ the board, SHIFT+\ the RESEARCH page, / the next unit out (main's keydown, before the craft's own keys)
   if (code !== 'Backslash' && code !== 'IntlBackslash' && code !== 'Slash') return false;
   if (G.mode !== 'zarch') { say('CLIMB OUT OF THE CAVE FIRST', 1.4); return true; }
@@ -1810,6 +1852,7 @@ function menuItems() {
     { id: 'logistics', label: 'CALL LOGISTICS', note: 'JETS ARE SERVICED ON THE ALBATROSS DECK', off: true },
     { id: 'respawn', label: 'BACK TO THE ALBATROSS', note: G.craft === 'tomcat' ? `WRITES OFF THIS TOMCAT (${G.tomcats} LEFT IN THE HANGAR)  -  YOU GO BACK TO THE HELICOPTER` : `WRITES OFF THIS HORNET (${G.jets} LEFT IN THE HANGAR)  -  YOU GO BACK TO THE HELICOPTER`, off: G.over },
     { id: 'command', label: 'COMMAND BOARD', note: 'TAKE OUT OR SWITCH TO ANY UNIT OF THE FLEET  ·  \\ IN THE GAME', off: G.over || G.mode !== 'zarch' },   // COMMANDER
+    { id: 'research', label: 'RESEARCH / TECH TREE', note: 'UNLOCK UNITS, LOGISTICS AND FLEET UPGRADES', off: G.over || G.mode !== 'zarch' },
     { id: 'fov', label: 'COCKPIT FOV', slider: true }, ...seaItems(),
     { id: 'quit', label: 'QUIT TO TITLE', note: 'ENDS THIS WAR' },
   ];
@@ -1818,6 +1861,7 @@ function menuItems() {
     { id: 'logistics', label: 'CALL LOGISTICS', note: 'FOR THE HELICOPTER  -  GET BACK IN IT FIRST', off: true },
     { id: 'respawn', label: 'PICK-UP TO THE ALBATROSS', note: 'THE CREW IS FLOWN BACK AND THE HELICOPTER RECOVERED TO THE DECK', off: G.over || G.crewDownT > 0 },
     { id: 'command', label: 'COMMAND BOARD', note: 'TAKE OUT OR SWITCH TO ANY UNIT OF THE FLEET  ·  \\ IN THE GAME', off: G.over || G.mode !== 'zarch' },   // COMMANDER
+    { id: 'research', label: 'RESEARCH / TECH TREE', note: 'UNLOCK UNITS, LOGISTICS AND FLEET UPGRADES', off: G.over || G.mode !== 'zarch' },
     { id: 'fov', label: 'COCKPIT FOV', slider: true }, ...seaItems(),
     { id: 'quit', label: 'QUIT TO TITLE', note: 'ENDS THIS WAR' },
   ];
@@ -1828,13 +1872,14 @@ function menuItems() {
     { id: 'logistics', label: 'CALL LOGISTICS', note: G.rescue ? `INBOUND  -  ${rescueStatus()}` : landed ? (G.mode === 'zarch' ? 'A DROPSHIP FLIES OUT A PARA REPAIR TEAM' : 'FUEL DROP AND FIELD REPAIR WHERE YOU ARE') : 'LAND FIRST', off: !alive || !landed || !!G.rescue },
     { id: 'respawn', label: `RESPAWN ON ${home}`, note: lastAll ? 'THIS IS THE FLEET\'S LAST UNIT  -  ABANDONING IT LOSES THE WAR' : last ? 'NO HUEY IN RESERVE  -  THE CREW COMES HOME AND YOU PICK ANOTHER UNIT' : `ABANDON THIS HELICOPTER  -  COSTS ONE (${G.lives} IN RESERVE)`, off: !alive || G.over },
     { id: 'command', label: 'COMMAND BOARD', note: 'TAKE OUT OR SWITCH TO ANY UNIT OF THE FLEET  ·  \\ IN THE GAME', off: G.over || G.mode !== 'zarch' },   // COMMANDER
+    { id: 'research', label: 'RESEARCH / TECH TREE', note: 'UNLOCK UNITS, LOGISTICS AND FLEET UPGRADES', off: G.over || G.mode !== 'zarch' },
     { id: 'fov', label: 'COCKPIT FOV', slider: true }, ...seaItems(),
     { id: 'quit', label: 'QUIT TO TITLE', note: 'ENDS THIS WAR' },
   ];
 }
 function openMenu() {
   if (G.state !== 'play') return;
-  commander.close();   // COMMANDER: the board steps aside (after a loss the hand-on goes ahead)
+  commander.close(); techUI.close();   // COMMANDER: the boards step aside (after a loss the hand-on goes ahead)
   G.state = 'paused'; menu.sel = 0; if (document.pointerLockElement) document.exitPointerLock();
   if (bigMap) { bigMap = false; setMapSize(); }
   sfx.engine(0); crafts.silence(); armDelivery.silence(); airdrop.silence(); airlift.silence(); say('', 0);   /* ARMOUR: the landing craft's diesels */  renderMenu(); $('menu').classList.add('on');
@@ -1852,7 +1897,7 @@ function renderMenu() {
       d.onmouseenter = () => { menu.sel = i; for (const [k, c] of [...box.children].entries()) c.classList.toggle('sel', k === i); };
       box.appendChild(d); return;
     }
-    const b = document.createElement('button'); b.disabled = !!it.off; b.className = i === menu.sel ? 'sel' : '';
+    const b = document.createElement('button'); b.dataset.action = it.id; b.disabled = !!it.off; b.className = i === menu.sel ? 'sel' : '';
     const conf = menu.confirm === it.id;
     b.innerHTML = (conf ? `${it.label}?  PRESS AGAIN TO CONFIRM` : it.label) + (it.note ? `<small>${it.note}</small>` : '');
     b.onmouseenter = () => { if (!it.off) { menu.sel = i; for (const [k, c] of [...box.children].entries()) c.classList.toggle('sel', k === i); } };
@@ -1866,7 +1911,7 @@ function menuKey(e) {
   if (['ArrowUp', 'KeyW', 'ArrowDown', 'KeyS'].includes(e.code)) {
     const d = ['ArrowUp', 'KeyW'].includes(e.code) ? -1 : 1;
     for (let k = 0; k < n; k++) { menu.sel = (menu.sel + d + n) % n; if (!menu.items[menu.sel].off) break; }
-    menu.confirm = null; renderMenu(); sfx.ui?.('select');
+    menu.confirm = null; renderMenu(); $('menuItems').children[menu.sel]?.scrollIntoView({ block: 'nearest' }); sfx.ui?.('select');
   }
   const it = menu.items[menu.sel];
   if (it && it.slider && ['ArrowLeft', 'KeyA', 'ArrowRight', 'KeyD'].includes(e.code)) { const S = SLIDERS[it.id]; S.set(S.get() + (['ArrowLeft', 'KeyA'].includes(e.code) ? -S.nudge : S.nudge)); renderMenu(); sfx.ui?.('select'); return; }
@@ -1883,6 +1928,7 @@ function menuPick() {
   else if (it.id === 'sealife') { setSeaLifeQ(SL_Q[(SL_Q.indexOf(slQ) + 1) % SL_Q.length]); renderMenu(); }   // SEALIFE
 
   else if (it.id === 'respawn') { closeMenu(); abandonHeli(); }
+  else if (it.id === 'research') { closeMenu(); techUI.open(); }
   else if (it.id === 'command') { closeMenu(); commander.open(); }   // COMMANDER
   else if (it.id === 'quit') { closeMenu(); quitToTitle(); }
 }
@@ -2199,7 +2245,7 @@ const camA = new THREE.PerspectiveCamera(), camS = new THREE.PerspectiveCamera()
 let camB = 0;
 function updateCamsAndMeshes(dt, time) {
   const P = Z.pos, inCave = G.mode === 'thrust' && !!T.lvl, jet = isJet() && G.state !== 'title';
-  { const want = jet ? clamp(1100 + zCam.position.y * 1.2, 1100, 2600) : inZone(zCam.position.x, zCam.position.z) ? DRAW : 600; view.draw += (want - view.draw) * Math.min(1, 1.5 * dt); if (Math.abs(view.draw - want) < 1) view.draw = want; }
+  { const want = inCave ? DRAW : drawDistance(zCam.position.y, jet); view.draw += (want - view.draw) * Math.min(1, 1.5 * dt); if (Math.abs(view.draw - want) < 1) view.draw = want; }
   if (inCave) {   // keep Z.pos on the ship so the 3D camera keeps following it through the swing
     caveToWorld(T.x, T.y, P); T.zOff *= Math.exp(-5 * dt); P.z = T.base.z + T.zOff;
   }
@@ -2272,14 +2318,15 @@ function updateCamsAndMeshes(dt, time) {
   markerFP = firstP ? (heliCk ? 'heli' : jetCk ? 'jet' : drop.cockpitView ? 'drop' : crafts.active === m60C || crafts.active === m113C ? 'armour' : G.craft === 'foot' ? 'foot' : 'vehicle') : '';   // UNIT MARKERS: which first-person view (the instrument panel line)
   const fov = lerp(firstP ? (otherFP && crafts.active.fov ? crafts.active.fov(ckFov) : ckFov) : 62, SIDE_FOV, e); if (Math.abs(zCam.fov - fov) > 0.01) { zCam.fov = fov; zCam.updateProjectionMatrix(); }
   zScene.fog.color.copy(HORIZON).multiplyScalar(1 - 0.85 * e); zScene.fog.near = lerp(view.draw * 0.5, DRAW * 0.8, e); zScene.fog.far = lerp(view.draw, DRAW, e);
-  terrainUni.uFogN.value = view.draw * 0.5; terrainUni.uFogF.value = view.draw * 0.97;
+  terrainUni.uFog.value.copy(zScene.fog.color).convertLinearToSRGB();
+  terrainUni.uFogN.value = view.draw * 0.5; terrainUni.uFogF.value = view.draw;
   if (Math.abs(zCam.far - (view.draw + 15)) > 2) { zCam.far = view.draw + 15; zCam.updateProjectionMatrix(); }
   sky.scale.setScalar(view.draw / DRAW);
   if (fx.shake > 0.01) { const k = fx.shake * (cockpit.group.visible ? 0.1 : 0.4); zCam.position.x += rnd(-k, k); zCam.position.y += rnd(-k, k); zCam.position.z += rnd(-k, k); }
   fx.ear.copy(zCam.position); terrainUni.uTime.value = time;
   updateSeaUniforms(terrainUni, war.sea, war.units, zCam.position);   // SEAWORLD
   sky.position.copy(zCam.position);
-  terrainStream(zCam.position.x, zCam.position.z);
+  terrainStream(zCam.position.x, zCam.position.z, dt);
   terrain.position.set(Math.round(zCam.position.x / TG) * TG, 0, Math.round(zCam.position.z / TG) * TG);
   farTerrain.visible = view.draw > DRAW + 20; terrainUni.uNear.value.set(terrain.position.x, terrain.position.z, TG * TN / 2 - 3);
   if (farTerrain.visible) farTerrain.position.set(Math.round(zCam.position.x / FAR_C) * FAR_C, 0, Math.round(zCam.position.z / FAR_C) * FAR_C);
@@ -2405,7 +2452,7 @@ function markerView() {
 }
 buildCaves(); war.reset(); resetZarch(true); placeVehicles(); updateFogImg(); terrainStream(Z.pos.x, Z.pos.z);
 requestAnimationFrame(frame);
-if (params.has('debug')) { window.__G = { G, airlift, airdrop, ch46C, heliAIenv, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, forest, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, get tech() { return war.tech; }, techUI /* TECH TREE: tech = [null, player, enemy] */ }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); H.reset(H.pos.clone(), 0, false, 1); SY.grip = 1; SY.auto = null; enterCave(b); }   /* (ngc/bugsweep) ?thrust=N starts in the cave already flying: engine at flight power, throttle rolled on (it came in at ground idle with the throttle rolling on, the rotor drooped and caveaim / caves crashed in the shaft) */ }
+if (params.has('debug')) { window.__G = { G, airlift, airdrop, ch46C, heliAIenv, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, get forest() { return { count: world.stats.forestTrees || 0 }; }, world, terrainUni, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, get tech() { return war.tech; }, techUI /* TECH TREE: tech = [null, player, enemy] */ }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); H.reset(H.pos.clone(), 0, false, 1); SY.grip = 1; SY.auto = null; enterCave(b); }   /* (ngc/bugsweep) ?thrust=N starts in the cave already flying: engine at flight power, throttle rolled on (it came in at ground idle with the throttle rolling on, the rotor drooped and caveaim / caves crashed in the shaft) */ }
 // ngc/ch46fly dev: ?fly=ch46 puts you in a CH-46F on the ALBATROSS (with ?auto; ?fly=ch46&cold cold and dark; &at=island at the nearest friendly pad)
 if (params.get('fly') === 'ch46') { const t0 = performance.now(), go = () => { if (G.state === 'play' && G.mode === 'zarch' && Z.alive && H.landed) { const isl = commandBases().filter(b => b.kind === 'island').sort((a, b) => Math.hypot(a.x - Z.pos.x, a.z - Z.pos.z) - Math.hypot(b.x - Z.pos.x, b.z - Z.pos.z))[0]; commander.deploy('ch46', params.get('at') === 'island' && isl ? isl.key : 'ship'); return; } if (performance.now() - t0 < 30000) setTimeout(go, 200); }; setTimeout(go, 300); }
 

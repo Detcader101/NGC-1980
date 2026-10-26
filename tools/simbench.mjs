@@ -54,7 +54,7 @@ check(perHour < 600, 'speed: a simulated hour in under 10 real minutes on one th
 // 3. the baked ground table vs the exact ground function (main.js's terrain)
 {
   const Z = zone(grid); let worst = 0, n = 0, sum = 0;
-  for (let i = 0; i < 20000; i++) { const x = (i * 7919 % 1700) - 850 + (i % 13) * 0.37, z = (i * 104729 % 1700) - 850 + (i % 7) * 0.53, dE = Math.abs(Z.terrainH(x, z) - Z.exact(x, z)); worst = Math.max(worst, dE); sum += dE; n++; }
+  for (let i = 0; i < 20000; i++) { const x = (i * 7919 % (Z.GRID.EXT*2)) - Z.GRID.EXT + (i % 13) * 0.37, z = (i * 104729 % (Z.GRID.EXT*2)) - Z.GRID.EXT + (i % 7) * 0.53, dE = Math.abs(Z.terrainH(x, z) - Z.exact(x, z)); worst = Math.max(worst, dE); sum += dE; n++; }
   check(sum / n < 0.05, 'baked ground within 5 cm of the exact ground on average', `mean ${(sum / n * 100).toFixed(1)} cm, worst ${(worst * 100).toFixed(0)} cm (cliff edges)`);
 }
 console.log(`\n${pass}/${pass + fail} checks pass`);

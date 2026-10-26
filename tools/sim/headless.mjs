@@ -57,7 +57,7 @@ export function zone(grid) { if (!Z) { Z = createZone(); if (grid) Z.useGrid(gri
 export async function loadGrid() {
   const fs = await import('node:fs'), crypto = await import('node:crypto'), path = await import('node:path');
   const root = new URL('../../', import.meta.url).pathname;
-  const src = ['game/js/world.js', 'game/js/sim/zone.js', 'game/js/units/armor/landinghard.js', 'game/js/world/net.js'].map(f => fs.readFileSync(path.join(root, f)));
+  const src = ['game/js/world/terrain.js', 'game/js/world.js', 'game/js/sim/zone.js', 'game/js/units/armor/landinghard.js', 'game/js/world/net.js'].map(f => fs.readFileSync(path.join(root, f)));
   const h = crypto.createHash('sha1'); for (const b of src) h.update(b);
   const dir = path.join(root, 'tools/runs/sim'), file = path.join(dir, `.terrain-${h.digest('hex').slice(0, 12)}.f32`);
   const { GRID } = await import('../../game/js/sim/zone.js'), n = GRID.N * GRID.N;

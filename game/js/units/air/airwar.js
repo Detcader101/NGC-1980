@@ -10,7 +10,7 @@
 import * as THREE from 'three';
 import { createTomcatSim, cadcSweep, STATIONS as TSTATIONS } from './tomcatfm.js';
 import { createShrikeSim, createReaperSim, createShahedSim, shahedGuide, SHRIKE } from './rwfm.js';
-import { createPilot } from './pilot.js';
+import { createPilot, recoveryCourse } from './pilot.js';
 import { buildTomcatModel } from './tomcatmodel.js';
 import { buildShrikeModel, buildReaperModel, buildShahedModel } from './rwmodel.js';
 import { createAirSound } from './airsound.js';
@@ -243,6 +243,18 @@ export function createAirWar(W, ctx, H) {
   // ---------------------------------------------------------------- once a frame: sounds
   AW.frame = (dt, pl) => {
     AW.pl = pl;
+    if ((AW.laneCheck = (AW.laneCheck || 0) - dt) <= 0) {
+      AW.laneCheck = 2;
+      const c = carrierOf(1), wanted = W.units.some(u => u.side === 1 && !u.dead && !u.dying && u.ai?.needsLane) || W.deckHooks?.recovery?.();
+      if (c && wanted && !(c.sky && c.sky.up) && W.time - (c.recoveryTurn ?? -Infinity) >= 30) {
+        const yaw = recoveryCourse({ x: c.p.x, z: c.p.z, yaw: c.yaw, deck: CARRIER.DECK + c.p.y }, terrainH,
+          (x, z) => !ctx.nav || ctx.nav.lineClear(c.p.x, c.p.z, x, z));
+        if (yaw !== null) {
+          c.recoveryTurn = W.time; W.orderCarrier(c.p.x - Math.sin(yaw) * 600, c.p.z - Math.cos(yaw) * 600);
+          feed('ALBATROSS: TURNING FOR A CLEAR RECOVERY APPROACH');
+        }
+      }
+    }
     for (const u of W.units) if (u.air && u.dying && !u.toldDown) {   // news from the air war
       u.toldDown = true;
       if (u.type === 'escort' && !u.ejected) feed(`${u.name} IS DOWN  -  ${u.sim && u.sim.dead ? 'CRASHED' : 'SHOT DOWN, CREW EJECTED'}`, 'bad');
@@ -284,6 +296,6 @@ export function createAirWar(W, ctx, H) {
     }
     void pl; void SHRIKE; void cadcSweep;
   };
-  AW.reset = () => { AW.pending.length = 0; AW.queue = 0; AW.lastCat = -99; AW.spot = null; AW.shrikeT = 330; AW.reaperT = 200; AW.shahedT = 280; AW.sound.silence(); };
+  AW.reset = () => { AW.pending.length = 0; AW.queue = 0; AW.lastCat = -99; AW.spot = null; AW.laneCheck = 0; AW.shrikeT = 330; AW.reaperT = 200; AW.shahedT = 280; AW.sound.silence(); };
   return AW;
 }

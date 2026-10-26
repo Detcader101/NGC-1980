@@ -1,10 +1,11 @@
 // Real war regression: long boarding on a turning KRAKEN, including nearby freighters' hull separation.
+// The enlarged archipelago needs up to 11 minutes for the return leg.
 // The simplified deck bench did not reproduce this: every enemy transport formerly crashed before departure.
 import assert from 'node:assert/strict';
 import { runWar } from './sim/headless.mjs';
 let first, spoolFrames = 0, maxTurn = 0, maxVelocityError = 0, previous;
 const phases = new Set(), dt = 1 / 30;
-const r = await runWar({ seed: 1, blue: 'BALANCED', red: 'DEFAULT', tech: 'default', tmax: 480, dt,
+const r = await runWar({ seed: 1, blue: 'BALANCED', red: 'DEFAULT', tech: 'default', tmax: 660, dt,
   onStep(W) {
     const c = W.enemyCarrier;
     if (previous) maxVelocityError = Math.max(maxVelocityError, Math.hypot((c.p.x - previous[0]) / dt - c.v.x, (c.p.z - previous[1]) / dt - c.v.z));

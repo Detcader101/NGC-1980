@@ -14,7 +14,7 @@ export const HELI = {
   ROTOR_R: UH1H.R, SKID_Y: -UH1H.SKID_Z,
   CAVE_SCALE: 0.36, CAVE_SKID: -0.75 * 1.6,   // in the 2D cave the Huey is drawn at 0.36 so it fits the cave outline (main.js shipPts)
   RATE: { roll: 1.7 }, RESP: 3.2,             // the cave's arcade disc tilt
-  FUEL_ACCEL: 50,                              // game fuel burns 50x the real T53 flow: a tank = ~3 min hover, ~5 min cruise
+  FUEL_ACCEL: 25,                              // wider control zone: ~6 min hover / ~10 min cruise; physical flow is unchanged
   HIT_R: 4.0, EYE_PITCH: HUEY_EYE_PITCH,
 };
 export const EYE = HUEY_EYE;

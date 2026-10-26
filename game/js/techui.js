@@ -41,7 +41,7 @@ export function createTechUI(h) {
 #techBoard .foot{margin-top:6px;font-size:11px;color:#7aa;letter-spacing:1px;line-height:1.5}`;
   document.head.appendChild(css);
   const el = document.createElement('div'); el.id = 'techBoard'; h.hud.appendChild(el);
-  el.innerHTML = `<h3>RESEARCH</h3><div class="sub"></div><canvas width="1150" height="440"></canvas><div class="det"></div><div class="intel"></div>
+  el.innerHTML = `<h3>RESEARCH / TECH TREE</h3><div class="sub"></div><canvas width="1150" height="440"></canvas><div class="det"></div><div class="intel"></div>
 <div class="foot">ARROWS / WASD SELECT  ·  ENTER START (PAID UP FRONT)  ·  X CANCEL (FULL REFUND)  ·  T COMMAND BOARD  ·  ESC / SHIFT+\\ CLOSE<br>CLICK A CARD, AGAIN TO START  ·  ONE PROGRAMME AT A TIME, ON WAR TIME: THE WAR GOES ON WHILE THIS BOARD IS OPEN</div>`;
   const subEl = el.querySelector('.sub'), cv = el.querySelector('canvas'), detEl = el.querySelector('.det'), intelEl = el.querySelector('.intel');
   const c2 = cv.getContext('2d');
@@ -216,8 +216,9 @@ export function createTechUI(h) {
   U.toggle = () => U.isOpen ? U.close() : U.open();
   U.key = e => {
     const c = e.code;
-    if (c === 'Escape' || (c === 'Backslash' && e.shiftKey) || c === 'IntlBackslash') { U.close(); return true; }
-    if (c === 'Backslash' || c === 'KeyT') { U.close(); h.onBoard?.(); return true; }
+    const slash = c === 'Backslash' || c === 'IntlBackslash';
+    if (c === 'Escape' || (slash && e.shiftKey)) { U.close(); return true; }
+    if (slash || c === 'KeyT') { U.close(); h.onBoard?.(); return true; }
     if (c === 'ArrowUp' || c === 'KeyW') { move(0, -1); return true; }
     if (c === 'ArrowDown' || c === 'KeyS') { move(0, 1); return true; }
     if (c === 'ArrowLeft' || c === 'KeyA') { move(-1, 0); return true; }

@@ -19,21 +19,25 @@ import { DAMAGE } from './damage.js';   // ngc/world-polish: buildings knocked a
 import { ruin, damageOverlay } from './townkit.js';
 import { Geo } from './kit.js';
 import { rng } from './rng.js';
+import { LOD } from './visibility.js';
 import { buildAASite, setStructGround } from './structures.js';
 
-const NEAR_R = 520, FAR_MAX = 2300, DETAIL_R = 240;
+const NEAR_R = LOD.near, FAR_MAX = LOD.maxDraw + LOD.prefetch, DETAIL_R = LOD.detail;
 export function createWorldLife(ctx) {
   const { scene, terrainH, fog, uTime } = ctx;
   if (/[?&]noworld/.test(location.search)) return (window.__WORLD = { update() {}, stats: { ms: 0, off: true }, zone: [], chunks: new Map(), ambient: { stats: {}, people: [], cars: [] } });   // A/B for perf
   const root = new THREE.Group(); root.name = 'world'; scene.add(root);
-  const M = {
-    solid: worldMaterial(), gNear: groundMaterial(), gFar: groundMaterial({ far: true }),
-    zSolid: worldMaterial({ fog, uTime }), zgNear: groundMaterial({ fog, uTime }), zgFar: groundMaterial({ fog, uTime, far: true }),
-    wire: new THREE.LineBasicMaterial({ color: 0x202020, transparent: true, opacity: 0.75 }),
+  const materials = (zone = false, reveal = { value: 1 }) => {
+    const o = { fog: zone ? fog : null, uTime, reveal };
+    return { sN: worldMaterial({ ...o, lod: 'near' }), sF: worldMaterial({ ...o, lod: 'far' }),
+      gN: groundMaterial({ ...o, lod: 'near' }), gF: groundMaterial({ ...o, far: true, lod: 'far' }),
+      sD: worldMaterial({ ...o, lod: 'detail' }), ruins: worldMaterial({ ...o, lod: 'all' }) };
   };
+  const ZM = materials(true);
+  const wireMat = new THREE.LineBasicMaterial({ color: 0x202020, transparent: true, opacity: 0.75 });
   const stats = { chunks: 0, pending: 0, built: 0, buildMs: 0, tris: 0, zoneTris: 0, ms: 0 };
   const mk = (d, mat) => { if (!d || !d.tris) return null; const m = new THREE.Mesh(geoFrom(d), mat); m.matrixAutoUpdate = false; root.add(m); return m; };
-  const wiresOf = w => { if (!w || !w.length) return null; const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(w, 3)); g.computeBoundingSphere(); const l = new THREE.LineSegments(g, M.wire); l.matrixAutoUpdate = false; root.add(l); return l; };
+  const wiresOf = w => { if (!w || !w.length) return null; const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(w, 3)); g.computeBoundingSphere(); const l = new THREE.LineSegments(g, wireMat); l.matrixAutoUpdate = false; root.add(l); return l; };
   const dispose = o => { if (!o) return; root.remove(o); o.geometry.dispose(); };
 
   // ---------------------------------------------------------------------------------- the control zone (at start)
@@ -44,7 +48,7 @@ export function createWorldLife(ctx) {
       const rd = new Map(); for (const id of roads) { const R = roadById(id); rd.set(R, new Set(Array.from({ length: R.xs.length - 1 }, (_, i) => i))); }
       const discs = []; for (const [, a] of netState.buckets) for (const s of a) if (s.disc && Math.hypot(s.ax - I.x, s.az - I.z) < I.r + 30 && !discs.includes(s)) discs.push(s);
       const c = buildGeo({ items, roads: rd, discs, x0: -1e9, z0: -1e9, x1: 1e9, z1: 1e9 }, terrainH, { lat: 2.5 });
-      const e = { I, x: I.x, z: I.z, sN: mk(c.near, M.zSolid), sF: mk(c.far, M.zSolid), gN: mk(c.gnear, M.zgNear), gF: mk(c.gfar, M.zgFar), sD: mk(c.detail, M.zSolid), wires: wiresOf(c.wires), dyn: c.dyn, items, roads, zone: true };   // SEAWORLD: roads kept for world/solid.js (bridge parapets)
+      const e = { I, x: I.x, z: I.z, sN: mk(c.near, ZM.sN), sF: mk(c.far, ZM.sF), gN: mk(c.gnear, ZM.gN), gF: mk(c.gfar, ZM.gF), sD: mk(c.detail, ZM.sD), wires: wiresOf(c.wires), dyn: c.dyn, items, roads, zone: true, materials: ZM, reveal: { value: 1 } };   // SEAWORLD: roads kept for world/solid.js (bridge parapets)
       stats.zoneTris += c.near.tris + c.gnear.tris + c.detail.tris; zone.push(e);
     }
     stats.zoneMs = performance.now() - t0;
@@ -57,12 +61,13 @@ export function createWorldLife(ctx) {
   let reqId = 0;
   if (worker) worker.onmessage = ({ data: d }) => {
     const c = chunks.get(key(d.ci, d.cj)); stats.pending--;
-    if (!c || c.state !== 'pending') return;   // dropped while building
-    Object.assign(c, { state: 'ready', sN: mk(d.near, M.solid), sF: mk(d.far, M.solid), gN: mk(d.gnear, M.gNear), gF: mk(d.gfar, M.gFar), sD: mk(d.detail, M.solid), wires: wiresOf(d.wires), dyn: d.dyn, tris: d.near.tris + d.gnear.tris, dtris: d.detail.tris });
+    if (!c || c.state !== 'pending' || c.reqId !== d.id) return;   // dropped while building
+    c.reveal = { value: 0 }; c.materials = materials(false, c.reveal); const M = c.materials;
+    Object.assign(c, { state: 'ready', forestTrees: d.forestTrees || 0, sN: mk(d.near, M.sN), sF: mk(d.far, M.sF), gN: mk(d.gnear, M.gN), gF: mk(d.gfar, M.gF), sD: mk(d.detail, M.sD), wires: wiresOf(d.wires), dyn: d.dyn, tris: d.near.tris + d.gnear.tris, dtris: d.detail.tris });
     stats.built++; stats.buildMs = d.ms; ambient.addChunk(c);
     if (c.dyn.bld && c.dyn.bld.some(b => DAMAGE.cond(b.k) !== 'intact')) applyRuins(c);   // knocked down before it was last streamed out
   };
-  const wantR = () => Math.min(FAR_MAX, Math.max(NEAR_R + 200, (ctx.view ? ctx.view.draw : 600) * 0.92));
+  const wantR = () => Math.min(FAR_MAX, Math.max(NEAR_R + 200, (ctx.view ? ctx.view.draw : 720) + LOD.prefetch));
   let scanT = 0;
   function stream(cx, cz) {
     const R = wantR(), want = [];
@@ -73,20 +78,28 @@ export function createWorldLife(ctx) {
       const k = key(i, j); if (!chunks.has(k)) want.push([d, i, j, k]);
     }
     want.sort((a, b) => a[0] - b[0]);
-    for (const [, i, j, k] of want) { if (stats.pending >= 2 || !worker) break; chunks.set(k, { i, j, x: (i + 0.5) * CHUNK, z: (j + 0.5) * CHUNK, state: 'pending' }); stats.pending++; worker.postMessage({ id: reqId++, ci: i, cj: j }); }
+    for (const [, i, j, k] of want) { if (stats.pending >= 2 || !worker) break; chunks.set(k, { i, j, x: (i + 0.5) * CHUNK, z: (j + 0.5) * CHUNK, state: 'pending', reqId }); stats.pending++; worker.postMessage({ id: reqId++, ci: i, cj: j }); }
     for (const [k, c] of chunks) if (Math.hypot(c.x - cx, c.z - cz) > R + CHUNK * 1.6) {
-      if (c.state === 'ready') { for (const p of ['sN', 'sF', 'gN', 'gF', 'sD', 'ruins', 'wires']) dispose(c[p]); ambient.dropChunk(c); }
+      if (c.state === 'ready') { for (const p of ['sN', 'sF', 'gN', 'gF', 'sD', 'ruins', 'wires']) dispose(c[p]); ambient.dropChunk(c); for (const m of Object.values(c.materials)) m.dispose(); }
       chunks.delete(k);
     }
   }
-  function lod(cx, cz) {
-    const R = wantR(); let tris = 0, n = 0;
-    // ngc/world-polish: the detail layer (street furniture, cars, clutter) only close in; ruins whenever the chunk shows
-    const show = (c, near, far, det) => { if (c.sN) c.sN.visible = near; if (c.gN) c.gN.visible = near; if (c.wires) c.wires.visible = near; if (c.sF) c.sF.visible = far; if (c.gF) c.gF.visible = far; if (c.sD) c.sD.visible = det; if (c.ruins) c.ruins.visible = near || far; };
-    let dn = 0;
-    for (const c of chunks.values()) { if (c.state !== 'ready') continue; const d = Math.hypot(c.x - cx, c.z - cz), near = d < NEAR_R + CHUNK * 0.35, det = d < DETAIL_R + CHUNK * 0.6; show(c, near, !near && d < R + CHUNK * 0.71, det); if (near) tris += c.tris; if (det) { tris += c.dtris || 0; dn++; } n++; }
-    for (const e of zone) { const d = Math.hypot(e.x - cx, e.z - cz) - e.I.r, near = d < NEAR_R; show(e, near, !near && d < R, d < DETAIL_R); }
-    stats.chunks = n; stats.tris = tris; stats.detailChunks = dn;
+  function lod(cx, cz, dt) {
+    const R = ctx.view ? ctx.view.draw : 720; let tris = 0, n = 0, dn = 0, trees = 0;
+    const show = c => {
+      const radius = c.zone ? c.I.r + 70 : CHUNK * 0.71 + 80;
+      const d = Math.hypot(c.x - cx, c.z - cz), near = d - radius < NEAR_R + LOD.blend;
+      const far = d + radius > NEAR_R - LOD.blend && d - radius < R, det = d - radius < DETAIL_R + LOD.detailBlend;
+      if (c.sN) c.sN.visible = near; if (c.gN) c.gN.visible = near;
+      if (c.sF) c.sF.visible = far; if (c.gF) c.gF.visible = far; if (c.sD) c.sD.visible = det;
+      if (c.wires) { c.wires.visible = d - radius < DETAIL_R; }
+      if (c.ruins) c.ruins.visible = near || far;
+      if (!c.zone) { if (near) tris += c.tris; if (det) { tris += c.dtris || 0; dn++; } n++; trees += c.forestTrees; }
+      c.reveal.value = Math.min(1, c.reveal.value + dt / 1.4);
+    };
+    for (const c of chunks.values()) if (c.state === 'ready') show(c);
+    for (const c of zone) show(c);
+    Object.assign(stats, { chunks: n, tris, detailChunks: dn, forestTrees: trees, draw: R, prefetch: wantR() });
   }
   // keep the main thread's road network a step ahead of the camera, so physics never waits on a whole cell. The
   // settlement candidates round the zone (the bulk of a cold first cell) are worked through a few per frame at start.
@@ -173,7 +186,7 @@ export function createWorldLife(ctx) {
       g.pop(); g.unweather();
     }
     dispose(e.ruins); e.ruins = null;
-    if (any) e.ruins = mk(g.build(), e.zone ? M.zSolid : M.solid);
+    if (any) e.ruins = mk(g.build(), e.materials.ruins);
   }
   function onCond(b, cond) {
     if (!fx || !fx.burn) return;
@@ -223,7 +236,8 @@ export function createWorldLife(ctx) {
     traffic: { setModel: (k, def) => ambient.setModel(k, def), get models() { return ambient.models; }, get cars() { return ambient.cars; } },
     update(dt, cam, playing = true) {
       const t0 = performance.now(), cx = cam.position.x, cz = cam.position.z;
-      scanT -= dt; if (scanT <= 0) { scanT = 0.4; stream(cx, cz); lod(cx, cz); }
+      scanT -= dt; if (scanT <= 0) { scanT = 0.15; stream(cx, cz); }
+      lod(cx, cz, dt);
       // only near the wild lands (physics in the zone never needs them); one cell at a time
       prewarmT -= dt; if (prewarmT <= 0) { prewarmT = 1.5; if (Math.max(Math.abs(cx), Math.abs(cz)) > BOUND - 150) prewarm(cx, cz); }
       if (sIdx < sCells) prewarmSettlements();

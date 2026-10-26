@@ -128,14 +128,28 @@ const mean = a => a.reduce((s, x) => s + x, 0) / Math.max(1, a.length);
   run(S, 4, { x: 100, y: 5, z: 0 }); const n0 = S.schools.length;
   run(S, 2, { x: 100, y: 5, z: 2000 }); const near = S.schools.every(sc => Math.hypot(sc.cx - 100, sc.cz - 2000) < S.radius + 45);
   check(n0 > 0 && near, 'schools are dropped when the camera moves on and spawn where it is', `${n0} -> ${S.schools.length} (all near the new spot: ${near})`);
-  run(S, 2, { x: 100, y: 400, z: 2000 });
-  check(S.schools.length === 0, 'nothing simulated from 400 m up', `${S.schools.length}`);
+  run(S, 2, { x: 100, y: 1400, z: 2000 });
+  check(S.schools.length === 0, 'local simulation stops beyond visible aerial-shoal range (1400 m)', `${S.schools.length}`);
+}
+
+// Aerial regression: natural spawning, normal medium budget, no injected schools. Moving pilots still see live shoals.
+{
+  let missing = 0, overBudget = 0, least = Infinity;
+  for (const seed of [1, 7, 1980]) for (const alt of [25, 80, 220, 400]) {
+    const S = createFishSim({ depthAt: () => -14, seed }); S.setQuality('medium');
+    const cam = { x: 0, y: alt, z: 0 }, view = { fx: 0, fy: -0.31, fz: -0.9507 };
+    for (let i=0;i<600;i++) { cam.z -= 12/30; S.update(1/30,cam,view); if(S.nFish>QUALITY.medium.MAX_FISH) overBudget++; }
+    const signs=S.signs().filter(s=>s.kind===4 && s.k>.1 && s.z<cam.z && Math.hypot(s.x-cam.x,s.z-cam.z)<850);
+    least=Math.min(least,signs.length); if(!signs.length) missing++;
+  }
+  check(missing===0, 'natural shoals stay visible ahead during 25–400 m flight, across three seeds', missing+' missing samples; minimum '+least+' shoals');
+  check(overBudget===0, 'aerial visibility keeps the existing medium fish budget', overBudget+' over-budget frames');
 }
 
 // 9. the real archipelago: round HOME ISLAND, no fish on land, cost of a full load
 {
   const I = ISLANDS[0], S = createFishSim({ depthAt: islandH, seed: 21 });
-  const cam = { x: I.x + 150, y: 20, z: I.z };
+  const cam = { x: I.x + I.r + 35, y: 20, z: I.z };
   let land = 0, deep = 0, worst = 0, sum = 0, n = 0, cnt = 0;
   run(S, 30, cam, 1 / 30, t => { if (t > 2) { for (const f of S.fish()) { cnt++; if (S.bed(f.x, f.z) > f.y) land++; if (islandH(f.x, f.z) > f.y + 1) deep++; } worst = Math.max(worst, S.ms); sum += S.ms; n++; } });
   check(S.fish().length > 80 && land === 0, 'HOME ISLAND: fish round the island, none under the (drawn, 2 m) sea bed', `${S.fish().length} fish in ${S.schools.length} schools, ${land} under the bed`);
@@ -275,10 +289,10 @@ const runSea = (S, sea, secs, cam, each, dt = 1 / 30) => { for (let t = 0; t < s
   check(nearShip >= 2, 'schools live round a ship 450 m from the camera (unit-anchored)', `${nearShip} round her, ${nearCam} round the camera`);
   check(peak <= FISH.MAX_FISH, 'never over the budget', `${peak}`, `<= ${FISH.MAX_FISH}`);
   check(nearCam >= 3, '... and the camera still has its own', `${nearCam}`);
-  // from 400 m up (a jet): nothing round the camera, but the ship's life stays
-  run(S, 5, { x: 300, y: 400, z: 0 }, 1 / 30, () => { S.clearThreats(); S.hull(300, 450, Math.PI, 40, 8, 5, 4); });
+  // from 1400 m up (a high jet): nothing round the camera, but the ship's life stays
+  run(S, 5, { x: 300, y: 1400, z: 0 }, 1 / 30, () => { S.clearThreats(); S.hull(300, 450, Math.PI, 40, 8, 5, 4); });
   const keepers = S.schools.filter(sc => !sc.leave);
-  check(keepers.length > 0 && keepers.every(sc => Math.hypot(sc.cx - 300, sc.cz - 450) < 200), 'from 400 m up only the life round the ship stays', `${keepers.length} schools`);
+  check(keepers.length > 0 && keepers.every(sc => Math.hypot(sc.cx - 300, sc.cz - 450) < 200), 'from 1400 m up only the life round the ship stays', `${keepers.length} schools`);
 }
 
 // 20. no popping: a school is never dropped while it can still be seen - it fades out first

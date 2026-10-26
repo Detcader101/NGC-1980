@@ -390,9 +390,14 @@ export const SIGN_FS = `
     } else if(kind<2.5){    // a ring running out
       float life=max(vQ.w,.1), t=age/life, rr=t, ring=exp(-pow((r-rr)/(.05+.06*t),2.));
       c=vec4(vec3(.9,.95,.97),ring*(1.-t)*.65*k);
-    } else {                // foam of a splash, breaking up as it fades
+    } else if(kind<3.5){     // foam of a splash, breaking up as it fades
       float life=max(vQ.w,.1), t=age/life, n=sNoise(w*2.2+sd*3.);
       c=vec4(vec3(.94,.96,.97),(1.-smoothstep(.2,1.,r))*smoothstep(t,t+.25,n)*(1.-t)*.9*k);
+    } else {                // a shoal seen as a moving mass, with silver flanks within its dark body
+      float edge=1.-smoothstep(.35,1.,length(vL*vec2(.85,1.2))+.16*sNoise(w*.22+sd*8.));
+      vec2 q=w*.65+vec2(uTime*.32,-uTime*.2);
+      float fleck=smoothstep(.75,.9,sNoise(q))*smoothstep(.25,.75,sNoise(w*2.3+uTime*.5));
+      c=vec4(mix(vec3(.015,.07,.065),vec3(.66,.86,.79),fleck),edge*(.62+.18*fleck)*k);
     }
     c.a*=(1.-vFog)*(1.-.45*uSea);
     if(c.a<.01) discard;

@@ -23,7 +23,7 @@ export function createCommanderAI({ W, nav, doctrine, tech = null, strike = null
   const alive = u => u && !u.dead && !u.dying && !u.gone;
   const myAir = type => W.units.filter(u => u.side === 1 && u.type === type && alive(u)).length;
   const eAA = I => W.aliveAA(I, 2);
-  const carrierXZ = () => W.carrier && W.carrier.sinking === undefined ? [W.carrier.p.x, W.carrier.p.z] : [-420, 400];
+  const carrierXZ = () => W.carrier && W.carrier.sinking === undefined ? [W.carrier.p.x, W.carrier.p.z] : [W.islands[0].x, W.islands[0].z];
   // our nearest foothold to an island: the carrier or one of our islands
   function reach(I) { const [cx, cz] = carrierXZ(); let d = Math.hypot(I.x - cx, I.z - cz); for (const J of W.islands) if (J.owner === 1) d = Math.min(d, Math.hypot(I.x - J.x, I.z - J.z) + 120); return d; }
   // enemy guns that cover an island's pad (its own and its neighbours' within 160 m) and the machines on it

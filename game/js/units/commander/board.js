@@ -162,8 +162,9 @@ export function createCommander(h) {
   const nav = () => { if (C.lossMode && !C.choosing) { C.choosing = true; C.banner = C.banner.replace(/NEXT: .*$/, 'PICK YOUR NEXT UNIT'); } };
   C.key = e => {   // while open: every key is the board's (the unit you are in gets no input)
     const c = e.code, R = h.roster;
-    if (c === 'Backslash' && e.shiftKey && h.research) { C.close(); h.research(); return true; }   // TECH TREE: SHIFT+\ the RESEARCH page
-    if (c === 'Escape' || c === 'Backslash') { C.close(); return true; }
+    const slash = c === 'Backslash' || c === 'IntlBackslash';
+    if (slash && e.shiftKey && h.research) { C.close(); h.research(); return true; }
+    if (c === 'Escape' || slash) { C.close(); return true; }
     if (c === 'ArrowUp' || c === 'KeyW') { nav(); C.sel = (C.sel - 1 + R.length) % R.length; render(true); return true; }
     if (c === 'ArrowDown' || c === 'KeyS') { nav(); C.sel = (C.sel + 1) % R.length; render(true); return true; }
     if (c === 'ArrowLeft' || c === 'KeyA' || c === 'ArrowRight' || c === 'KeyD') {
@@ -185,6 +186,7 @@ export function createCommander(h) {
   // ---------------------------------------------------------------- drawing
   el.addEventListener('mousedown', e => e.stopPropagation(), true);
   el.addEventListener('click', e => {
+    if (e.target.closest('[data-research]')) { C.close(); h.research?.(); return; }
     const row = e.target.closest('[data-i]'), bb = e.target.closest('[data-b]');
     if (bb) { nav(); const bs = C.bases, k = Math.max(0, bs.findIndex(b => b.key === C.baseKey)), d = +bb.dataset.b; if (bs.length) C.baseKey = bs[(k + d + bs.length) % bs.length].key; render(true); return; }
     if (row) { nav(); const i = +row.dataset.i; if (C.sel === i) C.act(i); else C.sel = i; render(true); }
@@ -194,7 +196,7 @@ export function createCommander(h) {
     C.bases = basesNow(); if (!C.bases.some(b => b.key === C.baseKey)) C.baseKey = nearestBaseKey();
     C.rows = h.roster.map(r => rowOf(r));
     const b = base();
-    let html = `<h3>COMMAND</h3><div class="sub">TASK FORCE ALBATROSS  ·  MATERIEL <b>${Math.floor(h.mat())}</b>  ·  FUEL STORES <b>${Math.round(h.fuelStores())}</b>  ·  LOSSES <b>${fleet.losses()}</b>${h.researchLine ? h.researchLine() : ''}</div>`;
+    let html = `<h3>COMMAND</h3><button class="boardAction" data-research>RESEARCH / TECH TREE</button><div class="sub">TASK FORCE ALBATROSS  ·  MATERIEL <b>${Math.floor(h.mat())}</b>  ·  FUEL STORES <b>${Math.round(h.fuelStores())}</b>  ·  LOSSES <b>${fleet.losses()}</b>${h.researchLine ? h.researchLine() : ''}</div>`;
     if (C.banner) html += `<div class="ban">${esc(C.banner)}</div>`;
     html += `<div class="base"><span data-b="-1">&lt;</span><b>DEPLOY AT: ${b ? esc(b.name) + (b.kind === 'island' ? ' (ISLAND)' : ' (CARRIER)') : 'NO BASE'}${b && b.d > 60 ? `  ·  ${Math.round(b.d)} m` : ''}</b><span data-b="1">&gt;</span></div>`;
     C.rows.forEach((o, i) => {
@@ -212,12 +214,18 @@ export function createCommander(h) {
   }
   // per frame: the HUD fleet strip; the open board refreshes ~4x a second (statuses move)
   let rt = 0, st = 0, shown = null;
+  strip?.addEventListener('mousedown', e => e.stopPropagation());
+  strip?.addEventListener('click', e => {
+    if (h.canOpen && !h.canOpen()) return;
+    if (e.target.closest('[data-research]')) { C.close(); h.research?.(); }
+    else if (e.target.closest('[data-command]')) C.toggle();
+  });
   C.update = (dt, show) => {
     if (C.isOpen) { rt -= dt; if (rt <= 0) { rt = 0.25; render(false); } }
     if (!strip) return;
     st -= dt; if (st > 0 && show === shown) return; st = 0.25; shown = show;   // the strip: 4x a second is plenty
     const s = fleet.strip(id => { const r = h.roster.find(r => r.id === id); return r ? (r.outCount ? r.outCount() : r.out() ? 1 : 0) : 0; });
-    const html = show ? `FLEET ${s.map(x => `<b>${x.short}</b> <i>${x.n}</i>${x.out ? `<span class="out">+${x.out}</span>` : ''}`).join('  ')}<div class="hint">\\ COMMAND BOARD  ·  / NEXT UNIT OUT  ·  +N = OUT IN THE WAR</div>` : '';
+    const html = show ? `FLEET ${s.map(x => `<b>${x.short}</b> <i>${x.n}</i>${x.out ? `<span class="out">+${x.out}</span>` : ''}`).join('  ')}<div class="hint"><button class="boardAction" data-command>COMMAND \\</button> <button class="boardAction" data-research>RESEARCH / TECH TREE</button> · / NEXT UNIT · +N = OUT</div>` : '';
     if (strip._h !== html) { strip._h = html; strip.innerHTML = html; }
   };
   return C;

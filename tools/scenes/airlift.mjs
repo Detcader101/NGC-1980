@@ -53,6 +53,8 @@ export default {
     await h.eval(`(${AL}.camLocal = [[-22, -3, 4], [0, -6, 0.5]], 1)`); await h.wait(900); await h.shot('load-in-transit-side'); await h.eval(`(${AL}.camLocal = null, 1)`);
     await h.eval('(__G.cockpitCam = true, __G.head.pitch = -0.55, __G.head.yaw = 0.5, 1)'); await h.wait(1200); await h.shot('cockpit-in-transit'); await h.eval('(__G.cockpitCam = false, __G.head.pitch = 0, __G.head.yaw = 0, 1)');
     await h.waitFor(`${AL}.load && ${AL}.load.S.ground && ${AL}.load.S.Tg < 0.35 && Math.hypot(__G.H.pos.x - __T2.x, __G.H.pos.z - __T2.z) < 6`, 600000);
+    await h.eval(`({ fuel: __G.G.fuel, impact: ${AL}.load.S.impact, phase: __G.heliAI.phase })`, 'delivery condition');
+    await h.expect('__G.G.fuel > 0 && __G.Z.alive', 'the longer island flight retains fuel through delivery');
     await h.shot('load-set-down');
     await h.eval(`${AL}.button()`);
     await h.expect(`!${AL}.load && !__V.slung && __V.exists && !__V.wrecked`, 'R: released - the M151A2 is on its wheels');

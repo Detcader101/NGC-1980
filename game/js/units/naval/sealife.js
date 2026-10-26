@@ -211,7 +211,7 @@ export function createSeaLife(ctx) {
       moteU.uPx.value = renderer.domElement.height;
       if (fx) for (const q of [fx.add, fx.mix]) { if (q && q.uni && q.uni.uFogNear) { q.uni.uFogNear.value = 0.5; q.uni.uFogFar.value = vis; q.uni.uFogCol && q.uni.uFogCol.value.copy(uwCol); } }
       bedWant(p.x, p.z, !L.bedReady);
-    } else if (sc.fog) { fishU.uFogP.value.set(sc.fog.near, sc.fog.far, 0, 0); fishU.uFogC.value.copy(sc.fog.color); signU.uFogP2.value.set(sc.fog.near, sc.fog.far); }
+    } else if (sc.fog) { fishU.uFogP.value.set(sc.fog.near, sc.fog.far, 0, 0); fishU.uFogC.value.copy(sc.fog.color).convertLinearToSRGB(); signU.uFogP2.value.set(sc.fog.near, sc.fog.far); }
   })(scene.onBeforeRender && scene.onBeforeRender !== THREE.Object3D.prototype.onBeforeRender ? scene.onBeforeRender : null);
 
   // ------------------------------------------------------------------ disturbances from fx (wrapped once)
@@ -292,15 +292,6 @@ export function createSeaLife(ctx) {
     if (ctx.trawlers) { const T = ctx.trawlers(); if (T) for (let i = 0; i < T.length; i++) { const w = T[i]; if (Math.abs(w.x - c.x) > 520 || Math.abs(w.z - c.z) > 520) continue; sim.hull(w.x, w.z, w.yaw + Math.PI, 6.5, 2.4, 2, w.v || 0); if (w.gulls) L.focus('t' + idOf(w), 'boat', w.x, w.z, 1, Math.sin(w.yaw) * (w.v || 0), Math.cos(w.yaw) * (w.v || 0)); } }
     sim.lastDt = dt; if (ctx.extra) ctx.extra(sim, L);
     sim.enabled = L.fishOn; if (!L.fishOn && sim.schools.length) sim.clear();
-    sim.update(dt, c);
-    // the birds: bait balls, dead fish, trawlers, wakes
-    sim.signs(signs);
-    for (const s of signs) if (s.kind === 1) L.focus('b' + s.sc.id, 'ball', s.x, s.z, s.k, 0, 0, s.r); else if (s.sc.surfacing) L.focus('n' + s.sc.id, 'top', s.x, s.z, s.k, 0, 0, s.r);
-    for (const st of sim.sites) { const k = Math.min(1, st.n / 20) * (1 - st.t / 120); if (k > 0.05 && st.t > 4) L.focus('d' + idOf(st), 'dead', st.x, st.z, k, 0, 0, 4); }
-    birds.update(L.fishOn ? dt : 0, c, { foci, threats: flush });
-    if (!L.fishOn && birds.birds.length) birds.clear();
-    for (let i = 0; i < sim.nEv; i++) onEvent(sim.events[i], c);
-    for (let i = 0; i < birds.nEv; i++) onEvent(birds.events[i], c);
     // draw: the camera that last rendered (its forward and field of view) culls what cannot show
     let view = null;
     if (L.camObj) {
@@ -309,6 +300,15 @@ export function createSeaLife(ctx) {
       Object.assign(_view, { x: c.x, y: c.y, z: c.z, fx: -e[8] / fl, fy: -e[9] / fl, fz: -e[10] / fl, cos: Math.cos(Math.min(hf, 3)), px: (ctx.heightPx ? ctx.heightPx() : 720) / fov });
       view = _view; L.view = _view;
     }
+    sim.update(dt, c, view);
+    // the birds: bait balls, dead fish, trawlers, wakes
+    sim.signs(signs);
+    for (const s of signs) if (s.kind === 1) L.focus('b' + s.sc.id, 'ball', s.x, s.z, s.k, 0, 0, s.r); else if (s.kind === 0 && s.sc.surfacing) L.focus('n' + s.sc.id, 'top', s.x, s.z, s.k, 0, 0, s.r);
+    for (const st of sim.sites) { const k = Math.min(1, st.n / 20) * (1 - st.t / 120); if (k > 0.05 && st.t > 4) L.focus('d' + idOf(st), 'dead', st.x, st.z, k, 0, 0, 4); }
+    birds.update(L.fishOn ? dt : 0, c, { foci, threats: flush });
+    if (!L.fishOn && birds.birds.length) birds.clear();
+    for (let i = 0; i < sim.nEv; i++) onEvent(sim.events[i], c);
+    for (let i = 0; i < birds.nEv; i++) onEvent(birds.events[i], c);
     sim.write(bufs, view);
     for (const k in bufs) { write(bufs[k], meshes[k]); L.counts[k] = bufs[k].n; }
     birds.write(birdBuf, view); write(birdBuf, meshes.birds);
@@ -316,7 +316,7 @@ export function createSeaLife(ctx) {
     // signs: the schools' (nervous water, bait balls) and the marks left by jumps, breaths and dives
     let ns = 0;
     const put = (x, z, r, kind, k, age, seed, life) => {
-      if (ns >= SIGN_CAP) return; if (Math.hypot(x - c.x, z - c.z) > 420) return;
+      if (ns >= SIGN_CAP) return; if (Math.hypot(x - c.x, z - c.z) > 900) return;
       const j = ns * 4; SP[j] = x; SP[j + 1] = z; SP[j + 2] = r; SP[j + 3] = kind; SQ[j] = k; SQ[j + 1] = age; SQ[j + 2] = seed; SQ[j + 3] = life; SR[j] = smooth(0.3, 7, -sim.bed(x, z)); ns++;
     };
     if (!L.under) {

@@ -45,7 +45,7 @@ vec3 fogOfWar(vec3 c, vec2 p, float t){
   float cl=.5+.5*sin(p.x*.031+t*.21)*sin(p.y*.027-t*.16);
   vec3 unk=mix(vec3(.09,.11,.15),vec3(.15,.17,.22),cl);
   vec3 seen=mix(vec3(dot(c,vec3(.33))),c,.5)*.6;
-  return mix(unk,mix(seen,c,f.r),f.g);
+  return mix(mix(unk,mix(seen,c,f.r),f.g),c,smoothstep(uFogB-120.,uFogB,max(abs(p.x),abs(p.y))));
 }`;
 
 // patch a built-in material (Lambert/Phong, instanced or not) so it is covered by the fog of war too

@@ -15,6 +15,7 @@ import { townItems, farmItems, polesOf, mastOf } from './layout.js';
 import { rng } from './rng.js';
 import { isDrivableCar } from './parked.js';   // ngc/wheeledgame: some garden cars are real, drivable ones
 import { rawH } from '../world.js';
+import { forestTile } from './forest.js';
 
 export const CHUNK = 400;
 const LIFT = { tarmac: 0.14, lane: 0.13, street: 0.12, dirt: 0.10 };
@@ -214,7 +215,7 @@ export function chunkContent(ci, cj, hf) {
     const a = netState.buckets.get((bi + 32768) * 65536 + (bj + 32768)); if (!a) continue;
     for (const s of a) { if (s.disc) { if (inC(s.ax, s.az) && !discs.includes(s)) discs.push(s); continue; } if (inC(s.ax, s.az)) { let l = roads.get(s.r); if (!l) roads.set(s.r, l = new Set()); l.add(s.i); } }
   }
-  return { items, roads, discs, x0, z0, x1, z1 };
+  return { items, roads, discs, x0, z0, x1, z1, forest: forestTile(x0, z0, CHUNK, hf) };
 }
 export function buildGeo(content, hf, opts = {}) {
   const G = { sN: new Geo(), sF: new Geo(), gN: new Geo(), gF: new Geo(), sD: new Geo() }, vh = visHeight(hf, opts.lat || 4), dyn = { doors: [], chimneys: [], moorings: [], pastures: [], lights: [], masts: [], bld: [] }, wires = [];
@@ -232,6 +233,12 @@ export function buildGeo(content, hf, opts = {}) {
   }
   for (const d of content.discs) { const c = d.kind === 'yard' ? col(0x7a6a52) : d.kind === 'quay' ? col(0x8a857a) : col(0x76736c); disc(G.gN, d.ax, d.ay + 0.135, d.az, d.hw + 0.4, c); disc(G.gF, d.ax, d.ay + 0.135, d.az, d.hw + 0.4, c, 8); }
   for (const it of content.items) itemGeo(G, it, hf, vh, dyn);
-  return { near: G.sN.build(), far: G.sF.build(), gnear: G.gN.build(), gfar: G.gF.build(), detail: G.sD.build(), wires: new Float32Array(wires), dyn };
+  const forest = content.forest || [];
+  for (let i = 0; i < forest.length; i += 4) {
+    const [x, y, z, s] = forest.slice(i, i + 4), color = col(0x1b6a26);
+    G.sN.cyl(x, y - 0.3, z, 1.3 * s, 5 * s, 6, color, 0, 0);
+    G.sF.pyramid(x, y - 0.3, z, 2.6 * s, 2.6 * s, 5 * s, color);
+  }
+  return { forestTrees: forest.length / 4, near: G.sN.build(), far: G.sF.build(), gnear: G.gN.build(), gfar: G.gF.build(), detail: G.sD.build(), wires: new Float32Array(wires), dyn };
 }
 export function buildChunk(ci, cj, hf) { return buildGeo(chunkContent(ci, cj, hf), hf); }

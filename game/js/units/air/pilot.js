@@ -27,12 +27,32 @@ const wrap = a => { a = (a + Math.PI) % (2 * Math.PI); if (a < 0) a += 2 * Math.
 const D2R = Math.PI / 180;
 const _d = new THREE.Vector3(), _t = new THREE.Vector3(), _r = new THREE.Vector3(), _f = new THREE.Vector3(), _a = new THREE.Vector3(), _q = new THREE.Vector3();
 
+// A blocked final needs the ship to change course, not an endless circuit over the same ridge.
+// Return the closest clear heading, or null when already clear / no navigable turn exists.
+export function recoveryCourse(c, terrain, navigable = () => true) {
+  const approach = yaw => {
+    for (let d = 80; d <= 1300; d += 40)
+      if (terrain(c.x + Math.sin(yaw) * d, c.z + Math.cos(yaw) * d) + 15 > c.deck + Math.tan(3.5 * D2R) * (d - 40)) return false;
+    return true;
+  };
+  if (approach(c.yaw)) return null;
+  for (let k = 1; k <= 12; k++) for (const side of [1, -1]) {
+    const yaw = c.yaw + side * k * Math.PI / 12, fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+    if (!approach(yaw) || !navigable(c.x + fx * 600, c.z + fz * 600)) continue;
+    let wet = true;
+    for (let d = 0; d <= 600 && wet; d += 20) for (const offset of [-20, 0, 20])
+      if (terrain(c.x + fx * d + Math.cos(yaw) * offset, c.z + fz * d - Math.sin(yaw) * offset) > -5) wet = false;
+    if (wet) return yaw;
+  }
+  return null;
+}
+
 // per-type behaviour numbers (EAS in m/s; the game's air is 4x denser, so true speeds are about half: see jetfm.js)
 // Weapons are game-level: a kind, the range band and nose cone it is fired in, how long the projectile lives.
 export const PILOTS = {
   TOMCAT: {
     climbEAS: 150, capEAS: 128, corner: 170, fightTop: 200, vmin: 82, gmax: 6.5, gfight: 6.8, tactic: 'energy', aoaApp: 10.5 * D2R, capAlt: 240, capR: 520,
-    radar: 1700, leash: 1900, bingo: 1900, patAlt: 110, gs: 3.5 * D2R, landX: -4.5, catX: -2.5, abFight: true,   // (ngc/bugsweep) catX: the port bow cat - the starboard one (4.5) is fouled by the two Hornets SEAWORLD parks on the starboard bow, solid now: the right main ran into one at the end of the stroke (55 g, breakup)
+    radar: 1700, leash: 1900, bingo: 1900, patAlt: 110, gs: 3.5 * D2R, landX: -4.5, catX: -2.5, abFight: true,
     weapons: [   // game ranges for a 1.3 km map: long shots with the AIM-54 / AIM-7, the AIM-9 close, then the gun
       { w: 'aim54', rmin: 650, rmax: 1500, cone: 0.35, life: 10, v0: 25, every: 4 },
       { w: 'aim7', rmin: 380, rmax: 1000, cone: 0.3, life: 8, v0: 20, every: 3 },
@@ -59,7 +79,7 @@ export function createPilot(A, o = {}) {
     trapped: null, recovered: false, waveoffs: 0, bolters: 0, kills: 0, why: '', tdT: -1, terrainPull: 0, minAGL: 1e9,
   };
   const say = (msg) => { PL.log.push({ t: +PL.t.toFixed(1), msg }); if (PL.log.length > 60) PL.log.shift(); if (o.onSay) o.onSay(msg, PL); };
-  const set = (s, why) => { if (PL.state !== s) { PL.state = s; PL.stateT = 0; PL.wp = 0; A.brakeCmd = 0; say(`${s.toUpperCase()}${why ? '  ' + why : ''}`); } };
+  const set = (s, why) => { if (PL.state !== s) { PL.state = s; PL.stateT = 0; PL.wp = 0; if (s !== 'rtb') PL.needsLane = false; A.brakeCmd = 0; say(`${s.toUpperCase()}${why ? '  ' + why : ''}`); } };
   PL.set = set;
   A.landX = T.landX ?? DK.LAND_X; A.catX = T.catX ?? DK.CAT_X;
 
@@ -258,28 +278,67 @@ export function createPilot(A, o = {}) {
     fly(_d, dt, env, { speed: mode === 'bugout' ? T.fightTop + 40 : sp, ab: T.abFight && (A.eas < T.corner - 10 || mode === 'bugout' || mode === 'intercept' && R > 1200), g: mode === 'lead' ? Math.min(T.gfight, 5) : mode === 'extend' ? 1 : mode === 'bugout' ? 4 : T.gfight, k: mode === 'lead' ? 2.5 : 3, free: R < 1200 && vertOk(env), push: false });
   }
 
+  // ------------------------------------------------------------------ terrain margins (COMMANDER part 2: the islands reach into the pattern)
+  // the least height over the ground along a straight leg (x0, z0, y0) -> (x1, z1, y1), sampled every 40 m
+  function legClear(env, x0, z0, y0, x1, z1, y1) {
+    if (!env.terrain) return 1e9;
+    const L = Math.hypot(x1 - x0, z1 - z0), n = Math.max(1, Math.ceil(L / 40)); let m = 1e9;
+    for (let i = 0; i <= n; i++) { const k = i / n, g = env.terrain(x0 + (x1 - x0) * k, z0 + (z1 - z0) * k); if (g > 1) m = Math.min(m, y0 + (y1 - y0) * k - g); }   // (land only: over the sea the approach's own rules hold)
+    return m;
+  }
+  // the ground ahead on the present path: the least height over it in the next `secs` seconds (velocity extrapolated)
+  function aheadClear(env, secs = 6) {
+    if (!env.terrain) return 1e9; let m = 1e9;
+    for (let t = 1; t <= secs; t++) { const x = A.pos.x + A.vel.x * t, z = A.pos.z + A.vel.z * t, y = A.pos.y + Math.min(0, A.vel.y) * t, g = env.terrain(x, z); if (g > 1) m = Math.min(m, y - g); }   // (land only: the sea and the deck are the approach's business)
+    return m;
+  }
+
   // ------------------------------------------------------------------ carrier recovery
   // pattern waypoints in deck coordinates (lx starboard, lz aft of the ship's centre), heights above the deck
   const PATTERN = [[-60, -750, 1], [-480, -300, 1], [-480, 1250, 0.9]];
+  // the final from the base turn down the glideslope to the wires, and the downwind legs: least height over the ground
+  function finalClear(c, env, lx0, lz0, aimZ) {
+    const R0 = lz0 - aimZ; world(c, lx0, lz0, _q); const x0 = _q.x, z0 = _q.z; world(c, A.landX, aimZ + 60, _q);
+    return legClear(env, x0, z0, c.deck + Math.tan(T.gs) * R0, _q.x, _q.z, c.deck + Math.tan(T.gs) * 60);
+  }
+  function patternClear(c, env, side, aimZ) {
+    let m = 1e9, px = null, pz = 0, py = 0;
+    for (const w of PATTERN) { world(c, w[0] * side, w[1], _q); const y = c.deck + T.patAlt * w[2]; if (px !== null) m = Math.min(m, legClear(env, px, pz, py, _q.x, _q.z, y)); px = _q.x; pz = _q.z; py = y; }
+    const w3 = PATTERN[2]; return Math.min(m, finalClear(c, env, w3[0] * side, w3[1], aimZ));
+  }
+  // the side of the ship to fly the pattern: port (the Navy's) unless the islands are in the way there and less so
+  // to starboard; after a wave-off for the ground, the other side
+  function patternSide(c, env, aimZ) {
+    if (!env.terrain) return 1;
+    const p = patternClear(c, env, 1, aimZ), sb = patternClear(c, env, -1, aimZ);
+    let side = p >= 40 || p >= sb ? 1 : -1;
+    if (PL.patFlip) { PL.patFlip = false; const other = -(PL.patSide || 1); if ((other === 1 ? p : sb) > 20) side = other; }
+    return side;
+  }
   function recover(dt, env) {
     const c = env.carrier && env.carrier();
     if (!c) { orbit(dt, env, PL.anchor || A.pos, T.capEAS); return; }
     const [lx, lz] = deck(c, A.pos.x, A.pos.z), aimZ = DK.WIRES[2] - A.P.HOOK_TIP[2] - (T.hookLead ?? 20);   // the hook hangs ~3.4 m under the CG at ~7° nose up and a wire catches it within 0.45 m of the deck: aiming the CG's glideslope this far up the deck takes the 3 wire
     const R = lz - aimZ, hdgS = -c.yaw, hdgA = hdgOf(A.vel), herr = wrap(hdgA - hdgS);   // ship's bow along -z: heading -yaw
     const patH = c.deck + T.patAlt;
-    if (env.wantDeck && Math.hypot(c.x - A.pos.x, c.z - A.pos.z) < 3200) env.wantDeck();   // (ngc/bugsweep) DECK OPS: a recovery is wanted - no new taxi into the landing area
-    const foul = env.deckClear ? env.deckClear() : '';   // and a jet still in the landing area keeps the pattern going round
+    if (env.wantDeck && Math.hypot(c.x - A.pos.x, c.z - A.pos.z) < 3200) env.wantDeck();
+    const foul = env.deckClear ? env.deckClear() : '';
     if (PL.state === 'rtb') {
       // straight in when already behind the ship, roughly lined up; else round the pattern
-      if (R > 1300 && R < 3200 && Math.abs(lx - A.landX) < R * 0.45 && Math.abs(herr) < 1.0 && !foul) { set('final', 'STRAIGHT IN'); return; }
-      if (PL.wp === 0) PL.wp = R < 600 ? 1 : 3;   // ahead or abeam: upwind first; behind: direct to the base turn
+      if (R > 1300 && R < 3200 && Math.abs(lx - A.landX) < R * 0.45 && Math.abs(herr) < 1.0 && !foul && finalClear(c, env, lx, lz, aimZ) > 35) { set('final', 'STRAIGHT IN'); return; }
+      if (PL.wp === 0) { PL.wp = R < 600 ? 1 : 3; PL.patSide = patternSide(c, env, aimZ); }   // ahead or abeam: upwind first; behind: direct to the base turn
       const w = PATTERN[Math.min(PL.wp, 3) - 1];
-      world(c, w[0], w[1], _t); _t.y = c.deck + T.patAlt * w[2];
+      world(c, w[0] * (PL.patSide || 1), w[1], _t); _t.y = Math.max(c.deck + T.patAlt * w[2], env.terrain ? Math.max(0, env.terrain(_t.x, _t.z)) + 70 : 0);   // (high ground under a waypoint: over it)
       // the ship moves: aim where the waypoint will be
       _t.x += (c.vx || 0) * 8; _t.z += (c.vz || 0) * 8;
       dirTo(_t.x, _t.y, _t.z, 0.25);
       fly(_d, dt, env, { speed: PL.wp >= 3 ? 118 : 130, g: 3 }); A.brakeCmd = A.eas > 140 ? 1 : 0;
-      if (Math.hypot(_t.x - A.pos.x, _t.z - A.pos.z) < 300) { if (PL.wp >= 3) { if (foul) { PL.wp = 1; say('FOUL DECK  -  GOING ROUND'); } else set('final', 'BASE'); } else PL.wp++; }
+      if (Math.hypot(_t.x - A.pos.x, _t.z - A.pos.z) < 300) {
+        if (PL.wp < 3) PL.wp++;
+        else if (foul) { PL.wp = 1; say('FOUL DECK  -  GOING ROUND'); }
+        else if (finalClear(c, env, w[0] * (PL.patSide || 1), w[1], aimZ) < 15) { PL.needsLane = true; PL.wp = 1; PL.patSide = patternSide(c, env, aimZ); if (!PL.laneSaid) { PL.laneSaid = true; say('HOLDING  -  HIGH GROUND ON THE FINAL'); } }   // the islands are on the glideslope: go round again (the host turns the ship: needsLane)
+        else { PL.needsLane = false; PL.laneSaid = false; set('final', 'BASE'); }
+      }
       return;
     }
     // ---- final: dirty up, carrot onto the centreline, then the LSO controller
@@ -303,6 +362,7 @@ export function createPilot(A, o = {}) {
       }
     }
     if (R < -10 && !A.onGround) { PL.waveoffs++; set('waveoff', 'OVERFLEW THE DECK'); return; }
+    if (R > 60 && !A.onGround && aheadClear(env, 6) < 10) { PL.waveoffs++; PL.why = 'TERRAIN'; PL.patFlip = true; set('waveoff', 'TERRAIN'); return; }   // the ground comes up on the approach: go round (the next pattern is laid the other side)
     if (R > 700 || Math.abs(latErr) > 40 || Math.abs(herr) > 0.3) {
       if (R < 450) { PL.waveoffs++; set('waveoff', `NOT LINED UP  lat ${latErr.toFixed(0)} hdg ${(herr / D2R).toFixed(0)}°`); return; }
       // carrot: a point on the centreline ahead of us, at the glideslope height
@@ -345,7 +405,9 @@ export function createPilot(A, o = {}) {
   function waveoff(dt, env) {
     const c = env.carrier && env.carrier();
     FD.setThrottle(1); FD.thr = 1; PL.thrI = 0.79;
-    if (PL.stateT < 6 || A.eas < 105) {
+    if (!A.onGround && aheadClear(env, 8) < 45) {   // high ground ahead: no gentle climb - power and the terrain guard's climb (and turn) now
+      FD.dirHdg(hdgOf(A.vel), 0.3, _d); fly(_d, dt, env, { g: 4, k: 2, ab: true }); FD.setThrottle(1);
+    } else if (PL.stateT < 6 || A.eas < 105) {
       const vyDes = PL.stateT < 2 ? 0.5 : 3;
       let n = Math.cos(A.attitude().pitch) + 0.1 * (vyDes - A.vel.y);
       if (A.alpha > T.aoaApp + 3 * D2R) n = Math.min(n, A.nz - 0.15);
@@ -356,7 +418,7 @@ export function createPilot(A, o = {}) {
     }
     if (PL.stateT > 4 && A.flapSel === 2 && A.vel.y > 1) A.flapSel = 1;
     if (A.eas > 100 && A.flapSel === 1 && PL.stateT > 6) A.gearCmd = 0;
-    if (c && A.pos.y > c.deck + 60 && PL.stateT > 8 && A.eas > 105) { A.flapSel = 0; A.gearCmd = 0; A.hookCmd = 0; set('rtb', 'PATTERN'); PL.wp = 1; }
+    if (c && A.pos.y > c.deck + 60 && PL.stateT > 8 && A.eas > 105) { A.flapSel = 0; A.gearCmd = 0; A.hookCmd = 0; set('rtb', 'PATTERN'); PL.wp = 1; PL.patSide = patternSide(c, env, DK.WIRES[2] - A.P.HOOK_TIP[2] - (T.hookLead ?? 20)); }
   }
 
   // ------------------------------------------------------------------ orbit / CAP
@@ -364,7 +426,12 @@ export function createPilot(A, o = {}) {
     const a = Math.atan2(A.pos.z - anc.z, A.pos.x - anc.x), d = Math.hypot(A.pos.x - anc.x, A.pos.z - anc.z);
     const dir = PL.orbitDir || 1, lead = d > R * 1.6 ? 0 : 0.55;
     const tx = d > R * 1.6 ? anc.x : anc.x + Math.cos(a + dir * lead) * R, tz = d > R * 1.6 ? anc.z : anc.z + Math.sin(a + dir * lead) * R;
-    const floor = env.terrain ? Math.max(env.terrain(anc.x, anc.z), 0) : 0;
+    // the floor: the highest ground under the orbit (looked at again every 2 s; the anchor moves with the carrier)
+    if (env.terrain && (!PL.orbF || PL.t > PL.orbF.t + 2 || Math.hypot(anc.x - PL.orbF.x, anc.z - PL.orbF.z) > 150)) {
+      let h = Math.max(0, env.terrain(anc.x, anc.z)); for (let k = 0; k < 12; k++) { const b = k * Math.PI / 6; for (const rr of [R * 0.6, R, R * 1.3]) h = Math.max(h, env.terrain(anc.x + Math.cos(b) * rr, anc.z + Math.sin(b) * rr)); }
+      PL.orbF = { t: PL.t, x: anc.x, z: anc.z, h };
+    }
+    const floor = env.terrain ? PL.orbF.h : 0;
     dirTo(tx, Math.max(anc.y || 0, floor) + alt, tz, 0.3);
     fly(_d, dt, env, { speed, g: 3.5 });
   }

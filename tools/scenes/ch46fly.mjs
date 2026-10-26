@@ -111,7 +111,7 @@ export default {
     await h.eval(`(${C}.view = 'cockpit', 1)`); await h.wait(1500); await h.shot('cockpit-cruise');
     await h.eval(`({ ias: Math.round(${C}.P.ias()), agl: Math.round(${C}.P.S.agl), line: ${C}.P.line() })`, 'cruise');
     await h.eval(`(${C}.view = 'chase', ${C}.orbitTo(0.6, 0.1, 31), 1)`); await h.wait(1200); await h.shot('cruise-chase');
-    await h.waitFor(`window.__ap.phase === 'down' || !${C}.P.alive`, 300000);
+    await h.waitFor(`['down', 'landed'].includes(window.__ap.phase) || !${C}.P.alive`, 300000);
     await h.wait(800); await h.shot('approach-hover');
     await h.waitFor(`window.__ap.phase === 'landed' || !${C}.P.alive`, 120000);
     await h.wait(2500);
