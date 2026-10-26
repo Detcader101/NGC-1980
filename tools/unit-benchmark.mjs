@@ -46,10 +46,12 @@ for (const [index, entry] of selected.entries()) {
     ...(!(capture || clips.includes(entry.id)) ? ['--no-capture'] : []),
     ...(hasBaseline ? ['--baseline', baselineFile] : []), ...forwarded],
   { cwd: path.join(tools, '..'), env: { ...process.env, UNIT_ID: entry.id, SNAP_WALL: '1' }, stdio: 'inherit' });
-  const result = readResult(path.join(dir, 'result.json'));
+  let result, resultError;
+  try { result = readResult(path.join(dir, 'result.json')); }
+  catch (error) { resultError = 'Unreadable result.json: ' + error.message; }
   suite.runs.push({ id: entry.id, name: entry.name, category: entry.category, directory: entry.id,
     ok: child.status === 0 && !!result?.ok && !!result?.benchmarks?.length,
-    exitCode: child.status, error: child.error?.message || null,
+    exitCode: child.status, error: child.error?.message || resultError || (!result ? 'No result.json produced' : null),
     baseline: hasBaseline ? baselineFile : null, missingBaseline: !!baseline && !hasBaseline,
     checks: result?.expects?.length ?? 0, failedChecks: result?.expects?.filter(check => !check.ok).length ?? 0,
     benchmarks: result?.benchmarks?.map(({ name, summary }) => ({ name, summary })) ?? [] });
