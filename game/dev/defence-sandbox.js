@@ -236,3 +236,5 @@ window.__D = { THREE, sfx, scene, camera, renderer, cam, def, DEF, TYPES, drones
     cam.t.set(u.x + dx * k, u.y + 2.5 + (t.y - u.y) * k * 0.5, u.z + dz * k); cam.yaw = Math.atan2(-dx, -dz) + side; cam.pitch = 0.06; cam.dist = 12 + l * k * 1.25; return true; },
   run(sec, dt = 1 / 30) { for (let t = 0; t < sec; t += dt) step(dt); return true; },
   pause(v = true) { paused = v; return paused; } };
+// Rendered-frame benchmark host: fixed-step assertions can pause, while measured runs use live simulation.
+window.__BENCH = { renderer, host: 'dev-defence', get state() { return paused ? 'paused' : 'live'; }, mode: 'preview' };

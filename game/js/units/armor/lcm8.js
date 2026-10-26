@@ -3,17 +3,19 @@
 // platform for armorworld.js (the tank rides it with the same platform carry as a ship's deck), and a twin-diesel sound.
 //
 // LCM-8 (Mod 1, steel), 1960s-1980s US Navy / Army: length 73 ft 7 in (22.43 m), beam 21 ft (6.42 m), draft ~5 ft
-// (1.5 m) loaded, two Detroit Diesel 12V71 (2 x ~300 hp), 2 shafts, 9 kn loaded / 12 kn light, cargo one M48 / M60 tank
+// (1.5 m) loaded, two Detroit Diesel 12V71, 2 shafts, 9 kn loaded / 12 kn light, cargo one M48 / M60 tank
 // or 60 short tons, crew 4-5. Bow ramp hinged at the well deck, coxswain's station aft above the engine room.
-// (U: commonly published figures - Jane's Fighting Ships / navsource; not re-read for this work.)
+// Size, cargo role and crew cross-checked with USMC MCRP 3-31B, LCM Mark 8 entry. The 2024 MCRP 2-10.3
+// steel-craft table gives 12 kn light / 9 kn loaded. Ramp/well details remain simplified game geometry.
 //
 // Frame (ship convention, like war.js units): x right (starboard), y up from the waterline, z aft (bow at -z).
 import * as THREE from 'three';
 
 export const LCM8 = {
-  L: 22.43, B: 6.42, DRAFT: 1.5, SPEED: 4.6, SPEED_LIGHT: 6.2,   // m, m/s (9 kn loaded, 12 kn light) U
+  L: 22.43, B: 6.42, DRAFT: 1.5, SPEED: 4.6, SPEED_LIGHT: 6.2,   // m, m/s (rounded 9 kn loaded, 12 kn light)
   WELL: { x: 2.25, z0: -9.6, z1: 3.4, y: 0.4 },                    // the cargo well: half width, from the ramp hinge aft, floor height
   GUNWALE: 2.25, STERN_DECK: 2.3, BOW: -10.6, STERN: 11.2,
+  PILOTHOUSE: { z: 6.4, w: 2.9, d: 2.5, roof: 1.56 },             // roof above STERN_DECK, including the roof plate
   RAMP: { len: 3.7, hw: 2.2, up: 1.42, down: -0.42 },              // ramp length; angle from horizontal (rad): up ~81 deg, down ~-24 deg
 };
 const M = (c, k = 0) => new THREE.MeshLambertMaterial({ color: c, flatShading: true, emissive: new THREE.Color(c).multiplyScalar(k) });
@@ -23,6 +25,8 @@ const box = (w, h, d, x = 0, y = 0, z = 0) => new THREE.BoxGeometry(w, h, d).tra
 export function lcmDeck(lx, lz, ramp) {
   const W = LCM8.WELL, ax = Math.abs(lx);
   if (lz > LCM8.STERN || ax > LCM8.B / 2) return -1e9;
+  const P = LCM8.PILOTHOUSE;
+  if (ax < P.w / 2 && Math.abs(lz - P.z) < P.d / 2) return LCM8.STERN_DECK + P.roof;
   if (lz >= W.z0 && lz <= W.z1 && ax <= W.x) return W.y;                              // the well
   if (lz > W.z1) return lz < W.z1 + 0.5 ? LCM8.STERN_DECK + 0.6 : LCM8.STERN_DECK;   // the forward bulkhead of the stern section, the stern deck
   if (ax > W.x && lz >= LCM8.BOW) return LCM8.GUNWALE;                                 // the wing walls
@@ -70,9 +74,9 @@ export function buildLCM8Mesh(opts = {}) {
   // ---- stern: engine room deck, coxswain's armoured station, exhausts, mast
   add(box(L.B - 0.2, 0.15, L.STERN - W.z1, 0, L.STERN_DECK, (L.STERN + W.z1) / 2), deckM);
   add(box(W.x * 2 + 0.1, L.STERN_DECK + 0.6 - W.y, 0.2, 0, (L.STERN_DECK + 0.6 + W.y) / 2, W.z1 + 0.1), dgrey);   // the forward bulkhead (cargo stops)
-  const wh = new THREE.Group(); wh.position.set(0, L.STERN_DECK, 6.4); g.add(wh);
+  const wh = new THREE.Group(); wh.position.set(0, L.STERN_DECK, L.PILOTHOUSE.z); g.add(wh);
   add(box(2.8, 1.5, 2.4, 0, 0.75, 0), grey, wh);
-  add(box(2.9, 0.08, 2.5, 0, 1.52, 0), deckM, wh);
+  add(box(L.PILOTHOUSE.w, 0.08, L.PILOTHOUSE.d, 0, L.PILOTHOUSE.roof - 0.04, 0), deckM, wh);
   for (const x of [-0.85, 0, 0.85]) add(box(0.6, 0.32, 0.04, x, 1.18, -1.21), glass, wh);           // the conning slits
   for (const s of [-1, 1]) add(box(0.04, 0.32, 0.7, s * 1.41, 1.18, -0.4), glass, wh);
   add(box(0.06, 1.0, 0.7, 0.9, 0.5, 1.21), dgrey, wh);                                                 // the door

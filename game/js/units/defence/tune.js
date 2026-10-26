@@ -41,12 +41,12 @@ export const DEF = {
     gun: { range: 150, near: 55, rate: 0.045, burst: 0.55, pause: 0.6, speed: 150, spread: 0.022, flakRate: 0.7, flakErr: 5 },
   },
   shilka: {
-    name: 'ZSU-23-4', side: 1, hp: 7, r: 3.4, h: 1.5, yawRate: 1.3, pitchRate: 1.0, pitchMin: -0.07, pitchMax: 1.4,
+    name: 'ZSU-23-4 SHILKA', side: 1, hp: 7, r: 3.4, h: 1.5, yawRate: 1.3, pitchRate: 1.0, pitchMin: -0.07, pitchMax: 1.4,
     scan: 0.3, lock: 0.7, lockKeep: 0.8, tol: 0.08,
     gun: { range: 150, near: 55, rate: 0.06, burst: 0.7, pause: 0.7, speed: 140, spread: 0.028, flakRate: 0.75, flakErr: 5 },
   },
   ciws: {
-    name: 'CIWS', side: 1, hp: 9, r: 2.4, h: 1.6, yawRate: 2.6, pitchRate: 2.2, pitchMin: -0.2, pitchMax: 1.45,
+    name: 'PHALANX CIWS (Block 0)', side: 1, hp: 9, r: 2.4, h: 1.6, yawRate: 2.6, pitchRate: 2.2, pitchMin: -0.2, pitchMax: 1.45,
     scan: 0.2, lock: 0.5, lockKeep: 0.9, tol: 0.06, spin: 1.0,
     gun: { range: 95, near: 95, rate: 0.03, burst: 0.7, pause: 1.5, speed: 170, spread: 0.045 },
   },
@@ -56,7 +56,7 @@ export const DEF = {
     msl: { min: 45, range: 220, salvo: 2, gap: 0.6, reload: 12, speed0: 22, speed: 95, accel: 120, turn: 2.6, life: 5.5, prox: 6, dmg: 4, playerDmg: 0, lockExtra: 0 },
   },
   talon: {
-    name: 'RW TALON (seized 8x8)', side: 2, hp: 7, r: 4.2, h: 1.6, yawRate: 1.0, pitchRate: 0.9, pitchMin: -0.05, pitchMax: 1.3,
+    name: 'PANTSIR-S1 / RW TALON', side: 2, hp: 7, r: 4.2, h: 1.6, yawRate: 1.0, pitchRate: 0.9, pitchMin: -0.05, pitchMax: 1.3,
     scan: 0.4, lock: 1.3, lockKeep: 0.6, tol: 0.1,
     gun: { range: 150, near: 45, rate: 0.1, burst: 0.4, pause: 2.4, speed: 140, spread: 0.05, flakRate: 1.1, flakJit: 0.6, flakErr: 5, flakErrPlayer: 7, ramp: 0.5 },
     msl: { min: 70, range: 190, salvo: 1, gap: 0, reload: 20, speed0: 18, speed: 70, accel: 60, turn: 1.5, life: 6.5, prox: 4.5, dmg: 5, playerDmg: 0.25, lockExtra: 1.6 },

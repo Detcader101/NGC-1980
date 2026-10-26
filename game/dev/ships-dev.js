@@ -1,9 +1,16 @@
 // Naval preview: orbit and inspect each ship on a sea, with the sea state, speed and heading driving the same motion
-// model the game uses (seamotion.js). Query: ?ship=albatross|kraken|leviathan|container &sea=N &speed=m/s &ui=0
+// model the game uses (seamotion.js). Query: ?ship=albatross|kraken|leviathan|container|sky|lcm8|lcm8truck|lcac &sea=N &speed=m/s &ui=0
 // &cam=yaw,pitch,dist,tx,ty,tz &auto=1 (turntable) &freeze=1 (no motion)
 import * as THREE from 'three';
-import { buildCarrier, buildBattleship, buildFreighter } from '../js/ships.js';
+import { buildCarrier, buildBattleship, buildFreighter, addLiftFans } from '../js/ships.js';
 import { SEA_STATES, SHIPS, makeSea, createShipMotion } from '../js/units/naval/seamotion.js';
+import { createDefence } from '../js/units/defence/brain.js';
+import { LCM8, lcmDeck, buildLCM8Mesh } from '../js/units/armor/lcm8.js';
+import { buildLCM8Mesh as buildTruckLCM } from '../js/units/wheeled/lcm8model.js';
+import { buildM60A3Mesh } from '../js/units/armor/tankmodel.js';
+import { buildM35Mesh } from '../js/units/wheeled/m35model.js';
+import { LCAC, buildLCAC } from '../js/units/groundwar/lcacmodel.js';
+import { buildMBT } from '../js/units/runaway/mbtmodel.js';
 
 const Q = new URLSearchParams(location.search);
 const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(2, devicePixelRatio)); document.body.prepend(renderer.domElement);
@@ -21,33 +28,64 @@ const seaMat = new THREE.ShaderMaterial({
       float d = length(vP.xz - cameraPosition.xz); c = mix(c, vec3(0.61,0.75,0.87), smoothstep(500., 2200., d)); gl_FragColor = vec4(c, 1.); }`,
 });
 const sea = new THREE.Mesh(new THREE.PlaneGeometry(8000, 8000).rotateX(-Math.PI / 2), seaMat); scene.add(sea);
+// Use the active war's refits, not the legacy decorative mounts that the models start with.
+const defence = createDefence({ scene });
+function landingCraft(truck = false) {
+  const model = truck ? buildTruckLCM() : buildLCM8Mesh();
+  const cargo = truck ? buildM35Mesh() : buildM60A3Mesh();
+  const well = truck ? model.WELL : { y: LCM8.WELL.y, z: (LCM8.WELL.z0 + LCM8.WELL.z1) / 2 };
+  cargo.group.position.set(0, well.y, well.z); model.group.add(cargo.group);
+  const parts = { ...model, cargo, guns: [], dims: { L: LCM8.L, W: LCM8.B, DECK: well.y }, rampAngle: LCM8.RAMP.up,
+    localDeck: truck ? null : (x, z) => lcmDeck(x, z, parts.rampAngle),
+    tick(dt, t) {
+      // Repeat the actual delivery model's ramp articulation; this is not a beaching/vehicle physics replay.
+      const open = (1 - Math.cos(t * 0.65)) / 2;
+      if (truck) model.ramp.rotation.x = -1.32 * open;
+      else { parts.rampAngle = LCM8.RAMP.up + (LCM8.RAMP.down - LCM8.RAMP.up) * open; model.animate({ ramp: parts.rampAngle }); }
+    },
+  };
+  return { parts, motion: null };
+}
 
 const BUILD = {
   albatross: () => ({ parts: buildCarrier(1), motion: 'albatross' }),
   kraken: () => ({ parts: buildCarrier(2), motion: 'kraken' }),
   leviathan: () => ({ parts: buildBattleship(), motion: 'leviathan' }),
   container: () => ({ parts: buildFreighter(), motion: 'container' }),
+  sky: () => { const parts = buildCarrier(1); addLiftFans(parts); for (const f of parts.fans) { f.arm.visible = true; f.arm.scale.setScalar(1); f.glow.material.opacity = 0.7; } return { parts, motion: null, sky: true }; },
+  lcm8: () => landingCraft(),
+  lcm8truck: () => landingCraft(true),
+  lcac: () => {
+    const model = buildLCAC(), cargo = buildMBT('m1a2');
+    cargo.group.position.set(0, LCAC.DECK + 0.05, 1.5); model.group.add(cargo.group);
+    return { parts: { ...model, cargo, guns: [], dims: { L: LCAC.L, W: LCAC.W, DECK: LCAC.DECK },
+      tick: (dt, t) => model.animate({ ramp: (1 - Math.cos(t * 0.65)) / 2, prop: 0.5, lift: 1 }, dt) }, motion: null };
+  },
 };
 const S = { ship: Q.get('ship') || 'albatross', sea: +(Q.get('sea') ?? 4), speed: +(Q.get('speed') ?? 4), waveDir: Math.PI, freeze: Q.get('freeze') === '1', yawRate: 0 };
 let cur = null, mo = null, yaw = 0, t = 0;
 function load(name) {
   if (cur) scene.remove(cur.parts.group);
+  S.ship = name;
   cur = BUILD[name](); scene.add(cur.parts.group);
-  mo = createShipMotion(SHIPS[cur.motion], makeSea(S.sea, S.waveDir, 3), 3);
+  if (name === 'albatross' || name === 'sky') defence.refitCarrier(cur.parts, 1);
+  else if (cur.motion) defence.refitShip(cur.parts, 2);
+  mo = cur.motion ? createShipMotion(SHIPS[cur.motion], makeSea(S.sea, S.waveDir, 3), 3) : null;
   window.__S.cur = cur; window.__S.mo = mo;
 }
 const cam = { yaw: 0.9, pitch: 0.32, dist: 170, t: new THREE.Vector3(0, 8, 0) };
 if (Q.get('cam')) { const [y, p, d, x, yy, z] = Q.get('cam').split(',').map(Number); Object.assign(cam, { yaw: y, pitch: p, dist: d }); cam.t.set(x || 0, yy || 0, z || 0); }
 let auto = Q.get('auto') === '1';
 window.__S = { S, cam, camera, scene, renderer, THREE, load, render: () => renderer.render(scene, camera), step: (dt) => step(dt) };
+window.__BENCH = { renderer, host: 'dev-ships', get state() { return S.freeze ? 'paused' : 'live'; }, mode: 'preview' };
 
 // ---- UI
 const ui = document.getElementById('ui'); if (Q.get('ui') === '0') ui.classList.add('hide'), document.getElementById('info').remove();
 const row = (label, el) => { const l = document.createElement('label'); l.textContent = label; l.appendChild(el); ui.appendChild(l); return el; };
 const sel = document.createElement('select'); for (const k of Object.keys(BUILD)) { const o = document.createElement('option'); o.value = o.textContent = k; sel.appendChild(o); } sel.value = S.ship; sel.onchange = () => { S.ship = sel.value; load(S.ship); }; row('ship', sel);
 function slider(label, get, set, min, max, step = 0.01) { const r = document.createElement('input'); r.type = 'range'; r.min = min; r.max = max; r.step = step; r.value = get(); const lab = row(label, r); r.oninput = () => set(+r.value); return r; }
-slider('sea state', () => S.sea, v => { S.sea = v; mo.setSea(makeSea(v, S.waveDir, 3)); }, 0, 7, 1);
-slider('wave dir (rel)', () => S.waveDir, v => { S.waveDir = v; mo.setSea(makeSea(S.sea, v, 3)); }, 0, 6.28, 0.01);
+slider('sea state', () => S.sea, v => { S.sea = v; mo?.setSea(makeSea(v, S.waveDir, 3)); }, 0, 7, 1);
+slider('wave dir (rel)', () => S.waveDir, v => { S.waveDir = v; mo?.setSea(makeSea(S.sea, v, 3)); }, 0, 6.28, 0.01);
 slider('speed m/s', () => S.speed, v => S.speed = v, 0, 8, 0.1);
 slider('turn rate', () => S.yawRate, v => S.yawRate = v, -0.09, 0.09, 0.005);
 const tg = (label, get, set) => { const c = document.createElement('input'); c.type = 'checkbox'; c.checked = get(); c.onchange = () => set(c.checked); row(label, c); };
@@ -71,21 +109,23 @@ function step(dt) {
   t += dt; seaMat.uniforms.t.value = t; seaMat.uniforms.hs.value = SEA_STATES[S.sea].hs;
   yaw += S.yawRate * dt;
   const g = cur.parts.group;
-  if (!S.freeze) { mo.step(dt, S.speed, yaw, S.yawRate); g.position.set(0, mo.heave, 0); g.rotation.set(mo.pitch, yaw, mo.roll, 'YXZ'); }
+  if (!S.freeze && mo) { mo.step(dt, S.speed, yaw, S.yawRate); g.position.set(0, mo.heave, 0); g.rotation.set(mo.pitch, yaw, mo.roll, 'YXZ'); }
   else { g.position.set(0, 0, 0); g.rotation.set(0, yaw, 0); }
+  if (cur.sky) { g.position.y = 16; for (const f of cur.parts.fans) if (!S.freeze) f.rotor.rotation.y += dt * 24; }
   if (cur.parts.dish) cur.parts.dish.rotation.y += dt * 1.6;
   if (cur.parts.lamp) cur.parts.lamp.visible = (t % 1.4) < 0.15;
-  cur.parts.tick?.(dt, t, camera.position.distanceTo(g.position));
+  if (!S.freeze) cur.parts.tick?.(dt, t, camera.position.distanceTo(g.position));
 }
 let last = performance.now();
 function frame(now) {
-  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = now;
   if (auto) cam.yaw += dt * 0.15;
   step(dt);
   camera.position.set(Math.sin(cam.yaw) * Math.cos(cam.pitch), Math.sin(cam.pitch), Math.cos(cam.yaw) * Math.cos(cam.pitch)).multiplyScalar(cam.dist).add(cam.t);
   camera.lookAt(cam.t);
   renderer.render(scene, camera);
-  if ((now | 0) % 10 < 1 || !stat.textContent) stat.textContent = `draw calls ${renderer.info.render.calls}  tris ${renderer.info.render.triangles}\nheave ${mo.heave.toFixed(2)} m  pitch ${(mo.pitch * 57.3).toFixed(2)}°  roll ${(mo.roll * 57.3).toFixed(2)}°\n${SEA_STATES[S.sea].name}`;
+  if ((now | 0) % 10 < 1 || !stat.textContent) stat.textContent = `draw calls ${renderer.info.render.calls}  tris ${renderer.info.render.triangles}\n` +
+    (mo ? `heave ${mo.heave.toFixed(2)} m  pitch ${(mo.pitch * 57.3).toFixed(2)}°  roll ${(mo.roll * 57.3).toFixed(2)}°\n${SEA_STATES[S.sea].name}` : 'Model articulation preview; no navigation or cargo simulation');
   requestAnimationFrame(frame);
 }
 load(S.ship);

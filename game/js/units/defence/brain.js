@@ -300,7 +300,9 @@ export function createDefence(env) {
   function missileLauncher(o, D, T, f, dt) {
     const M = T.msl, ud = o.mesh.userData;
     D.mslCd -= dt;
-    if (D.mslCd <= 0 && ud.cells && D.cellsSpent) { for (const c of ud.cells) c.cover.visible = true; D.cellsSpent = 0; }   // reloaded
+    // A salvo cooldown is not a new launcher bank. Keep the spent covers open so every visible cell is used,
+    // then replenish the empty bank on the ordinary gameplay cooldown (no change to launch cadence).
+    if (D.mslCd <= 0 && ud.cells && D.cellsSpent >= ud.cells.length) { for (const c of ud.cells) c.cover.visible = true; D.cellsSpent = 0; }
     if (D.salvo > 0) {
       D.salvoT -= dt;
       if (D.salvoT <= 0 && f && D.los) { D.salvo--; D.salvoT = M.gap; launch(o, D, T, f); }

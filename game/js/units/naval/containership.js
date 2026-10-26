@@ -16,6 +16,9 @@ const CW = 2.44, CH = 2.59, CL = 6.06;               // a 20 ft ISO container (m
 const BAYS = 8, ROWS = 5, Z0 = -24;                  // bays from z = -24 aft, rows across
 // stack heights (tiers) per bay and row, fixed: the stow plan
 const PLAN = [[2, 3, 3, 3, 2], [3, 3, 3, 3, 3], [3, 3, 4, 3, 3], [2, 3, 3, 3, 3], [3, 3, 3, 3, 2], [3, 4, 3, 3, 3], [2, 3, 3, 2, 2], [1, 2, 2, 2, 1]];
+// The walkable surfaces use the same dimensions as the visible forecastle and bridge roof.
+const FORECASTLE = { y: DECK + 1.6, aft: -27 };
+const HOUSE = { y: FORECASTLE.y, z: -30.5, roofW: 12.2, roofH: 0.3, roofD: 5.8, roofY: 5.85, roofZ: 0.2 };
 export function deckHalf(lz) {
   if (lz < -40 || lz > 40) return 0;
   if (lz < -26) return 7.4 * Math.sqrt(Math.max(0, (lz + 40) / 14)) * 0.85 + 7.4 * 0.15 * ((lz + 40) / 14);
@@ -24,10 +27,11 @@ export function deckHalf(lz) {
 }
 export function localDeck(lx, lz) {
   let h = -1e9;
-  if (Math.abs(lx) < deckHalf(lz)) h = DECK;
+  if (Math.abs(lx) < deckHalf(lz)) h = lz < FORECASTLE.aft ? FORECASTLE.y : DECK;
   const b = Math.floor((lz - Z0) / (CL + 0.15)), r = Math.floor((lx + ROWS * CW / 2) / CW);
   if (b >= 0 && b < BAYS && r >= 0 && r < ROWS && lz < Z0 + BAYS * (CL + 0.15)) h = DECK + 0.3 + PLAN[b][r] * CH;
-  if (Math.abs(lx) < 6.5 && lz > -34 && lz < -27) h = DECK + 9.4;   // deckhouse roof
+  if (Math.abs(lx) < HOUSE.roofW / 2 && Math.abs(lz - HOUSE.z - HOUSE.roofZ) < HOUSE.roofD / 2)
+    h = HOUSE.y + HOUSE.roofY + HOUSE.roofH / 2;
   return h;
 }
 function hull(kit) {
@@ -43,7 +47,7 @@ function hull(kit) {
   kit.floor(pts, DECK, 0x5d6266);
   // bulwarks, the forecastle breakwater, hatch coamings
   for (const sd of [-1, 1]) kit.box(0.25, 1.1, 66, 0x2a4a66, sd * 7.3, DECK + 0.5, 3);
-  kit.box(12, 2.2, 0.4, WHITE, 0, DECK + 1.1, -26.4, -0.35); kit.floor(pts.filter(([, z]) => z < -27).concat([[-6, -27], [6, -27]]).map(p => p), DECK + 1.6, 0x5d6266);
+  kit.box(12, 2.2, 0.4, WHITE, 0, DECK + 1.1, -26.4, -0.35); kit.floor(pts.filter(([, z]) => z < FORECASTLE.aft).concat([[-6, FORECASTLE.aft], [6, FORECASTLE.aft]]), FORECASTLE.y, 0x5d6266);
   for (let b = 0; b < BAYS; b++) kit.box(ROWS * CW + 0.6, 0.3, CL - 0.2, 0x3a3f44, 0, DECK + 0.15, Z0 + b * (CL + 0.15) + CL / 2);
   return rings;
 }
@@ -63,8 +67,8 @@ export function buildContainerShip() {
   const glow = new Kit({ wear: 0 }), sheet = new DecalSheet(1024, 8, 8);
   hull(kit);
   // the deckhouse forward (Yara's small bridge block), windows plated over with ceramic panels by the machines
-  kit.push(T(0, DECK + 1.6, -30.5));
-  kit.box(10, 3.0, 5.5, WHITE, 0, 1.5, 0); kit.box(11.5, 2.6, 5.0, WHITE, 0, 4.4, 0.2); kit.box(12.2, 0.3, 5.8, GREY, 0, 5.85, 0.2);
+  kit.push(T(0, HOUSE.y, HOUSE.z));
+  kit.box(10, 3.0, 5.5, WHITE, 0, 1.5, 0); kit.box(11.5, 2.6, 5.0, WHITE, 0, 4.4, 0.2); kit.box(HOUSE.roofW, HOUSE.roofH, HOUSE.roofD, GREY, 0, HOUSE.roofY, HOUSE.roofZ);
   for (let i = 0; i < 7; i++) kit.box(1.4, 1.2, 0.12, CER, -4.6 + i * 1.53, 4.6, -2.36);   // the plates over the windows
   for (const sd of [-1, 1]) kit.box(1.4, 1.2, 0.12, CER, sd * 5.8, 4.6, 0.2, 0, Math.PI / 2, 0);
   glow.push(T(0, DECK + 1.6, -30.5)); glow.box(11.6, 0.1, 0.06, CYAN, 0, 3.6, -2.4); glow.box(0.06, 0.1, 5.0, CYAN, 5.8, 3.6, 0.2); glow.box(0.06, 0.1, 5.0, CYAN, -5.8, 3.6, 0.2);
