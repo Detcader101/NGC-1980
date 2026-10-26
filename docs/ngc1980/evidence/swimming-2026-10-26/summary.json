@@ -1,0 +1,1197 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-26",
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "1b4eebc02c60a2e445c02cecb8d4ceda5533ef1b",
+    "branch": "ngc/unit-bench",
+    "gameTree": "8144c7f60fc5e0ebc859c990f4688c90654ede87",
+    "gameSha256": "070e2e800b12e632f6a079b02c3173ceb9c969fa94577456b9a5e670e206e302",
+    "dirty": false,
+    "status": ""
+  },
+  "current": {
+    "runs": 4,
+    "assertions": 36,
+    "screenshots": 17,
+    "clips": 2,
+    "frameIntervals": 60
+  },
+  "underwater": {
+    "before": [
+      {
+        "expr": "(() => {\n    const g=__G, I=g.ISLANDS[0]; let spot=null;\n    for(let d=50;d<650&&!spot;d+=2){const x=I.x+d,z=I.z,b=g.terrainH(x,z);\n      if(b < -6 && b > -9 && g.terrainH(x+12,z)<-5 && g.terrainH(x+30,z)<-6)spot={x,z,bed:b};}\n    if(!spot)throw Error('No natural underwater shelf found');\n    window.__swimSpot=spot;\n    g.toHeli();g.H.reset(new g.THREE.Vector3(I.x-100,140,I.z-180),0,false,1);g.HI.setCollective(.45);\n    g.foot.spawnAt({x:spot.x,y:-1.3,z:spot.z,yaw:-Math.PI/2},{force:true});\n    g.crafts.control('foot',0,g.crafts.active.id);g.marine.view='first';g.marine.aim(-Math.PI/2,-.08);\n    return {fixture:'Real infantry camera on natural shelf; no spawned or resized fish',spot,initialSchools:g.sealife.sim.schools.length};\n  })()",
+        "label": "shelf-placement",
+        "value": {
+          "fixture": "Real infantry camera on natural shelf; no spawned or resized fish",
+          "spot": {
+            "x": -530,
+            "z": 720,
+            "bed": -6.177900791168213
+          },
+          "initialSchools": 14
+        }
+      },
+      {
+        "expr": "(() => {\n      const g=__G,L=g.sealife,p=g.zCam.position;\n      return {camera:p.toArray(),depth:L.camDepth,fog:[L.bedMesh.material.uniforms.uFogP.value.x,L.bedMesh.material.uniforms.uFogP.value.y],drawn:L.fishDrawn,schools:L.sim.schools.map(s=>({species:s.sp,distance:Math.hypot(s.cx-p.x,s.cy-p.y,s.cz-p.z),fade:s.fade})),nearby:L.sim.fish().filter(f=>Math.hypot(f.x-p.x,f.y-p.y,f.z-p.z)<25).length};\n    })()",
+        "label": "underwater-state",
+        "value": {
+          "camera": [
+            -530,
+            -2.881812975014411,
+            720
+          ],
+          "depth": 2.997792681229671,
+          "fog": [
+            0.5,
+            19.021357552485643
+          ],
+          "drawn": 1,
+          "schools": [
+            {
+              "species": 7,
+              "distance": 170.97546027547838,
+              "fade": 1
+            },
+            {
+              "species": 11,
+              "distance": 187.47995002604347,
+              "fade": 1
+            },
+            {
+              "species": 5,
+              "distance": 241.01383809579525,
+              "fade": 1
+            },
+            {
+              "species": 10,
+              "distance": 255.69846193729092,
+              "fade": 1
+            },
+            {
+              "species": 5,
+              "distance": 204.85615807322566,
+              "fade": 1
+            },
+            {
+              "species": 6,
+              "distance": 130.30427416126818,
+              "fade": 1
+            },
+            {
+              "species": 1,
+              "distance": 208.74902428207832,
+              "fade": 1
+            },
+            {
+              "species": 0,
+              "distance": 188.1782586221702,
+              "fade": 1
+            },
+            {
+              "species": 7,
+              "distance": 210.12020043737255,
+              "fade": 1
+            },
+            {
+              "species": 3,
+              "distance": 187.86971154832958,
+              "fade": 1
+            },
+            {
+              "species": 0,
+              "distance": 237.95036957480096,
+              "fade": 1
+            },
+            {
+              "species": 1,
+              "distance": 145.42206868763742,
+              "fade": 1
+            },
+            {
+              "species": 8,
+              "distance": 70.86915439474343,
+              "fade": 1
+            },
+            {
+              "species": 0,
+              "distance": 55.06786551874648,
+              "fade": 1
+            },
+            {
+              "species": 2,
+              "distance": 43.55510444757227,
+              "fade": 1
+            },
+            {
+              "species": 4,
+              "distance": 50.76264936576192,
+              "fade": 1
+            },
+            {
+              "species": 9,
+              "distance": 68.6105975245977,
+              "fade": 1
+            },
+            {
+              "species": 9,
+              "distance": 65.17331993279754,
+              "fade": 0.6111111111111072
+            }
+          ],
+          "nearby": 0
+        }
+      },
+      {
+        "expr": "__fishPixels",
+        "label": "natural-fish-pixels",
+        "value": {
+          "changed": 0,
+          "delta": 0,
+          "width": 768,
+          "height": 432,
+          "drawn": 1
+        }
+      }
+    ],
+    "after": [
+      {
+        "expr": "(() => {\n    const g=__G, I=g.ISLANDS[0]; let spot=null;\n    for(let d=50;d<650&&!spot;d+=2){const x=I.x+d,z=I.z,b=g.terrainH(x,z);\n      if(b < -6 && b > -9 && g.terrainH(x+12,z)<-5 && g.terrainH(x+30,z)<-6)spot={x,z,bed:b};}\n    if(!spot)throw Error('No natural underwater shelf found');\n    window.__swimSpot=spot;\n    g.toHeli();g.H.reset(new g.THREE.Vector3(I.x-100,140,I.z-180),0,false,1);g.HI.setCollective(.45);\n    g.foot.spawnAt({x:spot.x,y:-1.3,z:spot.z,yaw:-Math.PI/2},{force:true});\n    g.crafts.control('foot',0,g.crafts.active.id);g.marine.view='first';g.marine.aim(-Math.PI/2,-.08);\n    return {fixture:'Real infantry camera on natural shelf; no spawned or resized fish',spot,initialSchools:g.sealife.sim.schools.length};\n  })()",
+        "label": "shelf-placement",
+        "value": {
+          "fixture": "Real infantry camera on natural shelf; no spawned or resized fish",
+          "spot": {
+            "x": -530,
+            "z": 720,
+            "bed": -6.177900791168213
+          },
+          "initialSchools": 14
+        }
+      },
+      {
+        "expr": "(() => {\n      const g=__G,L=g.sealife,p=g.zCam.position;\n      return {camera:p.toArray(),depth:L.camDepth,fog:[L.bedMesh.material.uniforms.uFogP.value.x,L.bedMesh.material.uniforms.uFogP.value.y],drawn:L.fishDrawn,schools:L.sim.schools.map(s=>({species:s.sp,distance:Math.hypot(s.cx-p.x,s.cy-p.y,s.cz-p.z),fade:s.fade})),nearby:L.sim.fish().filter(f=>Math.hypot(f.x-p.x,f.y-p.y,f.z-p.z)<25).length};\n    })()",
+        "label": "underwater-state",
+        "value": {
+          "camera": [
+            -530,
+            -2.880481705049504,
+            720
+          ],
+          "depth": 2.99541310614856,
+          "fog": [
+            4,
+            58.65206410223315
+          ],
+          "drawn": 464,
+          "schools": [
+            {
+              "species": 7,
+              "distance": 170.99425267990674,
+              "fade": 1
+            },
+            {
+              "species": 11,
+              "distance": 188.49834977429788,
+              "fade": 1
+            },
+            {
+              "species": 5,
+              "distance": 240.95804906905954,
+              "fade": 1
+            },
+            {
+              "species": 10,
+              "distance": 255.6986195758183,
+              "fade": 1
+            },
+            {
+              "species": 5,
+              "distance": 203.83823987933107,
+              "fade": 1
+            },
+            {
+              "species": 6,
+              "distance": 130.28497078549591,
+              "fade": 1
+            },
+            {
+              "species": 1,
+              "distance": 208.63365793895653,
+              "fade": 1
+            },
+            {
+              "species": 0,
+              "distance": 187.98120328714552,
+              "fade": 1
+            },
+            {
+              "species": 7,
+              "distance": 210.10345267645195,
+              "fade": 1
+            },
+            {
+              "species": 3,
+              "distance": 189.1522977260392,
+              "fade": 1
+            },
+            {
+              "species": 0,
+              "distance": 237.92304120376298,
+              "fade": 1
+            },
+            {
+              "species": 1,
+              "distance": 145.34910248960207,
+              "fade": 1
+            },
+            {
+              "species": 6,
+              "distance": 26.536882125771548,
+              "fade": 1
+            },
+            {
+              "species": 0,
+              "distance": 3.4074729381481563,
+              "fade": 1
+            },
+            {
+              "species": 0,
+              "distance": 14.204398266256558,
+              "fade": 1
+            },
+            {
+              "species": 0,
+              "distance": 70.23904312052822,
+              "fade": 1
+            },
+            {
+              "species": 1,
+              "distance": 12.075351555031844,
+              "fade": 1
+            },
+            {
+              "species": 6,
+              "distance": 101.95411504548763,
+              "fade": 1
+            }
+          ],
+          "nearby": 194
+        }
+      },
+      {
+        "expr": "__fishPixels",
+        "label": "natural-fish-pixels",
+        "value": {
+          "changed": 12818,
+          "delta": 1023526,
+          "width": 768,
+          "height": 432,
+          "drawn": 468
+        }
+      }
+    ]
+  },
+  "baseline": {
+    "id": "underwater-before",
+    "ok": false,
+    "source": {
+      "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+      "commit": "4c9c7338aec45ca2a0a7d5241e3a57116a475881",
+      "branch": "ngc/unit-bench",
+      "gameTree": "c6ca65541018026803cf95832e727145b28b8c45",
+      "gameSha256": "b810b4dc3116a695bf8d3d9e8746aaa39cc31e7384b05057753805d478cda386",
+      "dirty": false,
+      "status": ""
+    },
+    "checks": [
+      {
+        "expr": "__G.G.craft===\"foot\" && __G.foot.W.swim && __G.sealife.under && __G.sealife.bedReady",
+        "label": "Actual Marine dive uses underwater camera and seabed",
+        "ok": true,
+        "value": true
+      },
+      {
+        "expr": "__G.sealife.bedMesh.material.uniforms.uFogP.value.y>=48",
+        "label": "Underwater visibility extends beyond 48 metres in sea state 4",
+        "ok": false,
+        "value": false
+      },
+      {
+        "expr": "__fishPixels.changed>100",
+        "label": "Natural fish bodies visibly affect more than 100 pixels from the swimmer camera",
+        "ok": false,
+        "value": false
+      },
+      {
+        "expr": "notblank(underwater-natural)",
+        "ok": true,
+        "value": 0.9974
+      },
+      {
+        "expr": "__fishPixels.changed===0 && __G.sealife.sim.schools.length===0",
+        "label": "Sea life Off removes fish bodies while keeping the underwater view",
+        "ok": true,
+        "value": true
+      },
+      {
+        "expr": "__G.foot.W.swim && !__G.sealife.bedMesh.visible",
+        "label": "Releasing dive returns the Marine to the surface",
+        "ok": true,
+        "value": true
+      }
+    ],
+    "errors": [],
+    "consoleErrors": [],
+    "shots": [
+      {
+        "name": "surface-swimmer",
+        "file": "01-surface-swimmer.png",
+        "w": 1280,
+        "h": 720,
+        "meanLuma": 113,
+        "litFraction": 0.9971,
+        "colors": 613
+      },
+      {
+        "name": "underwater-natural",
+        "file": "02-underwater-natural.png",
+        "w": 1280,
+        "h": 720,
+        "meanLuma": 61.9,
+        "litFraction": 0.9974,
+        "colors": 379
+      },
+      {
+        "name": "underwater-off",
+        "file": "03-underwater-off.png",
+        "w": 1280,
+        "h": 720,
+        "meanLuma": 61.4,
+        "litFraction": 0.9973,
+        "colors": 372
+      },
+      {
+        "name": "resurfaced",
+        "file": "04-resurfaced.png",
+        "w": 1280,
+        "h": 720,
+        "meanLuma": 114.5,
+        "litFraction": 0.9972,
+        "colors": 578
+      }
+    ],
+    "clips": [
+      {
+        "name": "underwater-natural",
+        "file": "01-underwater-natural.mp4",
+        "contact": "01-underwater-natural-contact.png",
+        "poster": "01-underwater-natural-poster.png",
+        "requestedDurationMs": 6000,
+        "wallMs": 6012.909960999998,
+        "requestedFps": 15,
+        "bytes": 25610,
+        "audio": false,
+        "durationSeconds": 3.481067,
+        "width": 800,
+        "height": 450,
+        "samples": [
+          {
+            "time": 0.41772803999999997,
+            "litFraction": 0.998022762345679,
+            "fingerprint": "25672f4c"
+          },
+          {
+            "time": 1.7405335,
+            "litFraction": 0.9979263117283951,
+            "fingerprint": "f839f9db"
+          },
+          {
+            "time": 3.06333896,
+            "litFraction": 0.9977334104938271,
+            "fingerprint": "40b217dc"
+          }
+        ],
+        "qualification": "Wall-time page capture, including DOM UI. Encoded duration may be shorter than the requested wall window; capture overhead and dropped frames affect playback. Encoded FPS is not game FPS. Contact sheet is decoded from this MP4."
+      }
+    ],
+    "benchmarks": [
+      {
+        "name": "underwater-natural",
+        "policy": {
+          "frames": 30,
+          "warmup": 30,
+          "timeoutMs": 120000
+        },
+        "xr": false,
+        "host": "game",
+        "route": "/?debug&auto&kb&peace&res=0.6&sealife=medium&sea=4",
+        "state": "play",
+        "mode": "zarch",
+        "drawingBuffer": [
+          768,
+          432
+        ],
+        "eyeViewports": [],
+        "summary": {
+          "samples": 30,
+          "frameMs": {
+            "count": 30,
+            "mean": 260.9266666665673,
+            "p50": 216.5,
+            "p95": 421.79999999701977,
+            "p99": 423.29999999701977,
+            "min": 12,
+            "max": 426.29999999701977
+          },
+          "observedFps": 3.832494442884517,
+          "cpuMs": {
+            "sim": {
+              "count": 30,
+              "mean": 3.524096145208725,
+              "p50": 3.523918760211259,
+              "p95": 3.579224602500834,
+              "p99": 3.583394318421931,
+              "min": 3.4187868830117805,
+              "max": 3.585263371779746
+            },
+            "prep": {
+              "count": 30,
+              "mean": 1.2015980511845683,
+              "p50": 1.2046405480946254,
+              "p95": 1.2297065137890277,
+              "p99": 1.2299696216716443,
+              "min": 1.1713793550716343,
+              "max": 1.2368101283891237
+            },
+            "renderSubmit": {
+              "count": 30,
+              "mean": 26.7507856665389,
+              "p50": 24.68210184333653,
+              "p95": 40.29977828553082,
+              "p99": 41.9892403004019,
+              "min": 15.81426119051147,
+              "max": 43.80972663168829
+            }
+          },
+          "drawCalls": {
+            "count": 30,
+            "mean": 1.2,
+            "p50": 2,
+            "p95": 2,
+            "p99": 2,
+            "min": 0,
+            "max": 2
+          },
+          "triangles": {
+            "count": 30,
+            "mean": 360,
+            "p50": 600,
+            "p95": 600,
+            "p99": 600,
+            "min": 0,
+            "max": 600
+          },
+          "textures": {
+            "count": 30,
+            "mean": 43,
+            "p50": 43,
+            "p95": 43,
+            "p99": 43,
+            "min": 43,
+            "max": 43
+          },
+          "geometries": {
+            "count": 30,
+            "mean": 1001,
+            "p50": 1001,
+            "p95": 1001,
+            "p99": 1001,
+            "min": 1001,
+            "max": 1001
+          }
+        },
+        "qualification": "Wall-clock intervals between observed rendered frames. CPU phases are game-smoothed CPU timings, not GPU durations. Render counters describe the last render pass. No capture during sampling."
+      }
+    ],
+    "qualification": "Expected visibility/fish-pixel failures reproduce the user issue. Retained in the devlog; comparator refuses formal performance comparison with a failed baseline."
+  },
+  "runs": [
+    {
+      "id": "underwater-after",
+      "ok": true,
+      "source": {
+        "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+        "commit": "1b4eebc02c60a2e445c02cecb8d4ceda5533ef1b",
+        "branch": "ngc/unit-bench",
+        "gameTree": "8144c7f60fc5e0ebc859c990f4688c90654ede87",
+        "gameSha256": "070e2e800b12e632f6a079b02c3173ceb9c969fa94577456b9a5e670e206e302",
+        "dirty": false,
+        "status": ""
+      },
+      "checks": [
+        {
+          "expr": "__G.G.craft===\"foot\" && __G.foot.W.swim && __G.sealife.under && __G.sealife.bedReady",
+          "label": "Actual Marine dive uses underwater camera and seabed",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.sealife.bedMesh.material.uniforms.uFogP.value.y>=48",
+          "label": "Underwater visibility extends beyond 48 metres in sea state 4",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__fishPixels.changed>100",
+          "label": "Natural fish bodies visibly affect more than 100 pixels from the swimmer camera",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "notblank(underwater-natural)",
+          "ok": true,
+          "value": 0.9973
+        },
+        {
+          "expr": "__fishPixels.changed===0 && __G.sealife.sim.schools.length===0",
+          "label": "Sea life Off removes fish bodies while keeping the underwater view",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.foot.W.swim && !__G.sealife.bedMesh.visible",
+          "label": "Releasing dive returns the Marine to the surface",
+          "ok": true,
+          "value": true
+        }
+      ],
+      "errors": [],
+      "consoleErrors": [],
+      "shots": [
+        {
+          "name": "surface-swimmer",
+          "file": "01-surface-swimmer.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 111,
+          "litFraction": 0.9971,
+          "colors": 609
+        },
+        {
+          "name": "underwater-natural",
+          "file": "02-underwater-natural.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 54.5,
+          "litFraction": 0.9973,
+          "colors": 380
+        },
+        {
+          "name": "underwater-off",
+          "file": "03-underwater-off.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 53.9,
+          "litFraction": 0.9973,
+          "colors": 373
+        },
+        {
+          "name": "resurfaced",
+          "file": "04-resurfaced.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 107.1,
+          "litFraction": 0.9972,
+          "colors": 595
+        }
+      ],
+      "clips": [
+        {
+          "name": "underwater-natural",
+          "file": "01-underwater-natural.mp4",
+          "contact": "01-underwater-natural-contact.png",
+          "poster": "01-underwater-natural-poster.png",
+          "requestedDurationMs": 6000,
+          "wallMs": 6007.730691000004,
+          "requestedFps": 15,
+          "bytes": 36935,
+          "audio": false,
+          "durationSeconds": 3.4788,
+          "width": 800,
+          "height": 450,
+          "samples": [
+            {
+              "time": 0.417456,
+              "litFraction": 0.9978780864197531,
+              "fingerprint": "89f332c6"
+            },
+            {
+              "time": 1.7394,
+              "litFraction": 0.9978780864197531,
+              "fingerprint": "3a05e57b"
+            },
+            {
+              "time": 3.061344,
+              "litFraction": 0.9978780864197531,
+              "fingerprint": "2c7e35c2"
+            }
+          ],
+          "qualification": "Wall-time page capture, including DOM UI. Encoded duration may be shorter than the requested wall window; capture overhead and dropped frames affect playback. Encoded FPS is not game FPS. Contact sheet is decoded from this MP4."
+        }
+      ],
+      "benchmarks": [
+        {
+          "name": "underwater-natural",
+          "policy": {
+            "frames": 30,
+            "warmup": 30,
+            "timeoutMs": 120000
+          },
+          "xr": false,
+          "host": "game",
+          "route": "/?debug&auto&kb&peace&res=0.6&sealife=medium&sea=4",
+          "state": "play",
+          "mode": "zarch",
+          "drawingBuffer": [
+            768,
+            432
+          ],
+          "eyeViewports": [],
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 270.0699999998013,
+              "p50": 228.8999999910593,
+              "p95": 441,
+              "p99": 456.8999999910593,
+              "min": 31.299999997019768,
+              "max": 462
+            },
+            "observedFps": 3.7027437331089557,
+            "cpuMs": {
+              "sim": {
+                "count": 30,
+                "mean": 4.406536707701661,
+                "p50": 4.316741605963474,
+                "p95": 4.636105178442995,
+                "p99": 4.664321239995748,
+                "min": 4.2633228262676255,
+                "max": 4.967911768194065
+              },
+              "prep": {
+                "count": 30,
+                "mean": 1.3082707285488024,
+                "p50": 1.2857957760101637,
+                "p95": 1.3704705304808147,
+                "p99": 1.4004952946155456,
+                "min": 1.2608362818806735,
+                "max": 1.416310836751125
+              },
+              "renderSubmit": {
+                "count": 30,
+                "mean": 28.93761663007485,
+                "p50": 26.59578870635548,
+                "p95": 44.35026169710333,
+                "p99": 46.3581702081046,
+                "min": 16.829436576311675,
+                "max": 48.424389693055396
+              }
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 1.2666666666666666,
+              "p50": 2,
+              "p95": 2,
+              "p99": 2,
+              "min": 0,
+              "max": 2
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 380,
+              "p50": 600,
+              "p95": 600,
+              "p99": 600,
+              "min": 0,
+              "max": 600
+            },
+            "textures": {
+              "count": 30,
+              "mean": 44,
+              "p50": 44,
+              "p95": 44,
+              "p99": 44,
+              "min": 44,
+              "max": 44
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 1007,
+              "p50": 1007,
+              "p95": 1007,
+              "p99": 1007,
+              "min": 1007,
+              "max": 1007
+            }
+          },
+          "qualification": "Wall-clock intervals between observed rendered frames. CPU phases are game-smoothed CPU timings, not GPU durations. Render counters describe the last render pass. No capture during sampling."
+        }
+      ]
+    },
+    {
+      "id": "fish-species-final",
+      "ok": true,
+      "source": {
+        "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+        "commit": "1b4eebc02c60a2e445c02cecb8d4ceda5533ef1b",
+        "branch": "ngc/unit-bench",
+        "gameTree": "8144c7f60fc5e0ebc859c990f4688c90654ede87",
+        "gameSha256": "070e2e800b12e632f6a079b02c3173ceb9c969fa94577456b9a5e670e206e302",
+        "dirty": false,
+        "status": ""
+      },
+      "checks": [
+        {
+          "expr": "__FISHVIEW.patterns",
+          "label": "production per-fragment fish markings shader is present",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__FISHVIEW.entries.length===12 && __FISHVIEW.snapshot().entries.every(e=>e.finite && e.geometry>0 && e.instances===1 && e.length>=e.range[0] && e.length<=e.range[1])",
+          "label": "all twelve real geometry entries use their unchanged in-game size ranges",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__FISHVIEW.visible.length===12 && !__FISHVIEW.paused",
+          "label": "the complete inspection gallery is animating",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "notblank(fish-species-gallery)",
+          "ok": true,
+          "value": 0.9998
+        },
+        {
+          "expr": "JSON.stringify(__FISHVIEW.visible)===\"[\\\"sardine\\\",\\\"mackerel\\\",\\\"mullet\\\"]\"",
+          "label": "silver-school-species selection is active",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "notblank(silver-school-species)",
+          "ok": true,
+          "value": 1
+        },
+        {
+          "expr": "JSON.stringify(__FISHVIEW.visible)===\"[\\\"amberjack\\\",\\\"bonito\\\",\\\"flyingfish\\\"]\"",
+          "label": "predators-and-flying-fins selection is active",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "notblank(predators-and-flying-fins)",
+          "ok": true,
+          "value": 1
+        },
+        {
+          "expr": "JSON.stringify(__FISHVIEW.visible)===\"[\\\"bream\\\",\\\"damsel\\\",\\\"shark\\\"]\"",
+          "label": "reef-fish-and-shark selection is active",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "notblank(reef-fish-and-shark)",
+          "ok": true,
+          "value": 1
+        },
+        {
+          "expr": "JSON.stringify(__FISHVIEW.visible)===\"[\\\"ray\\\",\\\"jelly\\\",\\\"dolphin\\\"]\"",
+          "label": "specialised-sea-life selection is active",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "notblank(specialised-sea-life)",
+          "ok": true,
+          "value": 0.999
+        },
+        {
+          "expr": "__FISHVIEW.visible[0]===\"mackerel\" && __FISHVIEW.entries.find(e=>e.species.key===\"mackerel\").data.A[3]<.39",
+          "label": "mackerel close-up uses a nearer camera, not a giant fish",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "notblank(mackerel-pattern-closeup)",
+          "ok": true,
+          "value": 1
+        },
+        {
+          "expr": "__FISHVIEW.paused && Math.abs(__FISHVIEW.time-8.67066199999109)<.001",
+          "label": "Pause control holds the inspection animation",
+          "ok": true,
+          "value": true
+        }
+      ],
+      "errors": [],
+      "consoleErrors": [],
+      "shots": [
+        {
+          "name": "fish-species-gallery",
+          "file": "01-fish-species-gallery.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 45.2,
+          "litFraction": 0.9998,
+          "colors": 180
+        },
+        {
+          "name": "silver-school-species",
+          "file": "02-silver-school-species.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 42.4,
+          "litFraction": 1,
+          "colors": 135
+        },
+        {
+          "name": "predators-and-flying-fins",
+          "file": "03-predators-and-flying-fins.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 42.4,
+          "litFraction": 1,
+          "colors": 155
+        },
+        {
+          "name": "reef-fish-and-shark",
+          "file": "04-reef-fish-and-shark.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 42.6,
+          "litFraction": 1,
+          "colors": 134
+        },
+        {
+          "name": "specialised-sea-life",
+          "file": "05-specialised-sea-life.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 43.4,
+          "litFraction": 0.999,
+          "colors": 176
+        },
+        {
+          "name": "mackerel-pattern-closeup",
+          "file": "06-mackerel-pattern-closeup.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 42.9,
+          "litFraction": 1,
+          "colors": 124
+        }
+      ],
+      "clips": [
+        {
+          "name": "mackerel-inspection-animation",
+          "file": "01-mackerel-inspection-animation.mp4",
+          "contact": "01-mackerel-inspection-animation-contact.png",
+          "poster": "01-mackerel-inspection-animation-poster.png",
+          "requestedDurationMs": 6000,
+          "wallMs": 6010.2434969999995,
+          "requestedFps": 15,
+          "bytes": 141426,
+          "audio": false,
+          "durationSeconds": 6.034667,
+          "width": 800,
+          "height": 450,
+          "samples": [
+            {
+              "time": 0.7241600399999999,
+              "litFraction": 0.9999035493827161,
+              "fingerprint": "ad87a5d8"
+            },
+            {
+              "time": 3.0173335,
+              "litFraction": 1,
+              "fingerprint": "8ac200ae"
+            },
+            {
+              "time": 5.31050696,
+              "litFraction": 1,
+              "fingerprint": "404bd48"
+            }
+          ],
+          "qualification": "Wall-time page capture, including DOM UI. Encoded duration may be shorter than the requested wall window; capture overhead and dropped frames affect playback. Encoded FPS is not game FPS. Contact sheet is decoded from this MP4."
+        }
+      ],
+      "benchmarks": [
+        {
+          "name": "fish-species-gallery",
+          "policy": {
+            "frames": 30,
+            "warmup": 30,
+            "timeoutMs": 120000
+          },
+          "xr": false,
+          "host": "dev-fish",
+          "route": "/dev/fish.html?debug&res=1",
+          "state": "live",
+          "mode": "inspection",
+          "drawingBuffer": [
+            1280,
+            592
+          ],
+          "eyeViewports": [],
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.666666666666668,
+              "p50": 16.700000002980232,
+              "p95": 16.799999997019768,
+              "p99": 16.80000001192093,
+              "min": 16.30000001192093,
+              "max": 16.900000005960464
+            },
+            "observedFps": 59.99999999999999,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 1,
+              "p50": 1,
+              "p95": 1,
+              "p99": 1,
+              "min": 1,
+              "max": 1
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 158,
+              "p50": 158,
+              "p95": 158,
+              "p99": 158,
+              "min": 158,
+              "max": 158
+            },
+            "textures": {
+              "count": 30,
+              "mean": 1,
+              "p50": 1,
+              "p95": 1,
+              "p99": 1,
+              "min": 1,
+              "max": 1
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 12,
+              "p50": 12,
+              "p95": 12,
+              "p99": 12,
+              "min": 12,
+              "max": 12
+            }
+          },
+          "qualification": "Wall-clock intervals between observed rendered frames. CPU phases are game-smoothed CPU timings, not GPU durations. Render counters describe the last render pass. No capture during sampling."
+        }
+      ]
+    },
+    {
+      "id": "fish-final-smoke",
+      "ok": true,
+      "source": {
+        "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+        "commit": "1b4eebc02c60a2e445c02cecb8d4ceda5533ef1b",
+        "branch": "ngc/unit-bench",
+        "gameTree": "8144c7f60fc5e0ebc859c990f4688c90654ede87",
+        "gameSha256": "070e2e800b12e632f6a079b02c3173ceb9c969fa94577456b9a5e670e206e302",
+        "dirty": false,
+        "status": ""
+      },
+      "checks": [
+        {
+          "expr": "notblank(landscape)",
+          "ok": true,
+          "value": 0.9818
+        },
+        {
+          "expr": "__G.G.mode==='zarch'",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "notblank(after-thrust)",
+          "ok": true,
+          "value": 0.9959
+        },
+        {
+          "expr": "__G.G.mode==='zarch'",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.Z.pos.y > window.__y0 + 1",
+          "ok": true,
+          "value": true
+        }
+      ],
+      "errors": [],
+      "consoleErrors": [],
+      "shots": [
+        {
+          "name": "landscape",
+          "file": "01-landscape.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 86.9,
+          "litFraction": 0.9818,
+          "colors": 752
+        },
+        {
+          "name": "after-thrust",
+          "file": "02-after-thrust.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 120.2,
+          "litFraction": 0.9959,
+          "colors": 708
+        }
+      ],
+      "clips": [],
+      "benchmarks": []
+    },
+    {
+      "id": "fish-aerial-regression",
+      "ok": true,
+      "source": {
+        "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+        "commit": "1b4eebc02c60a2e445c02cecb8d4ceda5533ef1b",
+        "branch": "ngc/unit-bench",
+        "gameTree": "8144c7f60fc5e0ebc859c990f4688c90654ede87",
+        "gameSha256": "070e2e800b12e632f6a079b02c3173ceb9c969fa94577456b9a5e670e206e302",
+        "dirty": false,
+        "status": ""
+      },
+      "checks": [
+        {
+          "expr": "__G.techUI.isOpen && !__G.commander.isOpen && !document.pointerLockElement",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.techUI.isOpen && __G.G.state===\"play\"",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.techUI.isOpen && !__G.commander.isOpen",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__pixelResult.schools>0 && __pixelResult.signs>0 && __pixelResult.changed>80",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "notblank(natural-fish-25m)",
+          "ok": true,
+          "value": 0.9993
+        },
+        {
+          "expr": "__pixelResult.schools>0 && __pixelResult.signs>0 && __pixelResult.changed>80",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "notblank(natural-fish-80m)",
+          "ok": true,
+          "value": 0.9993
+        },
+        {
+          "expr": "__pixelResult.schools>0 && __pixelResult.signs>0 && __pixelResult.changed>80",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "notblank(natural-fish-220m)",
+          "ok": true,
+          "value": 0.9993
+        },
+        {
+          "expr": "__pixelResult.changed===0 && __G.sealife.sim.schools.length===0",
+          "ok": true,
+          "value": true
+        }
+      ],
+      "errors": [],
+      "consoleErrors": [],
+      "shots": [
+        {
+          "name": "tech-tree-from-hud",
+          "file": "01-tech-tree-from-hud.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 54.6,
+          "litFraction": 0.925,
+          "colors": 532
+        },
+        {
+          "name": "natural-fish-25m",
+          "file": "02-natural-fish-25m.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 97.1,
+          "litFraction": 0.9993,
+          "colors": 415
+        },
+        {
+          "name": "natural-fish-80m",
+          "file": "03-natural-fish-80m.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 107.2,
+          "litFraction": 0.9993,
+          "colors": 422
+        },
+        {
+          "name": "natural-fish-220m",
+          "file": "04-natural-fish-220m.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 128.2,
+          "litFraction": 0.9993,
+          "colors": 411
+        },
+        {
+          "name": "sea-life-off",
+          "file": "05-sea-life-off.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 128.3,
+          "litFraction": 0.9993,
+          "colors": 398
+        }
+      ],
+      "clips": [],
+      "benchmarks": []
+    }
+  ],
+  "report": {
+    "ok": true,
+    "checks": 10,
+    "sha256": "1df06c365facd1c885da448aa0080f328ce7b7da019c540b8399e604d875efe2",
+    "path": "../../../devlogs/2026-10-26-swimming/devlog.html"
+  },
+  "visualReview": "Selected before/after screenshots, all six species views and the aerial25m image inspected. Both clips inspected through original contacts plus six additional decoded frames, and loaded/sought/played offline. Desktop and390px report layouts inspected.",
+  "qualification": "Scripted placement on a natural shelf with actual infantry diving and unforced medium sea life; separate gallery uses fitted cameras and production geometry at actual in-game lengths. Chrome156/SwiftShader/WSL, serial browser, CPU tests separate from timing. No physical headset or hardware FPS qualification."
+}

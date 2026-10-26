@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 2,
+  "name": "smoke",
+  "query": "?debug&auto&kb&res=0.45",
+  "seed": null,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "a3c8b4f4c19d182e16e80b33abf4116bd94213414304c4e3a936f8982a6c268b",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/snap.mjs",
+    "tools/scenes/smoke.json",
+    "--out",
+    "tools/runs/fish-final-smoke"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "1b4eebc02c60a2e445c02cecb8d4ceda5533ef1b",
+    "branch": "ngc/unit-bench",
+    "gameTree": "8144c7f60fc5e0ebc859c990f4688c90654ede87",
+    "gameSha256": "070e2e800b12e632f6a079b02c3173ceb9c969fa94577456b9a5e670e206e302",
+    "dirty": false,
+    "status": ""
+  },
+  "url": "http://127.0.0.1:36417/?debug&auto&kb&res=0.45",
+  "ok": true,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": "1 fps  ·  res 45%",
+  "shots": [
+    {
+      "name": "landscape",
+      "file": "01-landscape.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 86.9,
+      "litFraction": 0.9818,
+      "colors": 752
+    },
+    {
+      "name": "after-thrust",
+      "file": "02-after-thrust.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 120.2,
+      "litFraction": 0.9959,
+      "colors": 708
+    }
+  ],
+  "clips": [],
+  "benchmarks": [],
+  "evals": [
+    {
+      "expr": "({mode:__G.G.mode, state:__G.G.state, pos:__G.Z.pos.toArray(), alive:__G.Z.alive, landed:__G.Z.landed, gpu:document.getElementById('gpuinfo').textContent, fps:document.getElementById('dbg').textContent})",
+      "value": {
+        "mode": "zarch",
+        "state": "play",
+        "pos": [
+          -453.2877049205491,
+          9.891176562845201,
+          612.6133074260413
+        ],
+        "alive": true,
+        "landed": true,
+        "gpu": "GPU: ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "fps": "0 fps  ·  res 45%"
+      }
+    },
+    {
+      "expr": "(__G.H.reset(new __G.THREE.Vector3(__G.HOME_B.x+18.0, 40, __G.HOME_B.z+18.0), 0, false, 1), __G.HI.setCollective(0.6), window.__y0 = 40)",
+      "value": 40
+    },
+    {
+      "expr": "({y0: window.__y0, y1: __G.Z.pos.y, vy: __G.Z.vel.y, throttle: __G.Z.throttle, lives: __G.G.lives, fuel: __G.G.fuel})",
+      "value": {
+        "y0": 40,
+        "y1": 41.21774401207098,
+        "vy": 3.810640898190577,
+        "throttle": 0.7656818716484047,
+        "lives": 3,
+        "fuel": 99.83940141766813
+      }
+    }
+  ],
+  "expects": [
+    {
+      "expr": "notblank(landscape)",
+      "ok": true,
+      "value": 0.9818
+    },
+    {
+      "expr": "__G.G.mode==='zarch'",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(after-thrust)",
+      "ok": true,
+      "value": 0.9959
+    },
+    {
+      "expr": "__G.G.mode==='zarch'",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__G.Z.pos.y > window.__y0 + 1",
+      "ok": true,
+      "value": true
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-26T15:16:24.678Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "1b4eebc02c60a2e445c02cecb8d4ceda5533ef1b",
+    "branch": "ngc/unit-bench",
+    "gameTree": "8144c7f60fc5e0ebc859c990f4688c90654ede87",
+    "gameSha256": "070e2e800b12e632f6a079b02c3173ceb9c969fa94577456b9a5e670e206e302",
+    "dirty": false,
+    "status": ""
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": "zarch",
+    "state": "play"
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "1b4eebc02c60a2e445c02cecb8d4ceda5533ef1b",
+    "branch": "ngc/unit-bench",
+    "gameTree": "8144c7f60fc5e0ebc859c990f4688c90654ede87",
+    "gameSha256": "070e2e800b12e632f6a079b02c3173ceb9c969fa94577456b9a5e670e206e302",
+    "dirty": false,
+    "status": ""
+  },
+  "summary": "PASS: 5/5 expects, 0 page errors, 0 console errors",
+  "durationMs": 36834,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/runs/fish-final-smoke"
+}

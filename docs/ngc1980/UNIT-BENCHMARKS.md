@@ -46,6 +46,11 @@ generic target cubes, historical placeholder aircraft and cave turrets are not i
 suite. Their existing world, cave and sea-life regressions remain separate. Future roster additions in unmerged
 branches are not represented as completed units.
 
+The subsequent sea-life follow-up adds `tools/scenes/underwater.mjs` for natural first-person visibility and
+`tools/scenes/fish-species.mjs` for the 12-species production-model gallery. Run either through `tools/benchmark.mjs`.
+These remain separate from the active-unit catalog. [Swimming/species evidence](../devlogs/2026-10-26-swimming/devlog.html)
+distinguishes naturally swimming fish from fixed inspection animations.
+
 ## What authenticity means in this pass
 
 The fixes align visible models, names and feedback with their represented roles: the CH-46E variant, the M35's dual

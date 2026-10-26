@@ -13,6 +13,9 @@ with blended scenery LOD. Click **RESEARCH / TECH TREE** on the HUD or in the Es
 Fish schools now populate the water ahead of the flying camera: look for moving dark shoals and silver flashes;
 individual fish are easiest to see low over the sea or while swimming. Esc → **SEA LIFE: MEDIUM** enables them
 if your saved preference is Off. See [validation and screenshots](docs/ngc1980/VALIDATION.md).
+On foot in the sea, **hold C to dive** and release it to surface. The underwater view now reaches roughly 60 m in
+ordinary conditions, with natural nearby schools and distinct species markings. See the
+[swimming devlog](docs/devlogs/2026-10-26-swimming/devlog.html), or open `dev/fish.html` on the game server to inspect all 12 sea-life types.
 
 **Experimental VR:** select **ENTER VR** in a WebXR headset browser. Head tracking, controllers and optional hand
 tracking share the desktop sandbox; menus and keyboard actions are available on a spatial panel. See the

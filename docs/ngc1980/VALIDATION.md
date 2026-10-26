@@ -1,5 +1,55 @@
 # Sandbox validation
 
+## Infantry swimming and fish species — 2026-10-26
+
+The [swimming HTML devlog](../devlogs/2026-10-26-swimming/devlog.html) documents the user's previously empty underwater
+view, the correction, species markings and retained failure. Current browser evidence uses clean source `1b4eebc`,
+with game tree `8144c7f60fc5e0ebc859c990f4688c90654ede87` and content SHA-256
+`070e2e800b12e632f6a079b02c3173ceb9c969fa94577456b9a5e670e206e302`.
+The last gameplay change is `21654bb`; later report/docs commits preserve that content.
+[Committed summary and checks](evidence/swimming-2026-10-26/summary.json) retain the source identity and observations.
+
+| Scene | Assertions | Captures | Coverage |
+|---|---:|---|---|
+| Natural infantry dive | 6/6 | 4 PNG + 1 clip | Actual first-person dive, natural fish-body pixels, visibility, Off and resurfacing |
+| Species inspection | 15/15 | 6 PNG + 1 clip | All 12 production models, unchanged sizes, group views, selector and Pause |
+| Aerial fish / research | 10/10 | 5 PNG | Natural sea life at 25/80/220 m flight fixtures, Off, three research entry points |
+| Desktop smoke | 5/5 | 2 PNG | Ordinary rendered world and keyboard flight input |
+
+The four current runs pass **36/36 assertions**, with **17 screenshots, two clips and zero page/console errors**.
+The natural dive and species gallery each measure 30 rendered intervals after 30 warmup frames. They run serially,
+after CPU tests and before recording. Source is unchanged throughout every run.
+
+The baseline dive at `4c9c733` reproduces the failure: fog ends at **19.02 m**, no simulated fish are within 25 m,
+and toggling only animal-body meshes changes **zero pixels**. The corrected scene has **58.65 m** fog range and
+**12,818 changed pixels** in a 768×432 drawing buffer. The images show natural schools and the seabed through the
+actual infantry camera. The Marine is scripted onto a real shelf and dives with C; no schools, oversized fish or
+close-up camera are injected. Quality remains Medium, sea state 4. Off produces zero changed pixels again.
+
+The baseline remains **4/6 passing**, with its two visibility failures retained. The comparator consequently refuses
+a formal performance comparison. Current sample mean/p95 intervals are **270.1/441.0 ms** underwater and
+**16.7/16.8 ms** in the isolated gallery, on Chrome 156 / SwiftShader / WSL. The gallery has little world simulation
+and renders twelve independent viewports; its draw counters describe the last pass. These timings neither rank
+equal workloads nor establish a frame-rate improvement or hardware performance.
+
+Node checks passed: **21 swimmer population/culling/packing**, **22 species appearance**, **78 existing fish behavior**,
+plus the existing foot and Marine regressions. **478/478 syntax modules** passed before the final instance-packing
+follow-up; its changed fish module and final gallery scene were checked again afterward. Original outputs and the
+syntax summary are in the evidence directory. The packing regression first failed against the old commented-out
+instance assignments, then verified agreement between rendered cluster data and the simulated sub-fish positions.
+
+Selected screenshots and all six species views were inspected. Both clips were inspected through their contacts,
+six additional decoded frames and offline seeking/playback. The report passed **10/10 checks**, including hashes,
+local links, image decoding, desktop/390 px layout and no browser errors; both layout screenshots were reviewed.
+The portable HTML folder retains the original failed dive and all five raw runs.
+
+The new underwater distances are gameplay tuning. Species retain existing size/population limits and autonomous
+behavior; the close gallery uses fixed inspection animation and separately fitted cameras. Distinct spots, bars,
+bands and silhouettes are stylised field marks rather than anatomical certification. Sources and limits are in
+[population findings](findings/fish-visibility.md) and [appearance findings](findings/fish-patterns.md).
+This desktop follow-up does not qualify physical Quest 3 performance or every weather/island condition. The earlier
+48-unit audit below retains its original tested fingerprint instead of being relabelled as a new run.
+
 ## Individual units and identity fixes — 2026-10-26
 
 The [unit devlog](../devlogs/2026-10-26-units/devlog.html) contains the reviewed evidence and retained failures.

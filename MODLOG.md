@@ -1,5 +1,23 @@
 # MODLOG — NGC-1980 (formerly Thrust/Zarch)
 
+## 2026-10-26 — readable underwater infantry view and fish species
+
+The natural first-person dive reproduced the user's issue: about 19 m visibility and zero visible fish pixels,
+although distant schools filled the population budget. Swimmers/divers now receive nearby habitat-valid schools;
+distant unseen schools fade to free slots. Fog and body culling share a longer view, with a 192 m seabed mesh beyond it.
+
+Nine fish types now resolve spots, bars, flank lines, bands or restrained countershading per fragment, with clearer
+body/fin profiles and correct colour conversion. Original lengths, geometry budgets and instanced draw buckets
+remain. The existing ray, jellyfish and dolphin retain their separate models. Restored variation-seed/airborne writes
+that a trailing comment had disabled. Added the interactive `dev/fish.html` species viewer and two capture fixtures.
+
+The matched dive now shows fish schools and seabed: **58.7 m** visibility and **12,818 fish-body pixels**. The four
+current browser scenes pass **36/36**, with 17 screenshots, two clips and no browser errors. Node fish checks pass
+21/21, 22/22 and 78/78; foot/Marine and syntax checks pass. The
+[swimming devlog](docs/devlogs/2026-10-26-swimming/devlog.html) passes 10/10 offline review checks and retains the
+earlier failed dive. Software timings and fitted species views are explicitly limited. Full evidence:
+[VALIDATION](docs/ngc1980/VALIDATION.md).
+
 ## 2026-10-26 — 48 unit benchmarks and role/visual corrections
 
 Three agents audited aircraft, ground and naval/defence units; the integration adds both factions' structure cases,

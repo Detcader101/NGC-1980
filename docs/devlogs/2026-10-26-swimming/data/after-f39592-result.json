@@ -1,0 +1,780 @@
+{
+  "schemaVersion": 2,
+  "name": "infantry-underwater",
+  "query": "?debug&auto&kb&peace&res=0.6&sealife=medium&sea=4",
+  "seed": 1980,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "5a102382b540976619a05e4478d6a854ed20a39bbd1d341b3ea213600bd5aaa3",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/snap.mjs",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/scenes/underwater.mjs",
+    "--out",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/runs/underwater-after",
+    "--capture",
+    "--frames",
+    "30"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "1b4eebc02c60a2e445c02cecb8d4ceda5533ef1b",
+    "branch": "ngc/unit-bench",
+    "gameTree": "8144c7f60fc5e0ebc859c990f4688c90654ede87",
+    "gameSha256": "070e2e800b12e632f6a079b02c3173ceb9c969fa94577456b9a5e670e206e302",
+    "dirty": false,
+    "status": ""
+  },
+  "url": "http://127.0.0.1:33451/?debug&auto&kb&peace&res=0.6&sealife=medium&sea=4",
+  "ok": true,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": "4 fps  ·  res 60%",
+  "shots": [
+    {
+      "name": "surface-swimmer",
+      "file": "01-surface-swimmer.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 111,
+      "litFraction": 0.9971,
+      "colors": 609
+    },
+    {
+      "name": "underwater-natural",
+      "file": "02-underwater-natural.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 54.5,
+      "litFraction": 0.9973,
+      "colors": 380
+    },
+    {
+      "name": "underwater-off",
+      "file": "03-underwater-off.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 53.9,
+      "litFraction": 0.9973,
+      "colors": 373
+    },
+    {
+      "name": "resurfaced",
+      "file": "04-resurfaced.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 107.1,
+      "litFraction": 0.9972,
+      "colors": 595
+    }
+  ],
+  "clips": [
+    {
+      "name": "underwater-natural",
+      "file": "01-underwater-natural.mp4",
+      "contact": "01-underwater-natural-contact.png",
+      "poster": "01-underwater-natural-poster.png",
+      "requestedDurationMs": 6000,
+      "wallMs": 6007.730691000004,
+      "requestedFps": 15,
+      "bytes": 36935,
+      "audio": false,
+      "durationSeconds": 3.4788,
+      "width": 800,
+      "height": 450,
+      "samples": [
+        {
+          "time": 0.417456,
+          "litFraction": 0.9978780864197531,
+          "fingerprint": "89f332c6"
+        },
+        {
+          "time": 1.7394,
+          "litFraction": 0.9978780864197531,
+          "fingerprint": "3a05e57b"
+        },
+        {
+          "time": 3.061344,
+          "litFraction": 0.9978780864197531,
+          "fingerprint": "2c7e35c2"
+        }
+      ],
+      "qualification": "Wall-time page capture, including DOM UI. Encoded duration may be shorter than the requested wall window; capture overhead and dropped frames affect playback. Encoded FPS is not game FPS. Contact sheet is decoded from this MP4."
+    }
+  ],
+  "benchmarks": [
+    {
+      "name": "underwater-natural",
+      "policy": {
+        "frames": 30,
+        "warmup": 30,
+        "timeoutMs": 120000
+      },
+      "rows": [
+        {
+          "frame": 487,
+          "ms": 462,
+          "sim": 4.664321239995748,
+          "prep": 1.416310836751125,
+          "render": 48.424389693055396,
+          "calls": 0,
+          "triangles": 0,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 489,
+          "ms": 456.8999999910593,
+          "sim": 4.636105178442995,
+          "prep": 1.4004952946155456,
+          "render": 46.3581702081046,
+          "calls": 0,
+          "triangles": 0,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 491,
+          "ms": 441,
+          "sim": 4.579299919520845,
+          "prep": 1.3704705304808147,
+          "render": 44.35026169710333,
+          "calls": 2,
+          "triangles": 600,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 493,
+          "ms": 216.90000000596046,
+          "sim": 4.535334922948756,
+          "prep": 1.3619470041057855,
+          "render": 42.417748612397176,
+          "calls": 2,
+          "triangles": 600,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 495,
+          "ms": 436,
+          "sim": 4.533568176801318,
+          "prep": 1.3538496540495077,
+          "render": 40.64186118207534,
+          "calls": 2,
+          "triangles": 600,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 497,
+          "ms": 228.40000000596046,
+          "sim": 4.531889767961252,
+          "prep": 1.3561571716450556,
+          "render": 39.0297681232696,
+          "calls": 2,
+          "triangles": 600,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 499,
+          "ms": 428.3999999910593,
+          "sim": 4.525295279861213,
+          "prep": 1.3633493130628027,
+          "render": 37.498279716659084,
+          "calls": 0,
+          "triangles": 0,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 501,
+          "ms": 426.1000000089407,
+          "sim": 4.459030516017164,
+          "prep": 1.355181846813616,
+          "render": 35.95836573097514,
+          "calls": 0,
+          "triangles": 0,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 503,
+          "ms": 234.29999999701977,
+          "sim": 4.481078989769271,
+          "prep": 1.3524227550689818,
+          "render": 34.67544744427737,
+          "calls": 0,
+          "triangles": 0,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 505,
+          "ms": 432.70000000298023,
+          "sim": 4.452025040578831,
+          "prep": 1.3298016176135559,
+          "render": 33.2666750720635,
+          "calls": 2,
+          "triangles": 600,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 507,
+          "ms": 125.69999998807907,
+          "sim": 4.399423788847913,
+          "prep": 1.3083115362858433,
+          "render": 31.973341318758347,
+          "calls": 2,
+          "triangles": 600,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 509,
+          "ms": 145.30000001192093,
+          "sim": 4.389452599554529,
+          "prep": 1.297895959918586,
+          "render": 30.744674252373393,
+          "calls": 2,
+          "triangles": 600,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 511,
+          "ms": 395.8999999910593,
+          "sim": 4.379979969725814,
+          "prep": 1.298001161773645,
+          "render": 29.632440539754725,
+          "calls": 2,
+          "triangles": 600,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 513,
+          "ms": 31.299999997019768,
+          "sim": 4.275980971090512,
+          "prep": 1.2881011041319976,
+          "render": 28.520818512319956,
+          "calls": 2,
+          "triangles": 600,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 515,
+          "ms": 242,
+          "sim": 4.2771819223869745,
+          "prep": 1.2886960495214441,
+          "render": 27.579777586107912,
+          "calls": 2,
+          "triangles": 600,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 517,
+          "ms": 225.6000000089407,
+          "sim": 4.2633228262676255,
+          "prep": 1.2842612471943835,
+          "render": 26.59578870635548,
+          "calls": 2,
+          "triangles": 600,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 519,
+          "ms": 216.79999999701977,
+          "sim": 4.265156684805232,
+          "prep": 1.2850481854307108,
+          "render": 25.595999270739686,
+          "calls": 2,
+          "triangles": 600,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 521,
+          "ms": 233,
+          "sim": 4.266898850415959,
+          "prep": 1.2857957760101637,
+          "render": 24.731199307798747,
+          "calls": 2,
+          "triangles": 600,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 523,
+          "ms": 221.09999999403954,
+          "sim": 4.2835539083421965,
+          "prep": 1.2765059869116322,
+          "render": 23.86963934240881,
+          "calls": 0,
+          "triangles": 0,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 525,
+          "ms": 223.80000001192093,
+          "sim": 4.28937621322311,
+          "prep": 1.2726806869700042,
+          "render": 23.03615737543738,
+          "calls": 0,
+          "triangles": 0,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 527,
+          "ms": 229.59999999403954,
+          "sim": 4.279907403008989,
+          "prep": 1.2640466523234808,
+          "render": 22.204349506963535,
+          "calls": 0,
+          "triangles": 0,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 529,
+          "ms": 224.40000000596046,
+          "sim": 4.300912032262493,
+          "prep": 1.2608443198563184,
+          "render": 21.474132032062393,
+          "calls": 2,
+          "triangles": 600,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 531,
+          "ms": 219,
+          "sim": 4.3108664306493685,
+          "prep": 1.262802103714491,
+          "render": 20.760425430608286,
+          "calls": 2,
+          "triangles": 600,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 533,
+          "ms": 218.29999999701977,
+          "sim": 4.280323109265912,
+          "prep": 1.2696619980817316,
+          "render": 20.082404159226883,
+          "calls": 2,
+          "triangles": 600,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 535,
+          "ms": 228.8999999910593,
+          "sim": 4.291306953802616,
+          "prep": 1.2711788980286334,
+          "render": 19.44828395156356,
+          "calls": 2,
+          "triangles": 600,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 537,
+          "ms": 225.5,
+          "sim": 4.316741605963474,
+          "prep": 1.2826199531272018,
+          "render": 18.90586975368736,
+          "calls": 0,
+          "triangles": 0,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 539,
+          "ms": 214.90000000596046,
+          "sim": 4.310904525814312,
+          "prep": 1.2784889556198533,
+          "render": 18.36057626600299,
+          "calls": 0,
+          "triangles": 0,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 541,
+          "ms": 237.90000000596046,
+          "sim": 4.335359300119642,
+          "prep": 1.2745645072428142,
+          "render": 17.85754745329889,
+          "calls": 0,
+          "triangles": 0,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 543,
+          "ms": 233.69999998807907,
+          "sim": 4.313591335411684,
+          "prep": 1.2608362818806735,
+          "render": 17.304670080484932,
+          "calls": 2,
+          "triangles": 600,
+          "textures": 44,
+          "geometries": 1007
+        },
+        {
+          "frame": 545,
+          "ms": 246.70000000298023,
+          "sim": 4.967911768194065,
+          "prep": 1.2777944682336746,
+          "render": 16.829436576311675,
+          "calls": 2,
+          "triangles": 600,
+          "textures": 44,
+          "geometries": 1007
+        }
+      ],
+      "xr": false,
+      "host": "game",
+      "route": "/?debug&auto&kb&peace&res=0.6&sealife=medium&sea=4",
+      "state": "play",
+      "mode": "zarch",
+      "drawingBuffer": [
+        768,
+        432
+      ],
+      "eyeViewports": [],
+      "summary": {
+        "samples": 30,
+        "frameMs": {
+          "count": 30,
+          "mean": 270.0699999998013,
+          "p50": 228.8999999910593,
+          "p95": 441,
+          "p99": 456.8999999910593,
+          "min": 31.299999997019768,
+          "max": 462
+        },
+        "observedFps": 3.7027437331089557,
+        "cpuMs": {
+          "sim": {
+            "count": 30,
+            "mean": 4.406536707701661,
+            "p50": 4.316741605963474,
+            "p95": 4.636105178442995,
+            "p99": 4.664321239995748,
+            "min": 4.2633228262676255,
+            "max": 4.967911768194065
+          },
+          "prep": {
+            "count": 30,
+            "mean": 1.3082707285488024,
+            "p50": 1.2857957760101637,
+            "p95": 1.3704705304808147,
+            "p99": 1.4004952946155456,
+            "min": 1.2608362818806735,
+            "max": 1.416310836751125
+          },
+          "renderSubmit": {
+            "count": 30,
+            "mean": 28.93761663007485,
+            "p50": 26.59578870635548,
+            "p95": 44.35026169710333,
+            "p99": 46.3581702081046,
+            "min": 16.829436576311675,
+            "max": 48.424389693055396
+          }
+        },
+        "drawCalls": {
+          "count": 30,
+          "mean": 1.2666666666666666,
+          "p50": 2,
+          "p95": 2,
+          "p99": 2,
+          "min": 0,
+          "max": 2
+        },
+        "triangles": {
+          "count": 30,
+          "mean": 380,
+          "p50": 600,
+          "p95": 600,
+          "p99": 600,
+          "min": 0,
+          "max": 600
+        },
+        "textures": {
+          "count": 30,
+          "mean": 44,
+          "p50": 44,
+          "p95": 44,
+          "p99": 44,
+          "min": 44,
+          "max": 44
+        },
+        "geometries": {
+          "count": 30,
+          "mean": 1007,
+          "p50": 1007,
+          "p95": 1007,
+          "p99": 1007,
+          "min": 1007,
+          "max": 1007
+        }
+      },
+      "qualification": "Wall-clock intervals between observed rendered frames. CPU phases are game-smoothed CPU timings, not GPU durations. Render counters describe the last render pass. No capture during sampling."
+    }
+  ],
+  "evals": [
+    {
+      "expr": "(__G.G.bench=true,1)",
+      "value": 1
+    },
+    {
+      "expr": "(() => {\n    const g=__G, I=g.ISLANDS[0]; let spot=null;\n    for(let d=50;d<650&&!spot;d+=2){const x=I.x+d,z=I.z,b=g.terrainH(x,z);\n      if(b < -6 && b > -9 && g.terrainH(x+12,z)<-5 && g.terrainH(x+30,z)<-6)spot={x,z,bed:b};}\n    if(!spot)throw Error('No natural underwater shelf found');\n    window.__swimSpot=spot;\n    g.toHeli();g.H.reset(new g.THREE.Vector3(I.x-100,140,I.z-180),0,false,1);g.HI.setCollective(.45);\n    g.foot.spawnAt({x:spot.x,y:-1.3,z:spot.z,yaw:-Math.PI/2},{force:true});\n    g.crafts.control('foot',0,g.crafts.active.id);g.marine.view='first';g.marine.aim(-Math.PI/2,-.08);\n    return {fixture:'Real infantry camera on natural shelf; no spawned or resized fish',spot,initialSchools:g.sealife.sim.schools.length};\n  })()",
+      "label": "shelf-placement",
+      "value": {
+        "fixture": "Real infantry camera on natural shelf; no spawned or resized fish",
+        "spot": {
+          "x": -530,
+          "z": 720,
+          "bed": -6.177900791168213
+        },
+        "initialSchools": 14
+      }
+    },
+    {
+      "expr": "(window.__swimUntil=__G.war.sea.t+12,1)",
+      "value": 1
+    },
+    {
+      "expr": "(() => {\n      const g=__G,L=g.sealife,p=g.zCam.position;\n      return {camera:p.toArray(),depth:L.camDepth,fog:[L.bedMesh.material.uniforms.uFogP.value.x,L.bedMesh.material.uniforms.uFogP.value.y],drawn:L.fishDrawn,schools:L.sim.schools.map(s=>({species:s.sp,distance:Math.hypot(s.cx-p.x,s.cy-p.y,s.cz-p.z),fade:s.fade})),nearby:L.sim.fish().filter(f=>Math.hypot(f.x-p.x,f.y-p.y,f.z-p.z)<25).length};\n    })()",
+      "label": "underwater-state",
+      "value": {
+        "camera": [
+          -530,
+          -2.880481705049504,
+          720
+        ],
+        "depth": 2.99541310614856,
+        "fog": [
+          4,
+          58.65206410223315
+        ],
+        "drawn": 464,
+        "schools": [
+          {
+            "species": 7,
+            "distance": 170.99425267990674,
+            "fade": 1
+          },
+          {
+            "species": 11,
+            "distance": 188.49834977429788,
+            "fade": 1
+          },
+          {
+            "species": 5,
+            "distance": 240.95804906905954,
+            "fade": 1
+          },
+          {
+            "species": 10,
+            "distance": 255.6986195758183,
+            "fade": 1
+          },
+          {
+            "species": 5,
+            "distance": 203.83823987933107,
+            "fade": 1
+          },
+          {
+            "species": 6,
+            "distance": 130.28497078549591,
+            "fade": 1
+          },
+          {
+            "species": 1,
+            "distance": 208.63365793895653,
+            "fade": 1
+          },
+          {
+            "species": 0,
+            "distance": 187.98120328714552,
+            "fade": 1
+          },
+          {
+            "species": 7,
+            "distance": 210.10345267645195,
+            "fade": 1
+          },
+          {
+            "species": 3,
+            "distance": 189.1522977260392,
+            "fade": 1
+          },
+          {
+            "species": 0,
+            "distance": 237.92304120376298,
+            "fade": 1
+          },
+          {
+            "species": 1,
+            "distance": 145.34910248960207,
+            "fade": 1
+          },
+          {
+            "species": 6,
+            "distance": 26.536882125771548,
+            "fade": 1
+          },
+          {
+            "species": 0,
+            "distance": 3.4074729381481563,
+            "fade": 1
+          },
+          {
+            "species": 0,
+            "distance": 14.204398266256558,
+            "fade": 1
+          },
+          {
+            "species": 0,
+            "distance": 70.23904312052822,
+            "fade": 1
+          },
+          {
+            "species": 1,
+            "distance": 12.075351555031844,
+            "fade": 1
+          },
+          {
+            "species": 6,
+            "distance": 101.95411504548763,
+            "fade": 1
+          }
+        ],
+        "nearby": 194
+      }
+    },
+    {
+      "expr": "(() => {\n      const g=__G,r=g.renderer,original=r.render.bind(r);window.__fishPixels=null;window.__fishPixelRequest=false;\n      r.render=(scene,cam)=>{original(scene,cam);if(!__fishPixelRequest||cam!==g.zCam||scene!==g.sealife.bedMesh.parent)return;\n        __fishPixelRequest=false;const gl=r.getContext(),w=gl.drawingBufferWidth,hh=gl.drawingBufferHeight,a=new Uint8Array(w*hh*4),b=new Uint8Array(a.length);\n        gl.readPixels(0,0,w,hh,gl.RGBA,gl.UNSIGNED_BYTE,a);\n        const meshes=['school','fish','dolphin','ray','jelly'].map(k=>g.sealife.meshes[k]),visible=meshes.map(m=>m.visible);\n        meshes.forEach(m=>m.visible=false);original(scene,cam);gl.readPixels(0,0,w,hh,gl.RGBA,gl.UNSIGNED_BYTE,b);\n        meshes.forEach((m,i)=>m.visible=visible[i]);original(scene,cam);\n        let changed=0,delta=0;for(let i=0;i<a.length;i+=4){const d=Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2]);if(d>12)changed++;delta+=d;}\n        window.__fishPixels={changed,delta,width:w,height:hh,drawn:g.sealife.fishDrawn};};return 1;\n    })()",
+      "value": 1
+    },
+    {
+      "expr": "(__fishPixelRequest=true,1)",
+      "value": 1
+    },
+    {
+      "expr": "__fishPixels",
+      "label": "natural-fish-pixels",
+      "value": {
+        "changed": 12818,
+        "delta": 1023526,
+        "width": 768,
+        "height": 432,
+        "drawn": 468
+      }
+    },
+    {
+      "expr": "(__G.sealife.setQuality(\"off\"),1)",
+      "value": 1
+    },
+    {
+      "expr": "(__fishPixels=null,__fishPixelRequest=true,1)",
+      "value": 1
+    },
+    {
+      "expr": "(__G.sealife.setQuality(\"medium\"),1)",
+      "value": 1
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__G.G.craft===\"foot\" && __G.foot.W.swim && __G.sealife.under && __G.sealife.bedReady",
+      "label": "Actual Marine dive uses underwater camera and seabed",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__G.sealife.bedMesh.material.uniforms.uFogP.value.y>=48",
+      "label": "Underwater visibility extends beyond 48 metres in sea state 4",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__fishPixels.changed>100",
+      "label": "Natural fish bodies visibly affect more than 100 pixels from the swimmer camera",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(underwater-natural)",
+      "ok": true,
+      "value": 0.9973
+    },
+    {
+      "expr": "__fishPixels.changed===0 && __G.sealife.sim.schools.length===0",
+      "label": "Sea life Off removes fish bodies while keeping the underwater view",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__G.foot.W.swim && !__G.sealife.bedMesh.visible",
+      "label": "Releasing dive returns the Marine to the surface",
+      "ok": true,
+      "value": true
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-26T15:13:18.433Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "1b4eebc02c60a2e445c02cecb8d4ceda5533ef1b",
+    "branch": "ngc/unit-bench",
+    "gameTree": "8144c7f60fc5e0ebc859c990f4688c90654ede87",
+    "gameSha256": "070e2e800b12e632f6a079b02c3173ceb9c969fa94577456b9a5e670e206e302",
+    "dirty": false,
+    "status": ""
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": "zarch",
+    "state": "play"
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "1b4eebc02c60a2e445c02cecb8d4ceda5533ef1b",
+    "branch": "ngc/unit-bench",
+    "gameTree": "8144c7f60fc5e0ebc859c990f4688c90654ede87",
+    "gameSha256": "070e2e800b12e632f6a079b02c3173ceb9c969fa94577456b9a5e670e206e302",
+    "dirty": false,
+    "status": ""
+  },
+  "summary": "PASS: 6/6 expects, 0 page errors, 0 console errors",
+  "durationMs": 122977,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/runs/underwater-after"
+}

@@ -153,3 +153,15 @@ CHROME_PATH=/path/to/chrome node tools/unit-benchmark.mjs --unit m35,reaper --fr
 `--baseline SUITE_DIR` compares matching per-unit results under the existing strict comparison rules. No baseline
 means no performance-change claim. Case descriptions distinguish main-game integration from isolated production
 model previews; missing preview CPU phase timings remain null. See [unit coverage](../docs/ngc1980/UNIT-BENCHMARKS.md).
+
+Sea-life evidence is separate from the active-unit catalog:
+
+```sh
+CHROME_PATH=/path/to/chrome node tools/benchmark.mjs tools/scenes/underwater.mjs --frames 30 --out tools/runs/swimming
+CHROME_PATH=/path/to/chrome node tools/benchmark.mjs tools/scenes/fish-species.mjs --frames 30 --out tools/runs/species
+```
+
+The first uses natural populations through the actual infantry dive camera. The second inspects all 12 production
+sea-life models at unchanged game sizes with separately fitted cameras; its motion is an inspection animation.
+Use `dev/fish.html` on the game server for interactive selection/orbit/zoom. See the
+[reviewed swimming devlog](../docs/devlogs/2026-10-26-swimming/devlog.html).

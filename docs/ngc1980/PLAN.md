@@ -14,7 +14,8 @@ has been implemented or the factions have been proven balanced.
 The playable build is `experimental`, in `/home/jayjay/thrust-zarch-experimental` (desktop EXPERIMENTAL,
 port 8766). It has been fast-forwarded through the reviewed `ngc/finish` integration, the visibility/island follow-up
 in `ngc/visibility-ui`, the VR port in `ngc/webxr`, and the unit audit in `ngc/unit-bench`
-(last gameplay change `90f7cf6`; unit evidence source `59beb4e`).
+(unit evidence source `59beb4e`, followed by swimming/species work with gameplay source `21654bb`
+and rendered evidence source `1b4eebc`).
 `main` remains the older Thrust Zarch build on port 8765. Nothing is pushed automatically.
 
 ```sh
@@ -35,7 +36,7 @@ The command-board key is `\`, research is Shift+`\`, and Esc opens recovery/menu
 | Aircraft | Huey, Hornet, Tomcat and player Sea Knight; AI rotorcraft and jets; shared catapult queue and moving decks |
 | Ground | Playable Marine, medical/inventory, jeeps and trucks, M113/M60, squad combat and vehicle delivery |
 | Logistics | Huey sling loads and six-man lift; Sea Knight ramp and 13-man stick; C-130 repair teams and heavy drops |
-| World | Towns/forests with stable tiles and blended LOD, continuous radial haze, roads/traffic, interiors, sea motion and aerial shoals |
+| World | Towns/forests with stable tiles and blended LOD, continuous radial haze, roads/traffic, interiors, sea motion, aerial shoals, a longer underwater view and naturally populated swimming surroundings |
 | Strategy tools | Default research for both factions, CPU doctrines/spectator, seeded headless batches/tournaments/sweeps |
 | WebXR | Immersive VR host, tracked controllers and optional hands, spatial menus/virtual keys, shared gameplay; physical-headset qualification remains open ([setup and limits](WEBXR.md)) |
 | Development evidence | Separate benchmark/devlog skills; seeded frame samples, screenshots, native MP4 clips, decoded contact sheets and offline HTML reports ([tools](../../tools/README.md)) |
@@ -73,6 +74,11 @@ again afterward. The [unit devlog](../devlogs/2026-10-26-units/devlog.html) reta
 parachute camera, prone Marine pose, M35 tyres, stopped props, ship surfaces and launcher-state corrections.
 These fixtures establish bounded role behavior; they do not certify complete real-world vehicle systems.
 
+The subsequent [swimming devlog](../devlogs/2026-10-26-swimming/devlog.html) records the infantry visibility fix and
+recognisable species markings. Its four current scenes pass 36 assertions; the matched dive goes from zero fish
+pixels to 12,818, with fog ending at 58.7 m rather than 19.0 m. A separate 12-species inspection gallery uses fitted
+cameras and real in-game lengths. These results have their own game fingerprint; the unit audit remains dated evidence.
+
 The [benchmark/devlog example](../devlogs/2026-10-26-evidence/devlog.html) adds replayable development evidence.
 Its screenshot review exposed a desktop UI follow-up: the VR-availability panel overlaps the lower-right research
 area even though opening/closing research passes functional checks. The tooling pass records this issue.
@@ -100,8 +106,8 @@ Remaining ambitions, in priority order:
 
 ## Preserved branches and worktrees
 
-The latest audit found 121 local branches and 63 registered worktrees after adding the unit integration and three agent
-branches; one registered temporary
+The latest audit found 124 local branches and 66 registered worktrees after adding the unit integration, its three
+agent branches and three swimming/species branches; one registered temporary
 worktree is already missing. All current Markdown docs and the extra commander2/parity documents on other branches were reviewed. No separate
 AGENTS/Claude/Opus-named file was found; historical agent instructions are in the bible, archive and findings.
 Existing worktrees, locks, commits and remotes are retained. No cleanup/prune or push
@@ -110,6 +116,7 @@ is part of this pass. Completed features already in `experimental` remain in its
 These 16 historical `ngc/*` tips remain outside the integrated ancestry, including branches with selectively reused code.
 The newer `ngc/unit-air`, `ngc/unit-ground` and `ngc/unit-naval` changes were cherry-picked into `ngc/unit-bench`;
 their original tips remain preserved even though their changes are integrated.
+The same applies to `ngc/unit-fish-population`, `ngc/unit-fish-patterns` and `ngc/unit-fish-inspection`.
 “Deferred” means the remaining changes are not included in this release, not
 discarded. Use `git log experimental..BRANCH` and `git diff experimental...BRANCH` to inspect their remaining work;
 some branches also contain merges of other deferred branches.

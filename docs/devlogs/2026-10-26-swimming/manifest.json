@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "title": "Underwater infantry: a clear view and recognisable fish",
+  "createdAt": "2026-10-26T15:21:04.876Z",
+  "artifacts": [
+    {
+      "file": "data/before-6db7d8-result.json",
+      "bytes": 23162,
+      "sha256": "9dcfbee7a1680c53e35ea432f590989bcddbb332a0967661372358b2e0a7953f"
+    },
+    {
+      "file": "data/before-6db7d8-benchmark.json",
+      "bytes": 13186,
+      "sha256": "747b243f6c92318534c80009936e52357a064f6a90644a85b27bfcbace6e007a"
+    },
+    {
+      "file": "data/after-f39592-result.json",
+      "bytes": 23122,
+      "sha256": "d6a3e2d895b6bed8b489e60d59923600255ef8fb1e25d21f2305d7f19332ba44"
+    },
+    {
+      "file": "data/after-f39592-benchmark.json",
+      "bytes": 13450,
+      "sha256": "058c9b87b87c57a109aff429b838cfaba51ae7ba8c8510fa902e616c37ce3b8e"
+    },
+    {
+      "file": "data/species-1559d6-result.json",
+      "bytes": 23088,
+      "sha256": "322d2887cdceda6fad1351578f8ad743b6f8007fb546e69ab0ad0a03ba8d5aa5"
+    },
+    {
+      "file": "data/species-1559d6-benchmark.json",
+      "bytes": 11085,
+      "sha256": "bcc564370f6cdc95adeb4a3d92737615c2678c3af1560e78ba5450ce1aa2399d"
+    },
+    {
+      "file": "data/smoke-04d588-result.json",
+      "bytes": 4665,
+      "sha256": "1ce6f9114b05f2fe5361ec6e15825ee4922c7b2312cb20be95373d20e9285d87"
+    },
+    {
+      "file": "data/aerial-7df2ef-result.json",
+      "bytes": 9061,
+      "sha256": "26a7cb01cd7fb5ed4050c66480c8732fce2132d5313490aa1f944c144ba079e1"
+    },
+    {
+      "file": "data/notes.json",
+      "bytes": 11723,
+      "sha256": "8362ac8872ad5cf2bf24f44832f717924ae3f66a440ef8766ad8f0e64e4e87c8"
+    },
+    {
+      "file": "assets/27bc33f5370c-02-underwater-natural.png",
+      "bytes": 327879,
+      "sha256": "27bc33f5370ce53186075e93ba5cea1d307d89eb4fc3affc17c9f83fadabff80"
+    },
+    {
+      "file": "assets/be1dd0fad518-02-underwater-natural.png",
+      "bytes": 447777,
+      "sha256": "be1dd0fad51838715489f17a3c2c0f581187e66d5a19dc5cfbbb32dfab4abff8"
+    },
+    {
+      "file": "assets/c0ee2770602b-01-underwater-natural.mp4",
+      "bytes": 36935,
+      "sha256": "c0ee2770602be92bdf02aeba6a7b193bf93b19e910f28bc70a0309fdc1452a2e"
+    },
+    {
+      "file": "assets/2c6b131dc3d6-01-underwater-natural-poster.png",
+      "bytes": 95514,
+      "sha256": "2c6b131dc3d6124f5db124554ccc363051d67c02ecb41d7f75cbb30c83b62b90"
+    },
+    {
+      "file": "assets/f4039e140948-01-underwater-natural-contact.png",
+      "bytes": 276684,
+      "sha256": "f4039e14094865bcc5db126f81e5d3409a35ef89ddb92709f79b3c2ca3485884"
+    },
+    {
+      "file": "assets/eeddfa3b9711-03-underwater-off.png",
+      "bytes": 386164,
+      "sha256": "eeddfa3b97112eb12f1867ceaf4d79114bf552b219ed24a4f6c1c5cf16b2bc48"
+    },
+    {
+      "file": "assets/97411894241c-04-resurfaced.png",
+      "bytes": 292821,
+      "sha256": "97411894241ca264e59e8d14ffdaa1ad41d78651af4a4a36d34fd177ba27a1eb"
+    },
+    {
+      "file": "assets/6374f5fc9afb-01-fish-species-gallery.png",
+      "bytes": 99748,
+      "sha256": "6374f5fc9afbf098c7b4c22b321a46cbe4477d04fcc5c50223186f1d9f3eca44"
+    },
+    {
+      "file": "assets/31773b6c6937-02-silver-school-species.png",
+      "bytes": 58188,
+      "sha256": "31773b6c6937010ae967ca890d50c05b701df443c6143bafc2b3c69fe0b3f3d2"
+    },
+    {
+      "file": "assets/8d0ea192e817-03-predators-and-flying-fins.png",
+      "bytes": 60409,
+      "sha256": "8d0ea192e817f921d0c1a4c13d17ac0deedce609f3d4e88fd8f0d0f4ba3fd9db"
+    },
+    {
+      "file": "assets/b8b014a03aac-04-reef-fish-and-shark.png",
+      "bytes": 63954,
+      "sha256": "b8b014a03aac1b6563bd51208bbf2438e16572abc6cc50ccd1f6ea23c8fb6cae"
+    },
+    {
+      "file": "assets/a0243fa7323e-05-specialised-sea-life.png",
+      "bytes": 52504,
+      "sha256": "a0243fa7323e05885e2a15a3b0ad751677e26a5371fbc47fb99c441626488262"
+    },
+    {
+      "file": "assets/aca62470d96d-06-mackerel-pattern-closeup.png",
+      "bytes": 66798,
+      "sha256": "aca62470d96d405c74b833d30f8ceb7d7b8566146613645fa7f7c9bd5d8c9270"
+    },
+    {
+      "file": "assets/9ae3f127ed62-01-mackerel-inspection-animation.mp4",
+      "bytes": 141426,
+      "sha256": "9ae3f127ed62f3d955e48126eb227503fe27901687aeafec8684dd76e0c15e95"
+    },
+    {
+      "file": "assets/7f38192b5ea1-01-mackerel-inspection-animation-poster.png",
+      "bytes": 55311,
+      "sha256": "7f38192b5ea1eede4f4158253cfe4a2441d2126ebb03c7e4cb4752ea46a1583c"
+    },
+    {
+      "file": "assets/55dff1971cda-01-mackerel-inspection-animation-contact.png",
+      "bytes": 139020,
+      "sha256": "55dff1971cda91e006c4015211c830acc97fe85204be62911bd84cdcd4557473"
+    },
+    {
+      "file": "assets/f02f2175a3d0-02-natural-fish-25m.png",
+      "bytes": 429110,
+      "sha256": "f02f2175a3d0143cd8b5814746bff029c1f8eb69131c7bd3a3d32102107e9ea4"
+    },
+    {
+      "file": "devlog.html",
+      "bytes": 35962,
+      "sha256": "1df06c365facd1c885da448aa0080f328ce7b7da019c540b8399e604d875efe2"
+    }
+  ]
+}

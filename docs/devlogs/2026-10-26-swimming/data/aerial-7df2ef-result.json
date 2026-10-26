@@ -1,0 +1,273 @@
+{
+  "schemaVersion": 2,
+  "name": "visibility",
+  "query": "?debug&kb&peace&res=0.6&tech=default",
+  "seed": 1980,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "2401dd02d868e462b71961d4c104ac9666a1263ee6756f6b03fec00cb7b2edf6",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/snap.mjs",
+    "tools/scenes/visibility.mjs",
+    "--seed",
+    "1980",
+    "--out",
+    "tools/runs/fish-aerial-regression"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "1b4eebc02c60a2e445c02cecb8d4ceda5533ef1b",
+    "branch": "ngc/unit-bench",
+    "gameTree": "8144c7f60fc5e0ebc859c990f4688c90654ede87",
+    "gameSha256": "070e2e800b12e632f6a079b02c3173ceb9c969fa94577456b9a5e670e206e302",
+    "dirty": false,
+    "status": ""
+  },
+  "url": "http://127.0.0.1:37575/?debug&kb&peace&res=0.6&tech=default",
+  "ok": true,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": "0 fps  ·  res 60%",
+  "shots": [
+    {
+      "name": "tech-tree-from-hud",
+      "file": "01-tech-tree-from-hud.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 54.6,
+      "litFraction": 0.925,
+      "colors": 532
+    },
+    {
+      "name": "natural-fish-25m",
+      "file": "02-natural-fish-25m.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 97.1,
+      "litFraction": 0.9993,
+      "colors": 415
+    },
+    {
+      "name": "natural-fish-80m",
+      "file": "03-natural-fish-80m.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 107.2,
+      "litFraction": 0.9993,
+      "colors": 422
+    },
+    {
+      "name": "natural-fish-220m",
+      "file": "04-natural-fish-220m.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 128.2,
+      "litFraction": 0.9993,
+      "colors": 411
+    },
+    {
+      "name": "sea-life-off",
+      "file": "05-sea-life-off.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 128.3,
+      "litFraction": 0.9993,
+      "colors": 398
+    }
+  ],
+  "clips": [],
+  "benchmarks": [],
+  "evals": [
+    {
+      "expr": "(__G.G.bench=true,1)",
+      "value": 1
+    },
+    {
+      "expr": "(() => {\n    const r=__G.renderer, original=r.render.bind(r);\n    window.__pixelRequest=false; window.__pixelResult=null;\n    r.render=(scene,cam)=>{\n      original(scene,cam);\n      if(!__pixelRequest || scene!==__G.sealife.signMesh.parent || cam!==__G.zCam) return;\n      __pixelRequest=false;\n      const gl=r.getContext(), w=gl.drawingBufferWidth, h=gl.drawingBufferHeight;\n      const a=new Uint8Array(w*h*4), b=new Uint8Array(w*h*4);\n      gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,a);\n      const L=__G.sealife, meshes=[L.signMesh,...Object.values(L.meshes)], vis=meshes.map(m=>m.visible);\n      meshes.forEach(m=>m.visible=false); original(scene,cam);\n      gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,b);\n      meshes.forEach((m,i)=>m.visible=vis[i]); original(scene,cam);\n      let changed=0, delta=0;\n      for(let i=0;i<a.length;i+=4){const d=Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2]);if(d>12) changed++;delta+=d;}\n      __pixelResult={changed,delta,width:w,height:h,fish:L.fishDrawn,signs:L.signsDrawn,schools:L.sim.schools.length,cam:L.cam.toArray()};\n    }; return 1;\n  })()",
+      "value": 1
+    },
+    {
+      "expr": "(() => { clearInterval(window.__hover); const H=__G.H;\n      H.reset(new __G.THREE.Vector3(-1500,25,200),0,false,1); __G.HI.setCollective(.48); __G.cockpitCam=false;\n      window.__coll=.48; window.__hover=setInterval(()=>{const vy=Math.max(-2,Math.min(2,(25-H.pos.y)*.5));__coll=Math.max(.2,Math.min(.7,__coll+(vy-H.vel.y)*.002));__G.HI.setCollective(__coll)},16); return 1;\n    })()",
+      "value": 1
+    },
+    {
+      "expr": "(__pixelResult=null,__pixelRequest=true,1)",
+      "value": 1
+    },
+    {
+      "expr": "__pixelResult",
+      "value": {
+        "changed": 4974,
+        "delta": 177782,
+        "width": 768,
+        "height": 432,
+        "fish": 935,
+        "signs": 8,
+        "schools": 18,
+        "cam": [
+          -1499.9037374809047,
+          37.007836878578004,
+          226.25732488895264
+        ]
+      }
+    },
+    {
+      "expr": "(() => { clearInterval(window.__hover); const H=__G.H;\n      H.reset(new __G.THREE.Vector3(-1500,80,200),0,false,1); __G.HI.setCollective(.48); __G.cockpitCam=false;\n      window.__coll=.48; window.__hover=setInterval(()=>{const vy=Math.max(-2,Math.min(2,(80-H.pos.y)*.5));__coll=Math.max(.2,Math.min(.7,__coll+(vy-H.vel.y)*.002));__G.HI.setCollective(__coll)},16); return 1;\n    })()",
+      "value": 1
+    },
+    {
+      "expr": "(__pixelResult=null,__pixelRequest=true,1)",
+      "value": 1
+    },
+    {
+      "expr": "__pixelResult",
+      "value": {
+        "changed": 2737,
+        "delta": 92902,
+        "width": 768,
+        "height": 432,
+        "fish": 1178,
+        "signs": 9,
+        "schools": 18,
+        "cam": [
+          -1500.1172988000847,
+          91.95876279332134,
+          228.11807820027417
+        ]
+      }
+    },
+    {
+      "expr": "(() => { clearInterval(window.__hover); const H=__G.H;\n      H.reset(new __G.THREE.Vector3(-1500,220,200),0,false,1); __G.HI.setCollective(.48); __G.cockpitCam=false;\n      window.__coll=.48; window.__hover=setInterval(()=>{const vy=Math.max(-2,Math.min(2,(220-H.pos.y)*.5));__coll=Math.max(.2,Math.min(.7,__coll+(vy-H.vel.y)*.002));__G.HI.setCollective(__coll)},16); return 1;\n    })()",
+      "value": 1
+    },
+    {
+      "expr": "(__pixelResult=null,__pixelRequest=true,1)",
+      "value": 1
+    },
+    {
+      "expr": "__pixelResult",
+      "value": {
+        "changed": 322,
+        "delta": 11988,
+        "width": 768,
+        "height": 432,
+        "fish": 0,
+        "signs": 6,
+        "schools": 18,
+        "cam": [
+          -1500.1318376215845,
+          232.0849286210198,
+          228.53638410582087
+        ]
+      }
+    },
+    {
+      "expr": "(__G.sealife.setQuality(\"off\"),1)",
+      "value": 1
+    },
+    {
+      "expr": "(__pixelResult=null,__pixelRequest=true,1)",
+      "value": 1
+    },
+    {
+      "expr": "(clearInterval(__hover),1)",
+      "value": 1
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__G.techUI.isOpen && !__G.commander.isOpen && !document.pointerLockElement",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__G.techUI.isOpen && __G.G.state===\"play\"",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__G.techUI.isOpen && !__G.commander.isOpen",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__pixelResult.schools>0 && __pixelResult.signs>0 && __pixelResult.changed>80",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(natural-fish-25m)",
+      "ok": true,
+      "value": 0.9993
+    },
+    {
+      "expr": "__pixelResult.schools>0 && __pixelResult.signs>0 && __pixelResult.changed>80",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(natural-fish-80m)",
+      "ok": true,
+      "value": 0.9993
+    },
+    {
+      "expr": "__pixelResult.schools>0 && __pixelResult.signs>0 && __pixelResult.changed>80",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(natural-fish-220m)",
+      "ok": true,
+      "value": 0.9993
+    },
+    {
+      "expr": "__pixelResult.changed===0 && __G.sealife.sim.schools.length===0",
+      "ok": true,
+      "value": true
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-26T15:17:39.644Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "1b4eebc02c60a2e445c02cecb8d4ceda5533ef1b",
+    "branch": "ngc/unit-bench",
+    "gameTree": "8144c7f60fc5e0ebc859c990f4688c90654ede87",
+    "gameSha256": "070e2e800b12e632f6a079b02c3173ceb9c969fa94577456b9a5e670e206e302",
+    "dirty": false,
+    "status": ""
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": "zarch",
+    "state": "play"
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "1b4eebc02c60a2e445c02cecb8d4ceda5533ef1b",
+    "branch": "ngc/unit-bench",
+    "gameTree": "8144c7f60fc5e0ebc859c990f4688c90654ede87",
+    "gameSha256": "070e2e800b12e632f6a079b02c3173ceb9c969fa94577456b9a5e670e206e302",
+    "dirty": false,
+    "status": ""
+  },
+  "summary": "PASS: 10/10 expects, 0 page errors, 0 console errors",
+  "durationMs": 109844,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/runs/fish-aerial-regression"
+}

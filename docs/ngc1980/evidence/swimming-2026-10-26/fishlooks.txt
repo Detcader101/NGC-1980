@@ -1,0 +1,23 @@
+PASS each of the nine instanced fish types has a distinct appearance family — sardine, mackerel, mullet, amberjack, bonito, flyingfish, bream, damsel, shark
+PASS one bounded, generated atlas serves the existing species indices — 128×384, 196608 bytes
+PASS pigment never creates transparent holes in bodies
+PASS half-texel row edges retain their own species colour — max error 0.00195
+PASS mackerel bars resolve on the back without migrating onto the belly — back range 0.249
+PASS atlas resolves many separate mackerel / bonito stripes between sparse mesh rings
+PASS mullet lines run along the flank rather than breaking into transverse bars
+PASS bream has two dark bands separated by a silver flank — 0.052 / 0.589 / 0.052
+PASS pilchard flank spots remain separate from the plain lower flank
+PASS amberjack stripe is warm and restrained, not a dark bream-like bar
+PASS adult damselfish has light scale centres while remaining dark — range 0.051
+PASS flying fish keeps a plain blue back and silver belly
+PASS sandbar shark stays unmarked instead of borrowing tropical stripes
+PASS bream bands retain luminance contrast under shallow-water attenuation and fog
+PASS production uniforms use the linear atlas without a second decode or cross-species mipmaps
+PASS shared fish mesh retains its original 53 vertices / 74 triangles and finite geometry — 53 vertices, 74 triangles
+PASS body, fork and deployed wings remain inside the original unit-length envelope
+PASS species profiles preserve small body proportions and bounded fins without changing simulation lengths
+PASS deep-bodied bream and fork-tailed damselfish differ from streamlined mackerel and mullet
+PASS shark and flying fish retain opposite tail-lobe asymmetry
+PASS production shader resolves pigment per fragment and converts lit colour before display-space fog
+PASS atlas has explicit owner disposal for gallery/game teardown
+22/22 fish appearance checks passed
