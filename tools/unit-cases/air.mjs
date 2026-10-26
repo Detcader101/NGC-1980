@@ -1,6 +1,21 @@
 // Aircraft cases use the actual game or its production-model dev hosts. Pure flight-role regressions live in
 // unit-air-bench.mjs. These are short, peaceful/scripted fixtures; they do not certify aircraft performance.
 const GAME = '?debug&auto&kb&peace&res=0.45';
+// View switches need actual game draws, including under SNAP_WALL=1 on a slow software renderer.
+async function rendered(h) {
+  await h.page.evaluate(() => new Promise((resolve, reject) => {
+    const renderer = (window.__BENCH || window.__G)?.renderer;
+    if (!renderer) { reject(new Error('Air fixture has no renderer')); return; }
+    const before = renderer.info.render.frame;
+    let frame;
+    const timer = setTimeout(() => { cancelAnimationFrame(frame); reject(new Error('Air view did not render two frames')); }, 15000);
+    const tick = () => {
+      if (renderer.info.render.frame >= before + 2) { clearTimeout(timer); resolve(); }
+      else frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+  }));
+}
 async function evidence(h, id) {
   await h.benchmark(id);
   await h.shot(id); await h.notblank();
@@ -29,7 +44,7 @@ export const cases = [
       await h.waitFor('__G.H.rpm > 0.95 && __G.H.n2 > 0.95', 90000);
       await h.expect('__G.G.craft === "heli" && __G.SY.gov === "AUTO" && __G.H.landed && __G.Z.alive', 'Huey remains on its skids with governed flight RPM');
       await evidence(h, 'huey');
-      await h.eval('(__G.cockpitCam = false, __G.head.pitch = 0, true)'); await h.wait(250);
+      await h.eval('(__G.cockpitCam = false, __G.head.pitch = 0, true)'); await rendered(h);
       await h.shot('huey-exterior'); await h.notblank();
     },
   },
@@ -42,7 +57,7 @@ export const cases = [
       await h.expect('__G.JP.J.cat.state === "hold" && __G.JP.J.eng.length === 2 && __G.JP.alive', 'Hornet is held on the catapult as a live twin-engine aircraft');
       await h.eval('(__G.cockpitCam = true, __G.head.pitch = -0.22, true)');
       await evidence(h, 'hornet');
-      await h.eval('(__G.cockpitCam = false, __G.head.pitch = 0, __G.JP.snapChase(), true)'); await h.wait(250);
+      await h.eval('(__G.cockpitCam = false, __G.head.pitch = 0, __G.JP.snapChase(), true)'); await rendered(h);
       await h.shot('hornet-exterior'); await h.notblank();
     },
   },
@@ -54,7 +69,7 @@ export const cases = [
       await h.eval('(() => { for (let i = 0; i < 60 * 45 && __F.units[0].pilot.state !== "cap"; i++) __F.step(); return true; })()');
       await h.expect('__F.units[0].pilot.state === "cap" && !__F.units[0].A.dead && !__F.units[0].A.cat && __F.units[0].A.pos.y > 100', 'Tomcat completed its catapult departure into CAP');
       await h.expect('__F.units[0].A.sweep >= 20 && __F.units[0].A.sweep <= 68 && __F.units[0].A.eng.length === 2', 'F-14 has live variable-sweep wings and two engines');
-      await h.eval('(__F.speedUp = 1, true)'); await h.wait(250); await evidence(h, 'tomcat');
+      await h.eval('(__F.speedUp = 1, true)'); await rendered(h); await evidence(h, 'tomcat');
       await h.expect('!__F.units[0].A.dead', 'Tomcat remains airborne through the sample');
     },
   },
@@ -69,7 +84,7 @@ export const cases = [
       await h.eval('(__R.paused = false, true)'); await evidence(h, 'ch46');
       await h.eval('(__R.paused = true, __R.runUntil(() => __R.unit.U.squad.holding >= 11, 400), __R.camMode = "lz", __R.render(), true)');
       await h.expect('__R.unit.U.squad.holding >= 11 && !__R.unit.U.dead', 'Sea Knight delivers Marines through its ramp to the pad');
-      await h.wait(200); await h.shot('ch46-delivery'); await h.notblank();
+      await rendered(h); await h.shot('ch46-delivery'); await h.notblank();
     },
   },
   {
@@ -83,7 +98,7 @@ export const cases = [
       await h.expect('__C.S.eng.slice(1).every(e => e.run && e.N > 0.9) && !__C.S.dead', 'only number one is stopped and feathered');
       await evidence(h, 'c130');
       await h.expect('!__C.S.dead && Math.abs(__C.S.pos.y - __airAlt) < 35 && Math.abs(__C.S.bank) < 0.2', 'three-engine autopilot holds the transport in flight');
-      await h.eval('(__C.view = "deck", __C.head.yaw = -0.25, __C.head.pitch = -0.4, true)'); await h.wait(250);
+      await h.eval('(__C.view = "deck", __C.head.yaw = -0.25, __C.head.pitch = -0.4, true)'); await rendered(h);
       await h.shot('c130-engine-panel'); await h.notblank();
       await h.eval('(delete window.__airAlt, true)');
     },
@@ -98,7 +113,7 @@ export const cases = [
       await h.eval('(__R.paused = false, true)'); await evidence(h, 'mv22');
       await h.eval('(__R.paused = true, __R.runUntil(() => __R.unit.U.squad.holding >= 10, 400), __R.camMode = "lz", __R.render(), true)');
       await h.expect('__R.unit.U.squad.holding >= 10 && !__R.unit.U.dead', 'Osprey reconverts and delivers its machine troop squad');
-      await h.wait(200); await h.shot('mv22-delivery'); await h.notblank();
+      await rendered(h); await h.shot('mv22-delivery'); await h.notblank();
     },
   },
   {
@@ -119,7 +134,7 @@ export const cases = [
       await flight(h, 'fight');
       await h.eval('(() => { const foe = __F.units[0]; foe.dead = true; foe.model.group.visible = false; __F.follow = 1; for (let i = 0; i < 600; i++) __F.step(); return true; })()');
       await h.expect('__F.units[1].A.eng.length === 1 && __F.units[1].A.eng[0].ab === 0 && !__F.units[1].A.dead && __F.units[1].A.pos.y > 100', 'SHRIKE patrols with its single dry-thrust engine');
-      await h.eval('(__F.speedUp = 1, true)'); await h.wait(250); await evidence(h, 'shrike');
+      await h.eval('(__F.speedUp = 1, true)'); await rendered(h); await evidence(h, 'shrike');
       await h.expect('!__F.units[1].A.dead && __F.units[1].A.eng[0].ab === 0', 'SHRIKE patrol remains stable without an afterburner');
     },
   },
@@ -130,17 +145,19 @@ export const cases = [
       await flight(h, 'reaper');
       await h.eval('(() => { for (let i = 0; i < 1200; i++) __F.step(); return true; })()');
       await h.expect('__F.units[0].pilot.state === "patrol" && !__F.units[0].A.dead && __F.units[0].A.eng[0].power > 10000 && __F.units[0].A.eng[0].ab === 0', 'Reaper holds its patrol with turboprop power');
-      await h.eval('(__F.speedUp = 1, true)'); await h.wait(250); await evidence(h, 'reaper');
+      await h.eval('(__F.speedUp = 1, true)'); await rendered(h); await evidence(h, 'reaper');
       await h.goto('dev/air.html?model=reaper&ui=0&cam=0.55,0.18,17,0,0,3&res=0.6');
       await h.waitFor('window.__A', 10000);
       await h.eval('(__A.S.eng = [{ n: 0 }], __A.S.gear = 1, __A.render(), window.__prop0 = __A.model.parts.prop.rotation.z, true)');
-      await h.wait(400);
+      await rendered(h);
       await h.expect('__A.model.parts.prop.rotation.z === __prop0 && __A.model.parts.prop.children.filter(o => o.name === "blade").every(o => o.visible)', 'zero shaft signal leaves the Reaper pusher stationary with blades visible');
       await h.shot('reaper-prop-stopped'); await h.notblank();
       if (h.capture) {
-        await h.eval('(window.__propTimer = setTimeout(() => { __A.S.eng[0].n = 0.7; }, 2000), true)');
-        await h.clip('reaper-prop-start', { durationMs: 6000 });
-        await h.eval('(clearTimeout(window.__propTimer), delete window.__propTimer, true)');
+        await h.clip('reaper-prop-start', { durationMs: 6000 }, async () => {
+          await h.page.evaluate(() => new Promise(resolve => setTimeout(resolve, 2000)));
+          await h.eval('(__A.S.eng[0].n = 0.7, true)');
+          await rendered(h);
+        });
       }
       await h.eval('(delete window.__prop0, true)');
     },
@@ -152,9 +169,9 @@ export const cases = [
       await flight(h, 'shahed');
       await h.eval('(() => { for (const u of __F.units) if (u.A) { u.dead = true; u.model.group.visible = false; } for (let i = 0; i < 600; i++) __F.step(); return true; })()');
       await h.expect('__F.units.filter(u => u.D).length === 4 && __F.units.filter(u => u.D).every(u => !u.dead && u.D.V > 15 && u.D.pos.y > 10)', 'all four simplified delta drones launch into forward flight');
-      await h.eval('(__F.speedUp = 1, true)'); await h.wait(250); await evidence(h, 'shahed');
+      await h.eval('(__F.speedUp = 1, true)'); await rendered(h); await evidence(h, 'shahed');
       await h.goto('dev/air.html?model=shahed&ui=0&cam=0.55,0.2,5&res=0.6'); await h.waitFor('window.__A', 10000);
-      await h.eval('(__A.S.ctl = { thr: 0 }, __A.render(), true)'); await h.wait(200);
+      await h.eval('(__A.S.ctl = { thr: 0 }, __A.render(), true)'); await rendered(h);
       await h.expect('__A.model.parts.prop.getObjectByName("propDisc").material.opacity === 0 && __A.model.parts.prop.children.filter(o => o.name === "blade").every(o => o.visible)', 'stopped two-blade pusher has no blur disc');
       await h.shot('shahed-prop-stopped'); await h.notblank();
     },
@@ -178,10 +195,10 @@ export const cases = [
         return true;
       })()`);
       await h.expect('__G.drop.state.left === 0 && __G.drop.state.jumpers.length === 3 && __G.drop.state.jumpers.every(j => j.state === "canopy" && j.m.canopy.visible && j.v.y < 0)', 'three Marines leave the aircraft and inflate visible descending canopies');
-      await h.wait(500); await evidence(h, 'paratrooper');
+      await rendered(h); await evidence(h, 'paratrooper');
       await h.eval('(() => { for (let i = 0; i < 60 * 75 && __G.drop.state.jumpers.some(j => j.state === "ff" || j.state === "canopy"); i++) __G.drop.update(1 / 60, {}, __G.H); return true; })()');
       await h.expect('__G.drop.state.jumpers.every(j => j.state === "run" || j.state === "work")', 'all three land on the scripted dry pad and transition to ground movement');
-      await h.wait(200); await h.shot('paratrooper-landed'); await h.notblank();
+      await rendered(h); await h.shot('paratrooper-landed'); await h.notblank();
       await h.eval('(__G.drop.cancel(), true)');
     },
   },
