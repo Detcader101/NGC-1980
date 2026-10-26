@@ -52,7 +52,7 @@ export function createSandbox(opt = {}) {
     sync(m); B.units.push(m); return m;
   };
   B.addMBT = (type, x, z, yaw) => {
-    const T = createMBT(MBT[type], { id: B.nextId }); T.place(x, z, yaw, env);
+    const T = createMBT(MBT[type], { id: B.nextId, drive: opt.mbtDrive }); T.place(x, z, yaw, env);
     const m = { id: B.nextId++, kind: 'mbt', mbtType: type, side: 2, sim: T, eye: 2.6, gun: 2.0, vehicle: true, weapon: { range: 1200, antiArmor: true, rpm: 9 }, mag: 1, cd: 0, rl: 0, coax: { mag: 100, cd: 0, rl: 0 }, h: MBT[type].H };
     sync(m); B.units.push(m); return m;
   };
@@ -305,6 +305,9 @@ export function setupScenario(B, name) {
     for (let i = 0; i < 8; i++) B.addDummy(['inf', 'inf', 'mg', 'at'][i % 4], -60 + i * 16, 150 + (i % 2) * 8, { advance: [pad[0] + (i - 4) * 5, pad[1] + 12] });
   } else if (name === 'lineup') {
     B.addStrider(-4, 0, 0, { weapon: 'xm7' }); B.addStrider(-1, 0, 0.3, { weapon: 'coil' }); B.addHover(8, -2, 0.4); B.addMBT('m1a2', 20, 0, 0.3); B.addMBT('t90m', 32, 2, 0.3);
+    // A live lineup still advances suspension, balancing and fan lift. Give each display
+    // unit an idle controller: driveUnit requires one even when nobody has issued an order.
+    for (const m of B.units) B.addSquad([m], { type: 'hold' });
   }
   return B;
 }

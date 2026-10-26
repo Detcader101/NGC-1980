@@ -346,6 +346,7 @@ targets   E-type pop-ups 25-400 m in three lanes, steel gongs 100/200/300 m (rig
   function aimTarget(d, lane = 0, h = 0.55) { const T = range.targets.find(t => t.d === d && t.lane === lane); aimAt(T.x, groundY(T.x, T.z) + 0.25 + h, T.z); return [T.x, T.z]; }
   if (Q.get('at')) aimTarget(+Q.get('at'));
   if (Q.has('debug')) {
+    window.__BENCH = { renderer, host: 'dev-infantry', mode: 'preview', state: Q.has('fixed') ? 'paused' : 'live' };
     window.__I = {
       THREE, scene, camera, R, S, vm, range, audio, env, renderer, shots, log, items, dummy, me,
       get W() { return R.cur; }, get lastHit() { return lastHit; }, get third() { return third; }, set third(v) { third = v; }, get trails() { return trails; }, set trails(v) { trails = v; },

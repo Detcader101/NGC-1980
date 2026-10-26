@@ -359,3 +359,6 @@ if (DEBUG) {
     render: () => renderer.render(scene, camera),
   };
 }
+
+// Rendered-frame benchmark bridge: this fixture shares production unit code.
+if (Q.has('debug')) window.__BENCH = { renderer, host: 'dev-vehicle', mode: 'preview', get state() { return paused ? 'paused' : 'live'; } };

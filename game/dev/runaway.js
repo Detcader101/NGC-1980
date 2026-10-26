@@ -3,8 +3,10 @@
 // only renders it: terrain, units, tracers, blasts, a free camera, a debug overlay of the AI and the sound.
 // Query: ?scenario=assault|combined|flank|outnumbered|defend|patrol|lineup  &seed=  &speed=  &paused  &overlay=0
 //        &cam=x,y,z,yaw,pitch  &follow=<unit id>  &res=0.5  &debug (bridge: window.__RW)
+//        &track uses the live game's full tracked MBT adapter instead of the lightweight preview drive.
 import * as THREE from 'three';
 import { createSandbox, setupScenario } from '../js/units/runaway/sandbox.js';
+import { createTrackDrive } from '../js/units/groundwar/mbttrack.js';
 import { buildStrider } from '../js/units/runaway/stridermodel.js';
 import { buildHoverTank } from '../js/units/runaway/hovertankmodel.js';
 import { buildMBT } from '../js/units/runaway/mbtmodel.js';
@@ -194,7 +196,7 @@ const unitGroup = new THREE.Group(); scene.add(unitGroup);
 let views = new Map();
 function start(name, sd = seed) {
   scenario = name; seed = sd;
-  B = setupScenario(createSandbox({ seed }), name);
+  B = setupScenario(createSandbox({ seed, mbtDrive: Q.has('track') ? createTrackDrive : undefined }), name);
   buildWorld(); unitGroup.clear(); views = new Map(); FX.clear();
   for (const m of B.units) {
     let V;
@@ -341,3 +343,6 @@ window.__RW = {
   set paused(v) { paused = v; }, get paused() { return paused; }, set overlay(v) { overlay = v; }, set tscale(v) { tscale = v; },
   render() { drawOverlay(); renderer.render(scene, camera); },
 };
+
+// Rendered-frame benchmark bridge: this fixture shares production unit code.
+if (Q.has('debug')) window.__BENCH = { renderer, host: 'dev-runaway', mode: 'preview', get state() { return paused ? 'paused' : 'live'; } };

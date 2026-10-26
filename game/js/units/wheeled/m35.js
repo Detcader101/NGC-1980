@@ -10,7 +10,7 @@ import { IN, FT, LB, GAL, HP, LBFT } from './vehiclefm.js';
 
 const WB = 154 * IN;                  // front axle to bogie centre 154 in (3.91 m)  TM CONFIRMED
 const BOGIE = 52 * IN;                // tandem axle spacing 52 in (1.32 m)          TM CONFIRMED
-const TRACK = 72 * IN;                // 72 in (1.83 m) front and rear, single 11.00-20s  TM CONFIRMED (~)
+const TRACK = 72 * IN;                // station centres 1.83 m INFERRED; rear stations each carry dual tyres
 const ZF = -WB / 2, ZB = WB / 2, Z1 = ZB - BOGIE / 2, Z2 = ZB + BOGIE / 2, XT = TRACK / 2;
 
 export const M35 = {
@@ -30,13 +30,15 @@ export const M35 = {
     { z: Z2, wheels: [4, 5], solid: true, bogie: 'rear', freq: 2.0, bump: 0.11, droop: 0.24, zeta: [0.10, 0.12], rc: 0.72, driven: 'R', final: 6.72, diff: 'open' },
   ],
   bogiePairs: [[2, 4], [3, 5]],        // the trunnion: one spring per side shared by both rear axles
+  // 2 front singles + 4 rear dual stations = 10 running tyres. Army TM 55-2320-209-15-1 section 2-2;
+  // tyre size: Army AE Reg 750-1 (2013), table K-1. A dual pair shares a hub/suspension station.
   wheels: [
-    { id: 'FL', x: -XT, z: ZF, axle: 0, tyre: '11.00-20 NDT', steer: true, front: true },
-    { id: 'FR', x: XT, z: ZF, axle: 0, tyre: '11.00-20 NDT', steer: true, front: true },
-    { id: 'ML', x: -XT, z: Z1, axle: 1, tyre: '11.00-20 NDT', steer: false, front: false },
-    { id: 'MR', x: XT, z: Z1, axle: 1, tyre: '11.00-20 NDT', steer: false, front: false },
-    { id: 'RL', x: -XT, z: Z2, axle: 2, tyre: '11.00-20 NDT', steer: false, front: false },
-    { id: 'RR', x: XT, z: Z2, axle: 2, tyre: '11.00-20 NDT', steer: false, front: false },
+    { id: 'FL', x: -XT, z: ZF, axle: 0, tyre: '9.00-20 NDT', steer: true, front: true },
+    { id: 'FR', x: XT, z: ZF, axle: 0, tyre: '9.00-20 NDT', steer: true, front: true },
+    { id: 'ML', x: -XT, z: Z1, axle: 1, tyre: '9.00-20 NDT', steer: false, front: false, dual: true },
+    { id: 'MR', x: XT, z: Z1, axle: 1, tyre: '9.00-20 NDT', steer: false, front: false, dual: true },
+    { id: 'RL', x: -XT, z: Z2, axle: 2, tyre: '9.00-20 NDT', steer: false, front: false, dual: true },
+    { id: 'RR', x: XT, z: Z2, axle: 2, tyre: '9.00-20 NDT', steer: false, front: false, dual: true },
   ],
   // turning circle ~72 ft wall to wall (TM ~ CONFIRMED: 70-74 ft quoted) -> ~23 deg mean lock; 7 turns lock to lock (INFERRED, manual)
   steer: { max: 0.40, ackermann: 0.85, zRef: ZB, turns: 7.0 },

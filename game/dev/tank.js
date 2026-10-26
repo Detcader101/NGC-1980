@@ -443,3 +443,6 @@ if (DEBUG) window.__T = {
     V.losAz = Math.atan2(-b[0], -b[2]); V.losEl = Math.asin(b[1]);
   },
 };
+
+// Rendered-frame benchmark bridge: this fixture shares production unit code.
+if (Q.has('debug')) window.__BENCH = { renderer, host: 'dev-tank', mode: 'preview', get state() { return paused ? 'paused' : 'live'; } };

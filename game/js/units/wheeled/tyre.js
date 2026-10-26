@@ -50,7 +50,10 @@ export const surfIndex = s => typeof s === 'number' ? (s | 0) : (SURF[s] ?? 0);
 export const TYRES = {
   // M151A2: 7.00-16 6-ply NDT bias, 0.38 m (TM 9-2320-218-10: tyre 7.00x16, 30 psi front / 30 rear cross-country) - CONFIRMED size
   '7.00-16 NDT': { kz: 170e3, r: 0.381, w: 0.18, Fz0: 3600, cK: 13, cA: 9.5, dK: -0.15, dA: -0.25, dMu: -0.12, cG: 0.9, Lx: 0.30, Ly: 0.45, crr: 1.25, press: 205, tread: 'xc', I: 1.6 },
-  // M35A2: 11.00-20 12-ply NDT single (TM 9-2320-209-10; 9.00-20 duals on early trucks) - CONFIRMED size
+  // M35A2: 9.00-20, rear duals. Size CONFIRMED: Army AE Reg 750-1 table K-1;
+  // radius/stiffness/load/inertia INFERRED for a period bias-ply tyre (not a certified tyre curve).
+  '9.00-20 NDT': { kz: 390e3, r: 0.508, w: 0.229, Fz0: 12000, cK: 11, cA: 7.0, dK: -0.15, dA: -0.25, dMu: -0.10, cG: 0.7, Lx: 0.45, Ly: 0.70, crr: 1.15, press: 310, tread: 'xc', I: 10 },
+  // Alternative single truck tyre retained for experiments; not the standard M35A2 fitment.
   '11.00-20 NDT': { kz: 520e3, r: 0.546, w: 0.28, Fz0: 15000, cK: 11, cA: 7.0, dK: -0.15, dA: -0.25, dMu: -0.10, cG: 0.7, Lx: 0.45, Ly: 0.70, crr: 1.15, press: 310, tread: 'xc', I: 14 },
   // Land Rover Series III 109: 7.50-16 bias (owner's handbook) - CONFIRMED size
   '7.50-16': { kz: 190e3, r: 0.400, w: 0.19, Fz0: 4500, cK: 13, cA: 9.0, dK: -0.15, dA: -0.25, dMu: -0.12, cG: 0.9, Lx: 0.32, Ly: 0.48, crr: 1.15, press: 230, tread: 'xc', I: 1.9 },

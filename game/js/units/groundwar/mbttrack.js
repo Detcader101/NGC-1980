@@ -162,7 +162,10 @@ export function createTrackDrive(Pm, opt = {}) {
   D.setDetail = (full, env) => {
     if (full === D.full) return;
     if (full) {   // back to the full sim where the cheap one left off (same speed, on the ground under it)
-      sim.reset(lite.p[0], lite.p[2], lite.yaw, env, { range: 'D', park: false, running: true, speed: Math.max(0, lite.speed) });
+      sim.reset(lite.p[0], lite.p[2], lite.yaw, env, { range: lite.speed < 0 ? 'R' : 'D', park: false, running: true, speed: lite.speed });
+      // The pose/velocity are restored immediately; reset() leaves diagnostic outputs until
+      // the next physics step. Keep the adapter's first frame consistent too, including reverse.
+      sim.out.fwd = lite.speed; sim.out.speed = Math.abs(lite.speed);
       sim.trackPos[0] = lite.wheelSpin[0]; sim.trackPos[1] = lite.wheelSpin[1];
     } else { lite.place(D.p[0], D.p[2], D.yaw, env); lite.speed = D.speed; lite.wheelSpin[0] = D.wheelSpin[0]; lite.wheelSpin[1] = D.wheelSpin[1]; }
     D.full = full; sync();

@@ -175,7 +175,11 @@ export function prepareSpec(spec) {
   // solid-axle wheel - hub, brake drum, wheel, tyre and the axle share: INFERRED), the spring carries the sprung corner
   // load, the tyre (vertical stiffness kz) deflects statically so the wheel centre sits kz-deflection below its radius
   P.wk = spec.wheels.map((w, i) => {
-    const a = spec.axles[w.axle], T = TYRES[w.tyre];
+    const a = spec.axles[w.axle], single = TYRES[w.tyre];
+    // Dual tyres share one driven hub/contact station. Sum spring stiffness, rated load,
+    // rotating inertia and contact width; retain the single tyre radius and slip response.
+    // Each pair still has one damage state: separate inner/outer punctures are not modelled.
+    const T = w.dual ? { ...single, kz: single.kz * 2, Fz0: single.Fz0 * 2, I: single.I * 2, w: single.w * 2 } : single;
     const mu = a.unsprung ?? m * (a.solid ? 0.045 : 0.035);
     const msp = Math.max(0.2 * P.wheelLoad[i] / g, P.wheelLoad[i] / g - mu);   // sprung mass on this corner
     const k = a.k ?? msp * (2 * Math.PI * a.freq) ** 2;

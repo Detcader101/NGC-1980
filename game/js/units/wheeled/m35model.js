@@ -1,5 +1,5 @@
 // M35A2 2 1/2-ton 6x6 cargo truck exterior model: real dimensions (TM 9-2320-209-10: 22 ft 4 in x 8 ft x 9 ft 4 in,
-// 154 in wheelbase to the bogie centre, 52 in bogie, 72 in track, 11.00-20 tyres), house style (flat-shaded Lambert,
+// 154 in wheelbase to the bogie centre, 52 in bogie, 72 in station track, 9.00-20 tyres with dual rear wheels), house style (flat-shaded Lambert,
 // geometry details, vertex-colour dust and wear, stencils).
 // Model frame = vehiclefm's: x right, y up, nose -z, origin on the ground midway between the front axle and the bogie centre.
 // Variants: { cover: 'canvas' | 'bows' | 'off', ring: false | true (M36 ring mount with an M2), seats: 'down' | 'up' }
@@ -7,8 +7,9 @@
 import * as THREE from 'three';
 import { PAL, mat, glassMat, lampMat, box, cylX, cylY, cylZ, sphere, rod, tube, extrudeX, extrudeY, extrudeZ, mirrorX, builder, wheelMesh, decal, starTex, stencilTex, V } from './modelkit.js';
 import { M35 } from './m35.js';
+import { TYRES } from './tyre.js';
 
-const R = 0.546, TW = 0.28;
+const { r: R, w: TW } = TYRES['9.00-20 NDT'];
 const ZF = M35.axles[0].z, Z1 = M35.axles[1].z, Z2 = M35.axles[2].z, XT = M35.dims.track / 2;
 export const M35_DIMS = { ZF, Z1, Z2, XT, R, FRONT: -3.08, REAR: 3.63, BED0: -0.22, BEDY: 1.30, CAB0: -1.52, CAB1: -0.42, FRAMEY: 1.0, HOODY: 1.78 };
 
@@ -219,10 +220,16 @@ export function buildM35Mesh(o = {}) {
     const side = Math.sign(w.x);
     const corner = new THREE.Group(); corner.name = 'corner' + w.id; corner.position.set(w.x, R, w.z); g.add(corner);
     const steerG = new THREE.Group(); corner.add(steerG);
-    const wm = wheelMesh({ r: R, w: TW, rim: 'truck', tread: 'ndt' }, side, tyreM, rimM); steerG.add(wm);
+    const wm = new THREE.Group(); wm.name = 'hub' + w.id; steerG.add(wm);
+    // Separate visible inner/outer wheels on each rear hub; both rotate with that hub.
+    const tyres = (w.dual ? [-1, 1] : [0]).map((k, j) => {
+      const tyre = wheelMesh({ r: R, w: TW, rim: 'truck', tread: 'ndt' }, side, tyreM, rimM);
+      tyre.name = w.id + (w.dual ? (j ? '-outer' : '-inner') : '-single');
+      tyre.position.x = side * k * (TW + 0.035) / 2; wm.add(tyre); return tyre;
+    });
     const hub = new THREE.Mesh(cylX(0.13, 0.12, -side * 0.12, 0, 0, 12), steelD); corner.add(hub);
     if (w.front) { const knuckle = new THREE.Mesh(sphere(0.12, -side * 0.22, 0, 0, 10, 8), steelD); corner.add(knuckle); }
-    return { corner, steerG, wm, side, w };
+    return { corner, steerG, wm, tyres, side, w };
   });
   for (const a of M35.axles) {
     const beam = new THREE.Mesh(new THREE.BoxGeometry(1, 0.13, 0.13), steelD); g.add(beam);
