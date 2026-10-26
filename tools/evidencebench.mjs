@@ -84,6 +84,13 @@ try {
     const bad = structuredClone(notes); bad.changes[0].media[0].shot = 'missing';
     assert.throws(() => buildDevlog({ notes: bad, runs: [{ id: 'test', dir }], out: path.join(root, 'missing') }), /Missing evidence/);
   });
+  await check('large unit reports collapse detail while keeping failed runs open', () => {
+    const many = Array.from({ length: 9 }, (_, i) => ({ id: 'case' + i, dir }));
+    const report = buildDevlog({ notes: { title: 'Unit catalog', changes: [] }, runs: many, out: path.join(root, 'many') });
+    const html = fs.readFileSync(report.file, 'utf8');
+    assert.ok(html.includes('<details class="unit-detail" open>'));
+    assert.equal(report.passing, false); assert.ok(html.includes('input remained stuck'));
+  });
   await check('ambiguous run IDs and media selectors are rejected', () => {
     assert.throws(() => buildDevlog({ notes, runs: [{ id: 'test', dir }, { id: 'test', dir }], out: path.join(root, 'duplicates') }), /unique/);
     const bad = structuredClone(notes); bad.changes[0].media[0].clip = 'frame';
