@@ -31,6 +31,27 @@ async function flight(h) {
 async function rotary(h) {
   await h.waitFor('window.__R && __R.unit && window.__BENCH', 20000);
 }
+async function deliveryView(h, id) {
+  // Fast-forward can leave the smoothed look target kilometres away. The dev camera's existing init flag
+  // snaps both target and position on the next render; no simulation state or troop positions are changed.
+  await h.eval('(__R.camMode = "lz", __R.cam.init = false, __R.render(), true)');
+  await rendered(h);
+  await h.eval(`(() => {
+    const R = __R, U = R.unit.U, T = R.THREE, camera = R.camera;
+    camera.updateMatrixWorld(); U.model.group.updateWorldMatrix(true, true);
+    const inFrame = p => { p.project(camera); return Math.abs(p.x) < 0.9 && Math.abs(p.y) < 0.9 && p.z > -1 && p.z < 1; };
+    const aircraft = U.model.group.getWorldPosition(new T.Vector3());
+    const visibleTroops = U.squad.figs.filter(F => F.st === 'hold' && F.f.group.visible
+      && inFrame(new T.Vector3(F.x, F.y + 1, F.z))
+      && R.W.world.los(camera.position.x, camera.position.y, camera.position.z, F.x, F.y + 1, F.z)).length;
+    window.__airDeliveryFrame = { aircraft: inFrame(aircraft.clone()), troops: visibleTroops,
+      lookError: R.cam.t.distanceTo(aircraft), camera: camera.position.toArray(), aircraftPosition: aircraft.toArray() };
+    return __airDeliveryFrame;
+  })()`, id + ' delivery framing');
+  await h.expect('__airDeliveryFrame.aircraft && __airDeliveryFrame.troops >= 3 && __airDeliveryFrame.lookError < 0.05', 'delivery view frames the transport and at least three landed troops above the terrain');
+  await h.shot(id + '-delivery'); await h.notblank();
+  await h.eval('(delete window.__airDeliveryFrame, true)');
+}
 export const cases = [
   {
     id: 'huey', name: 'UH-1H Huey', category: 'air', kind: 'playable', query: GAME,
@@ -81,7 +102,7 @@ export const cases = [
       await h.eval('(__R.paused = false, true)'); await evidence(h, 'ch46');
       await h.eval('(__R.paused = true, __R.runUntil(() => __R.unit.U.squad.holding >= 11, 400), __R.camMode = "lz", __R.render(), true)');
       await h.expect('__R.unit.U.squad.holding >= 11 && !__R.unit.U.dead', 'Sea Knight delivers Marines through its ramp to the pad');
-      await rendered(h); await h.shot('ch46-delivery'); await h.notblank();
+      await deliveryView(h, 'ch46');
     },
   },
   {
@@ -109,7 +130,7 @@ export const cases = [
       await h.eval('(__R.paused = false, true)'); await evidence(h, 'mv22');
       await h.eval('(__R.paused = true, __R.runUntil(() => __R.unit.U.squad.holding >= 10, 400), __R.camMode = "lz", __R.render(), true)');
       await h.expect('__R.unit.U.squad.holding >= 10 && !__R.unit.U.dead', 'Osprey reconverts and delivers its machine troop squad');
-      await rendered(h); await h.shot('mv22-delivery'); await h.notblank();
+      await deliveryView(h, 'mv22');
     },
   },
   {

@@ -27,6 +27,11 @@ existing envelope, deck-operations, startup or transport-mission suites with a c
   before and after sampling; a nonblank scenery image alone cannot pass that coverage.
 - Aircraft flight/rotary/C-130 dev hosts expose the small `__BENCH` renderer bridge. CPU phase timings are absent
   unless the host measures them; missing measurements must be reported as `null`, not invented zeroes.
+- **Delivery evidence:** the initial Osprey delivery still showed only terrain because fast-forwarding from a
+  distant transit left the preview camera's smoothed look target hundreds of metres away. Both transport cases
+  now use the existing camera initialization flag to snap to the landing view, then assert the transport and at
+  least three landed troops project inside the image with terrain line of sight. Aircraft and troop positions
+  are unchanged by this framing step.
 
 ## Unit coverage
 
@@ -61,6 +66,11 @@ game's F/A-18A identity is retained and the new checks concern controls/engine i
   The Reaper/SHAHED model transform checks instantiate production geometry with a no-op canvas decal context;
   they do not validate painted textures or WebGL rendering.
 - `node --check` passed for the new cases/bench and the three modified dev hosts.
+- A later, exclusive targeted browser check of both delivery fixtures passed **11/11 assertions** with zero page
+  or console errors. Both PNGs were inspected: the Osprey and its delivered machine troops are visible, as are
+  the Sea Knight and Marines. Camera look error was zero; 10/11 landed troops respectively were in frame with
+  terrain line of sight. Temporary evidence: `/tmp/unit-air-delivery-framing-20261026`. Benchmark and clip calls
+  were deliberately skipped in that framing check; the root's final suite supplies performance/capture evidence.
 - Browser runs, screenshot review, clip review and render performance results are coordinated by the root agent
   after integration. None are claimed by this branch report before those runs. No before/after performance claim
   is implied by adding instrumentation.
