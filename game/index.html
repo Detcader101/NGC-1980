@@ -110,5 +110,12 @@ if (/[?&]xrlog/.test(location.search)) {
   setInterval(flush, 500); addEventListener('pagehide', flush);
 }
 </script>
+<script>
+// ?xrbench: a seeded war (Math.random from ?seed, default 1980) so every benchmark run tours the same opening
+if (/[?&]xrbench/.test(location.search)) {
+  let s = (+new URLSearchParams(location.search).get('seed') || 1980) >>> 0;
+  Math.random = () => { s += 0x6D2B79F5; let x = s; x = Math.imul(x ^ x >>> 15, x | 1); x ^= x + Math.imul(x ^ x >>> 7, x | 61); return ((x ^ x >>> 14) >>> 0) / 4294967296; };
+}
+</script>
 <script type="module" src="./js/main.js"></script>
 </body></html>

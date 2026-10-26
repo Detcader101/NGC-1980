@@ -59,7 +59,7 @@ export function createXR(h) {
       C.selecting=false;C.captured=false;
     }
   }
-  const api={state,rig,camera:xrCamera,input,panel,controls,renderTarget:rt,
+  const api={state,rig,camera:xrCamera,input,panel,controls,renderTarget:rt,room,
     get active(){return state.active;},get motionInput(){return state.active&&!state.physical&&input.engaged;},
     get pad(){return api.motionInput?input.pad:null;},get blocked(){return state.active&&panel.blocked();},
     recenter(){calibration.needed=true;panel.release();input.reset();},

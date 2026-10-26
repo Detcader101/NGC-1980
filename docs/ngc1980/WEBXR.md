@@ -97,6 +97,35 @@ The game pauses when the XR session loses visible focus and releases held input 
 or the session ends. Resume through PAUSE / BACK. Window resizing is deferred for the renderer until XR exit while
 the spatial UI resizes immediately. Desktop projection and layout are restored on exit.
 
+## VR benchmark (`?xrbench`)
+
+Open `http://127.0.0.1:8766/?xrbench`, select **ENTER VR** and leave the controllers alone for about two minutes.
+The game tours six fixed views through its own craft paths, about 15 s each: the carrier deck on foot, the Huey
+hovering beside the ALBATROSS, a Hornet at 300 m over the nearest island, the M60A3 driver's seat, a Huey hover
+over the busiest fight, and the same hover with the command board open. Head tracking stays live, so looking
+around is fine. The war is seeded (`&seed=N`, default 1980). Damage is off during the tour (`G.bench`). Touching
+the sticks takes over from the hover hold. The headset shows **BENCHMARK DONE**, a chime plays, and the session ends.
+The game is left paused. With the portable Chromium on the PC:
+
+```bat
+%LOCALAPPDATA%\NGC1980-Chromium\chrome-win\chrome.exe --user-data-dir=%LOCALAPPDATA%\NGC1980-Chromium\profile --app=http://127.0.0.1:8766/?xrbench
+```
+
+Each view records XR frame-to-frame time (p50/p95/p99, share over 8.3/11.1/13.9/16.7/33.3 ms), CPU sim/prep/render
+submit, GPU time (`EXT_disjoint_timer_query_webgl2` where the browser offers it), draw calls, triangles,
+programs, JS heap, long tasks and VR panel paints/html2canvas captures. It also compares frames that repaint the panel
+with frames that do not. An audio probe taps the game's master bus (`sfx.master`) with an AnalyserNode. It records RMS/peak,
+context state, sample rate, latencies, `sinkId`, the audio clock rate and visible output devices. At the end of each view it saves
+three pictures: the left eye re-rendered (same scene, eye cameras and overlay pass, read back from an offscreen target),
+the left eye read straight from the XR framebuffer where the browser allows it, and the panel texture.
+
+`tools/serve.mjs` stores the run in `tools/runs/xrbench-<timestamp>/` (`report.html` with tables and embedded
+pictures, `report.json` with raw per-frame rows, the PNGs). Its `POST /__bench` endpoint is loopback only, needs
+the page's `X-NGC-Bench` header, rejects other origins, sanitises names and limits size. **Restart the server** after
+updating; an older server has no endpoint, and the desktop page then offers **SAVE REPORT**. Summarise a run with
+`node tools/xrbenchreport.mjs [tools/runs/xrbench-<id>]` (newest run by default). `?xrbench=N` sets N seconds per view
+(the first quarter, at most 3 s, settles and is not measured). Leaving VR early still saves a partial report.
+
 ## Rendering and reproducible checks
 
 The host uses the pinned Three r170 renderer's single `setAnimationLoop`, a tracking-origin rig and separate XR
@@ -127,6 +156,7 @@ CHROME_PATH=/path/to/chrome node tools/snap.mjs tools/scenes/xrgameplay.mjs
 CHROME_PATH=/path/to/chrome node tools/snap.mjs tools/scenes/xrlifecycle.mjs
 CHROME_PATH=/path/to/chrome node tools/snap.mjs tools/scenes/xrextras.mjs
 CHROME_PATH=/path/to/chrome node tools/snap.mjs tools/scenes/xrperf.mjs
+CHROME_PATH=/path/to/chrome node tools/snap.mjs tools/scenes/xrbenchrun.mjs   # ?xrbench end to end, 8 s views
 CHROME_PATH=/path/to/chrome node tools/snap.mjs tools/scenes/smoke.json
 CHROME_PATH=/path/to/chrome node tools/snap.mjs tools/scenes/startup.mjs --url http://127.0.0.1:8766/
 node tools/check.mjs
