@@ -2474,7 +2474,7 @@ function markerView() {
 // magnified sights/cave play through a spatial display instead of changing the headset projection matrices.
 let xrDesktopView = null;
 const xrRay = new THREE.Ray();
-XR = createXR({ renderer, scene:zScene, camera:zCam, resize, audio:()=>sfx.init(), audioState:()=>sfx.ctx?sfx.ctx.state+' '+sfx.ctx.sampleRate+'Hz':'none',
+XR = createXR({ renderer, scene:zScene, camera:zCam, resize, audio:()=>sfx.init(), audioState:()=>sfx.ctx?sfx.ctx.state+' '+sfx.ctx.sampleRate+'Hz peak '+sfx.peak().toFixed(3)+' sink '+(typeof sfx.ctx.sinkId==='string'?(sfx.ctx.sinkId||'default'):'n/a'):'none',
   context: () => ({key:helm.active?'helm':drop.flying?'dropship':SIM?'spectator':G.craft,kind:crafts.active?.kind==='foot'?'foot':crafts.active?.kind==='ground'?'ground':'air',
     throttle:helm.active?(war.carrier.sky?.lift||0)/2+.5:drop.flying?drop.state.plane.sim.thr:G.craft==='ch46'?ch46C.P.coll:G.craft==='jet'?JP.thr:G.craft==='tomcat'?tomcatC.TP.thr:G.heliColl||0,yaw:marine?.S.yaw||0}),
   session:on=>{mouseFire=false;keys.clear();head.yaw=head.pitch=0;freeLook=false;

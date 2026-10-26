@@ -172,7 +172,7 @@ export function createXR(h) {
     document.documentElement.classList.add('ngc-vr');
     state.active=true;visible=true;state.frames=0;calibration.needed=true;context='';rig.visible=true;panel.enable(true);entry.style.display='none';
     if(document.pointerLockElement)document.exitPointerLock();h.session(true);enter.textContent='EXIT VR';
-    if(window.__xrlog)setTimeout(()=>window.__xrlog('AUDIO '+(h.audioState?.()||'?')),3000);
+    if(window.__xrlog)for(const ms of [3000,10000,30000])setTimeout(()=>window.__xrlog('AUDIO '+(h.audioState?.()||'?')),ms);
   });
   manager.addEventListener('sessionend',()=>{
     window.__xrlog?.('SESSIONEND frames '+state.frames);

@@ -8,10 +8,35 @@ export class Sfx {
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     this.noise = b;
     this.master = c.createGain(); this.master.gain.value = 0.5; this.master.connect(c.destination);
+    // a tap on the master bus so the ?xrlog AUDIO line can say whether the game is actually making samples (vs a routing problem)
+    this.tap = c.createAnalyser(); this.tap.fftSize = 2048; this.tapBuf = new Float32Array(2048); this.master.connect(this.tap);
+    this.routeSink();
     const src = c.createBufferSource(); src.buffer = b; src.loop = true;
     this.engF = c.createBiquadFilter(); this.engF.type = 'lowpass'; this.engF.frequency.value = 200;
     this.engG = c.createGain(); this.engG.gain.value = 0;
     src.connect(this.engF); this.engF.connect(this.engG); this.engG.connect(this.master); src.start();
+  }
+  // peak of the last ~43 ms on the master bus (0 = silence)
+  peak() {
+    if (!this.tap) return 0; this.tap.getFloatTimeDomainData(this.tapBuf); let p = 0;
+    for (const v of this.tapBuf) { const a = Math.abs(v); if (a > p) p = a; }
+    return p;
+  }
+  // Opt-in output routing: ?audiosink=<label substring> (e.g. ?audiosink=steam%20streaming) sends the game to that output
+  // device with AudioContext.setSinkId instead of the Windows default - for PC VR over Steam Link, whose headset audio is
+  // a loopback capture of "Speakers (Steam Streaming Speakers)". Labels need a granted media permission in some browsers;
+  // without labels it falls back to the default device. Logged through window.__xrlog (?xrlog).
+  async routeSink() {
+    const want = new URLSearchParams(location.search).get('audiosink'), log = m => window.__xrlog?.('AUDIOSINK ' + m);
+    if (!want || !this.ctx) return;
+    try {
+      if (typeof this.ctx.setSinkId !== 'function') return log('setSinkId unsupported');
+      const outs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audiooutput');
+      log(outs.length + ' outputs: ' + outs.map(d => (d.label || '(no label)') + ' [' + d.deviceId.slice(0, 8) + ']').join(' | '));
+      const pick = outs.find(d => d.label.toLowerCase().includes(want.toLowerCase()));
+      if (!pick) return log('no output matches "' + want + '" - staying on the default');
+      await this.ctx.setSinkId(pick.deviceId); log('routed to "' + pick.label + '"');
+    } catch (e) { log('ERROR ' + e.name + ': ' + e.message); }
   }
   engine(l) {
     if (!this.ctx) return; const t = this.ctx.currentTime;
