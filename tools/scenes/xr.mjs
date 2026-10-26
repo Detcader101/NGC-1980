@@ -12,6 +12,8 @@ export default {name:'xr',query:'?debug&kb&peace&res=0.45&tech=all',run:async h=
   await h.expect('__G.zCam.position.distanceTo(__G.H.pos)<4','seated head is in the aircraft, not at the world origin');
   await h.expect('__G.XR.state.controllers===2','both tracked controllers connected');
   await h.expect('__G.renderer.xr.getSession().enabledFeatures.includes("hand-tracking")','optional hand tracking negotiated');
+  await h.expect(`(()=>{const X=__G.XR,T=__G.THREE,sky=X.rig.parent.children.find(o=>o.renderOrder===-10&&o.geometry?.type==='SphereGeometry'),eye=new T.Vector3().setFromMatrixPosition(__G.renderer.xr.getCamera().cameras.at(-1).matrixWorld);return sky&&sky.position.distanceTo(eye)<.01;})()`,'sky dome follows the rendered eye in world coordinates');
+  await h.expect(`(()=>{const p=new __G.THREE.Vector3().setFromMatrixPosition(__G.renderer.xr.getCamera().cameras.at(-1).matrixWorld),u=__G.terrainUni.uNear.value;return Math.abs(u.x-Math.round(p.x/2.5)*2.5)<.01&&Math.abs(u.y-Math.round(p.z/2.5)*2.5)<.01;})()`,'near terrain window follows the world rig rather than tracking origin');
   await h.shot('vr-cockpit-stereo');await h.notblank();
   await h.eval('(__G.war.carrier.speed=0,__G.war.carrier.path=[],__G.G.state="paused",window.__head0=__G.zCam.position.clone(),window.__body0=__G.H.pos.clone(),1)');
   await h.eval('(__xrDevice.position.x+=.2,1)');await h.wait(800);

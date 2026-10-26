@@ -570,10 +570,13 @@ farTerrain.frustumCulled = false; farTerrain.visible = false; zScene.add(farTerr
 // distance across while the far plane stayed at the draw distance, so the far side of the dome was clipped away and
 // the black clear colour showed as a dome above the horizon (and the terrain grid ended short of the view).
 sky.frustumCulled = false;
-sky.onBeforeRender = (r, s, cam) => { sky.position.copy(cam.position); sky.updateMatrixWorld(); };
-const _snapTerrain = cam => { const x = Math.round(cam.position.x / TG) * TG, z = Math.round(cam.position.z / TG) * TG; terrainUni.uNear.value.set(x, z, TG * TN / 2 - 3); return [x, z]; };
+// XR eyes retain tracking-local .position; their prepared matrixWorld includes the moving world rig.
+// Read that matrix directly: getWorldPosition() would recompute Three's internally managed eye matrices.
+const _renderEye = new THREE.Vector3();
+sky.onBeforeRender = (r, s, cam) => { sky.position.setFromMatrixPosition(cam.matrixWorld); sky.updateMatrixWorld(); };
+const _snapTerrain = cam => { _renderEye.setFromMatrixPosition(cam.matrixWorld); const x = Math.round(_renderEye.x / TG) * TG, z = Math.round(_renderEye.z / TG) * TG; terrainUni.uNear.value.set(x, z, TG * TN / 2 - 3); return [x, z]; };
 terrain.onBeforeRender = (r, s, cam) => { const [x, z] = _snapTerrain(cam); terrain.position.set(x, 0, z); terrain.updateMatrixWorld(); };
-farTerrain.onBeforeRender = (r, s, cam) => { _snapTerrain(cam); farTerrain.position.set(Math.round(cam.position.x / FAR_C) * FAR_C, 0, Math.round(cam.position.z / FAR_C) * FAR_C); farTerrain.updateMatrixWorld(); };
+farTerrain.onBeforeRender = (r, s, cam) => { _snapTerrain(cam); farTerrain.position.set(Math.round(_renderEye.x / FAR_C) * FAR_C, 0, Math.round(_renderEye.z / FAR_C) * FAR_C); farTerrain.updateMatrixWorld(); };
 const _nrm = new THREE.Vector3();
 const normalAt = (x, z) => { const e = 1.5; return isWater(x, z) ? new THREE.Vector3(0, 1, 0) : _nrm.set(terrainH(x - e, z) - terrainH(x + e, z), 2 * e, terrainH(x, z - e) - terrainH(x, z + e)).normalize().clone(); };
 const fx = createFx(zScene, { groundY: (x, z) => Math.max(terrainH(x, z), 0), isWater, normalAt });
