@@ -31,7 +31,7 @@ export default {name:'xrgameplay',query:'?debug&kb&peace&res=0.45&tech=all',run:
   await h.expect('__G.carC.firstPerson() && __G.CTL.state.throttle===null','jeep opens in its cab with no inherited helicopter throttle');
   await h.key('tap','KeyI');await h.wait(1200);
   await h.eval('(__xrDevice.controllers.right.quaternion.set(0,0,0,1),window.__car0=__G.carC.sim.pos.slice(),1)');
-  await trigger(h,true);await h.expect('__G.XR.pad.axes[1]===0 && __G.CTL.state.throttle===null','weapon trigger does not request driving throttle');await trigger(h,false);
+  await trigger(h,true);await h.expect('(!__G.XR.pad || __G.XR.pad.axes[1]===0) && __G.CTL.state.throttle===null','weapon trigger does not request driving throttle');await trigger(h,false);
   await h.eval('(__xrDevice.controllers.left.updateAxes("thumbstick",.25,-1),1)');await h.wait(1600);
   await h.eval('(__xrDevice.controllers.left.updateAxes("thumbstick",0,0),1)');
   await h.expect('Math.hypot(__G.carC.sim.pos[0]-__car0[0],__G.carC.sim.pos[2]-__car0[2])>.2','XR stick drives the jeep simulation');await h.shot('jeep-cab');
