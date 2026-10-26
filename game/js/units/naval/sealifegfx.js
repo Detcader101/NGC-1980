@@ -14,6 +14,7 @@ import * as THREE from 'three';
 import { SEA_EXT_GLSL, SEA_NOISE_GLSL } from './seasurface.js';
 import { SPECIES, SUB_GLSL } from './fishsim.js';
 import { BIRD_SPECIES } from './seabirds.js';
+import { FISH_LOOK, makeFishPatternAtlas, PATTERN_WIDTH, PATTERN_ROWS } from './fishlooks.js';
 
 const TAU = Math.PI * 2;
 export const NSP = SPECIES.length;
@@ -102,29 +103,18 @@ function fishGeometry() {
   g.setIndex(I);
   return g;
 }
-// per species (fishsim.js SPECIES order): shape (height, width, tail span, dorsal), tail lobes (upper, lower), back /
-// flank / belly / fin colours, marks (x mackerel bars, y mullet lines, z amberjack stripe, w: 1 bonito's oblique
-// stripes, 2 sea bream's bands, 3 flying fish's dark wings, 4 shark's pale fin tips)
-const LOOK = {
-  sardine: { shape: [0.85, 0.72, 0.95, 0.75], tail: [1, 1], back: 0x1f4f63, side: 0xa8b6c0, belly: 0xe6ecf0, fin: 0x6c7a80, mark: [0, 0, 0, 0] },
-  mackerel: { shape: [0.82, 0.8, 1.15, 0.9], tail: [1, 1], back: 0x1b4f4a, side: 0x98aeb2, belly: 0xe2e6e6, fin: 0x52605e, mark: [1, 0, 0, 0] },
-  mullet: { shape: [1.0, 0.95, 0.85, 1.0], tail: [1, 1], back: 0x46504f, side: 0x9aa0a0, belly: 0xd8dad4, fin: 0x5c6260, mark: [0, 1, 0, 0] },
-  amberjack: { shape: [1.12, 0.8, 1.3, 0.9], tail: [1, 1], back: 0x4a4650, side: 0xa3a39e, belly: 0xd8d5cc, fin: 0x8c7a42, mark: [0, 0, 1, 0] },
-  bonito: { shape: [0.98, 0.9, 1.35, 0.85], tail: [1, 1], back: 0x1d3a5a, side: 0xa6b2bc, belly: 0xe8ecee, fin: 0x3a4a58, mark: [0, 0, 0, 1] },
-  flyingfish: { shape: [0.72, 0.72, 1.15, 0.55], tail: [0.8, 1.35], back: 0x1c3a72, side: 0x9cb0cc, belly: 0xeef2f6, fin: 0x55708e, mark: [0, 0, 0, 3] },
-  bream: { shape: [1.55, 0.7, 1.05, 1.25], tail: [1, 1], back: 0x6a7078, side: 0xbcc0c4, belly: 0xe2e2de, fin: 0x6a6a62, mark: [0, 0, 0, 2] },
-  damsel: { shape: [1.35, 0.75, 1.25, 1.2], tail: [1.1, 1.1], back: 0x2e2622, side: 0x483a32, belly: 0x6a5a4e, fin: 0x2c241e, mark: [0, 0, 0, 0] },
-  shark: { shape: [0.68, 0.78, 1.55, 1.7], tail: [1.45, 0.55], back: 0x6e6c62, side: 0x8e8c84, belly: 0xe2e0d8, fin: 0x63615a, mark: [0, 0, 0, 4] },
-  ray: { shape: [1, 1, 1, 1], tail: [1, 1], back: 0x5a4a32, side: 0x5a4a32, belly: 0xe8e4dc, fin: 0x5a4a32, mark: [0, 0, 0, 0] },
-  jelly: { shape: [1, 1, 1, 1], tail: [1, 1], back: 0xe4eaee, side: 0xe4eaee, belly: 0xe4eaee, fin: 0x5a4a9a, mark: [0, 0, 0, 0] },
-  dolphin: { shape: [1, 1, 1, 1], tail: [1, 1], back: 0x2a2e36, side: 0x9a9ea4, belly: 0xeeeeea, fin: 0x2a2e36, mark: [0, 0, 0, 0] },
-};
 export function fishUniforms() {
-  const looks = SPECIES.map(s => LOOK[s.key]), c = h => new THREE.Color(h);
+  const looks = SPECIES.map(s => FISH_LOOK[s.key]), atlas = makeFishPatternAtlas(SPECIES.map(s => s.key));
+  // The bytes are already LINEAR pigment, matching THREE.Color uniforms. ShaderMaterial does not decode arbitrary
+  // custom samplers for us. The owner shares this texture between both fish meshes and disposes it on teardown.
+  const pattern = new THREE.DataTexture(atlas.data, atlas.width, atlas.height, THREE.RGBAFormat, THREE.UnsignedByteType);
+  pattern.name = 'fish-species-patterns'; pattern.colorSpace = THREE.NoColorSpace;
+  pattern.magFilter = pattern.minFilter = THREE.LinearFilter; pattern.generateMipmaps = false;
+  pattern.wrapS = pattern.wrapT = THREE.ClampToEdgeWrapping; pattern.needsUpdate = true;
   return {
     ...viewUniforms(),
-    uShape: { value: looks.map(l => new THREE.Vector4(...l.shape)) }, uMark: { value: looks.map(l => new THREE.Vector4(...l.mark)) }, uTail: { value: looks.map(l => new THREE.Vector2(...l.tail)) },
-    uBack: { value: looks.map(l => c(l.back)) }, uSide: { value: looks.map(l => c(l.side)) }, uBelly: { value: looks.map(l => c(l.belly)) }, uFinC: { value: looks.map(l => c(l.fin)) },
+    uShape: { value: looks.map(l => new THREE.Vector4(...l.shape)) }, uProfile: { value: looks.map(l => new THREE.Vector4(...l.profile)) }, uTail: { value: looks.map(l => new THREE.Vector2(...l.tail)) },
+    uPattern: { value: pattern }, uFinC: { value: looks.map(l => new THREE.Color(l.fin)) },
   };
 }
 const FISH_VS = sub => `
@@ -132,9 +122,11 @@ const FISH_VS = sub => `
   ${sub ? SUB_GLSL : ''}
   attribute vec4 iA, iB, iC, iD; attribute float aS, aTone, aFin; attribute vec3 aWing;
   ${sub ? 'attribute float iK;' : ''}
-  uniform vec4 uShape[${NSP}], uMark[${NSP}]; uniform vec2 uTail[${NSP}]; uniform vec3 uBack[${NSP}], uSide[${NSP}], uBelly[${NSP}], uFinC[${NSP}];
+  uniform vec4 uShape[${NSP}], uProfile[${NSP}]; uniform vec2 uTail[${NSP}];
+  varying vec4 vFishUV; varying vec3 vFishWorld, vFishLight, vFishGlint, vFishFin; varying float vFishTop;
+  uniform vec3 uFinC[${NSP}];
   void main(){
-    int sp=int(iB.w+.5); vec4 sh=uShape[sp]; vec2 tl=uTail[sp];
+    int sp=int(iB.w+.5); vec4 sh=uShape[sp], profile=uProfile[sp]; vec2 tl=uTail[sp];
     vec3 base=iA.xyz; float L=iA.w, ph=iC.x, yaw=iB.x;
     ${sub ? `
     vec4 so=subOffset(iD.z,iK); float spread=L*(1.+.6*iD.y);
@@ -142,6 +134,10 @@ const FISH_VS = sub => `
     base+=rotP(so.xyz*spread,iB.x,iB.y,0.); L*=.9+.2*fract(so.w*7.);` : ''}
     vec3 p=position, nrm=normal;
     if(aFin>.5&&aFin<1.5) p.y*=sh.z*(p.y>0.?tl.x:tl.y); else { p.y*=sh.x; p.x*=sh.y; if(aFin>1.5&&aFin<2.5) p.y+=(p.y-.09*sh.x)*(sh.w-1.); }
+    if(aFin<.5){ float head=mix(1.,profile.y,smoothstep(.7,.95,aS)); p.xy*=head; }
+    if(aFin>.5&&aFin<1.5&&aS>.025&&aS<.08) p.z+=profile.x; // a mullet's shallow fork, a damselfish's deep fork
+    if(aFin>1.5&&aFin<2.5) p.z+=profile.w;                  // sandbar shark's tall, forward dorsal
+    if(aFin>2.5) p.x*=profile.z;                            // shark's broad pectorals; short bonito pectorals
     if(aFin>2.5) p=mix(p,aWing,iD.x);                                  // a flying fish's pectorals spread into wings
     // the tail beat: a wave running back along the body, growing to ~0.1 L each side at the tail (Bainbridge 1958)
     float s=clamp(aS,0.,1.), env=.06+.94*pow(1.-s,2.2), amp=.1*(.45+.55*iC.y);
@@ -149,26 +145,44 @@ const FISH_VS = sub => `
     p.x+=amp*env*bend; nrm.x-=amp*env*cos(ph-5.4*(1.-s))*5.4*.3;
     if(aFin>2.5) p.y+=.02*sin(ph*.5+p.x*40.)*(1.-iD.x);                 // pectorals flutter (not a gliding wing)
     vec3 wp=base+rotP(p*L, yaw, iB.y, iB.z), n=normalize(rotP(nrm, yaw, iB.y, iB.z));
-    // colour: countershading, the species' marks, fins
-    float tone=aTone; vec3 col=tone>.5?mix(uSide[sp],uBack[sp],smoothstep(.62,.85,tone)):mix(uBelly[sp],uSide[sp],smoothstep(.2,.45,tone));
-    vec4 mk=uMark[sp];
-    if(mk.x>.5&&tone>.6&&aFin<.5) col=mix(col,vec3(.03,.06,.07),step(.45,sin(s*58.+position.y*120.+sin(s*21.)*2.))*.85);      // mackerel: the wavy black bars
-    if(mk.y>.5&&tone>.35&&tone<.85&&aFin<.5) col*=.82+.18*step(.5,fract(position.y*95.));                               // mullet: dark lines along the flank
-    if(mk.z>.5&&aFin<.5){ col=mix(col,vec3(.83,.66,.28),smoothstep(.06,.0,abs(tone-.6))*.8); if(s>.8&&s<.88&&tone>.62) col*=.45; }   // amberjack: the amber stripe, the dark band through the eye
-    if(mk.w>.5&&mk.w<1.5&&tone>.66&&aFin<.5) col=mix(col,vec3(.05,.08,.12),step(.55,sin(s*48.-position.y*160.))*.8);    // bonito: oblique dark stripes on the back
-    if(mk.w>1.5&&mk.w<2.5&&aFin<.5){ if(abs(s-.66)<.04||abs(s-.2)<.05) col*=.25; }                                     // sea bream: the black nape band and tail saddle
-    if(aFin>.5) col=uFinC[sp];
-    if(mk.w>3.5&&aFin>.5&&s<.08) col=mix(col,vec3(.9),.5);                                                          // shark: pale fin tips
-    if(aFin<.5&&s>.86&&abs(position.x)>.02&&tone>.5&&tone<.75) col=vec3(.04);                                       // the eye
+    float tone=aTone;
     float top=iC.w; vec3 lt=lightAt(wp,top), V=normalize(cameraPosition-wp), Ls=normalize(uSunD);
     float dif=.5+.5*max(dot(n,Ls),0.)+.15*n.y;
     // the silver flank: a vertical mirror - the sun's glint, and the bright sky above it flashing at you when the fish
     // banks into a turn (roll), which is what you see of a school from above
-    float fl=smoothstep(.2,.4,tone)*smoothstep(.85,.6,tone)*step(aFin,.5);
+    float fl=smoothstep(.2,.4,tone)*(1.-smoothstep(.6,.85,tone))*step(aFin,.5);
     vec3 rv=reflect(-V,n);
     float sp2=pow(max(dot(reflect(-Ls,n),V),0.),8.)*fl*.9 + pow(max(rv.y,0.),3.)*fl*(.35+.9*smoothstep(.15,.7,abs(iB.z)));
-    col=(col*dif+vec3(.9,.95,1.)*sp2)*lt;
-    waterView(wp, col, top, iC.z);
+    // Pigment is resolved per fragment. Six body rings cannot resolve twenty wavy bars or even two clean bands.
+    vFishUV=vec4(s,tone,aFin,float(sp)); vFishWorld=wp; vFishTop=top; vFishFin=uFinC[sp];
+    vFishLight=dif*lt; vFishGlint=vec3(.9,.95,1.)*sp2*lt;
+    waterView(wp,vec3(0.),top,iC.z); // retain surface depth projection and alpha/fresnel; colour is below
+  }`;
+const FISH_FS = `
+  ${SEA_EXT_GLSL}
+  uniform vec4 uUW, uFogP; uniform vec3 uFogC; uniform sampler2D uPattern;
+  varying vec4 vFishUV; varying vec3 vFishWorld, vFishLight, vFishGlint, vFishFin; varying float vFishTop, vA;
+  void main(){
+    if(vA<.01) discard;
+    vec2 uv=vec2((.5+clamp(vFishUV.x,0.,1.)*${PATTERN_WIDTH - 1}.)/${PATTERN_WIDTH}.,
+      (floor(vFishUV.w+.5)*${PATTERN_ROWS}.+.5+clamp(vFishUV.y,0.,1.)*${PATTERN_ROWS - 1}.)/${PATTERN_ROWS * NSP}.);
+    vec3 pigment=vFishUV.z>.5?vFishFin:texture2D(uPattern,uv).rgb;
+    // Pigmented marks reflect less of the broad silver flash; no emissive or un-fogged markings.
+    float silver=clamp(dot(pigment,vec3(.2126,.7152,.0722))*2.5,.06,1.);
+    vec3 col=pigment*vFishLight+vFishGlint*silver;
+    float dist=length(cameraPosition-vFishWorld), top=vFishTop, cy=cameraPosition.y;
+    bool through=uUW.x<.5&&vFishWorld.y<top&&cy>=top;
+    if(through){
+      float tp=min(top+.03,cy-.02), tt=clamp((cy-tp)/max(cy-vFishWorld.y,1e-3),0.,1.);
+      float path=length(vFishWorld-(cameraPosition+(vFishWorld-cameraPosition)*tt));
+      vec3 T=exp(-(SEA_EXT+uUW.z)*path); col*=T/max(dot(T,vec3(.33)),.05);
+    }
+    // The sea's custom fog uniforms already carry display colour. Convert lit linear pigment before their blend,
+    // matching air fog, underwater bed and scene background at the fog endpoint (not a second conversion after fog).
+    col=linearToOutputTexel(vec4(col,1.)).rgb;
+    if(!through) col=mix(col,uFogC,smoothstep(uFogP.x,uFogP.y,dist));
+    if(uUW.x>.5&&vFishWorld.y>top) col=mix(col,uFogC,.3);
+    gl_FragColor=vec4(col,vA);
   }`;
 
 // ---------------------------------------------------------------------------------------------- dolphin
@@ -404,5 +418,5 @@ export const SIGN_FS = `
     gl_FragColor=c;
   }`;
 
-export const SHADERS = { FISH_VS, DOLPHIN_VS, RAY_VS, JELLY_VS, BIRD_VS, FRAG };
+export const SHADERS = { FISH_VS, FISH_FS, DOLPHIN_VS, RAY_VS, JELLY_VS, BIRD_VS, FRAG };
 export const GEOMETRY = { fishGeometry, dolphinGeometry, rayGeometry, jellyGeometry, birdGeometry };
