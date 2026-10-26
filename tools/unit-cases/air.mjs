@@ -218,24 +218,32 @@ export const cases = [
           const G = __G, L = G.drop.state?.jumpers.find(j => j.state === 'ff' || j.state === 'canopy');
           if (!L || L.state !== 'canopy' || !L.m.canopy.visible) return null;
           L.m.group.updateWorldMatrix(true, true); G.zCam.updateMatrixWorld();
-          const box = new G.THREE.Box3().setFromObject(L.m.group), p = new G.THREE.Vector3();
-          const b = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity, minZ: Infinity, maxZ: -Infinity };
-          for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) {
-            p.set(x, y, z).project(G.zCam);
-            b.minX = Math.min(b.minX, p.x); b.maxX = Math.max(b.maxX, p.x);
-            b.minY = Math.min(b.minY, p.y); b.maxY = Math.max(b.maxY, p.y);
-            b.minZ = Math.min(b.minZ, p.z); b.maxZ = Math.max(b.maxZ, p.z);
-          }
-          b.framed = b.minX > -0.9 && b.maxX < 0.9 && b.minY > -0.9 && b.maxY < 0.9
+          const p = new G.THREE.Vector3();
+          const b = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity, minZ: Infinity, maxZ: -Infinity, vertices: 0,
+            cameraDistance: G.zCam.position.distanceTo(L.p) };
+          // A world AABB invents wide corners down at the narrow dangling kit; after a turn those nonexistent
+          // corners can cross the margin while the entire rendered jumper fits. Project the drawn vertices.
+          L.m.group.traverseVisible(o => {
+            const g = o.geometry, pos = g?.getAttribute('position'); if (!pos || o.material?.visible === false) return;
+            const index = g.index, first = g.drawRange.start, end = Math.min(index ? index.count : pos.count, first + g.drawRange.count);
+            for (let i = first; i < end; i++) {
+              p.fromBufferAttribute(pos, index ? index.getX(i) : i).applyMatrix4(o.matrixWorld).project(G.zCam);
+              b.minX = Math.min(b.minX, p.x); b.maxX = Math.max(b.maxX, p.x);
+              b.minY = Math.min(b.minY, p.y); b.maxY = Math.max(b.maxY, p.y);
+              b.minZ = Math.min(b.minZ, p.z); b.maxZ = Math.max(b.maxZ, p.z); b.vertices++;
+            }
+          });
+          b.framed = b.vertices > 0 && b.minX > -0.9 && b.maxX < 0.9 && b.minY > -0.9 && b.maxY < 0.9
             && b.minZ > -1 && b.maxZ < 1 && b.maxY - b.minY > 0.15;
           return b;
         };
       });
-      await h.waitFor('window.__paraBounds()?.framed', 30000);
+      await h.waitFor('(() => { const b = window.__paraBounds(); return b?.framed && b.cameraDistance < 30; })()', 30000);
       await h.eval('__paraBounds()', 'projected bounds before canopy evidence');
       await h.expect('__paraBounds()?.framed', 'lead Marine and complete canopy fit inside the actual rendered camera with margin');
       await evidence(h, 'paratrooper');
-      await h.expect('__paraBounds()?.framed', 'camera keeps the descending Marine and canopy framed through sampling/capture');
+      await h.eval('__paraBounds()', 'projected visible geometry after canopy evidence');
+      await h.expect('__paraBounds()?.framed', 'descending Marine and complete canopy remain framed after sampling/capture');
       await h.eval('(() => { for (let i = 0; i < 60 * 75 && __G.drop.state.jumpers.some(j => j.state === "ff" || j.state === "canopy"); i++) __G.drop.update(1 / 60, {}, __G.H); return true; })()');
       await h.expect('__G.drop.state.jumpers.every(j => j.state === "run" || j.state === "work")', 'all three land on the scripted dry pad and transition to ground movement');
       await rendered(h); await h.shot('paratrooper-landed'); await h.notblank();

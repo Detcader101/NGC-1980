@@ -71,6 +71,16 @@ game's F/A-18A identity is retained and the new checks concern controls/engine i
   the Sea Knight and Marines. Camera look error was zero; 10/11 landed troops respectively were in frame with
   terrain line of sight. Temporary evidence: `/tmp/unit-air-delivery-framing-20261026`. Benchmark and clip calls
   were deliberately skipped in that framing check; the root's final suite supplies performance/capture evidence.
+- The first final paratrooper run failed its post-capture framing assertion despite visible complete canopies.
+  A separate 30-frame/capture diagnostic reproduced **5/6 passing**: a projected world-box corner reached
+  `y=-0.917`, while actual visible geometry reached only `y=-0.674`. The box incorrectly combined the canopy's
+  width with the dangling kit's low height. The fixture now projects actual drawn mesh/line vertices, keeps the
+  same ±0.9 screen margin, waits until the camera has approached the jumper, and logs its final bounds.
+  The exact 30-frame/capture retest passed **6/6**, zero page/console errors; its PNG and decoded clip contact
+  sheet were inspected and show the complete lead canopy/body. Failed diagnostic retained at
+  `/tmp/unit-paratrooper-diagnose-20261026`; passing retest at `/tmp/unit-paratrooper-retest-20261026`.
+  The retest measured 161.3 ms mean and 283.2 ms p95 on SwiftShader; these are local observations, not a
+  before/after improvement claim. The six-second capture encoded about 4.01 seconds.
 - Browser runs, screenshot review, clip review and render performance results are coordinated by the root agent
   after integration. None are claimed by this branch report before those runs. No before/after performance claim
   is implied by adding instrumentation.
