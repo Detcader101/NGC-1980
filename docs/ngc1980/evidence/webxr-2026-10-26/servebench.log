@@ -1,0 +1,9 @@
+PASS default loopback serves the game without caching
+PASS version identifies the actual working tree
+PASS malformed URL returns 400 without killing the server
+PASS encoded NUL returns 400 without a filesystem exception
+PASS encoded path cannot escape game root
+PASS server survives invalid requests
+PASS HTTPS serves the same playable game
+PASS HTTPS modules keep JavaScript MIME types
+8/8 server checks passed (temporary certificate; headset trust is a separate setup step)
