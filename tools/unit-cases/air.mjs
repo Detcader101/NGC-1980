@@ -22,16 +22,13 @@ async function evidence(h, id) {
   if (h.capture) await h.clip(id, { durationMs: 6000 });
 }
 async function game(h) {
-  await h.goto(GAME);
   await h.waitFor("window.__G && __G.G.state === 'play' && __G.H.landed", 30000);
 }
-async function flight(h, kind) {
-  await h.goto(`dev/air.html?fly=${kind}&ui=0&res=0.6`);
+async function flight(h) {
   await h.waitFor('window.__F && window.__BENCH && __F.units.length', 20000);
   await h.eval('(__F.speedUp = 0, __F.camMode = 1, true)');
 }
-async function rotary(h, ac) {
-  await h.goto(`dev/rotary.html?ac=${ac}&paused&ui=0&res=0.6`);
+async function rotary(h) {
   await h.waitFor('window.__R && __R.unit && window.__BENCH', 20000);
 }
 export const cases = [
@@ -62,10 +59,10 @@ export const cases = [
     },
   },
   {
-    id: 'tomcat', name: 'F-14A Tomcat', category: 'air', kind: 'playable', query: 'dev/air.html?fly=sortie',
+    id: 'tomcat', name: 'F-14A Tomcat', category: 'air', kind: 'playable', query: 'dev/air.html?fly=sortie&ui=0&res=0.6',
     description: 'Production F-14A flight model and AI in the carrier dev world: step a full catapult departure into CAP, verify flight and variable wings, then benchmark live patrol. This fixture exercises AI flight, not player cockpit input.',
     async run(h) {
-      await flight(h, 'sortie');
+      await flight(h);
       await h.eval('(() => { for (let i = 0; i < 60 * 45 && __F.units[0].pilot.state !== "cap"; i++) __F.step(); return true; })()');
       await h.expect('__F.units[0].pilot.state === "cap" && !__F.units[0].A.dead && !__F.units[0].A.cat && __F.units[0].A.pos.y > 100', 'Tomcat completed its catapult departure into CAP');
       await h.expect('__F.units[0].A.sweep >= 20 && __F.units[0].A.sweep <= 68 && __F.units[0].A.eng.length === 2', 'F-14 has live variable-sweep wings and two engines');
@@ -74,10 +71,10 @@ export const cases = [
     },
   },
   {
-    id: 'ch46', name: 'CH-46E Sea Knight', category: 'air', kind: 'playable', query: 'dev/rotary.html?ac=ch46&paused',
+    id: 'ch46', name: 'CH-46E Sea Knight', category: 'air', kind: 'playable', query: 'dev/rotary.html?ac=ch46&paused&ui=0&res=0.6',
     description: 'Production transport unit in the rotary dev world: board 13 Marines, depart and establish transit with both tandem rotors lifting. After live benchmarking, deterministically finish delivery and assert Marines holding the landing pad. This fixture uses its AI pilot.',
     async run(h) {
-      await rotary(h, 'ch46');
+      await rotary(h);
       await h.eval('(__R.runUntil(() => __R.unit.U.AI.phase === "transit" && __R.unit.U.S.agl > 12, 160), __R.camMode = "chase", __R.render(), true)');
       await h.expect('__R.unit.U.AI.phase === "transit" && !__R.unit.U.dead && __R.unit.U.S.rf.T > 10000 && __R.unit.U.S.ra.T > 10000', 'Sea Knight boards and departs on both rotors');
       await h.expect('__R.unit.U.squad.alive === 13 && __R.unit.U.S.payload > 1400', 'embarked Marine payload is represented in flight');
@@ -91,7 +88,6 @@ export const cases = [
     id: 'c130', name: 'KC-130R Hercules', category: 'air', kind: 'playable', query: 'dev/c130.html?start=air&view=orbit&res=0.6',
     description: 'KC-130R dev flight host with the production four-engine transport model: feather engine one, keep the other three governed and verify autopilot flight. The existing transport/drop suites cover parachute deployment; this is not a C-130J avionics fixture.',
     async run(h) {
-      await h.goto('dev/c130.html?start=air&view=orbit&res=0.6');
       await h.waitFor('window.__C && __C.S.tas > 10 && window.__BENCH', 15000);
       await h.eval('(__C.ap = true, window.__airAlt = __C.S.pos.y, __C.S.setCond(0, "feather"), true)');
       await h.waitFor('__C.S.eng[0].beta > 90 && __C.S.eng[0].N < 0.05', 90000);
@@ -104,10 +100,10 @@ export const cases = [
     },
   },
   {
-    id: 'mv22', name: 'MV-22B Osprey', category: 'air', kind: 'ai', query: 'dev/rotary.html?ac=mv22&paused',
+    id: 'mv22', name: 'MV-22B Osprey', category: 'air', kind: 'ai', query: 'dev/rotary.html?ac=mv22&paused&ui=0&res=0.6',
     description: 'RUNAWAY-refit MV-22B production transport in the rotary dev world: depart vertically, convert to wing-borne flight, then benchmark airplane transit and finish a troop delivery. This uses the AI pilot and a scripted island landing zone.',
     async run(h) {
-      await rotary(h, 'mv22');
+      await rotary(h);
       await h.eval('(__R.runUntil(() => __R.unit.U.S.nac < 0.03 && __R.unit.U.S.ias > 190, 200), __R.camMode = "chase", __R.render(), true)');
       await h.expect('__R.unit.U.S.nac < 0.03 && __R.unit.U.S.ias > 190 && __R.unit.U.S.wingL > 100000 && !__R.unit.U.dead', 'Osprey converts from vertical departure to wing-borne flight');
       await h.eval('(__R.paused = false, true)'); await evidence(h, 'mv22');
@@ -117,10 +113,10 @@ export const cases = [
     },
   },
   {
-    id: 'wasp', name: 'RW-3 WASP', category: 'air', kind: 'ai', query: 'dev/rotary.html?ac=wasp&paused',
+    id: 'wasp', name: 'RW-3 WASP', category: 'air', kind: 'ai', query: 'dev/rotary.html?ac=wasp&paused&ui=0&res=0.6',
     description: 'Five fictional ducted-fan drones fly the existing swarm/ambush demo around a scripted Huey. Verify powered maneuvering and finite flight, then benchmark the live swarm. These are setting-specific physics, not a real aircraft claim.',
     async run(h) {
-      await rotary(h, 'wasp');
+      await rotary(h);
       await h.eval('(__R.run(18), __R.camMode = "orbit", __R.render(), true)');
       await h.expect('[...__R.unit.U.ws, __R.unit.U.amb].every(w => !w.dead && w.S.power > 10000 && w.S.body.pos.every(Number.isFinite))', 'all five WASPs stay powered and airborne');
       await h.eval('(__R.paused = false, true)'); await evidence(h, 'wasp');
@@ -128,10 +124,10 @@ export const cases = [
     },
   },
   {
-    id: 'shrike', name: 'RW-4 SHRIKE', category: 'air', kind: 'ai', query: 'dev/air.html?fly=fight',
+    id: 'shrike', name: 'RW-4 SHRIKE', category: 'air', kind: 'ai', query: 'dev/air.html?fly=fight&ui=0&res=0.6',
     description: 'Fictional single-engine fighter patrol using the production AI flight model. The demo opponent is hidden and removed from combat to isolate the unit. Check bank maneuvering and no afterburner, then benchmark live CAP.',
     async run(h) {
-      await flight(h, 'fight');
+      await flight(h);
       await h.eval('(() => { const foe = __F.units[0]; foe.dead = true; foe.model.group.visible = false; __F.follow = 1; for (let i = 0; i < 600; i++) __F.step(); return true; })()');
       await h.expect('__F.units[1].A.eng.length === 1 && __F.units[1].A.eng[0].ab === 0 && !__F.units[1].A.dead && __F.units[1].A.pos.y > 100', 'SHRIKE patrols with its single dry-thrust engine');
       await h.eval('(__F.speedUp = 1, true)'); await rendered(h); await evidence(h, 'shrike');
@@ -139,10 +135,10 @@ export const cases = [
     },
   },
   {
-    id: 'reaper', name: 'MQ-9 Reaper', category: 'air', kind: 'ai', query: 'dev/air.html?fly=reaper',
+    id: 'reaper', name: 'MQ-9 Reaper', category: 'air', kind: 'ai', query: 'dev/air.html?fly=reaper&ui=0&res=0.6',
     description: 'Production turboprop UAV in its existing orbit demo: verify patrol, power and prop rotation, benchmark live loiter, then use the model host to check and photograph a stopped pusher. Shutdown gauge behavior is covered by the Node role bench.',
     async run(h) {
-      await flight(h, 'reaper');
+      await flight(h);
       await h.eval('(() => { for (let i = 0; i < 1200; i++) __F.step(); return true; })()');
       await h.expect('__F.units[0].pilot.state === "patrol" && !__F.units[0].A.dead && __F.units[0].A.eng[0].power > 10000 && __F.units[0].A.eng[0].ab === 0', 'Reaper holds its patrol with turboprop power');
       await h.eval('(__F.speedUp = 1, true)'); await rendered(h); await evidence(h, 'reaper');
@@ -163,10 +159,10 @@ export const cases = [
     },
   },
   {
-    id: 'shahed', name: 'SHAHED-style drone', category: 'air', kind: 'ai', query: 'dev/air.html?fly=shahed',
+    id: 'shahed', name: 'SHAHED-style drone', category: 'air', kind: 'ai', query: 'dev/air.html?fly=shahed&ui=0&res=0.6',
     description: 'Existing simplified delta-drone salvo in the air dev world, with the interceptor disabled for an isolated flight sample. Check forward flight after launch and capture the pusher model at rest. No claim of real guidance or weapon fidelity.',
     async run(h) {
-      await flight(h, 'shahed');
+      await flight(h);
       await h.eval('(() => { for (const u of __F.units) if (u.A) { u.dead = true; u.model.group.visible = false; } for (let i = 0; i < 600; i++) __F.step(); return true; })()');
       await h.expect('__F.units.filter(u => u.D).length === 4 && __F.units.filter(u => u.D).every(u => !u.dead && u.D.V > 15 && u.D.pos.y > 10)', 'all four simplified delta drones launch into forward flight');
       await h.eval('(__F.speedUp = 1, true)'); await rendered(h); await evidence(h, 'shahed');
