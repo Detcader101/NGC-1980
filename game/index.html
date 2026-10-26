@@ -98,5 +98,17 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
     <p id="gpuinfo" style="color:#789;margin-top:20px"></p>
   </div>
 </div>
+<script>
+// ?xrlog: post errors, long main-thread stalls and the XR frame timings (window.__xrlog) to the local server
+if (/[?&]xrlog/.test(location.search)) {
+  const q = [], post = m => { q.push(m); }, flush = () => { if (!q.length) return; const b = q.splice(0).join('\n'); try { navigator.sendBeacon('/__log', b); } catch (e) {} };
+  window.__xrlog = post; post('LOAD ' + navigator.userAgent);
+  addEventListener('error', e => post('ERROR ' + e.message + ' @' + e.filename + ':' + e.lineno));
+  addEventListener('unhandledrejection', e => post('REJECT ' + (e.reason && (e.reason.stack || e.reason.message) || e.reason)));
+  for (const k of ['error', 'warn']) { const o = console[k]; console[k] = (...a) => { post(k.toUpperCase() + ' ' + a.map(String).join(' ').slice(0, 500)); o.apply(console, a); }; }
+  try { new PerformanceObserver(l => { for (const e of l.getEntries()) post('LONGTASK ' + Math.round(e.duration) + 'ms'); }).observe({ type: 'longtask', buffered: true }); } catch (e) {}
+  setInterval(flush, 500); addEventListener('pagehide', flush);
+}
+</script>
 <script type="module" src="./js/main.js"></script>
 </body></html>

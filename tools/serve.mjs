@@ -29,6 +29,14 @@ const handler = (req, res) => {
   const send = (code, body, type = 'text/plain') => { res.writeHead(code, { 'Content-Type': type, 'Cache-Control': 'no-store' }); res.end(body); };
   let url;try{url=decodeURIComponent(new URL(req.url,'http://x').pathname);}catch{return send(400,'bad URL');}
   if(url.includes('\0'))return send(400,'bad URL');
+  // ?xrlog diagnostics (loopback only): the page posts errors and frame timings, appended to tools/runs/client-log.txt
+  if (url === '/__log' && req.method === 'POST') {
+    const a = req.socket.remoteAddress || '';
+    if (!/^(127\.|::1$|::ffff:127\.)/.test(a)) return send(403, 'forbidden');
+    let body = ''; req.on('data', c => { if (body.length < 65536) body += c; });
+    req.on('end', () => { fs.mkdirSync(path.join(ROOT, 'tools', 'runs'), { recursive: true }); fs.appendFile(path.join(ROOT, 'tools', 'runs', 'client-log.txt'), new Date().toISOString() + ' ' + body.slice(0, 65536) + '\n', () => send(204, '')); });
+    return;
+  }
   if (url === '/version.json') return send(200, JSON.stringify(version()), 'application/json');
   let file = path.join(GAME, url.endsWith('/') ? url + 'index.html' : url);
   if (!file.startsWith(GAME+path.sep)) return send(403, 'forbidden');

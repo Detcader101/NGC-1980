@@ -60,17 +60,29 @@ export function createXR(h) {
     }
   }
   const api={state,rig,camera:xrCamera,input,panel,controls,renderTarget:rt,
-    get active(){return state.active;},get motionInput(){return state.active&&!state.physical&&input.active;},
+    get active(){return state.active;},get motionInput(){return state.active&&!state.physical&&input.engaged;},
     get pad(){return api.motionInput?input.pad:null;},get blocked(){return state.active&&panel.blocked();},
     recenter(){calibration.needed=true;panel.release();input.reset();},
     async start(){
       if(state.active||state.requesting||!state.supported)return false;
       state.requesting=true;enter.disabled=true;report('');
+      h.audio?.();   // start the game's audio on this click: requestSession uses up the user activation the browser needs for sound
       try {
         const hands=entry.querySelector('#xrHands').checked;
+        if(window.__xrlog){const gl=renderer.getContext(),d=gl.getExtension('WEBGL_debug_renderer_info');window.__xrlog('GPU '+(d?gl.getParameter(d.UNMASKED_RENDERER_WEBGL):'?')+' lost '+gl.isContextLost());}
         session=await navigator.xr.requestSession('immersive-vr',{requiredFeatures:['local'],optionalFeatures:hands?['local-floor','hand-tracking']:['local-floor']});
+        if(window.__xrlog){const L=window.__xrlog,s=session;L('REQUESTED vis '+s.visibilityState+' features '+JSON.stringify(s.enabledFeatures||[]));let n=0;const raw=(t,f)=>{n++;if(n<4||n%120===0)L('RAWRAF '+n+' vis '+s.visibilityState);s.requestAnimationFrame(raw);};s.requestAnimationFrame(raw);s.addEventListener('visibilitychange',()=>L('VIS '+s.visibilityState));s.addEventListener('end',()=>L('END raw frames '+n));renderer.domElement.addEventListener('webglcontextlost',()=>L('CONTEXTLOST'));renderer.domElement.addEventListener('webglcontextrestored',()=>L('CONTEXTRESTORED'));}
         session.addEventListener('visibilitychange',()=>{visible=session.visibilityState==='visible';if(!visible){input.reset();panel.release();h.pause();}});
-        await manager.setSession(session); return true;
+        // Chromium/Edge on SteamVR (Steam Link) open a WebXR Layers projection layer but never deliver a frame ("page isn't
+        // responding" in the headset); the classic XRWebGLLayer runs at full rate. Three uses layers whenever the browser
+        // exposes them, so hide them from Three unless ?xrlayers asks for them.
+        if(!new URLSearchParams(location.search).has('xrlayers')&&session.renderState.layers!==undefined){const rs=session.renderState;try{Object.defineProperty(rs,'layers',{value:undefined,configurable:true});}catch(e){}window.__xrlog?.('LAYERS hidden: '+(session.renderState.layers===undefined));}
+        let restore=null;
+        if(!new URLSearchParams(location.search).has('xrlayers')&&session.renderState.layers!==undefined&&window.XRRenderState){
+          const d=Object.getOwnPropertyDescriptor(XRRenderState.prototype,'layers');
+          if(d){Object.defineProperty(XRRenderState.prototype,'layers',{get(){return undefined;},configurable:true});restore=()=>Object.defineProperty(XRRenderState.prototype,'layers',d);window.__xrlog?.('LAYERS hidden on prototype');}
+        }
+        try{await manager.setSession(session);}finally{restore?.();} window.__xrlog?.('SETSESSION done layer '+!!session.renderState.baseLayer+' layers '+(session.renderState.layers?.length||0)); return true;
       } catch(err) { report('Could not enter VR: '+err.message); if(session)await session.end().catch(()=>{});session=null;return false; }
       finally {state.requesting=false;enter.disabled=!state.supported;}
     },
@@ -156,11 +168,14 @@ export function createXR(h) {
   const scale=Number(new URLSearchParams(location.search).get('xrscale'))||.8;
   manager.setFramebufferScaleFactor(Math.max(.5,Math.min(1,scale)));manager.setFoveation(1);
   manager.addEventListener('sessionstart',()=>{
+    window.__xrlog?.('SESSIONSTART '+JSON.stringify(manager.getSession()?.renderState?.baseLayer?{w:manager.getSession().renderState.baseLayer.framebufferWidth,h:manager.getSession().renderState.baseLayer.framebufferHeight}:{}));
     document.documentElement.classList.add('ngc-vr');
     state.active=true;visible=true;state.frames=0;calibration.needed=true;context='';rig.visible=true;panel.enable(true);entry.style.display='none';
     if(document.pointerLockElement)document.exitPointerLock();h.session(true);enter.textContent='EXIT VR';
+    if(window.__xrlog)setTimeout(()=>window.__xrlog('AUDIO '+(h.audioState?.()||'?')),3000);
   });
   manager.addEventListener('sessionend',()=>{
+    window.__xrlog?.('SESSIONEND frames '+state.frames);
     document.documentElement.classList.remove('ngc-vr');
     state.active=false;session=null;state.tracking=false;input.reset();panel.enable(false);rig.visible=false;h.aim(null);
     for(const C of controls){C.selecting=C.captured=false;}scene.add(rig);previousFlat=false;entry.style.display='block';enter.textContent='ENTER VR';h.session(false);
@@ -168,7 +183,7 @@ export function createXR(h) {
   });
   enter.onclick=()=>state.active?api.end():api.start();
   if(!isSecureContext){enter.textContent='VR NEEDS HTTPS';status.textContent='Use HTTPS, or localhost through USB port forwarding.';}
-  else if(!navigator.xr){enter.textContent='VR UNAVAILABLE';status.textContent='Open this game in a WebXR headset browser.';}
-  else navigator.xr.isSessionSupported('immersive-vr').then(ok=>{state.supported=ok;enter.disabled=!ok;enter.textContent=ok?'ENTER VR':'VR UNAVAILABLE';status.textContent=ok?'Controllers + optional hand tracking':'Connect a VR headset or open its browser.';}).catch(err=>{enter.textContent='VR UNAVAILABLE';report(err.message);});
+  else if(!navigator.xr){window.__xrlog?.('NO navigator.xr');enter.textContent='VR UNAVAILABLE';status.textContent='Open this game in a WebXR headset browser.';}
+  else navigator.xr.isSessionSupported('immersive-vr').then(ok=>{window.__xrlog?.('SUPPORTED '+ok);state.supported=ok;enter.disabled=!ok;enter.textContent=ok?'ENTER VR':'VR UNAVAILABLE';status.textContent=ok?'Controllers + optional hand tracking':'Connect a VR headset or open its browser.';}).catch(err=>{enter.textContent='VR UNAVAILABLE';report(err.message);});
   return api;
 }

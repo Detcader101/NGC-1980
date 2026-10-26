@@ -123,7 +123,7 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
 let mouseFire = false;
-addEventListener('mousedown', e => { if (e.button === 0 && !XR?.active) { mouseFire = true; sfx.init(); } });
+addEventListener('mousedown', e => { if (e.button === 0 && !XR?.motionInput) { mouseFire = true; sfx.init(); } });
 addEventListener('mouseup', () => mouseFire = false);
 const kd = (...c) => c.some(k => keys.has(k));
 const THR_AXIS = params.has('throttle') ? +params.get('throttle') : -1;
@@ -2445,6 +2445,7 @@ function frame(now, xrFrame) {
   if (!XR?.render(drawDesktop)) drawDesktop();
   markers.draw(zCam, markerView());   // UNIT MARKERS: icons + health bars, one 2D layer over the frame
   const t3 = performance.now(), pk = 0.05;   // smoothed per-frame CPU cost: sim, scene/HUD prep, render submit
+  if (window.__xrlog && XR?.active && (XR.state.frames < 40 || XR.state.frames % 60 === 0)) window.__xrlog(`XRFRAME ${XR.state.frames} dt ${(now - now0 < 0 ? 0 : rdt * 1000).toFixed(0)}ms sim ${(t1 - now0).toFixed(0)} prep ${(t2 - t1).toFixed(0)} render ${(t3 - t2).toFixed(0)} flat ${XR.state.flat} track ${XR.state.tracking} vis ${document.visibilityState} state ${G.state} ${XR.state.error}`);
   PROF.sim += ((t1 - now0) - PROF.sim) * pk; PROF.prep += ((t2 - t1) - PROF.prep) * pk; PROF.render += ((t3 - t2) - PROF.render) * pk;
 }
 const PROF = { sim: 0, prep: 0, render: 0 };
@@ -2473,7 +2474,7 @@ function markerView() {
 // magnified sights/cave play through a spatial display instead of changing the headset projection matrices.
 let xrDesktopView = null;
 const xrRay = new THREE.Ray();
-XR = createXR({ renderer, scene:zScene, camera:zCam, resize,
+XR = createXR({ renderer, scene:zScene, camera:zCam, resize, audio:()=>sfx.init(), audioState:()=>sfx.ctx?sfx.ctx.state+' '+sfx.ctx.sampleRate+'Hz':'none',
   context: () => ({key:helm.active?'helm':drop.flying?'dropship':SIM?'spectator':G.craft,kind:crafts.active?.kind==='foot'?'foot':crafts.active?.kind==='ground'?'ground':'air',
     throttle:helm.active?(war.carrier.sky?.lift||0)/2+.5:drop.flying?drop.state.plane.sim.thr:G.craft==='ch46'?ch46C.P.coll:G.craft==='jet'?JP.thr:G.craft==='tomcat'?tomcatC.TP.thr:G.heliColl||0,yaw:marine?.S.yaw||0}),
   session:on=>{mouseFire=false;keys.clear();head.yaw=head.pitch=0;freeLook=false;

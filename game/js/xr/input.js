@@ -10,13 +10,16 @@ export function controllerAxes(source) {
 export const button = (source, i) => source?.gamepad?.mapping === 'xr-standard' && !!source.gamepad.buttons[i]?.pressed;
 export function createXRInput() {
   const S = { throttle: 0, stick: { x: 0, y: 0 }, rudder: 0, actions: {}, pressed: {}, source: 'VR', hasPedals: true,
-    brakeL: 0, brakeR: 0, hatX: 0, hatY: 0, twist: 0, active: false,
+    brakeL: 0, brakeR: 0, hatX: 0, hatY: 0, twist: 0, active: false, engaged: false,
     pad: { xr: true, axes: [0, 0, 0, 0], buttons: Array.from({ length: 16 }, () => ({ pressed: false, value: 0 })), mapping: 'standard', connected: true },
     events: [], snap: 0 };
-  let context = null, previous = {}, snapReady = true;
+  // engaged: VR input is in use (a pinch, a stick off centre, a trigger/button) or was within ENGAGE_HOLD seconds.
+  // Only then does it override the HOTAS / keyboard / mouse; idle tracked hands or controllers leave them alone.
+  const ENGAGE_HOLD = 1.5;
+  let context = null, previous = {}, snapReady = true, idleT = ENGAGE_HOLD;
   const anchors = new Map();
   S.reset = () => {
-    S.active = false; S.stick.x = S.stick.y = S.rudder = S.brakeL = S.brakeR = S.snap = 0;
+    S.active = S.engaged = false; idleT = ENGAGE_HOLD; S.stick.x = S.stick.y = S.rudder = S.brakeL = S.brakeR = S.snap = 0;
     S.actions = {}; S.pressed = {}; S.events.length = 0; S.pad.axes.fill(0);
     for (const b of S.pad.buttons) { b.pressed = false; b.value = 0; }
     previous = {}; anchors.clear(); snapReady = true; context = null;
@@ -56,7 +59,11 @@ export function createXRInput() {
     }
     for (const source of anchors.keys()) if (!seen.has(source)) anchors.delete(source);
     previous = now;
-    if (blocked || !S.active) { S.throttle=clamp(throttle,0,1); S.actions = {}; S.pressed = {}; return S; }
+    const using = Object.values(actions).some(Boolean) || [...axes.left, ...axes.right].some(a => a !== 0) || anchors.size > 0;
+    idleT = using ? 0 : idleT + dt;
+    const wasEngaged = S.engaged; S.engaged = S.active && !blocked && idleT < ENGAGE_HOLD;
+    if (S.engaged && !wasEngaged) S.throttle = clamp(throttle, 0, 1);   // pick up the HOTAS / keyboard throttle where it is
+    if (blocked || !S.engaged) { S.throttle=clamp(throttle,0,1); S.actions = {}; S.pressed = {}; return S; }
     const l = axes.left, r = axes.right;
     if (kind === 'air') {
       S.stick.x = r[0]; S.stick.y = r[1]; S.rudder = l[0];

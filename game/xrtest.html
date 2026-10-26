@@ -1,0 +1,52 @@
+<!doctype html>
+<meta charset="utf-8"><title>XR TEST</title>
+<style>body{background:#123;color:#cde;font:20px Consolas;padding:30px}button{font:28px Consolas;padding:20px}</style>
+<p>Bare WebXR test (no game). Click, then look in the headset: it should glow green, pulsing.</p>
+<button id="go">ENTER VR TEST</button> <button id="go2">TEST 2 (layers, like the game)</button>
+<label><input id="hands" type="checkbox"> request hand tracking</label>
+<pre id="out"></pre>
+<script>
+const out = document.getElementById('out');
+const log = m => { out.textContent += m + '\n'; try { navigator.sendBeacon('/__log', 'XRTEST ' + m); } catch (e) {} };
+navigator.xr ? navigator.xr.isSessionSupported('immersive-vr').then(ok => log('supported ' + ok)) : log('no navigator.xr');
+document.getElementById('go').onclick = async () => {
+  try {
+    const opt = document.getElementById('hands').checked ? ['local-floor', 'hand-tracking'] : [];
+    const s = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: opt });
+    log('session ' + s.visibilityState);
+    s.addEventListener('visibilitychange', () => log('vis ' + s.visibilityState));
+    s.addEventListener('end', () => log('end after ' + n + ' frames'));
+    const c = document.createElement('canvas'), gl = c.getContext('webgl2', { xrCompatible: true });
+    const layer = new XRWebGLLayer(s, gl); s.updateRenderState({ baseLayer: layer });
+    const ref = await s.requestReferenceSpace('local'); log('ref ok, layer ' + layer.framebufferWidth + 'x' + layer.framebufferHeight);
+    let n = 0;
+    const frame = (t, f) => {
+      n++; if (n < 4 || n % 90 === 0) log('frame ' + n + ' pose ' + !!f.getViewerPose(ref));
+      gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
+      gl.clearColor(0, .4 + .3 * Math.sin(t / 300), 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+      s.requestAnimationFrame(frame);
+    };
+    s.requestAnimationFrame(frame); log('raf requested');
+    setTimeout(() => log('after 5 s: ' + n + ' frames'), 5000);
+  } catch (e) { log('ERROR ' + e.name + ': ' + e.message); }
+};
+document.getElementById('go2').onclick = async () => {
+  try {
+    const s = await navigator.xr.requestSession('immersive-vr', { requiredFeatures: ['local'] });
+    log('T2 session; renderState.layers ' + (s.renderState.layers === undefined ? 'undefined' : 'defined') + ', binding ' + (typeof XRWebGLBinding));
+    s.addEventListener('end', () => log('T2 end after ' + n + ' frames'));
+    const c = document.createElement('canvas'), gl = c.getContext('webgl2', { xrCompatible: true });
+    const b = new XRWebGLBinding(s, gl), layer = b.createProjectionLayer({ colorFormat: gl.RGBA8, depthFormat: gl.DEPTH_COMPONENT24, scaleFactor: .8 });
+    s.updateRenderState({ layers: [layer] }); log('T2 projection layer ' + layer.textureWidth + 'x' + layer.textureHeight);
+    const ref = await s.requestReferenceSpace('local'); const fb = gl.createFramebuffer();
+    let n = 0;
+    const frame = (t, f) => {
+      n++; if (n < 4 || n % 90 === 0) log('T2 frame ' + n);
+      const pose = f.getViewerPose(ref);
+      if (pose) for (const v of pose.views) { const st = b.getViewSubImage(layer, v); gl.bindFramebuffer(gl.FRAMEBUFFER, fb); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, st.colorTexture, 0); const vp = st.viewport; gl.viewport(vp.x, vp.y, vp.width, vp.height); gl.clearColor(0, 0, .4 + .3 * Math.sin(t / 300), 1); gl.clear(gl.COLOR_BUFFER_BIT); }
+      s.requestAnimationFrame(frame);
+    };
+    s.requestAnimationFrame(frame); setTimeout(() => log('T2 after 5 s: ' + n + ' frames'), 5000);
+  } catch (e) { log('T2 ERROR ' + e.name + ': ' + e.message); }
+};
+</script>
