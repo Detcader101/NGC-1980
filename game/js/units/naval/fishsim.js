@@ -854,7 +854,7 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
 
   // ------------------------------------------------------------------ instances out
   // One record per drawn body: A (x, y, z, length)  B (yaw, pitch, roll, species)  C (tail phase, effort 0..1, fade
-  // 0..1, local sea surface y)  D (wings 0..1, fear 0..1, -, -). out: { school, fish, dolphin, ray, jelly } each
+  // 0..1, local sea surface y)  D (wings 0..1, fear 0..1, stable variation seed, airborne 0/1). out: { school, fish, dolphin, ray, jelly } each
   // { A, B, C, D, max } (Float32Arrays of 4 x max); returns them with .n set. 'school' records are per boid (the
   // shader draws SUB fish round each).
   // view (optional): { x, y, z, fx, fy, fz, cos, px } the camera, its forward, the cosine of a cone round the view and
@@ -891,7 +891,8 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
         B[j] = Math.atan2(vx, vz); B[j + 1] = Math.atan2(vy, Math.max(hs, 1e-4)) * (a[o + F_STUN] > 0 ? 0.2 : air && a[o + F_AK] === 2 ? 0.3 : 1); B[j + 2] = a[o + F_ROLL]; B[j + 3] = sc.sp;
         const dead = a[o + F_DEAD] > 0, sinkFade = dead ? clamp(a[o + F_STUN] / 6, 0, 1) : 1;
         C[j] = a[o + F_PH]; C[j + 1] = a[o + F_STUN] > 0 ? 0 : air && a[o + F_AK] === 2 ? 0 : clamp(hyp(vx, vy, vz) / (len * sp.burst), 0.15, 1); C[j + 2] = Math.max(0, sc.fade) * sinkFade; C[j + 3] = top;
-        D[j] = sp.leap === 'glide' ? clamp(a[o + F_WING], 0, 1) : 0; D[j + 1] = a[o + F_FEAR];   // (F_WING is a predator's strike timer) D[j + 2] = a[o + F_JIT]; D[j + 3] = air ? 1 : 0;
+        D[j] = sp.leap === 'glide' ? clamp(a[o + F_WING], 0, 1) : 0;   // F_WING is a predator's strike timer for other species.
+        D[j + 1] = a[o + F_FEAR]; D[j + 2] = a[o + F_JIT]; D[j + 3] = air ? 1 : 0;
         O.n++;
       }
     }

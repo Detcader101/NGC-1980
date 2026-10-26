@@ -2,7 +2,7 @@
 // budgets in the population scenarios. Browser fish-only pixel evidence is a separate test.
 // Run: node tools/fishvisibilitybench.mjs
 import assert from 'node:assert/strict';
-import { createFishSim, SPECIES, QUALITY } from '../game/js/units/naval/fishsim.js';
+import { createFishSim, SPECIES, QUALITY, SUB, subOffset } from '../game/js/units/naval/fishsim.js';
 import { underwaterVisibility } from '../game/js/units/naval/seavisibility.js';
 import { islandH } from '../game/js/world.js';
 
@@ -34,6 +34,52 @@ test('visibility is finite, weather/depth aware, and reuses an optional output o
     assert(v.far >= 34 && v.bodyRange > v.far && v.near < v.far);
   }
   assert(underwaterVisibility(7, 8).far < underwaterVisibility(0, 1).far);
+});
+
+test('packed school instances reproduce CPU sub-fish centers with distinct stable variation', () => {
+  const S = createFishSim({ depthAt: () => -15, seed: 41 }); S.autoSpawn = false;
+  const sc = S.spawnSchool('mackerel', 12, 0), out = makeBuffers();
+  for (let i = 0; i < 20; i++) S.update(0.05, { x: 0, y: 10, z: 0 });
+  S.write(out);
+  const b = out.school, seeds = new Set();
+  assert.equal(b.n, sc.n);
+  for (let i = 0; i < b.n; i++) {
+    const j = i * 4, yaw = b.B[j], pitch = -b.B[j + 1], spread = b.A[j + 3] * (1 + 0.6 * b.D[j + 1]);
+    seeds.add(b.D[j + 2]);
+    for (let k = 0; k < SUB; k++) {
+      // Reconstruct the shader's sub-fish center using only submitted instance records.
+      // Compare against the CPU position helper, which reads the simulation directly.
+      const so = subOffset(b.D[j + 2], k), x = so[0] * spread, y = so[1] * spread, z = so[2] * spread;
+      const py = Math.cos(pitch) * y - Math.sin(pitch) * z, pz = Math.sin(pitch) * y + Math.cos(pitch) * z;
+      const p = [b.A[j] + Math.cos(yaw) * x + Math.sin(yaw) * pz, b.A[j + 1] + py,
+        b.A[j + 2] - Math.sin(yaw) * x + Math.cos(yaw) * pz];
+      const expected = S.drawnPos(sc, i, k);
+      assert(Math.hypot(...p.map((v, axis) => v - expected[axis])) < 1e-6, `packed sub-fish ${i}/${k} center`);
+    }
+  }
+  assert(seeds.size > sc.n * 0.9, 'schools retain each boid’s variation instead of reusing a zero seed');
+  const before = [...seeds]; S.write(out);
+  assert.deepEqual(Array.from({ length: b.n }, (_, i) => b.D[i * 4 + 2]), before, 'drawing again keeps stable variation');
+});
+
+test('packed airborne flags follow natural mullet leaps and clear on landing', () => {
+  const S = createFishSim({ depthAt: x => Math.max(-14, Math.min(6, -x / 12)), seed: 37 }); S.autoSpawn = false;
+  S.spawnSchool('mullet', 30, 0);
+  const cam = { x: 30, y: 4, z: 0 }, out = makeBuffers();
+  let bowZ = -60, airFrames = 0, landings = 0;
+  const airborne = new Set();
+  for (let i = 0; i < 600; i++) {
+    bowZ += 4 / 30; S.clearThreats(); S.hull(30, bowZ, Math.PI, 5, 1.6, 0.6, 4);
+    S.update(1 / 30, cam); S.write(out);
+    const fish = S.fish(); assert.equal(out.fish.n, fish.length);
+    for (let k = 0; k < fish.length; k++) {
+      const air = fish[k].air > 0;
+      assert.equal(out.fish.D[k * 4 + 3], air ? 1 : 0, 'packed airborne state');
+      if (air) { airFrames++; airborne.add(k); }
+      else if (airborne.delete(k)) landings++;
+    }
+  }
+  assert(airFrames > 0 && landings > 0, 'exercise both leap and return to water');
 });
 
 // Populate an aerial/ship scene first; keep those anchors when the infantry enters the

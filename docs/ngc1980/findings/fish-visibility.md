@@ -43,13 +43,15 @@ fog and enlarges the seabed coverage; those renderer changes are outside this po
 
 Validation completed in `ngc/unit-fish-population`, based on `a1086d7`:
 
-- `node tools/fishvisibilitybench.mjs`: **19/19 passed**. Natural aerial/ship populations fill the
+- `node tools/fishvisibilitybench.mjs`: **21/21 passed**. Natural aerial/ship populations fill the
   school or fish budget before a diver arrives, across seeds 1, 7 and 1980 and all three quality
   levels. Tests cover nearby refill, anchored-school retirement, gradual departure/arrival,
   habitat and every population cap, finite state, surface swimming, moving divers over 15 m water,
   the actual HOME east shelf at (-530, 720), deterministic replay, draw-range/wave-depth culling,
   and OFF/re-enable behavior. No population scenario calls `spawnSchool`; two isolated culling
-  tests construct a school explicitly to control its distance.
+  tests construct a school explicitly to control its distance. Two further output-packing tests
+  reconstruct all four sub-fish centers from submitted buffers and compare them with the CPU
+  position helper, then follow natural mullet leap/landing flags through those buffers.
 - `node tools/fishbench.mjs`: **78/78 passed**, including existing aerial signs, ship anchors,
   schooling, wakes, swimmer avoidance/curiosity, live waves, fades and determinism. The local Node
   samples were 0.76 ms/frame for 690 boids and 1.29 ms/frame for 1010 boids. These are simulation
@@ -61,3 +63,11 @@ visible fish pixels. The integration owner retains the natural first-person base
 `tools/runs/underwater-before` and owns the subsequent same-scene rendered benchmark, fish-only
 pixel comparison, screenshots, clips and HTML devlog. Longer sight distance also requires the
 larger seabed mesh so its boundary stays beyond fog. Physical Quest testing remains separate.
+
+A follow-up inspection found that the variation seed and airborne-flag writes in `S.write` were
+accidentally inside a trailing line comment. The shader consequently saw zero variation for every
+schooling boid while the CPU position helper used each boid's own seed. Both fields are now packed
+on executable lines. The new position test failed on the original output, then passed after the
+fix; rendering can now use each boid's stable cluster placement and animation variation. This
+does not change fish movement or population. The focused 21-check bench was rerun; the 78-check
+behavior result above applies to the preceding population change.
