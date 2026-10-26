@@ -13,5 +13,9 @@
   },
   "dependencies": {
     "puppeteer-core": "^25.13.0"
+  },
+  "devDependencies": {
+    "html2canvas": "1.4.1",
+    "iwer": "2.7.0"
   }
 }

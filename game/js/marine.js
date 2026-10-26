@@ -394,6 +394,7 @@ export function createMarine(ctx) {
     if (worldOf !== war.carrier) stockWorld();
     input.dt = dt;
     const inp = buildInput(input);
+    if (Mr.xrAim && !Mr.ui) inp.xrAim = { origin:Mr.xrAim.origin, direction:Mr.xrAim.direction };
     if (MS.dead) { inp.move = [0, 0]; inp.fire = false; inp.actions = []; }
     if (Mr.care.hold) { inp.fire = false; inp.ads = false; inp.sprint = false; inp.actions = inp.actions.filter(a => !/^slot|^reload|^law|^gl/.test(a)); }   // (both hands on the casualty)
     // ngc/marine-polish: self aid takes both hands too (the rifle on its sling); sprinting off pulls the dressing loose
@@ -632,7 +633,7 @@ export function createMarine(ctx) {
     if (vision && MS.mods.med) vision.update(MS.mods.med);
     if (Mr.flashEl) Mr.flashEl.style.opacity = Mr.hitFlash.toFixed(2);
   };
-  Mr.overlay = (renderer, cam) => { if (vmOn) vm.render(renderer, cam); };
+  Mr.overlay = (renderer, cam) => { if (vmOn) vm.render(renderer, cam, Mr.xrAim); };
 
   // ================================================================ hand grenades (G): the M67 from the rig
   // Game level: thrown at ~14 m/s along the view (a little lofted), 4.5 s fuse (FM 3-23.30: 4-5.5 s), bounces and

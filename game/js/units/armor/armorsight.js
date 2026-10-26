@@ -134,6 +134,7 @@ export function createSight({ canvas }) {
   const postScene = new THREE.Scene(); postScene.add(post); const postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const _sz = new THREE.Vector2(), _fog = new THREE.Color(), _bg = { v: null }, _cc = new THREE.Color();
   SG.thermal = (renderer, scene, cam, o = {}) => {
+    const outputTarget = renderer.getRenderTarget();
     renderer.getDrawingBufferSize(_sz);
     if (rt.width !== _sz.x || rt.height !== _sz.y) { rt.setSize(_sz.x, _sz.y); post.material.uniforms.res.value.copy(_sz); }
     o.tag?.(scene);
@@ -141,7 +142,7 @@ export function createSight({ canvas }) {
     const fog = scene.fog; if (fog) { _fog.copy(fog.color); fog.color.setScalar(0.23); }
     _bg.v = scene.background; scene.background = null;
     renderer.getClearColor(_cc); const ca = renderer.getClearAlpha();
-    renderer.setRenderTarget(rt); renderer.setClearColor(0x2e2e2e, 1); renderer.clear(); renderer.render(scene, cam); renderer.setRenderTarget(null); renderer.setClearColor(_cc, ca);
+    renderer.setRenderTarget(rt); renderer.setClearColor(0x2e2e2e, 1); renderer.clear(); renderer.render(scene, cam); renderer.setRenderTarget(outputTarget); renderer.setClearColor(_cc, ca);
     unswap(); if (fog) fog.color.copy(_fog); scene.background = _bg.v;
     const u = post.material.uniforms; u.time.value = o.time || 0; u.pol.value = o.pol ? 1 : 0; u.gain.value = o.gain ?? 1;
     renderer.render(postScene, postCam);

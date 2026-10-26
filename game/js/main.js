@@ -16,6 +16,7 @@ import { zoneGrid, SURF_NAMES, GEOLOGY, geologyOf } from './world/terrain.js';
 radialFog(THREE);
 import { createFx } from './fx.js';
 import { createControls } from './hotas.js';
+import { createXR } from './xr/runtime.js';
 import { createJetPlay } from './jetplay.js';
 import { createDrop } from './drop.js';
 import { createHelm } from './helm.js';
@@ -68,6 +69,7 @@ const sfx = new Sfx();
 const keys = new Set();
 // flight controls: HOTAS, rudder pedals and gamepads with per-device bindings (hotas.js); J in the jet opens the panel
 const CTL = createControls({ say: (t, s) => say(t, s) });
+let XR = null;
 let chaseCam = params.has('chase'), cockpitCam = params.has('cockpit'), bigMap = false;
 const _cf = { x: 0, z: -1 };
 let keyboardOnly = params.has('kb');
@@ -121,7 +123,7 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
 let mouseFire = false;
-addEventListener('mousedown', e => { if (e.button === 0) { mouseFire = true; sfx.init(); } });
+addEventListener('mousedown', e => { if (e.button === 0 && !XR?.active) { mouseFire = true; sfx.init(); } });
 addEventListener('mouseup', () => mouseFire = false);
 const kd = (...c) => c.some(k => keys.has(k));
 const THR_AXIS = params.has('throttle') ? +params.get('throttle') : -1;
@@ -131,6 +133,7 @@ let padWasStart = false;
 // On foot only a standard game controller drives the soldier: the HOTAS stick, throttle and rudder pedals are flight
 // controls and never move, aim or fire the infantryman (they stay bound for the aircraft and vehicles).
 function readGamepad() {
+  if (XR?.pad) return XR.pad;
   if (keyboardOnly) return null;
   const pads = navigator.getGamepads ? navigator.getGamepads() : [], devs = (CTL.state && CTL.state.devices) || [];
   for (const p of pads) {
@@ -142,6 +145,7 @@ function readGamepad() {
   return null;
 }
 function readPad() {
+  if (XR?.motionInput) return G.craft === 'heli' ? null : XR.pad;
   if (keyboardOnly) return null;
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
   const d = CTL.state && CTL.state.devices && CTL.state.devices.find(d => d.role === 'stick' || d.role === 'gamepad');
@@ -171,8 +175,9 @@ function readInput() {
     if (b(1) || b(2) || b(7)) inp.thrK = 1;
     if (b(3) || b(4) || b(6)) inp.beam = 1;
     if (THR_AXIS >= 0 && p.axes[THR_AXIS] !== undefined) inp.thrK = Math.max(inp.thrK, clamp((1 - p.axes[THR_AXIS]) / 2, 0, 1));
-    inp.start = p.buttons.some(x => x && x.pressed);
+    if(!p.xr) inp.start = p.buttons.some(x => x && x.pressed);
   }
+  if (XR?.motionInput) { inp.fire ||= !!XR.input.actions.fire; inp.x = XR.input.stick.x; inp.y = XR.input.stick.y; }
   return inp;
 }
 
@@ -184,21 +189,24 @@ let switchHover = null;
 let switchClick = false;
 let mouseAimT = -1e9;
 addEventListener('mousemove', e => { mouseNdc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); mouseAimT = performance.now(); });
-function pickSwitch() {
-  const ck = G.craft === 'jet' ? JP.cockpit : G.craft === 'tomcat' ? tomcatC.cockpitObj() : G.craft === 'heli' ? cockpit : armCk() || (crafts.active && crafts.active.switches ? crafts.active.switches() : null);   // ARMOUR crew stations; ngc/wheeledgame: a craft's own switches
+function pickSwitch(ray = null) {
+  const ck = drop.cockpitView ? drop.deck : G.craft === 'jet' ? JP.cockpit : G.craft === 'tomcat' ? tomcatC.cockpitObj() : G.craft === 'heli' ? cockpit : armCk() || (crafts.active && crafts.active.switches ? crafts.active.switches() : null);   // ARMOUR crew stations; ngc/wheeledgame: a craft's own switches
   if (!ck || !ck.group.visible) return null;
-  switchRay.setFromCamera(document.pointerLockElement === canvas ? _ndc0 : mouseNdc, zCam);
+  if (ray) switchRay.ray.copy(ray); else switchRay.setFromCamera(document.pointerLockElement === canvas ? _ndc0 : mouseNdc, zCam);
   const hit = switchRay.intersectObjects(ck.hitBoxes, false)[0];
   return hit && hit.distance < 2.5 ? hit.object.userData.sw : null;
 }
 const _ndc0 = new THREE.Vector2(0, 0);
+function operateSwitch(id, alternate = false) {
+  if (drop.cockpitView) drop.clickSwitch(id,alternate); else if (G.craft === 'jet') JP.click(id); else if (G.craft === 'tomcat') tomcatC.click(id); else if (armCk()) crafts.active.click(id); else if (G.craft !== 'heli' && crafts.active && crafts.active.click) crafts.active.click(id); else doSwitch(id);
+}
 addEventListener('mousedown', e => {
   if (e.button !== 0) return;
   switchClick = false;
   if (G.state !== 'play' || e.target !== canvas) return;
   const id = pickSwitch(); if (!id) return;
   switchClick = true;
-  e.stopImmediatePropagation(); e.preventDefault(); if (G.craft === 'jet') JP.click(id); else if (G.craft === 'tomcat') tomcatC.click(id); else if (armCk()) crafts.active.click(id); else if (G.craft !== 'heli' && crafts.active && crafts.active.click) crafts.active.click(id); else doSwitch(id);
+  e.stopImmediatePropagation(); e.preventDefault(); operateSwitch(id);
 }, { capture: true });
 function armCk() { const a = crafts.active; return a && (a === m60C || a === m113C) && G.state === 'play' ? a.cockpitObj() : null; }   // ARMOUR: clickable crew stations (armorstations.js)
 // cockpit free look: click the view to capture the mouse (Esc releases it and the head re-centres; middle click centres)
@@ -664,7 +672,7 @@ const H = createHeliSim(), _aimR = new THREE.Vector3();   // the UH-1H (hueyfm.j
 // ngc/foot2: putting the Huey somewhere (a teleport, a respawn, a scene) brings it out of the hangar: a stowed Huey (a
 // Hornet took the deck) is not simulated, and the deck crew would re-spot it on the carrier when the jet is put away
 { const reset0 = H.reset; H.reset = (...a) => { if (G.heliStowed) unstowHeli(); return reset0(...a); }; }
-const HI = createHeliInput({ keyDown: kd, CTL, hwOn: () => !keyboardOnly, say: (t, s) => say(t, s) });
+const HI = createHeliInput({ keyDown: kd, CTL, hwOn: () => !!XR?.motionInput || !keyboardOnly, say: (t, s) => say(t, s) });
 const SY = createHeliSystems({ D, G, say: (t, s) => say(t, s) });   // electrics, engine start, governor, cautions
 const heliAI = createHeliAI(), heliAIenv = { ground: (x, z) => Math.max(terrainH(x, z), 0, war ? war.deckY(x, z) : -1e9) };   // COMMANDER: the Huey's crew when the commander is elsewhere
 const Z = {
@@ -1209,7 +1217,7 @@ const tomcatC = crafts.register(createTomcatCraft({
 }));
 // --- ngc/ch46fly: the CH-46F SEA KNIGHT (units/air/rotary/ch46craft.js): from the command board, Marines in the back
 const ch46C = crafts.register(createCH46Craft({
-  scene: zScene, war, G, Z, CTL, keyDown: kd, hwOn: () => !keyboardOnly, say, feed, sfx, fx, crafts, head, params, ISLANDS, terrainH, waterAt,
+  scene: zScene, war, G, Z, CTL, keyDown: kd, hwOn: () => !!XR?.motionInput || !keyboardOnly, say, feed, sfx, fx, crafts, head, params, ISLANDS, terrainH, waterAt,
   serviceAt: (x, z) => serviceAt(x, z), whereIs: (x, z) => whereIs(x, z), camZ: () => zCam, hover: () => switchHover, view: { locked: () => document.pointerLockElement === canvas },
   onUnitLost: (id, why, mine) => onUnitLost(id, why, mine), autoNext: () => autoNext(), heliPos: () => Z.alive && !G.heliStowed && G.mode === 'zarch' ? H.pos : null,
 }));
@@ -1258,7 +1266,7 @@ sealife.setQuality(slQ); if (world.ambient) world.ambient.seaBirds = slQ !== 'of
 function setSeaLifeQ(q) { slQ = q; sealife.setQuality(q); if (world.ambient) world.ambient.seaBirds = q !== 'off'; try { localStorage.setItem('tz_sealife', q); } catch (e) {} }
 // --- ground vehicles (ngc/wheeledgame): the WHEELED M151A2s, M35A2s and civilian cars, through units/wheeled/motorpool.js
 const vehCtx = {
-  scene: zScene, GR, crafts, war, fx, sfx, say, feed, keyDown: kd, CTL, hwOn: () => !keyboardOnly, camZ: () => zCam,
+  scene: zScene, GR, crafts, war, fx, sfx, say, feed, keyDown: kd, CTL, hwOn: () => !!XR?.motionInput || !keyboardOnly, camZ: () => zCam,
   crewHit: (a, why, at) => foot.hurt(a, why, null),
   crewKilled: why => { say(`${why}  -  CREW KILLED`, 2.5); G.crewDownT = 3.5; feed(`CREW LOST  -  ${why}`, 'bad'); onUnitLost('marine', why, true); },
   unitLost: (def, why) => onUnitLost(rosterIdOf(def), why, false),   // COMMANDER: a vehicle destroyed (its crew's fate comes through crewKilled / bail-out)
@@ -1564,7 +1572,7 @@ function commandKey(code, shift = false) {   // \ the board, SHIFT+\ the RESEARC
 }
 // the per-frame entry for the surface: the active craft flies / drives / walks, the parked ones idle (craft.js)
 function updateZarch(dt, inp) {
-  inp.pad = G.craft === 'heli' || isJet() ? null : G.craft === 'foot' ? readGamepad() : readPad(); inp.keyboardOnly = keyboardOnly;   // on foot: a game controller only, never the HOTAS
+  inp.pad = G.craft === 'heli' || isJet() ? null : G.craft === 'foot' ? readGamepad() : readPad(); inp.keyboardOnly = keyboardOnly && !XR?.motionInput;   // on foot: a game controller only, never the HOTAS
   crafts.update(dt, inp);
   armDelivery.update(dt);   // ARMOUR: landing craft under way
   airdrop.update(dt);   // AIRLIFT: C-130 heavy drops under way
@@ -2209,13 +2217,14 @@ function updateHud() {
   }
 }
 function resize() {
+  if (XR?.resize()) return;
   const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); zCam.aspect = w / h; zCam.updateProjectionMatrix();
 }
 // dynamic resolution: if frames run long (GPU-bound, e.g. a 4K screen) step the render resolution down, and back up
 // when there is headroom. Hysteresis + a cooldown keep it from hunting. Off with ?res=N (fixed ratio N).
 const dynRes = { ms: 16.7, cool: 0 };
 function updateDynRes(frameMs) {
-  if (params.has('res') || frameMs > 250) return;
+  if (XR?.active || params.has('res') || frameMs > 250) return;
   dynRes.ms += (frameMs - dynRes.ms) * 0.05; dynRes.cool -= frameMs;
   if (dynRes.cool > 0) return;
   let pr = pixRatio;
@@ -2244,6 +2253,7 @@ const _wv0 = new THREE.Vector3(), _q = new THREE.Quaternion(), _q2 = new THREE.Q
 const camA = new THREE.PerspectiveCamera(), camS = new THREE.PerspectiveCamera(), SIDE_FOV = 38, SIDE_VIEWH = 30 * CS;
 let camB = 0;
 function updateCamsAndMeshes(dt, time) {
+  camA.userData.xr = !!XR?.active;
   const P = Z.pos, inCave = G.mode === 'thrust' && !!T.lvl, jet = isJet() && G.state !== 'title';
   { const want = inCave ? DRAW : drawDistance(zCam.position.y, jet); view.draw += (want - view.draw) * Math.min(1, 1.5 * dt); if (Math.abs(view.draw - want) < 1) view.draw = want; }
   if (inCave) {   // keep Z.pos on the ship so the 3D camera keeps following it through the swing
@@ -2271,6 +2281,7 @@ function updateCamsAndMeshes(dt, time) {
     airlift.camera(camA);
   } else if (G.craft !== 'heli' && crafts.active) {   // FOUNDATION: the HORNET, the soldier, vehicles - each craft's own rigs
     crafts.active.camera(camA, dt, { locked: document.pointerLockElement === canvas, head });
+    if (XR?.active && G.craft==='foot' && marine.firstPerson()) { const S=marine.S;camA.position.set(S.pos.x,S.pos.y+S.eyeH,S.pos.z);camA.quaternion.setFromAxisAngle(_yAx,XR.state.footYaw); }
   } else if (drop.camActive && !inCave) {
     drop.camera(camA, dt);
   } else if (helm.active && !inCave) {
@@ -2279,7 +2290,7 @@ function updateCamsAndMeshes(dt, time) {
     // pilot's eye, rigidly in the airframe, with the Huey's two-per-rev bounce (stronger with load, ETL shudder, blade stall)
     camA.position.copy(EYE).applyQuaternion(H.q).add(H.pos); camA.quaternion.copy(H.q).multiply(_q2.setFromAxisAngle(_yAx, head.yaw)).multiply(_q2.setFromAxisAngle(_xAx, HELI.EYE_PITCH + head.pitch));   // eyes down a little to the panel, plus free look
     if (document.pointerLockElement !== canvas || !freeLook) { const k = Math.exp(-6 * dt); head.yaw *= k; head.pitch *= k; }   // released or free look off: back to centre and stay there
-    const sh = (0.002 + 0.02 * H.vib + 0.03 * D.mods().vib) * H.rpm, b2 = 0.004 * (0.3 + H.coll + 2 * H.vib) * H.rpm * Math.sin(time * 2 * H.omega); camA.position.x += (Math.random() - 0.5) * sh; camA.position.y += (Math.random() - 0.5) * sh + b2;
+    const sh = (0.002 + 0.02 * H.vib + 0.03 * D.mods().vib) * H.rpm, b2 = 0.004 * (0.3 + H.coll + 2 * H.vib) * H.rpm * Math.sin(time * 2 * H.omega); if (!XR?.active) { camA.position.x += (Math.random() - 0.5) * sh; camA.position.y += (Math.random() - 0.5) * sh + b2; } else camA.quaternion.copy(H.q);
   } else if (chaseCam && !inCave) {
     const k = 1 - Math.exp(-3 * dt); _cf.x = lerp(_cf.x, Z.facing.x, k); _cf.z = lerp(_cf.z, Z.facing.y, k);
     const m = Math.hypot(_cf.x, _cf.z) || 1; _cf.x /= m; _cf.z /= m;
@@ -2322,7 +2333,8 @@ function updateCamsAndMeshes(dt, time) {
   terrainUni.uFogN.value = view.draw * 0.5; terrainUni.uFogF.value = view.draw;
   if (Math.abs(zCam.far - (view.draw + 15)) > 2) { zCam.far = view.draw + 15; zCam.updateProjectionMatrix(); }
   sky.scale.setScalar(view.draw / DRAW);
-  if (fx.shake > 0.01) { const k = fx.shake * (cockpit.group.visible ? 0.1 : 0.4); zCam.position.x += rnd(-k, k); zCam.position.y += rnd(-k, k); zCam.position.z += rnd(-k, k); }
+  if (!XR?.active && fx.shake > 0.01) { const k = fx.shake * (cockpit.group.visible ? 0.1 : 0.4); zCam.position.x += rnd(-k, k); zCam.position.y += rnd(-k, k); zCam.position.z += rnd(-k, k); }
+  XR?.prepare();
   fx.ear.copy(zCam.position); terrainUni.uTime.value = time;
   updateSeaUniforms(terrainUni, war.sea, war.units, zCam.position);   // SEAWORLD
   sky.position.copy(zCam.position);
@@ -2385,15 +2397,15 @@ function updateCamsAndMeshes(dt, time) {
 }
 
 let last = performance.now(), fpsAcc = 0, fpsN = 0, fogT = 0;
-function frame(now) {
-  requestAnimationFrame(frame);
+function frame(now, xrFrame) {
   const now0 = performance.now();
   updateDynRes(now - last);
   // the sims substep, so they keep real time down to 10 fps. Never zero or negative: two frames with the same (or an
   // earlier) timestamp gave dt = 0 and the flight models divide by their step (NaN everywhere, seen in headless runs)
   const rdt = (now - last) / 1000, dt = Math.min(Math.max(rdt, 1e-3), 0.1); last = now;
   fpsAcc += rdt; fpsN++; if (fpsAcc > 1) { $('dbg').textContent = `${Math.round(fpsN / fpsAcc)} fps  ·  res ${Math.round(pixRatio * 100)}%`; fpsAcc = 0; fpsN = 0; }
-  CTL.poll(dt);
+  XR?.begin(dt, xrFrame);
+  CTL.poll(dt); XR?.applyControls(CTL.state);
   const inp = readInput();
   if (inp.start && !padWasStart) { sfx.init(); if (G.state === 'paused') menuPick(); else pressStart(); }
   padWasStart = inp.start;
@@ -2422,8 +2434,12 @@ function frame(now) {
   const t2 = performance.now();
   fx.setView(zCam, renderer.domElement.height, zScene.fog);
   if (G.mode === 'zarch') interiors.update(G.state === 'paused' ? 0 : dt, zCam);   // ngc/interiors: doors swing, rooms near the camera, the carrier's inside
-  { const a = G.craft !== 'heli' && G.state !== 'title' ? crafts.active : null; if (!(a && a.renderView && a.renderView(renderer, zScene, zCam))) renderer.render(zScene, zCam); }   // ARMOUR: a craft may draw the frame itself (the TTS thermal sight)
-  if (G.craft === 'foot' && G.state !== 'title' && G.mode === 'zarch') foot.overlay(renderer, zCam);   // wave 2: the Marine's arms and weapon, their own pass
+  const drawDesktop = () => {
+    const a = G.craft !== 'heli' && G.state !== 'title' ? crafts.active : null;
+    if (!(a && a.renderView && a.renderView(renderer, zScene, zCam))) renderer.render(zScene, zCam);
+    if (G.craft === 'foot' && G.state !== 'title' && G.mode === 'zarch') foot.overlay(renderer, zCam);
+  };
+  if (!XR?.render(drawDesktop)) drawDesktop();
   markers.draw(zCam, markerView());   // UNIT MARKERS: icons + health bars, one 2D layer over the frame
   const t3 = performance.now(), pk = 0.05;   // smoothed per-frame CPU cost: sim, scene/HUD prep, render submit
   PROF.sim += ((t1 - now0) - PROF.sim) * pk; PROF.prep += ((t2 - t1) - PROF.prep) * pk; PROF.render += ((t3 - t2) - PROF.render) * pk;
@@ -2450,9 +2466,31 @@ function markerView() {
   }
   return { hide, firstP: !!markerFP, panelY: MARKER_PANEL[markerFP] || 0, self, draw: view.draw, rangeK: SIM ? 1.6 : 1 };
 }
+// VR shares the gameplay hosts. Keep its tracked camera separate from the ordinary world camera, and preserve
+// magnified sights/cave play through a spatial display instead of changing the headset projection matrices.
+let xrDesktopView = null;
+const xrRay = new THREE.Ray();
+XR = createXR({ renderer, scene:zScene, camera:zCam, resize,
+  context: () => ({key:helm.active?'helm':drop.flying?'dropship':SIM?'spectator':G.craft,kind:crafts.active?.kind==='foot'?'foot':crafts.active?.kind==='ground'?'ground':'air',
+    throttle:helm.active?(war.carrier.sky?.lift||0)/2+.5:drop.flying?drop.state.plane.sim.thr:G.craft==='ch46'?ch46C.P.coll:G.craft==='jet'?JP.thr:G.craft==='tomcat'?tomcatC.TP.thr:G.heliColl||0,yaw:marine?.S.yaw||0}),
+  session:on=>{mouseFire=false;keys.clear();head.yaw=head.pitch=0;freeLook=false;
+    if(on){xrDesktopView={cockpitCam,chaseCam};sfx.init();if(G.state==='title')newGame();}
+    else if(xrDesktopView){cockpitCam=xrDesktopView.cockpitCam;chaseCam=xrDesktopView.chaseCam;xrDesktopView=null;}
+  },
+  enterView:()=>{cockpitCam=true;head.yaw=head.pitch=0;
+    const a=crafts.active;if(a===foot)marine.view='first';else if(a&&'view' in a)a.view=a===m60C||a===m113C?'eye':a.kind==='ground'?'first':'cockpit';
+  },
+  research:()=>{if(G.state==='paused')closeMenu();techUI.open();},
+  pause:()=>{if(G.state==='play')openMenu();},
+  switchAt:(ray,alternate)=>{if(G.state!=='play')return false;const id=pickSwitch(ray);if(!id)return false;operateSwitch(id,alternate);return true;},
+  snap:angle=>{if(G.craft==='foot')marine.input({look:[angle,0]});},
+  aim:ray=>{marine.xrAim=ray?xrRay.copy(ray):null;},
+  flatView:()=>G.mode==='thrust'||!!crafts.active?.xrFlatView?.(),
+  overlay:cam=>{if(G.craft==='foot'&&G.state!=='title'&&G.mode==='zarch'&&!XR?.blocked)foot.overlay(renderer,cam);}
+});
 buildCaves(); war.reset(); resetZarch(true); placeVehicles(); updateFogImg(); terrainStream(Z.pos.x, Z.pos.z);
-requestAnimationFrame(frame);
-if (params.has('debug')) { window.__G = { G, airlift, airdrop, ch46C, heliAIenv, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, get forest() { return { count: world.stats.forestTrees || 0 }; }, world, terrainUni, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, get tech() { return war.tech; }, techUI /* TECH TREE: tech = [null, player, enemy] */ }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); H.reset(H.pos.clone(), 0, false, 1); SY.grip = 1; SY.auto = null; enterCave(b); }   /* (ngc/bugsweep) ?thrust=N starts in the cave already flying: engine at flight power, throttle rolled on (it came in at ground idle with the throttle rolling on, the rotor drooped and caveaim / caves crashed in the shaft) */ }
+renderer.setAnimationLoop(frame);
+if (params.has('debug')) { window.__G = { XR, G, airlift, airdrop, ch46C, heliAIenv, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, get forest() { return { count: world.stats.forestTrees || 0 }; }, world, terrainUni, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, get tech() { return war.tech; }, techUI /* TECH TREE: tech = [null, player, enemy] */ }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); H.reset(H.pos.clone(), 0, false, 1); SY.grip = 1; SY.auto = null; enterCave(b); }   /* (ngc/bugsweep) ?thrust=N starts in the cave already flying: engine at flight power, throttle rolled on (it came in at ground idle with the throttle rolling on, the rotor drooped and caveaim / caves crashed in the shaft) */ }
 // ngc/ch46fly dev: ?fly=ch46 puts you in a CH-46F on the ALBATROSS (with ?auto; ?fly=ch46&cold cold and dark; &at=island at the nearest friendly pad)
 if (params.get('fly') === 'ch46') { const t0 = performance.now(), go = () => { if (G.state === 'play' && G.mode === 'zarch' && Z.alive && H.landed) { const isl = commandBases().filter(b => b.kind === 'island').sort((a, b) => Math.hypot(a.x - Z.pos.x, a.z - Z.pos.z) - Math.hypot(b.x - Z.pos.x, b.z - Z.pos.z))[0]; commander.deploy('ch46', params.get('at') === 'island' && isl ? isl.key : 'ship'); return; } if (performance.now() - t0 < 30000) setTimeout(go, 200); }; setTimeout(go, 300); }
 

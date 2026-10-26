@@ -316,7 +316,31 @@ export function createViewmodel(o = {}) {
     root.add(m); brass.push({ mesh: m, v, w: 20 + Math.random() * 20, t: 0 });
   }
   vm.fov = (base, ads) => base / (1 + 0.18 * sstep(ads));
-  vm.render = function (renderer, worldCam) {
+  const xrPos = new THREE.Vector3(), xrQ = new THREE.Quaternion(), xrModelQ = new THREE.Quaternion(), xrGrip = new THREE.Vector3(), xrForward = new THREE.Vector3(0,0,-1);
+  const xrHead = new THREE.Vector3(), xrHeadQ = new THREE.Quaternion(), xrInverse = new THREE.Quaternion(), xrShoulder = new THREE.Vector3(), xrWrist = new THREE.Vector3();
+  vm.render = function (renderer, worldCam, trackedRay = null) {
+    if (renderer.xr.isPresenting && renderer.xr.enabled) {
+      // The desktop viewmodel's origin camera cannot be used for stereo. Place its scene in world space and
+      // render through the same tracked eye cameras as the world; no second updateCamera with an origin camera.
+      worldCam.getWorldPosition(xrPos); worldCam.getWorldQuaternion(xrQ);
+      xrHead.copy(xrPos);xrHeadQ.copy(xrQ);
+      if (trackedRay && vm.model) {
+        xrQ.setFromUnitVectors(xrForward,trackedRay.direction);
+        xrPos.copy(trackedRay.origin); vm.model.group.updateMatrix();
+        xrGrip.fromArray(vm.model.anchors.grip || [0,0,0]).applyMatrix4(vm.model.group.matrix);
+        scene.quaternion.copy(xrQ).multiply(xrModelQ.copy(vm.model.group.quaternion).invert());
+        scene.position.copy(xrPos).sub(xrGrip.applyQuaternion(scene.quaternion));
+      } else { scene.position.copy(xrPos); scene.quaternion.copy(xrQ); }
+      // Desktop shoulders are camera-relative. Re-anchor them to the tracked head instead of rotating the
+      // entire upper body around the controller when its wrist turns.
+      xrInverse.copy(scene.quaternion).invert();
+      for(const side of ['L','R']){const arm=arms[side];xrShoulder.copy(arm.sh);
+        arm.sh.copy(SHOULDER[side]).applyQuaternion(xrHeadQ).add(xrHead).sub(scene.position).applyQuaternion(xrInverse);
+        arm.hand.updateMatrix();xrWrist.copy(arm.hand.userData.wrist).applyMatrix4(arm.hand.matrix);solveArm(arm,xrWrist);arm.sh.copy(xrShoulder);
+      }
+      const ac=renderer.autoClear; renderer.autoClear=false; renderer.render(scene,worldCam); renderer.autoClear=ac;
+      scene.position.set(0,0,0);scene.quaternion.identity();return;
+    }
     cam.fov = worldCam.fov; cam.aspect = worldCam.aspect; cam.updateProjectionMatrix();
     if (vm.inspect) { cam.position.fromArray(vm.inspect.pos); cam.lookAt(vm.inspect.look[0], vm.inspect.look[1], vm.inspect.look[2]); } else { cam.position.set(0, 0, 0); cam.rotation.set(0, 0, 0); }   // debug: orbit the arms
     const ac = renderer.autoClear; renderer.autoClear = false; renderer.clearDepth(); renderer.render(scene, cam); renderer.autoClear = ac;

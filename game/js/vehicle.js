@@ -65,7 +65,7 @@ export function createVehicleCraft(ctx, spec) {
     let hand = kd('Space');
     if (pad) {   // gamepad: left stick steers, right trigger gas, left trigger brake / reverse, A handbrake
       const ax = Math.abs(pad.axes[0] || 0) > 0.12 ? pad.axes[0] : 0; if (ax) steer = ax;
-      const rt = pad.buttons[7] ? pad.buttons[7].value : 0, lt = pad.buttons[6] ? pad.buttons[6].value : 0;
+      const rt = pad.xr ? Math.max(0,-pad.axes[1]) : pad.buttons[7] ? pad.buttons[7].value : 0, lt = pad.xr ? Math.max(0,pad.axes[1]) : pad.buttons[6] ? pad.buttons[6].value : 0;
       if (rt > 0.05 || lt > 0.05) drive = rt - lt;
       if (pad.buttons[0] && pad.buttons[0].pressed) hand = true;
     }

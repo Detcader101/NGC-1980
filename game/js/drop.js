@@ -597,7 +597,7 @@ export function createDrop(ctx) {
       M.plane.mesh.updateMatrixWorld();
       cam.position.copy(DECK_EYE).applyMatrix4(M.plane.mesh.matrixWorld);
       cam.quaternion.copy(S.q).multiply(_q.setFromEuler(_e.set(DECK_EYE_PITCH + (ctx.head?.pitch || 0), ctx.head?.yaw || 0, 0, 'YXZ')));
-      if (S.buffet > 0.05) { cam.position.y += (Math.random() - 0.5) * 0.03 * S.buffet; cam.rotateZ((Math.random() - 0.5) * 0.01 * S.buffet); }
+      if (!cam.userData.xr && S.buffet > 0.05) { cam.position.y += (Math.random() - 0.5) * 0.03 * S.buffet; cam.rotateZ((Math.random() - 0.5) * 0.01 * S.buffet); }
       M.cam.copy(cam.position); M.look.copy(cam.position).add(S.forward(_v).multiplyScalar(50));
       // switch under the cursor / crosshair
       hover = null; cam.updateMatrixWorld();

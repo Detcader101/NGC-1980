@@ -195,7 +195,7 @@ export function createWheeledCraft(ctx, type, o = {}) {
     if (pad) {   // left stick steers (a softer narrowing than the keys), RT gas, LT brake / reverse, A handbrake
       const ax = Math.abs(pad.axes[0] || 0) > 0.1 ? pad.axes[0] : 0;
       if (ax) { steerT = ax * (0.35 + 0.65 * steerLimit(S.speed)); analog = true; }
-      const rt = pad.buttons[7] ? pad.buttons[7].value : 0, lt = pad.buttons[6] ? pad.buttons[6].value : 0;
+      const rt = pad.xr ? Math.max(0,-pad.axes[1]) : pad.buttons[7] ? pad.buttons[7].value : 0, lt = pad.xr ? Math.max(0,pad.axes[1]) : pad.buttons[6] ? pad.buttons[6].value : 0;
       if (rt > 0.04) thr = Math.max(thr, rt); if (lt > 0.04) brk = Math.max(brk, lt);
       if (pad.buttons[0] && pad.buttons[0].pressed) hand = 1;
     }

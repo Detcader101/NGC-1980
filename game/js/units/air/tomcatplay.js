@@ -89,7 +89,7 @@ export function createTomcatPlay(ctx) {
     model.parts.canopy.visible = true; for (const m of crewMeshes) m.visible = true;
     say(how === 'cat' ? 'TOMCAT ON CAT 1  -  THROTTLES TO MIL (OR ZONE 5) FOR THE SHOT' : `TOMCAT SPOTTED  -  ${ctx.deckStatus(A)}  ·  8 AGAIN: PRIORITY`, 3); return true;
   };
-  P.stow = () => { P.active = false; P.alive = false; model.group.visible = false; shadow.visible = false; for (const c of chutes) c.visible = false; cockpit.group.visible = false; P.silence(); };
+  P.stow = () => { P.active = false; P.alive = false; A.cat = null; model.group.visible = false; shadow.visible = false; for (const c of chutes) c.visible = false; cockpit.group.visible = false; P.silence(); };
   P.silence = () => { snd.silence(); sfx.seeker?.(0); sfx.jetGun?.(false); };
   P.respot = () => { const how = ctx.deckSpot ? ctx.deckSpot(A, env, 'TOMCAT') : (A.attachCat(env) ? 'cat' : ''); if (!how) return; if (how !== 'cat') { say(how === 'bump' ? `PRIORITY  -  NEXT FOR CAT 1  ·  ${ctx.deckStatus(A)}` : `SPOTTED  -  ${ctx.deckStatus(A)}`, 2.5); return; } A.flapSel = 2; P.ss.thrOff = [false, false]; P.ss.crank = 'OFF'; P.ss.auto = null; for (const e of A.eng) if (!e.run) e.start = 0.01; say('SPOTTED ON CAT 1  -  MIL POWER FOR THE SHOT', 2.5); };
   P.shutdown = () => { startSet(P.ss, false); P.dump = false; for (const e of A.eng) { e.run = false; e.start = 0; e.stalled = false; } };   // the crew climbs out: cold
@@ -567,9 +567,9 @@ export function createTomcatPlay(ctx) {
   }
   // the crew's eyes: rigid in the airframe, plus head look, g sag, buffet, the stall bang, the cat / trap jolt
   P.cockpitCam = (cam, dt, head) => {
-    const E = TEYE[P.seat], sag = clamp((A.nz - 1) * 0.012, -0.03, 0.08), sh = P.shake * 0.006;
+    const E = TEYE[P.seat], sag = cam.userData.xr ? 0 : clamp((A.nz - 1) * 0.012, -0.03, 0.08), sh = cam.userData.xr ? 0 : P.shake * 0.006;
     const lean = clamp((Math.abs(head.yaw) - 0.9) / 1.4, 0, 1);   // checking six: the head turns about the neck and the body leans out past the headbox
-    _v.set(E.x + rnd(-sh, sh) - Math.sign(head.yaw) * 0.27 * lean, E.y - sag + rnd(-sh, sh) + 0.07 * lean, E.z + P.kick * 0.06 + 0.38 * clamp((Math.abs(head.yaw) - 1.6) / 0.9, 0, 1));   // (looking aft the eyes swing round behind the neck, beside the headbox)
+    _v.set(E.x + rnd(-sh, sh) - Math.sign(head.yaw) * 0.27 * lean, E.y - sag + rnd(-sh, sh) + 0.07 * lean, E.z + (cam.userData.xr ? 0 : P.kick * 0.06) + 0.38 * clamp((Math.abs(head.yaw) - 1.6) / 0.9, 0, 1));   // (looking aft the eyes swing round behind the neck, beside the headbox)
     cam.position.copy(_v).applyQuaternion(A.q).add(A.pos);
     cam.quaternion.copy(A.q).multiply(_q.setFromEuler(_e.set((P.seat ? -0.3 : -0.14) + head.pitch, head.yaw + Math.sign(head.yaw) * 0.6 * Math.max(0, Math.abs(head.yaw) - 1.9), 0, 'YXZ')));
   };
@@ -582,7 +582,7 @@ export function createTomcatPlay(ctx) {
     cam.position.copy(chaseP); cam.position.y = Math.max(cam.position.y, ctx.groundY(cam.position.x, cam.position.z) + 2);
     cam.up.set(0, 1, 0).applyQuaternion(chaseQ).lerp(_u.set(0, 1, 0), 0.6).normalize();
     cam.lookAt(_p.set(0, 1.5, -9).applyQuaternion(chaseQ).add(target)); cam.up.set(0, 1, 0);
-    if (P.shake > 0.05) cam.position.addScalar(rnd(-0.05, 0.05) * P.shake);
+    if (!cam.userData.xr && P.shake > 0.05) cam.position.addScalar(rnd(-0.05, 0.05) * P.shake);
   };
   P.snapChase = () => { chaseQ.copy(A.q); chaseP.set(0, 6.5, 32).applyQuaternion(A.q).add(A.pos); };
   P.hudLine = () => {

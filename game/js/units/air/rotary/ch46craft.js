@@ -269,7 +269,7 @@ export function createCH46Craft(ctx) {
       _v.copy(eye); g.localToWorld(_v); cam.position.copy(_v);
       cam.quaternion.copy(_q).multiply(_q2.setFromAxisAngle(_yA, look.yaw)).multiply(_q2.setFromAxisAngle(_xA, (D.view === 'cockpit' ? CH46_EYE_PITCH : -0.12) + look.pitch));
       const sh = (0.0015 + 0.012 * S.vib) * S.rpm, b3 = 0.003 * (0.3 + S.c.coll) * S.rpm * Math.sin((war.time || 0) * 2 * Math.PI * 13.2);   // the 3-per-rev rumble
-      cam.position.x += (Math.random() - 0.5) * sh; cam.position.y += (Math.random() - 0.5) * sh + b3;
+      if (!cam.userData.xr) { cam.position.x += (Math.random() - 0.5) * sh; cam.position.y += (Math.random() - 0.5) * sh + b3; }
       return;
     }
     // chase: behind and above, the mouse orbits it

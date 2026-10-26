@@ -64,7 +64,7 @@ export function createJetPlay(ctx) {
     J.nzMax = J.nzMin = 1; P.mcSeen.clear(); P.serviced = true; model.group.visible = true; chute.visible = false;
     say(how === 'cat' ? 'HORNET ON CAT 1  -  THROTTLE TO MIL (OR AB) TO LAUNCH' : `HORNET SPOTTED  -  ${ctx.deckStatus(J)}  ·  5 AGAIN: PRIORITY`, 3); return true;
   };
-  P.stow = () => { P.active = false; P.alive = false; model.group.visible = false; shadow.visible = false; chute.visible = false; cockpit.group.visible = false; sfx.jet?.(0, 0, 0, false, false); sfx.seeker?.(0); sfx.jetGun?.(false); };
+  P.stow = () => { P.active = false; P.alive = false; J.cat = null; model.group.visible = false; shadow.visible = false; chute.visible = false; cockpit.group.visible = false; sfx.jet?.(0, 0, 0, false, false); sfx.seeker?.(0); sfx.jetGun?.(false); };
   P.respot = () => { const how = ctx.deckSpot ? ctx.deckSpot(J, env, 'HORNET') : (J.attachCat(env) ? 'cat' : ''); if (!how) return; if (how !== 'cat') { if (J.eng.some(e => !e.run)) P.autoStart = 'batt'; say(how === 'bump' ? `PRIORITY  -  NEXT FOR CAT 1  ·  ${ctx.deckStatus(J)}` : `SPOTTED  -  ${ctx.deckStatus(J)}`, 2.5); return; } if (J.eng.some(e => !e.run)) P.autoStart = 'batt'; say('SPOTTED ON CAT 1  -  MIL POWER TO LAUNCH', 2.5); };
   P.stoppedOnDeck = () => P.alive && !P.ejected && J.onGround && !J.wire && !J.cat && relSpeed() < 0.6 && !!ctx.onCarrier(J.pos.x, J.pos.z);
   function relSpeed() { const sv = war.surfVel(J.pos.x, J.pos.z); return Math.hypot(J.vel.x - (sv ? sv.vx : 0), J.vel.z - (sv ? sv.vz : 0)); }
@@ -455,8 +455,8 @@ export function createJetPlay(ctx) {
   }
   // cockpit camera: the pilot's eye, rigid in the airframe, plus head look, g sag, buffet and the cat / trap jolt
   P.cockpitCam = (cam, dt, head) => {
-    const sag = clamp((J.nz - 1) * 0.012, -0.03, 0.08), sh = P.shake * 0.006;
-    _v.set(JEYE.x + rnd(-sh, sh), JEYE.y - sag + rnd(-sh, sh), JEYE.z + P.kick * 0.06);
+    const sag = cam.userData.xr ? 0 : clamp((J.nz - 1) * 0.012, -0.03, 0.08), sh = cam.userData.xr ? 0 : P.shake * 0.006;
+    _v.set(JEYE.x + rnd(-sh, sh), JEYE.y - sag + rnd(-sh, sh), JEYE.z + (cam.userData.xr ? 0 : P.kick * 0.06));
     cam.position.copy(_v).applyQuaternion(J.q).add(J.pos);
     cam.quaternion.copy(J.q).multiply(_q.setFromEuler(_e.set(-0.1 + head.pitch, head.yaw, 0, 'YXZ')));
   };
@@ -470,7 +470,7 @@ export function createJetPlay(ctx) {
     cam.position.copy(chaseP); cam.position.y = Math.max(cam.position.y, ctx.groundY(cam.position.x, cam.position.z) + 2);
     cam.up.set(0, 1, 0).applyQuaternion(chaseQ).lerp(_u.set(0, 1, 0), 0.6).normalize();
     cam.lookAt(_p.set(0, 1.5, -8).applyQuaternion(chaseQ).add(target)); cam.up.set(0, 1, 0);
-    if (P.shake > 0.05) cam.position.addScalar(rnd(-0.05, 0.05) * P.shake);
+    if (!cam.userData.xr && P.shake > 0.05) cam.position.addScalar(rnd(-0.05, 0.05) * P.shake);
   };
   P.snapChase = () => { chaseQ.copy(J.q); chaseP.set(0, 5.5, 26).applyQuaternion(J.q).add(J.pos); };
   // one line of numbers for the external view

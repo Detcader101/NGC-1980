@@ -119,10 +119,11 @@ export function createRifleman(o = {}) {
     const rx = Math.cos(S.aimYaw), rz = -Math.sin(S.aimYaw);
     const hip = HIP[def.cls] || HIP.rifle, k = ads ? 0 : 1;
     const sh = def.sight.height + (def.cls === 'gl' ? 0 : 0);
-    const off = [hip[0] * k, ads ? -sh : hip[1], ads ? 0.05 : hip[2]];
-    const ox = S.eye.x + rx * off[0] + _u[0] * off[1] + _f[0] * off[2];
-    const oy = S.eye.y + _u[1] * off[1] + _f[1] * off[2];
-    const oz = S.eye.z + rz * off[0] + _u[2] * off[1] + _f[2] * off[2];
+    const off = R.xrAim ? [0, 0, .05] : [hip[0] * k, ads ? -sh : hip[1], ads ? 0.05 : hip[2]];
+    const eye = R.xrAim?.origin || S.eye;
+    const ox = eye.x + rx * off[0] + _u[0] * off[1] + _f[0] * off[2];
+    const oy = eye.y + _u[1] * off[1] + _f[1] * off[2];
+    const oz = eye.z + rz * off[0] + _u[2] * off[1] + _f[2] * off[2];
     const d = fwd(y, p, [0, 0, 0]);
     const P = createProjectile(shot.round, ox, oy, oz, d[0], d[1], d[2], shot.v, { owner: R.id, side: R.side, id: ++R.shots });
     // the first metre from the eye to the muzzle: a wall right in front stops it there
@@ -197,6 +198,10 @@ export function createRifleman(o = {}) {
     }
     // body
     const bevs = S.step(dt, input, env, mods, wpnInfo());
+    // A tracked controller supplies the game weapon's aim; body movement and the simulation remain unchanged.
+    const xr = input.xrAim, d = xr?.direction, p = xr?.origin;
+    R.xrAim = d && p && [d.x,d.y,d.z,p.x,p.y,p.z].every(Number.isFinite) && Math.hypot(d.x,d.y,d.z)>.5 ? xr : null;
+    if (R.xrAim) { S.aimYaw = Math.atan2(-d.x,-d.z); S.aimPitch = Math.atan2(d.y,Math.hypot(d.x,d.z)); }
     for (const e of bevs) out('body', { ev: e });
     // weapons: only the one in the hands takes the trigger; the others still cool down
     const w = R.cur, canFire = S.canFire && !R.swap && !(S.ads < 0.5 && w && w.def.cls === 'law');

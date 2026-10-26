@@ -243,7 +243,7 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
     let thr = fwd ? 1 : 0, brk = kd('Space') ? 1 : 0, rev = back, analog = false;
     if (pad) {   // left stick steers, RT gas, LT brake / reverse, A brake
       const ax = Math.abs(pad.axes[0] || 0) > 0.15 ? pad.axes[0] : 0; if (ax) { steer = ax; analog = true; }
-      const rt = pad.buttons[7] ? pad.buttons[7].value : 0, lt = pad.buttons[6] ? pad.buttons[6].value : 0;
+      const rt = pad.xr ? Math.max(0,-pad.axes[1]) : pad.buttons[7] ? pad.buttons[7].value : 0, lt = pad.xr ? Math.max(0,pad.axes[1]) : pad.buttons[6] ? pad.buttons[6].value : 0;
       if (rt > 0.05) thr = Math.max(thr, rt); if (lt > 0.05) rev = true;
       if (btn(pad, 0)) brk = 1;
     }
@@ -264,7 +264,7 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
     let wantThr = 0, wantRange = IN.range;
     if (rev && !fwd && thr < 0.05) {
       if (v > 0.6) { brk = 1; }                       // still rolling forward: brake first
-      else { wantRange = 'R'; wantThr = pad && pad.buttons[6] ? Math.max(0.5, pad.buttons[6].value) : 0.7; }
+      else { wantRange = 'R'; wantThr = pad?.xr ? Math.max(.5,pad.axes[1]) : pad && pad.buttons[6] ? Math.max(0.5, pad.buttons[6].value) : 0.7; }
     } else if (thr > 0.02) {
       if (v < -0.6) brk = 1;                         // rolling back: brake first
       else { wantRange = D.lowRange ? TY.low : TY.fwd; wantThr = thr; }
@@ -683,6 +683,7 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
   function sightFov() { return V.sight === 'tts' ? (V.ttsMag === 3 ? 13.5 : 5.0) : 6.0; }
   const inSight = () => crafts.active === D && D.view === 'eye' && M60 && seatOf().role === 'gunner' && !D.station;
   D.firstPerson = () => D.view === 'eye';
+  D.xrFlatView = () => inSight() || (D.binos && D.view === 'eye');
   D.fov = ck => inSight() ? sightFov() : D.binos && D.view === 'eye' ? 7.5 : ck;   // 7x50 binoculars: a 7.5 deg field
 
   // ---------------------------------------------------------------- cameras
