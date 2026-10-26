@@ -1,0 +1,16 @@
+PASS m151 {"distanceM":25.47,"speedBeforeBrake":10.22,"stopMps":0}
+PASS m35 {"distanceM":9.91,"speedBeforeBrake":5.13,"stopMps":0}
+PASS landrover {"distanceM":25.61,"speedBeforeBrake":10.55,"stopMps":0}
+PASS hilux {"distanceM":33.27,"speedBeforeBrake":13.01,"stopMps":-0.004}
+PASS beetle {"distanceM":26.53,"speedBeforeBrake":11.02,"stopMps":0}
+PASS lada {"distanceM":30.34,"speedBeforeBrake":12.62,"stopMps":-0.001}
+PASS m60 {"pivotRadS":0.599,"driftM":0.12}
+PASS m113 {"troopsUnloaded":11,"payloadRemovedKg":1045,"ramp":0.13,"vane":1}
+PASS marine {"runMps":2.74,"crawlMps":0.32,"lightReserve":0.740675084000988,"heavyReserve":0.923354260793586}
+PASS rw1 {"distanceM":11.606188182240853,"steps":13,"maxStretch":0.9730469655089897}
+PASS rw7 {"hoverY":0.9712107117369033,"strafeM":12.060918292003041,"coastM":7.565049953523257}
+PASS m1a2 {"distanceM":26.24924172708302,"roadWheelsPerSide":7,"reverseBeforeLOD":-4.468238143155345,"reverseAfterLOD":-4.468238143155345,"coverage":"live-game full drive and distant fallback"}
+PASS t90m {"distanceM":24.51821153964121,"roadWheelsPerSide":6,"reverseBeforeLOD":-4.305603346837649,"reverseAfterLOD":-4.305603346837649,"coverage":"live-game full drive and distant fallback"}
+PASS marine-prone-geometry {"phases":72,"minJointY":0.11831231695666232,"minLegMeshY":0.0006446806393446691}
+PASS live-lineup {"units":5,"time":1.0000000000000013}
+15 passed, 0 failed (13 ground types, prone geometry and live lineup)

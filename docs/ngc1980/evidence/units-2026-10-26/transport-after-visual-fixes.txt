@@ -1,0 +1,1 @@
+PASS: boarding 30.9s, turn 0.090rad/s; departure, troop landing, capture and recovery; finite war and matching deck velocity

@@ -1,0 +1,8 @@
+PASS every selectable fleet unit has a rendered case
+PASS active non-fleet roles and distinct models are covered
+PASS vehicle and defence registries cannot silently gain an untested unit
+PASS selection retains catalog order and rejects typos and empty intersections
+PASS duplicate IDs and missing executable cases fail validation
+PASS preview renderer without CPU profiling records unavailable costs, never zero
+PASS changing imported fixture invalidates comparison fingerprint
+7/7 catalog checks passed; 48 distinct unit fixtures
