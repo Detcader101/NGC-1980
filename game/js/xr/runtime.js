@@ -131,10 +131,13 @@ export function createXR(h) {
       rig.position.sub(v.copy(calibration.p).applyQuaternion(rig.quaternion));
       rig.updateMatrixWorld(true);xrCamera.near=.03;xrCamera.far=flat?20:camera.far;
       manager.updateCamera(xrCamera);
+      // Keep the full interface inside both eye frusta, including narrower headset/mirror aspect ratios.
+      const halfX=Math.min(...manager.getCamera().cameras.map(c=>{const p=c.projectionMatrix.elements;return (1-Math.abs(p[8]))/p[0];}));
+      panel.width=Number.isFinite(halfX)&&halfX>0?Math.min(2.8,3.6*halfX*.9):2.8;
       const localForward=v.set(0,0,-1).applyQuaternion(q.copy(calibration.q).invert());
       panel.mesh.position.copy(calibration.p).addScaledVector(localForward,1.8);panel.mesh.position.y-=.05;panel.mesh.quaternion.copy(calibration.q).invert();
       screen.position.copy(calibration.p).addScaledVector(localForward,1.8);screen.position.y-=.05;screen.quaternion.copy(panel.mesh.quaternion);
-      screen.scale.y=(innerHeight/innerWidth)/(9/16);
+      screen.scale.set(panel.width/2.8,(panel.width/2.8)*(innerHeight/innerWidth)/(9/16),1);
       if(!flat){xrCamera.getWorldPosition(camera.position);xrCamera.getWorldQuaternion(camera.quaternion);camera.updateMatrixWorld(true);}
       panel.update(performance.now());state.frames++;
     },

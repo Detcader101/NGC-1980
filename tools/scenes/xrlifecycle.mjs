@@ -25,6 +25,7 @@ export default {name:'xrlifecycle',query:'?debug&kb&peace&res=0.45&tech=all',run
   await h.expect('!__G.renderer.xr.getSession().enabledFeatures.includes("hand-tracking")','controllers-only session can re-enter without requesting hands');
   await h.page.setViewport({width:1024,height:768});await frames(h,3);
   await h.expect('__G.XR.panel.canvas.width===1024&&__G.renderer.xr.isPresenting','window resize updates UI while keeping XR presentation alive');
+  await h.expect('__G.XR.panel.mesh.scale.x<2.8&&__G.XR.panel.mesh.scale.x>1','spatial interface fits narrower stereo eye viewports');
   await h.eval('(__G.XR.end(),1)');await h.waitFor('!__G.XR.active',15000);
   await h.expect('Math.abs(__G.zCam.aspect-1024/768)<.001&&!document.documentElement.classList.contains("xr-layout")','exit restores desktop projection and layout');
   await h.eval('(window.__requestSession=navigator.xr.requestSession.bind(navigator.xr),navigator.xr.requestSession=async()=>{throw new DOMException("Test request declined","NotAllowedError")},1)');

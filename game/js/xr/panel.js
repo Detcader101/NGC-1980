@@ -32,7 +32,7 @@ export function createXRPanel(h) {
   let enabled = false, open = false, snapshot = null, busy = false, nextPaint = 0, nextCapture = 0, capture = null, revision = 0;
   let pointer = null, pointerTarget = null, downTarget = null, downPoint = null, downButton = 0, secondary = false;
   const held = new Set(), modifiers = new Set();
-  const api = { mesh, canvas, lastCaptureMs: 0, paints: 0, captures: 0, get open() { return open; }, get secondary() { return secondary; } };
+  const api = { mesh, canvas, width: 2.8, lastCaptureMs: 0, paints: 0, captures: 0, get open() { return open; }, get secondary() { return secondary; } };
   const button = (parent, label, action) => { const b = document.createElement('button'); b.textContent = label; b.onclick = e => { e.stopPropagation(); action(); }; parent.appendChild(b); return b; };
   const tap = code => { h.key(code, true, modifiers); h.key(code, false, modifiers); };
   button(bar, 'MENU / KEYS', () => api.toggle()); button(bar, 'COMMAND', () => { api.close(); tap('Backslash'); });
@@ -115,7 +115,7 @@ export function createXRPanel(h) {
     if(!enabled || now<nextPaint) return; nextPaint=now+100;
     const w=innerWidth, hh=innerHeight;
     if(canvas.width!==w||canvas.height!==hh) { canvas.width=w; canvas.height=hh; texture.dispose(); snapshot=null; }
-    mesh.scale.set(2.8,2.8*hh/w,1); c.clearRect(0,0,w,hh);
+    mesh.scale.set(api.width,api.width*hh/w,1); c.clearRect(0,0,w,hh);
     const modal=api.blocked()||shown($('simov'));
     if(modal && snapshot) c.drawImage(snapshot,0,0,w,hh);
     else {
@@ -137,8 +137,13 @@ export function createXRPanel(h) {
     if(busy||now<nextCapture) return; busy=true; const rev=revision, t=performance.now();
     try {
       capture ||= (await import('../../vendor/html2canvas.js')).default;
+      // Cloning every hidden inventory/control screen is expensive even when only research is open.
+      // Keep the document styles, but copy only visible modal roots and the toolbar into the spatial texture.
+      const roots=Array.from(document.querySelectorAll('#title,#menu,#cmdBoard,#techBoard,#xrDeck,#xrBar,.ngc-ov,#tzc,#radar.big,#simov')).filter(shown);
       const result=await capture(document.body,{backgroundColor:null,scale:Math.min(1,1536/w),width:w,height:hh,logging:false,
-        ignoreElements:e=>e.id==='gl'||e.id==='xrEntry'||e.tagName==='IFRAME'||e.dataset?.xrIgnore!==undefined,
+        ignoreElements:e=>e.id==='gl'||e.id==='xrEntry'||e.tagName==='IFRAME'||e.dataset?.xrIgnore!==undefined||
+          (e!==document.body&&!!e.closest('body')&&!roots.some(root=>root.contains(e)||e.contains(root)))||
+          (!!e.parentElement?.closest('body')&&getComputedStyle(e).display==='none'),
         onclone:doc=>{doc.documentElement.classList.remove('ngc-vr');doc.body.style.background='transparent';doc.documentElement.style.background='transparent';},imageTimeout:1500});
       if(enabled&&revision===rev) { snapshot=result; api.lastCaptureMs=performance.now()-t; api.captures++; }
     } catch(e) { h.error('VR panel: '+e.message); }

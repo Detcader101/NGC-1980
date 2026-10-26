@@ -23,6 +23,7 @@ try{
   const root=await get(httpURL,'/');check('default loopback serves the game without caching',root.status===200&&root.data.includes('NGC-1980')&&root.headers['cache-control']==='no-store');
   const ver=await get(httpURL,'/version.json');check('version identifies the actual working tree',ver.status===200&&!!JSON.parse(ver.data).commit);
   check('malformed URL returns 400 without killing the server',(await get(httpURL,'/%FF')).status===400);
+  check('encoded NUL returns 400 without a filesystem exception',(await get(httpURL,'/%00')).status===400);
   check('encoded path cannot escape game root',(await get(httpURL,'/..%2Ftools/package.json')).status===403);
   check('server survives invalid requests',(await get(httpURL,'/js/xr/runtime.js')).status===200);
   const cert=path.join(temp,'cert.pem'),key=path.join(temp,'key.pem');

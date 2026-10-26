@@ -28,6 +28,7 @@ function version() {
 const handler = (req, res) => {
   const send = (code, body, type = 'text/plain') => { res.writeHead(code, { 'Content-Type': type, 'Cache-Control': 'no-store' }); res.end(body); };
   let url;try{url=decodeURIComponent(new URL(req.url,'http://x').pathname);}catch{return send(400,'bad URL');}
+  if(url.includes('\0'))return send(400,'bad URL');
   if (url === '/version.json') return send(200, JSON.stringify(version()), 'application/json');
   let file = path.join(GAME, url.endsWith('/') ? url + 'index.html' : url);
   if (!file.startsWith(GAME+path.sep)) return send(403, 'forbidden');
