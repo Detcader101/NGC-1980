@@ -45,7 +45,7 @@ Real designations are used for real hardware; RUNAWAY units get `RW-` designatio
 | Utility helicopter | UH-1H Huey | INTEGRATED (quality reference) | |
 | Strike fighter | F/A-18A Hornet (full-scale development jets, 1980) | INTEGRATED (quality reference) | |
 | Fleet fighter | F-14A Tomcat (AI escorts and player craft) | INTEGRATED | AI flies a real flight model, not steering |
-| Transport / capture | CH-46 Sea Knight with a Marine squad (replaces the MANTA capture drone) | INTEGRATED | lands the squad, who take the pad |
+| Transport / capture | CH-46E Sea Knight with a Marine squad (replaces the MANTA capture drone) | INTEGRATED | lands the squad, who take the pad |
 | Para-drop | KC-130R Hercules (C-130H flight-model baseline) | INTEGRATED | 4 x T56, flight deck, para doors, flyable |
 | AA gun | M163 VADS (Vulcan) on our islands; Soviet ZSU-23-4 Shilka from the contingent | INTEGRATED | game-level tracking, readable cues and fire control |
 | Paratroopers | 1980 US Army/Marines: M1 steel helmet, OG-107 / ERDL woodland, ALICE gear, MC1-1 steerable round canopies | INTEGRATED | |

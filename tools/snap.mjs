@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import puppeteer from 'puppeteer-core';
-import { sourceInfo, hostInfo, digest } from './evidence.mjs';
+import { sourceInfo, hostInfo, digest, fixtureDigest } from './evidence.mjs';
 import { createEvidenceCapture } from './browser-evidence.mjs';
 
 const TOOLS = path.dirname(fileURLToPath(import.meta.url));
@@ -155,7 +155,7 @@ async function main() {
     console.log(line);
   };
   const result = { schemaVersion: 2, name, query, seed, viewport: { width: W, height: H, deviceScaleFactor: 1 },
-    sceneSha256: digest(args.script ? fs.readFileSync(path.resolve(args.script)) : JSON.stringify(args.steps)),
+    sceneSha256: args.script ? fixtureDigest(path.resolve(args.script), scene.fixtureFiles) : digest(JSON.stringify(args.steps)),
     command: [process.execPath, ...process.argv.slice(1)],
     rendererMode, host: hostInfo(), source: sourceInfo(path.resolve(TOOLS, '..')),
     url: null, ok: false, browser: null, gpu: null, fps: null, shots: [], clips: [], benchmarks: [],

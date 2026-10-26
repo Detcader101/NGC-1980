@@ -136,3 +136,20 @@ It also has `benchmark(name, options)`, `clip(name, options, optionalAction)` an
   Game simulation caps its time step, so slow rendering can advance less simulation time than wall time. Clip duration
   uses wall time; the older `wait`/`key hold` helpers use game time when available.
 - The scenes depend on the current `main.js` behaviour and may need updating when it changes.
+
+## Per-unit rendered benchmarks
+
+`node tools/unit-benchmark.mjs --list` lists the executable unit catalog. Use `--unit m35,reaper` or
+`--category naval` to select fixtures. With no selector it runs every case sequentially, retaining failures.
+`--frames 30` is a quick smoke sample; the default is 120 measured intervals after 30 warmup frames.
+Screenshots are always captured after measurement. `--clips m35,reaper` selects six-second clip windows;
+`--capture` records every selected case. Set `CHROME_PATH` as for the existing browser harness.
+
+```sh
+CHROME_PATH=/path/to/chrome node tools/unit-benchmark.mjs --unit m35,reaper --frames 30 --clips m35,reaper --out tools/runs/units
+```
+
+`suite.json` contains coverage and pass/fail status; each unit subdirectory is an ordinary benchmark/devlog input.
+`--baseline SUITE_DIR` compares matching per-unit results under the existing strict comparison rules. No baseline
+means no performance-change claim. Case descriptions distinguish main-game integration from isolated production
+model previews; missing preview CPU phase timings remain null. See [unit coverage](../docs/ngc1980/UNIT-BENCHMARKS.md).

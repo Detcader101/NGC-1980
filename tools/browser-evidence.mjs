@@ -13,8 +13,8 @@ export async function measureFrames(page, name, options = {}) {
     warmup: bounded(options.warmup ?? 30, 1, 600, 'warmup'),
     timeoutMs: bounded(options.timeoutMs ?? 120000, 1000, 600000, 'timeoutMs') };
   const sample = await page.evaluate(async policy => {
-    const game = window.__G;
-    if (!game?.renderer || !game.PROF) throw new Error('Benchmark needs the game debug bridge (?debug)');
+    const game = window.__BENCH || window.__G;
+    if (!game?.renderer) throw new Error('Benchmark needs the game debug bridge (?debug) or an explicit __BENCH renderer bridge');
     const xr = !!game.XR?.active, session = xr && game.renderer.xr.getSession();
     const schedule = fn => session ? session.requestAnimationFrame(fn) : requestAnimationFrame(fn);
     const cancel = id => session ? session.cancelAnimationFrame(id) : cancelAnimationFrame(id);
@@ -36,7 +36,7 @@ export async function measureFrames(page, name, options = {}) {
           const now = performance.now(); lastFrame = frame; seen++;
           if (seen > policy.warmup) {
             if (lastTime !== null) rows.push({ frame, ms: now - lastTime,
-              sim: game.PROF.sim, prep: game.PROF.prep, render: game.PROF.render,
+              sim: game.PROF?.sim ?? null, prep: game.PROF?.prep ?? null, render: game.PROF?.render ?? null,
               calls: game.renderer.info.render.calls, triangles: game.renderer.info.render.triangles,
               textures: game.renderer.info.memory.textures, geometries: game.renderer.info.memory.geometries });
             lastTime = now;
@@ -44,7 +44,7 @@ export async function measureFrames(page, name, options = {}) {
         }
         if (rows.length >= policy.frames) {
           clearTimeout(timer); stopped = true;
-          resolve({ rows, xr, state: game.G.state, mode: game.G.mode,
+          resolve({ rows, xr, host: game.host || 'game', state: game.G?.state ?? game.state ?? 'preview', mode: game.G?.mode ?? game.mode ?? 'preview',
             drawingBuffer: [game.renderer.domElement.width, game.renderer.domElement.height],
             eyeViewports: xr ? game.renderer.xr.getCamera().cameras.map(c => c.viewport.toArray()) : [] });
         } else id = schedule(tick);

@@ -8,6 +8,12 @@ import { execFileSync } from 'node:child_process';
 export const slug = value => String(value).replace(/[^\w.-]+/g, '_').replace(/^\.+/, '') || 'evidence';
 export const stamp = () => new Date().toISOString().replace(/[:.]/g, '-');
 export const digest = value => createHash('sha256').update(value).digest('hex');
+// Include imported fixture code, so a generic dispatcher cannot hide a changed test.
+export function fixtureDigest(script, dependencies = []) {
+  const primary = fs.readFileSync(script);
+  if (!dependencies.length) return digest(primary);
+  return digest([digest(primary), ...dependencies.map(file => digest(fs.readFileSync(file)))].join('\0'));
+}
 export function sourceInfo(root) {
   const git = (...args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }).trim();
   try {

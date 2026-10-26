@@ -29,7 +29,7 @@ import { createDispenser, createRwrCue, RWR } from './units/defence/cm.js';   //
 import { createVehicleCraft } from './vehicle.js';
 import { createJetCraft } from './craftjet.js';
 import { createTomcatCraft } from './crafttomcat.js';   // TOMCAT: the flyable F-14A (crafttomcat.js, units/air/tomcatplay.js)
-import { createCH46Craft } from './units/air/rotary/ch46craft.js';   // ngc/ch46fly: the flyable CH-46F Sea Knight
+import { createCH46Craft } from './units/air/rotary/ch46craft.js';   // ngc/ch46fly: the flyable CH-46E Sea Knight
 import { DECK_OPS } from './units/naval/deckops.js';
 const isJet = () => G.craft === 'jet' || G.craft === 'tomcat';   // TOMCAT: the fixed-wing crafts share the HORNET's hooks below
 // COMMANDER: the player commands the task force - the fleet ledger (lives -> unit counts), the command board (\),
@@ -1218,7 +1218,7 @@ const tomcatC = crafts.register(createTomcatCraft({
   stowHeli: () => stowHeli(), unstowHeli: () => unstowHeli(), spotHeli: () => spotHeli(), heliStowed: () => G.heliStowed,
   toHeli: msg => autoNext(msg), ...jetCmd,   // COMMANDER: after a lost jet the next unit (the Huey unless you pick); the wingman, losses, cat 1
 }));
-// --- ngc/ch46fly: the CH-46F SEA KNIGHT (units/air/rotary/ch46craft.js): from the command board, Marines in the back
+// --- ngc/ch46fly: the CH-46E SEA KNIGHT (units/air/rotary/ch46craft.js): from the command board, Marines in the back
 const ch46C = crafts.register(createCH46Craft({
   scene: zScene, war, G, Z, CTL, keyDown: kd, hwOn: () => !!XR?.motionInput || !keyboardOnly, say, feed, sfx, fx, crafts, head, params, ISLANDS, terrainH, waterAt,
   serviceAt: (x, z) => serviceAt(x, z), whereIs: (x, z) => whereIs(x, z), camZ: () => zCam, hover: () => switchHover, view: { locked: () => document.pointerLockElement === canvas },
@@ -1516,8 +1516,8 @@ const roster = [
       foot.fromReserve = true; return '';
     },
     switchTo: () => '' },
-  // ngc/ch46fly: the CH-46F (last, so the board's older rows keep their keys)
-  { id: 'ch46', label: 'CH-46F SEA KNIGHT', out: () => ch46C.present(), active: () => crafts.active === ch46C && ch46C.present(), status: () => ch46C.status(), can: () => '',
+  // ngc/ch46fly: the CH-46E (last, so the board's older rows keep their keys)
+  { id: 'ch46', label: 'CH-46E SEA KNIGHT', out: () => ch46C.present(), active: () => crafts.active === ch46C && ch46C.present(), status: () => ch46C.status(), can: () => '',
     deploy: b => ch46C.deploy(b), switchTo: () => crafts.control('ch46', 0, 'command') ? '' : 'CANNOT REACH THE SEA KNIGHT',
     canStandDown: () => crafts.active !== ch46C && ch46C.atBase() && !ch46C.crew, standDown: () => ch46C.atBase() ? (ch46C.stow(), '') : 'THE SEA KNIGHT MUST BE ON THE ALBATROSS OR A FRIENDLY PAD' },
 ];
@@ -2494,7 +2494,7 @@ XR = createXR({ renderer, scene:zScene, camera:zCam, resize,
 buildCaves(); war.reset(); resetZarch(true); placeVehicles(); updateFogImg(); terrainStream(Z.pos.x, Z.pos.z);
 renderer.setAnimationLoop(frame);
 if (params.has('debug')) { window.__G = { XR, G, airlift, airdrop, ch46C, heliAIenv, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, get forest() { return { count: world.stats.forestTrees || 0 }; }, world, terrainUni, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, get tech() { return war.tech; }, techUI /* TECH TREE: tech = [null, player, enemy] */ }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); H.reset(H.pos.clone(), 0, false, 1); SY.grip = 1; SY.auto = null; enterCave(b); }   /* (ngc/bugsweep) ?thrust=N starts in the cave already flying: engine at flight power, throttle rolled on (it came in at ground idle with the throttle rolling on, the rotor drooped and caveaim / caves crashed in the shaft) */ }
-// ngc/ch46fly dev: ?fly=ch46 puts you in a CH-46F on the ALBATROSS (with ?auto; ?fly=ch46&cold cold and dark; &at=island at the nearest friendly pad)
+// ngc/ch46fly dev: ?fly=ch46 puts you in a CH-46E on the ALBATROSS (with ?auto; ?fly=ch46&cold cold and dark; &at=island at the nearest friendly pad)
 if (params.get('fly') === 'ch46') { const t0 = performance.now(), go = () => { if (G.state === 'play' && G.mode === 'zarch' && Z.alive && H.landed) { const isl = commandBases().filter(b => b.kind === 'island').sort((a, b) => Math.hypot(a.x - Z.pos.x, a.z - Z.pos.z) - Math.hypot(b.x - Z.pos.x, b.z - Z.pos.z))[0]; commander.deploy('ch46', params.get('at') === 'island' && isl ? isl.key : 'ship'); return; } if (performance.now() - t0 < 30000) setTimeout(go, 200); }; setTimeout(go, 300); }
 
 // SIM MODE (?sim): both sides CPU commanders, the player's Huey parked out of the war, a spectator camera and overlay

@@ -9,6 +9,7 @@
     "test": "node check.mjs",
     "bench": "node check.mjs bench",
     "benchmark": "node benchmark.mjs",
+    "benchmark:units": "node unit-benchmark.mjs",
     "devlog": "node devlog.mjs",
     "skills": "node install-skills.mjs",
     "smoke": "node snap.mjs scenes/smoke.json",

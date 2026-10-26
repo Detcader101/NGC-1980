@@ -1,5 +1,29 @@
 # Running and extending evidence capture
 
+## Per-unit suite
+
+`node tools/unit-benchmark.mjs --list` lists the active roster and each fixture's scope. Run a unit, a category,
+or the whole catalog with one browser at a time:
+
+```sh
+CHROME_PATH=/path/to/chrome node tools/unit-benchmark.mjs --unit m35,reaper --frames 30 --clips m35,reaper --out tools/runs/unit-smoke
+CHROME_PATH=/path/to/chrome node tools/unit-benchmark.mjs --category naval --out tools/runs/naval
+CHROME_PATH=/path/to/chrome node tools/unit-benchmark.mjs --baseline tools/runs/naval --category naval --out tools/runs/naval-after
+```
+
+Default: every case, 120 intervals after 30 warmup frames, screenshots, no recording. `--capture` records all selected
+cases; `--clips ID,ID` records only those named. Measurements and recordings remain sequential. `suite.json` records
+coverage, progress, failures and source identity; each unit keeps a normal benchmark run suitable for `$devlog`.
+The runner continues after a failed case and exits unsuccessfully if any case failed. A missing per-unit baseline
+is explicit. Imported case code is included in the fixture fingerprint.
+
+Preview fixtures expose their actual renderer through `window.__BENCH`; missing CPU instrumentation is reported
+as unavailable. They exercise production models/simulations in small controlled scenes. They do not replace live
+mission, multiplayer, VR, hardware or long-duration tests. Read the case description before interpreting a number.
+The catalog check, unit role checks and existing simulations run separately via `npm --prefix tools test`.
+
+## General gameplay scene
+
 From the selected repository root, install tools with `npm --prefix tools ci` if needed. Set `CHROME_PATH` to an
 installed Chrome/Chromium. On this WSL machine it is `/home/jayjay/.cache/chs/chrome.sh`.
 
