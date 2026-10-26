@@ -19,7 +19,7 @@
 //   swimmers, splashes, gunfire into the water and explosions (fx.js recipes are wrapped: anything that splashes, wakes
 //   or blows up in the water reaches the fish without touching the callers).
 // - UNDER WATER: when the camera that renders is below the drawn surface (the same waves the GPU draws), the scene's fog
-//   becomes the water (visibility ~25 m, greener near the top, darker deeper, murkier in a rough sea), the sky dome goes,
+//   becomes the water (a readable swimming view, darker deeper and murkier in a rough sea), the sky dome goes,
 //   the surface is drawn from below (Snell's window, seasurface.js SEA_FS_UNDER), a sea bed mesh is built round the camera
 //   from the same heights the physics uses, motes drift in the water, and the screen edges darken a little.
 import * as THREE from 'three';
@@ -27,13 +27,14 @@ import { createFishSim, SPECIES, SUB, QUALITY } from './fishsim.js';
 import { createSeaBirds } from './seabirds.js';
 import { SEA_NOISE_GLSL, SEABED_GLSL, SEA_NV } from './seasurface.js';
 import { SHADERS, GEOMETRY, fishUniforms, viewUniforms, birdUniforms, signGeometry, SIGN_VS, SIGN_FS } from './sealifegfx.js';
+import { underwaterVisibility } from './seavisibility.js';
 
 const TAU = Math.PI * 2;
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const rnd = (a, b) => a + Math.random() * (b - a);   // (looks only: spray jitter; the sims are seeded)
 
 // ---------------------------------------------------------------------------------------------- the sea bed mesh
-const BED_N = 48, BED_C = 2;   // 96 m square at 2 m (the fish sim's bed cells, so fish and bed agree)
+const BED_N = 96, BED_C = 2;   // 192 m square: the visible seabed extends beyond fog even while its centre streams.
 const BED_VS = `
   varying vec3 vW;
   void main(){ vec4 w=modelMatrix*vec4(position,1.); vW=w.xyz; gl_Position=projectionMatrix*viewMatrix*w; }`;
@@ -107,16 +108,16 @@ export function createSeaLife(ctx) {
   };
   const fishU = fishUniforms();
   const mkMesh = (name, geo, vs, uni, opt = {}) => {
-    const mat = new THREE.ShaderMaterial({ uniforms: uni, vertexShader: vs, fragmentShader: SHADERS.FRAG, transparent: true, depthWrite: !!opt.depthWrite, side: opt.side ?? THREE.DoubleSide });
+    const mat = new THREE.ShaderMaterial({ uniforms: uni, vertexShader: vs, fragmentShader: opt.fragmentShader || SHADERS.FRAG, transparent: true, depthWrite: !!opt.depthWrite, side: opt.side ?? THREE.DoubleSide });
     const m = new THREE.Mesh(geo, mat); m.frustumCulled = false; m.renderOrder = opt.order ?? 1.5; m.name = 'sealife-' + name; scene.add(m); meshes[name] = m; return m;
   };
   {   // pilchard / mackerel / damselfish: a cluster of SUB fish per boid (the boid's attributes advance every SUB instances)
     const g = GEOMETRY.fishGeometry(); bufs.school = mkInst(g, CAP.school, SUB);
     const k = new Float32Array(CAP.school * SUB); for (let i = 0; i < k.length; i++) k[i] = i % SUB;
     g.setAttribute('iK', new THREE.InstancedBufferAttribute(k, 1));
-    mkMesh('school', g, SHADERS.FISH_VS(true), fishU);
+    mkMesh('school', g, SHADERS.FISH_VS(true), fishU, { fragmentShader: SHADERS.FISH_FS });
   }
-  { const g = GEOMETRY.fishGeometry(); bufs.fish = mkInst(g, CAP.fish); mkMesh('fish', g, SHADERS.FISH_VS(false), fishU); }
+  { const g = GEOMETRY.fishGeometry(); bufs.fish = mkInst(g, CAP.fish); mkMesh('fish', g, SHADERS.FISH_VS(false), fishU, { fragmentShader: SHADERS.FISH_FS }); }
   const shareView = () => { const u = viewUniforms(); for (const k of ['uUW', 'uFogP', 'uFogC', 'uSunD', 'uTime']) u[k] = fishU[k]; return u; };
   { const g = GEOMETRY.dolphinGeometry(); bufs.dolphin = mkInst(g, CAP.dolphin); mkMesh('dolphin', g, SHADERS.DOLPHIN_VS, shareView(), { depthWrite: true, side: THREE.FrontSide, order: 1.45 }); }
   { const g = GEOMETRY.rayGeometry(); bufs.ray = mkInst(g, CAP.ray); mkMesh('ray', g, SHADERS.RAY_VS, shareView(), { depthWrite: true, side: THREE.FrontSide, order: 1.45 }); }
@@ -171,6 +172,7 @@ export function createSeaLife(ctx) {
   const saved = { uFog: null, bg: null };
   const uwCol = new THREE.Color(), _c = new THREE.Color(), fogUW = new THREE.Color(), linUW = new THREE.Color();   // (linUW: the same colour for three's colour-managed fog and background: they convert to sRGB, the raw shaders do not)
   const OPEN = new THREE.Color(0.07, 0.36, 0.44), DEEP = new THREE.Color(0.012, 0.07, 0.15), MURK = new THREE.Color(0.16, 0.3, 0.3);
+  const visibility = underwaterVisibility();
   function setUnder(on) {
     if (on === L.under) return;
     L.under = on;
@@ -203,13 +205,13 @@ export function createSeaLife(ctx) {
     if (U.uSun) fishU.uSunD.value.copy(U.uSun.value);
     signU.uSea.value = sk;
     if (under) {
-      const vis = 26 * (1 - 0.45 * sk) * (1 - 0.25 * smooth(0, 20, L.camDepth));
+      const { near, far } = underwaterVisibility(sk * 7, L.camDepth, visibility);
       fogUW.copy(uwCol); linUW.copy(uwCol).convertSRGBToLinear();
-      if (sc.fog) { sc.fog.color.copy(linUW); sc.fog.near = 0.5; sc.fog.far = vis; }
-      U.uFogN.value = 0.5; U.uFogF.value = vis;
-      bedU.uFogP.value.set(0.5, vis); fishU.uFogP.value.set(0.5, vis, 0, 0); fishU.uFogC.value.copy(uwCol); moteU.uFogP.value.set(0.5, vis); moteU.uCam.value.copy(p); moteU.uCol.value.copy(uwCol).lerp(_c.setRGB(0.85, 0.92, 0.9), 0.55);
+      if (sc.fog) { sc.fog.color.copy(linUW); sc.fog.near = near; sc.fog.far = far; }
+      U.uFogN.value = near; U.uFogF.value = far;
+      bedU.uFogP.value.set(near, far); fishU.uFogP.value.set(near, far, 0, 0); fishU.uFogC.value.copy(uwCol); moteU.uFogP.value.set(near, far); moteU.uCam.value.copy(p); moteU.uCol.value.copy(uwCol).lerp(_c.setRGB(0.85, 0.92, 0.9), 0.55);
       moteU.uPx.value = renderer.domElement.height;
-      if (fx) for (const q of [fx.add, fx.mix]) { if (q && q.uni && q.uni.uFogNear) { q.uni.uFogNear.value = 0.5; q.uni.uFogFar.value = vis; q.uni.uFogCol && q.uni.uFogCol.value.copy(uwCol); } }
+      if (fx) for (const q of [fx.add, fx.mix]) { if (q && q.uni && q.uni.uFogNear) { q.uni.uFogNear.value = near; q.uni.uFogFar.value = far; q.uni.uFogCol && q.uni.uFogCol.value.copy(uwCol); } }
       bedWant(p.x, p.z, !L.bedReady);
     } else if (sc.fog) { fishU.uFogP.value.set(sc.fog.near, sc.fog.far, 0, 0); fishU.uFogC.value.copy(sc.fog.color).convertLinearToSRGB(); signU.uFogP2.value.set(sc.fog.near, sc.fog.far); }
   })(scene.onBeforeRender && scene.onBeforeRender !== THREE.Object3D.prototype.onBeforeRender ? scene.onBeforeRender : null);
