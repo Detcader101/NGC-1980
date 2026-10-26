@@ -85,7 +85,9 @@ export function createXRPanel(h) {
   api.hit = uv => {
     if(!enabled) return null; const point={x:uv.x*innerWidth,y:(1-uv.y)*innerHeight};
     const el=document.elementFromPoint(point.x,point.y);
-    return el && el!==document.body && el!==document.documentElement && el.id!=='gl' && !el.closest('#xrEntry') ? point : null;
+    // The compact HUD paints text at its own positions. Its hidden desktop buttons are not VR click targets.
+    const root=el?.closest('#xrBar,#xrDeck,#title,#menu,#cmdBoard,#techBoard,.ngc-ov,#tzc,#simov,#radar');
+    return shown(root)&&(root.id!=='radar'||!api.blocked()||root.classList.contains('big')) ? point : null;
   };
   api.pointer = (type, point, buttonOverride = 0, cancel = false) => {
     if(!point) { if(type==='up'&&downPoint) point=downPoint; else return; }

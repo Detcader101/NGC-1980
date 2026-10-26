@@ -1,6 +1,10 @@
 import {setupXR,frames,trigger,click} from '../xr-harness.mjs';
 export default {name:'xrextras',query:'?debug&kb&peace&res=0.45&tech=all',run:async h=>{
   await setupXR(h);
+  await h.expect(`(()=>{const r=document.querySelector('#fleet [data-research]').getBoundingClientRect();return __G.XR.panel.hit({x:(r.x+r.width/2)/innerWidth,y:1-(r.y+r.height/2)/innerHeight})===null;})()`,'unpainted desktop HUD buttons do not intercept VR rays');
+  await click(h,'#xrBar button:nth-child(3)');
+  await h.expect('__G.techUI.isOpen','rendered research control still accepts a controller ray');
+  await click(h,'#xrBar button:nth-child(3)');await h.key('tap','Escape');await frames(h,2);
   await h.eval(`(window.__pointSwitch=async(boxes,id)=>{const T=__G.THREE,X=__G.XR,head=await new Promise(resolve=>__G.renderer.xr.getSession().requestAnimationFrame((t,f)=>resolve(f.getViewerPose(__G.renderer.xr.getReferenceSpace()).transform.position))),b=boxes.find(b=>b.userData.sw===id);b.updateWorldMatrix(true,false);const p=new T.Vector3().setFromMatrixPosition(b.matrixWorld);X.rig.worldToLocal(p);p.add(new T.Vector3(__xrDevice.position.x,__xrDevice.position.y,__xrDevice.position.z)).sub(head);const d=__xrDevice.controllers.right;d.position.set(.15,1.35,-.2);const dir=p.sub(new T.Vector3(d.position.x,d.position.y,d.position.z)).normalize();d.quaternion.copy(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,0,-1),dir));return true;},window.__light0=__G.G.light,__pointSwitch(__G.cockpit.hitBoxes,'light'))`);
   await frames(h,3);
   await h.eval(`(()=>{const T=__G.THREE,X=__G.XR,c=X.controls.find(c=>c.source?.handedness==='right').controller,r=new T.Raycaster();c.updateWorldMatrix(true,false);r.ray.origin.setFromMatrixPosition(c.matrixWorld);r.ray.direction.set(0,0,-1).transformDirection(c.matrixWorld);const hit=r.intersectObjects(__G.cockpit.hitBoxes,false)[0],ui=r.intersectObject(X.panel.mesh,false)[0],pt=ui&&X.panel.hit(ui.uv);return {switch:hit?.object.userData.sw,distance:hit?.distance,point:pt,element:pt&&document.elementFromPoint(pt.x,pt.y)?.outerHTML.slice(0,250)};})()`,'cockpit ray target');
