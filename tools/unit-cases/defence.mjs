@@ -26,7 +26,7 @@ function exercise(type) {
 export const cases = roster.map(([type, name, description, dist]) => {
   const id = `defence-${type}`, query = `dev/defence.html?mode=fight&unit=${type}&drones=1&hill=0&ui=0&cam=0.8,0.26,${dist},0,2,0`;
   return { id, name, category: 'defence', kind: 'ai', query, description, async run(h) {
-    await h.goto(query); await h.waitFor('window.__D?.unit && window.__BENCH', 30000);
+    await h.waitFor('window.__D?.unit && window.__BENCH', 30000);
     try {
       await h.eval(`(${exercise.toString()})(${JSON.stringify(type)})`, `${name} role checks`);
       await h.expect('__defenceCase.finite && __defenceCase.hits > 0', 'finite unit articulation and practice-drone hit feedback');

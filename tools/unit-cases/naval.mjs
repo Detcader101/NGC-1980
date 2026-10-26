@@ -72,7 +72,7 @@ function exercise(ship) {
 export const cases = roster.map(([ship, name, kind, description, cam]) => {
   const id = `naval-${ids[ship] || ship}`, query = `dev/ships.html?ship=${ship}&sea=4&speed=4&ui=0&cam=${cam}`;
   return { id, name, category: 'naval', kind, query, description, async run(h) {
-    await h.goto(query); await h.waitFor('window.__S?.cur?.parts && window.__BENCH', 30000);
+    await h.waitFor('window.__S?.cur?.parts && window.__BENCH', 30000);
     try {
       await h.eval(`(${exercise.toString()})(${JSON.stringify(ship)})`, `${name} role checks`);
       if (['albatross', 'kraken', 'leviathan', 'container'].includes(ship)) {

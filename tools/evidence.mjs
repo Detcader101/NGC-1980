@@ -60,7 +60,7 @@ export function compareRuns(before, after) {
     if (!previous) reasons.push('missing baseline sample');
     else {
       if (JSON.stringify(previous.policy) !== JSON.stringify(current.policy)) reasons.push('sample policy');
-      for (const key of ['drawingBuffer', 'host', 'xr', 'state', 'mode', 'eyeViewports']) {
+      for (const key of ['drawingBuffer', 'host', 'route', 'xr', 'state', 'mode', 'eyeViewports']) {
         if (JSON.stringify(previous[key]) !== JSON.stringify(current[key])) reasons.push('sample ' + key);
       }
     }

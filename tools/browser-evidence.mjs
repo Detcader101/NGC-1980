@@ -44,7 +44,8 @@ export async function measureFrames(page, name, options = {}) {
         }
         if (rows.length >= policy.frames) {
           clearTimeout(timer); stopped = true;
-          resolve({ rows, xr, host: game.host || 'game', state: game.G?.state ?? game.state ?? 'preview', mode: game.G?.mode ?? game.mode ?? 'preview',
+          resolve({ rows, xr, host: game.host || 'game', route: location.pathname + location.search,
+            state: game.G?.state ?? game.state ?? 'preview', mode: game.G?.mode ?? game.mode ?? 'preview',
             drawingBuffer: [game.renderer.domElement.width, game.renderer.domElement.height],
             eyeViewports: xr ? game.renderer.xr.getCamera().cameras.map(c => c.viewport.toArray()) : [] });
         } else id = schedule(tick);
