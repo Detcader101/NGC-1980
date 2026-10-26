@@ -22,12 +22,15 @@ export default {
       await h.shot(label);await h.notblank();
     }
     // A close lateral view makes mackerel bars visible without enlarging the actual fish.
-    await h.page.evaluate(()=>{__FISHVIEW.show(['mackerel']);__FISHVIEW.resetView();__FISHVIEW.orbit.pitch=.10;});
+    await h.page.select('#species','mackerel');
+    await h.page.evaluate(()=>{__FISHVIEW.orbit.pitch=.10;});
     const frame=await h.eval('__FISHVIEW.frames');await h.waitFor(`__FISHVIEW.frames>=${frame+2}`,10000);
     await h.expect('__FISHVIEW.visible[0]==="mackerel" && __FISHVIEW.entries.find(e=>e.species.key==="mackerel").data.A[3]<.39','mackerel close-up uses a nearer camera, not a giant fish');
     await h.shot('mackerel-pattern-closeup');await h.notblank();
     if(h.capture)await h.clip('mackerel-inspection-animation',{durationMs:6000});
     await h.eval('__FISHVIEW.snapshot()','species sizes, selection and animation evidence');
-    await h.eval('(__FISHVIEW.setPaused(true),true)');
+    await h.page.click('#pause');
+    const pausedTime=await h.eval('__FISHVIEW.time');await h.wait(400);
+    await h.expect(`__FISHVIEW.paused && Math.abs(__FISHVIEW.time-${pausedTime})<.001`, 'Pause control holds the inspection animation');
   },
 };
