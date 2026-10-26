@@ -58,7 +58,12 @@ export function compareRuns(before, after) {
     const reasons = [...mismatch];
     if (!before.ok || !after.ok) reasons.push('run failed');
     if (!previous) reasons.push('missing baseline sample');
-    else if (JSON.stringify(previous.policy) !== JSON.stringify(current.policy)) reasons.push('sample policy');
+    else {
+      if (JSON.stringify(previous.policy) !== JSON.stringify(current.policy)) reasons.push('sample policy');
+      for (const key of ['drawingBuffer', 'host', 'xr', 'state', 'mode', 'eyeViewports']) {
+        if (JSON.stringify(previous[key]) !== JSON.stringify(current[key])) reasons.push('sample ' + key);
+      }
+    }
     if (reasons.length) return { name: current.name, comparable: false, reasons };
     const old = previous.summary.frameMs.mean, next = current.summary.frameMs.mean;
     return { name: current.name, comparable: true, beforeMeanMs: old, afterMeanMs: next,

@@ -36,6 +36,13 @@ try {
     const different = structuredClone(after); different.benchmarks[0].policy.frames = 120;
     assert.equal(compareRuns(before, different).rows[0].comparable, false);
   });
+  await check('actual buffer, preview state and XR changes invalidate a comparison', () => {
+    for (const [key, value] of Object.entries({ drawingBuffer: [640, 360], host: 'preview', xr: true, state: 'paused', mode: 'other', eyeViewports: [[0, 0, 500, 500]] })) {
+      const changed = structuredClone(after); changed.benchmarks[0][key] = value;
+      const comparison = compareRuns(before, changed).rows[0];
+      assert.equal(comparison.comparable, false); assert.ok(comparison.reasons.includes('sample ' + key));
+    }
+  });
   await check('benchmark prevents overlapping capture and screenshots, then releases its guard', async () => {
     let finish; const page = { evaluate: () => new Promise(resolve => { finish = resolve; }) };
     const result = { benchmarks: [], clips: [] }, capture = createEvidenceCapture({ page, result, runDir: root, log() {} });
