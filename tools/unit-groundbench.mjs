@@ -120,11 +120,44 @@ for(const id of ['m1a2','t90m'])test(id,()=>{
  assert.deepEqual(t.drive.wheelSpin,travel,'LOD restoration keeps track animation travel');
  return {distanceM:distance,roadWheelsPerSide:MBT[id].wheels,reverseBeforeLOD:reverse,reverseAfterLOD:t.speed,coverage:'live-game full drive and distant fallback'};
 });
+// Import the production skeleton and meshes against the same vendored THREE as the browser.
+// This catches a visible failure that movement-speed tests cannot: a submerged shin leaves
+// a visible boot apparently detached from the body during a prone crawl.
+{
+ const {register}=await import('node:module');
+ register('data:text/javascript,'+encodeURIComponent(`export async function resolve(s,c,n){if(s==='three')return {url:${JSON.stringify(new URL('../game/vendor/three.module.min.js',import.meta.url).href)},shortCircuit:true};return n(s,c);}`));
+ const SM=await import('../game/js/units/infantry/soldiermodel.js');
+ test('marine-prone-geometry',()=>{
+   const sk=SM.buildMarine({weapon:null}),V=sk.root.position.constructor,v=new V();
+   let minJoint=Infinity,minVertex=Infinity,folded=null,extended=null;
+   for(let i=0;i<72;i++){
+     const phase=i*Math.PI*2/72;
+     SM.poseSkeleton(sk,SM.makePose({stance:'prone',stanceFrom:'prone',stanceTo:'prone',speed:.32,gait:'crawl',gaitPhase:phase}),0);
+     sk.root.updateMatrixWorld(true);
+     for(const name of ['thighL','shinL','footL','thighR','shinR','footR']){
+       const bone=sk.bones[name];bone.getWorldPosition(v);minJoint=Math.min(minJoint,v.y);
+       for(const mesh of bone.children.filter(c=>c.isMesh)){
+         const vertices=mesh.geometry.attributes.position;
+         for(let j=0;j<vertices.count;j++){v.fromBufferAttribute(vertices,j).applyMatrix4(mesh.matrixWorld);minVertex=Math.min(minVertex,v.y);}
+       }
+     }
+     for(const side of ['L','R']){
+       const hip=sk.bones['thigh'+side].getWorldPosition(new V()),knee=sk.bones['shin'+side].getWorldPosition(new V()),ankle=sk.bones['foot'+side].getWorldPosition(new V());
+       assert.ok(Math.abs(hip.distanceTo(knee)-SM.LEN.thigh)<1e-6&&Math.abs(knee.distanceTo(ankle)-SM.LEN.shin)<1e-6,'knees and boots stay connected through the actual bone lengths');
+     }
+     if(i===18)folded=sk.bones.shinL.getWorldPosition(new V());
+     if(i===54)extended=sk.bones.shinL.getWorldPosition(new V());
+   }
+   assert.ok(minJoint>.05&&minVertex>=-.003,'all leg joints and visible leg/boot geometry clear flat terrain through the full crawl cycle');
+   assert.ok(folded.x<extended.x-.15&&folded.z<extended.z-.1,'the correction retains a visible outward and forward knee pull');
+   return {phases:72,minJointY:minJoint,minLegMeshY:minVertex};
+ });
+}
 test('live-lineup',()=>{
  const b=setupScenario(createSandbox({seed:1980}),'lineup');
  run(1,d=>b.step(d));
  assert.equal(b.units.length,5);assert.ok(b.units.every(m=>m.ai && m.alive && Number.isFinite(m.y)),'all display units can step live without missing controllers');
  return {units:b.units.length,time:b.time};
 });
-console.log(`${rows.filter(r=>r.ok).length} passed, ${rows.filter(r=>!r.ok).length} failed (13 ground types plus live lineup)`);
+console.log(`${rows.filter(r=>r.ok).length} passed, ${rows.filter(r=>!r.ok).length} failed (13 ground types, prone geometry and live lineup)`);
 if(rows.some(r=>!r.ok))process.exitCode=1;

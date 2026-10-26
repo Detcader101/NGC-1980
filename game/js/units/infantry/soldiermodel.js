@@ -233,10 +233,14 @@ function stancePose(st, p, out) {
     const mv = clamp(sp / 0.2, 0, 1);
     E.pelvis[0] = -Math.PI / 2 + 0.04; out.pos[1] = 0.14; out.pos[2] = 0.68;
     E.spine[0] = 0.14; E.chest[0] = 0.3; E.neck[0] = 0.45;
-    E.thighL[2] = -0.16; E.thighR[2] = 0.16; E.footL[0] = 1.2; E.footR[0] = 1.2;
-    E.thighL[0] = mv * (0.35 + 0.35 * s); E.thighR[0] = mv * (0.35 - 0.35 * s);
-    E.shinL[0] = -mv * (0.6 + 0.6 * Math.max(0, s)) - 0.05; E.shinR[0] = -mv * (0.6 + 0.6 * Math.max(0, -s)) - 0.05;
-    E.thighL[1] = -0.2 * mv * s; E.thighR[1] = -0.2 * mv * s;
+    // The pelvis is on its belly: its local XY plane is now the ground plane.
+    // Pull each knee outward in that plane. The old thigh-X crawl bend drove the
+    // knee through the terrain while the shin raised its boot, hiding the connection.
+    const pullL = mv * (0.5 + 0.5 * s), pullR = mv * (0.5 - 0.5 * s);
+    E.thighL[2] = -0.16 - 0.75 * pullL; E.thighR[2] = 0.16 + 0.75 * pullR;
+    E.shinL[2] = 1.2 * pullL; E.shinR[2] = -1.2 * pullR;
+    E.shinL[0] = E.shinR[0] = -0.05;
+    E.footL[0] = E.footR[0] = 1.3;
     E.spine[1] = 0.1 * mv * s; out.pos[0] = 0.03 * mv * s;
   } else if (st === 'down') {   // wounded / unconscious, on the back
     E.pelvis[0] = Math.PI / 2 - 0.05; out.pos[1] = 0.13; out.pos[2] = -0.6;
