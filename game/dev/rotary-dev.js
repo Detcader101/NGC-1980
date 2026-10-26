@@ -112,3 +112,4 @@ requestAnimationFrame(frame);
 window.__R = { W, unit, tm, camera, scene, renderer, THREE, cam, get simT() { return simT; }, step, set camMode(v) { camMode = v; }, set paused(v) { paused = v; },
   run(s) { const t1 = simT + s; while (simT < t1 && !unit.done()) step(); }, runUntil(fn, max = 400) { const t1 = simT + max; while (simT < t1 && !fn()) step(); return simT; },
   render() { syncCarrier(); placeCamera(1); if (unit) { tel.innerHTML = unit.telemetry(simT); } renderer.render(scene, camera); } };
+window.__BENCH = { renderer, host: 'dev-rotary', get state() { return unit && paused ? 'paused' : 'live'; }, mode: 'preview' };

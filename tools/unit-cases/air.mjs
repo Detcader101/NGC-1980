@@ -1,0 +1,188 @@
+// Aircraft cases use the actual game or its production-model dev hosts. Pure flight-role regressions live in
+// unit-air-bench.mjs. These are short, peaceful/scripted fixtures; they do not certify aircraft performance.
+const GAME = '?debug&auto&kb&peace&res=0.45';
+async function evidence(h, id) {
+  await h.benchmark(id);
+  await h.shot(id); await h.notblank();
+  if (h.capture) await h.clip(id, { durationMs: 6000 });
+}
+async function game(h) {
+  await h.goto(GAME);
+  await h.waitFor("window.__G && __G.G.state === 'play' && __G.H.landed", 30000);
+}
+async function flight(h, kind) {
+  await h.goto(`dev/air.html?fly=${kind}&ui=0&res=0.6`);
+  await h.waitFor('window.__F && window.__BENCH && __F.units.length', 20000);
+  await h.eval('(__F.speedUp = 0, __F.camMode = 1, true)');
+}
+async function rotary(h, ac) {
+  await h.goto(`dev/rotary.html?ac=${ac}&paused&ui=0&res=0.6`);
+  await h.waitFor('window.__R && __R.unit && window.__BENCH', 20000);
+}
+export const cases = [
+  {
+    id: 'huey', name: 'UH-1H Huey', category: 'air', kind: 'playable', query: GAME,
+    description: 'Peaceful main-game carrier deck: roll the throttle to flight power and check governor/rotor telemetry, then capture the analog cockpit and running exterior. Hover lift and engine/rotor needle separation are exercised by the Node role bench.',
+    async run(h) {
+      await game(h);
+      await h.eval('(__G.SY.grip = 1, __G.SY.auto = null, __G.cockpitCam = true, __G.head.pitch = -0.3, true)');
+      await h.waitFor('__G.H.rpm > 0.95 && __G.H.n2 > 0.95', 90000);
+      await h.expect('__G.G.craft === "heli" && __G.SY.gov === "AUTO" && __G.H.landed && __G.Z.alive', 'Huey remains on its skids with governed flight RPM');
+      await evidence(h, 'huey');
+      await h.eval('(__G.cockpitCam = false, __G.head.pitch = 0, true)'); await h.wait(250);
+      await h.shot('huey-exterior'); await h.notblank();
+    },
+  },
+  {
+    id: 'hornet', name: 'F/A-18A Hornet', category: 'air', kind: 'playable', query: GAME,
+    description: 'Main-game deck launch fixture: select the F/A-18A through its real hotkey, verify catapult attachment and independently running twin engines, then benchmark its cockpit on the shuttle. Catapult flight and control response remain in the flight/deck regression suites.',
+    async run(h) {
+      await game(h); await h.key('tap', 'Digit5');
+      await h.waitFor('__G.G.craft === "jet" && __G.JP.J.cat', 15000);
+      await h.expect('__G.JP.J.cat.state === "hold" && __G.JP.J.eng.length === 2 && __G.JP.alive', 'Hornet is held on the catapult as a live twin-engine aircraft');
+      await h.eval('(__G.cockpitCam = true, __G.head.pitch = -0.22, true)');
+      await evidence(h, 'hornet');
+      await h.eval('(__G.cockpitCam = false, __G.head.pitch = 0, __G.JP.snapChase(), true)'); await h.wait(250);
+      await h.shot('hornet-exterior'); await h.notblank();
+    },
+  },
+  {
+    id: 'tomcat', name: 'F-14A Tomcat', category: 'air', kind: 'playable', query: 'dev/air.html?fly=sortie',
+    description: 'Production F-14A flight model and AI in the carrier dev world: step a full catapult departure into CAP, verify flight and variable wings, then benchmark live patrol. This fixture exercises AI flight, not player cockpit input.',
+    async run(h) {
+      await flight(h, 'sortie');
+      await h.eval('(() => { for (let i = 0; i < 60 * 45 && __F.units[0].pilot.state !== "cap"; i++) __F.step(); return true; })()');
+      await h.expect('__F.units[0].pilot.state === "cap" && !__F.units[0].A.dead && !__F.units[0].A.cat && __F.units[0].A.pos.y > 100', 'Tomcat completed its catapult departure into CAP');
+      await h.expect('__F.units[0].A.sweep >= 20 && __F.units[0].A.sweep <= 68 && __F.units[0].A.eng.length === 2', 'F-14 has live variable-sweep wings and two engines');
+      await h.eval('(__F.speedUp = 1, true)'); await h.wait(250); await evidence(h, 'tomcat');
+      await h.expect('!__F.units[0].A.dead', 'Tomcat remains airborne through the sample');
+    },
+  },
+  {
+    id: 'ch46', name: 'CH-46E Sea Knight', category: 'air', kind: 'playable', query: 'dev/rotary.html?ac=ch46&paused',
+    description: 'Production transport unit in the rotary dev world: board 13 Marines, depart and establish transit with both tandem rotors lifting. After live benchmarking, deterministically finish delivery and assert Marines holding the landing pad. This fixture uses its AI pilot.',
+    async run(h) {
+      await rotary(h, 'ch46');
+      await h.eval('(__R.runUntil(() => __R.unit.U.AI.phase === "transit" && __R.unit.U.S.agl > 12, 160), __R.camMode = "chase", __R.render(), true)');
+      await h.expect('__R.unit.U.AI.phase === "transit" && !__R.unit.U.dead && __R.unit.U.S.rf.T > 10000 && __R.unit.U.S.ra.T > 10000', 'Sea Knight boards and departs on both rotors');
+      await h.expect('__R.unit.U.squad.alive === 13 && __R.unit.U.S.payload > 1400', 'embarked Marine payload is represented in flight');
+      await h.eval('(__R.paused = false, true)'); await evidence(h, 'ch46');
+      await h.eval('(__R.paused = true, __R.runUntil(() => __R.unit.U.squad.holding >= 11, 400), __R.camMode = "lz", __R.render(), true)');
+      await h.expect('__R.unit.U.squad.holding >= 11 && !__R.unit.U.dead', 'Sea Knight delivers Marines through its ramp to the pad');
+      await h.wait(200); await h.shot('ch46-delivery'); await h.notblank();
+    },
+  },
+  {
+    id: 'c130', name: 'KC-130R Hercules', category: 'air', kind: 'ai', query: 'dev/c130.html?start=air&view=orbit&res=0.6',
+    description: 'KC-130R dev flight host with the production four-engine transport model: feather engine one, keep the other three governed and verify autopilot flight. The existing transport/drop suites cover parachute deployment; this is not a C-130J avionics fixture.',
+    async run(h) {
+      await h.goto('dev/c130.html?start=air&view=orbit&res=0.6');
+      await h.waitFor('window.__C && __C.S.tas > 10 && window.__BENCH', 15000);
+      await h.eval('(__C.ap = true, window.__airAlt = __C.S.pos.y, __C.S.setCond(0, "feather"), true)');
+      await h.waitFor('__C.S.eng[0].beta > 90 && __C.S.eng[0].N < 0.05', 90000);
+      await h.expect('__C.S.eng.slice(1).every(e => e.run && e.N > 0.9) && !__C.S.dead', 'only number one is stopped and feathered');
+      await evidence(h, 'c130');
+      await h.expect('!__C.S.dead && Math.abs(__C.S.pos.y - __airAlt) < 35 && Math.abs(__C.S.bank) < 0.2', 'three-engine autopilot holds the transport in flight');
+      await h.eval('(__C.view = "deck", __C.head.yaw = -0.25, __C.head.pitch = -0.4, true)'); await h.wait(250);
+      await h.shot('c130-engine-panel'); await h.notblank();
+      await h.eval('(delete window.__airAlt, true)');
+    },
+  },
+  {
+    id: 'mv22', name: 'MV-22B Osprey', category: 'air', kind: 'ai', query: 'dev/rotary.html?ac=mv22&paused',
+    description: 'RUNAWAY-refit MV-22B production transport in the rotary dev world: depart vertically, convert to wing-borne flight, then benchmark airplane transit and finish a troop delivery. This uses the AI pilot and a scripted island landing zone.',
+    async run(h) {
+      await rotary(h, 'mv22');
+      await h.eval('(__R.runUntil(() => __R.unit.U.S.nac < 0.03 && __R.unit.U.S.ias > 190, 200), __R.camMode = "chase", __R.render(), true)');
+      await h.expect('__R.unit.U.S.nac < 0.03 && __R.unit.U.S.ias > 190 && __R.unit.U.S.wingL > 100000 && !__R.unit.U.dead', 'Osprey converts from vertical departure to wing-borne flight');
+      await h.eval('(__R.paused = false, true)'); await evidence(h, 'mv22');
+      await h.eval('(__R.paused = true, __R.runUntil(() => __R.unit.U.squad.holding >= 10, 400), __R.camMode = "lz", __R.render(), true)');
+      await h.expect('__R.unit.U.squad.holding >= 10 && !__R.unit.U.dead', 'Osprey reconverts and delivers its machine troop squad');
+      await h.wait(200); await h.shot('mv22-delivery'); await h.notblank();
+    },
+  },
+  {
+    id: 'wasp', name: 'RW-3 WASP', category: 'air', kind: 'ai', query: 'dev/rotary.html?ac=wasp&paused',
+    description: 'Five fictional ducted-fan drones fly the existing swarm/ambush demo around a scripted Huey. Verify powered maneuvering and finite flight, then benchmark the live swarm. These are setting-specific physics, not a real aircraft claim.',
+    async run(h) {
+      await rotary(h, 'wasp');
+      await h.eval('(__R.run(18), __R.camMode = "orbit", __R.render(), true)');
+      await h.expect('[...__R.unit.U.ws, __R.unit.U.amb].every(w => !w.dead && w.S.power > 10000 && w.S.body.pos.every(Number.isFinite))', 'all five WASPs stay powered and airborne');
+      await h.eval('(__R.paused = false, true)'); await evidence(h, 'wasp');
+      await h.expect('[...__R.unit.U.ws, __R.unit.U.amb].every(w => !w.dead)', 'swarm remains alive through the benchmark');
+    },
+  },
+  {
+    id: 'shrike', name: 'RW-4 SHRIKE', category: 'air', kind: 'ai', query: 'dev/air.html?fly=fight',
+    description: 'Fictional single-engine fighter patrol using the production AI flight model. The demo opponent is hidden and removed from combat to isolate the unit. Check bank maneuvering and no afterburner, then benchmark live CAP.',
+    async run(h) {
+      await flight(h, 'fight');
+      await h.eval('(() => { const foe = __F.units[0]; foe.dead = true; foe.model.group.visible = false; __F.follow = 1; for (let i = 0; i < 600; i++) __F.step(); return true; })()');
+      await h.expect('__F.units[1].A.eng.length === 1 && __F.units[1].A.eng[0].ab === 0 && !__F.units[1].A.dead && __F.units[1].A.pos.y > 100', 'SHRIKE patrols with its single dry-thrust engine');
+      await h.eval('(__F.speedUp = 1, true)'); await h.wait(250); await evidence(h, 'shrike');
+      await h.expect('!__F.units[1].A.dead && __F.units[1].A.eng[0].ab === 0', 'SHRIKE patrol remains stable without an afterburner');
+    },
+  },
+  {
+    id: 'reaper', name: 'MQ-9 Reaper', category: 'air', kind: 'ai', query: 'dev/air.html?fly=reaper',
+    description: 'Production turboprop UAV in its existing orbit demo: verify patrol, power and prop rotation, benchmark live loiter, then use the model host to check and photograph a stopped pusher. Shutdown gauge behavior is covered by the Node role bench.',
+    async run(h) {
+      await flight(h, 'reaper');
+      await h.eval('(() => { for (let i = 0; i < 1200; i++) __F.step(); return true; })()');
+      await h.expect('__F.units[0].pilot.state === "patrol" && !__F.units[0].A.dead && __F.units[0].A.eng[0].power > 10000 && __F.units[0].A.eng[0].ab === 0', 'Reaper holds its patrol with turboprop power');
+      await h.eval('(__F.speedUp = 1, true)'); await h.wait(250); await evidence(h, 'reaper');
+      await h.goto('dev/air.html?model=reaper&ui=0&cam=0.55,0.18,17,0,0,3&res=0.6');
+      await h.waitFor('window.__A', 10000);
+      await h.eval('(__A.S.eng = [{ n: 0 }], __A.S.gear = 1, __A.render(), window.__prop0 = __A.model.parts.prop.rotation.z, true)');
+      await h.wait(400);
+      await h.expect('__A.model.parts.prop.rotation.z === __prop0 && __A.model.parts.prop.children.filter(o => o.name === "blade").every(o => o.visible)', 'zero shaft signal leaves the Reaper pusher stationary with blades visible');
+      await h.shot('reaper-prop-stopped'); await h.notblank();
+      if (h.capture) {
+        await h.eval('(window.__propTimer = setTimeout(() => { __A.S.eng[0].n = 0.7; }, 2000), true)');
+        await h.clip('reaper-prop-start', { durationMs: 6000 });
+        await h.eval('(clearTimeout(window.__propTimer), delete window.__propTimer, true)');
+      }
+      await h.eval('(delete window.__prop0, true)');
+    },
+  },
+  {
+    id: 'shahed', name: 'SHAHED-style drone', category: 'air', kind: 'ai', query: 'dev/air.html?fly=shahed',
+    description: 'Existing simplified delta-drone salvo in the air dev world, with the interceptor disabled for an isolated flight sample. Check forward flight after launch and capture the pusher model at rest. No claim of real guidance or weapon fidelity.',
+    async run(h) {
+      await flight(h, 'shahed');
+      await h.eval('(() => { for (const u of __F.units) if (u.A) { u.dead = true; u.model.group.visible = false; } for (let i = 0; i < 600; i++) __F.step(); return true; })()');
+      await h.expect('__F.units.filter(u => u.D).length === 4 && __F.units.filter(u => u.D).every(u => !u.dead && u.D.V > 15 && u.D.pos.y > 10)', 'all four simplified delta drones launch into forward flight');
+      await h.eval('(__F.speedUp = 1, true)'); await h.wait(250); await evidence(h, 'shahed');
+      await h.goto('dev/air.html?model=shahed&ui=0&cam=0.55,0.2,5&res=0.6'); await h.waitFor('window.__A', 10000);
+      await h.eval('(__A.S.ctl = { thr: 0 }, __A.render(), true)'); await h.wait(200);
+      await h.expect('__A.model.parts.prop.getObjectByName("propDisc").material.opacity === 0 && __A.model.parts.prop.children.filter(o => o.name === "blade").every(o => o.visible)', 'stopped two-blade pusher has no blur disc');
+      await h.shot('shahed-prop-stopped'); await h.notblank();
+    },
+  },
+  {
+    id: 'paratrooper', name: 'Marine paratrooper / repair team', category: 'air', kind: 'ai', query: GAME,
+    description: 'Scripted main-game emergency release: place the real KC-130R above the home pad, ring its bailout bell, and advance to canopy inflation. Benchmark three live descending Marines and check landing. Aircraft approach, jumpmaster checklist and static-line sequencing are bypassed in this short fixture.',
+    async run(h) {
+      await game(h);
+      await h.eval(`(() => {
+        const G = __G, p = G.PAD, y = G.groundY(p.x, p.z);
+        G.H.reset(new G.THREE.Vector3(p.x, y - G.HELI.SKID_Y, p.z), 0, true, 0);
+        G.HI.setCollective(0); G.SY.grip = 0; G.SY.auto = null;
+        G.drop.start({ x: p.x, y, z: p.z }, { x: p.x + 100, z: p.z + 100 });
+        const M = G.drop.state, S = M.plane.sim;
+        S.reset(new G.THREE.Vector3(p.x, y + 210, p.z), 0, 0, { flap: 0.5, gear: 0, lever: 45 });
+        S.vel.set(0, 0, 0); M.wind.set(0, 0); M.env.wind.x = M.env.wind.z = 0;
+        M.plane.mesh.position.copy(S.pos); M.plane.mesh.quaternion.copy(S.q); M.plane.mesh.updateMatrixWorld(true);
+        G.drop.clickSwitch('bell'); M.plane.gone = true; M.plane.mesh.visible = false;
+        for (let i = 0; i < 240; i++) G.drop.update(1 / 60, {}, G.H);
+        return true;
+      })()`);
+      await h.expect('__G.drop.state.left === 0 && __G.drop.state.jumpers.length === 3 && __G.drop.state.jumpers.every(j => j.state === "canopy" && j.m.canopy.visible && j.v.y < 0)', 'three Marines leave the aircraft and inflate visible descending canopies');
+      await h.wait(500); await evidence(h, 'paratrooper');
+      await h.eval('(() => { for (let i = 0; i < 60 * 75 && __G.drop.state.jumpers.some(j => j.state === "ff" || j.state === "canopy"); i++) __G.drop.update(1 / 60, {}, __G.H); return true; })()');
+      await h.expect('__G.drop.state.jumpers.every(j => j.state === "run" || j.state === "work")', 'all three land on the scripted dry pad and transition to ground movement');
+      await h.wait(200); await h.shot('paratrooper-landed'); await h.notblank();
+      await h.eval('(__G.drop.cancel(), true)');
+    },
+  },
+];

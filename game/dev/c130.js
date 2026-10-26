@@ -206,4 +206,5 @@ ${E.map((e, i) => `${i + 1}    ${e.lever.toFixed(0).padStart(3)}°  ${e.cond.pad
 }
 window.__C = { S, model, deck, scene, camera, renderer, THREE, ctl, head, click, reset, get view() { return view; }, set view(v) { view = v; }, get ap() { return ap; }, set ap(v) { ap = v; apHold = { track: S.heading, alt: S.pos.y, kias: S.kias }; },
   get hover() { return hover; }, mouse, set crewStart(v) { crewStart = v; }, get crewStart() { return crewStart; }, set paused(v) { paused = v; }, DZ, get jumpSwitch() { return jumpSwitch; }, setHold(h) { apHold = { ...apHold, ...h }; }, sfx, snd };
+window.__BENCH = { renderer, host: 'dev-c130', get state() { return paused ? 'paused' : 'live'; }, mode: 'preview' };
 requestAnimationFrame(frame);

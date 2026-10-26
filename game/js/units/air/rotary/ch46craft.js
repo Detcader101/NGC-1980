@@ -1,4 +1,4 @@
-// ch46craft.js - the PLAYER's CH-46F Sea Knight as a craft (craft.js), the part the game host sees. ch46play.js flies
+// ch46craft.js - the PLAYER's CH-46E Sea Knight as a craft (craft.js), the part the game host sees. ch46play.js flies
 // it (the validated flight model through the pilot's inputs, AFCS, systems, damage), ch46cockpit.js is the cockpit,
 // ch46troops.js the Marines in the back; the exterior is the war's own CH-46 model (ch46model.js).
 //   - taken out from the command board (\, the last row) on the ALBATROSS (a deck spot the AI Sea Knights don't use)
@@ -46,7 +46,7 @@ export function createCH46Craft(ctx) {
     feed(`${I.name}: ${n} MARINES OFF THE RAMP`, 'good'); return true;
   } });
   const D = {
-    id: 'ch46', label: 'CH-46F SEA KNIGHT', kind: 'air', P, model, cockpit: ck, troops: TR,
+    id: 'ch46', label: 'CH-46E SEA KNIGHT', kind: 'air', P, model, cockpit: ck, troops: TR,
     seats: [{ id: 'pilot', label: 'AIRCRAFT COMMANDER', role: 'driver', doors: [[1.3, -0.6, -4.2]], exit: [2.3, -1.8, -4.2], reach: 2.6 }],
     active: false, view: ctx.params && ctx.params.has('cockpit') ? 'cockpit' : 'chase', gunners: true, crew: null, downT: 0, lostWhy: '',
   };
@@ -93,7 +93,7 @@ export function createCH46Craft(ctx) {
     else { P.setCollective(S.landed ? 0 : S.c.coll); }
     look.yaw = look.pitch = 0;
     if (from === 'foot') { D.view = 'cockpit'; say(P.running() ? 'IN THE SEA KNIGHT  -  COLLECTIVE UP TO LIFT  ·  Y GET OUT' : 'IN THE SEA KNIGHT  -  I TO START (OR THE OVERHEAD SWITCHES)', 2.4); }
-    if (from === 'command' && S.landed) say(P.running() ? 'CH-46F ON THE SPOT, TURNING  -  SHIFT / SPACE COLLECTIVE UP TO LIFT  ·  B TROOPS  ·  V VIEWS' : 'CH-46F COLD AND DARK  -  I TO START, OR CLICK THROUGH THE OVERHEAD (V: COCKPIT)', 3);
+    if (from === 'command' && S.landed) say(P.running() ? 'CH-46E ON THE SPOT, TURNING  -  SHIFT / SPACE COLLECTIVE UP TO LIFT  ·  B TROOPS  ·  V VIEWS' : 'CH-46E COLD AND DARK  -  I TO START, OR CLICK THROUGH THE OVERHEAD (V: COCKPIT)', 3);
     return true;
   };
   D.canExit = () => {

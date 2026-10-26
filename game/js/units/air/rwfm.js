@@ -46,7 +46,7 @@ export function createShrikeSim(GRAV = 9.0, opts = {}) {
 
 // --------------------------------------------------------------------------------------------- MQ-9 REAPER
 // General Atomics MQ-9A: span 20.1 m, length 11 m, height 3.8 m, empty 2,223 kg, max take-off 4,760 kg, internal fuel
-// ~1,800 kg, Honeywell TPE331-10 turboprop 900 shp (671 kW), cruise ~170 kt (CONFIRMED: GA-ASI / USAF fact sheet).
+// ~1,800 kg, Honeywell TPE331-10 turboprop 900 shp (671 kW), cruise ~200 kt (USAF fact sheet).
 // Wing area ~24 m2 (INFERRED from span and aspect ratio ~17), inertias INFERRED (long light wing).
 export const REAPER = {
   EMPTY: 2223, FUEL_MAX: 1800, GUN_MAX: 0,
@@ -76,9 +76,14 @@ function turboprop(A, h, ctl, M, mods) {
   e.n += clamp((want - e.n) * 0.7, -0.5, 0.5) * h;
   const P = R.P_MAX * e.n * (A.rho / ATM.RHO0) ** 0.7 * Math.max(0.25, mods.eng[0]);
   e.thrust = e.run ? Math.min(R.T_STATIC, R.PROP_ETA * P / Math.max(A.eas, 12)) : 0;
-  e.power = P; e.ff = e.run ? 0.012 + 0.07 * e.n : 0;   // kg/s (~0.33 kg/kWh, INFERRED)
+  e.power = e.run ? P : 0; e.ff = e.run ? 0.012 + 0.07 * e.n : 0;   // kg/s (~0.33 kg/kWh, INFERRED)
   if (A.P.FUEL_X) e.ff *= A.P.FUEL_X;
-  A.fuel = Math.max(0, A.fuel - e.ff * h); e.egt = 400 + 300 * e.n; e.oil = 60; e.ab = 0; e.nozzle = 0;
+  A.fuel = Math.max(0, A.fuel - e.ff * h);
+  // Readable game telemetry: a stopped shaft loses oil pressure and the engine cools after fuel cutoff.
+  // The decay rates and pressure scale are presentation choices, not a TPE331 maintenance model.
+  const targetEGT = e.run ? 400 + 300 * e.n : 20;
+  e.egt += (targetEGT - e.egt) * (1 - Math.exp(-h * (e.run ? 0.8 : 0.15)));
+  e.oil = 60 * clamp(e.n / 0.15, 0, 1); e.ab = 0; e.nozzle = 0;
 }
 export const REAPER_AF = {
   name: 'REAPER', ...REAPER, NENG: 1, ENG_Y: 0, CAT_STAB: 0.05, N_OVER: 3.8, N_BREAK: 5.7,

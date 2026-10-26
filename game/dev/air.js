@@ -65,6 +65,7 @@ if (MODEL) {
   };
   requestAnimationFrame(frame);
   window.__A = { model, S, cam, camera, scene, renderer, THREE, TCAT, render: () => { orbitCam(); model.animate(S, 0, time); renderer.render(scene, camera); } };
+  window.__BENCH = { renderer, host: 'dev-air-model', state: 'live', mode: 'preview' };
 }
 
 // ============================================================================================ watch the AI fly
@@ -187,4 +188,5 @@ if (FLY) {
   };
   requestAnimationFrame(frame);
   window.__F = { units, proj, C, env, cam, camera, THREE, get time() { return time; }, set follow(v) { follow = v; }, set camMode(v) { camMode = v; }, set speedUp(v) { speedUp = v; }, step, tomcat, shrike, reaper, shahed };
+  window.__BENCH = { renderer, host: 'dev-air-flight', get state() { return speedUp > 0 ? 'live' : 'paused'; }, mode: 'preview' };
 }

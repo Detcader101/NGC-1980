@@ -143,7 +143,7 @@ export function buildReaperModel() {
     const S = A.surf || {}, ail = S.ail || 0, el = S.stab || 0, rud = S.rud || 0;
     surf.ailR.rotation.x = -ail; surf.ailL.rotation.x = ail; surf.flapR.rotation.x = surf.flapL.rotation.x = (S.flap || 0) * 0.5;
     surf.rvR.rotation.x = rud - el * 0.7; surf.rvL.rotation.x = rud + el * 0.7;
-    const n = A.eng ? A.eng[0].n : (A.prop ?? 0.6); spin += dt * (10 + 160 * n); prop.rotation.z = spin;
+    const n = Math.max(0, A.eng ? A.eng[0].n : (A.prop ?? 0.6)); spin += dt * 170 * n; prop.rotation.z = spin;
     discM.opacity = Math.min(0.35, n * 0.5); for (const c of prop.children) if (c.name === 'blade') c.visible = n < 0.25;
     ball.rotation.y = Math.sin(time * 0.2) * 1.2; gearG.visible = (A.gear ?? 0) > 0.5;
   }
@@ -166,6 +166,11 @@ export function buildShahedModel() {
   for (const s of [-1, 1]) mesh(boxG(0.5, 0.012, 0.12, s * 0.75, 0.075, 0.75), cyanS, g, 'rwStrip');
   const st = decal(rwTex('RW-S'), 0.7, 0.18, g, 'stencil'); st.position.set(0, 0.29, 0.1); st.rotation.set(-Math.PI / 2, 0, Math.PI / 2);
   let spin = 0;
-  function animate(D, dt = 0) { spin += dt * 140 * (D.ctl ? D.ctl.thr : 1); prop.rotation.z = spin; }
+  function animate(D, dt = 0) {
+    const n = Math.max(0, Math.min(1, D.ctl ? D.ctl.thr : 1));
+    spin += dt * 140 * n; prop.rotation.z = spin;
+    discM.opacity = 0.25 * n;
+    for (const c of prop.children) if (c.name === 'blade') c.visible = n < 0.25;
+  }
   return { group: g, animate, nozzles: [V(0, 0.12, 1.3)], parts: { prop } };
 }

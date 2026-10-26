@@ -80,7 +80,7 @@ export function buildCH46Cockpit() {
     const lab = (t, x, y, s = 13, col = '#e0ddd0') => txt(c, t, ax(x), ay(y), col, s);
     lab('AIRCRAFT COMMANDER', 0.82, -0.2, 12, '#8a8d88'); lab('COPILOT', -0.82, -0.2, 12, '#8a8d88');
     lab('NR 100% = 264 RPM', 0, -0.205, 12); lab('VNE 144 KIAS', 0, -0.23, 12);
-    c.fillStyle = '#2a2d2e'; c.fillRect(ax(0.66), ay(-0.17), 160, 30); lab('CH-46F', 0.74, -0.185, 16, '#d0d0c8');
+    c.fillStyle = '#2a2d2e'; c.fillRect(ax(0.66), ay(-0.17), 160, 30); lab('CH-46E', 0.74, -0.185, 16, '#d0d0c8');
     art.tex.needsUpdate = true;
   }
   plane(1.96, 0.56, new THREE.MeshLambertMaterial({ map: art.tex, emissive: 0xffffff, emissiveMap: art.tex, emissiveIntensity: 0.55 }), 0, -0.01, 0.001, P);
