@@ -549,3 +549,16 @@ export function farmsIn(x0, z0, x1, z1) {
   for (let j = Math.floor(z0 / FARM_CELL) - 1; j <= Math.floor(z1 / FARM_CELL) + 1; j++) for (let i = Math.floor(x0 / FARM_CELL) - 1; i <= Math.floor(x1 / FARM_CELL) + 1; i++) { const f = S.farms.get(ckey(i, j)); if (f) out.push(f); }
   return out;
 }
+// RENDERKIT nature (ngc/depth-nature): what clears the ground at (x, z), finer than clearedAt (which clears whole towns,
+// for the forest): 'road' (within 1.2 m of a road / disc edge), 'field' (a crop field, not pasture), 'yard' (a farmyard),
+// or null (open ground; inside a town the caller still keeps clear of the buildings).
+export function clearingAt(x, z) {
+  ensure(x, z);
+  const q = nearestSeg(x, z, false); if (q && q.e < 1.2) return 'road';
+  const a = S.fbk.get(ckey(Math.floor(x / BKT), Math.floor(z / BKT))); if (!a) return null;
+  for (const c of a) {
+    if (c.field) { const f = c.field; if (f.crop === 'pasture') continue; const dx = x - f.x, dz = z - f.z, ca = Math.cos(f.yaw), sa = Math.sin(f.yaw), u = dx * ca + dz * sa, v = -dx * sa + dz * ca; if (Math.abs(u) < f.w / 2 + 1.5 && Math.abs(v) < f.d / 2 + 1.5) return 'field'; }
+    else if (c.yard && Math.hypot(x - c.cx, z - c.cz) < c.r) return 'yard';
+  }
+  return null;
+}

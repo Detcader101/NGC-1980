@@ -19,6 +19,8 @@
 // Tiers: 'high' (desktop), 'low' (XR, or ?rksky=low): fewer cloud / far steps, no cloud detail octave.
 import * as THREE from 'three';
 import { uniform } from './core.js';
+import { RK } from './adopt.js';   // RENDERKIT nature: the far land matches the nature terrain's average colour
+const NAT_DEF = RK.on('nature') && RK.on('world') ? { RK_NATURE: 1 } : {};
 
 // ---- the shared haze state (display space). x: extinction per metre at sea level, y: 1 / scale height, z: weight
 // (0 = classic fog: under water, in the caves), w: Mie glow strength.
@@ -66,6 +68,9 @@ vec3 rkFarSeaCol(vec3 v, vec3 hor){   // open sea far off: deep water + the sky 
 vec3 rkFarLand(vec3 p, vec3 n){   // land far off (32 m detail): grass / forest, rock by height and slope, snow, beaches; lit like the RK terrain
   float sl=1.-n.y;
   vec3 c=mix(vec3(.15,.33,.12),vec3(.25,.41,.16),smoothstep(60.,170.,p.y));
+  #ifdef RK_NATURE
+  c=mix(c,vec3(.56,.52,.3),.13);   // RENDERKIT nature: the near terrain's dry-grass / soil patches average ~13 % straw (rnDetail)
+  #endif
   c=mix(c,vec3(.44,.39,.31),max(smoothstep(170.,300.,p.y),smoothstep(.3,.55,sl)));
   c=mix(c,vec3(.92,.94,.97),smoothstep(440.,520.,p.y)*(1.-smoothstep(.35,.7,sl)));
   c=mix(vec3(.70,.64,.44),c,smoothstep(0.,4.,p.y));
@@ -292,7 +297,7 @@ export function createAtmosphere({ scene, sky, sun, uniforms, renderer }) {
   Object.assign(uniforms, U);   // the terrain shares them (same objects)
   const shared = { ...U, uFog: uniforms.uFog };
   const domeMat = tier => displayOut(new THREE.ShaderMaterial({ name: 'RenderKit/atmosphere-' + tier, side: THREE.BackSide, depthWrite: false, fog: false, uniforms: shared,
-    defines: tier === 'high' ? { RK_CLOUD_STEPS: 28, RK_FAR_STEPS: 56, RK_CLOUD_DETAIL: 1 } : { RK_CLOUD_STEPS: 12, RK_FAR_STEPS: 28 },
+    defines: { ...NAT_DEF, ...(tier === 'high' ? { RK_CLOUD_STEPS: 28, RK_FAR_STEPS: 56, RK_CLOUD_DETAIL: 1 } : { RK_CLOUD_STEPS: 12, RK_FAR_STEPS: 28 }) },
     vertexShader: DOME_VS, fragmentShader: domeFS(false) }));
   const mats = { high: domeMat('high'), low: domeMat('low') };
   const old = sky.material; sky.material = mats[forced || 'high']; old.dispose?.();

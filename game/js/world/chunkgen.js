@@ -15,7 +15,7 @@ import { townItems, farmItems, polesOf, mastOf } from './layout.js';
 import { rng } from './rng.js';
 import { isDrivableCar } from './parked.js';   // ngc/wheeledgame: some garden cars are real, drivable ones
 import { rawH } from '../world.js';
-import { forestTile } from './forest.js';
+import { forestTile, scrubTile, treeKind, natureHash, FIR } from './forest.js';   // (scrubTile, treeKind: RENDERKIT nature)
 
 export const CHUNK = 400;
 const LIFT = { tarmac: 0.14, lane: 0.13, street: 0.12, dirt: 0.10 };
@@ -234,6 +234,18 @@ export function buildGeo(content, hf, opts = {}) {
   for (const d of content.discs) { const c = d.kind === 'yard' ? col(0x7a6a52) : d.kind === 'quay' ? col(0x8a857a) : col(0x76736c); disc(G.gN, d.ax, d.ay + 0.135, d.az, d.hw + 0.4, c); disc(G.gF, d.ax, d.ay + 0.135, d.az, d.hw + 0.4, c, 8); }
   for (const it of content.items) itemGeo(G, it, hf, vh, dyn);
   const forest = content.forest || [];
+  if (opts.nature) {   // RENDERKIT nature: the near and mid trees are instanced on the main thread (renderkit/nature.js createForest);
+    // the far impostors stay here, shaped by species: a fir is two stacked pyramids, pines and oaks a squat lozenge
+    const kinds = new Uint8Array(forest.length / 4);
+    for (let i = 0; i < forest.length; i += 4) {
+      const x = forest[i], y = forest[i + 1], z = forest[i + 2], s = forest[i + 3], k = kinds[i / 4] = treeKind(x, z, y, natureHash(Math.round(x * 10), Math.round(z * 10)));
+      const v = natureHash(Math.round(x * 7), Math.round(z * 3)), c = k === FIR ? mixc(col(0x24452a), col(0x31553a), v) : mixc(col(0x3f6a2c), col(0x5a7c3a), v);
+      if (k === FIR) G.sF.pyramid(x, y - 0.3, z, 3.1 * s, 3.1 * s, 2.9 * s, shade(c, 0.85)).pyramid(x, y + 1.9 * s, z, 2.1 * s, 2.1 * s, 2.8 * s, c);
+      else G.sF.pyramid(x, y + 1.2 * s, z, 3.2 * s, 3.2 * s, 3.6 * s, c).push(x, y + 1.2 * s, z, 0, Math.PI, 0).pyramid(0, 0, 0, 3.2 * s, 3.2 * s, 0.9 * s, shade(c, 0.6)).pop();
+    }
+    const scrub = scrubTile(content.x0, content.z0, CHUNK, hf);
+    return { forestTrees: forest.length / 4, forest: new Float32Array(forest), kinds, scrub: new Float32Array(scrub), near: G.sN.build(), far: G.sF.build(), gnear: G.gN.build(), gfar: G.gF.build(), detail: G.sD.build(), wires: new Float32Array(wires), dyn };
+  }
   for (let i = 0; i < forest.length; i += 4) {
     const [x, y, z, s] = forest.slice(i, i + 4), color = col(0x1b6a26);
     G.sN.cyl(x, y - 0.3, z, 1.3 * s, 5 * s, 6, color, 0, 0);
@@ -241,4 +253,4 @@ export function buildGeo(content, hf, opts = {}) {
   }
   return { forestTrees: forest.length / 4, near: G.sN.build(), far: G.sF.build(), gnear: G.gN.build(), gfar: G.gF.build(), detail: G.sD.build(), wires: new Float32Array(wires), dyn };
 }
-export function buildChunk(ci, cj, hf) { return buildGeo(chunkContent(ci, cj, hf), hf); }
+export function buildChunk(ci, cj, hf, opts = {}) { return buildGeo(chunkContent(ci, cj, hf), hf, opts); }
