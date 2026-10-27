@@ -17,7 +17,8 @@
 //            x world scale >= 0.08 m). Never: Points, Lines, Sprites, Basic or Shader materials (markers, beams, rings,
 //            HUD, particles, sky, terrain), the XR rig (panel, controllers, hands) or anything under a node with
 //            userData.rkShadow === 'none'. Opt-outs / opt-ins per object: userData.rkShadow = 'none' | 'receive' | 'cast' | 'both'.
-// Tiers (TIERS): desktop / xr / low. XR renders the maps once per frame for both eyes; it gets smaller maps and a far
+// Casters under 0.6 m (people, crates, vehicle parts) draw into the near map only (farSkip); in XR / low casters under
+// 0.2 m skip the near map too. Tiers (TIERS): desktop / xr / low. XR renders the maps once per frame for both eyes; it gets smaller maps and a far
 // cascade refreshed every 3rd frame. ?shadows=off|low|desktop|xr forces one (perf probes).
 import * as THREE from 'three';
 
@@ -36,9 +37,9 @@ export const BALANCE = Object.freeze({
 });
 
 export const TIERS = Object.freeze({
-  desktop: { near: { size: 2048, r: 34 }, far: { size: 2048, r: 175, every: 2 } },
-  xr:      { near: { size: 1536, r: 28 }, far: { size: 1024, r: 150, every: 3 } },
-  low:     { near: { size: 1024, r: 30 }, far: { size: 1024, r: 150, every: 4 } },
+  desktop: { near: { size: 2048, r: 34, min: 0.08 }, far: { size: 2048, r: 175, every: 2 } },
+  xr:      { near: { size: 1536, r: 28, min: 0.2 }, far: { size: 1024, r: 150, every: 3 } },
+  low:     { near: { size: 1024, r: 30, min: 0.2 }, far: { size: 1024, r: 150, every: 4 } },
 });
 
 // GLSL for a custom ShaderMaterial (the terrain): float rkSunShadow(vec3 worldPos, vec3 worldNormal), 1 = lit.
@@ -109,7 +110,8 @@ export function patchChunks() {
 		directionalLightShadow = directionalLightShadows[ i ];`);
 }
 
-const LIT = m => m && (m.isMeshLambertMaterial || m.isMeshPhongMaterial || m.isMeshStandardMaterial || m.isMeshToonMaterial);
+const SMALL_FAR = 0.6;   // m: casters smaller than this skip the far cascade (farSkip)
+const LIT = m =>m && (m.isMeshLambertMaterial || m.isMeshPhongMaterial || m.isMeshStandardMaterial || m.isMeshToonMaterial);
 const _s = new THREE.Vector3(), _v = new THREE.Vector3(), _f = new THREE.Vector3(), _q = new THREE.Quaternion(), _qi = new THREE.Quaternion();
 
 /**
@@ -135,7 +137,7 @@ export function createSunShadows({ renderer, scene, sun, hemi, groundY = () => 0
     L.castShadow = !off; const S = L.shadow; S.autoUpdate = false; S.needsUpdate = true;
     S.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 1000);
     const c = { L, S, k, r: 1, size: 0, centre: new THREE.Vector3(), D: k ? 520 : 380, every: 1, n: 0 };
-    S.updateMatrices = () => place(c);
+    S.updateMatrices = () => { place(c); farSkip(k ? SMALL_FAR : c.min); };   // (runs right before this light's map is drawn: near first, then far)
     return c;
   });
   // the light-space frame: fixed while the sun direction is fixed
@@ -163,7 +165,7 @@ export function createSunShadows({ renderer, scene, sun, hemi, groundY = () => 0
     if (name === tierName) return; tierName = name;
     const T = TIERS[name];
     for (const c of C) {
-      const t = c.k ? T.far : T.near; c.r = t.r; c.every = t.every || 1;
+      const t = c.k ? T.far : T.near; c.r = t.r; c.every = t.every || 1; c.min = t.min || 0;
       if (c.size !== t.size) { c.size = t.size; c.S.mapSize.set(t.size, t.size); if (c.S.map) { c.S.map.dispose(); c.S.map = null; } }
       const tx = 2 * c.r / c.size;
       // bias in depth units over 2D metres of range; normal offset ~1.5 texels (flat-shaded low poly: acne-free at 57 deg sun)
@@ -197,7 +199,7 @@ export function createSunShadows({ renderer, scene, sun, hemi, groundY = () => 0
       if (solid) {
         const g = o.geometry; if (g && !g.boundingSphere) g.computeBoundingSphere();
         const rad = g?.boundingSphere ? g.boundingSphere.radius : 0;
-        o.getWorldScale(_f); cast = rad * Math.max(_f.x, _f.y, _f.z) >= 0.08;
+        o.getWorldScale(_f); const wr = rad * Math.max(_f.x, _f.y, _f.z); cast = wr >= 0.08; o.__rkSmall = wr < SMALL_FAR; o.__rkR = wr;
         // hairline sticks (whip antennas, wires, rails: two extents under 6 cm) alias into dashed lines at 3-17 cm texels
         if (cast && g && !o.isInstancedMesh) {
           if (!g.boundingBox) g.computeBoundingBox();
@@ -208,16 +210,20 @@ export function createSunShadows({ renderer, scene, sun, hemi, groundY = () => 0
     }
     let rec = lit;
     if (ud === 'none') cast = rec = false; else if (ud === 'receive') cast = false; else if (ud === 'cast') { cast = true; rec = false; } else if (ud === 'both') cast = rec = true;
-    o.castShadow = cast && !off; o.receiveShadow = rec && !off;
+    o.castShadow = cast && !off; o.receiveShadow = rec && !off; o.__rkCast = o.castShadow;
     o.__rkL = o.material; stats.meshes++; if (o.castShadow) stats.cast++; if (o.receiveShadow) stats.receive++;
   }
   function walk(o, inh) {
     if (roots.has(o)) return;
     const ud = o.userData.rkShadow === 'none' ? 'none' : inh;
-    if (o.isMesh && o.__rkL !== o.material) rule(o, ud);
+    if (o.isMesh) { if (o.__rkL !== o.material) rule(o, ud); if (o.__rkCast && o.__rkSmall) small.push(o); }
     const ch = o.children; for (let i = 0; i < ch.length; i++) walk(ch[i], ud);
   }
-  function applyRules() { walk(scene, undefined); stats.passes++; }
+  function applyRules() { small.length = 0; walk(scene, undefined); stats.passes++; stats.nearOnly = small.length; }
+  // Small casters (people, crates, vehicle parts: world radius under SMALL_FAR) draw into the near map only. At the far
+  // map's ~17 cm texels their shadows are a few texels, and they are most of the far pass's draw calls.
+  const small = [];
+  function farSkip(min) { for (let i = 0; i < small.length; i++) { const o = small[i]; o.castShadow = o.__rkCast && o.__rkR >= min; } }
 
   let ruleT = 0;
   const api = {
