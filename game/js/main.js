@@ -11,7 +11,8 @@ import { createMarkerLayer, mapBar } from './ui/markerlayer.js';   // UNIT MARKE
 import { hpOf } from './ui/unitmarkers.js';
 import { CARRIER } from './ships.js';
 import { createFog, FOG_GLSL, fogPatch } from './fog.js';
-import { RK } from './renderkit/adopt.js';   // RENDERKIT: which areas use the Continuum RenderKit (?rk=, pause menu)
+import { RK } from './renderkit/adopt.js';
+import { useSceneEnvironment } from './renderkit/gamemats.js';   // RENDERKIT: which areas use the Continuum RenderKit (?rk=, pause menu)
 import { createGamePost } from './renderkit/gamepost.js';   // RENDERKIT post: desktop grading pass (never in XR)
 import { RKUI, UIC, applyUI } from './renderkit/ngcui.js';   // RENDERKIT ui: design-system menus / overlays / HUD (classic colours with ?rk=0)
 import { RK_TERRAIN_GLSL, RK_SKY_GLSL, createWorldUniforms, createWorldSky, linearOutput } from './renderkit/world.js';   // RENDERKIT world
@@ -644,6 +645,7 @@ sky.onBeforeRender = (r, s, cam) => { sky.position.setFromMatrixPosition(cam.mat
 // sky rebuilt only when the sun or the weather changes (renderkit/world.js). Off: the classic dome, no environment.
 const worldSky = RKW ? createWorldSky({ renderer, scene: zScene, sky, sun, uniforms: terrainUni }) : null;
 if (worldSky && params.has('debug')) window.__rkWorld = worldSky;
+if (worldSky) useSceneEnvironment();   // RENDERKIT world+surface: glass / metal drop their fallback sky and use zScene.environment (rebuilt with the weather)
 const _snapTerrain = cam => { _renderEye.setFromMatrixPosition(cam.matrixWorld); const x = Math.round(_renderEye.x / TG) * TG, z = Math.round(_renderEye.z / TG) * TG; terrainUni.uNear.value.set(x, z, TG * TN / 2 - 3); return [x, z]; };
 terrain.onBeforeRender = (r, s, cam) => { const [x, z] = _snapTerrain(cam); terrain.position.set(x, 0, z); terrain.updateMatrixWorld(); };
 farTerrain.onBeforeRender = (r, s, cam) => { _snapTerrain(cam); farTerrain.position.set(Math.round(_renderEye.x / FAR_C) * FAR_C, 0, Math.round(_renderEye.z / FAR_C) * FAR_C); farTerrain.updateMatrixWorld(); };
