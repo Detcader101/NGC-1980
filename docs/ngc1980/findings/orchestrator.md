@@ -34,3 +34,13 @@ game, tech tree, AI and sim, with sim win rates measured before and after.
 **Action:** all agents stopped, every worktree checkpoint-committed. Merged into experimental: techtree, the simmode
 first cut, healthbars. Paused mid-work: simmode (tournament, SIMREPORT), sealife2, bugsweep (catapult fix + deck
 ops), commander2, qa-ship, airlift, parity, ch46fly. The repo was made public at the user's request.
+
+## 2026-10-27 - RenderKit adoption: four branches merged into ngc/shader-library
+**Finding:** The Continuum RenderKit (ngc/shader-library, rebased onto main 914b5f3) was adopted in four areas by parallel agents, each gated by `game/js/renderkit/adopt.js` (`?rk=0` = classic look, pause menu RENDERKIT GRAPHICS).
+**Evidence:** `findings/rk-surface.md`, `rk-world.md`, `rk-fx.md`, `rk-ui.md`, and `evidence/rk-*/`. On the merged branch: smoke 5/5, xr 19/19, rkfx-xr 10/10, rkfx-motion 7/7, menu 9/9, rksurface/rkui pass, renderkit fixture 20/20.
+**Cause / decisions:**
+- The renderer stays NoToneMapping. Post runs display-referred through an sRGB XR-style target (rk-fx), because four custom shaders write sRGB directly.
+- The terrain and sea keep the game's own shader, with the kit's methods compiled in under `#ifdef RK_WORLD`; the kit's terrain/water materials would have lost LOD, live waves, caustics and fog of war.
+- rk-world owns `zScene.environment` (PMREM of the kit sky, environmentIntensity 0.5). With the scene environment, Three r170 uses `scene.environmentIntensity` for every Standard material whose own envMap is null, so the per-role intensities in `gamemats.js` no longer apply. A/B of the Huey (surface vs surface+world): paint slightly lighter, canopy unchanged. Accepted.
+- Merge conflicts were only in main.js imports and the `__G` debug object (union of keys).
+**Action:** Integration commit b12e2e9 calls `useSceneEnvironment()` after `createWorldSky`. OPEN: real-GPU / Quest frame times (SwiftShader A/B: surface +5–10 %, world +3–14 %, post +5–20 %); fish.mjs downwash and sealife bow-dolphin checks fail with RenderKit off too (pre-existing); caves still reflect the sky.
