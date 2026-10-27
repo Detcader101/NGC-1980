@@ -8,12 +8,37 @@
 // Frame: the ship's (x starboard, y up, z aft). Each member: { x, z, y, yaw, jersey, mode, path, speed }.
 import * as THREE from 'three';
 import { Kit, rng, pbr } from './navkit.js';
+import { Kit as FKit, FIG, figMat } from '../infantry/meshkit.js';   // RENDERKIT figures
 
 export const JERSEY = { yellow: 0xe8c21c, blue: 0x2a52b8, green: 0x2f8a3a, red: 0xc0281e, purple: 0x6a2c8c, brown: 0x6b4423, white: 0xe8e8e2, cyan: 0x40d8ff };
 const SKIN = [0xc89a74, 0x9b6a48, 0xe0b48e, 0x6e4a32];
 const _m = new THREE.Matrix4(), _r = new THREE.Matrix4(), _l = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new THREE.Vector3(), _s = new THREE.Vector3(1, 1, 1), _c = new THREE.Color(), _c2 = new THREE.Color();
 
+// RENDERKIT figures (ngc/depth-figures): the same four instanced parts and pivots, rounded and smooth-shaded: a float
+// coat over the jersey with its reflective bands, the cranial (shell, ear cups, goggles up on the front), a face, capsule
+// sleeves with gloved hands, dungarees and rounded boots. ~1.6k triangles a person (classic ~0.27k), still 4 draw calls.
+function geosFig() {
+  const j = new FKit(), b = new FKit(), a = new FKit(), l = new FKit();
+  j.rbox(0.42, 0.56, 0.25, 0.09, 0xffffff, [0, 1.2, 0], [0, 0, 0], 1);                       // float coat / jersey
+  for (const y of [1.12, 1.36]) j.rslab(0.436, 0.266, 0.055, 0.095, 0xb8b8b8, [0, y, 0]);     // reflective bands
+  j.sphere(0.128, 0xffffff, [0, 1.68, 0.008], 12, [1.06, 0.92, 1.12], [0, 0, 0], undefined, [0, Math.PI * 2], [0, Math.PI * 0.56]);   // cranial shell
+  for (const s of [-1, 1]) j.ellip(0.03, 0.05, 0.05, 0xffffff, [s * 0.112, 1.61, 0.0], [0, 0, 0], 6);                          // ear cups (cranial colour)
+  b.ellip(0.078, 0.098, 0.094, 0xc89a74, [0, 1.625, -0.006], [0, 0, 0], 10);                                                    // head / face
+  b.ellip(0.062, 0.06, 0.07, 0xc89a74, [0, 1.565, -0.03], [0.3, 0, 0], 8);                                                       // jaw
+  b.capsule([0, 1.635, -0.096], [0, 1.6, -0.108], 0.008, 0.012, 0xc89a74, 6, undefined, null, 2);                              // nose
+  b.capsule([-0.075, 1.705, -0.08], [0.075, 1.705, -0.08], 0.018, 0.018, 0x1a1c1e, 8, undefined, [1, 0.8], 2);                 // goggles up on the cranial
+  b.capsule([0, 1.48, 0], [0, 1.55, -0.01], 0.05, 0.048, 0xc89a74, 8, undefined, null, 2);                                     // neck
+  b.rslab(0.4, 0.24, 0.07, 0.08, 0x2b2b26, [0, 0.92, 0]);                                                                       // belt
+  b.rbox(0.38, 0.13, 0.23, 0.07, 0x33384a, [0, 0.98, 0], [0, 0, 0], 1);                                                        // trousers seat
+  a.capsule([0, 0.02, 0], [0, -0.5, 0], 0.06, 0.046, 0xffffff, 7, undefined, null, 2, 1);                                       // sleeve (pivot: shoulder)
+  a.ellip(0.036, 0.055, 0.045, 0x3a3a3a, [0, -0.575, -0.008], [0, 0, 0], 8);                                                    // glove
+  a.capsule([0, -0.54, -0.035], [0, -0.6, -0.05], 0.012, 0.011, 0x3a3a3a, 6, undefined, null, 2);                               // thumb
+  l.capsule([0, 0.04, 0], [0, -0.78, 0], 0.088, 0.062, 0x33384a, 7, undefined, null, 2, 1);                                     // dungarees (pivot: hip)
+  l.rbox(0.11, 0.11, 0.27, 0.04, 0x151515, [0, -0.85, -0.045], [0, 0, 0], 1);                                                  // boot
+  return { j: j.geometry(), b: b.geometry(), a: a.geometry(), l: l.geometry() };
+}
 function geos() {
+  if (FIG) return geosFig();
   // jersey: torso (float coat), cranial helmet shell; pivot = feet at the origin, facing -z
   const j = new Kit({ wear: 0 });
   j.box(0.44, 0.58, 0.26, 0xffffff, 0, 1.2, 0);                 // float coat / jersey
@@ -39,7 +64,7 @@ let G = null;
 export function createCrew(members, { seed = 5 } = {}) {
   G ||= geos();
   const n = members.length, r = rng(seed);
-  const mat = pbr(() => new THREE.MeshLambertMaterial({ vertexColors: true }), undefined, { vertexColors: true, rk: 'fabric' });   // RENDERKIT surface: jerseys, cranials
+  const mat = FIG ? figMat('fabric', { roughness: 0.8 }) : pbr(() => new THREE.MeshLambertMaterial({ vertexColors: true }), undefined, { vertexColors: true, rk: 'fabric' });   // RENDERKIT surface: jerseys, cranials
   const mk = (g, k) => { const m = new THREE.InstancedMesh(g, mat, n * k); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false; return m; };
   const J = mk(G.j, 1), B = mk(G.b, 1), A = mk(G.a, 2), L = mk(G.l, 2);
   const group = new THREE.Group(); group.name = 'deckcrew'; group.add(J, B, A, L);

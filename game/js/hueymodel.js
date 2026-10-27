@@ -5,6 +5,8 @@
 // API: buildHueyMesh() -> { group, shell, animate(S, dt, time, inside) }, S = main.js heliLook().
 import * as THREE from 'three';
 import { wrapFactory, glass, decal, DETAIL } from './renderkit/gamemats.js';   // RENDERKIT surface
+import { crewGeometry, crewMaterial } from './interiors/crewfig.js';   // RENDERKIT figures: the crew as rounded people
+import { FIG } from './units/infantry/meshkit.js';
 
 const D2R = Math.PI / 180, MAST_TILT = 5 * D2R;
 export const HUEY = {
@@ -156,6 +158,9 @@ function serialDecal() {
 }
 
 // a seated crewman facing -z, origin on the seat cushion; put(geo, mat) gets geometry in that frame
+// RENDERKIT figures: a seated aircrewman (SPH-4, olive flight suit, armour, hands on the controls / gun) as one smooth
+// vertex-coloured mesh at `at` in `parent` (crewfig.js faces +z: turned to face forward, -z)
+function crewFig(parent, at, name, seed) { const m = new THREE.Mesh(crewGeometry('heloPilot', 'seated', { arms: 'controls', seed }), crewMaterial()); m.position.set(...at); m.rotation.y = Math.PI; m.name = name; parent.add(m); return m; }
 function crewman(put, mats, arms = true) {
   const { suit, vest, helmet, skin, visor } = mats;
   put(boxG(0.36, 0.14, 0.42, 0, 0.06, -0.17), suit);                                         // thighs
@@ -238,7 +243,7 @@ export function buildHueyMesh() {
 
   // ---- crew in the cockpit (exterior view only: the cockpit module draws its own), panel, seats
   for (const s of [-1, 1]) {
-    crewman((geo, m) => front.add(geo.translate(s * 0.5, -0.62, -1.6), m), crewM);
+    if (FIG) crewFig(shellG, [s * 0.5, -0.62, -1.6], 'pilot', s > 0 ? 3 : 1); else crewman((geo, m) => front.add(geo.translate(s * 0.5, -0.62, -1.6), m), crewM);
     front.add(boxG(0.5, 0.06, 0.5, s * 0.5, -0.66, -1.62), darkM); front.add(boxG(0.5, 0.75, 0.08, s * 0.5, -0.25, -1.33), darkM);
     front.add(rodG([s * 0.5, -1.05, -2.0], [s * 0.5, -0.45, -1.95], 0.035, 5), blackM);   // cyclics
   }
@@ -327,14 +332,14 @@ export function buildHueyMesh() {
   const flash = mesh(merge([new THREE.PlaneGeometry(0.22, 0.5).rotateX(Math.PI / 2), new THREE.PlaneGeometry(0.22, 0.5).rotateX(Math.PI / 2).rotateZ(Math.PI / 2)]).translate(0, 0.03, -1.05), flashM, gunBody, 'muzzleFlash');
   const gunnerG = group(g, 'gunner', gx + 0.5, -0.74, gz + 0.04);
   body.add(boxG(0.42, 0.06, 0.42, gx + 0.52, -0.77, gz + 0.06), darkM); body.add(rodG([gx + 0.52, -1.05, gz + 0.06], [gx + 0.52, -0.77, gz + 0.06], 0.05, 5), metalM);
-  { const gb = bucket(); crewman((geo, m) => gb.add(geo, m), crewM); gb.flush(gunnerG, 'gunnerBody'); }
+  if (FIG) crewFig(gunnerG, [0, 0, 0], 'gunnerBody', 4); else { const gb = bucket(); crewman((geo, m) => gb.add(geo, m), crewM); gb.flush(gunnerG, 'gunnerBody'); }
   // the crew chief on the right with the second M60D (static: the game aims the left gun only), as an Army slick flew
   { body.add(rodG([-gx - 0.08, -1.05, gz], [-gx - 0.08, 0.42, gz], 0.05, 6), metalM); body.add(rodG([-gx - 0.08, gy - 0.06, gz], [-gx, gy - 0.06, gz], 0.04, 5), metalM);
     const yawR = group(g, 'doorGunR', -gx, gy, gz); yawR.rotation.y = -Math.PI / 2; const pR = group(yawR, 'gunPitchR'); pR.rotation.x = -0.35;
     const gb = bucket(); m60(gb); gb.flush(pR, 'm60RParts');
     const chief = group(g, 'crewChief', -gx - 0.5, -0.74, gz + 0.04); chief.rotation.y = -Math.PI / 2;
     body.add(boxG(0.42, 0.06, 0.42, -gx - 0.52, -0.77, gz + 0.06), darkM); body.add(rodG([-gx - 0.52, -1.05, gz + 0.06], [-gx - 0.52, -0.77, gz + 0.06], 0.05, 5), metalM);
-    const cb = bucket(); crewman((geo, m) => cb.add(geo, m), crewM); cb.flush(chief, 'crewChiefBody'); }
+    if (FIG) crewFig(chief, [0, 0, 0], 'crewChiefBody', 2); else { const cb = bucket(); crewman((geo, m) => cb.add(geo, m), crewM); cb.flush(chief, 'crewChiefBody'); } }
 
   // ---- main rotor: tilted mast -> swashplate -> spinning hub -> teetering blade beam (+ precone) + stabilizer bar
   const mast = group(g, 'mast', ...HUEY.HUB); mast.rotation.x = -MAST_TILT;   // axis (0, cos 5, -sin 5)

@@ -9,9 +9,11 @@
 // canteens on the belt, M16A1. RUNAWAY machine trooper: a tall ceramic-and-composite frame, a cyan sensor slit for
 // a face, a seized modern carbine. Each figure is 6 meshes with one shared vertex-coloured material (cheap crowds).
 import * as THREE from 'three';
+import { RK } from '../../../renderkit/adopt.js';   // RENDERKIT figures
+import { roundedBox, capsuleGeo, weldNormals, figMat } from '../../infantry/meshkit.js';
 
 const MAT = new Map();
-const vcMat = (emissive = false) => { const k = emissive ? 'e' : 'n'; if (!MAT.has(k)) MAT.set(k, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, ...(emissive ? { emissive: 0x000000 } : {}) })); return MAT.get(k); };
+const vcMat = (emissive = false) => { const k = emissive ? 'e' : 'n'; if (!MAT.has(k)) MAT.set(k, FIG ? figMat('fabric', { roughness: 0.85 }) : new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, ...(emissive ? { emissive: 0x000000 } : {}) })); return MAT.get(k); };
 const col = new THREE.Color();
 // parts: [[geometry, hex], ...] -> one geometry with vertex colours
 function paint(parts) {
@@ -30,10 +32,58 @@ const sp = (r, x, y, z, sx = 1, sy = 1, sz = 1, ws = 7, hs = 5, th = Math.PI) =>
 const cy = (r, h, x, y, z, seg = 6) => new THREE.CylinderGeometry(r, r, h, seg).translate(x, y, z);
 const SKIN = [0xc39a78, 0x8d6448, 0x5e4030, 0xd2a888];
 
+// ---- RENDERKIT figures (ngc/depth-figures): the crowd LOD rounded and smooth-shaded. Same pivots, same 6 meshes and
+// one shared material, ~1.5k triangles a man (classic ~0.5k): rounded trunk and pack, capsule limbs, a head with a
+// brow and nose under a proper M1 helmet with its rim, hands round the rifle, rounded boots.
+const FIG = RK.on('figures');
+const _q = new THREE.Quaternion(), _Y = new THREE.Vector3(0, 1, 0), _d = new THREE.Vector3();
+function paintS(parts) {   // like paint(), but every primitive keeps its own (smooth / crisp) normals
+  const pos = [], nor = [], cols = [];
+  for (const [g0, hex] of parts) {
+    if (!g0.attributes.normal) g0.computeVertexNormals();
+    const g = g0.index ? g0.toNonIndexed() : g0; col.setHex(hex);
+    pos.push(...g.attributes.position.array); nor.push(...g.attributes.normal.array);
+    for (let i = 0; i < g.attributes.position.count; i++) cols.push(col.r, col.g, col.b);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  return g;
+}
+const rb = (w, h, d, r, x = 0, y = 0, z = 0, rx = 0) => { const g = roundedBox(w, h, d, r, 1); if (rx) g.rotateX(rx); return g.translate(x, y, z); };
+const cap = (a, b, ra, rbb, seg = 6, body = 1) => { const { geo, q, mid } = capsuleGeo(a, b, ra, rbb, seg, 2, null, body); return geo.applyQuaternion(q).translate(...mid); };
+const ell = (rx, ry, rz, x, y, z, seg = 7) => weldNormals(new THREE.SphereGeometry(1, seg, Math.max(5, seg * 0.66 | 0))).scale(rx, ry, rz).translate(x, y, z);
+const cyS = (r0, r1, h, x, y, z, seg = 10) => new THREE.CylinderGeometry(r0, r1, h, seg).translate(x, y, z);
+function marineGeoFig() {
+  const ut = 0x4d5838, ut2 = 0x3c4330, vest = 0x48503a, pack = 0x535740, belt = 0x5a5a40, helm = 0x56603d, blk = 0x161616, mtl = 0x2a2a2a, brow = 0x2a2018;
+  const heads = SKIN.map(skin => paintS([
+    [rb(0.34, 0.3, 0.21, 0.08, 0, 1.05, 0), ut], [rb(0.39, 0.44, 0.27, 0.1, 0, 1.3, 0), vest], [cyS(0.19, 0.19, 0.07, 0, 1.06, 0, 10).scale(1, 1, 0.74), belt],
+    [rb(0.3, 0.38, 0.17, 0.05, 0, 1.3, 0.21), pack], [cap([-0.1, 1.08, 0.2], [0.1, 1.08, 0.2], 0.05, 0.05), pack],
+    [cyS(0.05, 0.05, 0.14, -0.17, 1.04, 0.05), ut2], [cyS(0.05, 0.05, 0.14, 0.17, 1.04, 0.05), ut2],
+    [ell(0.07, 0.07, 0.075, -0.19, 1.47, 0), ut], [ell(0.07, 0.07, 0.075, 0.19, 1.47, 0), ut],                                   // shoulders
+    [cap([0, 1.5, 0], [0, 1.6, -0.005], 0.055, 0.05), skin], [ell(0.082, 0.1, 0.098, 0, 1.665, -0.012, 8), skin],                // neck, head
+    [ell(0.064, 0.064, 0.074, 0, 1.6, -0.035, 7), skin], [cap([0, 1.665, -0.1], [0, 1.635, -0.112], 0.009, 0.013, 6), skin],    // jaw, nose
+    [cap([-0.045, 1.685, -0.088], [0.045, 1.685, -0.088], 0.011, 0.011, 6), brow],                                              // brow shade
+    [new THREE.SphereGeometry(0.15, 10, 5, 0, Math.PI * 2, 0, Math.PI * 0.55).scale(1, 0.8, 1.08).translate(0, 1.7, 0.005), helm],   // M1 dome
+    [new THREE.CylinderGeometry(0.16, 0.175, 0.022, 10, 1, true).scale(1, 1, 1.08).translate(0, 1.678, 0.005), helm],          // flared rim
+  ]));
+  const thigh = paintS([[cap([0, 0.02, 0], [0, -0.44, 0], 0.085, 0.064, 7, 1), ut]]);
+  const shin = paintS([[cap([0, 0, 0], [0, -0.38, 0], 0.062, 0.054, 7, 1), ut], [rb(0.11, 0.1, 0.26, 0.035, 0, -0.43, -0.05), blk]]);
+  // arms holding the M16A1 at the ready (pivot at the shoulders, y = 1.46): capsule arms from the shoulders to the hands
+  const sh = [[-0.2, 0, 0], [0.2, 0, 0]], el = [[-0.22, -0.26, -0.12], [0.24, -0.25, -0.06]], hd = [[-0.06, -0.22, -0.48], [0.08, -0.2, -0.22]];
+  const arms = paintS([
+    ...[0, 1].map(i => [cap(sh[i], el[i], 0.055, 0.047, 6, 1), ut]), ...[0, 1].map(i => [cap(el[i], hd[i], 0.047, 0.04, 6, 1), ut]),
+    [bx(0.05, 0.07, 0.62, 0.02, -0.14, -0.42), blk], [new THREE.CylinderGeometry(0.012, 0.012, 0.42, 8).rotateX(Math.PI / 2).translate(0.02, -0.13, -0.9), mtl],   // receiver + barrel
+    [bx(0.03, 0.13, 0.065, 0.02, -0.22, -0.4), blk], [bx(0.045, 0.11, 0.26, 0.02, -0.17, -0.06), blk], [bx(0.024, 0.06, 0.16, 0.02, -0.065, -0.42), blk],   // magazine, stock, carry handle
+    [ell(0.042, 0.05, 0.05, hd[0][0], hd[0][1], hd[0][2], 7), SKIN[0]], [ell(0.042, 0.05, 0.05, hd[1][0], hd[1][1], hd[1][2], 7), SKIN[0]],   // hands
+  ]);
+  return GEO.marine = { heads, thigh, shin, arms, hip: 0.1, shoulder: 1.46, legY: 0.98 };
+}
+
 // a shared geometry set per kind (built once): upper body, thigh, shin (+boot), arms + weapon
 const GEO = {};
 function marineGeo() {
   if (GEO.marine) return GEO.marine;
+  if (FIG) return marineGeoFig();
   const ut = 0x4d5838, ut2 = 0x3c4330, vest = 0x48503a, pack = 0x535740, belt = 0x5a5a40, helm = 0x56603d, blk = 0x161616, mtl = 0x2a2a2a;
   const heads = SKIN.map(skin => paint([
     [bx(0.34, 0.32, 0.2, 0, 1.06, 0), ut], [bx(0.38, 0.44, 0.26, 0, 1.3, 0.0), vest], [bx(0.36, 0.08, 0.27, 0, 1.06, 0), belt],   // hips, vest, belt

@@ -9,6 +9,7 @@
 //   poses: 'stand' | 'seated' | 'kneel';  arms: 'side' | 'table' | 'wheel' | 'binocs' | 'point' | 'controls' |
 //          'knees' (seated, hands on the knees) | 'rifle' (seated, the M16 upright between the knees)
 import * as THREE from 'three';
+import { FIG, roundedBox, weldNormals, figMat } from '../units/infantry/meshkit.js';   // RENDERKIT figures: rounded, smooth-shaded people
 
 const SKIN = [0xc39a78, 0x8d6448, 0x5e4030, 0xd2a888, 0xb08060];
 const JERSEY = { yellow: 0xd8b21e, blue: 0x2a4aa0, brown: 0x6a4a2a, green: 0x3a7a3a, red: 0xa8231b, purple: 0x6a3a8a, white: 0xe2e2dc };
@@ -31,10 +32,13 @@ class Acc {
   pop() { this.stack.pop(); return this; }
   // a box centred at (x, y, z) in the current frame
   box(w, h, d, hex, x = 0, y = 0, z = 0, rx = 0) { this.add(new THREE.BoxGeometry(w, h, d), hex, x, y, z, rx); }
-  sph(r, hex, x, y, z, sx = 1, sy = 1, sz = 1, th = Math.PI) { this.add(new THREE.SphereGeometry(r, 8, 5, 0, Math.PI * 2, 0, th).scale(sx, sy, sz), hex, x, y, z); }
-  cyl(r, h, hex, x, y, z, rx = 0) { this.add(new THREE.CylinderGeometry(r, r, h, 6), hex, x, y, z, rx); }
+  sph(r, hex, x, y, z, sx = 1, sy = 1, sz = 1, th = Math.PI) { this.add(FIG ? weldNormals(new THREE.SphereGeometry(r, 10, 6, 0, Math.PI * 2, 0, th)).scale(sx, sy, sz) : new THREE.SphereGeometry(r, 8, 5, 0, Math.PI * 2, 0, th).scale(sx, sy, sz), hex, x, y, z); }
+  cyl(r, h, hex, x, y, z, rx = 0) { this.add(new THREE.CylinderGeometry(r, r, h, FIG ? 10 : 6), hex, x, y, z, rx); }
+  // RENDERKIT figures: a box with rounded edges (limbs come out as pills, the trunk as a rounded block); classic: a box
+  rbox(w, h, d, hex, x = 0, y = 0, z = 0, rx = 0, r = Math.min(w, d) * 0.4) { if (!FIG) return this.box(w, h, d, hex, x, y, z, rx); this.add(roundedBox(w, h, d, r, 1, 1), hex, x, y, z, rx); }
   add(g0, hex, x, y, z, rx = 0) {
-    const g = g0.index ? g0.toNonIndexed() : g0; if (rx) g.rotateX(rx); g.translate(x, y, z); g.applyMatrix4(this.M); g.computeVertexNormals();
+    if (FIG && !g0.attributes.normal) g0.computeVertexNormals();
+    const g = g0.index ? g0.toNonIndexed() : g0; if (rx) g.rotateX(rx); g.translate(x, y, z); g.applyMatrix4(this.M); if (!FIG) g.computeVertexNormals();
     _c.setHex(hex); const p = g.attributes.position.array, n = g.attributes.normal.array;
     for (let i = 0; i < p.length; i++) { this.pos.push(p[i]); this.nor.push(n[i]); }
     for (let i = 0; i < p.length / 3; i++) this.col.push(_c.r, _c.g, _c.b);
@@ -59,23 +63,23 @@ export function crewGeometry(kind = 'sailor', pose = 'stand', o = {}) {
   // legs
   for (const s of [-1, 1]) {
     A.push(s * 0.1, hipY, 0, seated ? -1.5 : kneel ? (s < 0 ? -1.5 : -0.05) : 0, 0, 0);
-    A.box(0.15, 0.46, 0.17, kind === 'jetPilot' ? L.gsuit : L.legs, 0, -0.23, 0);
+    A.rbox(0.15, 0.46, 0.17, kind === 'jetPilot' ? L.gsuit : L.legs, 0, -0.23, 0);
     A.push(0, -0.45, 0, seated ? 1.5 : kneel ? (s < 0 ? 1.5 : 1.5) : 0, 0, 0);
-    A.box(0.13, 0.42, 0.15, L.legs, 0, -0.21, 0); A.box(0.14, 0.1, 0.27, L.boot, 0, -0.43, 0.05);
+    A.rbox(0.13, 0.42, 0.15, L.legs, 0, -0.21, 0); A.rbox(0.14, 0.1, 0.27, L.boot, 0, -0.43, 0.05, 0, 0.035);
     A.pop(); A.pop();
   }
   // torso, kit, head
   A.push(0, hipY, 0, seated ? -0.08 : kneel ? 0.05 : 0, 0, 0);
-  A.box(0.36, 0.2, 0.22, L.legs, 0, 0.08, 0);                          // hips
-  A.box(0.38, 0.48, 0.23, L.shirt, 0, 0.42, 0);                         // chest
-  if (L.vest) A.box(0.41, 0.36, 0.26, kind === 'deck' ? L.shirt : 0x3a3a3a, 0, 0.4, 0);
-  if (L.flak) { A.box(0.42, 0.42, 0.27, L.flak, 0, 0.42, 0); A.box(0.4, 0.06, 0.26, L.webbing, 0, 0.16, 0); A.box(0.1, 0.1, 0.08, L.webbing, -0.14, 0.18, 0.15); A.box(0.1, 0.1, 0.08, L.webbing, 0.14, 0.18, 0.15); }
+  A.rbox(0.36, 0.2, 0.22, L.legs, 0, 0.08, 0, 0, 0.07);                          // hips
+  A.rbox(0.38, 0.48, 0.23, L.shirt, 0, 0.42, 0, 0, 0.08);                         // chest
+  if (L.vest) A.rbox(0.41, 0.36, 0.26, kind === 'deck' ? L.shirt : 0x3a3a3a, 0, 0.4, 0, 0, 0.08);
+  if (L.flak) { A.rbox(0.42, 0.42, 0.27, L.flak, 0, 0.42, 0, 0, 0.09); A.box(0.4, 0.06, 0.26, L.webbing, 0, 0.16, 0); A.box(0.1, 0.1, 0.08, L.webbing, -0.14, 0.18, 0.15); A.box(0.1, 0.1, 0.08, L.webbing, 0.14, 0.18, 0.15); }
   if (L.harness) { A.box(0.4, 0.05, 0.25, L.harness, 0, 0.22, 0); for (const s of [-1, 1]) A.box(0.06, 0.46, 0.25, L.harness, s * 0.1, 0.42, 0); }
   if (L.patch) A.box(0.08, 0.06, 0.01, L.patch, 0.1, 0.55, 0.12);
   // neck and head (faces +z), the hat
-  A.box(0.1, 0.08, 0.1, skin, 0, 0.7, 0);
+  if (FIG) A.cyl(0.05, 0.1, skin, 0, 0.7, 0); else A.box(0.1, 0.08, 0.1, skin, 0, 0.7, 0);
   A.push(0, 0.83, 0.0, o.look === 'down' ? 0.35 : 0, o.headYaw || 0, 0);
-  A.box(0.19, 0.23, 0.21, skin, 0, 0, 0.01);
+  if (FIG) face(A, skin); else A.box(0.19, 0.23, 0.21, skin, 0, 0, 0.01);
   hat(A, L, kind);
   A.pop();
   // arms
@@ -83,14 +87,20 @@ export function crewGeometry(kind = 'sailor', pose = 'stand', o = {}) {
   for (const [i, s] of [[0, -1], [1, 1]]) {
     const [pitch, roll, bend] = arms[i];
     A.push(s * 0.23, 0.62, 0, -pitch, 0, s * roll);
-    A.box(0.11, 0.32, 0.12, L.shirt, 0, -0.15, 0);
-    A.push(0, -0.3, 0, -bend, 0, 0); A.box(0.1, 0.28, 0.1, L.shirt, 0, -0.13, 0); A.box(0.08, 0.09, 0.09, kind === 'jetPilot' || kind === 'heloPilot' ? 0x3a3020 : skin, 0, -0.31, 0);
+    A.rbox(0.11, 0.32, 0.12, L.shirt, 0, -0.15, 0);
+    A.push(0, -0.3, 0, -bend, 0, 0); A.rbox(0.1, 0.28, 0.1, L.shirt, 0, -0.13, 0); { const hc = kind === 'jetPilot' || kind === 'heloPilot' ? 0x3a3020 : skin; if (FIG) { A.sph(0.042, hc, 0, -0.315, 0.008, 0.85, 1.15, 1); A.sph(0.016, hc, -0.035 * s, -0.29, 0.03, 1, 1.6, 1); } else A.box(0.08, 0.09, 0.09, hc, 0, -0.31, 0); }
     if (o.arms === 'binocs' && s > 0) A.box(0.16, 0.08, 0.16, 0x1a1a1a, -0.1, -0.33, 0.02);
     A.pop(); A.pop();
   }
   if (o.arms === 'rifle') { A.box(0.05, 0.9, 0.07, 0x1a1a1a, 0, 0.25, 0.32); A.box(0.06, 0.18, 0.05, 0x1a1a1a, 0, 0.0, 0.38); }   // the M16A1 upright
   A.pop();
   return A.geometry();
+}
+// RENDERKIT figures: a face (figure faces +z): skull, jaw, brow, nose, ears; eyes as dark sockets under the brow
+function face(A, skin) {
+  A.sph(0.092, skin, 0, 0.01, 0.012, 0.9, 1.15, 1.05); A.sph(0.07, skin, 0, -0.055, 0.04, 1, 0.85, 1.05);
+  A.sph(0.012, skin, 0, -0.005, 0.112, 1, 1.6, 1.2); A.box(0.11, 0.014, 0.02, 0x2a2018, 0, 0.035, 0.1);
+  for (const s of [-1, 1]) { A.sph(0.012, 0x1c1610, s * 0.033, 0.016, 0.098, 1.2, 0.7, 0.5); A.sph(0.014, skin, s * 0.085, 0.0, 0.01, 0.7, 1.7, 1.2); }
 }
 function hat(A, L, kind) {
   const h = L.hat;
@@ -116,4 +126,4 @@ export function crewMesh(list, material) {
   return new THREE.Mesh(g, material || crewMaterial());
 }
 let MAT = null;
-export const crewMaterial = () => MAT ||= new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+export const crewMaterial = () => MAT ||= FIG ? figMat('fabric', { roughness: 0.85 }) : new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
