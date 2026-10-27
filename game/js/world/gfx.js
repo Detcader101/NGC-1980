@@ -4,8 +4,13 @@
 import * as THREE from 'three';
 import { FOG_GLSL } from '../fog.js';
 import { lodShader } from './visibility.js';
+import { DETAIL_ON, worldDetailShader } from '../renderkit/detail.js';   // RENDERKIT materials
 
-export function worldMaterial({ fog = null, uTime = null, instanced = false, side = THREE.FrontSide, extra = null, lod = null, reveal = { value: 1 } } = {}) {
+// RENDERKIT materials (ngc/depth-materials): with RK 'surface' on, the procedural surface detail by triangle class
+// (renderkit/detail.js; kit.js tags the classes and bakes contact occlusion). detail: false keeps it plain; a number
+// is the class for geometry without the rkSurf attribute. Off (?rk=0 / ?rkdetail=0): the classic Lambert, unchanged.
+export function worldMaterial({ fog = null, uTime = null, instanced = false, side = THREE.FrontSide, extra = null, lod = null, reveal = { value: 1 }, detail = true } = {}) {
+  const det = DETAIL_ON && detail !== false && lod !== 'far', defCls = typeof detail === 'number' ? detail : 0;
   const m = new THREE.MeshLambertMaterial({ vertexColors: true, side });
   m.onBeforeCompile = sh => {
     sh.vertexShader = sh.vertexShader.replace('#include <color_vertex>', '#include <color_vertex>\n#ifdef USE_COLOR\n vColor.rgb *= color.rgb;\n#endif');
@@ -21,8 +26,9 @@ export function worldMaterial({ fog = null, uTime = null, instanced = false, sid
     }
     if (extra) extra(sh);
     if (lod) lodShader(sh, lod, reveal);
+    if (det) worldDetailShader(sh, { defCls });   // RENDERKIT materials
   };
-  m.customProgramCacheKey = () => 'world' + (fog ? 'F' : '') + (extra ? extra.key || 'x' : '') + (lod || '');
+  m.customProgramCacheKey = () => 'world' + (fog ? 'F' : '') + (extra ? extra.key || 'x' : '') + (lod || '') + (det ? 'D' + defCls : '');
   return m;
 }
 // ground overlays (roads, fields, squares): pulled towards the camera in depth, and further out lifted a little with
@@ -43,6 +49,7 @@ export function geoFrom(d) {
   g.setAttribute('position', new THREE.BufferAttribute(d.pos, 3));
   g.setAttribute('normal', new THREE.BufferAttribute(d.nrm, 3, true));
   g.setAttribute('color', new THREE.BufferAttribute(d.col, 3, true));
+  if (d.srf && DETAIL_ON) g.setAttribute('rkSurf', new THREE.BufferAttribute(d.srf, 2));   // RENDERKIT materials: class, occlusion
   g.computeBoundingSphere();
   return g;
 }

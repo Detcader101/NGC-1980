@@ -14,12 +14,13 @@
 // hull are left out on purpose (this module animates its own parts). New hooks war.js calls when present:
 //   attach({ fx, s })  setSide(side)  onHp(fraction)  setState('intact' | 'destroyed')  tick(dt, time)
 import * as THREE from 'three';
-import { Geo, col, shade } from './kit.js';
+import { Geo, col, shade, surf, SURF } from './kit.js';
 import { worldMaterial, geoFrom } from './gfx.js';
-import { pbr, worldSurface } from '../renderkit/gamemats.js';   // RENDERKIT surface
+import { pbr, worldSurface, RKS } from '../renderkit/gamemats.js';   // RENDERKIT surface
 import { rng } from './rng.js';
 
-const TEAMC = { 0: 0x4f9a5a, 1: 0x2f6fd0, 2: 0xff3322 };
+// RENDERKIT materials: with RK surface on the team colours are old paint (readable at a glance, not toy-bright)
+const TEAMC = RKS ? { 0: 0x5f7f56, 1: 0x35557f, 2: 0xa3342a } : { 0: 0x4f9a5a, 1: 0x2f6fd0, 2: 0xff3322 };
 const MAT = { solid: null, glow: null, glowDead: null };
 const mats = () => {
   if (!MAT.solid) {
@@ -32,7 +33,7 @@ const mats = () => {
 };
 const mesh = (g, m) => { const o = new THREE.Mesh(geoFrom(g.build()), m || mats().solid); return o; };
 // palette
-const OD = col(0x4b5320), OD2 = col(0x5d6532), SAND = col(0xb8a678), SAND2 = col(0xa89668), CONC = col(0x9a978e), CONC2 = col(0x86847c);
+const OD = col(0x4b5320), OD2 = col(0x5d6532), SAND = RKS ? col(0x9c9070) : col(0xb8a678), SAND2 = RKS ? col(0x8a8064) : col(0xa89668), CONC = col(0x9a978e), CONC2 = col(0x86847c);
 const EARTH = col(0x6a6644), GRASS = col(0x55753a), STEEL = col(0x6c7276), DARK = col(0x2a2c2e), BLACK = col(0x18191a), WHITE = col(0xe8e8e2);
 const RUST = col(0x7a4a32), WOODC = col(0x8a6a3a), CHAR = col(0x2e2b28), CHAR2 = col(0x45403a), ASH = col(0x5a5650);
 const CER = col(0xd9dcd6), CER2 = col(0xc4c8c4), COMP = col(0x2a2e33), COMP2 = col(0x3a3f45), DEADC = col(0x5c5e5c);
@@ -280,7 +281,7 @@ function buildDepot(r) {
     g.push(x, 0, z, 0, Math.PI / 2, 0); for (let i = 0; i < 9; i++) { const a0 = i / 9 * Math.PI, a1 = (i + 1) / 9 * Math.PI; g.quad([Math.cos(a0) * 3.1, -len / 2, -Math.sin(a0) * 3.1], [Math.cos(a1) * 3.1, -len / 2, -Math.sin(a1) * 3.1], [Math.cos(a1) * 3.1, len / 2, -Math.sin(a1) * 3.1], [Math.cos(a0) * 3.1, len / 2, -Math.sin(a0) * 3.1], i % 2 ? c : shade(c, 0.92)); } g.pop();
     for (const s of [-1, 1]) { for (let i = 0; i < 9; i++) { const a0 = i / 9 * Math.PI, a1 = (i + 1) / 9 * Math.PI; g.tri([x, 0, z + s * len / 2], [x + Math.cos(s > 0 ? a0 : a1) * 3.1, Math.sin(s > 0 ? a0 : a1) * 3.1, z + s * len / 2], [x + Math.cos(s > 0 ? a1 : a0) * 3.1, Math.sin(s > 0 ? a1 : a0) * 3.1, z + s * len / 2], col(0x8a8676)); } g.quad([x - 0.8, 0, z + s * (len / 2 + 0.03)], [x + 0.8, 0, z + s * (len / 2 + 0.03)], [x + 0.8, 2.1, z + s * (len / 2 + 0.03)], [x - 0.8, 2.1, z + s * (len / 2 + 0.03)], s > 0 ? col(0x3a3e36) : col(0x2b3846)); }
   };
-  quonset(H, -5, -1, 12, col(0x6a6e5a)); quonset(H, 3, -2, 10, col(0x727664));
+  quonset(H, -5, -1, 12, surf(col(0x6a6e5a), SURF.CORRUGATED)); quonset(H, 3, -2, 10, surf(col(0x727664), SURF.CORRUGATED));   // (RENDERKIT materials: corrugated iron)
   H.push(4, 0, 6.5); H.box(0, 0, 0, 8, 4, 5.5, col(0xa8a290), 1); H.gable(0, 4, 0, 8, 5.5, 1.2, col(0x7d8288), col(0xa8a290), 0.3); H.quad([-3, 0, 2.77], [0, 0, 2.77], [0, 3.2, 2.77], [-3, 3.2, 2.77], col(0xc8c4b0)); for (const x of [1.5, 3]) H.quad([x - 0.5, 1.2, 2.77], [x + 0.5, 1.2, 2.77], [x + 0.5, 2.2, 2.77], [x - 0.5, 2.2, 2.77], col(0x2b3846)); H.cyl(3, 4.6, -1.5, 0.15, 2.4, 5, DARK, 2); H.pop();
   crates(H, -9, 7, r, 9); crates(H, -5.5, 8.5, r, 6); H.box(-11, 0, 3, 1.2, 0.15, 1.2, WOODC, 1);
   // military: an M35, a forklift, drums, sandbags at the gate, a floodlight
@@ -448,7 +449,12 @@ export function buildFactionStructure(kind, side) {
 // RUNAWAY power pylons that march across a machine-held island. world/life.js owns these and polls island owners.
 export function buildPadDressing(r0 = 8.5) {
   const g = new THREE.Group(), G = new Geo(), lights = G;   // one mesh for the static parts (draw calls)
-  for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; lights.box(Math.cos(a) * (r0 + 1.2), 0, Math.sin(a) * (r0 + 1.2), 0.35, 0.25, 0.35, i % 3 ? col(0xffe860) : col(0x50c060), 1); }
+  for (let i = 0; i < 12; i++) {
+    const a = i / 12 * Math.PI * 2, x = Math.cos(a) * (r0 + 1.2), z = Math.sin(a) * (r0 + 1.2);
+    if (!RKS) { lights.box(x, 0, z, 0.35, 0.25, 0.35, i % 3 ? col(0xffe860) : col(0x50c060), 1); continue; }
+    // RENDERKIT materials: a real edge light - a squat grey housing on a concrete footing, a small amber / green lens
+    lights.box(x, 0, z, 0.42, 0.06, 0.42, CONC2, 1).box(x, 0.06, z, 0.2, 0.16, 0.2, col(0x3a3c3e), 1).cyl(x, 0.22, z, 0.07, 0.09, 6, i % 3 ? col(0xc9a646) : col(0x4f8a58), 2);
+  }
   G.cyl(r0 + 6, 0, 0, 0.07, 5.5, 5, col(0xd8d8d0), 0); G.box(r0 + 6, 0, 0, 0.8, 0.12, 0.8, CONC, 1);
   G.push(r0 + 9, 0, 4).box(0, 0, 0, 3.2, 2.5, 2.4, col(0xc8c4b0), 1).box(0, 2.5, 0, 3.4, 0.12, 2.6, DARK, 0).pop();
   const solid = mesh(G); g.add(solid);

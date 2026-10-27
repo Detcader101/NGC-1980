@@ -16,12 +16,13 @@
 // patched material (rebuild through these factories); one noise patch per material; paint/rubber/canvas are dielectric.
 import * as THREE from 'three';
 import { RK } from './adopt.js';
-import { applySurfaceDetail, createGlassMaterial, createDecalMaterial } from './materials.js';
+import { createGlassMaterial, createDecalMaterial } from './materials.js';
+import { applyUnitDetail, worldDetailShader, DETAIL_TIER } from './detail.js';   // ngc/depth-materials
 
 export const RKS = RK.on('surface');
-// ?rkdetail=0 keeps the RenderKit PBR roles but skips the procedural dust / wear noise (cost probe, low-end / VR fallback)
-let _q = null; try { _q = new URLSearchParams(location.search).get('rkdetail'); } catch (e) {}
-export const RK_DETAIL = _q !== '0';
+// ?rkdetail=0 keeps the RenderKit PBR roles but skips the procedural detail (cost probe, low-end); ?rkdetail=1 medium
+// (60 m, no bump); default high (150 m). See renderkit/detail.js.
+export const RK_DETAIL = DETAIL_TIER > 0;
 
 // role -> { roughness, metalness }. Values are tuned for the hemisphere + sun rig (no env map), see the header.
 export const ROLES = Object.freeze({
@@ -44,11 +45,12 @@ export const ROLES = Object.freeze({
 
 // Procedural detail presets (scale = noise frequency per model-local metre).
 export const DETAIL = Object.freeze({
-  air:   { dust: 0.1, wear: 0.1, scale: 1.6, dustColor: 0x8f8a7c, bareColor: 0x9a9ea0 },
-  army:  { dust: 0.22, wear: 0.06, scale: 1.4, dustColor: 0x8d7d5e, bareColor: 0x6c6c66 },
-  armor: { dust: 0.36, wear: 0.08, scale: 1.1, dustColor: 0x8a7a5a, bareColor: 0x6a6a64 },
-  ship:  { dust: 0.18, wear: 0.1, scale: 0.35, dustColor: 0x6e5a48, bareColor: 0x5a5856 },   // rust streaks / salt
-  rw:    { dust: 0.08, wear: 0, scale: 0.9, dustColor: 0xa29c8e },                         // RUNAWAY: grime, no chips
+  // ngc/depth-materials: panel = panel-line grid (m, 0 none), streak = rain / oil / rust runs down the sides
+  air:   { dust: 0.1, wear: 0.1, scale: 1.6, dustColor: 0x8f8a7c, bareColor: 0x9a9ea0, panel: 0.85, streak: 0.16, streakColor: 0x34302a },
+  army:  { dust: 0.22, wear: 0.06, scale: 1.4, dustColor: 0x8d7d5e, bareColor: 0x6c6c66, panel: 0, streak: 0.2, streakColor: 0x5a4a34 },
+  armor: { dust: 0.36, wear: 0.08, scale: 1.1, dustColor: 0x8a7a5a, bareColor: 0x6a6a64, panel: 0, streak: 0.22, streakColor: 0x4a3e2c },
+  ship:  { dust: 0.18, wear: 0.1, scale: 0.35, dustColor: 0x6e5a48, bareColor: 0x5a5856, panel: 2.4, streak: 0.28, streakColor: 0x5e4024 },   // rust streaks / salt
+  rw:    { dust: 0.08, wear: 0, scale: 0.9, dustColor: 0xa29c8e, panel: 1.1, streak: 0.06, streakColor: 0x6a665e },   // RUNAWAY: grime, no chips
   site:  { dust: 0.22, wear: 0, scale: 0.6, dustColor: 0x7c705a },                         // structures: grime
 });
 
@@ -109,7 +111,7 @@ export function pbr(legacy, color, o = {}, base = 'paint', baseDetail = null) {
   // (no unit material is fog-of-war patched today; one that is must get fogPatch HERE, before the detail below)
   const d = s.detail === true ? baseDetail : s.detail;
   // exposed-metal wear only where paint sits on metal; rubber, canvas, skin, concrete, wood, ceramic never chip to metal
-  if (d && RK_DETAIL) applySurfaceDetail(m, { ...d, ...(PAINTED.includes(role) ? {} : { wear: 0 }) });
+  if (d && RK_DETAIL) applyUnitDetail(m, { ...d, ...(PAINTED.includes(role) ? {} : { wear: 0 }), ...(PAINTED.includes(role) || role === 'ceramic' || role === 'concrete' ? {} : { panel: 0 }) });
   return m;
 }
 
@@ -137,12 +139,18 @@ export function decal(legacy, { map, ...o } = {}) {
 }
 
 // worldMaterial()-style vertex-coloured Standard material (world/gfx.js stores sqrt(linear) colours and squares them
-// back in the vertex shader). Used by the faction structures; detail adds grime / concrete weathering.
-export function worldSurface(legacy, { side = THREE.FrontSide, role = 'concrete', detail = DETAIL.site } = {}) {
+// back in the vertex shader). Used by the faction structures. ngc/depth-materials: the detail is the per-triangle class
+// detail of renderkit/detail.js (sandbag weave, concrete pores, corrugated iron, painted steel...) plus kit.js's baked
+// contact occlusion, instead of one uniform grime mottle.
+export function worldSurface(legacy, { side = THREE.FrontSide, role = 'concrete', detail = true } = {}) {
   if (!RKS) return legacy();
   const m = new THREE.MeshStandardMaterial({ ...ROLES[role], vertexColors: true, side });
   m.name = 'RK/world-' + role;
-  m.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <color_vertex>', '#include <color_vertex>\n#ifdef USE_COLOR\n vColor.rgb *= color.rgb;\n#endif'); };
-  m.customProgramCacheKey = () => 'rkworld';
-  return detail && RK_DETAIL ? applySurfaceDetail(m, detail) : m;
+  const det = detail && RK_DETAIL;
+  m.onBeforeCompile = sh => {
+    sh.vertexShader = sh.vertexShader.replace('#include <color_vertex>', '#include <color_vertex>\n#ifdef USE_COLOR\n vColor.rgb *= color.rgb;\n#endif');
+    if (det) worldDetailShader(sh);
+  };
+  m.customProgramCacheKey = () => 'rkworld' + (det ? 'D' : '');
+  return m;
 }
