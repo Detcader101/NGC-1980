@@ -11,7 +11,8 @@
 // API: const vm = createViewmodel(); vm.update(dt, R (rifleman), { camYawRate, camPitchRate });  vm.render(renderer, camera)
 //      vm.fov(baseFov) -> the FOV to use (slight zoom on the sights)
 import * as THREE from 'three';
-import { Kit, KITMAT, CAMO, COL } from './meshkit.js';
+import { Kit, KITMAT, CAMO, COL, FIG, figMat } from './meshkit.js';
+import { fpHand, sleeveGeo } from './handkit.js';   // RENDERKIT figures
 import { buildWeaponModel, buildItemModel, setLawReticle } from './weaponmodels.js';
 import { WEAPONS } from './weapons.js';
 
@@ -102,7 +103,15 @@ function evalTrack(track, p) {
 
 // ------------------------------------------------------------------------------------------------ arms and hands
 function sleeveMat() { return KITMAT.lambert(); }
+// RENDERKIT figures: smooth physical hands and sleeves (handkit.js); one material each, made once
+let _fpSkin = null, _fpCloth = null;
+const fpSkinMat = () => _fpSkin || (_fpSkin = figMat('skin'));
+const fpClothMat = () => _fpCloth || (_fpCloth = figMat('fabric', { side: THREE.DoubleSide }));
 function buildHand(side) {   // a fist around a ~32 mm grip; grip axis = local y, grip centre at the origin, wrist toward +z
+  if (FIG) {   // RENDERKIT figures: fingers in three phalanges, knuckles, nails, thumb, palm, heel and wrist
+    const k = new Kit(), w = fpHand(k, { side, gripR: side === 'L' ? 0.024 : 0.017, trigger: side === 'R' });
+    const g = new THREE.Group(); g.add(k.mesh(fpSkinMat(), 'hand' + side)); g.userData.wrist = w.wrist; g.userData.tris = k.tris; return g;
+  }
   const s = side === 'L' ? -1 : 1, k = new Kit(), skin = CAMO.vary(COL.skin, 0.05, 0.02), knuckle = 0xbb8c68, crease = 0x9c6c4c, nail = 0xd8b8a0;
   k.box(0.024, 0.086, 0.07, skin, [s * 0.031, 0, 0.024]);                                                       // palm (on the near side of the grip)
   k.box(0.012, 0.082, 0.06, skin, [s * 0.046, 0, 0.03]);                                                        // back of the hand
@@ -121,7 +130,26 @@ function buildHand(side) {   // a fist around a ~32 mm grip; grip axis = local y
   const m = k.mesh(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide }), 'hand' + side);
   const g = new THREE.Group(); g.add(m); g.userData.wrist = V3(s * 0.036, 0, 0.097); return g;
 }
-function buildSegment(len, r0, r1, side, watch) {   // along -y from the joint; sleeve camo
+function buildSegment(len, r0, r1, side, watch, fore = false) {   // along -y from the joint; sleeve camo
+  if (FIG) {   // RENDERKIT figures: a round sleeve with fabric folds, the cuff standing off the wrist, the GI watch
+    const k = new Kit(), cloth = CAMO.erdl(0.06, side === 'L' ? 3 : 5), sd = side === 'L' ? 3 : 7;
+    k.add(sleeveGeo(len, r0 * 1.04, r1 * (fore ? 1.1 : 1.0), { seed: sd + (fore ? 1 : 0), folds: 1, cuff: fore, seg: 24, rows: 18 }), cloth, [0, 0, 0], [0, 0, 0], null, 'local');
+    if (fore) {   // the cuff's hem: a rolled edge round the opening (the sleeve's inside is not a dark hole), the button tab
+      const rc = r1 * 1.1 * 1.05 + 0.002;
+      k.add(new THREE.TorusGeometry(rc, 0.0035, 6, 24).rotateX(Math.PI / 2), CAMO.erdl(0.06, sd + 2), [0, -len + 0.001, 0], [0, 0, 0], null, 'local');
+      k.rbox(0.014, 0.03, 0.006, 0.0025, 0x4c5a35, [0, -len + 0.02, rc + 0.001], [0, 0, 0], 1);
+      k.cyl(0.0035, 0.0035, 0.002, 0x2a2a20, [0, -len + 0.012, rc + 0.005], 'z', 8);
+    }
+    if (watch) {   // GI watch on the left wrist, under the cuff's edge: OD nylon band, black case, crystal
+      const y = -len + 0.03;
+      k.add(new THREE.TorusGeometry(r1 * 0.98, 0.004, 6, 20).rotateX(Math.PI / 2), 0x3e4030, [0, y, 0], [0, 0, 0], [1, 2.2, 1]);
+      k.cyl(0.017, 0.018, 0.009, 0x151515, [0, y, -(r1 + 0.004)], 'z', 16);
+      k.cyl(0.0145, 0.0145, 0.002, 0xcfcbb8, [0, y, -(r1 + 0.009)], 'z', 16);
+      k.box(0.0012, 0.009, 0.0005, 0x101010, [0, y + 0.0035, -(r1 + 0.0102)]); k.box(0.007, 0.0012, 0.0005, 0x101010, [0.003, y, -(r1 + 0.0102)]);
+      k.cyl(0.0025, 0.0025, 0.004, 0x2a2a2a, [0.0185, y, -(r1 + 0.004)], 'x', 8);   // crown
+    }
+    const g = new THREE.Group(); g.add(k.mesh(fpClothMat())); g.userData.tris = k.tris; return g;
+  }
   const k = new Kit(), cloth = CAMO.erdl(0.06, side === 'L' ? 3 : 5);
   k.cyl(r1, r0, len, cloth, [0, -len / 2, 0], 'y', 8, null, false, 'local');
   if (watch) { k.cyl(r1 + 0.004, r1 + 0.004, 0.02, 0x23241c, [0, -len + 0.035, 0], 'y', 8); k.box(0.032, 0.008, 0.036, 0x101010, [0, -len + 0.035, -(r1 + 0.006)], [0, 0, 0]); k.box(0.026, 0.004, 0.03, 0xd8d4c0, [0, -len + 0.035, -(r1 + 0.0105)]); }
@@ -147,7 +175,7 @@ export function createViewmodel(o = {}) {
   const root = new THREE.Group(); scene.add(root);
   const arms = {};
   for (const sd of ['L', 'R']) {
-    const up = buildSegment(UPPER, 0.052, 0.045, sd, false), fo = buildSegment(FORE, 0.045, 0.036, sd, sd === 'L'), hand = buildHand(sd);
+    const up = buildSegment(UPPER, 0.052, 0.045, sd, false), fo = buildSegment(FORE, 0.045, 0.036, sd, sd === 'L', true), hand = buildHand(sd);
     root.add(up, fo, hand);
     arms[sd] = { up, fo, hand, sh: SHOULDER[sd].clone(), pole: sd === 'R' ? V3(0.7, -1, 0.3) : V3(-0.35, -1, 0.1) };
   }

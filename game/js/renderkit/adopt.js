@@ -1,10 +1,11 @@
 // RenderKit adoption switch: one place that says which game areas use the Continuum RenderKit.
 // Areas: 'surface' (vehicles/units/structures), 'world' (terrain/water/sky), 'fx' (particles),
-// 'post' (desktop post pipeline), 'ui' (design.css menus/overlays + GPU HUD/text).
+// 'post' (desktop post pipeline), 'ui' (design.css menus/overlays + GPU HUD/text), 'figures' (people and the first-
+// person hands / weapons: smooth rounded geometry, skin / fabric / metal materials, LODs; units/infantry/meshkit.js).
 // ?rk=0 turns everything off, ?rk=1 / ?rk=all everything on, ?rk=surface,fx only those.
 // Without the query the saved pause-menu choice (localStorage tz_rk) applies, default on.
 // Materials are built at load, so a change applies after reload. Nothing here touches the DOM.
-export const RK_AREAS = ['surface', 'world', 'fx', 'post', 'ui'];
+export const RK_AREAS = ['surface', 'world', 'fx', 'post', 'ui', 'figures'];
 
 function read() {
   let q = null, saved = null;

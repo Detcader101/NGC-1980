@@ -5,6 +5,7 @@
 // ERDL / woodland camouflage and the helmet cover are painted, per triangle, without textures.
 import * as THREE from 'three';
 import { pbr } from '../../renderkit/gamemats.js';   // RENDERKIT surface
+import { RK } from '../../renderkit/adopt.js';         // RENDERKIT figures
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new THREE.Vector3(), _s = new THREE.Vector3(1, 1, 1);
 const _c = new THREE.Color(), _a = new THREE.Vector3(), _b = new THREE.Vector3(), _cc = new THREE.Vector3();
@@ -41,16 +42,25 @@ export const CAMO = {
 };
 
 // ------------------------------------------------------------------------------------------------ the kit
+// RENDERKIT figures (ngc/depth-figures): with RK.on('figures') a Kit keeps each primitive's OWN normals (transformed),
+// so curved parts (cylinders, spheres, capsules, lathes, rounded boxes) shade smooth while boxes and extruded profiles
+// stay crisp, and the kit materials are smooth-shaded physical skin / fabric / parkerized steel / black plastic. With
+// ?rk=0 (FIG false) nothing changes: face normals, flat-shaded Lambert, the classic geometry.
+export const FIG = RK.on('figures');
+const _nm = new THREE.Matrix3(), _n0 = new THREE.Vector3(), _n1 = new THREE.Vector3(), _n2 = new THREE.Vector3();
 export class Kit {
-  constructor() { this.pos = []; this.col = []; }
+  constructor(o = {}) { this.pos = []; this.col = []; this.smooth = o.smooth ?? FIG; this.nor = this.smooth ? [] : null; }
   // add a THREE geometry: transform (pos [x,y,z], rot [rx,ry,rz] Euler XYZ or quaternion, scale), colour hex or fn(x,y,z)
-  // `paint` = 'world' (default) evaluates colour fns at the transformed centroid, 'local' before the transform
+  // `paint` = 'world' (default) evaluates colour fns at the transformed centroid, 'local' before the transform,
+  // 'vertex' per vertex (soft gradients: skin, shading on a face)
   add(geo, color, pos = [0, 0, 0], rot = [0, 0, 0], scale = null, paint = 'world') {
+    if (this.smooth && !geo.attributes.normal) geo.computeVertexNormals();
     const g = geo.index ? geo.toNonIndexed() : geo;
     if (Array.isArray(rot)) _q.setFromEuler(_e.set(rot[0], rot[1], rot[2], 'XYZ')); else _q.copy(rot);
     if (scale) _s.set(scale[0], scale[1], scale[2]); else _s.set(1, 1, 1);
     _m.compose(_v.set(pos[0], pos[1], pos[2]), _q, _s);
-    const p = g.attributes.position, n = p.count, fn = typeof color === 'function' ? color : null;
+    const p = g.attributes.position, n = p.count, fn = typeof color === 'function' ? color : null, N = this.nor ? g.attributes.normal : null;
+    if (N) _nm.getNormalMatrix(_m);
     if (!fn) _c.setHex(color);
     for (let i = 0; i < n; i += 3) {
       _a.fromBufferAttribute(p, i); _b.fromBufferAttribute(p, i + 1); _cc.fromBufferAttribute(p, i + 2);
@@ -58,8 +68,13 @@ export class Kit {
       if (fn && paint === 'local') { cx = (_a.x + _b.x + _cc.x) / 3; cy = (_a.y + _b.y + _cc.y) / 3; cz = (_a.z + _b.z + _cc.z) / 3; }
       _a.applyMatrix4(_m); _b.applyMatrix4(_m); _cc.applyMatrix4(_m);
       if (fn && paint !== 'local') { cx = (_a.x + _b.x + _cc.x) / 3; cy = (_a.y + _b.y + _cc.y) / 3; cz = (_a.z + _b.z + _cc.z) / 3; }
-      if (fn) _c.setHex(fn(cx, cy, cz));
       this.pos.push(_a.x, _a.y, _a.z, _b.x, _b.y, _b.z, _cc.x, _cc.y, _cc.z);
+      if (N) {
+        _n0.fromBufferAttribute(N, i).applyMatrix3(_nm).normalize(); _n1.fromBufferAttribute(N, i + 1).applyMatrix3(_nm).normalize(); _n2.fromBufferAttribute(N, i + 2).applyMatrix3(_nm).normalize();
+        this.nor.push(_n0.x, _n0.y, _n0.z, _n1.x, _n1.y, _n1.z, _n2.x, _n2.y, _n2.z);
+      }
+      if (fn && paint === 'vertex') { for (const v of [_a, _b, _cc]) { _c.setHex(fn(v.x, v.y, v.z)); this.col.push(_c.r, _c.g, _c.b); } continue; }
+      if (fn) _c.setHex(fn(cx, cy, cz));
       for (let k = 0; k < 3; k++) this.col.push(_c.r, _c.g, _c.b);
     }
     if (g !== geo) g.dispose();
@@ -78,13 +93,17 @@ export class Kit {
   }
   // prism from a 2D profile in the (a, b) plane, extruded `depth` along the third axis. plane 'zy' = side profile of a
   // gun (z forward/back, y up) extruded across x; 'xy' = front profile extruded along z; 'xz' = plan extruded up y.
+  // bevel > 0 (RENDERKIT figures): the outline is inset by the bevel so the part keeps its size, the bevels shade round
   prism(profile, depth, color, pos = [0, 0, 0], plane = 'zy', rot = [0, 0, 0], bevel = 0, paint) {
     const sh = new THREE.Shape(profile.map(p => new THREE.Vector2(p[0], p[1])));
-    const g = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: bevel > 0, bevelSize: bevel, bevelThickness: bevel, bevelSegments: 1, curveSegments: 4 });
-    g.translate(0, 0, -depth / 2);
+    const bv = bevel > 0 && this.smooth, core = bv ? Math.max(0.0005, depth - 2 * bevel) : depth;
+    const g = new THREE.ExtrudeGeometry(sh, bv ? { depth: core, bevelEnabled: true, bevelSize: bevel, bevelThickness: bevel, bevelOffset: -bevel, bevelSegments: 2, curveSegments: 4 }
+      : { depth, bevelEnabled: bevel > 0, bevelSize: bevel, bevelThickness: bevel, bevelSegments: 1, curveSegments: 4 });
+    g.translate(0, 0, -core / 2);
     // shape is in XY, extruded along Z. Map to the plane.
     if (plane === 'zy') g.applyMatrix4(new THREE.Matrix4().set(0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1));   // (a,b,c) -> (c, b, a)
     else if (plane === 'xz') g.applyMatrix4(new THREE.Matrix4().set(1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1));   // (a,b,c) -> (a, c, b)
+    if (bv) creaseNormals(g, 0.5);
     return this.add(g, color, pos, rot, null, paint);
   }
   // a tube / bar between two points (square or round section)
@@ -98,25 +117,120 @@ export class Kit {
   lathe(points, color, pos, axis = 'y', seg = 10, paint) {
     const g = new THREE.LatheGeometry(points.map(p => new THREE.Vector2(p[0], p[1])), seg);
     if (axis === 'z') g.rotateX(Math.PI / 2); else if (axis === 'x') g.rotateZ(-Math.PI / 2);
+    if (this.smooth) weldNormals(g);
     return this.add(g, color, pos, [0, 0, 0], null, paint);
   }
+  // ---- RENDERKIT figures: rounded primitives with smooth normals (called on the FIG paths)
+  // a box with rounded edges and corners (radius r): w, h, d, centre pos, rot; c = segments per rounded edge
+  rbox(w, h, d, r, color, pos, rot = [0, 0, 0], c = 2, paint, flat = 1) { return this.add(roundedBox(w, h, d, r, c, flat), color, pos, rot, null, paint); }
+  // a thin slab whose plan is a rounded rectangle (w x d, corner radius r, h thick): a band round a rounded trunk
+  rslab(w, d, h, r, color, pos, rot = [0, 0, 0], paint) { return this.prism(roundPoly([[-w / 2, -d / 2, r], [w / 2, -d / 2, r], [w / 2, d / 2, r], [-w / 2, d / 2, r]], 4), h, color, pos, "xz", rot, 0, paint); }
+  // a tapered capsule from point a (radius ra) to point b (radius rb): limbs, fingers. seg = radial segments.
+  // squash [sx, sz] flattens the section (a finger is wider than it is deep; a forearm is oval)
+  capsule(a, b, ra, rb, color, seg = 8, paint, squash = null, rings = 3, body = 1) { const { geo, q, mid } = capsuleGeo(a, b, ra, rb, seg, rings, squash, body); return this.add(geo, color, mid, q, null, paint); }
+  // an ellipsoid (radii rx, ry, rz)
+  ellip(rx, ry, rz, color, pos, rot = [0, 0, 0], seg = 12, paint) { const g = new THREE.SphereGeometry(1, seg, Math.max(5, seg * 0.66 | 0)); weldNormals(g); return this.add(g, color, pos, rot, [rx, ry, rz], paint); }
   get empty() { return this.pos.length === 0; }
+  get tris() { return this.pos.length / 9; }
   geometry() {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(this.pos, 3));
     g.setAttribute('color', new THREE.Float32BufferAttribute(this.col, 3));
-    g.computeVertexNormals(); g.computeBoundingSphere();
+    if (this.nor) g.setAttribute('normal', new THREE.Float32BufferAttribute(this.nor, 3)); else g.computeVertexNormals();
+    g.computeBoundingSphere();
     return g;
   }
   mesh(mat, name) { const m = new THREE.Mesh(this.geometry(), mat || KITMAT.lambert()); if (name) m.name = name; return m; }
 }
-// shared materials (vertex coloured, flat shaded)
+// ---- geometry helpers (RENDERKIT figures)
+// rounded polygon: corners [x, y, radius] -> outline points (for prisms / extrusions)
+export function roundPoly(corners, seg = 4) {
+  const out = [], n = corners.length;
+  for (let i = 0; i < n; i++) {
+    const [px, py] = corners[(i + n - 1) % n], [cx, cy, r] = corners[i], [nx, ny] = corners[(i + 1) % n];
+    const ax = px - cx, ay = py - cy, bx = nx - cx, by = ny - cy, la = Math.hypot(ax, ay), lb = Math.hypot(bx, by);
+    if (!r) { out.push([cx, cy]); continue; }
+    const ua = [ax / la, ay / la], ub = [bx / lb, by / lb], half = Math.acos(Math.max(-1, Math.min(1, ua[0] * ub[0] + ua[1] * ub[1]))) / 2, t = r / Math.tan(half);
+    const p0 = [cx + ua[0] * t, cy + ua[1] * t], p1 = [cx + ub[0] * t, cy + ub[1] * t];
+    for (let s = 0; s <= seg; s++) { const f = s / seg, q = [(1 - f) * (1 - f), 2 * f * (1 - f), f * f]; out.push([q[0] * p0[0] + q[1] * cx + q[2] * p1[0], q[0] * p0[1] + q[1] * cy + q[2] * p1[1]]); }
+  }
+  return out;
+}
+const pkey = (p, i) => `${Math.round(p.getX(i) * 1e5)},${Math.round(p.getY(i) * 1e5)},${Math.round(p.getZ(i) * 1e5)}`;
+// average the normals of coincident vertices (lathe / sphere seams, pole fans) so a smooth surface has no crease
+export function weldNormals(g) {
+  const p = g.attributes.position; if (!g.attributes.normal) g.computeVertexNormals();
+  const n = g.attributes.normal, map = new Map();
+  for (let i = 0; i < p.count; i++) { const k = pkey(p, i), e = map.get(k); if (e) { e[0] += n.getX(i); e[1] += n.getY(i); e[2] += n.getZ(i); e.push(i); } else map.set(k, [n.getX(i), n.getY(i), n.getZ(i), i]); }
+  for (const e of map.values()) { const l = Math.hypot(e[0], e[1], e[2]) || 1; for (let j = 3; j < e.length; j++) n.setXYZ(e[j], e[0] / l, e[1] / l, e[2] / l); }
+  n.needsUpdate = true; return g;
+}
+// smooth normals across edges flatter than `cos` (dot of the face normals), crisp across sharper ones. In place on a
+// non-indexed geometry (ExtrudeGeometry is one)
+export function creaseNormals(g, cos = 0.5) {
+  if (g.index) return g;
+  g.computeVertexNormals();
+  const p = g.attributes.position, n = g.attributes.normal, map = new Map(), fn = new Float32Array(n.array);
+  for (let i = 0; i < p.count; i++) { const k = pkey(p, i); let l = map.get(k); if (!l) map.set(k, l = []); l.push(i); }
+  for (const list of map.values()) for (const i of list) {
+    let x = 0, y = 0, z = 0;
+    for (const j of list) { const d = fn[i * 3] * fn[j * 3] + fn[i * 3 + 1] * fn[j * 3 + 1] + fn[i * 3 + 2] * fn[j * 3 + 2]; if (d >= cos) { x += fn[j * 3]; y += fn[j * 3 + 1]; z += fn[j * 3 + 2]; } }
+    const l = Math.hypot(x, y, z) || 1; n.setXYZ(i, x / l, y / l, z / l);
+  }
+  n.needsUpdate = true; return g;
+}
+// rounded box: a box grid with c segments in each rounded band, every vertex pushed onto the box-plus-sphere surface;
+// the normal is the analytic one (smooth round the edges, exactly flat on the faces)
+export function roundedBox(w, h, d, r, c = 2, flat = 1) {
+  const hx = w / 2, hy = h / 2, hz = d / 2; r = Math.min(r, hx, hy, hz) * 0.999;
+  const n = 2 * c + flat, g = new THREE.BoxGeometry(2, 2, 2, n, n, n), p = g.attributes.position, nr = g.attributes.normal;
+  const ex = hx - r, ey = hy - r, ez = hz - r;
+  // grid coordinate (-1..1, n segments) -> (-h..h) with the first / last c segments in the rounded band
+  const remap = (u, half, e) => { const k = Math.round((u + 1) / 2 * n); if (k <= c) return -half + r * (k / c); if (k >= n - c) return e + r * ((k - (n - c)) / c); return -e + 2 * e * ((k - c) / (n - 2 * c)); };
+  for (let i = 0; i < p.count; i++) {
+    const x = remap(p.getX(i), hx, ex), y = remap(p.getY(i), hy, ey), z = remap(p.getZ(i), hz, ez);
+    const ix = Math.max(-ex, Math.min(ex, x)), iy = Math.max(-ey, Math.min(ey, y)), iz = Math.max(-ez, Math.min(ez, z));
+    let dx = x - ix, dy = y - iy, dz = z - iz; const l = Math.hypot(dx, dy, dz);
+    if (l < 1e-9) { dx = nr.getX(i); dy = nr.getY(i); dz = nr.getZ(i); } else { dx /= l; dy /= l; dz /= l; }
+    p.setXYZ(i, ix + dx * r, iy + dy * r, iz + dz * r); nr.setXYZ(i, dx, dy, dz);
+  }
+  return g;
+}
+// tapered capsule (a lathe: a hemisphere, the cone tangent to both, a hemisphere), centred, oriented a -> b
+const _Y = new THREE.Vector3(0, 1, 0);
+// body: segments along the cone (long camouflaged limbs need rings, or per-triangle camo runs in stripes)
+export function capsuleGeo(a, b, ra, rb, seg = 8, rings = 3, squash = null, body = 1) {
+  const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), d = B.clone().sub(A), L = Math.max(1e-4, d.length());
+  const pts = [], s = Math.max(-0.95, Math.min(0.95, (ra - rb) / L)), ph = Math.asin(s);   // tilt of the tangent line
+  for (let i = 0; i <= rings; i++) { const t = -Math.PI / 2 + (Math.PI / 2 + ph) * (i / rings); pts.push(new THREE.Vector2(Math.max(1e-5, ra * Math.cos(t)), -L / 2 + ra * Math.sin(t))); }
+  const p0 = pts[pts.length - 1].clone(), p1 = new THREE.Vector2(rb * Math.cos(ph), L / 2 + rb * Math.sin(ph));
+  for (let i = 1; i < body; i++) pts.push(p0.clone().lerp(p1, i / body));
+  for (let i = 0; i <= rings; i++) { const t = ph + (Math.PI / 2 - ph) * (i / rings); pts.push(new THREE.Vector2(Math.max(1e-5, rb * Math.cos(t)), L / 2 + rb * Math.sin(t))); }
+  const geo = new THREE.LatheGeometry(pts, seg);
+  if (squash) { geo.scale(squash[0], 1, squash[1]); geo.computeVertexNormals(); }
+  weldNormals(geo);
+  const q = new THREE.Quaternion().setFromUnitVectors(_Y, d.normalize());
+  return { geo, q, mid: [(A.x + B.x) / 2, (A.y + B.y) / 2, (A.z + B.z) / 2], L };
+}
+// shared materials (vertex coloured, flat shaded; RENDERKIT figures: smooth-shaded physical roles)
+// roles for people and small arms, tuned for the hemisphere + sun rig with no env map (metals stay low)
+export const FIGROLE = Object.freeze({
+  fabric: { roughness: 0.93, metalness: 0 },      // utilities, webbing, nylon
+  skin: { roughness: 0.58, metalness: 0 },        // a soft sheen on knuckles and cheekbones
+  steel: { roughness: 0.5, metalness: 0.22 },     // parkerized / blued steel, anodized aluminium receiver
+  plastic: { roughness: 0.44, metalness: 0 },     // the M16's black furniture: a dull sheen
+  rubber: { roughness: 0.9, metalness: 0 },
+});
+export const figMat = (role, o = {}) => { const m = new THREE.MeshStandardMaterial({ vertexColors: true, ...FIGROLE[role], ...o }); m.name = 'RKfig/' + role; return m; };
 export const KITMAT = {
-  _l: null, _s: null,
+  _l: null, _s: null, _k: null, _p: null,
   // RENDERKIT surface: cloth / webbing / skin read as dielectric fabric; weapon steel as parkerized metal (?rk=0: Lambert)
-  lambert() { return this._l || (this._l = pbr(() => new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), undefined, { vertexColors: true, flatShading: true, rk: 'fabric' })); },
+  lambert() { return this._l || (this._l = FIG ? figMat('fabric') : pbr(() => new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), undefined, { vertexColors: true, flatShading: true, rk: 'fabric' })); },
   // a little sheen for blued / parkerized steel (still Lambert: flat, but a touch emissive so black parts read)
-  steel() { return this._s || (this._s = pbr(() => new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, emissive: 0x050506 }), undefined, { vertexColors: true, flatShading: true, emissive: 0x050506, rk: { role: 'metal' } })); },
+  steel() { return this._s || (this._s = FIG ? figMat('steel', { emissive: 0x040405 }) : pbr(() => new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, emissive: 0x050506 }), undefined, { vertexColors: true, flatShading: true, emissive: 0x050506, rk: { role: 'metal' } })); },
+  // RENDERKIT figures (FIG; otherwise the classic ones): bare skin, black plastic furniture
+  skin() { return this._k || (this._k = FIG ? figMat('skin') : this.lambert()); },
+  plastic() { return this._p || (this._p = FIG ? figMat('plastic', { emissive: 0x030303 }) : this.steel()); },
 };
 // colour constants used across the infantry models
 export const COL = {
