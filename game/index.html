@@ -58,7 +58,10 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
 #menu .slider input{display:block;width:100%;margin:8px 0 2px;accent-color:#3fd}
 #menu .slider small{display:block;font-size:12px;letter-spacing:0;color:#7aa;margin-top:3px}
 #menu button:disabled{opacity:.35;cursor:default}
-</style></head><body>
+#title .ngc-mark{display:none}   /* RENDERKIT ui: the design-system logo mark, shown only with html.ngc-rkui */
+</style>
+<!-- RENDERKIT ui: the Continuum design system for menus, overlays and the HUD. Both sheets are scoped (.rk-ui / html.ngc-rkui): nothing in them matches with ?rk=0 -->
+<link rel="stylesheet" href="./js/renderkit/design.css"><link rel="stylesheet" href="./js/renderkit/ngc-ui.css"></head><body>
 <canvas id="gl"></canvas>
 <div id="hud">
   <div id="tl"><div>SCORE <b id="score">0</b></div><div id="fleet"></div><div id="modeTag"></div><div id="weap"></div><div id="dbg"></div></div>
@@ -70,6 +73,7 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
   <div id="fade"><div id="fadeText"></div></div>
   <div id="menu"><h3>PAUSED</h3><div class="sub" id="menuSub"></div><div id="menuItems"></div><div class="sub" style="margin-top:14px">UP / DOWN AND ENTER, OR CLICK  ·  ESC / P TO RESUME</div></div>
   <div id="title">
+    <div class="ngc-mark" aria-hidden="true"><span class="rk-mark"></span><span>TASK FORCE ALBATROSS&nbsp; / &nbsp;SUMMER 1980</span></div>
     <h1>NGC-1980</h1>
     <h2>ONE-WAY TRIP TO EARTH, 1980</h2>
     <div id="result"></div>
@@ -98,6 +102,15 @@ canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
     <p id="gpuinfo" style="color:#789;margin-top:20px"></p>
   </div>
 </div>
+<script>
+// RENDERKIT ui: the first paint already in the right look. Mirrors renderkit/adopt.js read() for the 'ui' area
+// (?rk= first, then the saved pause-menu choice tz_rk, default on); renderkit/ngcui.js applyUI() is the authority.
+try { let s = null; try { s = localStorage.getItem('tz_rk'); } catch (e) {}
+  const v = (new URLSearchParams(location.search).get('rk') ?? s ?? 'all').trim().toLowerCase();
+  const on = !['0', 'off', 'none'].includes(v) && (['1', 'on', 'all', ''].includes(v) || v.split(',').map(x => x.trim()).includes('ui'));
+  if (on) { document.documentElement.classList.add('ngc-rkui'); for (const id of ['title', 'menu']) document.getElementById(id).classList.add('rk-ui'); }
+} catch (e) {}
+</script>
 <script>
 // ?xrlog: post errors, long main-thread stalls and the XR frame timings (window.__xrlog) to the local server
 if (/[?&]xrlog/.test(location.search)) {

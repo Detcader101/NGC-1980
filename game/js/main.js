@@ -12,6 +12,7 @@ import { hpOf } from './ui/unitmarkers.js';
 import { CARRIER } from './ships.js';
 import { createFog, FOG_GLSL, fogPatch } from './fog.js';
 import { RK } from './renderkit/adopt.js';   // RENDERKIT: which areas use the Continuum RenderKit (?rk=, pause menu)
+import { RKUI, UIC, applyUI } from './renderkit/ngcui.js';   // RENDERKIT ui: design-system menus / overlays / HUD (classic colours with ?rk=0)
 import { drawDistance, radialFog } from './world/visibility.js';
 import { zoneGrid, SURF_NAMES, GEOLOGY, geologyOf } from './world/terrain.js';
 radialFog(THREE);
@@ -1569,6 +1570,7 @@ const commander = createCommander({
 // TECH TREE: the RESEARCH page (techui.js); the command board's T and SHIFT+\ open it, T / \ go back to the board
 const techUI = createTechUI({ war, hud: $('hud'), say, feed, sfx, store: PSTORE, onBoard: () => commander.open(),
   onOpen: () => { commander.close(); if (document.pointerLockElement) document.exitPointerLock(); if (bigMap) { bigMap = false; setMapSize(); } } });
+applyUI();   // RENDERKIT ui: html.ngc-rkui and .rk-ui on the menu roots (the boards exist from here)
 function commandKey(code, shift = false) {   // \ the board, SHIFT+\ the RESEARCH page, / the next unit out (main's keydown, before the craft's own keys)
   if (code !== 'Backslash' && code !== 'IntlBackslash' && code !== 'Slash') return false;
   if (G.mode !== 'zarch') { say('CLIMB OUT OF THE CAVE FIRST', 1.4); return true; }
@@ -1913,7 +1915,7 @@ function renderMenu() {
       box.appendChild(d); return;
     }
     const b = document.createElement('button'); b.dataset.action = it.id; b.disabled = !!it.off; b.className = i === menu.sel ? 'sel' : '';
-    const conf = menu.confirm === it.id;
+    const conf = menu.confirm === it.id; if (conf) b.classList.add('confirm');   // RENDERKIT ui: the confirm step in amber (no style in the classic look)
     b.innerHTML = (conf ? `${it.label}?  PRESS AGAIN TO CONFIRM` : it.label) + (it.note ? `<small>${it.note}</small>` : '');
     b.onmouseenter = () => { if (!it.off) { menu.sel = i; for (const [k, c] of [...box.children].entries()) c.classList.toggle('sel', k === i); } };
     b.onclick = () => { menu.sel = i; menuPick(); };
@@ -2123,6 +2125,7 @@ const crossEl = (() => {
 })();
 const gfxEl = (() => { const e = document.createElement('div'); e.style.cssText = 'position:absolute;inset:0;pointer-events:none;display:none'; $('hud').prepend(e); return e; })();
 const rwrCue = createRwrCue($('hud'));   // CM: radar warning scope + LOCK / MISSILE LAUNCH / LASER words, outside views
+rwrCue.el?.classList.add('ngc-rwr');   // RENDERKIT ui: a hook for ngc-ui.css (placed under the top-left plate; no style in the classic look)
 const cautionEl = (() => { const e = document.createElement('div'); e.id = 'caution'; e.style.cssText = 'position:absolute;left:16px;bottom:100px;font-size:15px;letter-spacing:1px;font-weight:bold'; $('hud').appendChild(e); return e; })();
 // what the island pad under / near you is doing: capture progress, guns in the way, services
 function padHint() {
@@ -2140,6 +2143,7 @@ function padHint() {
 // floating labels over nearby islands and ships, so you can read the war without the map
 const tagBox = (() => { const e = document.createElement('div'); e.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden'; $('hud').prepend(e); return e; })();
 const tagPool = [], _tv = new THREE.Vector3();
+const TAG_COL = RKUI ? [UIC.free, UIC.ours, UIC.enemy] : OWN_COL;   // RENDERKIT ui: world tags in the field palette (the map keeps OWN_COL)
 const KIND_NAME = { hq: 'HEADQUARTERS', fortress: 'CAVE FORTRESS', fuel: 'FUEL', factory: 'FACTORY', radar: 'RADAR' };
 function updateTags() {
   let n = 0; markers.avoid(null);   // (UNIT MARKERS: this frame's tags)
@@ -2147,7 +2151,7 @@ function updateTags() {
   const put = (x, y, z, html, d) => {
     _tv.set(x, y, z).project(zCam); if (_tv.z > 1 || Math.abs(_tv.x) > 1.05 || Math.abs(_tv.y) > 1.05) return;
     if (jetCk && _tv.y < -0.05) return;   // (ngc/bugsweep) in a jet cockpit, nothing under the glareshield: a tag below it was drawn over the instrument panel
-    if (n >= tagPool.length) { const e = document.createElement('div'); e.style.cssText = 'position:absolute;left:0;top:0;width:240px;margin-left:-120px;text-align:center;font-size:12px;line-height:1.35;white-space:nowrap;text-shadow:0 0 3px #000,0 0 5px #000'; tagBox.appendChild(e); tagPool.push(e); }
+    if (n >= tagPool.length) { const e = document.createElement('div'); e.className = 'ngc-tag'; e.style.cssText = 'position:absolute;left:0;top:0;width:240px;margin-left:-120px;text-align:center;font-size:12px;line-height:1.35;white-space:nowrap;text-shadow:0 0 3px #000,0 0 5px #000'; tagBox.appendChild(e); tagPool.push(e); }
     const e = tagPool[n++]; if (e._h !== html) { e._h = html; e.innerHTML = html; }
     e.style.display = 'block'; e.style.transform = `translate(${((_tv.x + 1) / 2 * innerWidth).toFixed(0)}px,${((1 - _tv.y) / 2 * innerHeight - 30).toFixed(0)}px)`; e.style.opacity = clamp(1.4 - d / 380, 0.25, 1).toFixed(2);
     markers.avoid((_tv.x + 1) / 2 * innerWidth, (1 - _tv.y) / 2 * innerHeight - 30);   // UNIT MARKERS: a marker under this tag is drawn faint
@@ -2156,14 +2160,14 @@ function updateTags() {
     const cx = zCam.position.x, cz = zCam.position.z;
     for (const I of ISLANDS) {
       const p = I.pad, d = Math.hypot(p.x - cx, p.z - cz); if (d > 430 || d < 25 || !fog.exploredAt(p.x, p.z)) continue;
-      const vis = fog.visibleAt(p.x, p.z), own = vis ? I.owner : I.seen, col = own < 0 ? '#aaa' : OWN_COL[own], aa = vis && own > 0 ? war.aliveAA(I) : 0;
-      const st = own < 0 ? 'UNKNOWN' : own === 1 ? (I.cap && I.cap.side === 2 ? '<span style="color:#f86">UNDER ATTACK</span>' : 'OURS') : own === 2 ? (I.cave ? 'ENEMY  ·  STEAL THE POD' : aa ? `ENEMY  ·  ${'▲'.repeat(aa)} AA` : 'ENEMY  ·  UNDEFENDED') : 'NEUTRAL  ·  LAND TO TAKE';
-      put(p.x, p.h + 22, p.z, `<b style="color:${col}">${I.name}</b>  <span style="color:#9ab">${KIND_NAME[I.kind]}  ${Math.round(d)}m</span><br><span style="color:#cde">${st}</span>`, d);
+      const vis = fog.visibleAt(p.x, p.z), own = vis ? I.owner : I.seen, col = own < 0 ? UIC.unknown : TAG_COL[own], aa = vis && own > 0 ? war.aliveAA(I) : 0;   // RENDERKIT ui: TAG_COL / UIC
+      const st = own < 0 ? 'UNKNOWN' : own === 1 ? (I.cap && I.cap.side === 2 ? `<span style="color:${UIC.alarm}">UNDER ATTACK</span>` : 'OURS') : own === 2 ? (I.cave ? 'ENEMY  ·  STEAL THE POD' : aa ? `ENEMY  ·  ${'▲'.repeat(aa)} AA` : 'ENEMY  ·  UNDEFENDED') : 'NEUTRAL  ·  LAND TO TAKE';
+      put(p.x, p.h + 22, p.z, `<b style="color:${col}">${I.name}</b>  <span style="color:${UIC.muted}">${KIND_NAME[I.kind]}  ${Math.round(d)}m</span><br><span style="color:${UIC.ink}">${st}</span>`, d);
     }
     for (const u of war.units) {
       if (!u.dims || u.sinking !== undefined || (u.side === 2 && !fog.visibleAt(u.p.x, u.p.z))) continue;
       const d = Math.hypot(u.p.x - cx, u.p.z - cz); if (d > 520 || d < 60) continue;
-      put(u.p.x, u.dims.DECK + 30, u.p.z, `<b style="color:${OWN_COL[u.side]}">${shipName(u)}</b>  <span style="color:#9ab">${Math.round(100 * u.hp / u.hpMax)}%  ${Math.round(d)}m</span>`, d);
+      put(u.p.x, u.dims.DECK + 30, u.p.z, `<b style="color:${TAG_COL[u.side]}">${shipName(u)}</b>  <span style="color:${UIC.muted}">${Math.round(100 * u.hp / u.hpMax)}%  ${Math.round(d)}m</span>`, d);
     }
   }
   for (let i = n; i < tagPool.length; i++) tagPool[i].style.display = 'none';
@@ -2183,11 +2187,13 @@ function updateHud() {
     if (gfxEl._k !== key) { gfxEl._k = key; gfxEl.style.display = key ? 'block' : 'none'; gfxEl.style.background = `radial-gradient(circle at 50% 45%, rgba(${r ? 120 : 0},0,0,${gf.red * 0.55}) ${Math.max(0, 62 - gf.grey * 70)}%, rgba(${r ? 90 : 0},0,0,${Math.min(1, 0.15 + gf.grey * 1.1 + gf.red * 0.4)}) ${Math.max(8, 95 - gf.grey * 80)}%)`; gfxEl.style.backdropFilter = gf.grey > 0.2 ? `grayscale(${Math.min(1, gf.grey * 1.4)})` : ''; }
   }
   { const list = G.state === 'play' && !cockpit.group.visible && G.craft === 'heli' ? D.cautions(G.fuel, H.rpm, G.mode === 'zarch' ? H.landed : T.landed) : [], blink = (performance.now() % 600) < 300;
-    const html = list.map(c => `<span style="color:${c.warn ? (blink ? '#ff3a2a' : '#7a1810') : '#ffb020'};margin-right:12px">${c.t}</span>`).join('');
+    const html = RKUI ? list.map(c => `<span class="ngc-c${c.warn ? ' warn' + (blink ? '' : ' off') : ''}">${c.t}</span>`).join('')   // RENDERKIT ui: steady words on plates; only the warning's edge bar blinks
+      : list.map(c => `<span style="color:${c.warn ? (blink ? '#ff3a2a' : '#7a1810') : '#ffb020'};margin-right:12px">${c.t}</span>`).join('');
     if (cautionEl._h !== html) { cautionEl._h = html; cautionEl.innerHTML = html; } }
   setText('score', String(G.score)); setText('hi', String(G.hi));
   // (COMMANDER: the fleet strip under the score - reserves and units out - is drawn by the command board, units/commander/board.js)
   setStyle('fuel', 'width', clamp(ch ? ch.fuel ?? 0 : G.fuel, 0, 100).toFixed(1) + '%'); setText('fuelLbl', ch ? ch.fuelLabel || 'FUEL' : 'FUEL');
+  if (RKUI) { const f = ch ? ch.fuel ?? 0 : G.fuel, lv = f < 10 ? 'critical' : f < 25 ? 'low' : 'ok', bar = $('fuel').parentNode; if (bar.dataset.level !== lv) bar.dataset.level = lv; }   // RENDERKIT ui: amber / red fill (the cautions carry the words)
   setText('modeTag', `FUEL STORES ${Math.round(G.res)}/${RES_MAX}   MATERIEL ${Math.floor(G.mat)}${G.cargo > 0.5 ? '   CARGO ' + Math.round(G.cargo) : ''}`);
   setText('weap', ch ? ch.weap || '' : `ROCKETS ${G.rockets}   BOMBS ${G.bombs}   FLARES ${cmH.flare}   CHAFF ${cmH.chaff}`);
   {   // CM: the radar warning cue in the chase / outside views (the cockpits have their own scopes and lamps)
@@ -2198,11 +2204,13 @@ function updateHud() {
   {   // the war at a glance
     const n = [0, 0, 0]; for (const I of ISLANDS) n[I.owner]++;
     const c = war.carrier, b = war.battleship, eb = war.E.bship;
-    const html = `<span style="color:#4cf">OURS ${n[1]}</span> &nbsp; <span style="color:#f54">ENEMY ${n[2]}</span> &nbsp; <span style="color:#ddd">FREE ${n[0]}</span>` +
-      ` &nbsp;·&nbsp; ALBATROSS <b style="color:${c && c.hp / c.hpMax < 0.4 ? '#f54' : '#9ff'}">${c ? Math.max(0, Math.round(100 * c.hp / c.hpMax)) : 0}%</b>` +
-      (b && b.sinking === undefined ? ` &nbsp;·&nbsp; <b style="color:#f54">LEVIATHAN AT SEA ${Math.round(100 * b.hp / b.hpMax)}%</b>` : ` &nbsp;·&nbsp; LEVIATHAN BUILT <b style="color:${eb > 70 ? '#f54' : '#fb6'}">${Math.floor(eb)}%</b>`);
+    // RENDERKIT ui: the colours come from UIC (the classic hexes with ?rk=0); with the UI on the low ALBATROSS and the build-up get words too
+    const g = s => RKUI ? `<span class="ngc-g">${s}</span>` : s;   // (UI on: each reading wraps as a unit)
+    const cLow = c && c.hp / c.hpMax < 0.4, html = `<span style="color:${UIC.ours}">OURS ${n[1]}</span> &nbsp; <span style="color:${UIC.enemy}">ENEMY ${n[2]}</span> &nbsp; <span style="color:${UIC.free}">FREE ${n[0]}</span>` +
+      ` &nbsp;·&nbsp; ${g(`ALBATROSS <b style="color:${cLow ? UIC.critical : UIC.ok}">${c ? Math.max(0, Math.round(100 * c.hp / c.hpMax)) : 0}%${RKUI && cLow ? ' CRITICAL' : ''}</b>`)}` +
+      (b && b.sinking === undefined ? ` &nbsp;·&nbsp; <b style="color:${UIC.critical}">LEVIATHAN AT SEA ${Math.round(100 * b.hp / b.hpMax)}%</b>` : ` &nbsp;·&nbsp; ${g(`LEVIATHAN BUILT <b style="color:${eb > 70 ? UIC.critical : UIC.caution}">${Math.floor(eb)}%</b>`)}`);
     if (_hud.war !== html) { _hud.war = html; $('war').innerHTML = html; }
-    const now = performance.now(), fh = feedItems.filter(f => now - f.at < 14000).map(f => `<div style="color:${f.kind === 'good' ? '#7f9' : f.kind === 'bad' ? '#f86' : '#cde'};opacity:${Math.min(1, (14000 - (now - f.at)) / 2000).toFixed(2)}">${f.t}</div>`).join('');
+    const now = performance.now(), fh = feedItems.filter(f => now - f.at < 14000).map(f => `<div style="color:${f.kind === 'good' ? UIC.good : f.kind === 'bad' ? UIC.bad : UIC.info};opacity:${Math.min(1, (14000 - (now - f.at)) / 2000).toFixed(2)}">${f.t}</div>`).join('');
     if (_hud.feed !== fh) { _hud.feed = fh; $('feed').innerHTML = fh; }
   }
   setText('pad', keyboardOnly ? 'KEYBOARD ONLY' : CTL.state.source && CTL.state.source !== 'NONE' ? `${CTL.state.source}${CTL.state.hasPedals ? ' + PEDALS' : ''}  ·  J CONTROLS` : readPad() ? 'CONTROLLER' : 'KEYBOARD');
@@ -2506,7 +2514,7 @@ if (params.has('xrbench')) XRB = createXRBench({ XR, renderer, scene: zScene, G,
   armourSpot: () => { const hh = HARDS.find(h => h.I === HOME_B.isl), hp = hh && hh.at(hh.u1 - 5); return hp ? { x: hp[0], z: hp[1], yaw: hh.yaw } : GR.motorPool(HOME_B.isl, 4.6); } });
 buildCaves(); war.reset(); resetZarch(true); placeVehicles(); updateFogImg(); terrainStream(Z.pos.x, Z.pos.z);
 renderer.setAnimationLoop(frame);
-if (params.has('debug')) { window.__G = { XR, G, airlift, airdrop, ch46C, heliAIenv, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, get forest() { return { count: world.stats.forestTrees || 0 }; }, world, terrainUni, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, get tech() { return war.tech; }, techUI /* TECH TREE: tech = [null, player, enemy] */ }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); H.reset(H.pos.clone(), 0, false, 1); SY.grip = 1; SY.auto = null; enterCave(b); }   /* (ngc/bugsweep) ?thrust=N starts in the cave already flying: engine at flight power, throttle rolled on (it came in at ground idle with the throttle rolling on, the rotor drooped and caveaim / caves crashed in the shaft) */ }
+if (params.has('debug')) { window.__G = { XR, G, airlift, airdrop, ch46C, heliAIenv, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, get forest() { return { count: world.stats.forestTrees || 0 }; }, world, terrainUni, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, get tech() { return war.tech; }, techUI /* TECH TREE: tech = [null, player, enemy] */, say, feed /* RENDERKIT ui: tools/scenes/rkui.mjs */ }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); H.reset(H.pos.clone(), 0, false, 1); SY.grip = 1; SY.auto = null; enterCave(b); }   /* (ngc/bugsweep) ?thrust=N starts in the cave already flying: engine at flight power, throttle rolled on (it came in at ground idle with the throttle rolling on, the rotor drooped and caveaim / caves crashed in the shaft) */ }
 // ngc/ch46fly dev: ?fly=ch46 puts you in a CH-46E on the ALBATROSS (with ?auto; ?fly=ch46&cold cold and dark; &at=island at the nearest friendly pad)
 if (params.get('fly') === 'ch46') { const t0 = performance.now(), go = () => { if (G.state === 'play' && G.mode === 'zarch' && Z.alive && H.landed) { const isl = commandBases().filter(b => b.kind === 'island').sort((a, b) => Math.hypot(a.x - Z.pos.x, a.z - Z.pos.z) - Math.hypot(b.x - Z.pos.x, b.z - Z.pos.z))[0]; commander.deploy('ch46', params.get('at') === 'island' && isl ? isl.key : 'ship'); return; } if (performance.now() - t0 < 30000) setTimeout(go, 200); }; setTimeout(go, 300); }
 
