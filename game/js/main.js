@@ -755,16 +755,21 @@ const NAT = RKN ? (() => {
     stats: () => ({ tier: shared.tierName, forest: { ...forest.stats }, clutter: { ...clutter.stats } }),
     // once a frame (main loop): the wind clock runs on the game's time (stops in the pause menu), the sun for the
     // translucency, the forest and clutter sets round the camera that renders. XR runs the low tier (and goes back after).
-    update(dt, cam, playing) {
+    update(dt, cam, playing) {   // (cam: unused, kept for the call site)
       if (!shrubs && war) buildShrubs();
       if (playing) shared.uniforms.uWind.value += dt;
       shared.uniforms.uNatSun.value.copy(sun.position).normalize(); shared.uniforms.uNatSunCol.value.copy(sun.color);
       const xr = !!(XR && XR.active);
       if (xr && xrTier === null) { xrTier = shared.tierName; N.setTier('low'); } else if (!xr && xrTier !== null) { N.setTier(xrTier); xrTier = null; }
-      forest.update(cam); clutter.update(cam);
+    },
+    // the forest and clutter sets follow the camera that RENDERS (hooked on terrain.onBeforeRender below): scripted test
+    // cameras and XR eyes, not just zCam as the game loop left it
+    place(cam) { natEye.position.setFromMatrixPosition(cam.matrixWorld); natEye.far = cam.far; forest.update(natEye); clutter.update(natEye);
     },
   };
   if (params.has('debug')) window.__nature = N;
+  const natEye = { position: new THREE.Vector3(), far: 0 }, terrainOBR = terrain.onBeforeRender;
+  terrain.onBeforeRender = (r, s, cam) => { terrainOBR(r, s, cam); if (cam.isPerspectiveCamera) N.place(cam); };   // (terrain always renders, once per eye; not for a shadow map)
   return N;
 })() : null;
 // Wild forests stream with towns in stable tiles (world/life.js).

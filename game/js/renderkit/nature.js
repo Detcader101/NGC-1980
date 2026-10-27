@@ -28,7 +28,7 @@ import { FIR, PINE, BROAD, SCRUB } from '../world/forest.js';
 // detailR: full trees within (cross-fade band +-band); clutterR: the clutter ring; grass/rocks/bush: density factors;
 // micro: terrain near detail (0 = off: the low tier's terrain costs what RK world cost); microR: its radius.
 export const NATURE_TIERS = Object.freeze({
-  low: Object.freeze({ detailR: 90, band: 30, clutterR: 38, grass: 0.35, rocks: 0.6, bush: 0.5, micro: 0, microR: 0 }),
+  low: Object.freeze({ detailR: 90, band: 30, clutterR: 38, grass: 0.35, rocks: 0.6, bush: 0.5, micro: 0, microR: 0, liteMid: true }),
   med: Object.freeze({ detailR: 170, band: 45, clutterR: 70, grass: 0.7, rocks: 0.85, bush: 0.8, micro: 1, microR: 110 }),
   high: Object.freeze({ detailR: 260, band: 60, clutterR: 105, grass: 1, rocks: 1, bush: 1, micro: 1, microR: 170 }),
 });
@@ -145,7 +145,7 @@ const PAL = {
 // scales (the colliders and the felling code know trees by them).
 function treeGeo(kind, level) {
   const B = new Builder(), r = prng(kind * 101 + (level === 'detail' ? 7 : 3)), P = PAL[kind];
-  const detail = level === 'detail';
+  const detail = level === 'detail', lite = level === 'lite';   // lite: the mid LOD with octahedron clumps (the low tier, the zone's far set)
   if (kind === FIR) {
     B.trunk([0, -0.4, 0], [0, 4.6, 0], 0.17, 0.05, detail ? 6 : 4, P.trunk);
     const n = detail ? 5 : 3;
@@ -158,14 +158,14 @@ function treeGeo(kind, level) {
     B.trunk([0, -0.4, 0], [0.12, 2.2, 0], 0.17, 0.12, detail ? 6 : 4, P.trunk);
     B.trunk([0.12, 2.2, 0], top, 0.12, 0.06, detail ? 6 : 4, P.trunk);
     if (detail) { B.trunk([0.15, 3.0, 0], [-0.6, 3.75, 0.4], 0.06, 0.03, 4, P.trunk); B.trunk([0.18, 3.2, 0], [0.8, 3.9, -0.45], 0.06, 0.03, 4, P.trunk); }
-    B.crown([0.18, 4.55, 0.04], [1.45, 1.2, 1.35], detail ? 8 : 3, detail ? 0.5 : 0.62, P, r);
+    B.crown([0.18, 4.55, 0.04], [1.45, 1.2, 1.35], detail ? 8 : 3, detail ? 0.5 : 0.62, P, r, lite);
   } else if (kind === BROAD) {   // oak: short trunk, two limbs, a domed crown of 6 clumps (inner ones darker)
     B.trunk([0, -0.4, 0], [0, 1.9, 0], 0.22, 0.16, detail ? 6 : 4, P.trunk);
     if (detail) { B.trunk([0, 1.7, 0], [-0.6, 2.9, 0.3], 0.1, 0.05, 4, P.trunk); B.trunk([0, 1.7, 0], [0.6, 3.0, -0.25], 0.1, 0.05, 4, P.trunk); }
-    B.crown([0, 3.35, 0], [2.0, 1.65, 1.9], detail ? 9 : 3, detail ? 0.47 : 0.6, P, r);
+    B.crown([0, 3.35, 0], [2.0, 1.65, 1.9], detail ? 9 : 3, detail ? 0.47 : 0.6, P, r, lite);
   } else {   // maquis scrub (lentisk, myrtle, broom): a low cushion of 3-4 clumps, no trunk to speak of. Unit: ~1.2 m tall.
     const centre = [0, 0.3, 0], clumps = detail ? [[0, 0.55, 0, 0.75, 0.55], [-0.6, 0.35, 0.35, 0.55, 0.42], [0.55, 0.35, -0.3, 0.6, 0.45], [0.1, 0.3, 0.65, 0.5, 0.38]] : [[0, 0.5, 0, 0.9, 0.6], [0.4, 0.3, 0.4, 0.55, 0.4]];
-    clumps.forEach(([x, y, z, rr, ry], i) => B.clump([x, y, z], rr, ry, rr * (0.85 + r() * 0.3), mixc(P.leaf, P.leaf2, i / 3), r, centre, 0.9, false));
+    clumps.forEach(([x, y, z, rr, ry], i) => B.clump([x, y, z], rr, ry, rr * (0.85 + r() * 0.3), mixc(P.leaf, P.leaf2, i / 3), r, centre, 0.9, lite));
   }
   return B;
 }
@@ -327,12 +327,12 @@ export function createNatureShared(tierName = natureTierName()) {
 export function createForest({ scene, fog = null, uTime = null, shared }) {
   const K = [FIR, PINE, BROAD, SCRUB];
   const root = new THREE.Group(); root.name = 'rk-nature-forest'; scene.add(root);
-  const mats = {}, sets = { detail: {}, mid: {}, far: {} }, geos = {};
-  for (const lvl of ['detail', 'mid', 'far']) {
-    mats[lvl] = natureMaterial({ kind: lvl, fog, uTime, shared, gain: 1.4 });
-    const depth = depthMaterial(shared, lvl);
+  const mats = {}, sets = { detail: {}, mid: {}, lite: {}, far: {} }, geos = {};
+  for (const lvl of ['detail', 'mid', 'lite', 'far']) {
+    mats[lvl] = natureMaterial({ kind: lvl === 'lite' ? 'mid' : lvl, fog, uTime, shared, gain: 1.4 });
+    const depth = depthMaterial(shared, lvl === 'lite' ? 'mid' : lvl);
     for (const k of K) {
-      const g = geos[lvl + k] = (lvl === 'far' ? treeGeo(k, 'mid') : treeGeo(k, lvl)).geometry();
+      const g = geos[lvl + k] = treeGeo(k, lvl === 'far' ? 'lite' : lvl).geometry();
       sets[lvl][k] = instanced(g, mats[lvl], lvl === 'detail' ? 1500 : 3000, depth); root.add(sets[lvl][k].mesh);
     }
   }
@@ -366,7 +366,8 @@ export function createForest({ scene, fog = null, uTime = null, shared }) {
   }
   function rebuild(cx, cy, cz, reach) {
     const t0 = performance.now(), T = shared.tier, dOut = T.detailR + T.band + 12, mOut = Math.min(LOD.near + LOD.blend, reach) + 12, mIn = T.detailR - T.band - 12;
-    for (const k of K) { sets.detail[k].begin(); sets.mid[k].begin(); }
+    const M = T.liteMid ? sets.lite : sets.mid;   // the mid trees: icosahedron clumps, or octahedra on the low tier
+    for (const k of K) { sets.detail[k].begin(); sets.mid[k].begin(); sets.lite[k].begin(); }
     let nd = 0, nm = 0;
     for (const s of sources.values()) {
       const bx = Math.max(s.x0 - cx, 0, cx - s.x1), bz = Math.max(s.z0 - cz, 0, cz - s.z1);
@@ -377,11 +378,11 @@ export function createForest({ scene, fog = null, uTime = null, shared }) {
         if (dd > mOut * mOut) continue;
         const k = s.k[i];
         if (dd < dOut * dOut) { sets.detail[k].push(s, i); nd++; }
-        if (dd > mIn * mIn || mIn < 0) { sets.mid[k].push(s, i); nm++; }
+        if (dd > mIn * mIn || mIn < 0) { M[k].push(s, i); nm++; }
       }
     }
     let tris = 0;
-    for (const k of K) { sets.detail[k].end(); sets.mid[k].end(); tris += sets.detail[k].n * sets.detail[k].tris + sets.mid[k].n * sets.mid[k].tris; }
+    for (const k of K) { sets.detail[k].end(); sets.mid[k].end(); sets.lite[k].end(); tris += sets.detail[k].n * sets.detail[k].tris + M[k].n * M[k].tris; }
     if (farDirty) {
       farDirty = false;
       for (const k of K) sets.far[k].begin();
