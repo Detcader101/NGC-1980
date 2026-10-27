@@ -61,20 +61,24 @@ export function linearOutput(material) {
   return material;
 }
 
-export function createWorldSky({ renderer, scene, sky, sun, uniforms, intensity = 0.5 }) {
+export function createWorldSky({ renderer, scene, sky, sun, uniforms, intensity = 0.5, atmosphere = null }) {
   // environmentIntensity: the game keeps its HemisphereLight (0.9) for the Lambert world and NoToneMapping, so the PBR
   // materials that pick up this environment get it ON TOP of that ambient; 0.5 keeps them from glowing (rkworld envprobe).
   scene.environmentIntensity = intensity;
   const sunDir = new THREE.Vector3().copy(sun.position).normalize();
   const horizon = new THREE.Color(WORLD_SKY.horizon), zenith0 = new THREE.Color(WORLD_SKY.zenith), overcast = new THREE.Color(WORLD_SKY.overcast);
   // the dome: below the horizon it stays the horizon colour, so the haze at the end of the terrain meets it with no seam
-  const domeMat = softHorizon(createSkyMaterial({ zenith: WORLD_SKY.zenith, horizon: WORLD_SKY.horizon, ground: WORLD_SKY.horizon, sunDirection: sunDir, depthWrite: false }));
-  domeMat.uniforms.rkSun.value = sunDir;   // shared: one direction for dome, environment and terrain
-  const oldMat = sky.material; sky.material = domeMat; oldMat.dispose();
+  // RENDERKIT sky: with an atmosphere (renderkit/atmosphere.js) the dome is its material, and the environment is a PMREM
+  // of its sky + sun + clouds over a darker ground, rebuilt on this same contract (sun / weather bucket, never per frame)
+  const domeMat = atmosphere ? null : softHorizon(createSkyMaterial({ zenith: WORLD_SKY.zenith, horizon: WORLD_SKY.horizon, ground: WORLD_SKY.horizon, sunDirection: sunDir, depthWrite: false }));
+  if (domeMat) {
+    domeMat.uniforms.rkSun.value = sunDir;   // shared: one direction for dome, environment and terrain
+    const oldMat = sky.material; sky.material = domeMat; oldMat.dispose();
+  }
   // the environment: the same sky over a darker ground (earth / sea bounce), so metals reflect a horizon, not a white floor
   const envScene = new THREE.Scene();
-  const envMat = softHorizon(createSkyMaterial({ zenith: WORLD_SKY.zenith, horizon: WORLD_SKY.horizon, ground: WORLD_SKY.envGround, sunDirection: sunDir }));
-  envMat.uniforms.rkSun.value = sunDir;
+  const envMat = atmosphere ? atmosphere.envMaterial() : softHorizon(createSkyMaterial({ zenith: WORLD_SKY.zenith, horizon: WORLD_SKY.horizon, ground: WORLD_SKY.envGround, sunDirection: sunDir }));
+  if (!atmosphere) envMat.uniforms.rkSun.value = sunDir;
   envScene.add(new THREE.Mesh(new THREE.SphereGeometry(50, 48, 24), envMat));
   const pmrem = new THREE.PMREMGenerator(renderer);
   let target = null, under = false;
@@ -94,11 +98,14 @@ export function createWorldSky({ renderer, scene, sky, sun, uniforms, intensity 
     if (target && scene.environment !== env) scene.environment = env;
     sunDir.copy(sun.position).normalize();
     // weather: a rough sea (state 5-7) greys the zenith; quantised to quarter states so drift never rebuilds every frame
-    const w = Math.round(Math.min(1, Math.max(0, (seaState - 4.5) / 2.5)) * 4) / 4, col = sun.color.getHex();
+    const w = atmosphere ? atmosphere.weatherBucket() / 4 : Math.round(Math.min(1, Math.max(0, (seaState - 4.5) / 2.5)) * 4) / 4, col = sun.color.getHex();
     if (sunDir.x === last.x && sunDir.y === last.y && sunDir.z === last.z && col === last.col && w === last.w) return false;
     Object.assign(last, { x: sunDir.x, y: sunDir.y, z: sunDir.z, col, w });
-    const z = domeMat.uniforms.rkZenith.value.copy(zenith0).lerp(overcast, w * 0.6);
-    envMat.uniforms.rkZenith.value.copy(z);
+    let z;
+    if (atmosphere) {   // the clouds as they are now, held still for the probe
+      const c = envMat.uniforms.rkCloud.value.copy(atmosphere.uniforms.rkCloud.value); c.x = atmosphere.coverTarget; c.y = atmosphere.greyTarget; c.z = c.w = 0;
+      z = atmosphere.zenith(new THREE.Color());
+    } else { z = domeMat.uniforms.rkZenith.value.copy(zenith0).lerp(overcast, w * 0.6); envMat.uniforms.rkZenith.value.copy(z); }
     if (uniforms) { uniforms.rkSkyZ.value.copy(z).convertLinearToSRGB(); uniforms.rkSkyH.value.copy(horizon).convertLinearToSRGB(); uniforms.rkSunCol.value.copy(sun.color).convertLinearToSRGB(); }
     rebuild();
     return true;

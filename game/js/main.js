@@ -18,8 +18,13 @@ import { RKUI, UIC, applyUI } from './renderkit/ngcui.js';   // RENDERKIT ui: de
 import { RK_TERRAIN_GLSL, RK_SKY_GLSL, createWorldUniforms, createWorldSky, linearOutput } from './renderkit/world.js';   // RENDERKIT world
 import { drawDistance, radialFog } from './world/visibility.js';
 import { zoneGrid, SURF_NAMES, GEOLOGY, geologyOf } from './world/terrain.js';
+import { RK_HAZE_GLSL, RK_CLOUD_GLSL, installAtmosphere, createAtmosphere } from './renderkit/atmosphere.js';   // RENDERKIT sky
 radialFog(THREE);
 const RKW = RK.on('world');   // RENDERKIT world: terrain / sea / sky / scene.environment (renderkit/world.js); off = the classic shaders
+// RENDERKIT sky: clouds, sun, aerial perspective on every material (Three's fog chunks, patched before anything compiles)
+// and the land past the draw distance (renderkit/atmosphere.js). Off: the fog fades to one colour as before.
+const RKS = RK.on('sky');
+if (RKS) installAtmosphere();
 import { createFx } from './fx.js';
 import { createControls } from './hotas.js';
 import { createXR } from './xr/runtime.js';
@@ -377,7 +382,11 @@ const DRAW = 250;
 // The jet sees further: view.draw grows with altitude while you fly it (fog, far clip, sky and terrain all follow it),
 // and a coarse far-terrain ring fills in past the fine grid.
 const view = { draw: DRAW };
-zScene.fog = new THREE.Fog(HORIZON, DRAW * 0.5, DRAW);
+// RENDERKIT sky: the fog's near distance is only the start of the end-of-world dissolve; the aerial perspective does the rest
+// (FOG_TN: where the terrain starts turning into the far land; from 0.6 the fog of war's dimming has faded out by the
+// draw distance as it did under the classic fog, instead of leaving a dark band on the horizon)
+const FOG_N = RK.on('sky') ? 0.8 : 0.5, FOG_TN = RK.on('sky') ? 0.6 : 0.5;
+zScene.fog = new THREE.Fog(HORIZON, DRAW * FOG_N, DRAW);
 const zCam = new THREE.PerspectiveCamera(62, 1, 0.5, DRAW + 15);
 zScene.add(new THREE.HemisphereLight(0xcfe6ff, 0x4a5a34, 0.9));
 const sun = new THREE.DirectionalLight(0xfff0d0, 1.1); sun.position.set(0.5, 1, 0.3); zScene.add(sun);
@@ -436,7 +445,7 @@ terrainWorker.onmessage = ({ data: d }) => {
     terrainUni.uHMNpo.value.copy(terrainUni.uHMNo.value); terrainUni.uHMNblend.value = 0;
   }
   L.tex.image.data = d.h; L.tex.needsUpdate = true; L.ready = true; terrainUni[L.uni].value.set(d.ox, d.oz, d.c);
-  if (d.id === 1) buildFarMap(d);
+  if (d.id === 1) { buildFarMap(d); atmo?.farHeights(d); }   // RENDERKIT sky: the land past the draw distance
 };
 function terrainStream(x, z, dt = 0) {
   terrainUni.uHMNblend.value = Math.min(1, terrainUni.uHMNblend.value + dt / 1.2);
@@ -522,6 +531,10 @@ const terrainFS = `
     #ifdef RK_WORLD
     ${RK_TERRAIN_GLSL}
     ${RK_SKY_GLSL}
+    #endif
+    #ifdef RK_SKY
+    ${RK_HAZE_GLSL}
+    ${RK_CLOUD_GLSL}
     #endif
     void main(){
       #ifdef FAR
@@ -612,24 +625,34 @@ const terrainFS = `
         if(d<${(PAD_R + 2.5).toFixed(1)}){ vec3 pc=vec3(.5,.52,.58)*l; if(d<${PAD_R.toFixed(1)}){float r=d/${PAD_R.toFixed(1)}; pc=mix(vec3(.15,.16,.2),uPadCol[pi],step(.5,fract(r*4.)))*l;} c=pc; } }
       c=fogOfWar(c,vW.xz,uTime);
       float fd=length((viewMatrix*vec4(vW,1.)).xyz);
+      #ifdef RK_SKY
+      // RENDERKIT sky: cloud shadows, then towards the draw distance the ground turns into the dome's far land / far sea
+      // (the same look at the same point, so the hand-over is seamless), all under the height-dependent aerial perspective
+      { vec3 rkRay=vW-cameraPosition; float rkE=smoothstep(uFogN,uFogF,fd), rkCs=rkCloudShade(vW);
+        vec3 rkFar=c; if(rkE>0.) rkFar=vRaw>0.?rkFarLand(vW,n):rkFarSeaCol(normalize(rkRay),uFog);   // (only in the hand-over band)
+        c=mix(mix(c,uFog,rkE),rkAerial(mix(c,rkFar,rkE)*rkCs,rkRay,uFog),rkHaze.z); }
+      #else
+      c=mix(c,uFog,smoothstep(uFogN,uFogF,fd));
+      #endif
       #ifdef RK_WORLD
       // RENDERKIT world: display values straight out on the default sRGB / no-tone-mapping path (renderkit/world.js
       // linearOutput); otherwise linear out, and Three tone maps and encodes once like every built-in material
-      gl_FragColor=vec4(mix(c,uFog,smoothstep(uFogN,uFogF,fd)),1.);
+      gl_FragColor=vec4(c,1.);
       #ifndef RK_DISPLAY_OUT
       gl_FragColor.rgb=rkToLinear(gl_FragColor.rgb);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
       #endif
       #else
-      gl_FragColor=vec4(mix(c,uFog,smoothstep(uFogN,uFogF,fd)),1.);
+      gl_FragColor=vec4(c,1.);
       #endif
     }`;
-const terrainMat = new THREE.ShaderMaterial({ uniforms: terrainUni, vertexShader: terrainVS, fragmentShader: terrainFS, defines: RKW ? { RK_WORLD: 1 } : {} });
+const RK_DEF = { ...(RKW ? { RK_WORLD: 1 } : {}), ...(RKS ? { RK_SKY: 1 } : {}) };   // RENDERKIT world / sky
+const terrainMat = new THREE.ShaderMaterial({ uniforms: terrainUni, vertexShader: terrainVS, fragmentShader: terrainFS, defines: { ...RK_DEF } });
 const terrain = new THREE.Mesh(terrainGeo, RKW ? linearOutput(terrainMat) : terrainMat);   // RENDERKIT world: the define
 terrain.frustumCulled = false; zScene.add(terrain);
 const FAR_C = 24, FAR_N = 220;   // far ring: 12 m cells out to ~1.5 km, only drawn while the view reaches past the fine grid
-const farMat = new THREE.ShaderMaterial({ uniforms: terrainUni, vertexShader: terrainVS, fragmentShader: terrainFS, defines: RKW ? { FAR: 1, RK_WORLD: 1 } : { FAR: 1 } });   // RENDERKIT world
+const farMat = new THREE.ShaderMaterial({ uniforms: terrainUni, vertexShader: terrainVS, fragmentShader: terrainFS, defines: { FAR: 1, ...RK_DEF } });   // RENDERKIT world / sky
 const farTerrain = new THREE.Mesh(new THREE.PlaneGeometry(FAR_C * FAR_N, FAR_C * FAR_N, FAR_N, FAR_N).rotateX(-Math.PI / 2), RKW ? linearOutput(farMat) : farMat);
 farTerrain.frustumCulled = false; farTerrain.visible = false; zScene.add(farTerrain);
 // SEAWORLD (the black dome on the horizon): the sky dome and both terrain windows are centred on the camera that
@@ -644,7 +667,10 @@ const _renderEye = new THREE.Vector3();
 sky.onBeforeRender = (r, s, cam) => { sky.position.setFromMatrixPosition(cam.matrixWorld); sky.updateMatrixWorld(); };
 // RENDERKIT world: the kit's sky material on the dome (sun = the DirectionalLight) and zScene.environment, a PMREM of that
 // sky rebuilt only when the sun or the weather changes (renderkit/world.js). Off: the classic dome, no environment.
-const worldSky = RKW ? createWorldSky({ renderer, scene: zScene, sky, sun, uniforms: terrainUni }) : null;
+// RENDERKIT sky: the atmosphere takes the dome (clouds, sun, the far land) and hands world.js its environment variant
+const atmo = RKS ? createAtmosphere({ scene: zScene, sky, sun, uniforms: terrainUni, renderer }) : null;
+if (atmo && params.has('debug')) window.__rkSky = atmo;
+const worldSky = RKW ? createWorldSky({ renderer, scene: zScene, sky, sun, uniforms: terrainUni, atmosphere: atmo }) : null;
 if (worldSky && params.has('debug')) window.__rkWorld = worldSky;
 if (worldSky) useSceneEnvironment();   // RENDERKIT world+surface: glass / metal drop their fallback sky and use zScene.environment (rebuilt with the weather)
 const _snapTerrain = cam => { _renderEye.setFromMatrixPosition(cam.matrixWorld); const x = Math.round(_renderEye.x / TG) * TG, z = Math.round(_renderEye.z / TG) * TG; terrainUni.uNear.value.set(x, z, TG * TN / 2 - 3); return [x, z]; };
@@ -2415,15 +2441,16 @@ function updateCamsAndMeshes(dt, time) {
   const heliCk = cockpitCam && !inCave && Z.alive && G.craft === 'heli' && !drop.camActive, firstP = otherFP || heliCk || drop.cockpitView;
   markerFP = firstP ? (heliCk ? 'heli' : jetCk ? 'jet' : drop.cockpitView ? 'drop' : crafts.active === m60C || crafts.active === m113C ? 'armour' : G.craft === 'foot' ? 'foot' : 'vehicle') : '';   // UNIT MARKERS: which first-person view (the instrument panel line)
   const fov = lerp(firstP ? (otherFP && crafts.active.fov ? crafts.active.fov(ckFov) : ckFov) : 62, SIDE_FOV, e); if (Math.abs(zCam.fov - fov) > 0.01) { zCam.fov = fov; zCam.updateProjectionMatrix(); }
-  zScene.fog.color.copy(HORIZON).multiplyScalar(1 - 0.85 * e); zScene.fog.near = lerp(view.draw * 0.5, DRAW * 0.8, e); zScene.fog.far = lerp(view.draw, DRAW, e);
+  zScene.fog.color.copy(HORIZON).multiplyScalar(1 - 0.85 * e); zScene.fog.near = lerp(view.draw * FOG_N, DRAW * 0.8, e); zScene.fog.far = lerp(view.draw, DRAW, e);
   terrainUni.uFog.value.copy(zScene.fog.color).convertLinearToSRGB();
-  terrainUni.uFogN.value = view.draw * 0.5; terrainUni.uFogF.value = view.draw;
+  terrainUni.uFogN.value = view.draw * FOG_TN; terrainUni.uFogF.value = view.draw;
   if (Math.abs(zCam.far - (view.draw + 15)) > 2) { zCam.far = view.draw + 15; zCam.updateProjectionMatrix(); }
   sky.scale.setScalar(view.draw / DRAW);
   if (!XR?.active && fx.shake > 0.01) { const k = fx.shake * (cockpit.group.visible ? 0.1 : 0.4); zCam.position.x += rnd(-k, k); zCam.position.y += rnd(-k, k); zCam.position.z += rnd(-k, k); }
   XR?.prepare();
   fx.ear.copy(zCam.position); terrainUni.uTime.value = time;
   updateSeaUniforms(terrainUni, war.sea, war.units, zCam.position);   // SEAWORLD
+  atmo?.update({ dt: G.state === 'paused' ? 0 : dt, seaState: war.sea.ss, under: sealife.under, cave: e, draw: view.draw, xr: !!XR?.active, camY: zCam.position.y });   // RENDERKIT sky: sun from the light, weather, cloud drift (frozen on pause)
   worldSky?.update(war.sea.ss, sealife.under);   // RENDERKIT world: rebuilds sky + environment only when the sun / weather changed
   sky.position.copy(zCam.position);
   terrainStream(zCam.position.x, zCam.position.z, dt);
@@ -2522,7 +2549,7 @@ function frame(now, xrFrame) {
   updateHud();
   { const hide = drop.flying || helm.active ? 'none' : ''; setStyle('bot', 'display', hide); setStyle('caution', 'display', hide); }
   const t2 = performance.now();
-  fx.setView(zCam, renderer.domElement.height, zScene.fog);
+  fx.setView(zCam, renderer.domElement.height, atmo && !sealife.under ? atmo.fxFog(zScene.fog) : zScene.fog);   // RENDERKIT sky: CPU particles fade where the haze has built up
   if (G.mode === 'zarch') interiors.update(G.state === 'paused' ? 0 : dt, zCam);   // ngc/interiors: doors swing, rooms near the camera, the carrier's inside
   const drawDesktop = () => {
     const a = G.craft !== 'heli' && G.state !== 'title' ? crafts.active : null;
@@ -2530,7 +2557,9 @@ function frame(now, xrFrame) {
     // the GPU particle quads would become opaque squares, so they are hidden for it (the CPU Points are not meshes).
     const rkg = fx.rk?.group, rkv = rkg?.visible;
     if (rkg && a?.renderView) rkg.visible = false;
+    atmo?.suspend(!!a?.renderView);   // RENDERKIT sky: a craft's own picture (the thermal sight) keeps the classic one-colour fog
     const own = !!(a && a.renderView && a.renderView(renderer, zScene, zCam));
+    atmo?.suspend(false);
     if (rkg) rkg.visible = rkv;
     // RENDERKIT post: only for the plain desktop world view. The craft's own picture is already its own post pass,
     // and XR (including the flat-screen display drawn into a target while presenting) renders directly.
