@@ -95,7 +95,7 @@ const frameGLSL = /* glsl */`
   if (rkLod > 0.001) {
     rkNA = texture2D(rkNT, rkUV * 0.05 + rkSeed);                       // 20 m tile: r 5..1.2 m blotches, g 1.2..0.3 m, a ridges
     rkNB = texture2D(rkNT, rkUV * 0.25 + rkSeed.yx + 0.5);              // 4 m tile: r 1 m..25 cm, g 25..6 cm, b 1.6 cm speckle
-    rkNS = texture2D(rkNT, vec2(rkUV.x * 0.8, rkUV.y * 0.03) + rkSeed); // stretched down the face: rain / rust runs
+    rkNS = texture2D(rkNT, vec2(rkUV.x * 0.45, rkUV.y * 0.03) + rkSeed); // stretched down the face: rain / rust runs
     // value-noise fbm sits in ~.3-.7: stretch it to the full range (contrast where it shows, the mean stays .5)
     rkNA.rg = smoothstep(vec2(0.22), vec2(0.78), rkNA.rg); rkNB.rg = smoothstep(vec2(0.22), vec2(0.78), rkNB.rg); rkNS.rg = smoothstep(vec2(0.25), vec2(0.75), rkNS.rg);
   }
@@ -129,7 +129,7 @@ const worldGLSL = (tier) => /* glsl */`
       k = (0.88 + 0.24 * b1) * (0.96 + 0.08 * b2) * (1.0 - 0.09 * st) * (1.0 + (sp - 0.5) * 0.08 * aS);
       rkH = (g1 - 0.5) * 0.004 + (sp - 0.5) * 0.0008 * aS;
     } else if (rkC == ${S.CONCRETE}.0) {
-      k = (0.85 + 0.3 * b1) * (0.95 + 0.1 * b2) * (0.94 + 0.12 * lump) * (1.0 - 0.24 * st);
+      k = (0.85 + 0.3 * b1) * (0.95 + 0.1 * b2) * (0.94 + 0.12 * lump) * (1.0 - 0.18 * st);
       float pore = smoothstep(0.9, 0.97, sp) * aS * smoothstep(0.3, 0.6, lump);   // air holes: small round pits
       k *= 1.0 - 0.35 * pore; rkH = (g1 - 0.5) * 0.003 - pore * 0.0015;
       if (rkKind == 1.0) { float fl = abs(fract(rkUV.y / 1.2) - 0.5) * 1.2; k *= 1.0 - 0.1 * rkLine(0.6 - fl, 0.006, rkFW) * rkAA(rkFW, 0.1); }   // form-work lines
@@ -141,16 +141,16 @@ const worldGLSL = (tier) => /* glsl */`
       // rows 0.3 m from the site's ground as structures.js stacks them), lumpy fill, mud and bleaching
       float wv = (sp - 0.5) * aS;   // the weave: the fine speckle (mip-filtered; an analytic 3 mm weave moired)
       float pil = rkKind == 1.0 ? sin(3.14159 * fract(rkOP.y / 0.3)) * rkAA(rkFW, 0.12) : 1.0;
-      k = (0.84 + 0.3 * lump) * (0.92 + 0.16 * b2) * (1.0 + 0.12 * wv) * (0.74 + 0.3 * pil);
-      rkH = (lump - 0.5) * 0.02 + pil * 0.03 + wv * 0.0003;
+      k = (0.84 + 0.3 * lump) * (0.92 + 0.16 * b2) * (0.93 + 0.14 * g1) * (1.0 + 0.12 * wv) * (0.74 + 0.3 * pil);
+      rkH = (lump - 0.5) * 0.02 + (g1 - 0.5) * 0.014 + pil * 0.03 + wv * 0.0003;   // + wrinkles
       rkCol = mix(rkBase, rkBase * vec3(1.06, 0.98, 0.86), smoothstep(0.45, 0.75, b1) * 0.6);   // sun-bleached / muddy bags
       rkRgh = 0.03;
     } else if (rkC == ${S.TARMAC}.0) {
       float ag = sp;                                               // aggregate chips (one texel ~6.5 mm, mip-filtered)
       k = (0.8 + 0.34 * b1) * (0.95 + 0.1 * b2) * (1.0 + (ag - 0.5) * 0.4 * aS);
       float crack = (1.0 - smoothstep(0.015, 0.015 + rkFW * 0.1, rkNA.a)) * rkAA(rkFW, 0.08) * smoothstep(0.3, 0.7, b2);   // cracks along ridge lines
-      float oil = smoothstep(0.78, 0.92, b2) * smoothstep(0.3, 0.7, b1);   // oil / tyre stains
-      k *= (1.0 - 0.5 * crack) * (1.0 - 0.3 * oil);
+      float oil = smoothstep(0.84, 0.98, b2) * smoothstep(0.4, 0.8, b1);   // oil / tyre stains: few, soft-edged
+      k *= (1.0 - 0.5 * crack) * (1.0 - 0.24 * oil);
       rkH = (ag - 0.5) * 0.0025 * aS - crack * 0.006;
       rkRgh = -0.25 * oil + 0.04 * (ag - 0.5);
     } else if (rkC == ${S.METAL}.0) {
@@ -284,19 +284,23 @@ const unitGLSL = (tier) => /* glsl */`
   vec3 rkBase = diffuseColor.rgb;
   vec3 rkCol = rkBase;
   if (rkLod > 0.001) {
-    // panel lines: a box-projected grid in model space, the joins slightly dark and recessed
+    // panel lines: an irregular box-projected layout in model space (some frames missing, the horizontal joins staggered
+    // per bay, as on a real skin), the joins slightly dark and recessed; at least ~1 px wide, gone before they alias
     float pl = 0.0;
     if (rkPanel > 0.0) {
       vec2 pg = rkUV / vec2(rkPanel, rkPanel * 0.62);
-      vec2 pd = abs(fract(pg + 0.5) - 0.5) * vec2(rkPanel, rkPanel * 0.62);
-      pl = rkLine(min(pd.x, pd.y), max(0.004, rkFW * 0.5), rkFW) * rkAA(rkFW, rkPanel * 0.25);   // at least ~1 px wide, gone before it aliases
+      float ix = floor(pg.x + 0.5), bay = floor(pg.x), py = pg.y + rkH2(vec2(bay, 9.7)), iy = floor(py + 0.5);
+      float dx = abs(pg.x - ix) * rkPanel, dy = abs(py - iy) * rkPanel * 0.62, w = max(0.004, rkFW * 0.5);
+      pl = max(rkLine(dx, w, rkFW) * step(0.3, rkH2(vec2(ix, 3.1))), rkLine(dy, w, rkFW) * step(0.3, rkH2(vec2(bay, iy))));
+      pl *= rkAA(rkFW, rkPanel * 0.3);
     }
     // streaks: rain / exhaust / oil running down vertical faces; rust on ships (rkStreakColor)
     float st = rkKind == 1.0 ? smoothstep(0.65, 0.92, rkNS.r) : 0.0;
     float g1 = rkNB.g;
     float under = rkKind == 3.0 ? 1.0 : 0.0;
-    rkCol *= (1.0 - 0.28 * pl) * (0.94 + 0.12 * rkNA.g) * (0.97 + 0.06 * g1);
-    rkCol = mix(rkCol, rkStreakColor, st * rkStreak);
+    rkCol *= (1.0 - 0.22 * pl) * (0.94 + 0.12 * rkNA.g) * (0.97 + 0.06 * g1);
+    // relative to the paint (a tinted darkening), so a dark hull gets darker runs, not a brown wash
+    rkCol *= mix(vec3(1.0), rkStreakColor / max(dot(rkStreakColor, vec3(0.3333)), 1e-3) * 0.5, st * rkStreak);
     rkCol = mix(rkCol, rkCol * 0.62, under * rkDust * 1.2);   // oil, exhaust and road dirt under the belly / hull
     diffuseColor.rgb = mix(rkBase, rkCol, rkLod);
     rkH = (g1 - 0.5) * 0.0008 - pl * 0.0012;
@@ -358,16 +362,17 @@ export function padGLSL(PAD_R, rkLit) {
         float n1 = 0.5 + 0.5 * sin(vW.x * 1.7 + sin(vW.z * 1.3) * 1.5) * sin(vW.z * 1.9 + sin(vW.x * 1.1));   // smooth wear field
         float b = sin(vW.x * 0.37 + sin(vW.z * 0.21) * 2.0) * sin(vW.z * 0.29 + sin(vW.x * 0.17) * 2.0);   // broad stains
         float fwp = max(fwidth(vW.x), fwidth(vW.z));
+        float fn = (sin(vW.x * 7.3 + sin(vW.z * 5.1) * 2.0) * sin(vW.z * 6.7 + sin(vW.x * 4.3) * 2.0) * 0.6 + sin(vW.x * 2.3 - vW.z * 1.7) * 0.4) * (1.0 - smoothstep(0.05, 0.25, fwp));   // ~1 m mottling, gone before it aliases
         if (q.z < .5 && d < 26.) {   // the concrete apron: 4 m slabs, joints, recoat patches, tyre / skid marks
           vec2 tl = abs(fract(vW.xz / 4.) - .5) * 4.;
           float joint = (1.0 - smoothstep(0.03, 0.03 + fwp, 2.0 - max(tl.x, tl.y))) * (1.0 - smoothstep(0.04, 0.2, fwp));
           float slab = fract(sin(dot(floor(vW.xz / 4.), vec2(41.3, 17.9))) * 4375.5);
-          vec3 cc = vec3(.4, .405, .41) * (0.93 + 0.1 * slab) * (0.94 + 0.06 * b * lodP);
+          vec3 cc = vec3(.4, .405, .41) * (0.93 + 0.1 * slab) * (0.94 + 0.06 * b * lodP) * (1.0 + 0.045 * fn * lodP);
           c = mix(cc, cc * 0.62, joint) * ${rkLit};
         }
         if (d < ${RO}) {
           float r = d;
-          vec3 conc = vec3(.43, .43, .42) * (0.95 + 0.05 * b * lodP);
+          vec3 conc = vec3(.43, .43, .42) * (0.95 + 0.05 * b * lodP) * (1.0 + 0.045 * fn * lodP);
           // rotor-wash: the centre darker with exhaust soot and oil, a ring of scuffs where skids land
           conc *= 1.0 - 0.16 * (1.0 - smoothstep(1.5, 6.0, r)) - 0.08 * smoothstep(0.3, 0.9, b) * lodP;
           vec3 pc = conc;
@@ -376,9 +381,9 @@ export function padGLSL(PAD_R, rkLit) {
             float wear = smoothstep(0.35, 0.75, n1 * 0.5 + 0.5 * (0.5 + 0.5 * b)) * lodP;   // worn paint patches
             // the owner's band (inner of the two outer rings): the team colour as old paint, desaturated and darkened
             vec3 own = uPadCol[pi]; float ol = dot(own, vec3(.2126, .7152, .0722));
-            own = mix(vec3(ol), own, 0.5) * 0.62;
-            float band = smoothstep(${R} - 2.0 - aaw, ${R} - 2.0 + aaw, r) * (1.0 - smoothstep(${R} - 0.7 - aaw, ${R} - 0.7 + aaw, r));
-            float edge = smoothstep(${R} - 0.45 - aaw, ${R} - 0.45 + aaw, r);   // white perimeter line
+            own = mix(vec3(ol), own, 0.42) * 0.5;
+            float band = smoothstep(${R} - 1.5 - aaw, ${R} - 1.5 + aaw, r) * (1.0 - smoothstep(${R} - 0.85 - aaw, ${R} - 0.85 + aaw, r));
+            float edge = smoothstep(${R} - 0.35 - aaw, ${R} - 0.35 + aaw, r);   // white perimeter line
             float tdc = 1.0 - smoothstep(0.22 - aaw, 0.22 + aaw, abs(r - ${(PAD_R * 0.52).toFixed(2)}));   // touchdown circle
             // the H, turned to the pad's yaw (uPadP.w), 3 x 4.5 m, 0.6 m strokes
             float cy = cos(q.w), sy = sin(q.w); vec2 hp = vec2(cy * rp.x - sy * rp.y, sy * rp.x + cy * rp.y);
@@ -386,7 +391,7 @@ export function padGLSL(PAD_R, rkLit) {
             float hBar = step(ah.y, 2.25) * (smoothstep(1.5 + aaw, 1.5 - aaw, ah.x) - smoothstep(0.9 + aaw, 0.9 - aaw, ah.x));
             float hMid = step(ah.x, 1.2) * smoothstep(0.3 + aaw, 0.3 - aaw, ah.y);
             float h = clamp(hBar + hMid, 0.0, 1.0);
-            vec3 white = vec3(.74, .74, .7);
+            vec3 white = vec3(.66, .66, .62);
             pc = mix(pc, own, band * (1.0 - wear * 0.45));
             pc = mix(pc, white, max(max(edge, tdc), h) * (1.0 - wear * 0.55));
           }

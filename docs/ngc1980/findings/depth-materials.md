@@ -56,3 +56,84 @@ on; edge lights are grey housings on concrete footings with small amber / green 
 (the HQ band, flag, ring); sandbags 0xb8a678 / 0xa89668 (yellow sand) -> 0x9c9070 / 0x8a8064 (filled hessian / poly);
 home-base blocks blue-grey 0x8a92a0 -> concrete 0x8e8c86; landing-hard markers red / white / green to painted
 0x9a2c22 / 0xd6d4cc / 0x34653a; pad paint as above.
+
+## 2026-10-27 - ALU value noise was 5-8x the Lambert cost; one noise texture instead
+**Finding**: the first version evaluated the RenderKit 3D value noise (`rkNoise`: 8 hashes + trilinear mix) 3-5 times a
+fragment. Raster cost of world surfaces filling 960x540 (`tools/scenes/depthmicro.mjs`, 30 renders, readPixels sync,
+SwiftShader): sandbag wall 6.2 ms (`?rk=0`) -> 53 ms; HQ close 4.4 -> 31 ms; town street 4.4 -> 33 ms.
+Also the hashed "pores" / aggregate (`floor()` cells) read as square pixels up close and the analytic 3 mm sandbag
+weave (`sin()`) moired on oblique faces.
+**Cause**: SwiftShader is a CPU rasterizer, so ALU-heavy noise costs in proportion; on a GPU the ratio is smaller but
+the work is the same kind.
+**Action**: `noiseTexture()`: one generated 256x256 tileable RGBA texture (R fbm 1/4-1/16 tile, G fbm 1/16-1/64, B white
+noise per texel, A ridges), mipmapped, anisotropy 1. Every fragment makes three fetches (20 m blotches, 4 m grain /
+1.6 cm speckle, a stretched one for streaks) outside the class branches, so derivatives / mip selection are defined.
+Mip filtering band-limits the noise (pores and aggregate fade with distance instead of shimmering). Hash noise is left
+only for per-cell tints (bricks, tiles, boards). The fbm is contrast-stretched (`smoothstep(.22,.78)`) once, so blotches
+read (~+-15 %) without per-class constants. Units: the dust mottle reads the texture; the camouflage keeps the 3D FBM
+(it must be continuous across edges) but only runs when `rkCamo > 0`.
+
+## 2026-10-27 - Raster cost A/B and tiers (SwiftShader, honest numbers)
+**Evidence**: `tools/scenes/depthmicro.mjs`, one surface filling 960x540 under the game's hemisphere + sun, 30 renders
+with a readPixels sync each, ms per frame. Five other agents were running headless browsers on the same CPU, so
+run-to-run noise is about +-30 %; two runs each, ranges given.
+
+| view | `?rk=0` (Lambert) | `&rkdetail=0` (PBR roles, no detail) | `&rkdetail=1` medium | high (default) |
+| --- | --- | --- | --- | --- |
+| HQ site close (concrete, bags, berm) | 5.8-7.6 | 8.0-12.0 | 13.9 | 23.4-29.0 |
+| HQ at 30 m | 2.7-3.3 | 3.8-4.3 | 5.0 | 7.7-9.1 |
+| sandbag wall filling the screen | 7.2-9.4 | 15.5-18.4 | 22.9 | 37.3-38.8 |
+| town street (Lambert world material) | 5.2-7.8 | 8.0-8.4 | 12.5 | 24.1-29.6 |
+| Huey (unit detail) | 11.8-17.8 | 21.0 | 24.7 | 21.0-24.3 |
+
+**Reading**: on a CPU rasterizer the high tier costs ~3x the plain PBR roles on world pixels that are inside the
+detail range; medium ~1.5x; unit detail is within noise of the old RenderKit dust / wear (it replaced it). SwiftShader
+pays for every instruction of every branch its 4-pixel group touches; a GPU skips the class branches it does not take
+(the class is constant over a triangle) and hides the three texture fetches behind the lighting math, so the ratio on
+the user's desktop GPU should be well below this. Not measured on a hardware GPU or headset (none on this machine).
+In-game rAF frame time (`depthmat.mjs PERF=20`) is useless here: the game's frames are throttled to the harness
+(16.7 ms p50 for every variant).
+**Action**: tiers. High (default): every class pattern, bump, 150 m. Medium `?rkdetail=1`: no class patterns, no bump,
+the shared blotches / grain / streaks and the baked occlusion, 60 m: the VR / low-end choice. `?rkdetail=0`: the
+RenderKit PBR roles only. XR sessions drop the range to 60 m and halve the bump on any tier (`bindXR`, main.js).
+Beyond the range every pixel takes one distance test and skips the detail.
+
+## 2026-10-27 - Screenshot review (what was looked at, what was fixed on the way)
+**Evidence**: `docs/ngc1980/evidence/depth-materials/` (`-off` = `?rk=0`, `-on` = default, `-medium` = `&rkdetail=1`):
+the user's view (`base_user`), 3 m from the HQ door and sandbags (`base_near`), 30 m (`base_mid`), the pad edge, a town
+crossroads, the carrier deck on foot, the Tomcat, and dev-page close-ups of sandbags and roofs / brick
+(`tools/scenes/depthlook.mjs`). Also reviewed, not copied: Huey (orbit, close, cockpit), Hornet, Shrike, Reaper, all
+four ships (far and close), M60 / M113 (outside and inside), M151 / M35 / Land Rover / Beetle, village, harbour
+street, VR stereo cockpit (`xr.mjs`).
+Fixed during review:
+- hashed `floor()` pores read as square pixels; analytic 3 mm weave moired -> texture speckle, mip-filtered.
+- sandbag "fold" lines looked like crazed marble -> pillow rows (`sin` over each 0.3 m course) + lump / wrinkle bump.
+- plaster rain streaks every 30 cm looked like stripes -> wider, sparser, 9 %.
+- tarmac oil stains too many and hard-edged (camouflage look) -> fewer, softer.
+- the uniform panel grid on jets read as graph paper -> irregular layout (missing frames, joins staggered per bay).
+- ship streaks mixed toward a fixed rust colour turned the dark RUNAWAY hull brown -> a tinted darkening relative to
+  the paint.
+- pad owner band was still a light teal at 1.3 m wide -> 0.65 m, 42 % saturation, 50 % value.
+No swimming: detail is in mesh coordinates (checked on the carrier deck and the ships while the scene runs; units are
+moving in the Huey / deck shots). No shimmer at distance: mip-filtered noise, AA-faded analytic patterns, 150 m fade.
+
+## 2026-10-27 - Verification
+`node tools/check.mjs syntax` 512/512; `smoke.json` PASS 5/5; `xr.mjs` (IWER Quest 3) PASS 19/19 (stereo cockpit
+frame reviewed: detail matches in both eyes); RenderKit fixture `tools/runs/depth-materials` PASS 20/20;
+`depthmat.mjs` RK=0 / all / medium PASS; `rksurface.mjs` huey, ships, tank, wheeled, jet, air, rw PASS with RK on
+and off. `?rk=0` shots are pixel-for-pixel the classic look (the occlusion byte and the pad / palette changes are all
+behind `RK.on('surface')`).
+
+## 2026-10-27 - Open
+- **OPEN**: cockpit interiors (Huey, jets, tanks, cabins) are not detailed. They fill half the view in cockpit / VR,
+  so the per-pixel cost is largest there, and grain over instrument faces hurts readability. If wanted: `applyWorldDetail(
+  mat, { defCls: SURF.METAL })` on the structure materials only (frames, floors), medium tier in VR.
+- **OPEN**: not measured on a hardware GPU or headset (none here). On the user's desktop GPU, check `?rkdetail=1` vs
+  default at the base view; on Quest standalone use medium.
+- **OPEN**: ambient town people / cars and interior rooms use `worldMaterial`, so they get the GENERIC grain (no class
+  attribute). Harmless; the figures branch can pass `detail: false` in `world/ambient.js` if it wants them plain.
+- **OPEN**: sandbag pillows assume courses 0.3 m from the mesh's ground (as `structures.js` stacks them); bags built
+  elsewhere on another grid get the pillow shading offset.
+- **OPEN**: the terrain shader (main.js) has no noise texture, so the pad / apron concrete uses cheap sine mottling;
+  passing `noiseTexture()` into `terrainUni` would let nature and this pad share it.
+- Deck crew vehicles / cranes stay USN yellow (they are yellow); the home beacon beam (cyan) is a gameplay marker, kept.

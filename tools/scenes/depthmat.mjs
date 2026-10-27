@@ -4,6 +4,12 @@
 //   from tools/: RK=0 node snap.mjs scenes/depthmat.mjs --name dm-off ; node snap.mjs scenes/depthmat.mjs --name dm-on
 const RK = process.env.RK ?? 'all', PART = (process.env.PART || 'all').split(','), Q = process.env.Q || '';
 const want = p => PART.includes('all') || PART.includes(p);
+// PERF=N: also time N rAF frames at the base views (frame time on this machine's SwiftShader: compare runs, not absolutes)
+const PERF = +(process.env.PERF || 0);
+const SAMPLE = label => `(async () => { const ft = []; let lt = performance.now(), k = 0;
+  await new Promise(res => { (function f(t) { if (k++ >= 8) ft.push(t - lt); lt = t; if (ft.length < ${PERF}) requestAnimationFrame(f); else res(); })(performance.now()); });
+  const a = ft.slice().sort((x, y) => x - y), avg = a.reduce((s, x) => s + x, 0) / a.length, inf = __G.renderer.info;
+  return { view: '${label}', rk: '${RK}${Q}', avgMs: +avg.toFixed(1), p50Ms: +a[a.length >> 1].toFixed(1), calls: inf.render.calls, programs: inf.programs.length }; })()`;
 // stand the soldier at (x, z) looking at (tx, ty, tz) in first person; HUD hidden for clean evidence
 const STAND = (x, z, tx, ty, tz) => `(() => { const G = __G, x = (${x}), z = (${z}), tx = (${tx}), ty = (${ty}), tz = (${tz});
   const y = G.groundY(x, z); G.foot.spawnAt({ x, y: y + 0.2, z, yaw: 0 }, { force: true });
@@ -36,6 +42,7 @@ export default async function (h) {
       for (const [name, d, side, ty] of [['base_user', 16, 3, 2.2], ['base_near', 10.5, -2, 0.4], ['base_mid', 34, 6, 3]]) {
         await h.eval(`(() => { const [X, Z] = ${front(d, side)}, hq = __B.hq; window.__st = ${STAND('X', 'Z', 'hq.x', `__G.groundY(hq.x, hq.z) + ${ty}`, 'hq.z')}; return __st; })()`, name);
         await h.wait(2500); await h.shot(name);
+        if (PERF && name !== 'base_mid') await h.eval(SAMPLE(name), 'perf');
       }
       // the pad: standing on its edge looking across it
       await h.eval(`(() => { const p = __B.pad, hq = __B.hq, dx = hq.x - p.x, dz = hq.z - p.z, L = Math.hypot(dx, dz); const X = p.x - dx / L * 11, Z = p.z - dz / L * 11; return ${STAND('X', 'Z', 'p.x', '__G.groundY(p.x, p.z) - 2', 'p.z')}; })()`, 'pad');

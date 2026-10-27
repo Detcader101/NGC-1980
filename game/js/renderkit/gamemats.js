@@ -49,7 +49,7 @@ export const DETAIL = Object.freeze({
   air:   { dust: 0.1, wear: 0.1, scale: 1.6, dustColor: 0x8f8a7c, bareColor: 0x9a9ea0, panel: 0.85, streak: 0.16, streakColor: 0x34302a },
   army:  { dust: 0.22, wear: 0.06, scale: 1.4, dustColor: 0x8d7d5e, bareColor: 0x6c6c66, panel: 0, streak: 0.2, streakColor: 0x5a4a34 },
   armor: { dust: 0.36, wear: 0.08, scale: 1.1, dustColor: 0x8a7a5a, bareColor: 0x6a6a64, panel: 0, streak: 0.22, streakColor: 0x4a3e2c },
-  ship:  { dust: 0.18, wear: 0.1, scale: 0.35, dustColor: 0x6e5a48, bareColor: 0x5a5856, panel: 2.4, streak: 0.4, streakColor: 0x5a3422 },   // rust streaks / salt
+  ship:  { dust: 0.18, wear: 0.1, scale: 0.35, dustColor: 0x6e5a48, bareColor: 0x5a5856, panel: 2.4, streak: 0.28, streakColor: 0x5e4024 },   // rust streaks / salt
   rw:    { dust: 0.08, wear: 0, scale: 0.9, dustColor: 0xa29c8e, panel: 1.1, streak: 0.06, streakColor: 0x6a665e },   // RUNAWAY: grime, no chips
   site:  { dust: 0.22, wear: 0, scale: 0.6, dustColor: 0x7c705a },                         // structures: grime
 });

@@ -12,8 +12,8 @@ import { hpOf } from './ui/unitmarkers.js';
 import { CARRIER } from './ships.js';
 import { createFog, FOG_GLSL, fogPatch } from './fog.js';
 import { RK } from './renderkit/adopt.js';
-import { useSceneEnvironment, RKS } from './renderkit/gamemats.js';
-import { padGLSL, shaftRingGLSL, bindXR as bindDetailXR, applyWorldDetail } from './renderkit/detail.js';   // RENDERKIT materials (ngc/depth-materials)   // RENDERKIT: which areas use the Continuum RenderKit (?rk=, pause menu)
+import { useSceneEnvironment, RKS } from './renderkit/gamemats.js';   // RENDERKIT: which areas use the Continuum RenderKit (?rk=, pause menu)
+import { padGLSL, shaftRingGLSL, bindXR as bindDetailXR, applyWorldDetail } from './renderkit/detail.js';   // RENDERKIT materials (ngc/depth-materials)
 import { createGamePost } from './renderkit/gamepost.js';   // RENDERKIT post: desktop grading pass (never in XR)
 import { RKUI, UIC, applyUI } from './renderkit/ngcui.js';   // RENDERKIT ui: design-system menus / overlays / HUD (classic colours with ?rk=0)
 import { RK_TERRAIN_GLSL, RK_SKY_GLSL, createWorldUniforms, createWorldSky, linearOutput } from './renderkit/world.js';   // RENDERKIT world
