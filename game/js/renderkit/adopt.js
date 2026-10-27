@@ -2,11 +2,12 @@
 // Areas: 'surface' (vehicles/units/structures), 'world' (terrain/water/sky), 'fx' (particles), 'sky' (atmosphere:
 // clouds, sun, aerial perspective, the land past the draw distance; renderkit/atmosphere.js),
 // 'post' (desktop post pipeline), 'ui' (design.css menus/overlays + GPU HUD/text), 'figures' (people and the first-
-// person hands / weapons: smooth rounded geometry, skin / fabric / metal materials, LODs; units/infantry/meshkit.js).
+// person hands / weapons: smooth rounded geometry, skin / fabric / metal materials, LODs; units/infantry/meshkit.js),
+// 'light' (sun shadows + light balance, renderkit/light.js).
 // ?rk=0 turns everything off, ?rk=1 / ?rk=all everything on, ?rk=surface,fx only those.
 // Without the query the saved pause-menu choice (localStorage tz_rk) applies, default on.
 // Materials are built at load, so a change applies after reload. Nothing here touches the DOM.
-export const RK_AREAS = ['surface', 'world', 'fx', 'post', 'ui', 'figures', 'sky'];
+export const RK_AREAS = ['surface', 'world', 'fx', 'post', 'ui', 'figures', 'sky', 'light'];
 
 function read() {
   let q = null, saved = null;
