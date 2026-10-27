@@ -94,3 +94,25 @@ classic boards' text for VR, but the new explicit sizes out-ranked it.
 **Evidence**: `tools/runs/rkui-xr/02-vr-research-stereo.png`, `03-vr-hands-command.png` (19/19 expects pass).
 **Action**: `html.ngc-rkui.xr-layout` rules scale the command / research boards' small print back up. The compact
 VR HUD that panel.js paints on its own canvas now uses chalk on charcoal plates without glow (RKUI only).
+
+## 2026-10-27 - Regression scenes and the classic look
+
+**Finding**: no scene relies on anything the restyle changed. With `?rk=0` the tour screenshots match the
+pre-change baseline (`tools/runs/rkui-before-1280` vs `rkui-r4-0-1280`): no `.rk-ui` / `.ngc-rkui` class anywhere
+(the tour now asserts this), same markup, same inline colours.
+**Evidence**: smoke 5/5, menu 9/9, titlescreen 3/3, techtree 26/26, commander 29/29, healthbars 12/12, xr 19/19,
+rkui tour PASS at 1280x720, 1920x1080 and 760x900 in both looks; `node tools/check.mjs syntax` 494/494.
+Key before / after pairs are in `docs/ngc1980/evidence/rk-ui/`.
+
+## 2026-10-27 - Open
+
+- **OPEN** The centre message plate (`#msg`, same position as the classic text) covers part of the Hornet's HUD
+  glass for its 1-3 s (`tools/runs/rkui-reg-healthbars/16-16-hornet-cockpit.png`). The classic text overlapped the
+  same place; a cockpit-aware position belongs with the cockpit owner.
+- **OPEN** The marine's blood strip (`createMedHud`, units/infantry/medui.js) and the RWR scope keep their own
+  inline colours (red strip, green scope); they sit outside this branch's files, so only placement was adjusted.
+- **OPEN** The command board rows stay `div`s with click handlers (scenes select `[data-i]`); they are 44 px tall but
+  not keyboard-focusable on their own (the board's own arrow / number keys drive them). Making them `button`s needs
+  the board owner and a scene check.
+- **OPEN** The HUD fleet strip wraps to two lines with every type in service; the top-left plate is 440 px wide and
+  ~190 px tall at 1280x720, which pushes the RWR scope (moved to top 220 px with the UI on).

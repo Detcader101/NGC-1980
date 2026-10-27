@@ -2205,10 +2205,10 @@ function updateHud() {
     const n = [0, 0, 0]; for (const I of ISLANDS) n[I.owner]++;
     const c = war.carrier, b = war.battleship, eb = war.E.bship;
     // RENDERKIT ui: the colours come from UIC (the classic hexes with ?rk=0); with the UI on the low ALBATROSS and the build-up get words too
-    const g = s => RKUI ? `<span class="ngc-g">${s}</span>` : s;   // (UI on: each reading wraps as a unit)
+    const g = s => RKUI ? ` <span class="ngc-g">·&nbsp; ${s}</span>` : ` &nbsp;·&nbsp; ${s}`;   // (UI on: each reading, with its leading dot, wraps as a unit; classic output unchanged)
     const cLow = c && c.hp / c.hpMax < 0.4, html = `<span style="color:${UIC.ours}">OURS ${n[1]}</span> &nbsp; <span style="color:${UIC.enemy}">ENEMY ${n[2]}</span> &nbsp; <span style="color:${UIC.free}">FREE ${n[0]}</span>` +
-      ` &nbsp;·&nbsp; ${g(`ALBATROSS <b style="color:${cLow ? UIC.critical : UIC.ok}">${c ? Math.max(0, Math.round(100 * c.hp / c.hpMax)) : 0}%${RKUI && cLow ? ' CRITICAL' : ''}</b>`)}` +
-      (b && b.sinking === undefined ? ` &nbsp;·&nbsp; <b style="color:${UIC.critical}">LEVIATHAN AT SEA ${Math.round(100 * b.hp / b.hpMax)}%</b>` : ` &nbsp;·&nbsp; ${g(`LEVIATHAN BUILT <b style="color:${eb > 70 ? UIC.critical : UIC.caution}">${Math.floor(eb)}%</b>`)}`);
+      `${g(`ALBATROSS <b style="color:${cLow ? UIC.critical : UIC.ok}">${c ? Math.max(0, Math.round(100 * c.hp / c.hpMax)) : 0}%${RKUI && cLow ? ' CRITICAL' : ''}</b>`)}` +
+      (b && b.sinking === undefined ? ` &nbsp;·&nbsp; <b style="color:${UIC.critical}">LEVIATHAN AT SEA ${Math.round(100 * b.hp / b.hpMax)}%</b>` : `${g(`LEVIATHAN BUILT <b style="color:${eb > 70 ? UIC.critical : UIC.caution}">${Math.floor(eb)}%</b>`)}`);
     if (_hud.war !== html) { _hud.war = html; $('war').innerHTML = html; }
     const now = performance.now(), fh = feedItems.filter(f => now - f.at < 14000).map(f => `<div style="color:${f.kind === 'good' ? UIC.good : f.kind === 'bad' ? UIC.bad : UIC.info};opacity:${Math.min(1, (14000 - (now - f.at)) / 2000).toFixed(2)}">${f.t}</div>`).join('');
     if (_hud.feed !== fh) { _hud.feed = fh; $('feed').innerHTML = fh; }
