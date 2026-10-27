@@ -3,6 +3,8 @@
 // slicks, wakes and ripples on the sea. Everything is pooled with hard caps (oldest recycled), so a long battle costs
 // the same per frame as a short one.
 import * as THREE from 'three';
+import { RK } from './renderkit/adopt.js';   // RENDERKIT fx
+import { createGameParticles } from './renderkit/gamefx.js';   // RENDERKIT fx: GPU flames, embers, spark bursts, rotor wash
 
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
 function canvasTex(size, draw) {
@@ -189,7 +191,12 @@ class Debris {
 
 // ------------------------------------------------------------------------------------------- the effects system
 export function createFx(scene, { groundY, isWater, normalAt }) {
+  // RENDERKIT fx: GPU emitters on top of the CPU pools; null with ?rk=0 (every hook below is then a no-op)
+  let reducedMotion = false;
+  try { const mq = matchMedia('(prefers-reduced-motion: reduce)'); reducedMotion = mq.matches; mq.addEventListener?.('change', e => { reducedMotion = e.matches; }); } catch (e) {}
+  const rk = RK.on('fx') ? createGameParticles(scene, { reducedMotion: () => reducedMotion }) : null;
   const fx = {
+    rk, get reducedMotion() { return reducedMotion; },
     add: new Pool(scene, 5000, true, softTex), mix: new Pool(scene, 6000, false, puffTex),
     scorch: new Decals(scene, 450, 1), water: new Decals(scene, 900, 2), debris: new Debris(scene, 700),
     emitters: [], wind: new THREE.Vector2(1.2, 0.5), shake: 0, groundY, isWater, time: 0, ear: new THREE.Vector3(),
@@ -197,7 +204,10 @@ export function createFx(scene, { groundY, isWater, normalAt }) {
       const sc = heightPx / (2 * Math.tan(cam.fov * Math.PI / 360));
       for (const p of [fx.add, fx.mix]) { p.uni.uScale.value = sc; p.uni.uFogNear.value = fog.near; p.uni.uFogFar.value = fog.far; p.uni.uFogCol.value.copy(fog.color); }
       for (const d of [fx.scorch, fx.water]) { d.uni.uFogNear.value = fog.near; d.uni.uFogFar.value = fog.far; }
+      rk?.setView(cam, fog);   // RENDERKIT fx
     },
+    // RENDERKIT fx: rotor downwash under a hovering helicopter (k 0..1, wet = over water); the CPU dust stays as well
+    downwash(x, y, z, k, wet) { rk?.downwash(x, y, z, k, wet); },
     // ---- recipes
     flash(x, y, z, s) { fx.add.spawn(x, y, z, 0, 0, 0, 0.16, 5 * s, 10 * s, 1, .85, .55, 1); },
     explode(x, y, z, s = 1, o = {}) {
@@ -207,7 +217,7 @@ export function createFx(scene, { groundY, isWater, normalAt }) {
         const a = rnd(6.283), e = rnd(-0.3, 1), sp = rnd(1.5, 6) * Math.sqrt(s), h = Math.sqrt(1 - e * e);
         fx.add.spawn(x + rnd(-.5, .5) * s, y + rnd(-.3, .5) * s, z + rnd(-.5, .5) * s, Math.cos(a) * h * sp, e * sp + 1, Math.sin(a) * h * sp, rnd(0.35, 0.8), 1.6 * s, 4.2 * s, 1, rnd(.45, .7), rnd(.1, .25), 0.85, -2, 2.5);
       }
-      for (let i = 0; i < 8 + 10 * s; i++) {   // sparks / burning bits
+      if (!rk?.burst(x, y, z, s)) for (let i = 0; i < 8 + 10 * s; i++) {   // sparks / burning bits (RENDERKIT fx: a GPU burst instead)
         const a = rnd(6.283), e = rnd(-0.2, 1), sp = rnd(12, 30), h = Math.sqrt(1 - e * e);
         fx.add.spawn(x, y, z, Math.cos(a) * h * sp, e * sp, Math.sin(a) * h * sp, rnd(0.5, 1.3), 0.35, 0.2, 1, rnd(.6, .9), .3, 1, 16, 0.6);
       }
@@ -262,6 +272,7 @@ export function createFx(scene, { groundY, isWater, normalAt }) {
     trail(x, y, z, k = 1) { fx.mix.spawn(x, y, z, rnd(-.3, .3), rnd(0.2, 0.8), rnd(-.3, .3), rnd(1.5, 3) * k, 0.6, 2.6 * k, .3, .3, .3, 0.5, -0.3, 1, 0.6); },
     update(dt) {
       fx.time += dt;
+      rk?.assignFires(fx.emitters);   // RENDERKIT fx: the nearest fires burn on the GPU (flames + embers)
       fx.wind.set(1.4 * Math.cos(fx.time * 0.013) + 0.6, 1.4 * Math.sin(fx.time * 0.011));
       for (let i = fx.emitters.length - 1; i >= 0; i--) {
         const e = fx.emitters[i];
@@ -277,17 +288,18 @@ export function createFx(scene, { groundY, isWater, normalAt }) {
         while (e.acc > 1) {
           e.acc--;
           if (burning) {
-            fx.add.spawn(e.x + rnd(-.7, .7) * e.s, e.y + rnd(0, .4), e.z + rnd(-.7, .7) * e.s, rnd(-.5, .5), rnd(2, 4.5), rnd(-.5, .5), rnd(0.35, 0.8), 1.3 * e.s, 0.4 * e.s, 1, rnd(.4, .65), .12, 0.8, -1.5, 1, 0.3);
+            if (!e.rk) fx.add.spawn(e.x + rnd(-.7, .7) * e.s, e.y + rnd(0, .4), e.z + rnd(-.7, .7) * e.s, rnd(-.5, .5), rnd(2, 4.5), rnd(-.5, .5), rnd(0.35, 0.8), 1.3 * e.s, 0.4 * e.s, 1, rnd(.4, .65), .12, 0.8, -1.5, 1, 0.3);
             if (Math.random() < 0.6) { const d = rnd(.05, .13); fx.mix.spawn(e.x, e.y + 1.2 * e.s, e.z, rnd(-.4, .4), rnd(3, 5), rnd(-.4, .4), rnd(6, 11), 1.4 * e.s, 9 * e.s + 3, d, d, d, 0.6, -0.25, 0.4, 1.4); }
           } else { const g = rnd(.2, .3); fx.mix.spawn(e.x + rnd(-.5, .5), e.y + 0.3, e.z + rnd(-.5, .5), rnd(-.2, .2), rnd(1.2, 2.2), rnd(-.2, .2), rnd(5, 9), 0.8 * e.s, 5 * e.s + 2, g, g, g, 0.35, -0.15, 0.5, 1.4); }
         }
       }
       fx.add.update(dt, fx.wind.x, fx.wind.y); fx.mix.update(dt, fx.wind.x, fx.wind.y);
       fx.scorch.update(dt); fx.water.update(dt); fx.debris.update(dt, fx);
+      rk?.update(dt);   // RENDERKIT fx: its clock is this dt (main.js passes 0 while paused)
       fx.shake *= Math.exp(-4 * dt);
     },
     clear() {
-      fx.add.n = fx.mix.n = 0; fx.emitters = fx.emitters.filter(e => e.kind === 'chimney');
+      fx.add.n = fx.mix.n = 0; fx.emitters = fx.emitters.filter(e => e.kind === 'chimney'); rk?.clear();
       for (const d of [fx.scorch, fx.water]) { d.n = 0; d.next = 0; d.items = []; d.mesh.count = 0; }
       fx.debris.items = []; fx.debris.next = 0; fx.debris.mesh.count = 0;
     },

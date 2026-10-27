@@ -12,6 +12,7 @@ import { hpOf } from './ui/unitmarkers.js';
 import { CARRIER } from './ships.js';
 import { createFog, FOG_GLSL, fogPatch } from './fog.js';
 import { RK } from './renderkit/adopt.js';   // RENDERKIT: which areas use the Continuum RenderKit (?rk=, pause menu)
+import { createGamePost } from './renderkit/gamepost.js';   // RENDERKIT post: desktop grading pass (never in XR)
 import { drawDistance, radialFog } from './world/visibility.js';
 import { zoneGrid, SURF_NAMES, GEOLOGY, geologyOf } from './world/terrain.js';
 radialFog(THREE);
@@ -237,6 +238,9 @@ addEventListener('wheel', e => { if (G.craft === 'jet' && cockpitCam) JP.zoom = 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
 const PR_MAX = params.has('res') ? +params.get('res') : Math.min(devicePixelRatio, 1.5);
 let pixRatio = PR_MAX; renderer.setPixelRatio(pixRatio);
+// RENDERKIT post: toneMapping stays NoToneMapping (the game's look, display-referred; see renderkit/gamepost.js).
+// The post target follows the drawing buffer each frame, so dynamic resolution needs nothing extra.
+const rkPost = RK.on('post') ? createGamePost(renderer, { reducedMotion: () => !!fx?.reducedMotion }) : null;
 {
   const gl = renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info');
   $('gpuinfo').textContent = 'GPU: ' + (ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : 'unknown');
@@ -1109,6 +1113,7 @@ function updateHeli(dt, inp, piloted) {
       if (wet) fx.mix.spawn(P.x + Math.cos(a) * rr, gy + 0.3, P.z + Math.sin(a) * rr, Math.cos(a) * sp, rnd(0.5, 2.5), Math.sin(a) * sp, rnd(0.6, 1.1), 0.7, 3, .85, .92, .97, 0.4, 2, 1.4, 0.3);
       else fx.mix.spawn(P.x + Math.cos(a) * rr, gy + 0.3, P.z + Math.sin(a) * rr, Math.cos(a) * sp, rnd(0.5, 2.5), Math.sin(a) * sp, rnd(0.6, 1.2), 0.8, 3.4, .55, .48, .36, 0.45, 1.5, 1.5, 0.3);
     }
+    fx.downwash(P.x, gy, P.z, k, wet);   // RENDERKIT fx: a GPU dust / spray ring under the disc (no-op with ?rk=0)
     Z.washT = (Z.washT || 0) - dt;
     if (wet && Z.washT <= 0 && k > 0.2) { Z.washT = 0.18; fx.water.add({ x: P.x, y: 0.1, z: P.z, size: 3, grow: 12, a: 0.45 * k, life: 1.1, tile: 1, pow: 1.5 }); }
   }
@@ -2430,7 +2435,8 @@ function frame(now, xrFrame) {
     if (tr.phase === 0) { $('fade').style.opacity = Math.min(1, tr.t / D); if (tr.t >= D) { tr.swap(); tr.phase = 1; tr.t = 0; } }
     else { $('fade').style.opacity = Math.max(0, 1 - tr.t / D); if (tr.t >= D) { G.state = 'play'; $('fade').style.opacity = 0; $('fadeText').textContent = ''; } }
   }
-  fx.update(dt);
+  fx.update(RK.on('fx') && G.state === 'paused' ? 0 : dt);   // RENDERKIT fx: one simulation clock, frozen on pause (?rk=0: as before)
+  rkPost?.tick(G.state === 'paused' ? 0 : dt);   // RENDERKIT post
   sealife.update(G.state === 'paused' ? 0 : dt);   // SEALIFE
   const t1 = performance.now();
   updateCamsAndMeshes(dt, now / 1000);
@@ -2445,8 +2451,16 @@ function frame(now, xrFrame) {
   if (G.mode === 'zarch') interiors.update(G.state === 'paused' ? 0 : dt, zCam);   // ngc/interiors: doors swing, rooms near the camera, the carrier's inside
   const drawDesktop = () => {
     const a = G.craft !== 'heli' && G.state !== 'title' ? crafts.active : null;
-    if (!(a && a.renderView && a.renderView(renderer, zScene, zCam))) renderer.render(zScene, zCam);
-    if (G.craft === 'foot' && G.state !== 'title' && G.mode === 'zarch') foot.overlay(renderer, zCam);
+    // RENDERKIT fx: a craft's own picture (the tank's TTS thermal sight) swaps every visible mesh to a heat material;
+    // the GPU particle quads would become opaque squares, so they are hidden for it (the CPU Points are not meshes).
+    const rkg = fx.rk?.group, rkv = rkg?.visible;
+    if (rkg && a?.renderView) rkg.visible = false;
+    const own = !!(a && a.renderView && a.renderView(renderer, zScene, zCam));
+    if (rkg) rkg.visible = rkv;
+    // RENDERKIT post: only for the plain desktop world view. The craft's own picture is already its own post pass,
+    // and XR (including the flat-screen display drawn into a target while presenting) renders directly.
+    if (!own) { if (rkPost && !renderer.xr.isPresenting) rkPost.render(zScene, zCam); else renderer.render(zScene, zCam); }
+    if (G.craft === 'foot' && G.state !== 'title' && G.mode === 'zarch') foot.overlay(renderer, zCam);   // arms + weapon after post (own depth clear)
   };
   if (!XR?.render(drawDesktop)) drawDesktop();
   markers.draw(zCam, markerView());   // UNIT MARKERS: icons + health bars, one 2D layer over the frame
@@ -2506,7 +2520,7 @@ if (params.has('xrbench')) XRB = createXRBench({ XR, renderer, scene: zScene, G,
   armourSpot: () => { const hh = HARDS.find(h => h.I === HOME_B.isl), hp = hh && hh.at(hh.u1 - 5); return hp ? { x: hp[0], z: hp[1], yaw: hh.yaw } : GR.motorPool(HOME_B.isl, 4.6); } });
 buildCaves(); war.reset(); resetZarch(true); placeVehicles(); updateFogImg(); terrainStream(Z.pos.x, Z.pos.z);
 renderer.setAnimationLoop(frame);
-if (params.has('debug')) { window.__G = { XR, G, airlift, airdrop, ch46C, heliAIenv, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, get forest() { return { count: world.stats.forestTrees || 0 }; }, world, terrainUni, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, get tech() { return war.tech; }, techUI /* TECH TREE: tech = [null, player, enemy] */ }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); H.reset(H.pos.clone(), 0, false, 1); SY.grip = 1; SY.auto = null; enterCave(b); }   /* (ngc/bugsweep) ?thrust=N starts in the cave already flying: engine at flight power, throttle rolled on (it came in at ground idle with the throttle rolling on, the rotor drooped and caveaim / caves crashed in the shaft) */ }
+if (params.has('debug')) { window.__G = { XR, G, airlift, airdrop, ch46C, heliAIenv, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, get forest() { return { count: world.stats.forestTrees || 0 }; }, world, terrainUni, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, rkPost /* RENDERKIT post */, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, get tech() { return war.tech; }, techUI /* TECH TREE: tech = [null, player, enemy] */ }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); H.reset(H.pos.clone(), 0, false, 1); SY.grip = 1; SY.auto = null; enterCave(b); }   /* (ngc/bugsweep) ?thrust=N starts in the cave already flying: engine at flight power, throttle rolled on (it came in at ground idle with the throttle rolling on, the rotor drooped and caveaim / caves crashed in the shaft) */ }
 // ngc/ch46fly dev: ?fly=ch46 puts you in a CH-46E on the ALBATROSS (with ?auto; ?fly=ch46&cold cold and dark; &at=island at the nearest friendly pad)
 if (params.get('fly') === 'ch46') { const t0 = performance.now(), go = () => { if (G.state === 'play' && G.mode === 'zarch' && Z.alive && H.landed) { const isl = commandBases().filter(b => b.kind === 'island').sort((a, b) => Math.hypot(a.x - Z.pos.x, a.z - Z.pos.z) - Math.hypot(b.x - Z.pos.x, b.z - Z.pos.z))[0]; commander.deploy('ch46', params.get('at') === 'island' && isl ? isl.key : 'ship'); return; } if (performance.now() - t0 < 30000) setTimeout(go, 200); }; setTimeout(go, 300); }
 
