@@ -401,6 +401,7 @@ export function padGLSL(PAD_R, rkLit) {
 `;
 }
 // the hazard ring round a cave base's shaft mouth: faded yellow / black chevrons (enemy: red / white) instead of neon
+// hazard stripes: an anti-aliased square wave (one pixel of blur, capped where atan wraps) - a hard step stair-stepped
 export function shaftRingGLSL(rkLit) {
-  return /* glsl */`pc=mix(vec3(.07,.07,.075),mix(vec3(.62,.5,.14),vec3(.55,.14,.1),b.w),step(.5,fract(a*3.82)))*${rkLit}*(0.9+0.1*sin(vW.x*1.7)*sin(vW.z*1.3));`;
+  return /* glsl */`pc=mix(vec3(.07,.07,.075),mix(vec3(.62,.5,.14),vec3(.55,.14,.1),b.w),clamp((abs(fract(a*3.82)-.5)-.25)/min(max(fwidth(a*3.82),1e-4),.25)+.5,0.,1.))*${rkLit}*(0.9+0.1*sin(vW.x*1.7)*sin(vW.z*1.3));`;
 }
