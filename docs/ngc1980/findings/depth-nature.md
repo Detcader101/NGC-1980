@@ -63,3 +63,69 @@ a swash lace foam line runs up and down the sand (`rnLace`).
 edge along the grid triangles); now ~0.2-0.6 m with a noisy edge.
 **Action**: done. The light agent's shadow hunk goes into the lighting line after `rnDetail`; the nature hunks are all
 marked `// RENDERKIT nature` and leave the lighting skeleton alone.
+
+## 2026-10-27 - Tiers and what they cost
+**Finding**: `?rknature=low|med|high` (saved `tz_rknature`, default high; XR switches to low on session start and back
+after). Per tier: tree detail radius 90 / 170 / 260 m (+-30/45/60 cross-fade), clutter ring 38 / 70 / 105 m, grass
+density 0.35 / 0.7 / 1, terrain near detail off / 110 m / 170 m; low draws the mid trees with octahedron clumps (8 instead
+of 20 triangles a clump). The mid set ends at the far clip (on foot the haze ends at ~265 m), the zone's static far set is
+drawn only when the view reaches past 410 m (jets, high helicopters).
+**Evidence**: `tools/scenes/depthnature.mjs`, SwiftShader at 60 % of 1280x720 after the shader-library merge
+(light/sky/post/materials on in every column). drawMs50 = median of 6 synchronous scene renders with a readback (a CPU
+rasteriser: proportional to fragment + vertex work, not a GPU frame time); kt = rendered triangles.
+
+| view | nature off | low | high |
+|---|---|---|---|
+| hq (user's view) | 237 ms / 414 kt | 353 ms / 643 kt | 864 ms / 1379 kt |
+| forest edge, on foot | 221 / 422 | 330 / 658 | 772 / 1322 |
+| grassland, on foot | 368 / 508 | 512 / 752 | 1046 / 1473 |
+| beach | 179 / 356 | 318 / 544 | 489 / 972 |
+| heli 50 m | 289 / 474 | 464 / 649 | 609 / 1072 |
+| heli 200 m | 277 / 414 | 412 / 552 | 461 / 662 |
+| wild forest, on foot | 158 / 249 | 322 / 556 | 728 / 1283 |
+
+High at the HQ: 1084 detail + 787 mid trees (358 kt), 15.6 k grass tufts (645 kt: the tufts are the bulk of high's cost),
+forest refill 0.3 ms when the camera has moved 6 m, clutter generation capped at 6 ms a frame (nearest cells first).
+Med (earlier run, pre-merge): ~1.0 M triangles at the HQ, ~5 k tufts. CPU per frame with nothing to rebuild: ~0.
+**Action**: high stays the desktop default (the user's GPU has headroom: 133 fps at 1080p before). OPEN: a real-GPU A/B
+(`?rknature=low|med|high` with the fps counter) on the user's desktop and on the Quest via Steam Link; if high costs more
+than ~1 ms there, cut tuft blades 13 -> 8 (the geometry is one function) before cutting density.
+
+## 2026-10-27 - Bugs found in testing (fixed)
+- **Tufts invisible after following the render camera**: the clutter / forest sets were refilled inside
+  `terrain.onBeforeRender` (to follow the camera that renders: scripted test cameras, XR eyes) and grew their buffers
+  mid-render (`geometry.dispose()` mid-frame). Now `onBeforeRender` only records the eye; the refill runs in the frame
+  hook; buffers start large (20 k tufts) and are never disposed mid-frame.
+- **Tufts the same colour as the ground** (after the light merge brightened the terrain): roots 0.42, tips 1.5 and
+  yellower, a per-tuft brightness: grass reads by its contrast.
+- **rkworld.mjs terrain A/B failed to compile** (`rkN2` missing): it strips `RK_WORLD` but keeps the other defines. The
+  nature hunks are now `#if defined(RK_NATURE) && defined(RK_WORLD)`.
+- **Clutter filled in raster order**: under the 6 ms generation budget the far corner of the ring could fill before the
+  ground at your feet (the HQ shot had no grass beside the road). Cells now generate nearest first.
+- **Clutter test views were around the wrong camera** (the game's chase camera 40 m up, not the scripted eye): low tier
+  had no clutter in the shots. Fixed by the render-camera tracking above; shadow cameras (orthographic) are ignored.
+
+## 2026-10-27 - Merge with ngc/shader-library (light, sky, materials, post, figures)
+**Finding**: conflicts in main.js (imports, terrain uniforms, GLSL includes, defines), adopt.js (RK_AREAS) and the world
+worker's transfer list; all kept both sides (`RK_DEF` gains `RK_NATURE` only with `RK_WORLD`). The light agent's
+`rkShadow` rules now cover the nature meshes: trees, rocks and bushes cast (their `customDepthMaterial` carries the
+instance transform and wind), grass and stones only receive, the zone's far set only receives. The sky agent's
+`rkFarLand` (land past the draw distance) gets a 13 % straw mix under `RK_NATURE`, the average of the near terrain's
+dry-grass and soil patches, so the 0.6-1.0 x draw hand-over shows no colour step (wild150 shot).
+**Action**: done. Not done: the materials agent's `detail.js noiseTexture()` could replace the terrain detail's ALU value
+noise (~10-14 `rkN2` per near pixel) with 3 texture fetches; worth doing if the terrain shows up in a GPU profile.
+
+## 2026-10-27 - Checks
+smoke.json PASS; xr.mjs 19/19 (low tier in VR, stereo shots clean); worldvisibility 17/17 (forest counts unchanged,
+`forestTrees` kept); underwater 6/6 after the merge; depthnature 9/9 at high, low and off; renderkit fixture 20/20;
+`check.mjs syntax` 529/529. visibility.mjs and the pre-merge underwater pixel checks also failed on the base commit
+4a47cbb (post pipeline readPixels; fixed upstream by 2a10eda). rkworld.mjs's "kit sky ... material.name === 'RenderKit/sky'"
+expect fails since the depth-sky merge replaced the dome material (not a nature change).
+Screens: `docs/ngc1980/evidence/depth-nature/before-*.png` (RK on, no nature), `high-*.png`, `low-02-forest.png`,
+`worldvisibility-forest.png`.
+
+## OPEN
+- Village garden / hedgerow trees (chunkgen `tree()`, merged world geometry) are still the old trunk + one blob.
+- The beach's dark trapezoid in `before/high-04-beach` is the LCM landing hard, not a shading bug.
+- Felled zone trees keep their wind sway (a lying tree wiggles a few cm).
+- Real-GPU frame times per tier (above).

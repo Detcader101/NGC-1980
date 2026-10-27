@@ -176,9 +176,9 @@ function tuftGeo(r) {
   for (let i = 0; i < n; i++) {
     const a = i / n * Math.PI * 2 + r() * 0.6, rr = 0.06 + r() * 0.12, x = Math.cos(a) * rr, z = Math.sin(a) * rr, h = 0.28 + r() * 0.4, w = 0.022 + r() * 0.016;
     const lean = 0.12 + r() * 0.22, tx = x + Math.cos(a) * lean, tz = z + Math.sin(a) * lean, px = -Math.sin(a) * w, pz = Math.cos(a) * w;
-    const up = [Math.cos(a) * 0.35, 1, Math.sin(a) * 0.35], root = mulc(g0, 0.74), tip = mulc(g0, 1.28);
+    const up = [Math.cos(a) * 0.35, 1, Math.sin(a) * 0.35], root = [0.42, 0.46, 0.4], tip = [1.5, 1.42, 0.95];   // dark, self-shaded roots; sun-bleached, yellower tips: grass reads by its contrast, not its hue
     const a0 = [x - px, 0, z - pz], a1 = [x + px, 0, z + pz], m0 = [x + (tx - x) * 0.45 - px * 0.7, h * 0.5, z + (tz - z) * 0.45 - pz * 0.7], m1 = [x + (tx - x) * 0.45 + px * 0.7, h * 0.5, z + (tz - z) * 0.45 + pz * 0.7], t = [tx, h, tz];
-    const mid = mulc(g0, 1.0);
+    const mid = [0.95, 0.98, 0.85];
     B.tri(a0, a1, m1, g0, [up, up, up], 1, 1, [root, root, mid]); B.tri(a0, m1, m0, g0, [up, up, up], 1, 1, [root, mid, mid]);
     B.tri(m0, m1, t, g0, [up, up, up], 1, 1, [mid, mid, tip]);
   }
@@ -291,7 +291,7 @@ function instanced(geo, mat, cap, depth) {
   const mesh = new THREE.Mesh(g, mat); mesh.frustumCulled = false; mesh.matrixAutoUpdate = false; mesh.castShadow = false; mesh.receiveShadow = true;
   if (depth) mesh.customDepthMaterial = depth;
   set.mesh = mesh; set.tris = geo.attributes.position.count / 3;
-  set.ensure = n => { if (n <= set.cap) return; const P = set.P.array, R = set.R.array, C = set.C.array, k = set.n; alloc(Math.ceil(n * 1.5)); set.P.array.set(P.subarray(0, k * 4)); set.R.array.set(R.subarray(0, k * 4)); set.C.array.set(C.subarray(0, k * 3)); g.dispose(); };
+  set.ensure = n => { if (n <= set.cap) return; const P = set.P.array, R = set.R.array, C = set.C.array, k = set.n; alloc(Math.ceil(n * 1.5)); set.P.array.set(P.subarray(0, k * 4)); set.R.array.set(R.subarray(0, k * 4)); set.C.array.set(C.subarray(0, k * 3)); };   // (the old buffers are left to the GC: disposing the geometry mid-frame lost the set)
   set.begin = () => { set.n = 0; };
   set.push = (src, i) => {   // src: { d: Float32Array (x y z s yaw tx tz seed), c: Float32Array (r g b) }
     if (set.n >= set.cap) set.ensure(set.n + 1);
@@ -333,7 +333,7 @@ export function createForest({ scene, fog = null, uTime = null, shared }) {
     const depth = depthMaterial(shared, lvl === 'lite' ? 'mid' : lvl);
     for (const k of K) {
       const g = geos[lvl + k] = treeGeo(k, lvl === 'far' ? 'lite' : lvl).geometry();
-      sets[lvl][k] = instanced(g, mats[lvl], lvl === 'detail' ? 1500 : 3000, depth); root.add(sets[lvl][k].mesh);
+      sets[lvl][k] = instanced(g, mats[lvl], lvl === 'detail' ? 2500 : 4000, depth); root.add(sets[lvl][k].mesh);
       sets[lvl][k].mesh.userData.rkShadow = lvl === 'far' ? 'receive' : 'both';   // RENDERKIT light: trees cast (customDepthMaterial carries the instance transform); the far set only receives
     }
   }
@@ -430,14 +430,14 @@ export function createClutter({ scene, fog = null, uTime = null, shared, sample 
         .replace('vColor.rgb*=aC*uNatGain;', `{ vec2 P=aP.xz; float m1=rkN2(P*.011), m2=rkN2(P*.047+3.1), m3=rkN2(P*.23+7.7), v=m1*.55+m2*.3+m3*.15;
             vec3 g=mix(mix(vec3(.14,.37,.12),vec3(.22,.5,.16),smoothstep(.25,.65,v)),vec3(.36,.5,.2),smoothstep(.5,.85,m1+max(aP.y,0.)*.0008));
             float dry=smoothstep(.55,.8,rkN2(P*.06+11.)+.15*rkN2(P*.3)); g=mix(g,vec3(.52,.5,.27),dry*.55);
-            g=pow(g,vec3(2.2)); vColor.rgb*=g*aC*uNatGain; }`);
+            g=pow(g,vec3(2.2)); vColor.rgb*=g*aC*uNatGain*(.78+.44*fract(aR.w*13.7)); }   // (+ a per-tuft brightness)`);
     };
     grassMat.customProgramCacheKey = () => 'rknature-grass' + (fog ? 'F' : '');
   }
   const mats = { tuft: grassMat, bush: natureMaterial({ kind: 'clutter', fog, uTime, shared, gain: 1.4 }), rock: natureMaterial({ kind: 'clutter', fog, uTime, shared, gain: 1.5 }) };
   mats.stone = mats.rock;
-  const sets = {}; for (const t of types) { sets[t] = instanced(geo[t], mats[t], t === 'tuft' ? 6000 : 1500, depthMaterial(shared, 'clutter')); root.add(sets[t].mesh); sets[t].mesh.userData.rkShadow = t === 'rock' || t === 'bush' ? 'both' : 'receive'; }   // (grass and stones do not cast: 15k tiny casters)
-  const cells = new Map(), key = (i, j) => i * 65536 + j;
+  const sets = {}; for (const t of types) { sets[t] = instanced(geo[t], mats[t], t === 'tuft' ? 20000 : 3000, depthMaterial(shared, 'clutter')); root.add(sets[t].mesh); sets[t].mesh.userData.rkShadow = t === 'rock' || t === 'bush' ? 'both' : 'receive'; }   // (grass and stones do not cast: 15k tiny casters)
+  const cells = new Map(), key = (i, j) => i * 65536 + j, ringCache = [];
   const stats = { cells: 0, tuft: 0, bush: 0, rock: 0, stone: 0, genMs: 0, ms: 0, tris: 0 };
   let lastI = 1e9, lastJ = 1e9, lastY = 1e9, dirty = true;
   const STONE = lin(0x9a968c), STRAW = [1.35, 1.12, 0.5];   // STRAW: a tint on the grass colour (dry summer tufts, marram on the dunes)
@@ -479,7 +479,9 @@ export function createClutter({ scene, fog = null, uTime = null, shared, sample 
     for (const t of types) sets[t].begin();
     const dens = { tuft: T.grass, bush: T.bush, rock: T.rocks, stone: T.rocks };
     let complete = true;
-    if (reach > 0) for (let dj = -n; dj <= n; dj++) for (let di = -n; di <= n; di++) {
+    // nearest cells first: when the generation budget runs out, what exists is what is under your feet
+    const order = ringCache[n] ||= Array.from({ length: (2 * n + 1) ** 2 }, (_, k) => [k % (2 * n + 1) - n, Math.floor(k / (2 * n + 1)) - n]).sort((a, b) => a[0] * a[0] + a[1] * a[1] - b[0] * b[0] - b[1] * b[1]);
+    if (reach > 0) for (const [di, dj] of order) {
       const i = ci + di, j = cj + dj, x = (i + 0.5) * CELL - p.x, z = (j + 0.5) * CELL - p.z;
       if (x * x + z * z > (reach + CELL) * (reach + CELL)) continue;
       let c = cells.get(key(i, j));

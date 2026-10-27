@@ -551,7 +551,7 @@ const terrainFS = `
     ${RK_TERRAIN_GLSL}
     ${RK_SKY_GLSL}
     #endif
-    #ifdef RK_NATURE
+    #if defined(RK_NATURE) && defined(RK_WORLD)   // (RK_NATURE needs the RK world noise; a test may strip RK_WORLD alone)
     ${NATURE_TERRAIN_GLSL}
     #endif
     #ifdef RK_SKY
@@ -590,7 +590,7 @@ const terrainFS = `
       float rkSnow=wild*smoothstep(440.,520.,vW.y+120.*(rkM1-.5)+30.*(rkM2-.5))*(1.-smoothstep(.3,.75,rkSl+.2*(rkM2-.5)));
       c=mix(c,vec3(.93,.95,.98)*(.95+.05*rkM3),rkSnow);
       c=mix(mix(vec3(.62,.56,.37),vec3(.8,.74,.5),smoothstep(.15,1.2,vW.y))*(.94+.12*rkM3),c,smoothstep(0.,3.+2.5*(rkM2-.5),vW.y));   // wet sand at the waterline
-      #ifdef RK_NATURE
+      #if defined(RK_NATURE) && defined(RK_WORLD)   // (RK_NATURE needs the RK world noise; a test may strip RK_WORLD alone)
       // RENDERKIT nature: what the ground is made of here (weights for rnDetail); the zone's surface map overrides below
       float rnS=1.-smoothstep(0.,3.+2.5*(rkM2-.5),vW.y), rnR=rk*(1.-rkSnow)*(1.-rnS), rnSn=rkSnow*(1.-rnS), rnSoil=0., rnG=max(0.,1.-rnR-rnSn-rnS);
       #endif
@@ -613,14 +613,14 @@ const terrainFS = `
         sd*=.93+.14*rkM3; rkC*=.86+.28*rkM2;
         float rkCl=grass*smoothstep(.3,.5,rkSl+.1*(rkM2-.5));
         c=(rkGr*(grass-rkCl)+rkC*(rkCl+sw.g)+sd*sw.r+vec3(.31,.27,.18)*(.85+.3*rkM2)*sw.b+vec3(.47,.38,.26)*(.88+.24*rkM2)*sw.a)/max(1.,grass+dot(sw,vec4(1.)));
-        #ifdef RK_NATURE
+        #if defined(RK_NATURE) && defined(RK_WORLD)   // (RK_NATURE needs the RK world noise; a test may strip RK_WORLD alone)
         { float rnT=max(1.,grass+dot(sw,vec4(1.))); rnG=(grass-rkCl)/rnT; rnR=(rkCl+sw.g)/rnT; rnS=sw.r/rnT; rnSoil=(sw.b+sw.a)/rnT; rnSn=0.; }   // RENDERKIT nature
         #endif
         #else
         c=(mix(vec3(.2,.43,.14),vec3(.29,.5,.17),chk*.45)*grass+sd*sw.r+rkC*sw.g+vec3(.31,.27,.18)*sw.b+vec3(.47,.38,.26)*sw.a)/max(1.,grass+dot(sw,vec4(1.)));
         #endif
       }
-      #ifdef RK_NATURE
+      #if defined(RK_NATURE) && defined(RK_WORLD)   // (RK_NATURE needs the RK world noise; a test may strip RK_WORLD alone)
       if(vRaw>0.) rnDetail(c,n,vW,rnG,rnR,rnS,rnSoil,rnSn,rkSl,rkD,uTime);   // RENDERKIT nature: patches, grain, pebbles, strata, shore (n tilted)
       #endif
       #ifdef RK_WORLD
@@ -655,7 +655,7 @@ const terrainFS = `
         #endif
         wc+=vec3(1.,.95,.8)*sp*1.3*(sp>.002?glitAt(p,t,sk):1.);
         ${SEA_FS_FOAM}
-        #ifdef RK_NATURE
+        #if defined(RK_NATURE) && defined(RK_WORLD)   // (RK_NATURE needs the RK world noise; a test may strip RK_WORLD alone)
         foam=max(foam,rnLace(p,d,t,length(cameraPosition-vW)));   // RENDERKIT nature: the swash lace at the waterline
         #endif
         c=mix(wc*(.92+.05*(sin(a1)+sin(a2))),vec3(.88,.94,1.),foam*.8);
@@ -818,14 +818,15 @@ const NAT = RKN ? (() => {
       shared.uniforms.uNatSun.value.copy(sun.position).normalize(); shared.uniforms.uNatSunCol.value.copy(sun.color);
       const xr = !!(XR && XR.active);
       if (xr && xrTier === null) { xrTier = shared.tierName; N.setTier('low'); } else if (!xr && xrTier !== null) { N.setTier(xrTier); xrTier = null; }
+      if (natEye.seen) { forest.update(natEye); clutter.update(natEye); }
     },
     // the forest and clutter sets follow the camera that RENDERS (hooked on terrain.onBeforeRender below): scripted test
     // cameras and XR eyes, not just zCam as the game loop left it
-    place(cam) { natEye.position.setFromMatrixPosition(cam.matrixWorld); natEye.far = cam.far; forest.update(natEye); clutter.update(natEye);
+    place(cam) { natEye.position.setFromMatrixPosition(cam.matrixWorld); natEye.far = cam.far; natEye.seen = true;   // (applied in update(): never change buffers mid-render)
     },
   };
   if (params.has('debug')) window.__nature = N;
-  const natEye = { position: new THREE.Vector3(), far: 0 }, terrainOBR = terrain.onBeforeRender;
+  const natEye = { position: new THREE.Vector3(), far: 0, seen: false }, terrainOBR = terrain.onBeforeRender;
   terrain.onBeforeRender = (r, s, cam) => { terrainOBR(r, s, cam); if (cam.isPerspectiveCamera) N.place(cam); };   // (terrain always renders, once per eye; not for a shadow map)
   return N;
 })() : null;
