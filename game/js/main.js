@@ -382,7 +382,9 @@ const DRAW = 250;
 // and a coarse far-terrain ring fills in past the fine grid.
 const view = { draw: DRAW };
 // RENDERKIT sky: the fog's near distance is only the start of the end-of-world dissolve; the aerial perspective does the rest
-const FOG_N = RK.on('sky') ? 0.8 : 0.5;
+// (FOG_TN: where the terrain starts turning into the far land; from 0.6 the fog of war's dimming has faded out by the
+// draw distance as it did under the classic fog, instead of leaving a dark band on the horizon)
+const FOG_N = RK.on('sky') ? 0.8 : 0.5, FOG_TN = RK.on('sky') ? 0.6 : 0.5;
 zScene.fog = new THREE.Fog(HORIZON, DRAW * FOG_N, DRAW);
 const zCam = new THREE.PerspectiveCamera(62, 1, 0.5, DRAW + 15);
 zScene.add(new THREE.HemisphereLight(0xcfe6ff, 0x4a5a34, 0.9));
@@ -626,7 +628,7 @@ const terrainFS = `
       // RENDERKIT sky: cloud shadows, then towards the draw distance the ground turns into the dome's far land / far sea
       // (the same look at the same point, so the hand-over is seamless), all under the height-dependent aerial perspective
       { vec3 rkRay=vW-cameraPosition; float rkE=smoothstep(uFogN,uFogF,fd), rkCs=rkCloudShade(vW);
-        vec3 rkFar=vRaw>0.?rkFarLand(vW,n):rkFarSeaCol(normalize(rkRay),uFog);
+        vec3 rkFar=c; if(rkE>0.) rkFar=vRaw>0.?rkFarLand(vW,n):rkFarSeaCol(normalize(rkRay),uFog);   // (only in the hand-over band)
         c=mix(mix(c,uFog,rkE),rkAerial(mix(c,rkFar,rkE)*rkCs,rkRay,uFog),rkHaze.z); }
       #else
       c=mix(c,uFog,smoothstep(uFogN,uFogF,fd));
@@ -2440,7 +2442,7 @@ function updateCamsAndMeshes(dt, time) {
   const fov = lerp(firstP ? (otherFP && crafts.active.fov ? crafts.active.fov(ckFov) : ckFov) : 62, SIDE_FOV, e); if (Math.abs(zCam.fov - fov) > 0.01) { zCam.fov = fov; zCam.updateProjectionMatrix(); }
   zScene.fog.color.copy(HORIZON).multiplyScalar(1 - 0.85 * e); zScene.fog.near = lerp(view.draw * FOG_N, DRAW * 0.8, e); zScene.fog.far = lerp(view.draw, DRAW, e);
   terrainUni.uFog.value.copy(zScene.fog.color).convertLinearToSRGB();
-  terrainUni.uFogN.value = view.draw * FOG_N; terrainUni.uFogF.value = view.draw;
+  terrainUni.uFogN.value = view.draw * FOG_TN; terrainUni.uFogF.value = view.draw;
   if (Math.abs(zCam.far - (view.draw + 15)) > 2) { zCam.far = view.draw + 15; zCam.updateProjectionMatrix(); }
   sky.scale.setScalar(view.draw / DRAW);
   if (!XR?.active && fx.shake > 0.01) { const k = fx.shake * (cockpit.group.visible ? 0.1 : 0.4); zCam.position.x += rnd(-k, k); zCam.position.y += rnd(-k, k); zCam.position.z += rnd(-k, k); }

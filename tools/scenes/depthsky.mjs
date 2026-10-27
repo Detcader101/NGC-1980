@@ -33,6 +33,18 @@ export default { name: 'depthsky-' + RK.replace(/[^\w]+/g, '_') + (SKY ? '-' + S
       sky.material = keep; sc.children.forEach((o, i) => o.visible = vis[i]); M.kit.dispose();
       const med = a => { a.sort((x, y) => x - y); return +a[a.length >> 1].toFixed(1); }; return { kitMs: med(t.kit), lowMs: med(t.low), highMs: med(t.high) }; };
     return 1; })()`);
+  const skyOn = RK === 'all' || RK === '1' || RK.split(',').includes('sky');
+  const dome = "__G.sealife.bedMesh.parent.children.find(o => o.renderOrder === -10 && o.geometry?.type === 'SphereGeometry')";
+  if (skyOn) {
+    await h.expect(`!!window.__rkSky && ${dome}.material.name === 'RenderKit/atmosphere-${SKY || 'high'}' && /rkAerial/.test(__G.THREE.ShaderChunk.fog_fragment)`, 'sky on: the atmosphere dome (tier as asked) and the aerial-perspective fog chunk');
+    // the clouds drift with the game clock and stop on pause
+    await h.eval('(window.__w0 = __rkSky.uniforms.rkCloud.value.z, __G.openMenu(), 1)');
+    await h.wait(2500);
+    await h.expect('__G.G.state === "paused" && __rkSky.uniforms.rkCloud.value.z === __w0', 'paused: the cloud drift is frozen');
+    await h.eval('(document.getElementById("menu").classList.remove("on"), __G.G.state = "play", 1)');
+    await h.wait(2500);
+    await h.expect('__rkSky.uniforms.rkCloud.value.z !== __w0', 'playing: the clouds drift again');
+  } else await h.expect(`!window.__rkSky && !/rkAerial/.test(__G.THREE.ShaderChunk.fog_fragment)`, 'sky off: classic fog chunks, no atmosphere');
   const times = {};
   const view = async (name, camExpr, settle = 3000) => {
     if (!want(name)) return;
@@ -78,9 +90,11 @@ export default { name: 'depthsky-' + RK.replace(/[^\w]+/g, '_') + (SKY ? '-' + S
   await view('jetdown', `(() => { ${I0}; const dx = -Math.sign(I.x || 1), dz = -Math.sign(I.z || 1); return { wp: [I.x - dx * 1500, 3000, I.z - dz * 1500], wt: [I.x + dx * 1500, 0, I.z + dz * 1500], hover: -400 }; })()`, 5000);
   // sea state 7: more, lower, greyer cloud and a greyer sky (waits for the weather to cross-fade, game time)
   if (want('ss7')) {
-    await h.eval('(__G.war.setSea(7),1)');
+    await h.eval('(window.__rb0 = window.__rkWorld?.rebuilds ?? 0, __G.war.setSea(7), 1)');
     if (await h.eval('!!window.__rkSky')) await h.waitFor('__rkSky.grey > 0.9', 240000);
     await view('ss7', `(() => { ${I0}; const x = I.x - I.r * 2, z = I.z - I.r; return { wp: [x, 30, z], wt: [x + 200, 60, z + 120] }; })()`, 4000);
+    await h.eval('({ rebuilds: (window.__rkWorld?.rebuilds ?? 0) - __rb0 })', 'ss7-env-rebuilds');
+    if (RK !== '0') await h.expect('(window.__rkWorld?.rebuilds ?? 0) - __rb0 <= 1', 'sea state 7: the environment is rebuilt once for the new weather, not per frame / per cross-fade step');
     await h.eval('(__G.war.setSea(3),1)');
   }
   console.log('DEPTHSKY_TIMES ' + JSON.stringify({ rk: RK, sky: SKY, times }));

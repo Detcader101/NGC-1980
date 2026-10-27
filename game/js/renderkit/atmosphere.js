@@ -47,7 +47,7 @@ float rkOD(float y0, float dy, float d){   // haze optical depth along d metres 
 }
 vec3 rkSkyBase(vec3 v, vec3 hor){   // the clear sky along v: gradient (softHorizon's curve) + forward scatter round the sun
   float y=max(v.y,0.), mu=max(dot(v,rkHazeSun.xyz),0.), mu2=mu*mu, mu4=mu2*mu2, mu8=mu4*mu4, mu32=mu8*mu8; mu32*=mu32;
-  vec3 c=mix(hor,rkHazeZen,pow(smoothstep(0.,1.,y),.45));
+  vec3 c=mix(hor,rkHazeZen,sqrt(smoothstep(0.,1.,y)));
   c=mix(c,hor*1.03+.02,exp(-y*28.)*.35);   // the milky band just over the horizon
   return c+rkHazeSunC*rkHaze.w*(.05*mu4+.10*mu8*(1.-y*.5)+.22*mu32*mu8);
 }
@@ -311,10 +311,11 @@ export function createAtmosphere({ scene, sky, sun, uniforms, renderer }) {
   };
   scene.add(floor);
   const wind = [0, 0], sunCol = new THREE.Color(), zen = new THREE.Color(0x386bd9), zenStorm = new THREE.Color(0x7d8b99), _c = new THREE.Color();
-  let cover = ATMO.coverFair, grey = 0;
+  let cover = ATMO.coverFair, grey = 0, coverTo = cover;
   const A = {
     uniforms: U, materials: mats, floor, tier: forced || 'high',
-    get cover() { return cover; }, get grey() { return grey; },
+    get cover() { return cover; }, get grey() { return grey; }, get coverTarget() { return coverTo; },
+    get greyTarget() { return Math.min(1, Math.max(0, (coverTo - ATMO.coverFair) / (ATMO.coverStorm - ATMO.coverFair))); },
     /** the far height window from the terrain worker (d: { ox, oz, n, c, h }): 2 x 2 averaged to 256 x 256 */
     farHeights(d) {
       const N = 256, k = d.n / N | 0, h = d.h;
@@ -331,14 +332,15 @@ export function createAtmosphere({ scene, sky, sun, uniforms, renderer }) {
     /** the current zenith colour (LINEAR, into out) for the sea's sky reflection */
     zenith(out) { return out.setRGB(HAZE.zenith[0], HAZE.zenith[1], HAZE.zenith[2]).convertSRGBToLinear(); },
     // the weather the environment was last built for (world.js rebuilds on a change of this bucket)
-    weatherBucket: () => Math.round(Math.min(1, Math.max(0, (cover - ATMO.coverFair) / (ATMO.coverStorm - ATMO.coverFair))) * 4),
+    weatherBucket: () =>   /* the TARGET weather: one rebuild per change, not one per quarter step of the cross-fade */ Math.round(Math.min(1, Math.max(0, (coverTo - ATMO.coverFair) / (ATMO.coverStorm - ATMO.coverFair))) * 4),
     update({ dt = 0, seaState = 3, under = false, cave = 0, draw = 720, xr = false, camY = 0 } = {}) {
       // the sun from the DirectionalLight, every frame (the light agent may move or recolour it)
       _e.copy(sun.position).normalize(); HAZE.sun[0] = _e.x; HAZE.sun[1] = _e.y; HAZE.sun[2] = _e.z;
       sunCol.copy(sun.color).convertLinearToSRGB(); HAZE.sunCol[0] = sunCol.r; HAZE.sunCol[1] = sunCol.g; HAZE.sunCol[2] = sunCol.b;
       // weather: sea state 0-4 fair cumulus, 5-7 more and greyer cloud, a greyer zenith, thicker haze
       const w = Math.min(1, Math.max(0, (seaState - 4) / 3));
-      cover += ((ATMO.coverFair + (ATMO.coverStorm - ATMO.coverFair) * w * w * 0.6 + w * 0.4 * (ATMO.coverStorm - ATMO.coverFair)) - cover) * Math.min(1, dt * 0.35 + (A._first ? 1 : 0));
+      coverTo = ATMO.coverFair + (ATMO.coverStorm - ATMO.coverFair) * (w * w * 0.6 + w * 0.4);
+      cover += (coverTo - cover) * Math.min(1, dt * 0.35 + (A._first ? 1 : 0));
       grey = Math.min(1, Math.max(0, (cover - ATMO.coverFair) / (ATMO.coverStorm - ATMO.coverFair)));
       A._first = false;
       U.rkCloud.value.x = cover; U.rkCloud.value.y = grey; U.rkCloudL.value.x = ATMO.cloudBase - 400 * grey; U.rkCloudL.value.y = ATMO.cloudThick + 250 * grey;   // a rough sea: lower, deeper, greyer cloud

@@ -94,3 +94,75 @@ the sun direction to the lower slab (one texture fetch). Uniforms: `rkCloudT`, `
 `RK_HAZE_GLSL + RK_CLOUD_GLSL`). Applied here only in the terrain's fog/hand-over line (a whole-colour multiply, so
 ambient is dimmed too; the far land and far sea use the same). Trees, buildings and units do not get it yet: the
 right place is the sun term in the light agent's lighting, not the fog chunk.
+
+## 2026-10-27 - Fog of war at the horizon
+
+**Finding:** low over the sea (rkworld `seasun`, `carrier`) a grey band sat between the near sea and the horizon.
+**Cause:** the fog of war (fog.js) dims water not watched now; the classic fog hid it from half the draw distance, the
+first cut of the haze only from 0.8. The band was there before this branch too, darker (rk-world evidence
+`03-seasun-off-on.png`, black).
+**Action:** the terrain starts turning into the far land at 0.6 x draw (`FOG_TN`), built-ins still dissolve from 0.8
+(`FOG_N`). Now a light grey band that fades out by the draw distance (`runs/dsk-rkw2/01-seasun.png`). The fog of war
+itself is unchanged.
+
+## 2026-10-27 - underwater.mjs: the fish-pixel check fails with the post area on (not this branch)
+
+**Finding:** "Natural fish bodies visibly affect more than 100 pixels" reads 0 changed pixels with `rk=all`.
+**Evidence:** on this branch, same seed: `rk=all` 0 px (twice), `rk=surface,world,fx,post,ui` (sky off) 0 px FAIL,
+`rk=surface,world,fx,ui,sky` (post off) 419 px PASS, `rk=0` 269 px PASS. Underwater views look right in all of them.
+**Cause:** the scene diffs two `renderer.render` calls with `readPixels`; with the post area on, the game frame goes
+through the post target, so the test's readback does not see the fish render. A test-harness / post interaction.
+**Action:** OPEN for the post owner (or the scene: read back from the post target). The sky area switches its haze off
+under water (`rkHaze.z = 0`, classic water fog) and hides the cloud floor.
+
+## 2026-10-27 - visibility.mjs fish/sign pixel checks: same post-area interaction
+
+**Finding:** visibility.mjs failed 7/10 with `rk=all` (`__pixelResult.changed` 0 at 25/80/220 m).
+**Evidence:** sky on, post off (`rk=surface,world,fx,ui,sky`): 10/10 PASS. Sky off, post on
+(`rk=surface,world,fx,post,ui`): the same 7/10 FAIL. **Cause:** as underwater.mjs above (readback vs the post target).
+**Action:** OPEN for the post owner / the scenes.
+
+## 2026-10-27 - Tiers and cost
+
+Tiers: `high` (desktop default): 28 cloud steps + detail octave, 56 far-land steps. `low` (`?rksky=low`, and
+automatically while an XR session is presenting; `?rksky=high` forces high in XR): 12 cloud steps, no detail octave,
+28 far-land steps. The cloud floor follows the same tier.
+**Evidence** (SwiftShader, 768 x 432 = res 0.6 of 1280 x 720, the dome alone, render + 1-pixel readback, kit sky /
+low / high alternated in ONE page, median ms; `runs/dsH-all`): first person looking up 8.2 / 52.5 / 92.5; Huey 200 m
+10.2 / 48.1 / 76.0; jet 3000 m 9.4 / 41.5 / 72.3. So on a CPU rasteriser the atmosphere costs 5-10x the plain
+gradient; low is ~55 % of high. Whole frame (all objects, separate pages, noisy): hq 416 -> 602 ms, Huey 200 m
+280 -> 458, jet 3000 m 114 -> 197 (`runs/dsF-nosky` vs `runs/dsH-all`). Part of that is the fog chunk's aerial
+perspective on every fragment (exp / sqrt; transcendental maths is slow on SwiftShader). These are relative numbers on
+a software renderer, not a GPU or Quest claim; on a desktop GPU the dome is a few hundred thousand texture fetches.
+**Optimisations in:** clear-sky early-out for short crossings; finer steps only near the eye; far-land march skipped
+for rays that cannot reach ground; the terrain computes the far-land look only inside the hand-over band;
+`sqrt` for the gradient (was `pow .45`).
+**OPEN:** a real-GPU and Quest 3 measurement (`?rksky=low` vs default, XR uses low). The fog chunk's screen-door
+`discard` is now in every built-in material; on tile GPUs (Quest) a shader that can discard loses early depth
+rejection. visibility.js's LOD materials already discard; if Quest profiling shows overdraw cost, the end-of-range
+dissolve can be limited to the LOD materials and the rest fade to `rkSkyBase` instead.
+
+## 2026-10-27 - Regression runs (this branch, SwiftShader)
+
+depthsky.mjs RK=all 14/14 (incl. pause freezes the drift, one env rebuild for sea state 7), SKY=low 10/10, RK=0
+10/10 (classic chunks asserted); smoke.json 5/5; xr.mjs 19/19 (both eyes show the clouds:
+`evidence/depth-sky/11-xr-stereo.png`); worldvisibility.mjs 17/17 (town LOD band, 2 km flight, zone edge, islands);
+cave.json 2/2; rkfx.mjs 2/2 (TTS thermal keeps its classic fog: `atmo.suspend` around a craft's own picture);
+rkworld.mjs RK=world 4/4 (world without sky unchanged; envprobe, one weather rebuild); renderkit fixture
+(`node tools/benchmark.mjs tools/scenes/renderkit.mjs --no-capture --out tools/runs/depth-sky`) 20/20;
+`node tools/check.mjs syntax` 510/510. underwater.mjs / visibility.mjs: see the post-area entries above.
+Screens: `docs/ngc1980/evidence/depth-sky/NN-<view>-before-sky-low.png` (before = every RenderKit area but sky;
+then sky high; then sky low).
+
+## 2026-10-27 - Open / for other agents
+
+- **Nature:** `rkFarLand` (atmosphere.js) is the colour the terrain turns into from 0.6 x draw and the dome draws past
+  it. It approximates the RK_WORLD terrain palette; if the terrain palette changes, retune `rkFarLand` to the average
+  look at 500 m+ (one function), or the hand-over band will show as a colour shift.
+- **Light:** cloud shadows reach the terrain and the far land only; `rkCloudShade(worldPos)` is the hook for the sun
+  term of the built-in materials. The sun disc and haze follow `sun.position` / `sun.color` every frame.
+- **Post:** the sun disc is drawn at 3x sun colour (clips to white on the display-referred path); bloom will catch it.
+  The fish/sign pixel tests above fail with the post area on.
+- Peaks above the storm cloud base (1250 m, sea state 7) exist 7 km+ out; a dome-drawn cloud cannot occlude real
+  terrain in front of it, so such a peak inside the draw distance would show through a cloud. Rare (0.04 % of land).
+- The cloud jitter is per pixel and static; without TAA a fine grain shows on cloud edges at low resolutions.

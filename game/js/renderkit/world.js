@@ -103,7 +103,7 @@ export function createWorldSky({ renderer, scene, sky, sun, uniforms, intensity 
     Object.assign(last, { x: sunDir.x, y: sunDir.y, z: sunDir.z, col, w });
     let z;
     if (atmosphere) {   // the clouds as they are now, held still for the probe
-      const c = envMat.uniforms.rkCloud.value.copy(atmosphere.uniforms.rkCloud.value); c.z = c.w = 0;
+      const c = envMat.uniforms.rkCloud.value.copy(atmosphere.uniforms.rkCloud.value); c.x = atmosphere.coverTarget; c.y = atmosphere.greyTarget; c.z = c.w = 0;
       z = atmosphere.zenith(new THREE.Color());
     } else { z = domeMat.uniforms.rkZenith.value.copy(zenith0).lerp(overcast, w * 0.6); envMat.uniforms.rkZenith.value.copy(z); }
     if (uniforms) { uniforms.rkSkyZ.value.copy(z).convertLinearToSRGB(); uniforms.rkSkyH.value.copy(horizon).convertLinearToSRGB(); uniforms.rkSunCol.value.copy(sun.color).convertLinearToSRGB(); }
