@@ -19,8 +19,9 @@
 // Tiers: 'high' (desktop), 'low' (XR, or ?rksky=low): fewer cloud / far steps, no cloud detail octave.
 import * as THREE from 'three';
 import { uniform } from './core.js';
-import { RK } from './adopt.js';   // RENDERKIT nature: the far land matches the nature terrain's average colour
-const NAT_DEF = RK.on('nature') && RK.on('world') ? { RK_NATURE: 1 } : {};
+import { RK } from './adopt.js';
+import { TERRAIN_ON, farLandGLSL } from './terrainmat.js';   // RENDERKIT terrain   // RENDERKIT nature: the far land matches the nature terrain's average colour
+const NAT_DEF = { ...(RK.on('nature') && RK.on('world') ? { RK_NATURE: 1 } : {}), ...(TERRAIN_ON ? { RK_TERRAIN: 1 } : {}) };   // (RK_TERRAIN: RENDERKIT terrain, the far land takes the texture layers' averages)
 
 // ---- the shared haze state (display space). x: extinction per metre at sea level, y: 1 / scale height, z: weight
 // (0 = classic fog: under water, in the caves), w: Mie glow strength.
@@ -67,6 +68,10 @@ vec3 rkFarSeaCol(vec3 v, vec3 hor){   // open sea far off: deep water + the sky 
 }
 vec3 rkFarLand(vec3 p, vec3 n){   // land far off (32 m detail): grass / forest, rock by height and slope, snow, beaches; lit like the RK terrain
   float sl=1.-n.y;
+  #ifdef RK_TERRAIN
+  // RENDERKIT terrain: the texture layers' deep-mip averages, mixed as the near terrain mixes them (renderkit/terrainmat.js)
+  ${farLandGLSL()}
+  #else
   vec3 c=mix(vec3(.15,.33,.12),vec3(.25,.41,.16),smoothstep(60.,170.,p.y));
   #ifdef RK_NATURE
   c=mix(c,vec3(.56,.52,.3),.13);   // RENDERKIT nature: the near terrain's dry-grass / soil patches average ~13 % straw (rnDetail)
@@ -74,6 +79,7 @@ vec3 rkFarLand(vec3 p, vec3 n){   // land far off (32 m detail): grass / forest,
   c=mix(c,vec3(.44,.39,.31),max(smoothstep(170.,300.,p.y),smoothstep(.3,.55,sl)));
   c=mix(c,vec3(.92,.94,.97),smoothstep(440.,520.,p.y)*(1.-smoothstep(.35,.7,sl)));
   c=mix(vec3(.70,.64,.44),c,smoothstep(0.,4.,p.y));
+  #endif
   return c*(rkHazeSunC*max(dot(n,rkHazeSun.xyz),0.)*.75+mix(vec3(.6,.64,.55),vec3(.98,1.01,1.06),n.y*.5+.5)*.4);
 }
 `;

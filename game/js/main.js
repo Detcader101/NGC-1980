@@ -22,7 +22,8 @@ import { drawDistance, radialFog } from './world/visibility.js';
 import { zoneGrid, SURF_NAMES, GEOLOGY, geologyOf, zoneSurf } from './world/terrain.js';   // (zoneSurf: RENDERKIT nature clutter)
 import { createNatureShared, createForest, createClutter, NATURE_TERRAIN_GLSL, CL } from './renderkit/nature.js';   // RENDERKIT nature
 import { treeKind, PINE, BROAD, SCRUB, natureHash } from './world/forest.js';   // RENDERKIT nature: species by geology / altitude
-import { RK_HAZE_GLSL, RK_CLOUD_GLSL, installAtmosphere, createAtmosphere } from './renderkit/atmosphere.js';   // RENDERKIT sky
+import { RK_HAZE_GLSL, RK_CLOUD_GLSL, installAtmosphere, createAtmosphere } from './renderkit/atmosphere.js';
+import { createTerrainMaterial, RT_GLSL, RT_GRASS_GLSL, TERRAIN_ON, TER_LAYERS, TL as RTL, rkN2js, sstep } from './renderkit/terrainmat.js'; import { createOutcrops } from './renderkit/outcrops.js';   // RENDERKIT terrain: generated ground textures, splatting, smooth normals   // RENDERKIT sky
 radialFog(THREE);
 const RKW = RK.on('world');   // RENDERKIT world: terrain / sea / sky / scene.environment (renderkit/world.js); off = the classic shaders
 // RENDERKIT sky: clouds, sun, aerial perspective on every material (Three's fog chunks, patched before anything compiles)
@@ -478,6 +479,9 @@ function buildFarMap(d) {
 }
 const fog = createFog(BOUND, 224); fog.enabled = false; fog.update([]);
 const terrainGeo = new THREE.PlaneGeometry(TG * TN, TG * TN, TN, TN); terrainGeo.rotateX(-Math.PI / 2);
+// RENDERKIT terrain: generated ground layers (renderkit/terrainmat.js; built on the GPU over the first frames)
+const rkTer = RKW && TERRAIN_ON ? createTerrainMaterial(renderer) : null;
+if (rkTer && params.has('debug')) window.__rkTerrain = rkTer;
 const terrainUni = {
   uFog: { value: HORIZON.clone().convertLinearToSRGB() }, uSun: { value: sun.position.clone() } /* RENDERKIT light may lower the sun; classic (.5, 1, .3) */, uBases: { value: baseUniform }, uPadCol: { value: padUniform }, uTime: { value: 0 },
   uPadP: { value: PADS.map(p => new THREE.Vector4(p.x, p.z, p.isl.cave ? 1 : 0, Math.atan2(p.x, p.z))) },   /* w: the pad yaw (padSpot), RENDERKIT materials turn the H to it */ uHM: { value: hmTex }, uDecor: { value: decorTex }, ...fog.uniforms,
@@ -489,10 +493,14 @@ const terrainUni = {
   ...(RKW ? createWorldUniforms() : {}),   // RENDERKIT world: the sky the sea reflects, the sun's colour
   ...(rkLight ? rkLight.uniforms() : {}),   // RENDERKIT light: the two shadow cascades
   ...(RKN ? { uNatK: { value: 1 }, uNatR: { value: 170 } } : {}),   // RENDERKIT nature: terrain near detail strength / radius (tier)
+  ...(rkTer ? { ...rkTer.uniforms, uGeoS: { value: ISLANDS.map(I => ['limestone', 'sandstone'].includes(geologyOf(I)) ? 1 : 0) } } : {}),   // RENDERKIT terrain: the layers; uGeoS 1 = stratified cliffs, 0 = granite / basalt blocks
 };
 const RKL_DEF = rkLight ? { RK_LIGHT: 1, RKL_SUN: RKL_BAL.terrSun.toFixed(3), RKL_AMB: RKL_BAL.terrAmb.toFixed(3) } : {};   // RENDERKIT light
 const terrainVS = `
     varying vec3 vW; varying float vRaw; uniform sampler2D uHM, uHMN, uHMF, uHMNprev; uniform vec3 uHMNo, uHMFo, uNear, uHMNpo; uniform float uHMNblend;
+    #ifdef RK_TERRAIN
+    varying vec3 vN;   // RENDERKIT terrain: a smooth normal from the heights (no 2.5-24 m facets)
+    #endif
     ${SEA_VS_DECL}
     #ifdef FAR
     const float CELL=24.0;   // FAR_C (declared further down)
@@ -529,6 +537,11 @@ const terrainVS = `
       drawCell=mix(CELL,24.,morph);
       #endif
       vRaw=h; w.y=max(h,0.);
+      #ifdef RK_TERRAIN
+      { // RENDERKIT terrain: central differences over the drawn lattice (2.5 m zone / 4 m worker map / 24 m far), sea level clamped
+        float e=max(drawCell,max(abs(w.x),abs(w.z))<${BOUND.toFixed(1)}?CELL:4.);
+        vN=normalize(vec3(max(hAt(w.xz-vec2(e,0.)),0.)-max(hAt(w.xz+vec2(e,0.)),0.),2.*e,max(hAt(w.xz-vec2(0.,e)),0.)-max(hAt(w.xz+vec2(0.,e)),0.))); }
+      #endif
       ${SEA_VS.replaceAll('CELL', 'drawCell')}
       vW=w.xyz;
       gl_Position=projectionMatrix*viewMatrix*w;
@@ -554,6 +567,11 @@ const terrainFS = `
     #if defined(RK_NATURE) && defined(RK_WORLD)   // (RK_NATURE needs the RK world noise; a test may strip RK_WORLD alone)
     ${NATURE_TERRAIN_GLSL}
     #endif
+    #if defined(RK_TERRAIN) && defined(RK_WORLD)   // RENDERKIT terrain: the generated layers and the splat
+    varying vec3 vN; uniform float uGeoS[${ISLANDS.length}];
+    ${RT_GRASS_GLSL}
+    ${RT_GLSL}
+    #endif
     #ifdef RK_SKY
     ${RK_HAZE_GLSL}
     ${RK_CLOUD_GLSL}
@@ -566,6 +584,9 @@ const terrainFS = `
       int pi=int(dc.r+.5)-1, bi=int(dc.g+.5)-1, gi=int(dc.b+.5)-1;
       if(bi>=0 && length(vW.xz-uBases[bi].xy)<${HOLE_R.toFixed(1)}) discard;   // the shaft
       vec3 n=normalize(cross(dFdx(vW),dFdy(vW))); if(n.y<0.) n=-n;
+      #if defined(RK_TERRAIN) && defined(RK_WORLD)
+      n=normalize(vN);   // RENDERKIT terrain: the smooth normal (lighting, shadows, the far land); the bump comes later
+      #endif
       float rkSh=1.;   // RENDERKIT light: 1 lit, 0 in the sun's shadow
       #ifdef RK_LIGHT
       rkSh=rkSunShadow(vW,n);
@@ -620,11 +641,53 @@ const terrainFS = `
         c=(mix(vec3(.2,.43,.14),vec3(.29,.5,.17),chk*.45)*grass+sd*sw.r+rkC*sw.g+vec3(.31,.27,.18)*sw.b+vec3(.47,.38,.26)*sw.a)/max(1.,grass+dot(sw,vec4(1.)));
         #endif
       }
+      float rtR=1., rtAO=1., rtOn=0.;   // RENDERKIT terrain: roughness, cavity AO, splat drawn (the lighting below reads them)
+      #if defined(RK_TERRAIN) && defined(RK_WORLD)
+      // RENDERKIT terrain: what the ground is made of here, as weights over the generated layers (renderkit/terrainmat.js
+      // TL order: grass dry meadow soil mud forest cliff granite sand wetsand snow gravel tarmac track), then the splat
+      if(vRaw>0. && uTer.x>.5){
+        float W[14]; vec3 TI[14]; for(int L=0;L<14;L++){ W[L]=0.; TI[L]=vec3(1.); }
+        vec2 xz=vW.xz; float y=vW.y, nA=rkN2(xz*.43+17.);
+        float beach=1.-smoothstep(0.,3.+2.5*(rkM2-.5),y), rockW=rk*(1.-rkSnow)*(1.-beach), snowW=rkSnow*(1.-beach);
+        float soilN=smoothstep(.72,.86,rkN2(xz*.19+3.)*.72+rkN2(xz*.83+9.)*.28+rkSl*.35);   // bare soil patches (nature's)
+        float scree=wild*smoothstep(.16,.28,rkSl)*(1.-smoothstep(.34,.48,rkSl))*smoothstep(.5,.7,rkN2(xz*.05+1.7));   // loose stone at the foot of slopes
+        float forestF=wild*smoothstep(.62,.8,rkN2(xz*.013+8.2))*smoothstep(40.,120.,y)*(1.-smoothstep(380.,450.,y));
+        float mudW=0., soilW=0., gravW=0., sandW=beach, strata=wild>.5?step(.5,rkN2(xz*.0011+2.)):(gi>=0?uGeoS[gi]:1.);
+        vec3 rkT=wild>.5?mix(vec3(.84,.78,.7),vec3(1.1,1.08,1.07),rkM2):vec3(1.), sdT=vec3(1.);
+        if(wild<.5){   // the zone: the per-point surface types and island geology (the sims' surfaces) decide
+          vec4 sw=texture2D(uSurf,((vW.xz+${BOUND.toFixed(1)})/${TG.toFixed(1)}+.5)/${HM_N.toFixed(1)});
+          float sh=clamp(min(sw.g/.59,sw.a/.41),0.,1.);   // shingle is stored as rock .59 + dirt .41
+          float g=max(0.,1.-dot(sw,vec4(1.))), cl=g*smoothstep(.3,.5,rkSl+.1*(rkM2-.5));
+          rockW=sw.g*(1.-sh)+cl; sandW=sw.r; mudW=sw.b; soilW=sw.a*(1.-sh); gravW=sh; beach=0.; snowW=0.;
+          rkT=(gi>=0?uRockC[gi]:vec3(.55,.53,.5))/RT_BASE[7]*(.92+.16*rkM2);
+          sdT=(gi>=0?uSandC[gi]:vec3(.86,.79,.6))/RT_BASE[8];
+        }
+        float grassW=max(0.,1.-rockW-snowW-sandW-mudW-soilW-gravW);
+        vec3 gw=rtGrassW(xz,y);
+        float sp=grassW*soilN*.75, fo=grassW*forestF*(1.-soilN), gr=grassW-sp-fo;
+        W[0]=gr*gw.x; W[1]=gr*gw.y; W[2]=gr*gw.z; W[3]=soilW+sp; W[4]=mudW; W[5]=fo;
+        W[6]=rockW*strata*(1.-scree*.6); W[7]=rockW*(1.-strata)*(1.-scree*.6); W[11]=gravW+rockW*scree*.6;
+        float wet=1.-smoothstep(.25,.9+.3*sin(uTime*.55+rkN2(xz*.05)*6.)*.5+.3*nA,y);   // the swash: wet sand comes and goes
+        W[8]=sandW*(1.-wet); W[9]=sandW*wet; W[10]=snowW;
+        for(int L=0;L<14;L++) W[L]*=.75+.5*(L<3?nA:1.-nA);   // ragged edges between the families
+        TI[6]=rkT; TI[7]=rkT; TI[8]=sdT; TI[9]=sdT; TI[11]=mix(vec3(1.),rkT,.5);
+        RtOut o=rtSplat(vW,n,W,TI,rkD,1.);
+        float m=rtMacro(xz);
+        c=o.a*(.86+.28*m)*mix(vec3(1.),vec3(1.06,1.03,.9),smoothstep(.55,.9,m));   // the same macro variation as rtGrassMean (the tufts)
+        // the shore: the dark intertidal band on rock (weed and wet stone)
+        float tide=1.15+.25*rkN2(xz*.15)+.08*sin(uTime*.4+xz.x*.03), inter=(1.-smoothstep(tide-.35,tide,y))*(W[6]+W[7]+W[11])/max(.001,dot(vec4(W[6],W[7],W[11],grassW+sandW+mudW+soilW),vec4(1.)));
+        c=mix(c,mix(vec3(.11,.12,.09),vec3(.16,.2,.11),rkN2(xz*1.7))*(.8+.4*rkN2(xz*5.)),inter*.8); o.r=mix(o.r,.3,inter);
+        n=o.n; rtR=o.r; rtAO=o.ao; rtOn=1.;
+      }
+      #endif
       #if defined(RK_NATURE) && defined(RK_WORLD)   // (RK_NATURE needs the RK world noise; a test may strip RK_WORLD alone)
-      if(vRaw>0.) rnDetail(c,n,vW,rnG,rnR,rnS,rnSoil,rnSn,rkSl,rkD,uTime);   // RENDERKIT nature: patches, grain, pebbles, strata, shore (n tilted)
+      if(vRaw>0. && rtOn<.5) rnDetail(c,n,vW,rnG,rnR,rnS,rnSoil,rnSn,rkSl,rkD,uTime);   // RENDERKIT nature: patches, grain, pebbles, strata, shore (n tilted); (RENDERKIT terrain: replaced by the layers)
       #endif
       #ifdef RK_WORLD
-      c*=rkSunCol*max(dot(n,normalize(uSun)),0.)*RKL_SUN*rkSh+mix(vec3(.6,.64,.55),vec3(.98,1.01,1.06),n.y*.5+.5)*RKL_AMB;   // RENDERKIT world: the sun's colour + hemisphere ambient
+      c*=rkSunCol*max(dot(n,normalize(uSun)),0.)*RKL_SUN*rkSh*mix(1.,rtAO,.45)+mix(vec3(.6,.64,.55),vec3(.98,1.01,1.06),n.y*.5+.5)*RKL_AMB*rtAO;   // RENDERKIT world: the sun's colour + hemisphere ambient (RENDERKIT terrain: x cavity AO)
+      #if defined(RK_TERRAIN) && defined(RK_WORLD)
+      if(rtOn>.5) c+=rtSpec(n,normalize(cameraPosition-vW),normalize(uSun),rtR,rkSunCol)*rkSh;   // RENDERKIT terrain: wet sand, mud, snow, tarmac catch the sun
+      #endif
       #else
       c*=l;
       #endif
@@ -696,7 +759,7 @@ const terrainFS = `
       gl_FragColor=vec4(c,1.);
       #endif
     }`;
-const RK_DEF = { ...(RKW ? { RK_WORLD: 1 } : {}), ...(RKS ? { RK_SKY: 1 } : {}), ...(RKW && RKN ? { RK_NATURE: 1 } : {}) };   // RENDERKIT world / sky / nature (RK_NATURE needs RK_WORLD)
+const RK_DEF = { ...(RKW ? { RK_WORLD: 1 } : {}), ...(RKS ? { RK_SKY: 1 } : {}), ...(RKW && RKN ? { RK_NATURE: 1 } : {}), ...(rkTer ? { RK_TERRAIN: 1 } : {}) };   // RENDERKIT world / sky / nature / terrain (RK_NATURE and RK_TERRAIN need RK_WORLD)
 const terrainMat = new THREE.ShaderMaterial({ uniforms: terrainUni, vertexShader: terrainVS, fragmentShader: terrainFS, defines: { ...RK_DEF, ...RKL_DEF } });
 const terrain = new THREE.Mesh(terrainGeo, RKW ? linearOutput(terrainMat) : terrainMat);   // RENDERKIT world: the define
 terrain.frustumCulled = false; zScene.add(terrain);
@@ -829,6 +892,39 @@ const NAT = RKN ? (() => {
   const natEye = { position: new THREE.Vector3(), far: 0, seen: false }, terrainOBR = terrain.onBeforeRender;
   terrain.onBeforeRender = (r, s, cam) => { terrainOBR(r, s, cam); if (cam.isPerspectiveCamera) N.place(cam); };   // (terrain always renders, once per eye; not for a shadow map)
   return N;
+})() : null;
+// RENDERKIT terrain: rock outcrops and boulders as geometry (renderkit/outcrops.js), shaded with the terrain's own rock
+// layers and the island's geology; kept off roads, towns, pads, bases and structures (the nature agent's open() test).
+const OUTCROPS = rkTer ? (() => {
+  const rockC = ISLANDS.map(I => GEOLOGY[geologyOf(I)].rock.map((v, c) => v / TER_LAYERS[RTL.GRANITE].base[c]));
+  const strata = ISLANDS.map(I => ['limestone', 'sandstone'].includes(geologyOf(I)));
+  const sample = (x, z) => {
+    const y = terrainH(x, z); if (y < 0.4 || inHole(x, z)) return null;
+    const e = 2, hx = terrainH(x + e, z) - terrainH(x - e, z), hz = terrainH(x, z + e) - terrainH(x, z - e), l = Math.hypot(hx, 2 * e, hz) || 1;   // (normal, unnormalised: -hx, 2e, -hz)
+    const nx = -hx / l, nz = -hz / l, sl = 1 - 2 * e / l, zone = Math.max(Math.abs(x), Math.abs(z)) < BOUND;
+    if (zone) { if (NAT ? !NAT.open(x, z, 2) : (clearedAt(x, z) || PADS.some(p => Math.hypot(x - p.x, z - p.z) < 40) || BASES.some(b => Math.hypot(x - b.x, z - b.z) < BASE_R + 10))) return null; }
+    else if (clearingAt(x, z) || clearedAt(x, z)) return null;
+    const m2 = rkN2js(x * 0.047 + 3.1, z * 0.047 + 3.1);
+    if (zone) {
+      const s = zoneSurf(x, z), I = ISLANDS.findIndex(I => Math.hypot(x - I.x, z - I.z) < I.r + 60); if (s === 'sand' || s === 'wetsand' || s === 'marsh' || s === 'mud') return null;
+      const rock = s === 'rock' ? 1 : s === 'shingle' ? 0.5 : sstep(0.3, 0.5, sl) * 0.8;
+      return { y, sl, nx, nz, rock, layer: I >= 0 && strata[I] ? 6 : 7, tint: (I >= 0 ? rockC[I] : [1, 1, 1]).map(v => v * (0.92 + 0.16 * m2)) };
+    }
+    if (y < 3) return null;
+    const rock = Math.max(sstep(170, 300, y), sstep(0.2, 0.4, sl)) * (1 - sstep(470, 540, y) * 0.6);
+    const wt = [0, 1, 2].map(c => [0.84, 0.78, 0.7][c] + ([1.1, 1.08, 1.07][c] - [0.84, 0.78, 0.7][c]) * m2);
+    return { y, sl, nx, nz, rock, layer: rkN2js(x * 0.0011 + 2, z * 0.0011 + 2) > 0.5 ? 6 : 7, tint: wt };
+  };
+  const oc = createOutcrops({ scene: zScene, ter: rkTer, fog, uTime: terrainUni.uTime, sample, tierName: rkTer.tierName });
+  const T = { oc, sample, xr: false, eye: new THREE.Vector3(), seen: false,
+    update() {
+      const xr = !!(XR && XR.active); if (xr !== T.xr) { T.xr = xr; oc.setTier(xr ? 'low' : rkTer.tierName); }
+      if (T.seen) oc.update(T.eye, Math.max(0, terrainH(T.eye.x, T.eye.z)));
+    } };
+  const obr = terrain.onBeforeRender;   // (follow the camera that renders, like the nature clutter; applied in update())
+  terrain.onBeforeRender = (r, s, cam) => { obr(r, s, cam); if (cam.isPerspectiveCamera) { T.eye.setFromMatrixPosition(cam.matrixWorld); T.seen = true; } };
+  if (params.has('debug')) window.__outcrops = T;
+  return T;
 })() : null;
 // Wild forests stream with towns in stable tiles (world/life.js).
 {   // ARMOUR: the landing hards' concrete, kerbs, marker posts and signs (under the fog of war like the rest of the zone)
@@ -2680,6 +2776,7 @@ function frame(now, xrFrame) {
   updateCamsAndMeshes(dt, now / 1000);
   world.update(dt, zCam, G.state === 'play');   // WORLD: stream the lived-in world round the camera, ambient life
   NAT?.update(dt, zCam, G.state === 'play');   // RENDERKIT nature: wind clock (game time), trees and clutter round the camera
+  rkTer?.update(!!XR?.active); OUTCROPS?.update();   // RENDERKIT terrain: builds the ground layers over the first frames (XR runs the low tier); the rock outcrops round the eye
   commander.update(dt, G.state !== 'title');   // COMMANDER: the fleet strip under the score, the open board's statuses
   techUI.update(dt);   // TECH TREE: the open RESEARCH page refreshes ~4x a second
   pool.update(dt, G.state === 'play' && G.mode === 'zarch'); if (motorPick > 0) motorPick -= dt;   // ngc/wheeledgame: parked / town / traffic vehicles, MG rounds, engine sound
