@@ -215,7 +215,7 @@ const px = x => (x + 14) * DT_W / 28, pz = z => (z + 66) * PXM;
 export const ELEVATORS = [{ x0: 14, x1: 23, z0: -24, z1: -10 }, { x0: 14, x1: 23, z0: 17, z1: 30 }, { x0: -23, x1: -14, z0: -38, z1: -25 }];
 export const LIFT_UP = DECK, LIFT_DOWN = 4.25;
 // RENDERKIT surface: the flight deck as rough non-skid (the same Lambert with ?rk=0)
-export const deckMat = map => pbr(() => new THREE.MeshLambertMaterial({ map }), 0xffffff, { map, rk: 'concrete' });
+export const deckMat = map => pbr(() => new THREE.MeshLambertMaterial({ map }), 0xffffff, { map, rk: { role: 'concrete', detail: { dust: 0.05, wear: 0, scale: 0.7, panel: 3.2, streak: 0, dustColor: 0x4c4c4a } } });   // ngc/depth-materials: non-skid grain, plate seams, roughness variation over the painted texture
 function deckTexture() {
   return canvasTex(DT_W, DT_H, (x, w, h) => {
     const r = rng(42);
