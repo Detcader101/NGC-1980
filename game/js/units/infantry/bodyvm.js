@@ -48,6 +48,9 @@ export function createBodyVM(vm) {
     // the rifle: slung on a ladder or swimming (not drawn); self aid keeps it lowered on its sling (throwvm.js)
     const hide = BV.k > 0.5 && (BV.mode === 'ladder' || BV.mode === 'swim');
     if (g) g.visible = !hide;
+    // RENDERKIT figures: open hands for the stroke and on a wound, fists on the rails / the rifle
+    const shape = BV.k > 0.5 && (BV.mode === 'swim' || BV.mode === 'aid') ? 'open' : 'grip';
+    if (vm.handShape) { vm.handShape('L', shape); vm.handShape('R', shape); }
     if (BV.k <= 0) { BV.mode = null; pad.visible = false; return; }
     const w = sstep(BV.k), pitch = st ? st.pitch || 0 : 0;
     if (BV.mode === 'ladder') {
@@ -82,7 +85,8 @@ export function createBodyVM(vm) {
       const pk = r === 'armL' ? 'R' : r === 'armR' ? 'L' : null;   // (one hand works on the other arm)
       for (const [sd, s] of [['L', -1], ['R', 1]]) {
         if (pk && sd !== pk) { put(sd, at[0] + s * 0.02, at[1] + 0.02, at[2] + 0.06, 0.4, 0, s * 0.3, pitch, w); continue; }   // the hurt arm held out
-        put(sd, at[0] + s * (pk ? 0.0 : 0.07) + work * s, at[1] + 0.05 + work, at[2] - 0.02, 1.0, 0, s * -0.4, pitch, w);
+        if (vm.handShape && vm.arms[sd].hand.userData.shapes) put(sd, at[0] + s * (pk ? 0.0 : 0.07) + work * s, at[1] + 0.07 + work, at[2] + 0.02, -0.55, 0, s * 1.5, pitch, w);   // RENDERKIT figures: the open hand, palm down on the wound, fingers forward
+        else put(sd, at[0] + s * (pk ? 0.0 : 0.07) + work * s, at[1] + 0.05 + work, at[2] - 0.02, 1.0, 0, s * -0.4, pitch, w);
       }
       pad.visible = !!st && (st.item === 'dress' || st.item === 'seal' || st.item === 'pack');
     }

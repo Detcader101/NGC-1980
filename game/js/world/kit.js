@@ -3,19 +3,23 @@
 // chunk (one draw call). The house style: Lambert, no textures, colours from the palette, small details as geometry.
 //
 // Local frames: push(x, y, z, yaw) moves the origin and turns about +y (yaw 0: local +x = world +x, local +z = world +z).
+import { SURF, SURF_HEX } from '../renderkit/surfclass.js';   // RENDERKIT materials: a surface class per palette colour
 const lin = c => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
 const cache = new Map();
 export function col(hex, k = 1) {   // sRGB hex -> linear [r, g, b] (what a THREE colour from that hex would be), times k
   const key = hex * 7 + k; let c = cache.get(key);
-  if (!c) { c = [lin((hex >> 16) & 255) * k, lin((hex >> 8) & 255) * k, lin(hex & 255) * k]; cache.set(key, c); }
+  if (!c) { c = [lin((hex >> 16) & 255) * k, lin((hex >> 8) & 255) * k, lin(hex & 255) * k]; c.s = SURF_HEX.get(hex) | 0; cache.set(key, c); }
   return c;
 }
-export const shade = (c, k) => [c[0] * k, c[1] * k, c[2] * k];
-export const mixc = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+// (RENDERKIT materials: .s is the colour's surface class, carried through shade / mixc; surf() sets it explicitly)
+export const shade = (c, k) => { const r = [c[0] * k, c[1] * k, c[2] * k]; r.s = c.s; return r; };
+export const mixc = (a, b, t) => { const r = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; r.s = t < 0.5 ? a.s : b.s; return r; };
+export const surf = (c, s) => { const r = [c[0], c[1], c[2]]; r.s = typeof s === 'string' ? SURF[s] : s; return r; };
+export { SURF };
 const GRIME = col(0x3e3628);   // damp, mud splash and soot at the foot of walls
 
 export class Geo {
-  constructor() { this.p = []; this.c = []; this.m = [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]; this.stack = []; this.tris = 0; this.wx = null; }
+  constructor() { this.p = []; this.c = []; this.sc = []; this.ao = []; this.aok = 0.3; this.m = [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]; this.stack = []; this.tris = 0; this.wx = null; }
   // ---- transforms (3x3 rotation + translation, row-major)
   push(x = 0, y = 0, z = 0, yaw = 0, pitch = 0, roll = 0, s = 1) {
     this.stack.push(this.m);
@@ -38,7 +42,7 @@ export class Geo {
   at(x, y, z) { const m = this.m; return [m[0] * x + m[1] * y + m[2] * z + m[9], m[3] * x + m[4] * y + m[5] * z + m[10], m[6] * x + m[7] * y + m[8] * z + m[11]]; }
   // ---- raw triangles (world-space points already) and quads
   triW(a, b, c, color) {
-    this.p.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]); this.tris++;
+    this.p.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]); this.tris++; this.sc.push(color.s | 0); this.ao.push(0, 0, 0);
     const W = this.wx;
     if (!W) { for (let k = 0; k < 3; k++) this.c.push(color[0], color[1], color[2]); return; }
     // weathering (ngc/world-polish): every face a shade off its neighbours (hand-painted look, keyed on its first
@@ -83,11 +87,22 @@ export class Geo {
     const x0 = x - w / 2, x1 = x + w / 2, y1 = y0 + h, z0 = z - d / 2, z1 = z + d / 2;
     if (!(skip & 2)) this.quad([x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0], topColor || color);
     if (!(skip & 1)) this.quad([x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1], color);
-    if (!(skip & 8)) this.quad([x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], color);
-    if (!(skip & 4)) this.quad([x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], color);
-    if (!(skip & 32)) this.quad([x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], color);
-    if (!(skip & 16)) this.quad([x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], color);
+    if (!(skip & 8)) { this.quad([x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], color); this._ao(h); }
+    if (!(skip & 4)) { this.quad([x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], color); this._ao(h); }
+    if (!(skip & 32)) { this.quad([x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], color); this._ao(h); }
+    if (!(skip & 16)) { this.quad([x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], color); this._ao(h); }
     return this;
+  }
+  // RENDERKIT materials: baked contact occlusion on the box side just drawn (its two bottom corners darker): the crevice
+  // under each sandbag / crate / kerb, a soft darkening at the foot of walls. Short boxes get more (a 0.3 m bag sits in
+  // its neighbours' shadow), tall walls a gentle gradient. Stored in its own byte (build().srf), NOT in the colours:
+  // only the RenderKit detail shader applies it, so ?rk=0 stays classic (the worker cannot read the page's ?rk).
+  // It complements the post agent's SSAO and still works in VR, where post is off. aoOn(0) turns it off.
+  aoOn(k = 0.3) { this.aok = k; return this; }
+  _ao(h) {
+    const k = this.aok; if (!k) return;
+    const m = Math.round(255 * k * (h < 0.6 ? 1 : h < 1.6 ? 0.75 : 0.5)), A = this.ao, o = A.length - 6;   // occlusion 0-255; quad = (A B C)(A C D), A and B at the bottom
+    A[o] = A[o + 1] = A[o + 3] = Math.max(A[o], m);
   }
   // a gable roof over a w (along x) by d (along z) box top at y0, ridge along x, height h, overhang o; gables in wall colour
   gable(x, y0, z, w, d, h, roofC, gableC, o = 0.35) {
@@ -159,6 +174,8 @@ export class Geo {
       for (let k = 0; k < 3; k++) { nrm[o + k * 3] = Math.round(nx * 127); nrm[o + k * 3 + 1] = Math.round(ny * 127); nrm[o + k * 3 + 2] = Math.round(nz * 127); }
     }
     for (let i = 0; i < n * 3; i++) colA[i] = Math.max(0, Math.min(255, Math.round(Math.sqrt(this.c[i]) * 255)));   // stored as sqrt (more precision in the darks), squared back in the shader
-    return { pos, nrm, col: colA, tris: this.tris };
+    // RENDERKIT materials: two bytes a vertex: the surface class (constant over the triangle) and the baked occlusion (0 none)
+    const srf = new Uint8Array(n * 2); for (let v = 0; v < n; v++) { srf[v * 2] = this.sc[(v / 3) | 0]; srf[v * 2 + 1] = this.ao[v]; }
+    return { pos, nrm, col: colA, srf, tris: this.tris };
   }
 }

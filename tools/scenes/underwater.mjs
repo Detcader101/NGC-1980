@@ -32,11 +32,11 @@ export default { name: 'infantry-underwater', seed: 1980, query: '?debug&auto&kb
     await h.eval(`(() => {
       const g=__G,r=g.renderer,original=r.render.bind(r);window.__fishPixels=null;window.__fishPixelRequest=false;
       r.render=(scene,cam)=>{original(scene,cam);if(!__fishPixelRequest||cam!==g.zCam||scene!==g.sealife.bedMesh.parent)return;
-        __fishPixelRequest=false;const gl=r.getContext(),w=gl.drawingBufferWidth,hh=gl.drawingBufferHeight,a=new Uint8Array(w*hh*4),b=new Uint8Array(a.length);
+        __fishPixelRequest=false;const rt0=r.getRenderTarget();r.setRenderTarget(null);original(scene,cam);const gl=r.getContext(),w=gl.drawingBufferWidth,hh=gl.drawingBufferHeight,a=new Uint8Array(w*hh*4),b=new Uint8Array(a.length);
         gl.readPixels(0,0,w,hh,gl.RGBA,gl.UNSIGNED_BYTE,a);
         const meshes=['school','fish','dolphin','ray','jelly'].map(k=>g.sealife.meshes[k]),visible=meshes.map(m=>m.visible);
         meshes.forEach(m=>m.visible=false);original(scene,cam);gl.readPixels(0,0,w,hh,gl.RGBA,gl.UNSIGNED_BYTE,b);
-        meshes.forEach((m,i)=>m.visible=visible[i]);original(scene,cam);
+        meshes.forEach((m,i)=>m.visible=visible[i]);r.setRenderTarget(rt0);original(scene,cam);
         let changed=0,delta=0;for(let i=0;i<a.length;i+=4){const d=Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2]);if(d>12)changed++;delta+=d;}
         window.__fishPixels={changed,delta,width:w,height:hh,drawn:g.sealife.fishDrawn};};return 1;
     })()`);

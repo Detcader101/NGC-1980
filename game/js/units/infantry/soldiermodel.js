@@ -11,7 +11,8 @@
 //   raycastHitboxes(sk, ox, oy, oz, dx, dy, dz, maxDist) -> { part, dist, x, y, z, armour } | null
 // Bone frame: model space +y up, facing -z, +x = the soldier's right. Lengths are a 50th-percentile man (1.75 m).
 import * as THREE from 'three';
-import { Kit, KITMAT, CAMO, COL } from './meshkit.js';
+import { Kit, KITMAT, CAMO, COL, FIG, weldNormals } from './meshkit.js';
+import { tpHand } from './handkit.js';   // RENDERKIT figures
 import { buildWeaponModel } from './weaponmodels.js';
 import { m67Geometry, m67Into, grenadeMaterial } from './grenademodel.js';   // ngc/marine-polish
 
@@ -108,6 +109,8 @@ export function buildMarine(o = {}) {
   const od = CAMO.od(0x5a5d3c), web = CAMO.od(COL.webbing), vestC = CAMO.od(0x55583a);
   sk.kit = { helmet: o.helmet !== false, vest: o.vest !== false };
   const put = (bone, build) => { const k = new Kit(); build(k); const m = k.mesh(KITMAT.lambert(), bone + 'Mesh'); m.castShadow = false; B[bone].add(m); return m; };
+  if (FIG) marineFig(sk, o, put, { cloth, skin, od, web, vestC });   // RENDERKIT figures: the same kit, rounded and smooth
+  else {
   // pelvis: trousers seat, pistol belt, ammo pouches, canteens, first aid pouch
   put('pelvis', k => {
     k.box(0.33, 0.2, 0.22, cloth, [0, -0.04, 0.0], [0, 0, 0], 3, 'local');
@@ -189,6 +192,7 @@ export function buildMarine(o = {}) {
     put('foot' + side, k => { k.box(0.1, 0.075, 0.25, COL.leather, [0, -0.025, -0.06]); k.box(0.105, 0.022, 0.26, 0x0c0c0c, [0, -0.06, -0.06]); k.box(0.09, 0.03, 0.06, COL.leather, [0, -0.01, -0.17], [0.3, 0, 0]); });
   };
   leg('L'); leg('R');
+  }
   sk.setWeapon = key => {
     if (sk.weaponModel) { sk.root.remove(sk.weaponModel.group); sk.weaponModel = null; }
     sk.weaponKey = key || null;
@@ -196,6 +200,120 @@ export function buildMarine(o = {}) {
   };
   sk.setWeapon(o.weapon === undefined ? 'M16A1' : o.weapon);
   return sk;
+}
+
+// ------------------------------------------------------------------------------------------------ RENDERKIT figures
+// The 1980 Marine rebuilt for RK.on('figures'): the same bones, kit and colours, but round limbs (tapered capsules with
+// smooth normals), a rounded trunk under the M1955 vest, a face (brow, eyes, nose, mouth, ears, jaw) under the M1 helmet
+// with its flared rim and Mitchell cover, hands with fingers and a thumb (handkit.tpHand) in a skin material, rounded
+// pouches, canteens and boots. Detail high ~13k triangles, detail low (squads) ~7k; 29 draw calls with the weapon (+2: the
+// skin meshes). Beyond 140 m the squads use the crowd LOD (figures.js).
+function marineFig(sk, o, put, { cloth, skin, od, web, vestC }) {
+  const B = sk.bones, putSkin = (bone, build) => { const k = new Kit(); build(k); const m = k.mesh(KITMAT.skin(), bone + 'Skin'); m.castShadow = false; B[bone].add(m); return m; };
+  // detail 'low' (squads, crowds within 140 m, paratroopers): fewer segments; the player's own body and close looks: high
+  const hq = o.detail !== 'low', L = hq ? 12 : 8, RG = hq ? 3 : 2, C2 = hq ? 2 : 1, FL = hq ? 3 : 2, FS = hq ? 20 : 12, HM = hq ? 24 : 14;
+  // small rounded parts: rounded up close, plain boxes on the squads (a 2 cm strap does not need 108 triangles at 20 m)
+  const RB = (k, w, h, d, r, c, pos, rot = [0, 0, 0]) => hq ? k.rbox(w, h, d, r, c, pos, rot, 1) : k.box(w, h, d, c, pos, rot);
+  const sk1 = CAMO.vary(skin, 0.05, 0.03), lip = new THREE.Color(skin).multiplyScalar(0.72).getHex(), brow = 0x2a2018;
+  put('pelvis', k => {
+    k.rbox(0.33, 0.21, 0.22, 0.075, cloth, [0, -0.045, 0.0], [0, 0, 0], C2, 'local', FL);
+    k.rbox(0.352, 0.05, 0.242, 0.04, web, [0, 0.05, 0], [0, 0, 0], C2);                          // ALICE pistol belt
+    RB(k, 0.055, 0.034, 0.012, 0.004, 0x6a6a5a, [0, 0.05, -0.122], [0, 0, 0]);               // buckle
+    for (const s of [-1, 1]) {
+      RB(k, 0.09, 0.1, 0.06, 0.012, od, [s * 0.1, 0.01, -0.14], [0, 0, 0]);                   // 20-rd magazine pouches
+      RB(k, 0.094, 0.032, 0.066, 0.01, od, [s * 0.1, 0.058, -0.143], [-0.1, 0, 0]);           // pouch flap
+      k.cyl(0.045, 0.045, 0.15, od, [s * 0.16, -0.03, 0.11], 'y', 12);                            // canteen in its cover
+      k.sphere(0.045, od, [s * 0.16, 0.045, 0.11], 12, [1, 0.35, 1], [0, 0, 0], undefined, [0, Math.PI * 2], [0, Math.PI / 2]);
+      k.cyl(0.018, 0.02, 0.022, COL.black, [s * 0.16, 0.06, 0.11], 'y', 10);                     // cap
+    }
+    if (o.frags !== 0) for (const s of [-1, 1]) { m67Into(k, [s * 0.162, -0.005, -0.14], true); k.box(0.012, 0.02, 0.07, web, [s * 0.15, 0.035, -0.14]); }
+    RB(k, 0.04, 0.27, 0.022, 0.008, 0x3f4430, [-0.185, -0.12, -0.05], [0, 0, 0.06]);         // M8A1 scabbard
+    RB(k, 0.022, 0.03, 0.024, 0.006, 0x6a6a62, [-0.19, -0.265, -0.05], [0, 0, 0.06]);
+    RB(k, 0.028, 0.11, 0.026, 0.008, 0x1c1c1a, [-0.177, 0.06, -0.05], [0, 0, 0.06]);          // M7 handle + guard
+    k.box(0.05, 0.012, 0.03, 0x55554e, [-0.178, 0.0, -0.05]);
+    RB(k, 0.14, 0.21, 0.055, 0.018, od, [0.085, -0.07, 0.15], [0, 0, 0]);                     // LC-1 e-tool carrier
+    RB(k, 0.03, 0.06, 0.02, 0.008, 0x2a2a20, [0.085, 0.07, 0.15], [0, 0, 0]);
+    k.capsule([-0.12, 0.0, 0.145], [-0.03, 0.0, 0.145], 0.035, 0.035, od, 10);                  // butt pack / poncho roll
+  });
+  put('spine', k => {
+    k.rbox(0.31, 0.24, 0.2, 0.08, cloth, [0, 0.09, 0], [0, 0, 0], C2, 'local', FL);
+    if (sk.kit.vest) {
+      k.rbox(0.36, 0.2, 0.25, 0.08, vestC, [0, 0.11, 0], [0, 0, 0], C2);
+      for (let i = 0; i < 3; i++) k.rslab(0.366, 0.256, 0.009, 0.08, 0x45472f, [0, 0.04 + i * 0.06, 0]);
+      for (const s of [-1, 1]) RB(k, 0.1, 0.08, 0.03, 0.01, vestC, [s * 0.09, 0.06, -0.128], [0, 0, 0]);   // vest pockets
+    }
+  });
+  put('chest', k => {
+    k.rbox(0.36, 0.3, 0.22, 0.09, cloth, [0, 0.07, 0], [0, 0, 0], C2, 'local', FL);
+    if (sk.kit.vest) {
+      k.rbox(0.41, 0.29, 0.27, 0.09, vestC, [0, 0.06, 0], [0, 0, 0], C2);
+      for (let i = 0; i < 5; i++) k.rslab(0.416, 0.276, 0.007, 0.09, 0x44462e, [0, -0.04 + i * 0.05, 0]);   // stitched ribs
+      k.add(new THREE.TorusGeometry(0.1, 0.03, 8, 20, Math.PI * 1.25).rotateX(Math.PI / 2).rotateY(Math.PI * 0.375 + Math.PI), vestC, [0, 0.215, 0.015], [0.15, 0, 0], [1.25, 1, 1.1]);   // the high collar round the neck
+      k.box(0.012, 0.25, 0.012, 0x3a3b2a, [0.02, 0.06, -0.137]);                                                          // front closure
+    }
+    for (const s of [-1, 1]) { RB(k, 0.045, 0.28, 0.012, 0.004, web, [s * 0.1, 0.06, -0.143], [0, 0, 0]); RB(k, 0.045, 0.28, 0.012, 0.004, web, [s * 0.1, 0.06, 0.143], [0, 0, 0]); RB(k, 0.045, 0.012, 0.29, 0.005, web, [s * 0.1, 0.203, 0], [0, 0, 0]); }   // suspenders
+    RB(k, 0.07, 0.08, 0.04, 0.012, od, [-0.1, 0.11, -0.163], [0, 0, 0]);                    // first aid pouch
+    for (const s of [-1, 1]) k.ellip(0.07, 0.068, 0.075, cloth, [s * 0.185, 0.145, 0], [0, 0, s * 0.3], hq ? 16 : 10, 'local');   // shoulders (deltoids)
+    if (o.pack) {
+      k.rbox(0.32, 0.36, 0.16, 0.05, od, [0, 0.05, 0.22], [0, 0, 0], C2); RB(k, 0.3, 0.08, 0.17, 0.03, od, [0, 0.25, 0.22], [0.2, 0, 0]);
+      for (const s of [-1, 1]) RB(k, 0.09, 0.14, 0.06, 0.02, od, [s * 0.11, -0.03, 0.33], [0, 0, 0]);
+      RB(k, 0.09, 0.12, 0.055, 0.02, od, [0, 0.0, 0.325], [0, 0, 0]);
+      for (const s of [-1, 1]) k.box(0.025, 0.4, 0.012, web, [s * 0.07, 0.07, 0.305]);
+      k.capsule([-0.17, -0.17, 0.22], [0.17, -0.17, 0.22], 0.055, 0.055, 0x4f5236, 10);
+    }
+  });
+  putSkin('neck', k => { k.capsule([0, -0.02, 0.008], [0, 0.085, -0.01], 0.058, 0.054, sk1, L, 'vertex'); });
+  // the face: skull, cheeks and jaw, brow ridge, eyes, nose, mouth, ears
+  putSkin('head', k => {
+    k.ellip(0.08, 0.1, 0.098, sk1, [0, 0.112, -0.008], [0, 0, 0], FS, 'vertex');                  // cranium
+    k.ellip(0.064, 0.072, 0.08, sk1, [0, 0.05, -0.028], [0.3, 0, 0], FS, 'vertex');                 // cheeks / jaw / chin
+    k.capsule([-0.05, 0.128, -0.084], [0.05, 0.128, -0.084], 0.012, 0.012, sk1, 10, 'vertex');     // brow ridge
+    k.capsule([0, 0.118, -0.099], [0, 0.082, -0.114], 0.0085, 0.013, sk1, 10, 'vertex');           // nose
+    k.capsule([-0.019, 0.055, -0.101], [0.019, 0.055, -0.101], 0.0032, 0.0032, lip, 8);               // mouth
+    for (const s of [-1, 1]) {
+      k.ellip(0.013, 0.0075, 0.006, 0xe8e4da, [s * 0.034, 0.11, -0.094], [0, s * 0.3, 0], 8);      // eye
+      k.ellip(0.0055, 0.0058, 0.003, 0x2a1c12, [s * 0.034, 0.11, -0.0995], [0, s * 0.3, 0], 8);    // iris
+      k.capsule([s * 0.046, 0.121, -0.09], [s * 0.022, 0.123, -0.096], 0.0035, 0.0035, brow, 6);    // eyebrow
+      k.ellip(0.012, 0.028, 0.02, sk1, [s * 0.079, 0.1, 0.005], [0, 0, s * 0.15], 10, 'vertex');    // ear
+    }
+  });
+  if (sk.kit.helmet) put('head', k => {
+    const cov = CAMO.mitchell(0.045);
+    k.sphere(0.152, cov, [0, 0.15, 0.005], HM, [1, 0.8, 1.08], [0, 0, 0], 'local', [0, Math.PI * 2], [0, Math.PI * 0.55]);   // dome
+    const rim = new THREE.LatheGeometry([[0.146, 0.012], [0.155, 0.0], [0.168, -0.009], [0.175, -0.014], [0.172, -0.019], [0.158, -0.012], [0.146, 0.0]].map(p => new THREE.Vector2(p[0], p[1])), HM);
+    weldNormals(rim); k.add(rim, cov, [0, 0.135, 0.005], [0, 0, 0], [1, 1, 1.08], 'local');                                     // the flared rim
+    k.add(new THREE.CylinderGeometry(0.149, 0.152, 0.024, HM, 1, true), 0x3c3f28, [0, 0.162, 0.005], [0, 0, 0], [1, 1, 1.08]); // the cover band
+    RB(k, 0.025, 0.06, 0.018, 0.008, 0xd8d6c8, [0.125, 0.172, -0.06], [0, 0.6, 0.1]);                                     // insect repellent bottle
+    for (const s of [-1, 1]) RB(k, 0.012, 0.12, 0.005, 0.002, 0x4a4a32, [s * 0.09, 0.07, 0.02], [0, 0, s * 0.15]);       // chin straps, unbuckled
+  });
+  const arm = side => {
+    const s = side === 'L' ? -1 : 1;
+    put('upperArm' + side, k => { k.capsule([0, 0.0, 0], [0, -0.3, 0], 0.056, 0.047, cloth, L, 'local', null, RG, hq ? 5 : 3); });
+    put('forearm' + side, k => {
+      k.capsule([0, 0, 0], [0, -0.245, 0], 0.048, 0.04, cloth, L, 'local', null, RG, hq ? 5 : 3);
+      k.cyl(0.044, 0.045, 0.024, CAMO.erdl(0.1, 3), [0, -0.252, 0], 'y', 12, null, true);                // cuff
+      if (side === 'L') { k.cyl(0.039, 0.039, 0.016, 0x2a2b22, [0, -0.262, 0], 'y', 12); k.cyl(0.013, 0.013, 0.008, 0x101010, [0, -0.262, -0.04], 'z', 10); }   // watch
+    });
+    putSkin('hand' + side, k => { k.capsule([0, 0.01, 0], [0, -0.03, 0.002], 0.032, 0.03, skin, 10, undefined, [1, 0.62]); tpHand(k, { side, skin, seg: hq ? 6 : 5, rings: hq ? 2 : 1 }); });
+  };
+  arm('L'); arm('R');
+  const leg = side => {
+    const s = side === 'L' ? -1 : 1;
+    put('thigh' + side, k => {
+      k.capsule([0, 0.02, 0], [0, -0.44, 0], 0.088, 0.064, cloth, L, 'local', null, RG, hq ? 6 : 3);
+      k.rbox(0.04, 0.16, 0.13, 0.014, cloth, [s * 0.072, -0.24, -0.01], [0, 0, 0], 1, 'local'); RB(k, 0.045, 0.032, 0.136, 0.012, cloth, [s * 0.076, -0.155, -0.01], [0, 0, 0]);   // cargo pocket + flap
+    });
+    put('shin' + side, k => {
+      k.capsule([0, 0, 0], [0, -0.28, 0], 0.062, 0.054, cloth, L, 'local', null, RG, hq ? 4 : 2);
+      k.ellip(0.066, 0.034, 0.066, cloth, [0, -0.29, 0], [0, 0, 0], 12, 'local');              // bloused trousers
+      k.cyl(0.056, 0.054, 0.12, COL.leather, [0, -0.36, 0], 'y', 12);                         // boot upper
+    });
+    put('foot' + side, k => {
+      k.rbox(0.1, 0.075, 0.25, 0.03, COL.leather, [0, -0.025, -0.06], [0, 0, 0], C2);
+      RB(k, 0.106, 0.024, 0.262, 0.01, 0x0c0c0c, [0, -0.058, -0.06], [0, 0, 0]);
+    });
+  };
+  leg('L'); leg('R');
 }
 
 // ------------------------------------------------------------------------------------------------ the poser

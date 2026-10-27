@@ -21,14 +21,14 @@ export default { name: 'visibility', query: '?debug&kb&peace&res=0.6&tech=defaul
     r.render=(scene,cam)=>{
       original(scene,cam);
       if(!__pixelRequest || scene!==__G.sealife.signMesh.parent || cam!==__G.zCam) return;
-      __pixelRequest=false;
+      __pixelRequest=false; const rt0=r.getRenderTarget();r.setRenderTarget(null);original(scene,cam);   // measured on the canvas: RenderKit post renders into an MSAA target
       const gl=r.getContext(), w=gl.drawingBufferWidth, h=gl.drawingBufferHeight;
       const a=new Uint8Array(w*h*4), b=new Uint8Array(w*h*4);
       gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,a);
       const L=__G.sealife, meshes=[L.signMesh,...Object.values(L.meshes)], vis=meshes.map(m=>m.visible);
       meshes.forEach(m=>m.visible=false); original(scene,cam);
       gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,b);
-      meshes.forEach((m,i)=>m.visible=vis[i]); original(scene,cam);
+      meshes.forEach((m,i)=>m.visible=vis[i]); r.setRenderTarget(rt0); original(scene,cam);
       let changed=0, delta=0;
       for(let i=0;i<a.length;i+=4){const d=Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2]);if(d>12) changed++;delta+=d;}
       __pixelResult={changed,delta,width:w,height:h,fish:L.fishDrawn,signs:L.signsDrawn,schools:L.sim.schools.length,cam:L.cam.toArray()};

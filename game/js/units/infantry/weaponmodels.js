@@ -7,7 +7,7 @@
 //     sight: { eyeRelief, ... }, setState(st) (drive the moving parts) }
 // Moving parts are separate meshes (one draw call each); the static body is one mesh.
 import * as THREE from 'three';
-import { Kit, KITMAT, COL } from './meshkit.js';
+import { Kit, KITMAT, COL, FIG, creaseNormals, roundPoly } from './meshkit.js';
 
 const D = Math.PI / 180;
 // thin flat plate from a 2D outline with optional round holes, in the XY plane (extruded along z)
@@ -21,6 +21,89 @@ function part(kit, name, parent, pos = [0, 0, 0], mat) { const g = new THREE.Gro
 let apMat = null;
 const apertureMat = () => apMat || (apMat = new THREE.MeshBasicMaterial({ color: 0x0b0b0c, transparent: true, opacity: 0.62, depthWrite: false }));
 
+// ------------------------------------------------------------------------------------------------ RENDERKIT figures
+// an extrusion of a front section (x, y) along -z from z0 to z1, scaled by taper (1 at z0 -> taper at z1), crease-smoothed
+function sectionBar(outline, z0, z1, taper = 1, cy = 0) {
+  const g = new THREE.ExtrudeGeometry(new THREE.Shape(outline.map(p => new THREE.Vector2(p[0], p[1]))), { depth: Math.abs(z1 - z0), bevelEnabled: false, curveSegments: 4 });
+  const p = g.attributes.position, L = Math.abs(z1 - z0);
+  for (let i = 0; i < p.count; i++) { const t = p.getZ(i) / L, s = 1 + (taper - 1) * t; p.setXYZ(i, p.getX(i) * s, cy + p.getY(i) * s, z0 - p.getZ(i)); }
+  return creaseNormals(g, 0.82);
+}
+// The M16A1 for RENDERKIT figures: the same dimensions and anchors as the classic one, but bevelled receivers, the
+// rounded triangular handguards with their vent slots, the A1 birdcage open all round, the teardrop forward assist,
+// smooth round barrel / delta ring / buffer; anodized-aluminium + parkerized steel in one mesh, the black plastic
+// furniture (stock, grip, handguards) in another (dull sheen vs metal).
+function m16Fig(G, hi, gl, BY) {
+  const k = new Kit(), kf = new Kit(), P = 0x3c3f43, PD = 0x26282b, PE = 0x33363a, F = 0x232426, FD = 0x151617, HOLE = 0x070708;
+  const seg = hi ? 16 : 8, bv = hi ? 0.0022 : 0;
+  // upper receiver: side profile, bevelled; the flat top under the handle; the ejection port boss on the right
+  k.prism([[0.095, -0.036], [0.095, -0.09], [-0.13, -0.09], [-0.165, -0.084], [-0.165, -0.04], [-0.12, -0.036]], 0.032, P, [0, 0, 0], 'zy', [0, 0, 0], bv);
+  // carry handle: the loop, bevelled; the rear sight housing with its ears; the windage drum
+  k.prism([[0.05, -0.036], [0.05, -0.013], [0.02, -0.011], [-0.17, -0.011], [-0.17, -0.036], [-0.13, -0.036], [-0.13, -0.022], [0.02, -0.022], [0.02, -0.036]], 0.016, P, [0, 0, 0], 'zy', [0, 0, 0], hi ? 0.0018 : 0);
+  if (hi) k.prism([[0.044, -0.022], [0.044, -0.013], [-0.13, -0.013], [-0.13, -0.022]], 0.0185, PD, [0, 0, 0], 'zy', [0, 0, 0], 0.001);   // the handle's top rail (slightly wider: the sight groove)
+  k.rbox(0.03, 0.022, 0.04, 0.003, P, [0, -0.024, 0.022], [0, 0, 0], hi ? 2 : 1);
+  for (const sx of [-1, 1]) k.prism([[0.022, -0.014], [0.022, 0.0], [0.012, 0.004], [-0.006, 0.004], [-0.012, -0.002], [-0.012, -0.014]], 0.0035, P, [sx * 0.0125, 0, 0], 'zy', [0, 0, 0], hi ? 0.0008 : 0);
+  if (hi) { k.cyl(0.0055, 0.0055, 0.006, PD, [0.018, -0.027, 0.03], 'x', 14); for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; k.box(0.0062, 0.0012, 0.0012, PE, [0.018, -0.027 + Math.sin(a) * 0.0056, 0.03 + Math.cos(a) * 0.0056], [a, 0, 0]); } }   // knurled windage drum
+  // lower receiver, flared magwell, takedown / pivot pins, bolt catch boss, trigger guard (a round bar), pistol grip
+  k.prism([[0.0945, -0.09], [0.0945, -0.126], [0.03, -0.126], [-0.02, -0.124], [-0.11, -0.124], [-0.11, -0.09]], 0.03, PE, [0, 0, 0], 'zy', [0, 0, 0], bv);
+  k.prism([[-0.022, -0.092], [-0.11, -0.092], [-0.114, -0.158], [-0.019, -0.158]], 0.035, PE, [0, 0, 0], 'zy', [0, 0, 0], hi ? 0.0026 : 0);
+  if (hi) {
+    for (const z of [0.082, -0.1]) for (const sx of [-1, 1]) k.cyl(0.0034, 0.0034, 0.002, PD, [sx * 0.0155, -0.095, z], 'x', 10);   // pins
+    k.capsule([0, -0.152, 0.04], [0, -0.153, -0.016], 0.0036, 0.0036, PD, 8);                           // trigger guard bar
+    k.capsule([0, -0.153, -0.016], [0, -0.13, -0.022], 0.0036, 0.0036, PD, 8);
+  } else k.prism([[0.04, -0.125], [0.012, -0.125], [-0.02, -0.126], [-0.022, -0.152], [0.04, -0.152], [0.04, -0.145], [-0.012, -0.146], [-0.012, -0.132], [0.04, -0.131]], 0.012, PD, [0, 0, 0], 'zy');
+  kf.prism([[0.012, -0.124], [0.045, -0.124], [0.083, -0.214], [0.072, -0.226], [0.046, -0.222], [0.02, -0.132]], 0.028, F, [0, 0, 0], 'zy', [0, 0, 0], hi ? 0.005 : 0);
+  if (hi) for (let i = 0; i < 6; i++) kf.box(0.0285, 0.0016, 0.0016, FD, [0, -0.15 - i * 0.012, 0.044 + i * 0.006], [0.42, 0, 0]);   // grip checkering lines (back strap)
+  // buttstock: bevelled, the buttplate rounded with its trap door and the sling swivel
+  kf.prism([[0.095, -0.044], [0.335, -0.041], [0.345, -0.043], [0.345, -0.172], [0.335, -0.174], [0.12, -0.124], [0.095, -0.12]], 0.04, F, [0, 0, 0], 'zy', [0, 0, 0], hi ? 0.008 : 0);
+  kf.rbox(0.044, 0.135, 0.014, hi ? 0.005 : 0.002, FD, [0, -0.107, 0.35], [0, 0, 0], hi ? 2 : 1);
+  if (hi) { kf.rbox(0.03, 0.04, 0.004, 0.0015, F, [0, -0.08, 0.358]); k.capsule([-0.024, -0.168, 0.322], [0.024, -0.168, 0.322], 0.0035, 0.0035, P, 8); k.box(0.01, 0.012, 0.012, P, [0, -0.162, 0.322]); }
+  // barrel: delta ring + slip ring, the A1 pencil barrel, the gas block / front sight base, bayonet lug, birdcage
+  k.lathe([[0.001, 0.0], [0.031, 0.0], [0.031, 0.004], [0.026, 0.006], [0.026, 0.012], [0.001, 0.012]], P, [0, BY, -0.178], 'z', seg);   // delta ring (a lathe: profile y -> +z)
+  k.cyl(0.0075, 0.0075, 0.43, P, [0, BY, -0.38], 'z', hi ? 12 : 8);
+  if (!gl) {
+    // handguards: rounded triangle, point down, tapering forward; a seam on top and below; six vent slots each side
+    const tri = roundPoly([[-0.03, 0.021, 0.009], [0.03, 0.021, 0.009], [0.0, -0.035, 0.012]], hi ? 4 : 2);
+    kf.add(sectionBar(tri, -0.172, -0.412, 0.86, BY - 0.002), F);
+    if (hi) {
+      kf.box(0.0016, 0.004, 0.236, FD, [0, BY + 0.019, -0.292]);
+      for (const sx of [-1, 1]) for (let i = 0; i < 6; i++) { const z = -0.2 - i * 0.034, t = (z + 0.172) / -0.24, sc = 1 - 0.14 * t;
+        kf.rbox(0.004, 0.009, 0.02, 0.002, HOLE, [sx * 0.0215 * sc, BY - 0.002 + 0.008 * sc, z], [0, 0, sx * -0.95], 1); }
+    }
+    k.lathe([[0.001, 0.0], [0.012, 0.0], [0.024, 0.004], [0.024, 0.008], [0.0225, 0.012], [0.001, 0.012]], P, [0, BY - 0.002, -0.424], 'z', seg);   // handguard cap
+  }
+  k.rbox(0.022, 0.024, 0.04, 0.003, P, [0, BY + 0.004, -0.49], [0, 0, 0], hi ? 2 : 1);                                    // gas block
+  k.prism([[-0.474, BY + 0.012], [-0.503, BY + 0.012], [-0.507, -0.016], [-0.478, -0.016]], 0.009, P, [0, 0, 0], 'zy', [0, 0, 0], hi ? 0.0012 : 0);   // the A-frame
+  for (const s of [-1, 1]) k.rbox(0.003, 0.016, 0.012, 0.001, P, [s * 0.0075, -0.008, -0.5], [0, 0, 0], 1);             // protective ears
+  k.box(0.0018, 0.013, 0.0024, PD, [0, -0.0065, -0.5]);                                                                  // the front sight post (tip on the LOS)
+  k.rbox(0.012, 0.016, 0.025, 0.002, P, [0, BY - 0.02, -0.49], [0, 0, 0], 1);                                             // bayonet lug
+  if (hi) { k.capsule([-0.012, BY - 0.022, -0.478], [0.012, BY - 0.022, -0.478], 0.0028, 0.0028, P, 8); }                  // front sling swivel
+  // the A1 birdcage: open all round (six prongs), a ring at the muzzle
+  k.lathe([[0.001, 0.0], [0.0108, 0.0], [0.0108, 0.006], [0.0098, 0.008], [0.0098, 0.049], [0.0108, 0.051], [0.0108, 0.055], [0.006, 0.055], [0.006, 0.0]], P, [0, BY, -0.6395], 'z', seg);
+  if (hi) for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2 + Math.PI / 6; k.box(0.0032, 0.0036, 0.034, HOLE, [Math.cos(a) * 0.0097, BY + Math.sin(a) * 0.0097, -0.613], [0, 0, a]); }
+  // right side: ejection port, the teardrop forward assist, mag release; left: the bolt catch housing
+  if (hi) {
+    k.box(0.0018, 0.024, 0.056, 0x0a0a0a, [0.0164, -0.062, -0.048]);                                                     // ejection port (dark)
+    k.lathe([[0.0105, 0], [0.0108, 0.006], [0.0098, 0.022], [0.0075, 0.03], [0.001, 0.031]], P, [0.022, -0.05, 0.05], 'z', 14);   // forward assist housing (teardrop)
+    k.rbox(0.004, 0.012, 0.012, 0.0015, PD, [0.0162, -0.103, -0.03]);                                                     // magazine release button
+    k.rbox(0.005, 0.02, 0.025, 0.002, P, [-0.0168, -0.098, -0.012], [0, 0, 0], 1);                                         // bolt catch housing
+    k.cyl(0.0042, 0.0042, 0.003, PD, [-0.016, -0.106, 0.036], 'x', 10);                                                    // selector hub
+  }
+  const body = k.mesh(KITMAT.steel(), 'body'); G.add(body);
+  const furn = kf.mesh(KITMAT.plastic(), 'furniture'); G.add(furn);
+}
+// the 20-round magazine (FIG): a straight aluminium box, rounded edges, two pressed ribs each side, the floorplate,
+// the top rounds in the feed lips. Pivot at the top of the body inside the magwell.
+function m16MagFig(km, hi) {
+  km.rbox(0.022, 0.15, 0.062, 0.003, COL.alu, [0, -0.075, 0], [0, 0, 0], hi ? 2 : 1);
+  km.rbox(0.0262, 0.012, 0.066, 0.0035, 0x2a2c2f, [0, -0.152, 0], [0, 0, 0], hi ? 2 : 1);
+  if (hi) {
+    for (const sx of [-1, 1]) for (const z of [-0.016, 0.014]) km.rbox(0.0028, 0.112, 0.008, 0.0013, 0x41444a, [sx * 0.0108, -0.082, z], [0, 0, 0], 1);
+    km.cyl(0.0028, 0.0028, 0.03, COL.brass, [0.003, 0.004, -0.008], 'z', 8); km.cyl(0.0012, 0.0028, 0.008, COL.copper, [0.003, 0.004, -0.027], 'z', 8);
+    km.cyl(0.0028, 0.0028, 0.03, COL.brass, [-0.003, 0.0, -0.006], 'z', 8);
+  }
+}
+
 // ------------------------------------------------------------------------------------------------ M16A1
 // 39 in overall, 20 in barrel, sight radius 19.75 in, carry handle rear sight with two flip apertures, triangular
 // handguards, birdcage flash suppressor, forward assist, 20-round magazine.
@@ -29,6 +112,7 @@ export function buildM16(o = {}) {
   const G = new THREE.Group(); G.name = gl ? 'M16A1_M203' : 'M16A1';
   const k = new Kit(), BY = -0.066;   // bore height
   const P = COL.park, PD = COL.parkDark, F = COL.furniture;
+  if (FIG) m16Fig(G, hi, gl, BY); else {
   // upper receiver + carry handle
   k.box(0.032, 0.056, 0.26, P, [0, -0.064, -0.035]);                              // upper receiver body
   k.box(0.026, 0.012, 0.24, PD, [0, -0.033, -0.035]);                             // flat top under the handle
@@ -69,6 +153,7 @@ export function buildM16(o = {}) {
     k.box(0.004, 0.02, 0.025, P, [-0.017, -0.098, -0.012]);                           // bolt catch housing
   }
   const body = k.mesh(KITMAT.steel(), 'body'); G.add(body);
+  }
 
   // ---- moving parts
   const parts = {};
@@ -76,7 +161,8 @@ export function buildM16(o = {}) {
   { const a = new THREE.Group(); a.name = 'aperture'; a.position.set(0, -0.006, 0.0); G.add(a);
     const apG = plate([...Array(16)].map((_, i) => [Math.cos(i / 16 * Math.PI * 2) * 0.0068, 0.006 + Math.sin(i / 16 * Math.PI * 2) * 0.0068]).concat([[0.0068, -0.004], [-0.0068, -0.004]]).sort(() => 0).slice(0, 16), [[0, 0.006, 0.0032]], 0.0015);   // a round leaf with the peep
     const m = new THREE.Mesh(apG, apertureMat()); m.name = 'peep'; a.add(m); parts.aperture = a; }
-  { const kc = new Kit(); kc.box(0.012, 0.008, 0.06, P, [0, 0, 0.0]); kc.box(0.044, 0.008, 0.012, P, [0, 0, 0.032]); if (hi) kc.box(0.006, 0.008, 0.012, PD, [-0.026, 0, 0.032]);   // charging handle with latch
+  { const kc = new Kit(); if (FIG) { kc.rbox(0.012, 0.008, 0.06, 0.002, P, [0, 0, 0.0], [0, 0, 0], 1); kc.rbox(0.044, 0.009, 0.013, 0.0035, P, [0, 0, 0.032], [0, 0, 0], hi ? 2 : 1); if (hi) kc.rbox(0.007, 0.009, 0.013, 0.002, PD, [-0.026, 0, 0.032], [0, 0, 0], 1); }
+    else { kc.box(0.012, 0.008, 0.06, P, [0, 0, 0.0]); kc.box(0.044, 0.008, 0.012, P, [0, 0, 0.032]); if (hi) kc.box(0.006, 0.008, 0.012, PD, [-0.026, 0, 0.032]); }   // charging handle with latch
     parts.charging = part(kc, 'charging', G, [0, -0.041, 0.09]); }
   { const kb = new Kit(); kb.box(0.004, 0.02, 0.05, 0x3a3b3d, [0, 0, 0]); if (hi) kb.box(0.003, 0.006, 0.02, 0x8c8c86, [0.001, 0.004, -0.01]);   // bolt carrier face in the port
     parts.bolt = part(kb, 'bolt', G, [0.0145, -0.062, -0.048]); }
@@ -86,8 +172,8 @@ export function buildM16(o = {}) {
   { const kt = new Kit(); kt.prism([[0, 0], [0.004, -0.004], [0.006, -0.018], [0.002, -0.02], [-0.002, -0.006]], 0.006, PD, [0, 0, 0], 'zy'); parts.trigger = part(kt, 'trigger', G, [0, -0.124, 0.005]); }
   { const kb = new Kit(); kb.box(0.003, 0.016, 0.01, P, [0, 0, 0]); parts.boltCatch = part(kb, 'boltCatch', G, [-0.019, -0.097, -0.012]); }
   // magazine: 20-round, straight aluminium box; pivot at the top of the body inside the magwell
-  { const km = new Kit(); km.box(0.022, 0.15, 0.062, COL.alu, [0, -0.075, 0]); km.box(0.026, 0.012, 0.066, COL.parkDark, [0, -0.152, 0]);
-    if (hi) { for (let i = 0; i < 4; i++) km.box(0.0225, 0.11, 0.003, 0x26282a, [0, -0.085, -0.022 + i * 0.015]); km.cyl(0.0028, 0.0028, 0.03, COL.brass, [0, 0.004, -0.008], 'z', 6); km.cyl(0.0012, 0.0028, 0.008, COL.copper, [0, 0.004, -0.027], 'z', 6); }
+  { const km = new Kit(); if (FIG) m16MagFig(km, hi); else { km.box(0.022, 0.15, 0.062, COL.alu, [0, -0.075, 0]); km.box(0.026, 0.012, 0.066, COL.parkDark, [0, -0.152, 0]); }
+    if (hi && !FIG) { for (let i = 0; i < 4; i++) km.box(0.0225, 0.11, 0.003, 0x26282a, [0, -0.085, -0.022 + i * 0.015]); km.cyl(0.0028, 0.0028, 0.03, COL.brass, [0, 0.004, -0.008], 'z', 6); km.cyl(0.0012, 0.0028, 0.008, COL.copper, [0, 0.004, -0.027], 'z', 6); }
     parts.mag = part(km, 'mag', G, [0, -0.1, -0.066]); parts.mag.userData.home = parts.mag.position.clone(); }
   const anchors = {
     grip: [0, -0.168, 0.05], fore: [0, -0.07, -0.31], butt: [0, -0.105, 0.35], charging: [0, -0.04, 0.13], magwell: [0, -0.158, -0.066],

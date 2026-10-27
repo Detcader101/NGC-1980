@@ -334,6 +334,7 @@ export function createForest({ scene, fog = null, uTime = null, shared }) {
     for (const k of K) {
       const g = geos[lvl + k] = treeGeo(k, lvl === 'far' ? 'lite' : lvl).geometry();
       sets[lvl][k] = instanced(g, mats[lvl], lvl === 'detail' ? 1500 : 3000, depth); root.add(sets[lvl][k].mesh);
+      sets[lvl][k].mesh.userData.rkShadow = lvl === 'far' ? 'receive' : 'both';   // RENDERKIT light: trees cast (customDepthMaterial carries the instance transform); the far set only receives
     }
   }
   const sources = new Map();
@@ -435,7 +436,7 @@ export function createClutter({ scene, fog = null, uTime = null, shared, sample 
   }
   const mats = { tuft: grassMat, bush: natureMaterial({ kind: 'clutter', fog, uTime, shared, gain: 1.4 }), rock: natureMaterial({ kind: 'clutter', fog, uTime, shared, gain: 1.5 }) };
   mats.stone = mats.rock;
-  const sets = {}; for (const t of types) { sets[t] = instanced(geo[t], mats[t], t === 'tuft' ? 6000 : 1500, depthMaterial(shared, 'clutter')); root.add(sets[t].mesh); }
+  const sets = {}; for (const t of types) { sets[t] = instanced(geo[t], mats[t], t === 'tuft' ? 6000 : 1500, depthMaterial(shared, 'clutter')); root.add(sets[t].mesh); sets[t].mesh.userData.rkShadow = t === 'rock' || t === 'bush' ? 'both' : 'receive'; }   // (grass and stones do not cast: 15k tiny casters)
   const cells = new Map(), key = (i, j) => i * 65536 + j;
   const stats = { cells: 0, tuft: 0, bush: 0, rock: 0, stone: 0, genMs: 0, ms: 0, tris: 0 };
   let lastI = 1e9, lastJ = 1e9, lastY = 1e9, dirty = true;

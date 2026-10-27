@@ -12,17 +12,24 @@ import { hpOf } from './ui/unitmarkers.js';
 import { CARRIER } from './ships.js';
 import { createFog, FOG_GLSL, fogPatch } from './fog.js';
 import { RK } from './renderkit/adopt.js';
-import { useSceneEnvironment } from './renderkit/gamemats.js';   // RENDERKIT: which areas use the Continuum RenderKit (?rk=, pause menu)
-import { createGamePost } from './renderkit/gamepost.js';   // RENDERKIT post: desktop grading pass (never in XR)
+import { useSceneEnvironment, RKS as RK_SURF } from './renderkit/gamemats.js';   // RENDERKIT surface: shared unit materials (scene environment hand-over)
+import { padGLSL, shaftRingGLSL, bindXR as bindDetailXR, applyWorldDetail } from './renderkit/detail.js';   // RENDERKIT materials (ngc/depth-materials)
+import { createGamePost, postQuality } from './renderkit/gamepost.js';   // RENDERKIT post: desktop AO, bloom, filmic grade (never in XR)
 import { RKUI, UIC, applyUI } from './renderkit/ngcui.js';   // RENDERKIT ui: design-system menus / overlays / HUD (classic colours with ?rk=0)
 import { RK_TERRAIN_GLSL, RK_SKY_GLSL, createWorldUniforms, createWorldSky, linearOutput } from './renderkit/world.js';   // RENDERKIT world
-import { createNatureShared, createForest, createClutter, NATURE_TERRAIN_GLSL, CL } from './renderkit/nature.js';   // RENDERKIT nature
-import { treeKind, PINE, BROAD, SCRUB, natureHash } from './world/forest.js';   // RENDERKIT nature: species by geology / altitude
+import { createSunShadows, SUN_SHADOW_GLSL, BALANCE as RKL_BAL, matchOverlayLights } from './renderkit/light.js';   // RENDERKIT light: sun shadows + light balance
 import { drawDistance, radialFog } from './world/visibility.js';
 import { zoneGrid, SURF_NAMES, GEOLOGY, geologyOf, zoneSurf } from './world/terrain.js';   // (zoneSurf: RENDERKIT nature clutter)
+import { createNatureShared, createForest, createClutter, NATURE_TERRAIN_GLSL, CL } from './renderkit/nature.js';   // RENDERKIT nature
+import { treeKind, PINE, BROAD, SCRUB, natureHash } from './world/forest.js';   // RENDERKIT nature: species by geology / altitude
+import { RK_HAZE_GLSL, RK_CLOUD_GLSL, installAtmosphere, createAtmosphere } from './renderkit/atmosphere.js';   // RENDERKIT sky
 radialFog(THREE);
-const RKW = RK.on('world');
-const RKN = RK.on('nature');   // RENDERKIT nature: trees, scrub, ground clutter, terrain near detail (renderkit/nature.js)   // RENDERKIT world: terrain / sea / sky / scene.environment (renderkit/world.js); off = the classic shaders
+const RKW = RK.on('world');   // RENDERKIT world: terrain / sea / sky / scene.environment (renderkit/world.js); off = the classic shaders
+// RENDERKIT sky: clouds, sun, aerial perspective on every material (Three's fog chunks, patched before anything compiles)
+// and the land past the draw distance (renderkit/atmosphere.js). Off: the fog fades to one colour as before.
+const RKS = RK.on('sky');
+const RKN = RK.on('nature');   // RENDERKIT nature: trees, scrub, ground clutter, terrain near detail (renderkit/nature.js)
+if (RKS) installAtmosphere();
 import { createFx } from './fx.js';
 import { createControls } from './hotas.js';
 import { createXR } from './xr/runtime.js';
@@ -246,8 +253,9 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPrefere
 const PR_MAX = params.has('res') ? +params.get('res') : Math.min(devicePixelRatio, 1.5);
 let pixRatio = PR_MAX; renderer.setPixelRatio(pixRatio);
 // RENDERKIT post: toneMapping stays NoToneMapping (the game's look, display-referred; see renderkit/gamepost.js).
-// The post target follows the drawing buffer each frame, so dynamic resolution needs nothing extra.
-const rkPost = RK.on('post') ? createGamePost(renderer, { reducedMotion: () => !!fx?.reducedMotion }) : null;
+// The post targets follow the drawing buffer each frame, so dynamic resolution needs nothing extra.
+// ?rkpost=low|medium|high picks the tier (renderkit/gamepost.js POST_TIERS), ?rkpost=off leaves the post out.
+const rkPost = RK.on('post') && postQuality() !== 'off' ? createGamePost(renderer, { reducedMotion: () => !!fx?.reducedMotion }) : null;
 {
   const gl = renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info');
   $('gpuinfo').textContent = 'GPU: ' + (ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : 'unknown');
@@ -379,10 +387,17 @@ const DRAW = 250;
 // The jet sees further: view.draw grows with altitude while you fly it (fog, far clip, sky and terrain all follow it),
 // and a coarse far-terrain ring fills in past the fine grid.
 const view = { draw: DRAW };
-zScene.fog = new THREE.Fog(HORIZON, DRAW * 0.5, DRAW);
+// RENDERKIT sky: the fog's near distance is only the start of the end-of-world dissolve; the aerial perspective does the rest
+// (FOG_TN: where the terrain starts turning into the far land; from 0.6 the fog of war's dimming has faded out by the
+// draw distance as it did under the classic fog, instead of leaving a dark band on the horizon)
+const FOG_N = RK.on('sky') ? 0.8 : 0.5, FOG_TN = RK.on('sky') ? 0.6 : 0.5;
+zScene.fog = new THREE.Fog(HORIZON, DRAW * FOG_N, DRAW);
 const zCam = new THREE.PerspectiveCamera(62, 1, 0.5, DRAW + 15);
-zScene.add(new THREE.HemisphereLight(0xcfe6ff, 0x4a5a34, 0.9));
+const hemi = new THREE.HemisphereLight(0xcfe6ff, 0x4a5a34, 0.9); zScene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff0d0, 1.1); sun.position.set(0.5, 1, 0.3); zScene.add(sun);
+// RENDERKIT light: two-cascade sun shadows that follow the camera, and a warmer sun against a cooler, weaker sky
+// (renderkit/light.js; the terrain / sea shader reads the same maps under RK_LIGHT). Off: no shadow maps, the values above.
+const rkLight = RK.on('light') ? createSunShadows({ renderer, scene: zScene, sun, hemi, groundY: (x, z) => groundY(x, z) }) : null;
 
 const sky = new THREE.Mesh(new THREE.SphereGeometry(DRAW * 0.97, 24, 12), new THREE.ShaderMaterial({
   side: THREE.BackSide, depthWrite: false, fog: false,
@@ -438,7 +453,7 @@ terrainWorker.onmessage = ({ data: d }) => {
     terrainUni.uHMNpo.value.copy(terrainUni.uHMNo.value); terrainUni.uHMNblend.value = 0;
   }
   L.tex.image.data = d.h; L.tex.needsUpdate = true; L.ready = true; terrainUni[L.uni].value.set(d.ox, d.oz, d.c);
-  if (d.id === 1) buildFarMap(d);
+  if (d.id === 1) { buildFarMap(d); atmo?.farHeights(d); }   // RENDERKIT sky: the land past the draw distance
 };
 function terrainStream(x, z, dt = 0) {
   terrainUni.uHMNblend.value = Math.min(1, terrainUni.uHMNblend.value + dt / 1.2);
@@ -464,16 +479,18 @@ function buildFarMap(d) {
 const fog = createFog(BOUND, 224); fog.enabled = false; fog.update([]);
 const terrainGeo = new THREE.PlaneGeometry(TG * TN, TG * TN, TN, TN); terrainGeo.rotateX(-Math.PI / 2);
 const terrainUni = {
-  uFog: { value: HORIZON.clone().convertLinearToSRGB() }, uSun: { value: new THREE.Vector3(.5, 1, .3) }, uBases: { value: baseUniform }, uPadCol: { value: padUniform }, uTime: { value: 0 },
-  uPadP: { value: PADS.map(p => new THREE.Vector4(p.x, p.z, p.isl.cave ? 1 : 0, 0)) }, uHM: { value: hmTex }, uDecor: { value: decorTex }, ...fog.uniforms,
+  uFog: { value: HORIZON.clone().convertLinearToSRGB() }, uSun: { value: sun.position.clone() } /* RENDERKIT light may lower the sun; classic (.5, 1, .3) */, uBases: { value: baseUniform }, uPadCol: { value: padUniform }, uTime: { value: 0 },
+  uPadP: { value: PADS.map(p => new THREE.Vector4(p.x, p.z, p.isl.cave ? 1 : 0, Math.atan2(p.x, p.z))) },   /* w: the pad yaw (padSpot), RENDERKIT materials turn the H to it */ uHM: { value: hmTex }, uDecor: { value: decorTex }, ...fog.uniforms,
   uHMN: { value: HW[0].tex }, uHMF: { value: HW[1].tex }, uHMNo: { value: new THREE.Vector3(-1e6, -1e6, 4) }, uHMFo: { value: new THREE.Vector3(-1e6, -1e6, 16) },
   uHMNprev: { value: previousNear }, uHMNpo: { value: new THREE.Vector3(-1e6, -1e6, 4) }, uHMNblend: { value: 1 },
   uFogN: { value: DRAW * 0.5 }, uFogF: { value: DRAW * 0.97 }, uNear: { value: new THREE.Vector3(0, 0, 0) },
   uSurf: { value: surfTex }, uSandC: { value: ISLANDS.map(I => new THREE.Color(...GEOLOGY[geologyOf(I)].sand)) }, uRockC: { value: ISLANDS.map(I => new THREE.Color(...GEOLOGY[geologyOf(I)].rock)) },
   ...createSeaUniforms(),   // SEAWORLD: the live sea's waves, whitecaps, ships for the hull foam
   ...(RKW ? createWorldUniforms() : {}),   // RENDERKIT world: the sky the sea reflects, the sun's colour
+  ...(rkLight ? rkLight.uniforms() : {}),   // RENDERKIT light: the two shadow cascades
   ...(RKN ? { uNatK: { value: 1 }, uNatR: { value: 170 } } : {}),   // RENDERKIT nature: terrain near detail strength / radius (tier)
 };
+const RKL_DEF = rkLight ? { RK_LIGHT: 1, RKL_SUN: RKL_BAL.terrSun.toFixed(3), RKL_AMB: RKL_BAL.terrAmb.toFixed(3) } : {};   // RENDERKIT light
 const terrainVS = `
     varying vec3 vW; varying float vRaw; uniform sampler2D uHM, uHMN, uHMF, uHMNprev; uniform vec3 uHMNo, uHMFo, uNear, uHMNpo; uniform float uHMNblend;
     ${SEA_VS_DECL}
@@ -522,12 +539,24 @@ const terrainFS = `
     uniform sampler2D uSurf; uniform vec3 uSandC[${ISLANDS.length}], uRockC[${ISLANDS.length}];
     ${FOG_GLSL}
     ${SEA_FS_DECL}
+    // RENDERKIT light: the sun's shadow (rkSunShadow) and the light balance; without RK_LIGHT the classic .75 / .4
+    #ifdef RK_LIGHT
+    #include <packing>
+    ${SUN_SHADOW_GLSL}
+    #else
+    #define RKL_SUN .75
+    #define RKL_AMB .4
+    #endif
     #ifdef RK_WORLD
     ${RK_TERRAIN_GLSL}
     ${RK_SKY_GLSL}
     #endif
     #ifdef RK_NATURE
     ${NATURE_TERRAIN_GLSL}
+    #endif
+    #ifdef RK_SKY
+    ${RK_HAZE_GLSL}
+    ${RK_CLOUD_GLSL}
     #endif
     void main(){
       #ifdef FAR
@@ -537,7 +566,14 @@ const terrainFS = `
       int pi=int(dc.r+.5)-1, bi=int(dc.g+.5)-1, gi=int(dc.b+.5)-1;
       if(bi>=0 && length(vW.xz-uBases[bi].xy)<${HOLE_R.toFixed(1)}) discard;   // the shaft
       vec3 n=normalize(cross(dFdx(vW),dFdy(vW))); if(n.y<0.) n=-n;
-      float l=max(dot(n,normalize(uSun)),0.)*.75+.4;
+      float rkSh=1.;   // RENDERKIT light: 1 lit, 0 in the sun's shadow
+      #ifdef RK_LIGHT
+      rkSh=rkSunShadow(vW,n);
+      #ifdef RK_SKY
+      rkSh*=mix(.12,1.,clamp((rkCloudShade(vW)-.62)/.38,0.,1.));   // RENDERKIT light+sky: a cloud blocks most of the direct sun (the ambient stays)
+      #endif
+      #endif
+      float l=max(dot(n,normalize(uSun)),0.)*RKL_SUN*rkSh+RKL_AMB;
       vec2 g=floor(vW.xz/6.); float chk=mod(g.x+g.y,2.);
       #ifdef RK_WORLD
       // RENDERKIT world: createTerrainMaterial's slope / altitude / shoreline / snow blending with FBM variation, on the
@@ -588,7 +624,7 @@ const terrainFS = `
       if(vRaw>0.) rnDetail(c,n,vW,rnG,rnR,rnS,rnSoil,rnSn,rkSl,rkD,uTime);   // RENDERKIT nature: patches, grain, pebbles, strata, shore (n tilted)
       #endif
       #ifdef RK_WORLD
-      c*=rkSunCol*max(dot(n,normalize(uSun)),0.)*.75+mix(vec3(.6,.64,.55),vec3(.98,1.01,1.06),n.y*.5+.5)*.4;   // RENDERKIT world: the sun's colour + hemisphere ambient
+      c*=rkSunCol*max(dot(n,normalize(uSun)),0.)*RKL_SUN*rkSh+mix(vec3(.6,.64,.55),vec3(.98,1.01,1.06),n.y*.5+.5)*RKL_AMB;   // RENDERKIT world: the sun's colour + hemisphere ambient
       #else
       c*=l;
       #endif
@@ -614,6 +650,9 @@ const terrainFS = `
         #endif
         wc*=.86+.2*max(dot(wn,L),0.);   // SEAWORLD: the swell's faces turned to the sun are lighter
         float sp=max(dot(reflect(-L,wg),V),0.); sp*=sp; sp*=sp; sp*=sp; sp*=sp; sp*=sp; sp*=sp;   // ~^64, on the glitter normal
+        #ifdef RK_LIGHT
+        sp*=rkSh; wc*=mix(.8,1.,rkSh);   // RENDERKIT light: no glitter in a hull's shadow, the water a little darker there
+        #endif
         wc+=vec3(1.,.95,.8)*sp*1.3*(sp>.002?glitAt(p,t,sk):1.);
         ${SEA_FS_FOAM}
         #ifdef RK_NATURE
@@ -623,32 +662,46 @@ const terrainFS = `
         ${SEA_FS_UNDER}   // SEALIFE: the surface from below
       }
       if(bi>=0){ vec4 b=uBases[bi]; float d=length(vW.xz-b.xy);
-        if(d<${BASE_R.toFixed(1)}){ vec3 pc=mix(vec3(.5,.52,.58),vec3(.36,.3,.3),b.w)*l;
-          if(d<${(HOLE_R + 2.2).toFixed(1)}){ float a=atan(vW.z-b.y,vW.x-b.x); pc=mix(vec3(.12,.12,.14),mix(vec3(.2,.75,1.),vec3(.85,.15,.1),b.w),step(.5,fract(a*3.82)))*l; }   // hazard ring round the shaft mouth
+        if(d<${BASE_R.toFixed(1)}){ vec3 pc=mix(${RK_SURF ? 'vec3(.44,.44,.43)' : 'vec3(.5,.52,.58)'},vec3(.36,.3,.3),b.w)*l;   // RENDERKIT materials: neutral concrete
+          if(d<${(HOLE_R + 2.2).toFixed(1)}){ float a=atan(vW.z-b.y,vW.x-b.x); ${RK_SURF ? shaftRingGLSL('l') : 'pc=mix(vec3(.12,.12,.14),mix(vec3(.2,.75,1.),vec3(.85,.15,.1),b.w),step(.5,fract(a*3.82)))*l;'} }   // hazard ring round the shaft mouth
           c=pc; } }
       if(pi>=0){ vec4 q=uPadP[pi]; float d=length(vW.xz-q.xy);
-        if(q.z<.5 && d<26.){ vec2 tl=abs(fract(vW.xz/4.)-.5); c=mix(vec3(.4,.41,.43),vec3(.33,.34,.36),step(.46,max(tl.x,tl.y)))*l; }   // concrete apron
-        if(d<${(PAD_R + 2.5).toFixed(1)}){ vec3 pc=vec3(.5,.52,.58)*l; if(d<${PAD_R.toFixed(1)}){float r=d/${PAD_R.toFixed(1)}; pc=mix(vec3(.15,.16,.2),uPadCol[pi],step(.5,fract(r*4.)))*l;} c=pc; } }
+        ${RK_SURF ? padGLSL(PAD_R, 'l') : `if(q.z<.5 && d<26.){ vec2 tl=abs(fract(vW.xz/4.)-.5); c=mix(vec3(.4,.41,.43),vec3(.33,.34,.36),step(.46,max(tl.x,tl.y)))*l; }   // concrete apron
+        if(d<${(PAD_R + 2.5).toFixed(1)}){ vec3 pc=vec3(.5,.52,.58)*l; if(d<${PAD_R.toFixed(1)}){float r=d/${PAD_R.toFixed(1)}; pc=mix(vec3(.15,.16,.2),uPadCol[pi],step(.5,fract(r*4.)))*l;} c=pc; }`} }   // RENDERKIT materials: a weathered 1980 helipad (renderkit/detail.js padGLSL)
       c=fogOfWar(c,vW.xz,uTime);
       float fd=length((viewMatrix*vec4(vW,1.)).xyz);
+      #ifdef RK_SKY
+      // RENDERKIT sky: cloud shadows, then towards the draw distance the ground turns into the dome's far land / far sea
+      // (the same look at the same point, so the hand-over is seamless), all under the height-dependent aerial perspective
+      { vec3 rkRay=vW-cameraPosition; float rkE=smoothstep(uFogN,uFogF,fd), rkCs=1.;
+        #ifndef RK_LIGHT
+        rkCs=rkCloudShade(vW);   // without sun shadows the cloud shade darkens the whole colour (with them it is in rkSh)
+        #endif
+       
+        vec3 rkFar=c; if(rkE>0.) rkFar=vRaw>0.?rkFarLand(vW,n):rkFarSeaCol(normalize(rkRay),uFog);   // (only in the hand-over band)
+        c=mix(mix(c,uFog,rkE),rkAerial(mix(c,rkFar,rkE)*rkCs,rkRay,uFog),rkHaze.z); }
+      #else
+      c=mix(c,uFog,smoothstep(uFogN,uFogF,fd));
+      #endif
       #ifdef RK_WORLD
       // RENDERKIT world: display values straight out on the default sRGB / no-tone-mapping path (renderkit/world.js
       // linearOutput); otherwise linear out, and Three tone maps and encodes once like every built-in material
-      gl_FragColor=vec4(mix(c,uFog,smoothstep(uFogN,uFogF,fd)),1.);
+      gl_FragColor=vec4(c,1.);
       #ifndef RK_DISPLAY_OUT
       gl_FragColor.rgb=rkToLinear(gl_FragColor.rgb);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
       #endif
       #else
-      gl_FragColor=vec4(mix(c,uFog,smoothstep(uFogN,uFogF,fd)),1.);
+      gl_FragColor=vec4(c,1.);
       #endif
     }`;
-const terrainMat = new THREE.ShaderMaterial({ uniforms: terrainUni, vertexShader: terrainVS, fragmentShader: terrainFS, defines: RKW ? { RK_WORLD: 1, ...(RKN ? { RK_NATURE: 1 } : {}) } : {} });   // RENDERKIT nature: RK_NATURE needs RK_WORLD
+const RK_DEF = { ...(RKW ? { RK_WORLD: 1 } : {}), ...(RKS ? { RK_SKY: 1 } : {}), ...(RKW && RKN ? { RK_NATURE: 1 } : {}) };   // RENDERKIT world / sky / nature (RK_NATURE needs RK_WORLD)
+const terrainMat = new THREE.ShaderMaterial({ uniforms: terrainUni, vertexShader: terrainVS, fragmentShader: terrainFS, defines: { ...RK_DEF, ...RKL_DEF } });
 const terrain = new THREE.Mesh(terrainGeo, RKW ? linearOutput(terrainMat) : terrainMat);   // RENDERKIT world: the define
 terrain.frustumCulled = false; zScene.add(terrain);
 const FAR_C = 24, FAR_N = 220;   // far ring: 12 m cells out to ~1.5 km, only drawn while the view reaches past the fine grid
-const farMat = new THREE.ShaderMaterial({ uniforms: terrainUni, vertexShader: terrainVS, fragmentShader: terrainFS, defines: RKW ? { FAR: 1, RK_WORLD: 1, ...(RKN ? { RK_NATURE: 1 } : {}) } : { FAR: 1 } });   // RENDERKIT world (+ nature)
+const farMat = new THREE.ShaderMaterial({ uniforms: terrainUni, vertexShader: terrainVS, fragmentShader: terrainFS, defines: { FAR: 1, ...RK_DEF, ...RKL_DEF } });   // RENDERKIT world / sky
 const farTerrain = new THREE.Mesh(new THREE.PlaneGeometry(FAR_C * FAR_N, FAR_C * FAR_N, FAR_N, FAR_N).rotateX(-Math.PI / 2), RKW ? linearOutput(farMat) : farMat);
 farTerrain.frustumCulled = false; farTerrain.visible = false; zScene.add(farTerrain);
 // SEAWORLD (the black dome on the horizon): the sky dome and both terrain windows are centred on the camera that
@@ -663,9 +716,13 @@ const _renderEye = new THREE.Vector3();
 sky.onBeforeRender = (r, s, cam) => { sky.position.setFromMatrixPosition(cam.matrixWorld); sky.updateMatrixWorld(); };
 // RENDERKIT world: the kit's sky material on the dome (sun = the DirectionalLight) and zScene.environment, a PMREM of that
 // sky rebuilt only when the sun or the weather changes (renderkit/world.js). Off: the classic dome, no environment.
-const worldSky = RKW ? createWorldSky({ renderer, scene: zScene, sky, sun, uniforms: terrainUni }) : null;
+// RENDERKIT sky: the atmosphere takes the dome (clouds, sun, the far land) and hands world.js its environment variant
+const atmo = RKS ? createAtmosphere({ scene: zScene, sky, sun, uniforms: terrainUni, renderer }) : null;
+if (atmo && params.has('debug')) window.__rkSky = atmo;
+const worldSky = RKW ? createWorldSky({ renderer, scene: zScene, sky, sun, uniforms: terrainUni, atmosphere: atmo }) : null;
 if (worldSky && params.has('debug')) window.__rkWorld = worldSky;
 if (worldSky) useSceneEnvironment();   // RENDERKIT world+surface: glass / metal drop their fallback sky and use zScene.environment (rebuilt with the weather)
+bindDetailXR(renderer);   // RENDERKIT materials: shorter detail range and half bump while an XR session runs
 const _snapTerrain = cam => { _renderEye.setFromMatrixPosition(cam.matrixWorld); const x = Math.round(_renderEye.x / TG) * TG, z = Math.round(_renderEye.z / TG) * TG; terrainUni.uNear.value.set(x, z, TG * TN / 2 - 3); return [x, z]; };
 terrain.onBeforeRender = (r, s, cam) => { const [x, z] = _snapTerrain(cam); terrain.position.set(x, 0, z); terrain.updateMatrixWorld(); };
 farTerrain.onBeforeRender = (r, s, cam) => { _snapTerrain(cam); farTerrain.position.set(Math.round(_renderEye.x / FAR_C) * FAR_C, 0, Math.round(_renderEye.z / FAR_C) * FAR_C); farTerrain.updateMatrixWorld(); };
@@ -774,8 +831,8 @@ const NAT = RKN ? (() => {
 })() : null;
 // Wild forests stream with towns in stable tiles (world/life.js).
 {   // ARMOUR: the landing hards' concrete, kerbs, marker posts and signs (under the fog of war like the rest of the zone)
-  const fp = m => fogPatch(m, fog, terrainUni.uTime);
-  const mats = { concrete: fp(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide })), post: fp(new THREE.MeshLambertMaterial({ color: 0x8c8a84, flatShading: true })), red: fp(new THREE.MeshLambertMaterial({ color: 0xb02a20, flatShading: true })), white: fp(new THREE.MeshLambertMaterial({ color: 0xe8e8e0, flatShading: true })), green: fp(new THREE.MeshLambertMaterial({ color: 0x2f7a3a, flatShading: true })), sign: t => fp(new THREE.MeshLambertMaterial({ map: t, side: THREE.DoubleSide })) };
+  const fp = (m, cls) => cls === undefined ? fogPatch(m, fog, terrainUni.uTime) : applyWorldDetail(fogPatch(m, fog, terrainUni.uTime), { defCls: cls });   // RENDERKIT materials: detail after the fog patch (no-op with ?rk=0)
+  const mats = { concrete: fp(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide }), 2), post: fp(new THREE.MeshLambertMaterial({ color: 0x8c8a84, flatShading: true }), 2), red: fp(new THREE.MeshLambertMaterial({ color: RK_SURF ? 0x9a2c22 : 0xb02a20, flatShading: true }), 5), white: fp(new THREE.MeshLambertMaterial({ color: RK_SURF ? 0xd6d4cc : 0xe8e8e0, flatShading: true }), 5), green: fp(new THREE.MeshLambertMaterial({ color: RK_SURF ? 0x34653a : 0x2f7a3a, flatShading: true }), 5), sign: t => fp(new THREE.MeshLambertMaterial({ map: t, side: THREE.DoubleSide })) };
   for (const h of HARDS) zScene.add(buildHardMesh(h, mats));
 }
 // base
@@ -784,8 +841,8 @@ const baseGroup = new THREE.Group(); baseGroup.position.set(HOME_B.x, PAD_H, HOM
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 90, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0x66ddff, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }));
   beam.position.y = 45; baseGroup.add(beam); BASES[0].beam = beam;
   const ring = new THREE.Mesh(new THREE.TorusGeometry(8.7, 0.18, 6, 48), new THREE.MeshBasicMaterial({ color: 0xffee66 }));
-  ring.rotation.x = Math.PI / 2; ring.position.set(PAD.x - HOME_B.x, 0.25, PAD.z - HOME_B.z); baseGroup.add(ring); baseGroup.userData.ring = ring;
-  const mat = new THREE.MeshPhongMaterial({ color: 0x8a92a0, flatShading: true });
+  ring.rotation.x = Math.PI / 2; ring.position.set(PAD.x - HOME_B.x, 0.25, PAD.z - HOME_B.z); baseGroup.add(ring); baseGroup.userData.ring = ring; ring.visible = !RK_SURF;   // RENDERKIT materials: no rainbow neon tube on the painted pad (its H, white perimeter and the owner band mark it)
+  const mat = applyWorldDetail(new THREE.MeshPhongMaterial({ color: RK_SURF ? 0x8e8c86 : 0x8a92a0, flatShading: true }), { defCls: 2 });   // RENDERKIT materials: weathered concrete, not blue-grey
   for (let i = 0; i < 7; i++) {
     const a = i / 7 * Math.PI * 2, b = new THREE.Mesh(new THREE.BoxGeometry(4 + (i % 3), 3 + (i % 4) * 1.5, 4), mat);
     b.position.set(Math.cos(a) * 14.5, 1.5 + (i % 4) * 0.7, Math.sin(a) * 14.5); b.rotation.y = -a; baseGroup.add(b);
@@ -807,7 +864,7 @@ for (const b of BASES) if (b.kind === 'enemy') {
 const funnelMat = new THREE.MeshLambertMaterial({ color: 0x4a3c31, side: THREE.DoubleSide, flatShading: true });
 for (const b of BASES) {
   const f = new THREE.Mesh(new THREE.CylinderGeometry(HOLE_R, 4.4, 7, 28, 1, true), funnelMat);
-  f.position.set(b.x, b.h - 3.5, b.z); zScene.add(f); b.funnel = f;
+  f.position.set(b.x, b.h - 3.5, b.z); zScene.add(f); b.funnel = f; f.userData.rkShadow = 'receive';   // RENDERKIT light: the shaft funnel's rim sits at ground level (dashed self-shadow ring)
 }
 
 // player ship (zarch)
@@ -2421,7 +2478,7 @@ function updateDynRes(frameMs) {
   let pr = pixRatio;
   if (dynRes.ms > 19.5 && pr > 0.6) pr = Math.max(0.6, pr - 0.15);
   else if (dynRes.ms < 14.5 && pr < PR_MAX) pr = Math.min(PR_MAX, pr + 0.1);
-  if (pr !== pixRatio) { pixRatio = pr; renderer.setPixelRatio(pr); resize(); dynRes.cool = 1500; }
+  if (pr !== pixRatio) { pixRatio = pr; renderer.setPixelRatio(pr); resize(); dynRes.cool = 1500; if (rkLight) rkLight.pressure = pr < PR_MAX * 0.8; }   // RENDERKIT light: GPU-bound -> the low shadow tier
 }
 addEventListener('resize', resize); resize();
 
@@ -2462,7 +2519,7 @@ function updateCamsAndMeshes(dt, time) {
     b.beam.visible = f > 0.01; b.beam.material.opacity = (b.kind === 'home' ? 0.35 : 0.3) * f;
   }
   for (const b of BASES) if (b.group) b.group.visible = b === T.base && inCave || Math.hypot(zCam.position.x - b.x, zCam.position.z - b.z) < 140;
-  baseGroup.userData.ring.material.color.setHSL((time * 0.5) % 1, 1, 0.6);
+  if (!RK_SURF) baseGroup.userData.ring.material.color.setHSL((time * 0.5) % 1, 1, 0.6);   // (RENDERKIT materials: hidden)
   if (SIM && SIM.built) SIM.camera(camA, dt);   // SIM MODE: the spectator's camera
   else if (G.state === 'title') {
     const a = time * 0.07, c = war.carrier.p; camA.position.set(c.x + Math.cos(a) * 95, 30, c.z + Math.sin(a) * 95); camA.lookAt(c.x, 8, c.z);   // the ALBATROSS on station
@@ -2519,15 +2576,16 @@ function updateCamsAndMeshes(dt, time) {
   const heliCk = cockpitCam && !inCave && Z.alive && G.craft === 'heli' && !drop.camActive, firstP = otherFP || heliCk || drop.cockpitView;
   markerFP = firstP ? (heliCk ? 'heli' : jetCk ? 'jet' : drop.cockpitView ? 'drop' : crafts.active === m60C || crafts.active === m113C ? 'armour' : G.craft === 'foot' ? 'foot' : 'vehicle') : '';   // UNIT MARKERS: which first-person view (the instrument panel line)
   const fov = lerp(firstP ? (otherFP && crafts.active.fov ? crafts.active.fov(ckFov) : ckFov) : 62, SIDE_FOV, e); if (Math.abs(zCam.fov - fov) > 0.01) { zCam.fov = fov; zCam.updateProjectionMatrix(); }
-  zScene.fog.color.copy(HORIZON).multiplyScalar(1 - 0.85 * e); zScene.fog.near = lerp(view.draw * 0.5, DRAW * 0.8, e); zScene.fog.far = lerp(view.draw, DRAW, e);
+  zScene.fog.color.copy(HORIZON).multiplyScalar(1 - 0.85 * e); zScene.fog.near = lerp(view.draw * FOG_N, DRAW * 0.8, e); zScene.fog.far = lerp(view.draw, DRAW, e);
   terrainUni.uFog.value.copy(zScene.fog.color).convertLinearToSRGB();
-  terrainUni.uFogN.value = view.draw * 0.5; terrainUni.uFogF.value = view.draw;
+  terrainUni.uFogN.value = view.draw * FOG_TN; terrainUni.uFogF.value = view.draw;
   if (Math.abs(zCam.far - (view.draw + 15)) > 2) { zCam.far = view.draw + 15; zCam.updateProjectionMatrix(); }
   sky.scale.setScalar(view.draw / DRAW);
   if (!XR?.active && fx.shake > 0.01) { const k = fx.shake * (cockpit.group.visible ? 0.1 : 0.4); zCam.position.x += rnd(-k, k); zCam.position.y += rnd(-k, k); zCam.position.z += rnd(-k, k); }
   XR?.prepare();
   fx.ear.copy(zCam.position); terrainUni.uTime.value = time;
   updateSeaUniforms(terrainUni, war.sea, war.units, zCam.position);   // SEAWORLD
+  atmo?.update({ dt: G.state === 'paused' ? 0 : dt, seaState: war.sea.ss, under: sealife.under, cave: e, draw: view.draw, xr: !!XR?.active, camY: zCam.position.y });   // RENDERKIT sky: sun from the light, weather, cloud drift (frozen on pause)
   worldSky?.update(war.sea.ss, sealife.under);   // RENDERKIT world: rebuilds sky + environment only when the sun / weather changed
   sky.position.copy(zCam.position);
   terrainStream(zCam.position.x, zCam.position.z, dt);
@@ -2535,7 +2593,7 @@ function updateCamsAndMeshes(dt, time) {
   farTerrain.visible = view.draw > DRAW + 20; terrainUni.uNear.value.set(terrain.position.x, terrain.position.z, TG * TN / 2 - 3);
   if (farTerrain.visible) farTerrain.position.set(Math.round(zCam.position.x / FAR_C) * FAR_C, 0, Math.round(zCam.position.z / FAR_C) * FAR_C);
 
-  shipShadow.visible = Z.alive && !inCave && !G.heliStowed; if (G.heliStowed) shipMesh.visible = false;   // parked or flown, the Huey is drawn
+  shipShadow.visible = Z.alive && !inCave && !G.heliStowed && !rkLight;   // (RENDERKIT light: the real shadow replaces the blob) if (G.heliStowed) shipMesh.visible = false;   // parked or flown, the Huey is drawn
   const HP = G.craft === 'heli' ? P : H.pos;
   if (inCave && T.alive) {
     // side view: the nose points along the thrust like the classic Thrust triangle, top of the ship faces the camera;
@@ -2627,20 +2685,26 @@ function frame(now, xrFrame) {
   updateHud();
   { const hide = drop.flying || helm.active ? 'none' : ''; setStyle('bot', 'display', hide); setStyle('caution', 'display', hide); }
   const t2 = performance.now();
-  fx.setView(zCam, renderer.domElement.height, zScene.fog);
+  fx.setView(zCam, renderer.domElement.height, atmo && !sealife.under ? atmo.fxFog(zScene.fog) : zScene.fog);   // RENDERKIT sky: CPU particles fade where the haze has built up
   if (G.mode === 'zarch') interiors.update(G.state === 'paused' ? 0 : dt, zCam);   // ngc/interiors: doors swing, rooms near the camera, the carrier's inside
+  rkLight?.update(dt, zCam);   // RENDERKIT light: cascades follow the eye, cast / receive rules for new objects
   const drawDesktop = () => {
     const a = G.craft !== 'heli' && G.state !== 'title' ? crafts.active : null;
     // RENDERKIT fx: a craft's own picture (the tank's TTS thermal sight) swaps every visible mesh to a heat material;
     // the GPU particle quads would become opaque squares, so they are hidden for it (the CPU Points are not meshes).
     const rkg = fx.rk?.group, rkv = rkg?.visible;
     if (rkg && a?.renderView) rkg.visible = false;
+    atmo?.suspend(!!a?.renderView);   // RENDERKIT sky: a craft's own picture (the thermal sight) keeps the classic one-colour fog
     const own = !!(a && a.renderView && a.renderView(renderer, zScene, zCam));
+    atmo?.suspend(false);
     if (rkg) rkg.visible = rkv;
     // RENDERKIT post: only for the plain desktop world view. The craft's own picture is already its own post pass,
     // and XR (including the flat-screen display drawn into a target while presenting) renders directly.
-    if (!own) { if (rkPost && !renderer.xr.isPresenting) rkPost.render(zScene, zCam); else renderer.render(zScene, zCam); }
-    if (G.craft === 'foot' && G.state !== 'title' && G.mode === 'zarch') foot.overlay(renderer, zCam);   // arms + weapon after post (own depth clear)
+    // The first-person arms + weapon (own depth clear) go into the post's overlay target, so they get the same grade.
+    const ov = G.craft === 'foot' && G.state !== 'title' && G.mode === 'zarch' ? () => foot.overlay(renderer, zCam) : null;
+    let ovDone = false;
+    if (!own) { if (rkPost && !renderer.xr.isPresenting) { rkPost.render(zScene, zCam, ov); ovDone = true; } else renderer.render(zScene, zCam); }
+    if (ov && !ovDone) ov();
   };
   if (!XR?.render(drawDesktop)) drawDesktop();
   markers.draw(zCam, markerView());   // UNIT MARKERS: icons + health bars, one 2D layer over the frame
@@ -2693,6 +2757,7 @@ XR = createXR({ renderer, scene:zScene, camera:zCam, resize, audio:()=>sfx.init(
   flatView:()=>G.mode==='thrust'||!!crafts.active?.xrFlatView?.(),
   overlay:cam=>{if(G.craft==='foot'&&G.state!=='title'&&G.mode==='zarch'&&!XR?.blocked)foot.overlay(renderer,cam);}
 });
+if (rkLight) { rkLight.exclude(XR.rig); matchOverlayLights(marine?.vm?.scene, sun); }   // RENDERKIT light: the VR rig never casts; the arms pass gets the same balance
 // ?xrbench: a scripted tour of fixed VR views through the game's own craft paths, measured and pictured (xr/bench.js)
 if (params.has('xrbench')) XRB = createXRBench({ XR, renderer, scene: zScene, G, H, HI, Z, JP, HELI, war, crafts, commander, m60C, GR, HOME_B, ISLANDS, groundY, sfx, say, params,
   getInOut, toHeli, stowCrafts, resetZarch, launchJet, openMenu, closeMenu, cockpitCam: () => cockpitCam,
@@ -2700,7 +2765,7 @@ if (params.has('xrbench')) XRB = createXRBench({ XR, renderer, scene: zScene, G,
   armourSpot: () => { const hh = HARDS.find(h => h.I === HOME_B.isl), hp = hh && hh.at(hh.u1 - 5); return hp ? { x: hp[0], z: hp[1], yaw: hh.yaw } : GR.motorPool(HOME_B.isl, 4.6); } });
 buildCaves(); war.reset(); resetZarch(true); placeVehicles(); updateFogImg(); terrainStream(Z.pos.x, Z.pos.z);
 renderer.setAnimationLoop(frame);
-if (params.has('debug')) { window.__G = { XR, G, airlift, airdrop, ch46C, heliAIenv, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, get forest() { return { count: world.stats.forestTrees || 0 }; }, world, terrainUni, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, rkPost /* RENDERKIT post */, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, get tech() { return war.tech; }, techUI /* TECH TREE: tech = [null, player, enemy] */, say, feed /* RENDERKIT ui: tools/scenes/rkui.mjs */ }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); H.reset(H.pos.clone(), 0, false, 1); SY.grip = 1; SY.auto = null; enterCave(b); }   /* (ngc/bugsweep) ?thrust=N starts in the cave already flying: engine at flight power, throttle rolled on (it came in at ground idle with the throttle rolling on, the rotor drooped and caveaim / caves crashed in the shaft) */ }
+if (params.has('debug')) { window.__G = { XR, G, airlift, airdrop, ch46C, heliAIenv, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, get forest() { return { count: world.stats.forestTrees || 0 }; }, world, terrainUni, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, rkPost /* RENDERKIT post */, rkLight /* RENDERKIT light */, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, get tech() { return war.tech; }, techUI /* TECH TREE: tech = [null, player, enemy] */, say, feed /* RENDERKIT ui: tools/scenes/rkui.mjs */ }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); H.reset(H.pos.clone(), 0, false, 1); SY.grip = 1; SY.auto = null; enterCave(b); }   /* (ngc/bugsweep) ?thrust=N starts in the cave already flying: engine at flight power, throttle rolled on (it came in at ground idle with the throttle rolling on, the rotor drooped and caveaim / caves crashed in the shaft) */ }
 // ngc/ch46fly dev: ?fly=ch46 puts you in a CH-46E on the ALBATROSS (with ?auto; ?fly=ch46&cold cold and dark; &at=island at the nearest friendly pad)
 if (params.get('fly') === 'ch46') { const t0 = performance.now(), go = () => { if (G.state === 'play' && G.mode === 'zarch' && Z.alive && H.landed) { const isl = commandBases().filter(b => b.kind === 'island').sort((a, b) => Math.hypot(a.x - Z.pos.x, a.z - Z.pos.z) - Math.hypot(b.x - Z.pos.x, b.z - Z.pos.z))[0]; commander.deploy('ch46', params.get('at') === 'island' && isl ? isl.key : 'ship'); return; } if (performance.now() - t0 < 30000) setTimeout(go, 200); }; setTimeout(go, 300); }
 

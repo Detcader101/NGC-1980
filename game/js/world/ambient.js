@@ -16,6 +16,7 @@ import { roadGraph, roadPoint, roadById, nearestRoad, netState } from './net.js'
 import { rng, hash2 } from './rng.js';
 import { islandH, rawH, BOUND, ISLANDS } from '../world.js';
 import * as MD from './models.js';
+import { Kit as FKit, FIG } from '../units/infantry/meshkit.js';   // RENDERKIT figures: rounded townsfolk
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(0, 0, 0, 'YXZ'), _p = new THREE.Vector3(), _s = new THREE.Vector3(1, 1, 1), _c = new THREE.Color();
@@ -23,7 +24,34 @@ const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Eule
 // ------------------------------------------------------------------------------------------- models
 // a person, 1.75 m; vertex attribute part: 0 body, 1/2 legs, 3/4 arms (pivots at the hips / shoulders); shirt
 // vertices carry paint = 1 and take the instance colour
-function personGeo() {
+// RENDERKIT figures (ngc/depth-figures): the same person (parts, pivots, paint flags, sqrt-coded colours) rounded and
+// smooth-shaded: a rounded jacket, capsule arms and legs, a head with hair, nose and ears, hands, shoes. ~0.5k triangles
+// (classic ~0.12k), one instanced draw for the whole street.
+function personGeoFig() {
+  const kits = [];   // [kit, part, paint]
+  const K = (part, pt) => { const k = new FKit(); kits.push([k, part, pt]); return k; };
+  const shirt = K(0, 1), body = K(0, 0), skin = 0xd8b090, hair = 0x3a2a1e, jeans = 0x3a4660, shoe = 0x222222;
+  shirt.rbox(0.4, 0.58, 0.23, 0.085, 0xf0f0f0, [0, 1.225, 0], [0, 0, 0], 1);
+  body.rbox(0.36, 0.17, 0.22, 0.07, jeans, [0, 0.96, 0], [0, 0, 0], 1);
+  body.capsule([0, 1.48, 0], [0, 1.56, -0.005], 0.05, 0.047, skin, 6, undefined, null, 1);
+  body.ellip(0.083, 0.115, 0.097, skin, [0, 1.635, -0.01], [0, 0, 0], 8);
+  body.capsule([0, 1.655, -0.096], [0, 1.62, -0.108], 0.008, 0.012, skin, 5, undefined, null, 1);
+  body.sphere(0.092, hair, [0, 1.665, 0.004], 8, [0.96, 0.95, 1.06], [0.25, 0, 0], undefined, [0, Math.PI * 2], [0, Math.PI * 0.5]);
+  for (const [s, part] of [[-1, 1], [1, 2]]) { const k = K(part, 0); k.capsule([s * 0.1, 0.94, 0], [s * 0.1, 0.13, 0], 0.075, 0.055, jeans, 6, undefined, null, 1, 1); k.rbox(0.1, 0.09, 0.26, 0.035, shoe, [s * 0.1, 0.045, -0.035], [0, 0, 0], 1); }
+  for (const [s, part] of [[-1, 3], [1, 4]]) { K(part, 1).capsule([s * 0.235, 1.45, 0], [s * 0.27, 0.99, 0], 0.056, 0.044, 0xf0f0f0, 6, undefined, null, 1, 1); K(part, 0).ellip(0.034, 0.05, 0.042, skin, [s * 0.272, 0.92, 0], [0, 0, 0], 5); }
+  const pos = [], nrm = [], colA = [], parts = [], paint = [];
+  for (const [k, part, pt] of kits) {
+    pos.push(...k.pos); nrm.push(...k.nor);
+    for (const c of k.col) colA.push(Math.sqrt(c));   // world kit colours are stored as sqrt(linear), squared back in the shader
+    for (let i = 0; i < k.pos.length / 3; i++) { parts.push(part); paint.push(pt); }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(colA, 3));
+  geo.setAttribute('aPart', new THREE.BufferAttribute(new Float32Array(parts), 1)); geo.setAttribute('aPaint', new THREE.BufferAttribute(new Float32Array(paint), 1));
+  return geo;
+}
+export function personGeo() {   // (exported for tools/scenes/depthstats.mjs)
+  if (FIG) return personGeoFig();
   const g = new Geo(), parts = [], paint = [], skin = col(0xd8b090), hair = col(0x3a2a1e), jeans = col(0x3a4660), shoe = col(0x222222);
   const add = (n, part, pt) => { for (let i = 0; i < n; i++) { parts.push(part); paint.push(pt); } };
   let n0 = g.count;
