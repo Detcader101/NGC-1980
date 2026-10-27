@@ -63,6 +63,7 @@ export function createWorldLife(ctx) {
     const c = chunks.get(key(d.ci, d.cj)); stats.pending--;
     if (!c || c.state !== 'pending' || c.reqId !== d.id) return;   // dropped while building
     c.reveal = { value: 0 }; c.materials = materials(false, c.reveal); const M = c.materials;
+    if (ctx.nature && d.forest) { ctx.nature.forest.add(c.k, d.forest, d.kinds); if (d.scrub?.length) ctx.nature.forest.add(c.k + 's', d.scrub, new Uint8Array(d.scrub.length / 4).fill(3)); }   // RENDERKIT nature
     Object.assign(c, { state: 'ready', forestTrees: d.forestTrees || 0, sN: mk(d.near, M.sN), sF: mk(d.far, M.sF), gN: mk(d.gnear, M.gN), gF: mk(d.gfar, M.gF), sD: mk(d.detail, M.sD), wires: wiresOf(d.wires), dyn: d.dyn, tris: d.near.tris + d.gnear.tris, dtris: d.detail.tris });
     stats.built++; stats.buildMs = d.ms; ambient.addChunk(c);
     if (c.dyn.bld && c.dyn.bld.some(b => DAMAGE.cond(b.k) !== 'intact')) applyRuins(c);   // knocked down before it was last streamed out
@@ -78,9 +79,9 @@ export function createWorldLife(ctx) {
       const k = key(i, j); if (!chunks.has(k)) want.push([d, i, j, k]);
     }
     want.sort((a, b) => a[0] - b[0]);
-    for (const [, i, j, k] of want) { if (stats.pending >= 2 || !worker) break; chunks.set(k, { i, j, x: (i + 0.5) * CHUNK, z: (j + 0.5) * CHUNK, state: 'pending', reqId }); stats.pending++; worker.postMessage({ id: reqId++, ci: i, cj: j }); }
+    for (const [, i, j, k] of want) { if (stats.pending >= 2 || !worker) break; chunks.set(k, { i, j, k, x: (i + 0.5) * CHUNK, z: (j + 0.5) * CHUNK, state: 'pending', reqId }); stats.pending++; worker.postMessage({ id: reqId++, ci: i, cj: j, nature: !!ctx.nature }); }   // (nature: RENDERKIT nature)
     for (const [k, c] of chunks) if (Math.hypot(c.x - cx, c.z - cz) > R + CHUNK * 1.6) {
-      if (c.state === 'ready') { for (const p of ['sN', 'sF', 'gN', 'gF', 'sD', 'ruins', 'wires']) dispose(c[p]); ambient.dropChunk(c); for (const m of Object.values(c.materials)) m.dispose(); }
+      if (c.state === 'ready') { for (const p of ['sN', 'sF', 'gN', 'gF', 'sD', 'ruins', 'wires']) dispose(c[p]); ambient.dropChunk(c); for (const m of Object.values(c.materials)) m.dispose(); ctx.nature?.forest.remove(k); ctx.nature?.forest.remove(k + 's'); }   // (RENDERKIT nature)
       chunks.delete(k);
     }
   }

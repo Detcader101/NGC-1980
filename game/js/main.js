@@ -16,10 +16,13 @@ import { useSceneEnvironment } from './renderkit/gamemats.js';   // RENDERKIT: w
 import { createGamePost } from './renderkit/gamepost.js';   // RENDERKIT post: desktop grading pass (never in XR)
 import { RKUI, UIC, applyUI } from './renderkit/ngcui.js';   // RENDERKIT ui: design-system menus / overlays / HUD (classic colours with ?rk=0)
 import { RK_TERRAIN_GLSL, RK_SKY_GLSL, createWorldUniforms, createWorldSky, linearOutput } from './renderkit/world.js';   // RENDERKIT world
+import { createNatureShared, createForest, createClutter, NATURE_TERRAIN_GLSL, CL } from './renderkit/nature.js';   // RENDERKIT nature
+import { treeKind, PINE, BROAD, SCRUB, natureHash } from './world/forest.js';   // RENDERKIT nature: species by geology / altitude
 import { drawDistance, radialFog } from './world/visibility.js';
-import { zoneGrid, SURF_NAMES, GEOLOGY, geologyOf } from './world/terrain.js';
+import { zoneGrid, SURF_NAMES, GEOLOGY, geologyOf, zoneSurf } from './world/terrain.js';   // (zoneSurf: RENDERKIT nature clutter)
 radialFog(THREE);
-const RKW = RK.on('world');   // RENDERKIT world: terrain / sea / sky / scene.environment (renderkit/world.js); off = the classic shaders
+const RKW = RK.on('world');
+const RKN = RK.on('nature');   // RENDERKIT nature: trees, scrub, ground clutter, terrain near detail (renderkit/nature.js)   // RENDERKIT world: terrain / sea / sky / scene.environment (renderkit/world.js); off = the classic shaders
 import { createFx } from './fx.js';
 import { createControls } from './hotas.js';
 import { createXR } from './xr/runtime.js';
@@ -55,7 +58,7 @@ import { createWorldSolid } from './world/solid.js';   // SEAWORLD: buildings as
 import { createInteriors } from './interiors/interiors.js';   // ngc/interiors: enterable buildings, doors / hatches, the ALBATROSS inside
 import { createSeats } from './interiors/seats.js';           // ngc/interiors: passenger seats in the Huey / CH-46, the people in the seats
 import { DOORS } from './interiors/doors.js';
-import { createWorldLife } from './world/life.js'; import { clearedAt } from './world/net.js';   // WORLD: the lived-in world (towns, roads, traffic, people, faction structures)
+import { createWorldLife } from './world/life.js'; import { clearedAt, clearingAt, structAngle as natStructAngle } from './world/net.js';   // WORLD: the lived-in world (towns, roads, traffic, people, faction structures)
 // ARMOUR (wave 2): the M60A3 TTS and M113A2 as crafts on the island world, their sights, the LCM-8 delivery
 import { createArmorWorld } from './units/armor/armorworld.js';
 import { createArmorCraft } from './units/armor/armorcraft.js';
@@ -469,6 +472,7 @@ const terrainUni = {
   uSurf: { value: surfTex }, uSandC: { value: ISLANDS.map(I => new THREE.Color(...GEOLOGY[geologyOf(I)].sand)) }, uRockC: { value: ISLANDS.map(I => new THREE.Color(...GEOLOGY[geologyOf(I)].rock)) },
   ...createSeaUniforms(),   // SEAWORLD: the live sea's waves, whitecaps, ships for the hull foam
   ...(RKW ? createWorldUniforms() : {}),   // RENDERKIT world: the sky the sea reflects, the sun's colour
+  ...(RKN ? { uNatK: { value: 1 }, uNatR: { value: 170 } } : {}),   // RENDERKIT nature: terrain near detail strength / radius (tier)
 };
 const terrainVS = `
     varying vec3 vW; varying float vRaw; uniform sampler2D uHM, uHMN, uHMF, uHMNprev; uniform vec3 uHMNo, uHMFo, uNear, uHMNpo; uniform float uHMNblend;
@@ -522,6 +526,9 @@ const terrainFS = `
     ${RK_TERRAIN_GLSL}
     ${RK_SKY_GLSL}
     #endif
+    #ifdef RK_NATURE
+    ${NATURE_TERRAIN_GLSL}
+    #endif
     void main(){
       #ifdef FAR
       if(max(abs(vW.x-uNear.x),abs(vW.z-uNear.y))<uNear.z) discard;   // the fine grid covers this
@@ -547,6 +554,10 @@ const terrainFS = `
       float rkSnow=wild*smoothstep(440.,520.,vW.y+120.*(rkM1-.5)+30.*(rkM2-.5))*(1.-smoothstep(.3,.75,rkSl+.2*(rkM2-.5)));
       c=mix(c,vec3(.93,.95,.98)*(.95+.05*rkM3),rkSnow);
       c=mix(mix(vec3(.62,.56,.37),vec3(.8,.74,.5),smoothstep(.15,1.2,vW.y))*(.94+.12*rkM3),c,smoothstep(0.,3.+2.5*(rkM2-.5),vW.y));   // wet sand at the waterline
+      #ifdef RK_NATURE
+      // RENDERKIT nature: what the ground is made of here (weights for rnDetail); the zone's surface map overrides below
+      float rnS=1.-smoothstep(0.,3.+2.5*(rkM2-.5),vW.y), rnR=rk*(1.-rkSnow)*(1.-rnS), rnSn=rkSnow*(1.-rnS), rnSoil=0., rnG=max(0.,1.-rnR-rnSn-rnS);
+      #endif
       #else
       vec3 land=mix(vec3(.17,.5,.15),vec3(.25,.6,.19),chk);
       vec3 rock=mix(vec3(.45,.37,.27),vec3(.52,.43,.32),chk);
@@ -566,10 +577,16 @@ const terrainFS = `
         sd*=.93+.14*rkM3; rkC*=.86+.28*rkM2;
         float rkCl=grass*smoothstep(.3,.5,rkSl+.1*(rkM2-.5));
         c=(rkGr*(grass-rkCl)+rkC*(rkCl+sw.g)+sd*sw.r+vec3(.31,.27,.18)*(.85+.3*rkM2)*sw.b+vec3(.47,.38,.26)*(.88+.24*rkM2)*sw.a)/max(1.,grass+dot(sw,vec4(1.)));
+        #ifdef RK_NATURE
+        { float rnT=max(1.,grass+dot(sw,vec4(1.))); rnG=(grass-rkCl)/rnT; rnR=(rkCl+sw.g)/rnT; rnS=sw.r/rnT; rnSoil=(sw.b+sw.a)/rnT; rnSn=0.; }   // RENDERKIT nature
+        #endif
         #else
         c=(mix(vec3(.2,.43,.14),vec3(.29,.5,.17),chk*.45)*grass+sd*sw.r+rkC*sw.g+vec3(.31,.27,.18)*sw.b+vec3(.47,.38,.26)*sw.a)/max(1.,grass+dot(sw,vec4(1.)));
         #endif
       }
+      #ifdef RK_NATURE
+      if(vRaw>0.) rnDetail(c,n,vW,rnG,rnR,rnS,rnSoil,rnSn,rkSl,rkD,uTime);   // RENDERKIT nature: patches, grain, pebbles, strata, shore (n tilted)
+      #endif
       #ifdef RK_WORLD
       c*=rkSunCol*max(dot(n,normalize(uSun)),0.)*.75+mix(vec3(.6,.64,.55),vec3(.98,1.01,1.06),n.y*.5+.5)*.4;   // RENDERKIT world: the sun's colour + hemisphere ambient
       #else
@@ -599,6 +616,9 @@ const terrainFS = `
         float sp=max(dot(reflect(-L,wg),V),0.); sp*=sp; sp*=sp; sp*=sp; sp*=sp; sp*=sp; sp*=sp;   // ~^64, on the glitter normal
         wc+=vec3(1.,.95,.8)*sp*1.3*(sp>.002?glitAt(p,t,sk):1.);
         ${SEA_FS_FOAM}
+        #ifdef RK_NATURE
+        foam=max(foam,rnLace(p,d,t,length(cameraPosition-vW)));   // RENDERKIT nature: the swash lace at the waterline
+        #endif
         c=mix(wc*(.92+.05*(sin(a1)+sin(a2))),vec3(.88,.94,1.),foam*.8);
         ${SEA_FS_UNDER}   // SEALIFE: the surface from below
       }
@@ -624,11 +644,11 @@ const terrainFS = `
       gl_FragColor=vec4(mix(c,uFog,smoothstep(uFogN,uFogF,fd)),1.);
       #endif
     }`;
-const terrainMat = new THREE.ShaderMaterial({ uniforms: terrainUni, vertexShader: terrainVS, fragmentShader: terrainFS, defines: RKW ? { RK_WORLD: 1 } : {} });
+const terrainMat = new THREE.ShaderMaterial({ uniforms: terrainUni, vertexShader: terrainVS, fragmentShader: terrainFS, defines: RKW ? { RK_WORLD: 1, ...(RKN ? { RK_NATURE: 1 } : {}) } : {} });   // RENDERKIT nature: RK_NATURE needs RK_WORLD
 const terrain = new THREE.Mesh(terrainGeo, RKW ? linearOutput(terrainMat) : terrainMat);   // RENDERKIT world: the define
 terrain.frustumCulled = false; zScene.add(terrain);
 const FAR_C = 24, FAR_N = 220;   // far ring: 12 m cells out to ~1.5 km, only drawn while the view reaches past the fine grid
-const farMat = new THREE.ShaderMaterial({ uniforms: terrainUni, vertexShader: terrainVS, fragmentShader: terrainFS, defines: RKW ? { FAR: 1, RK_WORLD: 1 } : { FAR: 1 } });   // RENDERKIT world
+const farMat = new THREE.ShaderMaterial({ uniforms: terrainUni, vertexShader: terrainVS, fragmentShader: terrainFS, defines: RKW ? { FAR: 1, RK_WORLD: 1, ...(RKN ? { RK_NATURE: 1 } : {}) } : { FAR: 1 } });   // RENDERKIT world (+ nature)
 const farTerrain = new THREE.Mesh(new THREE.PlaneGeometry(FAR_C * FAR_N, FAR_C * FAR_N, FAR_N, FAR_N).rotateX(-Math.PI / 2), RKW ? linearOutput(farMat) : farMat);
 farTerrain.frustumCulled = false; farTerrain.visible = false; zScene.add(farTerrain);
 // SEAWORLD (the black dome on the horizon): the sky dome and both terrain windows are centred on the camera that
@@ -657,17 +677,96 @@ const fx = createFx(zScene, { groundY: (x, z) => Math.max(terrainH(x, z), 0), is
 const TREES = [];
 {
   let s = 12345; const r = () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296;
-  const geo = new THREE.ConeGeometry(1.3, 5, 6); geo.translate(0, 2.5, 0);
-  const mesh = new THREE.InstancedMesh(geo, fogPatch(new THREE.MeshLambertMaterial({ color: 0x1f7a2a, flatShading: true }), fog, terrainUni.uTime), 3200);
+  const geo = RKN ? null : new THREE.ConeGeometry(1.3, 5, 6); geo?.translate(0, 2.5, 0);
+  const mesh = RKN ? null : new THREE.InstancedMesh(geo, fogPatch(new THREE.MeshLambertMaterial({ color: 0x1f7a2a, flatShading: true }), fog, terrainUni.uTime), 3200);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(); let n = 0;
   for (let i = 0; i < 60000 && n < 3200; i++) {
     const x = (r() * 2 - 1) * BOUND, z = (r() * 2 - 1) * BOUND, h = terrainH(x, z);
     if (h < 2.5 || h > 24 || clearedAt(x, z) || onHard(HARDS, x, z, 6) || PADS.some(p => Math.hypot(x - p.x, z - p.z) < (p.isl.cave ? 16 : 34)) || BASES.some(b => Math.hypot(x - b.x, z - b.z) < 30 || stripW(x, z, b) < 1)) continue;   // WORLD: clearedAt keeps trees off the villages and roads
     const k = 0.7 + r() * 1.1; sc.set(k, k * (0.8 + r() * 0.6), k);
-    m.compose(new THREE.Vector3(x, h, z), q, sc); mesh.setMatrixAt(n++, m); TREES.push({ x, z, y: h, r: 0.9 * k });   // (TREES: colliders for the ground host)
+    if (mesh) { m.compose(new THREE.Vector3(x, h, z), q, sc); mesh.setMatrixAt(n, m); } n++; TREES.push({ x, z, y: h, r: 0.9 * k, k });   // (TREES: colliders for the ground host)
   }
-  mesh.count = n; zScene.add(mesh); TREES.mesh = mesh;   // ARMOUR: the instances a tank pushes over (felled in place)
+  if (mesh) { mesh.count = n; zScene.add(mesh); TREES.mesh = mesh; }   // ARMOUR: the instances a tank pushes over (felled in place)
 }
+// RENDERKIT nature: the same trees (same places, sizes and colliders as ?rk=0) drawn as species with LOD, plus maquis scrub on
+// the hills and ground clutter round the camera (renderkit/nature.js). Off: the classic cones above.
+const NAT = RKN ? (() => {
+  const shared = createNatureShared();
+  const forest = createForest({ scene: zScene, fog, uTime: terrainUni.uTime, shared });
+  const geoAt = (x, z) => { const I = ISLANDS.find(I => Math.hypot(x - I.x, z - I.z) < I.r + 60); return I ? geologyOf(I) : 'granite'; };
+  { const d = new Float32Array(TREES.length * 4), kinds = new Uint8Array(TREES.length);
+    TREES.forEach((t, i) => { d.set([t.x, t.y, t.z, t.k], i * 4); kinds[i] = treeKind(t.x, t.z, t.y, natureHash(Math.round(t.x * 10), Math.round(t.z * 10)), geoAt(t.x, t.z)); });
+    forest.add('zone', d, kinds, { far: true }); }
+  TREES.fell = (i, dx, dz) => forest.fell('zone', i, dx, dz);   // ARMOUR: a tank lays a tree over (was TREES.mesh.setMatrixAt)
+  // is (x, z) open ground where things may grow? (not a road, village, field, hard, pad, base, structure or shaft)
+  const open = (x, z, pad = 0) => !(clearedAt(x, z) || onHard(HARDS, x, z, 4 + pad) || PADS.some(p => Math.hypot(x - p.x, z - p.z) < (p.isl.cave ? 22 : 40) + pad) || BASES.some(b => Math.hypot(x - b.x, z - b.z) < BASE_R + 8 + pad || stripW(x, z, b) < 1)
+    || (war && ISLANDS.some(I => I.structs && Math.abs(x - I.x) < I.r + 80 && Math.abs(z - I.z) < I.r + 80 && I.structs.some(s => Math.hypot(x - s.x, z - s.z) < (s.r || 4) + 3 + pad))));
+  // clutter is finer: it grows in towns and on pasture, kept off the roads (+1.2 m), crop fields, farmyards, the apron,
+  // and every building, wall and parked thing the soldier can bump into (world/solid.js footprints + 0.5 m)
+  const inPart = (x, z, p, m) => { if (p.r) return Math.hypot(x - p.x, z - p.z) < p.r + m; const c = Math.cos(p.yaw || 0), s = Math.sin(p.yaw || 0), dx = x - p.x, dz = z - p.z; return Math.abs(c * dx - s * dz) < p.hw + m && Math.abs(s * dx + c * dz) < p.hl + m; };
+  // the pad dressing (world/life.js buildPadDressing, turned to structAngle + 90 deg): the ops shack and the windsock mast
+  let padKit0 = null; const padKit = () => padKit0 ||= ISLANDS.filter(I => I.pad).flatMap(I => { const p = I.pad, r0 = p.r || 8.5, a = natStructAngle(I) + Math.PI / 2, c = Math.cos(a), s = Math.sin(a), W = (u, v) => [p.x + u * c + v * s, p.z - u * s + v * c];
+    return [[...W(r0 + 9, 4), 3.2], [...W(r0 + 6, 0), 1.2]]; });
+  const openGround = (x, z) => !(clearingAt(x, z) || onHard(HARDS, x, z, 3) || PADS.some(p => Math.hypot(x - p.x, z - p.z) < (p.isl.cave ? PAD_R + 4.5 : 27)) || padKit().some(([px, pz, r]) => Math.hypot(x - px, z - pz) < r) || BASES.some(b => Math.hypot(x - b.x, z - b.z) < BASE_R + 1.5)
+    || (war && ISLANDS.some(I => I.structs && Math.abs(x - I.x) < I.r + 80 && Math.abs(z - I.z) < I.r + 80 && I.structs.some(s => Math.hypot(x - s.x, z - s.z) < (s.r || 4) + 2)))
+    || worldSolid.near(x, z, 1).some(p => inPart(x, z, p, 0.5)));
+  // maquis on the zone's hills and between the trees: built once the war has placed its structures (first update)
+  let shrubs = false;
+  function buildShrubs() {
+    shrubs = true; let s = 777; const r = () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; const d = [];
+    for (let i = 0; i < 90000 && d.length < 5200 * 4; i++) {
+      const x = (r() * 2 - 1) * BOUND, z = (r() * 2 - 1) * BOUND, u = r(), w = r();
+      const stand = Math.sin(x * 0.021 + Math.sin(z * 0.017) * 2.3) * Math.sin(z * 0.019 - x * 0.006 + 1.3);   // patches of scrub, open grass between
+      if (u > 0.25 + 0.6 * Math.max(0, stand)) continue;
+      const h = terrainH(x, z); if (h < 3 || h > 90) continue;
+      const sy = 2 / Math.hypot(2, terrainH(x + 2, z) - h, terrainH(x, z + 2) - h); if (sy < 0.72 || !open(x, z, 2)) continue;
+      d.push(x, h, z, 0.8 + w * 1.3);
+    }
+    forest.add('zone-scrub', new Float32Array(d), new Uint8Array(d.length / 4).fill(SCRUB));
+  }
+  // clutter: what the ground is at (x, z) and its RENDERED height (the near grid's triangles over its 2.5 m lattice: inside the
+  // zone the lattice is terrainH; outside, the 4 m worker map, i.e. bilinear terrainH on a 4 m lattice - cached)
+  const lat4 = new Map(), h4 = (i, j) => { const k = i * 131072 + j; let v = lat4.get(k); if (v === undefined) { if (lat4.size > 60000) lat4.clear(); v = terrainH(i * 4, j * 4); lat4.set(k, v); } return v; };
+  const latH = (x, z) => { if (Math.max(Math.abs(x), Math.abs(z)) < BOUND) return terrainH(x, z); const gx = x / 4, gz = z / 4, i = Math.floor(gx), j = Math.floor(gz), fx = gx - i, fz = gz - j; return (h4(i, j) * (1 - fx) + h4(i + 1, j) * fx) * (1 - fz) + (h4(i, j + 1) * (1 - fx) + h4(i + 1, j + 1) * fx) * fz; };
+  const renderH = (x, z) => { const gx = x / TG, gz = z / TG, i = Math.floor(gx), j = Math.floor(gz), fx = gx - i, fz = gz - j, X = i * TG, Z = j * TG;
+    const h00 = latH(X, Z), h10 = latH(X + TG, Z), h01 = latH(X, Z + TG), h11 = latH(X + TG, Z + TG);
+    return fx + fz <= 1 ? h00 + (h10 - h00) * fx + (h01 - h00) * fz : h11 + (h01 - h11) * (1 - fx) + (h10 - h11) * (1 - fz); };
+  const rockC = ISLANDS.map(I => GEOLOGY[geologyOf(I)].rock.map(v => v * v * 1.15));   // (the shader's palette is display-ish: squared to linear)
+  const SURF_CL = { grass: CL.GRASS, sand: CL.SAND, wetsand: -1, rock: CL.ROCK, mud: CL.MUD, dirt: CL.DIRT, shingle: CL.SHINGLE, marsh: CL.MUD };
+  const sample = (x, z) => {
+    const y = renderH(x, z); if (y < 0.35 || inHole(x, z)) return null;
+    const zone = Math.max(Math.abs(x), Math.abs(z)) < BOUND;
+    let s;
+    if (zone) { s = SURF_CL[zoneSurf(x, z)]; if (s === undefined || s < 0) return null; if (s === CL.SAND && y > 1.6) s = CL.DUNE; }
+    else { const sy = 2 / Math.hypot(2, latH(x + 2, z) - y, latH(x, z + 2) - y); s = y < 2.5 ? (y > 1.4 ? CL.DUNE : CL.SAND) : sy < 0.78 || y > 300 ? (y > 470 ? -1 : CL.ROCK) : CL.GRASS; if (s < 0) return null; }
+    if (!openGround(x, z)) return null;
+    const I = zone ? ISLANDS.findIndex(I => Math.hypot(x - I.x, z - I.z) < I.r + 40) : -1;
+    return { y, s, rock: I >= 0 ? rockC[I] : null };
+  };
+  const clutter = createClutter({ scene: zScene, fog, uTime: terrainUni.uTime, shared, sample });
+  const applyTier = () => { if (terrainUni.uNatK) { terrainUni.uNatK.value = shared.tier.micro; terrainUni.uNatR.value = shared.tier.microR; } clutter.reset(); forest.markDirty(); };
+  applyTier();
+  let xrTier = null;
+  const N = {
+    shared, forest, clutter, sample, open, get zoneTrees() { return TREES; },
+    why: (x, z) => ({ y: renderH(x, z), surf: zoneSurf(x, z), clear: clearingAt(x, z), hard: onHard(HARDS, x, z, 3), pad: PADS.some(p => Math.hypot(x - p.x, z - p.z) < (p.isl.cave ? PAD_R + 4.5 : 27)) || padKit().some(([px, pz, r]) => Math.hypot(x - px, z - pz) < r), base: BASES.some(b => Math.hypot(x - b.x, z - b.z) < BASE_R + 1.5),
+      struct: !!(war && ISLANDS.some(I => I.structs && I.structs.some(s => Math.hypot(x - s.x, z - s.z) < (s.r || 4) + 2))), solid: worldSolid.near(x, z, 1).filter(p => inPart(x, z, p, 0.5)).map(p => p.t) }),   // (debug: why nothing grows here)
+    setTier(name) { if (shared.setTier(name)) applyTier(); return shared.tierName; },
+    stats: () => ({ tier: shared.tierName, forest: { ...forest.stats }, clutter: { ...clutter.stats } }),
+    // once a frame (main loop): the wind clock runs on the game's time (stops in the pause menu), the sun for the
+    // translucency, the forest and clutter sets round the camera that renders. XR runs the low tier (and goes back after).
+    update(dt, cam, playing) {
+      if (!shrubs && war) buildShrubs();
+      if (playing) shared.uniforms.uWind.value += dt;
+      shared.uniforms.uNatSun.value.copy(sun.position).normalize(); shared.uniforms.uNatSunCol.value.copy(sun.color);
+      const xr = !!(XR && XR.active);
+      if (xr && xrTier === null) { xrTier = shared.tierName; N.setTier('low'); } else if (!xr && xrTier !== null) { N.setTier(xrTier); xrTier = null; }
+      forest.update(cam); clutter.update(cam);
+    },
+  };
+  if (params.has('debug')) window.__nature = N;
+  return N;
+})() : null;
 // Wild forests stream with towns in stable tiles (world/life.js).
 {   // ARMOUR: the landing hards' concrete, kerbs, marker posts and signs (under the fog of war like the rest of the zone)
   const fp = m => fogPatch(m, fog, terrainUni.uTime);
@@ -790,7 +889,7 @@ war = createWar({
 if (params.has('sea')) war.setSeaDrift(params.has('seadrift')); else { war.setSea(SEA_PREF.ss); war.setSeaDrift(SEA_PREF.drift); }   // SEAWORLD
 const markers = createMarkerLayer({ war, fog, sim: params.has('sim'), before: $('hud'), query: params.get('markers'), keepOut: '#tl,#war,#feed>div,#tr,#bot,#radar,#hint,#simov .pan,#simov .top,#simov .tl,#simov .map,#simov .keys' });   // UNIT MARKERS (game/js/ui/)
 if (params.has('debug')) window.__MK = markers;   // (tests)
-const world = createWorldLife({ scene: zScene, fx, sfx, terrainH, isWater, nav, war, fog, uTime: terrainUni.uTime, view, ISLANDS, PADS, BASES });   // WORLD (world/life.js)
+const world = createWorldLife({ scene: zScene, fx, sfx, terrainH, isWater, nav, war, fog, uTime: terrainUni.uTime, view, ISLANDS, PADS, BASES, nature: NAT });   // WORLD (world/life.js); nature: RENDERKIT nature (wild forests as instances)
 // ---------------------------------------------------------------- the HORNET (jetplay.js)
 const jetGroundY = (x, z) => Math.max(terrainH(x, z), 0, war.deckY(x, z));   // no shaft holes for a jet: the apron is solid
 const jetPlayCtx = {   // TOMCAT: shared by the HORNET (jetplay.js) and the TOMCAT (units/air/tomcatplay.js)
@@ -1359,6 +1458,7 @@ const AW = createArmorWorld({
   holes: BASES.map(b => ({ x: b.x, z: b.z, r: HOLE_R })), trees: TREES, structs: function* () { for (const I of ISLANDS) if (I.structs) yield* I.structs; },
   items: () => world.zone.flatMap(e => e.items), paved: (x, z) => !!onHard(HARDS, x, z), bounds: skip => crafts.bounds(skip), hitTest: (x, y, z) => war.hitTest(x, y, z, 1, 0.2),
   onFell: (t, dx, dz, i) => {   // lay a pushed-over tree down along the push
+    if (TREES.fell) return TREES.fell(i, dx, dz);   // RENDERKIT nature: the species instances
     const m4 = new THREE.Matrix4(), p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3(); TREES.mesh.getMatrixAt(i, m4); m4.decompose(p, q, s);
     q.setFromAxisAngle(new THREE.Vector3(dz, 0, -dx).normalize(), 1.35); TREES.mesh.setMatrixAt(i, m4.compose(p, q, s)); TREES.mesh.instanceMatrix.needsUpdate = true;
   },
@@ -2515,6 +2615,7 @@ function frame(now, xrFrame) {
   const t1 = performance.now();
   updateCamsAndMeshes(dt, now / 1000);
   world.update(dt, zCam, G.state === 'play');   // WORLD: stream the lived-in world round the camera, ambient life
+  NAT?.update(dt, zCam, G.state === 'play');   // RENDERKIT nature: wind clock (game time), trees and clutter round the camera
   commander.update(dt, G.state !== 'title');   // COMMANDER: the fleet strip under the score, the open board's statuses
   techUI.update(dt);   // TECH TREE: the open RESEARCH page refreshes ~4x a second
   pool.update(dt, G.state === 'play' && G.mode === 'zarch'); if (motorPick > 0) motorPick -= dt;   // ngc/wheeledgame: parked / town / traffic vehicles, MG rounds, engine sound
