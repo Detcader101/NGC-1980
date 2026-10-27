@@ -8,6 +8,7 @@
 // animate(sim) poses the moving parts from the sim (airframe A for the SHRIKE / REAPER, point-mass D for the SHAHED).
 import * as THREE from 'three';
 import { M, B, V, slab, loft, merge, cylZ, boxG, mesh, rod, hinged, tube, addM, canvasTex, decal, drawRunawayMark } from './meshkit.js';
+import { DETAIL } from '../../renderkit/gamemats.js';   // RENDERKIT surface
 import { SHRIKE, REAPER } from './rwfm.js';
 
 const cyanM = () => B(0x8ff8ff);
@@ -16,7 +17,7 @@ const rwTex = (text) => canvasTex('rwmark' + text, 256, 64, (x, w, h) => { x.cle
 // ============================================================================================ RW-4 SHRIKE
 export function buildShrikeModel() {
   const g = new THREE.Group(); g.name = 'shrike';
-  const ceramM = M(0xd6d3cb, { shininess: 6 }), compM = M(0x2a2d32, { shininess: 10 }), darkM = M(0x111316), seamM = cyanM(), lensM = M(0x0a1418, { emissive: 0x0b4048, shininess: 90 });
+  const ceramM = M(0xd6d3cb, { shininess: 6, rk: { role: 'ceramic', detail: DETAIL.rw } }), compM = M(0x2a2d32, { shininess: 10, rk: 'ceramic' }), darkM = M(0x111316, { rk: 'dark' }), seamM = cyanM(), lensM = M(0x0a1418, { emissive: 0x0b4048, shininess: 90, rk: 'lamp' });   // RENDERKIT surface roles
   // body: a flat chined blended delta, lofted from diamond sections (half profile: top, chine, keel)
   const P = [
     [-6.2, [[0, -0.05], [0, -0.05], [0, -0.05]]],
@@ -68,7 +69,7 @@ export function buildShrikeModel() {
   const tx = decal(rwTex('RW-4'), 1.4, 0.35, g, 'stencil'); tx.position.set(-2.4, 0.075, 0.9); tx.rotation.set(-Math.PI / 2, 0, -0.35);
   // gear (only when lowered)
   const gearG = new THREE.Group(); g.add(gearG); gearG.name = 'gear';
-  for (const p of SHRIKE.GEAR) { rod(V(p[0], -0.4, p[2]), V(p[0], p[1] + 0.3, p[2]), 0.09, M(0x8a8f95), gearG); mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.18, 10).rotateZ(Math.PI / 2).translate(p[0], p[1] + 0.3, p[2]), M(0x1b1b1b), gearG, 'tyre'); }
+  for (const p of SHRIKE.GEAR) { rod(V(p[0], -0.4, p[2]), V(p[0], p[1] + 0.3, p[2]), 0.09, M(0x8a8f95), gearG); mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.18, 10).rotateZ(Math.PI / 2).translate(p[0], p[1] + 0.3, p[2]), M(0x1b1b1b, { rk: 'rubber' }), gearG, 'tyre'); }
   function animate(A, dt = 0, time = 0) {
     const S = A.surf || {}, el = S.stab || 0, ail = S.ail || 0, rud = S.rud || 0;
     surf.elevR.rotation.x = -(el + ail); surf.elevL.rotation.x = -(el - ail);
@@ -85,7 +86,7 @@ export function buildShrikeModel() {
 // ============================================================================================ MQ-9 REAPER
 export function buildReaperModel() {
   const g = new THREE.Group(); g.name = 'reaper';
-  const greyM = M(0x8d9398), lightM = M(0xa3a9ad), darkM = M(0x2a2d30), blackM = M(0x0f1011), patchM = M(0x6e7479), cyanS = cyanM(), podM = M(0x1d2023);
+  const greyM = M(0x8d9398, { rk: { detail: true } }), lightM = M(0xa3a9ad, { rk: { detail: true } }), darkM = M(0x2a2d30), blackM = M(0x0f1011), patchM = M(0x6e7479), cyanS = cyanM(), podM = M(0x1d2023);
   // fuselage: bulbous satcom nose, slender body, tapering to the pusher; half profile [top, side, keel]
   const P = [
     [-5.45, [[0, 0.05], [0, 0.05], [0, 0.05]]],
@@ -130,14 +131,14 @@ export function buildReaperModel() {
   const ball = new THREE.Group(); ball.position.set(0, -0.48, -4.05); g.add(ball);
   mesh(cylZ(0.16, 0.16, 0.25, 8).rotateX(Math.PI / 2).translate(0, 0.15, 0), darkM, ball, 'ballMount');
   mesh(new THREE.SphereGeometry(0.27, 10, 8), M(0x3a3f44, { shininess: 50 }), ball, 'ball');
-  mesh(new THREE.CircleGeometry(0.11, 10).translate(0, 0, -0.272).rotateY(Math.PI), M(0x0a1a22, { emissive: 0x0a3040, shininess: 99 }), ball, 'aperture');
+  mesh(new THREE.CircleGeometry(0.11, 10).translate(0, 0, -0.272).rotateY(Math.PI), M(0x0a1a22, { emissive: 0x0a3040, shininess: 99, rk: 'lamp' }), ball, 'aperture');
   const pod = mesh(merge([cylZ(0.18, 0.18, 2.1, 8), new THREE.SphereGeometry(0.18, 8, 6).translate(0, 0, -1.05)]), podM, g, 'rwPod'); pod.position.set(-3.6, -0.15, -0.3);
   mesh(new THREE.TorusGeometry(0.185, 0.02, 4, 12).translate(0, 0, -0.5), cyanS, pod, 'podRing'); rod(V(-3.6, 0.12, -0.3), V(-3.6, -0.02, -0.3), 0.08, darkM, g, 'podPylon');
   for (const [x, z] of [[0, -1.0], [0.18, 1.5]]) mesh(boxG(0.03, 0.32, 0.18, x, 0.55, z), darkM, g, 'antenna');
   const st = decal(rwTex('RW-Q9'), 1.2, 0.3, g, 'stencil'); st.position.set(0.42, 0.05, -1.8); st.rotation.y = Math.PI / 2;
   const st2 = decal(rwTex('RW-Q9'), 1.2, 0.3, g, 'stencil'); st2.position.set(-0.42, 0.05, -1.8); st2.rotation.y = -Math.PI / 2;
   const gearG = new THREE.Group(); g.add(gearG);
-  for (const p of REAPER.GEAR) { rod(V(p[0], -0.3, p[2]), V(p[0], p[1] + 0.22, p[2]), 0.06, M(0x8a8f95), gearG); mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.12, 10).rotateZ(Math.PI / 2).translate(p[0], p[1] + 0.22, p[2]), M(0x1b1b1b), gearG, 'tyre'); }
+  for (const p of REAPER.GEAR) { rod(V(p[0], -0.3, p[2]), V(p[0], p[1] + 0.22, p[2]), 0.06, M(0x8a8f95), gearG); mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.12, 10).rotateZ(Math.PI / 2).translate(p[0], p[1] + 0.22, p[2]), M(0x1b1b1b, { rk: 'rubber' }), gearG, 'tyre'); }
   let spin = 0;
   function animate(A, dt = 0, time = 0) {
     const S = A.surf || {}, ail = S.ail || 0, el = S.stab || 0, rud = S.rud || 0;

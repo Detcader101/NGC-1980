@@ -8,6 +8,7 @@
 // Frame: the hull frame of trackfm (origin on the ground at static ride, x right, y up, z aft; forward is -z).
 import * as THREE from 'three';
 import { M60A3 } from './m60a3.js';
+import { pbr, decal as rkDecal, DETAIL } from '../../renderkit/gamemats.js';   // RENDERKIT surface
 
 const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const TAU = Math.PI * 2;
@@ -113,18 +114,21 @@ export function rodGeo(a, b, w, h = w) {
   const m = new THREE.Matrix4().compose(V3().addVectors(a, b).multiplyScalar(0.5), new THREE.Quaternion().setFromUnitVectors(V3(0, 0, 1), d.normalize()), V3(1, 1, 1));
   return g.applyMatrix4(m);
 }
+// RENDERKIT surface: LM(colour, opts, role) is the same Lambert with ?rk=0, else a RenderKit role material; the paint
+// (vertex colours carry the camouflage and baked mud) is painted armour with dust and chipped-to-steel wear on top
+export const LM = (color, o, rk) => pbr(() => new THREE.MeshLambertMaterial({ ...(color !== undefined ? { color } : {}), flatShading: true, ...o }), color, { flatShading: true, ...o, rk });
 export const MAT = {
-  paint: () => new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }),
-  steel: () => new THREE.MeshLambertMaterial({ color: 0x3c3a36, flatShading: true }),
-  bright: () => new THREE.MeshLambertMaterial({ color: 0x6d6a62, flatShading: true }),    // worn track guides / pins
-  rubber: () => new THREE.MeshLambertMaterial({ color: 0x1d1c1a, flatShading: true }),
-  glass: () => new THREE.MeshLambertMaterial({ color: 0x1f3a3e, emissive: 0x0a1a1c, flatShading: true }),
-  canvas: () => new THREE.MeshLambertMaterial({ color: 0x5b5a3e, flatShading: true }),
-  black: () => new THREE.MeshLambertMaterial({ color: 0x141412, flatShading: true }),
-  red: () => new THREE.MeshLambertMaterial({ color: 0x8a1a12, emissive: 0x200404, flatShading: true }),
-  amber: () => new THREE.MeshLambertMaterial({ color: 0xc08a2a, emissive: 0x2a1a04, flatShading: true }),
-  lamp: () => new THREE.MeshLambertMaterial({ color: 0xd8d8cc, emissive: 0x000000, flatShading: true }),
-  mud: () => new THREE.MeshLambertMaterial({ color: 0x4a3f30, flatShading: true }),
+  paint: () => LM(undefined, { vertexColors: true }, { role: 'armor', detail: DETAIL.armor }),
+  steel: () => LM(0x3c3a36, {}, 'grimy'),
+  bright: () => LM(0x6d6a62, {}, 'metal'),    // worn track guides / pins
+  rubber: () => LM(0x1d1c1a, {}, 'rubber'),
+  glass: () => LM(0x1f3a3e, { emissive: 0x0a1a1c }, 'lamp'),
+  canvas: () => LM(0x5b5a3e, {}, 'fabric'),
+  black: () => LM(0x141412, {}, 'dark'),
+  red: () => LM(0x8a1a12, { emissive: 0x200404 }, 'lamp'),
+  amber: () => LM(0xc08a2a, { emissive: 0x2a1a04 }, 'lamp'),
+  lamp: () => LM(0xd8d8cc, { emissive: 0x000000 }, 'lamp'),
+  mud: () => LM(0x4a3f30, {}, 'concrete'),
 };
 
 // ---------------------------------------------------------------------------------------------------- running gear
@@ -316,7 +320,7 @@ function stencil(text, w = 256, h = 64, color = '#e8e4d4', font = 'bold 44px "Co
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 function decal(tex, w, h, pos, rotY = 0, rotX = 0) {
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshLambertMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), rkDecal(() => new THREE.MeshLambertMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }), { map: tex }));   // RENDERKIT surface
   m.position.copy(pos); m.rotation.set(rotX, rotY, 0, 'YXZ'); return m;
 }
 
@@ -330,8 +334,8 @@ export function buildM60A3Mesh(opts = {}) {
   const T = M60A3.TRACK, seed = opts.seed ?? 3.7, dirt = opts.dirt ?? 1;
   const root = new THREE.Group(); root.name = 'M60A3';
   const paintM = MAT.paint(), steel = MAT.steel(), bright = MAT.bright(), rubber = MAT.rubber(), glass = MAT.glass(), canvas = MAT.canvas(), black = MAT.black();
-  const steelP = new THREE.MeshLambertMaterial({ color: 0x4c4a3c, flatShading: true });   // painted running gear, muddy
-  const trackSteel = new THREE.MeshLambertMaterial({ color: 0x34302a, flatShading: true });
+  const steelP = LM(0x4c4a3c, {}, 'armor');   // painted running gear, muddy
+  const trackSteel = LM(0x34302a, {}, 'grimy');
   const W = weathered(seed, null, dirt);
   const P = geo => paintFaces(geo, W);
   const hull = new THREE.Group(); hull.name = 'hull'; root.add(hull);
@@ -393,7 +397,7 @@ export function buildM60A3Mesh(opts = {}) {
   parts.push(P(box(0.28, 0.3, 0.12, 0.95, 1.35, 3.53)));
   hull.add(new THREE.Mesh(box(0.12, 0.12, 0.2, 0, 0.9, 3.56), steelP));
   for (let k = 0; k < 5; k++) hull.add(new THREE.Mesh(new THREE.TorusGeometry(0.22 - k * 0.012, 0.018, 4, 14).rotateY(Math.PI / 2).translate(0, 1.42, 3.52 + 0.0), steel));
-  for (const s of [-1, 1]) hull.add(new THREE.Mesh(box(0.17, 0.46, 0.33, s * 0.42, 1.38, 3.66), new THREE.MeshLambertMaterial({ color: 0x3e4a2e, flatShading: true })));   // jerry cans
+  for (const s of [-1, 1]) hull.add(new THREE.Mesh(box(0.17, 0.46, 0.33, s * 0.42, 1.38, 3.66), LM(0x3e4a2e, {}, 'flat')));   // jerry cans
   // spare track blocks on the glacis (a common field fit)
   for (let k = 0; k < 3; k++) { const sb = new THREE.Mesh(box(0.7, 0.05, 0.16, 0, 0, 0), trackSteel); sb.position.set(0, 1.3 + k * 0.07, -2.9 + k * 0.155); sb.rotation.x = -1.13; hull.add(sb); }
   const hullMesh = new THREE.Mesh(merge(parts), paintM); hullMesh.name = 'hullShell'; hull.add(hullMesh); shell.push(hullMesh);
@@ -467,11 +471,11 @@ export function buildM60A3Mesh(opts = {}) {
   turret.add(new THREE.Mesh(merge(rk), steelP));
   turret.add(new THREE.Mesh(box(2.1, 0.06, 0.62, 0, 0.4, 2.29), steelP));
   // the crew's kit in the rack: bedrolls, duffel bags, ammo cans, a water can, the folded tarpaulin on top
-  const kit = new THREE.MeshLambertMaterial({ color: 0x3c4630, flatShading: true }), duffel = new THREE.MeshLambertMaterial({ color: 0x55553a, flatShading: true });
+  const kit = LM(0x3c4630, {}, 'fabric'), duffel = LM(0x55553a, {}, 'fabric');
   for (let k = 0; k < 3; k++) { const br = new THREE.Mesh(cylX(0.13, 0.62, 10, -0.62 + k * 0.6, 0.57, 2.42), canvas); br.rotation.y = (k - 1) * 0.05; turret.add(br); }
   for (const [x, w] of [[-0.75, 0.42], [0.55, 0.5]]) turret.add(new THREE.Mesh(cylZ(0.17, w, 9, x, 0.6, 2.2), duffel));
   for (let k = 0; k < 3; k++) turret.add(new THREE.Mesh(box(0.28, 0.2, 0.15, 0.05 + (k - 1) * 0.3, 0.53, 2.1), kit));
-  turret.add(new THREE.Mesh(box(0.17, 0.46, 0.33, 0.85, 0.66, 2.42), new THREE.MeshLambertMaterial({ color: 0x3e4a2e, flatShading: true })));   // water can
+  turret.add(new THREE.Mesh(box(0.17, 0.46, 0.33, 0.85, 0.66, 2.42), LM(0x3e4a2e, {}, 'flat')));   // water can
   turret.add(new THREE.Mesh(box(1.5, 0.16, 0.5, -0.15, 0.82, 2.33).rotateZ(0.03), canvas));
   const turretShell = new THREE.Mesh(merge(tparts), paintM); turretShell.name = 'turretShell'; turret.add(turretShell); shell.push(turretShell);
   // turret markings: vehicle number on both sides, a small subdued star on the bustle

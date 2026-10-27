@@ -4,6 +4,7 @@
 // Local frame: +x right, +y up, nose along -z, origin at the CG; ground under the skids at y = -1.84.
 // API: buildHueyMesh() -> { group, shell, animate(S, dt, time, inside) }, S = main.js heliLook().
 import * as THREE from 'three';
+import { wrapFactory, glass, decal, DETAIL } from './renderkit/gamemats.js';   // RENDERKIT surface
 
 const D2R = Math.PI / 180, MAST_TILT = 5 * D2R;
 export const HUEY = {
@@ -12,7 +13,8 @@ export const HUEY = {
   PODS: [[-1.7, -0.4, -0.6], [1.7, -0.4, -0.6]], GUN: [-1.22, -0.15, 0.25],              // M60 pintle (above the pod line)
 };
 
-const M = (c, o = {}) => new THREE.MeshPhongMaterial({ color: c, flatShading: true, shininess: 14, ...o });
+// RENDERKIT surface: lusterless OD by default (the same Phong with ?rk=0); { rk: role | { role, detail } } per paint
+const M = wrapFactory((c, o = {}) => new THREE.MeshPhongMaterial({ color: c, flatShading: true, shininess: 14, ...o }), 'flat', DETAIL.army);
 const B = (c, o = {}) => new THREE.MeshBasicMaterial({ color: c, ...o });
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const AV = a => (a.isVector3 ? a : V(...a));
@@ -173,13 +175,13 @@ function crewman(put, mats, arms = true) {
 // ------------------------------------------------------------------------------------------- the model
 export function buildHueyMesh() {
   const g = new THREE.Group(); g.name = 'huey';
-  const oliveM = M(0x4b5320), olive2M = M(0x434a1d), frameM = M(0x30351c), blackM = M(0x141512, { shininess: 6 }), darkM = M(0x23261e);
-  const metalM = M(0x45484a, { shininess: 50 }), bladeM = M(0x272927, { shininess: 25 }), tipM = M(0xe2bb1a), redM = M(0xb81c16), whiteM = M(0xe8e8e2);
-  const screenM = M(0x1b1d19, { shininess: 4 }), innerM = M(0x353b2c, { side: THREE.BackSide }), floorM = M(0x2a2d25);
-  const glassM = new THREE.MeshPhongMaterial({ color: 0x8fb5a2, specular: 0xffffff, shininess: 90, transparent: true, opacity: 0.28, depthWrite: false, side: THREE.DoubleSide });
-  const roofGlassM = new THREE.MeshPhongMaterial({ color: 0x2f7a46, specular: 0xd0ffe0, shininess: 90, transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide });
-  const doorGlassM = M(0x1c2a22, { shininess: 90, specular: 0x9fb8aa });
-  const crewM = { suit: M(0x5a6247), vest: M(0x3a3f2e), helmet: M(0x4a5532), skin: M(0xc19a77), visor: M(0x151515) };
+  const oliveM = M(0x4b5320, { rk: { detail: true } }), olive2M = M(0x434a1d, { rk: { detail: true } }), frameM = M(0x30351c), blackM = M(0x141512, { shininess: 6, rk: 'dark' }), darkM = M(0x23261e);
+  const metalM = M(0x45484a, { shininess: 50 }), bladeM = M(0x272927, { shininess: 25, rk: 'paint' }), tipM = M(0xe2bb1a), redM = M(0xb81c16), whiteM = M(0xe8e8e2);
+  const screenM = M(0x1b1d19, { shininess: 4, rk: 'fabric' }), innerM = M(0x353b2c, { side: THREE.BackSide }), floorM = M(0x2a2d25, { rk: 'rubber' });
+  const glassM = glass(() => new THREE.MeshPhongMaterial({ color: 0x8fb5a2, specular: 0xffffff, shininess: 90, transparent: true, opacity: 0.28, depthWrite: false, side: THREE.DoubleSide }), { color: 0x8fb5a2, opacity: 0.28 });
+  const roofGlassM = glass(() => new THREE.MeshPhongMaterial({ color: 0x2f7a46, specular: 0xd0ffe0, shininess: 90, transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide }), { color: 0x2f7a46, opacity: 0.6 });
+  const doorGlassM = M(0x1c2a22, { shininess: 90, specular: 0x9fb8aa, rk: 'lamp' });
+  const crewM = { suit: M(0x5a6247, { rk: 'fabric' }), vest: M(0x3a3f2e, { rk: 'fabric' }), helmet: M(0x4a5532), skin: M(0xc19a77, { rk: 'skin' }), visor: M(0x151515, { rk: 'lamp' }) };
   const body = bucket(), front = bucket();
   const shellG = group(g, 'shell'), shell = [shellG];
 
@@ -282,9 +284,9 @@ export function buildHueyMesh() {
   mesh(slab([[-1.34, -0.18, 0.05], [-1.22, -0.29, 0.07], [0, -0.32, 0.1], [1.22, -0.29, 0.07], [1.34, -0.18, 0.05], [1.34, 0.22, 0.03], [1.22, 0.3, 0.025], [-1.22, 0.3, 0.025], [-1.34, 0.22, 0.03]],
     (a, b, w) => [a, w, b]), olive2M, elevG, 'elevatorSkin');
   for (const s of [-1, 1]) {
-    const d = mesh(new THREE.PlaneGeometry(1.08, 0.18),new THREE.MeshBasicMaterial({ map: armyDecal(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }), g, 'usArmy');
+    const d = mesh(new THREE.PlaneGeometry(1.08, 0.18), decal(() => new THREE.MeshBasicMaterial({ map: armyDecal(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }), { map: armyDecal() }), g, 'usArmy');
     d.position.set(s * 0.462, 0.13, 4.86); d.rotation.y = s * (Math.PI / 2 - 0.085);
-    const n = mesh(new THREE.PlaneGeometry(0.86, 0.21), new THREE.MeshBasicMaterial({ map: serialDecal(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }), g, 'tailNumber');
+    const n = mesh(new THREE.PlaneGeometry(0.86, 0.21), decal(() => new THREE.MeshBasicMaterial({ map: serialDecal(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }), { map: serialDecal() }), g, 'tailNumber');
     n.position.set(s * 0.08, 1.3, 8.8); n.rotation.y = s * Math.PI / 2;
   }
 

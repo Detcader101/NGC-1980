@@ -2,8 +2,11 @@
 // jetmodel.js: lofted skins through rounded-rectangle rings, thin plates from outlines, rods and tubes, static parts
 // merged per material, canvas decals. Flat-shaded Phong / Lambert, colours from materials, no image textures.
 import * as THREE from 'three';
+import { wrapFactory, glass, decal as rkDecal, DETAIL } from '../../../renderkit/gamemats.js';   // RENDERKIT surface
 
-export const M = (c, o = {}) => new THREE.MeshPhongMaterial({ color: c, flatShading: true, shininess: 14, ...o });
+// RENDERKIT surface: paint by default (the same Phong with ?rk=0); { rk: role | { role, detail } } per paint
+export const M = wrapFactory((c, o = {}) => new THREE.MeshPhongMaterial({ color: c, flatShading: true, shininess: 14, ...o }), 'paint', DETAIL.air);
+export { glass, DETAIL };
 export const B = (c, o = {}) => new THREE.MeshBasicMaterial({ color: c, ...o });
 export const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const AV = a => (a.isVector3 ? a : V(...a));
@@ -112,7 +115,7 @@ export function decal(key, pw, ph, draw, w, h) {
     const c = document.createElement('canvas'); c.width = pw; c.height = ph; const x = c.getContext('2d'); draw(x, pw, ph);
     t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; texCache.set(key, t);
   }
-  const m = new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, side: THREE.FrontSide });
+  const m = rkDecal(() => new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, side: THREE.FrontSide }), { map: t });   // RENDERKIT surface: lit decal
   return new THREE.Mesh(new THREE.PlaneGeometry(w, h), m);
 }
 export const canDecal = typeof document !== 'undefined';

@@ -7,8 +7,10 @@
 import * as THREE from 'three';
 import { PAL, mat, glassMat, lampMat, box, cylX, cylY, cylZ, sphere, rod, tube, extrudeX, extrudeY, extrudeZ, mirrorX, builder, wheelMesh, decal, decalTex, wear, V } from './modelkit.js';
 import { TYRES } from './tyre.js';
+import { pbr, DETAIL } from '../../renderkit/gamemats.js';   // RENDERKIT surface
 
 const noWear = m => { m.userData.noWear = true; return m; };
+const CIV_DUST = { ...DETAIL.army, dust: 0.14, wear: 0.04 };   // RENDERKIT surface
 const WEAR = { dust: 0.32, mud: 0.12, grime: 0.15, yDust: 0.75, yMud: 0.32 };
 const chromeM = () => mat(PAL.chrome, { emissive: 0x2a2c30 });
 // a flat quad through four points (glass, panels): two triangles, double-sided materials only
@@ -484,11 +486,12 @@ export function buildCivMesh(o = {}) {
   const opts = { colour: 0, tilt: true, ...o };
   const g = new THREE.Group(); g.name = spec.id;
   const colours = spec.colours || [0x888888];
-  const paint = new THREE.MeshLambertMaterial({ color: colours[opts.colour % colours.length], flatShading: true, vertexColors: true, side: THREE.DoubleSide });
+  const pc = colours[opts.colour % colours.length];   // RENDERKIT surface: civilian gloss paint with road dust
+  const paint = pbr(() => new THREE.MeshLambertMaterial({ color: pc, flatShading: true, vertexColors: true, side: THREE.DoubleSide }), pc, { flatShading: true, vertexColors: true, side: THREE.DoubleSide, rk: { role: 'paint', detail: CIV_DUST } });
   const ctx = {
     g, B: builder(WEAR), black: mat(PAL.black), steel: mat(PAL.steel), steelD: mat(PAL.steelDark), glass: glassMat(0x9fb6c0, 0.36),
     lampW: lampMat(PAL.lampW, 0.15), lampA: lampMat(PAL.lampA, 0.25), lampR: lampMat(PAL.lampR, 0.3), chrome: chromeM(),
-    roofM: new THREE.MeshLambertMaterial({ color: spec.roof ?? 0xd8d4c4, flatShading: true, vertexColors: true, side: THREE.DoubleSide }),
+    roofM: pbr(() => new THREE.MeshLambertMaterial({ color: spec.roof ?? 0xd8d4c4, flatShading: true, vertexColors: true, side: THREE.DoubleSide }), spec.roof ?? 0xd8d4c4, { flatShading: true, vertexColors: true, side: THREE.DoubleSide, rk: 'paint' }),
     tyreM: mat(PAL.tyreWall), rimM: mat(spec.id === 'landrover' ? 0x9a9c96 : spec.id === 'beetle' ? 0xd8d6cc : 0xb8bab6),
     interior: builder({ dust: 0.1, mud: 0, grime: 0.2, yDust: 99 }),
     trim: noWear(mat(0x2e2b28, { side: THREE.DoubleSide })), floorM: mat(0x232322), headM: noWear(mat(0xb4ae9e, { side: THREE.DoubleSide, emissive: 0x4a463e })),

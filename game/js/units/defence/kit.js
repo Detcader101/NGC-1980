@@ -3,15 +3,17 @@
 // weathering: every face gets a little colour jitter, faces low on the vehicle pick up mud, a few faces get chipped
 // (lighter) or rust-streaked. Materials that must stay separate (team colour, glow, glass, flashes) are left alone.
 import * as THREE from 'three';
+import { pbr, DETAIL } from '../../renderkit/gamemats.js';   // RENDERKIT surface
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 // one shared material for every baked part: flat-shaded Lambert, colours from the vertices
-export const BAKED = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+// RENDERKIT surface: painted armour with dust and chips over the baked weathering (the same Lambert with ?rk=0)
+export const BAKED = pbr(() => new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), undefined, { vertexColors: true, flatShading: true, rk: { role: 'armor', detail: { ...DETAIL.armor, dust: 0.2, wear: 0.06 } } });
 // a paint: a marker material (never rendered) carrying the colour and how much it weathers
 export function paint(hex, wear = 1, { mud = 1, chip = 1 } = {}) {
   const m = new THREE.MeshLambertMaterial({ color: hex }); m.userData = { paint: true, wear, mud, chip }; return m;
 }
-export const lam = (hex, o = {}) => new THREE.MeshLambertMaterial({ color: hex, flatShading: true, ...o });
+export const lam = (hex, o = {}) => pbr(() => new THREE.MeshLambertMaterial({ color: hex, flatShading: true, ...o }), hex, { flatShading: true, ...o }, 'paint');   // RENDERKIT surface
 export const basic = (hex, o = {}) => new THREE.MeshBasicMaterial({ color: hex, ...o });
 
 // ---- primitive helpers: all return the mesh, added to `p`

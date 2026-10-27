@@ -6,7 +6,7 @@
 // CG, wheels on the ground at y = -1.80.
 // API: buildCH46Mesh() -> { group, animate(S, dt, time), RAMP_END (local point of the lowered ramp lip), parts }
 import * as THREE from 'three';
-import { M, B, V, clamp, smooth, slab, loft, merge, cylZ, cylX, cylY, boxG, sphG, mesh, group, rodG, tubeG, bucket, rr, full, QH, shift, ringGeo, decal, canDecal, sideDecal, drawInsignia, drawText } from './modelkit.js';
+import { M, B, V, clamp, smooth, slab, loft, merge, cylZ, cylX, cylY, boxG, sphG, mesh, group, rodG, tubeG, bucket, rr, full, QH, shift, ringGeo, decal, canDecal, sideDecal, drawInsignia, drawText, glass } from './modelkit.js';   // RENDERKIT surface: glass
 
 const D2R = Math.PI / 180, _qa = new THREE.Quaternion(), _va = new THREE.Vector3();
 export const CH46M = {
@@ -39,11 +39,11 @@ function skinMat(z0, z1, qh, s) {
 
 export function buildCH46Mesh(o = {}) {
   const g = new THREE.Group(); g.name = 'ch46';
-  const greenM = M(0x5c6a45), green2M = M(0x66744d), darkM = M(0x2c3226), blackM = M(0x141512, { shininess: 6 }), metalM = M(0x4a4d4f, { shininess: 50 });
+  const greenM = M(0x5c6a45, { rk: { role: 'flat', detail: true } }), green2M = M(0x66744d, { rk: { role: 'flat', detail: true } }), darkM = M(0x2c3226), blackM = M(0x141512, { shininess: 6, rk: 'dark' }), metalM = M(0x4a4d4f, { shininess: 50 });
   const bladeM = M(0x1d1f1d, { shininess: 25 }), tipM = M(0xe2bb1a), redM = M(0xa8231b), sootM = M(0x2a2622, { shininess: 4 }), tyreM = M(0x161616, { shininess: 4 }), hubM = M(0x5a5d58, { shininess: 40 });
-  const glassM = new THREE.MeshPhongMaterial({ color: 0x86a5a0, specular: 0xffffff, shininess: 90, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide });
-  const winM = M(0x1b2622, { shininess: 90, specular: 0x9fb8aa }), innerM = M(0x30362a, { side: THREE.BackSide }), seatM = M(0x9a2a1c), floorM = M(0x2a2d27);
-  const crew = { suit: M(0x56603f), vest: M(0x394030), helmet: M(0x3f4a2c), skin: M(0xc19a77), visor: M(0x151515) };
+  const glassM = glass(() => new THREE.MeshPhongMaterial({ color: 0x86a5a0, specular: 0xffffff, shininess: 90, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide }), { color: 0x86a5a0, opacity: 0.32 });
+  const winM = M(0x1b2622, { shininess: 90, specular: 0x9fb8aa, rk: 'lamp' }), innerM = M(0x30362a, { side: THREE.BackSide, rk: 'flat' }), seatM = M(0x9a2a1c, { rk: 'fabric' }), floorM = M(0x2a2d27, { rk: 'rubber' });
+  const crew = { suit: M(0x56603f, { rk: 'fabric' }), vest: M(0x394030, { rk: 'fabric' }), helmet: M(0x3f4a2c, { rk: 'flat' }), skin: M(0xc19a77, { rk: 'skin' }), visor: M(0x151515, { rk: 'lamp' }) };
   const body = bucket();
 
   // ---- fuselage: outer skin (both sides at once: the door is on the right only, so two half lofts) + inner lining

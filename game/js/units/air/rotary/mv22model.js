@@ -8,7 +8,7 @@
 // Local frame: x right, y up, nose -z, origin at the CG, wheels on the ground at y = MV22M.GROUND.
 // API: buildMV22Mesh() -> { group, animate(S, dt, time), RAMP_END, parts }
 import * as THREE from 'three';
-import { M, B, V, clamp, smooth, slab, loft, merge, cylZ, cylX, cylY, boxG, sphG, mesh, group, rodG, bucket, rr, full, QH, shift, ringGeo, decal, canDecal, sideDecal, geom } from './modelkit.js';
+import { M, B, V, clamp, smooth, slab, loft, merge, cylZ, cylX, cylY, boxG, sphG, mesh, group, rodG, bucket, rr, full, QH, shift, ringGeo, decal, canDecal, sideDecal, geom, glass } from './modelkit.js';   // RENDERKIT surface: glass
 
 // a proprotor blade as one smooth piece: stations along the span, each a thin lens section, chord tapering from the
 // broad root to the tip and twisted ~47 deg root to tip (the V-22's nonlinear twist, simplified). Along +x from r0.
@@ -49,11 +49,11 @@ function skinMat(z0, z1, qh, s) {
 
 export function buildMV22Mesh() {
   const g = new THREE.Group(); g.name = 'mv22';
-  const greyM = M(0x98a0a6), grey2M = M(0x7a8288), darkM = M(0x3a3f44), primerM = M(0xd2cfc4, { shininess: 4 }), blackM = M(0x141516, { shininess: 6 });
+  const greyM = M(0x98a0a6, { rk: { detail: true } }), grey2M = M(0x7a8288, { rk: { detail: true } }), darkM = M(0x3a3f44), primerM = M(0xd2cfc4, { shininess: 4, rk: 'flat' }), blackM = M(0x141516, { shininess: 6, rk: 'dark' });
   const metalM = M(0x4d5256, { shininess: 50 }), tyreM = M(0x161616, { shininess: 4 }), bladeM = M(0x3e4348, { shininess: 25 }), tipM = M(0xd8d8d0);
   const cyanM = B(0x5ff2ff), cyanDim = B(0x1d6a74), sootM = M(0x34302c, { shininess: 4 });
-  const glassM = new THREE.MeshPhongMaterial({ color: 0x7f9aa8, specular: 0xffffff, shininess: 90, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide });
-  const innerM = M(0x3a3f44, { side: THREE.BackSide }), floorM = M(0x2a2d30);
+  const glassM = glass(() => new THREE.MeshPhongMaterial({ color: 0x7f9aa8, specular: 0xffffff, shininess: 90, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide }), { color: 0x7f9aa8, opacity: 0.35 });
+  const innerM = M(0x3a3f44, { side: THREE.BackSide, rk: 'flat' }), floorM = M(0x2a2d30, { rk: 'rubber' });
   const body = bucket();
 
   // ---- fuselage + lining, floor, the machines' racks inside
@@ -159,7 +159,7 @@ export function buildMV22Mesh() {
     }
   }
   // small square cabin windows (two a side); the RUNAWAY plated one over with ceramic primer
-  { const winM = M(0x1b2328, { shininess: 90, specular: 0x8aa0aa });
+  { const winM = M(0x1b2328, { shininess: 90, specular: 0x8aa0aa, rk: 'lamp' });
     for (const [s, z, plated] of [[-1, -3.3, false], [-1, -0.9, true], [1, -2.3, false], [1, 0.4, false]]) { body.add(boxG(0.03, 0.4, 0.4, s * 1.322, 0.55, z), plated ? primerM : winM); body.add(boxG(0.025, 0.48, 0.48, s * 1.318, 0.55, z), darkM); } }
   body.flush(g, 'airframe');
 

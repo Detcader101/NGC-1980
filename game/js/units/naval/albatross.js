@@ -12,7 +12,7 @@
 // lights one unlit mesh; crew 4 instanced meshes; parked jets one instanced mesh per type; rotating antennas and the
 // weapon mounts their own small meshes.
 import * as THREE from 'three';
-import { Kit, T, DEG, rng, hullMat, glowMat, bake, mergeGeos, canvasTex, DecalSheet, drawStreak, drawText } from './navkit.js';
+import { Kit, T, DEG, rng, hullMat, glowMat, bake, mergeGeos, canvasTex, DecalSheet, drawStreak, drawText, pbr } from './navkit.js';
 import { createCrew } from './deckcrew.js';
 import { buildPhalanx, buildSeaSparrow } from './mounts.js';
 import { buildJetMesh } from '../../jetmodel.js';
@@ -214,6 +214,8 @@ const px = x => (x + 14) * DT_W / 28, pz = z => (z + 66) * PXM;
 // size on this 0.44-scale ship, so a Hornet on a lift overhangs its ends a little (as they do).
 export const ELEVATORS = [{ x0: 14, x1: 23, z0: -24, z1: -10 }, { x0: 14, x1: 23, z0: 17, z1: 30 }, { x0: -23, x1: -14, z0: -38, z1: -25 }];
 export const LIFT_UP = DECK, LIFT_DOWN = 4.25;
+// RENDERKIT surface: the flight deck as rough non-skid (the same Lambert with ?rk=0)
+export const deckMat = map => pbr(() => new THREE.MeshLambertMaterial({ map }), 0xffffff, { map, rk: 'concrete' });
 function deckTexture() {
   return canvasTex(DT_W, DT_H, (x, w, h) => {
     const r = rng(42);
@@ -274,7 +276,7 @@ function buildDeck() {
   const g = new THREE.ShapeGeometry(sh); g.rotateX(-Math.PI / 2);
   const p = g.attributes.position, uv = g.attributes.uv;
   for (let i = 0; i < p.count; i++) uv.setXY(i, (p.getX(i) + 14) / 28, 1 - (p.getZ(i) + 66) / 126);
-  const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: deckTexture() })); m.position.y = DECK + 0.01; m.name = 'flightdeck';
+  const m = new THREE.Mesh(g, deckMat(deckTexture())); m.position.y = DECK + 0.01; m.name = 'flightdeck';   // RENDERKIT surface: non-skid
   return m;
 }
 
@@ -498,7 +500,7 @@ export function buildAlbatross(side = 1, opts = {}) {
 
   // the tower group (helm.js mounts the bridge interior here), its window band, rotating radars, the beacon
   const tw = new THREE.Group(); tw.position.set(ALB.TOWER_X, DECK, ALB.TOWER_Z); g.add(tw);
-  const band = new THREE.Mesh(new THREE.BoxGeometry(5.12, 2.0, 10.12), new THREE.MeshPhongMaterial({ color: GLASS, flatShading: true, shininess: 80, specular: 0x556677 }));
+  const band = new THREE.Mesh(new THREE.BoxGeometry(5.12, 2.0, 10.12), pbr(() => new THREE.MeshPhongMaterial({ color: GLASS, flatShading: true, shininess: 80, specular: 0x556677 }), GLASS, { flatShading: true, rk: 'lamp' }));
   band.position.set(0, 11.2, -1); tw.add(band);
   // window mullions on the band (part of the band so the bridge view hides them too)
   { const mk = new Kit({ wear: 0 }); for (let i = 0; i <= 8; i++) { mk.box(0.12, 2.02, 0.12, HAZE_D, -2.5 + i * 0.625, 0, -5.06); } for (let i = 0; i <= 13; i++) { mk.box(0.12, 2.02, 0.12, HAZE_D, -2.56, 0, -6 + i * 0.77); mk.box(0.12, 2.02, 0.12, HAZE_D, 2.56, 0, -6 + i * 0.77); } const mm = mk.mesh(); band.add(mm); }
@@ -508,7 +510,7 @@ export function buildAlbatross(side = 1, opts = {}) {
     const refl = new THREE.CylinderGeometry(2.6, 2.6, 1.8, 14, 1, true, -0.62, 1.24); k.add(refl, 0x9aa1a6, T(0, 1.15, 2.2, 0, Math.PI, 0));
     k.add(new THREE.CylinderGeometry(2.62, 2.62, 1.8, 14, 1, true, -0.62, 1.24), 0x3a3e42, T(0, 1.15, 2.22, 0, Math.PI, 0, 1.0, 1, 1));
     k.box(0.25, 0.25, 1.3, 0x50565c, 0, 1.15, -0.25); k.box(0.4, 0.4, 0.4, 0x50565c, 0, 1.15, -0.95); k.cyl(0.2, 0.25, 0.9, 0x50565c, 0, 0.45, 0, 0, 0, 0, 8);
-    const dm = k.mesh(); dm.material = new THREE.MeshPhongMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide }); dish.add(dm); }
+    const dm = k.mesh(); dm.material = pbr(() => new THREE.MeshPhongMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide }), undefined, { vertexColors: true, flatShading: true, side: THREE.DoubleSide, rk: 'paint' }); dish.add(dm); }
   // SPS-48 3D radar: a square planar array tilted back, on the forward island top
   const sps48 = new THREE.Group(); sps48.position.set(0, 13.35, -3.6); tw.add(sps48);
   { const k = new Kit({ wear: 0 }); k.cyl(0.35, 0.45, 1.1, HAZE_D, 0, 0.55, 0, 0, 0, 0, 8); k.box(2.5, 2.5, 0.35, 0x8d959b, 0, 2.3, 0, -0.26); k.box(2.3, 2.3, 0.05, 0x3a4046, 0, 2.3, -0.2, -0.26); k.box(2.6, 0.2, 0.5, HAZE_D, 0, 1.0, 0.1); sps48.add(k.mesh()); }
@@ -516,7 +518,7 @@ export function buildAlbatross(side = 1, opts = {}) {
 
   // weapon mounts (war.js guns) on the sponsons; mounts = the DEFENCE agent's attach points
   const guns = [], mounts = [];
-  const team = new THREE.MeshPhongMaterial({ color: 0x33bbff });
+  const team = pbr(() => new THREE.MeshPhongMaterial({ color: 0x33bbff }), 0x33bbff, { rk: 'paint' });   // RENDERKIT surface
   for (const M of MOUNTS) {
     const gun = M.kind === 'ciws' ? buildPhalanx(team) : buildSeaSparrow(team);
     gun.position.set(M.x, M.y, M.z); gun.userData.yaw.rotation.y = Math.atan2(-M.out[0], -M.out[2]); g.add(gun); guns.push(gun);

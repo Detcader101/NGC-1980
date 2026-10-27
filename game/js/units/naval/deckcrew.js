@@ -7,7 +7,7 @@
 // kneel (at a wheel: chocks and chains), lso (paddles / pickle held up), talk (gestures).
 // Frame: the ship's (x starboard, y up, z aft). Each member: { x, z, y, yaw, jersey, mode, path, speed }.
 import * as THREE from 'three';
-import { Kit, rng } from './navkit.js';
+import { Kit, rng, pbr } from './navkit.js';
 
 export const JERSEY = { yellow: 0xe8c21c, blue: 0x2a52b8, green: 0x2f8a3a, red: 0xc0281e, purple: 0x6a2c8c, brown: 0x6b4423, white: 0xe8e8e2, cyan: 0x40d8ff };
 const SKIN = [0xc89a74, 0x9b6a48, 0xe0b48e, 0x6e4a32];
@@ -39,7 +39,7 @@ let G = null;
 export function createCrew(members, { seed = 5 } = {}) {
   G ||= geos();
   const n = members.length, r = rng(seed);
-  const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+  const mat = pbr(() => new THREE.MeshLambertMaterial({ vertexColors: true }), undefined, { vertexColors: true, rk: 'fabric' });   // RENDERKIT surface: jerseys, cranials
   const mk = (g, k) => { const m = new THREE.InstancedMesh(g, mat, n * k); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false; return m; };
   const J = mk(G.j, 1), B = mk(G.b, 1), A = mk(G.a, 2), L = mk(G.l, 2);
   const group = new THREE.Group(); group.name = 'deckcrew'; group.add(J, B, A, L);

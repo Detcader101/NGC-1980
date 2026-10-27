@@ -8,7 +8,7 @@
 // Deck contract (war.js deckY via parts.localDeck): deck y = 5 inside the hull outline; the sensor blade block
 // |x - 2.6| < 3.6, -6 < z < 12 stands 11 m above it. dims = { L: 96, W: 16, DECK: 5 }.
 import * as THREE from 'three';
-import { Kit, T, DEG, rng, hullMat, glowMat, DecalSheet, drawGlyphs } from './navkit.js';
+import { Kit, T, DEG, rng, hullMat, glowMat, DecalSheet, drawGlyphs, pbr } from './navkit.js';
 import { buildLaser } from './mounts.js';
 
 export const LEV = { L: 96, W: 16, DECK: 5 };
@@ -124,7 +124,7 @@ export function buildLeviathan() {
   const turrets = [-30, -17, 33].map(z => { const t = railTurret(z); if (z > 0) t.rotation.y = Math.PI; t.userData.aft = z > 0; g.add(t); return t; });
   kit.cyl(1.8, 2.2, 1.2, COMP_L, 0, DECK + 0.4, -17, 0, 0, 0, 8);   // the superfiring barbette
   turrets[1].position.y = DECK + 1.0;
-  const team = new THREE.MeshPhongMaterial({ color: 0xff3322 }), guns = [], mounts = [];
+  const team = pbr(() => new THREE.MeshPhongMaterial({ color: 0xff3322 }), 0xff3322, { rk: 'paint' }), guns = [], mounts = [];
   const PD = [[-4.6, -8, [-1, 0, -0.3]], [4.6, -10, [1, 0, -0.3]], [-4.4, 26, [-1, 0, 0.5]], [5.2, 38, [1, 0, 0.6]]];
   for (const [x, z, out] of PD) {
     kit.cyl(0.9, 1.1, 1.0, COMP_L, x, DECK + 0.5, z, 0, 0, 0, 6);

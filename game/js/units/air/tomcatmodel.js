@@ -7,7 +7,7 @@
 // AB of the carrier ALBATROSS), full-colour national insignia, modex 2xx.
 // Local frame: +x right, +y up, nose along -z, origin at the CG (wheel bottoms at y -2.5, as tomcatfm.js GEAR).
 import * as THREE from 'three';
-import { M, B, V, slab, loft, merge, cylZ, boxG, mesh, rod, hinged, arch, tube, wheel, addM, canvasTex, decal, drawStarBar } from './meshkit.js';
+import { M, B, V, slab, loft, merge, cylZ, boxG, mesh, rod, hinged, arch, tube, wheel, addM, canvasTex, decal, drawStarBar, glass } from './meshkit.js';
 import { TOMCAT, STATIONS } from './tomcatfm.js';
 
 const D2R = Math.PI / 180;
@@ -40,10 +40,10 @@ const starTex = () => canvasTex('starbar', 256, 128, (x, w, h) => { x.clearRect(
 
 export function buildTomcatModel(side = 1, { modex = 201 } = {}) {
   const g = new THREE.Group(); g.name = 'tomcat';
-  const greyM = M(0xa9afb4), whiteM = M(0xe4e6e3), radomeM = M(0xc8c4b4), darkM = M(0x25282b), blackM = M(0x0c0d0e, { shininess: 5 });
-  const metalM = M(0x4c5055, { shininess: 50 }), gearM = M(0xe2e4e2), tyreM = M(0x1b1b1b, { shininess: 4 }), walkM = M(0x6d7277);
-  const sqM = M(0x1f6fb8), redM = M(0xb52a22), glassM = new THREE.MeshPhongMaterial({ color: 0x9fc6d8, specular: 0xffffff, shininess: 90, transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide });
-  const frameM = M(0x3a3e42), crewM = M(0x4d5a3c), helmM = M(0xeceee8), visorM = M(0x1d2a33, { shininess: 90 }), seatM = M(0x2c2f31);
+  const greyM = M(0xa9afb4, { rk: { detail: true } }), whiteM = M(0xe4e6e3, { rk: { detail: true } }), radomeM = M(0xc8c4b4, { rk: 'flat' }), darkM = M(0x25282b), blackM = M(0x0c0d0e, { shininess: 5, rk: 'dark' });   // RENDERKIT surface roles
+  const metalM = M(0x4c5055, { shininess: 50 }), gearM = M(0xe2e4e2), tyreM = M(0x1b1b1b, { shininess: 4, rk: 'rubber' }), walkM = M(0x6d7277, { rk: 'flat' });
+  const sqM = M(0x1f6fb8), redM = M(0xb52a22), glassM = glass(() => new THREE.MeshPhongMaterial({ color: 0x9fc6d8, specular: 0xffffff, shininess: 90, transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide }), { color: 0x9fc6d8, opacity: 0.2 });
+  const frameM = M(0x3a3e42), crewM = M(0x4d5a3c, { rk: 'fabric' }), helmM = M(0xeceee8), visorM = M(0x1d2a33, { shininess: 90, rk: 'lamp' }), seatM = M(0x2c2f31, { rk: 'fabric' });
 
   // ---- forward fuselage + spine: half profiles [top, upper, shoulder, side-hi, side, side-lo, chine, keel]
   const P = [

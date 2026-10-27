@@ -9,15 +9,15 @@
 // Local frame: x right, y up, nose -z, origin at the CG; feet at y = -0.95.
 // API: buildWaspMesh() -> { group, animate(S, dt, time), MUZZLE (local), parts }
 import * as THREE from 'three';
-import { M, B, V, clamp, merge, cylZ, cylY, boxG, sphG, mesh, group, rodG, bucket } from './modelkit.js';
+import { M, B, V, clamp, merge, cylZ, cylY, boxG, sphG, mesh, group, rodG, bucket, DETAIL } from './modelkit.js';
 
 export const WASPM = { FEET: -0.95, R_IN: 0.76, R_OUT: 1.25 };
 const _q = new THREE.Quaternion(), _v = new THREE.Vector3(), _m = new THREE.Matrix4();
 
 export function buildWaspMesh() {
   const g = new THREE.Group(); g.name = 'wasp';
-  const ceramicM = M(0xe9e7e0, { shininess: 4 }), ceramic2M = M(0xcfcdc5, { shininess: 4 }), compM = M(0x1d2023, { shininess: 26 }), comp2M = M(0x2c3034, { shininess: 26 });
-  const lensM = M(0x07080a, { shininess: 120, specular: 0x6a8a90 }), seamM = B(0xd8fbff), cyanM = B(0x7ff6ff), pinM = B(0xbff9ff);
+  const ceramicM = M(0xe9e7e0, { shininess: 4, rk: { role: 'ceramic', detail: DETAIL.rw } }), ceramic2M = M(0xcfcdc5, { shininess: 4, rk: { role: 'ceramic', detail: DETAIL.rw } }), compM = M(0x1d2023, { shininess: 26, rk: 'ceramic' }), comp2M = M(0x2c3034, { shininess: 26, rk: 'ceramic' });   // RENDERKIT surface roles
+  const lensM = M(0x07080a, { shininess: 120, specular: 0x6a8a90, rk: 'lamp' }), seamM = B(0xd8fbff), cyanM = B(0x7ff6ff), pinM = B(0xbff9ff);
   const body = bucket();
 
   // ---- the disc: a lathed lens section (thin at the knife rim, thicker at the duct lip), duct bore, grille, fans
