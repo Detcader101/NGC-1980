@@ -3,6 +3,15 @@
 Every agent working on NGC-1980 reads this first. It is the shared contract: setting, factions, the unit roster, the
 quality bar, and how to work without breaking each other's work.
 
+**Direction, 2026-10-27 (user):** NGC-1980 is a **realistic military simulator**, not a retro game. The target is
+Arma Reforger for the world, people and vehicles, and further toward DCS for the aircraft, cockpits and systems. In the
+user's words: "make everything look as good as the sky", "realistic graphics with authentic models", "the helicopter
+still needs to be redone to properly match the UH-1 Huey from the Cold War, think Arma Reforger Huey or DCS Huey", "the
+terrain and buildings need to have high-fidelity assets", and "the player and person models look like some sort of
+Minecraft thing. We need to go away from the blocky feeling. This isn't a retro game anymore." Everyone also gets
+voices with correct military call-outs. The look-pass board is [LOOK-PLAN.md](LOOK-PLAN.md). The old low-poly,
+flat-shaded house style is retired: redo anything that still reads as blocky.
+
 **Status, 2026-10-26:** the current finish line is the playable sandbox described in [PLAN.md](PLAN.md).
 The control zone is now 2.56 km across, with varied island geology, blended world LOD, visible aerial shoals and
 direct research controls. This bible retains the wider design ambition. Integrated does not mean every quality-bar item is complete;
@@ -82,11 +91,18 @@ A unit is done when it matches the HORNET (`jetfm.js`, `jetcockpit.js`, `jetplay
 2. **A node bench** (`tools/<unit>bench.mjs`) checking the sim against **published data**, every number tagged
    CONFIRMED / INFERRED / UNVERIFIED with its source in a comment (manuals, FM / TM field manuals, Jane's, NASA /
    DTIC reports, manufacturer data). Example: M60A3 top speed 48 km/h, M16A1 M193 muzzle velocity 991 m/s.
-3. **Exterior model** at real dimensions, low-poly but detailed and believable (the house style: flat-shaded,
-   Lambert, no textures, colours from materials, small details as geometry), with wear and markings, LOD-cheap.
+3. **Exterior model** at real dimensions with **authentic, high-fidelity geometry**: smooth curved surfaces where the
+   real thing is curved, correct proportions and panel lines from published drawings and photos, real details as
+   geometry (fine fasteners as normal or detail maps), PBR materials through the RenderKit (`gamemats.js`,
+   `detail.js`) with wear, grime and markings, and proper LODs. The reference bar is the Arma Reforger / DCS version
+   of the same vehicle. Build everything ourselves from public reference (manuals, drawings, photos, dimensions);
+   never copy or extract assets from another game. Generated or procedural textures are fine, and so are glTF assets
+   we author ourselves.
 4. **Interior / first person** where a player can sit or stand: working gauges, sights, switches, moving controls.
 5. **Systems**: engine start, fuel, electrics, damage by component, failure states you can survive or repair.
-6. **Sound** via WebAudio in `audio.js` style (synthesised; no samples required).
+6. **Sound** via WebAudio in `audio.js` style, plus **voices**: crews, pilots, controllers and troops speak correct
+   1980 US Navy / USMC / Army call-outs and brevity, over the radio or in person (see LOOK-PLAN "Voices"). Recorded or
+   generated samples are allowed when we own them.
 7. **Tests**: the node bench, a `game/dev/<unit>.html` preview page (orbit / drive / fly the unit alone; see
    `game/dev/jet-preview.html`), and headless scenes in `tools/scenes/` that you run and whose screenshots you look
    at. Screenshot evidence, not just pass counts.

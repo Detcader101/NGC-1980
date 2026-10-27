@@ -37,6 +37,66 @@ target: `ngc/shader-library`, then main when the user says so.
 | Sea | live swell, glint, foam, clarity | the ripple normal is a regular "fish scale" pattern from 100 m+ (very visible from the Huey); no cloud reflection |
 | FX | GPU smoke / fire / dust | fires dim and flat, smoke not lit by the sun, explosions short |
 
+## Direction change, 2026-10-27: a realistic simulator (read this first)
+
+The user, after the depth pass: **"make everything look as good as the sky with shaders and redo things if needed to
+make them look realistic. Realistic graphics with authentic models, the helicopter still needs to be redone to
+properly match the UH-1 Huey from Cold War. Think like Arma Reforger Huey or DCS Huey. Also the terrain and buildings
+need to have high fidelity assets. Also the player and person models look like some sort of Minecraft thing. We need
+to go away from the blocky feeling. This isn't a retro game anymore. ... make voices for everyone with relevant
+military correct call outs. I want this to be a simulator like Arma but further like DCS."**
+
+What that means for every workstream:
+- **The bar is Arma Reforger** for the world, people and ground vehicles, and **DCS** for aircraft, cockpits and
+  systems. Low-poly, flat-shaded, box-built geometry is retired (BIBLE section 3 is updated). Redo, don't decorate:
+  if a model is blocky underneath, a shader won't save it.
+- **Authentic models** at real dimensions from public reference: manuals, drawings, photos, museum walkarounds.
+  We build our own geometry, generated textures and self-authored glTF. We never extract or copy another game's
+  assets, and we don't download third-party models.
+- **Budgets still matter:** desktop at a high tier, the Quest via `?xrbench` at a low tier. LODs are mandatory for
+  anything detailed.
+- These workstreams come before the original list below.
+
+### A. look-huey: the UH-1H rebuilt to DCS / Arma Reforger fidelity
+Exterior: the real Bell 205 / UH-1H fuselage lofted from drawings, with smooth sections and proper curvature (nose, chin
+bubbles, cabin doors on rails, tail boom taper, the vertical fin and synchronised elevator, skids with cross tubes and
+steps). The two-blade 48 ft main rotor with stabiliser bar, swashplate and pitch links. The tail rotor and gearbox
+hump, the engine deck, exhaust and intake screens. Antennas, the search and landing lights, door guns (M60D on pintle
+mounts). 1980 USMC / Army markings and correct olive drab with wear. Interior: the cockpit rebuilt to DCS level (the
+instrument panel layout, the overhead console, pedestal, collective and cyclic, seats with armour panels). Interactive
+gauges and switches keep working. Cabin with troop seats and the crew chief and gunner stations. LODs. Keep `hueyfm.js`
+unchanged.
+
+### B. look-people: realistic humans, no more blocks
+Replace the box/capsule people with anatomically proportioned, smooth, skinned bodies: a continuous mesh, not parts, on
+the existing rigs and animations. Real heads and faces, hands, 1980 USMC utilities with folds, M1 helmet and cover,
+ALICE gear and boots. Deck crew in proper float coats and cranial helmets, pilots in flight suits and HGU helmets,
+townsfolk in 1980 civilian clothes. Smooth per-vertex or shader camouflage (woodland or OG-107 as BIBLE). LODs and
+instancing for crowds. First-person arms with the same realism. The rest of the infantry weapons are rebuilt like the
+M16A1 (M60, M203, LAW, M1911). This supersedes workstream 8.
+
+### C. look-terrain: high-fidelity ground
+Texture-based terrain materials (generated, tileable albedo, normal and roughness sets for grass, soil, rock, sand,
+snow, tarmac and gravel, splatted by surface type, slope and height, with triplanar mapping on cliffs). A finer near-
+camera mesh with smooth normals, real rock outcrops and boulders as geometry, roads with kerbs, verges and ruts, and
+beaches with dune grass. Keeps fog of war, the LOD hand-over to depth-sky's far land, and every sim's per-point surface
+types. Includes workstream 3's rock and far-grid items.
+
+### D. look-buildings: high-fidelity architecture
+Workstream 5, raised to Reforger level: modelled window frames and recesses, doors, sills, gutters, roof tiles and
+ridges, chimneys and porches. 1980 European/Atlantic coastal architecture (stone cottages, rendered houses, a church,
+a harbour, a pub). Base structures (sandbagged bunker, quonset, fuel farm, TPS-43) and the carrier island as proper
+models with panel lines and detail. LODs and instancing.
+
+### E. look-voices: voices and call-outs for everyone
+Every person speaks: pilots and crews on the intercom and radio (Huey crew chief and door gunner call-outs, Hornet and
+Tomcat flight comms, the carrier's tower and LSO, Air Boss and plane captains), Marines in combat (contact reports,
+"CORPSMAN UP", fire-team commands, "FRAG OUT", "RELOADING", casualty calls), and commanders and controllers for the
+command board. Use correct 1980 US Navy / USMC / Army procedure and brevity (no modern-only terms), radio processing
+(band-pass, squelch tails, clipping) versus open-air voices with distance and occlusion, varied voices per person, and
+priority and ducking so call-outs don't stack. Sources must be ours: browser speech synthesis run through the radio
+chain, or samples we generate, with a fallback when no voices are installed.
+
 ## Workstreams, in priority order
 
 ### 1. look-sea: the ocean (biggest visible gap from the air)
@@ -97,8 +157,9 @@ target: `ngc/shader-library`, then main when the user says so.
 
 - **Real hardware:** a desktop GPU frame-time A/B per area (the user's machine: 133 fps at 1080p before the depth pass)
   and Quest 3 via `?xrbench`. Every depth branch reports SwiftShader numbers only.
-- **Tests:** the fish / sign pixel checks in `underwater.mjs` and `visibility.mjs` fail whenever the post area is on
-  (findings/depth-sky.md): fix the readback or the post pass first, so they guard the look work again.
+- **Tests:** the fish / sign pixel readback with post on is FIXED (2a10eda: measured on the canvas); underwater 6/6.
+  The visibility.mjs 220 m threshold is still noisy (findings/orchestrator.md). foot.mjs fails 3 of 14 on the merged
+  build (the ladder off the carrier and the walk to the pad); it passes 12/12 with `?rk=0` and with figures only.
 - `?rk=0` pixel-identical to the classic build; `node tools/check.mjs syntax`; smoke, xr, worldvisibility, depthsky.
 
 ## Starting a session

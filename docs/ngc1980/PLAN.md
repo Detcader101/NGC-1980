@@ -4,6 +4,10 @@ Updated 2026-10-26. This is the current status; [BIBLE.md](BIBLE.md) describes t
 The earlier Claude/Opus wave board is preserved in [the planning archive](archive/PLAN-2026-10-25.md).
 Historical findings and test counts describe their original branches, not necessarily the current build.
 
+**2026-10-27, direction:** a realistic simulator, like Arma Reforger for the world and people and further toward DCS
+for aircraft, cockpits and systems. It is not a retro game, and blocky models get redone. Voices with correct military
+call-outs for everyone. See BIBLE (Direction) and [LOOK-PLAN.md](LOOK-PLAN.md) (workstreams A-E, then 1-9).
+
 ## Scope of this pass
 
 The agreed finish line is **a reliable playable sandbox: integrate completed work, fix gameplay blockers,
