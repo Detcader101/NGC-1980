@@ -14,7 +14,7 @@ export const HELI = {
   ROTOR_R: UH1H.R, SKID_Y: -UH1H.SKID_Z,
   CAVE_SCALE: 0.36, CAVE_SKID: -0.75 * 1.6,   // in the 2D cave the Huey is drawn at 0.36 so it fits the cave outline (main.js shipPts)
   RATE: { roll: 1.7 }, RESP: 3.2,             // the cave's arcade disc tilt
-  FUEL_ACCEL: 50,                              // game fuel burns 50x the real T53 flow: a tank = ~3 min hover, ~5 min cruise
+  FUEL_ACCEL: 25,                              // wider control zone: ~6 min hover / ~10 min cruise; physical flow is unchanged
   HIT_R: 4.0, EYE_PITCH: HUEY_EYE_PITCH,
 };
 export const EYE = HUEY_EYE;
@@ -29,7 +29,7 @@ export const fuelBurnPct = (H) => H.fuelFlow * HELI.FUEL_ACCEL / KG_PER_PCT;   /
 // ------------------------------------------------------------------------------------------------- systems
 // UH-1H caution panel captions (TM 55-1520-210-10), in panel order; the master caution, RPM and FIRE lights are separate.
 export const CAPTIONS = ['ENGINE OIL PRESS', 'ENGINE ICING', 'ENGINE ICE DET', 'ENGINE CHIP DET', 'LEFT FUEL BOOST', 'RIGHT FUEL BOOST', 'ENG FUEL PUMP', '20 MINUTE FUEL',
-  'FUEL FILTER', 'GOV EMER', 'AUX FUEL LOW', 'XMSN OIL PRESS', 'XMSN OIL HOT', 'HYD PRESSURE', 'INST INVERTER', 'DC GENERATOR', 'EXTERNAL POWER', 'CHIP DETECTOR', 'IFF', 'SPARE'];
+  'FUEL FILTER', 'GOV EMER', 'AUX FUEL LOW', 'XMSN OIL PRESS', 'XMSN OIL HOT', 'HYD PRESSURE', 'ENGINE INLET AIR', 'INST INVERTER', 'DC GENERATOR', 'EXTERNAL POWER', 'CHIP DETECTOR', 'IFF'];   // 5 rows x 4, as the panel reads
 // D = damage.js model, G = game state ({fuel %, light}) - the switches the damage model owns stay there (engine fuel,
 // hydraulic boost); the rest live here
 export function createHeliSystems({ D, G, say }) {
@@ -137,7 +137,10 @@ export function createHeliInput({ keyDown, CTL, hwOn = () => true, say }) {
       }
       if (hw && Math.abs(st.rudder || 0) > 0.001) out.pedal = st.rudder;
       if (hw && st.hasPedals) out.source += ' + PEDALS';
-      if (hw) { const a = st.actions || {}; out.fire = !!a.fire; out.winch = out.winch || !!(a.pickle || a.airbrake); out.rocket = !!a.missile; out.bomb = !!a.bomb; out.hatX = st.hatX || 0; out.hatY = st.hatY || 0; }
+      if (hw) { const a = st.actions || {}; out.fire = !!a.fire; out.winch = out.winch || !!(a.pickle || a.airbrake); out.rocket = !!a.missile; out.bomb = !!a.bomb; out.hatX = st.hatX || 0; out.hatY = st.hatY || 0;
+        // ngc/hornethuey: the jets' buttons are the Huey's switches here (HOTAS 4 defaults, numbered from 1: 6 STAB ASSIST, 7 FORCE TRIM,
+        // 8 LANDING LIGHT, 9 VIEW, 11 STARTER held - on the real collective the starter is the trigger under the grip)
+        const pr = st.pressed || {}; out.starter = !!a.wheelbrake; out.press = { sas: !!pr.gear, trim: !!pr.flaps, light: !!pr.hook, view: !!pr.view }; }
       out.raw = { cx: out.cx, cy: out.cy, pedal: out.pedal };
       if (sas && H) assist(out, H, dt, mods);
       out.sas = sas;

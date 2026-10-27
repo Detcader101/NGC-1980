@@ -1,0 +1,55 @@
+{
+  "scene": "tools/scenes/visibility.mjs",
+  "quality": "medium (normal default)",
+  "injectedSchools": false,
+  "sameFrameComparison": true,
+  "threshold": "sum of absolute RGB differences > 12",
+  "samples": [
+    {
+      "aircraftAltitude": 25,
+      "changed": 4134,
+      "delta": 146273,
+      "width": 768,
+      "height": 432,
+      "fish": 1395,
+      "signs": 7,
+      "schools": 18,
+      "cam": [
+        -1500.4437826221865,
+        37.0325966824864,
+        226.9511328142611
+      ]
+    },
+    {
+      "aircraftAltitude": 80,
+      "changed": 767,
+      "delta": 29851,
+      "width": 768,
+      "height": 432,
+      "fish": 338,
+      "signs": 14,
+      "schools": 18,
+      "cam": [
+        -1500.0928178716397,
+        92.01940034291715,
+        228.38470693489364
+      ]
+    },
+    {
+      "aircraftAltitude": 220,
+      "changed": 391,
+      "delta": 13541,
+      "width": 768,
+      "height": 432,
+      "fish": 0,
+      "signs": 12,
+      "schools": 18,
+      "cam": [
+        -1499.8810320137238,
+        231.44449032492324,
+        228.0440257443886
+      ]
+    }
+  ],
+  "offPassed": true
+}

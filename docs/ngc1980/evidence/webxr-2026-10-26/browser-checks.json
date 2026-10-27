@@ -1,0 +1,2902 @@
+{
+  "date": "2026-10-26",
+  "releaseSourceCommit": "bfd019b21c9bb8a633c2bf6cce1eb9c99cd8dd67",
+  "gameTree": "79685ee0377afe0eb907f098387cd237132f5261",
+  "qualification": "IWER and SwiftShader under WSL, one browser at a time. Emulation does not qualify physical-headset performance or comfort. Scene fixture queries, assertions and evaluations are retained below.",
+  "totals": {
+    "scenes": 9,
+    "assertions": 110,
+    "screenshots": 51,
+    "pageErrors": 0,
+    "consoleErrors": 0
+  },
+  "scenes": [
+    {
+      "label": "XR entry/research/hands",
+      "localRun": "tools/runs/xr-world-final-xr",
+      "sourceQualification": "Clean final game source bfd019b21c9bb8a633c2bf6cce1eb9c99cd8dd67",
+      "name": "xr",
+      "query": "?debug&kb&peace&res=0.45&tech=all",
+      "ok": true,
+      "browser": "Chrome Headless 156; CHROME_PATH=/home/jayjay/.cache/chs/chrome.sh",
+      "gpu": "GPU: ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "fps": "15 fps  ·  res 45%",
+      "shots": [
+        {
+          "name": "vr-cockpit-stereo",
+          "file": "01-vr-cockpit-stereo.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 77.3,
+          "litFraction": 0.9181,
+          "colors": 584
+        },
+        {
+          "name": "vr-research-stereo",
+          "file": "02-vr-research-stereo.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 61.5,
+          "litFraction": 0.9416,
+          "colors": 591
+        },
+        {
+          "name": "vr-hands-command",
+          "file": "03-vr-hands-command.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 59.5,
+          "litFraction": 0.9423,
+          "colors": 560
+        },
+        {
+          "name": "desktop-after-vr",
+          "file": "04-desktop-after-vr.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 86.6,
+          "litFraction": 0.9566,
+          "colors": 429
+        }
+      ],
+      "evals": [
+        {
+          "expr": "(__G.war.carrier.speed=0,__G.war.carrier.path=[],__G.G.state=\"paused\",window.__head0=__G.zCam.position.clone(),window.__body0=__G.H.pos.clone(),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.position.x+=.2,1)",
+          "value": 1
+        },
+        {
+          "expr": "(__G.G.state=\"play\",1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateAxes(\"thumbstick\",.5,-.35),__xrDevice.controllers.left.updateAxes(\"thumbstick\",.25,-.5),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateAxes(\"thumbstick\",0,0),__xrDevice.controllers.left.updateAxes(\"thumbstick\",0,0),1)",
+          "value": 1
+        },
+        {
+          "expr": "(window.__pointVR=async(selector,hand=false)=>{\n    const X=__G.XR,T=__G.THREE,head=await new Promise(resolve=>__G.renderer.xr.getSession().requestAnimationFrame((t,f)=>resolve(f.getViewerPose(__G.renderer.xr.getReferenceSpace()).transform.position))),r=typeof selector==='string'?document.querySelector(selector).getBoundingClientRect():{x:selector.x,y:selector.y,width:0,height:0};\n    X.panel.mesh.updateMatrix();const p=new T.Vector3((r.x+r.width/2)/innerWidth-.5,.5-(r.y+r.height/2)/innerHeight,0).applyMatrix4(X.panel.mesh.matrix);\n    // IWER poses use floor coordinates; the requested local reference space starts at the seated head.\n    p.add(new T.Vector3(__xrDevice.position.x,__xrDevice.position.y,__xrDevice.position.z)).sub(head);\n    const d=hand?__xrDevice.hands.right:__xrDevice.controllers.right;d.position.set(.25,1.25,-.35);const dir=p.sub(new T.Vector3(d.position.x,d.position.y,d.position.z)).normalize();d.quaternion.copy(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,0,-1),dir));return p.toArray();},1)",
+          "value": 1
+        },
+        {
+          "expr": "__pointVR(\"#xrBar button:nth-child(3)\",false)",
+          "value": [
+            -0.4474448355096907,
+            -0.253415162478687,
+            -0.8576560351339031
+          ]
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue(\"trigger\",1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue(\"trigger\",0),1)",
+          "value": 1
+        },
+        {
+          "expr": "(()=>{const U=__G.techUI,T=__G.war.tech[1],cell=U.cells.find(c=>T.canResearch(c.n.id,__G.G)===true),cv=document.querySelector('#techBoard canvas'),r=cv.getBoundingClientRect();window.__research=cell.n.id;window.__mat0=__G.G.mat;return {x:r.x+(cell.x+cell.w/2)/cv.width*r.width,y:r.y+(cell.y+cell.h/2)/cv.height*r.height};})()",
+          "value": {
+            "x": 490.892578125,
+            "y": 444.2737215909091
+          }
+        },
+        {
+          "expr": "__pointVR({\"x\":490.892578125,\"y\":444.2737215909091},false)",
+          "value": [
+            -0.3682647220320261,
+            0.07391932001598828,
+            -0.9267777665843353
+          ]
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue(\"trigger\",1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue(\"trigger\",0),1)",
+          "value": 1
+        },
+        {
+          "expr": "__pointVR({\"x\":490.892578125,\"y\":444.2737215909091},false)",
+          "value": [
+            -0.3682647220320261,
+            0.07391932001598828,
+            -0.9267777665843353
+          ]
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue(\"trigger\",1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue(\"trigger\",0),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__G.techUI.close(),__xrDevice.primaryInputMode=\"hand\",1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.hands.right.quaternion.set(0,0,0,1),__xrDevice.hands.right.updatePinchValue(1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.hands.right.position.x+=.06,1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.hands.right.updatePinchValue(0),1)",
+          "value": 1
+        },
+        {
+          "expr": "__pointVR(\"#xrBar button:nth-child(2)\",true)",
+          "value": [
+            -0.5862435319889945,
+            -0.22956257872156965,
+            -0.7769295615767057
+          ]
+        },
+        {
+          "expr": "(__xrDevice.hands.right.updatePinchValue(1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.hands.right.updatePinchValue(0),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__G.commander.close(),__G.XR.end(),1)",
+          "value": 1
+        }
+      ],
+      "expects": [
+        {
+          "expr": "__G.G.state===\"play\" && __G.renderer.xr.isPresenting",
+          "label": "VR entry starts a normal playable game",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.renderer.xr.getCamera().cameras.length===2",
+          "label": "WebXR supplies two eye cameras",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.zCam.position.distanceTo(__G.H.pos)<4",
+          "label": "seated head is in the aircraft, not at the world origin",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.XR.state.controllers===2",
+          "label": "both tracked controllers connected",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.renderer.xr.getSession().enabledFeatures.includes(\"hand-tracking\")",
+          "label": "optional hand tracking negotiated",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "(()=>{const X=__G.XR,T=__G.THREE,sky=X.rig.parent.children.find(o=>o.renderOrder===-10&&o.geometry?.type==='SphereGeometry'),eye=new T.Vector3().setFromMatrixPosition(__G.renderer.xr.getCamera().cameras.at(-1).matrixWorld);return sky&&sky.position.distanceTo(eye)<.01;})()",
+          "label": "sky dome follows the rendered eye in world coordinates",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "(()=>{const p=new __G.THREE.Vector3().setFromMatrixPosition(__G.renderer.xr.getCamera().cameras.at(-1).matrixWorld),u=__G.terrainUni.uNear.value;return Math.abs(u.x-Math.round(p.x/2.5)*2.5)<.01&&Math.abs(u.y-Math.round(p.z/2.5)*2.5)<.01;})()",
+          "label": "near terrain window follows the world rig rather than tracking origin",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "notblank(vr-cockpit-stereo)",
+          "ok": true,
+          "value": 0.9181
+        },
+        {
+          "expr": "Math.abs(__G.zCam.position.distanceTo(__head0)-.2)<.03 && __G.H.pos.distanceTo(__body0)<.001",
+          "label": "head translation is 1:1 metres and does not move the craft",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.CTL.state.stick.x>.2 && __G.CTL.state.stick.y<-.1 && __G.CTL.state.rudder>.05",
+          "label": "XR axes reach the ordinary flight input path",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.techUI.isOpen",
+          "label": "controller ray opens the real research page",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.XR.panel.captures>0 && __G.XR.panel.mesh.material.map.image.width>=800",
+          "label": "research rendered into the spatial interface",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.war.tech[1].current?.id===__research && __G.G.mat<__mat0",
+          "label": "controller clicks select and fund a real research programme",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.XR.state.hands===2 && __G.XR.controls.some(c=>c.joints.count===25)",
+          "label": "tracked hands have visible 25-joint representations",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.XR.input.stick.x>.35&&!__G.XR.input.actions.fire",
+          "label": "right-hand pinch displacement flies without firing",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.XR.input.stick.x===0",
+          "label": "releasing the hand pinch centres the stick",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.commander.isOpen",
+          "label": "hand pinch opens the real command board",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "!__G.renderer.xr.isPresenting && !__G.XR.input.active && !document.documentElement.classList.contains(\"ngc-vr\")",
+          "label": "session exit releases input and restores desktop UI",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "notblank(desktop-after-vr)",
+          "ok": true,
+          "value": 0.9566
+        }
+      ],
+      "errors": [],
+      "consoleErrors": [],
+      "startedAt": "2026-10-26T11:21:03.628Z",
+      "final": {
+        "mode": "zarch",
+        "state": "play"
+      },
+      "summary": "PASS: 19/19 expects, 0 page errors, 0 console errors",
+      "durationMs": 202095
+    },
+    {
+      "label": "XR infantry/vehicles/crew",
+      "localRun": "tools/runs/xr-world-final-xrgameplay",
+      "sourceQualification": "Clean final game source bfd019b21c9bb8a633c2bf6cce1eb9c99cd8dd67",
+      "name": "xrgameplay",
+      "query": "?debug&kb&peace&res=0.45&tech=all",
+      "ok": true,
+      "browser": "Chrome Headless 156; CHROME_PATH=/home/jayjay/.cache/chs/chrome.sh",
+      "gpu": "GPU: ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "fps": "1 fps  ·  res 45%",
+      "shots": [
+        {
+          "name": "marine-tracked-weapon",
+          "file": "01-marine-tracked-weapon.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 77.1,
+          "litFraction": 0.8461,
+          "colors": 456
+        },
+        {
+          "name": "virtual-controls",
+          "file": "02-virtual-controls.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 58.5,
+          "litFraction": 0.8863,
+          "colors": 297
+        },
+        {
+          "name": "medical",
+          "file": "03-medical.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 54.8,
+          "litFraction": 0.7947,
+          "colors": 487
+        },
+        {
+          "name": "inventory",
+          "file": "04-inventory.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 52.4,
+          "litFraction": 0.7355,
+          "colors": 363
+        },
+        {
+          "name": "jeep-cab",
+          "file": "05-jeep-cab.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 77.7,
+          "litFraction": 0.9211,
+          "colors": 363
+        },
+        {
+          "name": "tank-driver",
+          "file": "06-tank-driver.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 124.3,
+          "litFraction": 0.8726,
+          "colors": 374
+        },
+        {
+          "name": "tank-day-sight",
+          "file": "07-tank-day-sight.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 22.6,
+          "litFraction": 0.7697,
+          "colors": 250
+        },
+        {
+          "name": "tank-thermal",
+          "file": "08-tank-thermal.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 25.6,
+          "litFraction": 0.772,
+          "colors": 171
+        },
+        {
+          "name": "m113-driver",
+          "file": "09-m113-driver.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 107.1,
+          "litFraction": 0.9909,
+          "colors": 507
+        },
+        {
+          "name": "ch46-cockpit",
+          "file": "10-ch46-cockpit.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 64.1,
+          "litFraction": 0.8171,
+          "colors": 456
+        },
+        {
+          "name": "hornet-cockpit",
+          "file": "11-hornet-cockpit.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 84.2,
+          "litFraction": 0.9442,
+          "colors": 623
+        },
+        {
+          "name": "tomcat-pilot",
+          "file": "12-tomcat-pilot.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 73.6,
+          "litFraction": 0.9281,
+          "colors": 544
+        },
+        {
+          "name": "tomcat-rio",
+          "file": "13-tomcat-rio.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 68.7,
+          "litFraction": 0.8777,
+          "colors": 453
+        }
+      ],
+      "evals": [
+        {
+          "expr": "(window.__pointVR=async(selector,hand=false)=>{\n    const X=__G.XR,T=__G.THREE,head=await new Promise(resolve=>__G.renderer.xr.getSession().requestAnimationFrame((t,f)=>resolve(f.getViewerPose(__G.renderer.xr.getReferenceSpace()).transform.position))),r=typeof selector==='string'?document.querySelector(selector).getBoundingClientRect():{x:selector.x,y:selector.y,width:0,height:0};\n    X.panel.mesh.updateMatrix();const p=new T.Vector3((r.x+r.width/2)/innerWidth-.5,.5-(r.y+r.height/2)/innerHeight,0).applyMatrix4(X.panel.mesh.matrix);\n    // Convert local tracking coordinates to IWER floor coordinates using the viewer pose, not Three's shifted stereo-union camera.\n    p.add(new T.Vector3(__xrDevice.position.x,__xrDevice.position.y,__xrDevice.position.z)).sub(head);\n    const d=hand?__xrDevice.hands.right:__xrDevice.controllers.right;d.position.set(.25,1.25,-.35);const dir=p.sub(new T.Vector3(d.position.x,d.position.y,d.position.z)).normalize();d.quaternion.copy(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,0,-1),dir));return true;},1)",
+          "value": 1
+        },
+        {
+          "expr": "(__G.war.carrier.path=[],__G.war.carrier.speed=0,1)",
+          "value": 1
+        },
+        {
+          "expr": "(window.__walk0={...__G.marine.S.pos},__xrDevice.controllers.left.updateAxes(\"thumbstick\",0,-.7),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.left.updateAxes(\"thumbstick\",0,0),1)",
+          "value": 1
+        },
+        {
+          "expr": "(window.__yaw0=__G.XR.state.footYaw,__xrDevice.controllers.right.updateAxes(\"thumbstick\",1,0),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateAxes(\"thumbstick\",0,0),__xrDevice.controllers.right.quaternion.set(0,0,0,1),window.__shots0=__G.marine.stats.shots,1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',0),1)",
+          "value": 1
+        },
+        {
+          "expr": "__pointVR(\"#xrBar button:nth-child(1)\",false)",
+          "value": true
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',0),1)",
+          "value": 1
+        },
+        {
+          "expr": "__pointVR(\"#xrDeck [data-code=\\\"KeyH\\\"]\",false)",
+          "value": true
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',0),1)",
+          "value": 1
+        },
+        {
+          "expr": "__pointVR(\"#xrBar button:nth-child(1)\",false)",
+          "value": true
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',0),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__G.marine.M.bleeds.push({id:900,region:\"legL\",zone:\"thigh\",type:\"venous\",rate:30,ctl:\"dress\",name:\"TEST WOUND\",clot:0,ctrl:1,t:0,dressed:false,packed:false,stopped:false}),1)",
+          "value": 1
+        },
+        {
+          "expr": "__pointVR(\".ngc-med .mi[data-id=\\\"dressing_field\\\"]\",false)",
+          "value": true
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',1),1)",
+          "value": 1
+        },
+        {
+          "expr": "__pointVR(\".ngc-med path[data-region=\\\"legL\\\"]\",false)",
+          "value": true
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',0),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__G.carC.spawnAt(__G.GR.motorPool(__G.HOME_B.isl,4.6)),__G.crafts.control(__G.carC.id,0,\"swap\"),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.quaternion.set(0,0,0,1),window.__car0=__G.carC.sim.pos.slice(),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',0),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.left.updateAxes(\"thumbstick\",.25,-1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.left.updateAxes(\"thumbstick\",0,0),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__G.m60C.spawnAt({...__G.GR.motorPool(__G.HOME_B.isl,4.6),state:\"hot\"}),__G.crafts.control(\"m60\",0,\"swap\"),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__G.crafts.cycleSeat(1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__G.m113C.spawnAt({...__G.GR.motorPool(__G.HOME_B.isl,3),state:\"hot\"}),__G.crafts.control(\"m113\",0,\"swap\"),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__G.toHeli(),__G.G.mat=1000,__G.commander.deploy(\"ch46\",\"ship\"),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateAxes(\"thumbstick\",.4,-.3),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateAxes(\"thumbstick\",0,0),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__G.toHeli(),__G.commander.deploy(\"jet\",\"ship\"),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.left.quaternion.set(.2,0,0,Math.sqrt(.96)),__xrDevice.controllers.left.updateButtonValue(\"trigger\",1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.left.updateButtonValue(\"trigger\",0),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__G.toHeli(),__G.commander.standDown(__G.roster.findIndex(r=>r.id===\"jet\")),__G.commander.deploy(\"tomcat\",\"ship\"),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__G.crafts.cycleSeat(1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__G.XR.end(),1)",
+          "value": 1
+        }
+      ],
+      "expects": [
+        {
+          "expr": "__G.G.craft===\"foot\" && __G.marine.firstPerson()",
+          "label": "VR entry into infantry uses the eye view",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "Math.hypot(__G.marine.S.pos.x-__walk0.x,__G.marine.S.pos.z-__walk0.z)>.3",
+          "label": "left controller walks the real soldier",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "Math.abs(__G.XR.state.footYaw-__yaw0+Math.PI/6)<.001",
+          "label": "right stick turns by 30 degrees",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "Math.abs(__G.XR.state.footYaw-__yaw0+Math.PI/6)<.001",
+          "label": "holding the stick does not repeatedly snap",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.marine.stats.shots>__shots0 && !!__G.marine.R.xrAim",
+          "label": "tracked controller fires the current infantry weapon",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "notblank(marine-tracked-weapon)",
+          "ok": true,
+          "value": 0.8461
+        },
+        {
+          "expr": "__G.marine.ui===\"health\"",
+          "label": "virtual H opens health",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "!!__G.marine.M.action && /dress/i.test(__G.marine.M.action.label+__G.marine.M.action.kind)",
+          "label": "controller drag starts a field dressing through the original medical UI",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.marine.ui===\"gear\"",
+          "label": "gear inventory is accessible in VR",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.carC.firstPerson() && __G.CTL.state.throttle===null",
+          "label": "jeep opens in its cab with no inherited helicopter throttle",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.XR.pad.axes[1]===0 && __G.CTL.state.throttle===null",
+          "label": "weapon trigger does not request driving throttle",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "Math.hypot(__G.carC.sim.pos[0]-__car0[0],__G.carC.sim.pos[2]-__car0[2])>.2",
+          "label": "XR stick drives the jeep simulation",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.m60C.firstPerson()&&!__G.XR.state.flat",
+          "label": "tank driver has a stereo interior",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.XR.state.flat && __G.m60C.seat===1",
+          "label": "magnified tank sight uses a spatial optical display",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "notblank(tank-day-sight)",
+          "ok": true,
+          "value": 0.7697
+        },
+        {
+          "expr": "__G.m60C.V.sight===\"tts\" && __G.XR.state.flat",
+          "label": "thermal sight remains usable in VR",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "notblank(tank-thermal)",
+          "ok": true,
+          "value": 0.772
+        },
+        {
+          "expr": "__G.G.craft===\"m113\"&&!__G.XR.state.flat&&__G.m113C.firstPerson()",
+          "label": "leaving optics restores stereo in the M113",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.G.craft===\"ch46\"&&__G.ch46C.view===\"cockpit\"",
+          "label": "CH-46 commander deployment enters the VR cockpit",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.CTL.state.stick.x>.2 && __G.CTL.state.stick.y<-.1",
+          "label": "CH-46 receives the VR flight controls",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.G.craft===\"jet\"&&__G.cockpitCam",
+          "label": "Hornet deployment enters the VR cockpit",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.JP.mode===\"AA\"",
+          "label": "left trigger reaches the Hornet secondary-weapon action",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.G.craft===\"tomcat\"&&__G.cockpitCam&&!__G.JP.J.cat",
+          "label": "standing down the Hornet frees the catapult for the Tomcat VR cockpit",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.crafts.seat===1",
+          "label": "Tomcat RIO seat remains accessible",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "!__G.renderer.xr.isPresenting && !__G.XR.input.active",
+          "label": "leaving the final craft releases the XR session",
+          "ok": true,
+          "value": true
+        }
+      ],
+      "errors": [],
+      "consoleErrors": [],
+      "startedAt": "2026-10-26T11:24:25.834Z",
+      "final": {
+        "mode": "zarch",
+        "state": "play"
+      },
+      "summary": "PASS: 25/25 expects, 0 page errors, 0 console errors",
+      "durationMs": 305858
+    },
+    {
+      "label": "XR lifecycle/optics/cave/spectator",
+      "localRun": "tools/runs/xr-world-final-xrlifecycle",
+      "sourceQualification": "Clean final game source bfd019b21c9bb8a633c2bf6cce1eb9c99cd8dd67",
+      "name": "xrlifecycle",
+      "query": "?debug&kb&peace&res=0.45&tech=all",
+      "ok": true,
+      "browser": "Chrome Headless 156; CHROME_PATH=/home/jayjay/.cache/chs/chrome.sh",
+      "gpu": "GPU: ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "fps": "1 fps  ·  res 45%",
+      "shots": [
+        {
+          "name": "world-map",
+          "file": "01-world-map.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 47.3,
+          "litFraction": 0.6166,
+          "colors": 619
+        },
+        {
+          "name": "cave-display",
+          "file": "02-cave-display.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 41.5,
+          "litFraction": 0.9865,
+          "colors": 213
+        },
+        {
+          "name": "carrier-bridge",
+          "file": "03-carrier-bridge.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 92.7,
+          "litFraction": 0.9814,
+          "colors": 487
+        },
+        {
+          "name": "desktop-after-sessions",
+          "file": "04-desktop-after-sessions.png",
+          "w": 1024,
+          "h": 768,
+          "meanLuma": 86.2,
+          "litFraction": 0.961,
+          "colors": 448
+        },
+        {
+          "name": "spectator",
+          "file": "05-spectator.png",
+          "w": 1024,
+          "h": 768,
+          "meanLuma": 85.2,
+          "litFraction": 0.9165,
+          "colors": 516
+        }
+      ],
+      "evals": [
+        {
+          "expr": "(window.__pointVR=async(selector,hand=false)=>{\n    const X=__G.XR,T=__G.THREE,head=await new Promise(resolve=>__G.renderer.xr.getSession().requestAnimationFrame((t,f)=>resolve(f.getViewerPose(__G.renderer.xr.getReferenceSpace()).transform.position))),r=typeof selector==='string'?document.querySelector(selector).getBoundingClientRect():{x:selector.x,y:selector.y,width:0,height:0};\n    X.panel.mesh.updateMatrix();const p=new T.Vector3((r.x+r.width/2)/innerWidth-.5,.5-(r.y+r.height/2)/innerHeight,0).applyMatrix4(X.panel.mesh.matrix);\n    // Convert local tracking coordinates to IWER floor coordinates using the viewer pose, not Three's shifted stereo-union camera.\n    p.add(new T.Vector3(__xrDevice.position.x,__xrDevice.position.y,__xrDevice.position.z)).sub(head);\n    const d=hand?__xrDevice.hands.right:__xrDevice.controllers.right;d.position.set(.25,1.25,-.35);const dir=p.sub(new T.Vector3(d.position.x,d.position.y,d.position.z)).normalize();d.quaternion.copy(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,0,-1),dir));return true;},1)",
+          "value": 1
+        },
+        {
+          "expr": "__pointVR(\"#xrBar button:nth-child(4)\",false)",
+          "value": true
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',0),1)",
+          "value": 1
+        },
+        {
+          "expr": "__pointVR(\"#xrBar button:nth-child(4)\",false)",
+          "value": true
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',0),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.connected=false,1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.connected=true,__xrDevice.updateVisibilityState(\"visible-blurred\"),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.updateVisibilityState(\"visible\"),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__G.H.reset(new __G.THREE.Vector3(__G.HOME_B.x,__G.HOME_B.h-1,__G.HOME_B.z),0,false,1),__G.Z.pos.copy(__G.H.pos),__G.Z.vel.set(0,-2,0),__G.enterCave(__G.HOME_B),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__G.T.y=__G.T.lvl.H+2,__G.T.vy=3,__G.exitCave(),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__G.respawnHome(),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__G.helm.take(),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__G.helm.leave(),__G.XR.end(),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__G.XR.end(),1)",
+          "value": 1
+        },
+        {
+          "expr": "(window.__requestSession=navigator.xr.requestSession.bind(navigator.xr),navigator.xr.requestSession=async()=>{throw new DOMException(\"Test request declined\",\"NotAllowedError\")},1)",
+          "value": 1
+        },
+        {
+          "expr": "(navigator.xr.requestSession=__requestSession,1)",
+          "value": 1
+        },
+        {
+          "expr": "(__G.XR.end(),1)",
+          "value": 1
+        }
+      ],
+      "expects": [
+        {
+          "expr": "document.getElementById(\"radar\").classList.contains(\"big\")",
+          "label": "the world command map is accessible by controller",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.XR.state.controllers===1 && !__G.XR.input.actions.fire",
+          "label": "controller loss releases firing",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.G.state===\"paused\" && !__G.XR.input.active",
+          "label": "system overlay pauses play and releases motion input",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.G.mode===\"thrust\" && __G.XR.state.flat",
+          "label": "cave gameplay is preserved on a spatial screen",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "notblank(cave-display)",
+          "ok": true,
+          "value": 0.9865
+        },
+        {
+          "expr": "__G.G.mode===\"zarch\"&&!__G.XR.state.flat",
+          "label": "leaving the cave restores the stereo world",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.helm.active&&__G.helm.bridgeView&&!__G.XR.state.flat",
+          "label": "carrier bridge is a stereo crew station",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "!__G.renderer.xr.getSession().enabledFeatures.includes(\"hand-tracking\")",
+          "label": "controllers-only session can re-enter without requesting hands",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.XR.panel.canvas.width===1024&&__G.renderer.xr.isPresenting",
+          "label": "window resize updates UI while keeping XR presentation alive",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.XR.panel.mesh.scale.x<2.8&&__G.XR.panel.mesh.scale.x>1",
+          "label": "spatial interface fits narrower stereo eye viewports",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "Math.abs(__G.zCam.aspect-1024/768)<.001&&!document.documentElement.classList.contains(\"xr-layout\")",
+          "label": "exit restores desktop projection and layout",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "!__G.XR.active&&!__G.XR.state.requesting&&!document.getElementById(\"enterVR\").disabled",
+          "label": "declined entry leaves desktop playable and allows retry",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "notblank(desktop-after-sessions)",
+          "ok": true,
+          "value": 0.961
+        },
+        {
+          "expr": "!!window.__SIM&&__G.renderer.xr.getCamera().cameras.length===2",
+          "label": "CPU war spectator runs with stereo head tracking",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "true",
+          "label": "session changes and resizing produce no WebGL validation warnings",
+          "ok": true,
+          "value": true
+        }
+      ],
+      "errors": [],
+      "consoleErrors": [],
+      "startedAt": "2026-10-26T11:29:31.809Z",
+      "final": {
+        "mode": "zarch",
+        "state": "play"
+      },
+      "summary": "PASS: 15/15 expects, 0 page errors, 0 console errors",
+      "durationMs": 170701
+    },
+    {
+      "label": "XR cockpit switches/hand fire/virtual modifiers",
+      "localRun": "tools/runs/xr-world-final-xrextras",
+      "sourceQualification": "Clean final game source bfd019b21c9bb8a633c2bf6cce1eb9c99cd8dd67",
+      "name": "xrextras",
+      "query": "?debug&kb&peace&res=0.45&tech=all",
+      "ok": true,
+      "browser": "Chrome Headless 156; CHROME_PATH=/home/jayjay/.cache/chs/chrome.sh",
+      "gpu": "GPU: ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "fps": "4 fps  ·  res 45%",
+      "shots": [
+        {
+          "name": "marine-hands",
+          "file": "01-marine-hands.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 78.8,
+          "litFraction": 0.8416,
+          "colors": 482
+        },
+        {
+          "name": "c130-flight-deck",
+          "file": "02-c130-flight-deck.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 106.1,
+          "litFraction": 0.9644,
+          "colors": 440
+        }
+      ],
+      "evals": [
+        {
+          "expr": "(window.__pointVR=async(selector,hand=false)=>{\n    const X=__G.XR,T=__G.THREE,head=await new Promise(resolve=>__G.renderer.xr.getSession().requestAnimationFrame((t,f)=>resolve(f.getViewerPose(__G.renderer.xr.getReferenceSpace()).transform.position))),r=typeof selector==='string'?document.querySelector(selector).getBoundingClientRect():{x:selector.x,y:selector.y,width:0,height:0};\n    X.panel.mesh.updateMatrix();const p=new T.Vector3((r.x+r.width/2)/innerWidth-.5,.5-(r.y+r.height/2)/innerHeight,0).applyMatrix4(X.panel.mesh.matrix);\n    // Convert local tracking coordinates to IWER floor coordinates using the viewer pose, not Three's shifted stereo-union camera.\n    p.add(new T.Vector3(__xrDevice.position.x,__xrDevice.position.y,__xrDevice.position.z)).sub(head);\n    const d=hand?__xrDevice.hands.right:__xrDevice.controllers.right;d.position.set(.25,1.25,-.35);const dir=p.sub(new T.Vector3(d.position.x,d.position.y,d.position.z)).normalize();d.quaternion.copy(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,0,-1),dir));return true;},1)",
+          "value": 1
+        },
+        {
+          "expr": "__pointVR(\"#xrBar button:nth-child(3)\",false)",
+          "value": true
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',0),1)",
+          "value": 1
+        },
+        {
+          "expr": "__pointVR(\"#xrBar button:nth-child(3)\",false)",
+          "value": true
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',0),1)",
+          "value": 1
+        },
+        {
+          "expr": "(window.__pointSwitch=async(boxes,id)=>{const T=__G.THREE,X=__G.XR,head=await new Promise(resolve=>__G.renderer.xr.getSession().requestAnimationFrame((t,f)=>resolve(f.getViewerPose(__G.renderer.xr.getReferenceSpace()).transform.position))),b=boxes.find(b=>b.userData.sw===id);b.updateWorldMatrix(true,false);const p=new T.Vector3().setFromMatrixPosition(b.matrixWorld);X.rig.worldToLocal(p);p.add(new T.Vector3(__xrDevice.position.x,__xrDevice.position.y,__xrDevice.position.z)).sub(head);const d=__xrDevice.controllers.right;d.position.set(.15,1.35,-.2);const dir=p.sub(new T.Vector3(d.position.x,d.position.y,d.position.z)).normalize();d.quaternion.copy(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,0,-1),dir));return true;},window.__light0=__G.G.light,__pointSwitch(__G.cockpit.hitBoxes,'light'))",
+          "value": true
+        },
+        {
+          "expr": "(()=>{const T=__G.THREE,X=__G.XR,c=X.controls.find(c=>c.source?.handedness==='right').controller,r=new T.Raycaster();c.updateWorldMatrix(true,false);r.ray.origin.setFromMatrixPosition(c.matrixWorld);r.ray.direction.set(0,0,-1).transformDirection(c.matrixWorld);const hit=r.intersectObjects(__G.cockpit.hitBoxes,false)[0],ui=r.intersectObject(X.panel.mesh,false)[0],pt=ui&&X.panel.hit(ui.uv);return {switch:hit?.object.userData.sw,distance:hit?.distance,point:pt,element:pt&&document.elementFromPoint(pt.x,pt.y)?.outerHTML.slice(0,250)};})()",
+          "label": "cockpit ray target",
+          "value": {
+            "switch": "light",
+            "distance": 0.6149599594235072
+          }
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',0),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.primaryInputMode=\"hand\",1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.hands.right.quaternion.set(0,0,0,1),window.__shots0=__G.marine.stats.shots,window.__yaw0=__G.XR.state.footYaw,1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.hands.right.updatePinchValue(1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.hands.right.position.x+=.12,1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.hands.right.updatePinchValue(0),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.primaryInputMode=\"controller\",1)",
+          "value": 1
+        },
+        {
+          "expr": "__pointVR(\"#xrBar button:nth-child(1)\",false)",
+          "value": true
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',0),1)",
+          "value": 1
+        },
+        {
+          "expr": "(window.__shiftUps=0,addEventListener(\"keyup\",e=>{if(e.code===\"ShiftLeft\")__shiftUps++;}),document.querySelector(\"#xrDeck [data-mod=ShiftLeft]\").scrollIntoView({block:\"center\"}),1)",
+          "value": 1
+        },
+        {
+          "expr": "__pointVR(\"#xrDeck [data-mod=\\\"ShiftLeft\\\"]\",false)",
+          "value": true
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',0),1)",
+          "value": 1
+        },
+        {
+          "expr": "__pointVR(\"#xrBar button:nth-child(1)\",false)",
+          "value": true
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',0),1)",
+          "value": 1
+        },
+        {
+          "expr": "(()=>{__G.toHeli();const I=__G.ISLANDS.find(i=>i.name==='WELLSPRING');let best=null;for(let a=0;a<6.28;a+=.3)for(let r=8;r<60;r+=4){const x=I.x+Math.cos(a)*r,z=I.z+Math.sin(a)*r,y=__G.terrainH(x,z);if(y>2&&Math.hypot(x-I.pad.x,z-I.pad.z)>18&&(!best||Math.abs(y-I.pad.h)<Math.abs(best.y-I.pad.h)))best={x,z,y};}__G.H.reset(new __G.THREE.Vector3(best.x,best.y+1.2,best.z),0,true,0);__G.D.hp.rotor=.3;__G.D.hp.tail=.2;__G.G.fuel=8;return best;})()",
+          "value": {
+            "x": -250,
+            "z": -414,
+            "y": 4
+          }
+        },
+        {
+          "expr": "(__G.callLogistics(),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.primaryInputMode=\"controller\",1)",
+          "value": 1
+        },
+        {
+          "expr": "(__pointSwitch(__G.drop.deck.hitBoxes,\"ap\"))",
+          "value": true
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',0),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',0),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateAxes(\"thumbstick\",.3,-.25),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateAxes(\"thumbstick\",0,0),__G.drop.toggleAP(),__G.XR.end(),1)",
+          "value": 1
+        }
+      ],
+      "expects": [
+        {
+          "expr": "(()=>{const r=document.querySelector('#fleet [data-research]').getBoundingClientRect();return __G.XR.panel.hit({x:(r.x+r.width/2)/innerWidth,y:1-(r.y+r.height/2)/innerHeight})===null;})()",
+          "label": "unpainted desktop HUD buttons do not intercept VR rays",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.techUI.isOpen",
+          "label": "rendered research control still accepts a controller ray",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.G.light!==__light0",
+          "label": "controller ray operates a physical Huey cockpit switch",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.G.craft===\"foot\"",
+          "label": "infantry fixture exits the landed Huey",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.marine.stats.shots>__shots0&&Math.abs(__G.XR.state.footYaw-__yaw0)<.001",
+          "label": "hand pinch fires infantry without accidentally turning the body",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "document.querySelector(\"#xrDeck [data-mod=ShiftLeft]\").classList.contains(\"on\")",
+          "label": "virtual Shift latches through a real controller click",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "!__G.XR.panel.open&&__shiftUps>0&&!document.querySelector(\"#xrDeck [data-mod=ShiftLeft]\").classList.contains(\"on\")",
+          "label": "closing controls releases latched modifiers without a recursive click",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.drop.flying&&__G.drop.cockpitView&&!__G.XR.state.flat",
+          "label": "C-130 repair-team flight deck is a stereo cockpit",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "!__G.drop.state.ap",
+          "label": "controller ray operates the C-130 autopilot switch",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.drop.state.ap",
+          "label": "C-130 cockpit switch re-engages autopilot",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.CTL.state.stick.x>.1&&__G.CTL.state.stick.y<-.05&&!__G.drop.state.ap",
+          "label": "C-130 stick input takes control from the autopilot",
+          "ok": true,
+          "value": true
+        }
+      ],
+      "errors": [],
+      "consoleErrors": [],
+      "startedAt": "2026-10-26T11:32:22.599Z",
+      "final": {
+        "mode": "zarch",
+        "state": "play"
+      },
+      "summary": "PASS: 11/11 expects, 0 page errors, 0 console errors",
+      "durationMs": 139066
+    },
+    {
+      "label": "XR benchmark",
+      "localRun": "tools/runs/xr-world-final-xrperf",
+      "sourceQualification": "Clean final game source bfd019b21c9bb8a633c2bf6cce1eb9c99cd8dd67",
+      "name": "xrperf",
+      "query": "?debug&kb&peace&res=0.45&xrscale=0.8",
+      "ok": true,
+      "browser": "Chrome Headless 156; CHROME_PATH=/home/jayjay/.cache/chs/chrome.sh",
+      "gpu": "GPU: ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "fps": "2 fps  ·  res 45%",
+      "shots": [
+        {
+          "name": "bench-research",
+          "file": "01-bench-research.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 59,
+          "litFraction": 0.8871,
+          "colors": 612
+        }
+      ],
+      "evals": [
+        {
+          "expr": "(window.__pointVR=async(selector,hand=false)=>{\n    const X=__G.XR,T=__G.THREE,head=await new Promise(resolve=>__G.renderer.xr.getSession().requestAnimationFrame((t,f)=>resolve(f.getViewerPose(__G.renderer.xr.getReferenceSpace()).transform.position))),r=typeof selector==='string'?document.querySelector(selector).getBoundingClientRect():{x:selector.x,y:selector.y,width:0,height:0};\n    X.panel.mesh.updateMatrix();const p=new T.Vector3((r.x+r.width/2)/innerWidth-.5,.5-(r.y+r.height/2)/innerHeight,0).applyMatrix4(X.panel.mesh.matrix);\n    // Convert local tracking coordinates to IWER floor coordinates using the viewer pose, not Three's shifted stereo-union camera.\n    p.add(new T.Vector3(__xrDevice.position.x,__xrDevice.position.y,__xrDevice.position.z)).sub(head);\n    const d=hand?__xrDevice.hands.right:__xrDevice.controllers.right;d.position.set(.25,1.25,-.35);const dir=p.sub(new T.Vector3(d.position.x,d.position.y,d.position.z)).normalize();d.quaternion.copy(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,0,-1),dir));return true;},1)",
+          "value": 1
+        },
+        {
+          "expr": "(window.__measureXR=()=>new Promise(resolve=>{\n    const session=__G.renderer.xr.getSession(),rows=[];let last=0,lastFrame=-1;\n    const tick=()=>{const now=performance.now(),frame=__G.XR.state.frames;\n      if(frame!==lastFrame){if(last)rows.push({frame,ms:now-last,sim:__G.PROF.sim,prep:__G.PROF.prep,render:__G.PROF.render,calls:__G.renderer.info.render.calls,triangles:__G.renderer.info.render.triangles,capture:__G.XR.panel.lastCaptureMs});last=now;lastFrame=frame;}\n      if(rows.length<30)session.requestAnimationFrame(tick);else{const quant=(key,p)=>rows.map(x=>x[key]).sort((a,b)=>a-b)[Math.floor((rows.length-1)*p)];resolve({samples:rows.length,frameMs:{p50:quant('ms',.5),p95:quant('ms',.95),mean:rows.reduce((s,r)=>s+r.ms,0)/rows.length},cpuMs:{simP50:quant('sim',.5),prepP50:quant('prep',.5),renderP50:quant('render',.5)},callsP50:quant('calls',.5),trianglesP50:quant('triangles',.5),uiCaptureMsP50:quant('capture',.5),memory:{...__G.renderer.info.memory},eyeViewports:__G.renderer.xr.getCamera().cameras.map(c=>c.viewport.toArray()),scale:.8,renderer:'Chrome SwiftShader, IWER Quest 3 emulation; not physical headset performance',rows});}};session.requestAnimationFrame(tick);}),1)",
+          "value": 1
+        },
+        {
+          "expr": "window.__perfCockpit=await __measureXR()",
+          "label": "cockpit benchmark",
+          "value": {
+            "samples": 30,
+            "frameMs": {
+              "p50": 18.600000008940697,
+              "p95": 1256.2000000029802,
+              "mean": 438.163333333532
+            },
+            "cpuMs": {
+              "simP50": 8.816733664042973,
+              "prepP50": 2.4678784125276305,
+              "renderP50": 17.934597816830333
+            },
+            "callsP50": 1234,
+            "trianglesP50": 896540,
+            "uiCaptureMsP50": 0,
+            "memory": {
+              "geometries": 1016,
+              "textures": 75
+            },
+            "eyeViewports": [
+              [
+                0,
+                0,
+                640,
+                720
+              ],
+              [
+                640,
+                0,
+                640,
+                720
+              ]
+            ],
+            "scale": 0.8,
+            "renderer": "Chrome SwiftShader, IWER Quest 3 emulation; not physical headset performance",
+            "rows": [
+              {
+                "frame": 25,
+                "ms": 16.5,
+                "sim": 12.529255765160851,
+                "prep": 3.7824916924246317,
+                "render": 28.751014344864203,
+                "calls": 1230,
+                "triangles": 892656,
+                "capture": 0
+              },
+              {
+                "frame": 26,
+                "ms": 1252.2000000029802,
+                "sim": 12.327792976902808,
+                "prep": 3.673367107505377,
+                "render": 27.833463627919016,
+                "calls": 1232,
+                "triangles": 893280,
+                "capture": 0
+              },
+              {
+                "frame": 27,
+                "ms": 14.799999997019768,
+                "sim": 11.856403328355691,
+                "prep": 3.544698751832085,
+                "render": 26.81179044682109,
+                "calls": 1234,
+                "triangles": 893364,
+                "capture": 0
+              },
+              {
+                "frame": 28,
+                "ms": 16.599999994039536,
+                "sim": 11.453583162533953,
+                "prep": 3.4374638137934457,
+                "render": 25.906200924629047,
+                "calls": 1232,
+                "triangles": 893340,
+                "capture": 0
+              },
+              {
+                "frame": 29,
+                "ms": 1598.5,
+                "sim": 11.290904004556266,
+                "prep": 3.34559062280575,
+                "render": 25.09089087809957,
+                "calls": 1234,
+                "triangles": 895140,
+                "capture": 0
+              },
+              {
+                "frame": 30,
+                "ms": 18.600000008940697,
+                "sim": 10.936358803732405,
+                "prep": 3.243311092261509,
+                "render": 24.251346334045582,
+                "calls": 1236,
+                "triangles": 895828,
+                "capture": 0
+              },
+              {
+                "frame": 31,
+                "ms": 17.299999997019768,
+                "sim": 10.569540863247761,
+                "prep": 3.166145537797445,
+                "render": 23.498779017492314,
+                "calls": 1234,
+                "triangles": 895212,
+                "capture": 0
+              },
+              {
+                "frame": 32,
+                "ms": 1242.7000000029802,
+                "sim": 10.426063820234384,
+                "prep": 3.102838261205596,
+                "render": 22.83384006602165,
+                "calls": 1236,
+                "triangles": 895828,
+                "capture": 0
+              },
+              {
+                "frame": 33,
+                "ms": 20.299999997019768,
+                "sim": 10.17476062877563,
+                "prep": 3.027696348592351,
+                "render": 22.132148062571556,
+                "calls": 1234,
+                "triangles": 896396,
+                "capture": 0
+              },
+              {
+                "frame": 34,
+                "ms": 13.599999994039536,
+                "sim": 9.791022597336848,
+                "prep": 2.9263115311627335,
+                "render": 21.380540659144955,
+                "calls": 1238,
+                "triangles": 896540,
+                "capture": 0
+              },
+              {
+                "frame": 35,
+                "ms": 1225.2000000029802,
+                "sim": 9.736471467619017,
+                "prep": 2.8649959547536086,
+                "render": 20.776513626038696,
+                "calls": 1240,
+                "triangles": 896564,
+                "capture": 0
+              },
+              {
+                "frame": 36,
+                "ms": 15.600000008940697,
+                "sim": 9.424647894238067,
+                "prep": 2.7867461568669167,
+                "render": 20.057687945034786,
+                "calls": 1234,
+                "triangles": 895804,
+                "capture": 0
+              },
+              {
+                "frame": 37,
+                "ms": 15.5,
+                "sim": 9.078415499526164,
+                "prep": 2.697408849023571,
+                "render": 19.469803548379094,
+                "calls": 1232,
+                "triangles": 895780,
+                "capture": 0
+              },
+              {
+                "frame": 38,
+                "ms": 1254.0999999940395,
+                "sim": 9.264494724400844,
+                "prep": 2.6375384065723924,
+                "render": 19.06631337125816,
+                "calls": 1234,
+                "triangles": 896988,
+                "capture": 0
+              },
+              {
+                "frame": 39,
+                "ms": 19.799999997019768,
+                "sim": 9.036269988329813,
+                "prep": 2.5556614862437725,
+                "render": 18.56799770239723,
+                "calls": 1232,
+                "triangles": 896152,
+                "capture": 0
+              },
+              {
+                "frame": 40,
+                "ms": 12.5,
+                "sim": 8.754456488466287,
+                "prep": 2.4678784125276305,
+                "render": 17.934597816830333,
+                "calls": 1234,
+                "triangles": 896396,
+                "capture": 0
+              },
+              {
+                "frame": 41,
+                "ms": 1235.2000000029802,
+                "sim": 8.816733664042973,
+                "prep": 2.4144844921992723,
+                "render": 17.527867925839804,
+                "calls": 1232,
+                "triangles": 896372,
+                "capture": 0
+              },
+              {
+                "frame": 42,
+                "ms": 18.599999994039536,
+                "sim": 8.580896980542802,
+                "prep": 2.333760268185355,
+                "render": 17.036474528951768,
+                "calls": 1234,
+                "triangles": 896988,
+                "capture": 0
+              },
+              {
+                "frame": 43,
+                "ms": 17.100000008940697,
+                "sim": 8.386852131664673,
+                "prep": 2.2670722547760875,
+                "render": 16.58465080250418,
+                "calls": 1236,
+                "triangles": 897012,
+                "capture": 0
+              },
+              {
+                "frame": 44,
+                "ms": 1256.2000000029802,
+                "sim": 8.427509525230452,
+                "prep": 2.23371864173926,
+                "render": 16.235418262826006,
+                "calls": 1234,
+                "triangles": 897580,
+                "capture": 0
+              },
+              {
+                "frame": 45,
+                "ms": 19.899999991059303,
+                "sim": 8.21613404911794,
+                "prep": 2.1770327093542736,
+                "render": 15.883647349833717,
+                "calls": 1238,
+                "triangles": 898916,
+                "capture": 0
+              },
+              {
+                "frame": 46,
+                "ms": 16.700000002980232,
+                "sim": 7.9953273472580895,
+                "prep": 2.11818107388656,
+                "render": 15.544464982044008,
+                "calls": 1238,
+                "triangles": 898916,
+                "capture": 0
+              },
+              {
+                "frame": 47,
+                "ms": 1254.7000000029802,
+                "sim": 8.05056098034222,
+                "prep": 2.0922720198942084,
+                "render": 15.262241733239831,
+                "calls": 1238,
+                "triangles": 898924,
+                "capture": 0
+              },
+              {
+                "frame": 48,
+                "ms": 21,
+                "sim": 7.938032931176098,
+                "prep": 2.042658419346533,
+                "render": 14.964129646428828,
+                "calls": 1238,
+                "triangles": 899516,
+                "capture": 0
+              },
+              {
+                "frame": 49,
+                "ms": 15.5,
+                "sim": 7.706131284468281,
+                "prep": 1.9905254983792062,
+                "render": 14.6509231642564,
+                "calls": 1236,
+                "triangles": 900084,
+                "capture": 0
+              },
+              {
+                "frame": 50,
+                "ms": 1261,
+                "sim": 7.760824720095855,
+                "prep": 1.965999223460246,
+                "render": 14.378377006192592,
+                "calls": 1236,
+                "triangles": 901268,
+                "capture": 0
+              },
+              {
+                "frame": 51,
+                "ms": 18.799999997019768,
+                "sim": 7.577783484538098,
+                "prep": 1.9176992622872335,
+                "render": 14.07445815573395,
+                "calls": 1234,
+                "triangles": 901244,
+                "capture": 0
+              },
+              {
+                "frame": 52,
+                "ms": 14.5,
+                "sim": 7.338894310162181,
+                "prep": 1.8618142990238602,
+                "render": 13.755735248096265,
+                "calls": 1236,
+                "triangles": 901268,
+                "capture": 0
+              },
+              {
+                "frame": 53,
+                "ms": 1224.7000000029802,
+                "sim": 7.386949594505061,
+                "prep": 1.8437235840726671,
+                "render": 13.537948485989475,
+                "calls": 1238,
+                "triangles": 901808,
+                "capture": 0
+              },
+              {
+                "frame": 54,
+                "ms": 17.200000002980232,
+                "sim": 7.1676021147798075,
+                "prep": 1.8115374050180453,
+                "render": 13.23605106169,
+                "calls": 1240,
+                "triangles": 902424,
+                "capture": 0
+              }
+            ]
+          }
+        },
+        {
+          "expr": "__pointVR(\"#xrBar button:nth-child(3)\",false)",
+          "value": true
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',1),1)",
+          "value": 1
+        },
+        {
+          "expr": "(__xrDevice.controllers.right.updateButtonValue('trigger',0),1)",
+          "value": 1
+        },
+        {
+          "expr": "window.__perfUI=await __measureXR()",
+          "label": "research UI benchmark",
+          "value": {
+            "samples": 30,
+            "frameMs": {
+              "p50": 89.5,
+              "p95": 1567.1000000089407,
+              "mean": 439.59000000009934
+            },
+            "cpuMs": {
+              "simP50": 4.069262254802828,
+              "prepP50": 29.923898559167398,
+              "renderP50": 8.489508774706332
+            },
+            "callsP50": 1246,
+            "trianglesP50": 908648,
+            "uiCaptureMsP50": 2509.9000000059605,
+            "memory": {
+              "geometries": 1016,
+              "textures": 76
+            },
+            "eyeViewports": [
+              [
+                0,
+                0,
+                640,
+                720
+              ],
+              [
+                640,
+                0,
+                640,
+                720
+              ]
+            ],
+            "scale": 0.8,
+            "renderer": "Chrome SwiftShader, IWER Quest 3 emulation; not physical headset performance",
+            "rows": [
+              {
+                "frame": 88,
+                "ms": 1567.1000000089407,
+                "sim": 4.457404649937768,
+                "prep": 61.56177887625908,
+                "render": 9.36632019621031,
+                "calls": 1244,
+                "triangles": 907848,
+                "capture": 2692.5999999940395
+              },
+              {
+                "frame": 89,
+                "ms": 14.5,
+                "sim": 4.344534417589891,
+                "prep": 58.52368993229712,
+                "render": 9.25300418684683,
+                "calls": 1244,
+                "triangles": 907848,
+                "capture": 2692.5999999940395
+              },
+              {
+                "frame": 90,
+                "ms": 12.899999991059303,
+                "sim": 4.212307696859408,
+                "prep": 55.6275054361293,
+                "render": 9.135353977057454,
+                "calls": 1246,
+                "triangles": 907872,
+                "capture": 2692.5999999940395
+              },
+              {
+                "frame": 91,
+                "ms": 15,
+                "sim": 4.066692311867427,
+                "prep": 52.90113016476987,
+                "render": 9.123586277757546,
+                "calls": 1248,
+                "triangles": 907896,
+                "capture": 2692.5999999940395
+              },
+              {
+                "frame": 92,
+                "ms": 89.5,
+                "sim": 4.20835769582702,
+                "prep": 50.306073656531375,
+                "render": 9.01740696386967,
+                "calls": 1246,
+                "triangles": 907872,
+                "capture": 2692.5999999940395
+              },
+              {
+                "frame": 93,
+                "ms": 422,
+                "sim": 4.237939810886658,
+                "prep": 47.855769973555795,
+                "render": 8.936536615974209,
+                "calls": 1248,
+                "triangles": 907896,
+                "capture": 2692.5999999940395
+              },
+              {
+                "frame": 94,
+                "ms": 794.7000000029802,
+                "sim": 4.606042820044302,
+                "prep": 46.09298147532504,
+                "render": 8.904709785026487,
+                "calls": 1248,
+                "triangles": 907896,
+                "capture": 2160.2999999970198
+              },
+              {
+                "frame": 95,
+                "ms": 1533,
+                "sim": 4.585740679191098,
+                "prep": 43.828332401409774,
+                "render": 8.904474296073186,
+                "calls": 1248,
+                "triangles": 908516,
+                "capture": 2160.2999999970198
+              },
+              {
+                "frame": 96,
+                "ms": 15.900000005960464,
+                "sim": 4.501453645529566,
+                "prep": 41.68191578163731,
+                "render": 8.859250581269526,
+                "calls": 1246,
+                "triangles": 908492,
+                "capture": 2160.2999999970198
+              },
+              {
+                "frame": 97,
+                "ms": 14.799999997019768,
+                "sim": 4.4113809626570415,
+                "prep": 39.63781999315149,
+                "render": 8.806288052057038,
+                "calls": 1244,
+                "triangles": 908468,
+                "capture": 2160.2999999970198
+              },
+              {
+                "frame": 98,
+                "ms": 13.799999997019768,
+                "sim": 4.345811914971224,
+                "prep": 37.69092899289787,
+                "render": 8.710973649752209,
+                "calls": 1244,
+                "triangles": 908468,
+                "capture": 2160.2999999970198
+              },
+              {
+                "frame": 99,
+                "ms": 480.59999999403954,
+                "sim": 4.323521319520687,
+                "prep": 35.89638254310396,
+                "render": 8.680424966966575,
+                "calls": 1246,
+                "triangles": 908492,
+                "capture": 2160.2999999970198
+              },
+              {
+                "frame": 100,
+                "ms": 300.70000000298023,
+                "sim": 4.327345253097618,
+                "prep": 34.13656341609777,
+                "render": 8.571403718618246,
+                "calls": 1246,
+                "triangles": 908640,
+                "capture": 2160.2999999970198
+              },
+              {
+                "frame": 101,
+                "ms": 519.1000000089407,
+                "sim": 4.310977990442737,
+                "prep": 33.05473524529288,
+                "render": 8.467833532687333,
+                "calls": 1246,
+                "triangles": 908648,
+                "capture": 2396.1000000089407
+              },
+              {
+                "frame": 102,
+                "ms": 1588.199999988079,
+                "sim": 4.250429091367635,
+                "prep": 31.46199848317725,
+                "render": 8.50444185545692,
+                "calls": 1248,
+                "triangles": 908672,
+                "capture": 2396.1000000089407
+              },
+              {
+                "frame": 103,
+                "ms": 18.200000002980232,
+                "sim": 4.172907636948264,
+                "prep": 29.923898559167398,
+                "render": 8.494219762535062,
+                "calls": 1248,
+                "triangles": 908672,
+                "capture": 2396.1000000089407
+              },
+              {
+                "frame": 104,
+                "ms": 14.100000008940697,
+                "sim": 4.069262254802828,
+                "prep": 28.46270363135804,
+                "render": 8.489508774706332,
+                "calls": 1246,
+                "triangles": 908648,
+                "capture": 2396.1000000089407
+              },
+              {
+                "frame": 105,
+                "ms": 14.199999988079071,
+                "sim": 3.9757991422116983,
+                "prep": 27.08456845008816,
+                "render": 8.450033335374968,
+                "calls": 1244,
+                "triangles": 908624,
+                "capture": 2396.1000000089407
+              },
+              {
+                "frame": 106,
+                "ms": 494.20000000298023,
+                "sim": 3.912009185250125,
+                "prep": 25.77034002743474,
+                "render": 8.32753166860622,
+                "calls": 1244,
+                "triangles": 908924,
+                "capture": 2396.1000000089407
+              },
+              {
+                "frame": 107,
+                "ms": 403.70000000298023,
+                "sim": 3.841408725987619,
+                "prep": 24.52682302561597,
+                "render": 8.34615508532492,
+                "calls": 1244,
+                "triangles": 908924,
+                "capture": 2396.1000000089407
+              },
+              {
+                "frame": 108,
+                "ms": 316.40000000596046,
+                "sim": 3.824338289688238,
+                "prep": 23.86548187418616,
+                "render": 8.308847331505708,
+                "calls": 1250,
+                "triangles": 909092,
+                "capture": 2568.5
+              },
+              {
+                "frame": 109,
+                "ms": 1638.7999999970198,
+                "sim": 3.7681213746077793,
+                "prep": 22.717207780774874,
+                "render": 8.3734049646324,
+                "calls": 1246,
+                "triangles": 909540,
+                "capture": 2568.5
+              },
+              {
+                "frame": 110,
+                "ms": 15,
+                "sim": 3.6697153057283787,
+                "prep": 21.63134739173613,
+                "render": 8.359734716847814,
+                "calls": 1248,
+                "triangles": 909564,
+                "capture": 2568.5
+              },
+              {
+                "frame": 111,
+                "ms": 14.799999997019768,
+                "sim": 3.556229540739983,
+                "prep": 20.6047800218513,
+                "render": 8.401747981154436,
+                "calls": 1248,
+                "triangles": 909564,
+                "capture": 2568.5
+              },
+              {
+                "frame": 112,
+                "ms": 13.099999994039536,
+                "sim": 3.4734180640010073,
+                "prep": 19.614541020609725,
+                "render": 8.296660581947704,
+                "calls": 1246,
+                "triangles": 909540,
+                "capture": 2568.5
+              },
+              {
+                "frame": 113,
+                "ms": 89.40000000596046,
+                "sim": 3.39474716109898,
+                "prep": 18.663813969281215,
+                "render": 8.24182755299933,
+                "calls": 1246,
+                "triangles": 909692,
+                "capture": 2568.5
+              },
+              {
+                "frame": 114,
+                "ms": 702.7000000029802,
+                "sim": 3.4350098031930427,
+                "prep": 17.820623270668143,
+                "render": 8.2097361757964,
+                "calls": 1246,
+                "triangles": 909692,
+                "capture": 2568.5
+              },
+              {
+                "frame": 115,
+                "ms": 511,
+                "sim": 3.4082593125863556,
+                "prep": 17.479592107134735,
+                "render": 8.204249367453613,
+                "calls": 1246,
+                "triangles": 909692,
+                "capture": 2509.9000000059605
+              },
+              {
+                "frame": 116,
+                "ms": 1545.2000000029802,
+                "sim": 3.3678463466590145,
+                "prep": 16.645612501628985,
+                "render": 8.249036899527967,
+                "calls": 1244,
+                "triangles": 909676,
+                "capture": 2509.9000000059605
+              },
+              {
+                "frame": 117,
+                "ms": 15.099999994039536,
+                "sim": 3.294454028879029,
+                "prep": 15.848331876696548,
+                "render": 8.211585054551568,
+                "calls": 1246,
+                "triangles": 909552,
+                "capture": 2509.9000000059605
+              }
+            ]
+          }
+        },
+        {
+          "expr": "(__G.techUI.close(),__G.XR.end(),1)",
+          "value": 1
+        }
+      ],
+      "expects": [
+        {
+          "expr": "__perfCockpit.samples===30&&__perfUI.samples===30&&__perfCockpit.eyeViewports.length===2",
+          "label": "both benchmark cases contain 30 real stereo frames",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__perfUI.memory.textures-__perfCockpit.memory.textures<20",
+          "label": "opening research keeps texture allocation bounded",
+          "ok": true,
+          "value": true
+        }
+      ],
+      "errors": [],
+      "consoleErrors": [],
+      "startedAt": "2026-10-26T11:34:41.759Z",
+      "final": {
+        "mode": "zarch",
+        "state": "play"
+      },
+      "summary": "PASS: 2/2 expects, 0 page errors, 0 console errors",
+      "durationMs": 77051
+    },
+    {
+      "label": "Desktop smoke",
+      "localRun": "tools/runs/xr-world-final-smoke",
+      "sourceQualification": "Clean final game source bfd019b21c9bb8a633c2bf6cce1eb9c99cd8dd67",
+      "name": "smoke",
+      "query": "?debug&auto&kb&res=0.45",
+      "ok": true,
+      "browser": "Chrome Headless 156; CHROME_PATH=/home/jayjay/.cache/chs/chrome.sh",
+      "gpu": "GPU: ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "fps": "1 fps  ·  res 45%",
+      "shots": [
+        {
+          "name": "landscape",
+          "file": "01-landscape.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 87.4,
+          "litFraction": 0.9829,
+          "colors": 734
+        },
+        {
+          "name": "after-thrust",
+          "file": "02-after-thrust.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 120.9,
+          "litFraction": 0.9959,
+          "colors": 733
+        }
+      ],
+      "evals": [
+        {
+          "expr": "({mode:__G.G.mode, state:__G.G.state, pos:__G.Z.pos.toArray(), alive:__G.Z.alive, landed:__G.Z.landed, gpu:document.getElementById('gpuinfo').textContent, fps:document.getElementById('dbg').textContent})",
+          "value": {
+            "mode": "zarch",
+            "state": "play",
+            "pos": [
+              -453.2822089941572,
+              9.888023776084252,
+              612.6180456377539
+            ],
+            "alive": true,
+            "landed": true,
+            "gpu": "GPU: ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "fps": "0 fps  ·  res 45%"
+          }
+        },
+        {
+          "expr": "(__G.H.reset(new __G.THREE.Vector3(__G.HOME_B.x+18.0, 40, __G.HOME_B.z+18.0), 0, false, 1), __G.HI.setCollective(0.6), window.__y0 = 40)",
+          "value": 40
+        },
+        {
+          "expr": "({y0: window.__y0, y1: __G.Z.pos.y, vy: __G.Z.vel.y, throttle: __G.Z.throttle, lives: __G.G.lives, fuel: __G.G.fuel})",
+          "value": {
+            "y0": 40,
+            "y1": 43.74388066027285,
+            "vy": 6.405216944656471,
+            "throttle": 0.857084787080552,
+            "lives": 3,
+            "fuel": 99.59134712278686
+          }
+        }
+      ],
+      "expects": [
+        {
+          "expr": "notblank(landscape)",
+          "ok": true,
+          "value": 0.9829
+        },
+        {
+          "expr": "__G.G.mode==='zarch'",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "notblank(after-thrust)",
+          "ok": true,
+          "value": 0.9959
+        },
+        {
+          "expr": "__G.G.mode==='zarch'",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.Z.pos.y > window.__y0 + 1",
+          "ok": true,
+          "value": true
+        }
+      ],
+      "errors": [],
+      "consoleErrors": [],
+      "startedAt": "2026-10-26T11:35:58.900Z",
+      "final": {
+        "mode": "zarch",
+        "state": "play"
+      },
+      "summary": "PASS: 5/5 expects, 0 page errors, 0 console errors",
+      "durationMs": 29110
+    },
+    {
+      "label": "Desktop infantry",
+      "localRun": "tools/runs/xr-release-marine",
+      "sourceQualification": "Desktop unit regressions preceded the final VR-only changes and world-camera hooks. The final desktop smoke and XR scenes cover those later changes.",
+      "name": "marine",
+      "query": "?debug&auto",
+      "ok": true,
+      "browser": "Chrome Headless 156; CHROME_PATH=/home/jayjay/.cache/chs/chrome.sh",
+      "gpu": "GPU: ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "fps": "5 fps  ·  res 45%",
+      "shots": [
+        {
+          "name": "walking-the-deck-in-a-seaway",
+          "file": "01-walking-the-deck-in-a-seaway.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 76.8,
+          "litFraction": 0.9731,
+          "colors": 659
+        },
+        {
+          "name": "aiming-down-the-sights",
+          "file": "02-aiming-down-the-sights.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 84.2,
+          "litFraction": 0.9734,
+          "colors": 633
+        },
+        {
+          "name": "trooper-down-third-person",
+          "file": "03-trooper-down-third-person.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 77.9,
+          "litFraction": 0.9785,
+          "colors": 638
+        },
+        {
+          "name": "reloading",
+          "file": "04-reloading.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 79,
+          "litFraction": 0.9598,
+          "colors": 644
+        },
+        {
+          "name": "bleeding",
+          "file": "05-bleeding.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 81,
+          "litFraction": 0.9704,
+          "colors": 704
+        },
+        {
+          "name": "health-screen",
+          "file": "06-health-screen.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 31.6,
+          "litFraction": 0.676,
+          "colors": 432
+        },
+        {
+          "name": "applying-tourniquet",
+          "file": "07-applying-tourniquet.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 32.5,
+          "litFraction": 0.6917,
+          "colors": 429
+        },
+        {
+          "name": "health-after-treatment",
+          "file": "08-health-after-treatment.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 32,
+          "litFraction": 0.699,
+          "colors": 447
+        },
+        {
+          "name": "gear-screen",
+          "file": "09-gear-screen.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 29.2,
+          "litFraction": 0.5466,
+          "colors": 224
+        },
+        {
+          "name": "back-in-the-world-wounded",
+          "file": "10-back-in-the-world-wounded.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 83.7,
+          "litFraction": 0.9698,
+          "colors": 688
+        }
+      ],
+      "evals": [
+        {
+          "expr": "(window.__F = {\n    m: () => __G.marine,\n    loc: () => { const c = __G.war.carrier, W = __G.foot.W, s = __G.GR.toShip(c, W.x, W.y, W.z); return { x: +s.x.toFixed(2), y: +s.y.toFixed(2), z: +s.z.toFixed(2) }; },\n    sea: () => { const a = __G.war.carrier.att; return { heave: +a.heave.toFixed(3), pitchDeg: +(a.pitch * 57.3).toFixed(2), rollDeg: +(a.roll * 57.3).toFixed(2), speed: +__G.war.carrier.speed.toFixed(2) }; },\n    aimAt: (x, y, z) => { const S = __G.marine.S, dx = x - S.eye.x, dy = y - S.eye.y, dz = z - S.eye.z; return __G.marine.aim(Math.atan2(-dx, -dz), Math.atan2(dy, Math.hypot(dx, dz))); },\n    rifle: () => __G.marine.inv.slots.primary,\n  }, 1)",
+          "value": 1
+        },
+        {
+          "expr": "(() => { const c = __G.war.carrier; __G.war.orderCarrier(c.p.x - Math.sin(c.yaw) * 900, c.p.z - Math.cos(c.yaw) * 900); return __F.sea(); })()",
+          "value": {
+            "heave": 0.086,
+            "pitchDeg": -0.04,
+            "rollDeg": 0.19,
+            "speed": 0
+          }
+        },
+        {
+          "expr": "document.getElementById('msg').textContent",
+          "value": "OUT OF THE UH-1H HUEY  -  Y BY A DOOR TO GET BACK IN"
+        },
+        {
+          "expr": "({ sea: __F.sea(), load: +__G.marine.S.load.toFixed(1), weap: document.getElementById(\"weap\").textContent })",
+          "value": {
+            "sea": {
+              "heave": -0.037,
+              "pitchDeg": 0.07,
+              "rollDeg": 0.13,
+              "speed": 1.18
+            },
+            "load": 28.2,
+            "weap": "M16A1  SEMI  ·  0-300  ·  MAG UNCHECKED (L)  ·  6 MAGS"
+          }
+        },
+        {
+          "expr": "(__G.marine.aim(__G.war.carrier.yaw, -0.05), window.__l0 = __F.loc(), window.__sea = [], window.__seaI = setInterval(() => __sea.push(__F.sea()), 200), 1)",
+          "value": 1
+        },
+        {
+          "expr": "(clearInterval(__seaI), { from: __l0, to: __F.loc(), sea: __sea.slice(-3), rollRange: Math.max(...__sea.map(s => s.rollDeg)) - Math.min(...__sea.map(s => s.rollDeg)), heaveRange: Math.max(...__sea.map(s => s.heave)) - Math.min(...__sea.map(s => s.heave)) })",
+          "value": {
+            "from": {
+              "x": -3.07,
+              "y": 8,
+              "z": 30.11
+            },
+            "to": {
+              "x": -3.07,
+              "y": 7.98,
+              "z": 17.98
+            },
+            "sea": [
+              {
+                "heave": 0.006,
+                "pitchDeg": -0.12,
+                "rollDeg": 2.23,
+                "speed": 2.74
+              },
+              {
+                "heave": 0.006,
+                "pitchDeg": -0.12,
+                "rollDeg": 2.33,
+                "speed": 2.78
+              },
+              {
+                "heave": 0.007,
+                "pitchDeg": -0.12,
+                "rollDeg": 2.64,
+                "speed": 2.88
+              }
+            ],
+            "rollRange": 2.5,
+            "heaveRange": 0.06
+          }
+        },
+        {
+          "expr": "(() => { const c = __G.war.carrier, W = __G.foot.W, l = __F.loc(), p = __G.GR.fromShip(c, l.x, 8, l.z - 30, {}); window.__tg = __G.marine.addFigure(p.x, __G.GR.deckH(p.x, p.z), p.z, c.yaw + Math.PI, { ship: c }); return { at: [p.x, p.z] }; })()",
+          "value": {
+            "at": [
+              -412.8341671514175,
+              572.299802878204
+            ]
+          }
+        },
+        {
+          "expr": "(__G.marine.input({ ads: true }), 1)",
+          "value": 1
+        },
+        {
+          "expr": "(() => { const r = __tg.sk.bones.chest.getWorldPosition(new __G.THREE.Vector3()); return __F.aimAt(r.x, r.y, r.z); })()",
+          "value": true
+        },
+        {
+          "expr": "(() => { const r = __tg.sk.bones.chest.getWorldPosition(new __G.THREE.Vector3()); __F.aimAt(r.x, r.y, r.z); return __G.marine.input({ fire: true }); })()",
+          "value": true
+        },
+        {
+          "expr": "__G.marine.input({ fire: false })",
+          "value": true
+        },
+        {
+          "expr": "!__tg.alive",
+          "value": true
+        },
+        {
+          "expr": "({ stats: __G.marine.stats, tgHits: __tg.hits, alive: __tg.alive, rifleRds: __G.marine.R.cur.rounds })",
+          "value": {
+            "stats": {
+              "shots": 1,
+              "impacts": 0,
+              "hits": 1,
+              "downs": 1
+            },
+            "tgHits": 2,
+            "alive": false,
+            "rifleRds": 19
+          }
+        },
+        {
+          "expr": "(__G.marine.input({ ads: false }), __G.marine.view = \"third\", 1)",
+          "value": 1
+        },
+        {
+          "expr": "(__G.marine.view = \"first\", 1)",
+          "value": 1
+        },
+        {
+          "expr": "(() => { window.__mag0 = __F.rifle().slots.mag; window.__rds0 = __G.marine.MS.inv && [...(function* w(r) { yield r; for (const k in r.slots || {}) if (r.slots[k]) yield* w(r.slots[k]); for (const g of r.grids || []) for (const o of g) yield* w(o); })(__G.marine.inv)].filter(o => o.id === 'mag_m16_20').reduce((s, m) => s + m.ammo.reduce((a, x) => a + x[1], 0), 0); __G.marine.press('reload'); return { mag0: __mag0.uid, rounds: __rds0 }; })()",
+          "value": {
+            "mag0": 20,
+            "rounds": 138
+          }
+        },
+        {
+          "expr": "({ newMag: __F.rifle().slots.mag.uid, newRounds: __F.rifle().slots.mag.ammo.reduce((a, x) => a + x[1], 0), hud: document.getElementById(\"weap\").textContent })",
+          "value": {
+            "newMag": 21,
+            "newRounds": 20,
+            "hud": "M16A1  SEMI  ·  0-300  ·  MAG UNCHECKED (L)  ·  6 MAGS"
+          }
+        },
+        {
+          "expr": "(() => { __G.marine.MS.reseed(1980); const W = __G.foot.W, M = __G.marine.M, fx = Math.cos(W.yaw), fz = -Math.sin(W.yaw); __G.hurtPlayer(0.2, 'HIT', { x: W.x - fx * 0.1, y: W.y + 0.6, z: W.z - fz * 0.1 }, { x: -30, y: 0, z: 10 }, 'b');\n      if (!M.bleeds.some(b => b.region.startsWith('leg') && !b.stopped && b.type === 'arterial')) M.bleeds.push({ id: 900, region: 'legL', zone: 'thigh', type: 'arterial', rate: 500, ctl: 'tq', name: 'FEMORAL A.', clot: 0, ctrl: 1, t: 0, dressed: false, packed: false, stopped: false });\n      window.__leg = M.bleeds.find(b => b.region.startsWith('leg') && !b.stopped && b.type === 'arterial').region; return { hits: M.log.filter(e => e.type === 'hit').map(e => e.region + '/' + e.zone), bleed: Math.round(M.bleedRate()), leg: __leg }; })()",
+          "value": {
+            "hits": [
+              "legL/shin"
+            ],
+            "bleed": 556,
+            "leg": "legL"
+          }
+        },
+        {
+          "expr": "__leg",
+          "value": "legL"
+        },
+        {
+          "expr": "({ dressing: [999.5,102.484375], leg: [640.4706420898438,530.0859222412109] })",
+          "value": {
+            "dressing": [
+              999.5,
+              102.484375
+            ],
+            "leg": [
+              640.4706420898438,
+              530.0859222412109
+            ]
+          }
+        },
+        {
+          "expr": "(() => { const M = __G.marine.M; let t = 0; while (M.action && t < 120) { M.update(0.25, {}); t += 0.25; } return { t, bleed: Math.round(M.bleedRate()) }; })()",
+          "value": {
+            "t": 40,
+            "bleed": 353
+          }
+        },
+        {
+          "expr": "({ action: __G.marine.M.action && __G.marine.M.action.label })",
+          "value": {
+            "action": "IMPROVISED TOURNIQUET"
+          }
+        },
+        {
+          "expr": "(() => { const M = __G.marine.M; let t = 0; while (M.action && t < 200) { M.update(0.25, {}); t += 0.25; } return { t, bleed: Math.round(M.bleedRate()), tq: M.regions[__leg].tq.length, blood: M.vitals().bloodMl }; })()",
+          "value": {
+            "t": 73,
+            "bleed": 177,
+            "tq": 1,
+            "blood": 4356
+          }
+        },
+        {
+          "expr": "(() => { const c = __G.war.carrier, d = __G.crafts.toWorld(__G.heliC, [2.6, -1.84, -1.9]); return __G.foot.spawnAt({ x: d.x, y: __G.GR.deckH(d.x, d.z), z: d.z, yaw: d.yaw + Math.PI / 2 }); })()",
+          "value": true
+        }
+      ],
+      "expects": [
+        {
+          "expr": "__G.G.craft === 'foot' && __G.foot.exists && __G.foot.W.plat === __G.war.carrier && __G.marine.R.cur.key === 'M16A1'",
+          "label": "out on the deck as the Marine with his M16A1",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "Math.abs(__F.loc().x - __l0.x) < 1 && __G.foot.W.plat === __G.war.carrier && __G.foot.W.onGround && Math.abs(__F.loc().y - 8) < 0.15",
+          "label": "walked the moving, rolling deck: straight, on the deck",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__sea.some(s => Math.abs(s.heave) > 0.005 || Math.abs(s.rollDeg) > 0.02)",
+          "label": "the ship really was moving in the sea",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.marine.stats.shots >= 1 && __G.marine.stats.hits >= 1",
+          "label": "rounds left the muzzle and hit the figure (hitboxes)",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "!__tg.alive",
+          "label": "the trooper went down",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__F.rifle().slots.mag !== __mag0 && __G.marine.R.cur.mag.inst === __F.rifle().slots.mag && __G.marine.I.isWithin(__mag0, __G.marine.inv) && !__G.marine.I.isWithin(__mag0, __F.rifle())",
+          "label": "tactical reload: a fresh magazine from the pouches in the rifle, the old one back in a pouch",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.marine.M.bleedRate() > 200 && __G.foot.alive",
+          "label": "hit in the leg and bleeding hard",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.marine.ui === 'health' && !!document.querySelector('.ngc-med.on')",
+          "label": "H opens the health screen (mouse released)",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.marine.M.action && /dress/i.test(__G.marine.M.action.label + __G.marine.M.action.kind)",
+          "label": "dressing dragged onto the leg: applying",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.marine.M.action && /tourniquet/i.test(__G.marine.M.action.label || __G.marine.M.action.kind)",
+          "label": "cravat dragged onto the leg: an improvised tourniquet",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.marine.M.regions[__leg].tq.length > 0 && __G.foot.alive",
+          "label": "tourniquet on the leg, still alive",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.marine.ui === 'gear' && !!document.querySelector('.ngc-inv.on')",
+          "label": "Tab switches to the gear screen",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "!__G.marine.ui && __G.G.state === \"play\"",
+          "label": "Esc closes the screen (and not the game)",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "document.getElementById('hint').textContent.startsWith('Y: GET IN THE UH-1H')",
+          "label": "at the Huey door",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.G.craft === 'heli' && !__G.foot.exists",
+          "label": "back in the Huey",
+          "ok": true,
+          "value": true
+        }
+      ],
+      "errors": [],
+      "consoleErrors": [],
+      "startedAt": "2026-10-26T10:46:16.355Z",
+      "final": {
+        "mode": "zarch",
+        "state": "play"
+      },
+      "summary": "PASS: 15/15 expects, 0 page errors, 0 console errors",
+      "durationMs": 161539
+    },
+    {
+      "label": "Desktop catapults",
+      "localRun": "tools/runs/xr-release-catshot",
+      "sourceQualification": "Desktop unit regressions preceded the final VR-only changes and world-camera hooks. The final desktop smoke and XR scenes cover those later changes.",
+      "name": "catshot",
+      "query": "?debug&auto",
+      "ok": true,
+      "browser": "Chrome Headless 156; CHROME_PATH=/home/jayjay/.cache/chs/chrome.sh",
+      "gpu": "GPU: ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "fps": "1 fps  ·  res 45%",
+      "shots": [
+        {
+          "name": "tomcat-cockpit-on-the-cat",
+          "file": "01-tomcat-cockpit-on-the-cat.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 87.8,
+          "litFraction": 0.943,
+          "colors": 856
+        },
+        {
+          "name": "tomcat-chase-on-the-cat",
+          "file": "02-tomcat-chase-on-the-cat.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 84.6,
+          "litFraction": 0.9604,
+          "colors": 667
+        },
+        {
+          "name": "tomcat-chase-mid-stroke",
+          "file": "03-tomcat-chase-mid-stroke.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 101.6,
+          "litFraction": 0.9646,
+          "colors": 737
+        },
+        {
+          "name": "tomcat-chase-flyaway",
+          "file": "04-tomcat-chase-flyaway.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 121,
+          "litFraction": 0.9998,
+          "colors": 585
+        },
+        {
+          "name": "tomcat-cockpit-flyaway",
+          "file": "05-tomcat-cockpit-flyaway.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 103.2,
+          "litFraction": 0.9404,
+          "colors": 693
+        },
+        {
+          "name": "hornet-chase-on-the-cat",
+          "file": "06-hornet-chase-on-the-cat.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 85.4,
+          "litFraction": 0.9443,
+          "colors": 757
+        },
+        {
+          "name": "hornet-chase-flyaway",
+          "file": "07-hornet-chase-flyaway.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 120.9,
+          "litFraction": 0.9995,
+          "colors": 682
+        },
+        {
+          "name": "ai-tomcat-on-the-cat",
+          "file": "08-ai-tomcat-on-the-cat.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 80,
+          "litFraction": 0.9451,
+          "colors": 644
+        },
+        {
+          "name": "ai-tomcat-stroke",
+          "file": "09-ai-tomcat-stroke.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 82,
+          "litFraction": 0.9496,
+          "colors": 717
+        },
+        {
+          "name": "ai-tomcat-climb-out",
+          "file": "10-ai-tomcat-climb-out.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 108.9,
+          "litFraction": 0.9979,
+          "colors": 522
+        }
+      ],
+      "evals": [
+        {
+          "expr": "(window.T = __G.tomcatC.TP, window.A = T.A, window.__ev = [], T.autopilot = null, __G.cockpitCam = true, 1)",
+          "value": 1
+        },
+        {
+          "expr": "(__G.cockpitCam = false, T.snapChase(), 1)",
+          "value": 1
+        },
+        {
+          "expr": "({ s: A.cat && A.cat.s, v: A.cat && A.cat.v, y: A.pos.y })",
+          "label": "mid-stroke",
+          "value": {
+            "s": null,
+            "v": null,
+            "y": 10.868198750315003
+          }
+        },
+        {
+          "expr": "(window.__t0 = __G.war.time, window.__y0 = A.pos.y, window.__min = 99, window.__nz = 0, window.__mon = setInterval(() => { window.__min = Math.min(window.__min, A.pos.y); window.__nz = Math.max(window.__nz, A.nz); }, 30), 1)",
+          "value": 1
+        },
+        {
+          "expr": "(__G.cockpitCam = true, 1)",
+          "value": 1
+        },
+        {
+          "expr": "({ alive: T.alive, y: A.pos.y, vy: A.vel.y, pitch: A.attitude().pitch * 57.3, eas: A.eas * 1.944, lowest: __min, nzMax: __nz })",
+          "label": "hands-off flyaway",
+          "value": {
+            "alive": true,
+            "y": 48.481296187627244,
+            "vy": 8.291385079174376,
+            "pitch": 8.711502979478773,
+            "eas": 194.53841940338293,
+            "lowest": 11.063503789714305,
+            "nzMax": 1.3462457696788832
+          }
+        },
+        {
+          "expr": "clearInterval(__mon)",
+          "value": null
+        },
+        {
+          "expr": "({ craft: __G.G.craft, cat: __G.JP.J && __G.JP.J.cat && __G.JP.J.cat.state })",
+          "label": "Hornet",
+          "value": {
+            "craft": "jet",
+            "cat": "hold"
+          }
+        },
+        {
+          "expr": "(window.J = __G.JP.J, __G.cockpitCam = false, 1)",
+          "value": 1
+        },
+        {
+          "expr": "(window.__t1 = __G.war.time, 1)",
+          "value": 1
+        },
+        {
+          "expr": "({ y: J.pos.y, vy: J.vel.y, alive: __G.JP.alive })",
+          "label": "Hornet flyaway",
+          "value": {
+            "y": 46.028884338729746,
+            "vy": 12.133975401342179,
+            "alive": true
+          }
+        },
+        {
+          "expr": "(() => { const G = __G, T = G.THREE, r = G.renderer, cam = new T.PerspectiveCamera(50, 1, 0.3, 2500), orig = r.render.bind(r);\n  const t = new T.Vector3(), p = new T.Vector3(), f = new T.Vector3(), s = new T.Vector3();\n  r.render = (sc, c) => {\n    const u = window.__follow, m = window.__cam; if (c !== G.zCam || !u || !m) return orig(sc, c);\n    u.mesh.getWorldPosition(t); u.sim.forward(f); f.y = 0; f.normalize(); s.set(-f.z, 0, f.x);\n    p.copy(t).addScaledVector(m.side ? s : f, -m.d * (m.side || 1)); p.y += m.h;\n    cam.position.copy(p); cam.up.set(0, 1, 0); cam.lookAt(t); cam.aspect = c.aspect; cam.updateProjectionMatrix(); return orig(sc, cam);\n  };\n  return true; })()",
+          "value": true
+        },
+        {
+          "expr": "(() => { const W = __G.war, c = W.carrier; __G.G.mat = 200; __G.selIsl = null; __G.command(4); return W.air.pending.length; })()",
+          "value": 0
+        },
+        {
+          "expr": "(window.__j = __G.war.units.find(u => u.type === 'escort'), window.__follow = __j, window.__cam = { side: 1, d: 26, h: 7 }, 1)",
+          "value": 1
+        },
+        {
+          "expr": "(window.__cam = { d: 30, h: 6 }, 1)",
+          "value": 1
+        },
+        {
+          "expr": "(window.__t2 = __G.war.time, 1)",
+          "value": 1
+        },
+        {
+          "expr": "({ state: __j.ai.state, y: Math.round(__j.p.y), eas: Math.round(__j.sim.eas * 1.944), dead: !!__j.dead })",
+          "label": "AI Tomcat",
+          "value": {
+            "state": "climb",
+            "y": 88,
+            "eas": 234,
+            "dead": false
+          }
+        },
+        {
+          "expr": "(window.__cam = null, 1)",
+          "value": 1
+        }
+      ],
+      "expects": [
+        {
+          "expr": "__G.G.craft === \"tomcat\" && __G.tomcatC.TP.A.cat && __G.tomcatC.TP.A.cat.state === \"hold\"",
+          "label": "Tomcat on cat 1",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "T.alive && A.pos.y > 20 && A.vel.y > 0 && window.__min > 7",
+          "label": "Tomcat: hands off, she flies away off the cat and climbs",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.G.craft === \"jet\" && __G.JP.J.cat && __G.JP.J.cat.state === \"hold\"",
+          "label": "Hornet on cat 1",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__G.JP.alive !== false && J.pos.y > 15 && J.vel.y > 0",
+          "label": "Hornet: hands off, she flies away off the cat",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "!__j.dead && !__j.dying && __j.p.y > 20",
+          "label": "AI Tomcat: off the cat and climbing",
+          "ok": true,
+          "value": true
+        }
+      ],
+      "errors": [],
+      "consoleErrors": [],
+      "startedAt": "2026-10-26T10:48:58.001Z",
+      "final": {
+        "mode": "zarch",
+        "state": "play"
+      },
+      "summary": "PASS: 5/5 expects, 0 page errors, 0 console errors",
+      "durationMs": 286432
+    },
+    {
+      "label": "Normal experimental startup",
+      "localRun": "tools/runs/xr-experimental-startup",
+      "sourceQualification": "Clean final game source bfd019b21c9bb8a633c2bf6cce1eb9c99cd8dd67",
+      "name": "startup",
+      "query": "?kb&res=0.5",
+      "ok": true,
+      "browser": "Chrome Headless 156; CHROME_PATH=/home/jayjay/.cache/chs/chrome.sh",
+      "gpu": "GPU: ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "fps": "1 fps  ·  res 50%",
+      "shots": [
+        {
+          "name": "title",
+          "file": "01-title.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 58.3,
+          "litFraction": 0.9949,
+          "colors": 347
+        },
+        {
+          "name": "normal-start",
+          "file": "02-normal-start.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 88.6,
+          "litFraction": 0.9842,
+          "colors": 756
+        },
+        {
+          "name": "research",
+          "file": "03-research.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 54.3,
+          "litFraction": 0.9243,
+          "colors": 534
+        },
+        {
+          "name": "pause-settings",
+          "file": "04-pause-settings.png",
+          "w": 1280,
+          "h": 720,
+          "meanLuma": 28.7,
+          "litFraction": 0.6452,
+          "colors": 185
+        }
+      ],
+      "evals": [
+        {
+          "expr": "(async()=>{window.__releaseVersion=await (await fetch(\"/version.json\")).json();return __releaseVersion})()",
+          "value": {
+            "root": "/home/jayjay/thrust-zarch-experimental",
+            "commit": "bfd019b",
+            "dirty": false,
+            "date": "2026-10-26_11:19",
+            "served": "2026-10-26T11:37:25.775Z"
+          }
+        }
+      ],
+      "expects": [
+        {
+          "expr": "!window.__G && getComputedStyle(document.getElementById(\"title\")).display!==\"none\"",
+          "label": "ordinary title, no debug bridge or automatic start",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "__releaseVersion.commit===\"bfd019b\" && !__releaseVersion.dirty",
+          "label": "server identifies the clean reviewed experimental commit",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "document.querySelector(\"#enterVR\").disabled && /VR UNAVAILABLE/.test(document.querySelector(\"#enterVR\").textContent)",
+          "label": "ordinary browser reports unavailable VR without blocking desktop",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "document.querySelector(\"#xrHands\").checked",
+          "label": "optional hand tracking defaults on",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "!!document.querySelector(\"#fleet [data-command]\") && !!document.querySelector(\"#fleet [data-research]\")",
+          "label": "normal play exposes command and research buttons",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "notblank(normal-start)",
+          "ok": true,
+          "value": 0.9842
+        },
+        {
+          "expr": "document.getElementById(\"techBoard\").classList.contains(\"on\") && document.getElementById(\"techBoard\").innerText.includes(\"6 / 19\")",
+          "label": "HUD research opens with normal starting gates",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "getComputedStyle(document.getElementById(\"menu\")).display!==\"none\" && !!document.querySelector(\"#menu [data-action=research]\")",
+          "label": "pause menu offers research",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "document.getElementById(\"techBoard\").classList.contains(\"on\") && getComputedStyle(document.getElementById(\"menu\")).display===\"none\"",
+          "label": "pause-menu research resumes and opens",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "document.getElementById(\"cmdBoard\").classList.contains(\"on\")",
+          "label": "HUD command button opens the board",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "document.getElementById(\"techBoard\").classList.contains(\"on\") && !document.getElementById(\"cmdBoard\").classList.contains(\"on\")",
+          "label": "board research opens without overlapping command",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "/SEA LIFE.*MEDIUM/.test(document.getElementById(\"menu\").innerText)",
+          "label": "normal sea-life default is medium",
+          "ok": true,
+          "value": true
+        },
+        {
+          "expr": "getComputedStyle(document.getElementById(\"menu\")).display===\"none\"",
+          "label": "normal play resumes",
+          "ok": true,
+          "value": true
+        }
+      ],
+      "errors": [],
+      "consoleErrors": [],
+      "startedAt": "2026-10-26T11:37:19.351Z",
+      "final": {
+        "mode": null,
+        "state": null
+      },
+      "summary": "PASS: 13/13 expects, 0 page errors, 0 console errors",
+      "durationMs": 39254
+    }
+  ]
+}

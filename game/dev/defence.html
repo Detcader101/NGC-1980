@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Air Defence Sandbox</title>
+<script type="importmap">{"imports":{"three":"../vendor/three.module.min.js"}}</script>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#9cbcd6;font:12px Consolas,monospace;color:#dff}
+canvas{display:block}
+#ui{position:fixed;right:0;top:0;bottom:0;width:260px;overflow:auto;background:rgba(0,15,30,.72);padding:8px;box-sizing:border-box}
+#ui.hide{display:none}
+#ui button{font:11px Consolas,monospace;margin:2px;padding:3px 6px;background:#123;color:#cff;border:1px solid #4a7;cursor:pointer}
+#ui button.on{background:#2a6;color:#000}
+#ui h3{margin:8px 0 4px;font-size:12px;color:#9fe}
+#hud{position:fixed;left:8px;top:6px;color:#012;text-shadow:0 0 3px #fff;white-space:pre;line-height:1.35}
+#hud.hide{display:none}
+</style></head><body>
+<div id="hud"></div><div id="ui"></div>
+<script type="module" src="./defence-sandbox.js"></script>
+</body></html>

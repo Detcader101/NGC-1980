@@ -1,0 +1,896 @@
+{
+  "schemaVersion": 2,
+  "name": "fish-species-inspection",
+  "query": "dev/fish.html?debug&res=1",
+  "seed": null,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "01e08e35636d910f96b65aa8f902dc7cf6ec767c5bcebbbc56223f5df2da01f1",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/snap.mjs",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/scenes/fish-species.mjs",
+    "--out",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/runs/fish-species-final",
+    "--capture",
+    "--frames",
+    "30"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "1b4eebc02c60a2e445c02cecb8d4ceda5533ef1b",
+    "branch": "ngc/unit-bench",
+    "gameTree": "8144c7f60fc5e0ebc859c990f4688c90654ede87",
+    "gameSha256": "070e2e800b12e632f6a079b02c3173ceb9c969fa94577456b9a5e670e206e302",
+    "dirty": false,
+    "status": ""
+  },
+  "url": "http://127.0.0.1:40355/dev/fish.html?debug&res=1",
+  "ok": true,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": null,
+  "shots": [
+    {
+      "name": "fish-species-gallery",
+      "file": "01-fish-species-gallery.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 45.2,
+      "litFraction": 0.9998,
+      "colors": 180
+    },
+    {
+      "name": "silver-school-species",
+      "file": "02-silver-school-species.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 42.4,
+      "litFraction": 1,
+      "colors": 135
+    },
+    {
+      "name": "predators-and-flying-fins",
+      "file": "03-predators-and-flying-fins.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 42.4,
+      "litFraction": 1,
+      "colors": 155
+    },
+    {
+      "name": "reef-fish-and-shark",
+      "file": "04-reef-fish-and-shark.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 42.6,
+      "litFraction": 1,
+      "colors": 134
+    },
+    {
+      "name": "specialised-sea-life",
+      "file": "05-specialised-sea-life.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 43.4,
+      "litFraction": 0.999,
+      "colors": 176
+    },
+    {
+      "name": "mackerel-pattern-closeup",
+      "file": "06-mackerel-pattern-closeup.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 42.9,
+      "litFraction": 1,
+      "colors": 124
+    }
+  ],
+  "clips": [
+    {
+      "name": "mackerel-inspection-animation",
+      "file": "01-mackerel-inspection-animation.mp4",
+      "contact": "01-mackerel-inspection-animation-contact.png",
+      "poster": "01-mackerel-inspection-animation-poster.png",
+      "requestedDurationMs": 6000,
+      "wallMs": 6010.2434969999995,
+      "requestedFps": 15,
+      "bytes": 141426,
+      "audio": false,
+      "durationSeconds": 6.034667,
+      "width": 800,
+      "height": 450,
+      "samples": [
+        {
+          "time": 0.7241600399999999,
+          "litFraction": 0.9999035493827161,
+          "fingerprint": "ad87a5d8"
+        },
+        {
+          "time": 3.0173335,
+          "litFraction": 1,
+          "fingerprint": "8ac200ae"
+        },
+        {
+          "time": 5.31050696,
+          "litFraction": 1,
+          "fingerprint": "404bd48"
+        }
+      ],
+      "qualification": "Wall-time page capture, including DOM UI. Encoded duration may be shorter than the requested wall window; capture overhead and dropped frames affect playback. Encoded FPS is not game FPS. Contact sheet is decoded from this MP4."
+    }
+  ],
+  "benchmarks": [
+    {
+      "name": "fish-species-gallery",
+      "policy": {
+        "frames": 30,
+        "warmup": 30,
+        "timeoutMs": 120000
+      },
+      "rows": [
+        {
+          "frame": 624,
+          "ms": 16.700000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 636,
+          "ms": 16.599999994039536,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 648,
+          "ms": 16.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 660,
+          "ms": 16.900000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 672,
+          "ms": 16.599999994039536,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 684,
+          "ms": 16.799999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 696,
+          "ms": 16.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 708,
+          "ms": 16.700000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 720,
+          "ms": 16.700000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 732,
+          "ms": 16.599999994039536,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 744,
+          "ms": 16.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 756,
+          "ms": 16.799999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 768,
+          "ms": 16.80000001192093,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 780,
+          "ms": 16.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 792,
+          "ms": 16.799999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 804,
+          "ms": 16.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 816,
+          "ms": 16.599999994039536,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 828,
+          "ms": 16.700000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 840,
+          "ms": 16.700000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 852,
+          "ms": 16.799999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 864,
+          "ms": 16.799999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 876,
+          "ms": 16.799999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 888,
+          "ms": 16.30000001192093,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 900,
+          "ms": 16.799999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 912,
+          "ms": 16.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 924,
+          "ms": 16.700000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 936,
+          "ms": 16.599999994039536,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 948,
+          "ms": 16.799999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 960,
+          "ms": 16.700000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        },
+        {
+          "frame": 972,
+          "ms": 16.700000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 1,
+          "triangles": 158,
+          "textures": 1,
+          "geometries": 12
+        }
+      ],
+      "xr": false,
+      "host": "dev-fish",
+      "route": "/dev/fish.html?debug&res=1",
+      "state": "live",
+      "mode": "inspection",
+      "drawingBuffer": [
+        1280,
+        592
+      ],
+      "eyeViewports": [],
+      "summary": {
+        "samples": 30,
+        "frameMs": {
+          "count": 30,
+          "mean": 16.666666666666668,
+          "p50": 16.700000002980232,
+          "p95": 16.799999997019768,
+          "p99": 16.80000001192093,
+          "min": 16.30000001192093,
+          "max": 16.900000005960464
+        },
+        "observedFps": 59.99999999999999,
+        "cpuMs": {
+          "sim": null,
+          "prep": null,
+          "renderSubmit": null
+        },
+        "drawCalls": {
+          "count": 30,
+          "mean": 1,
+          "p50": 1,
+          "p95": 1,
+          "p99": 1,
+          "min": 1,
+          "max": 1
+        },
+        "triangles": {
+          "count": 30,
+          "mean": 158,
+          "p50": 158,
+          "p95": 158,
+          "p99": 158,
+          "min": 158,
+          "max": 158
+        },
+        "textures": {
+          "count": 30,
+          "mean": 1,
+          "p50": 1,
+          "p95": 1,
+          "p99": 1,
+          "min": 1,
+          "max": 1
+        },
+        "geometries": {
+          "count": 30,
+          "mean": 12,
+          "p50": 12,
+          "p95": 12,
+          "p99": 12,
+          "min": 12,
+          "max": 12
+        }
+      },
+      "qualification": "Wall-clock intervals between observed rendered frames. CPU phases are game-smoothed CPU timings, not GPU durations. Render counters describe the last render pass. No capture during sampling."
+    }
+  ],
+  "evals": [
+    {
+      "expr": "__FISHVIEW.time",
+      "value": 0.08776199999105931
+    },
+    {
+      "expr": "__FISHVIEW.frames",
+      "value": 89
+    },
+    {
+      "expr": "__FISHVIEW.frames",
+      "value": 101
+    },
+    {
+      "expr": "__FISHVIEW.frames",
+      "value": 111
+    },
+    {
+      "expr": "__FISHVIEW.frames",
+      "value": 121
+    },
+    {
+      "expr": "__FISHVIEW.frames",
+      "value": 133
+    },
+    {
+      "expr": "__FISHVIEW.snapshot()",
+      "label": "species sizes, selection and animation evidence",
+      "value": {
+        "frames": 516,
+        "time": 8.65396199999109,
+        "paused": false,
+        "patterns": true,
+        "visible": [
+          "mackerel"
+        ],
+        "entries": [
+          {
+            "key": "sardine",
+            "name": "PILCHARD",
+            "length": 0.17,
+            "range": [
+              0.14,
+              0.2
+            ],
+            "draw": "school",
+            "role": "school",
+            "geometry": 53,
+            "instances": 1,
+            "phase": 11.014156341552734,
+            "cameraDistance": 0.5153625603434923,
+            "finite": true
+          },
+          {
+            "key": "mackerel",
+            "name": "MACKEREL",
+            "length": 0.33,
+            "range": [
+              0.28,
+              0.38
+            ],
+            "draw": "school",
+            "role": "school",
+            "geometry": 53,
+            "instances": 1,
+            "phase": 62.83852767944336,
+            "cameraDistance": 0.40108604326141956,
+            "finite": true
+          },
+          {
+            "key": "mullet",
+            "name": "GREY MULLET",
+            "length": 0.4,
+            "range": [
+              0.3,
+              0.5
+            ],
+            "draw": "fish",
+            "role": "school",
+            "geometry": 53,
+            "instances": 1,
+            "phase": 7.943848133087158,
+            "cameraDistance": 1.2126177890435113,
+            "finite": true
+          },
+          {
+            "key": "amberjack",
+            "name": "AMBERJACK",
+            "length": 1.025,
+            "range": [
+              0.8,
+              1.25
+            ],
+            "draw": "fish",
+            "role": "pred",
+            "geometry": 53,
+            "instances": 1,
+            "phase": 8.82619571685791,
+            "cameraDistance": 3.107333084423997,
+            "finite": true
+          },
+          {
+            "key": "bonito",
+            "name": "BONITO",
+            "length": 0.6,
+            "range": [
+              0.5,
+              0.7
+            ],
+            "draw": "fish",
+            "role": "pred",
+            "geometry": 53,
+            "instances": 1,
+            "phase": 12.783866882324219,
+            "cameraDistance": 1.8188567974207415,
+            "finite": true
+          },
+          {
+            "key": "flyingfish",
+            "name": "FLYING FISH",
+            "length": 0.28500000000000003,
+            "range": [
+              0.25,
+              0.32
+            ],
+            "draw": "fish",
+            "role": "school",
+            "geometry": 53,
+            "instances": 1,
+            "phase": 14.07557201385498,
+            "cameraDistance": 0.8639901746935017,
+            "finite": true
+          },
+          {
+            "key": "bream",
+            "name": "SEA BREAM",
+            "length": 0.2,
+            "range": [
+              0.15,
+              0.25
+            ],
+            "draw": "fish",
+            "role": "reef",
+            "geometry": 53,
+            "instances": 1,
+            "phase": 10.635462760925293,
+            "cameraDistance": 0.6063088945217556,
+            "finite": true
+          },
+          {
+            "key": "damsel",
+            "name": "DAMSELFISH",
+            "length": 0.1,
+            "range": [
+              0.08,
+              0.12
+            ],
+            "draw": "school",
+            "role": "reef",
+            "geometry": 53,
+            "instances": 1,
+            "phase": 10.337078094482422,
+            "cameraDistance": 0.30314279957012363,
+            "finite": true
+          },
+          {
+            "key": "shark",
+            "name": "SANDBAR SHARK",
+            "length": 1.7,
+            "range": [
+              1.4,
+              2
+            ],
+            "draw": "fish",
+            "role": "solo",
+            "geometry": 53,
+            "instances": 1,
+            "phase": 10.245789527893066,
+            "cameraDistance": 5.1536256034349215,
+            "finite": true
+          },
+          {
+            "key": "ray",
+            "name": "EAGLE RAY",
+            "length": 0.65,
+            "range": [
+              0.5,
+              0.8
+            ],
+            "draw": "ray",
+            "role": "solo",
+            "geometry": 69,
+            "instances": 1,
+            "phase": 13.39965534210205,
+            "cameraDistance": 3.6490813096216774,
+            "finite": true
+          },
+          {
+            "key": "jelly",
+            "name": "BARREL JELLYFISH",
+            "length": 0.625,
+            "range": [
+              0.45,
+              0.8
+            ],
+            "draw": "jelly",
+            "role": "drift",
+            "geometry": 74,
+            "instances": 1,
+            "phase": 8.933539390563965,
+            "cameraDistance": 1.470256756823385,
+            "finite": true
+          },
+          {
+            "key": "dolphin",
+            "name": "COMMON DOLPHIN",
+            "length": 2.05,
+            "range": [
+              1.8,
+              2.3
+            ],
+            "draw": "dolphin",
+            "role": "mammal",
+            "geometry": 89,
+            "instances": 1,
+            "phase": 16.276424407958984,
+            "cameraDistance": 6.444838989916438,
+            "finite": true
+          }
+        ]
+      }
+    },
+    {
+      "expr": "__FISHVIEW.time",
+      "value": 8.67066199999109
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__FISHVIEW.patterns",
+      "label": "production per-fragment fish markings shader is present",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__FISHVIEW.entries.length===12 && __FISHVIEW.snapshot().entries.every(e=>e.finite && e.geometry>0 && e.instances===1 && e.length>=e.range[0] && e.length<=e.range[1])",
+      "label": "all twelve real geometry entries use their unchanged in-game size ranges",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__FISHVIEW.visible.length===12 && !__FISHVIEW.paused",
+      "label": "the complete inspection gallery is animating",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(fish-species-gallery)",
+      "ok": true,
+      "value": 0.9998
+    },
+    {
+      "expr": "JSON.stringify(__FISHVIEW.visible)===\"[\\\"sardine\\\",\\\"mackerel\\\",\\\"mullet\\\"]\"",
+      "label": "silver-school-species selection is active",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(silver-school-species)",
+      "ok": true,
+      "value": 1
+    },
+    {
+      "expr": "JSON.stringify(__FISHVIEW.visible)===\"[\\\"amberjack\\\",\\\"bonito\\\",\\\"flyingfish\\\"]\"",
+      "label": "predators-and-flying-fins selection is active",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(predators-and-flying-fins)",
+      "ok": true,
+      "value": 1
+    },
+    {
+      "expr": "JSON.stringify(__FISHVIEW.visible)===\"[\\\"bream\\\",\\\"damsel\\\",\\\"shark\\\"]\"",
+      "label": "reef-fish-and-shark selection is active",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(reef-fish-and-shark)",
+      "ok": true,
+      "value": 1
+    },
+    {
+      "expr": "JSON.stringify(__FISHVIEW.visible)===\"[\\\"ray\\\",\\\"jelly\\\",\\\"dolphin\\\"]\"",
+      "label": "specialised-sea-life selection is active",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(specialised-sea-life)",
+      "ok": true,
+      "value": 0.999
+    },
+    {
+      "expr": "__FISHVIEW.visible[0]===\"mackerel\" && __FISHVIEW.entries.find(e=>e.species.key===\"mackerel\").data.A[3]<.39",
+      "label": "mackerel close-up uses a nearer camera, not a giant fish",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(mackerel-pattern-closeup)",
+      "ok": true,
+      "value": 1
+    },
+    {
+      "expr": "__FISHVIEW.paused && Math.abs(__FISHVIEW.time-8.67066199999109)<.001",
+      "label": "Pause control holds the inspection animation",
+      "ok": true,
+      "value": true
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-26T15:15:36.127Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "1b4eebc02c60a2e445c02cecb8d4ceda5533ef1b",
+    "branch": "ngc/unit-bench",
+    "gameTree": "8144c7f60fc5e0ebc859c990f4688c90654ede87",
+    "gameSha256": "070e2e800b12e632f6a079b02c3173ceb9c969fa94577456b9a5e670e206e302",
+    "dirty": false,
+    "status": ""
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": null,
+    "state": null
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "1b4eebc02c60a2e445c02cecb8d4ceda5533ef1b",
+    "branch": "ngc/unit-bench",
+    "gameTree": "8144c7f60fc5e0ebc859c990f4688c90654ede87",
+    "gameSha256": "070e2e800b12e632f6a079b02c3173ceb9c969fa94577456b9a5e670e206e302",
+    "dirty": false,
+    "status": ""
+  },
+  "summary": "PASS: 15/15 expects, 0 page errors, 0 console errors",
+  "durationMs": 9507,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/runs/fish-species-final"
+}

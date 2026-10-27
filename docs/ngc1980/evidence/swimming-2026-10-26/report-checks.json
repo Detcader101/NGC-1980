@@ -1,0 +1,63 @@
+{
+  "ok": true,
+  "report": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/docs/devlogs/2026-10-26-swimming/devlog.html",
+  "reportSha256": "1df06c365facd1c885da448aa0080f328ce7b7da019c540b8399e604d875efe2",
+  "checks": [
+    {
+      "ok": true,
+      "label": "All bundled artifacts match the manifest"
+    },
+    {
+      "ok": true,
+      "label": "Report has a visible title",
+      "value": "Underwater infantry: a clear view and recognisable fish"
+    },
+    {
+      "ok": true,
+      "label": "All contents links point to sections"
+    },
+    {
+      "ok": true,
+      "label": "Desktop has no document overflow"
+    },
+    {
+      "ok": true,
+      "label": "All selected screenshots and contact sheets decode",
+      "value": 13
+    },
+    {
+      "ok": true,
+      "label": "All linked media and data exist inside the report"
+    },
+    {
+      "ok": true,
+      "label": "Clip 1 loads, seeks and plays offline",
+      "value": {
+        "duration": 3.4788,
+        "currentTime": 1.6661,
+        "width": 800,
+        "height": 450
+      }
+    },
+    {
+      "ok": true,
+      "label": "Clip 2 loads, seeks and plays offline",
+      "value": {
+        "duration": 6.034667,
+        "currentTime": 2.8161,
+        "width": 800,
+        "height": 450
+      }
+    },
+    {
+      "ok": true,
+      "label": "390 px layout has no document overflow"
+    },
+    {
+      "ok": true,
+      "label": "No report browser errors",
+      "value": []
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,452 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "57ff1564f84d3ecc75ac7e7fe66457a97d582293",
+    "branch": "ngc/unit-bench",
+    "gameTree": "c6ca65541018026803cf95832e727145b28b8c45",
+    "gameSha256": "b810b4dc3116a695bf8d3d9e8746aaa39cc31e7384b05057753805d478cda386",
+    "dirty": false,
+    "status": ""
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "57ff1564f84d3ecc75ac7e7fe66457a97d582293",
+    "branch": "ngc/unit-bench",
+    "gameTree": "c6ca65541018026803cf95832e727145b28b8c45",
+    "gameSha256": "b810b4dc3116a695bf8d3d9e8746aaa39cc31e7384b05057753805d478cda386",
+    "dirty": false,
+    "status": ""
+  },
+  "ok": true,
+  "scene": "unit-defence-sparrow",
+  "query": "dev/defence.html?mode=fight&unit=sparrow&drones=1&hill=0&ui=0&cam=0.8,0.26,11,0,2,0",
+  "seed": 1980,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "rendererMode": "swiftshader",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "benchmarks": [
+    {
+      "name": "defence-sparrow",
+      "policy": {
+        "frames": 30,
+        "warmup": 30,
+        "timeoutMs": 120000
+      },
+      "rows": [
+        {
+          "frame": 37,
+          "ms": 16.899999991059303,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 38,
+          "ms": 16.900000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 39,
+          "ms": 17.399999991059303,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 40,
+          "ms": 15.900000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 41,
+          "ms": 16.400000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 42,
+          "ms": 16.899999991059303,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 43,
+          "ms": 16.299999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 44,
+          "ms": 16.900000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 45,
+          "ms": 16.400000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 46,
+          "ms": 16.599999994039536,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 47,
+          "ms": 16.599999994039536,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 48,
+          "ms": 16.700000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 49,
+          "ms": 16.700000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 50,
+          "ms": 16.799999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 51,
+          "ms": 16.400000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 52,
+          "ms": 669.3999999910593,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 53,
+          "ms": 0.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 54,
+          "ms": 13.600000008940697,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 55,
+          "ms": 16.899999991059303,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 56,
+          "ms": 16.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 57,
+          "ms": 16.600000008940697,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 58,
+          "ms": 16.700000002980232,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 59,
+          "ms": 16.799999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 60,
+          "ms": 16.799999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 61,
+          "ms": 16.299999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 62,
+          "ms": 16.900000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 63,
+          "ms": 16.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 64,
+          "ms": 16.799999997019768,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 65,
+          "ms": 16.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        },
+        {
+          "frame": 66,
+          "ms": 16.599999994039536,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 12,
+          "triangles": 45832,
+          "textures": 3,
+          "geometries": 27
+        }
+      ],
+      "xr": false,
+      "host": "dev-defence",
+      "route": "/dev/defence.html?mode=fight&unit=sparrow&drones=1&hill=0&ui=0&cam=0.8,0.26,11,0,2,0",
+      "state": "live",
+      "mode": "preview",
+      "drawingBuffer": [
+        1280,
+        720
+      ],
+      "eyeViewports": [],
+      "summary": {
+        "samples": 30,
+        "frameMs": {
+          "count": 30,
+          "mean": 37.77333333293597,
+          "p50": 16.600000008940697,
+          "p95": 16.900000005960464,
+          "p99": 17.399999991059303,
+          "min": 0.5,
+          "max": 669.3999999910593
+        },
+        "observedFps": 26.473702788841855,
+        "cpuMs": {
+          "sim": null,
+          "prep": null,
+          "renderSubmit": null
+        },
+        "drawCalls": {
+          "count": 30,
+          "mean": 12,
+          "p50": 12,
+          "p95": 12,
+          "p99": 12,
+          "min": 12,
+          "max": 12
+        },
+        "triangles": {
+          "count": 30,
+          "mean": 45832,
+          "p50": 45832,
+          "p95": 45832,
+          "p99": 45832,
+          "min": 45832,
+          "max": 45832
+        },
+        "textures": {
+          "count": 30,
+          "mean": 3,
+          "p50": 3,
+          "p95": 3,
+          "p99": 3,
+          "min": 3,
+          "max": 3
+        },
+        "geometries": {
+          "count": 30,
+          "mean": 27,
+          "p50": 27,
+          "p95": 27,
+          "p99": 27,
+          "min": 27,
+          "max": 27
+        }
+      },
+      "qualification": "Wall-clock intervals between observed rendered frames. CPU phases are game-smoothed CPU timings, not GPU durations. Render counters describe the last render pass. No capture during sampling."
+    }
+  ],
+  "comparison": null,
+  "qualification": "Recording runs after measurements. Software rendering and XR emulation do not establish hardware performance. No baseline means no before/after claim."
+}

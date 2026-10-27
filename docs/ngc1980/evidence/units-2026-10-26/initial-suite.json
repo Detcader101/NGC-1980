@@ -1,0 +1,4025 @@
+{
+  "schemaVersion": 1,
+  "startedAt": "2026-10-26T13:48:23.157Z",
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "bcd621f6f4d34b8c98fcec652082035da96275fa",
+    "branch": "ngc/unit-bench",
+    "gameTree": "0dfd01ee02de1e644007fd0f2016feb100fe03c0",
+    "gameSha256": "279ee6c4ad4159fd9dc4892a2f80b9bd261365f6941a2c5d35a1b272937569be",
+    "dirty": false,
+    "status": ""
+  },
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/unit-benchmark.mjs",
+    "--frames",
+    "30",
+    "--clips",
+    "ch46,reaper,paratrooper,m35,naval-container,defence-sparrow,human-radar",
+    "--out",
+    "tools/runs/units-2026-10-26-initial"
+  ],
+  "catalog": [
+    {
+      "id": "huey",
+      "name": "UH-1H Huey",
+      "category": "air",
+      "kind": "playable",
+      "query": "?debug&auto&kb&peace&res=0.45",
+      "description": "Peaceful main-game carrier deck: roll the throttle to flight power and check governor/rotor telemetry, then capture the analog cockpit and running exterior. Hover lift and engine/rotor needle separation are exercised by the Node role bench."
+    },
+    {
+      "id": "hornet",
+      "name": "F/A-18A Hornet",
+      "category": "air",
+      "kind": "playable",
+      "query": "?debug&auto&kb&peace&res=0.45",
+      "description": "Main-game deck launch fixture: select the F/A-18A through its real hotkey, verify catapult attachment and independently running twin engines, then benchmark its cockpit on the shuttle. Catapult flight and control response remain in the flight/deck regression suites."
+    },
+    {
+      "id": "tomcat",
+      "name": "F-14A Tomcat",
+      "category": "air",
+      "kind": "playable",
+      "query": "dev/air.html?fly=sortie",
+      "description": "Production F-14A flight model and AI in the carrier dev world: step a full catapult departure into CAP, verify flight and variable wings, then benchmark live patrol. This fixture exercises AI flight, not player cockpit input."
+    },
+    {
+      "id": "ch46",
+      "name": "CH-46E Sea Knight",
+      "category": "air",
+      "kind": "playable",
+      "query": "dev/rotary.html?ac=ch46&paused",
+      "description": "Production transport unit in the rotary dev world: board 13 Marines, depart and establish transit with both tandem rotors lifting. After live benchmarking, deterministically finish delivery and assert Marines holding the landing pad. This fixture uses its AI pilot."
+    },
+    {
+      "id": "c130",
+      "name": "KC-130R Hercules",
+      "category": "air",
+      "kind": "playable",
+      "query": "dev/c130.html?start=air&view=orbit&res=0.6",
+      "description": "KC-130R dev flight host with the production four-engine transport model: feather engine one, keep the other three governed and verify autopilot flight. The existing transport/drop suites cover parachute deployment; this is not a C-130J avionics fixture."
+    },
+    {
+      "id": "mv22",
+      "name": "MV-22B Osprey",
+      "category": "air",
+      "kind": "ai",
+      "query": "dev/rotary.html?ac=mv22&paused",
+      "description": "RUNAWAY-refit MV-22B production transport in the rotary dev world: depart vertically, convert to wing-borne flight, then benchmark airplane transit and finish a troop delivery. This uses the AI pilot and a scripted island landing zone."
+    },
+    {
+      "id": "wasp",
+      "name": "RW-3 WASP",
+      "category": "air",
+      "kind": "ai",
+      "query": "dev/rotary.html?ac=wasp&paused",
+      "description": "Five fictional ducted-fan drones fly the existing swarm/ambush demo around a scripted Huey. Verify powered maneuvering and finite flight, then benchmark the live swarm. These are setting-specific physics, not a real aircraft claim."
+    },
+    {
+      "id": "shrike",
+      "name": "RW-4 SHRIKE",
+      "category": "air",
+      "kind": "ai",
+      "query": "dev/air.html?fly=fight",
+      "description": "Fictional single-engine fighter patrol using the production AI flight model. The demo opponent is hidden and removed from combat to isolate the unit. Check bank maneuvering and no afterburner, then benchmark live CAP."
+    },
+    {
+      "id": "reaper",
+      "name": "MQ-9 Reaper",
+      "category": "air",
+      "kind": "ai",
+      "query": "dev/air.html?fly=reaper",
+      "description": "Production turboprop UAV in its existing orbit demo: verify patrol, power and prop rotation, benchmark live loiter, then use the model host to check and photograph a stopped pusher. Shutdown gauge behavior is covered by the Node role bench."
+    },
+    {
+      "id": "shahed",
+      "name": "SHAHED-style drone",
+      "category": "air",
+      "kind": "ai",
+      "query": "dev/air.html?fly=shahed",
+      "description": "Existing simplified delta-drone salvo in the air dev world, with the interceptor disabled for an isolated flight sample. Check forward flight after launch and capture the pusher model at rest. No claim of real guidance or weapon fidelity."
+    },
+    {
+      "id": "paratrooper",
+      "name": "Marine paratrooper / repair team",
+      "category": "air",
+      "kind": "ai",
+      "query": "?debug&auto&kb&peace&res=0.45",
+      "description": "Scripted main-game emergency release: place the real KC-130R above the home pad, ring its bailout bell, and advance to canopy inflation. Benchmark three live descending Marines and check landing. Aircraft approach, jumpmaster checklist and static-line sequencing are bypassed in this short fixture."
+    },
+    {
+      "id": "m151",
+      "name": "M151A2 MUTT",
+      "kind": "playable",
+      "category": "ground",
+      "coverage": "Isolated rendered dev fixture using production wheeled physics and model.",
+      "query": "dev/vehicle.html?debug&v=m151&zone=road&cam=orbit&res=0.5&hud=0&ui=0",
+      "description": "Part-time four-wheel drive and front steering on the independent-suspension utility vehicle."
+    },
+    {
+      "id": "m35",
+      "name": "M35A2 cargo truck",
+      "kind": "playable",
+      "category": "ground",
+      "coverage": "Isolated rendered dev fixture using production wheeled physics and model.",
+      "query": "dev/vehicle.html?debug&v=m35&zone=road&cam=orbit&res=0.5&hud=0&ui=0",
+      "description": "Loaded cargo truck with ten visible tyres on six driven suspension stations and folding troop benches."
+    },
+    {
+      "id": "landrover",
+      "name": "Land Rover Series III 109",
+      "kind": "civilian",
+      "category": "ground",
+      "coverage": "Isolated rendered dev fixture using production wheeled physics and model.",
+      "query": "dev/vehicle.html?debug&v=landrover&zone=road&cam=orbit&res=0.5&hud=0&ui=0",
+      "description": "Driveable utility vehicle with selectable low range and right-hand driving position."
+    },
+    {
+      "id": "hilux",
+      "name": "Toyota Hilux RN37",
+      "kind": "civilian",
+      "category": "ground",
+      "coverage": "Isolated rendered dev fixture using production wheeled physics and model.",
+      "query": "dev/vehicle.html?debug&v=hilux&zone=road&cam=orbit&res=0.5&hud=0&ui=0",
+      "description": "Driveable pickup with selectable low range and an open cargo bed."
+    },
+    {
+      "id": "beetle",
+      "name": "Volkswagen Beetle 1200",
+      "kind": "civilian",
+      "category": "ground",
+      "coverage": "Isolated rendered dev fixture using production wheeled physics and model.",
+      "query": "dev/vehicle.html?debug&v=beetle&zone=road&cam=orbit&res=0.5&hud=0&ui=0",
+      "description": "Driveable rear-engine, air-cooled road car without a radiator or low-range transfer case."
+    },
+    {
+      "id": "lada",
+      "name": "Lada 2101",
+      "kind": "civilian",
+      "category": "ground",
+      "coverage": "Isolated rendered dev fixture using production wheeled physics and model.",
+      "query": "dev/vehicle.html?debug&v=lada&zone=road&cam=orbit&res=0.5&hud=0&ui=0",
+      "description": "Driveable rear-wheel-drive road saloon with conventional liquid cooling."
+    },
+    {
+      "id": "m60",
+      "name": "M60A3 TTS",
+      "category": "ground",
+      "kind": "playable",
+      "query": "dev/tank.html?debug&veh=m60&view=chase&cam=2.6,0.28,13&res=0.5&ui=0",
+      "coverage": "Isolated rendered dev fixture using production track physics and M60 model.",
+      "description": "Cross-drive neutral steering: the hull pivots while its tracks counter-rotate."
+    },
+    {
+      "id": "m113",
+      "name": "M113A2 APC",
+      "category": "ground",
+      "kind": "playable",
+      "query": "dev/tank.html?debug&veh=m113&view=chase&cam=0.7,0.25,10&res=0.5&ui=0",
+      "coverage": "Isolated rendered dev fixture using production APC ramp, trim-vane and pump controls.",
+      "description": "Personnel carrier opens its powered rear ramp and deploys its trim vane; bilge pumps switch on."
+    },
+    {
+      "id": "marine",
+      "name": "1980 Marine rifleman",
+      "category": "ground",
+      "kind": "playable",
+      "query": "dev/infantry.html?debug&third&weapon=1&res=0.5&ui=0",
+      "coverage": "Isolated rendered infantry fixture using production movement, skeleton and equipment.",
+      "description": "The M16A1 rifleman changes from running to a low, slower prone crawl."
+    },
+    {
+      "id": "rw1",
+      "name": "RW-1 STRIDER",
+      "category": "ground",
+      "kind": "ai",
+      "description": "Fictional biped balances and plants alternating feet while walking.",
+      "coverage": "Single selected unit in the rendered runaway dev terrain; captured MBTs use live-game track physics, not the default preview fallback.",
+      "query": "dev/runaway.html?debug&scenario=lineup&seed=1980&paused&track&overlay=0&res=0.5"
+    },
+    {
+      "id": "rw7",
+      "name": "RW-7 hover tank",
+      "category": "ground",
+      "kind": "ai",
+      "description": "Fictional lift-fan vehicle moves above the terrain on an air cushion.",
+      "coverage": "Single selected unit in the rendered runaway dev terrain; captured MBTs use live-game track physics, not the default preview fallback.",
+      "query": "dev/runaway.html?debug&scenario=lineup&seed=1980&paused&track&overlay=0&res=0.5"
+    },
+    {
+      "id": "m1a2",
+      "name": "Captured M1A2 SEPv3",
+      "category": "ground",
+      "kind": "ai",
+      "description": "Seven-roadwheel hull uses the live-game tracked drive and terrain suspension.",
+      "coverage": "Single selected unit in the rendered runaway dev terrain; captured MBTs use live-game track physics, not the default preview fallback.",
+      "query": "dev/runaway.html?debug&scenario=lineup&seed=1980&paused&track&overlay=0&res=0.5"
+    },
+    {
+      "id": "t90m",
+      "name": "Captured T-90M",
+      "category": "ground",
+      "kind": "ai",
+      "description": "Six-roadwheel hull uses the live-game tracked drive and terrain suspension.",
+      "coverage": "Single selected unit in the rendered runaway dev terrain; captured MBTs use live-game track physics, not the default preview fallback.",
+      "query": "dev/runaway.html?debug&scenario=lineup&seed=1980&paused&track&overlay=0&res=0.5"
+    },
+    {
+      "id": "naval-albatross",
+      "name": "ALBATROSS",
+      "category": "naval",
+      "kind": "playable",
+      "query": "dev/ships.html?ship=albatross&sea=4&speed=4&ui=0&cam=0.8,0.32,195,0,9,0",
+      "description": "Conventional 1980 carrier: moving deck-edge lift and jet blast deflector; active Phalanx / Sea Sparrow fit."
+    },
+    {
+      "id": "naval-kraken",
+      "name": "KRAKEN",
+      "category": "naval",
+      "kind": "ai",
+      "query": "dev/ships.html?ship=kraken&sea=4&speed=4&ui=0&cam=0.8,0.32,195,0,9,0",
+      "description": "Seized nuclear carrier: broad bow, aft island, RUNAWAY deck mounts and no exhaust."
+    },
+    {
+      "id": "naval-leviathan",
+      "name": "RW-9 LEVIATHAN",
+      "category": "naval",
+      "kind": "ai",
+      "query": "dev/ships.html?ship=leviathan&sea=4&speed=4&ui=0&cam=0.85,0.3,155,0,7,0",
+      "description": "Fictional monitor: three independent recoil cradles, mixed deck defence and smaller-vessel sea motion."
+    },
+    {
+      "id": "naval-container",
+      "name": "Autonomous container feeder",
+      "category": "naval",
+      "kind": "ai",
+      "query": "dev/ships.html?ship=container&sea=4&speed=4&ui=0&cam=0.85,0.36,135,0,7,0",
+      "description": "Electric cargo ship: visible roof / forecastle support, instanced containers and actual TALON deck refit."
+    },
+    {
+      "id": "naval-sky",
+      "name": "SKY CARRIER refit",
+      "category": "naval",
+      "kind": "playable",
+      "query": "dev/ships.html?ship=sky&sea=4&speed=4&ui=0&cam=0.8,0.25,215,0,22,0",
+      "description": "Fictional ALBATROSS lift refit: four separate outrigger fans. Model articulation only; flight control is not simulated here."
+    },
+    {
+      "id": "naval-lcm8-armor",
+      "name": "LCM-8 — armour delivery",
+      "category": "naval",
+      "kind": "ai",
+      "query": "dev/ships.html?ship=lcm8&sea=4&speed=4&ui=0&cam=0.8,0.32,43,0,2,0",
+      "description": "Mike boat carrying the actual M60A3 model: cargo-well fit, bow ramp and pilothouse support. Articulation preview, not beach pathfinding."
+    },
+    {
+      "id": "naval-lcm8-truck",
+      "name": "LCM-8 — truck delivery",
+      "category": "naval",
+      "kind": "ai",
+      "query": "dev/ships.html?ship=lcm8truck&sea=4&speed=4&ui=0&cam=0.8,0.32,43,0,2,0",
+      "description": "Existing lighter LCM model with the actual M35A2 in its well; forward-opening delivery ramp. Articulation preview."
+    },
+    {
+      "id": "naval-lcac",
+      "name": "Seized LCAC",
+      "category": "naval",
+      "kind": "ai",
+      "query": "dev/ships.html?ship=lcac&sea=4&speed=4&ui=0&cam=0.85,0.34,55,0,2,0",
+      "description": "Air-cushion transport with actual seized M1A2 cargo, twin air propellers and ramp to ground. Articulation preview."
+    },
+    {
+      "id": "defence-vads",
+      "name": "M163 VADS",
+      "category": "defence",
+      "kind": "ai",
+      "query": "dev/defence.html?mode=fight&unit=vads&drones=1&hill=0&ui=0&cam=0.8,0.26,12,0,2,0",
+      "description": "Open-turret tracked Vulcan; rotary spin-up, range-only pod and visible short bursts."
+    },
+    {
+      "id": "defence-shilka",
+      "name": "ZSU-23-4 SHILKA",
+      "category": "defence",
+      "kind": "ai",
+      "query": "dev/defence.html?mode=fight&unit=shilka&drones=1&hill=0&ui=0&cam=0.8,0.26,14,0,2,0",
+      "description": "Quad gun on a tracked hull with separate searching radar and four muzzle positions."
+    },
+    {
+      "id": "defence-ciws",
+      "name": "Phalanx CIWS — Block 0",
+      "category": "defence",
+      "kind": "ai",
+      "query": "dev/defence.html?mode=fight&unit=ciws&drones=1&hill=0&ui=0&cam=0.8,0.26,9,0,2,0",
+      "description": "1980 carrier close-in mount with white radome and rotating six-barrel cluster."
+    },
+    {
+      "id": "defence-sparrow",
+      "name": "Sea Sparrow",
+      "category": "defence",
+      "kind": "ai",
+      "query": "dev/defence.html?mode=fight&unit=sparrow&drones=1&hill=0&ui=0&cam=0.8,0.26,11,0,2,0",
+      "description": "Eight-cell box launcher: used covers persist between salvos so every cell is visibly used."
+    },
+    {
+      "id": "defence-talon",
+      "name": "Pantsir-S1 / RW TALON",
+      "category": "defence",
+      "kind": "ai",
+      "query": "dev/defence.html?mode=fight&unit=talon&drones=1&hill=0&ui=0&cam=0.8,0.26,20,0,2,0",
+      "description": "Seized modern 8x8 refit: four gun barrels, separate search radar and twelve-tube visual bank."
+    },
+    {
+      "id": "defence-talonm",
+      "name": "RW TALON — ship mount",
+      "category": "defence",
+      "kind": "ai",
+      "query": "dev/defence.html?mode=fight&unit=talonm&drones=1&hill=0&ui=0&cam=0.8,0.26,14,0,2,0",
+      "description": "Fictional naval pedestal conversion of the seized module, retaining its twelve tubes and twin gun pairs."
+    },
+    {
+      "id": "defence-lance",
+      "name": "RW-5 LANCE",
+      "category": "defence",
+      "kind": "ai",
+      "query": "dev/defence.html?mode=fight&unit=lance&drones=1&hill=0&ui=0&cam=0.8,0.26,15,0,2,0",
+      "description": "Fictional laser turret: charge line, beam, cooldown and hot radiators communicate its cycle."
+    },
+    {
+      "id": "defence-lancem",
+      "name": "RW-5 LANCE — ship mount",
+      "category": "defence",
+      "kind": "ai",
+      "query": "dev/defence.html?mode=fight&unit=lancem&drones=1&hill=0&ui=0&cam=0.8,0.26,15,0,2,0",
+      "description": "Naval LANCE gameplay variant with the same visible charge / beam / radiator cycle."
+    },
+    {
+      "id": "human-hq",
+      "name": "HQ bunker",
+      "category": "structure",
+      "kind": "structure",
+      "query": "dev/structure-unit.html?kind=hq&side=1",
+      "description": "Actual faction structure: visible damage, destruction, rebuilding and capture; isolated-site rendering cost."
+    },
+    {
+      "id": "human-fuel",
+      "name": "Fuel farm",
+      "category": "structure",
+      "kind": "structure",
+      "query": "dev/structure-unit.html?kind=fuel&side=1",
+      "description": "Actual faction structure: visible damage, destruction, rebuilding and capture; isolated-site rendering cost."
+    },
+    {
+      "id": "human-factory",
+      "name": "Supply depot",
+      "category": "structure",
+      "kind": "structure",
+      "query": "dev/structure-unit.html?kind=factory&side=1",
+      "description": "Actual faction structure: visible damage, destruction, rebuilding and capture; isolated-site rendering cost."
+    },
+    {
+      "id": "human-radar",
+      "name": "Radar site",
+      "category": "structure",
+      "kind": "structure",
+      "query": "dev/structure-unit.html?kind=radar&side=1",
+      "description": "Actual faction structure: visible damage, destruction, rebuilding and capture; isolated-site rendering cost."
+    },
+    {
+      "id": "runaway-hq",
+      "name": "RUNAWAY command node",
+      "category": "structure",
+      "kind": "structure",
+      "query": "dev/structure-unit.html?kind=hq&side=2",
+      "description": "Actual faction structure: visible damage, destruction, rebuilding and capture; isolated-site rendering cost."
+    },
+    {
+      "id": "runaway-fuel",
+      "name": "RUNAWAY siphon spire",
+      "category": "structure",
+      "kind": "structure",
+      "query": "dev/structure-unit.html?kind=fuel&side=2",
+      "description": "Actual faction structure: visible damage, destruction, rebuilding and capture; isolated-site rendering cost."
+    },
+    {
+      "id": "runaway-factory",
+      "name": "RUNAWAY fabricator",
+      "category": "structure",
+      "kind": "structure",
+      "query": "dev/structure-unit.html?kind=factory&side=2",
+      "description": "Actual faction structure: visible damage, destruction, rebuilding and capture; isolated-site rendering cost."
+    },
+    {
+      "id": "runaway-radar",
+      "name": "RUNAWAY sensor spire",
+      "category": "structure",
+      "kind": "structure",
+      "query": "dev/structure-unit.html?kind=radar&side=2",
+      "description": "Actual faction structure: visible damage, destruction, rebuilding and capture; isolated-site rendering cost."
+    }
+  ],
+  "selected": [
+    "huey",
+    "hornet",
+    "tomcat",
+    "ch46",
+    "c130",
+    "mv22",
+    "wasp",
+    "shrike",
+    "reaper",
+    "shahed",
+    "paratrooper",
+    "m151",
+    "m35",
+    "landrover",
+    "hilux",
+    "beetle",
+    "lada",
+    "m60",
+    "m113",
+    "marine",
+    "rw1",
+    "rw7",
+    "m1a2",
+    "t90m",
+    "naval-albatross",
+    "naval-kraken",
+    "naval-leviathan",
+    "naval-container",
+    "naval-sky",
+    "naval-lcm8-armor",
+    "naval-lcm8-truck",
+    "naval-lcac",
+    "defence-vads",
+    "defence-shilka",
+    "defence-ciws",
+    "defence-sparrow",
+    "defence-talon",
+    "defence-talonm",
+    "defence-lance",
+    "defence-lancem",
+    "human-hq",
+    "human-fuel",
+    "human-factory",
+    "human-radar",
+    "runaway-hq",
+    "runaway-fuel",
+    "runaway-factory",
+    "runaway-radar"
+  ],
+  "baseline": null,
+  "complete": true,
+  "ok": false,
+  "runs": [
+    {
+      "id": "huey",
+      "name": "UH-1H Huey",
+      "category": "air",
+      "directory": "huey",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 3,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "huey",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 221.656666666766,
+              "p50": 220.30000001192093,
+              "p95": 323.20000000298023,
+              "p99": 325.09999999403954,
+              "min": 109.3999999910593,
+              "max": 371.5
+            },
+            "observedFps": 4.511481720977872,
+            "cpuMs": {
+              "sim": {
+                "count": 30,
+                "mean": 4.304994455208996,
+                "p50": 4.198243631306139,
+                "p95": 5.084884380381773,
+                "p99": 5.236720400245012,
+                "min": 3.659394244352858,
+                "max": 5.343916210627369
+              },
+              "prep": {
+                "count": 30,
+                "mean": 1.1578311988105925,
+                "p50": 1.1254689601110213,
+                "p95": 1.3419714817045132,
+                "p99": 1.3704962966879208,
+                "min": 1.003974333813697,
+                "max": 1.4005224177230868
+              },
+              "renderSubmit": {
+                "count": 30,
+                "mean": 7.042915519679773,
+                "p50": 6.998221158240651,
+                "p95": 7.5952181278108,
+                "p99": 7.71601908206296,
+                "min": 6.472980018460774,
+                "max": 7.753704296908379
+              }
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 656.3333333333334,
+              "p50": 656,
+              "p95": 657,
+              "p99": 658,
+              "min": 655,
+              "max": 658
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 487773.86666666664,
+              "p50": 489006,
+              "p95": 491886,
+              "p99": 491886,
+              "min": 480840,
+              "max": 492118
+            },
+            "textures": {
+              "count": 30,
+              "mean": 83,
+              "p50": 83,
+              "p95": 83,
+              "p99": 83,
+              "min": 83,
+              "max": 83
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 1068,
+              "p50": 1068,
+              "p95": 1068,
+              "p99": 1068,
+              "min": 1068,
+              "max": 1068
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "hornet",
+      "name": "F/A-18A Hornet",
+      "category": "air",
+      "directory": "hornet",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 3,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "hornet",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 240.8366666669647,
+              "p50": 232,
+              "p95": 374.3999999910593,
+              "p99": 381.90000000596046,
+              "min": 105,
+              "max": 395.79999999701977
+            },
+            "observedFps": 4.152191665162126,
+            "cpuMs": {
+              "sim": {
+                "count": 30,
+                "mean": 11.664976109184995,
+                "p50": 11.218693700596337,
+                "p95": 13.48189998234289,
+                "p99": 13.709307459981677,
+                "min": 9.825170641210756,
+                "max": 13.941376273821778
+              },
+              "prep": {
+                "count": 30,
+                "mean": 2.337490198694383,
+                "p50": 2.235366379841175,
+                "p95": 3.0796780658980194,
+                "p99": 3.1680821743157854,
+                "min": 1.7046079137752002,
+                "max": 3.2506128153829565
+              },
+              "renderSubmit": {
+                "count": 30,
+                "mean": 9.668466414298361,
+                "p50": 9.383569362440577,
+                "p95": 11.390722877464512,
+                "p99": 11.648129344699486,
+                "min": 8.103395793134176,
+                "max": 11.955925625372041
+              }
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 672.8333333333334,
+              "p50": 674,
+              "p95": 678,
+              "p99": 681,
+              "min": 655,
+              "max": 685
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 449354.6666666667,
+              "p50": 450387,
+              "p95": 457125,
+              "p99": 457143,
+              "min": 439269,
+              "max": 459373
+            },
+            "textures": {
+              "count": 30,
+              "mean": 69.93333333333334,
+              "p50": 70,
+              "p95": 70,
+              "p99": 70,
+              "min": 69,
+              "max": 70
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 1352.1,
+              "p50": 1340,
+              "p95": 1375,
+              "p99": 1376,
+              "min": 1326,
+              "max": 1376
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "tomcat",
+      "name": "F-14A Tomcat",
+      "category": "air",
+      "directory": "tomcat",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 4,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "tomcat",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 18.06333333303531,
+              "p50": 16.700000002980232,
+              "p95": 27.30000001192093,
+              "p99": 29.200000002980232,
+              "min": 8.599999994039536,
+              "max": 30
+            },
+            "observedFps": 55.360767670225066,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 175.33333333333334,
+              "p50": 175,
+              "p95": 177,
+              "p99": 177,
+              "min": 175,
+              "max": 177
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 75720,
+              "p50": 75708,
+              "p95": 75780,
+              "p99": 75780,
+              "min": 75708,
+              "max": 75780
+            },
+            "textures": {
+              "count": 30,
+              "mean": 6,
+              "p50": 6,
+              "p95": 6,
+              "p99": 6,
+              "min": 6,
+              "max": 6
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 190,
+              "p50": 190,
+              "p95": 190,
+              "p99": 190,
+              "min": 190,
+              "max": 190
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "ch46",
+      "name": "CH-46E Sea Knight",
+      "category": "air",
+      "directory": "ch46",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 5,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "ch46",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.66333333303531,
+              "p50": 16.69999998807907,
+              "p95": 17.19999998807907,
+              "p99": 17.399999991059303,
+              "min": 15.400000005960464,
+              "max": 17.799999997019768
+            },
+            "observedFps": 60.0120024015534,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 122,
+              "p50": 122,
+              "p95": 122,
+              "p99": 122,
+              "min": 122,
+              "max": 122
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 106140,
+              "p50": 106140,
+              "p95": 106140,
+              "p99": 106140,
+              "min": 106140,
+              "max": 106140
+            },
+            "textures": {
+              "count": 30,
+              "mean": 5,
+              "p50": 5,
+              "p95": 5,
+              "p99": 5,
+              "min": 5,
+              "max": 5
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 121,
+              "p50": 121,
+              "p95": 121,
+              "p99": 121,
+              "min": 121,
+              "max": 121
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "c130",
+      "name": "KC-130R Hercules",
+      "category": "air",
+      "directory": "c130",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 4,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "c130",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 34.44666666686535,
+              "p50": 32,
+              "p95": 64,
+              "p99": 66.29999999701977,
+              "min": 1.7999999970197678,
+              "max": 102.40000000596046
+            },
+            "observedFps": 29.03038513627537,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 159,
+              "p50": 159,
+              "p95": 159,
+              "p99": 159,
+              "min": 159,
+              "max": 159
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 46356,
+              "p50": 46356,
+              "p95": 46356,
+              "p99": 46356,
+              "min": 46356,
+              "max": 46356
+            },
+            "textures": {
+              "count": 30,
+              "mean": 10,
+              "p50": 10,
+              "p95": 10,
+              "p99": 10,
+              "min": 10,
+              "max": 10
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 139,
+              "p50": 139,
+              "p95": 139,
+              "p99": 139,
+              "min": 139,
+              "max": 139
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mv22",
+      "name": "MV-22B Osprey",
+      "category": "air",
+      "directory": "mv22",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 4,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "mv22",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.670000000298025,
+              "p50": 16.700000002980232,
+              "p95": 17.299999997019768,
+              "p99": 17.299999997019768,
+              "min": 15.700000002980232,
+              "max": 17.400000005960464
+            },
+            "observedFps": 59.988002398447634,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 78,
+              "p50": 78,
+              "p95": 78,
+              "p99": 78,
+              "min": 78,
+              "max": 78
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 7336,
+              "p50": 7336,
+              "p95": 7336,
+              "p99": 7336,
+              "min": 7336,
+              "max": 7336
+            },
+            "textures": {
+              "count": 30,
+              "mean": 3,
+              "p50": 3,
+              "p95": 3,
+              "p99": 3,
+              "min": 3,
+              "max": 3
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 74,
+              "p50": 74,
+              "p95": 74,
+              "p99": 74,
+              "min": 74,
+              "max": 74
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "wasp",
+      "name": "RW-3 WASP",
+      "category": "air",
+      "directory": "wasp",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 3,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "wasp",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.689999999602637,
+              "p50": 16.69999998807907,
+              "p95": 17.30000001192093,
+              "p99": 17.400000005960464,
+              "min": 15.600000008940697,
+              "max": 17.600000008940697
+            },
+            "observedFps": 59.91611743701668,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 381.4,
+              "p50": 382,
+              "p95": 383,
+              "p99": 383,
+              "min": 379,
+              "max": 384
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 126374.26666666666,
+              "p50": 126378,
+              "p95": 126398,
+              "p99": 126398,
+              "min": 126338,
+              "max": 126406
+            },
+            "textures": {
+              "count": 30,
+              "mean": 2,
+              "p50": 2,
+              "p95": 2,
+              "p99": 2,
+              "min": 2,
+              "max": 2
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 360,
+              "p50": 360,
+              "p95": 360,
+              "p99": 360,
+              "min": 360,
+              "max": 360
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "shrike",
+      "name": "RW-4 SHRIKE",
+      "category": "air",
+      "directory": "shrike",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 3,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "shrike",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 22.553333333631358,
+              "p50": 16.700000002980232,
+              "p95": 38.900000005960464,
+              "p99": 54.29999999701977,
+              "min": 16.100000008940697,
+              "max": 67.1000000089407
+            },
+            "observedFps": 44.33934377712618,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 75,
+              "p50": 75,
+              "p95": 75,
+              "p99": 75,
+              "min": 75,
+              "max": 75
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 92611,
+              "p50": 92611,
+              "p95": 92611,
+              "p99": 92611,
+              "min": 92611,
+              "max": 92611
+            },
+            "textures": {
+              "count": 30,
+              "mean": 7,
+              "p50": 7,
+              "p95": 7,
+              "p99": 7,
+              "min": 7,
+              "max": 7
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 231,
+              "p50": 231,
+              "p95": 231,
+              "p99": 231,
+              "min": 231,
+              "max": 231
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "reaper",
+      "name": "MQ-9 Reaper",
+      "category": "air",
+      "directory": "reaper",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 4,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "reaper",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.666666666666668,
+              "p50": 16.69999998807907,
+              "p95": 16.799999997019768,
+              "p99": 16.80000001192093,
+              "min": 16.5,
+              "max": 17
+            },
+            "observedFps": 59.99999999999999,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 41,
+              "p50": 41,
+              "p95": 41,
+              "p99": 41,
+              "min": 41,
+              "max": 41
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 71184,
+              "p50": 71184,
+              "p95": 71184,
+              "p99": 71184,
+              "min": 71184,
+              "max": 71184
+            },
+            "textures": {
+              "count": 30,
+              "mean": 3,
+              "p50": 3,
+              "p95": 3,
+              "p99": 3,
+              "min": 3,
+              "max": 3
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 44,
+              "p50": 44,
+              "p95": 44,
+              "p99": 44,
+              "min": 44,
+              "max": 44
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "shahed",
+      "name": "SHAHED-style drone",
+      "category": "air",
+      "directory": "shahed",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 4,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "shahed",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.663333333532016,
+              "p50": 16.69999998807907,
+              "p95": 16.900000005960464,
+              "p99": 16.900000005960464,
+              "min": 16.099999994039536,
+              "max": 16.900000005960464
+            },
+            "observedFps": 60.012002399764555,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 25,
+              "p50": 26,
+              "p95": 26,
+              "p99": 26,
+              "min": 22,
+              "max": 26
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 81122.86666666667,
+              "p50": 81251,
+              "p95": 81251,
+              "p99": 81251,
+              "min": 80615,
+              "max": 81251
+            },
+            "textures": {
+              "count": 30,
+              "mean": 3,
+              "p50": 3,
+              "p95": 3,
+              "p99": 3,
+              "min": 3,
+              "max": 3
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 79,
+              "p50": 79,
+              "p95": 79,
+              "p99": 79,
+              "min": 79,
+              "max": 79
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "paratrooper",
+      "name": "Marine paratrooper / repair team",
+      "category": "air",
+      "directory": "paratrooper",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 4,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "paratrooper",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 178.78000000019867,
+              "p50": 187.90000000596046,
+              "p95": 223.40000000596046,
+              "p99": 239.59999999403954,
+              "min": 16.599999994039536,
+              "max": 276.09999999403954
+            },
+            "observedFps": 5.593466830735478,
+            "cpuMs": {
+              "sim": {
+                "count": 30,
+                "mean": 11.591462475042977,
+                "p50": 12.184111358753867,
+                "p95": 14.563102887157305,
+                "p99": 15.082213565271887,
+                "min": 7.358315280270534,
+                "max": 15.407593226288277
+              },
+              "prep": {
+                "count": 30,
+                "mean": 2.9553374402800414,
+                "p50": 2.7573258514772805,
+                "p95": 4.215930868751564,
+                "p99": 4.374664072213213,
+                "min": 1.9452168645305656,
+                "max": 4.525962181277067
+              },
+              "renderSubmit": {
+                "count": 30,
+                "mean": 25.7701701711509,
+                "p50": 23.978680577715494,
+                "p95": 38.63992539387254,
+                "p99": 40.220974099126906,
+                "min": 14.925741388029037,
+                "max": 41.874709578185175
+              }
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 542.8666666666667,
+              "p50": 454,
+              "p95": 854,
+              "p99": 855,
+              "min": 194,
+              "max": 862
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 442719.73333333334,
+              "p50": 453488,
+              "p95": 476332,
+              "p99": 476342,
+              "min": 362353,
+              "max": 497370
+            },
+            "textures": {
+              "count": 30,
+              "mean": 61,
+              "p50": 61,
+              "p95": 61,
+              "p99": 61,
+              "min": 61,
+              "max": 61
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 1537.3333333333333,
+              "p50": 1537,
+              "p95": 1539,
+              "p99": 1539,
+              "min": 1535,
+              "max": 1539
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "m151",
+      "name": "M151A2 MUTT",
+      "category": "ground",
+      "directory": "m151",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 3,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "m151",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 50.88333333333333,
+              "p50": 50.19999998807907,
+              "p95": 56.3999999910593,
+              "p99": 60,
+              "min": 1.0999999940395355,
+              "max": 98.20000000298023
+            },
+            "observedFps": 19.65280052407468,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 92.1,
+              "p50": 92,
+              "p95": 93,
+              "p99": 93,
+              "min": 92,
+              "max": 93
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 278370.2,
+              "p50": 278370,
+              "p95": 278372,
+              "p99": 278372,
+              "min": 278370,
+              "max": 278372
+            },
+            "textures": {
+              "count": 30,
+              "mean": 13,
+              "p50": 13,
+              "p95": 13,
+              "p99": 13,
+              "min": 13,
+              "max": 13
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 92,
+              "p50": 92,
+              "p95": 92,
+              "p99": 92,
+              "min": 92,
+              "max": 92
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "m35",
+      "name": "M35A2 cargo truck",
+      "category": "ground",
+      "directory": "m35",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 4,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "m35",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 56.05999999990066,
+              "p50": 54.400000005960464,
+              "p95": 69.29999999701977,
+              "p99": 106,
+              "min": 2.6000000089406967,
+              "max": 120.3999999910593
+            },
+            "observedFps": 17.83803068144438,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 129.46666666666667,
+              "p50": 129,
+              "p95": 131,
+              "p99": 131,
+              "min": 128,
+              "max": 131
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 290710.26666666666,
+              "p50": 290708,
+              "p95": 290722,
+              "p99": 290722,
+              "min": 290696,
+              "max": 290722
+            },
+            "textures": {
+              "count": 30,
+              "mean": 14,
+              "p50": 14,
+              "p95": 14,
+              "p99": 14,
+              "min": 14,
+              "max": 14
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 118,
+              "p50": 118,
+              "p95": 118,
+              "p99": 118,
+              "min": 118,
+              "max": 118
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "landrover",
+      "name": "Land Rover Series III 109",
+      "category": "ground",
+      "directory": "landrover",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 3,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "landrover",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 49.086666666467984,
+              "p50": 48.5,
+              "p95": 53.3999999910593,
+              "p99": 56,
+              "min": 43,
+              "max": 58.099999994039536
+            },
+            "observedFps": 20.372130924977203,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 82.13333333333334,
+              "p50": 82,
+              "p95": 83,
+              "p99": 83,
+              "min": 82,
+              "max": 83
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 276084.26666666666,
+              "p50": 276084,
+              "p95": 276086,
+              "p99": 276086,
+              "min": 276084,
+              "max": 276086
+            },
+            "textures": {
+              "count": 30,
+              "mean": 11,
+              "p50": 11,
+              "p95": 11,
+              "p99": 11,
+              "min": 11,
+              "max": 11
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 82,
+              "p50": 82,
+              "p95": 82,
+              "p99": 82,
+              "min": 82,
+              "max": 82
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "hilux",
+      "name": "Toyota Hilux RN37",
+      "category": "ground",
+      "directory": "hilux",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 3,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "hilux",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 46.27999999970198,
+              "p50": 46.79999999701977,
+              "p95": 53.6000000089407,
+              "p99": 53.79999999701977,
+              "min": 14.200000002980232,
+              "max": 57.79999999701977
+            },
+            "observedFps": 21.60760587740794,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 74.36666666666666,
+              "p50": 74,
+              "p95": 75,
+              "p99": 75,
+              "min": 74,
+              "max": 75
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 273782.73333333334,
+              "p50": 273782,
+              "p95": 273784,
+              "p99": 273784,
+              "min": 273782,
+              "max": 273784
+            },
+            "textures": {
+              "count": 30,
+              "mean": 11,
+              "p50": 11,
+              "p95": 11,
+              "p99": 11,
+              "min": 11,
+              "max": 11
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 76,
+              "p50": 76,
+              "p95": 76,
+              "p99": 76,
+              "min": 76,
+              "max": 76
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "beetle",
+      "name": "Volkswagen Beetle 1200",
+      "category": "ground",
+      "directory": "beetle",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 3,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "beetle",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 47.71999999980132,
+              "p50": 47,
+              "p95": 52.69999998807907,
+              "p99": 56.1000000089407,
+              "min": 3.2999999970197678,
+              "max": 94.1000000089407
+            },
+            "observedFps": 20.955574182819856,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 68.2,
+              "p50": 68,
+              "p95": 69,
+              "p99": 69,
+              "min": 68,
+              "max": 69
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 274762.4,
+              "p50": 274762,
+              "p95": 274764,
+              "p99": 274764,
+              "min": 274762,
+              "max": 274764
+            },
+            "textures": {
+              "count": 30,
+              "mean": 10,
+              "p50": 10,
+              "p95": 10,
+              "p99": 10,
+              "min": 10,
+              "max": 10
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 70,
+              "p50": 70,
+              "p95": 70,
+              "p99": 70,
+              "min": 70,
+              "max": 70
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "lada",
+      "name": "Lada 2101",
+      "category": "ground",
+      "directory": "lada",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 3,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "lada",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 47.65,
+              "p50": 46.30000001192093,
+              "p95": 53.099999994039536,
+              "p99": 55.69999998807907,
+              "min": 16,
+              "max": 95.29999999701977
+            },
+            "observedFps": 20.986358866736623,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 70.3,
+              "p50": 70,
+              "p95": 71,
+              "p99": 71,
+              "min": 70,
+              "max": 71
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 274056.6,
+              "p50": 274056,
+              "p95": 274058,
+              "p99": 274058,
+              "min": 274056,
+              "max": 274058
+            },
+            "textures": {
+              "count": 30,
+              "mean": 10,
+              "p50": 10,
+              "p95": 10,
+              "p99": 10,
+              "min": 10,
+              "max": 10
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 72,
+              "p50": 72,
+              "p95": 72,
+              "p99": 72,
+              "min": 72,
+              "max": 72
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "m60",
+      "name": "M60A3 TTS",
+      "category": "ground",
+      "directory": "m60",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 2,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "m60",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.65999999990066,
+              "p50": 16.69999998807907,
+              "p95": 17.200000002980232,
+              "p99": 18.900000005960464,
+              "min": 14.400000005960464,
+              "max": 19
+            },
+            "observedFps": 60.02400960419945,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 240.7,
+              "p50": 240,
+              "p95": 244,
+              "p99": 246,
+              "min": 234,
+              "max": 246
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 134985.8,
+              "p50": 134974,
+              "p95": 135040,
+              "p99": 135066,
+              "min": 134876,
+              "max": 135066
+            },
+            "textures": {
+              "count": 30,
+              "mean": 11,
+              "p50": 11,
+              "p95": 11,
+              "p99": 11,
+              "min": 11,
+              "max": 11
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 182,
+              "p50": 182,
+              "p95": 182,
+              "p99": 182,
+              "min": 182,
+              "max": 182
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "m113",
+      "name": "M113A2 APC",
+      "category": "ground",
+      "directory": "m113",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 3,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "m113",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 26.673333333432673,
+              "p50": 16.600000008940697,
+              "p95": 17.100000008940697,
+              "p99": 17.299999997019768,
+              "min": 4.399999991059303,
+              "max": 328.80000001192093
+            },
+            "observedFps": 37.490627343024585,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 234,
+              "p50": 234,
+              "p95": 234,
+              "p99": 234,
+              "min": 234,
+              "max": 234
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 132174,
+              "p50": 132174,
+              "p95": 132174,
+              "p99": 132174,
+              "min": 132174,
+              "max": 132174
+            },
+            "textures": {
+              "count": 30,
+              "mean": 9,
+              "p50": 9,
+              "p95": 9,
+              "p99": 9,
+              "min": 9,
+              "max": 9
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 123,
+              "p50": 123,
+              "p95": 123,
+              "p99": 123,
+              "min": 123,
+              "max": 123
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "marine",
+      "name": "1980 Marine rifleman",
+      "category": "ground",
+      "directory": "marine",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 2,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "marine",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 27.636666666467985,
+              "p50": 27.599999994039536,
+              "p95": 30.200000002980232,
+              "p99": 31.5,
+              "min": 24.700000002980232,
+              "max": 31.599999994039536
+            },
+            "observedFps": 36.18381377423191,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 133,
+              "p50": 133,
+              "p95": 133,
+              "p99": 133,
+              "min": 133,
+              "max": 133
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 80262,
+              "p50": 80262,
+              "p95": 80262,
+              "p99": 80262,
+              "min": 80262,
+              "max": 80262
+            },
+            "textures": {
+              "count": 30,
+              "mean": 9,
+              "p50": 9,
+              "p95": 9,
+              "p99": 9,
+              "min": 9,
+              "max": 9
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 133,
+              "p50": 133,
+              "p95": 133,
+              "p99": 133,
+              "min": 133,
+              "max": 133
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "rw1",
+      "name": "RW-1 STRIDER",
+      "category": "ground",
+      "directory": "rw1",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 3,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "rw1",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.669999999801316,
+              "p50": 16.700000002980232,
+              "p95": 16.900000005960464,
+              "p99": 16.900000005960464,
+              "min": 16.399999991059303,
+              "max": 17
+            },
+            "observedFps": 59.988002400235075,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 29,
+              "p50": 29,
+              "p95": 29,
+              "p99": 29,
+              "min": 29,
+              "max": 29
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 108840,
+              "p50": 108840,
+              "p95": 108840,
+              "p99": 108840,
+              "min": 108840,
+              "max": 108840
+            },
+            "textures": {
+              "count": 30,
+              "mean": 3,
+              "p50": 3,
+              "p95": 3,
+              "p99": 3,
+              "min": 3,
+              "max": 3
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 66,
+              "p50": 66,
+              "p95": 66,
+              "p99": 66,
+              "min": 66,
+              "max": 66
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "rw7",
+      "name": "RW-7 hover tank",
+      "category": "ground",
+      "directory": "rw7",
+      "ok": false,
+      "exitCode": 1,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 3,
+      "failedChecks": 1,
+      "benchmarks": [
+        {
+          "name": "rw7",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.666666666666668,
+              "p50": 16.600000008940697,
+              "p95": 16.900000005960464,
+              "p99": 16.900000005960464,
+              "min": 16.399999991059303,
+              "max": 17
+            },
+            "observedFps": 59.99999999999999,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 27,
+              "p50": 27,
+              "p95": 27,
+              "p99": 27,
+              "min": 27,
+              "max": 27
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 110576,
+              "p50": 110576,
+              "p95": 110576,
+              "p99": 110576,
+              "min": 110576,
+              "max": 110576
+            },
+            "textures": {
+              "count": 30,
+              "mean": 3,
+              "p50": 3,
+              "p95": 3,
+              "p99": 3,
+              "min": 3,
+              "max": 3
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 66,
+              "p50": 66,
+              "p95": 66,
+              "p99": 66,
+              "min": 66,
+              "max": 66
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "m1a2",
+      "name": "Captured M1A2 SEPv3",
+      "category": "ground",
+      "directory": "m1a2",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 3,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "m1a2",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.65999999990066,
+              "p50": 16.600000008940697,
+              "p95": 17,
+              "p99": 17,
+              "min": 16.099999994039536,
+              "max": 17.099999994039536
+            },
+            "observedFps": 60.02400960419945,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 31,
+              "p50": 31,
+              "p95": 31,
+              "p99": 31,
+              "min": 31,
+              "max": 31
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 111942,
+              "p50": 111942,
+              "p95": 111942,
+              "p99": 111942,
+              "min": 111942,
+              "max": 111942
+            },
+            "textures": {
+              "count": 30,
+              "mean": 3,
+              "p50": 3,
+              "p95": 3,
+              "p99": 3,
+              "min": 3,
+              "max": 3
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 66,
+              "p50": 66,
+              "p95": 66,
+              "p99": 66,
+              "min": 66,
+              "max": 66
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "t90m",
+      "name": "Captured T-90M",
+      "category": "ground",
+      "directory": "t90m",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 3,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "t90m",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.66333333303531,
+              "p50": 16.600000008940697,
+              "p95": 16.900000005960464,
+              "p99": 16.900000005960464,
+              "min": 16.299999997019768,
+              "max": 17
+            },
+            "observedFps": 60.0120024015534,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 29,
+              "p50": 29,
+              "p95": 29,
+              "p99": 29,
+              "min": 29,
+              "max": 29
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 111698,
+              "p50": 111698,
+              "p95": 111698,
+              "p99": 111698,
+              "min": 111698,
+              "max": 111698
+            },
+            "textures": {
+              "count": 30,
+              "mean": 3,
+              "p50": 3,
+              "p95": 3,
+              "p99": 3,
+              "min": 3,
+              "max": 3
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 66,
+              "p50": 66,
+              "p95": 66,
+              "p99": 66,
+              "min": 66,
+              "max": 66
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "naval-albatross",
+      "name": "ALBATROSS",
+      "category": "naval",
+      "directory": "naval-albatross",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 4,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "naval-albatross",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.333333333333332,
+              "p50": 16.600000008940697,
+              "p95": 17,
+              "p99": 17.099999994039536,
+              "min": 6.4000000059604645,
+              "max": 17.299999997019768
+            },
+            "observedFps": 61.22448979591837,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 64,
+              "p50": 64,
+              "p95": 64,
+              "p99": 64,
+              "min": 64,
+              "max": 64
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 42495,
+              "p50": 42495,
+              "p95": 42495,
+              "p99": 42495,
+              "min": 42495,
+              "max": 42495
+            },
+            "textures": {
+              "count": 30,
+              "mean": 2,
+              "p50": 2,
+              "p95": 2,
+              "p99": 2,
+              "min": 2,
+              "max": 2
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 64,
+              "p50": 64,
+              "p95": 64,
+              "p99": 64,
+              "min": 64,
+              "max": 64
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "naval-kraken",
+      "name": "KRAKEN",
+      "category": "naval",
+      "directory": "naval-kraken",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 4,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "naval-kraken",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 28.40333333313465,
+              "p50": 16.600000008940697,
+              "p95": 17,
+              "p99": 17.200000002980232,
+              "min": 1.1000000089406967,
+              "max": 402.29999999701977
+            },
+            "observedFps": 35.20713531300299,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 104,
+              "p50": 104,
+              "p95": 104,
+              "p99": 104,
+              "min": 104,
+              "max": 104
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 20329,
+              "p50": 20329,
+              "p95": 20329,
+              "p99": 20329,
+              "min": 20329,
+              "max": 20329
+            },
+            "textures": {
+              "count": 30,
+              "mean": 2,
+              "p50": 2,
+              "p95": 2,
+              "p99": 2,
+              "min": 2,
+              "max": 2
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 105,
+              "p50": 105,
+              "p95": 105,
+              "p99": 105,
+              "min": 105,
+              "max": 105
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "naval-leviathan",
+      "name": "RW-9 LEVIATHAN",
+      "category": "naval",
+      "directory": "naval-leviathan",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 4,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "naval-leviathan",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.65999999990066,
+              "p50": 16.69999998807907,
+              "p95": 17.099999994039536,
+              "p99": 17.100000008940697,
+              "min": 15.600000008940697,
+              "max": 17.700000002980232
+            },
+            "observedFps": 60.02400960419945,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 112,
+              "p50": 112,
+              "p95": 112,
+              "p99": 112,
+              "min": 112,
+              "max": 112
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 9226,
+              "p50": 9226,
+              "p95": 9226,
+              "p99": 9226,
+              "min": 9226,
+              "max": 9226
+            },
+            "textures": {
+              "count": 30,
+              "mean": 1,
+              "p50": 1,
+              "p95": 1,
+              "p99": 1,
+              "min": 1,
+              "max": 1
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 112,
+              "p50": 112,
+              "p95": 112,
+              "p99": 112,
+              "min": 112,
+              "max": 112
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "naval-container",
+      "name": "Autonomous container feeder",
+      "category": "naval",
+      "directory": "naval-container",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 4,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "naval-container",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 18.89666666686535,
+              "p50": 16.600000008940697,
+              "p95": 17,
+              "p99": 17.099999994039536,
+              "min": 0.7000000029802322,
+              "max": 108.5
+            },
+            "observedFps": 52.91938613456443,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 26,
+              "p50": 26,
+              "p95": 26,
+              "p99": 26,
+              "min": 26,
+              "max": 26
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 34899,
+              "p50": 34899,
+              "p95": 34899,
+              "p99": 34899,
+              "min": 34899,
+              "max": 34899
+            },
+            "textures": {
+              "count": 30,
+              "mean": 1,
+              "p50": 1,
+              "p95": 1,
+              "p99": 1,
+              "min": 1,
+              "max": 1
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 26,
+              "p50": 26,
+              "p95": 26,
+              "p99": 26,
+              "min": 26,
+              "max": 26
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "naval-sky",
+      "name": "SKY CARRIER refit",
+      "category": "naval",
+      "directory": "naval-sky",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 2,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "naval-sky",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.666666666666668,
+              "p50": 16.69999998807907,
+              "p95": 17.299999997019768,
+              "p99": 17.299999997019768,
+              "min": 15.800000011920929,
+              "max": 18.299999997019768
+            },
+            "observedFps": 59.99999999999999,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 132,
+              "p50": 132,
+              "p95": 132,
+              "p99": 132,
+              "min": 132,
+              "max": 132
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 47311,
+              "p50": 47311,
+              "p95": 47311,
+              "p99": 47311,
+              "min": 47311,
+              "max": 47311
+            },
+            "textures": {
+              "count": 30,
+              "mean": 2,
+              "p50": 2,
+              "p95": 2,
+              "p99": 2,
+              "min": 2,
+              "max": 2
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 128,
+              "p50": 128,
+              "p95": 128,
+              "p99": 128,
+              "min": 128,
+              "max": 128
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "naval-lcm8-armor",
+      "name": "LCM-8 — armour delivery",
+      "category": "naval",
+      "directory": "naval-lcm8-armor",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 3,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "naval-lcm8-armor",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 18.873333333432676,
+              "p50": 16.799999997019768,
+              "p95": 17.299999997019768,
+              "p99": 17.5,
+              "min": 1.2000000029802322,
+              "max": 112.29999999701977
+            },
+            "observedFps": 52.9848110205618,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 359,
+              "p50": 359,
+              "p95": 359,
+              "p99": 359,
+              "min": 359,
+              "max": 359
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 39566,
+              "p50": 39566,
+              "p95": 39566,
+              "p99": 39566,
+              "min": 39566,
+              "max": 39566
+            },
+            "textures": {
+              "count": 30,
+              "mean": 9,
+              "p50": 9,
+              "p95": 9,
+              "p99": 9,
+              "min": 9,
+              "max": 9
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 331,
+              "p50": 331,
+              "p95": 331,
+              "p99": 331,
+              "min": 331,
+              "max": 331
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "naval-lcm8-truck",
+      "name": "LCM-8 — truck delivery",
+      "category": "naval",
+      "directory": "naval-lcm8-truck",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 2,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "naval-lcm8-truck",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.669999999801316,
+              "p50": 16.700000002980232,
+              "p95": 17,
+              "p99": 17.100000008940697,
+              "min": 7.200000002980232,
+              "max": 26.099999994039536
+            },
+            "observedFps": 59.988002400235075,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 104,
+              "p50": 104,
+              "p95": 104,
+              "p99": 104,
+              "min": 104,
+              "max": 104
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 25742,
+              "p50": 25742,
+              "p95": 25742,
+              "p99": 25742,
+              "min": 25742,
+              "max": 25742
+            },
+            "textures": {
+              "count": 30,
+              "mean": 6,
+              "p50": 6,
+              "p95": 6,
+              "p99": 6,
+              "min": 6,
+              "max": 6
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 83,
+              "p50": 83,
+              "p95": 83,
+              "p99": 83,
+              "min": 83,
+              "max": 83
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "naval-lcac",
+      "name": "Seized LCAC",
+      "category": "naval",
+      "directory": "naval-lcac",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 3,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "naval-lcac",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.663333333532016,
+              "p50": 16.700000002980232,
+              "p95": 16.900000005960464,
+              "p99": 16.900000005960464,
+              "min": 13.599999994039536,
+              "max": 19.700000002980232
+            },
+            "observedFps": 60.012002399764555,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 30,
+              "p50": 30,
+              "p95": 30,
+              "p99": 30,
+              "min": 30,
+              "max": 30
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 8312,
+              "p50": 8312,
+              "p95": 8312,
+              "p99": 8312,
+              "min": 8312,
+              "max": 8312
+            },
+            "textures": {
+              "count": 30,
+              "mean": 0,
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "min": 0,
+              "max": 0
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 15,
+              "p50": 15,
+              "p95": 15,
+              "p99": 15,
+              "min": 15,
+              "max": 15
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "defence-vads",
+      "name": "M163 VADS",
+      "category": "defence",
+      "directory": "defence-vads",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 3,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "defence-vads",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 18.313333333532015,
+              "p50": 16.600000008940697,
+              "p95": 17,
+              "p99": 17,
+              "min": 0.5,
+              "max": 88.59999999403954
+            },
+            "observedFps": 54.60502366158451,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 11.2,
+              "p50": 11,
+              "p95": 11,
+              "p99": 11,
+              "min": 11,
+              "max": 17
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 49607.933333333334,
+              "p50": 49607,
+              "p95": 49607,
+              "p99": 49607,
+              "min": 49607,
+              "max": 49635
+            },
+            "textures": {
+              "count": 30,
+              "mean": 3,
+              "p50": 3,
+              "p95": 3,
+              "p99": 3,
+              "min": 3,
+              "max": 3
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 24,
+              "p50": 24,
+              "p95": 24,
+              "p99": 24,
+              "min": 24,
+              "max": 24
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "defence-shilka",
+      "name": "ZSU-23-4 SHILKA",
+      "category": "defence",
+      "directory": "defence-shilka",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 3,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "defence-shilka",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.653333333631355,
+              "p50": 16.600000008940697,
+              "p95": 17.099999994039536,
+              "p99": 17.100000008940697,
+              "min": 0.800000011920929,
+              "max": 47.099999994039536
+            },
+            "observedFps": 60.04803842967,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 17,
+              "p50": 11,
+              "p95": 29,
+              "p99": 35,
+              "min": 11,
+              "max": 35
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 50218,
+              "p50": 50190,
+              "p95": 50274,
+              "p99": 50302,
+              "min": 50190,
+              "max": 50302
+            },
+            "textures": {
+              "count": 30,
+              "mean": 3,
+              "p50": 3,
+              "p95": 3,
+              "p99": 3,
+              "min": 3,
+              "max": 3
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 33,
+              "p50": 33,
+              "p95": 33,
+              "p99": 33,
+              "min": 33,
+              "max": 33
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "defence-ciws",
+      "name": "Phalanx CIWS — Block 0",
+      "category": "defence",
+      "directory": "defence-ciws",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 3,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "defence-ciws",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.86999999980132,
+              "p50": 16.600000008940697,
+              "p95": 17.200000002980232,
+              "p99": 18.799999997019768,
+              "min": 0.4000000059604645,
+              "max": 56
+            },
+            "observedFps": 59.27682276299805,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 10,
+              "p50": 10,
+              "p95": 10,
+              "p99": 10,
+              "min": 10,
+              "max": 10
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 46208,
+              "p50": 46208,
+              "p95": 46208,
+              "p99": 46208,
+              "min": 46208,
+              "max": 46208
+            },
+            "textures": {
+              "count": 30,
+              "mean": 3,
+              "p50": 3,
+              "p95": 3,
+              "p99": 3,
+              "min": 3,
+              "max": 3
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 22,
+              "p50": 22,
+              "p95": 22,
+              "p99": 22,
+              "min": 22,
+              "max": 22
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "defence-sparrow",
+      "name": "Sea Sparrow",
+      "category": "defence",
+      "directory": "defence-sparrow",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 3,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "defence-sparrow",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.35333333313465,
+              "p50": 16.700000002980232,
+              "p95": 17.100000008940697,
+              "p99": 17.19999998807907,
+              "min": 7.0999999940395355,
+              "max": 17.299999997019768
+            },
+            "observedFps": 61.149612719862375,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 12,
+              "p50": 12,
+              "p95": 12,
+              "p99": 12,
+              "min": 12,
+              "max": 12
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 45832,
+              "p50": 45832,
+              "p95": 45832,
+              "p99": 45832,
+              "min": 45832,
+              "max": 45832
+            },
+            "textures": {
+              "count": 30,
+              "mean": 3,
+              "p50": 3,
+              "p95": 3,
+              "p99": 3,
+              "min": 3,
+              "max": 3
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 27,
+              "p50": 27,
+              "p95": 27,
+              "p99": 27,
+              "min": 27,
+              "max": 27
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "defence-talon",
+      "name": "Pantsir-S1 / RW TALON",
+      "category": "defence",
+      "directory": "defence-talon",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 3,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "defence-talon",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.666666666666668,
+              "p50": 16.600000008940697,
+              "p95": 16.900000005960464,
+              "p99": 17,
+              "min": 0.6000000089406967,
+              "max": 45.8999999910593
+            },
+            "observedFps": 59.99999999999999,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 27,
+              "p50": 27,
+              "p95": 27,
+              "p99": 27,
+              "min": 27,
+              "max": 27
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 49992,
+              "p50": 49992,
+              "p95": 49992,
+              "p99": 49992,
+              "min": 49992,
+              "max": 49992
+            },
+            "textures": {
+              "count": 30,
+              "mean": 3,
+              "p50": 3,
+              "p95": 3,
+              "p99": 3,
+              "min": 3,
+              "max": 3
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 53,
+              "p50": 53,
+              "p95": 53,
+              "p99": 53,
+              "min": 53,
+              "max": 53
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "defence-talonm",
+      "name": "RW TALON — ship mount",
+      "category": "defence",
+      "directory": "defence-talonm",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 3,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "defence-talonm",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.679999999701977,
+              "p50": 16.69999998807907,
+              "p95": 17.299999997019768,
+              "p99": 17.299999997019768,
+              "min": 9.5,
+              "max": 23.600000008940697
+            },
+            "observedFps": 59.952038370375725,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 24,
+              "p50": 24,
+              "p95": 24,
+              "p99": 24,
+              "min": 24,
+              "max": 24
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 46548,
+              "p50": 46548,
+              "p95": 46548,
+              "p99": 46548,
+              "min": 46548,
+              "max": 46548
+            },
+            "textures": {
+              "count": 30,
+              "mean": 3,
+              "p50": 3,
+              "p95": 3,
+              "p99": 3,
+              "min": 3,
+              "max": 3
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 59,
+              "p50": 59,
+              "p95": 59,
+              "p99": 59,
+              "min": 59,
+              "max": 59
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "defence-lance",
+      "name": "RW-5 LANCE",
+      "category": "defence",
+      "directory": "defence-lance",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 3,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "defence-lance",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.666666666666668,
+              "p50": 16.69999998807907,
+              "p95": 16.900000005960464,
+              "p99": 20.799999997019768,
+              "min": 0.5,
+              "max": 33.70000000298023
+            },
+            "observedFps": 59.99999999999999,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 32.233333333333334,
+              "p50": 32,
+              "p95": 33,
+              "p99": 33,
+              "min": 32,
+              "max": 33
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 46429.333333333336,
+              "p50": 46420,
+              "p95": 46460,
+              "p99": 46460,
+              "min": 46420,
+              "max": 46460
+            },
+            "textures": {
+              "count": 30,
+              "mean": 3,
+              "p50": 3,
+              "p95": 3,
+              "p99": 3,
+              "min": 3,
+              "max": 3
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 62.233333333333334,
+              "p50": 62,
+              "p95": 63,
+              "p99": 63,
+              "min": 62,
+              "max": 63
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "defence-lancem",
+      "name": "RW-5 LANCE — ship mount",
+      "category": "defence",
+      "directory": "defence-lancem",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 3,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "defence-lancem",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.66333333303531,
+              "p50": 16.69999998807907,
+              "p95": 17.100000008940697,
+              "p99": 20.700000002980232,
+              "min": 3.2999999970197678,
+              "max": 29.799999997019768
+            },
+            "observedFps": 60.0120024015534,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 32.233333333333334,
+              "p50": 32,
+              "p95": 33,
+              "p99": 33,
+              "min": 32,
+              "max": 33
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 46429.333333333336,
+              "p50": 46420,
+              "p95": 46460,
+              "p99": 46460,
+              "min": 46420,
+              "max": 46460
+            },
+            "textures": {
+              "count": 30,
+              "mean": 3,
+              "p50": 3,
+              "p95": 3,
+              "p99": 3,
+              "min": 3,
+              "max": 3
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 62.233333333333334,
+              "p50": 62,
+              "p95": 63,
+              "p99": 63,
+              "min": 62,
+              "max": 63
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "human-hq",
+      "name": "HQ bunker",
+      "category": "structure",
+      "directory": "human-hq",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 8,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "human-hq",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.666666666666668,
+              "p50": 16.600000008940697,
+              "p95": 16.80000001192093,
+              "p99": 16.900000005960464,
+              "min": 16.5,
+              "max": 16.900000005960464
+            },
+            "observedFps": 59.99999999999999,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 7,
+              "p50": 7,
+              "p95": 7,
+              "p99": 7,
+              "min": 7,
+              "max": 7
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 1425,
+              "p50": 1425,
+              "p95": 1425,
+              "p99": 1425,
+              "min": 1425,
+              "max": 1425
+            },
+            "textures": {
+              "count": 30,
+              "mean": 0,
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "min": 0,
+              "max": 0
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 7,
+              "p50": 7,
+              "p95": 7,
+              "p99": 7,
+              "min": 7,
+              "max": 7
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "human-fuel",
+      "name": "Fuel farm",
+      "category": "structure",
+      "directory": "human-fuel",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 8,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "human-fuel",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.663333333532016,
+              "p50": 16.600000008940697,
+              "p95": 16.799999997019768,
+              "p99": 16.80000001192093,
+              "min": 16.5,
+              "max": 16.899999991059303
+            },
+            "observedFps": 60.012002399764555,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 5,
+              "p50": 5,
+              "p95": 5,
+              "p99": 5,
+              "min": 5,
+              "max": 5
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 1652,
+              "p50": 1652,
+              "p95": 1652,
+              "p99": 1652,
+              "min": 1652,
+              "max": 1652
+            },
+            "textures": {
+              "count": 30,
+              "mean": 0,
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "min": 0,
+              "max": 0
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 5,
+              "p50": 5,
+              "p95": 5,
+              "p99": 5,
+              "min": 5,
+              "max": 5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "human-factory",
+      "name": "Supply depot",
+      "category": "structure",
+      "directory": "human-factory",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 8,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "human-factory",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.65999999990066,
+              "p50": 16.69999998807907,
+              "p95": 16.799999997019768,
+              "p99": 16.799999997019768,
+              "min": 16.399999991059303,
+              "max": 16.900000005960464
+            },
+            "observedFps": 60.02400960419945,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 4,
+              "p50": 4,
+              "p95": 4,
+              "p99": 4,
+              "min": 4,
+              "max": 4
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 939,
+              "p50": 939,
+              "p95": 939,
+              "p99": 939,
+              "min": 939,
+              "max": 939
+            },
+            "textures": {
+              "count": 30,
+              "mean": 0,
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "min": 0,
+              "max": 0
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 4,
+              "p50": 4,
+              "p95": 4,
+              "p99": 4,
+              "min": 4,
+              "max": 4
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "human-radar",
+      "name": "Radar site",
+      "category": "structure",
+      "directory": "human-radar",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 8,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "human-radar",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.666666666666668,
+              "p50": 16.69999998807907,
+              "p95": 16.900000005960464,
+              "p99": 16.900000005960464,
+              "min": 15.099999994039536,
+              "max": 18.099999994039536
+            },
+            "observedFps": 59.99999999999999,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 5,
+              "p50": 5,
+              "p95": 5,
+              "p99": 5,
+              "min": 5,
+              "max": 5
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 1149,
+              "p50": 1149,
+              "p95": 1149,
+              "p99": 1149,
+              "min": 1149,
+              "max": 1149
+            },
+            "textures": {
+              "count": 30,
+              "mean": 0,
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "min": 0,
+              "max": 0
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 5,
+              "p50": 5,
+              "p95": 5,
+              "p99": 5,
+              "min": 5,
+              "max": 5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "runaway-hq",
+      "name": "RUNAWAY command node",
+      "category": "structure",
+      "directory": "runaway-hq",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 8,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "runaway-hq",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.670000000298025,
+              "p50": 16.700000002980232,
+              "p95": 16.80000001192093,
+              "p99": 16.80000001192093,
+              "min": 16.400000005960464,
+              "max": 16.899999991059303
+            },
+            "observedFps": 59.988002398447634,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 6,
+              "p50": 6,
+              "p95": 6,
+              "p99": 6,
+              "min": 6,
+              "max": 6
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 450,
+              "p50": 450,
+              "p95": 450,
+              "p99": 450,
+              "min": 450,
+              "max": 450
+            },
+            "textures": {
+              "count": 30,
+              "mean": 0,
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "min": 0,
+              "max": 0
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 6,
+              "p50": 6,
+              "p95": 6,
+              "p99": 6,
+              "min": 6,
+              "max": 6
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "runaway-fuel",
+      "name": "RUNAWAY siphon spire",
+      "category": "structure",
+      "directory": "runaway-fuel",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 8,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "runaway-fuel",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.66333333303531,
+              "p50": 16.69999998807907,
+              "p95": 16.900000005960464,
+              "p99": 16.900000005960464,
+              "min": 16.399999991059303,
+              "max": 16.900000005960464
+            },
+            "observedFps": 60.0120024015534,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 5,
+              "p50": 5,
+              "p95": 5,
+              "p99": 5,
+              "min": 5,
+              "max": 5
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 438,
+              "p50": 438,
+              "p95": 438,
+              "p99": 438,
+              "min": 438,
+              "max": 438
+            },
+            "textures": {
+              "count": 30,
+              "mean": 0,
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "min": 0,
+              "max": 0
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 5,
+              "p50": 5,
+              "p95": 5,
+              "p99": 5,
+              "min": 5,
+              "max": 5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "runaway-factory",
+      "name": "RUNAWAY fabricator",
+      "category": "structure",
+      "directory": "runaway-factory",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 8,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "runaway-factory",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.673333333432673,
+              "p50": 16.700000002980232,
+              "p95": 16.899999991059303,
+              "p99": 17,
+              "min": 16.400000005960464,
+              "max": 17.099999994039536
+            },
+            "observedFps": 59.9760095958042,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 6,
+              "p50": 6,
+              "p95": 6,
+              "p99": 6,
+              "min": 6,
+              "max": 6
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 484,
+              "p50": 484,
+              "p95": 484,
+              "p99": 484,
+              "min": 484,
+              "max": 484
+            },
+            "textures": {
+              "count": 30,
+              "mean": 0,
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "min": 0,
+              "max": 0
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 6,
+              "p50": 6,
+              "p95": 6,
+              "p99": 6,
+              "min": 6,
+              "max": 6
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "runaway-radar",
+      "name": "RUNAWAY sensor spire",
+      "category": "structure",
+      "directory": "runaway-radar",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 8,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "runaway-radar",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 16.666666666666668,
+              "p50": 16.700000002980232,
+              "p95": 16.900000005960464,
+              "p99": 16.900000005960464,
+              "min": 16.099999994039536,
+              "max": 17.200000002980232
+            },
+            "observedFps": 59.99999999999999,
+            "cpuMs": {
+              "sim": null,
+              "prep": null,
+              "renderSubmit": null
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 6,
+              "p50": 6,
+              "p95": 6,
+              "p99": 6,
+              "min": 6,
+              "max": 6
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 380,
+              "p50": 380,
+              "p95": 380,
+              "p99": 380,
+              "min": 380,
+              "max": 380
+            },
+            "textures": {
+              "count": 30,
+              "mean": 0,
+              "p50": 0,
+              "p95": 0,
+              "p99": 0,
+              "min": 0,
+              "max": 0
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 6,
+              "p50": 6,
+              "p95": 6,
+              "p99": 6,
+              "min": 6,
+              "max": 6
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "qualification": "Isolated unit fixtures using production models and simulations; no busy-war, hardware, real-world fidelity or VR certification. Recording follows sampling. No baseline means no performance-change claim.",
+  "finishedAt": "2026-10-26T13:54:41.770Z",
+  "sourceAfter": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "bcd621f6f4d34b8c98fcec652082035da96275fa",
+    "branch": "ngc/unit-bench",
+    "gameTree": "0dfd01ee02de1e644007fd0f2016feb100fe03c0",
+    "gameSha256": "279ee6c4ad4159fd9dc4892a2f80b9bd261365f6941a2c5d35a1b272937569be",
+    "dirty": false,
+    "status": ""
+  }
+}

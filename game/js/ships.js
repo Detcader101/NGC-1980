@@ -1,137 +1,71 @@
-// Models for the island war: the two carriers, the enemy battleship, capture drones, enemy transports and the island
+// Models for the island war: the two carriers, the enemy battleship (LEVIATHAN) and supply ship (the naval ones are
+// built in units/naval/ and wrapped here under their old names), capture drones, enemy transports and the island
 // buildings. Low-poly, flat-shaded, built from primitives. Local frame: +y up, the bow / nose points along -z.
 import * as THREE from 'three';
+import { buildFactionStructure } from './world/structures.js';   // WORLD: faction structures
+import { buildAlbatross } from './units/naval/albatross.js';
+import { buildKraken } from './units/naval/kraken.js';
+import { buildLeviathan, LEV } from './units/naval/leviathan.js';
+import { buildContainerShip, BOX } from './units/naval/containership.js';
+import { buildCH46Mesh } from './units/air/rotary/ch46model.js';
+import { buildMV22Mesh } from './units/air/rotary/mv22model.js';
+import { buildWaspMesh } from './units/air/rotary/waspmodel.js';
+import { buildC130Mesh } from './units/air/c130model.js';   // the para-drop Hercules (C-130 agent)
+import { buildParatrooper, buildMC1Canopy } from './units/air/jumper.js';
 
 const M = (c, o = {}) => new THREE.MeshPhongMaterial({ color: c, flatShading: true, shininess: 20, ...o });
-// a top-view outline drawn with y = local z; for a floor facing up after rotateX(-PI/2) the outline is mirrored in y
-const flipShape = sh => new THREE.Shape(sh.getPoints(8).map(p => new THREE.Vector2(p.x, -p.y)));
 const box = (w, h, d, m, x = 0, y = 0, z = 0, parent) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); parent && parent.add(b); return b; };
 const cyl = (rt, rb, h, m, x = 0, y = 0, z = 0, parent, seg = 10) => { const c = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), m); c.position.set(x, y, z); parent && parent.add(c); return c; };
 export const TEAM = { 0: 0xc8c8bc, 1: 0x33bbff, 2: 0xff3322 };
 
 // ------------------------------------------------------------------------------------------- carriers
 export const CARRIER = { L: 120, W: 28, DECK: 8, TOWER_X: 10.5, TOWER_Z: 6, TOWER_H: 17 };
-function deckTexture(side) {
-  const c = document.createElement('canvas'); c.width = 256; c.height = 1024; const x = c.getContext('2d');
-  x.fillStyle = '#3c4045'; x.fillRect(0, 0, 256, 1024);
-  for (let i = 0; i < 2600; i++) { const g = 50 + Math.random() * 18; x.fillStyle = `rgb(${g},${g + 2},${g + 5})`; x.fillRect(Math.random() * 256, Math.random() * 1024, 3, 2); }
-  const team = side === 1 ? '#33bbff' : '#ff4433';
-  x.strokeStyle = '#e8e8e0'; x.lineWidth = 4; x.setLineDash([26, 18]); x.beginPath(); x.moveTo(110, 60); x.lineTo(110, 980); x.stroke(); x.setLineDash([]);
-  x.strokeStyle = '#ffd040'; x.lineWidth = 5; x.strokeRect(14, 14, 228, 996);
-  for (const cy of [250, 520, 790]) {   // three helicopter spots
-    x.strokeStyle = team; x.lineWidth = 9; x.beginPath(); x.arc(110, cy, 70, 0, 6.283); x.stroke();
-    x.fillStyle = '#f0f0e8'; x.font = 'bold 90px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('H', 110, cy + 4);
-  }
-  x.fillStyle = team; x.font = 'bold 54px sans-serif'; x.save(); x.translate(205, 520); x.rotate(Math.PI / 2); x.fillText(side === 1 ? 'ALBATROSS' : 'KRAKEN', 0, 0); x.restore();
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
-}
+// The carriers are built in units/naval/: ALBATROSS (side 1), KRAKEN (side 2). buildCarrier keeps its name and return shape
+// { group, guns, dish, lamp, lights, teamM, tower, band } plus the new parts (mounts, crew, tick, localDeck).
 export function buildCarrier(side) {
-  const g = new THREE.Group(), { L, W, DECK } = CARRIER;
-  const hullM = M(side === 1 ? 0x56616c : 0x4f3c3a), darkM = M(0x26292d), teamM = M(TEAM[side], { emissive: side === 1 ? 0x0a2a44 : 0x440a06 });
-  // hull: a prism from the top-view outline (pointed bow, square stern), flared above the waterline
-  const sh = new THREE.Shape(); sh.moveTo(-W / 2, L / 2); sh.lineTo(W / 2, L / 2); sh.lineTo(W / 2, -L / 2 + 16); sh.lineTo(0, -L / 2 - 6); sh.lineTo(-W / 2, -L / 2 + 16); sh.closePath();
-  const hullGeo = new THREE.ExtrudeGeometry(sh, { depth: DECK + 4, bevelEnabled: false }); hullGeo.rotateX(Math.PI / 2); hullGeo.translate(0, DECK, 0);
-  const hull = new THREE.Mesh(hullGeo, hullM); hull.scale.set(0.86, 1, 0.97); g.add(hull);
-  const deckGeo = new THREE.ShapeGeometry(flipShape(sh)); deckGeo.rotateX(-Math.PI / 2);
-  { const uv = deckGeo.attributes.uv, p = deckGeo.attributes.position; for (let i = 0; i < uv.count; i++) uv.setXY(i, (p.getX(i) + W / 2) / W, 1 - (p.getZ(i) + L / 2 + 6) / (L + 6)); }
-  const deck = new THREE.Mesh(deckGeo, new THREE.MeshLambertMaterial({ map: deckTexture(side) })); deck.position.y = DECK + 0.02; g.add(deck);
-  box(W + 0.6, 0.5, L - 14, darkM, 0, DECK - 0.4, 6, g);                  // deck edge / gallery
-  box(W * 0.86, 0.9, L * 0.92, M(0x7a1e1a), 0, -0.3, 2, g);                 // red boot-top at the waterline
-  // island superstructure on the starboard side
-  const tw = new THREE.Group(); tw.position.set(CARRIER.TOWER_X, DECK, CARRIER.TOWER_Z); g.add(tw);
-  box(5.5, 9, 18, hullM, 0, 4.5, 0, tw); box(5, 4, 10, hullM, 0, 11, -1, tw); box(5.6, 1.4, 8, darkM, 0, 9.6, -3.5, tw);   // bridge windows
-  box(0.4, 7, 0.4, darkM, 0, 16, -1, tw); box(3, 0.3, 0.3, darkM, 0, 18, -1, tw);
-  const dish = new THREE.Group(); dish.position.set(0, 13.3, 2.5); tw.add(dish);
-  box(3.2, 1.4, 0.25, darkM, 0, 0.6, 0, dish); cyl(0.2, 0.2, 1, darkM, 0, 0, 0, dish, 6);
-  box(5.7, 1.2, 0.3, teamM, 0, 7, 9.1, tw); box(5.7, 1.2, 0.3, teamM, 0, 7, -9.1, tw);   // team bands
-  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.35, 6, 4), new THREE.MeshBasicMaterial({ color: side === 1 ? 0x66ffff : 0xff6644 })); lamp.position.set(0, 19.6, -1); tw.add(lamp);
-  // CIWS / flak mounts at the four corners
-  const guns = [];
-  for (const [x, z] of [[-W / 2 + 2, -L / 2 + 22], [W / 2 - 2, -L / 2 + 22], [-W / 2 + 2, L / 2 - 6], [W / 2 - 2, L / 2 - 6]]) {
-    const m = buildGun(side, 0.8); m.position.set(x * 0.95, DECK, z); g.add(m); guns.push(m);
+  if (side === 1) return buildAlbatross(1, { buildTomcat });
+  return buildKraken();
+}
+// SKY CARRIER refit: four ducted lift fans on outriggers off the hull, hidden until the refit unfolds them.
+// parts.fans[i] = { arm, rotor, glow }; arm.scale.x animates the fold-out (0 = stowed).
+export const FAN_POS = [[-1, -38], [1, -38], [-1, 36], [1, 36]];
+export function addLiftFans(parts) {
+  const g = parts.group, { W, DECK } = CARRIER, steel = M(0x4d5660, { shininess: 40 }), dark = M(0x1c1f23);
+  const glowM = new THREE.MeshBasicMaterial({ color: 0x66ddff, transparent: true, opacity: 0.0 });
+  parts.fans = [];
+  for (const [sd, z] of FAN_POS) {
+    const arm = new THREE.Group(); arm.position.set(sd * W * 0.42, DECK - 2.5, z); g.add(arm);
+    const inner = new THREE.Group(); inner.scale.x = sd; arm.add(inner);   // build for the starboard side, mirror for port
+    box(12, 2.2, 5, steel, 6, 0, 0, inner); box(12, 0.5, 5.6, dark, 6, 1.3, 0, inner);
+    const fan = new THREE.Group(); fan.position.set(17, 0, 0); inner.add(fan);
+    const duct = new THREE.Mesh(new THREE.TorusGeometry(7.6, 1.0, 8, 32).rotateX(Math.PI / 2), steel); fan.add(duct);
+    const lip = new THREE.Mesh(new THREE.CylinderGeometry(8.2, 8.2, 2.4, 32, 1, true), steel); lip.material = steel.clone(); lip.material.side = THREE.DoubleSide; fan.add(lip);
+    const glow = new THREE.Mesh(new THREE.TorusGeometry(7.0, 0.25, 6, 32).rotateX(Math.PI / 2), glowM.clone()); glow.position.y = -1.1; fan.add(glow);
+    cyl(1.6, 1.6, 2.6, dark, 0, 0, 0, fan, 12);
+    for (const a of [0, Math.PI / 2]) { const st = box(15, 0.3, 0.5, dark, 0, -0.6, 0, fan); st.rotation.y = a; }   // stators
+    const rotor = new THREE.Group(); rotor.position.y = 0.4; fan.add(rotor);
+    for (let i = 0; i < 7; i++) { const b = box(6.8, 0.15, 1.1, M(0x8a939c), 4.6, 0, 0, rotor); b.rotation.x = 0.35; const piv = new THREE.Group(); piv.rotation.y = i / 7 * Math.PI * 2; rotor.add(piv); piv.add(b); }
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(7.4, 32).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xbbccdd, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide })); disc.position.y = 0.45; fan.add(disc);
+    arm.scale.set(0.001, 0.001, 0.001); arm.visible = false;
+    parts.fans.push({ arm, rotor, glow, disc, sd, z });
   }
-  // deck edge lights
-  const lights = [];
-  for (let i = 0; i < 10; i++) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.2, 0.4), new THREE.MeshBasicMaterial({ color: 0xffdd66 })); l.position.set(i % 2 ? W * 0.42 : -W * 0.42, DECK + 0.15, -L / 2 + 18 + Math.floor(i / 2) * 22); g.add(l); lights.push(l); }
-  return { group: g, guns, dish, lamp, lights, teamM };
+  return parts.fans;
 }
 
 // ------------------------------------------------------------------------------------------- battleship
-export const BSHIP = { L: 96, W: 16, DECK: 5 };
-export function buildBattleship() {
-  const g = new THREE.Group(), { L, W, DECK } = BSHIP;
-  const hullM = M(0x3e3a3a), darkM = M(0x1f1d1d), redM = M(0xcc2a1e, { emissive: 0x330806 });
-  const sh = new THREE.Shape(); sh.moveTo(-W / 2, L / 2 - 6); sh.quadraticCurveTo(0, L / 2 + 2, W / 2, L / 2 - 6); sh.lineTo(W / 2, -L / 2 + 22); sh.lineTo(0, -L / 2 - 4); sh.lineTo(-W / 2, -L / 2 + 22); sh.closePath();
-  const hg = new THREE.ExtrudeGeometry(sh, { depth: DECK + 3, bevelEnabled: false }); hg.rotateX(Math.PI / 2); hg.translate(0, DECK, 0);
-  g.add(new THREE.Mesh(hg, hullM));
-  const dg = new THREE.ShapeGeometry(flipShape(sh)); dg.rotateX(-Math.PI / 2); const deck = new THREE.Mesh(dg, M(0x6a5a48)); deck.position.y = DECK + 0.02; g.add(deck);
-  box(W * 0.95, 0.8, L * 0.9, M(0x7a1e1a), 0, -0.2, 0, g);
-  box(9, 6, 20, hullM, 0, DECK + 3, 4, g); box(7, 5, 10, hullM, 0, DECK + 8.5, 2, g); box(4, 7, 4, hullM, 0, DECK + 14, 1, g);
-  box(7.2, 1, 3, redM, 0, DECK + 10, -3.2, g);
-  cyl(1.6, 2, 7, darkM, 0, DECK + 9, 12, g, 8);   // funnel
-  const turrets = [];
-  for (const z of [-30, -18, 32]) {
-    const t = new THREE.Group(); t.position.set(0, DECK, z); g.add(t);
-    box(6.5, 2.6, 7, hullM, 0, 1.3, 0, t);
-    const barrels = new THREE.Group(); barrels.position.set(0, 1.6, z > 0 ? 3 : -3); t.add(barrels);
-    for (const x of [-1.4, 0, 1.4]) { const b = cyl(0.3, 0.35, 11, darkM, x, 0, 0, barrels, 6); b.rotation.x = Math.PI / 2; b.position.z = z > 0 ? 5.5 : -5.5; }
-    t.userData.barrels = barrels; t.userData.aft = z > 0; turrets.push(t);
-  }
-  const guns = [];
-  for (const [x, z] of [[-6, 16], [6, 16], [-6, -6], [6, -6]]) { const m = buildGun(2, 0.6); m.position.set(x, DECK, z); g.add(m); guns.push(m); }
-  return { group: g, turrets, guns };
-}
-
+export const BSHIP = LEV;   // RW-9 LEVIATHAN (units/naval/leviathan.js): { group, turrets, guns } + mounts, tick, localDeck
+export function buildBattleship() { return buildLeviathan(); }
 // ------------------------------------------------------------------------------------------- freighter
-// enemy supply ship: carries its islands' output to the KRAKEN
-export const FREIGHTER = { L: 46, W: 10, DECK: 3 };
-export function buildFreighter() {
-  const g = new THREE.Group(), { L, W, DECK } = FREIGHTER, hullM = M(0x3b3f44), dark = M(0x1e2124);
-  const sh = new THREE.Shape(); sh.moveTo(-W / 2, L / 2); sh.lineTo(W / 2, L / 2); sh.lineTo(W / 2, -L / 2 + 9); sh.lineTo(0, -L / 2 - 3); sh.lineTo(-W / 2, -L / 2 + 9); sh.closePath();
-  const hg = new THREE.ExtrudeGeometry(sh, { depth: DECK + 2.5, bevelEnabled: false }); hg.rotateX(Math.PI / 2); hg.translate(0, DECK, 0); g.add(new THREE.Mesh(hg, hullM));
-  box(W * 0.95, 0.6, L * 0.9, M(0x7a1e1a), 0, -0.2, 1, g);
-  const cols = [0xb8462e, 0x2e6fb8, 0xc8a030, 0x3c8a4a, 0x8a3c7a];
-  for (let i = 0; i < 6; i++) for (let k = 0; k < 2; k++) for (let h = 0; h < 1 + ((i + k) % 2); h++) box(3.9, 2.3, 5.6, M(cols[(i * 3 + k + h) % cols.length]), (k - 0.5) * 4.1, DECK + 1.15 + h * 2.35, -L / 2 + 10 + i * 5.9, g);
-  box(W * 0.85, 6, 6, M(0xd8d8d0), 0, DECK + 3, L / 2 - 6, g); box(W * 0.9, 1.2, 6.4, dark, 0, DECK + 5.2, L / 2 - 6, g);
-  cyl(0.9, 1.1, 4, dark, 0, DECK + 7, L / 2 - 3, g, 8);
-  const guns = []; { const m = buildGun(2, 0.55); m.position.set(0, DECK, -L / 2 + 4); g.add(m); guns.push(m); }
-  return { group: g, guns };
-}
-
+// enemy supply ship (an autonomous container ship): carries its islands' output to the KRAKEN
+export const FREIGHTER = BOX;   // the autonomous container ship (units/naval/containership.js): { group, guns } + mounts, tick, localDeck
+export function buildFreighter() { return buildContainerShip(); }
 // ------------------------------------------------------------------------------------------- aircraft
-export function buildDrone() {   // player capture drone ("MANTA"): a flat quad-rotor carrying a command module
-  const g = new THREE.Group(), body = M(0x2a3f55), team = M(TEAM[1], { emissive: 0x0b3355 });
-  box(3.2, 0.7, 4.2, body, 0, 0, 0, g); box(2, 0.9, 2.2, team, 0, 0.7, 0.3, g);
-  const rotors = [];
-  for (const [x, z] of [[-2.4, -2.2], [2.4, -2.2], [-2.4, 2.2], [2.4, 2.2]]) {
-    box(2.6, 0.25, 0.3, body, x / 2, 0.1, z, g);
-    const r = new THREE.Mesh(new THREE.CircleGeometry(1.3, 14).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x223344, transparent: true, opacity: 0.45, side: THREE.DoubleSide, depthWrite: false }));
-    r.position.set(x, 0.45, z); g.add(r); rotors.push(r);
-  }
-  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.22, 6, 4), new THREE.MeshBasicMaterial({ color: 0x66ffff })); lamp.position.set(0, 1.3, 0.3); g.add(lamp);
-  for (const [x, z] of [[-1.2, 1.6], [1.2, 1.6], [-1.2, -1.6], [1.2, -1.6]]) box(0.15, 1.2, 0.15, body, x, -0.8, z, g);
-  return { group: g, rotors, lamp };
-}
-export function buildTransport() {   // enemy twin-rotor transport that lands troops to take islands
-  const g = new THREE.Group(), body = M(0x5a2a24), dark = M(0x221614);
-  box(2.6, 2.4, 9, body, 0, 0, 0, g); box(2.2, 1.6, 2, M(0xffaa66, { emissive: 0x442200 }), 0, 0.3, -4.7, g);
-  box(1.2, 1.6, 2.2, body, 0, 1.6, -3.4, g); box(1.2, 2.2, 2.2, body, 0, 1.8, 3.6, g);
-  const rotors = [];
-  for (const [y, z] of [[2.7, -3.4], [3.0, 3.6]]) {
-    const r = new THREE.Mesh(new THREE.CircleGeometry(4.2, 18).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x221111, transparent: true, opacity: 0.4, side: THREE.DoubleSide, depthWrite: false }));
-    r.position.set(0, y, z); g.add(r); rotors.push(r);
-  }
-  for (const x of [-1.1, 1.1]) for (const z of [-3, 3]) box(0.3, 0.8, 0.3, dark, x, -1.5, z, g);
-  return { group: g, rotors };
-}
-export function buildGunship(side = 2) {   // attack drone (the original saucer, with a gun pod): red for the enemy, blue escorts for us
-  const g = new THREE.Group();
-  const mat = new THREE.MeshPhongMaterial({ color: side === 1 ? 0x2a8cdd : 0xdd2222, emissive: side === 1 ? 0x08263f : 0x440808, flatShading: true });
-  g.add(new THREE.Mesh(new THREE.OctahedronGeometry(1.8).scale(1.4, 0.7, 1.4), mat));
-  g.add(new THREE.Mesh(new THREE.TorusGeometry(2.6, 0.12, 4, 20).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: side === 1 ? 0x77eeff : 0xff8844 })));
-  box(0.5, 0.5, 1.6, M(0x331111), 0, -0.9, -0.6, g);
-  return { group: g };
-}
+// NGC-1980: the capture drone, the twin-rotor transport and the saucer gunship are replaced by the rotary units
+// (game/js/units/air/rotary/): these names stay as wrappers for anything that still builds them. The blue "escort"
+// variant of the saucer is retired - the Tomcats fly escort, and a 1980 task force has no hover drones.
+export function buildDrone() { const m = buildCH46Mesh(); return { group: m.group, rotors: [], model: m }; }          // CH-46E Sea Knight
+export function buildTransport() { const m = buildMV22Mesh(); return { group: m.group, rotors: [], model: m }; }      // RUNAWAY MV-22B
+export function buildGunship() { const m = buildWaspMesh(); return { group: m.group, model: m }; }                    // RW-3 WASP
 
 // ------------------------------------------------------------------------------------------- escort fighter
 // Cold War carrier fighter (Tomcat-like): twin tails, wide flat body between the engine nacelles, tandem canopy, and
@@ -173,48 +107,15 @@ export function buildTomcat(side = 1) {
 
 // ------------------------------------------------------------------------------------------- dropship
 // our four-engined steel transport (Hercules-like): high wing, upswept tail, rear ramp. Flies the repair team out.
-export function buildDropship() {
-  const g = new THREE.Group(), steel = M(0x6c747c, { shininess: 40 }), dark = M(0x2a2e33), glass = M(0x1a2a36, { emissive: 0x0a1820 }), team = M(TEAM[1], { emissive: 0x0a2a44 });
-  const fus = new THREE.Mesh(new THREE.CylinderGeometry(2.1, 2.1, 20, 12).rotateX(Math.PI / 2), steel); fus.scale.y = 1.05; g.add(fus);
-  const nose = new THREE.Mesh(new THREE.SphereGeometry(2.1, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(-Math.PI / 2), steel); nose.scale.set(1, 1, 1.5); nose.position.z = -10; g.add(nose);
-  const glazing = box(3.2, 0.8, 1.6, glass, 0, 1.1, -11.2, g);   // cockpit glazing (hidden from inside)
-  // tail: tapers and sweeps up to the fin; the ramp is the flat underside
-  const tg = new THREE.CylinderGeometry(0.7, 2.1, 9, 12, 1, false).rotateX(-Math.PI / 2); const tail = new THREE.Mesh(tg, steel); tail.position.set(0, 0.9, 14.3); tail.rotation.x = -0.2; g.add(tail);
-  box(3, 0.25, 7, dark, 0, -1.2, 13.4, g).rotation.x = -0.32;
-  box(0.35, 7.5, 5.2, steel, 0, 4.6, 17, g).rotation.x = 0.28;                       // fin
-  box(15, 0.3, 3.2, steel, 0, 1.9, 17.8, g);                                         // tailplane
-  box(40, 0.55, 4.6, steel, 0, 2.35, -1.5, g);                                       // high wing
-  for (const x of [-15, 15]) cyl(1.1, 1.1, 0.06, team, x, 2.66, -1.5, g, 16);       // roundels
-  box(0.35, 3.6, 2.8, team, 0, 4.6, 17.3, g);                                        // team flash on the fin
-  const props = [];
-  for (const x of [-12.5, -6.5, 6.5, 12.5]) {
-    const n = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.85, 5.2, 10).rotateX(Math.PI / 2), steel); n.position.set(x, 1.8, -3.2); g.add(n);
-    cyl(0.35, 0.6, 0.9, dark, x, 1.8, -6.1, g, 8).rotation.x = Math.PI / 2;
-    const pr = new THREE.Group(); pr.position.set(x, 1.8, -6.6); g.add(pr); props.push(pr);
-    pr.add(new THREE.Mesh(new THREE.CircleGeometry(2.3, 20), new THREE.MeshBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false })));
-    for (let k = 0; k < 4; k++) { const b = box(0.28, 2.2, 0.08, dark, 0, 0, 0, pr); b.geometry.translate(0, 1.1, 0); b.rotation.z = k * Math.PI / 2; }
-  }
-  box(4.6, 1.4, 4.2, steel, 0, -1.9, -1, g);                                         // landing gear sponsons
-  const lamp = box(0.3, 0.3, 0.3, new THREE.MeshBasicMaterial({ color: 0xff3020 }), 0, 2.4, 2, g);
-  return { group: g, props, lamp, glazing };
-}
-// a paratrooper (repair crew) with a ram-air canopy that unfurls on opening
+// The para-drop aeroplane: a Marine KC-130R Hercules (units/air/c130model.js). Returns the model (group, animate,
+// parts, shell) as built there; drop.js drives it from the C-130 flight model.
+export function buildDropship() { return buildC130Mesh(); }
+// A 1980 paratrooper with an MC1-1 canopy (units/air/jumper.js). Keeps the old contract for drop.js - { group, body,
+// canopy, legs, arms } - plus rig (pose / setKit: swap the figure for the infantry model by replacing buildParatrooper)
+// and canopyAnim(time, open 0..1, steer). The canopy hangs from the shoulders.
 export function buildJumper() {
-  const g = new THREE.Group(), kit = M(0x4c5636), skin = M(0xc89a74), dark = M(0x1d2018);
-  const body = new THREE.Group(); g.add(body);
-  box(0.46, 0.62, 0.3, kit, 0, 0.95, 0, body); box(0.4, 0.5, 0.26, dark, 0, 0.98, 0.25, body);   // torso, pack
-  box(0.26, 0.26, 0.26, skin, 0, 1.42, 0, body); box(0.32, 0.14, 0.32, kit, 0, 1.58, 0, body);   // head, helmet
-  const legs = [], arms = [];
-  for (const x of [-0.12, 0.12]) { const l = box(0.17, 0.66, 0.2, kit, x, 0, 0, body); l.geometry.translate(0, -0.33, 0); l.position.set(x, 0.66, 0); legs.push(l); }
-  for (const x of [-0.31, 0.31]) { const a = box(0.13, 0.56, 0.15, kit, x, 0, 0, body); a.geometry.translate(0, -0.26, 0); a.position.set(x, 1.24, 0); arms.push(a); }
-  box(0.34, 0.4, 0.16, M(0xa83a1c), 0.32, 0.55, 0, body);   // jerrycan / toolbox
-  const canopy = new THREE.Group(); canopy.position.y = 6.2; g.add(canopy);
-  const c1 = M(TEAM[1], { side: THREE.DoubleSide }), c2 = M(0xe8e8e0, { side: THREE.DoubleSide });
-  for (let i = 0; i < 7; i++) { const a = (i - 3) * 0.16, c = box(0.96, 0.42, 2.5, i % 2 ? c2 : c1, Math.sin(a) * 3.4, Math.cos(a) * 3.4 - 3.4, 0, canopy); c.rotation.z = -a; }
-  const lineMat = new THREE.LineBasicMaterial({ color: 0xdddddd, transparent: true, opacity: 0.6 });
-  const pts = []; for (const x of [-3.2, -1.1, 1.1, 3.2]) for (const z of [-1, 1]) { const a = x / 3.4 * 0.48; pts.push(0, -4.9, 0, Math.sin(a) * 3.3, Math.cos(a) * 3.3 - 3.6, z); }
-  const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); canopy.add(new THREE.LineSegments(lg, lineMat));
-  return { group: g, body, canopy, legs, arms };
+  const rig = buildParatrooper(), c = buildMC1Canopy(); rig.group.add(c.group);
+  return { group: rig.group, body: rig.body, canopy: c.group, legs: rig.legs, arms: rig.arms, rig, canopyAnim: c.animate };
 }
 
 // ------------------------------------------------------------------------------------------- buildings
@@ -229,37 +130,14 @@ export function buildGun(side, s = 1) {
   g.userData = { yaw, pitch, team };
   return g;
 }
+// island buildings: hq / factory (depot) / fuel / radar are the faction structures in world/structures.js (1980 and
+// RUNAWAY styles, damage states, ownership changes); the shipyard stays here
 export function buildStructure(kind, side) {
-  const g = new THREE.Group(), wall = M(0x8a8a84), dark = M(0x3a3c3e), roof = M(0x5c5e60);
+  if (kind !== 'shipyard') return buildFactionStructure(kind, side);
+  const g = new THREE.Group(), dark = M(0x3a3c3e);
   const team = M(TEAM[side], { emissive: 0x111111 });
   const ud = { team, kind, h: 6, r: 5 };
-  if (kind === 'hq') {
-    box(10, 6, 9, wall, 0, 3, 0, g); box(10.4, 0.6, 9.4, team, 0, 6.2, 0, g); box(4, 5, 4, wall, -2, 9, 0, g); box(4.4, 1.2, 4.4, M(0x223344, { emissive: 0x0a1a2a }), -2, 10.5, 0, g);
-    cyl(0.12, 0.12, 8, dark, 3, 10, 2, g, 4);
-    const flag = box(2.4, 1.4, 0.08, team, 4.2, 13.2, 2, g); ud.flag = flag;
-    ud.h = 12; ud.r = 7;
-  } else if (kind === 'factory') {
-    box(14, 7, 10, wall, 0, 3.5, 0, g);
-    for (let i = 0; i < 4; i++) { const r = box(3.5, 1.6, 10.2, roof, -5.25 + i * 3.5, 7.6, 0, g); r.rotation.z = 0.35; }
-    box(14.2, 0.8, 0.3, team, 0, 5.5, -5.1, g);
-    ud.stacks = [cyl(0.9, 1.2, 9, dark, 4.5, 11, 3, g, 8), cyl(0.9, 1.2, 11, dark, 2, 12, 3, g, 8)];
-    ud.stackTops = [[4.5, 15.6, 3], [2, 17.6, 3]];
-    ud.h = 9; ud.r = 8;
-  } else if (kind === 'fuel') {   // derrick + storage tanks
-    const t = new THREE.Group(); g.add(t);
-    for (const [x, z] of [[-1.4, -1.4], [1.4, -1.4], [-1.4, 1.4], [1.4, 1.4]]) { const l = box(0.25, 12, 0.25, dark, x * 0.6, 6, z * 0.6, t); l.rotation.set(z * -0.06, 0, x * 0.06); }
-    for (let y = 2; y < 12; y += 2.5) box(2.2 - y * 0.08, 0.15, 2.2 - y * 0.08, dark, 0, y, 0, t);
-    const beam = box(6, 0.4, 0.4, M(0xd0a020), 0, 12.3, 0, g); ud.beam = beam;
-    for (const [x, z] of [[-6, 4], [6, 4], [0, 7.5]]) { cyl(2.4, 2.4, 4.4, M(0xd8d8d0), x, 2.2, z, g, 14); cyl(2.45, 2.45, 0.5, team, x, 3.4, z, g, 14); }
-    ud.h = 8; ud.r = 8;
-  } else if (kind === 'radar') {
-    for (const [x, z] of [[-1.5, -1.5], [1.5, -1.5], [-1.5, 1.5], [1.5, 1.5]]) box(0.3, 10, 0.3, dark, x, 5, z, g);
-    box(4, 2.5, 4, wall, 0, 10.6, 0, g); box(4.2, 0.4, 4.2, team, 0, 12, 0, g);
-    const dish = new THREE.Group(); dish.position.y = 13; g.add(dish);
-    const d = new THREE.Mesh(new THREE.SphereGeometry(3.4, 14, 6, 0, Math.PI * 2, 0, 1.0), M(0xdfe4ea, { side: THREE.DoubleSide })); d.rotation.x = -Math.PI / 2 + 0.25; d.position.z = 1.2; dish.add(d);
-    cyl(0.12, 0.12, 2.6, dark, 0, 0.3, -0.2, dish, 4).rotation.x = Math.PI / 2;
-    ud.dish = dish; ud.h = 12; ud.r = 5;
-  } else if (kind === 'shipyard') {   // the enemy slipway where the battleship is built
+  if (kind === 'shipyard') {   // the enemy slipway where the battleship is built
     for (const x of [-11, 11]) { box(1.2, 14, 1.2, dark, x, 7, -14, g); box(1.2, 14, 1.2, dark, x, 7, 14, g); box(1.2, 1.2, 30, dark, x, 14, 0, g); }
     box(23, 1.2, 1.2, M(0xd0a020), 0, 14, -6, g); box(23, 1.2, 1.2, M(0xd0a020), 0, 14, 8, g);
     box(18, 1, 34, M(0x55524c), 0, 0.5, 0, g); box(4, 4, 4, team, -9, 2, 16, g);

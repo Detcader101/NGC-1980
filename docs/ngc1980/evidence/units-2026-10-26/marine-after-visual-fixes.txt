@@ -1,0 +1,26 @@
+PASS  load from the inventory (rifleman, fighting kit)     20.0 kg   (want MEDINV rifleman ~20-30)
+PASS  walk (quick time)                                    1.53 m/s   (want 1.52 FM 22-5)
+PASS  run (double time, loaded)                            2.69 m/s   (want 2.74 FM 22-5, less with load)
+PASS  a wall stops him (walker resolves the soldier)       x 30.00 v 0.00
+PASS  prone (soldier.js stance, walker height)             prone eye 0.36
+PASS  stands still on a deck that sails, turns, climbs, heaves, pitches, rolls slip 0.000 m
+PASS  ...and his feet stay on the deck (ship frame y)      y 7.999
+PASS  his heading turns with the ship                      0.00 deg rel
+PASS  walks forward along the rolling deck (ship frame)    fwd 8.89 m, drift -0.00 m
+PASS  the M16 holds the inventory rifle's magazine         M16A1 20 rds
+PASS  rounds fired come out of the inventory magazine      19 -> 13
+PASS  tactical reload: a pouch magazine seated in the rifle item 20 rds in
+PASS  ...and the old magazine back in a pouch              stowed in m69_vest
+PASS  rounds carried are conserved over the reload         273 -> 273
+PASS  a magazine put in the rifle on the gear screen feeds the gun ok
+PASS  fired dry: every magazine empty (the bandolier is loose rounds) 0 rds in magazines, 140 loose
+PASS  resupply at a pad refills the rig                    280 rds; 1 MAGAZINES REFILLED, 6 NEW MAGAZINES, DRSG
+PASS  fired LAW: tube discarded, gone from the gear        gone
+   shots 5 impacts 5 aim 0.0000 0.0000 eye 1.62
+PASS  aimed rounds hit a plate at 100 m (host raycast)     5 hits
+PASS  a rifle round to the thigh: wound + bleed            legL/thigh 54.7 HP bleed light
+PASS  untreated femoral bleed: he bleeds out (game life ends) DIED: BLOOD LOSS at 6:21   (want ~6 min (MEDINV bench))
+PASS  cravat windlass tourniquet from the kit on the femoral bleed IMPROVISED TOURNIQUET in 75.3 s, flow now 6 ml/min
+PASS  a leg wound slows him (MEDINV mods -> soldier.js)    legL 0.34
+
+all passed

@@ -1,0 +1,262 @@
+{
+  "source": "11069ca plus cockpit cursor fix later committed as 2216951",
+  "command": "npm --prefix tools test",
+  "artifacts": "tools/runs/check-2026-10-25T18-12-58-978Z",
+  "passed": 474,
+  "failed": 0,
+  "syntax": {
+    "passed": 429,
+    "failed": 0
+  },
+  "benches": [
+    {
+      "name": "airbench.mjs",
+      "ok": true,
+      "seconds": 3
+    },
+    {
+      "name": "armorgamebench.mjs",
+      "ok": true,
+      "seconds": 2.46
+    },
+    {
+      "name": "boxcarbench.mjs",
+      "ok": true,
+      "seconds": 0.1
+    },
+    {
+      "name": "buddyaidbench.mjs",
+      "ok": true,
+      "seconds": 14.37
+    },
+    {
+      "name": "c130bench.mjs",
+      "ok": true,
+      "seconds": 6
+    },
+    {
+      "name": "catdeckbench.mjs",
+      "ok": true,
+      "seconds": 1.59
+    },
+    {
+      "name": "cavebench.mjs",
+      "ok": true,
+      "seconds": 1.16
+    },
+    {
+      "name": "ch46bench.mjs",
+      "ok": true,
+      "seconds": 0.91
+    },
+    {
+      "name": "ch46playbench.mjs",
+      "ok": true,
+      "seconds": 0.76
+    },
+    {
+      "name": "commanderbench.mjs",
+      "ok": true,
+      "seconds": 0.92
+    },
+    {
+      "name": "deckopsbench.mjs",
+      "ok": true,
+      "seconds": 1.44
+    },
+    {
+      "name": "economybench.mjs",
+      "ok": true,
+      "seconds": 2.07
+    },
+    {
+      "name": "embarkbench.mjs",
+      "ok": true,
+      "seconds": 1.11
+    },
+    {
+      "name": "fishbench.mjs",
+      "ok": true,
+      "seconds": 8.77
+    },
+    {
+      "name": "footbench.mjs",
+      "ok": true,
+      "seconds": 0.08
+    },
+    {
+      "name": "groundwarbench.mjs",
+      "ok": true,
+      "seconds": 54
+    },
+    {
+      "name": "healthbarbench.mjs",
+      "ok": true,
+      "seconds": 26.2
+    },
+    {
+      "name": "hotas-selftest.mjs",
+      "ok": true,
+      "seconds": 0.04
+    },
+    {
+      "name": "hueybench.mjs",
+      "ok": true,
+      "seconds": 1.58
+    },
+    {
+      "name": "infantrybench.mjs",
+      "ok": true,
+      "seconds": 3.2
+    },
+    {
+      "name": "jetbench.mjs",
+      "ok": true,
+      "seconds": 0.56
+    },
+    {
+      "name": "marinebench.mjs",
+      "ok": true,
+      "seconds": 1.73
+    },
+    {
+      "name": "medinvbench.mjs",
+      "ok": true,
+      "seconds": 3.83
+    },
+    {
+      "name": "mv22bench.mjs",
+      "ok": true,
+      "seconds": 1.06
+    },
+    {
+      "name": "navalbench.mjs",
+      "ok": true,
+      "seconds": 1.06
+    },
+    {
+      "name": "rotarycontactbench.mjs",
+      "ok": true,
+      "seconds": 0.04
+    },
+    {
+      "name": "rotarydeck.mjs",
+      "ok": true,
+      "seconds": 4.42
+    },
+    {
+      "name": "runawaybench.mjs",
+      "ok": true,
+      "seconds": 16.45
+    },
+    {
+      "name": "seabench.mjs",
+      "ok": true,
+      "seconds": 0.1
+    },
+    {
+      "name": "simbench.mjs",
+      "ok": true,
+      "seconds": 71.31
+    },
+    {
+      "name": "simreportbench.mjs",
+      "ok": true,
+      "seconds": 0.03
+    },
+    {
+      "name": "slingbench.mjs",
+      "ok": true,
+      "seconds": 0.96
+    },
+    {
+      "name": "tankbench.mjs",
+      "ok": true,
+      "seconds": 13.67
+    },
+    {
+      "name": "techbench.mjs",
+      "ok": true,
+      "seconds": 0.07
+    },
+    {
+      "name": "telemetrybench.mjs",
+      "ok": true,
+      "seconds": 0.02
+    },
+    {
+      "name": "tomcatbench.mjs",
+      "ok": true,
+      "seconds": 1.33
+    },
+    {
+      "name": "tomcatsysbench.mjs",
+      "ok": true,
+      "seconds": 0.99
+    },
+    {
+      "name": "transportbench.mjs",
+      "ok": true,
+      "seconds": 8.28
+    },
+    {
+      "name": "warsimbench.mjs",
+      "ok": true,
+      "seconds": 1.86
+    },
+    {
+      "name": "waspbench.mjs",
+      "ok": true,
+      "seconds": 0.14
+    },
+    {
+      "name": "wheeledbench.mjs",
+      "ok": true,
+      "seconds": 47.76
+    },
+    {
+      "name": "wheelinputbench.mjs",
+      "ok": true,
+      "seconds": 0.03
+    },
+    {
+      "name": "worldbench.mjs",
+      "ok": true,
+      "seconds": 3.35
+    },
+    {
+      "name": "worldpolishbench.mjs",
+      "ok": true,
+      "seconds": 0.63
+    },
+    {
+      "name": "worldsolidbench.mjs",
+      "ok": true,
+      "seconds": 0.52
+    }
+  ],
+  "followup": {
+    "source": "01d0d05",
+    "reason": "Aircraft retirement accounting fix after the full gate",
+    "checks": [
+      {
+        "command": "node tools/telemetrybench.mjs",
+        "ok": true,
+        "artifact": "tools/runs/finish-telemetry-v5.log"
+      },
+      {
+        "command": "node tools/airbench.mjs",
+        "ok": true,
+        "assertions": {
+          "passed": 28,
+          "failed": 0
+        },
+        "artifact": "tools/runs/finish-airbench-v5.log"
+      },
+      {
+        "command": "node --check game/js/units/air/airwar.js",
+        "ok": true
+      }
+    ]
+  }
+}

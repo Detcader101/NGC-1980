@@ -18,7 +18,8 @@ export default {
     for (let i = 0; i < 5; i++) {
       if (i) await ctx.goto(`?debug&kb&peace&thrust=${i}&res=0.45`);
       await ctx.waitFor('window.__G && __G.G.mode==="thrust"', 15000);
-      await ctx.eval('(__G.HI.setCollective(0.42), __G.H.rpm = 1, 1)');
+      // (ngc/bugsweep) hold a hover in the shaft: the UH-1H flight model needs ~0.54 collective (0.42 sank into the floor)
+      await ctx.eval('(clearInterval(window.__hov), window.__hc = 0.54, window.__hy = null, window.__hl = __G.war.time, window.__hov = setInterval(()=>{ const T=__G.T, dt = __G.war.time - __hl; if (__G.G.mode !== \'thrust\' || !T.alive || T.landed) { __hl = __G.war.time; __hy = null; return; } if (dt <= 0) return; __hl = __G.war.time; if (__hy === null || T.vy > -0.5 && __hy > T.y + 4) __hy = T.y; const e = Math.max(-2, Math.min(2, (__hy - T.y) * 0.6)) - T.vy; __hc = Math.min(0.85, Math.max(0.4, __hc + e * 0.3 * dt)); __G.HI.setCollective(Math.min(0.95, Math.max(0.3, __hc + e * 0.03))); }, 16), __G.H.rpm = 1, 1)');
       await ctx.waitFor("__G.camB > 0.99", 15000);
       await ctx.wait(1000);
       const name = await ctx.eval('__G.T.base.name.replace(/ /g, "-").toLowerCase()');
@@ -32,7 +33,7 @@ export default {
       await ctx.expect('__G.T.alive && __G.G.mode === "thrust" && __G.T.landed', `${name}: parked by the ${home ? 'reservoir' : 'pod'}`);
       await ctx.shot(`${i}-${name}-${home ? 'reservoir' : 'pod'}`);
       if (!home) {
-        await ctx.eval('(()=>{ const T=__G.T, p=T.pod; Object.assign(T,{x:p.x, y:p.y+3.6, vx:0, vy:0, ang:0, w:0, landed:false}); __G.HI.setCollective(0.47); return [p.x,p.y]; })()');
+        await ctx.eval('(()=>{ const T=__G.T, p=T.pod; Object.assign(T,{x:p.x, y:p.y+3.6, vx:0, vy:0, ang:0, w:0, landed:false}); return [p.x,p.y]; })()');
         await ctx.key('down', 'KeyR'); await ctx.wait(700); await ctx.key('up', 'KeyR');
         await ctx.expect('__G.T.pod.attached', `${name}: the winch reaches the pod`);
       }

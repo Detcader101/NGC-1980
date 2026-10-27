@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rotary AI Preview</title>
+<script type="importmap">{"imports":{"three":"../vendor/three.module.min.js"}}</script>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#9cc2e0;font:12px Consolas,monospace;color:#dff}
+canvas{display:block}
+#tel{position:fixed;left:8px;top:8px;background:rgba(0,15,30,.72);padding:8px 10px;white-space:pre;line-height:1.35;min-width:300px}
+#tel b{color:#ff8}
+#bar{position:fixed;right:8px;top:8px;display:flex;flex-direction:column;gap:4px;background:rgba(0,15,30,.6);padding:6px}
+#bar button{font:12px Consolas,monospace;color:#9ff;background:rgba(0,40,60,.8);border:1px solid #3a8;padding:4px 8px;cursor:pointer;text-align:left}
+#bar button.on{background:rgba(0,100,130,.9);color:#fff}
+.hide{display:none!important}
+</style></head><body>
+<div id="tel"></div><div id="bar"></div>
+<script type="module" src="./rotary-dev.js"></script>
+</body></html>

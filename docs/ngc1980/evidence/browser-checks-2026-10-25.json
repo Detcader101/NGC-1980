@@ -1,0 +1,1008 @@
+{
+  "date": "2026-10-25",
+  "source": "ngc/finish integration: gameplay fixes dba1e25, 11069ca, 01d0d05 and 2216951; dates retained per run; affected failures rerun after correction",
+  "environment": {
+    "browser": "Chrome Headless 156",
+    "renderer": "SwiftShader",
+    "viewport": [
+      1280,
+      720
+    ]
+  },
+  "runs": [
+    {
+      "scene": "smoke.json",
+      "env": {},
+      "artifacts": "tools/runs/finish-smoke",
+      "startedAt": "2026-10-25T17:50:32.982Z",
+      "seconds": 26,
+      "summary": "PASS: 5/5 expects, 0 page errors, 0 console errors",
+      "assertions": [
+        {
+          "ok": true
+        },
+        {
+          "ok": true
+        },
+        {
+          "ok": true
+        },
+        {
+          "ok": true
+        },
+        {
+          "ok": true
+        }
+      ],
+      "screenshots": [
+        "01-landscape.png",
+        "02-after-thrust.png"
+      ],
+      "pageErrors": [],
+      "consoleErrors": []
+    },
+    {
+      "scene": "techtree.mjs",
+      "env": {},
+      "artifacts": "tools/runs/finish-techtree-v4",
+      "startedAt": "2026-10-25T18:47:32.065Z",
+      "seconds": 99,
+      "summary": "PASS: 26/26 expects, 0 page errors, 0 console errors",
+      "assertions": [
+        {
+          "label": "?tech=default: both trees on their opening sets; __G.tech is the war's",
+          "ok": true
+        },
+        {
+          "label": "the opening is open (CH-46, AA, Huey, Hornet), the rest is locked",
+          "ok": true
+        },
+        {
+          "label": "no M60A3 / M113A2 parked before their research",
+          "ok": true
+        },
+        {
+          "label": "9 (M60A3): NEEDS HEAVY ARMOUR RESEARCH",
+          "ok": true
+        },
+        {
+          "label": "Tomcat escort and sky carrier refit locked, nothing paid",
+          "ok": true
+        },
+        {
+          "label": "3 (a new Huey) still works: 60 materiel buys one reserve",
+          "ok": true
+        },
+        {
+          "label": "the board greys the locked types (Tomcat, M60A3, M113A2)",
+          "ok": true
+        },
+        {
+          "label": "the rows say what they need; the sub line shows research",
+          "ok": true
+        },
+        {
+          "label": "T on the board opens the RESEARCH page",
+          "ok": true
+        },
+        {
+          "label": "ENTER starts FLEET AIR DEFENCE, 50 materiel paid (the islands still produce meanwhile)",
+          "ok": true
+        },
+        {
+          "label": "research runs on war time (progress = war seconds / 45)",
+          "ok": true
+        },
+        {
+          "label": "done: Tomcat escorts allowed, the feed says so",
+          "ok": true
+        },
+        {
+          "label": "4 now launches a Tomcat escort",
+          "ok": true
+        },
+        {
+          "label": "X cancels with a full refund",
+          "ok": true
+        },
+        {
+          "label": "arrows move the selection across tiers",
+          "ok": true
+        },
+        {
+          "label": "AMPHIBIOUS ARMOUR + HEAVY ARMOUR researched",
+          "ok": true
+        },
+        {
+          "label": "ESC closes the page (not the pause menu)",
+          "ok": true
+        },
+        {
+          "label": "the RUNAWAY commander starts its first research (MQ-9 REAPER, 30 materiel)",
+          "ok": true
+        },
+        {
+          "label": "the feed reports what the enemy fields",
+          "ok": true
+        },
+        {
+          "label": "SHIFT+\\ opens the RESEARCH page",
+          "ok": true
+        },
+        {
+          "label": "the war ran 300 s on the default trees without an error",
+          "ok": true
+        },
+        {
+          "label": "the RUNAWAY researched on its own (3+ programmes in 300 s)",
+          "ok": true
+        },
+        {
+          "label": "?debug alone: both trees all, no enemy research",
+          "ok": true
+        },
+        {
+          "label": "every gate open on both sides",
+          "ok": true
+        },
+        {
+          "label": "no upgrades: every mod 1",
+          "ok": true
+        },
+        {
+          "label": "the M60A3 and M113A2 parked as before",
+          "ok": true
+        }
+      ],
+      "screenshots": [
+        "01-board-locked.png",
+        "02-research-page.png",
+        "03-research-under-way.png",
+        "04-research-done.png",
+        "05-research-armour.png",
+        "06-map-orders.png",
+        "07-research-intel.png",
+        "08-after-300s.png"
+      ],
+      "pageErrors": [],
+      "consoleErrors": []
+    },
+    {
+      "scene": "airlift.mjs",
+      "env": {},
+      "artifacts": "tools/runs/finish-airlift-v4",
+      "startedAt": "2026-10-25T18:41:57.557Z",
+      "seconds": 334,
+      "summary": "PASS: 13/13 expects, 0 page errors, 0 console errors",
+      "assertions": [
+        {
+          "label": "the crew chief: the M35A2 is TOO HEAVY for the hook (numbers shown)",
+          "ok": true
+        },
+        {
+          "label": "the crew chief talks the pilot on; the hook HUD is up",
+          "ok": true
+        },
+        {
+          "label": "R: hooked up - the M151A2 is on the hook",
+          "ok": true
+        },
+        {
+          "label": "the load is off the ground: tension on the hook, torque up",
+          "ok": true
+        },
+        {
+          "label": "R: released - the M151A2 is on its wheels",
+          "ok": true
+        },
+        {
+          "label": "the jeep is at the other island (a unit out on the command board)",
+          "ok": true
+        },
+        {
+          "label": "switched into the delivered M151A2",
+          "ok": true
+        },
+        {
+          "label": "back in the Huey",
+          "ok": true
+        },
+        {
+          "label": ". on the pad: a squad called from the barracks",
+          "ok": true
+        },
+        {
+          "label": "six aboard (630 kg on the airframe)",
+          "ok": true
+        },
+        {
+          "label": "the loaded troop flight reaches its destination without losing the Huey",
+          "ok": true
+        },
+        {
+          "label": ". on the island: the squad dismounts into the ground war",
+          "ok": true
+        },
+        {
+          "label": "the Marines are fighting units on the island now",
+          "ok": true
+        }
+      ],
+      "screenshots": [
+        "01-m35-too-heavy.png",
+        "02-hookup-approach.png",
+        "03-hookup-man-ready.png",
+        "04-hookup-man-from-the-door.png",
+        "05-hookup-man-clear.png",
+        "06-load-lifted.png",
+        "07-cockpit-hooked.png",
+        "08-load-in-transit.png",
+        "09-load-in-transit-side.png",
+        "10-cockpit-in-transit.png",
+        "11-load-set-down.png",
+        "12-in-the-delivered-jeep.png",
+        "13-squad-waiting.png",
+        "14-squad-running-in.png",
+        "15-troops-aboard-outside.png",
+        "16-troops-aboard-left.png",
+        "17-troops-from-the-cockpit-looking-aft.png",
+        "18-troop-lift-flying.png",
+        "19-squad-dismounting.png",
+        "20-squad-on-the-island.png"
+      ],
+      "pageErrors": [],
+      "consoleErrors": []
+    },
+    {
+      "scene": "airdrop.mjs",
+      "env": {},
+      "artifacts": "tools/runs/finish-airdrop",
+      "startedAt": "2026-10-25T18:09:51.787Z",
+      "seconds": 155,
+      "summary": "PASS: 10/10 expects, 0 page errors, 0 console errors",
+      "assertions": [
+        {
+          "label": "the board shows AIR DROP on the vehicles, TOO HEAVY on the M60A3",
+          "ok": true
+        },
+        {
+          "label": "C on the M60A3: refused, too heavy (52.6 t vs 19.4 t)",
+          "ok": true
+        },
+        {
+          "label": "C on the M113A2: a C-130 run ordered (reserve -1, 10 materiel for the sortie)",
+          "ok": true
+        },
+        {
+          "label": "V: watching the run from the C-130",
+          "ok": true
+        },
+        {
+          "label": "green light at the release point",
+          "ok": true
+        },
+        {
+          "label": "descent ~28 ft/s under six G-11As",
+          "ok": true
+        },
+        {
+          "label": "landed within 200 m of the DZ, not lost",
+          "ok": true
+        },
+        {
+          "label": "de-rigged: the M113A2 is a unit at the island (on the command board)",
+          "ok": true
+        },
+        {
+          "label": "Esc: back from watching",
+          "ok": true
+        },
+        {
+          "label": "switched into the air-dropped M113A2",
+          "ok": true
+        }
+      ],
+      "screenshots": [
+        "01-board-m60-too-heavy.png",
+        "02-board-drop-ordered.png",
+        "03-hold-inbound.png",
+        "04-flight-deck.png",
+        "05-chase-inbound.png",
+        "06-hold-ramp-open.png",
+        "07-hold-extraction.png",
+        "08-chase-load-out.png",
+        "09-load-reefed.png",
+        "10-load-under-canopy.png",
+        "11-landed.png",
+        "12-canopies-collapsed.png",
+        "13-ready-derigged.png",
+        "14-in-the-m113.png"
+      ],
+      "pageErrors": [],
+      "consoleErrors": []
+    },
+    {
+      "scene": "qa_ship.mjs",
+      "env": {
+        "QA_PART": "inside,seats,sky"
+      },
+      "artifacts": "tools/runs/finish-qa_ship",
+      "startedAt": "2026-10-25T18:12:26.901Z",
+      "seconds": 582,
+      "summary": "PASS: 37/37 expects, 0 page errors, 0 console errors",
+      "assertions": [
+        {
+          "label": "fp-huey-troop-seat-1: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "fp-huey-troop-seat-2: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "fp-huey-troop-seat-4: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "fp-in-m113: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "fp-in-m60: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "fp-in-m151: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-island-door-outside: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-fdc-board: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-fdc-forward: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-fdc-aft: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-trunk-top: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-stairs-up-o5: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-ready-room: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-ready-room-back: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-ready-room-side: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-flag-plot: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-flag-plot-fwd: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-flag-plot-window: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-bridge: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-bridge-at-the-wheel: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-bridge-port: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-bridge-stbd: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-bridge-wing-port: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-bridge-wing-stbd: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-top-deck: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-top-deck-fwd: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-catwalk-o7: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-catwalk-o7-down: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-hangar-fwd: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-hangar-mid: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-hangar-aft: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-hangar-lift1: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-hangar-lift3: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-hangar-booth: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-hangar-engines: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "in-on-lift1-down-looking-in: no person within 0.8 m of the eye",
+          "ok": true
+        },
+        {
+          "label": "fp-sky-carrier-helm: no person within 0.8 m of the eye",
+          "ok": true
+        }
+      ],
+      "screenshots": [
+        "01-fp-huey-troop-seat-1.png",
+        "02-huey-troop-seat-1-outside.png",
+        "03-fp-huey-troop-seat-2.png",
+        "04-huey-troop-seat-2-outside.png",
+        "05-fp-huey-troop-seat-4.png",
+        "06-huey-troop-seat-4-outside.png",
+        "07-fp-in-m113.png",
+        "08-fp-in-m60.png",
+        "09-fp-in-m151.png",
+        "10-in-island-door-outside.png",
+        "11-in-fdc-board.png",
+        "12-in-fdc-board-third.png",
+        "13-in-fdc-forward.png",
+        "14-in-fdc-aft.png",
+        "15-in-trunk-top.png",
+        "16-in-stairs-up-o5.png",
+        "17-in-ready-room.png",
+        "18-in-ready-room-third.png",
+        "19-in-ready-room-back.png",
+        "20-in-ready-room-side.png",
+        "21-in-flag-plot.png",
+        "22-in-flag-plot-third.png",
+        "23-in-flag-plot-fwd.png",
+        "24-in-flag-plot-window.png",
+        "25-in-bridge.png",
+        "26-in-bridge-third.png",
+        "27-in-bridge-at-the-wheel.png",
+        "28-in-bridge-port.png",
+        "29-in-bridge-stbd.png",
+        "30-in-bridge-wing-port.png",
+        "31-in-bridge-wing-stbd.png",
+        "32-in-top-deck.png",
+        "33-in-top-deck-third.png",
+        "34-in-top-deck-fwd.png",
+        "35-in-catwalk-o7.png",
+        "36-in-catwalk-o7-down.png",
+        "37-in-hangar-fwd.png",
+        "38-in-hangar-mid.png",
+        "39-in-hangar-mid-third.png",
+        "40-in-hangar-aft.png",
+        "41-in-hangar-lift1.png",
+        "42-in-hangar-lift1-third.png",
+        "43-in-hangar-lift3.png",
+        "44-in-hangar-booth.png",
+        "45-in-hangar-engines.png",
+        "46-in-on-lift1-down-looking-in.png",
+        "47-ext-lift1-down-from-the-sea.png",
+        "48-sky-from-below.png",
+        "49-sky-from-above.png",
+        "50-fp-sky-carrier-helm.png",
+        "51-fp-sky-carrier-helm-stbd.png",
+        "52-fp-sky-carrier-helm-port.png"
+      ],
+      "pageErrors": [],
+      "consoleErrors": []
+    },
+    {
+      "scene": "simmode.json",
+      "env": {},
+      "artifacts": "tools/runs/finish-simmode",
+      "startedAt": "2026-10-25T18:26:27.365Z",
+      "seconds": 73,
+      "summary": "PASS: 6/6 expects, 0 page errors, 0 console errors",
+      "assertions": [
+        {
+          "ok": true
+        },
+        {
+          "ok": true
+        },
+        {
+          "ok": true
+        },
+        {
+          "ok": true
+        },
+        {
+          "ok": true
+        },
+        {
+          "ok": true
+        }
+      ],
+      "screenshots": [
+        "01-action_camera.png",
+        "02-free_camera.png",
+        "03-follow_camera.png",
+        "04-map_camera.png",
+        "05-later_action.png",
+        "06-overlay_hidden.png"
+      ],
+      "pageErrors": [],
+      "consoleErrors": []
+    },
+    {
+      "scene": "deckseq.mjs",
+      "env": {},
+      "artifacts": "tools/runs/finish-deckseq",
+      "startedAt": "2026-10-25T18:27:40.628Z",
+      "seconds": 203,
+      "summary": "PASS: 4/4 expects, 0 page errors, 0 console errors",
+      "assertions": [
+        {
+          "label": "the player Hornet is spotted in the queue (not on the cat)",
+          "ok": true
+        },
+        {
+          "label": "the HUD shows the place in the queue",
+          "ok": true
+        },
+        {
+          "label": "four launches, one at a time, the cat reset between",
+          "ok": true
+        },
+        {
+          "label": "all four airborne",
+          "ok": true
+        }
+      ],
+      "screenshots": [
+        "01-deck-escort-taxiing-director.png",
+        "02-deck-escort-hold-short.png",
+        "03-player-cockpit-on-the-spot.png",
+        "04-player-chase-on-the-spot.png",
+        "05-deck-escort-on-cat-jbd-up.png",
+        "06-player-chase-taxiing.png",
+        "07-player-cockpit-taxiing-director.png",
+        "08-player-cockpit-on-cat.png",
+        "09-after-the-sequence.png"
+      ],
+      "pageErrors": [],
+      "consoleErrors": []
+    },
+    {
+      "scene": "catshot.mjs",
+      "env": {},
+      "artifacts": "tools/runs/finish-catshot-v4",
+      "startedAt": "2026-10-25T18:52:33.503Z",
+      "seconds": 234,
+      "summary": "PASS: 5/5 expects, 0 page errors, 0 console errors",
+      "assertions": [
+        {
+          "label": "Tomcat on cat 1",
+          "ok": true
+        },
+        {
+          "label": "Tomcat: hands off, she flies away off the cat and climbs",
+          "ok": true
+        },
+        {
+          "label": "Hornet on cat 1",
+          "ok": true
+        },
+        {
+          "label": "Hornet: hands off, she flies away off the cat",
+          "ok": true
+        },
+        {
+          "label": "AI Tomcat: off the cat and climbing",
+          "ok": true
+        }
+      ],
+      "screenshots": [
+        "01-tomcat-cockpit-on-the-cat.png",
+        "02-tomcat-chase-on-the-cat.png",
+        "03-tomcat-chase-mid-stroke.png",
+        "04-tomcat-chase-flyaway.png",
+        "05-tomcat-cockpit-flyaway.png",
+        "06-hornet-chase-on-the-cat.png",
+        "07-hornet-chase-flyaway.png",
+        "08-ai-tomcat-on-the-cat.png",
+        "09-ai-tomcat-stroke.png",
+        "10-ai-tomcat-climb-out.png"
+      ],
+      "pageErrors": [],
+      "consoleErrors": []
+    },
+    {
+      "scene": "sealife.mjs",
+      "env": {
+        "PARTS": "huey,bow,swim"
+      },
+      "artifacts": "tools/runs/finish-sealife-v5",
+      "startedAt": "2026-10-25T18:56:27.222Z",
+      "seconds": 188,
+      "summary": "PASS: 8/8 expects, 0 page errors, 0 console errors",
+      "assertions": [
+        {
+          "label": "found open deep water near the ALBATROSS",
+          "ok": true
+        },
+        {
+          "label": "the pilchard have balled up under the bonito",
+          "ok": true
+        },
+        {
+          "label": "seabirds have come to the bait ball",
+          "ok": true
+        },
+        {
+          "label": "the downwash flushes the birds",
+          "ok": true
+        },
+        {
+          "label": "and scatters the ball",
+          "ok": true
+        },
+        {
+          "label": "dolphins at her bow",
+          "ok": true
+        },
+        {
+          "label": "found a rocky shelf 4-8 m deep",
+          "ok": true
+        },
+        {
+          "label": "back up at the surface",
+          "ok": true
+        }
+      ],
+      "screenshots": [
+        "01-huey-chase-baitball.png",
+        "02-huey-cockpit-baitball.png",
+        "03-baitball-from-18m.png",
+        "04-baitball-birds-low.png",
+        "05-huey-downwash-over-ball.png",
+        "06-bow-dolphins-from-deck.png",
+        "07-bow-dolphins-close.png",
+        "08-swimmer-at-surface.png",
+        "09-underwater-reef.png",
+        "10-underwater-reef-2.png",
+        "11-underwater-looking-up.png"
+      ],
+      "pageErrors": [],
+      "consoleErrors": []
+    },
+    {
+      "scene": "commander.mjs",
+      "env": {},
+      "artifacts": "tools/runs/finish-commander-v4",
+      "startedAt": "2026-10-25T18:59:34.897Z",
+      "seconds": 563,
+      "summary": "PASS: 29/29 expects, 0 page errors, 0 console errors",
+      "assertions": [
+        {
+          "label": "the fleet starts with its reserves (G.lives / G.jets are views of it)",
+          "ok": true
+        },
+        {
+          "label": "the fleet strip is on the HUD",
+          "ok": true
+        },
+        {
+          "label": "Backslash opens the command board",
+          "ok": true
+        },
+        {
+          "label": "a Marine out on the ALBATROSS from the reserve (6 -> 5)",
+          "ok": true
+        },
+        {
+          "label": "he stands on the carrier deck",
+          "ok": true
+        },
+        {
+          "label": "5 from on foot: the Hornet on cat 1 (2 -> 1), the Marine back in reserve",
+          "ok": true
+        },
+        {
+          "label": "the Huey went down to the hangar off the deck",
+          "ok": true
+        },
+        {
+          "label": "switched to the Huey; the wingman flies the Hornet",
+          "ok": true
+        },
+        {
+          "label": "the Hornet is still flying under the wingman",
+          "ok": true
+        },
+        {
+          "label": "board R: the Hornet recalled (RTB)",
+          "ok": true
+        },
+        {
+          "label": "board 5: switched to the M113; the Huey crew has her",
+          "ok": true
+        },
+        {
+          "label": "the Huey crew landed her on the ALBATROSS",
+          "ok": true
+        },
+        {
+          "label": "Slash jumps to the next unit out",
+          "ok": true
+        },
+        {
+          "label": "a Tomcat assigned to cat 1 from reserve (2 -> 1), queued while recovery uses the deck",
+          "ok": true
+        },
+        {
+          "label": "the wrecked M60A3 is a loss to the fleet",
+          "ok": true
+        },
+        {
+          "label": "a fresh M60A3 at the home island motor pool (1 -> 0)",
+          "ok": true
+        },
+        {
+          "label": "an M151A2 stands down into reserve",
+          "ok": true
+        },
+        {
+          "label": "an M151A2 out on the ALBATROSS deck park",
+          "ok": true
+        },
+        {
+          "label": "switched to the nearest M35A2 that is out (no reserve used)",
+          "ok": true
+        },
+        {
+          "label": "N: another M35A2 out at the home island (reserve 1 -> 0)",
+          "ok": true
+        },
+        {
+          "label": "the parked Huey is lost (counted); you stay in the jeep",
+          "ok": true
+        },
+        {
+          "label": "a new Huey on the home island pad (3 -> 2)",
+          "ok": true
+        },
+        {
+          "label": "the M113A2 stood down on the deck and out again at the island",
+          "ok": true
+        },
+        {
+          "label": "the war ran on through every switch",
+          "ok": true
+        },
+        {
+          "label": "back in the Tomcat (it was out on cat 1)",
+          "ok": true
+        },
+        {
+          "label": "the Tomcat lost: counted, the board opens",
+          "ok": true
+        },
+        {
+          "label": "the hand-on: into the Huey",
+          "ok": true
+        },
+        {
+          "label": "the wingman trapped the Hornet and she is parked on the deck",
+          "ok": true
+        },
+        {
+          "label": "the fleet spent: the war is lost",
+          "ok": true
+        }
+      ],
+      "screenshots": [
+        "01-board-open.png",
+        "02-marine-on-deck.png",
+        "03-hornet-flying.png",
+        "04-m113-driver.png",
+        "05-tomcat-in-launch-queue.png",
+        "06-m60-island.png",
+        "07-m151-deck.png",
+        "08-huey-island-pad.png",
+        "09-loss-board.png",
+        "10-hornet-recovered.png",
+        "11-defeat.png"
+      ],
+      "pageErrors": [],
+      "consoleErrors": []
+    },
+    {
+      "scene": "ch46fly.mjs",
+      "env": {},
+      "artifacts": "tools/runs/finish-ch46fly-v5",
+      "startedAt": "2026-10-25T19:08:57.997Z",
+      "seconds": 244,
+      "summary": "PASS: 17/17 expects, 0 page errors, 0 console errors",
+      "assertions": [
+        {
+          "label": "two Sea Knights in reserve, MARINE AIR ASSAULT researched at the start",
+          "ok": true
+        },
+        {
+          "label": "the command board lists the CH-46F",
+          "ok": true
+        },
+        {
+          "label": "board 9: a CH-46F out of the reserve (2 -> 1), you are in it",
+          "ok": true
+        },
+        {
+          "label": "on its spot on the ALBATROSS deck, on the wheels",
+          "ok": true
+        },
+        {
+          "label": "cold and dark (?cold): engines out, rotors stopped, battery off",
+          "ok": true
+        },
+        {
+          "label": "mouse click on the overhead BATTERY switch: battery on",
+          "ok": true
+        },
+        {
+          "label": "operating a cockpit switch leaves the cursor free for the next switch",
+          "ok": true
+        },
+        {
+          "label": "mouse click on APU: the APU starts",
+          "ok": true
+        },
+        {
+          "label": "both engines on line, generators on, still on the spot",
+          "ok": true
+        },
+        {
+          "label": "B: a stick of 13 Marines called (20 materiel, island income continues)",
+          "ok": true
+        },
+        {
+          "label": "the stick stands on the deck (no floating, no sinking)",
+          "ok": true
+        },
+        {
+          "label": "13 Marines aboard, their weight in the flight model",
+          "ok": true
+        },
+        {
+          "label": "lifted off the moving deck",
+          "ok": true
+        },
+        {
+          "label": "landed at the LZ within limits (no hard landing)",
+          "ok": true
+        },
+        {
+          "label": "B at the LZ: the troops go out by the ramp",
+          "ok": true
+        },
+        {
+          "label": "all 13 off the ramp and fighting as ground-war Marines",
+          "ok": true
+        },
+        {
+          "ok": true
+        }
+      ],
+      "screenshots": [
+        "01-board.png",
+        "02-cold-on-deck.png",
+        "03-cockpit-overhead-cold.png",
+        "04-cockpit-starting.png",
+        "05-cockpit-running.png",
+        "06-marines-boarding.png",
+        "07-cabin-marines-seated.png",
+        "08-cabin-aft-ramp.png",
+        "09-liftoff-chase.png",
+        "10-cockpit-cruise.png",
+        "11-cruise-chase.png",
+        "12-approach-hover.png",
+        "13-landed-lz.png",
+        "14-marines-dismounting.png",
+        "15-marines-on-the-ground.png",
+        "16-cockpit-at-lz.png"
+      ],
+      "pageErrors": [],
+      "consoleErrors": []
+    }
+  ],
+  "totals": {
+    "scenes": 11,
+    "assertions": 160,
+    "screenshots": 159,
+    "pageErrors": 0,
+    "consoleErrors": 0
+  },
+  "releaseStartup": {
+    "url": "http://127.0.0.1:8766/?kb&res=0.45",
+    "root": "/home/jayjay/thrust-zarch-experimental",
+    "commit": "28c3447",
+    "debug": false,
+    "artifacts": "tools/runs/finish-release-startup",
+    "startedAt": "2026-10-25T19:13:43.746Z",
+    "seconds": 30,
+    "summary": "PASS: 7/7 expects, 0 page errors, 0 console errors",
+    "assertions": [
+      {
+        "ok": true
+      },
+      {
+        "ok": true
+      },
+      {
+        "ok": true
+      },
+      {
+        "ok": true
+      },
+      {
+        "ok": true
+      },
+      {
+        "ok": true
+      },
+      {
+        "ok": true
+      }
+    ],
+    "screenshots": [
+      "01-title.png",
+      "02-command-board.png",
+      "03-research.png",
+      "04-pause-menu.png",
+      "05-playable-sandbox.png"
+    ],
+    "pageErrors": [],
+    "consoleErrors": []
+  }
+}

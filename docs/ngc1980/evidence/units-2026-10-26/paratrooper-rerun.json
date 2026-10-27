@@ -1,0 +1,547 @@
+{
+  "schemaVersion": 1,
+  "startedAt": "2026-10-26T14:33:52.946Z",
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "59beb4ef11c3f8f6264ba4d628e8f203f8945d65",
+    "branch": "ngc/unit-bench",
+    "gameTree": "c6ca65541018026803cf95832e727145b28b8c45",
+    "gameSha256": "b810b4dc3116a695bf8d3d9e8746aaa39cc31e7384b05057753805d478cda386",
+    "dirty": false,
+    "status": ""
+  },
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/unit-benchmark.mjs",
+    "--unit",
+    "paratrooper",
+    "--frames",
+    "30",
+    "--capture",
+    "--out",
+    "tools/runs/units-paratrooper-verified"
+  ],
+  "catalog": [
+    {
+      "id": "huey",
+      "name": "UH-1H Huey",
+      "category": "air",
+      "kind": "playable",
+      "query": "?debug&auto&kb&peace&res=0.45",
+      "description": "Peaceful main-game carrier deck: roll the throttle to flight power and check governor/rotor telemetry, then capture the analog cockpit and running exterior. Hover lift and engine/rotor needle separation are exercised by the Node role bench."
+    },
+    {
+      "id": "hornet",
+      "name": "F/A-18A Hornet",
+      "category": "air",
+      "kind": "playable",
+      "query": "?debug&auto&kb&peace&res=0.45",
+      "description": "Main-game deck launch fixture: select the F/A-18A through its real hotkey, verify catapult attachment and independently running twin engines, then benchmark its cockpit on the shuttle. Catapult flight and control response remain in the flight/deck regression suites."
+    },
+    {
+      "id": "tomcat",
+      "name": "F-14A Tomcat",
+      "category": "air",
+      "kind": "playable",
+      "query": "dev/air.html?fly=sortie&ui=0&res=0.6",
+      "description": "Production F-14A flight model and AI in the carrier dev world: step a full catapult departure into CAP, verify flight and variable wings, then benchmark live patrol. This fixture exercises AI flight, not player cockpit input."
+    },
+    {
+      "id": "ch46",
+      "name": "CH-46E Sea Knight",
+      "category": "air",
+      "kind": "playable",
+      "query": "dev/rotary.html?ac=ch46&paused&ui=0&res=0.6",
+      "description": "Production transport unit in the rotary dev world: board 13 Marines, depart and establish transit with both tandem rotors lifting. After live benchmarking, deterministically finish delivery and assert Marines holding the landing pad. This fixture uses its AI pilot."
+    },
+    {
+      "id": "c130",
+      "name": "KC-130R Hercules",
+      "category": "air",
+      "kind": "playable",
+      "query": "dev/c130.html?start=air&view=orbit&res=0.6",
+      "description": "KC-130R dev flight host with the production four-engine transport model: feather engine one, keep the other three governed and verify autopilot flight. The existing transport/drop suites cover parachute deployment; this is not a C-130J avionics fixture."
+    },
+    {
+      "id": "mv22",
+      "name": "MV-22B Osprey",
+      "category": "air",
+      "kind": "ai",
+      "query": "dev/rotary.html?ac=mv22&paused&ui=0&res=0.6",
+      "description": "RUNAWAY-refit MV-22B production transport in the rotary dev world: depart vertically, convert to wing-borne flight, then benchmark airplane transit and finish a troop delivery. This uses the AI pilot and a scripted island landing zone."
+    },
+    {
+      "id": "wasp",
+      "name": "RW-3 WASP",
+      "category": "air",
+      "kind": "ai",
+      "query": "dev/rotary.html?ac=wasp&paused&ui=0&res=0.6",
+      "description": "Five fictional ducted-fan drones fly the existing swarm/ambush demo around a scripted Huey. Verify powered maneuvering and finite flight, then benchmark the live swarm. These are setting-specific physics, not a real aircraft claim."
+    },
+    {
+      "id": "shrike",
+      "name": "RW-4 SHRIKE",
+      "category": "air",
+      "kind": "ai",
+      "query": "dev/air.html?fly=fight&ui=0&res=0.6",
+      "description": "Fictional single-engine fighter patrol using the production AI flight model. The demo opponent is hidden and removed from combat to isolate the unit. Check bank maneuvering and no afterburner, then benchmark live CAP."
+    },
+    {
+      "id": "reaper",
+      "name": "MQ-9 Reaper",
+      "category": "air",
+      "kind": "ai",
+      "query": "dev/air.html?fly=reaper&ui=0&res=0.6",
+      "description": "Production turboprop UAV in its existing orbit demo: verify patrol, power and prop rotation, benchmark live loiter, then use the model host to check and photograph a stopped pusher. Shutdown gauge behavior is covered by the Node role bench."
+    },
+    {
+      "id": "shahed",
+      "name": "SHAHED-style drone",
+      "category": "air",
+      "kind": "ai",
+      "query": "dev/air.html?fly=shahed&ui=0&res=0.6",
+      "description": "Existing simplified delta-drone salvo in the air dev world, with the interceptor disabled for an isolated flight sample. Check forward flight after launch and capture the pusher model at rest. No claim of real guidance or weapon fidelity."
+    },
+    {
+      "id": "paratrooper",
+      "name": "Marine paratrooper / repair team",
+      "category": "air",
+      "kind": "ai",
+      "query": "?debug&auto&kb&peace&res=0.45",
+      "description": "Scripted main-game emergency release: place the real KC-130R above the home pad, ring its bailout bell, and advance to canopy inflation. Project the lead jumper/canopy bounds through the actual game camera, benchmark three live descending Marines and check landing. Aircraft approach, jumpmaster checklist and static-line sequencing are bypassed."
+    },
+    {
+      "id": "m151",
+      "name": "M151A2 MUTT",
+      "kind": "playable",
+      "category": "ground",
+      "coverage": "Isolated rendered dev fixture using production wheeled physics and model.",
+      "query": "dev/vehicle.html?debug&v=m151&zone=road&cam=orbit&res=0.5&hud=0&ui=0",
+      "description": "Part-time four-wheel drive and front steering on the independent-suspension utility vehicle."
+    },
+    {
+      "id": "m35",
+      "name": "M35A2 cargo truck",
+      "kind": "playable",
+      "category": "ground",
+      "coverage": "Isolated rendered dev fixture using production wheeled physics and model.",
+      "query": "dev/vehicle.html?debug&v=m35&zone=road&cam=orbit&res=0.5&hud=0&ui=0",
+      "description": "Loaded cargo truck with ten visible tyres on six driven suspension stations and folding troop benches."
+    },
+    {
+      "id": "landrover",
+      "name": "Land Rover Series III 109",
+      "kind": "civilian",
+      "category": "ground",
+      "coverage": "Isolated rendered dev fixture using production wheeled physics and model.",
+      "query": "dev/vehicle.html?debug&v=landrover&zone=road&cam=orbit&res=0.5&hud=0&ui=0",
+      "description": "Driveable utility vehicle with selectable low range and right-hand driving position."
+    },
+    {
+      "id": "hilux",
+      "name": "Toyota Hilux RN37",
+      "kind": "civilian",
+      "category": "ground",
+      "coverage": "Isolated rendered dev fixture using production wheeled physics and model.",
+      "query": "dev/vehicle.html?debug&v=hilux&zone=road&cam=orbit&res=0.5&hud=0&ui=0",
+      "description": "Driveable pickup with selectable low range and an open cargo bed."
+    },
+    {
+      "id": "beetle",
+      "name": "Volkswagen Beetle 1200",
+      "kind": "civilian",
+      "category": "ground",
+      "coverage": "Isolated rendered dev fixture using production wheeled physics and model.",
+      "query": "dev/vehicle.html?debug&v=beetle&zone=road&cam=orbit&res=0.5&hud=0&ui=0",
+      "description": "Driveable rear-engine, air-cooled road car without a radiator or low-range transfer case."
+    },
+    {
+      "id": "lada",
+      "name": "Lada 2101",
+      "kind": "civilian",
+      "category": "ground",
+      "coverage": "Isolated rendered dev fixture using production wheeled physics and model.",
+      "query": "dev/vehicle.html?debug&v=lada&zone=road&cam=orbit&res=0.5&hud=0&ui=0",
+      "description": "Driveable rear-wheel-drive road saloon with conventional liquid cooling."
+    },
+    {
+      "id": "m60",
+      "name": "M60A3 TTS",
+      "category": "ground",
+      "kind": "playable",
+      "query": "dev/tank.html?debug&veh=m60&view=chase&cam=2.6,0.28,13&res=0.5&ui=0",
+      "coverage": "Isolated rendered dev fixture using production track physics and M60 model.",
+      "description": "Cross-drive neutral steering: the hull pivots while its tracks counter-rotate."
+    },
+    {
+      "id": "m113",
+      "name": "M113A2 APC",
+      "category": "ground",
+      "kind": "playable",
+      "query": "dev/tank.html?debug&veh=m113&view=chase&cam=0.7,0.25,10&res=0.5&ui=0",
+      "coverage": "Isolated rendered dev fixture using production APC ramp, trim-vane and pump controls.",
+      "description": "Personnel carrier opens its powered rear ramp and deploys its trim vane; bilge pumps switch on."
+    },
+    {
+      "id": "marine",
+      "name": "1980 Marine rifleman",
+      "category": "ground",
+      "kind": "playable",
+      "query": "dev/infantry.html?debug&third&weapon=1&res=0.5&ui=0",
+      "coverage": "Isolated rendered infantry fixture using production movement, skeleton and equipment.",
+      "description": "The M16A1 rifleman changes from running to a low, slower prone crawl."
+    },
+    {
+      "id": "rw1",
+      "name": "RW-1 STRIDER",
+      "category": "ground",
+      "kind": "ai",
+      "description": "Fictional biped balances and plants alternating feet while walking.",
+      "coverage": "Single selected unit in the rendered runaway dev terrain; captured MBTs use live-game track physics, not the default preview fallback.",
+      "query": "dev/runaway.html?debug&scenario=lineup&seed=1980&paused&track&overlay=0&res=0.5"
+    },
+    {
+      "id": "rw7",
+      "name": "RW-7 hover tank",
+      "category": "ground",
+      "kind": "ai",
+      "description": "Fictional lift-fan vehicle moves above the terrain on an air cushion.",
+      "coverage": "Single selected unit in the rendered runaway dev terrain; captured MBTs use live-game track physics, not the default preview fallback.",
+      "query": "dev/runaway.html?debug&scenario=lineup&seed=1980&paused&track&overlay=0&res=0.5"
+    },
+    {
+      "id": "m1a2",
+      "name": "Captured M1A2 SEPv3",
+      "category": "ground",
+      "kind": "ai",
+      "description": "Seven-roadwheel hull uses the live-game tracked drive and terrain suspension.",
+      "coverage": "Single selected unit in the rendered runaway dev terrain; captured MBTs use live-game track physics, not the default preview fallback.",
+      "query": "dev/runaway.html?debug&scenario=lineup&seed=1980&paused&track&overlay=0&res=0.5"
+    },
+    {
+      "id": "t90m",
+      "name": "Captured T-90M",
+      "category": "ground",
+      "kind": "ai",
+      "description": "Six-roadwheel hull uses the live-game tracked drive and terrain suspension.",
+      "coverage": "Single selected unit in the rendered runaway dev terrain; captured MBTs use live-game track physics, not the default preview fallback.",
+      "query": "dev/runaway.html?debug&scenario=lineup&seed=1980&paused&track&overlay=0&res=0.5"
+    },
+    {
+      "id": "naval-albatross",
+      "name": "ALBATROSS",
+      "category": "naval",
+      "kind": "playable",
+      "query": "dev/ships.html?ship=albatross&sea=4&speed=4&ui=0&cam=0.8,0.32,195,0,9,0",
+      "description": "Conventional 1980 carrier: moving deck-edge lift and jet blast deflector; active Phalanx / Sea Sparrow fit."
+    },
+    {
+      "id": "naval-kraken",
+      "name": "KRAKEN",
+      "category": "naval",
+      "kind": "ai",
+      "query": "dev/ships.html?ship=kraken&sea=4&speed=4&ui=0&cam=0.8,0.32,195,0,9,0",
+      "description": "Seized nuclear carrier: broad bow, aft island, RUNAWAY deck mounts and no exhaust."
+    },
+    {
+      "id": "naval-leviathan",
+      "name": "RW-9 LEVIATHAN",
+      "category": "naval",
+      "kind": "ai",
+      "query": "dev/ships.html?ship=leviathan&sea=4&speed=4&ui=0&cam=0.85,0.3,155,0,7,0",
+      "description": "Fictional monitor: three independent recoil cradles, mixed deck defence and smaller-vessel sea motion."
+    },
+    {
+      "id": "naval-container",
+      "name": "Autonomous container feeder",
+      "category": "naval",
+      "kind": "ai",
+      "query": "dev/ships.html?ship=container&sea=4&speed=4&ui=0&cam=0.85,0.36,135,0,7,0",
+      "description": "Electric cargo ship: visible roof / forecastle support, instanced containers and actual TALON deck refit."
+    },
+    {
+      "id": "naval-sky",
+      "name": "SKY CARRIER refit",
+      "category": "naval",
+      "kind": "playable",
+      "query": "dev/ships.html?ship=sky&sea=4&speed=4&ui=0&cam=0.8,0.25,215,0,22,0",
+      "description": "Fictional ALBATROSS lift refit: four separate outrigger fans. Model articulation only; flight control is not simulated here."
+    },
+    {
+      "id": "naval-lcm8-armor",
+      "name": "LCM-8 — armour delivery",
+      "category": "naval",
+      "kind": "ai",
+      "query": "dev/ships.html?ship=lcm8&sea=4&speed=4&ui=0&cam=0.8,0.32,43,0,2,0",
+      "description": "Mike boat carrying the actual M60A3 model: cargo-well fit, bow ramp and pilothouse support. Articulation preview, not beach pathfinding."
+    },
+    {
+      "id": "naval-lcm8-truck",
+      "name": "LCM-8 — truck delivery",
+      "category": "naval",
+      "kind": "ai",
+      "query": "dev/ships.html?ship=lcm8truck&sea=4&speed=4&ui=0&cam=0.8,0.32,43,0,2,0",
+      "description": "Existing lighter LCM model with the actual M35A2 in its well; forward-opening delivery ramp. Articulation preview."
+    },
+    {
+      "id": "naval-lcac",
+      "name": "Seized LCAC",
+      "category": "naval",
+      "kind": "ai",
+      "query": "dev/ships.html?ship=lcac&sea=4&speed=4&ui=0&cam=0.85,0.34,55,0,2,0",
+      "description": "Air-cushion transport with actual seized M1A2 cargo, twin air propellers and ramp to ground. Articulation preview."
+    },
+    {
+      "id": "defence-vads",
+      "name": "M163 VADS",
+      "category": "defence",
+      "kind": "ai",
+      "query": "dev/defence.html?mode=fight&unit=vads&drones=1&hill=0&ui=0&cam=0.8,0.26,12,0,2,0",
+      "description": "Open-turret tracked Vulcan; rotary spin-up, range-only pod and visible short bursts."
+    },
+    {
+      "id": "defence-shilka",
+      "name": "ZSU-23-4 SHILKA",
+      "category": "defence",
+      "kind": "ai",
+      "query": "dev/defence.html?mode=fight&unit=shilka&drones=1&hill=0&ui=0&cam=0.8,0.26,14,0,2,0",
+      "description": "Quad gun on a tracked hull with separate searching radar and four muzzle positions."
+    },
+    {
+      "id": "defence-ciws",
+      "name": "Phalanx CIWS — Block 0",
+      "category": "defence",
+      "kind": "ai",
+      "query": "dev/defence.html?mode=fight&unit=ciws&drones=1&hill=0&ui=0&cam=0.8,0.26,9,0,2,0",
+      "description": "1980 carrier close-in mount with white radome and rotating six-barrel cluster."
+    },
+    {
+      "id": "defence-sparrow",
+      "name": "Sea Sparrow",
+      "category": "defence",
+      "kind": "ai",
+      "query": "dev/defence.html?mode=fight&unit=sparrow&drones=1&hill=0&ui=0&cam=0.8,0.26,11,0,2,0",
+      "description": "Eight-cell box launcher: used covers persist between salvos so every cell is visibly used."
+    },
+    {
+      "id": "defence-talon",
+      "name": "Pantsir-S1 / RW TALON",
+      "category": "defence",
+      "kind": "ai",
+      "query": "dev/defence.html?mode=fight&unit=talon&drones=1&hill=0&ui=0&cam=0.8,0.26,20,0,2,0",
+      "description": "Seized modern 8x8 refit: four gun barrels, separate search radar and twelve-tube visual bank."
+    },
+    {
+      "id": "defence-talonm",
+      "name": "RW TALON — ship mount",
+      "category": "defence",
+      "kind": "ai",
+      "query": "dev/defence.html?mode=fight&unit=talonm&drones=1&hill=0&ui=0&cam=0.8,0.26,14,0,2,0",
+      "description": "Fictional naval pedestal conversion of the seized module, retaining its twelve tubes and twin gun pairs."
+    },
+    {
+      "id": "defence-lance",
+      "name": "RW-5 LANCE",
+      "category": "defence",
+      "kind": "ai",
+      "query": "dev/defence.html?mode=fight&unit=lance&drones=1&hill=0&ui=0&cam=0.8,0.26,15,0,2,0",
+      "description": "Fictional laser turret: charge line, beam, cooldown and hot radiators communicate its cycle."
+    },
+    {
+      "id": "defence-lancem",
+      "name": "RW-5 LANCE — ship mount",
+      "category": "defence",
+      "kind": "ai",
+      "query": "dev/defence.html?mode=fight&unit=lancem&drones=1&hill=0&ui=0&cam=0.8,0.26,15,0,2,0",
+      "description": "Naval LANCE gameplay variant with the same visible charge / beam / radiator cycle."
+    },
+    {
+      "id": "human-hq",
+      "name": "HQ bunker",
+      "category": "structure",
+      "kind": "structure",
+      "query": "dev/structure-unit.html?kind=hq&side=1",
+      "description": "Actual faction structure: visible damage, destruction, rebuilding and capture; isolated-site rendering cost."
+    },
+    {
+      "id": "human-fuel",
+      "name": "Fuel farm",
+      "category": "structure",
+      "kind": "structure",
+      "query": "dev/structure-unit.html?kind=fuel&side=1",
+      "description": "Actual faction structure: visible damage, destruction, rebuilding and capture; isolated-site rendering cost."
+    },
+    {
+      "id": "human-factory",
+      "name": "Supply depot",
+      "category": "structure",
+      "kind": "structure",
+      "query": "dev/structure-unit.html?kind=factory&side=1",
+      "description": "Actual faction structure: visible damage, destruction, rebuilding and capture; isolated-site rendering cost."
+    },
+    {
+      "id": "human-radar",
+      "name": "Radar site",
+      "category": "structure",
+      "kind": "structure",
+      "query": "dev/structure-unit.html?kind=radar&side=1",
+      "description": "Actual faction structure: visible damage, destruction, rebuilding and capture; isolated-site rendering cost."
+    },
+    {
+      "id": "runaway-hq",
+      "name": "RUNAWAY command node",
+      "category": "structure",
+      "kind": "structure",
+      "query": "dev/structure-unit.html?kind=hq&side=2",
+      "description": "Actual faction structure: visible damage, destruction, rebuilding and capture; isolated-site rendering cost."
+    },
+    {
+      "id": "runaway-fuel",
+      "name": "RUNAWAY siphon spire",
+      "category": "structure",
+      "kind": "structure",
+      "query": "dev/structure-unit.html?kind=fuel&side=2",
+      "description": "Actual faction structure: visible damage, destruction, rebuilding and capture; isolated-site rendering cost."
+    },
+    {
+      "id": "runaway-factory",
+      "name": "RUNAWAY fabricator",
+      "category": "structure",
+      "kind": "structure",
+      "query": "dev/structure-unit.html?kind=factory&side=2",
+      "description": "Actual faction structure: visible damage, destruction, rebuilding and capture; isolated-site rendering cost."
+    },
+    {
+      "id": "runaway-radar",
+      "name": "RUNAWAY sensor spire",
+      "category": "structure",
+      "kind": "structure",
+      "query": "dev/structure-unit.html?kind=radar&side=2",
+      "description": "Actual faction structure: visible damage, destruction, rebuilding and capture; isolated-site rendering cost."
+    }
+  ],
+  "selected": [
+    "paratrooper"
+  ],
+  "baseline": null,
+  "complete": true,
+  "ok": true,
+  "runs": [
+    {
+      "id": "paratrooper",
+      "name": "Marine paratrooper / repair team",
+      "category": "air",
+      "directory": "paratrooper",
+      "ok": true,
+      "exitCode": 0,
+      "error": null,
+      "baseline": null,
+      "missingBaseline": false,
+      "checks": 6,
+      "failedChecks": 0,
+      "benchmarks": [
+        {
+          "name": "paratrooper",
+          "summary": {
+            "samples": 30,
+            "frameMs": {
+              "count": 30,
+              "mean": 151.05333333313465,
+              "p50": 140,
+              "p95": 287.80000001192093,
+              "p99": 309.29999999701977,
+              "min": 11.599999994039536,
+              "max": 336.19999998807907
+            },
+            "observedFps": 6.620178303477681,
+            "cpuMs": {
+              "sim": {
+                "count": 30,
+                "mean": 6.066061696169658,
+                "p50": 5.60483327107671,
+                "p95": 8.781621403032432,
+                "p99": 9.138548845297297,
+                "min": 3.883280805387565,
+                "max": 9.493209311309823
+              },
+              "prep": {
+                "count": 30,
+                "mean": 1.987737931322943,
+                "p50": 1.8921776647747426,
+                "p95": 2.64998737004934,
+                "p99": 2.7368288105782526,
+                "min": 1.4330218951828941,
+                "max": 2.822977694874966
+              },
+              "renderSubmit": {
+                "count": 30,
+                "mean": 11.044331369844802,
+                "p50": 10.3573036250166,
+                "p95": 14.87858984169046,
+                "p99": 15.382726148520435,
+                "min": 7.989810465169208,
+                "max": 15.881816998913125
+              }
+            },
+            "drawCalls": {
+              "count": 30,
+              "mean": 169.5,
+              "p50": 132,
+              "p95": 250,
+              "p99": 260,
+              "min": 131,
+              "max": 271
+            },
+            "triangles": {
+              "count": 30,
+              "mean": 313882.4666666667,
+              "p50": 294974,
+              "p95": 358708,
+              "p99": 361130,
+              "min": 285822,
+              "max": 406386
+            },
+            "textures": {
+              "count": 30,
+              "mean": 49,
+              "p50": 49,
+              "p95": 49,
+              "p99": 49,
+              "min": 49,
+              "max": 49
+            },
+            "geometries": {
+              "count": 30,
+              "mean": 1300,
+              "p50": 1300,
+              "p95": 1300,
+              "p99": 1300,
+              "min": 1300,
+              "max": 1300
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "qualification": "Isolated unit fixtures using production models and simulations; no busy-war, hardware, real-world fidelity or VR certification. Recording follows sampling. No baseline means no performance-change claim.",
+  "finishedAt": "2026-10-26T14:34:32.401Z",
+  "sourceAfter": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "59beb4ef11c3f8f6264ba4d628e8f203f8945d65",
+    "branch": "ngc/unit-bench",
+    "gameTree": "c6ca65541018026803cf95832e727145b28b8c45",
+    "gameSha256": "b810b4dc3116a695bf8d3d9e8746aaa39cc31e7384b05057753805d478cda386",
+    "dirty": false,
+    "status": ""
+  }
+}

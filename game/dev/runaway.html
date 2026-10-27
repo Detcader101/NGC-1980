@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RUNAWAY ground sandbox</title>
+<script type="importmap">{"imports":{"three":"../vendor/three.module.min.js"}}</script>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#8fa9bd;font:12px Consolas,monospace;color:#dff}
+canvas{display:block}
+#ov{position:fixed;left:0;top:0;pointer-events:none}
+#panel{position:fixed;left:8px;top:6px;white-space:pre;color:#e8fbff;text-shadow:0 0 3px #000,0 0 2px #000;line-height:1.25;pointer-events:none;max-width:52vw}
+#help{position:fixed;right:8px;bottom:6px;white-space:pre;color:#e8fbff;text-shadow:0 0 3px #000;text-align:right;pointer-events:none;opacity:.85}
+#audio{position:fixed;right:8px;top:6px;color:#022;background:#bfeeff;border-radius:3px;padding:3px 7px;cursor:pointer}
+.hide{display:none}
+</style></head><body>
+<canvas id="ov"></canvas><div id="panel"></div><div id="audio">click for sound</div>
+<div id="help">drag: look  WASD: move  Q/E: down/up  shift: fast  wheel: speed
+F: follow next unit  G: free camera  O: overlay  P/space: pause  [ ]: time x0.5/x2
+1-6: scenario (assault, combined, flank, outnumbered, defend, patrol)  R: restart</div>
+<script type="module" src="./runaway.js"></script>
+</body></html>

@@ -1,0 +1,20 @@
+{
+  "name": "rotaryroll",
+  "query": "?debug&kb&res=0.45",
+  "steps": [
+    "waitFor 10000 window.__G",
+    "key tap Enter",
+    "wait 1000",
+    "eval (window.__lost=[], window.__ff=(secs, dt=0.1)=>{ const W=__G.war; for(let i=0;i<secs/dt;i++){ W.update(dt, __G.PL, false); __G.fx.update(dt); for(const u of W.units) if(u.rot && u.rot.S && !u._seen && (u.rot.dead || u.crashing)){ u._seen=1; const b=u.rot.S.body; __lost.push({t:+W.time.toFixed(1), kind:u.kind, why:u.rot.dead||'shot', phase:u.rot.AI&&u.rot.AI.phase, hp:u.hp, agl:+u.rot.S.agl.toFixed(1), n:b.contacts, y:+b.pos[1].toFixed(1), deck:+W.deckY(b.pos[0],b.pos[2]).toFixed(1), log:u.rot.AI&&JSON.stringify(u.rot.AI.log.slice(-4))}); } } const u={}; for(const x of W.units) if(x.rot) u[x.kind+x.side]=(u[x.kind+x.side]||0)+1; return {t:Math.round(W.time), lost:__lost.length, u}; }, 1)",
+    "eval __ff(60)",
+    "eval (__G.war.P.mat += 400, [\"FORGE\",\"ECHO\"].map(n=>__G.war.sendDrone(__G.ISLANDS.find(I=>I.name===n))), __ff(60))",
+    "eval (__G.war.P.mat += 400, __G.war.sendDrone(__G.ISLANDS.find(I=>I.owner!==1&&!I.cave)), __ff(120))",
+    "eval (__G.war.P.mat += 400, __G.war.sendDrone(__G.ISLANDS.find(I=>I.owner!==1&&!I.cave)), __ff(120))",
+    "eval (__G.war.P.mat += 400, __G.war.sendDrone(__G.ISLANDS.find(I=>I.owner!==1&&!I.cave)), __ff(120))",
+    "eval __ff(300)",
+    "eval __ff(300)",
+    "eval __ff(300)",
+    "eval __lost",
+    "expect !__lost.some(l => /rollover|crash|water/.test(l.why))"
+  ]
+}

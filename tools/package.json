@@ -4,10 +4,22 @@
   "type": "module",
   "description": "Headless browser oracle harness for the Thrust/Zarch game",
   "scripts": {
+    "start": "node serve.mjs --port 8766",
+    "check": "node check.mjs syntax",
+    "test": "node check.mjs",
+    "bench": "node check.mjs bench",
+    "benchmark": "node benchmark.mjs",
+    "benchmark:units": "node unit-benchmark.mjs",
+    "devlog": "node devlog.mjs",
+    "skills": "node install-skills.mjs",
     "smoke": "node snap.mjs scenes/smoke.json",
     "cave": "node snap.mjs scenes/cave.json"
   },
   "dependencies": {
     "puppeteer-core": "^25.13.0"
+  },
+  "devDependencies": {
+    "html2canvas": "1.4.1",
+    "iwer": "2.7.0"
   }
 }

@@ -1,0 +1,81 @@
+PASS  tail beat: Bainbridge U = L(3f-4)/4 (0.2 m fish at 2 BL/s = 4 Hz)      4.00 Hz   (want 4.00)
+PASS  schools spawn round a camera over a beach                              18 schools, 505 fish, kinds ray bream dolphin damsel sardine mackerel mullet bonito
+PASS  never more than the fish budget                                        505   (want <= 760)
+PASS  every school is over water that suits its species                      0 misplaced
+PASS  mullet in the shallows, amberjack out deep                             mullet at 2.9,1.1,1.0 m, amberjack at - m
+PASS  fish stay in the water: under the surface, over the bed                top -0.32 m, under the bed 0
+PASS  PILCHARD: drawn fish ~1 BL from their nearest neighbour (Pitcher & Partridge 1979) 0.73 BL (288 drawn)   (want 0.5-1.6)
+PASS  PILCHARD: a school, not a swarm (polarisation)                         0.99   (want > 0.6)
+PASS  PILCHARD: cruising ~2.2 BL/s (Videler 1993)                            2.14 BL/s
+PASS  MACKEREL: drawn fish ~1 BL from their nearest neighbour (Pitcher & Partridge 1979) 0.81 BL (124 drawn)   (want 0.5-1.6)
+PASS  MACKEREL: a school, not a swarm (polarisation)                         0.99   (want > 0.6)
+PASS  MACKEREL: cruising ~2.6 BL/s (Videler 1993)                            2.53 BL/s
+PASS  a ship under way frightens the school                                  fear 1.00, schools fled 1
+PASS  no fish rides inside the hull (fish x frames)                          0   (want < 3)
+PASS  they went aside (mean distance off the keel line after it passed)      33.8 m   (want > 7)
+PASS  and down, not up                                                       mean depth 4.3 -> 7.7 m
+PASS  and calm down again once it is gone                                    0.00   (want < 0.15)
+PASS  downwash: the school opens out from under the rotor                    0.6 -> 5.2 m from the wash
+PASS  a swimmer: the mullet keep clear of him                                closest 4.2 m   (want > 1.2)
+PASS  a shell in the water stuns and kills fish near it                      36 hit, 2 killed
+PASS  none 60 m away                                                         0
+PASS  stunned fish float up belly-up                                         34 stunned at -0.08 m, roll 2.68 rad
+PASS  the stunned recover and swim off; the dead stay dead                   0 still stunned, 2 dead
+PASS  a flak burst 12 m up stuns nothing in the water                        0
+PASS  schools are dropped when the camera moves on and spawn where it is     18 -> 17 (all near the new spot: true)
+PASS  local simulation stops beyond visible aerial-shoal range (1400 m)      0
+PASS  natural shoals stay visible ahead during 25–400 m flight, across three seeds 0 missing samples; minimum 3 shoals
+PASS  aerial visibility keeps the existing medium fish budget                0 over-budget frames
+PASS  HOME ISLAND: fish round the island, none under the (drawn, 2 m) sea bed 685 fish in 18 schools, 0 under the bed
+PASS  ... and under 1 % more than 1 m into the exact terrain (2 m cells on cliffs) 0.00 %
+PASS  cost of 690 fish per 60 Hz frame (node)                                0.74 ms   (want < 3 ms)
+      (HOME ISLAND run: 0.77 ms average, 2.17 ms worst incl. spawning)
+PASS  bait ball: the pilchard ball up when the bonito come (Pitcher & Parrish 1993) ball 1.00, balls 1   (want > 0.6)
+PASS  ... and are driven up to the top                                       centre 1.99 m under the swell   (want < 2.5 m)
+PASS  ... a ball a few metres across, not scattered                          mean 2.35 m from its centre   (want < 3 m)
+PASS  the bonito take some (not all) of them                                 9 of 72 eaten
+PASS  strikes at the top boil                                                21 boils
+PASS  the bait ball is marked on the top (a sign the birds and the pilot see) 4,1
+PASS  ... and mill round its centre                                          milling 0.72 (mean of 70)   (want > 0.25)
+PASS  fountain effect: the prey open round each predator (Pitcher & Parrish 1993) 0.33 % of fish-frames within 0.25 m of a bonito   (want < 2 %)
+PASS  flying fish take off from a ship coming at them                        9 glides of 7 fish
+PASS  ... glide 0.5-1.2 m over the live waves (never through a crest)        0.41 - 1.09 m over the top
+PASS  ... tens of metres a flight (Davenport 1994: ~50 m)                    45 m mean of 9   (want 15-120)
+PASS  grey mullet leap clear of a boat in the shallows (Hoese 1985)          2 leaps, highest 0.68 m
+PASS  dolphins ride the bow: in the pressure field ahead of her stem         100 % of the time   (want > 50 %)
+PASS  ... never inside the hull                                              0
+PASS  ... come up to breathe (10-35 s)                                       24 breaths in 60 s, 7 dolphins
+PASS  ... and porpoise at 6.5 m/s (Au & Weihs 1980)                          24 leaps
+PASS  a ship at anchor: a school comes alongside, in her shade (FAD effect)  5.2 m off her side   (want 0-22 m)
+PASS  ... unafraid of her                                                    mean fear 0.009
+PASS  a ship through the middle of a school splits it (both sides of her)    18 on the smaller side, spread 33.0 m
+PASS  ... and it re-forms in her wake                                        spread 33.0 -> 11.5 m
+PASS  in the prop wash astern: carried after her, tumbled and frightened     moved -5.2 m along her course, fear 1.00
+PASS  a still swimmer: sea bream come and look, out of reach                 nearest 4.3 m (school was 10 m off)   (want 1.3-5 m)
+PASS  a swimmer kicking through: they keep clear                             nearest 2.0 m
+PASS  schools live round a ship 450 m from the camera (unit-anchored)        5 round her, 11 round the camera
+PASS  never over the budget                                                  640   (want <= 760)
+PASS  ... and the camera still has its own                                   11
+PASS  from 1400 m up only the life round the ship stays                      7 schools
+PASS  schools fade out before they go (no popping at the screen edge)        17 faded out, 0 popped
+PASS  deterministic: same seed, same inputs, same sea                        -134787421 / -134787421
+PASS  swimming fish stay under the LIVE surface (troughs too, SS5)           0 of 69600 fish-frames above it (worst 0.00 m)
+PASS  the dead float on the swell, riding it                                 12780 fish-frames, worst 0.02 m   (want < 0.12)
+PASS  ... and are drawn on the exact drawn top                               73 floating, top error 0.000 m
+PASS  a bait ball draws gannets, terns and gulls                             18 birds: gull tern gannet
+PASS  ... flying in from out of sight (no popping in)                        nearest arrival 216 m from the camera   (want > 140 m)
+PASS  gannets plunge, folded, at ~20-24 m/s (Lee & Reddish 1981)             21 plunges, 22.0 m/s
+PASS  terns and gulls dip at the top                                         43 dips
+PASS  sitting birds ride the live swell                                      2830 bird-frames sitting, worst 0.002 m
+PASS  a helicopter low over them flushes them off the water                  5 sitting -> 0, 19 flushed
+PASS  no food: they fly off out of sight                                     0 left over, 18 left
+PASS  gulls come for the dead fish after a blast                             11 gulls, 30 dips
+PASS  the sandbar shark comes up under them                                  5.4 m from the blast
+PASS  a rough sea: the pilchard swim deeper                                  1.5 m calm -> 4.1 m in SS7
+PASS  no jellyfish near the top in a rough sea                               ray dolphin sardine sardine mackerel bonito mackerel sardine sardine ray sardine amberjack mackerel mackerel flyingfish amberjack damsel flyingfish
+PASS  schools loosen at night                                                nnd 1.53 -> 2.49 BL
+PASS  no seabirds out at night (they roost)                                  0
+PASS  cost of 1010 boids (HIGH budget 1100) per 60 Hz frame (node)           1.38 ms avg, 2.31 worst   (want < 3 ms)
+PASS  cost of 10 seabirds per frame                                          0.027 ms   (want < 0.5 ms)
+
+78/78 passed

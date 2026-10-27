@@ -1,0 +1,4 @@
+interface:
+  display_name: "Benchmark"
+  short_description: "Measure the sandbox and capture gameplay evidence"
+  default_prompt: "Use $benchmark to measure this sandbox change and capture screenshots and a short gameplay clip."

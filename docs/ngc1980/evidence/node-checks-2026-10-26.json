@@ -1,0 +1,246 @@
+{
+  "date": "2026-10-26",
+  "source": "ngc/visibility-ui after fcf6b0e; final gameplay source identified in VALIDATION.md",
+  "command": "node tools/check.mjs",
+  "artifacts": "tools/runs/check-2026-10-26T08-27-08-115Z",
+  "passed": 481,
+  "failed": 0,
+  "syntax": {
+    "modules": 435,
+    "failed": 0
+  },
+  "programs": [
+    {
+      "name": "airbench.mjs",
+      "ok": true,
+      "seconds": 2.88
+    },
+    {
+      "name": "armorgamebench.mjs",
+      "ok": true,
+      "seconds": 2.51
+    },
+    {
+      "name": "boxcarbench.mjs",
+      "ok": true,
+      "seconds": 0.09
+    },
+    {
+      "name": "buddyaidbench.mjs",
+      "ok": true,
+      "seconds": 18.69
+    },
+    {
+      "name": "c130bench.mjs",
+      "ok": true,
+      "seconds": 5.96
+    },
+    {
+      "name": "catdeckbench.mjs",
+      "ok": true,
+      "seconds": 1.5
+    },
+    {
+      "name": "cavebench.mjs",
+      "ok": true,
+      "seconds": 1.13
+    },
+    {
+      "name": "ch46bench.mjs",
+      "ok": true,
+      "seconds": 0.89
+    },
+    {
+      "name": "ch46playbench.mjs",
+      "ok": true,
+      "seconds": 0.73
+    },
+    {
+      "name": "commanderbench.mjs",
+      "ok": true,
+      "seconds": 4.13
+    },
+    {
+      "name": "deckopsbench.mjs",
+      "ok": true,
+      "seconds": 1.4
+    },
+    {
+      "name": "economybench.mjs",
+      "ok": true,
+      "seconds": 3.14
+    },
+    {
+      "name": "embarkbench.mjs",
+      "ok": true,
+      "seconds": 1.1
+    },
+    {
+      "name": "fishbench.mjs",
+      "ok": true,
+      "seconds": 11.71
+    },
+    {
+      "name": "footbench.mjs",
+      "ok": true,
+      "seconds": 0.08
+    },
+    {
+      "name": "groundwarbench.mjs",
+      "ok": true,
+      "seconds": 49.82
+    },
+    {
+      "name": "healthbarbench.mjs",
+      "ok": true,
+      "seconds": 23.59
+    },
+    {
+      "name": "hotas-selftest.mjs",
+      "ok": true,
+      "seconds": 0.03
+    },
+    {
+      "name": "hueybench.mjs",
+      "ok": true,
+      "seconds": 1.35
+    },
+    {
+      "name": "infantrybench.mjs",
+      "ok": true,
+      "seconds": 2.76
+    },
+    {
+      "name": "jetbench.mjs",
+      "ok": true,
+      "seconds": 0.45
+    },
+    {
+      "name": "marinebench.mjs",
+      "ok": true,
+      "seconds": 1.43
+    },
+    {
+      "name": "medinvbench.mjs",
+      "ok": true,
+      "seconds": 3.28
+    },
+    {
+      "name": "mv22bench.mjs",
+      "ok": true,
+      "seconds": 0.97
+    },
+    {
+      "name": "navalbench.mjs",
+      "ok": true,
+      "seconds": 0.99
+    },
+    {
+      "name": "rotarycontactbench.mjs",
+      "ok": true,
+      "seconds": 0.03
+    },
+    {
+      "name": "rotarydeck.mjs",
+      "ok": true,
+      "seconds": 3.97
+    },
+    {
+      "name": "runawaybench.mjs",
+      "ok": true,
+      "seconds": 14.76
+    },
+    {
+      "name": "seabench.mjs",
+      "ok": true,
+      "seconds": 0.08
+    },
+    {
+      "name": "simbench.mjs",
+      "ok": true,
+      "seconds": 65.53
+    },
+    {
+      "name": "simreportbench.mjs",
+      "ok": true,
+      "seconds": 0.02
+    },
+    {
+      "name": "slingbench.mjs",
+      "ok": true,
+      "seconds": 0.86
+    },
+    {
+      "name": "tankbench.mjs",
+      "ok": true,
+      "seconds": 12.31
+    },
+    {
+      "name": "techbench.mjs",
+      "ok": true,
+      "seconds": 0.06
+    },
+    {
+      "name": "telemetrybench.mjs",
+      "ok": true,
+      "seconds": 2.09
+    },
+    {
+      "name": "tomcatbench.mjs",
+      "ok": true,
+      "seconds": 1.22
+    },
+    {
+      "name": "tomcatsysbench.mjs",
+      "ok": true,
+      "seconds": 1.13
+    },
+    {
+      "name": "transportbench.mjs",
+      "ok": true,
+      "seconds": 11.99
+    },
+    {
+      "name": "visibilitybench.mjs",
+      "ok": true,
+      "seconds": 1.89
+    },
+    {
+      "name": "warsimbench.mjs",
+      "ok": true,
+      "seconds": 3.04
+    },
+    {
+      "name": "waspbench.mjs",
+      "ok": true,
+      "seconds": 0.16
+    },
+    {
+      "name": "wheeledbench.mjs",
+      "ok": true,
+      "seconds": 42.29
+    },
+    {
+      "name": "wheelinputbench.mjs",
+      "ok": true,
+      "seconds": 0.02
+    },
+    {
+      "name": "worldbench.mjs",
+      "ok": true,
+      "seconds": 5.19
+    },
+    {
+      "name": "worldpolishbench.mjs",
+      "ok": true,
+      "seconds": 1.73
+    },
+    {
+      "name": "worldsolidbench.mjs",
+      "ok": true,
+      "seconds": 1.65
+    }
+  ],
+  "sourceCommit": "a141dd463f1a3eb229c7e731e7c4a356ab31cc0e",
+  "gameTree": "facda38801b4d1d1a35f0dad4a82d39c9d5234ee"
+}

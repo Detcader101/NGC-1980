@@ -28,15 +28,28 @@ export default async function (h) {
     return 1; })()`);
   await h.eval('__G.cockpitCam = true'); await h.wait(4000); await h.shot('approach-cockpit');
   await h.eval('(__G.cockpitCam = false, __G.JP.snapChase(), 1)'); await h.wait(2500); await h.shot('approach-chase');
-  await h.waitFor('__G.JP.J.trapWire > 0 || !__G.JP.alive', 30000);
+  await h.waitFor('__G.JP.J.trapWire > 0 || !__G.JP.alive', 150000);   // (ngc/bugsweep: wall timeouts for 2-5 fps headless)
   await h.eval('({wire: __G.JP.J.trapWire, alive: __G.JP.alive, loss: __G.JP.lastLoss})');
   await h.wait(600); await h.shot('trap-chase');
-  await h.waitFor('__G.JP.stoppedOnDeck() || !__G.JP.alive', 20000);
+  await h.waitFor('__G.JP.stoppedOnDeck() || !__G.JP.alive', 120000);
   await h.wait(1500);
   await h.eval('({onDeck: __G.JP.stoppedOnDeck(), wire: __G.JP.J.trapWire, alive: __G.JP.alive})');
   await h.expect('__G.JP.alive && __G.JP.J.trapWire > 0 && __G.JP.stoppedOnDeck()');
   await h.eval('(__G.cockpitCam = true, 1)'); await h.wait(1500); await h.shot('trapped-cockpit');
-  // back to the helicopter
+  // FOUNDATION: Y climbs out onto the deck (the Hornet stays parked where it stopped, the deck crew brings the Huey up),
+  // Y at the ladder climbs back in, Y out again, walk to the Huey and fly it
   await h.eval('__G.JP.autopilot = null'); await h.key('tap', 'KeyY'); await h.wait(800);
-  await h.expect('__G.G.craft === "heli" && __G.G.jets === 2');
+  await h.expect('__G.G.craft === "foot" && __G.jetC.park.on && __G.JP.active && !__G.G.heliStowed && __G.G.jets === 1');
+  await h.eval("(__G.foot.view = 'third', __G.foot.W.yaw += 2.6, 1)"); await h.wait(1200); await h.shot('out-beside-the-parked-hornet');
+  await h.eval('(window.__jp = __G.GR.toLocal(__G.war.carrier, __G.JP.J.pos.x, __G.JP.J.pos.z), 1)'); await h.wait(3000);
+  await h.eval('({ was: __jp, now: __G.GR.toLocal(__G.war.carrier, __G.JP.J.pos.x, __G.JP.J.pos.z) })');
+  await h.expect('(([a, b]) => Math.hypot(a - __jp[0], b - __jp[1]) < 0.1)(__G.GR.toLocal(__G.war.carrier, __G.JP.J.pos.x, __G.JP.J.pos.z))');
+  await h.key('tap', 'KeyY'); await h.wait(500);
+  await h.expect('__G.G.craft === "jet" && !__G.foot.exists');
+  await h.key('tap', 'KeyY'); await h.wait(500);
+  await h.expect('__G.G.craft === "foot"');
+  await h.eval(`(() => { const d = __G.crafts.toWorld(__G.heliC, [2.6, -1.84, -1.9]), c = __G.war.carrier; return __G.foot.spawnAt({ x: d.x, y: c.p.y + 8, z: d.z, yaw: d.yaw + Math.PI / 2 }); })()`);
+  await h.key('tap', 'KeyY'); await h.wait(500);
+  await h.expect('__G.G.craft === "heli" && __G.Z.alive');
+  await h.eval('(__G.cockpitCam = false, 1)'); await h.wait(1500); await h.shot('huey-and-parked-hornet');
 }

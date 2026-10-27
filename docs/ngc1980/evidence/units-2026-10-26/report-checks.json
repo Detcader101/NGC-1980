@@ -1,0 +1,133 @@
+{
+  "ok": true,
+  "report": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/docs/devlogs/2026-10-26-units/devlog.html",
+  "reportSha256": "32750ef42e6e04576c7bf83a3939a75d5c451efb4aef66da54311b62f0b544e9",
+  "checks": [
+    {
+      "ok": true,
+      "label": "All bundled artifacts match the manifest"
+    },
+    {
+      "ok": true,
+      "label": "Report has a visible title",
+      "value": "48 units: roles, readable models and repeatable checks"
+    },
+    {
+      "ok": true,
+      "label": "All contents links point to sections"
+    },
+    {
+      "ok": true,
+      "label": "Desktop has no document overflow"
+    },
+    {
+      "ok": true,
+      "label": "All selected screenshots and contact sheets decode",
+      "value": 69
+    },
+    {
+      "ok": true,
+      "label": "All linked media and data exist inside the report"
+    },
+    {
+      "ok": true,
+      "label": "Clip 1 loads, seeks and plays offline",
+      "value": {
+        "duration": 4.1192,
+        "currentTime": 1.9552,
+        "width": 800,
+        "height": 450
+      }
+    },
+    {
+      "ok": true,
+      "label": "Clip 2 loads, seeks and plays offline",
+      "value": {
+        "duration": 5.366933,
+        "currentTime": 2.5158,
+        "width": 800,
+        "height": 450
+      }
+    },
+    {
+      "ok": true,
+      "label": "Clip 3 loads, seeks and plays offline",
+      "value": {
+        "duration": 5.454667,
+        "currentTime": 2.5556,
+        "width": 800,
+        "height": 450
+      }
+    },
+    {
+      "ok": true,
+      "label": "Clip 4 loads, seeks and plays offline",
+      "value": {
+        "duration": 5.811467,
+        "currentTime": 2.7156,
+        "width": 800,
+        "height": 450
+      }
+    },
+    {
+      "ok": true,
+      "label": "Clip 5 loads, seeks and plays offline",
+      "value": {
+        "duration": 6.054,
+        "currentTime": 2.8263,
+        "width": 800,
+        "height": 450
+      }
+    },
+    {
+      "ok": true,
+      "label": "Clip 6 loads, seeks and plays offline",
+      "value": {
+        "duration": 4.8692,
+        "currentTime": 2.2915,
+        "width": 800,
+        "height": 450
+      }
+    },
+    {
+      "ok": true,
+      "label": "Clip 7 loads, seeks and plays offline",
+      "value": {
+        "duration": 5.565533,
+        "currentTime": 2.6052,
+        "width": 800,
+        "height": 450
+      }
+    },
+    {
+      "ok": true,
+      "label": "Clip 8 loads, seeks and plays offline",
+      "value": {
+        "duration": 5.547933,
+        "currentTime": 2.5987,
+        "width": 800,
+        "height": 450
+      }
+    },
+    {
+      "ok": true,
+      "label": "Clip 9 loads, seeks and plays offline",
+      "value": {
+        "duration": 6.0374,
+        "currentTime": 2.8182,
+        "width": 800,
+        "height": 450
+      }
+    },
+    {
+      "ok": true,
+      "label": "390 px layout has no document overflow"
+    },
+    {
+      "ok": true,
+      "label": "No report browser errors",
+      "value": []
+    }
+  ],
+  "errors": []
+}

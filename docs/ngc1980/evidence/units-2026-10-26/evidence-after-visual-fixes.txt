@@ -1,0 +1,17 @@
+PASS percentiles retain slow outliers and FPS uses the mean interval
+PASS empty and nonfinite timing samples are rejected
+PASS comparable sources report measured deltas
+PASS comparison rejects mismatched viewport
+PASS comparison rejects mismatched gpu
+PASS comparison rejects mismatched sceneSha256
+PASS comparison rejects mismatched seed
+PASS failed, unseeded and mismatched sample policies cannot imply an improvement
+PASS actual buffer, preview state and XR changes invalidate a comparison
+PASS benchmark prevents overlapping capture and screenshots, then releases its guard
+PASS recording stops and its guard clears when a scene action throws
+PASS artifact copying rejects traversal and symlink escapes
+PASS HTML escapes editorial text, preserves failures and copies independent evidence
+PASS missing media fails the report instead of silently dropping evidence
+PASS large unit reports collapse detail while keeping failed runs open
+PASS ambiguous run IDs and media selectors are rejected
+16/16 evidence checks passed

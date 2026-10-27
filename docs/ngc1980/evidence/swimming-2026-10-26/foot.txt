@@ -1,0 +1,30 @@
+PASS  walk (quick time) speed                        1.53 m/s   (want 1.52 FM 22-5)
+PASS  run (double time) speed                        2.76 m/s   (want 2.74 FM 22-5)
+PASS  sprint speed (loaded rush)                     5.56 m/s   (want ~5.5 INFERRED)
+PASS  sprint until winded                            13.3 s   (want ~13 s)
+PASS  prone crawl speed                              0.50 m/s   (want 0.5)
+PASS  prone eye height                               0.30 m   (want 0.30)
+PASS  stops when the keys are released               0.000 m
+PASS  standing jump height                           0.43 m   (want ~0.45)
+PASS  steps up a 0.4 m step                          x 21.1 y 0.40
+PASS  stopped by a 3 m wall                          x 30.00
+PASS  cannot jump a 3 m wall                         x 30.00
+PASS  cannot climb a 40 degree slope                 x 40.00 y 0.00
+PASS  walks down a 40 degree slope                   x 31.0 y 0.00
+PASS  3 m fall hurts                                 {"e":"land","v":7.6845,"surface":"grass"}
+PASS  1.5 m drop does not                            {"e":"land","v":5.3955,"surface":"grass"}
+PASS  wades into the shallows                        x 90.3 wade 0.11
+PASS  swims in deep water                            x 96.0 y -1.30
+PASS  swimming speed                                 0.91 m/s   (want 0.9)
+PASS  walks back out onto the beach                  x 52.1 y 0.00
+PASS  carried by a moving, turning, rising deck      slip 0.000 m, y-deck 0.000
+PASS  turns with the ship                            yaw 1.000 ship 1.000
+PASS  mouse look kept on a turning deck              yaw-ship 1.0000
+PASS  walks at 1.52 m/s relative to the deck         1.54 m/s
+PASS  a jump on a moving deck lands on the same spot slip 0.017 m
+PASS  walks off the deck edge into the sea           swim true x 217.9
+PASS  climbs the stern ladder out of the sea onto the deck ladder true y 8.00 plat true
+PASS  climbs the stern ladder of a moving, turning ship y 8.00 local 0.00,29.10
+PASS  walks under a flying carrier                   z 259.2 y 0.00
+
+all passed

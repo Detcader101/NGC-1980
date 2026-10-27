@@ -1,0 +1,1061 @@
+{
+  "schemaVersion": 2,
+  "name": "coast-research",
+  "query": "?debug&auto&kb&peace&res=0.45&tech=default",
+  "seed": 1980,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "1999575f974058e09766cbf3fda9f8975ddf6e74de93d63591247de35e96c2b7",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/evidence/tools/snap.mjs",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/evidence/tools/scenes/evidence.mjs",
+    "--out",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/evidence/tools/runs/evidence-release",
+    "--capture",
+    "--frames",
+    "30"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/evidence",
+    "commit": "aa8c5a82c2088280811e99c0df37ef161ad6b4e6",
+    "branch": "ngc/evidence",
+    "gameTree": "79685ee0377afe0eb907f098387cd237132f5261",
+    "gameSha256": "65205822fc509a158d58060114da39cf6f38c557462784ad206f240b0bf865b1",
+    "dirty": false,
+    "status": ""
+  },
+  "url": "http://127.0.0.1:46001/?debug&auto&kb&peace&res=0.45&tech=default",
+  "ok": true,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": "3 fps  ·  res 45%",
+  "shots": [
+    {
+      "name": "coastal-flight",
+      "file": "01-coastal-flight.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 107.1,
+      "litFraction": 0.9993,
+      "colors": 397
+    },
+    {
+      "name": "research-open",
+      "file": "02-research-open.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 55.3,
+      "litFraction": 0.9326,
+      "colors": 409
+    }
+  ],
+  "clips": [
+    {
+      "name": "coastal-flight",
+      "file": "01-coastal-flight.mp4",
+      "contact": "01-coastal-flight-contact.png",
+      "poster": "01-coastal-flight-poster.png",
+      "requestedDurationMs": 6000,
+      "wallMs": 6009.146306999999,
+      "requestedFps": 15,
+      "bytes": 64218,
+      "audio": false,
+      "durationSeconds": 4.240333,
+      "width": 800,
+      "height": 450,
+      "samples": [
+        {
+          "time": 0.50883996,
+          "litFraction": 0.9990354938271605,
+          "fingerprint": "5028f101"
+        },
+        {
+          "time": 2.1201665,
+          "litFraction": 0.9990837191358025,
+          "fingerprint": "cd0179bb"
+        },
+        {
+          "time": 3.7314930399999997,
+          "litFraction": 0.9992283950617284,
+          "fingerprint": "3734b509"
+        }
+      ],
+      "qualification": "Wall-time page capture, including DOM UI. Encoded duration may be shorter than the requested wall window; capture overhead and dropped frames affect playback. Encoded FPS is not game FPS. Contact sheet is decoded from this MP4."
+    },
+    {
+      "name": "research-navigation",
+      "file": "02-research-navigation.mp4",
+      "contact": "02-research-navigation-contact.png",
+      "poster": "02-research-navigation-poster.png",
+      "requestedDurationMs": 6000,
+      "wallMs": 6009.076528000005,
+      "requestedFps": 15,
+      "bytes": 151141,
+      "audio": false,
+      "durationSeconds": 4.2004,
+      "width": 800,
+      "height": 450,
+      "samples": [
+        {
+          "time": 0.504048,
+          "litFraction": 0.9584297839506173,
+          "fingerprint": "8e01db35"
+        },
+        {
+          "time": 2.1002,
+          "litFraction": 0.9992283950617284,
+          "fingerprint": "bdd59b30"
+        },
+        {
+          "time": 3.696352,
+          "litFraction": 0.9523533950617284,
+          "fingerprint": "8ba65bb6"
+        }
+      ],
+      "qualification": "Wall-time page capture, including DOM UI. Encoded duration may be shorter than the requested wall window; capture overhead and dropped frames affect playback. Encoded FPS is not game FPS. Contact sheet is decoded from this MP4."
+    }
+  ],
+  "benchmarks": [
+    {
+      "name": "coastal-flight",
+      "policy": {
+        "frames": 30,
+        "warmup": 30,
+        "timeoutMs": 120000
+      },
+      "rows": [
+        {
+          "frame": 58,
+          "ms": 216.80000001192093,
+          "sim": 6.159579838433544,
+          "prep": 1.8017223887407305,
+          "render": 6.628924968127868,
+          "calls": 152,
+          "triangles": 274008,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 59,
+          "ms": 105.19999998807907,
+          "sim": 5.931600846213843,
+          "prep": 1.7316362696017173,
+          "render": 6.477478719423451,
+          "calls": 152,
+          "triangles": 274008,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 60,
+          "ms": 120.70000000298023,
+          "sim": 5.690020804350186,
+          "prep": 1.6700544561216315,
+          "render": 6.303604783452278,
+          "calls": 152,
+          "triangles": 274008,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 61,
+          "ms": 16.799999997019768,
+          "sim": 5.445519763983665,
+          "prep": 1.61155173331555,
+          "render": 6.163424544279664,
+          "calls": 152,
+          "triangles": 274008,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 62,
+          "ms": 108.5,
+          "sim": 5.26324377563547,
+          "prep": 1.5559741466497725,
+          "render": 6.040253317214693,
+          "calls": 152,
+          "triangles": 274008,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 63,
+          "ms": 216,
+          "sim": 5.055081586555673,
+          "prep": 1.5031754393172838,
+          "render": 5.908240651651981,
+          "calls": 152,
+          "triangles": 274008,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 64,
+          "ms": 7.700000002980232,
+          "sim": 4.832327506929866,
+          "prep": 1.4380166675004313,
+          "render": 5.747828619218394,
+          "calls": 152,
+          "triangles": 274008,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 65,
+          "ms": 208.70000000298023,
+          "sim": 4.675711131732385,
+          "prep": 1.3961158338273865,
+          "render": 5.615437188704509,
+          "calls": 153,
+          "triangles": 274652,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 66,
+          "ms": 146.90000000596046,
+          "sim": 4.521925574847742,
+          "prep": 1.3563100425830519,
+          "render": 5.519665329418295,
+          "calls": 153,
+          "triangles": 274652,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 67,
+          "ms": 105.5,
+          "sim": 4.3458292961053555,
+          "prep": 1.298494540602911,
+          "render": 5.413682063245403,
+          "calls": 153,
+          "triangles": 274652,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 68,
+          "ms": 213,
+          "sim": 4.178537831300088,
+          "prep": 1.2485698134237537,
+          "render": 5.2829979599341215,
+          "calls": 153,
+          "triangles": 274652,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 69,
+          "ms": 10.099999994039536,
+          "sim": 3.9996109394370603,
+          "prep": 1.2661413231996008,
+          "render": 5.128848062086427,
+          "calls": 153,
+          "triangles": 274652,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 70,
+          "ms": 108.70000000298023,
+          "sim": 3.8696303920181725,
+          "prep": 1.222834257337644,
+          "render": 5.022405658982106,
+          "calls": 153,
+          "triangles": 274652,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 71,
+          "ms": 8.099999994039536,
+          "sim": 3.726148872417264,
+          "prep": 1.186692544470762,
+          "render": 4.921285376033001,
+          "calls": 153,
+          "triangles": 274652,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 72,
+          "ms": 117.1000000089407,
+          "sim": 3.589841428796401,
+          "prep": 1.142357917098212,
+          "render": 4.81522110708234,
+          "calls": 153,
+          "triangles": 274652,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 73,
+          "ms": 118.29999999701977,
+          "sim": 3.485349357356581,
+          "prep": 1.1102400212433015,
+          "render": 4.7294600521752574,
+          "calls": 153,
+          "triangles": 274652,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 74,
+          "ms": 116.3999999910593,
+          "sim": 3.4210818896377635,
+          "prep": 1.0747280197341016,
+          "render": 4.667987049566495,
+          "calls": 153,
+          "triangles": 274652,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 75,
+          "ms": 14.100000008940697,
+          "sim": 3.2950277954538985,
+          "prep": 1.0459916187473965,
+          "render": 4.554587696641136,
+          "calls": 153,
+          "triangles": 274652,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 76,
+          "ms": 105.79999999701977,
+          "sim": 3.2052764056812038,
+          "prep": 1.0236920382570616,
+          "render": 4.516858311660068,
+          "calls": 153,
+          "triangles": 274652,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 77,
+          "ms": 129.5,
+          "sim": 3.115012584950109,
+          "prep": 1.0075074364932202,
+          "render": 4.471015396524099,
+          "calls": 153,
+          "triangles": 274652,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 78,
+          "ms": 111.79999999701977,
+          "sim": 3.0542619552555688,
+          "prep": 0.987132065115594,
+          "render": 4.4524646263998715,
+          "calls": 153,
+          "triangles": 274652,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 79,
+          "ms": 225.90000000596046,
+          "sim": 2.9765488574927903,
+          "prep": 0.9727754620088259,
+          "render": 4.41484139522889,
+          "calls": 153,
+          "triangles": 274652,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 80,
+          "ms": 116.20000000298023,
+          "sim": 2.9077214143201275,
+          "prep": 0.9441366892064078,
+          "render": 4.354099325616457,
+          "calls": 153,
+          "triangles": 274652,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 81,
+          "ms": 127.8999999910593,
+          "sim": 2.837335343604121,
+          "prep": 0.9269298544480642,
+          "render": 4.326394359186622,
+          "calls": 153,
+          "triangles": 274652,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 82,
+          "ms": 129.20000000298023,
+          "sim": 2.770468576423915,
+          "prep": 0.9155833618746726,
+          "render": 4.265074640929268,
+          "calls": 153,
+          "triangles": 274652,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 83,
+          "ms": 118.29999999701977,
+          "sim": 2.7019451471556843,
+          "prep": 0.8898041940789622,
+          "render": 4.201820908882805,
+          "calls": 153,
+          "triangles": 274652,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 84,
+          "ms": 107.70000000298023,
+          "sim": 2.646847890244935,
+          "prep": 0.8703139843750141,
+          "render": 4.146729863140641,
+          "calls": 153,
+          "triangles": 274652,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 85,
+          "ms": 15.700000002980232,
+          "sim": 2.544505496179723,
+          "prep": 0.836798285305275,
+          "render": 4.029393369834597,
+          "calls": 153,
+          "triangles": 274652,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 86,
+          "ms": 235.70000000298023,
+          "sim": 2.4522802207746905,
+          "prep": 0.8149583713380345,
+          "render": 3.972923701640891,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 87,
+          "ms": 230,
+          "sim": 2.409666209437933,
+          "prep": 0.8042104532181676,
+          "render": 3.959277516707858,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        }
+      ],
+      "xr": false,
+      "state": "play",
+      "mode": "zarch",
+      "drawingBuffer": [
+        576,
+        324
+      ],
+      "eyeViewports": [],
+      "summary": {
+        "samples": 30,
+        "frameMs": {
+          "count": 30,
+          "mean": 120.41000000039736,
+          "p50": 116.3999999910593,
+          "p95": 225.90000000596046,
+          "p99": 230,
+          "min": 7.700000002980232,
+          "max": 235.70000000298023
+        },
+        "observedFps": 8.30495805993439,
+        "cpuMs": {
+          "sim": {
+            "count": 30,
+            "mean": 3.8369312910908584,
+            "p50": 3.485349357356581,
+            "p95": 5.690020804350186,
+            "p99": 5.931600846213843,
+            "min": 2.409666209437933,
+            "max": 6.159579838433544
+          },
+          "prep": {
+            "count": 30,
+            "mean": 1.188481640974485,
+            "p50": 1.1102400212433015,
+            "p95": 1.6700544561216315,
+            "p99": 1.7316362696017173,
+            "min": 0.8042104532181676,
+            "max": 1.8017223887407305
+          },
+          "renderSubmit": {
+            "count": 30,
+            "mean": 5.001740885432983,
+            "p50": 4.7294600521752574,
+            "p95": 6.303604783452278,
+            "p99": 6.477478719423451,
+            "min": 3.959277516707858,
+            "max": 6.628924968127868
+          }
+        },
+        "drawCalls": {
+          "count": 30,
+          "mean": 152.76666666666668,
+          "p50": 153,
+          "p95": 153,
+          "p99": 153,
+          "min": 152,
+          "max": 153
+        },
+        "triangles": {
+          "count": 30,
+          "mean": 274515.06666666665,
+          "p50": 274652,
+          "p95": 274652,
+          "p99": 274852,
+          "min": 274008,
+          "max": 274852
+        },
+        "textures": {
+          "count": 30,
+          "mean": 31,
+          "p50": 31,
+          "p95": 31,
+          "p99": 31,
+          "min": 31,
+          "max": 31
+        },
+        "geometries": {
+          "count": 30,
+          "mean": 659,
+          "p50": 659,
+          "p95": 659,
+          "p99": 659,
+          "min": 659,
+          "max": 659
+        }
+      },
+      "qualification": "Wall-clock intervals between observed rendered frames. CPU phases are game-smoothed CPU timings, not GPU durations. Render counters describe the last render pass. No capture during sampling."
+    },
+    {
+      "name": "research-open",
+      "policy": {
+        "frames": 30,
+        "warmup": 30,
+        "timeoutMs": 120000
+      },
+      "rows": [
+        {
+          "frame": 226,
+          "ms": 117.79999999701977,
+          "sim": 1.0647670354909862,
+          "prep": 0.41364388473790276,
+          "render": 2.986817741469112,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 227,
+          "ms": 245.20000000298023,
+          "sim": 1.0715286838654485,
+          "prep": 0.432961690351996,
+          "render": 2.9724768545446683,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 228,
+          "ms": 113.8999999910593,
+          "sim": 1.0779522490761297,
+          "prep": 0.42631360643044264,
+          "render": 2.9438530113704,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 229,
+          "ms": 112.20000000298023,
+          "sim": 1.1040546363243,
+          "prep": 0.4299979261089205,
+          "render": 2.9616603613979264,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 230,
+          "ms": 124.79999999701977,
+          "sim": 1.1288519049551198,
+          "prep": 0.46349802950545127,
+          "render": 2.9835773436260533,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 231,
+          "ms": 233.90000000596046,
+          "sim": 1.1724093097073638,
+          "prep": 0.4653231280301787,
+          "render": 3.024398476295739,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 232,
+          "ms": 115.3999999910593,
+          "sim": 1.1937888439239723,
+          "prep": 0.46205697192669304,
+          "render": 3.0581785518849056,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 233,
+          "ms": 227.1000000089407,
+          "sim": 1.1940994018767854,
+          "prep": 0.4789541231813468,
+          "render": 3.0752696245886835,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 234,
+          "ms": 138.29999999701977,
+          "sim": 1.2293944320809693,
+          "prep": 0.4850064167242562,
+          "render": 3.1165061436572725,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 235,
+          "ms": 222.90000000596046,
+          "sim": 1.2529247106259325,
+          "prep": 0.49075609559002015,
+          "render": 3.140680836921444,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 236,
+          "ms": 126.3999999910593,
+          "sim": 1.2452784755416706,
+          "prep": 0.5062182906615075,
+          "render": 3.1186467952243833,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 237,
+          "ms": 231.20000000298023,
+          "sim": 1.2630145514665638,
+          "prep": 0.5009073764264553,
+          "render": 3.142714455165141,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 238,
+          "ms": 124.20000000298023,
+          "sim": 1.2498638238932356,
+          "prep": 0.49086200745612096,
+          "render": 3.110578732406884,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 239,
+          "ms": 120,
+          "sim": 1.2623706326985737,
+          "prep": 0.516318907083315,
+          "render": 3.125049796084563,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 240,
+          "ms": 110,
+          "sim": 1.2642521009146335,
+          "prep": 0.5105029620271724,
+          "render": 3.1037973056842882,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 241,
+          "ms": 111.79999999701977,
+          "sim": 1.246039495421867,
+          "prep": 0.49997781377680217,
+          "render": 3.043607440698097,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 242,
+          "ms": 121.90000000596046,
+          "sim": 1.2637375210978086,
+          "prep": 0.5199789226409273,
+          "render": 3.071427069110227,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 243,
+          "ms": 136.19999998807907,
+          "sim": 1.2855506451919299,
+          "prep": 0.518979976508881,
+          "render": 3.057855715505704,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 244,
+          "ms": 118.20000000298023,
+          "sim": 1.276273113379368,
+          "prep": 0.5080309775344253,
+          "render": 3.0299629297304187,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 245,
+          "ms": 158.70000000298023,
+          "sim": 1.2624594577103998,
+          "prep": 0.5226294285086924,
+          "render": 3.023464783541921,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 246,
+          "ms": 230.5,
+          "sim": 1.2943364851229031,
+          "prep": 0.5264979567852346,
+          "render": 3.067291544662848,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 247,
+          "ms": 110.29999999701977,
+          "sim": 1.304619660866758,
+          "prep": 0.520173059243996,
+          "render": 3.0789269672806943,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 248,
+          "ms": 147.79999999701977,
+          "sim": 1.319388677525397,
+          "prep": 0.5441644062817962,
+          "render": 3.104980618618636,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 249,
+          "ms": 107.20000000298023,
+          "sim": 1.3184192435001154,
+          "prep": 0.5369561862657296,
+          "render": 3.104731587389681,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 250,
+          "ms": 10.799999997019768,
+          "sim": 1.2774982813251097,
+          "prep": 0.5251083768034315,
+          "render": 3.0394950078711855,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 251,
+          "ms": 149.1000000089407,
+          "sim": 1.293623367705889,
+          "prep": 0.5238529579632599,
+          "render": 3.04752025688158,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 252,
+          "ms": 209.5,
+          "sim": 1.2989421988735597,
+          "prep": 0.5276603105121318,
+          "render": 3.020144244037501,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 253,
+          "ms": 13.399999991059303,
+          "sim": 1.2639950886318585,
+          "prep": 0.5112772951355369,
+          "render": 2.9591370316866143,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 254,
+          "ms": 139.5,
+          "sim": 1.2957953344982889,
+          "prep": 0.5057134299317252,
+          "render": 2.951180179953272,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        },
+        {
+          "frame": 255,
+          "ms": 120,
+          "sim": 1.3110055682204094,
+          "prep": 0.5004277579881041,
+          "render": 2.9786211709556087,
+          "calls": 153,
+          "triangles": 274852,
+          "textures": 31,
+          "geometries": 659
+        }
+      ],
+      "xr": false,
+      "state": "play",
+      "mode": "zarch",
+      "drawingBuffer": [
+        576,
+        324
+      ],
+      "eyeViewports": [],
+      "summary": {
+        "samples": 30,
+        "frameMs": {
+          "count": 30,
+          "mean": 141.6066666662693,
+          "p50": 124.20000000298023,
+          "p95": 231.20000000298023,
+          "p99": 233.90000000596046,
+          "min": 10.799999997019768,
+          "max": 245.20000000298023
+        },
+        "observedFps": 7.061814415536977,
+        "cpuMs": {
+          "sim": {
+            "count": 30,
+            "mean": 1.236207831050445,
+            "p50": 1.2624594577103998,
+            "p95": 1.3110055682204094,
+            "p99": 1.3184192435001154,
+            "min": 1.0647670354909862,
+            "max": 1.319388677525397
+          },
+          "prep": {
+            "count": 30,
+            "mean": 0.49549167573741515,
+            "p50": 0.5057134299317252,
+            "p95": 0.5276603105121318,
+            "p99": 0.5369561862657296,
+            "min": 0.41364388473790276,
+            "max": 0.5441644062817962
+          },
+          "renderSubmit": {
+            "count": 30,
+            "mean": 3.0480850859415147,
+            "p50": 3.04752025688158,
+            "p95": 3.125049796084563,
+            "p99": 3.140680836921444,
+            "min": 2.9438530113704,
+            "max": 3.142714455165141
+          }
+        },
+        "drawCalls": {
+          "count": 30,
+          "mean": 153,
+          "p50": 153,
+          "p95": 153,
+          "p99": 153,
+          "min": 153,
+          "max": 153
+        },
+        "triangles": {
+          "count": 30,
+          "mean": 274852,
+          "p50": 274852,
+          "p95": 274852,
+          "p99": 274852,
+          "min": 274852,
+          "max": 274852
+        },
+        "textures": {
+          "count": 30,
+          "mean": 31,
+          "p50": 31,
+          "p95": 31,
+          "p99": 31,
+          "min": 31,
+          "max": 31
+        },
+        "geometries": {
+          "count": 30,
+          "mean": 659,
+          "p50": 659,
+          "p95": 659,
+          "p99": 659,
+          "min": 659,
+          "max": 659
+        }
+      },
+      "qualification": "Wall-clock intervals between observed rendered frames. CPU phases are game-smoothed CPU timings, not GPU durations. Render counters describe the last render pass. No capture during sampling."
+    }
+  ],
+  "evals": [
+    {
+      "expr": "(() => {\n    const g=__G; g.G.bench=true; g.H.reset(new g.THREE.Vector3(-1500,80,200),0,false,1);\n    g.HI.setCollective(.45); g.cockpitCam=false;\n    window.__evidenceHover=setInterval(()=>g.HI.setCollective(Math.max(.2,Math.min(.7,.45+(80-g.H.pos.y)*.02-g.H.vel.y*.04))),16);\n    return {fixture:'seeded coastal hover at 80 m; peaceful war; ordinary sea-life population'};\n  })()",
+      "label": "fixture",
+      "value": {
+        "fixture": "seeded coastal hover at 80 m; peaceful war; ordinary sea-life population"
+      }
+    },
+    {
+      "expr": "(clearInterval(window.__evidenceHover),1)",
+      "value": 1
+    }
+  ],
+  "expects": [
+    {
+      "expr": "notblank(coastal-flight)",
+      "ok": true,
+      "value": 0.9993
+    },
+    {
+      "expr": "__G.Z.alive && __G.sealife.sim.schools.length>0",
+      "label": "live flight with natural sea-life population",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__G.techUI.isOpen",
+      "label": "HUD opens research",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(research-open)",
+      "ok": true,
+      "value": 0.9326
+    },
+    {
+      "expr": "__G.techUI.isOpen && __G.Z.alive",
+      "label": "research remains usable after capture",
+      "ok": true,
+      "value": true
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-26T12:25:39.244Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/evidence",
+    "commit": "aa8c5a82c2088280811e99c0df37ef161ad6b4e6",
+    "branch": "ngc/evidence",
+    "gameTree": "79685ee0377afe0eb907f098387cd237132f5261",
+    "gameSha256": "65205822fc509a158d58060114da39cf6f38c557462784ad206f240b0bf865b1",
+    "dirty": false,
+    "status": ""
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": "zarch",
+    "state": "play"
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/evidence",
+    "commit": "aa8c5a82c2088280811e99c0df37ef161ad6b4e6",
+    "branch": "ngc/evidence",
+    "gameTree": "79685ee0377afe0eb907f098387cd237132f5261",
+    "gameSha256": "65205822fc509a158d58060114da39cf6f38c557462784ad206f240b0bf865b1",
+    "dirty": false,
+    "status": ""
+  },
+  "summary": "PASS: 5/5 expects, 0 page errors, 0 console errors",
+  "durationMs": 50424,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/evidence/tools/runs/evidence-release"
+}

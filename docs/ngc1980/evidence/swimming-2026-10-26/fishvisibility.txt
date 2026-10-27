@@ -1,0 +1,23 @@
+PASS visibility is finite, weather/depth aware, and reuses an optional output object
+PASS packed school instances reproduce CPU sub-fish centers with distinct stable variation
+PASS packed airborne flags follow natural mullet leaps and clear on landing
+PASS low seed 1: a natural full aerial/ship population refills around the diver
+PASS low seed 7: a natural full aerial/ship population refills around the diver
+PASS low seed 1980: a natural full aerial/ship population refills around the diver
+PASS medium seed 1: a natural full aerial/ship population refills around the diver
+PASS medium seed 7: a natural full aerial/ship population refills around the diver
+PASS medium seed 1980: a natural full aerial/ship population refills around the diver
+PASS high seed 1: a natural full aerial/ship population refills around the diver
+PASS high seed 7: a natural full aerial/ship population refills around the diver
+PASS high seed 1980: a natural full aerial/ship population refills around the diver
+PASS low: surface swimmer sees naturally populated water before diving
+PASS low: a moving diver over 15 m water keeps fish near the view within the same caps
+PASS medium: surface swimmer sees naturally populated water before diving
+PASS medium: a moving diver over 15 m water keeps fish near the view within the same caps
+PASS HOME east shelf: ordinary seed 1980 / sea 4 has nearby drawable fish after an infantry dive
+PASS the same natural input history reproduces fish state and nearby population
+PASS submerged bodies beyond the former 40 m cutoff remain until shared fog hides them
+PASS body culling uses depth below the live camera surface, including a crest above sea level
+PASS Off never repopulates or submits fish, and re-enable naturally recovers
+
+21 swimmer visibility checks passed (simulation/culling only; no pixel or FPS claim).

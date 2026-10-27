@@ -1,0 +1,159 @@
+{
+  "title": "Underwater infantry: a clear view and recognisable fish",
+  "date": "2026-10-26",
+  "summary": "The same first-person dive that showed no visible fish now shows natural schools and the seabed. Underwater fog extends from 19.0 to 58.7 metres in this sea-state-4 sample; toggling only fish bodies changes 12,818 pixels, versus zero before. Nine fish types have clearer markings and silhouettes, alongside the existing ray, jellyfish and dolphin. Current browser scenes pass 36 assertions. The earlier failing dive is retained below.",
+  "reproduce": [
+    "Experimental: open the sandbox, choose Esc → SEA LIFE → MEDIUM or HIGH, enter the sea on foot, and hold C to dive. Release C to return to the surface. Schools populate naturally; close inspection reveals markings that are too small to resolve at a distance.",
+    "Open dev/fish.html on the game server for the twelve-species viewer. Select a fish, drag to orbit, scroll/pinch to zoom and use Pause animation. Each view uses its own fitted camera; the fish keep their in-game lengths.",
+    "CHROME_PATH=/path/to/chrome node tools/benchmark.mjs tools/scenes/underwater.mjs --frames 30 --out tools/runs/underwater-new",
+    "CHROME_PATH=/path/to/chrome node tools/benchmark.mjs tools/scenes/fish-species.mjs --frames 30 --out tools/runs/fish-species-new",
+    "Node checks: node tools/fishvisibilitybench.mjs (21), node tools/fishlooksbench.mjs (22), node tools/fishbench.mjs (78). Foot and Marine checks also pass. Syntax passed 478 modules before the final instance-packing follow-up; its changed modules and final scene were syntax-checked afterward.",
+    "Airborne regression: CHROME_PATH=/path/to/chrome SNAP_WALL=1 node tools/snap.mjs tools/scenes/visibility.mjs --seed 1980 --out tools/runs/fish-aerial-new. The existing desktop smoke was also repeated on the final game content."
+  ],
+  "changes": [
+    {
+      "title": "Natural fish where the swimmer can actually see",
+      "change": "Underwater fog previously ended at about 19 metres in the default sea. Most schools spawned outside that view, and distant schools around ships could occupy every slot. Swimmers and divers now receive two or three nearby schools through the existing habitat rules; distant unseen schools fade out when room is needed. The seabed expands to a 192-metre square, and fog, fish culling, effects and seabed share a longer view distance.",
+      "observed": "The earlier screenshot is almost empty blue water. The current first-person view shows a nearby silver school, a second school farther ahead and the seabed below. These are natural populations at normal fish sizes; the fixture only places the Marine on a real shelf and holds the ordinary dive key.",
+      "checks": [
+        "The matched scene passes 6/6: real infantry swim/dive state, longer fog range, 12,818 changed fish-body pixels in a 768×432 drawing buffer, rendered image, Sea life Off and resurfacing.",
+        "The pixel check renders the same frame twice, hiding only fish/ray/jelly/dolphin bodies on the second render. Water, particles, scenery and HUD cannot create the difference.",
+        "21 deterministic population/culling checks cover full Low/Medium/High budgets, multiple seeds, surface swimmers, moving divers, the real shelf, fade retirement, habitat/species caps, live waves, Off and instance-buffer agreement."
+      ],
+      "limitations": [
+        "The Marine is scripted onto the shelf rather than walking there from the carrier. This selected daylight dive does not cover every island, depth, weather state or view direction.",
+        "The new 34–72 metre profile is a gameplay choice, not an optical water-clarity simulation. Population budgets and original fish lengths are retained."
+      ],
+      "media": [
+        {
+          "run": "before",
+          "shot": "underwater-natural",
+          "label": "Before: short view, no visible fish",
+          "caption": "Same shelf, actual infantry camera, medium sea life and sea state 4. The required visibility and fish-pixel checks fail.",
+          "reviewed": true
+        },
+        {
+          "run": "after",
+          "shot": "underwater-natural",
+          "label": "After: natural schools and seabed",
+          "caption": "The same fixture now shows fish bodies at normal sizes, with a longer surrounding view.",
+          "reviewed": true
+        },
+        {
+          "run": "after",
+          "clip": "underwater-natural",
+          "label": "Live infantry dive",
+          "caption": "Short live school movement while the Marine holds C; capture follows timing.",
+          "reviewed": true
+        },
+        {
+          "run": "after",
+          "shot": "underwater-off",
+          "label": "Sea life Off still works",
+          "caption": "Fish bodies disappear while the underwater view and seabed remain.",
+          "reviewed": true
+        },
+        {
+          "run": "after",
+          "shot": "resurfaced",
+          "label": "Release C to surface",
+          "caption": "The Marine returns to surface swimming and the normal above-water view.",
+          "reviewed": true
+        }
+      ]
+    },
+    {
+      "title": "Patterns that survive the low-poly mesh",
+      "change": "Species markings were evaluated at only six rings of body vertices, smearing stripes and bands between them. A small procedural pigment atlas now resolves them per fragment. Pilchards have flank spots, mackerel wavy bars, mullet longitudinal lines, amberjack a muted band, bonito oblique stripes, bream two dark bands and adult damselfish lighter scale centres on a dark body. Flying fish and sandbar sharks keep restrained countershading and distinctive fins. Colour conversion is corrected before the existing fog blend.",
+      "observed": "The selected close views make the different patterns and silhouettes readable. The gallery shows all twelve existing sea-life types; fish lengths remain unchanged and each cell states its own camera distance. The mackerel clip shows the marked body flexing in an inspection animation.",
+      "checks": [
+        "22 appearance checks sample actual atlas bytes and filtering, species-row isolation, resolved markings, shape/mesh bounds and retained geometry budget.",
+        "The gallery passes 15 browser checks: all twelve production geometries at in-game sizes, animation, four group selections, a real selector close-up and Pause control. GPU shaders compile without page/console errors.",
+        "The new texture is 128×384 RGBA8 (192 KiB). Ordinary fish retain 53 vertices / 74 triangles and two instanced draw buckets."
+      ],
+      "limitations": [
+        "The gallery uses clear inspection lighting and fitted cameras. It does not prove that tiny patterns are resolvable on distant swimming fish.",
+        "These are stylised identification features, not anatomical reconstructions. Existing autonomous schooling, predators, curiosity, gliding and avoidance remain; the gallery itself animates fixed models rather than running those behaviours."
+      ],
+      "media": [
+        {
+          "run": "species",
+          "shot": "fish-species-gallery",
+          "label": "Twelve sea-life types",
+          "caption": "Independent fitted views; the relative on-screen sizes are not a shared scale.",
+          "reviewed": true
+        },
+        {
+          "run": "species",
+          "shot": "silver-school-species",
+          "label": "Spots, wavy bars and flank lines",
+          "caption": "Pilchard, mackerel and grey mullet use their actual production pigment and geometry.",
+          "reviewed": true
+        },
+        {
+          "run": "species",
+          "shot": "predators-and-flying-fins",
+          "label": "Predators and flying fins",
+          "caption": "Amberjack band, bonito stripes and the flying fish with its existing wings spread for inspection.",
+          "reviewed": true
+        },
+        {
+          "run": "species",
+          "shot": "reef-fish-and-shark",
+          "label": "Reef fish and shark",
+          "caption": "Bream bands, dark adult damselfish scale centres and the shark silhouette.",
+          "reviewed": true
+        },
+        {
+          "run": "species",
+          "shot": "specialised-sea-life",
+          "label": "Ray, jellyfish and dolphin",
+          "caption": "The existing specialised models retain their separate geometry and animation.",
+          "reviewed": true
+        },
+        {
+          "run": "species",
+          "shot": "mackerel-pattern-closeup",
+          "label": "Mackerel markings up close",
+          "caption": "A 0.33-metre model viewed by a nearby inspection camera.",
+          "reviewed": true
+        },
+        {
+          "run": "species",
+          "clip": "mackerel-inspection-animation",
+          "label": "Marked body in motion",
+          "caption": "Production tail/bend shader at a fixed inspection position; not autonomous swimming.",
+          "reviewed": true
+        }
+      ]
+    },
+    {
+      "title": "School variation, aerial visibility and the retained failure",
+      "change": "Two assignments for the per-fish variation seed and airborne flag had accidentally become part of a trailing comment. Restoring the instance data makes drawn sub-fish positions agree with the simulation. Existing airborne, ship and swimmer behaviours remain covered by the broader fish regression.",
+      "observed": "The aerial scene still shows natural sea-life signs during low flight; its Off control removes their pixel contribution. The completed dive and species viewer are the direct visual evidence for this follow-up. The earlier failed dive remains visible as a failed run, with both failed expectations explained.",
+      "checks": [
+        "The instance regression first fails against the old output, then checks every sub-fish cluster position against the CPU reference and a natural mullet leap/landing flag.",
+        "The original fish suite passes 78/78. The aerial/UI scene passes 10/10 and desktop smoke passes 5/5 on the final game content."
+      ],
+      "limitations": [
+        "The baseline dive fails its visibility expectations, so the benchmark comparator refuses a formal performance comparison. Individual timings are retained; no frame-rate gain is claimed."
+      ],
+      "media": [
+        {
+          "run": "aerial",
+          "shot": "natural-fish-25m",
+          "label": "Aerial sea life remains visible",
+          "caption": "Natural populations through the ordinary chase camera at the 25-metre flight fixture.",
+          "reviewed": true
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Chrome 156 / SwiftShader / WSL, seed 1980, one browser at a time. CPU tests finished before frame measurement, and recording followed sampling. Each benchmark uses 30 warmup frames and 30 measured intervals.",
+    "The natural dive and isolated gallery have very different loads and drawing buffers; their timings are not directly comparable. The gallery renders twelve independent viewports; renderer draw counters describe the last pass, while interval timing covers the displayed frame.",
+    "Clips are silent native browser recordings. Encoded duration can differ from the requested six-second wall window. Their encoding rate is not game FPS.",
+    "Physical Quest 3 readability, hand/controller behavior and sustained GPU performance were not retested by this desktop follow-up. The existing desktop VR-status panel still overlaps part of the lower-right HUD.",
+    "The completed 48-unit audit remains a separate dated report with its own tested game fingerprint. This follow-up changes sea-life rendering/population and underwater visibility; it does not relabel those earlier measurements as new runs."
+  ]
+}

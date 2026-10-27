@@ -1,0 +1,4 @@
+interface:
+  display_name: "Devlog"
+  short_description: "Explain game changes in an HTML evidence report"
+  default_prompt: "Use $devlog to review gameplay evidence and build an HTML devlog explaining what changed and what works."

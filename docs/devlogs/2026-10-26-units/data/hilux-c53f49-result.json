@@ -1,0 +1,519 @@
+{
+  "schemaVersion": 2,
+  "name": "unit-hilux",
+  "query": "dev/vehicle.html?debug&v=hilux&zone=road&cam=orbit&res=0.5&hud=0&ui=0",
+  "seed": 1980,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "fa476a11145ad750d1ac6924ae71c0fc26cfce0260734e9491232a39496c9930",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/snap.mjs",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/scenes/unit.mjs",
+    "--out",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/runs/units-2026-10-26-final/hilux",
+    "--frames",
+    "30"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "57ff1564f84d3ecc75ac7e7fe66457a97d582293",
+    "branch": "ngc/unit-bench",
+    "gameTree": "c6ca65541018026803cf95832e727145b28b8c45",
+    "gameSha256": "b810b4dc3116a695bf8d3d9e8746aaa39cc31e7384b05057753805d478cda386",
+    "dirty": false,
+    "status": ""
+  },
+  "url": "http://127.0.0.1:44685/dev/vehicle.html?debug&v=hilux&zone=road&cam=orbit&res=0.5&hud=0&ui=0",
+  "ok": true,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": null,
+  "shots": [
+    {
+      "name": "hilux",
+      "file": "01-hilux.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 93,
+      "litFraction": 0.9996,
+      "colors": 201
+    }
+  ],
+  "clips": [],
+  "benchmarks": [
+    {
+      "name": "hilux",
+      "policy": {
+        "frames": 30,
+        "warmup": 30,
+        "timeoutMs": 120000
+      },
+      "rows": [
+        {
+          "frame": 85,
+          "ms": 47.20000000298023,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 76,
+          "triangles": 273796,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 86,
+          "ms": 46.8999999910593,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 76,
+          "triangles": 273796,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 87,
+          "ms": 92.80000001192093,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 75,
+          "triangles": 273784,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 88,
+          "ms": 45.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 75,
+          "triangles": 273784,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 89,
+          "ms": 46.3999999910593,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 75,
+          "triangles": 273784,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 90,
+          "ms": 44.400000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 75,
+          "triangles": 273784,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 91,
+          "ms": 47.70000000298023,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 75,
+          "triangles": 273784,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 92,
+          "ms": 46.3999999910593,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 75,
+          "triangles": 273784,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 93,
+          "ms": 54.1000000089407,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 75,
+          "triangles": 273784,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 94,
+          "ms": 43.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 75,
+          "triangles": 273784,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 95,
+          "ms": 46.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 75,
+          "triangles": 273784,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 96,
+          "ms": 46.79999999701977,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 75,
+          "triangles": 273784,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 97,
+          "ms": 93.8999999910593,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 75,
+          "triangles": 273784,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 98,
+          "ms": 1.2000000029802322,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 74,
+          "triangles": 273782,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 99,
+          "ms": 45.6000000089407,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 74,
+          "triangles": 273782,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 100,
+          "ms": 48.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 74,
+          "triangles": 273782,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 101,
+          "ms": 54.19999998807907,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 74,
+          "triangles": 273782,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 102,
+          "ms": 97,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 74,
+          "triangles": 273782,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 103,
+          "ms": 47.400000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 74,
+          "triangles": 273782,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 104,
+          "ms": 44.400000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 74,
+          "triangles": 273782,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 105,
+          "ms": 47.79999999701977,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 74,
+          "triangles": 273782,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 106,
+          "ms": 44.8999999910593,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 74,
+          "triangles": 273782,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 107,
+          "ms": 46.400000005960464,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 74,
+          "triangles": 273782,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 108,
+          "ms": 47.20000000298023,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 74,
+          "triangles": 273782,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 109,
+          "ms": 45.20000000298023,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 74,
+          "triangles": 273782,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 110,
+          "ms": 44.3999999910593,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 74,
+          "triangles": 273782,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 111,
+          "ms": 3.7000000029802322,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 74,
+          "triangles": 273782,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 112,
+          "ms": 43.29999999701977,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 74,
+          "triangles": 273782,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 113,
+          "ms": 52.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 74,
+          "triangles": 273782,
+          "textures": 11,
+          "geometries": 76
+        },
+        {
+          "frame": 114,
+          "ms": 42.70000000298023,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 74,
+          "triangles": 273782,
+          "textures": 11,
+          "geometries": 76
+        }
+      ],
+      "xr": false,
+      "host": "dev-vehicle",
+      "route": "/dev/vehicle.html?debug&v=hilux&zone=road&cam=orbit&res=0.5&hud=0&ui=0",
+      "state": "live",
+      "mode": "preview",
+      "drawingBuffer": [
+        640,
+        360
+      ],
+      "eyeViewports": [],
+      "summary": {
+        "samples": 30,
+        "frameMs": {
+          "count": 30,
+          "mean": 48.61666666666667,
+          "p50": 46.400000005960464,
+          "p95": 92.80000001192093,
+          "p99": 93.8999999910593,
+          "min": 1.2000000029802322,
+          "max": 97
+        },
+        "observedFps": 20.56907781967775,
+        "cpuMs": {
+          "sim": null,
+          "prep": null,
+          "renderSubmit": null
+        },
+        "drawCalls": {
+          "count": 30,
+          "mean": 74.5,
+          "p50": 74,
+          "p95": 75,
+          "p99": 76,
+          "min": 74,
+          "max": 76
+        },
+        "triangles": {
+          "count": 30,
+          "mean": 273783.6666666667,
+          "p50": 273782,
+          "p95": 273784,
+          "p99": 273796,
+          "min": 273782,
+          "max": 273796
+        },
+        "textures": {
+          "count": 30,
+          "mean": 11,
+          "p50": 11,
+          "p95": 11,
+          "p99": 11,
+          "min": 11,
+          "max": 11
+        },
+        "geometries": {
+          "count": 30,
+          "mean": 76,
+          "p50": 76,
+          "p95": 76,
+          "p99": 76,
+          "min": 76,
+          "max": 76
+        }
+      },
+      "qualification": "Wall-clock intervals between observed rendered frames. CPU phases are game-smoothed CPU timings, not GPU durations. Render counters describe the last render pass. No capture during sampling."
+    }
+  ],
+  "evals": [
+    {
+      "expr": "(__V.drive(null), __V.pause(true), true)",
+      "value": true
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__V.id === 'hilux' && __V.sim.eng.running && __V.sim.wheels.every(w=>Number.isFinite(w.omega))",
+      "label": "Toyota Hilux RN37 is live, running and rolling",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__V.sim.range==='L' && __V.sim.spec.transfer.low>1",
+      "label": "Toyota Hilux RN37 low range engages",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(hilux)",
+      "ok": true,
+      "value": 0.9996
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-26T14:17:28.407Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "57ff1564f84d3ecc75ac7e7fe66457a97d582293",
+    "branch": "ngc/unit-bench",
+    "gameTree": "c6ca65541018026803cf95832e727145b28b8c45",
+    "gameSha256": "b810b4dc3116a695bf8d3d9e8746aaa39cc31e7384b05057753805d478cda386",
+    "dirty": false,
+    "status": ""
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": null,
+    "state": null
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench",
+    "commit": "57ff1564f84d3ecc75ac7e7fe66457a97d582293",
+    "branch": "ngc/unit-bench",
+    "gameTree": "c6ca65541018026803cf95832e727145b28b8c45",
+    "gameSha256": "b810b4dc3116a695bf8d3d9e8746aaa39cc31e7384b05057753805d478cda386",
+    "dirty": false,
+    "status": ""
+  },
+  "summary": "PASS: 3/3 expects, 0 page errors, 0 console errors",
+  "durationMs": 7974,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/unit-bench/tools/runs/units-2026-10-26-final/hilux"
+}

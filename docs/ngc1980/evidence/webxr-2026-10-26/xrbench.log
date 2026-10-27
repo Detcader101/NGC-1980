@@ -1,0 +1,21 @@
+PASS first controller frame preserves current collective
+PASS XR thumbstick slots use axes 2/3, not reserved touchpad axes
+PASS right cyclic and left pedals/collective reach the shared flight controls
+PASS UI capture consumes trigger and stick, retaining fuel lever setting
+PASS releasing capture restores the existing trigger path
+PASS modal controls neutralise movement and weapons
+PASS disconnect clears held firing without waiting for selectend
+PASS hidden session releases input and snaps
+PASS new craft seeds throttle from that craft, not the previous aircraft
+PASS face buttons are edge-triggered and do not replay on entry
+PASS infantry gets movement and one snap per stick excursion
+PASS nonstandard layouts never invent axes
+PASS hand pinch begins centred
+PASS pinch displacement supplies cyclic
+PASS hand tracking loss releases the virtual stick anchor
+PASS pinching a UI never engages hand flight controls
+PASS left hand height changes collective within bounds
+PASS ground controls keep driving axes separate from both weapon triggers
+PASS ground reverse and wheel brake remain independent controls
+PASS controller aim fires through the ordinary game projectile path from the tracked hand
+20/20 WebXR checks passed

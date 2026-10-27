@@ -6,38 +6,36 @@
 //         fuel      - oil derricks: fuel for the fleet's stores
 //         factory   - materiel for drones, guns and helicopters (enemy factories also build the battleship)
 //         radar     - long-range sight through the fog of war
-export const BOUND = 640, SEA_FLOOR = -14;
+import { roadBed } from './world/net.js';   // the lived-in world (roads, towns, farms): flattened into islandH below
+import { zoneH } from './world/terrain.js';
+export const BOUND = 1280, SEA_FLOOR = -14;
 export const ISLANDS = [
-  { name: 'HOME ISLAND', kind: 'hq', owner: 1, x: -420, z: 400, r: 130, tier: 0 },
-  { name: 'IRONHOLD', kind: 'hq', owner: 2, x: 420, z: -400, r: 130, tier: 4 },
-  { name: 'NORTH ROCK', kind: 'fortress', owner: 2, x: -400, z: -360, r: 112, tier: 1 },
-  { name: 'SOUTH REEF', kind: 'fortress', owner: 2, x: 400, z: 360, r: 112, tier: 2 },
-  { name: 'CITADEL', kind: 'fortress', owner: 2, x: 0, z: 0, r: 122, tier: 3 },
-  { name: 'PELICAN', kind: 'fuel', owner: 1, x: -170, z: 480, r: 62 },
-  { name: 'ANVIL', kind: 'factory', owner: 2, x: 170, z: -480, r: 62 },
-  { name: 'LOOKOUT', kind: 'radar', owner: 0, x: -540, z: 110, r: 58 },
-  { name: 'BEACON', kind: 'radar', owner: 0, x: 540, z: -110, r: 58 },
-  { name: 'FORGE', kind: 'factory', owner: 0, x: -210, z: 190, r: 66 },
-  { name: 'CINDER', kind: 'factory', owner: 0, x: 210, z: -190, r: 66 },
-  { name: 'WELLSPRING', kind: 'fuel', owner: 0, x: -150, z: -230, r: 60 },
-  { name: 'SANDBAR', kind: 'fuel', owner: 0, x: 150, z: 230, r: 60 },
-  { name: 'DRIFTWOOD', kind: 'factory', owner: 0, x: -560, z: -130, r: 56 },
-  { name: 'KILN', kind: 'factory', owner: 0, x: 560, z: 130, r: 56 },
-  { name: 'SPIRE', kind: 'radar', owner: 0, x: -60, z: -560, r: 54 },
-  { name: 'ECHO', kind: 'radar', owner: 0, x: 60, z: 560, r: 54 },
+  { name: 'HOME ISLAND', kind: 'hq', owner: 1, x: -756, z: 720, r: 230, tier: 0 },
+  { name: 'IRONHOLD', kind: 'hq', owner: 2, x: 756, z: -720, r: 250, tier: 4 },
+  { name: 'NORTH ROCK', kind: 'fortress', owner: 2, x: -720, z: -648, r: 190, tier: 1 },
+  { name: 'SOUTH REEF', kind: 'fortress', owner: 2, x: 720, z: 648, r: 165, tier: 2 },
+  { name: 'CITADEL', kind: 'fortress', owner: 2, x: 0, z: 0, r: 250, tier: 3 },
+  { name: 'PELICAN', kind: 'fuel', owner: 1, x: -306, z: 864, r: 74 },
+  { name: 'ANVIL', kind: 'factory', owner: 2, x: 306, z: -864, r: 118 },
+  { name: 'LOOKOUT', kind: 'radar', owner: 0, x: -972, z: 198, r: 88 },
+  { name: 'BEACON', kind: 'radar', owner: 0, x: 972, z: -198, r: 72 },
+  { name: 'FORGE', kind: 'factory', owner: 0, x: -378, z: 342, r: 160 },
+  { name: 'CINDER', kind: 'factory', owner: 0, x: 378, z: -342, r: 118 },
+  { name: 'WELLSPRING', kind: 'fuel', owner: 0, x: -270, z: -414, r: 92 },
+  { name: 'SANDBAR', kind: 'fuel', owner: 0, x: 270, z: 414, r: 140 },
+  { name: 'DRIFTWOOD', kind: 'factory', owner: 0, x: -1008, z: -234, r: 70 },
+  { name: 'KILN', kind: 'factory', owner: 0, x: 1008, z: 234, r: 145 },
+  { name: 'SPIRE', kind: 'radar', owner: 0, x: -108, z: -1008, r: 66 },
+  { name: 'ECHO', kind: 'radar', owner: 0, x: 108, z: 1008, r: 100 },
 ];
 ISLANDS.forEach((I, i) => { I.id = i; I.cave = I.kind === 'hq' || I.kind === 'fortress'; });
+// Initial fleet anchorages track the expanded map; the nav grid moves them to verified deep water.
+export const fleetStart = side => { const I = ISLANDS[side === 1 ? 0 : 1], k = side === 1 ? 1 : -1; return [I.x + k * (I.r + 95), I.z - k * 140]; };
 
 const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const mix = (a, b, t) => a + (b - a) * t;
 // rolling hills (the original Zarch landscape), only raised where there is an island
 const hills = (x, z) => 14 * Math.sin(x * .035 + 1.3) * Math.cos(z * .04) + 9 * Math.sin(x * .09 + z * .07) + 5 * Math.sin(z * .13 - x * .05) + 2.5 * Math.sin(x * .31) * Math.sin(z * .27) + 8;
-const wobble = (x, z) => 14 * Math.sin(x * .045 + z * .03) + 9 * Math.sin(z * .071 - x * .052);   // ragged coastlines
-export function landMask(x, z) {
-  const w = wobble(x, z); let m = 0;
-  for (const I of ISLANDS) { const d = Math.hypot(x - I.x, z - I.z) + w; if (d < I.r) m = Math.max(m, 1 - sm(I.r * 0.55, I.r, d)); }
-  return m;
-}
 // Beyond the archipelago (the control zone, where the war is) the world goes on for ever: continents with coasts,
 // lowlands, forests and mountain ranges, from fixed-seed gradient noise (same world every run). It's open sea for a
 // kilometre or two round the zone, then the land starts. Everything here is pure maths, so the terrain worker
@@ -71,20 +69,11 @@ export function wildH(x, z) {
 }
 // forests: where the forest noise says so, on gentle slopes between the beach and the tree line (~360 m)
 export function forestAt(x, z, h, slopeY) { return h > 3.5 && h < 360 - 60 * noise(x / 300, z / 300) && slopeY > 0.82 && fbm(x / 1700 + 5.5, z / 1700 + 9.2, 3) > -0.08; }
-export const islandH = (x, z) => Math.max(Math.abs(x), Math.abs(z)) < BOUND + 300 ? mix(SEA_FLOOR, hills(x, z) * 0.7 + 9, landMask(x, z)) : wildH(x, z);
+// rawH: the natural ground. islandH: the ground people built on - road beds, town squares, quays and farmyards are
+// flattened in by world/net.js (the lived-in world), so physics, the terrain bake and the road ribbons all agree.
+export const rawH = (x, z) => Math.max(Math.abs(x), Math.abs(z)) < BOUND + 300 ? zoneH(x, z) : wildH(x, z);
+export const islandH = (x, z) => roadBed(x, z, rawH(x, z));
 export const islandAt = (x, z, pad = 0) => ISLANDS.find(I => Math.hypot(x - I.x, z - I.z) < I.r + pad);
-
-// the same, as GLSL (constants baked in: the islands never move)
-const f = v => (+v).toFixed(2);
-export const islandGLSL = `
-float hills(vec2 p){return 14.*sin(p.x*.035+1.3)*cos(p.y*.04)+9.*sin(p.x*.09+p.y*.07)+5.*sin(p.y*.13-p.x*.05)+2.5*sin(p.x*.31)*sin(p.y*.27)+8.;}
-float landMask(vec2 p){
-  float w=14.*sin(p.x*.045+p.y*.03)+9.*sin(p.y*.071-p.x*.052), m=0.;
-${ISLANDS.map(I => `  m=max(m,1.-smoothstep(${f(I.r * 0.55)},${f(I.r)},length(p-vec2(${f(I.x)},${f(I.z)}))+w));`).join('\n')}
-  return m;
-}
-float islandH(vec2 p){ return mix(${f(SEA_FLOOR)}, hills(p)*.7+9., landMask(p)); }
-`;
 
 // --------------------------------------------------------------------------------------------- sea navigation
 // Ships route over a coarse grid of deep-water cells (A*), so carriers sail round islands instead of beaching.
@@ -106,12 +95,23 @@ export function createNav(heightAt, { cell = 20, draft = -5, margin = 14 } = {})
     return [i, j];
   };
   function lineClear(x0, z0, x1, z1) {
-    const d = Math.hypot(x1 - x0, z1 - z0), n = Math.ceil(d / (cell * 0.5));
-    for (let k = 1; k <= n; k++) { const [i, j] = idx(x0 + (x1 - x0) * k / n, z0 + (z1 - z0) * k / n); if (!ok[j * N + i]) return false; }
-    return true;
+    // Traverse every grid cell touched by the segment. Fixed-distance samples missed blocked cell corners.
+    let [i, j] = idx(x0, z0); const [ti, tj] = idx(x1, z1);
+    const dx = x1-x0, dz = z1-z0, sx = Math.sign(dx), sz = Math.sign(dz);
+    const tx = dx ? cell/Math.abs(dx) : Infinity, tz = dz ? cell/Math.abs(dz) : Infinity;
+    let nx = dx ? (-BOUND+(i+(sx>0?1:0))*cell-x0)/dx : Infinity;
+    let nz = dz ? (-BOUND+(j+(sz>0?1:0))*cell-z0)/dz : Infinity;
+    const wetCell = (a,b) => a>=0 && b>=0 && a<N && b<N && ok[b*N+a];
+    for (let k=0;k<2*N+2;k++) {
+      if (!wetCell(i,j)) return false;
+      if (i===ti && j===tj) return true;
+      if (Math.abs(nx-nz)<1e-10) { if (!wetCell(i+sx,j)||!wetCell(i,j+sz)) return false; i+=sx; j+=sz; nx+=tx; nz+=tz; }
+      else if (nx<nz) { i+=sx; nx+=tx; } else { j+=sz; nz+=tz; }
+    }
+    return false;
   }
   return {
-    N, cell, ok, wet: (x, z) => { const [i, j] = idx(x, z); return !!ok[j * N + i]; },
+    N, cell, ok, lineClear, wet: (x, z) => { const [i, j] = idx(x, z); return !!ok[j * N + i]; },
     nearestWater(x, z) { const [i, j] = nearestWet(...idx(x, z)); return [cx(i), cx(j)]; },
     // world-space waypoints from (x0,z0) to (x1,z1), smoothed by line-of-sight
     path(x0, z0, x1, z1) {

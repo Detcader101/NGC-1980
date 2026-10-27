@@ -1,0 +1,32 @@
+import * as THREE from 'three';
+import { buildFactionStructure } from '../js/world/structures.js';
+const q = new URLSearchParams(location.search), kind = q.get('kind') || 'hq', side = q.get('side') === '2' ? 2 : 1;
+if (!['hq', 'fuel', 'factory', 'radar'].includes(kind)) throw new Error('Unknown structure: ' + kind);
+const names = { hq: ['HQ bunker', 'RUNAWAY command node'], fuel: ['Fuel farm', 'RUNAWAY siphon spire'], factory: ['Supply depot', 'RUNAWAY fabricator'], radar: ['Radar site', 'RUNAWAY sensor spire'] };
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xabc1d1);
+scene.add(new THREE.HemisphereLight(0xd9eaff, 0x63543e, 2.3));
+const sun = new THREE.DirectionalLight(0xfff0d0, 2.8); sun.position.set(-50, 90, 30); scene.add(sun);
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(innerWidth, innerHeight); document.body.append(renderer.domElement);
+const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, .2, 1200);
+const model = buildFactionStructure(kind, side); scene.add(model);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshLambertMaterial({ color: 0x687458 })); floor.rotation.x = -Math.PI / 2; floor.position.y = -.05; scene.add(floor);
+const ud = model.userData, bounds = new THREE.Box3().setFromObject(model), size = bounds.getSize(new THREE.Vector3());
+const target = new THREE.Vector3(0, Math.min(size.y * .35, 12), 0);
+let yaw = .7, pitch = .45, distance = Math.max(65, size.length() * 1.45), dragging = false, lastX, lastY, time = 0, previous;
+const status = () => { document.querySelector('#name').textContent = names[kind][ud.state.side === 2 ? 1 : 0]; document.querySelector('#state').textContent = `${ud.state.cond} · ${ud.state.side === 2 ? 'RUNAWAY' : 'Task Force'} · ${Math.round(ud.state.hp * 100)}%`; };
+const actions = { damage() { ud.onHp(.35); }, destroy() { ud.onHp(0); ud.setState('destroyed'); }, restore() { ud.setState('intact'); }, capture() { ud.setSide(ud.state.side === 2 ? 1 : 2); } };
+for (const [id, action] of Object.entries(actions)) document.querySelector('#' + id).onclick = () => { action(); status(); };
+renderer.domElement.onpointerdown = e => { dragging = true; lastX = e.clientX; lastY = e.clientY; renderer.domElement.setPointerCapture(e.pointerId); };
+renderer.domElement.onpointermove = e => { if (dragging) { yaw -= (e.clientX - lastX) * .008; pitch = Math.max(.1, Math.min(1.3, pitch + (e.clientY - lastY) * .006)); lastX = e.clientX; lastY = e.clientY; } };
+renderer.domElement.onpointerup = () => { dragging = false; };
+renderer.domElement.onwheel = e => { distance = Math.max(20, Math.min(300, distance * Math.exp(e.deltaY * .001))); e.preventDefault(); };
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+function frame(now) {
+  const dt = previous === undefined ? 0 : Math.min(.05, (now - previous) / 1000); previous = now; time += dt; ud.tick(dt, time);
+  camera.position.set(target.x + Math.sin(yaw) * Math.cos(pitch) * distance, target.y + Math.sin(pitch) * distance, target.z + Math.cos(yaw) * Math.cos(pitch) * distance); camera.lookAt(target);
+  renderer.render(scene, camera); requestAnimationFrame(frame);
+}
+status(); requestAnimationFrame(frame);
+window.__STRUCT = { model, scene, camera, renderer, THREE, kind, side, actions, status };
+window.__BENCH = { renderer, host: 'structure-unit', state: 'live', mode: 'preview' };
