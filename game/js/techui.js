@@ -8,11 +8,23 @@
 //   ui.open() / ui.close() / ui.toggle() / ui.key(e) -> bool (true: the page used it) / ui.update(dt) / ui.isOpen
 // DOM + 2D canvas only; no THREE.
 import { TECH } from './techtree.js';
+import { RKUI } from './renderkit/ngcui.js';   // RENDERKIT ui: the board in the design system's field palette
 
 const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 const TIER_NAME = ['TIER 0  -  IN SERVICE', 'TIER 1', 'TIER 2', 'TIER 3'];
 // grease-pencil and board colours (the command board's cyan family, the map's chinagraph yellow)
 const INK = { board: '#16231f', grid: 'rgba(150,190,170,.07)', pencil: '#f2d64b', chalk: '#e8e4d0', dim: '#5d6d66', red: '#e8543a', green: '#7fd38a', cyan: '#8ff' };
+// RENDERKIT ui: every colour the canvas uses. Classic = the grease-pencil values above; with the UI on: mint = selected,
+// lavender = under way (time), field green = done, amber = can't afford yet, chalk / muted for the rest.
+const PAL = RKUI ? { board: '#141c1e', grid: 'rgba(231,233,223,.04)', tierLine: 'rgba(231,233,223,.14)', tierText: 'rgba(231,233,223,.62)', sel: '#a6cfbb', now: '#bdb1d9', nowFrame: 'rgba(189,177,217,.6)',
+  doneLine: 'rgba(166,207,187,.38)', doneBracket: 'rgba(166,207,187,.5)', openLine: 'rgba(167,180,176,.36)', dim: '#56625f', green: '#a9b88f', chalk: '#e7e9df', hover: '#e7e9df', poor: '#e8bc7c',
+  fillDone: 'rgba(52,62,46,.96)', fillNow: 'rgba(50,45,66,.96)', fillOpen: 'rgba(30,40,42,.96)', fillLocked: 'rgba(22,29,31,.92)', name: '#e7e9df', nameLocked: '#86928e',
+  lineOpen: '#c3ccc8', linePoor: '#e8bc7c', lineLocked: '#6f7d77', font: '"IBM Plex Mono", "SFMono-Regular", Consolas, "Courier New", monospace' }
+  : { board: INK.board, grid: INK.grid, tierLine: 'rgba(232,228,208,.18)', tierText: 'rgba(232,228,208,.75)', sel: INK.pencil, now: INK.pencil, nowFrame: 'rgba(242,214,75,.6)',
+  doneLine: 'rgba(242,214,75,.42)', doneBracket: 'rgba(242,214,75,.55)', openLine: 'rgba(120,140,130,.45)', dim: INK.dim, green: INK.green, chalk: INK.chalk, hover: '#cfe', poor: '#b98', selFrame: '#ff8',
+  fillDone: 'rgba(52,84,58,.95)', fillNow: 'rgba(92,74,24,.95)', fillOpen: 'rgba(34,52,58,.95)', fillLocked: 'rgba(26,34,34,.9)', name: '#fff', nameLocked: '#8a9690',
+  lineOpen: '#bde', linePoor: '#d9a', lineLocked: '#6f7d77', font: 'Consolas, "Courier New", monospace' };
+PAL.selFrame ||= PAL.sel;
 
 export function createTechUI(h) {
   const { war, say, sfx } = h, side = 1;
@@ -29,7 +41,7 @@ export function createTechUI(h) {
 #techBoard .sub{font-size:12px;color:#8ab;margin:2px 0 8px;letter-spacing:1px}
 #techBoard .sub b{color:#fff;font-weight:normal}
 #techBoard .sub .now{color:#ff8}
-#techBoard canvas{display:block;width:100%;border:1px solid #275;cursor:pointer;background:${INK.board}}
+#techBoard canvas{display:block;width:100%;border:1px solid #275;cursor:pointer;background:${PAL.board}}
 #techBoard .det{display:grid;grid-template-columns:1fr 300px;gap:4px 16px;margin-top:8px;padding:8px 10px;background:rgba(0,40,60,.6);border:1px solid #275;min-height:58px}
 #techBoard .det .nm{color:#fff;font-size:15px;letter-spacing:2px}
 #techBoard .det .ds{color:#bde;font-size:13px;margin-top:3px}
@@ -89,24 +101,24 @@ export function createTechUI(h) {
     const Tt = T(), store = h.store;
     c2.clearRect(0, 0, CW, CH);
     // the board: a faint plotting grid and the tier columns ruled in chalk
-    c2.fillStyle = INK.board; c2.fillRect(0, 0, CW, CH);
-    c2.strokeStyle = INK.grid; c2.lineWidth = 1;
+    c2.fillStyle = PAL.board; c2.fillRect(0, 0, CW, CH);
+    c2.strokeStyle = PAL.grid; c2.lineWidth = 1;
     for (let x = 0; x < CW; x += 25) { c2.beginPath(); c2.moveTo(x + 0.5, 0); c2.lineTo(x + 0.5, CH); c2.stroke(); }
     for (let y = 0; y < CH; y += 25) { c2.beginPath(); c2.moveTo(0, y + 0.5); c2.lineTo(CW, y + 0.5); c2.stroke(); }
-    c2.font = 'bold 13px Consolas, "Courier New", monospace'; c2.textAlign = 'center'; c2.textBaseline = 'middle';
+    c2.font = `bold 13px ${PAL.font}`; c2.textAlign = 'center'; c2.textBaseline = 'middle';
     for (let t = 0; t < 4; t++) {
-      if (t) pencil(t * COLW, 30, t * COLW, CH - 8, t * 3.1, 'rgba(232,228,208,.18)', 1.4, [7, 6]);
-      c2.fillStyle = 'rgba(232,228,208,.75)'; c2.fillText(TIER_NAME[t], t * COLW + COLW / 2, 17);
+      if (t) pencil(t * COLW, 30, t * COLW, CH - 8, t * 3.1, PAL.tierLine, 1.4, [7, 6]);
+      c2.fillStyle = PAL.tierText; c2.fillText(TIER_NAME[t], t * COLW + COLW / 2, 17);
     }
     // the lines: what each programme needs, pencilled from the right edge of the need to the left edge of the card
     for (const c of U.cells) for (const r of c.n.requires) {
       const p = cellOf(r); if (!p) continue;
       const done = Tt.has(r), sel = c.n.id === U.sel || r === U.sel;
       if (p.t === c.t) {   // same tier (only in the start set): a short bracket on the left
-        const x = c.x - 8; c2.save(); c2.strokeStyle = done ? 'rgba(242,214,75,.55)' : INK.dim; c2.lineWidth = 1.6; c2.beginPath(); c2.moveTo(p.x, p.y + p.h / 2); c2.lineTo(x, p.y + p.h / 2); c2.lineTo(x, c.y + c.h / 2); c2.lineTo(c.x, c.y + c.h / 2); c2.stroke(); c2.restore();
+        const x = c.x - 8; c2.save(); c2.strokeStyle = done ? PAL.doneBracket : PAL.dim; c2.lineWidth = 1.6; c2.beginPath(); c2.moveTo(p.x, p.y + p.h / 2); c2.lineTo(x, p.y + p.h / 2); c2.lineTo(x, c.y + c.h / 2); c2.lineTo(c.x, c.y + c.h / 2); c2.stroke(); c2.restore();
         continue;
       }
-      pencil(p.x + p.w, p.y + p.h / 2, c.x, c.y + c.h / 2, c.i * 7 + p.i, sel ? INK.pencil : done ? 'rgba(242,214,75,.42)' : 'rgba(120,140,130,.45)', sel ? 3 : 1.8, done ? null : [8, 5]);
+      pencil(p.x + p.w, p.y + p.h / 2, c.x, c.y + c.h / 2, c.i * 7 + p.i, sel ? PAL.sel : done ? PAL.doneLine : PAL.openLine, sel ? 3 : 1.8, done ? null : [8, 5]);
     }
     // the cards
     for (const c of U.cells) {
@@ -114,34 +126,34 @@ export function createTechUI(h) {
       const ok = st === 'open' ? Tt.canResearch(n.id, store) : null;
       const afford = ok === true || (typeof ok === 'string' && !/MATERIEL|FUEL/.test(ok));
       // card body: masking tape on the perspex
-      c2.fillStyle = st === 'done' ? 'rgba(52,84,58,.95)' : st === 'now' ? 'rgba(92,74,24,.95)' : st === 'open' ? 'rgba(34,52,58,.95)' : 'rgba(26,34,34,.9)';
+      c2.fillStyle = st === 'done' ? PAL.fillDone : st === 'now' ? PAL.fillNow : st === 'open' ? PAL.fillOpen : PAL.fillLocked;
       c2.fillRect(c.x, c.y, c.w, c.h);
       c2.lineWidth = sel ? 3 : 1.5; c2.setLineDash(st === 'locked' ? [5, 4] : []);
-      c2.strokeStyle = sel ? '#ff8' : hov ? '#cfe' : st === 'done' ? INK.green : st === 'now' ? INK.pencil : st === 'open' ? (afford ? INK.chalk : '#b98') : INK.dim;
+      c2.strokeStyle = sel ? PAL.selFrame : hov ? PAL.hover : st === 'done' ? PAL.green : st === 'now' ? PAL.now : st === 'open' ? (afford ? PAL.chalk : PAL.poor) : PAL.dim;
       c2.strokeRect(c.x + 0.5, c.y + 0.5, c.w - 1, c.h - 1); c2.setLineDash([]);
       // progress: hatched in grease pencil
       if (st === 'now') {
         const w = (c.w - 4) * Tt.progress; c2.save(); c2.beginPath(); c2.rect(c.x + 2, c.y + c.h - 9, w, 7); c2.clip();
-        c2.strokeStyle = INK.pencil; c2.lineWidth = 2; for (let x = c.x - 10; x < c.x + w + 10; x += 6) { c2.beginPath(); c2.moveTo(x, c.y + c.h - 2); c2.lineTo(x + 7, c.y + c.h - 9); c2.stroke(); }
-        c2.restore(); c2.strokeStyle = 'rgba(242,214,75,.6)'; c2.lineWidth = 1; c2.strokeRect(c.x + 2.5, c.y + c.h - 9.5, c.w - 5, 7);
+        c2.strokeStyle = PAL.now; c2.lineWidth = 2; for (let x = c.x - 10; x < c.x + w + 10; x += 6) { c2.beginPath(); c2.moveTo(x, c.y + c.h - 2); c2.lineTo(x + 7, c.y + c.h - 9); c2.stroke(); }
+        c2.restore(); c2.strokeStyle = PAL.nowFrame; c2.lineWidth = 1; c2.strokeRect(c.x + 2.5, c.y + c.h - 9.5, c.w - 5, 7);
       }
       // stencil name (two lines if long), and the cost / state line
       c2.textAlign = 'left'; c2.textBaseline = 'alphabetic';
-      c2.fillStyle = st === 'locked' ? '#8a9690' : '#fff'; c2.font = 'bold 13px Consolas, "Courier New", monospace';
+      c2.fillStyle = st === 'locked' ? PAL.nameLocked : PAL.name; c2.font = `bold 13px ${PAL.font}`;
       const name = n.name; let l1 = name, l2 = '';
       if (c2.measureText(name).width > c.w - 16) { const words = name.split(' '); l1 = ''; for (const w of words) { const t = l1 ? l1 + ' ' + w : w; if (!l2 && c2.measureText(t).width <= c.w - 16) l1 = t; else l2 = l2 ? l2 + ' ' + w : w; } }
       c2.fillText(l1, c.x + 8, c.y + 17); if (l2) c2.fillText(l2, c.x + 8, c.y + 31);
-      c2.font = '11px Consolas, "Courier New", monospace';
+      c2.font = `11px ${PAL.font}`;
       const what = [...(n.unlocks.units || []), ...(n.unlocks.abilities || [])].length ? 'UNLOCKS' : 'UPGRADE';
       let line = st === 'done' ? (n.tier === 0 && Tt.mode !== 'list' ? 'IN SERVICE' : 'RESEARCHED') : st === 'now' ? `UNDER WAY  ${Math.round(Tt.progress * 100)}%  ${Math.ceil(Tt.remaining)} s` : `${what}  ·  ${n.cost.mat} MAT${n.cost.fuel ? ` + ${n.cost.fuel} FUEL` : ''}  ·  ${n.time} s`;
       if (c2.measureText(line).width > c.w - 16) line = line.replace(/  ·  /g, ' · ');
       if (c2.measureText(line).width > c.w - 16) line = line.replace(/^(UNLOCKS|UPGRADE) · /, '');
-      c2.fillStyle = st === 'done' ? INK.green : st === 'now' ? INK.pencil : st === 'open' ? (afford ? '#bde' : '#d9a') : '#6f7d77';
+      c2.fillStyle = st === 'done' ? PAL.green : st === 'now' ? PAL.now : st === 'open' ? (afford ? PAL.lineOpen : PAL.linePoor) : PAL.lineLocked;
       c2.fillText(line, c.x + 8, c.y + (l2 ? 46 : 40));
       if (st === 'done') {   // a grease-pencil tick
-        c2.save(); c2.strokeStyle = INK.green; c2.lineWidth = 3; c2.lineCap = 'round'; c2.beginPath(); c2.moveTo(c.x + c.w - 26, c.y + 14); c2.lineTo(c.x + c.w - 19, c.y + 22); c2.lineTo(c.x + c.w - 8, c.y + 7); c2.stroke(); c2.restore();
+        c2.save(); c2.strokeStyle = PAL.green; c2.lineWidth = 3; c2.lineCap = 'round'; c2.beginPath(); c2.moveTo(c.x + c.w - 26, c.y + 14); c2.lineTo(c.x + c.w - 19, c.y + 22); c2.lineTo(c.x + c.w - 8, c.y + 7); c2.stroke(); c2.restore();
       } else if (st === 'locked') {   // a pencilled padlock
-        const x = c.x + c.w - 20, y = c.y + 10; c2.save(); c2.strokeStyle = INK.dim; c2.lineWidth = 2; c2.strokeRect(x, y + 6, 12, 9); c2.beginPath(); c2.arc(x + 6, y + 6, 4, Math.PI, 0); c2.stroke(); c2.restore();
+        const x = c.x + c.w - 20, y = c.y + 10; c2.save(); c2.strokeStyle = PAL.dim; c2.lineWidth = 2; c2.strokeRect(x, y + 6, 12, 9); c2.beginPath(); c2.arc(x + 6, y + 6, 4, Math.PI, 0); c2.stroke(); c2.restore();
       }
     }
   }

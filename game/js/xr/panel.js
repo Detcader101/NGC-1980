@@ -1,6 +1,7 @@
 // Existing HTML/canvas screens remain the UI authority. A spatial panel copies them, and sends real DOM events
 // back to the original elements (including pointer drags in inventory/medical). Desktop UI never moves or resizes.
 import * as THREE from 'three';
+import { RKUI } from '../renderkit/ngcui.js';   // RENDERKIT ui
 const $ = id => document.getElementById(id);
 const shown = el => !!el && getComputedStyle(el).display !== 'none' && getComputedStyle(el).visibility !== 'hidden' && el.getBoundingClientRect().width > 0;
 export function createXRPanel(h) {
@@ -112,7 +113,10 @@ export function createXRPanel(h) {
     }
     nextCapture=0;
   };
-  const text = (str,x,y,max=innerWidth-32) => { c.fillStyle='#bff'; c.fillText(str,x,y,max); };
+  // RENDERKIT ui: with the design system on, the compact VR HUD is chalk on charcoal plates (no glow), like the desktop HUD
+  const text = RKUI ? (str,x,y,max=innerWidth-32) => { const w=Math.min(max,c.measureText(str).width); c.fillStyle='rgba(16,23,25,.8)'; c.fillRect(x-8,y-19,w+16,25); c.fillStyle='#e7e9df'; c.fillText(str,x,y,max); }
+    : (str,x,y,max=innerWidth-32) => { c.fillStyle='#bff'; c.fillText(str,x,y,max); };
+  const FONT = RKUI ? '"IBM Plex Mono","SFMono-Regular",Consolas,monospace' : 'Consolas,monospace';
   api.update = async now => {
     if(!enabled || now<nextPaint) return; nextPaint=now+100;
     const w=innerWidth, hh=innerHeight;
@@ -121,7 +125,7 @@ export function createXRPanel(h) {
     const modal=api.blocked()||shown($('simov'));
     if(modal && snapshot) c.drawImage(snapshot,0,0,w,hh);
     else {
-      c.font='20px Consolas,monospace'; c.shadowColor='#000'; c.shadowBlur=4;
+      c.font=`20px ${FONT}`; c.shadowColor='#000'; c.shadowBlur=RKUI?0:4;
       const wrap=(str,x,y,width,maxLines=3)=>{let line='',n=0;for(const word of str.split(/\s+/)){if(c.measureText(line+' '+word).width>width&&line){text(line,x,y,width);y+=25;line='';if(++n>=maxLines)return y;}line+=(line?' ':'')+word;}if(line)text(line,x,y,width);return y+25;};
       let y=25;
       for(const id of ['war','fleet','weap']){const el=$(id);if(shown(el))y=wrap(el.innerText,14,y,w-190,3);}
@@ -131,7 +135,7 @@ export function createXRPanel(h) {
       const radar=$('radar'); if(radar?.width){ const r=radar.getBoundingClientRect();c.drawImage(radar,r.x,r.y,r.width,r.height); }
       // Existing sight/reticle canvases keep their exact pixels and viewport mapping on the optical display.
       for(const overlay of document.querySelectorAll('canvas:not(#gl):not(#radar)')){if(!shown(overlay)||overlay.closest('[data-xr-ignore],[data-webxr_runtime]'))continue;const r=overlay.getBoundingClientRect();if(r.width>=w*.8&&r.height>=hh*.8)c.drawImage(overlay,r.x,r.y,r.width,r.height);}
-      for(const el of bar.querySelectorAll('button')) { const r=el.getBoundingClientRect(); c.fillStyle='#092b38'; c.fillRect(r.x,r.y,r.width,r.height); c.strokeStyle='#699'; c.strokeRect(r.x,r.y,r.width,r.height); c.font='18px Consolas'; text(el.textContent,r.x+6,r.y+r.height/2+6,r.width-12); }
+      for(const el of bar.querySelectorAll('button')) { const r=el.getBoundingClientRect(); c.fillStyle=RKUI?'#182124':'#092b38'; c.fillRect(r.x,r.y,r.width,r.height); c.strokeStyle=RKUI?'#394747':'#699'; c.strokeRect(r.x,r.y,r.width,r.height); c.font=RKUI?`18px ${FONT}`:'18px Consolas'; text(el.textContent,r.x+6,r.y+r.height/2+6,r.width-12); }
     }
     if(pointer) { c.shadowBlur=0; c.strokeStyle='#ff8'; c.lineWidth=2; c.beginPath(); c.arc(pointer.x,pointer.y,7,0,Math.PI*2);c.stroke(); }
     texture.needsUpdate=true; api.paints++;

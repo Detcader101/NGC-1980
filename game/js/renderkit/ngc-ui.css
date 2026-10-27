@@ -1,0 +1,266 @@
+/* RENDERKIT ui (ngc/rk-ui): NGC-1980's menus, overlays and HUD in the Continuum design system (design.css).
+   Everything is scoped under html.ngc-rkui, which ngcui.js (and the inline script in index.html, for the first
+   paint) sets only when RK.on('ui'). With ?rk=0 nothing here matches and the classic look is untouched.
+   Menu roots (#title, #menu, #cmdBoard, #techBoard) also carry .rk-ui, so design.css supplies type, focus and
+   box-sizing inside them; the HUD and the health / gear overlays use the tokens below without .rk-ui.
+   Rules: charcoal / chalk + field green, mint = active, amber / red = caution / critical (always with words),
+   lavender = time and era. Spacing 4 8 12 20 32 52 84. Oversized tight headings in menus only. The HUD stays
+   compact, tabular, effect-free, on quiet charcoal plates so it reads over a bright sky and over the sea. */
+html.ngc-rkui {
+  /* the design.css tokens, mirrored here so the HUD and overlays (outside .rk-ui roots) can use them */
+  --rk-bg: #101719; --rk-panel: #182124; --rk-raised: #202b2d;
+  --rk-ink: #e7e9df; --rk-muted: #a7b4b0; --rk-line: #394747;
+  --rk-accent: #a6cfbb; --rk-time: #bdb1d9; --rk-warning: #e8bc7c; --rk-danger: #f2a399;
+  --rk-field: #7a8465;
+  --rk-font: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  --rk-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, 'Courier New', monospace;
+  /* the HUD plate: dark enough for chalk text over a white sky (>= 7:1), light enough to keep the world visible */
+  --ngc-plate: rgba(16, 23, 25, .8);
+  --ngc-plate-soft: rgba(16, 23, 25, .68);
+  --ngc-ours: #8ec9dc; --ngc-enemy: #f2a399; --ngc-free: #d6d4c4;
+}
+/* menu roots: design.css paints .rk-ui with an opaque page background; over the game it is a scrim instead */
+html.ngc-rkui .rk-ui { background: transparent; color: var(--rk-ink); font: 15px/1.55 var(--rk-font); }
+
+/* ------------------------------------------------------------------ HUD (compact, tabular, no glow) */
+html.ngc-rkui #hud { text-shadow: none; color: var(--rk-ink); font-family: var(--rk-mono); font-variant-numeric: tabular-nums; }
+html.ngc-rkui #hud b { color: var(--rk-ink); font-weight: 600; }
+html.ngc-rkui #tl { text-wrap: pretty; left: 16px; top: 12px; font-size: 14px; line-height: 1.5; padding: 8px 12px 8px 12px; background: var(--ngc-plate); border-left: 2px solid var(--rk-field); max-width: 440px; box-sizing: border-box; }
+html.ngc-rkui #tl > div:first-child { font-size: 11px; letter-spacing: .12em; color: var(--rk-muted); }
+html.ngc-rkui #tl > div:first-child b { font-size: 15px; letter-spacing: 0; margin-left: 4px; color: var(--rk-ink); }
+html.ngc-rkui #modeTag { color: var(--rk-muted); font-size: 12.5px; }
+html.ngc-rkui #weap { color: var(--rk-ink); font-size: 12.5px; max-width: none; }
+html.ngc-rkui #dbg { color: var(--rk-muted); font-size: 11px; }
+html.ngc-rkui #fleet { color: var(--rk-ink); text-shadow: none; font-size: 12.5px; line-height: 1.5; margin: 4px 0 2px; }
+html.ngc-rkui #fleet b { color: var(--rk-muted); }
+html.ngc-rkui #fleet i { color: var(--rk-ink); }
+html.ngc-rkui #fleet .out { color: var(--rk-accent); }
+html.ngc-rkui #fleet .hint { color: var(--rk-muted); font-size: 10.5px; margin-top: 4px; }
+html.ngc-rkui .boardAction { font: 11px/1 var(--rk-mono); letter-spacing: .08em; color: var(--rk-accent); background: transparent; border: 1px solid var(--rk-line); border-radius: 2px; padding: 6px 8px; margin: 2px 4px 2px 0; min-height: 26px; }
+html.ngc-rkui .boardAction:hover { color: var(--rk-ink); border-color: var(--rk-muted); background: var(--rk-raised); }
+html.ngc-rkui .boardAction:focus-visible { outline: 2px solid var(--rk-accent); outline-offset: 2px; color: var(--rk-ink); border-color: var(--rk-accent); }
+html.ngc-rkui #tr { right: 16px; top: 12px; font-size: 11px; letter-spacing: .12em; color: var(--rk-muted); padding: 6px 10px; background: var(--ngc-plate-soft); line-height: 1.6; }
+html.ngc-rkui #tr b { font-size: 14px; letter-spacing: 0; }
+html.ngc-rkui #war { top: 12px; left: 50%; right: auto; transform: translateX(-50%); width: max-content; max-width: max(340px, calc(100vw - 940px)); box-sizing: border-box; min-width: 0; text-align: center; text-wrap: balance; font-size: 12.5px; letter-spacing: .02em; color: var(--rk-muted); padding: 6px 12px; background: var(--ngc-plate-soft); white-space: normal; }
+html.ngc-rkui #war :is(span, b) { white-space: nowrap; }
+html.ngc-rkui #feed { right: 16px; top: 64px; width: 440px; font-size: 12.5px; line-height: 1.45; text-shadow: none; }
+html.ngc-rkui #feed > div { width: fit-content; max-width: 100%; margin: 0 0 2px auto; padding: 3px 10px; background: var(--ngc-plate); text-align: right; }
+html.ngc-rkui #bot { left: 16px; bottom: 14px; font-size: 12.5px; padding: 8px 12px 10px; background: var(--ngc-plate); border-left: 2px solid var(--rk-field); }
+html.ngc-rkui #fuelLbl { font-size: 11px; letter-spacing: .12em; color: var(--rk-muted); }
+html.ngc-rkui .bar { height: 4px; border: 0; background: rgba(231, 233, 223, .14); margin: 6px 0 8px; }
+html.ngc-rkui .bar i { background: var(--rk-accent); }
+html.ngc-rkui .bar[data-level='low'] i { background: var(--rk-warning); }
+html.ngc-rkui .bar[data-level='critical'] i { background: var(--rk-danger); }
+html.ngc-rkui #alt { color: var(--rk-ink); white-space: pre-wrap; }
+html.ngc-rkui #hint { bottom: 14px; font-size: 13px; color: var(--rk-ink); }
+html.ngc-rkui #hint:not(:empty) { width: fit-content; max-width: calc(100vw - 940px); margin: 0 auto; padding: 6px 12px; background: var(--ngc-plate); }
+html.ngc-rkui #msg { font: 500 21px/1.35 var(--rk-font); letter-spacing: .06em; color: var(--rk-ink); width: fit-content; max-width: min(760px, calc(100vw - 32px)); margin: 0 auto; padding: 8px 20px; background: var(--ngc-plate); border-top: 2px solid var(--rk-time); }
+html.ngc-rkui #msg:empty { padding: 0; border: 0; }
+html.ngc-rkui #caution { left: 16px; bottom: 120px; font-size: 12px; letter-spacing: .08em; font-weight: 600; display: flex; flex-wrap: wrap; gap: 4px; max-width: 440px; }
+html.ngc-rkui #caution .ngc-c { padding: 4px 8px; background: var(--ngc-plate); color: var(--rk-warning); border-left: 3px solid var(--rk-warning); margin: 0 !important; }
+html.ngc-rkui #caution .ngc-c.warn { color: var(--rk-ink); background: rgba(92, 28, 22, .86); border-left-color: var(--rk-danger); }
+html.ngc-rkui #caution .ngc-c.warn::before { content: 'WARNING  '; color: var(--rk-danger); white-space: pre; }
+html.ngc-rkui #caution .ngc-c.warn.off { border-left-color: transparent; }
+html.ngc-rkui #radar { border: 1px solid rgba(231, 233, 223, .32); background: rgba(16, 23, 25, .55); }
+html.ngc-rkui #radar.big { border: 0; background: transparent; }
+html.ngc-rkui #fade { background: var(--rk-bg); }
+html.ngc-rkui #fadeText { font: 500 26px/1.2 var(--rk-font); letter-spacing: .32em; color: var(--rk-ink); opacity: 1; }
+html.ngc-rkui .ngc-tag { font-family: var(--rk-mono); font-size: 11.5px; color: var(--rk-ink); text-shadow: 0 1px 2px rgba(0, 0, 0, .9), 0 0 1px #000 !important; }
+@media (max-width: 1000px) {
+  /* narrow: the top-left plate takes the width beside HI; the feed sits under it (two newest lines), the centre
+     message drops below the feed, the war line and the hint stack above the bottom-left plate */
+  html.ngc-rkui #tl { max-width: calc(100vw - 180px); }
+  html.ngc-rkui #feed { top: 200px; width: calc(100vw - 32px); max-height: none; }
+  html.ngc-rkui #feed > div:nth-child(n+3) { display: none; }
+  html.ngc-rkui #msg { top: max(30%, 272px); }
+  html.ngc-rkui #war { max-width: calc(100vw - 32px); top: auto; bottom: 200px; }
+  html.ngc-rkui #hint { left: 16px !important; right: 16px; bottom: 156px; }
+  html.ngc-rkui #hint:not(:empty) { max-width: calc(100vw - 32px); }
+  html.ngc-rkui body:has(#title:not([style*="none"])) #xrEntry, html.ngc-rkui body:has(#menu.on) #xrEntry { top: 12px; bottom: auto !important; }
+  /* the text column reaches the bright right half: an even scrim instead of the fade to the world */
+  html.ngc-rkui body #title, html.ngc-rkui body #menu { background: linear-gradient(90deg, rgba(16, 23, 25, .95), rgba(16, 23, 25, .86)); }
+}
+
+/* layers: the title, the pause menu or a board owns the screen; the flight read-outs step out from under it */
+html.ngc-rkui #hud:has(#title:not([style*="none"])) > :is(#tl, #war, #feed, #tr, #bot, #hint, #caution, #radar, #msg),
+html.ngc-rkui #hud:has(#menu.on) > :is(#tl, #war, #feed, #tr, #bot, #hint, #caution, #radar),
+html.ngc-rkui #hud:has(#cmdBoard.on, #techBoard.on) > :is(#tl, #war, #tr, #bot, #caution, .ngc-rwr) { visibility: hidden; }
+html.ngc-rkui #hud:has(#menu.on) > .ngc-rwr { visibility: hidden; }
+html.ngc-rkui body:has(.ngc-ov.on) #hud > :is(#tl, #war, #feed, #tr, #bot, #hint, #caution, #radar, .ngc-rwr) { visibility: hidden; }
+/* the radar warning cue (units/defence/cm.js) sits under the taller top-left plate */
+html.ngc-rkui .ngc-rwr { top: 220px !important; text-shadow: 0 1px 2px #000 !important; }
+/* the WebXR entry: restyled; with no headset it only appears on the title and pause pages, not over play */
+html.ngc-rkui #xrEntry { z-index: 30 !important; right: 16px !important; padding: 12px !important; background: rgba(16, 23, 25, .9) !important; border: 0 !important; border-left: 2px solid var(--rk-time) !important; font: 11px/1.5 var(--rk-mono) !important; letter-spacing: .04em; color: var(--rk-muted) !important; }
+html.ngc-rkui #enterVR { font: 500 12px var(--rk-mono) !important; letter-spacing: .1em; color: var(--rk-ink) !important; background: transparent !important; border: 1px solid var(--rk-line) !important; border-radius: 2px; min-height: 36px; padding: 8px 12px !important; }
+html.ngc-rkui #enterVR:not(:disabled) { color: #10201b !important; background: var(--rk-accent) !important; border-color: var(--rk-accent) !important; }
+html.ngc-rkui #enterVR:focus-visible { outline: 2px solid var(--rk-accent); outline-offset: 2px; }
+html.ngc-rkui #xrEntry input { accent-color: var(--rk-accent); }
+html.ngc-rkui body:not(:has(#title:not([style*="none"]))):not(:has(#menu.on)) #xrEntry:has(#enterVR:disabled) { display: none; }
+
+/* ------------------------------------------------------------------ title / HOW TO PLAY */
+html.ngc-rkui #title { align-items: flex-start; justify-content: center; text-align: left; padding: 52px 52px 52px clamp(20px, 7vw, 120px); box-sizing: border-box;
+  background: linear-gradient(90deg, rgba(16, 23, 25, .94) 0%, rgba(16, 23, 25, .86) 46%, rgba(16, 23, 25, .35) 78%, rgba(16, 23, 25, .1) 100%); }
+html.ngc-rkui #title { overflow-y: auto; justify-content: safe center; }
+html.ngc-rkui #title > * { flex-shrink: 0; }
+html.ngc-rkui #title:has(#howto[open]) { padding-top: 32px; padding-bottom: 32px; }
+html.ngc-rkui #title:has(#howto[open]) h1 { font-size: clamp(44px, 5vw, 72px); margin-bottom: 12px; }
+html.ngc-rkui #title:has(#howto[open]) :is(.pitch, #gpuinfo) { display: none; }
+html.ngc-rkui #title:has(#howto[open]) .ngc-mark { margin-bottom: 20px; }
+html.ngc-rkui #title:has(#howto[open]) h2 { margin-bottom: 0; }
+html.ngc-rkui #title:has(#howto[open]) #howto { margin-top: 20px; }
+html.ngc-rkui #title:has(#howto[open]) .go { margin-top: 20px; }
+html.ngc-rkui #title .ngc-mark { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; font: 11px/1.5 var(--rk-mono); letter-spacing: .12em; color: var(--rk-muted); }
+html.ngc-rkui #title .ngc-mark .rk-mark { width: 29px; height: 31px; }
+html.ngc-rkui #title h1 { font: 450 clamp(52px, 8.2vw, 128px)/.92 var(--rk-font); letter-spacing: -.055em; color: var(--rk-ink); text-shadow: none; margin: 0 0 20px -.04em; }
+html.ngc-rkui #title h2 { margin: 0 0 32px; font: 500 13px/1.5 var(--rk-mono); letter-spacing: .14em; color: var(--rk-time); text-shadow: none; }
+html.ngc-rkui #title h2::before { content: ''; display: block; width: 44px; height: 3px; background: var(--rk-time); margin-bottom: 12px; }
+html.ngc-rkui #title #result { font: 500 15px/1.5 var(--rk-mono); letter-spacing: .06em; color: var(--rk-warning); margin: 0 0 20px; }
+html.ngc-rkui #title #result:empty { display: none; }
+html.ngc-rkui #title p { margin: 0; color: var(--rk-muted); max-width: 62ch; }
+html.ngc-rkui #title .pitch { font: 17px/1.55 var(--rk-font); color: var(--rk-ink); max-width: 46ch; }
+html.ngc-rkui #title .pitch b, html.ngc-rkui #howto b { color: var(--rk-ink); font-weight: 600; }
+html.ngc-rkui #howto { max-width: min(980px, 100%); width: 100%; margin: 32px 0 0; text-align: left; }
+html.ngc-rkui #howto summary { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 16px; text-align: left; font: 500 13px/1.2 var(--rk-mono); letter-spacing: .12em; color: var(--rk-ink); border: 1px solid var(--rk-line); border-radius: 2px; }
+html.ngc-rkui #howto summary::after { content: '+'; margin-left: 20px; color: var(--rk-accent); }
+html.ngc-rkui #howto summary:hover { background: var(--rk-raised); border-color: var(--rk-muted); }
+html.ngc-rkui #howto summary:focus-visible { outline: 2px solid var(--rk-accent); outline-offset: 4px; }
+html.ngc-rkui #howto[open] summary { color: #10201b; background: var(--rk-accent); border-color: var(--rk-accent); }
+html.ngc-rkui #howto[open] summary::after { content: '−'; color: #10201b; }
+html.ngc-rkui #howto[open] { max-height: 40vh; overflow: auto; background: transparent; padding: 0 20px 0 0; border: 0; scrollbar-width: thin; scrollbar-color: var(--rk-line) transparent; }
+html.ngc-rkui #howto[open] > p { font: 13.5px/1.6 var(--rk-font); color: var(--rk-muted); max-width: 84ch; padding: 12px 0; border-bottom: 1px solid var(--rk-line); }
+html.ngc-rkui #howto[open] > p:first-of-type { margin-top: 20px; border-top: 1px solid var(--rk-line); }
+html.ngc-rkui #howto code { font: 12.5px var(--rk-mono); color: var(--rk-time); }
+html.ngc-rkui #title .go { margin-top: 32px; display: inline-flex; align-items: center; gap: 12px; font: 500 14px/1.4 var(--rk-mono); letter-spacing: .12em; color: var(--rk-accent); animation: none; }
+html.ngc-rkui #title .go::before { content: ''; width: 8px; height: 8px; background: var(--rk-accent); animation: ngcRkPulse 1.6s ease-in-out infinite alternate; }
+@keyframes ngcRkPulse { to { opacity: .25; } }
+html.ngc-rkui #simlink { display: inline-flex; align-items: center; min-height: 44px; margin-top: 12px; padding: 10px 16px; font: 500 12px/1.2 var(--rk-mono); letter-spacing: .12em; color: var(--rk-muted); border: 1px solid var(--rk-line); border-radius: 2px; }
+html.ngc-rkui #simlink:hover { color: var(--rk-ink); border-color: var(--rk-muted); background: var(--rk-raised); }
+html.ngc-rkui #simlink:focus-visible { outline: 2px solid var(--rk-accent); outline-offset: 4px; }
+html.ngc-rkui #gpuinfo { margin-top: 52px !important; font: 11px/1.5 var(--rk-mono) !important; letter-spacing: .08em; color: var(--rk-muted) !important; opacity: .8; }
+@media (max-width: 700px) {
+  html.ngc-rkui #title { padding: 32px 20px; background: rgba(16, 23, 25, .9); justify-content: flex-start; overflow: auto; }
+  html.ngc-rkui #title .ngc-mark { margin-bottom: 20px; }
+  html.ngc-rkui #title .pitch { font-size: 15px; }
+  html.ngc-rkui #howto[open] { max-height: none; overflow: visible; }
+}
+
+/* ------------------------------------------------------------------ pause menu */
+html.ngc-rkui #menu { align-items: flex-start; justify-content: center; padding: 52px 52px 32px clamp(20px, 7vw, 120px);
+  background: linear-gradient(90deg, rgba(16, 23, 25, .95) 0%, rgba(16, 23, 25, .9) 52%, rgba(16, 23, 25, .55) 100%); }
+html.ngc-rkui #menu h3 { font: 450 clamp(44px, 6vw, 84px)/.92 var(--rk-font); letter-spacing: -.055em; color: var(--rk-ink); text-shadow: none; margin: 0 0 12px -.03em; text-align: left; }
+html.ngc-rkui #menu > .sub { text-align: left; font: 12px/1.6 var(--rk-mono); letter-spacing: .04em; color: var(--rk-muted); margin: 0 0 20px; max-width: 680px; font-variant-numeric: tabular-nums; }
+html.ngc-rkui #menu > .sub:last-child { margin: 20px 0 0 !important; font-size: 11px; letter-spacing: .12em; }
+html.ngc-rkui #menuItems { padding: 0 12px 0 0; scrollbar-width: thin; scrollbar-color: var(--rk-line) transparent; }
+html.ngc-rkui #menuItems > * + * { margin-top: 4px !important; }
+html.ngc-rkui #menu button, html.ngc-rkui #menu .slider { display: block; width: 480px; max-width: calc(100vw - 40px); min-height: 44px; margin: 0; padding: 10px 16px 10px 20px; font: 500 15px/1.35 var(--rk-font); letter-spacing: .04em; color: var(--rk-ink);
+  background: rgba(24, 33, 36, .72); border: 0; border-left: 2px solid transparent; border-radius: 0 2px 2px 0; text-align: left; box-sizing: border-box; }
+html.ngc-rkui #menu button small, html.ngc-rkui #menu .slider small { font: 11.5px/1.45 var(--rk-mono); letter-spacing: .02em; color: var(--rk-muted); margin-top: 4px; }
+html.ngc-rkui #menu button:hover:not(:disabled) { background: var(--rk-raised); }
+html.ngc-rkui #menu button.sel, html.ngc-rkui #menu .slider.sel { background: var(--rk-raised); color: var(--rk-ink); border-left-color: var(--rk-accent); }
+html.ngc-rkui #menu button.sel small, html.ngc-rkui #menu .slider.sel small { color: #c3ccc8; }
+html.ngc-rkui #menu button:focus-visible { outline: 2px solid var(--rk-accent); outline-offset: 2px; }
+html.ngc-rkui #menu button:disabled { opacity: .42; }
+html.ngc-rkui #menu button.confirm { border-left-color: var(--rk-warning); color: var(--rk-warning); }
+html.ngc-rkui #menu .slider b { color: var(--rk-accent); font: 600 15px var(--rk-mono); }
+html.ngc-rkui #menu .slider input { accent-color: var(--rk-accent); min-height: 28px; }
+html.ngc-rkui #menu .slider input:focus-visible { outline: 2px solid var(--rk-accent); outline-offset: 2px; }
+@media (max-width: 700px) {
+  html.ngc-rkui #menu { padding: 20px 16px; justify-content: flex-start; background: rgba(16, 23, 25, .94); }
+  html.ngc-rkui #menuItems { width: 100%; padding: 0; }
+  html.ngc-rkui #menu button, html.ngc-rkui #menu .slider { width: 100%; max-width: none; }
+}
+
+/* ------------------------------------------------------------------ command board */
+html.ngc-rkui #cmdBoard { z-index: 5; left: 20px; width: 620px; padding: 20px 20px 20px 20px; background: rgba(16, 23, 25, .97); border: 0; border-left: 2px solid var(--rk-field); font: 14px/1.45 var(--rk-font); color: var(--rk-ink); }
+html.ngc-rkui #cmdBoard h3 { display: inline-block; margin: 0 20px 8px 0; font: 450 34px/.95 var(--rk-font); letter-spacing: -.05em; color: var(--rk-ink); text-shadow: none; vertical-align: baseline; }
+html.ngc-rkui #cmdBoard .boardAction { min-height: 44px; padding: 10px 14px; font-size: 11.5px; vertical-align: top; }
+html.ngc-rkui #cmdBoard .sub { font: 12px/1.6 var(--rk-mono); letter-spacing: .02em; color: var(--rk-muted); margin: 4px 0 20px; }
+html.ngc-rkui #cmdBoard .sub b { color: var(--rk-ink); font-weight: 600; }
+html.ngc-rkui #cmdBoard .ban { margin: 0 0 12px; padding: 8px 12px; background: rgba(92, 28, 22, .7); border: 0; border-left: 3px solid var(--rk-danger); color: var(--rk-ink); font: 12.5px/1.45 var(--rk-mono); letter-spacing: .04em; }
+html.ngc-rkui #cmdBoard .base { gap: 4px; margin: 0 0 12px; font: 12.5px var(--rk-mono); letter-spacing: .08em; }
+html.ngc-rkui #cmdBoard .base b { color: var(--rk-ink); font-weight: 600; }
+html.ngc-rkui #cmdBoard .base span { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 0; border: 1px solid var(--rk-line); border-radius: 2px; color: var(--rk-accent); }
+html.ngc-rkui #cmdBoard .base span:hover { background: var(--rk-raised); border-color: var(--rk-muted); }
+html.ngc-rkui #cmdBoard .row { grid-template-columns: 24px 1fr 96px; gap: 2px 12px; min-height: 44px; padding: 6px 12px 6px 10px; margin: 0 0 4px; background: rgba(24, 33, 36, .8); border: 0; border-left: 2px solid transparent; }
+html.ngc-rkui #cmdBoard .row:hover { background: var(--rk-raised); }
+html.ngc-rkui #cmdBoard .row.sel { background: var(--rk-raised); border-left-color: var(--rk-accent); }
+html.ngc-rkui #cmdBoard .row.off { opacity: .5; }
+html.ngc-rkui #cmdBoard .row .k { color: var(--rk-muted); font: 12px var(--rk-mono); }
+html.ngc-rkui #cmdBoard .row .nm { color: var(--rk-ink); font-weight: 600; letter-spacing: .04em; }
+html.ngc-rkui #cmdBoard .row .nm small { color: var(--rk-muted); font-weight: 400; letter-spacing: 0; margin-left: 8px; font-size: 12px; }
+html.ngc-rkui #cmdBoard .row .ct { color: var(--rk-ink); font: 600 14px var(--rk-mono); }
+html.ngc-rkui #cmdBoard .row .ct small { color: var(--rk-muted); font: 400 10px var(--rk-mono); letter-spacing: .08em; }
+html.ngc-rkui #cmdBoard .row .st { font: 11.5px/1.45 var(--rk-mono); color: var(--rk-muted); }
+html.ngc-rkui #cmdBoard .row .st i { color: var(--rk-accent); }
+html.ngc-rkui #cmdBoard .row.here .st i { color: var(--rk-accent); }
+html.ngc-rkui #cmdBoard .row.lock .st { color: var(--rk-warning); }
+html.ngc-rkui #cmdBoard .foot { margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--rk-line); font: 10.5px/1.6 var(--rk-mono); letter-spacing: .06em; color: var(--rk-muted); }
+html.ngc-rkui.xr-layout #cmdBoard { left: 2%; width: 96%; font-size: 22px; }
+html.ngc-rkui.xr-layout #cmdBoard .sub, html.ngc-rkui.xr-layout #cmdBoard .st, html.ngc-rkui.xr-layout #cmdBoard .base { font-size: 18px; }
+/* XR: the panel is a 2.8 m texture of this page, so the board's small print is scaled up (xr/panel.js does the same
+   for the classic look) */
+html.ngc-rkui.xr-layout #cmdBoard h3 { font-size: 44px; }
+html.ngc-rkui.xr-layout #cmdBoard .row .nm { font-size: 22px; }
+html.ngc-rkui.xr-layout #cmdBoard .row .nm small { font-size: 17px; }
+html.ngc-rkui.xr-layout #cmdBoard .row .ct { font-size: 20px; }
+html.ngc-rkui.xr-layout #cmdBoard .row .ct small { font-size: 14px; }
+html.ngc-rkui.xr-layout #cmdBoard .row .k, html.ngc-rkui.xr-layout #cmdBoard .foot, html.ngc-rkui.xr-layout #cmdBoard .ban { font-size: 16px; }
+html.ngc-rkui.xr-layout #cmdBoard .row { grid-template-columns: 30px 1fr 150px; }
+html.ngc-rkui.xr-layout .boardAction { font-size: 16px; }
+html.ngc-rkui.xr-layout #techBoard h3 { font-size: 44px; }
+html.ngc-rkui.xr-layout #techBoard :is(.sub, .det .rq, .det .st, .intel, .foot) { font-size: 17px; }
+html.ngc-rkui.xr-layout #techBoard .det .nm { font-size: 22px; }
+html.ngc-rkui.xr-layout #techBoard .det .ds { font-size: 19px; }
+
+/* ------------------------------------------------------------------ research / tech tree */
+html.ngc-rkui #techBoard { padding: 20px 20px 16px 20px; background: rgba(16, 23, 25, .97); border: 0; border-top: 2px solid var(--rk-time); font: 14px/1.45 var(--rk-font); color: var(--rk-ink); }
+html.ngc-rkui #techBoard h3 { margin: 0 0 4px; font: 450 34px/.95 var(--rk-font); letter-spacing: -.05em; color: var(--rk-ink); text-shadow: none; }
+html.ngc-rkui #techBoard .sub { font: 12px/1.6 var(--rk-mono); letter-spacing: .02em; color: var(--rk-muted); margin: 4px 0 12px; }
+html.ngc-rkui #techBoard .sub b { color: var(--rk-ink); font-weight: 600; }
+html.ngc-rkui #techBoard .sub .now { color: var(--rk-time); }
+html.ngc-rkui #techBoard canvas { border: 0; }
+html.ngc-rkui #techBoard .det { grid-template-columns: 1fr 300px; gap: 4px 20px; margin-top: 12px; padding: 12px 0 12px 12px; background: transparent; border: 0; border-left: 2px solid var(--rk-accent); }
+html.ngc-rkui #techBoard .det .nm { color: var(--rk-ink); font: 600 16px var(--rk-font); letter-spacing: .04em; }
+html.ngc-rkui #techBoard .det .ds { color: var(--rk-ink); font-size: 13.5px; margin-top: 4px; }
+html.ngc-rkui #techBoard .det .rq { color: var(--rk-muted); font: 11.5px/1.5 var(--rk-mono); margin-top: 4px; }
+html.ngc-rkui #techBoard .det .st { font: 12px/1.45 var(--rk-mono); color: var(--rk-time); }
+html.ngc-rkui #techBoard .det .st.ok { color: var(--rk-accent); }
+html.ngc-rkui #techBoard .det .st.no { color: var(--rk-warning); }
+html.ngc-rkui #techBoard .intel { margin-top: 8px; font: 11.5px var(--rk-mono); letter-spacing: .04em; color: var(--rk-danger); }
+html.ngc-rkui #techBoard .foot { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--rk-line); font: 10.5px/1.6 var(--rk-mono); letter-spacing: .06em; color: var(--rk-muted); }
+
+/* ------------------------------------------------------------------ health / gear overlays (layout untouched) */
+html.ngc-rkui .ngc-ov { background: rgba(16, 23, 25, .96); color: var(--rk-ink); text-shadow: none; }
+html.ngc-rkui .ngc-ov .hd { padding: 12px 20px; gap: 20px; background: transparent; border-bottom: 1px solid var(--rk-line); }
+html.ngc-rkui .ngc-ov .tab { font: 500 15px/1.2 var(--rk-font); letter-spacing: .12em; color: var(--rk-muted); padding: 12px 12px; min-height: 44px; display: inline-flex; align-items: center; border: 0; border-bottom: 2px solid transparent; }
+html.ngc-rkui .ngc-ov .tab.on { color: var(--rk-ink); background: transparent; border-color: transparent; border-bottom-color: var(--rk-accent); text-shadow: none; }
+html.ngc-rkui .ngc-ov .wt { color: var(--rk-muted); font-family: var(--rk-mono); }
+html.ngc-rkui .ngc-ov .wt b { color: var(--rk-ink); }
+html.ngc-rkui .ngc-ov .help { padding: 8px 20px; color: var(--rk-muted); background: transparent; border-top: 1px solid var(--rk-line); }
+html.ngc-rkui .ngc-ov .help b { color: var(--rk-accent); }
+html.ngc-rkui .ngc-ov :is(.ngc-inv, .ngc-med) h4, html.ngc-rkui .ngc-ov h4 { color: var(--rk-muted); letter-spacing: .12em; border-bottom-color: var(--rk-line); }
+html.ngc-rkui .ngc-ov h4 span { color: var(--rk-muted); }
+html.ngc-rkui .ngc-ov .sec { background: rgba(24, 33, 36, .7); border-color: var(--rk-line); }
+html.ngc-rkui .ngc-med .big b { color: var(--rk-ink); text-shadow: none; }
+html.ngc-rkui .ngc-med .kv span, html.ngc-rkui .ngc-med .eff span { color: var(--rk-muted); }
+html.ngc-rkui .ngc-med .kv b, html.ngc-rkui .ngc-med .eff b { color: var(--rk-ink); }
+html.ngc-rkui .ngc-med .eff b.bad { color: var(--rk-warning); }
+html.ngc-rkui .ngc-med .eff b.vbad, html.ngc-rkui .ngc-med .cond .r { color: var(--rk-danger); }
+html.ngc-rkui .ngc-med .cond .o { color: var(--rk-warning); }
+html.ngc-rkui .ngc-med .cond .g { color: var(--rk-accent); }
+html.ngc-rkui .ngc-med .cond div { border-bottom-color: var(--rk-line); }
+html.ngc-rkui .ngc-med .nextup .nx { color: var(--rk-accent); }
+html.ngc-rkui .ngc-ov .menu, html.ngc-rkui .ngc-ov .tip, html.ngc-rkui .ngc-med .act { background: rgba(16, 23, 25, .98); border-color: var(--rk-line); }
+
+/* ------------------------------------------------------------------ XR toolbar / deck (DOM, captured into the panel) */
+html.ngc-rkui #xrBar button, html.ngc-rkui #xrDeck button { font: 500 17px var(--rk-font); letter-spacing: .04em; color: var(--rk-ink); background: var(--rk-panel); border: 1px solid var(--rk-line); border-radius: 2px; min-height: 44px; }
+html.ngc-rkui #xrDeck { background: rgba(16, 23, 25, .97); border: 0; border-top: 2px solid var(--rk-field); color: var(--rk-ink); }
+html.ngc-rkui #xrDeck h3 { color: var(--rk-ink); font: 450 32px/1 var(--rk-font); letter-spacing: -.04em; }
+html.ngc-rkui #xrDeck p { font: 17px/1.5 var(--rk-font); color: var(--rk-muted); }
+html.ngc-rkui #xrDeck button.on { background: var(--rk-accent); color: #10201b; }
+html.ngc-rkui.xr-layout #techBoard, html.ngc-rkui.xr-layout #cmdBoard { background: rgb(16, 23, 25); }
+
+@media (prefers-reduced-motion: reduce) {
+  html.ngc-rkui #title .go::before { animation: none; }
+  html.ngc-rkui #msg { transition: none; }
+}
