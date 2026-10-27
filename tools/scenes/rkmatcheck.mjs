@@ -24,5 +24,19 @@ export default async function (h) {
       const gl = r.getContext(), px = new Uint8Array(4), rd = (x, y) => { gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); return [...px.slice(0, 3)]; };
       out[k] = { top: rd(32, 46), front: rd(36, 22), side: rd(24, 22) };
     }
-    window.__mc = out; return out; })()`, 'calibration');
+    // clipping check (renderer stays NoToneMapping): the brightest pixel of a sphere seen with the sun behind the
+    // camera, light paint colours, legacy vs each role. 255 in any channel = clipped highlight.
+    const peak = {};
+    for (const [name, col] of [['white', 0xe8e9e6], ['ceramic', 0xe9e7e0], ['grey', 0xa7aaab]]) for (const [k, f] of Object.entries({
+      lambert: () => new T.MeshLambertMaterial({ color: col }), phong22: () => new T.MeshPhongMaterial({ color: col, shininess: 22 }),
+      paint: () => new T.MeshStandardMaterial({ color: col, ...G.ROLES.paint }), ceramic: () => new T.MeshStandardMaterial({ color: col, ...G.ROLES.ceramic }),
+      flat: () => new T.MeshStandardMaterial({ color: col, ...G.ROLES.flat }) })) {
+      const s = new T.Scene(); s.background = new T.Color(0);
+      s.add(new T.HemisphereLight(0xcfe6ff, 0x4a5a34, 0.9)); const sun = new T.DirectionalLight(0xfff0d0, 1.1); sun.position.set(0.5, 1, 0.3); s.add(sun);
+      const cam = new T.PerspectiveCamera(30, 1, 0.1, 100); cam.position.set(0.5, 1, 0.3).multiplyScalar(4); cam.lookAt(0, 0, 0);
+      s.add(new T.Mesh(new T.SphereGeometry(1, 48, 24), f())); r.render(s, cam);
+      const gl = r.getContext(), buf = new Uint8Array(64 * 64 * 4); gl.readPixels(0, 0, 64, 64, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+      let mx = 0; for (let i = 0; i < buf.length; i += 4) mx = Math.max(mx, buf[i], buf[i + 1], buf[i + 2]); peak[name + '/' + k] = mx;
+    }
+    out.peak = peak; window.__mc = out; return out; })()`, 'calibration');
 }

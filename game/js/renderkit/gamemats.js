@@ -19,6 +19,9 @@ import { RK } from './adopt.js';
 import { applySurfaceDetail, createGlassMaterial, createDecalMaterial } from './materials.js';
 
 export const RKS = RK.on('surface');
+// ?rkdetail=0 keeps the RenderKit PBR roles but skips the procedural dust / wear noise (cost probe, low-end / VR fallback)
+let _q = null; try { _q = new URLSearchParams(location.search).get('rkdetail'); } catch (e) {}
+export const RK_DETAIL = _q !== '0';
 
 // role -> { roughness, metalness }. Values are tuned for the hemisphere + sun rig (no env map), see the header.
 export const ROLES = Object.freeze({
@@ -54,7 +57,7 @@ export const DETAIL = Object.freeze({
 // nothing and reads as dull tinted plastic. Three PMREM-filters it once on first use. It is per material, so it
 // overrides zScene.environment: when rk-world provides one, call useSceneEnvironment() once (or delete this block).
 let _env = null;
-const ENV_ROLES = { metal: 0.5, grimy: 0.2, chrome: 0.9, lamp: 1, glass: 1 };   // role -> envMapIntensity
+const ENV_ROLES = { metal: 0.5, grimy: 0.2, chrome: 0.9, lamp: 1, glass: 0.7 };   // role -> envMapIntensity
 const _envMats = new Set();
 function fallbackEnv() {
   if (_env) return _env;
@@ -106,7 +109,7 @@ export function pbr(legacy, color, o = {}, base = 'paint', baseDetail = null) {
   // (no unit material is fog-of-war patched today; one that is must get fogPatch HERE, before the detail below)
   const d = s.detail === true ? baseDetail : s.detail;
   // exposed-metal wear only where paint sits on metal; rubber, canvas, skin, concrete, wood, ceramic never chip to metal
-  if (d) applySurfaceDetail(m, { ...d, ...(PAINTED.includes(role) ? {} : { wear: 0 }) });
+  if (d && RK_DETAIL) applySurfaceDetail(m, { ...d, ...(PAINTED.includes(role) ? {} : { wear: 0 }) });
   return m;
 }
 
@@ -118,7 +121,9 @@ const strip0 = o => { if (!('rk' in o)) return o; const r = { ...o }; delete r.r
 // far too costly for every canopy and in VR); transparent physical dielectric, IOR 1.5.
 export function glass(legacy, { color = 0x9fc6d8, opacity = 0.25, side = THREE.DoubleSide, roughness = 0.05, ...o } = {}) {
   if (!RKS) return legacy();
-  const m = createGlassMaterial({ color, transmission: 0, thickness: 0, transparent: true, opacity, depthWrite: false, side, roughness, ...strip(o) });
+  // the env reflection adds sky irradiance to the (alpha-blended) tint, so the tint colour is cut to 40% to keep the
+  // legacy veil: glass reads as a reflective pane, not milky plastic
+  const m = createGlassMaterial({ color: new THREE.Color(color).multiplyScalar(0.4), transmission: 0, thickness: 0, transparent: true, opacity, depthWrite: false, side, roughness, ...strip(o) });
   m.name = 'RK/glass'; withEnv(m, 'glass');
   return m;
 }
@@ -139,5 +144,5 @@ export function worldSurface(legacy, { side = THREE.FrontSide, role = 'concrete'
   m.name = 'RK/world-' + role;
   m.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <color_vertex>', '#include <color_vertex>\n#ifdef USE_COLOR\n vColor.rgb *= color.rgb;\n#endif'); };
   m.customProgramCacheKey = () => 'rkworld';
-  return detail ? applySurfaceDetail(m, detail) : m;
+  return detail && RK_DETAIL ? applySurfaceDetail(m, detail) : m;
 }
