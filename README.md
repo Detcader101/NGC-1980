@@ -8,7 +8,7 @@ Bungeling Bay* and *Carrier Command*. Design bible: [BIBLE.md](docs/ngc1980/BIBL
 You fly a simulated helicopter from the deck of your carrier, the ALBATROSS, across a sea of 17 islands.
 The enemy carrier KRAKEN is out there doing the same, and whoever controls the map wins.
 
-The experimental build now has a 2.56 km control zone, varied rocky and sandy islands, and continuous distance haze
+The current build has a 2.56 km control zone, varied rocky and sandy islands, and continuous distance haze
 with blended scenery LOD. Click **RESEARCH / TECH TREE** on the HUD or in the Esc menu to open research.
 Fish schools now populate the water ahead of the flying camera: look for moving dark shoals and silver flashes;
 individual fish are easiest to see low over the sea or while swimming. Esc → **SEA LIFE: MEDIUM** enables them
@@ -28,7 +28,18 @@ Commands and report format: [tools guide](tools/README.md#benchmark-and-html-dev
 [Unit audit devlog](docs/devlogs/2026-10-26-units/devlog.html): 48 selectable unit cases, reviewed screenshots and nine clips.
 [Per-unit benchmark coverage](docs/ngc1980/UNIT-BENCHMARKS.md): `node tools/unit-benchmark.mjs --list` lists individual unit fixtures.
 
-![The KRAKEN and the enemy battleship](docs/screenshot.png)
+![A Huey over the home island, with the ALBATROSS offshore and the next islands on the horizon](docs/screenshot.png)
+
+| | |
+|---|---|
+| ![CH-46 Sea Knight on an island pad after landing its Marines](docs/ngc1980/evidence/visibility-2026-10-26/sea-knight-dismounted.png) | ![Flying over the forested mainland past the control zone](docs/ngc1980/evidence/visibility-2026-10-26/flight-2km.png) |
+| ![Huey cockpit on the ALBATROSS deck in VR (both eyes)](docs/ngc1980/evidence/webxr-2026-10-26/huey-cockpit.png) | ![F/A-18A on the catapult in VR (both eyes)](docs/ngc1980/evidence/webxr-2026-10-26/hornet.png) |
+
+Screenshots from 2026-10-26 builds; more in [VALIDATION.md](docs/ngc1980/VALIDATION.md).
+
+**Branches.** `main` is the latest tested NGC-1980 build, so clone or download that. `experimental` is where new
+features are integrated and tested first; once a batch passes regression it is merged into `main`. Feature work lives
+on `ngc/<feature>` branches. Right now `main` and `experimental` hold the same game.
 
 ## What's in it
 
@@ -79,7 +90,7 @@ Use `\` to choose your own vehicle and Shift+`\` to research locked units. Start
 available hardware immediately, or `?sim` to watch both commanders. Esc provides the pause menu and recovery options.
 
 **Desktop launchers (Windows + WSL).** `bash launcher/install.sh` (run in WSL) puts two icons on the Windows desktop:
-**Thrust Zarch** runs this checkout (`main`, port 8765) and **NGC-1980 EXPERIMENTAL** runs the `experimental`
+**Thrust Zarch** (an old icon name; it now opens NGC-1980 too) runs this checkout (`main`, port 8765) and **NGC-1980 EXPERIMENTAL** runs the `experimental`
 worktree next to it (port 8766, the icon with the orange EXP band). Each click starts that build's server inside WSL
 (or reuses it) and opens the browser, so both builds can run side by side. The existing NGC-1980 checkout is `/home/jayjay/thrust-zarch-experimental`; run commands there. The launcher lives in `%LOCALAPPDATA%\ThrustZarch` (log: `launcher.log`).
 
