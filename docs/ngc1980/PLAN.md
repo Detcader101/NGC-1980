@@ -100,7 +100,10 @@ Remaining ambitions, in priority order:
    design/balance integration task; the current factions are asymmetric in available hardware.
 5. **World/crew depth.** Extended weather, persistent personnel, further defence/ground/air AI polish, and broader
    airdrop-zone coverage. The home-island drop is tested; every island and payload is not certified.
-6. **Hardware and endurance.** Actual mid-range GPU profiling, physical HOTAS/wheel verification, long human sessions
+6. **Look pass ("as good and real as the sky").** Nine workstreams after the depth branches (sea, light, nature,
+   anti-aliasing, buildings, FX, craft, figures, time of day): [LOOK-PLAN.md](LOOK-PLAN.md). User report
+   2026-10-27: **the Tomcat seems a bit glitchy** (not yet reproduced; look-craft starts there).
+7. **Hardware and endurance.** Actual mid-range GPU profiling, physical HOTAS/wheel verification, long human sessions
    and visual review beyond the selected regression scenes. VR adds headset comfort/readability, controller profiles,
    hand occlusion/reacquisition and sustained performance under a busy war. SwiftShader timings are not GPU benchmarks.
 
