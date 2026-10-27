@@ -11,6 +11,7 @@ import { createMarkerLayer, mapBar } from './ui/markerlayer.js';   // UNIT MARKE
 import { hpOf } from './ui/unitmarkers.js';
 import { CARRIER } from './ships.js';
 import { createFog, FOG_GLSL, fogPatch } from './fog.js';
+import { RK } from './renderkit/adopt.js';   // RENDERKIT: which areas use the Continuum RenderKit (?rk=, pause menu)
 import { drawDistance, radialFog } from './world/visibility.js';
 import { zoneGrid, SURF_NAMES, GEOLOGY, geologyOf } from './world/terrain.js';
 radialFog(THREE);
@@ -1853,10 +1854,12 @@ function pressStart() { if (G.state === 'title') newGame(); }
 // Pause menu (Esc / P): resume, call a repair drop, or abandon the helicopter and start again on the carrier - the way
 // out of any stuck state (set down broken somewhere logistics can't help, wedged in a cave, out of fuel at sea).
 const menu = { items: [], sel: 0 };
+let rkPick = null;   // RENDERKIT: the choice made in this session's menu (applies after reload)
 // SEAWORLD: the sea state slider and the weather drift switch (in every variant of the menu)
 const seaItems = () => [{ id: 'sea', label: 'SEA STATE', slider: true }, { id: 'seadrift', label: `WEATHER DRIFT: ${SEA_PREF.drift ? 'ON' : 'OFF'}`, note: SEA_PREF.drift ? 'THE SEA WANDERS UP TO 2 STATES ROUND YOUR CHOICE OVER THE WAR' : 'THE SEA STAYS WHERE YOU SET IT' },
   { id: 'markers', label: `UNIT MARKERS: ${markers.label()}`, note: 'ICON + HEALTH BAR OVER THE UNITS YOU CAN SEE  ·  ALL / DAMAGED ONLY / OFF  ·  F8 IN THE GAME' },
-  { id: 'sealife', label: `SEA LIFE: ${slQ.toUpperCase()}`, note: 'FISH, DOLPHINS AND SEABIRDS ROUND THE SHIPS AND THE CAMERA  ·  OFF / LOW / MEDIUM / HIGH' }];   // SEALIFE
+  { id: 'sealife', label: `SEA LIFE: ${slQ.toUpperCase()}`, note: 'FISH, DOLPHINS AND SEABIRDS ROUND THE SHIPS AND THE CAMERA  ·  OFF / LOW / MEDIUM / HIGH' },
+  { id: 'renderkit', label: `RENDERKIT GRAPHICS: ${rkPick ?? RK.label}${rkPick ? ' (RELOAD)' : ''}`, note: 'PHYSICAL MATERIALS, TERRAIN, WATER, SKY, SMOKE, POST AND UI  ·  ON / OFF  ·  APPLIES AFTER RELOAD  ·  ?rk=' }];   // SEALIFE, RENDERKIT
 
 function menuItems() {
   if (isJet()) return [   // flying the Hornet (or the TOMCAT): no logistics; 'respawn' writes the jet off and puts you back in the helicopter
@@ -1937,6 +1940,7 @@ function menuPick() {
   else if (it.id === 'logistics') { closeMenu(); callLogistics(); }
   else if (it.id === 'seadrift') { setSeaDrift(!SEA_PREF.drift); renderMenu(); }   // SEAWORLD
   else if (it.id === 'markers') { markers.cycle(); renderMenu(); }   // UNIT MARKERS
+  else if (it.id === 'renderkit') { const next = (rkPick ?? RK.label) === 'OFF'; RK.save(next); rkPick = next ? 'ON' : 'OFF'; renderMenu(); }   // RENDERKIT
   else if (it.id === 'sealife') { setSeaLifeQ(SL_Q[(SL_Q.indexOf(slQ) + 1) % SL_Q.length]); renderMenu(); }   // SEALIFE
 
   else if (it.id === 'respawn') { closeMenu(); abandonHeli(); }
