@@ -109,8 +109,10 @@ const fpSkinMat = () => _fpSkin || (_fpSkin = figMat('skin'));
 const fpClothMat = () => _fpCloth || (_fpCloth = figMat('fabric', { side: THREE.DoubleSide }));
 function buildHand(side) {   // a fist around a ~32 mm grip; grip axis = local y, grip centre at the origin, wrist toward +z
   if (FIG) {   // RENDERKIT figures: fingers in three phalanges, knuckles, nails, thumb, palm, heel and wrist
-    const k = new Kit(), w = fpHand(k, { side, gripR: side === 'L' ? 0.024 : 0.017, trigger: side === 'R' });
-    const g = new THREE.Group(); g.add(k.mesh(fpSkinMat(), 'hand' + side)); g.userData.wrist = w.wrist; g.userData.tris = k.tris; return g;
+    const k = new Kit(), w = fpHand(k, { side, gripR: side === 'L' ? 0.024 : 0.017, trigger: side === 'R' }), ko = new Kit();
+    fpHand(ko, { side, gripR: side === 'L' ? 0.024 : 0.017, open: true });   // the relaxed / flat hand (swimming, aid): same wrist
+    const g = new THREE.Group(), grip = k.mesh(fpSkinMat(), 'hand' + side), open = ko.mesh(fpSkinMat(), 'handOpen' + side); open.visible = false; g.add(grip, open);
+    g.userData.wrist = w.wrist; g.userData.tris = k.tris; g.userData.shapes = { grip, open }; return g;
   }
   const s = side === 'L' ? -1 : 1, k = new Kit(), skin = CAMO.vary(COL.skin, 0.05, 0.02), knuckle = 0xbb8c68, crease = 0x9c6c4c, nail = 0xd8b8a0;
   k.box(0.024, 0.086, 0.07, skin, [s * 0.031, 0, 0.024]);                                                       // palm (on the near side of the grip)
@@ -344,6 +346,8 @@ export function createViewmodel(o = {}) {
     root.add(m); brass.push({ mesh: m, v, w: 20 + Math.random() * 20, t: 0 });
   }
   vm.fov = (base, ads) => base / (1 + 0.18 * sstep(ads));
+  // RENDERKIT figures: 'grip' (the fist on the weapon, default) | 'open' (relaxed: swimming, pressing on a wound); no-op classic
+  vm.handShape = (side, shape) => { const S = arms[side].hand.userData.shapes; if (!S) return; S.grip.visible = shape !== 'open'; S.open.visible = shape === 'open'; };
   const xrPos = new THREE.Vector3(), xrQ = new THREE.Quaternion(), xrModelQ = new THREE.Quaternion(), xrGrip = new THREE.Vector3(), xrForward = new THREE.Vector3(0,0,-1);
   const xrHead = new THREE.Vector3(), xrHeadQ = new THREE.Quaternion(), xrInverse = new THREE.Quaternion(), xrShoulder = new THREE.Vector3(), xrWrist = new THREE.Vector3();
   vm.render = function (renderer, worldCam, trackedRay = null) {

@@ -26,7 +26,8 @@ function nail(k, C, D, out, r) {
 // +x side (s = 1 right hand, -1 left), the fingers round the front (-z) to the far side. gripR: the radius the hand
 // closes on (pistol grip ~17 mm, handguard ~26 mm). trigger: the right index finger lies on the trigger (hand frame
 // ~(0, 0.047, -0.038)) instead of curling round the grip.
-export function fpHand(k, { side = 'R', gripR = 0.017, trigger = false, skin = SKIN_TONES[0], seg = 10 } = {}) {
+// open: a relaxed, flat hand (swimming strokes, pressing on a wound) with the same wrist point, so the IK is unchanged.
+export function fpHand(k, { side = 'R', gripR = 0.017, trigger = false, open = false, skin = SKIN_TONES[0], seg = 10 } = {}) {
   const s = side === 'L' ? -1 : 1, sk = skinPaint(skin), P = (x, y, z) => [s * x, y, z];
   const fingers = trigger ? [0.046, 0.021, -0.001, -0.022] : [0.031, 0.01, -0.011, -0.031];
   const scale = [0.96, 1.0, 0.95, 0.8], R0 = 0.0098;
@@ -37,7 +38,10 @@ export function fpHand(k, { side = 'R', gripR = 0.017, trigger = false, skin = S
     const y = fingers[i], f = scale[i], r0 = R0 * (i === 3 ? 0.88 : 1), lp = 0.044 * f, lm = 0.027 * f, ld = 0.021 * f;
     const th0 = 0.38, [mx, mz] = ang(rho0, th0);
     let A = [mx, y + 0.002, mz], B, C, D;
-    if (trigger && i === 0) {   // the trigger finger: straight forward along the side of the receiver, the pad on the trigger
+    if (open) {   // relaxed / flat: forward from the knuckles, a slight curl toward the palm, the fingers a little apart
+      const sp = (1.5 - i) * 0.004;
+      B = [mx - 0.006, y + sp, mz - lp]; C = [B[0] - lm * 0.22, y + sp * 1.4, B[2] - lm * 0.96]; D = [C[0] - ld * 0.42, y + sp * 1.6, C[2] - ld * 0.88];
+    } else if (trigger && i === 0) {   // the trigger finger: straight forward along the side of the receiver, the pad on the trigger
       B = [0.018, y + 0.003, -0.046]; C = [-0.004, y + 0.002, -0.054]; D = [-0.014, y + 0.0, -0.04];
     } else {
       // walk round the grip: proximal phalanx from the knuckle to the PIP joint at length lp, then middle and distal
@@ -51,7 +55,7 @@ export function fpHand(k, { side = 'R', gripR = 0.017, trigger = false, skin = S
     k.capsule(B, C, r0 * 0.94, r0 * 0.86, sk, seg, 'vertex');
     k.capsule(C, D, r0 * 0.84, r0 * 0.74, sk, seg, 'vertex');
     // the nail on the back of the distal phalanx (away from the grip axis; the trigger finger's faces up)
-    nail(k, C, D, trigger && i === 0 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(D[0] + C[0], 0, D[2] + C[2]).normalize(), r0);
+    nail(k, C, D, open ? new THREE.Vector3(s, 0, 0) : trigger && i === 0 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(D[0] + C[0], 0, D[2] + C[2]).normalize(), r0);
     k.ellip(0.0105 * f, 0.0098, 0.0105, sk, P(mx + 0.003, y + 0.002, mz - 0.001), [0, 0, 0], 8, 'vertex');   // the knuckle
   }
   // the back of the hand / palm (metacarpals): a rounded slab from the knuckle line to the wrist, the palm side on the grip
@@ -62,7 +66,8 @@ export function fpHand(k, { side = 'R', gripR = 0.017, trigger = false, skin = S
   k.ellip(0.022, 0.034, 0.03, sk, P(gripR + 0.016, cy - 0.004, 0.072), [0, 0, 0], 12, 'vertex');
   k.capsule(P(gripR + 0.019, cy, 0.07), P(gripR + 0.02, cy, 0.11), 0.026, 0.024, sk, 12, 'vertex', [0.78, 1.0]);
   // the thumb: base (thenar) on the palm side, over the top of the grip to the far side
-  const A = P(gripR + 0.01, 0.024, 0.06), B = P(gripR + 0.002, top + 0.002, 0.024), C = P(-0.002, top + 0.008, 0.004), D = P(-(gripR + 0.004), top + 0.004, -0.004);
+  const A = P(gripR + 0.01, 0.024, 0.06), B = open ? P(gripR + 0.002, top + 0.008, 0.026) : P(gripR + 0.002, top + 0.002, 0.024),
+    C = open ? P(gripR - 0.006, top + 0.02, -0.004) : P(-0.002, top + 0.008, 0.004), D = open ? P(gripR - 0.012, top + 0.024, -0.026) : P(-(gripR + 0.004), top + 0.004, -0.004);
   k.ellip(0.016, 0.022, 0.03, sk, P(gripR + 0.008, 0.026, 0.046), [0.5, 0, 0], 10, 'vertex');   // thenar
   k.capsule(A, B, 0.0135, 0.012, sk, seg, 'vertex');
   k.capsule(B, C, 0.0115, 0.0105, sk, seg, 'vertex');

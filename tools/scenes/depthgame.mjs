@@ -45,14 +45,15 @@ export default async function (h) {
   // ---- a Marine squad dug in round the pad: at 10 m and 40 m
   await h.eval(`(() => { const I = __G.HOME_B.isl, W = __G.war; window.__P = W.ground.addSquad(1, I, 9, __G.foot.W.x + 14, __G.foot.W.z + 4, { order: { type: 'defend', x: __G.foot.W.x + 14, z: __G.foot.W.z + 4, r: 10 } }); window.__GS = W.ground.sim; if (__GS.FC) __GS.FC.pause = true; return { n: __P.members.length }; })()`);
   await h.eval('__ff(12)'); await h.wait(600);
-  await h.eval(`(() => { const m = __P.members, cx = m.reduce((s, u) => s + u.x, 0) / m.length, cz = m.reduce((s, u) => s + u.z, 0) / m.length, gy = __G.terrainH(cx, cz); window.__sq = [cx, gy, cz]; __G.marine.view = 'third'; window.__cam = { at: [cx + 10, gy + 2.0, cz + 2], look: [cx, gy + 1.0, cz], fov: 45 }; return { c: [cx, cz].map(Math.round) }; })()`);
+  await h.eval(`(() => { const m = __P.members, cx = m.reduce((s, u) => s + u.x, 0) / m.length, cz = m.reduce((s, u) => s + u.z, 0) / m.length, gy = __G.terrainH(cx, cz); const W = __G.foot.W, dx = W.x - cx, dz = W.z - cz, dl = Math.hypot(dx, dz) || 1; window.__sq = [cx, gy, cz, dx / dl, dz / dl]; __G.marine.view = 'third'; window.__cam = { at: [cx + dx / dl * 10, gy + 1.8, cz + dz / dl * 10], look: [cx, gy + 0.9, cz], fov: 50 }; return { c: [cx, cz].map(Math.round) }; })()`);
   await h.wait(1200); await h.shot('squad-10m'); await h.eval('__stats()');
-  await h.eval(`(() => { const [cx, gy, cz] = __sq; window.__cam = { at: [cx + 40, gy + 4, cz + 6], look: [cx, gy + 1.0, cz], fov: 45 }; return 1; })()`);
+  await h.eval(`(() => { const [cx, gy, cz, ux, uz] = __sq; window.__cam = { at: [cx + ux * 40, gy + 3, cz + uz * 40], look: [cx, gy + 1.0, cz], fov: 30 }; return 1; })()`);
   await h.wait(1200); await h.shot('squad-40m'); await h.eval('__stats()');
   // ---- a casualty: down next to him, treated (first person), dragged, carried (third person)
   await h.eval(`(() => { const u = __P.members[3]; window.__cas = u; __GS.enrich(u); const W = __G.foot.W, S = __G.marine.S, fx = -Math.sin(S.yaw), fz = -Math.cos(S.yaw);
-    __GS.place(u, W.x + fx * 1.4, W.z + fz * 1.4, S.yaw); __fem(u.rich.M, 'legL'); u.rich.M.ko = 900; u.rich.noSelfAid = true; __GS.richState(u); __G.marine.view = 'first'; __G.marine.aim(S.yaw, -0.45); return { name: u.name }; })()`);
+    __GS.place(u, W.x + fx * 1.4, W.z + fz * 1.4, S.yaw); __fem(u.rich.M, 'legL'); u.rich.M.ko = 900; u.rich.noSelfAid = true; __GS.richState(u); __G.marine.view = 'first'; __G.marine.aim(S.yaw, -0.6); return { name: u.name }; })()`);
   await h.eval('__ff(0.5)'); await h.wait(700); await h.shot('casualty-down');
+  await h.key('tap', 'KeyF'); await h.wait(1500); await h.shot('fp-treating'); await h.key('tap', 'Escape'); await h.wait(300);
   await h.key('down', 'ShiftLeft'); await h.key('tap', 'KeyF'); await h.key('up', 'ShiftLeft'); await h.wait(500);
   await h.key('down', 'KeyS'); await h.wait(1500); await h.shot('fp-dragging'); await h.key('up', 'KeyS');
   await h.eval(`(() => { const W = __G.foot.W, S = __G.marine.S, fx = -Math.sin(S.yaw), fz = -Math.cos(S.yaw), rx = Math.cos(S.yaw), rz = -Math.sin(S.yaw); __G.marine.view = 'third'; window.__cam = { at: [W.x + rx * 4 + fx * 0.8, W.y + 2.0, W.z + rz * 4 + fz * 0.8], look: [W.x + fx * 0.8, W.y + 0.5, W.z + fz * 0.8], fov: 45 }; return 1; })()`);
@@ -63,6 +64,10 @@ export default async function (h) {
   await h.eval('(window.__cam = null, __G.marine.view = "first", 1)'); await h.wait(700); await h.shot('fp-carry');
   await h.key('down', 'ShiftLeft'); await h.key('tap', 'KeyF'); await h.key('up', 'ShiftLeft'); await h.wait(400);
   await h.key('tap', 'KeyF'); await h.wait(900); await h.key('tap', 'Escape'); await h.wait(300);
+  // ---- self aid (K): the rifle down on its sling, both hands on his own wound
+  await h.eval(`(() => { __G.marine.view = 'first'; __G.marine.M.hit({ round: 'M193', velocity: 800, part: 'legL', zone: 'thigh', dir: [1, 0, 0] }); __G.marine.aim(__G.marine.S.yaw, -0.75); __G.marine.key('KeyK'); return !!__G.marine.M.action; })()`);
+  await h.wait(1800); await h.shot('fp-self-aid');
+  await h.eval('(__G.marine.M.restore && __G.marine.M.restore(), 1)'); await h.wait(500);
   // ---- swimming off the home island's beach
   await h.eval(`(() => { const I = __G.HOME_B.isl, W = __G.foot.W; for (let r = 60; r < 900; r += 15) for (let k = 0; k < 24; k++) { const a = k / 24 * Math.PI * 2, x = I.x + Math.cos(a) * r, z = I.z + Math.sin(a) * r; if (__G.terrainH(x, z) < -3) { __G.foot.spawnAt({ x, y: -1.3, z, yaw: a }, { force: true }); __G.marine.view = 'first'; __G.marine.aim(a, -0.25); return { at: [Math.round(x), Math.round(z)] }; } } return null; })()`);
   await h.key('down', 'KeyW'); await h.wait(3500); await h.shot('fp-swim');
