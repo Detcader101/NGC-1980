@@ -9,8 +9,8 @@
 // Deck contract (war.js generic deckY via parts.localDeck): deck y = 8, island block |x - 10.5| < 2.9,
 // |z - 22| < 9, 13 m above the deck. dims = { L: 120, W: 28, DECK: 8, TOWER_X: 10.5, TOWER_Z: 22, TOWER_H: 13 }.
 import * as THREE from 'three';
-import { Kit, T, DEG, rng, hullMat, glowMat, canvasTex, DecalSheet, drawStreak, drawText, drawGlyphs } from './navkit.js';
-import { buildHull, deckHalf as albDeckHalf, waterHalf, STERN_LADDER, buildLadderGeo } from './albatross.js';
+import { Kit, T, DEG, rng, hullMat, glowMat, canvasTex, DecalSheet, drawStreak, drawText, drawGlyphs, pbr } from './navkit.js';
+import { buildHull, deckHalf as albDeckHalf, waterHalf, STERN_LADDER, buildLadderGeo, deckMat } from './albatross.js';
 import { buildRAM, buildLaser } from './mounts.js';
 
 export const KRK = { L: 120, W: 28, DECK: 8, TOWER_X: 10.5, TOWER_Z: 22, TOWER_H: 13 };
@@ -79,7 +79,7 @@ function buildDeck() {
   const g = new THREE.ShapeGeometry(sh); g.rotateX(-Math.PI / 2);
   const p = g.attributes.position, uv = g.attributes.uv;
   for (let i = 0; i < p.count; i++) uv.setXY(i, (p.getX(i) - X0) / (X1 - X0), 1 - (p.getZ(i) + 66) / 126);
-  const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: deckTexture() })); m.position.y = DECK + 0.01; m.name = 'flightdeck';
+  const m = new THREE.Mesh(g, deckMat(deckTexture()));   // RENDERKIT surface m.position.y = DECK + 0.01; m.name = 'flightdeck';
   return m;
 }
 
@@ -215,7 +215,7 @@ export function buildKraken(opts = {}) {
   { const k = new Kit({ wear: 0 }); k.box(2.4, 0.9, 0.18, 0x8a9298, 0, 0.6, 0); k.box(2.2, 0.75, 0.05, 0x30363b, 0, 0.6, -0.12); k.cyl(0.15, 0.2, 0.5, GREY_D, 0, 0.1, 0, 0, 0, 0, 6); dish.add(k.mesh()); }
   const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.3, 6, 4), new THREE.MeshBasicMaterial({ color: 0x66f0ff })); lamp.position.set(1.0, 17.2, 3.4); tw.add(lamp);
   // weapon mounts: seized RAM launchers forward, RUNAWAY lasers aft (war.js guns; DEFENCE agent mounts)
-  const team = new THREE.MeshPhongMaterial({ color: 0xff3322 }), guns = [], mounts = [];
+  const team = pbr(() => new THREE.MeshPhongMaterial({ color: 0xff3322 }), 0xff3322, { rk: 'paint' }), guns = [], mounts = [];
   for (const M of MOUNTS) {
     const gun = M.kind === 'ram' ? buildRAM(team) : buildLaser(team, 1.2);
     gun.position.set(M.x, M.y, M.z); gun.userData.yaw.rotation.y = Math.atan2(-M.out[0], -M.out[2]); g.add(gun); guns.push(gun);

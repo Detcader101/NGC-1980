@@ -6,8 +6,9 @@
 // the ring-slot extraction parachute. Real metres. Frame of the platform: x right, y up, -z forward (the vehicle's
 // nose), origin on the platform's underside centre.
 import * as THREE from 'three';
+import { pbr } from '../../../renderkit/gamemats.js';   // RENDERKIT surface
 
-const M = c => new THREE.MeshLambertMaterial({ color: c, flatShading: true });
+const M = c => pbr(() => new THREE.MeshLambertMaterial({ color: c, flatShading: true }), c, { flatShading: true }, 'paint');   // RENDERKIT surface
 const PAL = { alu: 0x9a9fa3, aluD: 0x6d7276, kraft: 0xb89a62, kraftD: 0x8f7647, od: 0x4f5638, odD: 0x3b412b, odL: 0x667048, nylon: 0xc9c3a6, chain: 0x3a3c3e, ring: 0x9ba0a4, orange: 0xb5642c };
 const box = (w, h, d, x, y, z) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
 function merge(list, mat) {   // geometries of one material into one mesh

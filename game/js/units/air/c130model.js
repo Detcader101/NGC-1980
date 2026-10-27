@@ -19,6 +19,7 @@
 // API: buildC130Mesh() -> { group, shell, animate(S, dt, time, inside), parts }, S = { eng: [{N, beta}] x4, flap, gear,
 //   ramp, door: [l, r], ele, ail, rud, steer, wow: [5], lights, beacon, jumpLight: 'off'|'red'|'green', hp (0..1) }
 import * as THREE from 'three';
+import { wrapFactory, glass, decal as rkDecal, DETAIL } from '../../renderkit/gamemats.js';   // RENDERKIT surface
 
 const D2R = Math.PI / 180;
 export const C130M = {
@@ -31,8 +32,9 @@ export const C130M = {
   GEAR: { nose: [0, -2.75, -9.27], main: [[-2.18, -2.72, -0.25], [2.18, -2.72, -0.25], [-2.18, -2.72, 1.25], [2.18, -2.72, 1.25]] },
 };
 
-const M = (c, o = {}) => new THREE.MeshPhongMaterial({ color: c, flatShading: true, shininess: 18, ...o });
-const MV = (c, o = {}) => M(c, { vertexColors: true, ...o });   // painted skins carry the wear in vertex colours
+// RENDERKIT surface: semi-gloss paint by default (the same Phong with ?rk=0); skins (MV) also get dust / paint wear
+const M = wrapFactory((c, o = {}) => new THREE.MeshPhongMaterial({ color: c, flatShading: true, shininess: 18, ...o }), 'paint', DETAIL.air);
+const MV = (c, o = {}) => M(c, { vertexColors: true, rk: { detail: true }, ...o });   // painted skins carry the wear in vertex colours
 const B = (c, o = {}) => new THREE.MeshBasicMaterial({ color: c, ...o });
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const AV = a => (a.isVector3 ? a : V(...a));
@@ -255,19 +257,19 @@ function text(x, w, h, str, size, col = '#141414', font = 'bold') {
   x.fillStyle = 'rgba(200,200,190,0.25)'; for (let i = 0; i < 40; i++) x.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 4, 1);   // chipped paint
 }
 function decal(parent, tex, w, h, pos, rotY, name, rotX = 0) {
-  const m = mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshLambertMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 }), parent, name);
+  const m = mesh(new THREE.PlaneGeometry(w, h), rkDecal(() => new THREE.MeshLambertMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 }), { map: tex, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }), parent, name);
   m.position.set(...pos); m.rotation.set(rotX, rotY, 0, 'YXZ'); m.renderOrder = 1; return m;
 }
 
 // ------------------------------------------------------------------------------------------- the model
 export function buildC130Mesh() {
   const g = new THREE.Group(); g.name = 'c130';
-  const greyM = MV(0xa9adb0), whiteM = MV(0xe6e6e1), radomeM = MV(0x555a5e), blackM = M(0x16181a, { shininess: 6 }), darkM = M(0x2a2d30);
-  const metalM = M(0x6d7175, { shininess: 50 }), tyreM = M(0x1b1b1b, { shininess: 4 }), hubM = M(0x8a8e90), gearM = MV(0x9a9fa3);
+  const greyM = MV(0xa9adb0), whiteM = MV(0xe6e6e1), radomeM = MV(0x555a5e), blackM = M(0x16181a, { shininess: 6, rk: 'dark' }), darkM = M(0x2a2d30);
+  const metalM = M(0x6d7175, { shininess: 50 }), tyreM = M(0x1b1b1b, { shininess: 4, rk: 'rubber' }), hubM = M(0x8a8e90), gearM = MV(0x9a9fa3);
   const propM = M(0x1e1f20, { shininess: 22 }), tipM = M(0xe2c21a), spinnerM = MV(0xa3a7aa), nacM = MV(0xa5a9ac), wingM = MV(0xa7abae), tailM = MV(0xa9adb0);
-  const innerM = M(0x5d645a, { side: THREE.BackSide }), floorM = M(0x2e3236), seatM = M(0x8a2b22), rampM = MV(0x9fa3a6, { side: THREE.DoubleSide });
-  const glassM = new THREE.MeshPhongMaterial({ color: 0x8aa4b0, specular: 0xffffff, shininess: 90, transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide });
-  const portM = M(0x1d2a33, { shininess: 90, specular: 0x9fb8cc });
+  const innerM = M(0x5d645a, { side: THREE.BackSide }), floorM = M(0x2e3236, { rk: 'rubber' }), seatM = M(0x8a2b22, { rk: 'fabric' }), rampM = MV(0x9fa3a6, { side: THREE.DoubleSide });
+  const glassM = glass(() => new THREE.MeshPhongMaterial({ color: 0x8aa4b0, specular: 0xffffff, shininess: 90, transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide }), { color: 0x8aa4b0, opacity: 0.3 });
+  const portM = M(0x1d2a33, { shininess: 90, specular: 0x9fb8cc, rk: 'lamp' });
   const body = bucket(), front = bucket(), shellG = group(g, 'shell'), shell = [shellG];
 
   // ---- fuselage: the nose (radome, flight deck skin, glazing; hidden from inside) and the rest

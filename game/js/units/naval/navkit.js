@@ -3,6 +3,8 @@
 // textured mesh off a canvas atlas, and "baking" of existing multi-material models (the Hornet, the Tomcat) into a
 // single vertex-coloured geometry that can be instanced. Flat-shaded, colours from the palette, no image files.
 import * as THREE from 'three';
+import { pbr, decal as rkDecal, DETAIL } from '../../renderkit/gamemats.js';   // RENDERKIT surface
+export { pbr, DETAIL };
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), _c = new THREE.Color();
 export const DEG = Math.PI / 180;
@@ -106,7 +108,8 @@ export class Kit {
   get triangles() { return this.pos.length / 9; }
 }
 let _hull = null, _glow = null;
-export const hullMat = () => _hull || (_hull = new THREE.MeshPhongMaterial({ vertexColors: true, flatShading: true, shininess: 14, specular: 0x202020 }));
+// RENDERKIT surface: haze-grey hull paint with salt grime / rust mottling and chipped paint (the same Phong with ?rk=0)
+export const hullMat = () => _hull || (_hull = pbr(() => new THREE.MeshPhongMaterial({ vertexColors: true, flatShading: true, shininess: 14, specular: 0x202020 }), undefined, { vertexColors: true, flatShading: true, rk: { role: 'hull', detail: DETAIL.ship } }));
 export const glowMat = () => _glow || (_glow = new THREE.MeshBasicMaterial({ vertexColors: true }));
 
 // ---------------------------------------------------------------------------------------- baking a model
@@ -176,7 +179,8 @@ export class DecalSheet {
   mesh({ lambert = true } = {}) {
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(this.pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(this.uv, 2)); g.computeVertexNormals();
     const t = new THREE.CanvasTexture(this.cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
-    const mat = new (lambert ? THREE.MeshLambertMaterial : THREE.MeshBasicMaterial)({ map: t, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    const legacy = () => new (lambert ? THREE.MeshLambertMaterial : THREE.MeshBasicMaterial)({ map: t, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    const mat = lambert ? rkDecal(legacy, { map: t }) : legacy();   // RENDERKIT surface: lit markings
     const m = new THREE.Mesh(g, mat); m.renderOrder = 1; return m;
   }
 }

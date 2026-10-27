@@ -6,7 +6,7 @@
 // Containers are one InstancedMesh (colour per box). Deck contract: deck y = 4; the stacks and the deckhouse
 // are standing surfaces via parts.localDeck. dims = { L: 80, W: 15, DECK: 4 }.
 import * as THREE from 'three';
-import { Kit, T, rng, hullMat, glowMat, DecalSheet, drawText, drawGlyphs, drawStreak } from './navkit.js';
+import { Kit, T, rng, hullMat, glowMat, DecalSheet, drawText, drawGlyphs, drawStreak, pbr, DETAIL } from './navkit.js';
 import { buildLaser } from './mounts.js';
 
 export const BOX = { L: 80, W: 15, DECK: 4 };
@@ -90,7 +90,7 @@ export function buildContainerShip() {
     const x = (rw - (ROWS - 1) / 2) * CW, y = DECK + 0.3 + t * CH, z = Z0 + b * (CL + 0.15) + CL / 2;
     if (t === PLAN[b][rw] - 1 && r() < 0.12) pods.push([x, y, z]); else boxes.push([x, y, z, COLS[(r() * COLS.length) | 0]]);
   }
-  const bm = new THREE.InstancedMesh(boxGeo(), new THREE.MeshLambertMaterial({ vertexColors: true }), boxes.length), c = new THREE.Color();
+  const bm = new THREE.InstancedMesh(boxGeo(), pbr(() => new THREE.MeshLambertMaterial({ vertexColors: true }), undefined, { vertexColors: true, rk: { role: 'paint', detail: DETAIL.ship } }), boxes.length), c = new THREE.Color();
   boxes.forEach(([x, y, z, col], i) => { bm.setMatrixAt(i, T(x, y, z, 0, r() < 0.5 ? 0 : Math.PI, 0)); bm.setColorAt(i, c.setHex(col).multiplyScalar(0.85 + r() * 0.25)); });
   bm.name = 'containers'; g.add(bm);
   for (const [x, y, z] of pods) {   // ceramic RUNAWAY cargo pod: rounded, seamed, glowing
@@ -106,7 +106,7 @@ export function buildContainerShip() {
   const rs = sheet.draw(8, 1, 3, (x, w, h) => drawStreak(x, w, h, rng(41), { a: 0.7, n: 5 }));
   for (const sd of [-1, 1]) for (const z of [-22, -6, 10, 22, 31]) sheet.place(rs, T(sd * 7.46, 2.2, z, 0, sd * Math.PI / 2, 0), 1.2, 3.2, sd < 0);
   // the point-defence laser on the forecastle (war.js gun)
-  const team = new THREE.MeshPhongMaterial({ color: 0xff3322 });
+  const team = pbr(() => new THREE.MeshPhongMaterial({ color: 0xff3322 }), 0xff3322, { rk: 'paint' });   // RENDERKIT surface
   kit.cyl(1.0, 1.2, 1.4, DARK, 0, DECK + 2.3, -35.5, 0, 0, 0, 6);
   const gun = buildLaser(team, 1.0); gun.position.set(0, DECK + 3.0, -35.5); g.add(gun);
   const h = kit.mesh(); h.name = 'container-hull'; g.add(h);

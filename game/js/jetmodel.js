@@ -2,6 +2,7 @@
 // (surfaces, gear, hook, canopy, nozzles, afterburner, lights, stores). Low-poly, flat-shaded, real-world metres.
 // Local frame: +x right wing, +y up, nose along -z, origin at the CG (over the wing root, main gear just behind it).
 import * as THREE from 'three';
+import { wrapFactory, glass, decal, DETAIL } from './renderkit/gamemats.js';   // RENDERKIT surface
 
 const HOOK_PIVOT = [0, -0.75, 5.6], HOOK_LEN = 1.75, HOOK_UP = -0.1, HOOK_DOWN = 0.75;   // arm angles below aft-horizontal
 export const JET = {
@@ -18,7 +19,8 @@ export const JET = {
   CANOPY_HINGE: [0, 0.95, -2.4], CANOPY_OPEN: 0.75,
 };
 
-const M = (c, o = {}) => new THREE.MeshPhongMaterial({ color: c, flatShading: true, shininess: 22, ...o });
+// RENDERKIT surface: semi-gloss navy paint by default (the same Phong with ?rk=0); { rk: role | { role, detail } } per paint
+const M = wrapFactory((c, o = {}) => new THREE.MeshPhongMaterial({ color: c, flatShading: true, shininess: 22, ...o }), 'paint', DETAIL.air);
 const B = (c, o = {}) => new THREE.MeshBasicMaterial({ color: c, ...o });
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const X = V(1, 0, 0);
@@ -131,7 +133,7 @@ function starBar(x, w, h) {   // US national insignia: white star on a blue disc
   x.fill();
 }
 function decalMesh(tex, w, h, parent, name) {
-  const m = mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshPhongMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, shininess: 22 }), parent, name);
+  const m = mesh(new THREE.PlaneGeometry(w, h), decal(() => new THREE.MeshPhongMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, shininess: 22 }), { map: tex, roughness: 0.6, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }), parent, name);
   if (!tex) m.visible = false; return m;
 }
 
@@ -140,10 +142,10 @@ export function buildJetMesh(side = 1, fsd) {   // fsd: index into FSD (0 = the 
   const g = new THREE.Group(); g.name = 'hornet';
   const team = side === 2 ? 0xff3322 : 0xff5a22;   // fin tip band: day-glo red-orange test band (side 2: red)
   const [fsdNo, buno] = FSD[fsd ?? 1 + (fsdNext++ % (FSD.length - 1))];
-  const greyM = M(0xa7aaab, { shininess: 40 }), underM = M(0xe8e9e6, { shininess: 40 }), radomeM = M(0x9a9d9e, { shininess: 30 }), glareM = M(0x2a2d30), darkM = M(0x24272a), blackM = M(0x0c0d0e, { shininess: 5 });
+  const greyM = M(0xa7aaab, { shininess: 40, rk: { detail: true } }), underM = M(0xe8e9e6, { shininess: 40, rk: { detail: true } }), radomeM = M(0x9a9d9e, { shininess: 30, rk: 'flat' }), glareM = M(0x2a2d30, { rk: 'dark' }), darkM = M(0x24272a), blackM = M(0x0c0d0e, { shininess: 5, rk: 'dark' });
   const pair2 = [greyM, underM];
-  const metalM = M(0x4a4d52, { shininess: 50 }), gearM = M(0xd9dcde), tyreM = M(0x1b1b1b, { shininess: 4 }), teamM = M(team, { emissive: team, emissiveIntensity: 0.15 });
-  const glassM = new THREE.MeshPhongMaterial({ color: 0x9fc6d8, specular: 0xffffff, shininess: 90, transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide });
+  const metalM = M(0x4a4d52, { shininess: 50 }), gearM = M(0xd9dcde), tyreM = M(0x1b1b1b, { shininess: 4, rk: 'rubber' }), teamM = M(team, { emissive: team, emissiveIntensity: 0.15 });
+  const glassM = glass(() => new THREE.MeshPhongMaterial({ color: 0x9fc6d8, specular: 0xffffff, shininess: 90, transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide }), { color: 0x9fc6d8, opacity: 0.18 });
   const frameM = M(0x34383c);
 
   // ---- fuselage: half profiles [top, upper, shoulder, side-hi, side, side-lo, chine, keel] mirrored into rings;
@@ -361,7 +363,7 @@ export function buildJetMesh(side = 1, fsd) {   // fsd: index into FSD (0 = the 
   // ---- stores: wingtip AIM-9s and four Mk-82s
   const aimG = merge([cylZ(0.065, 0.065, 2.85, 8), new THREE.SphereGeometry(0.065, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(-Math.PI / 2).translate(0, 0, -1.425),
     ...[0, 1].flatMap(k => [boxG(0.36, 0.006, 0.16, 0, 0, -1.0), boxG(0.62, 0.006, 0.32, 0, 0, 1.2)].map(b => b.rotateZ(Math.PI / 4 + k * Math.PI / 2)))]);
-  const aimM = M(0xd2d4d0), seekM = M(0x2b3a44, { shininess: 90 });
+  const aimM = M(0xd2d4d0), seekM = M(0x2b3a44, { shininess: 90, rk: 'lamp' });
   const aam = JET.STATIONS.aam.map((p, i) => {
     const m = mesh(aimG, aimM, g, 'aim9' + (i ? 'R' : 'L')); m.position.set(...p);
     mesh(new THREE.SphereGeometry(0.067, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(-Math.PI / 2).translate(0, 0, -1.42), seekM, m);

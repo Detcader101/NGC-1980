@@ -4,6 +4,7 @@
 // rigid part. Colours can be a constant or a function of the (local, pre-transform or world) position: that is how the
 // ERDL / woodland camouflage and the helmet cover are painted, per triangle, without textures.
 import * as THREE from 'three';
+import { pbr } from '../../renderkit/gamemats.js';   // RENDERKIT surface
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new THREE.Vector3(), _s = new THREE.Vector3(1, 1, 1);
 const _c = new THREE.Color(), _a = new THREE.Vector3(), _b = new THREE.Vector3(), _cc = new THREE.Vector3();
@@ -112,9 +113,10 @@ export class Kit {
 // shared materials (vertex coloured, flat shaded)
 export const KITMAT = {
   _l: null, _s: null,
-  lambert() { return this._l || (this._l = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true })); },
+  // RENDERKIT surface: cloth / webbing / skin read as dielectric fabric; weapon steel as parkerized metal (?rk=0: Lambert)
+  lambert() { return this._l || (this._l = pbr(() => new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), undefined, { vertexColors: true, flatShading: true, rk: 'fabric' })); },
   // a little sheen for blued / parkerized steel (still Lambert: flat, but a touch emissive so black parts read)
-  steel() { return this._s || (this._s = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, emissive: 0x050506 })); },
+  steel() { return this._s || (this._s = pbr(() => new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, emissive: 0x050506 }), undefined, { vertexColors: true, flatShading: true, emissive: 0x050506, rk: { role: 'metal' } })); },
 };
 // colour constants used across the infantry models
 export const COL = {

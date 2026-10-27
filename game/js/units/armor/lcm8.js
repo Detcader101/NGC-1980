@@ -10,6 +10,7 @@
 //
 // Frame (ship convention, like war.js units): x right (starboard), y up from the waterline, z aft (bow at -z).
 import * as THREE from 'three';
+import { pbr } from '../../renderkit/gamemats.js';   // RENDERKIT surface
 
 export const LCM8 = {
   L: 22.43, B: 6.42, DRAFT: 1.5, SPEED: 4.6, SPEED_LIGHT: 6.2,   // m, m/s (rounded 9 kn loaded, 12 kn light)
@@ -18,7 +19,8 @@ export const LCM8 = {
   PILOTHOUSE: { z: 6.4, w: 2.9, d: 2.5, roof: 1.56 },             // roof above STERN_DECK, including the roof plate
   RAMP: { len: 3.7, hw: 2.2, up: 1.42, down: -0.42 },              // ramp length; angle from horizontal (rad): up ~81 deg, down ~-24 deg
 };
-const M = (c, k = 0) => new THREE.MeshLambertMaterial({ color: c, flatShading: true, emissive: new THREE.Color(c).multiplyScalar(k) });
+// RENDERKIT surface: landing-craft paint / steel (the same Lambert with ?rk=0)
+const M = (c, k = 0) => pbr(() => new THREE.MeshLambertMaterial({ color: c, flatShading: true, emissive: new THREE.Color(c).multiplyScalar(k) }), c, { flatShading: true, emissive: new THREE.Color(c).multiplyScalar(k), rk: k ? 'lamp' : 'hull' });
 const box = (w, h, d, x = 0, y = 0, z = 0) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
 
 // the deck under (lx, lz) relative to p.y, or -1e9 off the boat; `ramp` = the ramp angle (rad, + = raised)

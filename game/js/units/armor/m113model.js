@@ -5,7 +5,8 @@
 // Same house style and running-gear kit as the M60A3 (tankmodel.js). Frame: trackfm's hull frame (z aft).
 import * as THREE from 'three';
 import { M113A2 } from './m113.js';
-import { paintFaces, weathered, merge, loftHalfRings, rodGeo, buildRunningGear, MAT, camoColor } from './tankmodel.js';
+import { paintFaces, weathered, merge, loftHalfRings, rodGeo, buildRunningGear, MAT, camoColor, LM } from './tankmodel.js';
+import { decal as rkDecal } from '../../renderkit/gamemats.js';   // RENDERKIT surface
 
 const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const box = (w, h, d, x = 0, y = 0, z = 0) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
@@ -20,7 +21,7 @@ function stencil(text, w = 256, h = 64) {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 function decal(tex, w, h, pos, rotY = 0, rotX = 0) {
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshLambertMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), rkDecal(() => new THREE.MeshLambertMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }), { map: tex }));   // RENDERKIT surface
   m.position.copy(pos); m.rotation.set(rotX, rotY, 0, 'YXZ'); return m;
 }
 
@@ -32,7 +33,7 @@ export function buildM113Mesh(opts = {}) {
   const T = M113A2.TRACK, seed = opts.seed ?? 8.3, dirt = opts.dirt ?? 1;
   const root = new THREE.Group(); root.name = 'M113A2';
   const paintM = MAT.paint(), steel = MAT.steel(), bright = MAT.bright(), rubber = MAT.rubber(), glass = MAT.glass(), black = MAT.black();
-  const steelP = new THREE.MeshLambertMaterial({ color: 0x4c4a3c, flatShading: true }), trackSteel = new THREE.MeshLambertMaterial({ color: 0x34302a, flatShading: true });
+  const steelP = LM(0x4c4a3c, {}, 'armor'), trackSteel = LM(0x34302a, {}, 'grimy');   // RENDERKIT surface roles
   const W = weathered(seed, null, dirt), P = g => paintFaces(g, W);
   const hull = new THREE.Group(); hull.name = 'hull'; root.add(hull);
   const shell = [], glassIn = [];
@@ -85,7 +86,7 @@ export function buildM113Mesh(opts = {}) {
   ramp.add(decal(stencil('2-41IN  C-12', 512, 64), 0.9, 0.11, V3(-0.4, 1.05, 0.04), 0, 0));
   // trim vane: plywood board hinged at the bottom of the glacis; folded flat on the glacis, raised it stands forward
   const vane = new THREE.Group(); vane.position.set(...APC.VANE_HINGE); hull.add(vane);
-  const vaneM = new THREE.MeshLambertMaterial({ color: 0x6a6a46, flatShading: true });
+  const vaneM = LM(0x6a6a46, {}, 'flat');
   vane.add(new THREE.Mesh(paintFaces(box(2.2, 0.03, 1.12, 0, 0, 0.56), (ctr) => camoColor(ctr.x, ctr.y + 5, ctr.z - 3, seed, new THREE.Color())), paintM));
   vane.add(new THREE.Mesh(box(2.25, 0.05, 0.05, 0, 0.02, 1.1), vaneM));
   // commander's cupola + M2HB on its pintle (rotates with the gun)
@@ -97,7 +98,7 @@ export function buildM113Mesh(opts = {}) {
   mgEl.add(new THREE.Mesh(box(0.13, 0.14, 0.55, 0, 0.0, -0.1), black));                    // receiver
   mgEl.add(new THREE.Mesh(cylZ(0.022, 1.14, 8, 0, 0.0, -0.95), black));                    // barrel
   mgEl.add(new THREE.Mesh(cylZ(0.035, 0.4, 8, 0, 0.0, -0.55), black));                     // barrel jacket
-  mgEl.add(new THREE.Mesh(box(0.12, 0.14, 0.18, -0.11, -0.04, -0.1), new THREE.MeshLambertMaterial({ color: 0x4a4a32 })));   // ammo box
+  mgEl.add(new THREE.Mesh(box(0.12, 0.14, 0.18, -0.11, -0.04, -0.1), LM(0x4a4a32, { flatShading: false }, 'flat')));   // ammo box
   mgEl.add(new THREE.Mesh(box(0.06, 0.1, 0.06, 0, -0.06, 0.2), black));                    // spade grips
   mg.add(new THREE.Mesh(cylY(0.03, 0.3, 6, 0, -0.15, 0), steelP));                          // pintle
   const cHatch = new THREE.Group(); cHatch.position.set(0, 0.28, 0.3); cup.add(cHatch); cHatch.add(new THREE.Mesh(P(cylY(0.36, 0.05, 14, 0, 0, -0.3)), paintM));
@@ -111,7 +112,7 @@ export function buildM113Mesh(opts = {}) {
   hull.add(new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.02, 4, 14).rotateX(Math.PI / 2).translate(-0.85, 1.87, 1.3), steel));
   hull.add(new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.02, 4, 14).rotateX(Math.PI / 2).translate(-0.85, 1.9, 1.3), steel));
   // jerry cans and a stowage rack on the rear corners
-  for (const s of [-1, 1]) hull.add(new THREE.Mesh(box(0.33, 0.46, 0.17, s * 1.05, 1.4, 2.53), new THREE.MeshLambertMaterial({ color: 0x3e4a2e, flatShading: true })));
+  for (const s of [-1, 1]) hull.add(new THREE.Mesh(box(0.33, 0.46, 0.17, s * 1.05, 1.4, 2.53), LM(0x3e4a2e, {}, 'flat')));
   const hullMesh = new THREE.Mesh(merge(parts), paintM); hullMesh.name = 'hullShell'; hull.add(hullMesh); shell.push(hullMesh);
   hull.add(decal(stencil('2-41IN'), 0.4, 0.1, V3(-0.6, 0.86, -2.425), Math.PI, 0.52));
   hull.add(decal(stencil('C-12'), 0.32, 0.08, V3(0.6, 0.86, -2.425), Math.PI, 0.52));

@@ -2,6 +2,7 @@
 // unlit emissive seams, segment placement between two joints, and the RUNAWAY palette (BIBLE: matte ceramic and dark
 // composite, pale cyan / white emissive seams, sensor clusters instead of cockpits).
 import * as THREE from 'three';
+import { pbr, decal as rkDecal, DETAIL, RKS } from '../../renderkit/gamemats.js';   // RENDERKIT surface
 
 export const RW = {
   ceramic: 0xd4d7d1, ceramic2: 0xb7bbb5, ceramicDirt: 0x9e9a8c, composite: 0x2a2e33, composite2: 0x3a3f45, joint: 0x50565c,
@@ -86,7 +87,8 @@ let MATS = null;
 export function rwMats() {
   if (MATS) return MATS;
   MATS = {
-    body: new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }),
+    // RENDERKIT surface: matte ceramic / dark composite (vertex colours) with a little grime, never chipped to metal
+    body: pbr(() => new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), undefined, { vertexColors: true, flatShading: true, rk: { role: 'ceramic', detail: DETAIL.rw } }),
     glow: new THREE.MeshBasicMaterial({ color: RW.seam }),
     glowDim: new THREE.MeshBasicMaterial({ color: 0x6fb8c8 }),
     glowHot: new THREE.MeshBasicMaterial({ color: 0xe8fdff }),
@@ -94,6 +96,8 @@ export function rwMats() {
     fan: new THREE.MeshBasicMaterial({ color: 0x2a3036, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide }),
     shadow: new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.28, depthWrite: false }),
   };
+  // RENDERKIT surface: the seized modern MBTs are painted armour, not RUNAWAY ceramic (?rk=0: the same body material)
+  MATS.armor = RKS ? pbr(null, undefined, { vertexColors: true, flatShading: true, rk: { role: 'armor', detail: DETAIL.armor } }) : MATS.body;
   return MATS;
 }
 
@@ -127,6 +131,6 @@ export function stencilTex(text, { w = 256, h = 64, color = '#e8eef0', bg = null
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; stencils.set(key, t); return t;
 }
 export function decal(tex, w, h, x, y, z, r, opacity = 0.9) {
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshLambertMaterial({ map: tex, transparent: true, opacity, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), rkDecal(() => new THREE.MeshLambertMaterial({ map: tex, transparent: true, opacity, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }), { map: tex, opacity }));   // RENDERKIT surface
   m.position.set(x, y, z); if (r) m.rotation.set(r[0] || 0, r[1] || 0, r[2] || 0); return m;
 }

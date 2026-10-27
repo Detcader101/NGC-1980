@@ -3,13 +3,13 @@
 // to read at a distance; the DEFENCE agent's full Phalanx / Sea Sparrow / laser models can replace the children of a
 // mount node (see the `mounts` list each ship builder returns). Each moving part is one merged mesh.
 import * as THREE from 'three';
-import { Kit, glowMat } from './navkit.js';
+import { Kit, glowMat, pbr } from './navkit.js';
 
 const HAZE = 0x828b93, DARK = 0x2a2d31, WHITE = 0xe6e6e0, BLACK = 0x18191b;
 function rig(team) {
   const g = new THREE.Group(), yaw = new THREE.Group(), pitch = new THREE.Group();
   g.add(yaw); yaw.add(pitch);
-  g.userData = { yaw, pitch, team: team || new THREE.MeshPhongMaterial({ color: 0x33bbff }) };
+  g.userData = { yaw, pitch, team: team || pbr(() => new THREE.MeshPhongMaterial({ color: 0x33bbff }), 0x33bbff, { rk: 'paint' }) };
   return g;
 }
 const put = (parent, kit) => { const m = kit.mesh(); parent.add(m); return m; };

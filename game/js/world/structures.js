@@ -16,16 +16,17 @@
 import * as THREE from 'three';
 import { Geo, col, shade } from './kit.js';
 import { worldMaterial, geoFrom } from './gfx.js';
+import { pbr, worldSurface } from '../renderkit/gamemats.js';   // RENDERKIT surface
 import { rng } from './rng.js';
 
 const TEAMC = { 0: 0x4f9a5a, 1: 0x2f6fd0, 2: 0xff3322 };
 const MAT = { solid: null, glow: null, glowDead: null };
 const mats = () => {
   if (!MAT.solid) {
-    MAT.solid = worldMaterial();
+    MAT.solid = worldSurface(() => worldMaterial());   // RENDERKIT surface: weathered concrete / sandbag / steel, one material
     MAT.glow = new THREE.MeshBasicMaterial({ color: 0x8ff4ff });
     MAT.glowDead = new THREE.MeshBasicMaterial({ color: 0x1c2224 });
-    MAT.flagW = new THREE.MeshLambertMaterial({ color: 0xf2f2ea, side: THREE.DoubleSide });
+    MAT.flagW = pbr(() => new THREE.MeshLambertMaterial({ color: 0xf2f2ea, side: THREE.DoubleSide }), 0xf2f2ea, { side: THREE.DoubleSide, rk: 'fabric' });
   }
   return MAT;
 };
@@ -355,7 +356,7 @@ export function buildFactionStructure(kind, side) {
   for (const k of ['H', 'mil', 'civ', 'ruin', 'dmg']) if (B[k]) B[k].weatherAll(0, 1.2, 0.3, 0.06);
   if (B.rw && B.rw.S) B.rw.S.weatherAll(0, 0.9, 0.12, 0.03);
   const g = new THREE.Group();
-  const team = new THREE.MeshLambertMaterial({ color: TEAMC[side] ?? 0x888888 });
+  const team = pbr(() => new THREE.MeshLambertMaterial({ color: TEAMC[side] ?? 0x888888 }), TEAMC[side] ?? 0x888888, { rk: 'paint' });   // RENDERKIT surface: team paint (flag, band, ring)
   // ---- 1980
   const human = new THREE.Group(), hIntact = new THREE.Group(), hRuin = mesh(B.ruin), hDmg = mesh(B.dmg); g.add(human); human.add(hIntact, hRuin, hDmg);
   hIntact.add(mesh(B.H)); const mil = mesh(B.mil), civ = mesh(B.civ); hIntact.add(mil, civ);

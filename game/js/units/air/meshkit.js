@@ -2,8 +2,11 @@
 // The helpers are the HORNET's (jetmodel.js), shared here so the TOMCAT, SHRIKE, REAPER and SHAHED models build the
 // same way without touching jetmodel.js. Local frame everywhere: +x right, +y up, nose along -z.
 import * as THREE from 'three';
+import { wrapFactory, glass, decal as rkDecal, DETAIL } from '../../renderkit/gamemats.js';   // RENDERKIT surface
+export { glass };
 
-export const M = (c, o = {}) => new THREE.MeshPhongMaterial({ color: c, flatShading: true, shininess: 22, ...o });
+// RENDERKIT surface: semi-gloss paint by default (the same Phong with ?rk=0); { rk: role | { role, detail } } per paint
+export const M = wrapFactory((c, o = {}) => new THREE.MeshPhongMaterial({ color: c, flatShading: true, shininess: 22, ...o }), 'paint', DETAIL.air);
 export const B = (c, o = {}) => new THREE.MeshBasicMaterial({ color: c, ...o });
 export const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const X = V(1, 0, 0);
@@ -96,7 +99,7 @@ export function canvasTex(key, w, h, draw) {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; texCache.set(key, t); return t;
 }
 export function decal(tex, w, h, parent, name, double = false) {
-  const m = mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshLambertMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, side: double ? THREE.DoubleSide : THREE.FrontSide }), parent, name);
+  const m = mesh(new THREE.PlaneGeometry(w, h), rkDecal(() => new THREE.MeshLambertMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, side: double ? THREE.DoubleSide : THREE.FrontSide }), { map: tex, roughness: 0.6, polygonOffsetFactor: -4, polygonOffsetUnits: -4, side: double ? THREE.DoubleSide : THREE.FrontSide }), parent, name);
   if (!tex) m.visible = false; return m;
 }
 // US national insignia, 1980 style: white star on a blue disc, white bars with a red stripe

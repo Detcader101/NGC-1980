@@ -2,6 +2,7 @@
 // built in units/naval/ and wrapped here under their old names), capture drones, enemy transports and the island
 // buildings. Low-poly, flat-shaded, built from primitives. Local frame: +y up, the bow / nose points along -z.
 import * as THREE from 'three';
+import { wrapFactory } from './renderkit/gamemats.js';   // RENDERKIT surface
 import { buildFactionStructure } from './world/structures.js';   // WORLD: faction structures
 import { buildAlbatross } from './units/naval/albatross.js';
 import { buildKraken } from './units/naval/kraken.js';
@@ -13,7 +14,8 @@ import { buildWaspMesh } from './units/air/rotary/waspmodel.js';
 import { buildC130Mesh } from './units/air/c130model.js';   // the para-drop Hercules (C-130 agent)
 import { buildParatrooper, buildMC1Canopy } from './units/air/jumper.js';
 
-const M = (c, o = {}) => new THREE.MeshPhongMaterial({ color: c, flatShading: true, shininess: 20, ...o });
+// RENDERKIT surface: ship / structure paint by default (the same Phong with ?rk=0); { rk: role } per paint
+const M = wrapFactory((c, o = {}) => new THREE.MeshPhongMaterial({ color: c, flatShading: true, shininess: 20, ...o }), 'hull');
 const box = (w, h, d, m, x = 0, y = 0, z = 0, parent) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); parent && parent.add(b); return b; };
 const cyl = (rt, rb, h, m, x = 0, y = 0, z = 0, parent, seg = 10) => { const c = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), m); c.position.set(x, y, z); parent && parent.add(c); return c; };
 export const TEAM = { 0: 0xc8c8bc, 1: 0x33bbff, 2: 0xff3322 };
@@ -71,7 +73,7 @@ export function buildGunship() { const m = buildWaspMesh(); return { group: m.gr
 // Cold War carrier fighter (Tomcat-like): twin tails, wide flat body between the engine nacelles, tandem canopy, and
 // swing wings on pivots (parts.wings[0] = right, [1] = left; rotation.y sweeps them back). Nose along -z.
 export function buildTomcat(side = 1) {
-  const g = new THREE.Group(), grey = M(0xa7acaf, { shininess: 35 }), dark = M(0x34383c), glass = M(0x203848, { emissive: 0x0a1822, shininess: 90 }), team = M(TEAM[side], { emissive: side === 1 ? 0x0a2a44 : 0x440a06 });
+  const g = new THREE.Group(), grey = M(0xa7acaf, { shininess: 35 }), dark = M(0x34383c), glass = M(0x203848, { emissive: 0x0a1822, shininess: 90, rk: 'lamp' }), team = M(TEAM[side], { emissive: side === 1 ? 0x0a2a44 : 0x440a06 });
   const S = 0.62;   // whole airframe scale (about 12 m long)
   const add = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x * S, y * S, z * S); g.add(o); return o; };
   add(new THREE.CylinderGeometry(0.55 * S, 0.75 * S, 7 * S, 10).rotateX(Math.PI / 2), grey, 0, 0.15, -5.2);          // forward fuselage

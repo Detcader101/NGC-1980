@@ -3,6 +3,7 @@
 // merged into one mesh each; vertex colours carry dust, mud and wear (lighter dust low down and on horizontal surfaces,
 // darker grime in the lowest band, a little mottling), so the paint looks used without textures.
 import * as THREE from 'three';
+import { pbr, glass, decal as rkDecal, DETAIL } from '../../renderkit/gamemats.js';   // RENDERKIT surface
 
 export const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const AV = a => (a.isVector3 ? a : V(...a));
@@ -22,8 +23,25 @@ const _mats = new Map();
 export function mat(color, o = {}) {
   const key = color + JSON.stringify(o);
   let m = _mats.get(key); if (m) return m;
-  m = new THREE.MeshLambertMaterial({ color, flatShading: true, vertexColors: o.vc !== false, ...Object.fromEntries(Object.entries(o).filter(([k]) => k !== 'vc')) });
+  const legacy = () => new THREE.MeshLambertMaterial({ color, flatShading: true, vertexColors: o.vc !== false, ...Object.fromEntries(Object.entries(o).filter(([k]) => k !== 'vc' && k !== 'rk')) });
+  // RENDERKIT surface: the role follows the palette entry (OD paint, canvas, rubber, steel...), see wheelRole
+  m = o.transparent ? glass(legacy, { color, opacity: o.opacity, side: o.side })
+    : pbr(legacy, color, { flatShading: true, vertexColors: o.vc !== false, ...Object.fromEntries(Object.entries(o).filter(([k]) => k !== 'vc')),
+      ...(color === PAL.chrome ? { emissive: 0 } : {}), rk: o.rk ?? wheelRole(color, o) }, 'paint', DETAIL.army);   // chrome: the env reflection replaces the fake glow
   _mats.set(key, m); return m;
+}
+// RENDERKIT surface: palette colour -> RenderKit role. OD paints and canvas get dust (the vertex colours already carry
+// mud / grime); rubber, canvas, steel and lamps are their own materials; anything else (civilian paint) is semi-gloss.
+const WROLE = new Map([[PAL.od, 'od'], [PAL.odDark, 'od'], [PAL.odLight, 'od'], [PAL.canvas, 'canvas'], [PAL.canvasDark, 'canvas'],
+  [PAL.seat, 'fabric'], [PAL.black, 'dark'], [PAL.rubber, 'rubber'], [PAL.tread, 'rubber'], [PAL.tyreWall, 'rubber'],
+  [PAL.steel, 'grimy'], [PAL.steelDark, 'grimy'], [PAL.bare, 'metal'], [PAL.rust, 'flat'], [PAL.blackout, 'dark'],
+  [PAL.wood, 'wood'], [PAL.dash, 'flat'], [PAL.gauge, 'dark'], [PAL.chrome, 'chrome'], [PAL.interior, 'dark'], [PAL.vinyl, 'dark']]);
+function wheelRole(color, o) {
+  const r = WROLE.get(color);
+  if (o.emissive && r !== 'chrome') return [PAL.lampW, PAL.lampA, PAL.lampR].includes(color) ? 'lamp' : 'fabric';   // lamps; headliner glow
+  if (r === 'od') return { role: 'flat', detail: true };
+  if (r === 'canvas') return { role: 'fabric', detail: DETAIL.army };
+  return r || 'paint';
 }
 export const glassMat = (tint = PAL.glass, op = 0.28) => mat(tint, { vc: false, transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide });
 export const lampMat = (c, glow = 0.35) => mat(c, { vc: false, emissive: c, emissiveIntensity: glow });
@@ -221,7 +239,7 @@ export function decalTex(key, w, h, draw) {
   t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; _decals.set(key, t); return t;
 }
 export function decal(tex, w, h, opacity = 0.92) {
-  const m = new THREE.MeshLambertMaterial({ map: tex, transparent: true, opacity, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  const m = rkDecal(() => new THREE.MeshLambertMaterial({ map: tex, transparent: true, opacity, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), { map: tex, opacity });   // RENDERKIT surface
   return new THREE.Mesh(new THREE.PlaneGeometry(w, h), m);
 }
 // the US white star (in a circle for vehicles: "star in a broken circle" was gone by 1980; plain star)
@@ -267,7 +285,9 @@ export function charModel(group, on = true) {
     if (on) {
       if (o.userData._mat) return;
       let c = _char.get(o.material);
-      if (!c) { c = o.material.clone(); c.color = new THREE.Color(0x2a2420).lerp(o.material.color, 0.12); c.emissive = new THREE.Color(0x000000); c.map = null; c.emissiveMap = null; _char.set(o.material, c); }
+      if (!c) { c = o.material.clone(); c.color = new THREE.Color(0x2a2420).lerp(o.material.color, 0.12); c.emissive = new THREE.Color(0x000000); c.map = null; c.emissiveMap = null;
+        if (c.isMeshStandardMaterial) { c.roughness = 0.95; c.metalness = 0; c.envMap = null; }   // RENDERKIT surface: soot (clone() drops the detail hook, as intended)
+        _char.set(o.material, c); }
       o.userData._mat = o.material; o.material = c;
     } else if (o.userData._mat) { o.material = o.userData._mat; delete o.userData._mat; }
   });

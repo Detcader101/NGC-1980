@@ -188,11 +188,11 @@ function protos(type) {
   // idlers + return rollers are static (merged into the hull)
   for (const g of gear) { hullK.cyl(P.wheelR * 0.9, P.wheelR * 0.9, P.trackW * 0.7, 12, g.x, g.yTop - 0.3, g.zf + 0.15, L.metal, [0, 0, Math.PI / 2]); for (let i = 0; i < 3; i++) hullK.cyl(0.12, 0.12, P.trackW * 0.5, 8, g.x, g.yTop - 0.12, -1.6 + i * 1.6, L.metal, [0, 0, Math.PI / 2]); }
   PROTO[type] = {
-    hull: hullK.build(M.body, M.glow, type + 'Hull'), gear,
-    turret: (type === 'm1a2' ? m1Turret(P, L) : t90Turret(P, L)).build(M.body, M.glow, type + 'Turret'),
-    gun: (type === 'm1a2' ? m1Gun(P, L) : t90Gun(P, L)).build(M.body, M.glow, type + 'Gun'),
-    wheel: wheelGeo(P.wheelR, P.trackW * 0.85, L).build(M.body, M.glow, 'wheel'),
-    sprocket: sprocketGeo(P.wheelR * 1.15, P.trackW * 0.8, L).build(M.body, M.glow, 'sprocket'),
+    hull: hullK.build(M.armor, M.glow, type + 'Hull'), gear,
+    turret: (type === 'm1a2' ? m1Turret(P, L) : t90Turret(P, L)).build(M.armor, M.glow, type + 'Turret'),
+    gun: (type === 'm1a2' ? m1Gun(P, L) : t90Gun(P, L)).build(M.armor, M.glow, type + 'Gun'),
+    wheel: wheelGeo(P.wheelR, P.trackW * 0.85, L).build(M.armor, M.glow, 'wheel'),
+    sprocket: sprocketGeo(P.wheelR * 1.15, P.trackW * 0.8, L).build(M.armor, M.glow, 'sprocket'),
   };
   return PROTO[type];
 }
