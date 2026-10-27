@@ -13,7 +13,7 @@ import { CARRIER } from './ships.js';
 import { createFog, FOG_GLSL, fogPatch } from './fog.js';
 import { RK } from './renderkit/adopt.js';
 import { useSceneEnvironment } from './renderkit/gamemats.js';   // RENDERKIT: which areas use the Continuum RenderKit (?rk=, pause menu)
-import { createGamePost } from './renderkit/gamepost.js';   // RENDERKIT post: desktop grading pass (never in XR)
+import { createGamePost, postQuality } from './renderkit/gamepost.js';   // RENDERKIT post: desktop AO, bloom, filmic grade (never in XR)
 import { RKUI, UIC, applyUI } from './renderkit/ngcui.js';   // RENDERKIT ui: design-system menus / overlays / HUD (classic colours with ?rk=0)
 import { RK_TERRAIN_GLSL, RK_SKY_GLSL, createWorldUniforms, createWorldSky, linearOutput } from './renderkit/world.js';   // RENDERKIT world
 import { drawDistance, radialFog } from './world/visibility.js';
@@ -243,8 +243,9 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPrefere
 const PR_MAX = params.has('res') ? +params.get('res') : Math.min(devicePixelRatio, 1.5);
 let pixRatio = PR_MAX; renderer.setPixelRatio(pixRatio);
 // RENDERKIT post: toneMapping stays NoToneMapping (the game's look, display-referred; see renderkit/gamepost.js).
-// The post target follows the drawing buffer each frame, so dynamic resolution needs nothing extra.
-const rkPost = RK.on('post') ? createGamePost(renderer, { reducedMotion: () => !!fx?.reducedMotion }) : null;
+// The post targets follow the drawing buffer each frame, so dynamic resolution needs nothing extra.
+// ?rkpost=low|medium|high picks the tier (renderkit/gamepost.js POST_TIERS), ?rkpost=off leaves the post out.
+const rkPost = RK.on('post') && postQuality() !== 'off' ? createGamePost(renderer, { reducedMotion: () => !!fx?.reducedMotion }) : null;
 {
   const gl = renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info');
   $('gpuinfo').textContent = 'GPU: ' + (ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : 'unknown');
@@ -2533,8 +2534,11 @@ function frame(now, xrFrame) {
     if (rkg) rkg.visible = rkv;
     // RENDERKIT post: only for the plain desktop world view. The craft's own picture is already its own post pass,
     // and XR (including the flat-screen display drawn into a target while presenting) renders directly.
-    if (!own) { if (rkPost && !renderer.xr.isPresenting) rkPost.render(zScene, zCam); else renderer.render(zScene, zCam); }
-    if (G.craft === 'foot' && G.state !== 'title' && G.mode === 'zarch') foot.overlay(renderer, zCam);   // arms + weapon after post (own depth clear)
+    // The first-person arms + weapon (own depth clear) go into the post's overlay target, so they get the same grade.
+    const ov = G.craft === 'foot' && G.state !== 'title' && G.mode === 'zarch' ? () => foot.overlay(renderer, zCam) : null;
+    let ovDone = false;
+    if (!own) { if (rkPost && !renderer.xr.isPresenting) { rkPost.render(zScene, zCam, ov); ovDone = true; } else renderer.render(zScene, zCam); }
+    if (ov && !ovDone) ov();
   };
   if (!XR?.render(drawDesktop)) drawDesktop();
   markers.draw(zCam, markerView());   // UNIT MARKERS: icons + health bars, one 2D layer over the frame

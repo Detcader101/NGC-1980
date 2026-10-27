@@ -564,6 +564,15 @@ export function createWar(ctx) {
   const bombGeo = new THREE.CapsuleGeometry(0.22, 0.7, 3, 6).rotateX(Math.PI / 2), bombMat = new THREE.MeshPhongMaterial({ color: 0x2d3326 });
   W.shoot = shoot;
   W.addExternal = u => { W.units.push(u); return u; };   // a unit flown by another module (the dropship): it can be seen, shot at and gives sight
+  // ngc/depth-post: a round's look this frame is a short streak of small sparks along the step it just flew (own rounds
+  // cyan, enemy orange, b.col for the WASP's pulses). It was one 0.9-1.3 m soft spark per frame at the round: at 100+ fps
+  // the overlapping sparks read as blue-white balls 60-80 px across over the base (findings/depth-post.md).
+  function tracer(b, x, y, z, px, py, pz) {
+    const own = b.side === 1, k = b.col, dx = x - px, dy = y - py, dz = z - pz, n = Math.min(4, 1 + Math.floor(Math.hypot(dx, dy, dz) / 0.5));
+    const r = k ? k[0] : own ? .5 : 1, g = k ? k[1] : own ? 1 : .55, bl = k ? k[2] : own ? 1 : .2, s0 = k ? 0.42 : 0.2, s1 = k ? 0.3 : 0.14;
+    for (let i = 0; i < n; i++) { const t = i / n; fx.add.spawn(x - dx * t, y - dy * t, z - dz * t, 0, 0, 0, 0.04, s0 * (1 - 0.4 * t), s1, r, g, bl, 1 - 0.5 * t); }
+  }
+  W.tracer = tracer;
   W.fireBullet = (p, v) => shoot('b', 1, p.x, p.y, p.z, v.x, v.y, v.z, 1.8);
   W.fireRocket = (p, v) => { sfx.rocket?.(); return shoot('rocket', 1, p.x, p.y, p.z, v.x, v.y, v.z, 3); };
   W.dropBomb = (p, v) => { sfx.bombDrop?.(); return shoot('bomb', 1, p.x, p.y, p.z, v.x, v.y, v.z, 12); };
@@ -651,7 +660,7 @@ export function createWar(ctx) {
       // visuals: tracers are a few short-lived sparks along the path
       if (b.kind === 'jb') fx.add.spawn(x, y, z, 0, 0, 0, 0.04, 0.8, 0.4, 1, .9, .5, 1);
       else if (b.kind === 'aam') { fx.add.spawn(x, y, z, 0, 0, 0, 0.06, 1.4, 0.6, 1, .85, .6, 1); fx.mix.spawn(x, y, z, rnd(-.3, .3), rnd(-.2, .3), rnd(-.3, .3), rnd(2, 3.5), 0.6, 2.8, .85, .85, .85, 0.6, -0.1, 1, 0.4); }
-      if (b.kind === 'b' || b.kind === 'ciws') { const own = b.side === 1, k = b.col; if (k) fx.add.spawn(x, y, z, 0, 0, 0, 0.06, 1.3, 0.8, k[0], k[1], k[2], 1); else fx.add.spawn(x, y, z, 0, 0, 0, 0.05, own ? 0.9 : 1.1, 0.6, own ? .5 : 1, own ? 1 : .55, own ? 1 : .2, 1); }   // NGC-1980 hook: b.col = round colour (WASP pulses)
+      if (b.kind === 'b' || b.kind === 'ciws') tracer(b, x, y, z, _pp.x, _pp.y, _pp.z);   // NGC-1980 hook: b.col = round colour (WASP pulses)
       else if (b.kind === 'rocket') { fx.add.spawn(x, y, z, 0, 0, 0, 0.08, 1.2, 0.5, 1, .7, .3, 1); fx.mix.spawn(x, y, z, rnd(-.4, .4), rnd(-.2, .4), rnd(-.4, .4), rnd(1.4, 2.4), 0.5, 2.4, .75, .75, .75, 0.55, -0.2, 1.2, 0.5); }
       else if (b.kind === 'shell') fx.add.spawn(x, y, z, 0, 0, 0, 0.06, 1.4, 0.8, 1, .8, .5, 1);
       else if (b.kind === 'flak') fx.add.spawn(x, y, z, 0, 0, 0, 0.04, 0.5, 0.3, 1, .9, .5, 1);
