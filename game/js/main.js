@@ -14,9 +14,11 @@ import { createFog, FOG_GLSL, fogPatch } from './fog.js';
 import { RK } from './renderkit/adopt.js';   // RENDERKIT: which areas use the Continuum RenderKit (?rk=, pause menu)
 import { createGamePost } from './renderkit/gamepost.js';   // RENDERKIT post: desktop grading pass (never in XR)
 import { RKUI, UIC, applyUI } from './renderkit/ngcui.js';   // RENDERKIT ui: design-system menus / overlays / HUD (classic colours with ?rk=0)
+import { RK_TERRAIN_GLSL, RK_SKY_GLSL, createWorldUniforms, createWorldSky, linearOutput } from './renderkit/world.js';   // RENDERKIT world
 import { drawDistance, radialFog } from './world/visibility.js';
 import { zoneGrid, SURF_NAMES, GEOLOGY, geologyOf } from './world/terrain.js';
 radialFog(THREE);
+const RKW = RK.on('world');   // RENDERKIT world: terrain / sea / sky / scene.environment (renderkit/world.js); off = the classic shaders
 import { createFx } from './fx.js';
 import { createControls } from './hotas.js';
 import { createXR } from './xr/runtime.js';
@@ -465,6 +467,7 @@ const terrainUni = {
   uFogN: { value: DRAW * 0.5 }, uFogF: { value: DRAW * 0.97 }, uNear: { value: new THREE.Vector3(0, 0, 0) },
   uSurf: { value: surfTex }, uSandC: { value: ISLANDS.map(I => new THREE.Color(...GEOLOGY[geologyOf(I)].sand)) }, uRockC: { value: ISLANDS.map(I => new THREE.Color(...GEOLOGY[geologyOf(I)].rock)) },
   ...createSeaUniforms(),   // SEAWORLD: the live sea's waves, whitecaps, ships for the hull foam
+  ...(RKW ? createWorldUniforms() : {}),   // RENDERKIT world: the sky the sea reflects, the sun's colour
 };
 const terrainVS = `
     varying vec3 vW; varying float vRaw; uniform sampler2D uHM, uHMN, uHMF, uHMNprev; uniform vec3 uHMNo, uHMFo, uNear, uHMNpo; uniform float uHMNblend;
@@ -514,6 +517,10 @@ const terrainFS = `
     uniform sampler2D uSurf; uniform vec3 uSandC[${ISLANDS.length}], uRockC[${ISLANDS.length}];
     ${FOG_GLSL}
     ${SEA_FS_DECL}
+    #ifdef RK_WORLD
+    ${RK_TERRAIN_GLSL}
+    ${RK_SKY_GLSL}
+    #endif
     void main(){
       #ifdef FAR
       if(max(abs(vW.x-uNear.x),abs(vW.z-uNear.y))<uNear.z) discard;   // the fine grid covers this
@@ -524,6 +531,22 @@ const terrainFS = `
       vec3 n=normalize(cross(dFdx(vW),dFdy(vW))); if(n.y<0.) n=-n;
       float l=max(dot(n,normalize(uSun)),0.)*.75+.4;
       vec2 g=floor(vW.xz/6.); float chk=mod(g.x+g.y,2.);
+      #ifdef RK_WORLD
+      // RENDERKIT world: createTerrainMaterial's slope / altitude / shoreline / snow blending with FBM variation, on the
+      // game's palette. Macro patches (~90 m, ~21 m) everywhere; a ~4 m grain only near the eye (no far shimmer, less cost).
+      float rkD=length(cameraPosition-vW), rkM1=rkN2(vW.xz*.011), rkM2=rkN2(vW.xz*.047+3.1);
+      float rkM3=rkD<170.?mix(rkN2(vW.xz*.23+7.7),.5,smoothstep(70.,170.,rkD)):.5;
+      float rkVar=rkM1*.55+rkM2*.3+rkM3*.15, rkSl=1.-n.y;
+      vec3 rkGr=mix(mix(vec3(.14,.37,.12),vec3(.22,.5,.16),smoothstep(.25,.65,rkVar)),vec3(.36,.5,.2),smoothstep(.5,.85,rkM1+max(vW.y,0.)*.0008));
+      rkGr*=mix(.955,1.045,chk);   // the Zarch checker, kept at half contrast: the speed and height cue
+      vec3 rkRo=mix(vec3(.42,.36,.28),vec3(.55,.5,.43),rkM2)*(.88+.24*rkM3)*(1.+.05*sin(vW.y*.4+rkM2*6.));   // + faint strata
+      float wild=step(${BOUND.toFixed(1)},max(abs(vW.x),abs(vW.z)));
+      float rk=mix(smoothstep(24.,38.,vW.y),max(smoothstep(170.,300.,vW.y+60.*(rkM1-.5)+18.*sin(vW.x*.013+vW.z*.009)),smoothstep(.2,.4,rkSl+.12*(rkM2-.5))),wild);
+      vec3 c=mix(rkGr,rkRo,rk);
+      float rkSnow=wild*smoothstep(440.,520.,vW.y+120.*(rkM1-.5)+30.*(rkM2-.5))*(1.-smoothstep(.3,.75,rkSl+.2*(rkM2-.5)));
+      c=mix(c,vec3(.93,.95,.98)*(.95+.05*rkM3),rkSnow);
+      c=mix(mix(vec3(.62,.56,.37),vec3(.8,.74,.5),smoothstep(.15,1.2,vW.y))*(.94+.12*rkM3),c,smoothstep(0.,3.+2.5*(rkM2-.5),vW.y));   // wet sand at the waterline
+      #else
       vec3 land=mix(vec3(.17,.5,.15),vec3(.25,.6,.19),chk);
       vec3 rock=mix(vec3(.45,.37,.27),vec3(.52,.43,.32),chk);
       float wild=step(${BOUND.toFixed(1)},max(abs(vW.x),abs(vW.z)));
@@ -531,23 +554,46 @@ const terrainFS = `
       vec3 c=mix(land*mix(1.,.8+.2*sin(vW.x*.0021)*sin(vW.z*.0017),wild),rock,rk);
       c=mix(c,vec3(.93,.95,.98),wild*smoothstep(430.,500.,vW.y+30.*sin(vW.x*.011)*cos(vW.z*.009))*smoothstep(.45,.7,n.y));
       c=mix(vec3(.78,.72,.45),c,smoothstep(0.,3.,vW.y));
+      #endif
       if(wild<.5 && vRaw>0.) {
         vec4 sw=texture2D(uSurf,((vW.xz+${BOUND.toFixed(1)})/${TG.toFixed(1)}+.5)/${HM_N.toFixed(1)});
         vec3 sd=gi>=0?uSandC[gi]:vec3(.86,.79,.6), rkC=gi>=0?uRockC[gi]:vec3(.55,.53,.5);
         float grass=max(0.,1.-dot(sw,vec4(1.)));
         sd*=mix(.72,1.,smoothstep(0.,.8,vRaw));
+        #ifdef RK_WORLD
+        // RENDERKIT world: the per-point surface types and island geology stay; they gain grain, and steep grass shows rock
+        sd*=.93+.14*rkM3; rkC*=.86+.28*rkM2;
+        float rkCl=grass*smoothstep(.3,.5,rkSl+.1*(rkM2-.5));
+        c=(rkGr*(grass-rkCl)+rkC*(rkCl+sw.g)+sd*sw.r+vec3(.31,.27,.18)*(.85+.3*rkM2)*sw.b+vec3(.47,.38,.26)*(.88+.24*rkM2)*sw.a)/max(1.,grass+dot(sw,vec4(1.)));
+        #else
         c=(mix(vec3(.2,.43,.14),vec3(.29,.5,.17),chk*.45)*grass+sd*sw.r+rkC*sw.g+vec3(.31,.27,.18)*sw.b+vec3(.47,.38,.26)*sw.a)/max(1.,grass+dot(sw,vec4(1.)));
+        #endif
       }
+      #ifdef RK_WORLD
+      c*=rkSunCol*max(dot(n,normalize(uSun)),0.)*.75+mix(vec3(.6,.64,.55),vec3(.98,1.01,1.06),n.y*.5+.5)*.4;   // RENDERKIT world: the sun's colour + hemisphere ambient
+      #else
       c*=l;
+      #endif
       if(vRaw<=0.){   // sea: shallows to deep water, the swell (SEAWORLD: the live sea), whitecaps, surf, hull foam
         float d=-vRaw, t=uTime; vec2 p=vW.xz;
         float a1=p.x*.19+t*1.3+sin(p.y*.05), a2=p.y*.23-t*1.1+sin(p.x*.07), a3=(p.x+p.y)*.11+t*.7;
         ${SEA_FS_NORMAL}
+        #ifdef RK_WORLD
+        { float rkf=(1.-smoothstep(40.,140.,length(cameraPosition-vW)))*rk;   // RENDERKIT world: the kit water's optical ripple, near only
+          if(rkf>.001){ vec2 P=p*.65; vec2 s=vec2(cos(P.x+t*.7)+.35*cos(dot(P,vec2(1.7,1.1))-t),sin(P.y*1.3+t*.5)+.25*sin(dot(P,vec2(.8,2.1))+t))*.16*rkf;
+            wn=normalize(wn+vec3(s.x,0.,s.y)); wg=normalize(wg+vec3(s.x,0.,s.y)); } }
+        #endif
         ${SEA_FS_WATER}   // SEALIFE: clarity - the bed through the water (was a flat shallows-to-deep ramp)
         wc=mix(wc,vec3(.1,.2,.27),sk*.4);   // a rough sea is darker and greyer
         vec3 V=normalize(cameraPosition-vW), L=normalize(uSun);
+        #ifdef RK_WORLD
+        float rkF=.02+.98*pow(1.-max(dot(V,wn),0.),5.);   // RENDERKIT world: Schlick Fresnel (water F0 .02) reflecting the drawn sky
+        vec3 rkR=reflect(-V,wn); rkR.y=abs(rkR.y);
+        wc=mix(wc,rkSkyRay(rkR)*mix(1.,.82,sk),min(rkF*.7,.6));   // (.7, cap .6: the shallows and the bed stay readable at low angles)
+        #else
         float fr=1.-max(dot(V,wn),0.); fr*=fr; fr*=fr;
         wc=mix(wc,vec3(.62,.76,.9),fr*.55);
+        #endif
         wc*=.86+.2*max(dot(wn,L),0.);   // SEAWORLD: the swell's faces turned to the sun are lighter
         float sp=max(dot(reflect(-L,wg),V),0.); sp*=sp; sp*=sp; sp*=sp; sp*=sp; sp*=sp; sp*=sp;   // ~^64, on the glitter normal
         wc+=vec3(1.,.95,.8)*sp*1.3*(sp>.002?glitAt(p,t,sk):1.);
@@ -564,12 +610,25 @@ const terrainFS = `
         if(d<${(PAD_R + 2.5).toFixed(1)}){ vec3 pc=vec3(.5,.52,.58)*l; if(d<${PAD_R.toFixed(1)}){float r=d/${PAD_R.toFixed(1)}; pc=mix(vec3(.15,.16,.2),uPadCol[pi],step(.5,fract(r*4.)))*l;} c=pc; } }
       c=fogOfWar(c,vW.xz,uTime);
       float fd=length((viewMatrix*vec4(vW,1.)).xyz);
+      #ifdef RK_WORLD
+      // RENDERKIT world: display values straight out on the default sRGB / no-tone-mapping path (renderkit/world.js
+      // linearOutput); otherwise linear out, and Three tone maps and encodes once like every built-in material
       gl_FragColor=vec4(mix(c,uFog,smoothstep(uFogN,uFogF,fd)),1.);
+      #ifndef RK_DISPLAY_OUT
+      gl_FragColor.rgb=rkToLinear(gl_FragColor.rgb);
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
+      #endif
+      #else
+      gl_FragColor=vec4(mix(c,uFog,smoothstep(uFogN,uFogF,fd)),1.);
+      #endif
     }`;
-const terrain = new THREE.Mesh(terrainGeo, new THREE.ShaderMaterial({ uniforms: terrainUni, vertexShader: terrainVS, fragmentShader: terrainFS }));
+const terrainMat = new THREE.ShaderMaterial({ uniforms: terrainUni, vertexShader: terrainVS, fragmentShader: terrainFS, defines: RKW ? { RK_WORLD: 1 } : {} });
+const terrain = new THREE.Mesh(terrainGeo, RKW ? linearOutput(terrainMat) : terrainMat);   // RENDERKIT world: the define
 terrain.frustumCulled = false; zScene.add(terrain);
 const FAR_C = 24, FAR_N = 220;   // far ring: 12 m cells out to ~1.5 km, only drawn while the view reaches past the fine grid
-const farTerrain = new THREE.Mesh(new THREE.PlaneGeometry(FAR_C * FAR_N, FAR_C * FAR_N, FAR_N, FAR_N).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({ uniforms: terrainUni, vertexShader: terrainVS, fragmentShader: terrainFS, defines: { FAR: 1 } }));
+const farMat = new THREE.ShaderMaterial({ uniforms: terrainUni, vertexShader: terrainVS, fragmentShader: terrainFS, defines: RKW ? { FAR: 1, RK_WORLD: 1 } : { FAR: 1 } });   // RENDERKIT world
+const farTerrain = new THREE.Mesh(new THREE.PlaneGeometry(FAR_C * FAR_N, FAR_C * FAR_N, FAR_N, FAR_N).rotateX(-Math.PI / 2), RKW ? linearOutput(farMat) : farMat);
 farTerrain.frustumCulled = false; farTerrain.visible = false; zScene.add(farTerrain);
 // SEAWORLD (the black dome on the horizon): the sky dome and both terrain windows are centred on the camera that
 // actually renders, at render time. They used to be placed on zCam in updateCamsAndMeshes; any camera moved after that
@@ -581,6 +640,10 @@ sky.frustumCulled = false;
 // Read that matrix directly: getWorldPosition() would recompute Three's internally managed eye matrices.
 const _renderEye = new THREE.Vector3();
 sky.onBeforeRender = (r, s, cam) => { sky.position.setFromMatrixPosition(cam.matrixWorld); sky.updateMatrixWorld(); };
+// RENDERKIT world: the kit's sky material on the dome (sun = the DirectionalLight) and zScene.environment, a PMREM of that
+// sky rebuilt only when the sun or the weather changes (renderkit/world.js). Off: the classic dome, no environment.
+const worldSky = RKW ? createWorldSky({ renderer, scene: zScene, sky, sun, uniforms: terrainUni }) : null;
+if (worldSky && params.has('debug')) window.__rkWorld = worldSky;
 const _snapTerrain = cam => { _renderEye.setFromMatrixPosition(cam.matrixWorld); const x = Math.round(_renderEye.x / TG) * TG, z = Math.round(_renderEye.z / TG) * TG; terrainUni.uNear.value.set(x, z, TG * TN / 2 - 3); return [x, z]; };
 terrain.onBeforeRender = (r, s, cam) => { const [x, z] = _snapTerrain(cam); terrain.position.set(x, 0, z); terrain.updateMatrixWorld(); };
 farTerrain.onBeforeRender = (r, s, cam) => { _snapTerrain(cam); farTerrain.position.set(Math.round(_renderEye.x / FAR_C) * FAR_C, 0, Math.round(_renderEye.z / FAR_C) * FAR_C); farTerrain.updateMatrixWorld(); };
@@ -2358,6 +2421,7 @@ function updateCamsAndMeshes(dt, time) {
   XR?.prepare();
   fx.ear.copy(zCam.position); terrainUni.uTime.value = time;
   updateSeaUniforms(terrainUni, war.sea, war.units, zCam.position);   // SEAWORLD
+  worldSky?.update(war.sea.ss, sealife.under);   // RENDERKIT world: rebuilds sky + environment only when the sun / weather changed
   sky.position.copy(zCam.position);
   terrainStream(zCam.position.x, zCam.position.z, dt);
   terrain.position.set(Math.round(zCam.position.x / TG) * TG, 0, Math.round(zCam.position.z / TG) * TG);
