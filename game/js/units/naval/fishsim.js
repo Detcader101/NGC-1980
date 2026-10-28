@@ -170,6 +170,7 @@ export const SUB_GLSL = `
     return vec4(b+(h-.5)*vec3(.35,.25,.4), h.x*6.2832);
   }`;
 
+/** @param {{ depthAt?: (x: number, z: number) => number, seed?: number, surf?: any }} [opts] */
 export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
   const r = rng(seed);
   // ---- the sea bed, cached on a 2 m grid (terrainH is not free). Cells are filled on first use.

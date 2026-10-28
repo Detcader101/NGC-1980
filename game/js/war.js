@@ -34,12 +34,94 @@ export const PROD = { fuel: { fuel: 0.55 }, factory: { mat: 0.4 }, radar: {}, hq
 const SIGHT = { heli: 180, carrier: 230, drone: 100, island: 130, radar: 380 };
 const PROD_KIND = { fuel: 'fuel', factory: 'factory', radar: 'radar', fortress: 'fuel' };
 
+/**
+ * The war state createWar returns (W). W is built by assignment (W.x = ...), so its members are declared here: W is
+ * cast to War where it is made, which checks every W.x the war assigns, and callers (main.js, sim/, ui/, units/) get a
+ * closed type, so a misspelt war.member is an error. A new W.member needs a line here (node tools/check.mjs types).
+ * Units, islands and projectiles are still `any`: typing them is Phase 2 (docs/ngc1980/TYPESCRIPT.md).
+ * @typedef {object} War
+ * @property {any[]} islands             ISLANDS (main.js), with owner / structs / cap...
+ * @property {any[]} units               every ship, aircraft, drone (u.type, u.side, u.p, u.v, u.hp...)
+ * @property {any[]} proj                rounds in flight (shoot)
+ * @property {{ fuel: number, mat: number, bship: number }} E   the enemy's store
+ * @property {any} P                     the player's store (main.js G: fuel, mat, ...)
+ * @property {number} time               war clock, s
+ * @property {{ result: string, why: string } | null} over
+ * @property {any} carrier               the ALBATROSS (null before reset)
+ * @property {any} enemyCarrier
+ * @property {any} battleship            the LEVIATHAN once launched
+ * @property {number} thinkT
+ * @property {number} raidT
+ * @property {number} econT
+ * @property {number} [transT]
+ * @property {number} [freightT]
+ * @property {any} deckCache
+ * @property {any} sea                   units/naval/seamotion.js makeSea
+ * @property {any} weather               units/naval/seaweather.js
+ * @property {any[]} techStart           [null, player start set, enemy start set]
+ * @property {any[]} tech                [null, player tree, enemy tree] (techtree.js createTech)
+ * @property {(side: number, key: string) => boolean} allow   the TECH gate every buy / build / launch asks
+ * @property {(side: number, key: string) => string} gateMsg
+ * @property {(side: number, key: string) => number} techMod
+ * @property {any[]} researchPolicy
+ * @property {number[]} researchHold
+ * @property {(side: number) => number} spendable
+ * @property {(string | null)[]} doctrine
+ * @property {(side: number, id: string) => any} research
+ * @property {(side: number) => any} cancelResearch
+ * @property {(side: number, pl: any) => void} researchTick
+ * @property {(ss: number, dir?: number) => string} setSea
+ * @property {(on: boolean) => void} setSeaDrift
+ * @property {(x: number, z: number) => number} seaY
+ * @property {(dt: number) => void} tickSea
+ * @property {any} defence               units/defence/brain.js
+ * @property {(I: any, side?: number) => number} aliveAA
+ * @property {(I: any, side: number, how?: string) => void} setOwner
+ * @property {(x: number, z: number, skipSide?: number) => number} deckY
+ * @property {(x: number, z: number) => any} shipAt
+ * @property {(x: number, z: number) => any} surfVel
+ * @property {(u: any, x: number, z: number) => number} deckAt
+ * @property {(x: number, z: number) => boolean} orderCarrier
+ * @property {(o?: { free?: boolean, instant?: boolean }) => string} upgradeCarrier
+ * @property {any} rotary                units/air/rotary/rotary.js
+ * @property {any} ground                units/groundwar/groundwar.js
+ * @property {any} air                   units/air/airwar.js
+ * @property {(I: any) => any} sendDrone
+ * @property {(I: any) => any} orderAA
+ * @property {(I: any) => any} sendEscort
+ * @property {(side: number, near?: number[] | null, raid?: any) => any} spawnGunship
+ * @property {(kind: string, side: number, x: number, y: number, z: number, vx: number, vy: number, vz: number, life: number, extra?: object) => any} shoot
+ * @property {(...a: any[]) => any} tracer
+ * @property {(u: any) => any} addExternal   a unit flown by another module (the dropship)
+ * @property {(p: { x: number, y: number, z: number }, v: { x: number, y: number, z: number }) => any} fireBullet
+ * @property {(p: { x: number, y: number, z: number }, v: { x: number, y: number, z: number }) => any} fireRocket
+ * @property {(p: { x: number, y: number, z: number }, v: { x: number, y: number, z: number }) => any} dropBomb
+ * @property {(p: { x: number, y: number, z: number }, v: { x: number, y: number, z: number }) => any} fireJetGun
+ * @property {(p: { x: number, y: number, z: number }, v: import('three').Vector3, tgt?: any) => any} fireMissile
+ * @property {(x: number, y: number, z: number, r: number, dmg: number, side: number, noGround?: boolean) => any} blast
+ * @property {(t: any, dmg: number, side: number) => any} damage
+ * @property {(x: number, y: number, z: number, side: number, rad?: number) => any} hitTest
+ * @property {(fromX: number, fromZ: number) => any} pickExpansion
+ * @property {(pl: any) => { x: number, z: number, r: number }[]} visionSources
+ * @property {() => void} reset
+ * @property {(dt: number, pl: any, peace?: boolean) => void} update
+ * @property {any} [_pl]                 the last PL update() saw
+ * @property {boolean} [peace]
+ * @property {(fog: any) => void} setVisibility
+ * @property {any} sim                   SIM MODE hook: { makeAir, buildAA, makeShip, launchPoint, nearestLaunch, end, COST }
+ * @property {(type: string, side: number, x: number, z: number, yaw?: number) => any} makeShip
+ * @property {any} deck                  DECK OPS (units/naval/deckops.js)
+ * @property {{ obstacles: any, landing: any, recovery?: () => boolean }} deckHooks   main.js fills these in
+ * @property {any} [redAI]               SIM MODE: the RUNAWAY commander (sim/redai.js), set by sim/spectator.js
+ * @property {(() => Iterable<any>)[]} [markerExtra]   other modules' unit lists for the unit markers (ui/unitmarkers.js)
+ */
+/** @returns {War} */
 export function createWar(ctx) {
   const { scene, fx, sfx, terrainH, isWater, nav } = ctx;
-  const W = {
+  const W = /** @type {War} */ ({
     islands: ctx.ISLANDS, units: [], proj: [], E: { fuel: 0, mat: 0, bship: 0 }, P: ctx.G, time: 0, over: null,
     carrier: null, enemyCarrier: null, battleship: null, thinkT: 0, raidT: 120, econT: 0, deckCache: null,
-  };
+  });
   const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _skyAim = new THREE.Vector3();
   // NAVAL: the sea state (?sea=0..7, default 4 MODERATE; waves from the west-south-west) and the ships' wake / spray
   const _sq = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
