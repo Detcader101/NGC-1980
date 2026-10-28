@@ -17,7 +17,21 @@ import { RKS } from './renderkit/gamemats.js';   // ngc/look-huey: with RenderKi
 import { HUEY_SKIN } from './hueyhifi.js';
 import { rbox } from './hueygeo.js';
 import { UH1_PANEL } from './uh1panel.js';
-import { UH1_PEDESTAL } from './uh1pedestal.js';   // traced TM 55-1520-210-10 fig. 2-5 sheet 2 (tools/hueypedestal.mjs)   // traced TM 55-1520-210-10 fig. 2-4 (tools/hueypanel.mjs)
+import { UH1_PEDESTAL } from './uh1pedestal.js';
+import { fpHand, sleeveGeo } from './units/infantry/handkit.js';   // ngc/look-people: smooth gloved hands and sleeves
+import { SdfKit } from './units/infantry/sdfmesh.js';
+import { SdfHandRecorder } from './units/infantry/humanfig.js';
+import { figMaterial } from './units/infantry/figgeo.js';
+import { FIG } from './units/infantry/meshkit.js';
+// the pilot's gloved hand round a grip as one smooth surface (the first-person viewmodel's hand, look-people)
+function gloveGeo(o) {
+  const S = new SdfKit(), rec = new SdfHandRecorder(S, { k: 0.0026, skin: 'handR' }); fpHand(rec, o); const m = S.mesh(0.0031, { iters: 4 });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(m.pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(m.nor, 3)); g.setAttribute('color', new THREE.BufferAttribute(m.col, 3));
+  g.setAttribute('aFig', new THREE.BufferAttribute(m.fig, 4)); g.setAttribute('aRM', new THREE.BufferAttribute(m.rm, 2));
+  g.setIndex(m.verts > 65535 ? new THREE.Uint32BufferAttribute(m.index, 1) : new THREE.Uint16BufferAttribute(m.index, 1)); g.computeBoundingSphere();
+  return g;
+}   // traced TM 55-1520-210-10 fig. 2-5 sheet 2 (tools/hueypedestal.mjs)   // traced TM 55-1520-210-10 fig. 2-4 (tools/hueypanel.mjs)
 import { drawRwr } from './units/defence/cm.js';   // ngc/cmpolish: the radar warning scope   // circular, but only read inside buildHueyCockpit (after both modules ran)
 
 export const HUEY_EYE = new THREE.Vector3(0.55, 0.16, -1.95), HUEY_EYE_PITCH = -0.16;
@@ -99,7 +113,9 @@ export function buildHueyCockpit({ classic = false } = {}) {
   const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
   const tube = (pts, r, m = frameM, p = g) => { const o = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), Math.max(4, pts.length * 4), r, 6), m); p.add(o); return o; };
   // a limb between two points (static) or re-aimed per frame (setLimb)
-  const limbGeo = new THREE.CylinderGeometry(1, 0.9, 1, HF ? 16 : 8);
+  // hi-fi: limbs are flight-suit sleeves with folds (cuff at the far end), not tubes
+  const limbGeo = HF && FIG ? sleeveGeo(1, 1, 0.82, { seg: 16, rows: 10, folds: 0.8 }).translate(0, 0.5, 0).rotateX(Math.PI) : new THREE.CylinderGeometry(1, 0.9, 1, HF ? 16 : 8);
+  if (HF && FIG) suit.side = THREE.DoubleSide;
   const limb = (a, b, r, m) => { const o = new THREE.Mesh(limbGeo, m); o.userData.r = r; g.add(o); setLimb(o, a, b); return o; };
   function setLimb(o, a, b) { _v.subVectors(b, a); const L = _v.length(); o.position.copy(a).addScaledVector(_v, 0.5); o.quaternion.setFromUnitVectors(_up, _v.multiplyScalar(1 / L)); o.scale.set(o.userData.r, L, o.userData.r); }
 
@@ -531,8 +547,13 @@ const sc = faceCols.filter(c => c.x >= -0.5 && c.x <= 0.49);   // the glare shie
   for (const x of [0.48, 0.62]) box(0.05, 0.005, 0.22, M(0x6a6a50), x, -0.12, -1.86, g, -0.5);   // harness straps
   // forearms only (upper arms would sit right next to the eye): elbows low beside the body, re-aimed at the grips per frame
   const foreR = limb(V3(0.8, -0.44, -1.84), V3(0.55, -0.35, -2.1), 0.04, suit), foreL = limb(V3(0.32, -0.5, -1.76), V3(0.255, -0.68, -1.98), 0.04, suit);
-  const handR = new THREE.Group(); cyclics[0].grip.add(handR); box(0.065, 0.085, 0.07, glove, 0.0, -0.005, 0.012, handR); box(0.02, 0.03, 0.04, glove, -0.03, 0.03, -0.01, handR);   // fist + thumb
-  const handL = new THREE.Group(); collectives[0].cl.add(handL); handL.position.set(0, 0.0, -0.43); box(0.075, 0.06, 0.09, glove, 0, 0.012, 0, handL);
+  const handR = new THREE.Group(); cyclics[0].grip.add(handR);
+  const handL = new THREE.Group(); collectives[0].cl.add(handL); handL.position.set(0, 0.0, -0.43);
+  if (HF && FIG) {   // Nomex flight gloves (sage leather palms): the look-people hand closed round each grip
+    const gm = figMaterial({ camo: 'og107', seed: 2, skin: 0x6e6448 });
+    const r = new THREE.Mesh(gloveGeo({ side: 'R', gripR: 0.022, trigger: true }), gm); r.position.set(0, -0.005, 0.0); handR.add(r);
+    const l = new THREE.Mesh(gloveGeo({ side: 'L', gripR: 0.024 }), gm); l.rotation.x = -Math.PI / 2; handL.add(l);
+  } else { box(0.065, 0.085, 0.07, glove, 0.0, -0.005, 0.012, handR); box(0.02, 0.03, 0.04, glove, -0.03, 0.03, -0.01, handR); box(0.075, 0.06, 0.09, glove, 0, 0.012, 0, handL); }   // fist + thumb
 
   // ---------------------------------------------------------------- instruments
   const asiMap = v => v <= 20 ? v : 20 + (Math.min(v, 160) - 20) * 300 / 130;
