@@ -174,42 +174,25 @@ Done 25 / 42 rows (60 %), partial 11, settled as not fitted 2, todo 4. 1980 fit 
 
 The near LOD includes ~11 k for the four crew figures and the interior. SwiftShader timings are relative only.
 
-## Regression status (2026-10-28, machine at load average 40-68 from other agents' browsers)
+## Regression status (2026-10-28 evening; load average 60-106 from other agents' browsers throughout)
+
+Re-run one scene at a time on the merged branch (ngc/shader-library merged in at b23b85f), with `SNAP_NAV_MS` (new in
+snap.mjs: navigation timeout for a loaded machine). "Load" = a game-time wait that ran out at ~1 fps.
 
 | Check | Result |
 |---|---|
-| `node tools/check.mjs syntax` | PASS 544/544; no conflict markers |
-| smoke | PASS 5/5 |
-| hueymodel, hueycockpit | unverified (load): page navigation timed out at 30 s before the scene started; re-run pending |
-| airlift | unverified (load): FAIL in the sling hook-up (the hover never held steady 0.6 s at ~1 fps, 40 s per screenshot), before the troop lift; expectations updated to nine troops / 945 kg |
-| foot | unverified (load): ladder and walk waits timed out (no Huey code involved), the Huey boarding step not reached in time |
-| interiors | unverified (load, average 83-99): the carrier ladder / hangar steps timed out (no Huey code); the Huey cabin step PASSED boarding ("IN THE UH-1H HUEY - TROOP SEAT 3 (AFT BENCH)", clean first-person view past the pilots: `game_troop_seat.png`), "out again" timed out |
-| hueyhotas, xrgameplay | not run: the regression loop was stopped at load average 99 to stop adding to it |
-
-### 2026-10-28 - Cockpit panel traced from TM -10 fig. 2-4
-**Finding:** a first pass placed the instruments by eye and read as a slab with a grid of one-size dials (orchestrator
-review). **Action:** `tools/hueypanel.mjs` traces fig. 2-4 (1988 change 7, archive.org page n68, saved in
-`reference/uh1/`): each of 41 legend items is fitted on the page as a ring or a box (the largest circle / rectangle
-whose perimeter lies on the drawn line, searched round a seed, so the item numbers and leader lines don't fool it), the
-scale comes from the copilot's airspeed indicator (3ATI, 79.4 mm bezel: 1.613 px/mm), and the glare shield's top edge
-and the panel's bottom edge are read per column. Output `game/js/uh1panel.json` (+ .js): item number, legend name,
-game id, centre and size in panel millimetres, fit coverage. The cockpit builds the face as the traced outline with a
-bezel hole per instrument (square for item 40), recessed dials, bezel tubes whose outer diameter is the traced ring,
-cover glass, decals 14 / 19 / 28 / 31 / 34 / 35 at their traced sizes, lights 3-7 at their places, the glare shield
-hood from the traced top edge. Ids, lamps and hit boxes unchanged.
-**Evidence:** `panel_overlay.png` (orthographic, straight on, the figure in red over the model, `?ck=1&panel=1`),
-`panel_ortho.png`, `panel_vs_tm.png`, `panel_from_seat.png`. Centres are the traced centres (0 mm by construction;
-the trace itself lands each ring on the drawn line: coverage 1.00 for 32 of 34 instruments); worst items: the
-magnetic compass 27 (coverage 0.89, bracket and leader line), the copilot altimeter 12/49 and pilot altimeter 13/50
-(the drawn "/" bar), the face outline's lower-left corner (~1-2 cm, the figure's stepped corner is smoothed by the
-per-column median). Item sizes follow the figure, which draws the engine stack and the main / standby generator
-loadmeters (29, 36: 40 mm) smaller than the flight group (70-94 mm).
-**Not yet:** the pedestal radio stack (two Dzus columns, fig. 2-5 sheet 2) and the overhead console (sheet 3) traced the
-same way; shaped armoured seats; breaker placards.
+| `node tools/check.mjs syntax` | PASS 562/562 after the merge; no conflict markers |
+| smoke | PASS 5/5 (earlier run) |
+| hueymodel | 5/7: every model check PASSES (skids on the ground line - after fixing the saddles, which sat 4 cm low -, length 17.4 m, fuselage, triangle budget, shell hidden in the cockpit); FAIL: the rotor spin-up wait (load) and the cave view, whose page load hit a mid-run edit (`toggle` used before definition, fixed in b5a2121) |
+| hueycockpit | 6/8: hover on BATTERY PASSES; the click check FAILS on the base too (main.js ignores mousedowns not targeted at the canvas; the scene dispatched on window) - scene fixed in 34fbdc8, re-run pending |
+| hueyhotas | 11/12: FAIL only the engine-start wait (load) |
+| xrgameplay | PASS 25/25 |
+| interiors | 11/31: the Huey steps PASS (a troop place offered at the cargo door: "TROOP SEAT 3 (AFT BENCH)", in the cabin); "out again" FAILS (unverified: load, Y tap at ~1 fps); the carrier ladders, the house and the CH-46 steps time out (load; no Huey code) |
+| foot, airlift | see the final report |
 
 ## Still open
-- Cockpit: pedestal radio stack (two Dzus columns per fig. 2-5 sheet 2) and overhead console (sheet 3) traced like the
-  panel; shaped armoured seats; breaker placards.
+- Cockpit: the overhead console (fig. 2-5 sheet 3), shaped armoured seats, breaker placards; the pedestal's panel
+  identities in the traced stack are approximate (heights traced, legends from the 1980 radio list).
 - Skin panel lines from the -23-1 skin diagrams (figs 2-4 / 2-5) as a station-placed detail map: not done.
 - The two WL disagreements above; the FM's tail rotor side and height (hueyfm.js unchanged by brief).
 - Configuration table rows marked partial / todo; the roof scoop at FS 104 (worst side-view gap).
