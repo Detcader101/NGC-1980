@@ -163,6 +163,7 @@ export function createXRBench(d) {
     const xc = renderer.xr.getCamera(), eye = xc.cameras[0]; if (!eye) return null;
     const L = renderer.xr.getSession()?.renderState.baseLayer, W = L?.framebufferWidth || gl.drawingBufferWidth, H = L?.framebufferHeight || gl.drawingBufferHeight;
     eyeRT = new THREE.WebGLRenderTarget(W, H, { depthBuffer: true });   // single-sampled: a second render into a resolved MSAA target would start from invalidated pixels
+    // @ts-expect-error isXRRenderTarget is a real WebGLRenderer flag missing from @types/three r170
     eyeRT.isXRRenderTarget = true; eyeRT.texture.colorSpace = renderer.outputColorSpace; eyeRT.texture.internalFormat = 'RGBA8';   // shade exactly as into the headset's layer
     const old = renderer.getRenderTarget();
     try {

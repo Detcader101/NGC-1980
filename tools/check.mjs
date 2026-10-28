@@ -7,7 +7,10 @@ import { spawnSync } from 'node:child_process';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const mode = process.argv[2] || 'all';
-if (!['all', 'syntax', 'bench'].includes(mode)) throw new Error('usage: node tools/check.mjs [all|syntax|bench]');
+if (!['all', 'syntax', 'bench', 'types'].includes(mode)) throw new Error('usage: node tools/check.mjs [all|syntax|bench|types [--update] [--list]]');
+// types: TypeScript over game/js (tsconfig.json, JSDoc + checkJs, no build). Fails only when the error count goes up
+// against tools/typecheck-baseline.json, so branches keep merging while the count comes down. tools/typecheck.mjs.
+if (mode === 'types') { const { typecheck } = await import('./typecheck.mjs'); process.exit(typecheck(root, process.argv.slice(3))); }
 const out = path.join(root, 'tools/runs/check-' + new Date().toISOString().replace(/[:.]/g, '-'));
 fs.mkdirSync(out, { recursive: true });
 const results = [];

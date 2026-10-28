@@ -30,6 +30,11 @@ export { SURF, SURF_NAMES } from './tyre.js';
 //   water(x, z) -> water surface height or -Infinity; deck(x, z, out) -> fills { h, vx, vy, vz } and returns true when a
 //   moving deck (carrier, landing craft) is under the point; collide(x, y, z, r, out) as documented in vehiclefm.js.
 // Normals come from central differences of height (eps 0.08 m); give normal(x, z, out) to supply your own.
+/**
+ * @param {{ height?: (x: number, z: number) => number, surface?: (x: number, z: number) => any, water?: (x: number, z: number) => number,
+ *   deck?: (x: number, z: number, out: any) => boolean, collide?: (...a: any[]) => any, normal?: (x: number, z: number, out: any) => any,
+ *   g?: number, eps?: number }} [opts]
+ */
 export function makeTerrainEnv({ height, surface, water, deck, collide, normal, g = 9.0, eps = 0.08 } = {}) {
   const d = { h: 0, vx: 0, vy: 0, vz: 0 };
   return {

@@ -83,6 +83,7 @@ export function wiggleBinding(type, s) {
 }
 
 // ------------------------------------------------------------------------------------- the controls
+/** @param {{ say?: (text: string, secs?: number) => void, getPads?: () => any, storage?: any, now?: () => number }} [opts] */
 export function createControls({ say = () => {}, getPads, storage, now } = {}) {
   getPads ||= () => { try { return typeof navigator !== 'undefined' && navigator.getGamepads ? Array.from(navigator.getGamepads() || []) : []; } catch (e) { return []; } };
   const store = storage !== undefined ? storage : (() => { try { return globalThis.localStorage || null; } catch (e) { return null; } })();

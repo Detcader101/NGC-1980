@@ -40,7 +40,11 @@ export function createHUDMaterial({ kind = 'panel', width = 320, height = 120,
     `, ...options });
 }
 
-/** Distance atlas is data: NoColorSpace, linear filtering. Borrowed, never disposed. */
+/**
+ * Distance atlas is data: NoColorSpace, linear filtering. Borrowed, never disposed.
+ * @param {{ atlas?: THREE.Texture, mode?: 'sdf' | 'msdf', tint?: number, outlineColor?: number, outline?: number,
+ *   weight?: number, opacity?: number, depthTest?: boolean }} [options]   atlas is required (throws without)
+ */
 export function createDistanceTextMaterial({ atlas, mode = 'msdf', tint = 0xe6e8df,
   outlineColor = 0x111b1d, outline = 0, weight = 0, opacity = 1, depthTest = true } = {}) {
   if (!atlas?.isTexture) throw new TypeError('A distance-field atlas Texture is required');
@@ -72,6 +76,8 @@ export function createDistanceTextMaterial({ atlas, mode = 'msdf', tint = 0xe6e8
 
 /** Single-page BMFont JSON, including kerning and newlines. Font must be SDF/MSDF.
  * Coordinates: top-left at (0,0), baseline follows font metrics, +Y upwards.
+ * @param {{ text?: string, font?: any, atlas?: THREE.Texture, size?: number, mode?: 'sdf' | 'msdf', tint?: number,
+ *   outlineColor?: number, outline?: number, weight?: number, opacity?: number, depthTest?: boolean }} [options]   font and atlas are required
  */
 export function createDistanceText({ text = '', font, atlas, size = 1, ...options } = {}) {
   if (!font?.common || !Array.isArray(font.chars)) throw new TypeError('BMFont JSON common/chars required');

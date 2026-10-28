@@ -1,5 +1,17 @@
 # MODLOG — NGC-1980 (formerly Thrust/Zarch)
 
+## 2026-10-28 — TypeScript type checking, phase 1 (no build step)
+
+`node tools/check.mjs types` runs TypeScript 6.0.3 over all 269 game modules as they are: JSDoc + `checkJs`, three
+r170 types, not strict. The browser still loads the same `.js` files and nothing about the game changed. The check
+fails only when the error count rises above `tools/typecheck-baseline.json`, so branches keep merging while the count
+comes down: 761 raw, **608** after declaring the `window` hooks and typing the core. The craft host, the war state, the
+RenderKit adoption switch and the `?debug` bridge are now typed, so a misspelt `war.member`, a wrong `crafts.*` call or
+`RK.on('natur')` is an error. It found two real bugs, both left for their owners: the RW NEEDLES ammo shows the medical
+catheter icon (a duplicate icon key), and the `sfx.ui` / `refuel` / `hit` sounds that 20 calls ask for were never
+written. Plan for real `.ts` files after the look pass: [TYPESCRIPT.md](docs/ngc1980/TYPESCRIPT.md); findings:
+[typecheck.md](docs/ngc1980/findings/typecheck.md).
+
 ## 2026-10-26 — Continuum reusable shader and UI library
 
 Added an opt-in Three r170/WebGL2 library on `ngc/shader-library`: physical surface presets and
