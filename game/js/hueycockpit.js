@@ -13,6 +13,8 @@
 //   pilot's gloved hands ride the cyclic and the collective, legs go to the pedals.
 import * as THREE from 'three';
 import { CAPTIONS } from './heli.js';
+import { RKS } from './renderkit/gamemats.js';   // ngc/look-huey: with RenderKit surface on, the hi-fi airframe (hueyhifi.js) provides the glazing and walls
+import { HUEY_SKIN } from './hueyhifi.js';
 import { drawRwr } from './units/defence/cm.js';   // ngc/cmpolish: the radar warning scope   // circular, but only read inside buildHueyCockpit (after both modules ran)
 
 export const HUEY_EYE = new THREE.Vector3(0.55, 0.16, -1.95), HUEY_EYE_PITCH = -0.16;
@@ -59,7 +61,8 @@ function dialFace(c, W, o) {
   if (o.unit) txt(c, o.unit, R, R * (o.uy || 0.62), '#cfcdc0', R * 0.11);
 }
 
-export function buildHueyCockpit() {
+export function buildHueyCockpit({ classic = false } = {}) {
+  const HF = RKS && !classic;   // hi-fi: the nose skin, glass, frames and lining come from the exterior model, seen from inside
   const g = new THREE.Group(); g.visible = false; g.name = 'hueyCockpit';
   // interior fill: the cabin is lit through the greenhouse, so every surface gets some self-light (like the jet's M())
   const M = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, emissive: new THREE.Color(c).multiplyScalar(0.5), ...o });
@@ -104,7 +107,8 @@ export function buildHueyCockpit() {
   // ---------------------------------------------------------------- windscreen, greenhouse, doors, nose
   // windscreen halves: glare shield (y -0.135, z -2.93 at the centre post, sweeping back to z -2.76 at the sides) up to
   // the roof (y 0.45, z -2.10 .. -1.98); bulged outward so they read as the Huey's big curved panes
-  const wsB = x => -2.93 + (Math.abs(x) - 0.03) / 1.07 * 0.17;   // windscreen bottom edge z at x
+  const wsB = HF ? HUEY_SKIN.frontAt(-0.125) : x => -2.93 + (Math.abs(x) - 0.03) / 1.07 * 0.17;   // windscreen bottom edge z at x (hi-fi: the inner skin at the glare shield height)
+  if (!HF) {
   const wsN = V3(0, 0.45, -0.89).normalize();
   for (const s of [-1, 1]) {
     const b0 = V3(s * 0.03, -0.135, -2.93), b1 = V3(s * 1.1, -0.1, -2.76), t0 = V3(s * 0.03, RF, -2.1), t1 = V3(s * 1.12, 0.43, -1.98);
@@ -144,7 +148,9 @@ export function buildHueyCockpit() {
   box(0.4, 0.04, 0.9, oliveD, 0, -0.95, -3.1, g, -0.27);                        // keel between the chin bubbles
   tube([V3(-0.98, FL + 0.005, -2.66), V3(0.98, FL + 0.005, -2.66)], 0.02);
   tube([V3(-0.95, -0.81, -3.51), V3(0.95, -0.81, -3.51)], 0.02);
-  box(2.28, 0.03, 1.71, floorM, 0, FL - 0.015, -1.805);                        // cockpit floor (the cargo cabin is hueymodel.js)
+  }
+  if (HF) box(2.2, 0.03, 1.04, floorM, 0, FL - 0.016, -2.14);                 // cockpit floor up to the cabin floor (hueyhifi.js, from z -1.62)
+  else box(2.28, 0.03, 1.71, floorM, 0, FL - 0.015, -1.805);                   // cockpit floor (the cargo cabin is hueymodel.js)
   // fire extinguisher bottle on the floor at the aft end of the pedestal
   cyl(0.055, 0.055, 0.34, redM, 0, FL + 0.17, -1.28); cyl(0.02, 0.02, 0.06, metal, 0, FL + 0.37, -1.28);
 

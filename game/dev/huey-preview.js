@@ -3,6 +3,7 @@
 // Query: ?ui=0 &cam=yaw,pitch,dist,tx,ty,tz &s={json heliLook state} &ck=1 &ckyaw=rad &ckpitch=rad &ground=0
 // window.__H = { huey, cockpit, S, cam, render(), stats }
 import * as THREE from 'three';
+import '../js/heli.js';   // first: heli.js <-> hueycockpit.js are circular, the game enters through heli.js
 import { buildHueyMesh, HUEY } from '../js/hueymodel.js';
 import { buildHueyCockpit, HUEY_EYE, HUEY_EYE_PITCH } from '../js/hueycockpit.js';
 
@@ -20,6 +21,7 @@ ground.position.y = HUEY.GROUND; ground.receiveShadow = true; scene.add(ground);
 if (Q.get('ground') === '0') ground.visible = false;
 const t0 = performance.now();
 const huey = buildHueyMesh(); scene.add(huey.group);
+if (Q.get('rot')) { const [rx, ry, rz] = Q.get('rot').split(',').map(Number); huey.group.rotation.set(rx || 0, ry || 0, rz || 0, 'YXZ'); }   // attitude (pitch, yaw, roll), e.g. to match a photo
 const buildMs = performance.now() - t0;
 huey.group.traverse(o => { if (o.isMesh && !o.material.transparent) { o.castShadow = true; o.receiveShadow = true; } });
 let cockpit = null;
@@ -42,7 +44,41 @@ addEventListener('pointermove', e => {
   else { cam.yaw -= dx * 0.006; cam.pitch = Math.max(-1.5, Math.min(1.5, cam.pitch + dy * 0.006)); }
 });
 addEventListener('wheel', e => cam.dist *= Math.exp(e.deltaY * 0.001));
-function size() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+// ---- ?ref=side|front|top: orthographic view over the TM 55-1520-210-10 principal-dimensions figure (public domain,
+// dev/ref/uh1-tm-3view.png, 1970 x 1586 px). Calibration (px): side view nose x 460 / tail x 1731 = 41 ft 5.0 in, ground
+// y 1503, main rotor hub 11 ft 8.65 in aft of the nose; front view skid track 695..955.5 = 8 ft 6.6 in, centre x 825,
+// ground y 909.5; top view hub x 829, tail x 1734.5, centre line y 214.5. The drawing's lines are drawn over the model
+// in red (&refa= opacity), &sil=1 draws the model as a flat silhouette.
+const REF = Q.get('ref'), REFV = {
+  side: { s: 100.68, map: (px, py) => [(px - 460) / 100.68 - 0.12 - 3.573, (1503 - py) / 100.68 + HUEY.GROUND], view: [1, 0, 0], up: [0, 1, 0] },
+  front: { s: 100.3, map: (px, py) => [-(px - 825) / 100.3, (909.5 - py) / 100.3 + HUEY.GROUND], view: [0, 0, 1], up: [0, 1, 0] },
+  top: { s: 99.6, map: (px, py) => [(px - 829) / 99.6 - 0.12, (py - 214.5) / 99.6], view: [0, -1, 0], up: [1, 0, 0] },
+}[REF];
+let ortho = null;
+if (REFV) {
+  ground.visible = false; scene.background = new THREE.Color(0xf4f4ee); scene.fog = null;
+  const W = 1970, H = 1586, [a0, b0] = REFV.map(0, 0), [a1, b1] = REFV.map(W, H);
+  ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
+  const tex = new THREE.TextureLoader().load('./ref/uh1-tm-3view.png'); tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.ShaderMaterial({ uniforms: { map: { value: tex }, k: { value: Number(Q.get('refa') || 0.85) } }, transparent: true, depthTest: false, depthWrite: false,
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform sampler2D map; uniform float k; varying vec2 vUv; void main(){ float l = dot(texture2D(map, vUv).rgb, vec3(0.333)); gl_FragColor = vec4(0.9, 0.05, 0.05, (1.0 - smoothstep(0.35, 0.75, l)) * k); }' });
+  const plane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat); plane.renderOrder = 99; plane.frustumCulled = false; scene.add(plane);
+  // plane corners in model space: the ortho camera looks along view, its right/up axes come from map()
+  const V = new THREE.Vector3(...REFV.view), U = new THREE.Vector3(...REFV.up), Rt = new THREE.Vector3().crossVectors(V, U);
+  const at = (a, b) => REF === 'side' ? new THREE.Vector3(0, b, a) : REF === 'front' ? new THREE.Vector3(a, b, 0) : new THREE.Vector3(b, 0, a);
+  const c00 = at(a0, b0), c11 = at(a1, b1), ctr = c00.clone().add(c11).multiplyScalar(0.5);
+  const w = Math.abs(c11.clone().sub(c00).dot(Rt)), h = Math.abs(c11.clone().sub(c00).dot(U));
+  ortho.position.copy(ctr).addScaledVector(V, -12); ortho.up.copy(U); ortho.lookAt(ctr);
+  ortho.left = -w / 2; ortho.right = w / 2; ortho.top = h / 2; ortho.bottom = -h / 2; ortho.updateProjectionMatrix();
+  plane.scale.set(w, h, 1); plane.position.copy(ctr).addScaledVector(V, -6); plane.quaternion.copy(ortho.quaternion);
+  // texture orientation: flip so image x runs along the camera right when map() increases with px
+  const dA = Rt.dot(at(a1, b0).sub(at(a0, b0))), dB = U.dot(at(a0, b0).sub(at(a0, b1)));
+  tex.repeat.set(dA > 0 ? 1 : -1, dB > 0 ? 1 : -1); tex.offset.set(dA > 0 ? 0 : 1, dB > 0 ? 0 : 1); tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  if (Q.get('sil') === '1') { const sm = new THREE.MeshBasicMaterial({ color: 0x5a6a90, transparent: true, opacity: 0.55, depthWrite: false }); huey.group.traverse(o => { if (o.isMesh) o.material = sm; }); }
+  if (Q.get('ui') !== '0') document.getElementById('info').textContent = 'UH-1H vs TM 55-1520-210-10 ' + REF + ' view (red = drawing). ?ref=side|front|top &sil=1 &refa=0.85';
+}
+function size() { let w = innerWidth, h = innerHeight; if (ortho) { const a = (ortho.right - ortho.left) / (ortho.top - ortho.bottom); if (w / h > a) w = Math.round(h * a); else h = Math.round(w / a); } renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
 addEventListener('resize', size); size();
 
 // a dummy panel snapshot for the cockpit (hot, at flight idle on the ground)
@@ -62,7 +98,7 @@ function place() {
 function step(dt) {
   time += dt; huey.animate(S, dt, time, !!cockpit);
   if (cockpit) cockpit.update({}, dt, PANEL);
-  place(); renderer.render(scene, camera);
+  place(); renderer.render(scene, ortho || camera);
 }
 function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; step(dt); requestAnimationFrame(frame); }
 requestAnimationFrame(frame);
