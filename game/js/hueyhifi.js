@@ -30,7 +30,7 @@ export const HUEY_LOD = Object.freeze({ nm: [55, 75], mf: [200, 260] });
 // aft of the nose; front view by the 8 ft 6.6 in skid track; top view by the hub-to-tail distance. Check with
 // dev/huey.html?ref=side|front|top. Model z = station aft of the CG, nose tip at z -3.69, tail at z 8.93.
 const GEO = Object.freeze({
-  HUB: [0, 1.80, -0.12],           // blade-grip centre 3.64 m above the ground (top of the mast nut 3.97 m)
+  HUB: [0, 2.00, -0.12],           // 13 ft 7.40 in to the top of the hub (front view label; the drawn hub sits 0.2 m lower, the photo agrees with the label)
   TR_HUB: [-0.39, 1.39, 8.66],     // 10 ft 2.5 in above the ground (drawing centre 3.23 m)
   GUN: [-1.1, -0.18, 0.62],        // M60D pintle on the aft post of the cargo doorway
   SKID: { x: 1.30, z0: -2.62, z1: 1.08, cross: [-1.71, 0.60] },   // 8 ft 6.6 in track, cross tubes from the side view
@@ -41,11 +41,11 @@ const GEO = Object.freeze({
 // boom a deep tapered beam: top nearly level, bottom rising from -1.0 at the aft bulkhead (z 2.62) to -0.2 at z 7.8
 const FUS = [
   [-3.69, -0.60, -0.64, 0.0, -0.62, 2.2, 2.2],
-  [-3.665, -0.42, -0.80, 0.30, -0.62, 2.3, 2.3],
-  [-3.60, -0.31, -0.89, 0.50, -0.62, 2.5, 2.5],
-  [-3.47, -0.20, -0.99, 0.69, -0.62, 2.8, 2.9],
-  [-3.27, -0.12, -1.08, 0.86, -0.60, 3.2, 3.6],
-  [-3.06, -0.06, -1.14, 0.98, -0.56, 3.6, 4.4],
+  [-3.665, -0.42, -0.80, 0.30, -0.62, 2.6, 2.6],   // blunt, bulbous nose: rounded-rectangle sections right to the front (photo)
+  [-3.60, -0.31, -0.89, 0.50, -0.62, 3.0, 3.0],
+  [-3.47, -0.20, -0.99, 0.69, -0.62, 3.5, 3.6],
+  [-3.27, -0.12, -1.08, 0.86, -0.60, 4.0, 4.4],
+  [-3.06, -0.06, -1.14, 0.98, -0.56, 4.4, 5.0],
   [-2.85, 0.13, -1.18, 1.08, -0.50, 4.4, 5.5],
   [-2.65, 0.32, -1.21, 1.15, -0.44, 5.5, 6.5],
   [-2.45, 0.46, -1.235, 1.19, -0.38, 7.0, 7.5],
@@ -106,8 +106,8 @@ export const HUEY_SKIN = {
 // signed distance (m, negative inside) of the cut-outs at a surface point (x, y, z), c = cos(phi) (up-ness)
 function holeSDF(z, x, y, c, door = true) {
   const ax = Math.abs(x); let d = 1;
-  if (z < -2.3 && y > -0.56 && c > -0.35) {   // windscreen: ahead of the A-pillar, either side of the centre post, below the roof bow
-    const lo = -0.20 - 0.32 * (ax / 0.85) ** 2;
+  if (z < -2.3 && y > -0.62 && c > -0.4) {   // windscreen: ahead of the A-pillar, either side of the centre post, below the roof bow
+    const lo = -0.30 - 0.30 * (ax / 0.85) ** 2;   // TM front view: -0.3 at the centre post, -0.6 at the sides
     d = Math.max(lo - y, (z - pillarZ(Math.min(y, 0.33))) * 0.6 + 0.03, 0.035 - ax, z - (-2.47 + 0.04 * ax));
   }
   if (c > 0.3) d = Math.min(d, sdBox(ax - 0.6, z + 2.06, 0.33, 0.30, 0.07));                        // greenhouse (roof windows)
@@ -665,13 +665,13 @@ export function buildHueyHiFi(HUEY, { xr = false } = {}) {
   const mast = group(g, 'mast', ...GEO.HUB); mast.rotation.x = -HUEY.MAST_TILT;
   { // mast tube with the "Jesus nut", the boot where it leaves the cowling, control tubes up to the swashplate
     const mb = new Map(), mp = (geo, m) => (mb.get(m) || mb.set(m, []).get(m)).push(geo);
-    mp(lathe([[0.078, -1.06], [0.078, 0.12], [0.07, 0.14], [0.07, 0.2]], 20), N.metal);
+    mp(lathe([[0.078, -1.26], [0.078, 0.12], [0.07, 0.14], [0.07, 0.2]], 20), N.metal);
     mp(lathe([[0, 0.2], [0.085, 0.2], [0.09, 0.22], [0.09, 0.27], [0.06, 0.3], [0, 0.31]], 20), N.steel);   // mast nut
-    mp(lathe([[0.2, -1.05], [0.17, -0.99], [0.13, -0.93], [0.1, -0.89], [0.085, -0.85]], 20), N.rubber);     // mast boot
-    mp(rbox(0.5, 0.2, 0.46, 0.07).translate(0, -1.08, 0.02), N.od2);                                      // transmission top / pylon support fairing
-    for (const a of [0, 2.1, 4.2]) { const x = Math.cos(a) * 0.2, z = Math.sin(a) * 0.2; mp(rod([x, -1.0, z], [x * 1.05, -0.8, z * 1.05], 0.012, 8), N.steel); }   // control tubes
+    mp(lathe([[0.2, -1.25], [0.17, -1.19], [0.13, -1.13], [0.1, -1.09], [0.085, -1.05]], 20), N.rubber);     // mast boot
+    mp(rbox(0.5, 0.2, 0.46, 0.07).translate(0, -1.28, 0.02), N.od2);                                      // transmission top / pylon support fairing
+    for (const a of [0, 2.1, 4.2]) { const x = Math.cos(a) * 0.2, z = Math.sin(a) * 0.2; mp(rod([x, -1.2, z], [x * 1.05, -0.8, z * 1.05], 0.012, 8), N.steel); }   // control tubes
     for (const [m, gs] of mb) mesh(merge(gs), m, mast, 'mastTube');
-    mesh(new THREE.CylinderGeometry(0.075, 0.075, 1.3, 8).translate(0, -0.4, 0), MF.metal, mast, 'mastMid', 'mf');
+    mesh(new THREE.CylinderGeometry(0.075, 0.075, 1.5, 8).translate(0, -0.5, 0), MF.metal, mast, 'mastMid', 'mf');
   }
   const swash = group(mast, 'swashplate', 0, -0.78, 0), swSpin = group(swash, 'swashSpin');
   { const sb = new Map(), sp = (geo, m) => (sb.get(m) || sb.set(m, []).get(m)).push(geo);

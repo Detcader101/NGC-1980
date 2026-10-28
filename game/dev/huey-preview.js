@@ -52,7 +52,7 @@ addEventListener('wheel', e => cam.dist *= Math.exp(e.deltaY * 0.001));
 const REF = Q.get('ref'), REFV = {
   side: { s: 100.68, map: (px, py) => [(px - 460) / 100.68 - 0.12 - 3.573, (1503 - py) / 100.68 + HUEY.GROUND], view: [1, 0, 0], up: [0, 1, 0] },
   front: { s: 100.3, map: (px, py) => [-(px - 825) / 100.3, (909.5 - py) / 100.3 + HUEY.GROUND], view: [0, 0, 1], up: [0, 1, 0] },
-  top: { s: 99.6, map: (px, py) => [(px - 829) / 99.6 - 0.12, (py - 214.5) / 99.6], view: [0, -1, 0], up: [1, 0, 0] },
+  top: { s: 99.6, map: (px, py) => [(px - 829) / 99.6 - 0.12, -(py - 214.5) / 99.6], view: [0, -1, 0], up: [1, 0, 0] },
 }[REF];
 let ortho = null;
 if (REFV) {
