@@ -288,7 +288,7 @@ export function headSdf(fi = 0, o = {}) {
   }
   S.ellip(P(0, 0.008 - 0.003 * (F.chin - 1), -0.074), [0.021 * F.chin, 0.017, 0.016 * F.chin], null, k(0.02));   // chin (mental protuberance)
   // the brow ridge, the glabella, the eye sockets carved under it
-  for (const s of [-1, 1]) S.capsule(P(s * 0.011, 0.118, -0.089), P(s * 0.05, 0.116, -0.079), 0.0105 * F.brow, 0.008 * F.brow, k(0.016));
+  for (const s of [-1, 1]) S.capsule(P(s * 0.011, 0.118, -0.089), P(s * 0.05, 0.116, -0.079), 0.0105 * F.brow, 0.008 * F.brow, k(0.026));
   // the nose: the bridge from the nasion, the dorsum, the tip, the alae; nostrils
   const nl = F.nose, nw = F.noseW;
   S.capsule(P(0, 0.106, -0.088), P(0, 0.074 - 0.005 * (nl - 1), -0.111 - 0.006 * (nl - 1)), 0.0068 * nw, 0.0085 * nw, k(0.009));
@@ -303,7 +303,7 @@ export function headSdf(fi = 0, o = {}) {
   S.ellip(P(0, 0.0338, -0.0912), [0.0195 * L, 0.0058 * L, 0.0088], [-0.25, 0, 0], { ...lipM, k: 0.006 });
   S.capsule(P(-0.023 * L, 0.0388, -0.096), P(0.023 * L, 0.0388, -0.096), 0.0011, 0.0011, { sub: true, k: 0.004 });
   S.capsule(P(-0.012, 0.0245, -0.094), P(0.012, 0.0245, -0.094), 0.0028, 0.0028, { sub: true, k: 0.006 });            // mentolabial sulcus
-  for (const s of [-1, 1]) S.capsule(P(s * 0.019, 0.066, -0.097), P(s * 0.03, 0.036, -0.088), 0.002, 0.002, { sub: true, k: 0.007 });   // nasolabial folds
+  for (const s of [-1, 1]) S.capsule(P(s * 0.019, 0.066, -0.097), P(s * 0.03, 0.036, -0.088), 0.0008, 0.0008, { sub: true, k: 0.01 });   // nasolabial folds
   // the eyes: the sockets carved under the brow, the lids round the eyeballs (separate, finer: eyesKit)
   for (const s of [-1, 1]) {
     S.ellip(P(s * 0.032, 0.0955, -0.087), [0.019, 0.0125, 0.0135], null, { sub: true, k: 0.009 });
@@ -343,9 +343,9 @@ function eyesKit(k, fi = 0, hi = true) {
 export function helmetSdf() {
   const S = new SdfKit(), H = at('head', [0, 0, 0]), P = (x, y, z) => [H[0] + x, H[1] + y, H[2] + z];
   const K = { mat: M.cover, skin: 'head' };
-  S.ellip(P(0, 0.122, 0.006), [0.137, 0.128, 0.152], null, { ...K, k: 0.01 });
-  S.band(P(0, 0.126, 0.006), 0.141, 0.157, 0.0065, 0.0068, null, { ...K, k: 0.008 }, 0.004);           // the flared rim (cover tucked round it)
-  S.band(P(0, 0.162, 0.006), 0.134, 0.149, 0.012, 0.0045, null, { mat: M.band, skin: 'head', k: 0.003 }, 0.003);   // the cover band
+  S.ellip(P(0, 0.122, 0.008), [0.121, 0.12, 0.14], null, { ...K, k: 0.01 });   // shell 242 x 280 mm (M1: 9.5 x 11 in) under the cover
+  S.band(P(0, 0.126, 0.008), 0.125, 0.144, 0.0065, 0.0068, null, { ...K, k: 0.008 }, 0.004);           // the flared rim (cover tucked round it)
+  S.band(P(0, 0.162, 0.008), 0.115, 0.133, 0.012, 0.0045, null, { mat: M.band, skin: 'head', k: 0.003 }, 0.003);   // the cover band
   return S;
 }
 const helmetClip = () => { const y0 = at('head', [0, 0.119, 0])[1]; return (x, y, z) => y0 - y; };
@@ -538,8 +538,8 @@ function gearKits(o, hq) {
 }
 function helmetKit(hq) {   // head frame: the bug-juice bottle in the band, the chin straps hanging
   const k = new Kit();
-  k.capsule([0.128, 0.155, -0.062], [0.126, 0.205, -0.066], 0.0105, 0.0095, 0xd8d6c8, hq ? 12 : 8);
-  k.cyl(0.008, 0.008, 0.008, 0x2a2a2a, [0.126, 0.213, -0.066], 'y', 8);
+  k.capsule([0.113, 0.155, -0.058], [0.111, 0.2, -0.062], 0.0105, 0.0095, 0xd8d6c8, hq ? 12 : 8);
+  k.cyl(0.008, 0.008, 0.008, 0x2a2a2a, [0.111, 0.208, -0.062], 'y', 8);
   for (const s of [-1, 1]) { k.rbox(0.014, 0.11, 0.004, 0.0015, 0x4a4a32, [s * 0.098, 0.075, 0.02], [0, 0, s * 0.12], 1); k.rbox(0.02, 0.02, 0.006, 0.002, 0x3a3a30, [s * 0.092, 0.022, 0.02], [0, 0, 0], 1); }
   return k;
 }
