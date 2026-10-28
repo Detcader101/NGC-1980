@@ -28,3 +28,73 @@ ready. The zone's far set only holds trees past the near band (`LOD.near - LOD.b
 show. Result at the HQ: 1378 -> 766 kt; trees 1084+787+3200 -> 518+109+0, tufts 15651 -> 7330.
 foot.mjs with everything on: **PASS 12/12** (stern climb 38.8 s of 40: the test is marginal under SwiftShader with
 or without nature; see the timing note in OPEN).
+
+## 2026-10-28 - Tree crowns: leaf cards instead of faceted blobs (look-nature-2)
+**Finding**: at 5-50 m every crown was a cluster of 8-9 jittered icosahedra: big flat facets with hard polygon outlines
+against the sky (`sbs-02-oak`, `sbs-06-forest`, left). The pine read as a lumpy ball on a stick, the fir as a stack
+of hard star plates, the maquis bushes as faceted boulders. No leaf edge anywhere.
+**Evidence**: `docs/ngc1980/evidence/look-nature/sbs-*.png`, from `tools/scenes/looknature.mjs` (before =
+8148fcc, the cone-only build with the 36eb21b trees; after = this branch). The views are the HQ (the user's view),
+single oak / pine / fir at 9-14 m, a back-lit oak, the forest edge, a village garden tree on foot and from 30 m, the
+Huey at 30 m and 200 m, and the jet at 1200 m.
+**Cause**: solid geometry can't give a foliage outline at this distance. The silhouette has to come from alpha.
+**Action** (`renderkit/nature.js`):
+- **Leaf atlas** (`leafAtlas`): three 256 px tiles drawn once at start on a canvas. They are a broadleaf spray (oval
+  leaves on twigs, ragged edge), pine needle tufts, and a fir branch spray (twig, side twigs, needles; base at v = 0).
+  RGB is a grey leaf-to-leaf shade that multiplies the vertex colour, and A is the mask. Transparent texels carry mid grey
+  so the mips don't darken the edges.
+- **Cards** (`Builder.card / cluster / cardCrown / fringe`): a crown is 10-12 clusters of three crossed cards (one
+  across the outward direction, two along it, turned at random) on an ellipsoid shell. They sit over a small dark
+  low-poly hull (46 % of the crown, 42 % for the pine), so the crown never reads hollow. Normals are bent to point away
+  from the crown's centre (sphere normals, bend 0.8), so a crown shades as one soft volume. AO is baked per vertex from
+  the corner's place in the crown. The fir keeps a smaller, darker star skirt as its inner mass, fringed by 10 drooping
+  branch-spray cards per tier (alternate heights, random roll) and a leader tuft. Maquis (and the clutter bushes, which
+  use it) is 7 clusters over an octahedron.
+- **Material**: the cards alpha-test the atlas with a one-pixel `fwidth` edge, so `alphaToCoverage` (the world target
+  and XR are MSAA) gives soft leaf edges. The mask is held up in the smaller mips (`* (1 + 0.3 * mip)`), so crowns
+  don't thin out with distance. Translucency is stronger on cards: a wide and a tight lobe toward the sun, tinted
+  yellow-green. The detail and mid materials are double-sided for the cards only; trunks and hulls discard their back
+  faces first thing (`!gl_FrontFacing`), which halved the forest's draw time in the A/B. Shadows: the detail depth
+  material alpha-tests the cards (dappled, leafy shadows); the mid one casts whole quads (no atlas fetch: those
+  shadows are a few pixels).
+- **LOD and tiers**: detail and mid use the same species built at two densities (mid: 5-6 clusters of two cards), so
+  the screen-door hand-over at the tier radius (90 / 170 / 260 m) dissolves one leafy crown into another. The zone's
+  far set (past ~520 m) keeps the clump crowns, which read the same at that size. The low tier (XR) used the octahedron
+  "lite" crowns as its mid set; it now uses the card mid (similar triangle count, the same silhouette as its detail).
+  Wind, lean, colour shift and felling are unchanged (same instance data). Bark is lighter (the trunks read black).
+- **Grass tufts**: 13 -> 10 blades, slightly wider. The 15 random draws of the dropped blades are burnt, so the clutter
+  rocks built next from the same stream keep their exact shapes (rocks belong to look-terrain).
+
+Triangles per tree (detail / mid; before -> after): oak 228 / 88 -> 120 / 40; pine 220 / 96 -> 126 / 44; fir
+152 / 38 -> 170 / 74; maquis and the clutter bush 80 / 40 -> 50 / 20; grass tuft 39 -> 30.
+
+## 2026-10-28 - Village, garden and hedgerow trees on the species
+**Finding**: zone villages and streamed chunks merged their trees (world/chunkgen.js `tree()`: a 5-sided trunk and one
+blob) into the world geometry: the "old village tree" next to the new species (`sbs-07-village`, left).
+**Action**: with nature on, `tree()` records the tree (x, y, z, scale x 1.2 so the crown matches the old blob's width,
+species: 80 % oak, 20 % pine by position hash) instead of building it. It consumes the same random draws, so the rest
+of the build (hedge gaps, the next hedgerow tree) is identical. `buildGeo` returns `vtrees` / `vkinds`. The world
+worker transfers them; world/life.js adds them as forest sources (`zone-v<n>` for the zone villages, `<chunk>v` for
+streamed chunks, removed with the chunk). The colliders (world/solid.js, from the items) and the far blob in the
+chunk's far mesh are unchanged, so the far hand-over is the same as before. `?rk=0` and nature-off builds are
+untouched (`NAT_TREES` is null).
+
+## 2026-10-28 - Cost (SwiftShader, relative only)
+**Evidence**: renderer.info triangles (main + shadow passes), same scene and camera:
+
+| view | 36eb21b | cone (8148fcc) | look-nature |
+|---|---|---|---|
+| HQ (user's view) | 1378 kt | 767 kt | 566 kt |
+| oak at 10 m | - | 919 | 802 |
+| forest edge | - | 709 | 625 |
+| village street | - | 731 | 643 |
+| Huey 30 m | - | 862 | 731 |
+| Huey 200 m | - | 642 | 559 |
+| jet 1200 m | - | 452 | 436 |
+
+The `_probe_cost` in-page A/B at the HQ (hide the forest, then the clutter, same page) gave a forest share of ~94 ms
+with the old blob trees vs ~76 ms with the cards once trunks and hulls skipped their back faces. The first card version,
+double-sided throughout, cost 261 ms. Whole-frame sync draw times between separate runs vary by +-25 % on this shared
+machine (the jet view, whose geometry is unchanged, measured 434 and 537 ms), so they're logged per view by
+`looknature.mjs` but not compared. A close crown filling the screen costs more fill than a blob (3-4 card layers);
+that is the honest trade, and the real-GPU A/B is still open.
