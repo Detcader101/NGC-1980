@@ -5,6 +5,7 @@
 // waterline), parts.funnel (smoke outlet, optional), parts.fx = { wake: width scale, smoke: 0..1 } (optional).
 import * as THREE from 'three';
 import { canvasTex, rng } from './navkit.js';
+import { hypot2 } from '../../hypot.js';   // (ngc/perf-cpu) Math.hypot without the garbage, same bits
 
 const KELVIN = Math.tan(19.47 * Math.PI / 180);
 const N = 64, STEP = 0.45;   // history points, seconds between them (~29 s of wake)
@@ -38,12 +39,12 @@ export function createNavalFx(scene, fx, seaY = null) {
     g.setIndex(idx);
     const mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: foam(), vertexColors: true, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
     mesh.frustumCulled = false; mesh.renderOrder = 2; scene.add(mesh);
-    T = { mesh, g, pos, col, uv, hist: [], t: 0, smokeT: 0, sprayT: 0, u };
+    T = { mesh, g, pos, col, uv, hist: [], t: 0, smokeT: 0, sprayT: 0, u, clock: 0, skip: 0 };
     ships.set(u, T); return T;
   }
   // world point of a ship-frame point (heading and heave; the small pitch / roll don't matter for effects)
   const W = (u, lx, ly, lz, out) => { const c = Math.cos(u.yaw), s = Math.sin(u.yaw); return out.set(u.p.x + lx * c + lz * s, u.p.y + (u.att ? u.att.heave : 0) + ly, u.p.z - lx * s + lz * c); };
-  const _a = new THREE.Vector3(), _b = new THREE.Vector3();
+  const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3();
 
   const api = {
     ship(u, dt, ear) {
@@ -51,28 +52,34 @@ export function createNavalFx(scene, fx, seaY = null) {
       const bow = P.bow || _b.set(0, 0, -L / 2), st = P.stern || _b.set(0, 0, L / 2);
       // record the bow and stern every STEP seconds (and keep the newest point glued to the ship)
       T.t += dt; T.clock = (T.clock || 0) + dt;
-      const bw = W(u, bow.x, 0, bow.z, new THREE.Vector3()), sw = W(u, st.x, 0, st.z, new THREE.Vector3());
-      const head = { bx: bw.x, bz: bw.z, sx: sw.x, sz: sw.z, yaw: u.yaw, v: u.speed, age: 0 };
-      if (T.t >= STEP || !T.hist.length) { T.t = 0; T.hist.unshift(head); if (T.hist.length > N) T.hist.pop(); }
-      else T.hist[0] = head;
+      // (ngc/perf-cpu) this runs per ship per frame: scratch vectors, the newest point updated in place, no closure,
+      // destructured pairs or temporary arrays per wake point (it was 0.35 MB of garbage a frame with a few ships)
+      const bw = W(u, bow.x, 0, bow.z, _c), sw = W(u, st.x, 0, st.z, _d);
+      if (T.t >= STEP || !T.hist.length) { T.t = 0; T.hist.unshift({ bx: bw.x, bz: bw.z, sx: sw.x, sz: sw.z, yaw: u.yaw, v: u.speed, age: 0 }); if (T.hist.length > N) T.hist.pop(); }
+      else { const h0 = T.hist[0]; h0.bx = bw.x; h0.bz = bw.z; h0.sx = sw.x; h0.sz = sw.z; h0.yaw = u.yaw; h0.v = u.speed; h0.age = 0; }
       for (let i = 1; i < T.hist.length; i++) T.hist[i].age += dt;
+      // (ngc/perf-cpu) a ship over 900 m from the camera rebuilds its wake strips every 4th frame only (each vertex
+      // reads the live sea height: ~400 sea samples a ship a frame); the history above runs every frame. (Its spray
+      // and smoke below are for ships within 650 m only.)
+      if (hypot2(u.p.x - ear.x, u.p.z - ear.z) > 900 && (T.skip = (T.skip || 0) + 1) < 4) return;
+      T.skip = 0;
       // build the strips: path length along the bow track for the Kelvin arms' spread
       const H = T.hist, n = H.length, pos = T.pos, col = T.col, uv = T.uv, life = N * STEP;
+      const set = (strip, i, j, x, z, a, u0, v0) => { const o = ((strip * N + i) * 2 + j); pos[o * 3] = x; pos[o * 3 + 1] = (seaY ? seaY(x, z) : 0) + 0.07 + strip * 0.004; pos[o * 3 + 2] = z; col[o * 4] = col[o * 4 + 1] = col[o * 4 + 2] = 1; col[o * 4 + 3] = a; uv[o * 2] = u0; uv[o * 2 + 1] = v0; };
       let sB = 0, sS = 0;
       for (let i = 0; i < N; i++) {
         const h = H[Math.min(i, n - 1)], valid = i < n;
-        if (i > 0 && valid) { sB += Math.hypot(h.bx - H[i - 1].bx, h.bz - H[i - 1].bz); sS += Math.hypot(h.sx - H[i - 1].sx, h.sz - H[i - 1].sz); }
+        if (i > 0 && valid) { sB += hypot2(h.bx - H[i - 1].bx, h.bz - H[i - 1].bz); sS += hypot2(h.sx - H[i - 1].sx, h.sz - H[i - 1].sz); }
         const px = Math.cos(h.yaw), pz = -Math.sin(h.yaw);   // starboard unit vector at that time
         const fade = valid ? Math.max(0, 1 - h.age / life) : 0, vk = Math.min(1, h.v / 3.5);
         // centre wake: from the stern, widening and fading; strongest just behind the screws
         const cw = (Wd * 0.24 + sS * 0.05) * k, ca = fade * fade * vk * 0.55 * Math.min(1, 0.35 + i * 0.25);
         // Kelvin arms: points the bow passed, now pushed out by the wave crest at 19.5 deg; width grows a little
         const off = sB * KELVIN + Wd * 0.38, aw = (0.7 + sB * 0.02) * k, aa = fade * vk * 0.32 * Math.min(1, i * 0.5);
-        const set = (strip, j, x, z, a, u0, v0) => { const o = ((strip * N + i) * 2 + j); pos[o * 3] = x; pos[o * 3 + 1] = (seaY ? seaY(x, z) : 0) + 0.07 + strip * 0.004; pos[o * 3 + 2] = z; col[o * 4] = col[o * 4 + 1] = col[o * 4 + 2] = 1; col[o * 4 + 3] = a; uv[o * 2] = u0; uv[o * 2 + 1] = v0; };
-        set(0, 0, h.sx - px * cw, h.sz - pz * cw, ca, 0, sS / 22); set(0, 1, h.sx + px * cw, h.sz + pz * cw, ca, 1, sS / 22);
-        for (const [strip, sd] of [[1, -1], [2, 1]]) {
-          const cx = h.bx + px * off * sd, cz = h.bz + pz * off * sd;
-          set(strip, 0, cx - px * aw, cz - pz * aw, aa, 0, sB / 14); set(strip, 1, cx + px * aw, cz + pz * aw, aa, 0.5, sB / 14);
+        set(0, i, 0, h.sx - px * cw, h.sz - pz * cw, ca, 0, sS / 22); set(0, i, 1, h.sx + px * cw, h.sz + pz * cw, ca, 1, sS / 22);
+        for (let strip = 1; strip <= 2; strip++) {   // port arm, starboard arm
+          const sd = strip === 1 ? -1 : 1, cx = h.bx + px * off * sd, cz = h.bz + pz * off * sd;
+          set(strip, i, 0, cx - px * aw, cz - pz * aw, aa, 0, sB / 14); set(strip, i, 1, cx + px * aw, cz + pz * aw, aa, 0.5, sB / 14);
         }
       }
       // the bow wave: the crest a hull pushes up along its forward shoulders, attached to the ship (strips 3 and 4):
@@ -85,10 +92,13 @@ export function createNavalFx(scene, fx, seaY = null) {
         for (let i = 0; i < N; i++) {
           const t = Math.min(1, i / 15), lz = bow.z + t * Lb, half = Math.max(0.2, wl(lz)), off = half + 0.4 + t * (1.2 + vk * 2.2), w = (0.5 + t * 1.3) * k;
           const a = i < 16 ? amp * Math.sin(Math.min(1, t * 3) * Math.PI / 2) * (1 - t) * 0.85 : 0;
-          for (const [strip, sd] of [[3, -1], [4, 1]]) {
-            const lx0 = sd * (off - w), lx1 = sd * (off + w), o0 = ((strip * N + i) * 2), y = 0.075 + strip * 0.004;
+          for (let strip = 3; strip <= 4; strip++) {
+            const sd = strip === 3 ? -1 : 1, lx0 = sd * (off - w), lx1 = sd * (off + w), o0 = ((strip * N + i) * 2), y = 0.075 + strip * 0.004;
             const px0 = u.p.x + lx0 * c + lz * sn, pz0 = u.p.z - lx0 * sn + lz * c, px1 = u.p.x + lx1 * c + lz * sn, pz1 = u.p.z - lx1 * sn + lz * c;
-            pos.set([px0, y, pz0, px1, y, pz1], o0 * 3); col.set([1, 1, 1, a, 1, 1, 1, a * 0.6], o0 * 4); uv.set([0, (lz + T.clock * u.speed * 0.6) / 9, 0.6, (lz + T.clock * u.speed * 0.6) / 9], o0 * 2);
+            const p3 = o0 * 3, c4 = o0 * 4, u2 = o0 * 2, v = (lz + T.clock * u.speed * 0.6) / 9;
+            pos[p3] = px0; pos[p3 + 1] = y; pos[p3 + 2] = pz0; pos[p3 + 3] = px1; pos[p3 + 4] = y; pos[p3 + 5] = pz1;
+            col[c4] = col[c4 + 1] = col[c4 + 2] = 1; col[c4 + 3] = a; col[c4 + 4] = col[c4 + 5] = col[c4 + 6] = 1; col[c4 + 7] = a * 0.6;
+            uv[u2] = 0; uv[u2 + 1] = v; uv[u2 + 2] = 0.6; uv[u2 + 3] = v;
           }
         }
       }

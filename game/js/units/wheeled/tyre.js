@@ -1,3 +1,4 @@
+import { hypot2 } from '../../hypot.js';   // (ngc/perf-cpu) Math.hypot without the garbage, same bits
 // tyre.js - the tyre and the ground under it, for the NGC-1980 wheeled vehicles. Pure JS (no THREE, no DOM): node runs it.
 //
 // Model
@@ -103,7 +104,7 @@ export function tyreStep(T, st, surf, Fz, vx, vy, wr, gamma, dt) {
   const tread = xc ? surf.tread : 1 / Math.max(0.9, surf.tread * 0.92);
   // rubber friction falls with sliding speed (Pacejka 2006 eq. 4.E23 form) and levels off: a locked-wheel skid on dry
   // asphalt keeps ~75% of the peak (skid-mark friction 0.65-0.75 vs peak 0.85-1.0, Wong ch. 1.4; INFERRED shape)
-  const vSlide = Math.hypot(wr - vx, vy);
+  const vSlide = hypot2(wr - vx, vy);
   const mu = surf.mu * tread * clamp(1 + T.dMu * dfz, 0.6, 1.15) * (1 - 0.55 * flat) * (1 - 0.25 * clamp((vSlide - 0.5) / 8, 0, 1));
   const CK = Math.max(0.2, T.cK * (1 + T.dK * dfz)) * Fz * (1 - 0.5 * flat), CA = Math.max(0.2, T.cA * (1 + T.dA * dfz)) * Fz * (1 - 0.6 * flat);
   const Lx = T.Lx * (1 + flat), Ly = T.Ly * (1 + flat), avx = Math.abs(vx);
@@ -117,7 +118,7 @@ export function tyreStep(T, st, surf, Fz, vx, vy, wr, gamma, dt) {
   const kappa = st.ux / Lx, tanA = st.uy / Ly;   // tanA + = force to the right (patch dragged left)
   // camber: thrust towards the lean (+gamma = top to the right -> force to the right); as an equivalent slip
   const tanAe = tanA + T.cG * gamma / T.cA;
-  const nx = kappa / kPx, ny = tanAe / aPy, s = Math.hypot(nx, ny);
+  const nx = kappa / kPx, ny = tanAe / aPy, s = hypot2(nx, ny);
   let Fx = 0, Fy = 0;
   if (s > 1e-9) {
     const muy = mu * (1 - 0.6 * gamma * gamma);   // lateral peak falls with camber
@@ -125,12 +126,12 @@ export function tyreStep(T, st, surf, Fz, vx, vy, wr, gamma, dt) {
     Fy = muy * Fz * mf(s, surf.Cy, surf.Ey) * ny / s;
   }
   // low-speed damping (the deflection spring would otherwise ring at standstill); fades out by 3 m/s
-  const lw = clamp(1 - Math.hypot(vx, vy) / 3, 0, 1);   // the contact speed, not just the rolling speed: a sideways slide is not "low speed"
+  const lw = clamp(1 - hypot2(vx, vy) / 3, 0, 1);   // the contact speed, not just the rolling speed: a sideways slide is not "low speed"
   if (lw > 0) {
     const m = Fz / 9.81;  // the corner's share of the mass is close to Fz / g
     Fx += lw * 2 * 0.7 * Math.sqrt(CK / Lx * m) * sx * 0.5;
     Fy += lw * 2 * 0.7 * Math.sqrt(CA / Ly * m) * (-vy) * 0.5;
-    const cap = mu * Fz * 1.05, f = Math.hypot(Fx, Fy); if (f > cap) { Fx *= cap / f; Fy *= cap / f; }
+    const cap = mu * Fz * 1.05, f = hypot2(Fx, Fy); if (f > cap) { Fx *= cap / f; Fy *= cap / f; }
   }
   // soil bulldozing: a tyre sliding sideways on soft ground digs a rut and pushes a wedge of soil (passive earth
   // pressure on the sidewall, Bekker / Wong ch. 2.5). The lateral resistance can then pass the friction limit - the
@@ -141,7 +142,7 @@ export function tyreStep(T, st, surf, Fz, vx, vy, wr, gamma, dt) {
   }
   st.Fx = Fx; st.Fy = Fy; st.kappa = kappa; st.alpha = Math.atan(tanA); st.mu = mu;
   st.slide = clamp(s - 1, 0, 3);                     // > 0 past the peak: squeal / scrub / gravel spray
-  st.slipV = Math.hypot(sx, vy);
+  st.slipV = hypot2(sx, vy);
   // sinkage: static depth from ground pressure on soft soils, deeper with wheel spin, recovers while rolling freely.
   // dug in, the wheel bulldozes: extra rolling resistance ~ (z / r), and the effective radius drops (the sim lowers the contact)
   if (surf.sink > 0) {

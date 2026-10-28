@@ -95,7 +95,7 @@ A unit is done when it matches the HORNET (`jetfm.js`, `jetcockpit.js`, `jetplay
    real thing is curved, correct proportions and panel lines from published drawings and photos, real details as
    geometry (fine fasteners as normal or detail maps), PBR materials through the RenderKit (`gamemats.js`,
    `detail.js`) with wear, grime and markings, and proper LODs. The reference bar is the Arma Reforger / DCS version
-   of the same vehicle. Build everything ourselves from public reference (manuals, drawings, photos, dimensions);
+   of the same vehicle. Build everything ourselves from public reference (manuals, drawings, photos, dimensions), starting from open-access blueprints matched as a three-view overlay (LOOK-PLAN "Blueprints first");
    never copy or extract assets from another game. Generated or procedural textures are fine, and so are glTF assets
    we author ourselves.
 4. **Interior / first person** where a player can sit or stand: working gauges, sights, switches, moving controls.

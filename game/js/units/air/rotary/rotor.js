@@ -1,3 +1,4 @@
+import { hypot2, hypot3 } from '../../../hypot.js';   // (ngc/perf-cpu) Math.hypot without the garbage, same bits
 // rotor.js - one rotor or proprotor disc, for the AI rotorcraft (CH-46 tandem, MV-22 proprotors). Pure JS, runs in node.
 //
 // The Huey's rotor (hueyfm.js) in a reusable form, with blade-element strips instead of the closed-form thrust so the
@@ -56,11 +57,11 @@ export function createRotor(P) {
     //        rho: air density; lift: damage factor 0..1 }
     step(h, I) {
       const om = Math.max(I.om, 0.5), VT = om * P.R, rho = I.rho ?? 1.225, kLift = I.lift ?? 1;
-      const mx = I.u / VT, my = I.v / VT, mu = Math.hypot(mx, my); R.mu = mu;
+      const mx = I.u / VT, my = I.v / VT, mu = hypot2(mx, my); R.mu = mu;
       const lc = -I.w / VT + mx * R.tx + my * R.ty, lx = (I.lx || 0) / VT;   // climb + disc-tilt inflow, external inflow
       const lam = R.li + lc + lx; R.lc = lc; R.lam = lam;
       // ---- blade-element strips
-      let T = 0, Q = 0; const ip = Math.hypot(I.u, I.v);
+      let T = 0, Q = 0; const ip = hypot2(I.u, I.v);
       const half = mu * mu / 2, Up = lam * VT, th75 = I.th75, tw = P.twist;
       for (let i = 0; i < N; i++) {
         const x = xs[i], Ut = VT * Math.sqrt(x * x + half), phi = Math.atan2(Up, Ut), U2 = Ut * Ut + Up * Up;
@@ -99,7 +100,7 @@ export function createRotor(P) {
       const k = 1 - Math.exp(-h / Math.max(0.01, tf));
       R.tx += (clamp(ttx, -0.3, 0.3) - R.tx) * k; R.ty += (clamp(tty, -0.3, 0.3) - R.ty) * k;
       // ---- loads on the airframe (shaft axes): thrust along the TPP normal, H-force, hub moment, torque reaction
-      const nl = Math.hypot(R.tx, R.ty, 1);
+      const nl = hypot3(R.tx, R.ty, 1);
       R.F[0] = T * R.tx / nl; R.F[1] = T * R.ty / nl; R.F[2] = -T / nl;
       if (ip > 0.1) { const Hf = sigma * P.cd0 / 4 * mu * rho * A * VT * VT; R.F[0] -= Hf * I.u / ip; R.F[1] -= Hf * I.v / ip; }
       const kHub = (P.kSpring || 0) + P.nb / 2 * (P.e || 0) * P.R * (P.Sb || 0) * om * om;

@@ -129,7 +129,7 @@ export function createVehicleCraft(ctx, spec) {
     Z.pos.set(S.x, S.y + HT * 0.5, S.z); Z.vel.set(-Math.sin(S.yaw) * S.v + deckV.x, S.vy, -Math.cos(S.yaw) * S.v + deckV.z);
     Z.facing.set(-Math.sin(S.yaw), -Math.cos(S.yaw));
   };
-  V.bounds = () => V.exists ? (V._b ||= {}, Object.assign(V._b, { x: S.x, z: S.z, yaw: S.yaw, hl: HL, hw: HW, y0: S.y, y1: S.y + HT, def: V })) : null;
+  V.bounds = () => { if (!V.exists) return null; const b = V._b ||= {}; b.x = S.x; b.z = S.z; b.yaw = S.yaw; b.hl = HL; b.hw = HW; b.y0 = S.y; b.y1 = S.y + HT; b.def = V; return b; };   // (ngc/perf-cpu: no literal per collision query)
   // ---------------------------------------------------------------- input, views
   V.key = code => {
     if (code === 'KeyV') { V.view = V.view === 'first' ? 'chase' : 'first'; say(V.view === 'first' ? `${V.seats[V.seat].label}'S VIEW` : 'CHASE VIEW', 1); return true; }

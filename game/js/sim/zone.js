@@ -6,6 +6,7 @@
 import { ISLANDS, islandH, createNav, BOUND, fleetStart } from '../world.js';
 import { planHards, hardsH } from '../units/armor/landinghard.js';
 import { clearedAt } from '../world/net.js';
+import { hypot2 } from '../hypot.js';   // (ngc/perf-cpu) Math.hypot without the garbage, same bits
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -21,11 +22,11 @@ export function createZone(o = {}) {   // o.pure: on copies of the islands (a ch
   let Z = null;
   const BASES = ISL.filter(I => I.cave).sort((a, b) => a.tier - b.tier).map(I => I.base = { kind: I.owner === 1 ? 'home' : 'enemy', name: I.name, tier: I.tier, x: I.x, z: I.z, h: clamp(Math.round(islandH(I.x, I.z)), 4, 16), isl: I });
   const PADS = ISL.map(I => I.pad = I.cave ? { x: I.x, z: I.z + 30, h: I.base.h, r0: 12, r1: 34, r: PAD_R, isl: I } : { x: I.x, z: I.z, h: clamp(Math.round(islandH(I.x, I.z)), 3, 14), r0: 30, r1: 52, r: PAD_R, isl: I });
-  const stripW = (x, z, b) => smooth(0, 14, Math.hypot(Math.max(Math.abs(x - b.x) - STRIP_X, 0), Math.max(Math.abs(z - b.z) - STRIP_Z, 0)));
+  const stripW = (x, z, b) => smooth(0, 14, hypot2(Math.max(Math.abs(x - b.x) - STRIP_X, 0), Math.max(Math.abs(z - b.z) - STRIP_Z, 0)));
   const terrainH0 = (x, z) => {
     let h = islandH(x, z);
-    for (const b of BASES) h = lerp(b.h, h, smooth(BASE_R, 60, Math.hypot(x - b.x, z - b.z)));
-    for (const p of PADS) { const d = Math.hypot(x - p.x, z - p.z); if (d < p.r1) h = lerp(p.h, h, smooth(p.r0, p.r1, d)); }
+    for (const b of BASES) h = lerp(b.h, h, smooth(BASE_R, 60, hypot2(x - b.x, z - b.z)));
+    for (const p of PADS) { const d = hypot2(x - p.x, z - p.z); if (d < p.r1) h = lerp(p.h, h, smooth(p.r0, p.r1, d)); }
     for (const b of BASES) h = lerp(Math.max(h, b.h), h, stripW(x, z, b));
     return h;
   };

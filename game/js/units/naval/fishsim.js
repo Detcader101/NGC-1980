@@ -170,11 +170,26 @@ export const SUB_GLSL = `
     return vec4(b+(h-.5)*vec3(.35,.25,.4), h.x*6.2832);
   }`;
 
+/** @param {{ depthAt?: (x: number, z: number) => number, seed?: number, surf?: any }} [opts] */
 export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
   const r = rng(seed);
   // ---- the sea bed, cached on a 2 m grid (terrainH is not free). Cells are filled on first use.
-  const BC = 2, bedCache = new Map();
-  const cellH = (i, j) => { const k = i * 1048576 + j; let h = bedCache.get(k); if (h === undefined) { h = depthAt(i * BC, j * BC); bedCache.set(k, h); } return h; };
+  // (ngc/perf-cpu) in 64 x 64 cell tiles of doubles (NaN = not yet), keyed by a small integer: the old Map keyed by
+  // i * 1048576 + j went past the small-integer range, so every lookup boxed a new heap number - 1.7 MB a frame of
+  // garbage with a few schools about. Same values, same cells.
+  const BC = 2, bedCache = new Map(), TB = 64;
+  let lastKey = -1, lastTile = null;
+  const cellH = (i, j) => {
+    const ti = i >> 6, tj = j >> 6;
+    if (ti < -512 || ti > 511 || tj < -512 || tj > 511) return depthAt(i * BC, j * BC);   // (beyond +-65 km: uncached)
+    const key = (ti + 512) * 1024 + (tj + 512);
+    let T = key === lastKey ? lastTile : bedCache.get(key);
+    if (!T) { T = new Float64Array(TB * TB).fill(NaN); bedCache.set(key, T); }
+    lastKey = key; lastTile = T;
+    const c = (i & 63) + (j & 63) * TB; let h = T[c];
+    if (h !== h) { h = depthAt(i * BC, j * BC); T[c] = h; }
+    return h;
+  };
   const bed = (x, z) => {
     const gx = x / BC, gz = z / BC, i = Math.floor(gx), j = Math.floor(gz), fx = gx - i, fz = gz - j;
     const a = cellH(i, j), b = cellH(i + 1, j), c = cellH(i, j + 1), d = cellH(i + 1, j + 1);
@@ -456,6 +471,62 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
 
   // ------------------------------------------------------------------ steering
   const _f = [0, 0, 0, 0, 0, 0, 0, 0];
+  // (ngc/perf-cpu) stepSchool's rare branches: a fish in the air, a stunned or dead one. They read the fish from the
+  // array themselves and hand the new state (exact doubles) back in _st = [x, y, z, vx, vy, vz].
+  const _st = new Float64Array(6);
+  function airStep(sc, a, o, h, mammal) {
+    let x = a[o], y = a[o + F_Y], z = a[o + F_Z], vx = a[o + F_VX], vy = a[o + F_VY], vz = a[o + F_VZ];
+    const len = a[o + F_LEN];
+    a[o + F_AIR] += h;
+    const top = surfAt(x, z).e;
+    if (a[o + F_AK] === 2) {   // glide: hold 0.5-1.2 m over the waves, the air slowing it (~8 % a second)
+      const want = top + 0.55 + 0.6 * a[o + F_JIT];
+      vy += ((want - y) * 3 - vy) * Math.min(1, h * 4) - 0.6 * h; const sl = Math.exp(-h * 0.085); vx *= sl; vz *= sl;
+      a[o + F_COOL] -= h; a[o + F_WING] = Math.min(1, a[o + F_WING] + h * 6);
+      const hs = hyp(vx, vz);
+      if (a[o + F_COOL] <= 0 || hs < 7) {
+        if (r() < 0.35 && hs > 6) { a[o + F_COOL] = 1.6 + r() * 1.8; vx *= 1.25; vz *= 1.25; event('taxi', x, top, z, len, sc.sp); }   // a tail-beat taxi off the top: another glide
+        else { a[o + F_AK] = 1; vy = -2.5; }   // down: fold and fall in
+      }
+    } else vy -= G * h;
+    x += vx * h; y += vy * h; z += vz * h;
+    // a glide skims the waves: a crest it meets is a tail touch (another taxi) or the end of it, never flown through
+    if (a[o + F_AK] === 2) { const t2 = surfAt(x, z).e; if (y < t2 + 0.12) { if (hyp(vx, vz) > 8 && r() < 0.6) { y = t2 + 0.12; vy = Math.max(vy, 1.2); event('taxi', x, t2, z, len, sc.sp); } else { a[o + F_AK] = 1; vy = Math.min(vy, -1); } } }
+    if (vy < 0 && y < top - len * 0.15 && a[o + F_AIR] > 0.15) {   // back in
+      event('enter', x, top, z, len * (mammal ? 1.4 : 1), sc.sp);
+      a[o + F_AIR] = 0; a[o + F_AK] = 0; a[o + F_WING] = 0; vy *= 0.35; a[o + F_COOL] = mammal ? 0.6 + r() * 1.5 : 2 + r() * 5;
+      if (mammal) a[o + F_BR] = 6 + r() * 14;
+    }
+    a[o + F_ROLL] *= Math.exp(-h * 1.5);
+    a[o + F_PH] = (a[o + F_PH] + TAU * (a[o + F_AK] === 2 ? 0 : 2) * h) % TAU;
+    a[o] = x; a[o + F_Y] = y; a[o + F_Z] = z; a[o + F_VX] = vx; a[o + F_VY] = vy; a[o + F_VZ] = vz;
+    _st[0] = x; _st[1] = y; _st[2] = z; _st[3] = vx; _st[4] = vy; _st[5] = vz;
+  }
+  function stunStep(a, o, h, i) {   // -> 1 while it is still held (stunned or dead, not yet dropped)
+    let x = a[o], y = a[o + F_Y], z = a[o + F_Z], vx = a[o + F_VX], vy = a[o + F_VY], vz = a[o + F_VZ];
+    const len = a[o + F_LEN], b = bed(x, z);
+    a[o + F_STUN] -= h;
+    const dead = a[o + F_DEAD] > 0, sink = dead && a[o + F_STUN] < 8;
+    const ty = sink ? b + 0.1 : surfAt(x, z).e - 0.04 - len * 0.12;   // (the exact top: few fish, affordable)
+    vy += ((ty - y) * (sink ? 0.15 : 0.6) - vy) * Math.min(1, h * 2);
+    vx *= Math.exp(-h * 1.2); vz *= Math.exp(-h * 1.2);
+    a[o + F_ROLL] += (Math.PI * (dead ? 1 : 0.85) - a[o + F_ROLL]) * Math.min(1, h * 2.5) + (dead ? 0 : Math.sin(S.t * 3 + i) * h * 0.6);
+    x += vx * h; y += vy * h; z += vz * h; { const nb = bed(x, z); if (nb > -0.3) { x -= vx * h; z -= vz * h; vx = vz = 0; } else if (y < nb + 0.05) { y = nb + 0.05; vy = 0; } }
+    if (!sink && y > ty - 0.3) { const t2 = surfAt(x, z).e - 0.04 - len * 0.12; vy = (t2 - y) / h * 0.5; y = t2; }   // at the top: on the swell, rising and falling with it
+    a[o] = x; a[o + F_Y] = y; a[o + F_Z] = z; a[o + F_VX] = vx; a[o + F_VY] = vy; a[o + F_VZ] = vz;
+    if (!dead && a[o + F_STUN] <= 0) { a[o + F_STUN] = 0; a[o + F_FEAR] = 1; }   // comes to and bolts
+    if (dead && a[o + F_STUN] <= 0) a[o + F_STUN] = 0.001;   // (stays on the bottom: dropped with the school)
+    return a[o + F_STUN] > 0.01 ? 1 : 0;
+  }
+  // a leap starts (frightened mullet and flying fish near the top, the odd mullet): -> _st [, y, , vx, vy, vz]
+  function leapStart(sc, sp, a, o, x, z, top, len, vx, vy, vz) {
+    const fl = hyp(_f[1], _f[3]), ux = fl > 1e-3 ? _f[1] / fl : vx / (hyp(vx, vz) || 1), uz = fl > 1e-3 ? _f[3] / fl : vz / (hyp(vx, vz) || 1);
+    a[o + F_AIR] = 1e-3; const y = top;
+    if (sp.leap === 'glide') { const v0 = 11 + 5 * r(); vx = ux * v0; vz = uz * v0; vy = 2 + r(); a[o + F_AK] = 2; a[o + F_COOL] = 2 + 2 * r(); S.stats.glides++; event('taxi', x, top, z, len, sc.sp); }
+    else { const v0 = 1.5 + 1.5 * r(); vx = ux * v0; vz = uz * v0; vy = 3 + 1.4 * r(); a[o + F_AK] = 1; a[o + F_ROLL] = (r() < 0.5 ? 1 : -1) * (0.6 + r()); }
+    event('jump', x, top, z, len, sc.sp); S.stats.leaps++;
+    _st[1] = y; _st[3] = vx; _st[4] = vy; _st[5] = vz;
+  }
   function stepSchool(sc, h) {
     const sp = SPECIES[sc.sp], a = sc.a, n = sc.n, role = sp.role, mammal = role === 'mammal';
     const night = 1 + (1 - S.light) * 0.6;   // schools loosen at night
@@ -476,50 +547,12 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
       let x = a[o], y = a[o + F_Y], z = a[o + F_Z], vx = a[o + F_VX], vy = a[o + F_VY], vz = a[o + F_VZ];
       const len = a[o + F_LEN];
       // ---- in the air: a mullet's hop, a bonito clearing the top, a dolphin's leap (ballistic), a flying fish's glide
-      if (a[o + F_AIR] > 0) {
-        a[o + F_AIR] += h;
-        const top = surfAt(x, z).e;
-        if (a[o + F_AK] === 2) {   // glide: hold 0.5-1.2 m over the waves, the air slowing it (~8 % a second)
-          const want = top + 0.55 + 0.6 * a[o + F_JIT];
-          vy += ((want - y) * 3 - vy) * Math.min(1, h * 4) - 0.6 * h; const sl = Math.exp(-h * 0.085); vx *= sl; vz *= sl;
-          a[o + F_COOL] -= h; a[o + F_WING] = Math.min(1, a[o + F_WING] + h * 6);
-          const hs = hyp(vx, vz);
-          if (a[o + F_COOL] <= 0 || hs < 7) {
-            if (r() < 0.35 && hs > 6) { a[o + F_COOL] = 1.6 + r() * 1.8; vx *= 1.25; vz *= 1.25; event('taxi', x, top, z, len, sc.sp); }   // a tail-beat taxi off the top: another glide
-            else { a[o + F_AK] = 1; vy = -2.5; }   // down: fold and fall in
-          }
-        } else vy -= G * h;
-        x += vx * h; y += vy * h; z += vz * h;
-        // a glide skims the waves: a crest it meets is a tail touch (another taxi) or the end of it, never flown through
-        if (a[o + F_AK] === 2) { const t2 = surfAt(x, z).e; if (y < t2 + 0.12) { if (hyp(vx, vz) > 8 && r() < 0.6) { y = t2 + 0.12; vy = Math.max(vy, 1.2); event('taxi', x, t2, z, len, sc.sp); } else { a[o + F_AK] = 1; vy = Math.min(vy, -1); } } }
-        if (vy < 0 && y < top - len * 0.15 && a[o + F_AIR] > 0.15) {   // back in
-          event('enter', x, top, z, len * (mammal ? 1.4 : 1), sc.sp);
-          a[o + F_AIR] = 0; a[o + F_AK] = 0; a[o + F_WING] = 0; vy *= 0.35; a[o + F_COOL] = mammal ? 0.6 + r() * 1.5 : 2 + r() * 5;
-          if (mammal) a[o + F_BR] = 6 + r() * 14;
-        }
-        a[o + F_ROLL] *= Math.exp(-h * 1.5);
-        a[o + F_PH] = (a[o + F_PH] + TAU * (a[o + F_AK] === 2 ? 0 : 2) * h) % TAU;
-        a[o] = x; a[o + F_Y] = y; a[o + F_Z] = z; a[o + F_VX] = vx; a[o + F_VY] = vy; a[o + F_VZ] = vz;
-        cx += x; cy += Math.min(y, 0); cz += z; vxs += vx; vzs += vz; live++;
-        continue;
-      }
-      const b = bed(x, z);
+      // (ngc/perf-cpu: the rare branches live in their own functions, below, so their first use deoptimises them and
+      // not this whole loop - it was re-optimised ~20 times a run, boxing every double in between)
+      if (a[o + F_AIR] > 0) { airStep(sc, a, o, h, mammal); cx += _st[0]; cy += Math.min(_st[1], 0); cz += _st[2]; vxs += _st[3]; vzs += _st[5]; live++; continue; }
       // ---- stunned / dead: no swimming; float up to the top and ride it, roll belly up, drift; the dead sink later
-      if (a[o + F_STUN] > 0) {
-        a[o + F_STUN] -= h;
-        const dead = a[o + F_DEAD] > 0, sink = dead && a[o + F_STUN] < 8;
-        const ty = sink ? b + 0.1 : surfAt(x, z).e - 0.04 - len * 0.12;   // (the exact top: few fish, affordable)
-        vy += ((ty - y) * (sink ? 0.15 : 0.6) - vy) * Math.min(1, h * 2);
-        vx *= Math.exp(-h * 1.2); vz *= Math.exp(-h * 1.2);
-        a[o + F_ROLL] += (Math.PI * (dead ? 1 : 0.85) - a[o + F_ROLL]) * Math.min(1, h * 2.5) + (dead ? 0 : Math.sin(S.t * 3 + i) * h * 0.6);
-        x += vx * h; y += vy * h; z += vz * h; { const nb = bed(x, z); if (nb > -0.3) { x -= vx * h; z -= vz * h; vx = vz = 0; } else if (y < nb + 0.05) { y = nb + 0.05; vy = 0; } }
-        if (!sink && y > ty - 0.3) { const t2 = surfAt(x, z).e - 0.04 - len * 0.12; vy = (t2 - y) / h * 0.5; y = t2; }   // at the top: on the swell, rising and falling with it
-        a[o] = x; a[o + F_Y] = y; a[o + F_Z] = z; a[o + F_VX] = vx; a[o + F_VY] = vy; a[o + F_VZ] = vz;
-        if (!dead && a[o + F_STUN] <= 0) { a[o + F_STUN] = 0; a[o + F_FEAR] = 1; }   // comes to and bolts
-        if (dead && a[o + F_STUN] <= 0) a[o + F_STUN] = 0.001;   // (stays on the bottom: dropped with the school)
-        if (a[o + F_STUN] > 0.01) held++;
-        continue;
-      }
+      if (a[o + F_STUN] > 0) { held += stunStep(a, o, h, i); continue; }
+      const b = bed(x, z);
       // ---- neighbours (the school only)
       let nN = 0, ax = 0, ay = 0, az = 0, mx = 0, my = 0, mz = 0, sx = 0, sy = 0, sz = 0, nc = 0;
       if (role !== 'drift') {
@@ -690,13 +723,7 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
       a[o + F_COOL] -= h;
       if (sp.leap && !mammal && a[o + F_COOL] <= 0 && y > top - 1.6 && b < -0.9) {
         const trig = sp.leap === 'glide' ? (_f[0] > 0.3 ? h * 2.5 * _f[0] : 0) : (_f[0] > 0.4 ? h * 1.2 * _f[0] : h * sp.jumpy * 0.1);
-        if (trig > 0 && r() < trig) {
-          const fl = hyp(_f[1], _f[3]), ux = fl > 1e-3 ? _f[1] / fl : vx / (hyp(vx, vz) || 1), uz = fl > 1e-3 ? _f[3] / fl : vz / (hyp(vx, vz) || 1);
-          a[o + F_AIR] = 1e-3; y = top;
-          if (sp.leap === 'glide') { const v0 = 11 + 5 * r(); vx = ux * v0; vz = uz * v0; vy = 2 + r(); a[o + F_AK] = 2; a[o + F_COOL] = 2 + 2 * r(); S.stats.glides++; event('taxi', x, top, z, len, sc.sp); }
-          else { const v0 = 1.5 + 1.5 * r(); vx = ux * v0; vz = uz * v0; vy = 3 + 1.4 * r(); a[o + F_AK] = 1; a[o + F_ROLL] = (r() < 0.5 ? 1 : -1) * (0.6 + r()); }
-          event('jump', x, top, z, len, sc.sp); S.stats.leaps++;
-        }
+        if (trig > 0 && r() < trig) { leapStart(sc, sp, a, o, x, z, top, len, vx, vy, vz); y = _st[1]; vx = _st[3]; vy = _st[4]; vz = _st[5]; }
       }
       // the tail: Bainbridge (a jellyfish: its bell's own slow pulse, ~0.8 Hz)
       a[o + F_PH] = (a[o + F_PH] + TAU * (role === 'drift' ? 0.8 : tailBeatHz(hyp(vx, vy, vz), len)) * h) % TAU;
@@ -784,7 +811,7 @@ export function createFishSim({ depthAt, seed = 1980, surf = null } = {}) {
       if (sc.leave) { sc.fade -= dt / FISH.FADE; if (sc.fade <= 0) dropSchool(i); }
       else sc.fade = Math.min(1, sc.fade + dt / FISH.FADE);
     }
-    if (bedCache.size > 90000) bedCache.clear();
+    if (bedCache.size > 64) { bedCache.clear(); lastKey = -1; lastTile = null; }   // (64 tiles of 128 m: 2 MB)
     // spawn: a few tries a second (more at the start or after a jump): round the camera, and round the anchors
     S.spawnT -= dt;
     if (S.spawnT <= 0 && S.autoSpawn) {

@@ -49,7 +49,7 @@ export function createDesktopBench(d) {
   const main = C.id === 'all', segSeconds = main ? R.seconds : Math.max(2, Math.round(R.seconds * 2 / 3)), settle = 1.5;
   const gl = renderer.getContext(), gpuExt = gl.getExtension('EXT_disjoint_timer_query_webgl2');
   const S = { runId: R.runId, config: C, phase: 'boot', seg: -1, segments: [], events: [], done: false };
-  window.__bench = S;
+  /** @type {any} */ (window).__bench = S;
   const banner = document.createElement('div'); banner.id = 'benchNote';
   banner.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:300;background:#061924e0;border:1px solid #8ff;color:#cfe;font:12px Consolas,monospace;padding:6px 9px;pointer-events:none;white-space:pre';
   document.body.appendChild(banner);
@@ -148,7 +148,7 @@ export function createDesktopBench(d) {
   // ---------------------------------------------------------------- measurement
   let cur = null, lastNow = 0, gpuActive = null, gpuPending = [], longTasks = [], segT = 0, segIdx = -1, sync = null;
   try { new PerformanceObserver(l => { for (const e of l.getEntries()) longTasks.push(e.duration); }).observe({ type: 'longtask' }); } catch (e) { S.events.push('longtask observer unavailable'); }
-  const heap = () => performance.memory ? r1(performance.memory.usedJSHeapSize / 1048576) : null;
+  const heap = () => { const m = /** @type {any} */ (performance).memory; return m ? r1(m.usedJSHeapSize / 1048576) : null; };
   // shadow passes: the renderer calls shadowMap.render() inside render(); count its draws and triangles
   const SM = renderer.shadowMap, smOrig = SM.render; let shCalls = 0, shTris = 0;
   SM.render = function (...a) { const c = renderer.info.render.calls, t = renderer.info.render.triangles; const r = smOrig.apply(this, a); shCalls += renderer.info.render.calls - c; shTris += renderer.info.render.triangles - t; return r; };
@@ -189,7 +189,7 @@ export function createDesktopBench(d) {
     const T = tour[i];
     S.seg = i; status(`view ${i + 1}/${tour.length}: ${T.label}`);
     let info = null, error = '';
-    try { info = T.setup() || null; } catch (e) { error = e.message; S.events.push(`${T.id}: setup failed: ${e.message}`); }
+    try { info = /** @type {any} */ (T.setup()) || null; } catch (e) { error = e.message; S.events.push(`${T.id}: setup failed: ${e.message}`); }
     cur = { id: T.id, label: T.label, want: T.want, info, error, t0: performance.now(), measuring: false, notes: [], streamWait: 0,
       dt: [], sim: [], prep: [], render: [], cpu: [], gpu: [], calls: [], tris: [], shCalls: [], shTris: [], uncapped: [], heapMax: 0 };
     S.segments.push(cur); segT = performance.now();
@@ -238,7 +238,7 @@ export function createDesktopBench(d) {
     return { runId: R.runId, ua: navigator.userAgent, gpu: dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : null, gpuTimer: !!gpuExt,
       window: `${innerWidth}x${innerHeight}@${devicePixelRatio}`, drawingBuffer: `${gl.drawingBufferWidth}x${gl.drawingBufferHeight}`, pixelRatio: r1(renderer.getPixelRatio()),
       canvasMSAA: gl.getContextAttributes()?.antialias ?? null, maxSamples: renderer.capabilities.maxSamples, seed: params.get('seed') || '1980', seconds: R.seconds,
-      shadows: d.rkLight ? d.rkLight.tier : 'off', post: d.rkPost ? d.rkPost.quality : 'off', cores: navigator.hardwareConcurrency, memoryGB: navigator.deviceMemory ?? null };
+      shadows: d.rkLight ? d.rkLight.tier : 'off', post: d.rkPost ? d.rkPost.quality : 'off', cores: navigator.hardwareConcurrency, memoryGB: /** @type {any} */ (navigator).deviceMemory ?? null };
   }
   const pick = (seg, f) => { try { return f(seg.summary); } catch (e) { return null; } };
   function areaTable(Res) {
@@ -316,7 +316,7 @@ ${area}${cfgTable}
     rep.areas = areaTable(rep.results); rep.verdicts = verdicts(rep);
     const page = html(rep); S.html = page; S.report = rep;
     const json = JSON.stringify({ ...rep, pictures: undefined }, null, 1);
-    const ok = (await upload('report.json', new Blob([json], { type: 'application/json' }))) & (await upload('report.html', new Blob([page], { type: 'text/html' })));
+    const okJ = await upload('report.json', new Blob([json], { type: 'application/json' })), ok = okJ && (await upload('report.html', new Blob([page], { type: 'text/html' })));
     try { localStorage.removeItem(KEY); } catch (e) {}
     S.phase = 'done'; S.done = true; banner.remove();
     try { if (G.state === 'play') d.openMenu(); } catch (e) {}

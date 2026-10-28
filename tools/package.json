@@ -19,7 +19,9 @@
     "puppeteer-core": "^25.13.0"
   },
   "devDependencies": {
+    "@types/three": "0.170.0",
     "html2canvas": "1.4.1",
-    "iwer": "2.7.0"
+    "iwer": "2.7.0",
+    "typescript": "6.0.3"
   }
 }

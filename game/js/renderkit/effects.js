@@ -78,6 +78,11 @@ void main() {
  * Coordinates are emitter-local; moving the mesh moves already emitted particles.
  * Call update with absolute simulation seconds; pause by keeping that value fixed.
  */
+/**
+ * @param {{ kind?: keyof typeof PARTICLE_PRESETS, count?: number, seed?: number, spread?: number, loop?: boolean,
+ *   color?: number, endColor?: number, size?: number, speed?: number, gravity?: number, life?: number, opacity?: number,
+ *   additive?: boolean, stretch?: number, [preset: string]: any }} [options]   preset fields override PARTICLE_PRESETS[kind]
+ */
 export function createParticleSystem({ kind = 'smoke', count = 96, seed = 1980, spread = 1,
   loop = true, ...options } = {}) {
   const preset = PARTICLE_PRESETS[kind];
@@ -145,6 +150,10 @@ export function createTemporalMaterial({ time = uniform(0), tint = 0x8ccbbf,
     `, ...options });
 }
 
+/**
+ * @param {{ zenith?: number, horizon?: number, ground?: number, sunDirection?: THREE.Vector3 } & THREE.ShaderMaterialParameters} [options]
+ *   the rest go to the THREE.ShaderMaterial
+ */
 export function createSkyMaterial({ zenith = 0x25404d, horizon = 0xa5b4af,
   ground = 0x4b5046, sunDirection = new THREE.Vector3(0.4,0.6,-0.3), ...options } = {}) {
   return new THREE.ShaderMaterial({ name: 'RenderKit/sky', side: THREE.BackSide, depthWrite: false,

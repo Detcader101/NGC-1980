@@ -65,7 +65,7 @@ const heatOf = o => { for (let p = o; p; p = p.parent) if (p.userData && p.userD
 // ?merge=0 turns every merge off (A/B: the models draw part by part as before)
 export const MERGE_ON = (() => { try { return !/[?&]merge=0(&|$)/.test(location.search); } catch (e) { return true; } })();
 export const MERGES = [];   // every merge record (tests: __MERGES.flatMap(r => r.check()))
-try { window.__MERGES = MERGES; } catch (e) {}
+try { /** @type {any} */ (window).__MERGES = MERGES; } catch (e) {}
 export const SMALL_CLASSES = Object.freeze([{ r: 0.12, far: 170 }]);
 export function mergeStatic(root, { movers = null, keep = null, minParts = 2, name = root?.name || 'model', classes = SMALL_CLASSES } = {}) {
   if (!MERGE_ON || !root) return null;
@@ -254,6 +254,7 @@ export function refsOf(api, depth = 3, out = new Set()) {
 // The game's merge rule for a unit model: frames = every handle in `apis` (other code may move, hide or recolour it),
 // every named group, every mover name (anything else that moves is caught by the watchdog); handles that are meshes are never
 // merged themselves (clicks, swaps, raycasts).
+/** @param {any} root @param {any[]} [apis] @param {{ extra?: (o: any) => boolean, name?: string, classes?: Array<{ r: number, far: number }>, minParts?: number }} [opts] */
 export function mergeUnit(root, apis = [], { extra = null, ...o } = {}) {
   if (!MERGE_ON || !root) return null;
   const refs = new Set(); for (const a of apis) refsOf(a, 3, refs); refs.delete(root);

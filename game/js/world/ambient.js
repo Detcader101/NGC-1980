@@ -17,6 +17,8 @@ import { rng, hash2 } from './rng.js';
 import { islandH, rawH, BOUND, ISLANDS } from '../world.js';
 import * as MD from './models.js';
 import { Kit as FKit, FIG } from '../units/infantry/meshkit.js';   // RENDERKIT figures: rounded townsfolk
+import { restPerson, patchLimbs } from '../units/infantry/figinst.js';   // ngc/look-people: real townsfolk
+const PARTS = (() => { try { return new URLSearchParams(location.search).has('figparts'); } catch (e) { return false; } })();
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(0, 0, 0, 'YXZ'), _p = new THREE.Vector3(), _s = new THREE.Vector3(1, 1, 1), _c = new THREE.Color();
@@ -50,7 +52,17 @@ function personGeoFig() {
   geo.setAttribute('aPart', new THREE.BufferAttribute(new Float32Array(parts), 1)); geo.setAttribute('aPaint', new THREE.BufferAttribute(new Float32Array(paint), 1));
   return geo;
 }
+// ngc/look-people: the townsperson is the same smooth person as everyone else (humanfig.js 'civil': a shirt in the
+// instance colour, jeans, shoes, a short haircut; crowd detail), legs and arms swung by the walk shader with the
+// swing blended at the hips and shoulders (figinst.js aLimb). Colours sqrt-coded like the other world kit colours.
+function personGeoLP() {
+  const g = restPerson('civil', { lod: 'far' }).clone(), c = g.attributes.color, n = c.count;   // ~1.3k triangles: 180 of them stay near the classic cost
+  for (let i = 0; i < n; i++) c.setXYZ(i, Math.sqrt(c.getX(i)), Math.sqrt(c.getY(i)), Math.sqrt(c.getZ(i)));
+  g.setAttribute('aPart', new THREE.BufferAttribute(new Float32Array(n), 1));
+  return g;
+}
 export function personGeo() {   // (exported for tools/scenes/depthstats.mjs)
+  if (FIG && !PARTS) return personGeoLP();
   if (FIG) return personGeoFig();
   const g = new Geo(), parts = [], paint = [], skin = col(0xd8b090), hair = col(0x3a2a1e), jeans = col(0x3a4660), shoe = col(0x222222);
   const add = (n, part, pt) => { for (let i = 0; i < n; i++) { parts.push(part); paint.push(pt); } };
@@ -156,7 +168,8 @@ function instMat(fog, uTime, kind) {
   const extra = sh => {
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aPaint; attribute float aPart; attribute vec2 aWalk;')
       .replace('#include <fog_vertex>', '#include <fog_vertex>\n#ifdef USE_INSTANCING_COLOR\n vColor.rgb = mix(color.rgb * color.rgb, instanceColor.rgb, aPaint);\n#endif');   // after the colour chunks
-    if (kind === 'walk') sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+    if (kind === 'walk' && FIG && !PARTS) patchLimbs(sh, 'walk');
+    else if (kind === 'walk') sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
       { float a = 0.; float py = 0.88;
         if (aPart > 0.5 && aPart < 2.5) { a = sin(aWalk.x + (aPart > 1.5 ? 3.1416 : 0.)) * aWalk.y; py = 0.92; }
         else if (aPart > 2.5) { a = -sin(aWalk.x + (aPart > 3.5 ? 3.1416 : 0.)) * aWalk.y * 0.8; py = 1.46; }

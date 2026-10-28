@@ -89,6 +89,7 @@ export function createFoliageMaterial({ map = null, ...options } = {}) {
 }
 
 // Project decal geometry in the caller (or place a plane just above its receiver).
+/** @param {{ map?: THREE.Texture | null } & THREE.MeshStandardMaterialParameters} [options] the rest go to the MeshStandardMaterial */
 export function createDecalMaterial({ map = null, ...options } = {}) {
   return new THREE.MeshStandardMaterial({ name: 'RenderKit/decal', color: 0x302c26,
     roughness: 0.95, transparent: true, depthWrite: false, polygonOffset: true,
