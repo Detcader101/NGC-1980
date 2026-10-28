@@ -203,6 +203,42 @@ repeated fortification pieces in the buildings rewrite; (3) impostor cards for f
   A heap-allocation profile with the post off (`?rkpost=off`) vs on, and with `?shadows=off`, splits these apart.
   Sharing one `customDepthMaterial` per instancing / skinning variant would cut the shadow variants.
 
+## 2026-10-28 - After merging ngc/shader-library (typecheck, perf-cpu, look-people) at dbe3b1b
+
+* **Deck crew:** look-people replaced the deck crew with one instanced person mesh per LOD (`createCrewLP`, near and
+  far sets). My sphere + 600 m fade still applies to the classic crew (`?figparts`, `?rk=0` figures), not to the new
+  one. **OPEN for look-people:** `deckcrew-people` / `deckcrew-people-far` are `frustumCulled = false` and catch the
+  camera in `onBeforeRender`, so the far set still draws, into both shadow maps too, in every view on the map.
+  Suggestion: fit a sphere round the members in `done()` (as the classic path now does) and take the camera from
+  `updateLODs` / the frame instead of `onBeforeRender`, so culling does not stall the near / far split.
+* **Tomcat:** ngc/look-tomcat owns `tomcatplay.js` and the Tomcat model files. The `mergeUnit` call I had there was
+  taken out before any commit, so no commit of this branch touches a Tomcat file.
+* **Types:** `node tools/check.mjs types` is at its baseline (608) with the perf-render modules typed. The one NEW
+  entry it lists is look-people's `humanfig.js:539`, which nets out against an error the merge removed.
+* **Budgets after the merge** (`perfbudget.mjs`): Huey 90 draws / 55 k tris, Hornet 115 / 4.2 k, Tomcat 152 / 49 k,
+  CH-46 100 / 7.5 k, M60A3 142 / 35 k, M113A2 103 / 24.8 k, M35 97 / 26.5 k, M151 72 / 12.6 k, ALBATROSS group
+  91 / 154 k (look-people's crew), landing hard 6 / 0.8 k. All are within LOD0. None has a far level except the hards
+  (static) and the wheeled vehicles' baked far mesh.
+
+## Regression (headless, load average 45-100 on the shared PC)
+
+* `xr.mjs`: 19/19 before the merge. After the merge it is 17/19 ("sky dome follows the rendered eye", "near terrain
+  window follows the world rig"). **shader-library ae0cacc fails the same two without this branch**, so they came in
+  with the merged branches. **OPEN for the orchestrator.**
+* PASS: `smoke.json`, `smoke.json ?rk=0`, `perflod.mjs` 4/4, `perfbudget.mjs`, `perfbench.mjs`
+  (`?bench=quick`, all 8 views in their craft, report on disk), `mergecheck` (no merged part moved, hid or swapped
+  material) inside `armorgame` and `wheeledgame`.
+* **Same failures on the base build under the same load** (they are timeouts, not regressions):
+  - `armorgame` fails the same 7 waypoint / delivery expects on 36eb21b;
+  - `jet.mjs` fails the same 4 catapult / climb expects on ae0cacc;
+  - `wheeledgame` fails its ford / commandeer / deck expects on ae0cacc too (8 there, 4+ here);
+  - `worldvisibility` (a 2000 m flight wait) and `underwater` (its frame-interval benchmark) time out here under this
+    load. Rerun them when the PC is quiet.
+* The `?bench` area pass (reload per RenderKit area): the bench's own reload works (seen in the harness log, URL
+  `...&rk=surface,world,fx,ui,figures,sky,light,nature&benchrun=...`). The headless harness crashed on the navigation
+  (fixed in e71a3c6), and the rerun timed out loading the page at load 100. **Not yet verified end to end:** run
+  `BENCH_VIEWS=foot-home,huey200 node tools/snap.mjs tools/scenes/perfbench.mjs` on a quiet PC.
+
 ## For the look agents (the orchestrator passes this on)
 
 * **look-huey**: the Huey is 90 draws today with the cockpit (109 + 79 shadow draws in the cockpit view in the
