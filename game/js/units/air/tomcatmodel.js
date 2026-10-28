@@ -222,8 +222,8 @@ export function buildTomcatModel(side = 1, { modex = 201 } = {}) {
   // ---- markings (USN 1179034): modex on the nose, the national insignia on the intake under the canopy, NAVY on the nacelle aft
   for (const s of [-1, 1]) {
     const zM = -8.9, d = decal(noseNumber(modex), 0.66, 0.33, g, 'modex'); d.position.set(s * (fuseW(zM) + 0.012), -0.42, zM); d.rotation.y = s * (Math.PI / 2 - 0.08);
-    const zI = -3.2, N = nacelleAt(zI), st = decal(starTex(), 1.25, 0.62, g, 'insignia'); st.position.set(s * (N.cx + N.a + 0.012), (N.top + N.bot) / 2 + 0.05, zI); st.rotation.y = s * Math.PI / 2;
-    const zN = 3.3, N2 = nacelleAt(zN), nv = decal(stencil('navy', 'NAVY', 40), 1.1, 0.28, g, 'navy'); nv.position.set(s * (N2.cx + N2.a + 0.012), N2.bot + 0.55, zN); nv.rotation.y = s * Math.PI / 2;
+    const zI = -3.6, N = nacelleAt(zI), st = decal(starTex(), 1.25, 0.62, g, 'insignia'); st.position.set(s * (N.cx + N.a + 0.012), -0.45, zI); st.rotation.y = s * Math.PI / 2;
+    const zN = 2.0, N2 = nacelleAt(zN), nv = decal(stencil('navy', 'NAVY', 44), 1.5, 0.38, g, 'navy'); nv.position.set(s * (N2.cx + N2.a + 0.012), N2.bot + 0.5, zN); nv.rotation.y = s * Math.PI / 2;
     const zR = -6.3, rs = decal(stencil('rescue', 'RESCUE', 22, '#c8361c'), 0.5, 0.12, g, 'rescue'); rs.position.set(s * (fuseW(zR) + 0.01), sill(zR) - 0.25, zR); rs.rotation.y = s * Math.PI / 2;
     det(mesh(boxG(0.45, 0.004, 1.3, s * 1.45, GLOVE.y + GLOVE.t(1.45) / 2 + 0.002, -2.4), walkM, g, 'walkway'));
   }
