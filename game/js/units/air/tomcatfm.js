@@ -35,7 +35,8 @@ export const TOMCAT = {
 };
 // stations: 1A/8A glove shoulder rails (AIM-9), 1B/8B glove pylons (AIM-7 / AIM-54), 3-6 tunnel between the nacelles
 export const STATIONS = {
-  '1A': [-2.62, -0.12, -1.6], '8A': [2.62, -0.12, -1.6], '1B': [-2.3, -0.95, -1.2], '8B': [2.3, -0.95, -1.2],
+  '1A': [-2.56, -0.46, -1.3], '8A': [2.56, -0.46, -1.3],   // (ngc/look-tomcat: the AIM-9 shoulder rails on the glove pylons' outer faces, from the drawings)
+  '1B': [-2.3, -0.95, -1.2], '8B': [2.3, -0.95, -1.2],
   3: [-0.62, -1.15, -3.2], 6: [0.62, -1.15, -3.2], 4: [-0.62, -1.15, 1.6], 5: [0.62, -1.15, 1.6],
   gun: [-0.95, -0.15, -8.4],   // M61 muzzle, left side of the nose
 };

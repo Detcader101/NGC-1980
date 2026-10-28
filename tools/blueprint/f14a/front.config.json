@@ -1,0 +1,8 @@
+{
+ "image": "../../../docs/ngc1980/reference/f14a/nasa-cr163098-fig4-1-72-3view.png",
+ "out": "trace-front.json",
+ "source": "NASA CR-163098 (1980) fig. 4, 1/72-scale F-14 model three-view, Northrop for Dryden (NTRS 19800024842, GOV_PUBLIC_USE_PERMITTED); page rendered at 5x",
+ "frame": "model metres: x right, y up; span 27.14 cm (1/72) = 19.546 m over 1409.5 px; wing chord plane (py 871.5) at y -0.19, the wing plane of the TP-2769 side view (its fins then stand 0.2 m shorter than TP-2769 fig. 3f: the 1/72 drawing is the width reference only)",
+ "threshold": 140, "eraseLen": 400, "dilate": 2,
+ "front": { "rows": [680, 1020], "cols": [800, 2260], "s": 72.11, "centrePx": 1527, "groundPx": 871.5, "yGround": -0.19 }
+}
