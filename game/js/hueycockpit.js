@@ -277,14 +277,25 @@ const sc = faceCols.filter(c => c.x >= -0.5 && c.x <= 0.49);   // the glare shie
   // CM (ngc/cmpolish): right of the pilot's flight instruments, the AN/APR-39 radar warning scope (green strobes toward
   // each radar painting you, longer as its lock builds), three threat lamps, and the M130 dispenser's counters
   const rwrT = canvasTex(192, 192);
+  { const c = rwrT.ctx; c.fillStyle = '#071209'; c.fillRect(0, 0, 192, 192); c.strokeStyle = '#1d4a24'; c.lineWidth = 2; for (const r of [30, 60, 88]) { c.beginPath(); c.arc(96, 96, r, 0, TAU); c.stroke(); } c.beginPath(); c.moveTo(96, 6); c.lineTo(96, 186); c.moveTo(6, 96); c.lineTo(186, 96); c.stroke(); c.fillStyle = '#2c6a34'; c.fillRect(92, 88, 8, 16); rwrT.tex.needsUpdate = true; }   // idle CRT: range rings, cross, own-ship mark
   // (hi-fi: on a small add-on panel outboard of the pilot's flight group, as the APR-39 indicator was retrofitted)
-  const [rx, ry] = LP.rwr; if (HF) box(0.13, 0.3, 0.03, panelM, rx, ry - 0.05, -0.02, P);
+  const [rx, ry] = LP.rwr; if (HF) box(0.13, 0.42, 0.03, panelM, rx, ry - 0.11, -0.02, P);
   { const o = new THREE.Mesh(new THREE.CircleGeometry(0.05, 32), new THREE.MeshBasicMaterial({ map: rwrT.tex, toneMapped: false })); o.position.set(rx, ry, 0.004); P.add(o);
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.05, 0.057, 32), ringM); ring.position.set(rx, ry, 0.006); P.add(ring); }
-  const lockL = lamp(P, 0.075, 0.024, rx, ry - 0.078, 0.005, 'LOCK', '#ffaa18', '#2e2408');
-  const mslL = lamp(P, 0.075, 0.024, rx, ry - 0.106, 0.005, 'MISSILE', '#ff2a14', '#3a0e08');
-  const lasL = lamp(P, 0.075, 0.024, rx, ry - 0.134, 0.005, 'LASER', '#40e0ff', '#08262c');
-  const cmT = canvasTex(240, 150); plane(0.088, 0.055, new THREE.MeshBasicMaterial({ map: cmT.tex, toneMapped: false }), rx, ry - 0.19, 0.004, P);
+  // hi-fi: the AN/APR-39(V)1 as the -10 para 3-30 describes it: the scope (IP-1150, idle face drawn below), the control's
+  // PWR / DSCRM switches and BRIL / AUDIO knobs; its warnings are a fire-control radar tracking and an activated SAM
+  // (radar track + missile guidance coincident), so the lamps read RADAR and SAM; no laser warning existed in 1980 (that
+  // lamp is kept dark and unlabelled for the game's LANCE events, which show on the scope)
+  const lockL = lamp(P, 0.075, 0.024, rx, ry - 0.078, 0.005, HF ? 'RADAR' : 'LOCK', '#ffaa18', '#2e2408');
+  const mslL = lamp(P, 0.075, 0.024, rx, ry - 0.106, 0.005, HF ? 'SAM' : 'MISSILE', '#ff2a14', '#3a0e08');
+  const lasL = lamp(P, 0.075, 0.024, rx, ry - 0.134, 0.005, HF ? '' : 'LASER', '#40e0ff', '#08262c'); if (HF) lasL.visible = false;
+  const aprHead = () => {   // the APR-39 control head under the lamps: PWR and DSCRM toggles, BRIL and AUDIO knobs, legends (built once toggle() exists)
+    for (const [x, t] of [[-0.03, 'PWR'], [0.03, 'DSCRM']]) { toggle('apr' + t, P, rx + x, ry - 0.15, '', { dummy: true, on: t === 'PWR' }); }
+    for (const x of [-0.03, 0.03]) cyl(0.011, 0.012, 0.012, black, rx + x, ry - 0.215, 0.006, P, Math.PI / 2, 0, 16);
+    const lt = canvasTex(240, 120); { const c = lt.ctx; c.fillStyle = '#1d1f20'; c.fillRect(0, 0, 240, 120); txt(c, 'PWR', 66, 14, '#d8d6cc', 15); txt(c, 'DSCRM', 174, 14, '#d8d6cc', 15); txt(c, 'BRIL', 66, 106, '#d8d6cc', 15); txt(c, 'AUDIO', 174, 106, '#d8d6cc', 15); txt(c, 'APR-39', 120, 60, '#9a9d98', 14); lt.tex.needsUpdate = true; }
+    plane(0.11, 0.055, new THREE.MeshBasicMaterial({ map: lt.tex, toneMapped: false }), rx, ry - 0.183, 0.0035, P);
+  };
+  const cmT = canvasTex(240, 150); plane(0.088, 0.055, new THREE.MeshBasicMaterial({ map: cmT.tex, toneMapped: false }), rx, ry - (HF ? 0.26 : 0.19), 0.004, P);   // M130 dispenser control (fit option: 1980 Army fielding unverified)
   let cmKey = '';
   function drawCm(S) {   // M130 dispenser control panel: counters and the ARM lamp (flat paint, white stencils)
     const d = S.cm, pw = S.volts > 18, k = d ? `${pw}${d.flare}${d.chaff}${d.queue.length > 0}` : '-';
@@ -295,7 +306,8 @@ const sc = faceCols.filter(c => c.x >= -0.5 && c.x <= 0.49);   // the glare shie
     win(62, 'FLARE', d ? d.flare : 0); win(178, 'CHAFF', d ? d.chaff : 0);
     c.fillStyle = pw ? (d && d.queue.length ? '#ffe070' : '#3b8a3a') : '#1a2a1a'; c.fillRect(100, 124, 40, 18); txt(c, 'ARM', 120, 134, '#111', 13);
     cmT.tex.needsUpdate = true;
-  }
+  }  drawCm({ volts: 0, cm: null });   // the unpowered face, until the game's countermeasures update it
+
 
   // ---------------------------------------------------------------- switches and hit boxes
   const hitM = new THREE.MeshBasicMaterial({ visible: false }), hits = [], hitsOf = {}, sw = {}, push = {}, pt = {};
@@ -313,6 +325,7 @@ const sc = faceCols.filter(c => c.x >= -0.5 && c.x <= 0.49);   // the glare shie
   const button = (id, p, x, y, r, mat, label) => { const b = cyl(r, r, 0.012, mat, x, y, 0.006, p, Math.PI / 2, 0, 14); push[id] = { o: b, z: 0.006 }; hit(id, r * 3, r * 3, 0.04, x, y, 0.015, p, label); return b; };
   // panel top: FIRE light, FIRE EXT push button, RPM / MASTER CAUTION lights (the master caution lamp also resets)
   button('fire', P, ...LP.fireBtn, 0.011, redM, 'FIRE EXTINGUISHER  -  PUSH');
+  if (HF) aprHead();
   hit('mc', 0.075, 0.036, 0.03, ...LP.mc, 0.01, P, 'MASTER CAUTION RESET');
   // hover marker: a thin yellow frame on whatever the crosshair / cursor is over
   const hovs = [0, 1].map(() => { const o = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color: 0xffd040, depthTest: false, transparent: true })); o.renderOrder = 9; o.visible = false; o.matrixAutoUpdate = false; g.add(o); return o; });   // one per hit box of the id (MASTER CAUTION has two)
