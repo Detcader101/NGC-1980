@@ -288,12 +288,12 @@ export function createWheeledCraft(ctx, type, o = {}) {
     // asleep when parked and still: no physics until something wakes it (the player, a hit, a blast, a bump)
     const still = !V.traffic && !V.auto && !S.eng.running && Math.abs(S.speed) < 0.05 && Math.hypot(S.w[0], S.w[1], S.w[2]) < 0.03 && S.onGround && !(dmg.state.fire > 0);
     V.sleepT = still ? V.sleepT + dt : 0;
-    // (ngc/perf-cpu) or parked and going nowhere: an engine-off truck rocking on a wheel or two of uneven ground kept
+    // (ngc/perf-cpu) or parked and going nowhere: an engine-off truck rocking on a wheel or two of uneven ground (bobbing a few cm) kept
     // its body rates over the line for ever and ran the full vehicle sim and its collisions every frame (seen: an M35
-    // on HOME ISLAND, 3 of 6 wheels down, 0.02-0.04 rad/s). Moved less than 3 cm in 2.5 s: asleep as it stands.
-    const parked = !V.traffic && !V.auto && !S.eng.running && Math.abs(S.speed) < 0.05 && S.onGround && !(dmg.state.fire > 0) && !V.P.plat;
+    // on HOME ISLAND, 3 of 6 wheels down, 0.02-0.04 rad/s). Within 15 cm of where it stood 2.5 s ago: asleep as it stands.
+    const parked = !V.traffic && !V.auto && !S.eng.running && S.onGround && !(dmg.state.fire > 0);   // (on a moving deck it never stays within 15 cm; asleep, carryOnly keeps it on)
     const R = V._rest || (V._rest = { x: 0, y: 0, z: 0, t: 0 });
-    if (!parked || Math.abs(S.pos[0] - R.x) + Math.abs(S.pos[1] - R.y) + Math.abs(S.pos[2] - R.z) > 0.03) { R.x = S.pos[0]; R.y = S.pos[1]; R.z = S.pos[2]; R.t = 0; }
+    if (!parked || Math.abs(S.pos[0] - R.x) + Math.abs(S.pos[1] - R.y) + Math.abs(S.pos[2] - R.z) > 0.15) { R.x = S.pos[0]; R.y = S.pos[1]; R.z = S.pos[2]; R.t = 0; }
     else R.t += dt;
     if (V.sleepT > 1.2 || R.t > 2.5) { V.asleep = true; R.t = 0; for (const W of S.wheels) W.omega = 0; }
   };
