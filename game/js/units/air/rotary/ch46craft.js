@@ -333,7 +333,7 @@ export function createCH46Craft(ctx) {
   D.bounds = () => {
     if (!D.present() || !S.landed) return null;
     const y = yawOf(), y0 = B.pos[1] - CH46.CG_H;
-    return (D._b ||= {}, Object.assign(D._b, { x: B.pos[0], z: B.pos[2], yaw: y, hl: 6.9, hw: 2.1, y0, y1: y0 + 4.2, def: D }));
+    const b = D._b ||= {}; b.x = B.pos[0]; b.z = B.pos[2]; b.yaw = y; b.hl = 6.9; b.hw = 2.1; b.y0 = y0; b.y1 = y0 + 4.2; b.def = D; return b;   // (ngc/perf-cpu: no literal per collision query)
   };
   return D;
 }

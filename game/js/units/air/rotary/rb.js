@@ -1,3 +1,4 @@
+import { hypot2, hypot3 } from '../../../hypot.js';   // (ngc/perf-cpu) Math.hypot without the garbage, same bits
 // rb.js - rigid body for the AI rotorcraft (CH-46, MV-22, RW-3): 6-DOF in body axes, gear / skid contacts on the
 // ground and on moving decks. Pure JS (no three.js, no DOM): runs in node for the benches.
 //
@@ -14,7 +15,7 @@ export const toF = (v, o) => { const x = v[0], y = v[1], z = v[2]; o[0] = -z; o[
 export const fromF = (f, o) => { const x = f[0], y = f[1], z = f[2]; o[0] = y; o[1] = -z; o[2] = -x; return o; };
 export const cross = (a, b, o) => { const x = a[1] * b[2] - a[2] * b[1], y = a[2] * b[0] - a[0] * b[2], z = a[0] * b[1] - a[1] * b[0]; o[0] = x; o[1] = y; o[2] = z; return o; };
 export const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-export const len = a => Math.hypot(a[0], a[1], a[2]);
+export const len = a => hypot3(a[0], a[1], a[2]);
 // quaternion [x, y, z, w]
 export function qrot(q, v, o) {   // o = q v q*
   return qrot4(q[0], q[1], q[2], q[3], v, o);   // (ngc/perf-cpu) no array destructuring: it allocated an iterator per call
@@ -41,7 +42,7 @@ const _a = [0, 0, 0], _b = [0, 0, 0], _F = [0, 0, -1], _R = [1, 0, 0];
 export function attitude(q, out = {}) {
   const f = qrot(q, _F, _a), r = qrot(q, _R, _b);
   out.yaw = Math.atan2(-f[0], -f[2]); out.pitch = Math.asin(clamp(f[1], -1, 1));
-  const hl = Math.hypot(f[0], f[2]) || 1, rx = -f[2] / hl, rz = f[0] / hl;
+  const hl = hypot2(f[0], f[2]) || 1, rx = -f[2] / hl, rz = f[0] / hl;
   out.roll = Math.atan2(-r[1], r[0] * rx + r[2] * rz);
   return out;
 }
@@ -102,7 +103,7 @@ export function createBody(P) {
   function gear(h, env, m) {
     fromF(B.w, _t); qrot(B.q, _t, _ow);                 // world angular velocity
     let n = 0, nsum = 0, first = false, fvy = 0, fhs = 0, gmin = 1e9; B.wet = false;
-    qrot(B.q, _F, _fwd); _fwd[1] = 0; { const l = Math.hypot(_fwd[0], _fwd[2]) || 1; _fwd[0] /= l; _fwd[2] /= l; } _lat[0] = -_fwd[2]; _lat[1] = 0; _lat[2] = _fwd[0];
+    qrot(B.q, _F, _fwd); _fwd[1] = 0; { const l = hypot2(_fwd[0], _fwd[2]) || 1; _fwd[0] /= l; _fwd[2] /= l; } _lat[0] = -_fwd[2]; _lat[1] = 0; _lat[2] = _fwd[0];
     for (let i = 0; i < P.gear.length; i++) {
       const G = P.gear[i];
       fromF(G.at, _t); qrot(B.q, _t, _r); _p[0] = _r[0] + B.pos[0]; _p[1] = _r[1] + B.pos[1]; _p[2] = _r[2] + B.pos[2];
@@ -113,7 +114,7 @@ export function createBody(P) {
       if (pen > 2) B.obstructed = true;
       if (env.water && env.water(_p[0], _p[2])) B.wet = true;
       cross(_ow, _r, _w); _w[0] += B.vel[0] - surfVel(env, _p[0], _p[2], _sv)[0]; _w[1] += B.vel[1]; _w[2] += B.vel[2] - _sv[2];
-      if (!first) { first = true; fvy = _w[1]; fhs = Math.hypot(_w[0], _w[2]); }   // (ngc/perf-cpu) the touch object only on touchdown
+      if (!first) { first = true; fvy = _w[1]; fhs = hypot2(_w[0], _w[2]); }   // (ngc/perf-cpu) the touch object only on touchdown
       let N = G.k * Math.min(pen, 0.3) - G.c * _w[1] * (_w[1] < 0 ? 1 : 0.3) + (pen > 0.3 ? 40 * G.k * (pen - 0.3) : 0);
       N = clamp(N, 0, m * 9.81 * 8 / P.gear.length); n++; nsum += N;
       // friction (brakes set / skids): deadbeat on the effective mass, shared by load, with a slip anchor so it holds still
@@ -129,7 +130,7 @@ export function createBody(P) {
     if (n && !wasDown && first) { B.touch = { vy: fvy, hs: fhs }; if (-fvy > B.maxSink) B.maxSink = -fvy; }
     wasDown = n > 0;
     surfVel(env, B.pos[0], B.pos[2], _sv);
-    B.landed = n >= 2 && nsum > 0.15 * m * 9.81 && Math.hypot(B.vel[0] - _sv[0], B.vel[1], B.vel[2] - _sv[2]) < 2;
+    B.landed = n >= 2 && nsum > 0.15 * m * 9.81 && hypot3(B.vel[0] - _sv[0], B.vel[1], B.vel[2] - _sv[2]) < 2;
   }
   return B;
 }

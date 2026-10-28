@@ -1,3 +1,4 @@
+import { hypot2 } from '../../hypot.js';   // (ngc/perf-cpu) Math.hypot without the garbage, same bits
 // Ship motion in a seaway: heave, pitch and roll from a random sea, plus heel in turns and trim with speed.
 // Pure JS (no THREE, no DOM): runs in node for tools/navalbench.mjs.
 //
@@ -149,9 +150,9 @@ export function createShipMotion(P, sea, seed = 1) {
       const fP = c.k * c.a * cm * slopeAvg(xL) * sinc(xB) * att;
       const fR = c.k * c.a * sm * slopeAvg(xB) * sinc(xL) * att;
       // |H| and phase lag of a damped oscillator at frequency we. (ngc/perf-cpu) inline, not three [gain, lag] arrays destructured per wave component per ship per step
-      const qH = Math.abs(we) / wnH, reH = 1 - qH * qH, imH = 2 * P.zH * qH, gH = 1 / Math.hypot(reH, imH), lH = Math.atan2(imH, reH);
-      const qP = Math.abs(we) / wnP, reP = 1 - qP * qP, imP = 2 * P.zP * qP, gP = 1 / Math.hypot(reP, imP), lP = Math.atan2(imP, reP);
-      const qR = Math.abs(we) / wnR, reR = 1 - qR * qR, imR = 2 * zR * qR, gR = 1 / Math.hypot(reR, imR), lR = Math.atan2(imR, reR);
+      const qH = Math.abs(we) / wnH, reH = 1 - qH * qH, imH = 2 * P.zH * qH, gH = 1 / hypot2(reH, imH), lH = Math.atan2(imH, reH);
+      const qP = Math.abs(we) / wnP, reP = 1 - qP * qP, imP = 2 * P.zP * qP, gP = 1 / hypot2(reP, imP), lP = Math.atan2(imP, reP);
+      const qR = Math.abs(we) / wnR, reR = 1 - qR * qR, imR = 2 * zR * qR, gR = 1 / hypot2(reR, imR), lR = Math.atan2(imR, reR);
       const ph = mo.ph[i];
       h += fH * gH * Math.cos(ph - lH); vh -= fH * gH * we * Math.sin(ph - lH);
       p += fP * gP * Math.sin(ph - lP); vp += fP * gP * we * Math.cos(ph - lP);
