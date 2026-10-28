@@ -1,3 +1,4 @@
+import { hypot2, hypot3 } from '../../hypot.js';   // (ngc/perf-cpu) Math.hypot without the garbage, same bits
 // THE GROUND WAR: one AI Marine's body. Pure (no THREE, no DOM). A kinematic soldier (the player's own soldier is the
 // FOUNDATION / INFANTRY sim; AI men in a squad fight need the same numbers, not the same cost): FM 22-5 paces (walk
 // 1.52, run 2.74 m/s), a rush 4.5, crawl 0.5, stances with real transition times, inertia, turning, slopes (Tobler),
@@ -87,7 +88,7 @@ export function createMarine(o = {}) {
     let vmax = st === 'prone' ? MARINE.SPEED.crawl : st === 'crouch' ? 1.4 : st === 'moving' ? 0.6 : MARINE.SPEED.rush;
     if (!M.able) vmax = c.crawl === 'walk' ? 1.0 : c.crawl ? 0.3 : 0;   // (ngc/infdepth: a casualty can drag himself into cover)
     vmax *= 1 - 0.5 * M.wounded;
-    let vx = c.vx || 0, vz = c.vz || 0; const vl = Math.hypot(vx, vz);
+    let vx = c.vx || 0, vz = c.vz || 0; const vl = hypot2(vx, vz);
     if (vl > 0.05) {
       const ux = vx / vl, uz = vz / vl, gx = env.height(M.x + ux, M.z + uz) - env.height(M.x - ux, M.z - uz), grade = gx / 2;
       const tob = Math.min(1, Math.exp(-3.5 * Math.abs(grade + 0.05)) / Math.exp(-3.5 * 0.05));   // Tobler: the same effort is a slower pace on a grade
@@ -95,9 +96,9 @@ export function createMarine(o = {}) {
       if (vl > vmax) { vx = ux * vmax; vz = uz * vmax; }
       vx *= tob; vz *= tob;
     }
-    const dvx = vx - M.vx, dvz = vz - M.vz, dl = Math.hypot(dvx, dvz), am = MARINE.ACC * dt * (dl > 0 && vl < 0.05 ? 1.6 : 1);
+    const dvx = vx - M.vx, dvz = vz - M.vz, dl = hypot2(dvx, dvz), am = MARINE.ACC * dt * (dl > 0 && vl < 0.05 ? 1.6 : 1);
     if (dl > am) { M.vx += dvx / dl * am; M.vz += dvz / dl * am; } else { M.vx = vx; M.vz = vz; }
-    M.x += M.vx * dt; M.z += M.vz * dt; M.speed = Math.hypot(M.vx, M.vz);
+    M.x += M.vx * dt; M.z += M.vz * dt; M.speed = hypot2(M.vx, M.vz);
     M.y = env.height(M.x, M.z);
     // facing: the aim, else the way he moves
     const face = c.face !== undefined ? c.face : M.speed > 0.3 ? Math.atan2(-M.vx, -M.vz) : M.yaw;
@@ -143,7 +144,7 @@ export function segCapsule(ax, ay, az, bx, by, bz, px, py, pz, qx, qy, qz, r) {
   const a = ux * ux + uy * uy + uz * uz, b = ux * vx + uy * vy + uz * vz, c = vx * vx + vy * vy + vz * vz, d = ux * wx + uy * wy + uz * wz, e = vx * wx + vy * wy + vz * wz;
   const D = a * c - b * b; let s = D > 1e-9 ? clamp((b * e - c * d) / D, 0, 1) : 0, t = c > 1e-9 ? clamp((b * s + e) / c, 0, 1) : 0;
   s = a > 1e-9 ? clamp((b * t - d) / a, 0, 1) : 0;
-  const cx = ax + ux * s - (px + vx * t), cy = ay + uy * s - (py + vy * t), cz = az + uz * s - (pz + vz * t), dist = Math.hypot(cx, cy, cz);
+  const cx = ax + ux * s - (px + vx * t), cy = ay + uy * s - (py + vy * t), cz = az + uz * s - (pz + vz * t), dist = hypot3(cx, cy, cz);
   if (dist > r) return -1;
   const L = Math.sqrt(a) || 1, back = Math.sqrt(Math.max(0, r * r - dist * dist)) / L;
   return Math.max(0, s - back);

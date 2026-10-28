@@ -53,6 +53,7 @@
 //   4WD lever), lock (bool, diff locks where fitted), ignition (bool), starter (bool), horn (bool), kit (bool, fording kit) }.
 //   driver.js turns keyboard / gamepad intent into these (automatic clutch and gearbox, AI path following).
 import { SURFACES, TYRES, tyreState, tyreStep, surfIndex } from './tyre.js';
+import { hypot2, hypot3 } from '../../hypot.js';   // (ngc/perf-cpu) Math.hypot without the garbage, same bits
 
 export const KMH = 3.6, HP = 745.7, LBFT = 1.3558, MPH = 2.23694, IN = 0.0254, FT = 0.3048, LB = 0.45359, GAL = 3.78541;
 const RHO_AIR = 1.225, RHO_W = 1000;
@@ -70,7 +71,7 @@ export const LODS = { near: { probes: 9, sub: 1 / 600 }, mid: { probes: 5, sub: 
 const v3 = (x = 0, y = 0, z = 0) => [x, y, z];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const crossTo = (a, b, o) => { const x = a[1] * b[2] - a[2] * b[1], y = a[2] * b[0] - a[0] * b[2], z = a[0] * b[1] - a[1] * b[0]; o[0] = x; o[1] = y; o[2] = z; return o; };
-const norm = a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; a[0] /= l; a[1] /= l; a[2] /= l; return a; };
+const norm = a => { const l = hypot3(a[0], a[1], a[2]) || 1; a[0] /= l; a[1] /= l; a[2] /= l; return a; };
 // quaternion [x, y, z, w]; R = rotation matrix columns (body axes in world): R[0..2] = X, R[3..5] = Y, R[6..8] = Z
 function qToR(q, R) {
   const [x, y, z, w] = q, xx = x * x, yy = y * y, zz = z * z, xy = x * y, xz = x * z, yz = y * z, wx = w * x, wy = w * y, wz = w * z;
@@ -499,11 +500,11 @@ export function createVehicleSim(spec, opts = {}) {
       let pen = r - (_n[0] * (Cx - sx) + _n[1] * (Cy - gout.h) + _n[2] * (Cz - sz));
       let surf = gout.surf, gvx = gout.vx || 0, gvy = gout.vy || 0, gvz = gout.vz || 0, pt = false, mu = gout.mu ?? 1;
       if (PROBES > 1 && pen > -0.3) {
-        const hx = -Z[0], hz = -Z[2], hl = Math.hypot(hx, hz) || 1, fx = hx / hl, fz = hz / hl;
+        const hx = -Z[0], hz = -Z[2], hl = hypot2(hx, hz) || 1, fx = hx / hl, fz = hz / hl;
         for (let p = 0; p < PROBE_OFF.length; p++) {
           const off = PROBE_OFF[p] * r, px = sx + fx * off, pz = sz + fz * off;
           env.ground(px, pz, gout2);
-          const dx = Cx - px, dy = Cy - gout2.h, dz = Cz - pz, d = Math.hypot(dx, dy, dz) || 1, pp = r - d;
+          const dx = Cx - px, dy = Cy - gout2.h, dz = Cz - pz, d = hypot3(dx, dy, dz) || 1, pp = r - d;
           if (pp > pen + 0.002 && dy > 0) {
             pen = pp; pt = true; surf = gout2.surf; mu = gout2.mu ?? 1; gvx = gout2.vx || 0; gvy = gout2.vy || 0; gvz = gout2.vz || 0;
             _n[0] = dx / d; _n[1] = dy / d; _n[2] = dz / d;
@@ -514,7 +515,7 @@ export function createVehicleSim(spec, opts = {}) {
       W.surf = surfIndex(surf); W.muScale = mu;
       // the tyre can't close on the ground faster than the wheel moves: a probe crossing a sheer face (a heightfield
       // step, a kerb modelled as a cliff) would otherwise find it 10 cm deep in one step and fire a 15 g impulse
-      if (pen > 0) { const vMax = Math.hypot(S.vel[0], S.vel[1], S.vel[2]) + Math.hypot(S.w[0], S.w[1], S.w[2]) * 3 + Math.abs(W.sv) + 1; pen = Math.min(pen, Math.max(0, W.penPrev || 0) + vMax * h + 0.004); }
+      if (pen > 0) { const vMax = hypot3(S.vel[0], S.vel[1], S.vel[2]) + hypot3(S.w[0], S.w[1], S.w[2]) * 3 + Math.abs(W.sv) + 1; pen = Math.min(pen, Math.max(0, W.penPrev || 0) + vMax * h + 0.004); }
       W.contact = pen > 0;
       // tyre vertical force: stiffness x deflection + damping, bottoming on the rim past ~60% of the section
       let N = 0;
@@ -607,7 +608,7 @@ export function createVehicleSim(spec, opts = {}) {
         W.Fbx = (Fx * _ex[0] + Fy * _ey[0]) * X[0] + (Fx * _ex[1] + Fy * _ey[1]) * X[1] + (Fx * _ex[2] + Fy * _ey[2]) * X[2];
         W.tq = -Fx * W.rEff;
         // wading: water drag on the wheel
-        if (W.depthW > 0.05) { const dv = Math.min(1, W.depthW / (2 * k.r)), A = 2 * k.r * k.T.w * dv * 0.9, sp = Math.hypot(_v[0], _v[2]); if (sp > 0.05) { const f = 0.5 * RHO_W * 1.0 * A * sp; addF(-f * _v[0], 0, -f * _v[2], W.cx, W.cy + 0.3, W.cz); } }
+        if (W.depthW > 0.05) { const dv = Math.min(1, W.depthW / (2 * k.r)), A = 2 * k.r * k.T.w * dv * 0.9, sp = hypot2(_v[0], _v[2]); if (sp > 0.05) { const f = 0.5 * RHO_W * 1.0 * A * sp; addF(-f * _v[0], 0, -f * _v[2], W.cx, W.cy + 0.3, W.cz); } }
       }
       // wheel travel (along -Y = extension): the strut pushes it out, the ground pushes it in; gravity cancels against the
       // body's own fall, the body's acceleration along its vertical is felt as inertia
@@ -689,7 +690,7 @@ export function createVehicleSim(spec, opts = {}) {
       const kh = m * g * 12, ch = 2 * 0.6 * Math.sqrt(kh * m / 4);
       const fn = Math.max(0, kh * Math.min(depth, 0.2) - ch * vn);   // penetration capped (heightfield cliffs)
       if (vn < -3) ev('scrape', { speed: -vn, at: [px, py, pz] }, 0.3);
-      const tx = _v[0] - gout.nx * vn, ty = _v[1] - gout.ny * vn, tz = _v[2] - gout.nz * vn, vt = Math.hypot(tx, ty, tz);
+      const tx = _v[0] - gout.nx * vn, ty = _v[1] - gout.ny * vn, tz = _v[2] - gout.nz * vn, vt = hypot3(tx, ty, tz);
       const mu = 0.55, ft = mu * fn / Math.max(vt, 0.25);
       addF(gout.nx * fn - tx * ft, gout.ny * fn - ty * ft, gout.nz * fn - tz * ft, px, py, pz);
     }
@@ -706,7 +707,7 @@ export function createVehicleSim(spec, opts = {}) {
       const kc = m * 400, cc = 2 * 0.5 * Math.sqrt(kc * m);
       const fn = Math.max(0, kc * Math.min(hit.depth, 0.25) - cc * vn);
       if (vn < -2) ev('impact', { speed: -vn, at: [px, py, pz], n: [hit.nx, hit.ny, hit.nz], id: hit.id, local: [c[0], c[1], c[2]] }, 0.25);
-      const tx = _v[0] - hit.nx * vn, ty = _v[1] - hit.ny * vn, tz = _v[2] - hit.nz * vn, vt = Math.hypot(tx, ty, tz);
+      const tx = _v[0] - hit.nx * vn, ty = _v[1] - hit.ny * vn, tz = _v[2] - hit.nz * vn, vt = hypot3(tx, ty, tz);
       const ft = (hit.mu ?? 0.4) * fn / Math.max(vt, 0.3);
       addF(hit.nx * fn - tx * ft, hit.ny * fn - ty * ft, hit.nz * fn - tz * ft, px, py, pz);
       S.contactForce += fn;
@@ -723,7 +724,7 @@ export function createVehicleSim(spec, opts = {}) {
         S.inWater = Math.max(S.inWater, sub_);
         const fb = RHO_W * g * B.vol * sub_ / B.points.length;
         velAt(px, py, pz, _v);
-        const A = B.area * sub_ / B.points.length, sp = Math.hypot(_v[0], _v[1], _v[2]);
+        const A = B.area * sub_ / B.points.length, sp = hypot3(_v[0], _v[1], _v[2]);
         const fd = 0.5 * RHO_W * 1.1 * A * sp;
         addF(-fd * _v[0], fb - fd * _v[1] * 2, -fd * _v[2], px, py, pz);
       }
@@ -731,7 +732,7 @@ export function createVehicleSim(spec, opts = {}) {
     // ---------------- aerodynamic drag
     {
       const wind = env.wind, vx = S.vel[0] - (wind ? wind[0] : 0), vy = S.vel[1] - (wind ? wind[1] : 0), vz = S.vel[2] - (wind ? wind[2] : 0);
-      const sp = Math.hypot(vx, vy, vz);
+      const sp = hypot3(vx, vy, vz);
       if (sp > 0.1) { const k = 0.5 * RHO_AIR * spec.aero.CdA * sp; F[0] -= k * vx; F[1] -= k * vy; F[2] -= k * vz; }
     }
     // ---------------- integrate the body
@@ -759,7 +760,7 @@ export function createVehicleSim(spec, opts = {}) {
   // w (world) from the angular momentum and the inertia in body axes; a safety cap at 40 rad/s
   function wFromL(Rm) {
     wb(Rm, S.L, _b); _b[0] /= S.I[0]; _b[1] /= S.I[1]; _b[2] /= S.I[2];
-    const wl = Math.hypot(_b[0], _b[1], _b[2]); if (wl > 40) { const k = 40 / wl; _b[0] *= k; _b[1] *= k; _b[2] *= k; S.L[0] *= k; S.L[1] *= k; S.L[2] *= k; }
+    const wl = hypot3(_b[0], _b[1], _b[2]); if (wl > 40) { const k = 40 / wl; _b[0] *= k; _b[1] *= k; _b[2] *= k; S.L[0] *= k; S.L[1] *= k; S.L[2] *= k; }
     bw(Rm, _b, S.w);
   }
   // keep L consistent after w was set from outside (reset, impulses)

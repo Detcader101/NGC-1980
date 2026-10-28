@@ -87,7 +87,7 @@ export function createWheeledCraft(ctx, type, o = {}) {
   const V = {
     id, type, label: T.label, kind: 'ground', sim: S, spec, driver: D, dmg, T,
     seats: craftSeats(type, spec), seat: 0, exists: false, view: 'first', head: { yaw: 0, pitch: 0 }, orbit: { yaw: 0, pitch: 0.2 },
-    acc: 0, asleep: false, sleepT: 0, traffic: null, owner: o.owner || (T.civ ? 'civ' : 'mil'), colour, variant,
+    acc: 0, asleep: false, sleepT: 0, _rest: null, _cabPosed: false, traffic: null, owner: o.owner || (T.civ ? 'civ' : 'mil'), colour, variant,
     model: null, interior: null, far: null, gun: T.gun ? createMountedGun(T.gun.spec) : null, aim: { yaw: 0, pitch: 0 },
     crank: 0, deckV: [0, 0, 0], P: { x: 0, y: 0, z: 0, yaw: 0, plat: null, loc: null, carried: null },
     near: false, boxes: null, circles: null, onBridge: null, bridgeRoad: null, deckLevel: undefined, troops: 0, wrecked: false, lod: 'near',
@@ -288,7 +288,14 @@ export function createWheeledCraft(ctx, type, o = {}) {
     // asleep when parked and still: no physics until something wakes it (the player, a hit, a blast, a bump)
     const still = !V.traffic && !V.auto && !S.eng.running && Math.abs(S.speed) < 0.05 && Math.hypot(S.w[0], S.w[1], S.w[2]) < 0.03 && S.onGround && !(dmg.state.fire > 0);
     V.sleepT = still ? V.sleepT + dt : 0;
-    if (V.sleepT > 1.2) { V.asleep = true; for (const W of S.wheels) W.omega = 0; }
+    // (ngc/perf-cpu) or parked and going nowhere: an engine-off truck rocking on a wheel or two of uneven ground (bobbing a few cm) kept
+    // its body rates over the line for ever and ran the full vehicle sim and its collisions every frame (seen: an M35
+    // on HOME ISLAND, 3 of 6 wheels down, 0.02-0.04 rad/s). Within 15 cm of where it stood 2.5 s ago: asleep as it stands.
+    const parked = !V.traffic && !V.auto && !S.eng.running && S.onGround && !(dmg.state.fire > 0);   // (on a moving deck it never stays within 15 cm; asleep, carryOnly keeps it on)
+    const R = V._rest || (V._rest = { x: 0, y: 0, z: 0, t: 0 });
+    if (!parked || Math.abs(S.pos[0] - R.x) + Math.abs(S.pos[1] - R.y) + Math.abs(S.pos[2] - R.z) > 0.15) { R.x = S.pos[0]; R.y = S.pos[1]; R.z = S.pos[2]; R.t = 0; }
+    else R.t += dt;
+    if (V.sleepT > 1.2 || R.t > 2.5) { V.asleep = true; R.t = 0; for (const W of S.wheels) W.omega = 0; }
   };
   V.wake = () => { if (V.asleep) { V.asleep = false; V.acc = 0; } V.sleepT = 0; };
   // ---------------------------------------------------------------- physics: deck carry, fixed steps, events
@@ -420,7 +427,7 @@ export function createWheeledCraft(ctx, type, o = {}) {
   V.bounds = () => {
     if (!V.exists || V.slung) return null;
     const c = -S.heading, cx = S.pos[0] + S.fwdv[0] * -zc, cz = S.pos[2] + S.fwdv[2] * -zc;
-    return Object.assign(_b, { x: cx, z: cz, yaw: c, hl: HL, hw: HW, y0: S.pos[1] - 0.2, y1: S.pos[1] + HT, def: V });
+    _b.x = cx; _b.z = cz; _b.yaw = c; _b.hl = HL; _b.hw = HW; _b.y0 = S.pos[1] - 0.2; _b.y1 = S.pos[1] + HT; _b.def = V; return _b;   // (ngc/perf-cpu: no literal per call; it is asked per collision substep)
   };
   // ---------------------------------------------------------------- keys, mouse
   V.key = code => {
@@ -510,7 +517,10 @@ export function createWheeledCraft(ctx, type, o = {}) {
       }
       const inside = me && fp && V.view === 'first';
       if (V.interior) {
-        V.interior.update(lastLook, dt, inside && (isDriver() || dist < 3));
+        // (ngc/perf-cpu) a parked, sleeping vehicle's cab does not move: posed once when it falls asleep, then left
+        const still = V.asleep && !me;
+        if (!still || !V._cabPosed) V.interior.update(lastLook, dt, inside && (isDriver() || dist < 3));
+        V._cabPosed = still;
         // hands on the wheel only with a driver: you in the driver's seat (first person), the civilian driving traffic, an AI
         const drv = (me && isDriver() && inside) || !!V.traffic || !!V.auto;
         if (V._drv !== drv) { V._drv = drv; V.interior.setDriver?.(drv, V.traffic ? { glove: 0xc89a78, sleeve: 0x7a4a3a } : T.mil ? { glove: 0x3a3626, sleeve: 0x4a5232 } : { glove: 0xc89a78, sleeve: 0x3a4a6a }); }

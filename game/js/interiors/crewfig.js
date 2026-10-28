@@ -10,6 +10,9 @@
 //          'knees' (seated, hands on the knees) | 'rifle' (seated, the M16 upright between the knees)
 import * as THREE from 'three';
 import { FIG, roundedBox, weldNormals, figMat } from '../units/infantry/meshkit.js';   // RENDERKIT figures: rounded, smooth-shaded people
+import { crewPerson } from '../units/infantry/humanfig.js';   // ngc/look-people: real people (one smooth body per figure)
+import { figMaterial, mergeFig } from '../units/infantry/figgeo.js';
+const PARTS = (() => { try { return new URLSearchParams(location.search).has('figparts'); } catch (e) { return false; } })();
 
 const SKIN = [0xc39a78, 0x8d6448, 0x5e4030, 0xd2a888, 0xb08060];
 const JERSEY = { yellow: 0xd8b21e, blue: 0x2a4aa0, brown: 0x6a4a2a, green: 0x3a7a3a, red: 0xa8231b, purple: 0x6a3a8a, white: 0xe2e2dc };
@@ -54,6 +57,8 @@ const ARMS = {
 };
 // build one figure
 export function crewGeometry(kind = 'sailor', pose = 'stand', o = {}) {
+  // ngc/look-people: the same person as everywhere else (humanfig.js), posed and baked; the jersey colour by role
+  if (FIG && !PARTS) return crewPerson(kind, pose, { ...o, jersey: kind === 'deck' ? (JERSEY[o.jersey] || JERSEY.yellow) : undefined });
   const L = { ...LOOK[kind] || LOOK.sailor }, A = new Acc(), seed = o.seed ?? Math.floor(Math.random() * 1000), skin = SKIN[seed % SKIN.length];
   if (kind === 'deck') L.shirt = JERSEY[o.jersey] || JERSEY.yellow;
   if (o.hat) L.hat = o.hat;
@@ -115,6 +120,18 @@ function hat(A, L, kind) {
 }
 // many figures merged (static, e.g. a room's crew in the ship frame): [{ kind, pose, x, y, z, yaw, ...opts }]
 export function crewMesh(list, material) {
+  if (FIG && !PARTS) {   // ngc/look-people: indexed people, merged with all their attributes
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1), p = new THREE.Vector3();
+    const gs = list.map((c, i) => { const g = crewGeometry(c.kind, c.pose, { seed: i * 7 + 3, ...c }); m.compose(p.set(c.x, c.y + (c.pose === 'seated' ? (c.seatH ?? 0.45) : 0), c.z), q.setFromAxisAngle(up, c.yaw || 0), one); return g.applyMatrix4(m); });
+    if (gs.length > 1) return new THREE.Mesh(mergeFig(gs), material || crewMaterial());
+    // one person: a THREE.LOD (crew detail close, 'far' detail beyond 12 m: the ship's interior crews are drawn from
+    // outside the hull too); renderOrder set on it reaches its levels
+    const c = list[0], far = crewGeometry(c.kind, c.pose, { seed: 3, ...c, detail: 'far' }); m.compose(p.set(c.x, c.y + (c.pose === 'seated' ? (c.seatH ?? 0.45) : 0), c.z), q.setFromAxisAngle(up, c.yaw || 0), one); far.applyMatrix4(m);
+    const lod = new THREE.LOD(), mat = material || crewMaterial(), near = new THREE.Mesh(gs[0], mat), farM = new THREE.Mesh(far, mat);
+    lod.addLevel(near, 0); lod.addLevel(farM, 12);
+    let ro = 0; Object.defineProperty(lod, 'renderOrder', { get: () => ro, set: v => { ro = v; near.renderOrder = farM.renderOrder = v; } });
+    return lod;
+  }
   const pos = [], nor = [], col = [];
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1), p = new THREE.Vector3(), n3 = new THREE.Matrix3();
   list.forEach((c, i) => {
@@ -126,4 +143,4 @@ export function crewMesh(list, material) {
   return new THREE.Mesh(g, material || crewMaterial());
 }
 let MAT = null;
-export const crewMaterial = () => MAT ||= FIG ? figMat('fabric', { roughness: 0.85 }) : new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+export const crewMaterial = () => MAT ||= FIG && !PARTS ? figMaterial({ camo: 'og107', seed: 0 }) : FIG ? figMat('fabric', { roughness: 0.85 }) : new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });

@@ -9,6 +9,8 @@
 import * as THREE from 'three';
 import { Kit, rng, pbr } from './navkit.js';
 import { Kit as FKit, FIG, figMat } from '../infantry/meshkit.js';   // RENDERKIT figures
+import { restPerson, patchLimbs } from '../infantry/figinst.js';   // ngc/look-people: one smooth body per person
+const PARTS = (() => { try { return new URLSearchParams(location.search).has('figparts'); } catch (e) { return false; } })();
 
 export const JERSEY = { yellow: 0xe8c21c, blue: 0x2a52b8, green: 0x2f8a3a, red: 0xc0281e, purple: 0x6a2c8c, brown: 0x6b4423, white: 0xe8e8e2, cyan: 0x40d8ff };
 const SKIN = [0xc89a74, 0x9b6a48, 0xe0b48e, 0x6e4a32];
@@ -62,6 +64,7 @@ function geos() {
 let G = null;
 
 export function createCrew(members, { seed = 5 } = {}) {
+  if (FIG && !PARTS) return createCrewLP(members, { seed });
   G ||= geos();
   const n = members.length, r = rng(seed);
   const mat = FIG ? figMat('fabric', { roughness: 0.8 }) : pbr(() => new THREE.MeshLambertMaterial({ vertexColors: true }), undefined, { vertexColors: true, rk: 'fabric' });   // RENDERKIT surface: jerseys, cranials
@@ -89,7 +92,15 @@ export function createCrew(members, { seed = 5 } = {}) {
     }
   }
   // avoid(x, z) -> [dx, dz] | null: a push away from danger (rotor wash, a landing aircraft) in the ship's frame
-  crew.update = (dt, t, avoid = null) => {
+  crew.update = crewUpdater(members, pose, () => { J.instanceMatrix.needsUpdate = B.instanceMatrix.needsUpdate = A.instanceMatrix.needsUpdate = L.instanceMatrix.needsUpdate = true; });
+  crew.update(0, 0);
+  return crew;
+}
+
+// the crew behaviour (modes, avoidance) driving pose(i, x, y, z, yaw, lean, drop, aL, aR, aLz, aRz, lL, lR); done() flags the buffers
+function crewUpdater(members, pose, done) {
+  const n = members.length;
+  return (dt, t, avoid = null) => {
     for (let i = 0; i < n; i++) {
       const p = members[i]; p.ph += dt;
       let { x, z, yaw } = p, lean = 0, drop = 0, aL = 0, aR = 0, aLz = 0.06, aRz = 0.06, lL = 0, lR = 0;
@@ -151,8 +162,58 @@ export function createCrew(members, { seed = 5 } = {}) {
       if (avoid && avoid.soft && p.mode !== 'seated') { const s = avoid(x, z); if (s) { const d = Math.hypot(s[0], s[1]) || 0.01, k = avoid.soft / d; x = x + s[0] * (k - 1); z = z + s[1] * (k - 1); } }
       pose(i, x, p.mode === 'seated' ? p.ySeat : p.y, z, yaw, lean, drop, aL, aR, aLz, aRz, lL, lR);
     }
-    J.instanceMatrix.needsUpdate = B.instanceMatrix.needsUpdate = A.instanceMatrix.needsUpdate = L.instanceMatrix.needsUpdate = true;
+    done();
   };
+}
+// ---- ngc/look-people: the deck crew as real people. ONE InstancedMesh for the whole crew: the person (float coat, jersey
+// and cranial in the instance colour, dungarees, boots, gloves, a face; humanfig.js 'deck', crowd detail) with its limbs
+// swung in the vertex shader (figinst.js: blended at the shoulders and hips, no part seams). Same members, modes and
+// pose() parameters as the classic crew (arm / leg swings + = forward, the root lean / drop).
+let LPMAT = null;
+function lpMaterial() {
+  if (LPMAT) return LPMAT;
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0 }); m.name = 'RKfig/deckcrew';
+  m.onBeforeCompile = sh => {
+    patchLimbs(sh, 'pose');
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aPaint; attribute vec4 aFig; attribute vec3 aSkin;')
+      .replace('#include <color_vertex>', '#include <color_vertex>\n#ifdef USE_INSTANCING_COLOR\n vColor.rgb = color.rgb * mix(vec3(1.0), instanceColor.rgb, aPaint) * mix(vec3(1.0), aSkin, aFig.z);\n#endif');
+  };
+  m.customProgramCacheKey = () => 'lp-deckcrew-v1';
+  return (LPMAT = m);
+}
+const SKIN_LP = [0xc79a77, 0x8a5d40, 0xd2a888, 0x5e3f2c, 0xb5835e];
+function createCrewLP(members, { seed = 5 } = {}) {
+  // two instanced levels: the crowd-detail person within NEAR_LP m of the camera, the far-detail one beyond (each
+  // person goes to one or the other every update; the camera position is caught in the near mesh's onBeforeRender)
+  const n = members.length, r = rng(seed), N = Math.max(1, n), group = new THREE.Group(); group.name = 'deckcrew';
+  const level = (lod, name) => {
+    const geo = restPerson('deck', lod ? { lod } : {}).clone();
+    const aArm = new THREE.InstancedBufferAttribute(new Float32Array(N * 4), 4), aLeg = new THREE.InstancedBufferAttribute(new Float32Array(N * 2), 2), aSkin = new THREE.InstancedBufferAttribute(new Float32Array(N * 3), 3);
+    for (const a of [aArm, aLeg, aSkin]) a.setUsage(THREE.DynamicDrawUsage);
+    geo.setAttribute('aArm', aArm); geo.setAttribute('aLeg', aLeg); geo.setAttribute('aSkin', aSkin);
+    const P = new THREE.InstancedMesh(geo, lpMaterial(), N); P.count = 0; P.instanceMatrix.setUsage(THREE.DynamicDrawUsage); P.frustumCulled = false; P.name = name;
+    P.setColorAt(0, _c.setRGB(1, 1, 1)); P.instanceColor.setUsage(THREE.DynamicDrawUsage);
+    group.add(P); return { P, aArm, aLeg, aSkin, k: 0 };
+  };
+  const LN = level(null, 'deckcrew-people'), LF = level('far', 'deckcrew-people-far');
+  const ref = new THREE.Color(0xc79a77), jer = [], /** @type {Array<[number, number, number]>} */ skin = [];
+  for (let i = 0; i < n; i++) {
+    const p = members[i];
+    p.ph = r() * 100; p.look = 0; p.lookT = r() * 6; p.seg = 0; p.s = 0; p.speed ??= 1.2 + r() * 0.3; p.y ??= 0; p.yaw ??= 0;
+    p.x0 = p.x; p.z0 = p.z; p.yaw0 = p.yaw;
+    jer.push(new THREE.Color(JERSEY[p.jersey] ?? p.jersey ?? 0xffffff)); _c2.setHex(SKIN_LP[(r() * SKIN_LP.length) | 0]); skin.push([_c2.r / ref.r, _c2.g / ref.g, _c2.b / ref.b]);
+  }
+  const cam = new THREE.Vector3(1e9, 0, 0), NEAR2 = NEAR_LP * NEAR_LP;
+  LN.P.onBeforeRender = LF.P.onBeforeRender = (rr, sc, camera) => { camera.getWorldPosition(cam); group.worldToLocal(cam); };
+  const crew = { group, members, J: LN.P, B: LN.P, A: LN.P, L: LN.P, people: LN.P, peopleFar: LF.P, scatter: null };
+  function pose(i, x, y, z, yaw, lean, drop, aL, aR, aLz, aRz, lL, lR) {
+    if (i === 0) LN.k = LF.k = 0;
+    const L = (x - cam.x) ** 2 + (z - cam.z) ** 2 < NEAR2 ? LN : LF, k = L.k++;
+    _q.setFromEuler(_e.set(lean, yaw, 0, 'YXZ')); _m.compose(_v.set(x, y - drop, z), _q, _s); L.P.setMatrixAt(k, _m);
+    L.aArm.setXYZW(k, aL, aR, aLz, aRz); L.aLeg.setXY(k, lL, lR); L.aSkin.setXYZ(k, ...skin[i]); L.P.setColorAt(k, jer[i]);
+  }
+  crew.update = crewUpdater(members, pose, () => { for (const L of [LN, LF]) { L.P.count = L.k; L.P.instanceMatrix.needsUpdate = true; L.P.instanceColor.needsUpdate = true; L.aArm.needsUpdate = L.aLeg.needsUpdate = L.aSkin.needsUpdate = true; } });
   crew.update(0, 0);
   return crew;
 }
+const NEAR_LP = 25;

@@ -131,6 +131,7 @@ export function glass(legacy, { color = 0x9fc6d8, opacity = 0.25, side = THREE.D
 }
 
 // Canvas-texture markings: lit decal material with depth offset (map multiplies colour, so colour defaults to white)
+/** @param {() => THREE.Material} legacy  @param {{ map?: THREE.Texture, [k: string]: any }} [opts] */
 export function decal(legacy, { map, ...o } = {}) {
   if (!RKS) return legacy();
   const m = createDecalMaterial({ map, color: 0xffffff, roughness: 0.85, ...strip(o) });

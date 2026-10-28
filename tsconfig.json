@@ -1,0 +1,21 @@
+{
+  // Type checking only: the browser still loads game/js/*.js as-is (no build step).
+  // Run: node tools/check.mjs types
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "target": "es2022",
+    "lib": ["es2023", "dom", "dom.iterable"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    // game/index.html import map: {"three": "./vendor/three.module.min.js"} -> types from @types/three r170
+    "paths": { "three": ["./tools/node_modules/@types/three"] },
+    "typeRoots": ["./tools/node_modules/@types"],
+    "types": ["webxr"],
+    "strict": false,
+    "skipLibCheck": false
+  },
+  "include": ["game/js/**/*.js", "game/types/**/*.d.ts"],
+  "exclude": ["game/vendor"]
+}
