@@ -23,6 +23,8 @@ export const VIEWS = [
   ['pilot_panel_full', 'ck=1&fov=70&ckyaw=0.3&ckpitch=-0.62'],
   ['copilot_panel', 'ck=2&fov=70&ckyaw=-0.3&ckpitch=-0.55'],
   ['panel_face', 'ck=1&fov=55&ckyaw=0.17&ckpitch=-0.62'],
+  ['panel_overlay', 'ck=1&panel=1'],
+  ['panel_ortho', 'ck=1&panel=1&refa=0'],
   ['pilot_back', 'ck=1&ckyaw=2.6&ckpitch=-0.2'],
   ['checker_side', 'checker=1&cam=' + [-PI / 2 + 0.3, 0.25, 15, 0, 0.0, 2.0]],
   ['checker_top', 'checker=1&cam=' + [PI + 0.5, 0.9, 13, 0, 0.3, 0.0]],

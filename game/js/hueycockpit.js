@@ -16,6 +16,7 @@ import { CAPTIONS } from './heli.js';
 import { RKS } from './renderkit/gamemats.js';   // ngc/look-huey: with RenderKit surface on, the hi-fi airframe (hueyhifi.js) provides the glazing and walls
 import { HUEY_SKIN } from './hueyhifi.js';
 import { rbox } from './hueygeo.js';
+import { UH1_PANEL } from './uh1panel.js';   // traced TM 55-1520-210-10 fig. 2-4 (tools/hueypanel.mjs)
 import { drawRwr } from './units/defence/cm.js';   // ngc/cmpolish: the radar warning scope   // circular, but only read inside buildHueyCockpit (after both modules ran)
 
 export const HUEY_EYE = new THREE.Vector3(0.55, 0.16, -1.95), HUEY_EYE_PITCH = -0.16;
@@ -179,14 +180,19 @@ export function buildHueyCockpit({ classic = false } = {}) {
   // (typical)" (1988, change 7; archive.org tm-55-1520-210-10-operators-manual-uh-1-h-v-february-1988 page n68), read at
   // 800 px/m on the page (the 3 in instruments come out ~95 mm across): copilot flight group left, engine and systems
   // column in the centre, the pilot's tachometer / torque / gas producer / EGT column and flight group on the right
-  const TMP = (px, py) => [(px - 806) / 800, (470 - py) / 800];
-  const PANEL_OUT = [[370, 338], [1245, 338], [1245, 622], [1214, 652], [700, 652], [532, 657], [470, 640], [375, 612]].map(([a, b]) => TMP(a, b));
+  // the traced panel table: panel millimetres -> panel metres; item lookup by fig. 2-4 id
+  const PT = UH1_PANEL, PI_ = id => PT.items.find(i => i.id === id), PM_ = it => [it.x / 1000, it.y / 1000];
+  const PTO = PT.outline, med = (k, i) => { const v = []; for (let j = Math.max(0, i - 2); j <= Math.min(PTO.length - 1, i + 2); j++) v.push(PTO[j][k]); v.sort((p, q) => p - q); return v[v.length >> 1]; };
+  // the face: the glare shield's traced top edge less its 60 mm depth (the figure's inner line), down to the traced
+  // bottom edge, between the face's side edges (x -468 .. 452 mm)
+  const faceCols = PTO.map((o, i) => ({ x: o.x / 1000, top: (med('shieldTop', i) - 60) / 1000, bot: med('bottom', i) / 1000, sh: med('shieldTop', i) / 1000 }));
+  const fc = faceCols.filter(c => c.x >= -0.468 && c.x <= 0.452);
+  const PANEL_OUT = [...fc.map(c => [c.x, c.top]), ...fc.slice().reverse().map(c => [c.x, Math.min(c.bot, c.top - 0.05)])];
   if (HF) {
-    const sh = new THREE.Shape(PANEL_OUT.map(([x, y]) => new THREE.Vector2(x, y)));
-    const pg = new THREE.ExtrudeGeometry(sh, { depth: 0.035, bevelEnabled: true, bevelThickness: 0.006, bevelSize: 0.008, bevelSegments: 2, curveSegments: 6 }).translate(0, 0, -0.041);
-    const o = new THREE.Mesh(pg, panelM); P.add(o);
+    // (the face itself is built once the instrument table is known: buildFace() below cuts a hole per instrument)
     // the glare shield's lip over the panel top, curved like the figure's outline
-    const lip = new THREE.Shape([[-0.6, 0.165], [0.6, 0.165], [0.64, 0.19], [0.34, 0.265], [0.0, 0.29], [-0.34, 0.265], [-0.64, 0.19]].map(([x, y]) => new THREE.Vector2(x, y)));
+const sc = faceCols.filter(c => c.x >= -0.5 && c.x <= 0.49);   // the glare shield: its traced top edge over the face's top
+    const lip = new THREE.Shape([...sc.map(c => new THREE.Vector2(c.x, c.sh)), ...sc.slice().reverse().map(c => new THREE.Vector2(c.x, Math.max(c.top - 0.005, c.sh - 0.075)))]);
     P.add(new THREE.Mesh(new THREE.ExtrudeGeometry(lip, { depth: 0.36, bevelEnabled: true, bevelThickness: 0.01, bevelSize: 0.01, bevelSegments: 2 }).translate(0, 0, -0.33), glareM));   // the glare shield hood, back to the windscreen
   } else { box(2.22, 0.48, 0.04, panelM, 0, 0.03, -0.025, P); box(0.56, 0.2, 0.04, panelM, 0.035, -0.31, -0.025, P); }
   // gauge layout (panel coords, diameter)
@@ -200,37 +206,33 @@ export function buildHueyCockpit({ classic = false } = {}) {
     cdi2: [-0.71, -0.125, 0.095], clk2: [-0.40, -0.125, 0.075],
   };
   if (HF) {   // fig. 2-4 item numbers in the comments
-    const T = (px, py, dpx) => [...TMP(px, py), dpx / 800];
-    Object.assign(GL, {
-      asi2: T(420, 405, 76), adi2: T(510, 405, 76), alt2: T(600, 400, 76), rmi2: T(515, 495, 72), vsi2: T(597, 495, 76),   // 10 11 12 21 22 (copilot)
-      fp: T(735, 385, 52), fuel: T(790, 385, 52), eop: T(735, 440, 52), eot: T(790, 440, 52),                            // 15 16 17 18
-      xop: T(735, 495, 52), xot: T(790, 495, 52), load: T(735, 553, 52), dcv: T(790, 553, 52), sload: T(735, 605, 52), acv: T(793, 610, 52),   // 23 24 29 30 36 37
-      tach: T(918, 410, 66), tq: T(918, 485, 52), n1: T(918, 545, 52), egt: T(918, 600, 52),                              // 20 25 32 39
-      asi: T(1008, 410, 80), adi: T(1100, 410, 112), alt: T(1197, 405, 76), rmi: T(1100, 515, 70), vsi: T(1197, 497, 76), // 10 11 13 26 22 (pilot)
-      ts: T(1005, 600, 80), cdi: T(1098, 595, 70), clk: T(1197, 585, 72),                                                  // 40 41 43
-      ralt: T(1008, 492, 60),   // radar altimeter height indicator in the panel slot the V model gives the DME (51): position approximate
-    });
-    for (const k of ['ts2', 'cdi2', 'clk2']) delete GL[k];   // fig. 2-4: the copilot has no turn and slip, course indicator or clock
+    for (const it of PT.items) if (it.id && GL[it.id]) GL[it.id] = [it.x / 1000, it.y / 1000, Math.min(it.w, it.h) / 1000 * 0.94];   // the face inside the traced bezel ring
+    for (const k of ['ts2', 'cdi2', 'clk2']) delete GL[k];
+    // the panel face: the traced outline with a bezel hole per instrument (round; the turn and slip square), extruded
+    const sh = new THREE.Shape(PANEL_OUT.map(([x, y]) => new THREE.Vector2(x, y)));
+    for (const k in GL) { const [x, y, d] = GL[k], r = d / 2 + 0.004, hp = new THREE.Path(); if (k === 'ts') { hp.moveTo(x - r, y - r); hp.lineTo(x + r, y - r); hp.lineTo(x + r, y + r); hp.lineTo(x - r, y + r); hp.closePath(); } else hp.absarc(x, y, r, 0, Math.PI * 2, true); sh.holes.push(hp); }
+    P.add(new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.03, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.004, bevelSegments: 1, curveSegments: 10 }).translate(0, 0, -0.034), panelM));
+    P.add(new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape(PANEL_OUT.map(([x, y]) => new THREE.Vector2(x, y)))).translate(0, 0, -0.03), M(0x0c0d0e)));   // the instrument cases' dark back   // fig. 2-4: the copilot has no turn and slip, course indicator or clock
   }
   // static panel art: flat black with the sub-panel outlines, square bezels and screws, placards
   const art = canvasTex(1920, 700), PXM = 1000, ax = x => (x + 0.96) * PXM, ay = y => (0.27 - y) * PXM;
   {
     const c = art.ctx; c.clearRect(0, 0, 1920, 700);
-    if (HF) { c.fillStyle = '#1b1d1e'; c.beginPath(); PANEL_OUT.forEach(([x, y], i) => i ? c.lineTo(ax(x), ay(y)) : c.moveTo(ax(x), ay(y))); c.closePath(); c.fill(); c.strokeStyle = '#33373a'; c.lineWidth = 3; c.stroke(); }
+    if (HF) { /* the face is geometry (the extruded outline with bezel holes): the art only carries decals */ }
     else {
     c.fillStyle = '#1b1d1e'; c.fillRect(0, 0, 1920, 480); c.fillRect(ax(-0.245), 0, 560, 700);
     c.strokeStyle = '#33373a'; c.lineWidth = 3;
     for (const [x0, x1] of [[-0.95, -0.3], [-0.245, 0.315], [0.33, 0.95]]) { c.strokeRect(ax(x0), ay(0.262), (x1 - x0) * PXM, (x0 === -0.245 ? 0.68 : 0.47) * PXM); }
     }
-    for (const k in GL) {
+    if (!HF) for (const k in GL) {
       const [x, y, d] = GL[k], s = d * 1.12 * PXM; c.fillStyle = '#111213'; c.fillRect(ax(x) - s / 2, ay(y) - s / 2, s, s);
       c.fillStyle = '#5a5e60'; for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { c.beginPath(); c.arc(ax(x) + dx * s * 0.41, ay(y) + dy * s * 0.41, 4, 0, TAU); c.fill(); }
     }
     const lab = (t, x, y, s = 13, col = '#e0ddd0') => txt(c, t, ax(x), ay(y), col, s);
     if (HF) {   // decals in their fig. 2-4 places: 28 operating limits, 19 cargo caution, 31 engine caution, 14 compass card
-      const decal = (px, py, wpx, hpx, lines, s = 10) => { const [x, y] = TMP(px, py), w = wpx / 800 * PXM, h = hpx / 800 * PXM; c.fillStyle = '#d8d4c4'; c.fillRect(ax(x) - w / 2, ay(y) - h / 2, w, h); lines.forEach((t, i) => txt(c, t, ax(x), ay(y) - h / 2 + (i + 0.8) * h / (lines.length + 0.6), '#151515', s)); };
-      decal(600, 575, 130, 62, ['OPERATING LIMITS', 'ROTOR 294 - 324 RPM', 'ENGINE 6400 - 6600 RPM', 'TORQUE 50 PSI   VNE 124 KIAS', 'EGT 625°C CONT  760°C 10 SEC START'], 9);
-      decal(842, 420, 60, 26, ['CARGO', 'HOOK 4000 LB'], 8); decal(857, 565, 62, 18, ['ENGINE CAUTION'], 8); decal(680, 400, 40, 66, ['COMP', 'CORR', 'CARD', 'N 000', 'E 090'], 7);
+      const decal = (n, lines, s = 10) => { const it = PT.items.find(i => i.n === n && !i.id), x = it.x / 1000, y = it.y / 1000, w = it.w / 1000 * PXM, h = it.h / 1000 * PXM; c.fillStyle = '#d8d4c4'; c.fillRect(ax(x) - w / 2, ay(y) - h / 2, w, h); lines.forEach((t, i) => txt(c, t, ax(x), ay(y) - h / 2 + (i + 0.8) * h / (lines.length + 0.6), '#151515', s)); };
+      decal(28, ['OPERATING LIMITS', 'ROTOR 294 - 324 RPM', 'ENGINE 6400 - 6600 RPM', 'TORQUE 50 PSI   VNE 124 KIAS', 'EGT 625°C CONT  760°C 10 SEC START'], 9);
+      decal(19, ['CARGO', 'HOOK 4000 LB'], 8); decal(31, ['ENGINE CAUTION'], 8); decal(14, ['COMP', 'CORR', 'CARD', 'N 000', 'E 090'], 7); decal(34, ['T53-L-13B'], 7); decal(35, ['XMTR SEL'], 8);
     } else {
     lab('PILOT', 0.86, 0.24, 12, '#8a8d88'); lab('COPILOT', -0.86, 0.24, 12, '#8a8d88');
     lab('ROTOR RPM 294 - 324', 0.04, -0.15, 12); lab('ENGINE RPM 6400 - 6600', 0.04, -0.17, 12); lab('VNE 124 KIAS', 0.04, -0.2, 12);
@@ -240,14 +242,19 @@ export function buildHueyCockpit({ classic = false } = {}) {
     }
     art.tex.needsUpdate = true;
   }
-  plane(1.92, 0.7, new THREE.MeshLambertMaterial({ map: art.tex, emissive: 0xffffff, emissiveMap: art.tex, emissiveIntensity: 0.55, alphaTest: 0.5 }), 0, -0.08, 0, P);
+  plane(1.92, 0.7, new THREE.MeshLambertMaterial({ map: art.tex, emissive: 0xffffff, emissiveMap: art.tex, emissiveIntensity: 0.55, alphaTest: 0.5 }), 0, -0.08, HF ? 0.001 : 0, P);
   // gauges: a canvas face on a disc, a bezel ring; faces with a static part are pre-rendered into bg
   const gauges = [];
   const ringM = M(0x2a2c2e);
   function gauge(key, size, face, dyn) {
-    const [x, y, d] = GL[key], t = canvasTex(size, size), o = new THREE.Mesh(new THREE.CircleGeometry(d / 2, 36), new THREE.MeshBasicMaterial({ map: t.tex, toneMapped: false, color: 0xe2e2e2 }));
-    o.position.set(x, y, 0.004); P.add(o);
-    const ring = new THREE.Mesh(new THREE.RingGeometry(d / 2, d / 2 + 0.007, 36), ringM); ring.position.set(x, y, 0.006); P.add(ring);
+    const [x, y, d] = GL[key], t = canvasTex(size, size), sq = HF && key === 'ts';
+    const o = new THREE.Mesh(sq ? new THREE.PlaneGeometry(d * 0.98, d * 0.98) : new THREE.CircleGeometry(d / 2, 36), new THREE.MeshBasicMaterial({ map: t.tex, toneMapped: false, color: 0xe2e2e2 }));
+    o.position.set(x, y, HF ? -0.012 : 0.004); P.add(o);   // hi-fi: recessed in its hole, behind the bezel
+    if (HF) {   // a bezel: a short tube round the hole (square for the turn and slip), with a glass cover catching light
+      if (sq) { for (const [w, h, dx, dy] of [[d + 0.014, 0.007, 0, d / 2 + 0.0035], [d + 0.014, 0.007, 0, -d / 2 - 0.0035], [0.007, d, d / 2 + 0.0035, 0], [0.007, d, -d / 2 - 0.0035, 0]]) box(w, h, 0.02, ringM, x + dx, y + dy, -0.004, P); }
+      else { const bz = new THREE.Mesh(new THREE.LatheGeometry([new THREE.Vector2(d / 2 + 0.004, -0.016), new THREE.Vector2(d / 2 + 0.004, 0.002), new THREE.Vector2(d / 2 + 0.008, 0.006), new THREE.Vector2(d / 2 + 0.003, 0.007)], 36).rotateX(Math.PI / 2), ringM); bz.position.set(x, y, 0); P.add(bz); }
+      const gl = new THREE.Mesh(sq ? new THREE.PlaneGeometry(d, d) : new THREE.CircleGeometry(d / 2 + 0.003, 36), new THREE.MeshBasicMaterial({ color: 0x9fb4c0, transparent: true, opacity: 0.07, depthWrite: false })); gl.position.set(x, y, 0.004); gl.renderOrder = 4; P.add(gl);
+    } else { const ring = new THREE.Mesh(new THREE.RingGeometry(d / 2, d / 2 + 0.007, 36), ringM); ring.position.set(x, y, 0.006); P.add(ring); }
     let bg = null; if (face) { bg = document.createElement('canvas'); bg.width = bg.height = size; face(bg.getContext('2d'), size); }
     const G = { key, W: size, ...t, bg, dyn, i: gauges.length }; gauges.push(G); return G;
   }
@@ -261,7 +268,7 @@ export function buildHueyCockpit({ classic = false } = {}) {
     o.userData = { tOn, tOff, on: false }; return o;
   }
   const setLamp = (o, v) => { v = !!v; if (o.userData.on !== v) { o.userData.on = v; o.material.map = v ? o.userData.tOn : o.userData.tOff; } };
-  const LP = HF ? { fire: TMP(990, 333), rpm: TMP(890, 327), mc: TMP(770, 325), rpm2: TMP(680, 333), fireBtn: TMP(948, 330), rwr: [0.66, 0.06] } : { fire: [-0.02, 0.232], rpm: [0.47, 0.232], mc: [0.645, 0.232], rpm2: [-0.555, 0.232], fireBtn: [0.06, 0.232], rwr: [0.865, 0.13] };
+  const LP = HF ? { fire: PM_(PI_('L7')), rpm: PM_(PI_('L5')), mc: PM_(PI_('L4')), rpm2: PM_(PI_('L3')), fireBtn: PM_(PI_('L6')), rwr: [0.535, 0.05] } : { fire: [-0.02, 0.232], rpm: [0.47, 0.232], mc: [0.645, 0.232], rpm2: [-0.555, 0.232], fireBtn: [0.06, 0.232], rwr: [0.865, 0.13] };
   const fireL = lamp(P, 0.05, 0.026, ...LP.fire, 0.005, 'FIRE', '#ff2a14', '#3a0e08');
   const rpmL = lamp(P, 0.05, 0.026, ...LP.rpm, 0.005, 'RPM', '#ff2a14', '#3a0e08');
   const mcL = lamp(P, 0.065, 0.026, ...LP.mc, 0.005, 'MASTER|CAUTION', '#ffaa18', '#2e2408');
@@ -639,7 +646,7 @@ export function buildHueyCockpit({ classic = false } = {}) {
   let lastS = null;
   const flip = (id, on) => { const p = sw[id]; if (p) p.rotation.x = -(on ? 0.5 : -0.5) * p.userData.sign; };
   return {
-    group: g, hitBoxes: hits, cmLamps: { lock: lockL, msl: mslL, laser: lasL },   // CM: for tests
+    group: g, panel: P, hitBoxes: hits, cmLamps: { lock: lockL, msl: mslL, laser: lasL },   // CM: for tests
     canvases: () => [...gauges.map(G => G.cv), cautT.cv, pedA.cv, pedB.cv, ohR.cv],   // canvases: for test contact sheets
     labelOf(id) {
       const s = lastS && lastS.sw; if (!s || !LBL[id]) return LBL[id] || id;

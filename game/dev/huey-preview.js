@@ -102,7 +102,20 @@ if (REFV) {
   if (Q.get('sil') === '1') { const sm = new THREE.MeshBasicMaterial({ color: 0x5a6a90, transparent: true, opacity: 0.55, depthWrite: false }); huey.group.traverse(o => { if (o.isMesh) o.material = sm; }); }
   if (Q.get('ui') !== '0') document.getElementById('info').textContent = 'UH-1H vs TM 55-1520-210-10 ' + REF + ' view (red = drawing). ?ref=side|front|top &sil=1 &refa=0.85';
 }
-function size() { let w = innerWidth, h = innerHeight; if (ortho) { const a = (ortho.right - ortho.left) / (ortho.top - ortho.bottom); if (w / h > a) w = Math.round(h * a); else h = Math.round(w / a); } renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+// &panel=1 (with ck=1): straight-on orthographic view of the instrument panel over TM -10 fig. 2-4 (red), at the traced
+// scale (tools/hueypanel.mjs: 1.613 px/mm on the 2563 px page, panel origin at page px 1335.4, 778.7)
+let panelCam = null;
+if (Q.get('panel') === '1' && cockpit) {
+  const Pn = cockpit.panel, k = 1613, W = 2563, H = 3313, cxm = (W / 2 - 1335.4) / k, cym = (778.7 - H / 2) / k;
+  const tex = new THREE.TextureLoader().load('./ref/uh1-tm-fig2-4.jpg'); tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.ShaderMaterial({ uniforms: { map: { value: tex }, k: { value: Number(Q.get('refa') || 0.85) } }, transparent: true, depthTest: false, depthWrite: false,
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform sampler2D map; uniform float k; varying vec2 vUv; void main(){ float l = dot(texture2D(map, vUv).rgb, vec3(0.333)); gl_FragColor = vec4(0.95, 0.1, 0.1, (1.0 - smoothstep(0.35, 0.75, l)) * k); }' });
+  const pl = new THREE.Mesh(new THREE.PlaneGeometry(W / k, H / k), mat); pl.position.set(cxm, cym, 0.05); pl.renderOrder = 99; Pn.add(pl);
+  panelCam = new THREE.OrthographicCamera(-0.62, 0.62, 0.32, -0.32, 0.01, 2); Pn.add(panelCam); panelCam.position.set(0, -0.0, 0.3);
+  scene.background = new THREE.Color(0xf4f4ee);
+}
+function size() { let w = innerWidth, h = innerHeight; if (panelCam) { h = Math.round(w * 0.64 / 1.24); } if (ortho) { const a = (ortho.right - ortho.left) / (ortho.top - ortho.bottom); if (w / h > a) w = Math.round(h * a); else h = Math.round(w / a); } renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
 addEventListener('resize', size); size();
 
 // a dummy panel snapshot for the cockpit (hot, at flight idle on the ground)
@@ -122,7 +135,7 @@ function place() {
 function step(dt) {
   time += dt; huey.animate(S, dt, time, !!cockpit);
   if (cockpit) cockpit.update({}, dt, PANEL);
-  place(); renderer.render(scene, ortho || camera);
+  place(); renderer.render(scene, panelCam || ortho || camera);
 }
 function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; step(dt); requestAnimationFrame(frame); }
 requestAnimationFrame(frame);
