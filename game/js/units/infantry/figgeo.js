@@ -20,7 +20,7 @@ const _c = new THREE.Color();
 const sortW = (acc) => { const e = Object.entries(acc).filter(([, w]) => w > 1e-4).sort((a, b) => b[1] - a[1]).slice(0, 4); let t = 0; for (const [, w] of e) t += w; return e.map(([n, w]) => [BONE_INDEX[n] ?? 0, w / (t || 1)]); };
 
 export class FigBuilder {
-  constructor() { this.P = []; this.N = []; this.C = []; this.F = []; this.R = []; this.SI = []; this.SW = []; this.I = []; this.tris = 0; }
+  constructor() { this.P = []; this.N = []; this.C = []; this.F = []; this.R = []; this.T = []; this.SI = []; this.SW = []; this.I = []; this.tris = 0; }
   get count() { return this.P.length / 3; }
   _w(acc) { const e = sortW(acc); for (let i = 0; i < 4; i++) { this.SI.push(e[i] ? e[i][0] : 0); this.SW.push(e[i] ? e[i][1] : 0); } }
   // an SDF surface from SdfKit.mesh()
@@ -29,7 +29,7 @@ export class FigBuilder {
     const base = this.count;
     for (let i = 0; i < s.verts; i++) {
       this.P.push(s.pos[i * 3], s.pos[i * 3 + 1], s.pos[i * 3 + 2]); this.N.push(s.nor[i * 3], s.nor[i * 3 + 1], s.nor[i * 3 + 2]);
-      this.C.push(s.col[i * 3], s.col[i * 3 + 1], s.col[i * 3 + 2]); this.F.push(s.fig[i * 4], s.fig[i * 4 + 1], s.fig[i * 4 + 2], s.fig[i * 4 + 3]); this.R.push(s.rm[i * 2], s.rm[i * 2 + 1]);
+      this.C.push(s.col[i * 3], s.col[i * 3 + 1], s.col[i * 3 + 2]); this.F.push(s.fig[i * 4], s.fig[i * 4 + 1], s.fig[i * 4 + 2], s.fig[i * 4 + 3]); this.R.push(s.rm[i * 2], s.rm[i * 2 + 1]); this.T.push(s.pt ? s.pt[i] : 0);
       const acc = s.skinAcc[i]; this._w(Object.keys(acc).length ? acc : { pelvis: 1 });
     }
     for (const j of s.index) this.I.push(base + j);
@@ -41,11 +41,11 @@ export class FigBuilder {
     if (!kit || kit.empty) return this;
     const g = kit.geometry(); if (xf) g.applyMatrix4(xf);
     const p = g.attributes.position, n = g.attributes.normal, c = g.attributes.color, base = this.count, rigid = typeof skin === 'string';
-    const fig = [m.erdl || 0, m.mitch || 0, m.skin || 0, m.fold || 0], rm = [m.rough ?? 0.9, m.metal || 0];
+    const fig = [m.erdl || 0, m.mitch || 0, m.skin || 0, m.fold || 0], rm = [m.rough ?? 0.9, m.metal || 0], paint = m.paint || 0;
     let rw = null; if (rigid) rw = sortW({ [skin]: 1 });
     for (let i = 0; i < p.count; i++) {
       const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
-      this.P.push(x, y, z); this.N.push(n.getX(i), n.getY(i), n.getZ(i)); this.C.push(c.getX(i), c.getY(i), c.getZ(i)); this.F.push(...fig); this.R.push(...rm);
+      this.P.push(x, y, z); this.N.push(n.getX(i), n.getY(i), n.getZ(i)); this.C.push(c.getX(i), c.getY(i), c.getZ(i)); this.F.push(...fig); this.R.push(...rm); this.T.push(paint);
       if (rigid) { this.SI.push(rw[0][0], 0, 0, 0); this.SW.push(1, 0, 0, 0); } else this._w(chainWeights(skin, x, y, z, {}));
       this.I.push(base + i);
     }
@@ -58,6 +58,7 @@ export class FigBuilder {
     g.setAttribute('color', new THREE.Float32BufferAttribute(this.C, 3));
     g.setAttribute('aFig', new THREE.Float32BufferAttribute(this.F, 4));
     g.setAttribute('aRM', new THREE.Float32BufferAttribute(this.R, 2));
+    g.setAttribute('aPaint', new THREE.Float32BufferAttribute(this.T, 1));
     g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(this.SI, 4));
     g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(this.SW, 4));
     g.setIndex(this.count > 65535 ? new THREE.Uint32BufferAttribute(this.I, 1) : new THREE.Uint16BufferAttribute(this.I, 1));
@@ -180,4 +181,18 @@ export function figMaterial(o = {}) {
   m.customProgramCacheKey = () => 'lp-person-v1';
   MATS.set(key, m);
   return m;
+}
+
+// merge indexed figure geometries with the same attributes (baked crews + rigid props) into one
+export function mergeFig(list) {
+  const names = Object.keys(list[0].attributes), out = new THREE.BufferGeometry(), idx = [];
+  let base = 0;
+  for (const n of names) {
+    const it = list[0].attributes[n].itemSize, tot = list.reduce((s, g) => s + (g.attributes[n] ? g.attributes[n].count : g.attributes.position.count) * it, 0), arr = new Float32Array(tot);
+    let o = 0; for (const g of list) { const a = g.attributes[n]; if (a) arr.set(a.array.subarray(0, a.count * it), o); o += g.attributes.position.count * it; }
+    out.setAttribute(n, new THREE.BufferAttribute(arr, it));
+  }
+  for (const g of list) { const n = g.attributes.position.count; if (g.index) for (let i = 0; i < g.index.count; i++) idx.push(g.index.getX(i) + base); else for (let i = 0; i < n; i++) idx.push(i + base); base += n; }
+  out.setIndex(base > 65535 ? new THREE.Uint32BufferAttribute(idx, 1) : new THREE.Uint16BufferAttribute(idx, 1));
+  out.computeBoundingSphere(); out.userData.tris = idx.length / 3; return out;
 }

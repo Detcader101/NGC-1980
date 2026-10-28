@@ -13,6 +13,21 @@
 import * as THREE from 'three';
 import { Kit, KITMAT, CAMO, COL, FIG, figMat } from './meshkit.js';
 import { fpHand, sleeveGeo } from './handkit.js';   // RENDERKIT figures
+import { SdfKit } from './sdfmesh.js';   // ngc/look-people: the first-person hands as one blended surface
+import { SdfHandRecorder } from './humanfig.js';
+import { figMaterial } from './figgeo.js';
+const PARTS = (() => { try { return new URLSearchParams(location.search).has('figparts'); } catch (e) { return false; } })();
+// the hand fpHand() describes (phalanges, knuckles, nails, thumb, palm, heel, wrist) meshed as ONE smooth surface: the
+// fingers blend into the palm with webbing, the knuckles and the thenar are part of it, creases stay between fingers
+function sdfHandGeo(o) {
+  const S = new SdfKit(), rec = new SdfHandRecorder(S, { k: 0.0026, skin: 'handR' });
+  const w = fpHand(rec, o), s = S.mesh(0.0031, { iters: 4 });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(s.pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(s.nor, 3)); g.setAttribute('color', new THREE.BufferAttribute(s.col, 3));
+  g.setAttribute('aFig', new THREE.BufferAttribute(s.fig, 4)); g.setAttribute('aRM', new THREE.BufferAttribute(s.rm, 2));
+  g.setIndex(s.index.length / 3 * 3 > 0 && s.verts > 65535 ? new THREE.Uint32BufferAttribute(s.index, 1) : new THREE.Uint16BufferAttribute(s.index, 1)); g.computeBoundingSphere();
+  return { g, w, tris: s.tris };
+}
 import { buildWeaponModel, buildItemModel, setLawReticle } from './weaponmodels.js';
 import { WEAPONS } from './weapons.js';
 
@@ -108,6 +123,12 @@ let _fpSkin = null, _fpCloth = null;
 const fpSkinMat = () => _fpSkin || (_fpSkin = figMat('skin'));
 const fpClothMat = () => _fpCloth || (_fpCloth = figMat('fabric', { side: THREE.DoubleSide }));
 function buildHand(side) {   // a fist around a ~32 mm grip; grip axis = local y, grip centre at the origin, wrist toward +z
+  if (FIG && !PARTS) {   // ngc/look-people: the same hand as one smooth skin surface, the person's skin material
+    const gr = side === 'L' ? 0.024 : 0.017, a = sdfHandGeo({ side, gripR: gr, trigger: side === 'R' }), b = sdfHandGeo({ side, gripR: gr, open: true });
+    const mat = figMaterial({ camo: 'erdl', seed: 1, skin: 0xc69a78 });
+    const g = new THREE.Group(), grip = new THREE.Mesh(a.g, mat), open = new THREE.Mesh(b.g, mat); grip.name = 'hand' + side; open.name = 'handOpen' + side; open.visible = false; g.add(grip, open);
+    g.userData.wrist = a.w.wrist; g.userData.tris = a.tris; g.userData.shapes = { grip, open }; return g;
+  }
   if (FIG) {   // RENDERKIT figures: fingers in three phalanges, knuckles, nails, thumb, palm, heel and wrist
     const k = new Kit(), w = fpHand(k, { side, gripR: side === 'L' ? 0.024 : 0.017, trigger: side === 'R' }), ko = new Kit();
     fpHand(ko, { side, gripR: side === 'L' ? 0.024 : 0.017, open: true });   // the relaxed / flat hand (swimming, aid): same wrist
@@ -136,9 +157,11 @@ function buildSegment(len, r0, r1, side, watch, fore = false) {   // along -y fr
   if (FIG) {   // RENDERKIT figures: a round sleeve with fabric folds, the cuff standing off the wrist, the GI watch
     const k = new Kit(), cloth = CAMO.erdl(0.06, side === 'L' ? 3 : 5), sd = side === 'L' ? 3 : 7;
     k.add(sleeveGeo(len, r0 * 1.04, r1 * (fore ? 1.1 : 1.0), { seed: sd + (fore ? 1 : 0), folds: 1, cuff: fore, seg: 24, rows: 18 }), cloth, [0, 0, 0], [0, 0, 0], null, 'local');
+    let kSleeve = k.pos.length / 3;   // (ngc/look-people: the cloth vertices so far)
     if (fore) {   // the cuff's hem: a rolled edge round the opening (the sleeve's inside is not a dark hole), the button tab
       const rc = r1 * 1.1 * 1.05 + 0.002;
       k.add(new THREE.TorusGeometry(rc, 0.0035, 6, 24).rotateX(Math.PI / 2), CAMO.erdl(0.06, sd + 2), [0, -len + 0.001, 0], [0, 0, 0], null, 'local');
+      kSleeve = k.pos.length / 3;
       k.rbox(0.014, 0.03, 0.006, 0.0025, 0x4c5a35, [0, -len + 0.02, rc + 0.001], [0, 0, 0], 1);
       k.cyl(0.0035, 0.0035, 0.002, 0x2a2a20, [0, -len + 0.012, rc + 0.005], 'z', 8);
     }
@@ -149,6 +172,13 @@ function buildSegment(len, r0, r1, side, watch, fore = false) {   // along -y fr
       k.cyl(0.0145, 0.0145, 0.002, 0xcfcbb8, [0, y, -(r1 + 0.009)], 'z', 16);
       k.box(0.0012, 0.009, 0.0005, 0x101010, [0, y + 0.0035, -(r1 + 0.0102)]); k.box(0.007, 0.0012, 0.0005, 0x101010, [0.003, y, -(r1 + 0.0102)]);
       k.cyl(0.0025, 0.0025, 0.004, 0x2a2a2a, [0.0185, y, -(r1 + 0.004)], 'x', 8);   // crown
+    }
+    if (!PARTS) {   // ngc/look-people: the coat's ERDL per pixel (figMaterial) instead of per-triangle vertex camo
+      const geo = k.geometry(), n = geo.attributes.position.count, F = new Float32Array(n * 4), R = new Float32Array(n * 2), c = geo.attributes.color;
+      const base = new THREE.Color(0x4a5733);
+      for (let i = 0; i < n; i++) { const camo = i < kSleeve ? 1 : 0; F[i * 4] = camo; F[i * 4 + 3] = camo; R[i * 2] = camo ? 0.93 : 0.6; if (camo) c.setXYZ(i, base.r, base.g, base.b); }
+      geo.setAttribute('aFig', new THREE.BufferAttribute(F, 4)); geo.setAttribute('aRM', new THREE.BufferAttribute(R, 2));
+      const m = new THREE.Mesh(geo, figMaterial({ camo: 'erdl', seed: side === 'L' ? 3 : 5, side: THREE.DoubleSide })); const g = new THREE.Group(); g.add(m); g.userData.tris = k.tris; return g;
     }
     const g = new THREE.Group(); g.add(k.mesh(fpClothMat())); g.userData.tris = k.tris; return g;
   }

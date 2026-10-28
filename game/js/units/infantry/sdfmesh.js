@@ -145,7 +145,7 @@ function field(list, x, y, z, guard) {
 // ------------------------------------------------------------------------------------------------ materials
 // a material record: { col: hex | fn(x,y,z)->hex, erdl 0..1 (utility camo in the shader), mitch 0..1 (helmet cover
 // camo), skin 0..1 (takes the person's skin tone), fold 0..1 (cloth bump detail), rough, metal }
-export const mat = (col, o = {}) => ({ col, erdl: 0, mitch: 0, skin: 0, fold: 0, rough: 0.9, metal: 0, ...o });
+export const mat = (col, o = {}) => ({ col, erdl: 0, mitch: 0, skin: 0, fold: 0, rough: 0.9, metal: 0, paint: 0, ...o });   // paint: takes a per-person / per-instance tint (jerseys, shirts)
 
 // ------------------------------------------------------------------------------------------------ skin weights
 // chain: { bones: [b0, b1, ... bn], joints: [{ p: [x,y,z], ax: [x,y,z] (toward b(i+1)), r: half width }, ...] (n of them) }
@@ -250,30 +250,30 @@ SdfKit.prototype.mesh = function (h = 0.015, o = {}) {
     grad(x, y, z); const l = Math.hypot(g[0], g[1], g[2]) || 1; N[v * 3] = g[0] / l; N[v * 3 + 1] = g[1] / l; N[v * 3 + 2] = g[2] / l;
   }
   // per-vertex material and skin: the additive primitives weighted like the blend
-  const col = new Float32Array(nv * 3), fig = new Float32Array(nv * 4), rm = new Float32Array(nv * 2), skinAcc = [];
+  const col = new Float32Array(nv * 3), fig = new Float32Array(nv * 4), rm = new Float32Array(nv * 2), pt = new Float32Array(nv), skinAcc = [];
   const dl = [], pl = [];
   for (let v = 0; v < nv; v++) {
     const x = V[v * 3], y = V[v * 3 + 1], z = V[v * 3 + 2];
     dl.length = 0; pl.length = 0; let dmin = Infinity;
     for (const p of blockOf(x, y, z)) { if (p.sub || !inBox(p.box, x, y, z, p.grow + guard)) continue; let d = primDist(p, x, y, z); if (p.disp) d += p.disp(x, y, z); dl.push(d); pl.push(p); if (d < dmin) dmin = d; }
-    let wt = 0, cr = 0, cg = 0, cb = 0, f0 = 0, f1 = 0, f2 = 0, f3 = 0, r0 = 0, r1 = 0; const acc = {};
+    let wt = 0, cr = 0, cg = 0, cb = 0, f0 = 0, f1 = 0, f2 = 0, f3 = 0, r0 = 0, r1 = 0, p0 = 0; const acc = {};
     for (let i = 0; i < pl.length; i++) {
       const p = pl[i], kk = Math.max(p.k, h * 0.5), w0 = 1 - (dl[i] - dmin) / kk; if (w0 <= 0) continue;
       const w = w0 * w0 * w0;
       const m = p.mat;
       if (m) {
         const c = hexRGB(typeof m.col === 'function' ? m.col(x, y, z) : m.col);
-        cr += lin(c[0]) * w; cg += lin(c[1]) * w; cb += lin(c[2]) * w; f0 += m.erdl * w; f1 += m.mitch * w; f2 += m.skin * w; f3 += m.fold * w; r0 += m.rough * w; r1 += m.metal * w; wt += w;
+        cr += lin(c[0]) * w; cg += lin(c[1]) * w; cb += lin(c[2]) * w; f0 += m.erdl * w; f1 += m.mitch * w; f2 += m.skin * w; f3 += m.fold * w; r0 += m.rough * w; r1 += m.metal * w; p0 += (m.paint || 0) * w; wt += w;
       }
       if (p.skin) { const a = {}; chainWeights(p.skin, x, y, z, a); for (const kb in a) acc[kb] = (acc[kb] || 0) + a[kb] * w; }
     }
-    if (wt > 0) { col[v * 3] = cr / wt; col[v * 3 + 1] = cg / wt; col[v * 3 + 2] = cb / wt; fig[v * 4] = f0 / wt; fig[v * 4 + 1] = f1 / wt; fig[v * 4 + 2] = f2 / wt; fig[v * 4 + 3] = f3 / wt; rm[v * 2] = r0 / wt; rm[v * 2 + 1] = r1 / wt; }
+    if (wt > 0) { col[v * 3] = cr / wt; col[v * 3 + 1] = cg / wt; col[v * 3 + 2] = cb / wt; fig[v * 4] = f0 / wt; fig[v * 4 + 1] = f1 / wt; fig[v * 4 + 2] = f2 / wt; fig[v * 4 + 3] = f3 / wt; rm[v * 2] = r0 / wt; rm[v * 2 + 1] = r1 / wt; pt[v] = p0 / wt; }
     else { col[v * 3] = col[v * 3 + 1] = col[v * 3 + 2] = 0.2; rm[v * 2] = 0.9; }
     if (o.paint) {   // a post pass: (x, y, z, nx, ny, nz) -> hex | null (e.g. the helmet's liner under the rim)
       const hx = o.paint(x, y, z, N[v * 3], N[v * 3 + 1], N[v * 3 + 2]);
-      if (hx != null) { const c = hexRGB(hx); col[v * 3] = lin(c[0]); col[v * 3 + 1] = lin(c[1]); col[v * 3 + 2] = lin(c[2]); fig[v * 4] = fig[v * 4 + 1] = 0; }
+      if (hx != null) { const c = hexRGB(hx); col[v * 3] = lin(c[0]); col[v * 3 + 1] = lin(c[1]); col[v * 3 + 2] = lin(c[2]); fig[v * 4] = fig[v * 4 + 1] = 0; pt[v] = 0; }
     }
     skinAcc.push(acc);
   }
-  return { pos: new Float32Array(V), nor: N, col, fig, rm, skinAcc, index: T, tris: T.length / 3, verts: nv, cell: h };
+  return { pos: new Float32Array(V), nor: N, col, fig, rm, pt, skinAcc, index: T, tris: T.length / 3, verts: nv, cell: h };
 };
