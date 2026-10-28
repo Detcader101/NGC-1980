@@ -37,6 +37,7 @@ if (Q.get('ck') === '1') { cockpit = buildHueyCockpit(); huey.group.add(cockpit.
 
 const S = { nr: 1, run: true, n1: 0.95, tx: 0, ty: 0, coll: 0.3, ped: 0, cone: 0.05, rockets: 16, light: false, firing: false, aim: null, cargoDoor: 1 };
 if (Q.get('s')) Object.assign(S, JSON.parse(Q.get('s')));
+if (Q.get('psi')) huey.animate({ ...S, nr: 1 }, Number(Q.get('psi')) / HUEY.OMEGA, 0, false);   // rotor phase (rad), e.g. to keep a blade off the cabin in a still
 const cam = { yaw: 2.5, pitch: 0.15, dist: 20, t: new THREE.Vector3(0, 0.3, 1.0) };
 if (Q.get('cam')) { const [y, p, d, x, yy, z] = Q.get('cam').split(',').map(Number); Object.assign(cam, { yaw: y, pitch: p, dist: d }); cam.t.set(x || 0, yy || 0, z || 0); }
 const ck = { yaw: Number(Q.get('ckyaw') || 0), pitch: Number(Q.get('ckpitch') || HUEY_EYE_PITCH) };

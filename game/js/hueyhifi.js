@@ -276,6 +276,20 @@ function buildTextures(S, D, xr) {
 }
 
 // ------------------------------------------------------------------------------------------- materials + LOD
+// glass that reads as glass from outside: a Fresnel term (Schlick, n = 1.5) raises the reflectance and opacity at grazing
+// angles and mixes in a sky colour, so panes show without an environment map (the game's env adds to it)
+function fresnel(m, sky = [0.6, 0.68, 0.74]) {
+  const prev = m.onBeforeCompile, key = m.customProgramCacheKey.bind(m);
+  m.onBeforeCompile = function (sh, r) {
+    if (prev) prev.call(this, sh, r);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>', `#include <dithering_fragment>
+      { float hyF = 0.04 + 0.96 * pow(1.0 - clamp(abs(dot(normalize(vViewPosition), normal)), 0.0, 1.0), 5.0);
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(${sky.map(v => v.toFixed(3)).join(', ')}), clamp(hyF * 1.4, 0.0, 0.75));
+        gl_FragColor.a = mix(gl_FragColor.a, 0.92, clamp(hyF * 1.6, 0.0, 1.0)); }`);
+  };
+  m.customProgramCacheKey = () => key() + '|hyfres';
+  return m;
+}
 function lodify(m, U) {
   const prev = m.onBeforeCompile, key = m.customProgramCacheKey.bind(m);
   m.onBeforeCompile = function (sh, r) {
@@ -317,11 +331,11 @@ export function buildHueyHiFi(HUEY, { xr = false } = {}) {
     red: PM('red', lod, role(0xa81c14, 'paint')), white: PM('white', lod, role(0xe2e2dc, 'paint')),
   });
   const N = mats('n'), Mm = mats('m'), Fm = mats('f'), MF = mats('mf'), NM = mats('nm');
-  const glassN = PM('glass', 'n', () => rkGlass(() => null, { color: 0x8fb5a2, opacity: 0.3, alphaMap: T.glassMask.aux, alphaTest: 0.5, side: THREE.DoubleSide }));
-  const roofGlassN = PM('roofglass', 'n', () => rkGlass(() => null, { color: 0x2f7a46, opacity: 0.62, alphaMap: T.glassMask.aux, alphaTest: 0.5, side: THREE.DoubleSide }));
+  const glassN = PM('glass', 'n', () => fresnel(rkGlass(() => null, { color: 0x7a968c, opacity: 0.38, alphaMap: T.glassMask.aux, alphaTest: 0.5, side: THREE.DoubleSide })));
+  const roofGlassN = PM('roofglass', 'n', () => fresnel(rkGlass(() => null, { color: 0x2f7a46, opacity: 0.66, alphaMap: T.glassMask.aux, alphaTest: 0.5, side: THREE.DoubleSide }), [0.3, 0.5, 0.38]));
   const doorSkinN = PM('door', 'n', role(0xffffff, 'flat', { map: T.door.map, bumpMap: T.door.aux, bumpScale: 1.2, roughnessMap: T.door.aux, alphaTest: 0.5, side: THREE.DoubleSide }, army));
   const doorSkinM = PM('door', 'm', role(0xffffff, 'flat', { map: T.door.map, roughnessMap: T.door.aux }, army));
-  const doorGlassN = PM('doorglass', 'n', () => rkGlass(() => null, { color: 0x8fb5a2, opacity: 0.32 }));
+  const doorGlassN = PM('doorglass', 'n', () => fresnel(rkGlass(() => null, { color: 0x7a968c, opacity: 0.38 })));
   const noseLiningN = PM('noseLining', 'n', role(0x5a5e50, 'flat', { map: T.skin.map, alphaTest: 0.5, side: THREE.BackSide }, { ...DETAIL.army, dust: 0.1, wear: 0, streak: 0 }));
   const liningN = PM('lining', 'n', role(0x50563f, 'flat', { side: THREE.BackSide }, { ...DETAIL.army, dust: 0.15, wear: 0, streak: 0 }));
   const floorN = PM('floor', 'n', role(0x3a3d33, 'rubber', {}, { ...DETAIL.army, dust: 0.3, wear: 0 }));
