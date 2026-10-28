@@ -170,7 +170,8 @@ export function createDefence(env) {
   function update(o, dt, foes) {
     if (!(dt > 0)) return;
     const D = o.def, T = D.T, ud = o.mesh.userData, t = env.time();
-    o.mesh.updateMatrixWorld();
+    // (ngc/perf-cpu) no o.mesh.updateMatrixWorld() here: it walked the whole model (12% of the war's CPU) and every
+    // world read below (getWorldPosition / getWorldQuaternion / localToWorld) refreshes its own parent chain anyway
     const eye = eyeOf(o, _a);
     // ---- search: pick the nearest foe we can see (keep the current one unless another is much closer)
     D.scanT -= dt;

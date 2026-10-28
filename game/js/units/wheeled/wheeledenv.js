@@ -20,6 +20,7 @@
 //   cliff probed by the tyres alone kicks; as an obstacle it stops the vehicle).
 import { makeTerrainEnv } from './index.js';
 import { SURF } from './tyre.js';
+import { hypot2, hypot3 } from '../../hypot.js';   // (ngc/perf-cpu) Math.hypot without the garbage, same bits
 
 const CK = (i, j) => i * 4194304 + j;   // cell key (|i|, |j| < 2e6 m)
 const S_TARMAC = SURF.tarmac, S_DIRT = SURF.dirt, S_DECK = SURF.deck;
@@ -69,7 +70,7 @@ export function createWorldEnv(o) {
       if (H.size > 400000) H.clear(); if (SU.size > 200000) { SU.clear(); BR.clear(); }
       const S = V.sim, x = S.pos[0], z = S.pos[2], y = S.pos[1], L = S.spec.dims.L;
       // broadphase: anything of the ground host's within reach this frame?
-      const reach = L * 0.6 + 2 + Math.hypot(S.vel[0], S.vel[2]) * 0.1;
+      const reach = L * 0.6 + 2 + hypot2(S.vel[0], S.vel[2]) * 0.1;
       _bp.x = x; _bp.z = z; _bp.r = reach; _bp.y0 = y - 1; _bp.y1 = y + 4;
       V.near = GR.collide(_bp, V.self) > 0;
       const B = buildingsNear(x, z, reach + 8);
@@ -101,7 +102,7 @@ export function createWorldEnv(o) {
         if (V._deck) { out.nx = 0; out.ny = 1; out.nz = 0; return; }
         const g = terr(x, z), b = bridgeAt(x, z);
         if (b !== null && b > g.h && yNow() > b - 1.5) { out.nx = 0; out.ny = 1; out.nz = 0; return; }
-        const l = Math.hypot(g.gx, 1, g.gz); out.nx = -g.gx / l; out.ny = 1 / l; out.nz = -g.gz / l;
+        const l = hypot3(g.gx, 1, g.gz); out.nx = -g.gx / l; out.ny = 1 / l; out.nz = -g.gz / l;
       };
       const surface = (x, z) => V._deck ? S_DECK : surfAt(x, z);
       const water = (x, z) => {
@@ -115,25 +116,25 @@ export function createWorldEnv(o) {
         const take = (d, ax, ay, az, who) => { if (d > best) { best = d; nx = ax; ny = ay; nz = az; id = who; } };
         if (V.near) {   // the ground host: trees, island buildings, ship islands, other crafts' footprints
           co.x = x; co.z = z; co.r = r; co.y0 = y - r; co.y1 = y + r;
-          if (GR.collide(co, V.self)) { const dx = co.x - x, dz = co.z - z, d = Math.hypot(dx, dz); if (d > 1e-6) take(d, dx / d, 0, dz / d, 'ground'); }
+          if (GR.collide(co, V.self)) { const dx = co.x - x, dz = co.z - z, d = hypot2(dx, dz); if (d > 1e-6) take(d, dx / d, 0, dz / d, 'ground'); }
         }
         for (const b of V.boxes || []) {
           if (y + r < b.y0 || y - r > b.y1) continue;
           co.x = x; co.z = z; co.r = r; co.y0 = y - r; co.y1 = y + r;
-          if (GR.pushBox(co, b)) { const dx = co.x - x, dz = co.z - z, d = Math.hypot(dx, dz); if (d > 1e-6) take(d, dx / d, 0, dz / d, b.id || 'building'); }
+          if (GR.pushBox(co, b)) { const dx = co.x - x, dz = co.z - z, d = hypot2(dx, dz); if (d > 1e-6) take(d, dx / d, 0, dz / d, b.id || 'building'); }
         }
         for (const b of V.others || []) {   // another wheeled vehicle: the impact event carries it (wheeledcraft.js pushes it)
           if (y + r < b.y0 || y - r > b.y1) continue;
           co.x = x; co.z = z; co.r = r; co.y0 = y - r; co.y1 = y + r;
-          if (GR.pushBox(co, b)) { const dx = co.x - x, dz = co.z - z, d = Math.hypot(dx, dz); if (d > 1e-6) take(d + 0.001, dx / d, 0, dz / d, b.def); }
+          if (GR.pushBox(co, b)) { const dx = co.x - x, dz = co.z - z, d = hypot2(dx, dz); if (d > 1e-6) take(d + 0.001, dx / d, 0, dz / d, b.def); }
         }
         for (const c of V.circles || []) {
           if (y + r < c.y0 || y - r > c.y1) continue;
-          const dx = x - c.x, dz = z - c.z, d = Math.hypot(dx, dz), m = r + c.r;
+          const dx = x - c.x, dz = z - c.z, d = hypot2(dx, dz), m = r + c.r;
           if (d < m && d > 1e-6) take(m - d, dx / d, 0, dz / d, c.id || 'post');
         }
         for (const hl of holes) {   // the cave shafts are fenced
-          const dx = x - hl.x, dz = z - hl.z, d = Math.hypot(dx, dz), m = r + hl.r;
+          const dx = x - hl.x, dz = z - hl.z, d = hypot2(dx, dz), m = r + hl.r;
           if (d < m && d > 1e-6) take(m - d, dx / d, 0, dz / d, 'shaft');
         }
         // bridge parapets: keep a vehicle on the deck between its kerbs
@@ -146,7 +147,7 @@ export function createWorldEnv(o) {
         // terrain too steep to drive: a face, not a slope
         const t = terr(x, z, tg), bot = y - r;
         if (t.h > bot + 0.02) {
-          const l = Math.hypot(t.gx, 1, t.gz), tny = 1 / l;
+          const l = hypot3(t.gx, 1, t.gz), tny = 1 / l;
           if (tny < 0.55 && !V._deck) take((t.h - bot) * tny, -t.gx / l, tny, -t.gz / l, 'cliff');
         }
         if (best <= 0) return null;

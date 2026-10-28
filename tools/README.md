@@ -56,6 +56,9 @@ Override it with `--browser <exe>` or the `CHROME_PATH` environment variable.
 From the repository root, `npm --prefix tools test` checks module syntax and runs the Node regression programs.
 `npm --prefix tools run check` is syntax only; `npm --prefix tools run bench` is the benches only.
 Logs and a machine-readable summary are saved to `tools/runs/check-*/`; failures produce a nonzero exit code.
+`node tools/check.mjs types` type-checks game/js with TypeScript (JSDoc, no build) and fails only if the error count
+rises above `tools/typecheck-baseline.json`; `--list <file>` prints the errors, `--update` lowers the baseline.
+See [TYPESCRIPT.md](../docs/ngc1980/TYPESCRIPT.md).
 These checks do not need a browser. Current integration evidence: [VALIDATION.md](../docs/ngc1980/VALIDATION.md).
 
 WebXR emulation, screenshots, benchmarks and HTTPS serving are described in [WEBXR.md](../docs/ngc1980/WEBXR.md).

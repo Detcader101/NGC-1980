@@ -20,6 +20,7 @@
 //   GR.G                          -> 9.81 (the ground units use real gravity, like the Huey)
 import { createPlatforms } from './platform.js';
 import { shipPointY } from './units/naval/seamotion.js';
+import { hypot2, hypot3 } from './hypot.js';   // (ngc/perf-cpu) Math.hypot without the garbage, same bits
 
 // surface table: tyre / boot friction coefficient mu and rolling-resistance coefficient crr for a pneumatic tyre.
 // INFERRED typical values (Wong, Theory of Ground Vehicles 4th ed. tables 1.2 / 2.1; SAE J2452 ranges):
@@ -52,7 +53,7 @@ export function createGround(ctx) {
   for (const t of ctx.trees || []) { const k = key(Math.floor(t.x / CELL), Math.floor(t.z / CELL)); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(t); }
 
   // ------------------------------------------------------------------ surface sampling
-  const padAt = (x, z) => { for (const p of PADS) { const d = Math.hypot(x - p.x, z - p.z); if (d < (p.isl.cave ? 20 : 26)) return p; } return null; };
+  const padAt = (x, z) => { for (const p of PADS) { const d = hypot2(x - p.x, z - p.z); if (d < (p.isl.cave ? 20 : 26)) return p; } return null; };
   GR.sample = (x, z, out = {}) => {
     const t = terrainH(x, z), deck = deckH(x, z);
     out.plat = null; out.water = 0; out.nx = 0; out.ny = 1; out.nz = 0;
@@ -61,7 +62,7 @@ export function createGround(ctx) {
     else {
       out.h = t; if (t < 0) out.water = -t;
       const e = 1;
-      const hx = terrainH(x + e, z) - terrainH(x - e, z), hz = terrainH(x, z + e) - terrainH(x, z - e), l = Math.hypot(hx, 2 * e, hz);
+      const hx = terrainH(x + e, z) - terrainH(x - e, z), hz = terrainH(x, z + e) - terrainH(x, z - e), l = hypot3(hx, 2 * e, hz);
       out.nx = -hx / l; out.ny = 2 * e / l; out.nz = -hz / l;
       let s = null; for (const f of providers) { s = f(x, z, t); if (s) break; }
       out.surface = s || (t <= 0 ? 'water' : padAt(x, z) ? 'road' : t < 2.5 ? 'sand' : out.ny < 0.78 || (ctx.inZone(x, z) ? t > 30 : t > 200) ? 'rock' : 'grass');
@@ -195,17 +196,18 @@ export function createGround(ctx) {
   // ship frame), extra static colliders, and every craft's footprint (crafts.bounds(skip)). Vertical overlap uses
   // o.y0..o.y1. Moves o out of whatever it overlaps; returns the number of contacts (o.nx / o.nz = last push normal).
   function pushCircle(o, cx, cz, r) {
-    const dx = o.x - cx, dz = o.z - cz, d = Math.hypot(dx, dz), m = o.r + r;
+    const dx = o.x - cx, dz = o.z - cz, d = hypot2(dx, dz), m = o.r + r;
     if (d >= m) return false;
     const nx = d > 1e-6 ? dx / d : 1, nz = d > 1e-6 ? dz / d : 0;
     o.x = cx + nx * m; o.z = cz + nz * m; o.nx = nx; o.nz = nz; return true;
   }
   function pushBox(o, b) {   // b: { x, z, yaw, hl (half length along forward), hw (half width), y0, y1 }
     if (o.y1 < b.y0 || o.y0 > b.y1) return false;
+    { const reach = o.r + b.hl + b.hw; if (!(Math.abs(o.x - b.x) <= reach && Math.abs(o.z - b.z) <= reach)) return false; }   // (ngc/perf-cpu) far apart: no trig (the box's corner is within hl + hw)
     const c = Math.cos(b.yaw), s = Math.sin(b.yaw), dx = o.x - b.x, dz = o.z - b.z;
     const lx = dx * c - dz * s, lz = dx * s + dz * c;   // ship-style local frame (x right, z aft)
     const qx = Math.max(-b.hw, Math.min(b.hw, lx)), qz = Math.max(-b.hl, Math.min(b.hl, lz));
-    let ex = lx - qx, ez = lz - qz, d = Math.hypot(ex, ez);
+    let ex = lx - qx, ez = lz - qz, d = hypot2(ex, ez);
     if (d >= o.r) return false;
     let nlx, nlz, pen;
     if (d > 1e-6) { nlx = ex / d; nlz = ez / d; pen = o.r - d; }
@@ -230,7 +232,7 @@ export function createGround(ctx) {
       if (ly + hh < oy + b[4] || ly - hh > oy + b[5]) continue;
       const x0 = ox + b[0], x1 = ox + b[1], z0 = oz + b[2], z1 = oz + b[3];
       const qx = Math.max(x0, Math.min(x1, lx)), qz = Math.max(z0, Math.min(z1, lz));
-      const ex = lx - qx, ez = lz - qz, d = Math.hypot(ex, ez);
+      const ex = lx - qx, ez = lz - qz, d = hypot2(ex, ez);
       if (d >= o.r) continue;
       if (d > 1e-6) { lx = qx + ex / d * o.r; lz = qz + ez / d * o.r; nlx = ex / d; nlz = ez / d; }
       else {   // centre inside: out through the nearest face
@@ -262,7 +264,7 @@ export function createGround(ctx) {
     for (const u of war.units) {
       if (!u.dims || Math.abs(o.x - u.p.x) > 70 || Math.abs(o.z - u.p.z) > 70) continue;
       const D = u.dims;
-      if (u.type === 'carrier' && u.interior) n += shipBoxes(o, u, u.interior.boxes(), 0, 0, 0);   // ngc/interiors: the island hollow (rooms, doors), the hangar's walls
+      if (u.type === 'carrier' && u.interior) n += shipBoxes(o, u, u.interior.boxes(), 0, 0, 0);   // ngc/interiors: the island hollow (rooms, doors), the hangar's walls   // ngc/interiors: the island hollow (rooms, doors), the hangar's walls
       else if (u.type === 'carrier') n += shipBoxes(o, u, u.parts.islandBoxes || (isAlb(u) ? ALB_BOXES : KRK_BOXES), D.TOWER_X, D.TOWER_Z, D.DECK);
       else if (u.type === 'battleship') n += shipBoxes(o, u, BS_BOXES, 0, 4, D.DECK);
       else if (u.type === 'freighter') n += shipBoxes(o, u, FR_BOXES, 0, D.L / 2 - 6, D.DECK);
@@ -338,7 +340,7 @@ export function createGround(ctx) {
     return { name: s.name, x: _w.x, z: _w.z, y: deckH(_w.x, _w.z), yaw: u.yaw + s.yaw, plat: u };
   };
   const _o = { x: 0, z: 0, r: 2.4 };
-  GR.clearAt = (x, z, r = 2.4, skip = null) => { _o.x = x; _o.z = z; _o.r = r; _o.y0 = -1e9; _o.y1 = 1e9; return GR.collide(_o, skip) === 0 && Math.hypot(_o.x - x, _o.z - z) < 0.01; };
+  GR.clearAt = (x, z, r = 2.4, skip = null) => { _o.x = x; _o.z = z; _o.r = r; _o.y0 = -1e9; _o.y1 = 1e9; return GR.collide(_o, skip) === 0 && hypot2(_o.x - x, _o.z - z) < 0.01; };
   // beside the pad of island I, on flat dry ground, nose to the pad
   GR.motorPool = (I, r = 2.4) => {
     const p = I.pad; if (!p) return null;

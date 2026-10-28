@@ -120,6 +120,8 @@ const _s = new THREE.Vector3(), _v = new THREE.Vector3(), _f = new THREE.Vector3
  *   boxes are placed by overriding shadow.updateMatrices, not by moving the light.
  * - groundY(x, z): ground height, for the far box's centre (the ground under a high camera).
  * update(dt, camera): once a frame before the world renders. Returns nothing; renders no extra passes itself.
+ * @param {{ renderer: THREE.WebGLRenderer, scene: THREE.Scene, sun: THREE.DirectionalLight, hemi?: THREE.HemisphereLight | null,
+ *   groundY?: (x: number, z: number) => number, tier?: string, excludeRoots?: THREE.Object3D[] }} options
  */
 export function createSunShadows({ renderer, scene, sun, hemi, groundY = () => 0, tier = 'desktop', excludeRoots = [] }) {
   patchChunks();

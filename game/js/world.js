@@ -8,6 +8,7 @@
 //         radar     - long-range sight through the fog of war
 import { roadBed } from './world/net.js';   // the lived-in world (roads, towns, farms): flattened into islandH below
 import { zoneH } from './world/terrain.js';
+import { hypot2 } from './hypot.js';   // (ngc/perf-cpu) Math.hypot without the garbage, same bits
 export const BOUND = 1280, SEA_FLOOR = -14;
 export const ISLANDS = [
   { name: 'HOME ISLAND', kind: 'hq', owner: 1, x: -756, z: 720, r: 230, tier: 0 },
@@ -73,7 +74,7 @@ export function forestAt(x, z, h, slopeY) { return h > 3.5 && h < 360 - 60 * noi
 // flattened in by world/net.js (the lived-in world), so physics, the terrain bake and the road ribbons all agree.
 export const rawH = (x, z) => Math.max(Math.abs(x), Math.abs(z)) < BOUND + 300 ? zoneH(x, z) : wildH(x, z);
 export const islandH = (x, z) => roadBed(x, z, rawH(x, z));
-export const islandAt = (x, z, pad = 0) => ISLANDS.find(I => Math.hypot(x - I.x, z - I.z) < I.r + pad);
+export const islandAt = (x, z, pad = 0) => ISLANDS.find(I => hypot2(x - I.x, z - I.z) < I.r + pad);
 
 // --------------------------------------------------------------------------------------------- sea navigation
 // Ships route over a coarse grid of deep-water cells (A*), so carriers sail round islands instead of beaching.
@@ -118,7 +119,7 @@ export function createNav(heightAt, { cell = 20, draft = -5, margin = 14 } = {})
       const [si, sj] = nearestWet(...idx(x0, z0)), [ti, tj] = nearestWet(...idx(x1, z1));
       const S = sj * N + si, T = tj * N + ti, g = new Float32Array(N * N).fill(1e9), from = new Int32Array(N * N).fill(-1), closed = new Uint8Array(N * N);
       const open = [S]; g[S] = 0;
-      const hh = k => Math.hypot((k % N) - ti, Math.floor(k / N) - tj);
+      const hh = k => hypot2((k % N) - ti, Math.floor(k / N) - tj);
       let guard = 0;
       while (open.length && guard++ < 20000) {
         let bi = 0; for (let k = 1; k < open.length; k++) if (g[open[k]] + hh(open[k]) < g[open[bi]] + hh(open[bi])) bi = k;

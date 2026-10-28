@@ -17,6 +17,7 @@
 //   is rate + attitude feedback on the vanes.
 // Numbers are this machine's design (INFERRED): there is no RW-3 to measure. The bench checks them against the theory.
 import { createBody, clamp, sstep, attitude, cross } from './rb.js';
+import { hypot2 } from '../../../hypot.js';   // (ngc/perf-cpu) Math.hypot without the garbage, same bits
 
 export const WASP = {
   MASS: 520, I: [210, 260, 300],                 // kg, kg m2 (INFERRED: a 2.4 m ring with a sensor head and a tail)
@@ -69,7 +70,7 @@ export function createWaspSim(G = 9.81) {
     const vf = fl.u, mdot = S.rho * A_FAN * vf;
     S.thrust = Tt; S.vf = vf; S.ductShare = 1 - 1 / (2 * C.SIGMA);
     // edgewise: momentum drag (the duct turns the cross flow) and the nose-up lip moment toward the relative wind
-    const ue = Math.hypot(u, v), md = mdot * ue;
+    const ue = hypot2(u, v), md = mdot * ue;
     S.momDrag = md; S.lipM = C.LIP_K * C.R_FAN * 1.6 * md;
     body.F[2] -= Tt;                                                            // thrust along -z (up)
     if (ue > 0.05) {

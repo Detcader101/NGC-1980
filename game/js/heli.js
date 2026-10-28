@@ -113,6 +113,7 @@ export function createHeliInput({ keyDown, CTL, hwOn = () => true, say }) {
     setCollective(v) { collKb = v; collSrc = 'kb'; },
     startCalibration() { CTL.toggle(); },
     // returns { cx, cy, pedal, coll, sas, fire, winch, rocket, bomb, hatX, hatY, source, raw: {cx, cy, pedal} }
+    /** @param {number} dt @param {any} H @param {{ trim?: boolean, mods?: any }} [opts] */
     read(dt, H, { trim: trimOn = true, mods } = {}) {
       const st = CTL.state || {}, hw = hwOn(), out = { cx: 0, cy: 0, pedal: 0, coll: 0, sas, fire: false, winch: false, rocket: false, bomb: false, hatX: 0, hatY: 0, source: 'KEYBOARD' };
       // keyboard: keys move a virtual stick at a finite rate; with force trim on (and no assist) it stays where you leave it

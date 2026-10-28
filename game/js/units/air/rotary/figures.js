@@ -11,6 +11,9 @@
 import * as THREE from 'three';
 import { RK } from '../../../renderkit/adopt.js';   // RENDERKIT figures
 import { roundedBox, capsuleGeo, weldNormals, figMat } from '../../infantry/meshkit.js';
+import { marineGeometry, bakedPerson } from '../../infantry/humanfig.js';   // ngc/look-people
+import { figMaterial, FIG_BONES } from '../../infantry/figgeo.js';
+const PARTS = (() => { try { return new URLSearchParams(location.search).has('figparts'); } catch (e) { return false; } })();
 
 const MAT = new Map();
 const vcMat = (emissive = false) => { const k = emissive ? 'e' : 'n'; if (!MAT.has(k)) MAT.set(k, FIG ? figMat('fabric', { roughness: 0.85 }) : new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, ...(emissive ? { emissive: 0x000000 } : {}) })); return MAT.get(k); };
@@ -79,10 +82,49 @@ function marineGeoFig() {
   return GEO.marine = { heads, thigh, shin, arms, hip: 0.1, shoulder: 1.46, legY: 0.98 };
 }
 
+// ---- ngc/look-people: the crowd stand-in cut from the real Marine (humanfig.js, 'far' detail: ~1.5k triangles), the
+// same 6 meshes and pivots. The person is baked holding the M16A1 at the ready, then its triangles go to the part of
+// their main bone: trunk + head (one per skin tone), the thigh and the shin + boot (shared by both legs), the arms with
+// the rifle. Utility camouflage per pixel (figgeo.js figMaterial), like the full figure.
+function marineGeoLP() {
+  const g0 = marineGeometry({ lod: 'far', face: 0, sleeves: 'rolled', vest: true, helmet: true, pack: true, frags: 0, hands: 'grip' });
+  const si = g0.attributes.skinIndex, sw = g0.attributes.skinWeight;
+  const main = new Uint8Array(si.count); for (let i = 0; i < si.count; i++) { let b = 0, w = -1; for (let k = 0; k < 4; k++) if (sw.getComponent(i, k) > w) { w = sw.getComponent(i, k); b = si.getComponent(i, k); } main[i] = b; }
+  // the arms at the ready: shoulder -> elbow -> hand directions (shoulder pivot frame, as the classic crowd arms)
+  const rot = {}, inv = new THREE.Quaternion(), qa = new THREE.Quaternion(), qb = new THREE.Quaternion(), dn = new THREE.Vector3(0, -1, 0), e = new THREE.Euler();
+  const arm = (s, el, hd) => { const sh = new THREE.Vector3(s === 'L' ? -0.19 : 0.19, -0.03, 0), E = new THREE.Vector3(...el), H = new THREE.Vector3(...hd);
+    qa.setFromUnitVectors(dn, E.clone().sub(sh).normalize()); qb.setFromUnitVectors(dn, H.clone().sub(E).normalize());
+    rot['upperArm' + s] = e.setFromQuaternion(qa, 'XYZ').toArray().slice(0, 3); rot['forearm' + s] = e.setFromQuaternion(inv.copy(qa).invert().multiply(qb), 'XYZ').toArray().slice(0, 3); rot['hand' + s] = [0, s === 'L' ? 0.6 : -0.3, 0]; };
+  arm('L', [-0.22, -0.28, -0.12], [-0.06, -0.24, -0.45]); arm('R', [0.24, -0.28, -0.05], [0.08, -0.22, -0.2]);
+  const posed = bakedPerson(g0, rot);
+  const groups = { up: [], thigh: [], shin: [], arms: [] }, idx = posed.index;
+  const which = b => { const n = FIG_BONES[b]; return /Arm|forearm|hand/.test(n) ? 'arms' : n === 'thighL' ? 'thigh' : n === 'shinL' || n === 'footL' ? 'shin' : /R$/.test(n) && /thigh|shin|foot/.test(n) ? null : 'up'; };
+  for (let t = 0; t < idx.count; t += 3) { const a = idx.getX(t), b = idx.getX(t + 1), c = idx.getX(t + 2), gname = which(main[a]) || which(main[b]); if (gname) groups[gname].push(a, b, c); }
+  const sub = (list, dx, dy, dz, tone) => {
+    const map = new Map(), P = [], N = [], C = [], F = [], R = [], I = [], p = posed.attributes.position, n = posed.attributes.normal, c = posed.attributes.color, fg = posed.attributes.aFig, rm = posed.attributes.aRM;
+    for (const v of list) { if (!map.has(v)) { map.set(v, P.length / 3); P.push(p.getX(v) + dx, p.getY(v) + dy, p.getZ(v) + dz); N.push(n.getX(v), n.getY(v), n.getZ(v)); const k = fg.getZ(v); C.push(c.getX(v) * (1 + k * (tone.r - 1)), c.getY(v) * (1 + k * (tone.g - 1)), c.getZ(v) * (1 + k * (tone.b - 1))); F.push(fg.getX(v), fg.getY(v), 0, fg.getW(v)); R.push(rm.getX(v), rm.getY(v)); } I.push(map.get(v)); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
+    g.setAttribute('aFig', new THREE.Float32BufferAttribute(F, 4)); g.setAttribute('aRM', new THREE.Float32BufferAttribute(R, 2)); g.setIndex(I); g.computeBoundingSphere(); return g;
+  };
+  const ref = new THREE.Color(0xc79a77), one = new THREE.Color(1, 1, 1);
+  const heads = SKIN.map(h => { const t = new THREE.Color(h); return sub(groups.up, 0, 0, 0, new THREE.Color(t.r / ref.r, t.g / ref.g, t.b / ref.b)); });
+  const thigh = sub(groups.thigh, 0.095, -0.92, 0, one), shin = sub(groups.shin, 0.095, -0.48, 0, one);
+  const sh = 1.46;
+  const arms = sub(groups.arms, 0, -sh, 0, one);
+  // the rifle (a crowd-scale M16A1) in the hands
+  const rifle = paint([[bx(0.05, 0.07, 0.62, 0.02, -0.14, -0.42), 0x161616], [new THREE.CylinderGeometry(0.012, 0.012, 0.42, 8).rotateX(Math.PI / 2).translate(0.02, -0.13, -0.9), 0x2a2a2a],
+    [bx(0.03, 0.13, 0.065, 0.02, -0.22, -0.4), 0x161616], [bx(0.045, 0.11, 0.26, 0.02, -0.17, -0.06), 0x161616], [bx(0.024, 0.06, 0.16, 0.02, -0.065, -0.42), 0x161616]]);
+  const ri = rifle.attributes.position.count; rifle.setAttribute('aFig', new THREE.Float32BufferAttribute(new Float32Array(ri * 4), 4)); rifle.setAttribute('aRM', new THREE.Float32BufferAttribute(new Float32Array(ri * 2).fill(0.5), 2)); rifle.setIndex([...Array(ri).keys()]);
+  const armsAll = new THREE.BufferGeometry(); for (const nme of ['position', 'normal', 'color', 'aFig', 'aRM']) { const a = arms.attributes[nme], b = rifle.attributes[nme], arr = new Float32Array(a.array.length + b.array.length); arr.set(a.array); arr.set(b.array, a.array.length); armsAll.setAttribute(nme, new THREE.BufferAttribute(arr, a.itemSize)); }
+  armsAll.setIndex([...arms.index.array, ...rifle.index.array.map(i => i + arms.attributes.position.count)]); armsAll.computeBoundingSphere();
+  return GEO.marine = { heads, thigh, shin, arms: armsAll, hip: 0.095, shoulder: sh, legY: 0.92, mat: figMaterial({ camo: 'erdl', seed: 2 }) };
+}
+
 // a shared geometry set per kind (built once): upper body, thigh, shin (+boot), arms + weapon
 const GEO = {};
 function marineGeo() {
   if (GEO.marine) return GEO.marine;
+  if (FIG && !PARTS) return marineGeoLP();
   if (FIG) return marineGeoFig();
   const ut = 0x4d5838, ut2 = 0x3c4330, vest = 0x48503a, pack = 0x535740, belt = 0x5a5a40, helm = 0x56603d, blk = 0x161616, mtl = 0x2a2a2a;
   const heads = SKIN.map(skin => paint([
@@ -125,7 +167,7 @@ function machineGeo() {
 }
 
 function buildFigure(G, o = {}) {
-  const g = new THREE.Group(), m = vcMat(), hd = G.heads[(o.variant ?? Math.floor(Math.random() * 99)) % G.heads.length];
+  const g = new THREE.Group(), m = G.mat || vcMat(), hd = G.heads[(o.variant ?? Math.floor(Math.random() * 99)) % G.heads.length];
   const body = new THREE.Group(); g.add(body);
   const upper = new THREE.Mesh(hd, m); body.add(upper);
   const legs = [-1, 1].map(s => { const hip = new THREE.Group(); hip.position.set(s * G.hip, G.legY, 0); body.add(hip); hip.add(new THREE.Mesh(G.thigh, m));

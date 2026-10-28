@@ -53,6 +53,17 @@ What that means for every workstream:
 - **Authentic models** at real dimensions from public reference: manuals, drawings, photos, museum walkarounds.
   We build our own geometry, generated textures and self-authored glTF. We never extract or copy another game's
   assets, and we don't download third-party models.
+- **Blueprints first (user, 2026-10-28: "search for open access free blueprints ... do the same with anything
+  applicable").** Every vehicle, aircraft, ship, weapon, uniform and building starts with a web search for open-access
+  dimensioned drawings, and the model is matched to a three-view overlay before any detailing:
+  - **Sources:** US government TMs and FMs (public domain: DTIC, Army Publishing Directorate, archive.org scans),
+    Wikimedia Commons (public domain or CC only), Smithsonian, NASA and museum open access, and ANSUR for bodies.
+  - **Storage:** public-domain and CC files go in `docs/ngc1980/reference/<subject>/`, with a `SOURCES.md` line
+    each (URL, licence, what it shows).
+  - **Copyrighted drawings** (commercial blueprint sites and the like): keep only the URL and our measurements,
+    never the image.
+  - **Evidence:** cite every dimension in the branch's findings, and add a photo/render side-by-side in the
+    branch's evidence folder.
 - **Budgets still matter:** desktop at a high tier, the Quest via `?xrbench` at a low tier. LODs are mandatory for
   anything detailed.
 - These workstreams come before the original list below.

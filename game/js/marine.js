@@ -159,7 +159,7 @@ export function createMarine(ctx) {
   const vm = createViewmodel(); Mr.vm = vm;
   const lawW = () => R.slots.find(w => w.key === 'M72A2');
   vm.lawLines = lawW()?.lawLines?.();
-  const me = buildMarine({ seed: 1, weapon: 'M16A1', pack: true }); me.root.visible = false; scene.add(me.root);
+  const me = buildMarine({ seed: 1, weapon: 'M16A1', pack: true, detail: 'high' }); me.root.visible = false; scene.add(me.root);
   me.owner = 'player';
   const tracerGeo = new THREE.BufferGeometry(), tracerPos = new Float32Array(200 * 6); tracerGeo.setAttribute('position', new THREE.BufferAttribute(tracerPos, 3));
   const tracers = new THREE.LineSegments(tracerGeo, new THREE.LineBasicMaterial({ color: 0xff6a3a, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }));

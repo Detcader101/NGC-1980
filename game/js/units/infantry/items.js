@@ -147,7 +147,7 @@ D('r_m855a1', { name: '5.56 M855A1 (SEIZED)', short: 'M855A1', cat: 'ammo', tags
 D('r_m80', { name: '7.62 M80 BALL', short: 'M80', cat: 'ammo', tags: ['ammo', 'ammo_762n'], round: 'M80', stack: 40, kg: 0.0254, icon: 'round', tag: 'CONFIRMED', src: 'FM2367' });
 D('r_45', { name: '.45 ACP BALL', short: '.45', cat: 'ammo', tags: ['ammo', 'ammo_45'], round: 'M1911', stack: 50, kg: 0.0211, icon: 'roundp', tag: 'CONFIRMED', src: 'FM2335' });
 D('r_ps', { name: '7.62x39 PS', short: 'PS', cat: 'ammo', tags: ['ammo', 'ammo_762r'], round: 'PS', stack: 60, kg: 0.0162, icon: 'round', tag: 'CONFIRMED', src: '' });
-D('r_rwn', { name: 'RW NEEDLES', short: 'NEEDLE', cat: 'ammo', tags: ['ammo', 'ammo_rw', 'rw'], round: 'RWN', stack: 240, kg: 0.0014, era: 'rw', icon: 'needle', tag: 'FICTION', src: '' });
+D('r_rwn', { name: 'RW NEEDLES', short: 'NEEDLE', cat: 'ammo', tags: ['ammo', 'ammo_rw', 'rw'], round: 'RWN', stack: 240, kg: 0.0014, era: 'rw', icon: 'rwneedle', tag: 'FICTION', src: '' });
 D('r40_m406', { name: '40mm M406 HE', short: 'M406', cat: 'ammo', tags: ['ammo', 'r40', 'explosive'], round40: 'M406', stack: 1, kg: 0.23, icon: 'r40', tag: 'CONFIRMED', src: 'FM2331',
   desc: 'High-explosive 40 mm grenade. Arms 14-27 m from the muzzle. Kill radius 5 m.' });
 D('r40_m433', { name: '40mm M433 HEDP', short: 'M433', cat: 'ammo', tags: ['ammo', 'r40', 'explosive'], round40: 'M433', stack: 1, kg: 0.23, icon: 'r40', tag: 'CONFIRMED', src: 'FM2331 (2 in of steel)' });

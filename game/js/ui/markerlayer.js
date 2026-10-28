@@ -72,6 +72,10 @@ function buildAtlas(scale) {
 }
 
 // ------------------------------------------------------------------------------------------------ the layer
+/**
+ * @param {{ war?: import('../war.js').War, fog?: any, sim?: boolean, before?: Element | null, query?: string | null,
+ *   keepOut?: string | null }} [opts]
+ */
 export function createMarkerLayer({ war, fog, sim = false, before = null, query = null, keepOut = null } = {}) {
   const key = sim ? 'tz_markers_sim' : 'tz_markers';
   let mode = sim ? 'all' : 'damaged';
