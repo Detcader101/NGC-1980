@@ -306,7 +306,8 @@ const sc = faceCols.filter(c => c.x >= -0.5 && c.x <= 0.49);   // the glare shie
     win(62, 'FLARE', d ? d.flare : 0); win(178, 'CHAFF', d ? d.chaff : 0);
     c.fillStyle = pw ? (d && d.queue.length ? '#ffe070' : '#3b8a3a') : '#1a2a1a'; c.fillRect(100, 124, 40, 18); txt(c, 'ARM', 120, 134, '#111', 13);
     cmT.tex.needsUpdate = true;
-  }  drawCm({ volts: 0, cm: null });   // the unpowered face, until the game's countermeasures update it
+  }
+  drawCm({ volts: 0, cm: null });   // the unpowered face, until the game's countermeasures update it
 
 
   // ---------------------------------------------------------------- switches and hit boxes
