@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { Kit, rng, pbr } from './navkit.js';
 import { Kit as FKit, FIG, figMat } from '../infantry/meshkit.js';   // RENDERKIT figures
+import { detail } from '../../renderkit/lod.js';   // ngc/perf-render
 import { restPerson, patchLimbs } from '../infantry/figinst.js';   // ngc/look-people: one smooth body per person
 const PARTS = (() => { try { return new URLSearchParams(location.search).has('figparts'); } catch (e) { return false; } })();
 
@@ -79,6 +80,15 @@ export function createCrew(members, { seed = 5 } = {}) {
     B.setColorAt(i, _c.setRGB(1, 1, 1).lerp(_c2.setHex(SKIN[(r() * SKIN.length) | 0]), 0.3));
     L.setColorAt(2 * i, _c.setRGB(1, 1, 1)); L.setColorAt(2 * i + 1, _c);
   }
+  // ngc/perf-render: these were drawn (and drawn into both shadow maps) in every view, carrier in sight or not, 73k
+  // triangles each pass. One sphere round where the members are now (refitted on every update: deckops.js moves the
+  // directors and walkers, and a sphere fitted at creation lost them) lets Three cull them, and past 600 m (a 1.8 m
+  // figure is ~3 px there) they dissolve out (renderkit/lod.js).
+  const S = new THREE.Sphere(), fit = () => {
+    let cx = 0, cy = 0, cz = 0; for (const p of members) { cx += p.x; cy += p.y; cz += p.z; } cx /= n || 1; cy /= n || 1; cz /= n || 1;
+    let R = 0; for (const p of members) R = Math.max(R, Math.hypot(p.x - cx, p.y - cy, p.z - cz)); S.center.set(cx, cy, cz); S.radius = R + 4;
+  };
+  fit(); for (const m of [J, B, A, L]) { m.boundingSphere = S; m.frustumCulled = true; detail(m, 600, 0, S); }
   const crew = { group, members, J, B, A, L, scatter: null };
   // write one person's matrices: root (x, y, z, yaw), body lean / drop, arm and leg swings (rad, + = forward)
   function pose(i, x, y, z, yaw, lean, drop, aL, aR, aLz, aRz, lL, lR) {
@@ -92,7 +102,7 @@ export function createCrew(members, { seed = 5 } = {}) {
     }
   }
   // avoid(x, z) -> [dx, dz] | null: a push away from danger (rotor wash, a landing aircraft) in the ship's frame
-  crew.update = crewUpdater(members, pose, () => { J.instanceMatrix.needsUpdate = B.instanceMatrix.needsUpdate = A.instanceMatrix.needsUpdate = L.instanceMatrix.needsUpdate = true; });
+  crew.update = crewUpdater(members, pose, () => { J.instanceMatrix.needsUpdate = B.instanceMatrix.needsUpdate = A.instanceMatrix.needsUpdate = L.instanceMatrix.needsUpdate = true; fit(); });   // (ngc/perf-render: the culling sphere follows the crew)
   crew.update(0, 0);
   return crew;
 }

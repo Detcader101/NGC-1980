@@ -1,5 +1,28 @@
 # MODLOG — NGC-1980 (formerly Thrust/Zarch)
 
+## 2026-10-28 — Render performance: desktop benchmark, budgets, LODs, merges (branch ngc/perf-render)
+
+A one-click **desktop benchmark** (`?bench`, the new NGC-1980 BENCHMARK shortcut) tours 8 seeded views (on foot at the
+HQ, Huey at 30 / 200 m, Hornet at 1200 m, carrier deck, village, forest edge, busiest fight). Per view it records the
+uncapped frame cost, GPU time, CPU split, draws and triangles of every pass, and a who-draws census. It then reloads once
+per RenderKit area switched off to give a per-area cost table. The report goes to `tools/runs/bench-<run>/report.html`.
+
+Fixes, measured with scripted-camera A/B in the same seed:
+- **One MSAA:** with the post on, the canvas was multisampled under a post pipeline that already renders in 4x MSAA.
+  VR keeps its 4x layer.
+- **Static-part merge** (`renderkit/merge.js`) for the landing hards, tanks, M113, trucks, jeeps, Hornet, CH-46,
+  MV-22, wasps and RUNAWAY walkers. Every hook stays. A watchdog splits out any part that turns out to move.
+- **Deck crew** are now culled and fade out by 600 m. They had been drawn everywhere on the map.
+- **Tank track links** are now frustum culled.
+- **Far shadow cascade** is capped at 24 Hz.
+
+Draws per frame fell by 11-53 % across 9 views (on foot at the HQ 533 → 472, landing hard 793 → 538, M60 771 → 514,
+deck 1203 → 953, 200 m over the home island 573 → 363, jet 612 → 288), with no visible change in the side-by-sides
+(`docs/ngc1980/evidence/perf-render/`). New `renderkit/lod.js` gives authored LODs and small-part dissolves with
+complementary screen-door cross-fades: no popping, no holes (`tools/scenes/perflod.mjs`). It also adds an XR distance
+bias. `docs/ngc1980/PERF-BUDGETS.md` sets frame and per-model budgets, checked by `tools/scenes/perfbudget.mjs`.
+Findings, the census and what the look agents should do with it: `docs/ngc1980/findings/perf-render.md`.
+
 ## 2026-10-28 — TypeScript type checking, phase 1 (no build step)
 
 `node tools/check.mjs types` runs TypeScript 6.0.3 over all 269 game modules as they are: JSDoc + `checkJs`, three

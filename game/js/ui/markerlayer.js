@@ -86,12 +86,27 @@ export function createMarkerLayer({ war, fog, sim = false, before = null, query 
   if (before && before.parentNode) before.parentNode.insertBefore(cv, before); else document.body.appendChild(cv);
   const c = cv.getContext('2d');
   let atlas = null, atlasScale = 0, dirty = true, last = performance.now();
-  // the HUD read-outs (score block, feed, radar, the sim panels): a marker under one is drawn faint. Their boxes are read
-  // twice a second (reading them every frame would force a layout after the HUD text changed)
-  const keep = new Float32Array(64); let nKeep = 0, keepT = 0;
+  // the HUD read-outs (score block, feed, radar, the sim panels): a marker under one is drawn faint. ngc/perf-render: their
+  // boxes were read with getBoundingClientRect twice a second from the frame loop, which forced a layout each time the
+  // HUD text had changed (perf-cpu). Now a ResizeObserver tells us when one changes size, and the boxes are read in its
+  // callback (layout is already fresh there: no forced layout); the element list is re-queried every 2 s (no layout).
+  const keep = new Float32Array(64); let nKeep = 0, keepT = -1e9, keepDirty = true;
+  const keepEls = new Set(), ro = typeof ResizeObserver === 'function' ? new ResizeObserver(() => { keepDirty = true; measureKeep(); }) : null;
+  addEventListener('resize', () => { keepDirty = true; });
+  function measureKeep() {
+    nKeep = 0;
+    for (const el of keepEls) { if (nKeep >= 64) break; if (!el.isConnected) continue; const b = el.getBoundingClientRect(); if (b.width < 2 || b.height < 2 || b.width * b.height > innerWidth * innerHeight * 0.25) continue; keep[nKeep++] = b.left - 4; keep[nKeep++] = b.top - 4; keep[nKeep++] = b.right + 4; keep[nKeep++] = b.bottom + 4; }
+    keepDirty = false;
+  }
   function readKeep(now) {
-    if (now - keepT < 500 || !keepOut) return; keepT = now; nKeep = 0;
-    for (const el of document.querySelectorAll(keepOut)) { if (nKeep >= 64) break; const b = el.getBoundingClientRect(); if (b.width < 2 || b.height < 2 || b.width * b.height > innerWidth * innerHeight * 0.25) continue; keep[nKeep++] = b.left - 4; keep[nKeep++] = b.top - 4; keep[nKeep++] = b.right + 4; keep[nKeep++] = b.bottom + 4; }
+    if (!keepOut) return;
+    if (now - keepT >= 2000) {   // pick up HUD elements that appeared / went (querySelectorAll does not lay out)
+      keepT = now;
+      for (const el of document.querySelectorAll(keepOut)) if (!keepEls.has(el)) { keepEls.add(el); ro?.observe(el); keepDirty = true; }
+      for (const el of keepEls) if (!el.isConnected) { keepEls.delete(el); ro?.unobserve(el); }
+    }
+    if (keepDirty && !ro) measureKeep();   // (no ResizeObserver: the old way)
+    else if (keepDirty) requestAnimationFrame(() => { if (keepDirty) measureKeep(); });   // after this frame's layout, not in the middle of it
   }
   const L = { stats: { units: 0, drawn: 0, groups: 0, ms: 0 }, canvas: cv };
   // the 3D view's name tags (main.js updateTags: islands, ships) this frame: a marker under one is drawn faint

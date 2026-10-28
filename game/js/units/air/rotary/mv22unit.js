@@ -10,6 +10,7 @@ import { flyMV22, MV22_AI } from './mv22ai.js';
 import { buildMV22Mesh } from './mv22model.js';
 import { createSquad, padSlots } from './squad.js';
 import { createEmbark } from './embark.js';
+import { mergeUnit } from '../../../renderkit/merge.js';   // ngc/perf-render
 
 const _v = new THREE.Vector3();
 export function createMV22Unit(o) {
@@ -17,7 +18,7 @@ export function createMV22Unit(o) {
   const n = o.squad ?? 12; S.payload = n * MV22.TROOPER_KG;
   S.reset([o.start.x, o.start.y + MV22.CG_H + 0.05, o.start.z], o.start.yaw, true, o.env, 90);
   const P = createTiltPilot(MV22.PILOT, S); P.reset(0);
-  const model = buildMV22Mesh(); o.parent.add(model.group);
+  const model = buildMV22Mesh(); o.parent.add(model.group); mergeUnit(model.group, [model], { name: 'mv22' });   // ngc/perf-render: static parts one draw per material per rigid frame (every handle kept)
   const squad = createSquad({ parent: o.parent, side: 2, n, kind: 'machine', groundY: (x, z) => o.env.groundY(x, z) });
   const U = { S, P, model, squad, ramp: 0, rampT: 0, unloadT: 0, deployed: false, fold: 0, time: 0, dead: false };
   const AI = U.AI = createTransportAI(MV22_AI, {
