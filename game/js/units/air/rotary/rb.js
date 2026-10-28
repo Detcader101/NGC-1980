@@ -17,11 +17,14 @@ export const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 export const len = a => Math.hypot(a[0], a[1], a[2]);
 // quaternion [x, y, z, w]
 export function qrot(q, v, o) {   // o = q v q*
-  const [qx, qy, qz, qw] = q, x = v[0], y = v[1], z = v[2];
+  return qrot4(q[0], q[1], q[2], q[3], v, o);   // (ngc/perf-cpu) no array destructuring: it allocated an iterator per call
+}
+function qrot4(qx, qy, qz, qw, v, o) {
+  const x = v[0], y = v[1], z = v[2];
   const ix = qw * x + qy * z - qz * y, iy = qw * y + qz * x - qx * z, iz = qw * z + qx * y - qy * x, iw = -qx * x - qy * y - qz * z;
   o[0] = ix * qw + iw * -qx + iy * -qz - iz * -qy; o[1] = iy * qw + iw * -qy + iz * -qx - ix * -qz; o[2] = iz * qw + iw * -qz + ix * -qy - iy * -qx; return o;
 }
-export function qinv(q, v, o) { const c = [-q[0], -q[1], -q[2], q[3]]; return qrot(c, v, o); }
+export function qinv(q, v, o) { return qrot4(-q[0], -q[1], -q[2], q[3], v, o); }
 export function qmul(a, b, o) {
   const ax = a[0], ay = a[1], az = a[2], aw = a[3], bx = b[0], by = b[1], bz = b[2], bw = b[3];
   o[0] = ax * bw + aw * bx + ay * bz - az * by; o[1] = ay * bw + aw * by + az * bx - ax * bz; o[2] = az * bw + aw * bz + ax * by - ay * bx; o[3] = aw * bw - ax * bx - ay * by - az * bz; return o;
@@ -66,7 +69,7 @@ export function createBody(P) {
     toBody(vw, out = [0, 0, 0]) { qinv(B.q, vw, _t); return toF(_t, out); },
     // integrate one substep: F, M (FRD) from the caller + gravity + gear; returns nothing, sets touch on touchdown
     integrate(h, env, g = 9.81) {
-      const m = P.mass(), [Ixx, Iyy, Izz] = P.I;
+      const m = P.mass(), Ixx = P.I[0], Iyy = P.I[1], Izz = P.I[2];
       _Fw[0] = _Fw[1] = _Fw[2] = 0; _Tw[0] = _Tw[1] = _Tw[2] = 0;
       B.obstructed = false;
       if (B.gearDown) gear(h, env, m); else B.contacts = 0;
@@ -93,13 +96,13 @@ export function createBody(P) {
   }
   // the mass a push along d (world) at lever r (world) feels: 1 / (1/m + (r x d) . I^-1 (r x d)) - keeps the friction deadbeat
   function effMass(r, d, m) {
-    cross(r, d, _e); qinv(B.q, _e, _c); toF(_c, _eb); const [Ixx, Iyy, Izz] = P.I;
+    cross(r, d, _e); qinv(B.q, _e, _c); toF(_c, _eb); const Ixx = P.I[0], Iyy = P.I[1], Izz = P.I[2];
     return 1 / (1 / m + _eb[0] * _eb[0] / Ixx + _eb[1] * _eb[1] / Iyy + _eb[2] * _eb[2] / Izz);
   }
   function gear(h, env, m) {
     fromF(B.w, _t); qrot(B.q, _t, _ow);                 // world angular velocity
-    let n = 0, nsum = 0, first = null, gmin = 1e9; B.wet = false;
-    qrot(B.q, [0, 0, -1], _fwd); _fwd[1] = 0; { const l = Math.hypot(_fwd[0], _fwd[2]) || 1; _fwd[0] /= l; _fwd[2] /= l; } _lat[0] = -_fwd[2]; _lat[1] = 0; _lat[2] = _fwd[0];
+    let n = 0, nsum = 0, first = false, fvy = 0, fhs = 0, gmin = 1e9; B.wet = false;
+    qrot(B.q, _F, _fwd); _fwd[1] = 0; { const l = Math.hypot(_fwd[0], _fwd[2]) || 1; _fwd[0] /= l; _fwd[2] /= l; } _lat[0] = -_fwd[2]; _lat[1] = 0; _lat[2] = _fwd[0];
     for (let i = 0; i < P.gear.length; i++) {
       const G = P.gear[i];
       fromF(G.at, _t); qrot(B.q, _t, _r); _p[0] = _r[0] + B.pos[0]; _p[1] = _r[1] + B.pos[1]; _p[2] = _r[2] + B.pos[2];
@@ -110,7 +113,7 @@ export function createBody(P) {
       if (pen > 2) B.obstructed = true;
       if (env.water && env.water(_p[0], _p[2])) B.wet = true;
       cross(_ow, _r, _w); _w[0] += B.vel[0] - surfVel(env, _p[0], _p[2], _sv)[0]; _w[1] += B.vel[1]; _w[2] += B.vel[2] - _sv[2];
-      if (!first) first = { vy: _w[1], hs: Math.hypot(_w[0], _w[2]) };
+      if (!first) { first = true; fvy = _w[1]; fhs = Math.hypot(_w[0], _w[2]); }   // (ngc/perf-cpu) the touch object only on touchdown
       let N = G.k * Math.min(pen, 0.3) - G.c * _w[1] * (_w[1] < 0 ? 1 : 0.3) + (pen > 0.3 ? 40 * G.k * (pen - 0.3) : 0);
       N = clamp(N, 0, m * 9.81 * 8 / P.gear.length); n++; nsum += N;
       // friction (brakes set / skids): deadbeat on the effective mass, shared by load, with a slip anchor so it holds still
@@ -123,7 +126,7 @@ export function createBody(P) {
       _Fw[0] += _f[0]; _Fw[1] += _f[1]; _Fw[2] += _f[2]; cross(_r, _f, _c); _Tw[0] += _c[0]; _Tw[1] += _c[1]; _Tw[2] += _c[2];
     }
     B.agl = Math.max(0, gmin); B.contacts = n; nsumPrev = nsum; B.load = nsum;
-    if (n && !wasDown && first) { B.touch = first; if (-first.vy > B.maxSink) B.maxSink = -first.vy; }
+    if (n && !wasDown && first) { B.touch = { vy: fvy, hs: fhs }; if (-fvy > B.maxSink) B.maxSink = -fvy; }
     wasDown = n > 0;
     surfVel(env, B.pos[0], B.pos[2], _sv);
     B.landed = n >= 2 && nsum > 0.15 * m * 9.81 && Math.hypot(B.vel[0] - _sv[0], B.vel[1], B.vel[2] - _sv[2]) < 2;

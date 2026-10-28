@@ -127,8 +127,6 @@ export function createShipMotion(P, sea, seed = 1) {
   const r = rng(seed * 7919 + 13);
   const mo = { P, sea, heave: 0, pitch: 0, roll: 0, vHeave: 0, vPitch: 0, vRoll: 0, heel: 0, trim: 0, t: 0, ph: [] };
   const wnH = TAU / P.TnH, wnP = TAU / P.TnP, wnR = TAU / P.TnR;
-  // |H| and phase lag of a damped oscillator at frequency we
-  const resp = (we, wn, z) => { const q = Math.abs(we) / wn, re = 1 - q * q, im = 2 * z * q; return [1 / Math.hypot(re, im), Math.atan2(im, re)]; };
   mo.setSea = s => { mo.sea = s; mo.ph = (s._all || s.comps).map(c => c.ph0 + r() * TAU); };
   mo.setSea(sea);
   // x, z (optional, game metres): the ship's position on the LIVE sea (advanceSea): its phases are then read off the
@@ -150,7 +148,10 @@ export function createShipMotion(P, sea, seed = 1) {
       // pitch: wave slope along the ship, averaged over the length; roll: slope across, averaged over the beam
       const fP = c.k * c.a * cm * slopeAvg(xL) * sinc(xB) * att;
       const fR = c.k * c.a * sm * slopeAvg(xB) * sinc(xL) * att;
-      const [gH, lH] = resp(we, wnH, P.zH), [gP, lP] = resp(we, wnP, P.zP), [gR, lR] = resp(we, wnR, zR);
+      // |H| and phase lag of a damped oscillator at frequency we. (ngc/perf-cpu) inline, not three [gain, lag] arrays destructured per wave component per ship per step
+      const qH = Math.abs(we) / wnH, reH = 1 - qH * qH, imH = 2 * P.zH * qH, gH = 1 / Math.hypot(reH, imH), lH = Math.atan2(imH, reH);
+      const qP = Math.abs(we) / wnP, reP = 1 - qP * qP, imP = 2 * P.zP * qP, gP = 1 / Math.hypot(reP, imP), lP = Math.atan2(imP, reP);
+      const qR = Math.abs(we) / wnR, reR = 1 - qR * qR, imR = 2 * zR * qR, gR = 1 / Math.hypot(reR, imR), lR = Math.atan2(imR, reR);
       const ph = mo.ph[i];
       h += fH * gH * Math.cos(ph - lH); vh -= fH * gH * we * Math.sin(ph - lH);
       p += fP * gP * Math.sin(ph - lP); vp += fP * gP * we * Math.cos(ph - lP);

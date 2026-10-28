@@ -24,7 +24,7 @@ import { m67Geometry, grenadeMaterial } from '../infantry/grenademodel.js';   //
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 // the rotary module's squads (the CH-46 cabin and ramp) show INFANTRY's Marine from now on (FIGURES contract)
-FIGURES.marine = o => buildMarineFigure({ ...o, detail: 'full' });
+FIGURES.marine = o => buildMarineFigure({ detail: 'full', ...o });   // (ngc/perf-cpu: a caller may ask for 'lite': the war's CH-46 sticks, see squad.js)
 export const GW_T = {
   HOVER_AT: 240, HOVER_COST: 32, HOVER_GAP: 70,     // s from the start / materiel / s between launches
   MBT_AT: 540, MBT_COST: 55, MBT_GAP: 150,
