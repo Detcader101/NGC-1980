@@ -30,7 +30,9 @@ export const TROOP_SEATS = [
 ];
 // the doorway places (an option, not seats): on the floor, legs over the sill
 export const DOOR_PLACES = [
-  { id: 'doorL', label: 'LEFT DOOR', kind: 'door', x: -0.98, z: -0.9, yaw: Math.PI / 2 },
-  { id: 'doorR', label: 'RIGHT DOOR', kind: 'door', x: 0.98, z: -0.9, yaw: -Math.PI / 2 },
+  { id: 'doorL', label: 'LEFT DOOR', kind: 'door', x: -0.98, z: -1.0, yaw: Math.PI / 2 },
+  { id: 'doorR', label: 'RIGHT DOOR', kind: 'door', x: 0.98, z: -1.0, yaw: -Math.PI / 2 },
 ];
+// where troops climb in and out: the doorway's aft part, between the rocket pod's tail (z 0.29) and the M60D (z 0.56)
+export const ENTRY_Z = 0.43;
 export const TROOP_CAPACITY = TROOP_SEATS.length;   // 9 with the crew chief and the gunner aboard (11 seats)

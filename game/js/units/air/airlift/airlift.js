@@ -27,7 +27,7 @@ import { createSling, loadOf, HOOKS, hookCheck, hookExt, downwashAt, LOADS } fro
 import { createSquad } from '../rotary/squad.js';
 import { FIGURES } from '../rotary/figures.js';
 import { createAirliftAudio } from './airliftaudio.js';
-import { TROOP_SEATS, TROOP_CAPACITY } from '../../../hueycabin.js';
+import { TROOP_SEATS, TROOP_CAPACITY, ENTRY_Z } from '../../../hueycabin.js';
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const KT = 1.94384, LB = 0.45359237;
@@ -315,8 +315,10 @@ export function createAirlift(ctx) {
     Q.figs.forEach((F, i) => {
       const seat = SEATS[i], s = seat[0] < 0 ? -1 : 1;
       // in at the side of the seat: bent under the disc to the door, up onto the floor, to the seat
-      const sz = Math.min(0.55, Math.max(-1.0, seat[2])), front = seat[2] < -1 ? seat[2] + 0.35 : seat[2] > -0.2 ? seat[2] : seat[2] - 0.32;   // through the doorway, then in front of the seat
-      F.lpath = [stick[i], { x: s * 2.7, y: SK, z: sz - 0.3, g: true }, { x: s * 2.0, y: SK, z: sz, g: true }, { x: s * 1.25, y: -1.08, z: sz }, { x: Math.abs(seat[3]) === Math.PI / 2 ? seat[0] * 1.15 : seat[0], y: -1.07, z: front }, { x: seat[0], y: -1.07, z: seat[2] }];
+      const sz = ENTRY_Z, front = seat[2] < -1 ? seat[2] + 0.35 : seat[2] > -0.2 ? seat[2] : seat[2] - 0.32;   // through the doorway, then in front of the seat
+      // in over the sill aft of the pod, forward along the door side (outboard of the well seat), round the bench end
+      const lane = [{ x: s * 1.12, y: -1.07, z: sz - 0.35 }, ...(seat[2] < -0.5 ? [{ x: s * 1.12, y: -1.07, z: -0.98 }] : [])];
+      F.lpath = [stick[i], { x: s * 2.7, y: SK, z: sz + 0.3, g: true }, { x: s * 2.0, y: SK, z: sz, g: true }, { x: s * 1.25, y: -1.08, z: sz }, ...lane, { x: Math.abs(seat[3]) === Math.PI / 2 ? seat[0] * 1.15 : seat[0], y: -1.07, z: front }, { x: seat[0], y: -1.07, z: seat[2] }];
     });
     AL.troops = { Q, st: 'boarding', t: 0, where, aboard: () => Q.figs.filter(F => F.st === 'aboard').length };
     feed(`${where}: A SQUAD OF ${TROOPS.N} MARINES FOR THE HUEY (${TROOPS.COST} MATERIEL)`, 'good');
@@ -334,7 +336,7 @@ export function createAirlift(ctx) {
       G.mat += TROOPS.COST; Q.dispose(); AL.troops = null; feed(`${svc.name}: THE SQUAD IS BACK IN THE BARRACKS`, 'info'); say('SQUAD DISMOUNTED  -  BACK TO THE BARRACKS', 1.6); return;
     }
     // out of both doors: seat -> door sill -> the ground beside the skid, a few metres out
-    const paths = [-1, 1].map(s => [[s * 0.6, -1.07, -0.75], [s * 1.35, -1.07, -0.55], [s * 2.3, -1.84, -0.55], [s * 4.5, -1.84, -0.95]].map(([x, y, z]) => toWorld(x, y, z, { x: 0, y: 0, z: 0 })));
+    const paths = [-1, 1].map(s => [[s * 0.6, -1.07, ENTRY_Z - 0.2], [s * 1.35, -1.07, ENTRY_Z], [s * 2.3, -1.84, ENTRY_Z + 0.1], [s * 4.5, -1.84, ENTRY_Z + 0.6]].map(([x, y, z]) => toWorld(x, y, z, { x: 0, y: 0, z: 0 })));
     for (const p of paths) for (let k = 2; k < p.length; k++) p[k].y = groundY(p[k].x, p[k].z);
     Q.deploy(paths[0], [{ x: paths[0][3].x, z: paths[0][3].z, yaw: 0 }], 0.5);
     let k = 0;

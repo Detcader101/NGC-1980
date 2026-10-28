@@ -6,6 +6,8 @@ import * as THREE from 'three';
 import '../js/heli.js';   // first: heli.js <-> hueycockpit.js are circular, the game enters through heli.js
 import { buildHueyMesh, HUEY } from '../js/hueymodel.js';
 import { buildHueyCockpit, HUEY_EYE, HUEY_EYE_PITCH } from '../js/hueycockpit.js';
+import { TROOP_SEATS, DOOR_PLACES } from '../js/hueycabin.js';
+import { crewGeometry, crewMaterial } from '../js/interiors/crewfig.js';
 
 const Q = new URLSearchParams(location.search);
 const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(2, devicePixelRatio)); document.body.prepend(renderer.domElement);
@@ -24,6 +26,11 @@ const huey = buildHueyMesh(); scene.add(huey.group);
 if (Q.get('rot')) { const [rx, ry, rz] = Q.get('rot').split(',').map(Number); huey.group.rotation.set(rx || 0, ry || 0, rz || 0, 'YXZ'); }   // attitude (pitch, yaw, roll), e.g. to match a photo
 const buildMs = performance.now() - t0;
 huey.group.traverse(o => { if (o.isMesh && !o.material.transparent) { o.castShadow = true; o.receiveShadow = true; } });
+// &troops=1: seated Marines in every troop seat and both doorway places (the player's seat anchors, hueycabin.js)
+if (Q.get('troops') === '1') {
+  const geo = crewGeometry('marine', 'seated', { arms: 'rifle', seed: 4 }), mat = crewMaterial();
+  for (const T of [...TROOP_SEATS, ...DOOR_PLACES]) { const m = new THREE.Mesh(geo, mat); m.position.set(T.x, T.kind === 'door' ? -1.05 : -0.58, T.z); m.rotation.y = T.yaw + Math.PI; m.name = 'troop'; huey.group.add(m); }
+}
 // &checker=1: every baked (UV-mapped) surface shows a 16 x 16 checker instead of its paint: texel density and seams
 if (Q.get('checker') === '1') {
   const cv = document.createElement('canvas'); cv.width = cv.height = 512; const c = cv.getContext('2d');

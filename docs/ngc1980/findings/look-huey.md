@@ -84,11 +84,14 @@ UH-1H (1987) show the hub on the near side of a right-side view; so does the use
 ### 2026-10-28 - Mirrored stencils, stretched texels
 **Finding:** the NO STEP stencils on the roof read upside down from beside the aircraft; the roof texels were crushed
 (the |cos|^(2/n) superellipse parameterisation put a squarish roof into a few degrees of phi).
-**Action:** stencil tops inboard; sections use the ray parameterisation (even spacing round the section). Markings
-checked from outside: `evidence/look-huey/markings_1.png` (U.S. ARMY both boom sides, NO STEP), `markings_2.png`
-(data block, FUEL, serial both fin sides); checker: `evidence/look-huey/checker.png` (`?checker=1`). Texel density
-still varies with section perimeter (the boom gets ~5x the texels per metre of the cabin); paint, wear, panel lines
-and rivets are computed from 3D position, so they stay at a constant scale.
+**Action:** stencil tops inboard; sections use the ray parameterisation (even spacing round the section); the skin is
+now in arc-length texture space (`hueygeo.arcSpace`): u = z, v = arc length round each section from the keel, both
+over the longest perimeter, so the boom and the cabin get the same ~9 mm texels and the seam is on the keel centre
+line; the bake inverts the same mapping per column. Markings checked from outside: `evidence/look-huey/markings_1.png`
+(U.S. ARMY both boom sides, NO STEP), `markings_2.png` (data block, FUEL, serial both fin sides). The "U.S. ON" seen in
+the top view of markings_1 is the far side's NO STEP, upside down from that camera (each stencil reads from its own
+side). Checker (`?checker=1`): `checker_before.png` (phi / TAU: boom squares ~5x denser) vs `checker_after_side.png`,
+`checker_after_top.png` (one density).
 
 ### 2026-10-28 - Troop cabin to the TM seating
 **Finding:** the cabin had a 4-place bench and 2 door places; the -23 describes eleven: five across facing forward
@@ -104,7 +107,10 @@ just aft of the M60D pintle (z 0.56).
 ### 2026-10-28 - Rocket pods
 **Finding:** the M158 pods were 0.41 m across and hung beside the windows. **Action:** 0.27 m across, 1.68 m long,
 seven tubes at 79 mm pitch, on the side mounts at cabin-floor level below the doorway's forward part (centre y -1.13,
-x 1.62, z -0.55), arm to a floor-level hard point, drag brace. Kept as a fit option. Evidence: `pods_door.png`.
+x 1.80, z -0.55: outboard of the skid line), arm to a floor-level hard point, drag brace. Kept as a fit option.
+Clearance: a Marine on the doorway sill (legs to x 1.61, y -1.50) clears the pod (x >= 1.665); troops board and dismount
+through the doorway's aft part (z 0.43, between the pod's tail at z 0.29 and the M60D at 0.56) and walk forward along
+the door side. Evidence: `pods_door.png`, `troops_doorway.png` (all nine seats and both doorway places filled).
 
 ## 1980 configuration table (US Army UH-1H, transport fit with door guns; rocket pods as a fit option)
 
@@ -164,6 +170,17 @@ Done 22 / 39 rows (56 %), partial 11, todo 6.
 | 300 m | far | 1.9 k | 17 |
 
 The near LOD includes ~11 k for the four crew figures and the interior. SwiftShader timings are relative only.
+
+## Regression status (2026-10-28, machine at load average 40-68 from other agents' browsers)
+
+| Check | Result |
+|---|---|
+| `node tools/check.mjs syntax` | PASS 544/544; no conflict markers |
+| smoke | PASS 5/5 |
+| hueymodel, hueycockpit | unverified (load): page navigation timed out at 30 s before the scene started; re-run pending |
+| airlift | unverified (load): FAIL in the sling hook-up (the hover never held steady 0.6 s at ~1 fps, 40 s per screenshot), before the troop lift; expectations updated to nine troops / 945 kg |
+| foot | unverified (load): ladder and walk waits timed out (no Huey code involved), the Huey boarding step not reached in time |
+| interiors, hueyhotas, xrgameplay | see the final report |
 
 ## Still open
 - Cockpit to the -10 panel figures (DCS level): only the glazing now comes from the exterior skin; the furniture is

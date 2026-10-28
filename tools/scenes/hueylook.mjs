@@ -31,6 +31,9 @@ export const VIEWS = [
   ['mark_fin_right', 'cam=' + [PI / 2, 0.1, 5, 0, 0.9, 8.1]],
   ['mark_fin_left', 'cam=' + [-PI / 2, 0.1, 5, 0, 0.9, 8.1]],
   ['pods_door', 'cam=' + [-PI / 2 - 0.5, 0.15, 6, -1.2, -0.8, -0.3]],
+  ['troops_door_left', 'troops=1&cam=' + [-PI / 2 - 0.35, 0.12, 6.5, 0, -0.7, -0.4]],
+  ['troops_door_right', 'troops=1&cam=' + [PI / 2 + 0.35, 0.12, 6.5, 0, -0.7, -0.4]],
+  ['troops_from_door', 'troops=1&fov=60&cam=' + [-PI / 2 + 0.25, 0.05, 2.4, 0, -0.45, -0.2]],
   ['rest_droop', 'cam=' + [-PI / 2 + 0.25, 0.1, 21, 0, 0.8, 1.5] + '&s=' + encodeURIComponent(JSON.stringify({ nr: 0, run: false, n1: 0, cargoDoor: 0 }))],
 ];
 export default async function (h) {

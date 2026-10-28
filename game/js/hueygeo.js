@@ -81,6 +81,34 @@ export function bodySurface(keys) {
   return { at, normal, params: z => tr(z, []), z0, z1, yToPhi, xToPhi };
 }
 
+// ------------------------------------------------------------------------------------- arc-length texture space
+// One texel density over a lofted body: u = z along the body (its side lines are near straight), v = arc length round
+// each section from the keel (phi = PI), both in metres / the longest perimeter, so a boom section uses a fifth of the
+// v range at the cabin's density; the seam sits on the keel centre line.
+//   const A = arcSpace(S);  A.uv(z, phi) -> [u, v];  A.column(z) then A.phiAt(v) -> phi (or null past the perimeter)
+export function arcSpace(S, { n = 256, zs = 96 } = {}) {
+  const o = {}, perim = z => { let L = 0, px = 0, py = 0; for (let i = 0; i <= n; i++) { S.at(z, Math.PI + TAU * i / n, o); if (i) L += Math.hypot(o.x - px, o.y - py); px = o.x; py = o.y; } return L; };
+  let Pmax = 0; for (let i = 0; i <= zs; i++) Pmax = Math.max(Pmax, perim(S.z0 + (S.z1 - S.z0) * i / zs));
+  const tab = new Float64Array(n + 1);
+  const build = z => { let L = 0, px = 0, py = 0; for (let i = 0; i <= n; i++) { S.at(z, Math.PI + TAU * i / n, o); if (i) L += Math.hypot(o.x - px, o.y - py); px = o.x; py = o.y; tab[i] = L; } return L; };
+  let cz = NaN, cP = 0;
+  const A = {
+    Pmax,
+    column(z) { if (z !== cz) { cz = z; cP = build(z); } return cP; },
+    uv(z, phi) {
+      A.column(z); let t = ((phi - Math.PI) % TAU + TAU) % TAU; if (phi - Math.PI >= TAU - 1e-9) t = TAU;
+      const f = t / TAU * n, i = Math.min(n - 1, Math.floor(f)), s = tab[i] + (tab[i + 1] - tab[i]) * (f - i);
+      return [(z - S.z0) / (S.z1 - S.z0), s / Pmax];
+    },
+    phiAt(v) {   // for the current column
+      const s = v * Pmax; if (s > cP) return null;
+      let a = 0, b = n; while (b - a > 1) { const m = (a + b) >> 1; if (tab[m] <= s) a = m; else b = m; }
+      const f = (s - tab[a]) / Math.max(1e-9, tab[b] - tab[a]); return (Math.PI + TAU * (a + f) / n) % TAU;
+    },
+  };
+  return A;
+}
+
 // grid mesh over a surface: zs (stations), phis (around), off = offset along the normal, keep(i, j) per quad,
 // uv(z, phi) -> [u, v] (default: z over the surface length, phi / TAU)
 export function gridGeo(S, zs, phis, { off = 0, keep = null, uv = null, flip = false } = {}) {

@@ -17,7 +17,7 @@ import { crewGeometry, crewMaterial } from './interiors/crewfig.js';
 import { FIG } from './units/infantry/meshkit.js';
 import {
   TAU, clamp, sstep, mix, bodySurface, gridGeo, steps, stations, contours, surfStrip, stripProfile, airfoilLoft, naca,
-  rbox, smoothGeo, lathe, V3, alignY, rod, tube, merge, mirrorX, triCount, vnoise, fbm, hash2, glyphs, sdBox, sdPoly, bake, sweep,
+  rbox, smoothGeo, lathe, V3, alignY, rod, tube, merge, mirrorX, triCount, vnoise, fbm, hash2, glyphs, sdBox, sdPoly, bake, sweep, arcSpace,
 } from './hueygeo.js';
 import { UH1_TRACE } from './uh1trace.js';
 import { sampler, pl, smooth01, stationList, stationKeys } from './stationtable.js';
@@ -39,7 +39,7 @@ const GEO = Object.freeze({
   GUN: CABIN.GUN,                  // M60D pintle at the aft end of the cargo doorway (hueycabin.js)
   // M158 seven-tube 2.75 in rocket launchers (fit option) on the side-mounted universal mounts at cabin-floor level,
   // below the doorway's forward part and ahead of the door gunner: pod 0.27 m across, 1.68 m long (photos + XM156 mount)
-  PODS: [[-1.62, -1.13, -0.55], [1.62, -1.13, -0.55]], POD_R: 0.135, POD_L: 1.68,
+  PODS: [[-1.8, -1.13, -0.55], [1.8, -1.13, -0.55]], POD_R: 0.135, POD_L: 1.68,   // outboard of the skid line: a Marine on the sill (legs to x 1.61) clears it
   SKID: { x: 1.30, z0: -2.62, z1: 1.08, cross: [-1.71, 0.60] },   // 8 ft 6.6 in track, cross tubes from the side view
   ELEV: { z: 5.42, y: -0.22, chord: 0.775, span: 2.85 },          // 2 ft 6.5 in chord, 9 ft 4.3 in span
 });
@@ -121,7 +121,7 @@ const OD = [80, 84, 52];          // FS 34087 olive drab, lusterless (sRGB)
 const SOOT = [34, 33, 30], OIL = [42, 37, 28], BARE = [104, 104, 96], STENCIL = [24, 24, 21];   // BARE: worn-through primer/metal, dulled
 const lerp3 = (o, c, t) => { o.r += (c[0] - o.r) * t; o.g += (c[1] - o.g) * t; o.b += (c[2] - o.b) * t; };
 const lineMask = (d, w) => 1 - sstep(w * 0.5, w, Math.abs(d));
-function buildTextures(S, D, xr) {
+function buildTextures(S, D, xr, A) {
   if (TEX) return TEX;
   const t0 = performance.now();
   const g = {
@@ -136,8 +136,10 @@ function buildTextures(S, D, xr) {
   const R = xr ? 1 : 1.5;   // 1536 x 768 skin, ~8 mm texels on the cabin (start-up cost ~2 s); XR: 1024 x 512
   // ---- fuselage skin
   const P = {}; let z = 0, prm = null;
+  // the skin texture is in arc-length space (hueygeo.arcSpace): one texel density from the nose to the boom
   const skin = bake(1024 * R, 512 * R, (u, v, o) => {
-    const phi = v * TAU, side = phi < Math.PI ? 1 : -1, c = Math.cos(phi);
+    const phi = A.phiAt(v); if (phi === null) { o.r = OD[0]; o.g = OD[1]; o.b = OD[2]; return; }   // past this section's perimeter: unused
+    const side = phi < Math.PI ? 1 : -1, c = Math.cos(phi);
     S.at(z, phi, P); const x = P.x, y = P.y, ax = Math.abs(x);
     // noise coordinates continuous across the top and keel
     const wTop = c * c, nA = mix(fbm(z * 1.3, y * 1.3 + side * 7), fbm(z * 1.3 + 3, x * 1.3), wTop), nB = mix(vnoise(z * 9, y * 9 + side * 11), vnoise(z * 9 + 5, x * 9), wTop);
@@ -212,7 +214,7 @@ function buildTextures(S, D, xr) {
       else { lerp3(o, [26, 28, 24], t); }
     }
     o.bump = bump; o.rough = clamp(rough, 0.3, 1.2) / 1.2;
-  }, u => { z = S.z0 + u * (S.z1 - S.z0); prm = S.params(z); });
+  }, u => { z = S.z0 + u * (S.z1 - S.z0); prm = S.params(z); A.column(z); });
   // ---- doghouse (transmission and engine cowling)
   const dog = bake(512 * R, 256 * R, (u, v, o) => {
     const phi = v * TAU, side = phi < Math.PI ? 1 : -1, c = Math.cos(phi);
@@ -305,7 +307,8 @@ function lodify(m, U) {
 export function buildHueyHiFi(HUEY, { xr = false } = {}) {
   const g = new THREE.Group(); g.name = 'huey';
   const S = bodySurface(FUS), Dg = bodySurface(DOG);
-  const T = buildTextures(S, Dg, xr);
+  const AS = arcSpace(S), skinUV = (z, p) => AS.uv(z, p), PHK = n => steps(Math.PI, Math.PI + TAU, n);   // keel-seamed rings for the textured skin
+  const T = buildTextures(S, Dg, xr, AS);
   const U = { n: { value: new THREE.Vector2(0, 2) }, m: { value: new THREE.Vector2(2, 2) }, f: { value: new THREE.Vector2(2, 2) }, mf: { value: new THREE.Vector2(2, 2) }, nm: { value: new THREE.Vector2(0, 2) } };
   const reg = { n: [], m: [], f: [], mf: [], nm: [] };
   const stats = { texMs: T.ms };
@@ -370,13 +373,14 @@ export function buildHueyHiFi(HUEY, { xr = false } = {}) {
   const zNear = stations([[-3.69, -3.4, 0.015], [-3.4, -2.2, 0.04], [-2.2, 0.7, 0.16], [0.7, 2.9, 0.08], [2.9, 7.7, 0.25], [7.7, 8.0, 0.04]], [ZSPLIT, D0 - 0.02, D0, D1, D1 + 0.02, 7.98, 7.995]);
   const phN = PH(72);
   const zN0 = zNear.filter(z => z <= ZSPLIT), zN1 = zNear.filter(z => z >= ZSPLIT);
-  mesh(gridGeo(S, zN0, phN), N.skin, noseG, 'noseSkin');
-  mesh(gridGeo(S, zN0, phN, { off: -0.03 }), noseLiningN, noseG, 'noseLining');
-  mesh(gridGeo(S, zN1, phN), N.skin, lod0, 'fuselage');
+  const phK = PHK(72);
+  mesh(gridGeo(S, zN0, phK, { uv: skinUV }), N.skin, noseG, 'noseSkin');
+  mesh(gridGeo(S, zN0, phK, { off: -0.03, uv: skinUV }), noseLiningN, noseG, 'noseLining');
+  mesh(gridGeo(S, zN1, phK, { uv: skinUV }), N.skin, lod0, 'fuselage');
   const zMid = stations([[-3.69, -3.4, 0.05], [-3.4, -2.2, 0.15], [-2.2, 0.7, 1.45], [0.7, 2.9, 0.3], [2.9, 7.7, 1.2], [7.7, 8.0, 0.1]]);
-  mesh(gridGeo(S, zMid, PH(40)), Mm.skin, lod1, 'fuselageMid', 'm');
+  mesh(gridGeo(S, zMid, PHK(40), { uv: skinUV }), Mm.skin, lod1, 'fuselageMid', 'm');
   const zFar = stations([[-3.69, -3.4, 0.14], [-3.4, -2.2, 0.4], [-2.2, 0.7, 2.9], [0.7, 2.9, 0.7], [2.9, 7.7, 4.8], [7.7, 8.0, 0.3]]);
-  mesh(gridGeo(S, zFar, PH(16)), Fm.skin, lod2, 'fuselageFar', 'f');
+  mesh(gridGeo(S, zFar, PHK(16), { uv: skinUV }), Fm.skin, lod2, 'fuselageFar', 'f');
   // glass (near): the same surface 6 mm inside, masked to the window shapes; green greenhouse over the pilots
   {
     const zg = stations([[-3.6, -1.15, 0.045]]), ph = PH(80), gg = gridGeo(S, zg, ph, { off: -0.006, uv: (z, p) => [(z + 3.7) / 2.7, p / TAU] });
