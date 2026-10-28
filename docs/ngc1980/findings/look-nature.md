@@ -44,8 +44,9 @@ Huey at 30 m and 200 m, and the jet at 1200 m.
   RGB is a grey leaf-to-leaf shade that multiplies the vertex colour, and A is the mask. Transparent texels carry mid grey
   so the mips don't darken the edges.
 - **Cards** (`Builder.card / cluster / cardCrown / fringe`): a crown is 10-12 clusters of three crossed cards (one
-  across the outward direction, two along it, turned at random) on an ellipsoid shell. They sit over a small dark
-  low-poly hull (46 % of the crown, 42 % for the pine), so the crown never reads hollow. Normals are bent to point away
+  across the outward direction, two along it, turned at random) on an ellipsoid shell, plus 2-3 darker inner clusters near the middle so the crown never reads hollow. A first version
+  used a smooth low-poly hull for that, and it showed as a dark (then a smooth green) ball among the textured cards in
+  the village and forest-edge views. The mid LOD and the scrub keep a small octahedron hull, a few pixels at their size. Normals are bent to point away
   from the crown's centre (sphere normals, bend 0.8), so a crown shades as one soft volume. AO is baked per vertex from
   the corner's place in the crown. The fir keeps a smaller, darker star skirt as its inner mass, fringed by 10 drooping
   branch-spray cards per tier (alternate heights, random roll) and a leader tuft. Maquis (and the clutter bushes, which
@@ -65,7 +66,7 @@ Huey at 30 m and 200 m, and the jet at 1200 m.
 - **Grass tufts**: 13 -> 10 blades, slightly wider. The 15 random draws of the dropped blades are burnt, so the clutter
   rocks built next from the same stream keep their exact shapes (rocks belong to look-terrain).
 
-Triangles per tree (detail / mid; before -> after): oak 228 / 88 -> 120 / 40; pine 220 / 96 -> 126 / 44; fir
+Triangles per tree (detail / mid; before -> after): oak 228 / 88 -> 118 / 40; pine 220 / 96 -> 118 / 44; fir
 152 / 38 -> 170 / 74; maquis and the clutter bush 80 / 40 -> 50 / 20; grass tuft 39 -> 30.
 
 ## 2026-10-28 - Village, garden and hedgerow trees on the species
@@ -98,3 +99,35 @@ double-sided throughout, cost 261 ms. Whole-frame sync draw times between separa
 machine (the jet view, whose geometry is unchanged, measured 434 and 537 ms), so they're logged per view by
 `looknature.mjs` but not compared. A close crown filling the screen costs more fill than a blob (3-4 card layers);
 that is the honest trade, and the real-GPU A/B is still open.
+
+## 2026-10-28 - Forest refill spread over frames (perf-cpu request)
+**Finding**: the perf-cpu agent's profile found `createForest rebuild` (the one-shot refill) spiking frames by up to
+19.7 ms. It scanned every tree of every source in reach, then wrote the instance buffers, all in one frame. The view
+cone makes refills more frequent (a 0.16 rad turn triggers one), so this mattered more.
+**Action**: the refill is a job (`startJob / stepJob / commitJob`). The scan (distance + cone per tree, then the zone's
+far set) runs under `REBUILD_MS` = 2 ms a frame into staging lists of (source, index). The buffers are written in one
+commit when the scan ends, so a set is never half-built, and the previous set stays on screen until then (the result is
+identical to the one-shot rebuild). A new job starts only after the current one commits; sources added or felled
+meanwhile set `dirty` for the next one. `stats.forest.frames` tells how many frames a job took. The clutter's cell
+generation budget went from 6 to 4 ms a frame for the same reason (cells fill a frame or two later after a teleport;
+the end result is the same).
+**Evidence**: `_probe_spike` (local, not committed: eye walking and turning 0.6 rad every 0.7 s through the mainland
+forest at (2600, 900), 16.8 k trees in sources, machine load ~70 on 32 cores). The forest update peaked at 4.3 ms, p95
+1.1 ms, median 0. Clutter peaked at 7.6 ms with the 6 ms budget (measured before the cut to 4 ms).
+
+## 2026-10-28 - foot.mjs and machine load (OPEN)
+**Finding**: foot.mjs passed 12/12 after the view cone (8148fcc, load moderate). On the card build under load 45-110
+on 32 cores (other agents' headless runs), it failed 11/17. The steps that failed included the carrier turn at sea (a
+60 s wait) and the boot, which have nothing to do with the trees.
+**Evidence**: an in-page A/B at the stern ladder (`_probe_stern2`: forest shown / hidden, interleaved twice, 10 s each)
+gave 1.0 / 0.9 fps with the forest shown and 0.9 / 0.8 hidden (card build), and 1.2 / 1.0 shown, 1.1 / 1.1 hidden
+(old trees). The forest makes no measurable difference to that frame, and the frame rate is set by the load.
+**Cause**: the main loop clamps dt to 0.1 s, so below 10 fps game time runs slower than real time. foot.mjs's
+fixed real-time waits (40 s for an 8.5 game-second climb) need ~2.3 fps at res 0.45. Without nature, at moderate
+load, it already used 35 of the 40 s.
+**Controls under the same load (~70-85)**: `?rk=0` PASS 12/12. Every RenderKit area except nature FAIL 11/15 (the
+carrier turn, both ladders, the deck height). The full build (with nature) FAIL 10/17 (the same, plus the walk to the
+home pad and the final take-off). Under load the RenderKit build as a whole is too slow for foot's real-time waits.
+Nature adds the HQ-area steps, where its draw cost is highest.
+**Action**: nothing more in the game (nature's draw at the HQ is below the depth-nature build's: 1378 -> 566 kt). The suite needs a quiet machine,
+or game-time waits in the harness (a test-tool change, not made here: the brief said not to weaken the test).

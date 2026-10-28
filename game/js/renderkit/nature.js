@@ -142,11 +142,18 @@ class Builder {   // non-indexed triangles: position, normal, color (linear, AO 
     }
   }
   // ngc/look-nature: a broadleaf / pine crown as n leaf clusters (crossed cards, tile) on an ellipsoid shell round C (radii
-  // A) over a dark low-poly hull that keeps the crown from reading hollow; cluster size szK * A.x. top: 0..1 how far the
-  // clusters keep to the upper shell (the pine's umbrella). Normals point away from C: the crown shades as one volume.
-  cardCrown(C, A, n, szK, P, r, tile, { top = 0, hullOct = false, per = 3, hull = 0.46 } = {}) {
+  // A); cluster size szK * A.x. top: 0..1 how far the clusters keep to the upper shell (the pine's umbrella). What keeps
+  // the crown from reading hollow: `inner` darker clusters near the middle (detail: a smooth hull showed as a ball among
+  // the textured cards) or a low-poly hull (`hull` > 0: the mid LOD and the scrub, where it is a few pixels). Normals
+  // point away from C: the crown shades as one volume.
+  cardCrown(C, A, n, szK, P, r, tile, { top = 0, hullOct = false, per = 3, hull = 0.46, inner = 0 } = {}) {
     const ga = Math.PI * (3 - Math.sqrt(5)), ax = Math.max(A[0], A[2]);
-    this.clump(C, A[0] * hull, A[1] * hull * 0.92, A[2] * hull, mulc(P.leaf, 0.78), r, C, ax, hullOct);
+    if (hull > 0) this.clump(C, A[0] * hull, A[1] * hull * 0.92, A[2] * hull, mulc(P.leaf, 1.45), r, C, ax, hullOct);   // (clump shading takes the core to ~0.3)
+    for (let j = 0; j < inner; j++) {
+      const th = j / inner * Math.PI * 2 + r(), y = (r() - 0.5) * 0.6, d = 0.28 + r() * 0.15, dir = norm3([Math.cos(th), y, Math.sin(th)]);
+      const o = [C[0] + dir[0] * A[0] * d, C[1] + dir[1] * A[1] * d, C[2] + dir[2] * A[2] * d], col = mulc(P.leaf, 0.7);
+      this.cluster(o, dir, ax * szK * 0.95, tile, () => mulc(col, 0.85 + r() * 0.3), C, r, 3);
+    }
     for (let i = 0; i < n; i++) {
       const y = 1 - (i + 0.5) / n * (1.6 - top * 0.75), rad = Math.sqrt(Math.max(0, 1 - y * y)), th = i * ga + r() * 0.7, d = 0.72 + r() * 0.2;
       const dir = [Math.cos(th) * rad, y, Math.sin(th) * rad], o = [C[0] + dir[0] * A[0] * d, C[1] + dir[1] * A[1] * d, C[2] + dir[2] * A[2] * d];
@@ -217,11 +224,11 @@ function treeGeo(kind, level) {
     B.trunk([0, -0.4, 0], [0.12, 2.2, 0], 0.17, 0.12, detail ? 6 : 4, P.trunk);
     B.trunk([0.12, 2.2, 0], top, 0.12, 0.06, detail ? 6 : 4, P.trunk);
     if (detail) { B.trunk([0.15, 3.0, 0], [-0.75, 3.95, 0.5], 0.07, 0.03, 4, P.trunk); B.trunk([0.18, 3.2, 0], [0.95, 4.05, -0.5], 0.07, 0.03, 4, P.trunk); B.trunk([0.2, 3.6, 0.05], [0.1, 4.3, 0.95], 0.05, 0.03, 3, P.trunk); }
-    B.cardCrown([0.18, 4.6, 0.04], [1.55, 1.0, 1.45], detail ? 10 : 5, detail ? 0.56 : 0.76, P, r, 1, { top: 0.55, hullOct: !detail, hull: 0.42, per: detail ? 3 : 2 });
+    B.cardCrown([0.18, 4.6, 0.04], [1.55, 1.0, 1.45], detail ? 10 : 5, detail ? 0.56 : 0.76, P, r, 1, { top: 0.55, hullOct: !detail, hull: detail ? 0 : 0.3, inner: detail ? 2 : 0, per: detail ? 3 : 2 });
   } else if (kind === BROAD) {   // oak: short trunk, two limbs, a domed crown of leafy clusters
     B.trunk([0, -0.4, 0], [0, 1.9, 0], 0.22, 0.16, detail ? 6 : 4, P.trunk);
     if (detail) { B.trunk([0, 1.7, 0], [-0.7, 3.0, 0.35], 0.1, 0.05, 4, P.trunk); B.trunk([0, 1.7, 0], [0.7, 3.1, -0.3], 0.1, 0.05, 4, P.trunk); }
-    B.cardCrown([0, 3.4, 0], [2.05, 1.7, 1.95], detail ? 12 : 6, detail ? 0.55 : 0.76, P, r, 0, { hullOct: !detail, per: detail ? 3 : 2 });
+    B.cardCrown([0, 3.4, 0], [2.05, 1.7, 1.95], detail ? 12 : 6, detail ? 0.55 : 0.76, P, r, 0, { hullOct: !detail, hull: detail ? 0 : 0.46, inner: detail ? 3 : 0, per: detail ? 3 : 2 });
   } else {   // maquis scrub (lentisk, myrtle, broom): a low cushion of leafy clusters, no trunk to speak of. Unit: ~1.2 m tall.
     B.cardCrown([0, 0.42, 0], [0.95, 0.55, 0.9], detail ? 7 : 3, detail ? 0.55 : 0.8, P, r, 0, { top: 0.35, hullOct: true, per: detail ? 3 : 2 });
   }
@@ -507,7 +514,7 @@ export function createForest({ scene, fog = null, uTime = null, shared }) {
   }
   const sources = new Map();
   let dirty = true, farDirty = true, lastReach = 0; const last = new THREE.Vector3(1e9, 0, 0), lastDir = {};
-  const stats = { trees: 0, detail: 0, mid: 0, far: 0, ms: 0, rebuilds: 0, tris: 0 };
+  const stats = { trees: 0, detail: 0, mid: 0, far: 0, ms: 0, frames: 0, rebuilds: 0, tris: 0 };
   // trees: Float32Array x y z s per tree (+ optional kinds Uint8Array, seeds), far: draw past the near radius too (zone)
   function add(id, d, kinds, { far = false } = {}) {
     const n = kinds.length, D = new Float32Array(n * 8), C = new Float32Array(n * 3);
@@ -533,39 +540,56 @@ export function createForest({ scene, fog = null, uTime = null, shared }) {
     const s = sources.get(id); if (!s) return; const l = Math.hypot(dx, dz) || 1;
     s.d[i * 8 + 5] = dz / l * 1.35; s.d[i * 8 + 6] = -dx / l * 1.35; dirty = true; if (s.far) farDirty = true;
   }
-  function rebuild(cx, cy, cz, reach, C) {
-    const t0 = performance.now(), T = shared.tier, dOut = T.detailR + T.band + 12, mOut = Math.min(LOD.near + LOD.blend, reach) + 12, mIn = T.detailR - T.band - 12;
-    const M = T.liteMid ? sets.lite : sets.mid;   // the mid trees: icosahedron clumps, or octahedra on the low tier
-    for (const k of K) { sets.detail[k].begin(); sets.mid[k].begin(); sets.lite[k].begin(); }
-    let nd = 0, nm = 0;
-    for (const s of sources.values()) {
-      const bx = Math.max(s.x0 - cx, 0, cx - s.x1), bz = Math.max(s.z0 - cz, 0, cz - s.z1);
-      if (bx * bx + bz * bz > mOut * mOut) continue;
-      const D = s.d;
-      for (let i = 0; i < s.n; i++) {
-        const dx = D[i * 8] - cx, dy = D[i * 8 + 1] - cy, dz = D[i * 8 + 2] - cz, dd = dx * dx + dy * dy + dz * dz;
-        if (dd > mOut * mOut) continue;
-        const sc = D[i * 8 + 3]; if (!inCone(C, D[i * 8], D[i * 8 + 1] + 2.5 * sc, D[i * 8 + 2], 7 * sc + 3)) continue;   // (the crown and its shadow)
-        const k = s.k[i];
-        if (dd < dOut * dOut) { sets.detail[k].push(s, i); nd++; }
-        if (dd > mIn * mIn || mIn < 0) { M[k].push(s, i); nm++; }
+  // ngc/look-nature: the refill is a job spread over frames (perf-cpu profile: the one-shot rebuild spiked a frame by up to
+  // ~20 ms in the wild forests). The scan (distance + view cone per tree) runs under REBUILD_MS a frame into staging lists
+  // and the instance buffers are written in one commit at the end, so a set is never half-built (the old set stays on screen
+  // until then). Cone margin and the 6 m / CONE_TURN triggers leave room for the few frames a job takes.
+  const REBUILD_MS = 2;
+  let job = null;
+  function startJob(cx, cy, cz, reach, C) {
+    const T = shared.tier;
+    job = { cx, cy, cz, C, t0: performance.now(), work: 0, frames: 0, srcs: [...sources.values()], si: 0, i: 0, phase: 0,
+      dOut: T.detailR + T.band + 12, mOut: Math.min(LOD.near + LOD.blend, reach) + 12, mIn: T.detailR - T.band - 12, fIn: Math.max(0, LOD.near - LOD.blend - 12),
+      M: T.liteMid ? 'lite' : 'mid', pick: { detail: K.map(() => []), mid: K.map(() => []), far: K.map(() => []) } };   // pick[level][kind] = [source, index, ...]
+  }
+  function stepJob(budget) {   // true when the scan is done
+    const J = job, tEnd = performance.now() + budget, { cx, cy, cz, C, dOut, mOut, mIn, fIn } = J;
+    let n = 0;
+    while (J.phase < 2) {
+      if (J.si >= J.srcs.length) { J.phase++; J.si = 0; J.i = 0; continue; }
+      const s = J.srcs[J.si], D = s.d;
+      if (J.i === 0) {   // whole sources out of reach (the mid / detail pass) or not the zone's (the far pass) are skipped at once
+        const bx = Math.max(s.x0 - cx, 0, cx - s.x1), bz = Math.max(s.z0 - cz, 0, cz - s.z1);
+        if (J.phase === 0 ? bx * bx + bz * bz > mOut * mOut : !s.far) { J.si++; continue; }
       }
-    }
-    let tris = 0;
-    for (const k of K) { sets.detail[k].end(); sets.mid[k].end(); sets.lite[k].end(); tris += sets.detail[k].n * sets.detail[k].tris + M[k].n * M[k].tris; }
-    {   // the zone's far set: only past the near band (inside it the far material discards every pixel) and in the cone
-      farDirty = false; const fIn = Math.max(0, LOD.near - LOD.blend - 12);
-      for (const k of K) sets.far[k].begin();
-      for (const s of sources.values()) if (s.far) for (let i = 0; i < s.n; i++) {
-        if (s.k[i] === SCRUB) continue;
-        const D = s.d, dx = D[i * 8] - cx, dy = D[i * 8 + 1] - cy, dz = D[i * 8 + 2] - cz, sc = D[i * 8 + 3];
-        if (dx * dx + dy * dy + dz * dz < fIn * fIn || !inCone(C, D[i * 8], D[i * 8 + 1] + 2.5 * sc, D[i * 8 + 2], 4 * sc + 2)) continue;
-        sets.far[s.k[i]].push(s, i);
+      for (; J.i < s.n; J.i++) {
+        if ((++n & 255) === 0 && performance.now() > tEnd) return false;
+        const i = J.i, dx = D[i * 8] - cx, dy = D[i * 8 + 1] - cy, dz = D[i * 8 + 2] - cz, dd = dx * dx + dy * dy + dz * dz, sc = D[i * 8 + 3], k = s.k[i];
+        if (J.phase === 0) {
+          if (dd > mOut * mOut || !inCone(C, D[i * 8], D[i * 8 + 1] + 2.5 * sc, D[i * 8 + 2], 7 * sc + 3)) continue;   // (the crown and its shadow)
+          if (dd < dOut * dOut) J.pick.detail[k].push(s, i);
+          if (dd > mIn * mIn || mIn < 0) J.pick.mid[k].push(s, i);
+        } else {   // the zone's far set: only past the near band (inside it the far material discards every pixel) and in the cone
+          if (k === SCRUB || dd < fIn * fIn || !inCone(C, D[i * 8], D[i * 8 + 1] + 2.5 * sc, D[i * 8 + 2], 4 * sc + 2)) continue;
+          J.pick.far[k].push(s, i);
+        }
       }
-      for (const k of K) sets.far[k].end();
+      J.si++; J.i = 0;
     }
-    for (const k of K) tris += sets.far[k].n * sets.far[k].tris;
-    Object.assign(stats, { detail: nd, mid: nm, far: K.reduce((a, k) => a + sets.far[k].n, 0), ms: +(performance.now() - t0).toFixed(2), tris, trees: [...sources.values()].reduce((a, s) => a + s.n, 0) });
+    return true;
+  }
+  function commitJob() {
+    const J = job, t0 = performance.now(), M = sets[J.M]; job = null; farDirty = false;
+    let tris = 0, nd = 0, nm = 0;
+    for (const k of K) {
+      for (const [lvl, set] of [['detail', sets.detail[k]], ['mid', M[k]], ['far', sets.far[k]]]) {
+        const L = J.pick[lvl][k]; set.begin(); for (let j = 0; j < L.length; j += 2) set.push(L[j], L[j + 1]); set.end(); tris += set.n * set.tris;
+      }
+      for (const lv of ['mid', 'lite']) if (lv !== J.M) { sets[lv][k].begin(); sets[lv][k].end(); }
+      nd += sets.detail[k].n; nm += M[k].n;
+    }
+    J.work += performance.now() - t0;
+    Object.assign(stats, { detail: nd, mid: nm, far: K.reduce((a, k) => a + sets.far[k].n, 0), ms: +J.work.toFixed(2), frames: J.frames, tris, trees: J.srcs.reduce((a, s) => a + s.n, 0) });
     stats.rebuilds++;
   }
   function update(cam) {
@@ -573,7 +597,8 @@ export function createForest({ scene, fog = null, uTime = null, shared }) {
     // the mid set reaches the world near radius or the far clip, whichever is nearer (on foot the haze ends at ~265 m);
     // the zone's far set exists only for views that reach past the near band (the jet)
     const reach = cam.far || 1e4, farOn = reach > LOD.near - LOD.blend;
-    if (dirty || p.distanceToSquared(last) > 36 || Math.abs(reach - lastReach) > 40 || coneMoved(cam, lastDir)) { dirty = false; last.copy(p); lastReach = reach; coneMark(cam, lastDir); rebuild(p.x, p.y, p.z, reach, viewCone(cam)); }
+    if (!job && (dirty || p.distanceToSquared(last) > 36 || Math.abs(reach - lastReach) > 40 || coneMoved(cam, lastDir))) { dirty = false; last.copy(p); lastReach = reach; coneMark(cam, lastDir); startJob(p.x, p.y, p.z, reach, viewCone(cam)); }
+    if (job) { const t = performance.now(); job.frames++; const done = stepJob(REBUILD_MS); job.work += performance.now() - t; if (done) commitJob(); }
     for (const k of K) sets.far[k].mesh.visible = farOn && sets.far[k].n > 0;
     stats.farOn = farOn;
   }
@@ -663,7 +688,7 @@ export function createClutter({ scene, fog = null, uTime = null, shared, sample 
       const i = ci + di, j = cj + dj, x = (i + 0.5) * CELL - p.x, z = (j + 0.5) * CELL - p.z;
       if (x * x + z * z > (reach + CELL) * (reach + CELL)) continue;
       let c = cells.get(key(i, j));
-      if (!c) { if (genBudget > 6) { complete = false; continue; } const g0 = performance.now(); c = gen(i, j); cells.set(key(i, j), c); genBudget += performance.now() - g0; }
+      if (!c) { if (genBudget > 4) { complete = false; continue; } const g0 = performance.now(); c = gen(i, j); cells.set(key(i, j), c); genBudget += performance.now() - g0; }   // (generation budget 6 -> 4 ms a frame: ngc/look-nature, frame spikes)
       c.used = true;   // (cells out of the cone are generated too, nearest first, so a turn finds them ready)
       if (!inCone(C, (i + 0.5) * CELL, c.y, (j + 0.5) * CELL, CELL * 0.71 + 2.5 + c.dy)) continue;
       for (const t of types) { const a = c[t], d = dens[t]; for (let o = 0; o < a.length; o += 11) if (fract(a[o + 7] * 7.31) < d) pushRaw(sets[t], a, o); }

@@ -1,5 +1,21 @@
 # MODLOG — NGC-1980 (formerly Thrust/Zarch)
 
+## 2026-10-28 — look-nature: leaf-card trees, village trees on the species, foot.mjs with nature on
+
+Tree crowns were clusters of faceted icosahedra. On `ngc/look-nature` they are clustered leaf cards over a small dark
+hull, using a generated leaf atlas (broadleaf, pine tufts, fir sprays), with alpha-to-coverage edges, sphere normals,
+translucency toward the sun and leafy shadows. The fir is star skirts fringed with drooping branch sprays. Village,
+garden and hedgerow trees, which were the old trunk-and-blob merged into the world mesh, are now instances of the same
+species. Grass tufts have 10 blades, not 13.
+
+The nature sets were drawn without frustum culling and refilled with the whole ring round the eye. They now refill
+within the view cone, and the forest refill is spread over frames (2 ms a frame, one commit). At the home island HQ
+this takes rendered triangles from 1378 k to 566 k. foot.mjs failed 3/14 with nature on because the extra draw
+stretched its game-time waits; it passed 12/12 after the cone. Under heavy machine load from other agents it can still
+time out (see [findings](docs/ngc1980/findings/look-nature.md)). Before/after side-by-sides for the HQ, single trees,
+the forest edge, a village, the Huey at 30 / 200 m and the jet at 1200 m are in
+`docs/ngc1980/evidence/look-nature/` (`tools/scenes/looknature.mjs`).
+
 ## 2026-10-26 — Continuum reusable shader and UI library
 
 Added an opt-in Three r170/WebGL2 library on `ngc/shader-library`: physical surface presets and
