@@ -39,7 +39,7 @@ export function createNavalFx(scene, fx, seaY = null) {
     g.setIndex(idx);
     const mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: foam(), vertexColors: true, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }));
     mesh.frustumCulled = false; mesh.renderOrder = 2; scene.add(mesh);
-    T = { mesh, g, pos, col, uv, hist: [], t: 0, smokeT: 0, sprayT: 0, u };
+    T = { mesh, g, pos, col, uv, hist: [], t: 0, smokeT: 0, sprayT: 0, u, clock: 0, skip: 0 };
     ships.set(u, T); return T;
   }
   // world point of a ship-frame point (heading and heave; the small pitch / roll don't matter for effects)
@@ -58,6 +58,11 @@ export function createNavalFx(scene, fx, seaY = null) {
       if (T.t >= STEP || !T.hist.length) { T.t = 0; T.hist.unshift({ bx: bw.x, bz: bw.z, sx: sw.x, sz: sw.z, yaw: u.yaw, v: u.speed, age: 0 }); if (T.hist.length > N) T.hist.pop(); }
       else { const h0 = T.hist[0]; h0.bx = bw.x; h0.bz = bw.z; h0.sx = sw.x; h0.sz = sw.z; h0.yaw = u.yaw; h0.v = u.speed; h0.age = 0; }
       for (let i = 1; i < T.hist.length; i++) T.hist[i].age += dt;
+      // (ngc/perf-cpu) a ship over 900 m from the camera rebuilds its wake strips every 4th frame only (each vertex
+      // reads the live sea height: ~400 sea samples a ship a frame); the history above runs every frame. (Its spray
+      // and smoke below are for ships within 650 m only.)
+      if (hypot2(u.p.x - ear.x, u.p.z - ear.z) > 900 && (T.skip = (T.skip || 0) + 1) < 4) return;
+      T.skip = 0;
       // build the strips: path length along the bow track for the Kelvin arms' spread
       const H = T.hist, n = H.length, pos = T.pos, col = T.col, uv = T.uv, life = N * STEP;
       const set = (strip, i, j, x, z, a, u0, v0) => { const o = ((strip * N + i) * 2 + j); pos[o * 3] = x; pos[o * 3 + 1] = (seaY ? seaY(x, z) : 0) + 0.07 + strip * 0.004; pos[o * 3 + 2] = z; col[o * 4] = col[o * 4 + 1] = col[o * 4 + 2] = 1; col[o * 4 + 3] = a; uv[o * 2] = u0; uv[o * 2 + 1] = v0; };

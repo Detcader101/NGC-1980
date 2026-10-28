@@ -87,7 +87,7 @@ export function createWheeledCraft(ctx, type, o = {}) {
   const V = {
     id, type, label: T.label, kind: 'ground', sim: S, spec, driver: D, dmg, T,
     seats: craftSeats(type, spec), seat: 0, exists: false, view: 'first', head: { yaw: 0, pitch: 0 }, orbit: { yaw: 0, pitch: 0.2 },
-    acc: 0, asleep: false, sleepT: 0, traffic: null, owner: o.owner || (T.civ ? 'civ' : 'mil'), colour, variant,
+    acc: 0, asleep: false, sleepT: 0, _rest: null, _cabPosed: false, traffic: null, owner: o.owner || (T.civ ? 'civ' : 'mil'), colour, variant,
     model: null, interior: null, far: null, gun: T.gun ? createMountedGun(T.gun.spec) : null, aim: { yaw: 0, pitch: 0 },
     crank: 0, deckV: [0, 0, 0], P: { x: 0, y: 0, z: 0, yaw: 0, plat: null, loc: null, carried: null },
     near: false, boxes: null, circles: null, onBridge: null, bridgeRoad: null, deckLevel: undefined, troops: 0, wrecked: false, lod: 'near',
@@ -517,7 +517,10 @@ export function createWheeledCraft(ctx, type, o = {}) {
       }
       const inside = me && fp && V.view === 'first';
       if (V.interior) {
-        V.interior.update(lastLook, dt, inside && (isDriver() || dist < 3));
+        // (ngc/perf-cpu) a parked, sleeping vehicle's cab does not move: posed once when it falls asleep, then left
+        const still = V.asleep && !me;
+        if (!still || !V._cabPosed) V.interior.update(lastLook, dt, inside && (isDriver() || dist < 3));
+        V._cabPosed = still;
         // hands on the wheel only with a driver: you in the driver's seat (first person), the civilian driving traffic, an AI
         const drv = (me && isDriver() && inside) || !!V.traffic || !!V.auto;
         if (V._drv !== drv) { V._drv = drv; V.interior.setDriver?.(drv, V.traffic ? { glove: 0xc89a78, sleeve: 0x7a4a3a } : T.mil ? { glove: 0x3a3626, sleeve: 0x4a5232 } : { glove: 0xc89a78, sleeve: 0x3a4a6a }); }

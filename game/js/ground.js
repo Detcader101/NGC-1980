@@ -264,12 +264,7 @@ export function createGround(ctx) {
     for (const u of war.units) {
       if (!u.dims || Math.abs(o.x - u.p.x) > 70 || Math.abs(o.z - u.p.z) > 70) continue;
       const D = u.dims;
-      if (u.type === 'carrier' && u.interior) {
-        // (ngc/perf-cpu) the hollow's boxes once per war tick, not per collision substep: interiors builds a fresh array
-        // per door per call (0.7 MB a frame); the doors only move in interiors.update, once a frame after the sims
-        if (u._ibT !== war.time || !u._ibB) { u._ibB = u.interior.boxes(); u._ibT = war.time; }
-        n += shipBoxes(o, u, u._ibB, 0, 0, 0);   // ngc/interiors: the island hollow (rooms, doors), the hangar's walls
-      }   // ngc/interiors: the island hollow (rooms, doors), the hangar's walls
+      if (u.type === 'carrier' && u.interior) n += shipBoxes(o, u, u.interior.boxes(), 0, 0, 0);   // ngc/interiors: the island hollow (rooms, doors), the hangar's walls   // ngc/interiors: the island hollow (rooms, doors), the hangar's walls
       else if (u.type === 'carrier') n += shipBoxes(o, u, u.parts.islandBoxes || (isAlb(u) ? ALB_BOXES : KRK_BOXES), D.TOWER_X, D.TOWER_Z, D.DECK);
       else if (u.type === 'battleship') n += shipBoxes(o, u, BS_BOXES, 0, 4, D.DECK);
       else if (u.type === 'freighter') n += shipBoxes(o, u, FR_BOXES, 0, D.L / 2 - 6, D.DECK);
