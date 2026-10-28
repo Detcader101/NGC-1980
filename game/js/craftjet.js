@@ -21,7 +21,7 @@ export function createJetCraft(ctx) {
   // ---------------------------------------------------------------- presence and frames
   D.present = () => JP.active && JP.alive && !JP.ejected;
   D.frame = out => { out.x = J.pos.x; out.y = J.pos.y; out.z = J.pos.z; out.yaw = yawOf(); return out; };
-  D.bounds = () => D.present() && J.onGround ? (D._b ||= {}, Object.assign(D._b, (() => { const y = yawOf(), c = Math.cos(y), s = Math.sin(y), ox = 1.2; return { x: J.pos.x + ox * s, z: J.pos.z + ox * c, yaw: y, hl: 8.2, hw: 1.5, y0: J.pos.y - 1.7, y1: J.pos.y + 3, def: D }; })())) : null;
+  D.bounds = () => { if (!(D.present() && J.onGround)) return null; const y = yawOf(), c = Math.cos(y), s = Math.sin(y), ox = 1.2, b = D._b ||= {}; b.x = J.pos.x + ox * s; b.z = J.pos.z + ox * c; b.yaw = y; b.hl = 8.2; b.hw = 1.5; b.y0 = J.pos.y - 1.7; b.y1 = J.pos.y + 3; b.def = D; return b; };   // (ngc/perf-cpu: no literal or closure per collision query)
   // ---------------------------------------------------------------- taking a jet (5 on the ALBATROSS deck, in the helicopter)
   // COMMANDER (o.command): the commander takes a Hornet out from any unit - the reserve was already counted by the
   // caller (units/commander/); the Huey, if it sits on the deck, goes down to the hangar; the unit you leave carries on

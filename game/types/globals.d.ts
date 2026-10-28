@@ -13,6 +13,8 @@ declare global {
     __xrlog?: (msg: string) => void;
     /** ?xrbench: the VR benchmark state (xr/bench.js). */
     __xrbench?: any;
+    /** ?perfhud: the CPU-per-system overlay state (perfhud.js; ngc/perf-cpu). */
+    __perf?: any;
     /** RenderKit atmosphere / world sky / nature (main.js, for tests). */
     __rkSky?: any;
     __rkWorld?: any;

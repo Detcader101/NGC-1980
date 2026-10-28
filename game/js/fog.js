@@ -3,6 +3,7 @@
 // seen. Both go to the GPU as one small texture: the terrain, trees and buildings darken where you have never been
 // and dim where you are not looking now, and enemy units only show inside your sight.
 import * as THREE from 'three';
+import { hypot2 } from './hypot.js';   // (ngc/perf-cpu) Math.hypot without the garbage, same bits
 
 export function createFog(bound, N = 112) {
   const vis = new Float32Array(N * N), exp = new Float32Array(N * N), data = new Uint8Array(N * N * 4);
@@ -19,7 +20,7 @@ export function createFog(bound, N = 112) {
       for (const s of sources) {
         const [ci, cj] = ij(s.x, s.z), rc = Math.ceil(s.r / cell) + 1, soft = cell * 2.2;
         for (let j = Math.max(0, cj - rc); j <= Math.min(N - 1, cj + rc); j++) for (let i = Math.max(0, ci - rc); i <= Math.min(N - 1, ci + rc); i++) {
-          const x = -bound + (i + 0.5) * cell, z = -bound + (j + 0.5) * cell, d = Math.hypot(x - s.x, z - s.z);
+          const x = -bound + (i + 0.5) * cell, z = -bound + (j + 0.5) * cell, d = hypot2(x - s.x, z - s.z);
           const v = Math.min(1, Math.max(0, (s.r - d) / soft)); const k = j * N + i; if (v > vis[k]) vis[k] = v;
         }
       }

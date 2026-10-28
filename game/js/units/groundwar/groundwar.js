@@ -20,11 +20,12 @@ import { FIGURES } from '../air/rotary/figures.js';
 import { createCasevac } from './casevac.js';   // ngc/infdepth
 import { careHands, throwHands } from '../infantry/carepose.js';   // ngc/infdepth-fix
 import { m67Geometry, grenadeMaterial } from '../infantry/grenademodel.js';   // ngc/marine-polish: the AI's M67s drawn in flight
+import { hypot2, hypot3 } from '../../hypot.js';   // (ngc/perf-cpu) Math.hypot without the garbage, same bits
 
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 // the rotary module's squads (the CH-46 cabin and ramp) show INFANTRY's Marine from now on (FIGURES contract)
-FIGURES.marine = o => buildMarineFigure({ ...o, detail: 'full' });
+FIGURES.marine = o => buildMarineFigure({ detail: 'full', ...o });   // (ngc/perf-cpu: a caller may ask for 'lite': the war's CH-46 sticks, see squad.js)
 export const GW_T = {
   HOVER_AT: 240, HOVER_COST: 32, HOVER_GAP: 70,     // s from the start / materiel / s between launches
   MBT_AT: 540, MBT_COST: 55, MBT_GAP: 150,
@@ -52,14 +53,14 @@ export function createGroundWar(ctx) {
     const I = B.I, out = [];
     if (side === 2) {
       const P = pl();
-      if (P.alive && !P.inCave && Math.hypot(P.pos.x - I.x, P.pos.z - I.z) < I.r + 260 && !(P.landed && terrainH(P.pos.x, P.pos.z) < 0)) {   // (not the player sitting on a ship's deck out at sea)
+      if (P.alive && !P.inCave && hypot2(P.pos.x - I.x, P.pos.z - I.z) < I.r + 260 && !(P.landed && terrainH(P.pos.x, P.pos.z) < 0)) {   // (not the player sitting on a ship's deck out at sea)
         const k = plKind(P), gy = Math.max(terrainH(P.pos.x, P.pos.z), 0), agl = P.pos.y - gy;
         if (k !== 'air' || agl < 110) out.push({ id: 'player', side: 1, kind: k === 'air' && agl < 4 && P.landed ? 'vehicle' : k, x: P.pos.x, y: k === 'air' ? P.pos.y - 1.5 : gy, z: P.pos.z, vx: P.vel.x, vz: P.vel.z, h: k === 'inf' ? 1.7 : 3, alive: true, firing: GW.playerFiredT, cover: k === 'inf' ? 1 - (P.detect ?? 1) : 0 });
       }
       for (const s of I.structs) if (s.kind === 'aa' && s.side === 1) out.push({ id: idOf(s), side: 1, kind: 'vehicle', x: s.x, y: s.y, z: s.z, h: 3, alive: !s.dead && !s.building, firing: 99, cover: 0, ref: s });
       for (const u of W.units) {
         if (u.side !== 1 || u.ground || u.dims || !u.p || u.dead || u.dying) continue;
-        if (Math.hypot(u.p.x - I.x, u.p.z - I.z) > I.r + 220) continue;
+        if (hypot2(u.p.x - I.x, u.p.z - I.z) > I.r + 220) continue;
         const agl = u.p.y - Math.max(terrainH(u.p.x, u.p.z), 0); if (agl > 120) continue;
         out.push({ id: idOf(u), side: 1, kind: agl < 5 ? 'vehicle' : 'air', x: u.p.x, y: agl < 5 ? u.p.y - agl : u.p.y - 1.5, z: u.p.z, vx: u.v.x, vz: u.v.z, h: 4, alive: true, firing: 99, cover: 0, ref: u });
       }
@@ -69,7 +70,7 @@ export function createGroundWar(ctx) {
     return out;
   }
   // a RUNAWAY round's path against the outside world: the player, our AA sites, our aircraft low over the island
-  function segPoint(ax, ay, az, bx, by, bz, px, py, pz) { const sx = bx - ax, sy = by - ay, sz = bz - az, L2 = sx * sx + sy * sy + sz * sz || 1e-9; const k = clamp(((px - ax) * sx + (py - ay) * sy + (pz - az) * sz) / L2, 0, 1); return [k, Math.hypot(ax + sx * k - px, ay + sy * k - py, az + sz * k - pz)]; }
+  function segPoint(ax, ay, az, bx, by, bz, px, py, pz) { const sx = bx - ax, sy = by - ay, sz = bz - az, L2 = sx * sx + sy * sy + sz * sz || 1e-9; const k = clamp(((px - ax) * sx + (py - ay) * sy + (pz - az) * sz) / L2, 0, 1); return [k, hypot3(ax + sx * k - px, ay + sy * k - py, az + sz * k - pz)]; }
   function extSeg(p, ax, ay, az, bx, by, bz) {
     let best = null;
     const H = RW_HURT[p.ammo] || RW_HURT.xm7;
@@ -136,7 +137,7 @@ export function createGroundWar(ctx) {
   function renderUnits(dt) {
     const cx = ear.x, cy = ear.y, cz = ear.z;
     for (const u of GS.units) {
-      const d = Math.hypot(u.x - cx, u.y - cy, u.z - cz), draw = GW_T.DRAW[u.kind];
+      const d = hypot3(u.x - cx, u.y - cy, u.z - cz), draw = GW_T.DRAW[u.kind];
       const fogOk = u.side === 1 || u.fogVis !== false;
       const show = d < draw && fogOk && !(u.kind === 'strider' && u.lite) && !u.hidden;
       let V = GW.views.get(u.id);
@@ -163,7 +164,7 @@ export function createGroundWar(ctx) {
         _pose.stance = M.stance; _pose.stanceFrom = M.stanceFrom; _pose.stanceTo = M.stanceTo; _pose.stanceT = M.stanceT;
         _pose.speed = M.speed; _pose.gaitPhase = M.gait; _pose.down = !M.able && !(u.crawl && u.crawl.walk); _pose.gait = M.speed > 3.5 ? 'sprint' : M.speed > 2 ? 'run' : 'walk';
         _pose.cls = u.ai && u.ai.fire === 'law' ? 'law' : 'rifle'; _pose.ads = u.ai && u.ai.fire && u.firedT < 1.5 ? 1 : 0;
-        _pose.aimPitch = u.ai && u.ai.aim ? clamp(Math.atan2(u.ai.aim[1] - (M.y + 1.5), Math.hypot(u.ai.aim[0] - M.x, u.ai.aim[2] - M.z)), -0.6, 0.6) : 0;
+        _pose.aimPitch = u.ai && u.ai.aim ? clamp(Math.atan2(u.ai.aim[1] - (M.y + 1.5), hypot2(u.ai.aim[0] - M.x, u.ai.aim[2] - M.z)), -0.6, 0.6) : 0;
         careLook(u, _pose);
         // the dead lie still (posed once)
         if (!M.alive && u.posedDead) continue;
@@ -177,7 +178,7 @@ export function createGroundWar(ctx) {
   function careNews(evs) {
     for (const e of evs) {
       if (e.x === undefined) continue;
-      const d = Math.hypot(e.x - ear.x, e.z - ear.z), key = e.e + (e.id ?? '');
+      const d = hypot2(e.x - ear.x, e.z - ear.z), key = e.e + (e.id ?? '');
       const say = (txt, r, gap = 6, kind = 'bad') => { if (d > r || (careT.get(key) ?? -99) > W.time - gap) return; careT.set(key, W.time); if (GW.sayHook) GW.sayHook(txt, kind); else feed(txt, kind); };
       const u = e.id !== undefined ? GS.units.find(q => q.id === e.id) : null, who = u?.name || 'MARINE';
       if (e.e === 'callout') { if (CV.player && CV.player.active()) say(`${who}: "${e.text}"`, 70, 7); }   // (heard on foot, not over a rotor)
@@ -198,15 +199,15 @@ export function createGroundWar(ctx) {
     if (!sfx || !sfx.ctx || !sfx.master) return;
     if (!rwa) { try { rwa = new RwAudio(sfx.ctx, sfx.master); rwa.out.gain.value = 0.7; } catch (e) { rwa = null; return; } }
     rwa.listener(ear.x, ear.y, ear.z);
-    for (const e of evs) if (e.x !== undefined && (e.e !== 'step' || Math.hypot(e.x - ear.x, e.z - ear.z) < 45)) rwa.event(e);
+    for (const e of evs) if (e.x !== undefined && (e.e !== 'step' || hypot2(e.x - ear.x, e.z - ear.z) < 45)) rwa.event(e);
     if ((sndT -= dt) <= 0) {
       sndT = 0.1; let n = 0;
       for (const u of GS.units) {
-        if (!u.alive || u.kind === 'marine' || Math.hypot(u.x - ear.x, u.z - ear.z) > 320) continue;
+        if (!u.alive || u.kind === 'marine' || hypot2(u.x - ear.x, u.z - ear.z) > 320) continue;
         const o = sndUnits[n] || (sndUnits[n] = {}); n++;
         o.kind = u.kind; o.x = u.x; o.y = u.y; o.z = u.z; o.type = u.mbtType;
         o.servo = u.kind === 'strider' ? (u.lite ? 0.3 : u.sim.servo) : 0; o.fan = u.kind === 'hovertank' ? (u.sim.fan[0] + u.sim.fan[1] + u.sim.fan[2] + u.sim.fan[3]) / 4 : 0;
-        o.speed = u.kind === 'mbt' ? u.sim.speed : Math.hypot(u.vx, u.vz); o.engine = u.kind === 'mbt' ? (u.sim.drive.engine ?? 0.5) : 0; o.charge = u.kind === 'hovertank' ? u.sim.charge : 1;
+        o.speed = u.kind === 'mbt' ? u.sim.speed : hypot2(u.vx, u.vz); o.engine = u.kind === 'mbt' ? (u.sim.drive.engine ?? 0.5) : 0; o.charge = u.kind === 'hovertank' ? u.sim.charge : 1;
       }
       sndUnits.length = n; rwa.loops(sndUnits);
     }
@@ -214,7 +215,7 @@ export function createGroundWar(ctx) {
     clearTimeout(silenceTimer); silenceTimer = setTimeout(() => { if (rwa) rwa.loops([]); }, 300);
   }
   GW.silence = () => { if (rwa) rwa.loops([]); };
-  const near = (x, z, r) => Math.hypot(x - ear.x, z - ear.z) < r;
+  const near = (x, z, r) => hypot2(x - ear.x, z - ear.z) < r;
   function effects(evs) {
     for (const e of evs) {
       switch (e.e) {
@@ -275,7 +276,7 @@ export function createGroundWar(ctx) {
     W.units.push(P); GW.proxies.push(P);
     return P;
   }
-  function contested(I, side) { for (const u of GS.units) if (u.alive && u.side !== side && (u.kind !== 'marine' || u.able) && Math.hypot(u.x - I.pad.x, u.z - I.pad.z) < 70) return true; return false; }
+  function contested(I, side) { for (const u of GS.units) if (u.alive && u.side !== side && (u.kind !== 'marine' || u.able) && hypot2(u.x - I.pad.x, u.z - I.pad.z) < 70) return true; return false; }
   GW.contested = I => { const s1 = GS.units.some(u => u.alive && u.side === 1 && u.able && u.B?.I === I), s2 = GS.units.some(u => u.alive && u.side === 2 && u.B?.I === I); return s1 && s2; };
   GW.presence = (I, side) => GS.units.filter(u => u.alive && u.side === side && (u.kind !== 'marine' || u.able) && u.B?.I === I).length;
   function updateProxies() {
@@ -286,7 +287,7 @@ export function createGroundWar(ctx) {
       if (up.length) { let x = 0, z = 0, y = 0; for (const u of up) { x += u.x; y += u.y; z += u.z; } P.p.set(x / up.length, y / up.length + 1, z / up.length); }
       P.hp = P.hpMax = Math.max(1, up.length);
       // capture: two men (machines) able on the pad, nobody of the other side near it, the island not ours yet
-      const onPad = up.filter(u => Math.hypot(u.x - I.pad.x, u.z - I.pad.z) < I.pad.r + (u.vehicle ? (P.landed ? 75 : 55) : (P.landed ? 18 : 12))).length;   // (armour holds the pad from the apron's edge: the guns cover it)
+      const onPad = up.filter(u => hypot2(u.x - I.pad.x, u.z - I.pad.z) < I.pad.r + (u.vehicle ? (P.landed ? 75 : 55) : (P.landed ? 18 : 12))).length;   // (armour holds the pad from the apron's edge: the guns cover it)
       P.target = I;
       P.landed = P.formed && I.owner !== P.side && onPad >= Math.min(2, up.length) && !contested(I, P.side) && !(I.kind === 'hq' && P.side === 2) && !(I.cave && P.side === 1);
       // the island changed hands: hold it (ours now) or take it back (lost)
@@ -349,7 +350,7 @@ export function createGroundWar(ctx) {
   // a hot island: the transport puts down away from the fighting (the far side from the enemy's centre, flat, clear),
   // and the troops walk in. foot / chooseLZ are the rotary module's (rotor discs and fuselage clear of buildings).
   GW.hotLZ = (I, side, foot, chooseLZ) => {
-    const foes = GS.units.filter(u => u.alive && u.side !== side && (u.kind !== 'marine' || u.able) && Math.hypot(u.x - I.x, u.z - I.z) < I.r + 60);
+    const foes = GS.units.filter(u => u.alive && u.side !== side && (u.kind !== 'marine' || u.able) && hypot2(u.x - I.x, u.z - I.z) < I.r + 60);
     if (!foes.length) return null;
     const ex = foes.reduce((s, u) => s + u.x, 0) / foes.length, ez = foes.reduce((s, u) => s + u.z, 0) / foes.length;
     let best = null, bs = -1e9;
@@ -358,8 +359,8 @@ export function createGroundWar(ctx) {
       if (h < 1.5) continue;
       let rough = 0; for (let j = 0; j < 6; j++) rough = Math.max(rough, Math.abs(terrainH(x + Math.cos(j) * 8, z + Math.sin(j) * 8) - h));
       if (rough > 2.5) continue;
-      const d = Math.min(...foes.map(u => Math.hypot(u.x - x, u.z - z)));
-      const s = Math.min(d, 160) - rough * 8 - Math.hypot(x - ex, z - ez) * 0 - Math.hypot(x - I.pad.x, z - I.pad.z) * 0.15;
+      const d = Math.min(...foes.map(u => hypot2(u.x - x, u.z - z)));
+      const s = Math.min(d, 160) - rough * 8 - hypot2(x - ex, z - ez) * 0 - hypot2(x - I.pad.x, z - I.pad.z) * 0.15;
       if (s > bs) { bs = s; best = { x, z, h }; }
     }
     if (!best) return null;
@@ -405,7 +406,7 @@ export function createGroundWar(ctx) {
       const sea1 = H(a, shore + 8), sea2 = H(a, shore + 16), land1 = H(a, shore - 10), land2 = H(a, shore - 20);
       const steep = Math.max(0, -4.5 - sea1) + Math.max(0, land1 - 6);   // (most of the islands rise steeply out of deep water: take the least bad)
       const da = Math.abs(Math.atan2(Math.sin(a - a0), Math.cos(a - a0))), [lx, lz] = P(a, shore - 12);
-      const sc = (land2 - sea2) / 36 * 12 + steep * 0.8 + da * 1.6 + Math.max(0, land2 - 8) * 0.3 + (I.structs.some(s => Math.hypot(s.x - lx, s.z - lz) < 18) ? 20 : 0);
+      const sc = (land2 - sea2) / 36 * 12 + steep * 0.8 + da * 1.6 + Math.max(0, land2 - 8) * 0.3 + (I.structs.some(s => hypot2(s.x - lx, s.z - lz) < 18) ? 20 : 0);
       if (!best || sc < best.sc) best = { sc, a, land: [lx, lz], edge: P(a, shore + 4), sea: P(a, shore + 50) };
     }
     return best;
@@ -429,7 +430,7 @@ export function createGroundWar(ctx) {
       else if (mar && I.owner === 2) s = 80 + mar * 3;
       else if (rw && I.owner !== 2) s = 40 - rw;
       else if (armour && I.owner === 1 && !I.cave && mar && W.aliveAA(I) === 0) s = 30 - mar;   // (an island of theirs held only by Marines: armour goes in)
-      else if (armour && I.owner === 2 && !I.cave) { let dmin = 1e9; for (const J of W.islands) if (J.owner === 1) dmin = Math.min(dmin, Math.hypot(J.x - I.x, J.z - I.z)); s = 10 - dmin / 100 - (GS.units.some(u => u.alive && u.vehicle && u.B?.I === I) ? 30 : 0); }
+      else if (armour && I.owner === 2 && !I.cave) { let dmin = 1e9; for (const J of W.islands) if (J.owner === 1) dmin = Math.min(dmin, hypot2(J.x - I.x, J.z - I.z)); s = 10 - dmin / 100 - (GS.units.some(u => u.alive && u.vehicle && u.B?.I === I) ? 30 : 0); }
       if (s > bs) { bs = s; best = I; }
     }
     return bs > -1e8 ? best : null;
@@ -452,8 +453,8 @@ export function createGroundWar(ctx) {
       const L = GW.lcacs[i]; L.t += dt;
       let tx, tz, want = 0;
       if (L.phase === 'run' || L.phase === 'home') {
-        const rt = L.route; while (L.i < rt.length - 1 && Math.hypot(rt[L.i][0] - L.x, rt[L.i][1] - L.z) < 30) L.i++;
-        [tx, tz] = rt[L.i]; const d = Math.hypot(tx - L.x, tz - L.z), last = L.i === rt.length - 1;
+        const rt = L.route; while (L.i < rt.length - 1 && hypot2(rt[L.i][0] - L.x, rt[L.i][1] - L.z) < 30) L.i++;
+        [tx, tz] = rt[L.i]; const d = hypot2(tx - L.x, tz - L.z), last = L.i === rt.length - 1;
         want = last ? Math.min(20, 3 + d * 0.25) : 20;   // ~40 kt (C)
         if (L.phase === 'run' && last && d < 10) { L.phase = 'beach'; L.t = 0; }
         if (L.phase === 'home' && last && d < 30) { root.remove(L.view.group); GW.lcacs.splice(i, 1); continue; }
@@ -472,7 +473,7 @@ export function createGroundWar(ctx) {
           GS.join(GS.battle(L.I), u, L.I.owner === 2 ? { type: 'defend', x: L.I.pad.x, z: L.I.pad.z, r: 30 } : { type: 'take', x: L.I.pad.x, z: L.I.pad.z, r: 30 });
           L.mbt = u; attachProxy(u, L.I); note(L.I, `SEIZED ${L.type === 'm1a2' ? 'M1A2' : 'T-90M'} COMING ASHORE`);
         }
-        if (L.mbt && (L.t > 14 || Math.hypot(L.mbt.x - L.x, L.mbt.z - L.z) > 30)) { L.phase = 'back'; L.t = 0; }
+        if (L.mbt && (L.t > 14 || hypot2(L.mbt.x - L.x, L.mbt.z - L.z) > 30)) { L.phase = 'back'; L.t = 0; }
       } else if (L.phase === 'back') {
         L.ramp = Math.max(0, L.ramp - dt / 4); want = -5;
         if (L.t > 7) { const [hx, hz] = launchPoint(); L.route = nav.path(L.x, L.z, hx, hz).map(p => [p[0], p[1]]); L.i = 0; L.phase = 'home'; }
@@ -568,7 +569,7 @@ export function createGroundWar(ctx) {
       GW.lzT = 2;
       for (const u of W.units) {
         if (!u.rot || !u.rot.AI || (u.kind !== 'ch46' && u.kind !== 'mv22') || !u.target || u.rot.deployed || u.dying || u.rot.AI.phase !== 'transit') continue;
-        if (Math.hypot(u.p.x - u.lz.x, u.p.z - u.lz.z) < 260 || u.hotChecked === GS.units.length) continue;
+        if (hypot2(u.p.x - u.lz.x, u.p.z - u.lz.z) < 260 || u.hotChecked === GS.units.length) continue;
         u.hotChecked = GS.units.length;
         const hot = GW.hotLZ(u.target, u.side, W.rotary.FOOT[u.kind], W.rotary.chooseLZ);
         if (hot) u.lz = hot;

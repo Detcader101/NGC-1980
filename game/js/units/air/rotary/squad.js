@@ -19,13 +19,17 @@ export function padSlots(cx, cz, n, r0 = 5, r1 = 8.5, a0 = 0) {
   return out;
 }
 
-// o: { parent, side, n, kind: 'marine' | 'machine', groundY(x, z) }
+// o: { parent, side, n, kind: 'marine' | 'machine', groundY(x, z), ear (optional: the camera position) }
+// (ngc/perf-cpu) with an ear, figures that can switch detail start 'lite' and go 'full' within FULL_R of it: a full
+// Marine (INFANTRY's skeleton and weapon, built on first use) cost ~10 MB of allocation to build and a skeleton pose
+// every frame, and every AI CH-46 built thirteen of them at once wherever it was.
+const FULL_R = 140;   // = GW_T.DRAW.marineFull (groundwar.js), where the ground war's own Marines switch
 export function createSquad(o) {
   const root = new THREE.Group(); root.name = 'squad'; o.parent.add(root);
-  const machine = o.kind === 'machine', speed = machine ? 3.1 : 4.3;
+  const machine = o.kind === 'machine', speed = machine ? 3.1 : 4.3, ear = o.ear || null;
   const figs = [];
   for (let i = 0; i < o.n; i++) {
-    const f = FIGURES[o.kind]({ variant: i }); f.group.visible = false; root.add(f.group);
+    const f = FIGURES[o.kind](ear ? { variant: i, detail: 'lite' } : { variant: i }); f.group.visible = false; root.add(f.group);
     figs.push({ f, x: 0, y: 0, z: 0, yaw: 0, st: 'aboard', wp: 0, path: null, slot: null, t: 0, ph: Math.random() * 6, delay: 0, fall: 0 });
   }
   const Q = {
@@ -61,6 +65,7 @@ export function createSquad(o) {
       const gph = time * (machine ? 7.2 : 9.5);   // machines share one gait phase
       for (const F of figs) {
         const G = F.f.group;
+        if (ear && F.f.setDetail && F.st !== 'aboard') { const dx = F.x - ear.x, dy = F.y - ear.y, dz = F.z - ear.z; F.f.setDetail(dx * dx + dy * dy + dz * dz < FULL_R * FULL_R ? 'full' : 'lite'); }
         switch (F.st) {
           case 'aboard': G.visible = false; continue;
           case 'stick': case 'embark': {   // in the aircraft's frame: wait in the file, then up the ramp
