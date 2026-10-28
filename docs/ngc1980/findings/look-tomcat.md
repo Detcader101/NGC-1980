@@ -144,14 +144,22 @@ Rows done: 27 of 30 (90%); the panel/fastener row needs the -2 manuals.
 
 ## 7. Cockpit
 
-Pilot's panel re-laid per NATOPS fig. 1-3 (the 1972 preliminary manual): LEFT instrument panel VSI (25), airspeed/Mach
-(24), altimeter (22) and the wheels/flaps position indicator (14); LEFT KNEE panel the engine instruments (15-21: RPM,
-TIT, fuel flow, nozzle, oil); RIGHT instrument panel wing sweep (40), accelerometer (42), standby attitude (43), clock
-(45); RIGHT KNEE fuel quantity (48); centre VDI (33) over HSD (34); arresting hook handle on the right (51), gear handle
-on the left (13). Before, the engine gauges sat on the right and the flight instruments were swapped side to side. Not
-yet modelled from fig. 1-3: radar altimeter (23), BDHI (46), UHF remote (47), LOX and cabin altitude (49, 50), the
-control-surface position indicator (12); master arm / weapon select sit on the right panel (fig. 1-3 has them on the
-ACM panel, 32). The RIO's panel (fig. 1-4) keeps its earlier layout (open item). Evidence:
+Pilot's panel TRACED from NATOPS fig. 1-3 (the 1972 preliminary manual), per the skill's "cockpit panels" method:
+`tools/blueprint/f14a/panel-pilot.json` lists 24 items by NATOPS number and legend with their centres and sizes in the
+figure (page rendered at 5x), scaled by the 3ATI airspeed/Mach bezel (3.125 in = 139 px, 1760 px/m) with the VDI's centre
+as origin; `PANEL_TRACE` in tomcatcockpit.js is the same table. The panel face is the traced outline (the main panel over
+the two knee panels and the HSD between them) with a cut-out for every dial and display; each instrument sits at its
+traced centre and size: VSI (25), airspeed/Mach (24), altimeter (22), radar altimeter (23, new), AoA (27), VDI (33),
+ACM panel (32: master arm, weapon select, jettison, HUD mode), standby attitude (43), wing sweep (40), accelerometer
+(42), BDHI (46, new), clock (45); left knee: nozzle position L/R (16), oil (17), hydraulic (18, new), RPM / TIT / fuel
+flow as L/R tapes (19-21, they were round dials); right knee: fuel quantity (48), LOX (49, new), cabin altitude (50, new);
+gear handle and wheels-flaps indicator on the left vertical console (13, 14), hook handle on the right (51). Interactive
+ids and hit boxes kept. Check: positions are built from the traced table (zero residual by construction); the
+illustration's slight perspective is the error budget: the 2ATI VSI measures 7% small against the 3ATI scale, so sizes
+are good to ~7% and centres to ~1 cm (no separate orthographic overlay render was made). Items 40/42/43/45/46 on the
+right panel were assigned from the key diagram's box order (uncertain); the clock's spot is approximate.
+NOT done: the RIO's panel per fig. 1-4 (kept its earlier layout), the consoles (fig. 1-3 items 1-10, 54-62 keep their
+earlier drawn layout), the UHF remote (47), the EPR indicator (15) as a live gauge. Evidence:
 `evidence/look-tomcat/cockpit-pilot-natops-layout.png`. The interior (all interactive) is moved into the drawn airframe: the interior is offset by TCAT.COCKPIT_OFFSET
 (0, -0.66, -1.42) so the eyes sit 0.30 m above the drawn canopy sill (pilot z -6.87, RIO -5.64); the windscreen,
 canopy, bows and sills seen from inside are now the same drawn lofts as the exterior; the fuselage loft has the cockpit
@@ -175,7 +183,12 @@ LOD 1/2 thin the fuselage, canopy and nacelle lofts and hide ~25 small parts; th
 
 ## 9. Tests
 
-(see the final section, updated at the end of the run)
+- `node tools/check.mjs syntax`: 560/560 pass (after the merge); no conflict markers.
+- Fit: `node tools/blueprint/f14a/fitall.mjs` (numbers in 4).
+- Browser scenes (SwiftShader, the PC heavily loaded: 0-3 fps): see the final report for the last full list. Before the
+  traced panel: smoke PASS 5/5, tomcatdev PASS 1/1, tomcatpanels PASS. catshot FAIL 3/12 expects: every failure is a
+  wall-clock waitFor timeout at 0 fps (the Tomcat's own hands-off cat shot and flyaway PASSED; the Hornet's and the AI
+  escort's parts timed out waiting), not an assertion about the model.
 
 ## 10. Open items
 
