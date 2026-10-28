@@ -66,13 +66,15 @@ export function fpHand(k, { side = 'R', gripR = 0.017, trigger = false, open = f
   k.ellip(0.022, 0.034, 0.03, sk, P(gripR + 0.016, cy - 0.004, 0.072), [0, 0, 0], 12, 'vertex');
   k.capsule(P(gripR + 0.019, cy, 0.07), P(gripR + 0.02, cy, 0.11), 0.026, 0.024, sk, 12, 'vertex', [0.78, 1.0]);
   // the thumb: base (thenar) on the palm side, over the top of the grip to the far side
-  const A = P(gripR + 0.01, 0.024, 0.06), B = open ? P(gripR + 0.002, top + 0.008, 0.026) : P(gripR + 0.002, top + 0.002, 0.024),
-    C = open ? P(gripR - 0.006, top + 0.02, -0.004) : P(-0.002, top + 0.008, 0.004), D = open ? P(gripR - 0.012, top + 0.024, -0.026) : P(-(gripR + 0.004), top + 0.004, -0.004);
+  // (ngc/look-people) the thumb WRAPS the grip: from the web of the hand round the back of the grip, just under the
+  // receiver, to the far side with the tip pointing forward (it used to cross over the top of the grip into the receiver)
+  const A = P(gripR + 0.01, 0.024, 0.06), B = open ? P(gripR + 0.002, top + 0.008, 0.026) : P(gripR * 0.55, top - 0.004, gripR + 0.016),
+    C = open ? P(gripR - 0.006, top + 0.02, -0.004) : P(-gripR * 0.75, top - 0.006, gripR + 0.006), D = open ? P(gripR - 0.012, top + 0.024, -0.026) : P(-(gripR + 0.009), top - 0.008, -0.008);
   k.ellip(0.016, 0.022, 0.03, sk, P(gripR + 0.008, 0.026, 0.046), [0.5, 0, 0], 10, 'vertex');   // thenar
   k.capsule(A, B, 0.0135, 0.012, sk, seg, 'vertex');
   k.capsule(B, C, 0.0115, 0.0105, sk, seg, 'vertex');
   k.capsule(C, D, 0.0102, 0.0088, sk, seg, 'vertex');
-  nail(k, C, D, new THREE.Vector3(0, 1, 0), 0.011);
+  nail(k, C, D, open ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(-s, 0.4, 0).normalize(), 0.011);
   return { wrist: new THREE.Vector3(s * (gripR + 0.02), cy, 0.105) };
 }
 

@@ -13,6 +13,8 @@ import * as THREE from 'three';
 import { M, B, V, slab, merge, cylZ, boxG, mesh, rod, hinged, tube, wheel, addM, canvasTex, decal, drawStarBar, glass } from './meshkit.js';
 import { TOMCAT, STATIONS } from './tomcatfm.js';
 import { G, D2R, fuselageGeo, canopyGeo, canopyHoop, nacelleGeo, nacelleAt, zLip, LIP_TOP, airfoilGeo, outward, wingLE, wingTEout, GLOVE, Z_BOW, Z_GLASS_END, sill, fuseB, fuseW, canopyW } from './tomcatgeo.js';
+import { FIG } from '../infantry/meshkit.js';   // ngc/look-people: the crew as real people
+import { crewGeometry, crewMaterial } from '../../interiors/crewfig.js';
 
 const P0 = G.PIVOT, HOOK_PIVOT = G.HOOK.pivot, HOOK_LEN = G.HOOK.len, HOOK_UP = G.HOOK.up;
 const HOOK_DOWN = Math.asin((HOOK_PIVOT[1] - TOMCAT.HOOK_TIP[1]) / HOOK_LEN);   // the tip at the sim's hook height (deck level)
@@ -206,6 +208,10 @@ export function buildTomcatModel(side = 1, { modex = 201 } = {}) {
   // ---- two crew on GRU-7A seats (pilot and RIO): olive flight suits, white helmets, dark visors
   for (const [z, y] of [[TCAT.EYE[2], TCAT.EYE[1]], [TCAT.EYE_RIO[2], TCAT.EYE_RIO[1]]]) {
     mesh(boxG(0.56, 1.0, 0.18, 0, y - 0.62, z + 0.42), seatM, g, 'seatBack'); mesh(boxG(0.5, 0.28, 0.22, 0, y + 0.02, z + 0.42), seatM, g, 'headbox');
+    if (FIG) {   // ngc/look-people: the pilot / RIO (HGU-33 with the visor down, mask, harness, G-suit), hands on the controls; seated at the drawn cockpit's eye stations
+      const p = new THREE.Mesh(crewGeometry('jetPilot', 'seated', { arms: 'controls', seed: z < -6.2 ? 2 : 5, detail: 'near' }), crewMaterial()); p.name = 'torso'; p.rotation.y = Math.PI; p.position.set(0, y - 0.84, z + 0.06); g.add(p);
+      continue;
+    }
     mesh(boxG(0.44, 0.52, 0.3, 0, y - 0.45, z + 0.12), crewM, g, 'torso');
     mesh(new THREE.SphereGeometry(0.15, 12, 8).translate(0, y + 0.05, z), helmM, g, 'helmet');
     mesh(new THREE.SphereGeometry(0.152, 12, 6, -Math.PI * 0.75, Math.PI * 0.5, Math.PI * 0.35, Math.PI * 0.3).translate(0, y + 0.05, z), visorM, g, 'visor');

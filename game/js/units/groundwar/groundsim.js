@@ -35,6 +35,7 @@ import { createFieldCare } from './fieldcare.js';
 import { partAt } from './marine.js';
 import { fragmentHits } from '../infantry/medical.js';
 import * as INV from '../infantry/inventory.js';
+import { hypot2, hypot3 } from '../../hypot.js';   // (ngc/perf-cpu) Math.hypot without the garbage, same bits
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 // GAME-LEVEL rounds the war's own weapons and the Marines fire into the ground war (hit.js format, game values)
@@ -84,7 +85,7 @@ export function createGroundSim(o) {
   const hAt = (x, z) => { const I = maps.at(x, z); return I && maps.has(I) ? maps.get(I).height(x, z) : terrainH(x, z); };
   const envLand = { height: hAt };
   const envHover = { height: (x, z) => Math.max(hAt(x, z), 0) };
-  const armorEnv = { height: hAt, surface: (x, z) => { const h = hAt(x, z); if (h < 1.2) return 'sand'; const e = 1, s = Math.hypot(hAt(x + e, z) - hAt(x - e, z), hAt(x, z + e) - hAt(x, z - e)) / 2; return s > 0.7 ? 'rock' : (Math.sin(x * 0.05) * Math.cos(z * 0.047) > 0.3 ? 'dirt' : 'grass'); }, water: (x, z) => (hAt(x, z) < 0 ? 0 : -Infinity) };
+  const armorEnv = { height: hAt, surface: (x, z) => { const h = hAt(x, z); if (h < 1.2) return 'sand'; const e = 1, s = hypot2(hAt(x + e, z) - hAt(x - e, z), hAt(x, z + e) - hAt(x, z - e)) / 2; return s > 0.7 ? 'rock' : (Math.sin(x * 0.05) * Math.cos(z * 0.047) > 0.3 ? 'dirt' : 'grass'); }, water: (x, z) => (hAt(x, z) < 0 ? 0 : -Infinity) };
 
   // ngc/infdepth: casualty care (wounded call out and crawl to cover, the corpsman, buddy aid, drags to the CCP)
   function worldAt(x, z) { const I = maps.at(x, z); return I && maps.has(I) && maps.get(I).ready ? maps.get(I).world : null; }
@@ -171,19 +172,19 @@ export function createGroundSim(o) {
 
   // ------------------------------------------------------------------------------------------------- firing
   function shoot(side, src, ammo, from, aim, spread, speed, o = {}) {
-    const A = GW_AMMO[ammo], v = speed ?? A.velocity, dx = aim[0] - from[0], dy = aim[1] - from[1], dz = aim[2] - from[2], d = Math.hypot(dx, dy, dz) || 1;
+    const A = GW_AMMO[ammo], v = speed ?? A.velocity, dx = aim[0] - from[0], dy = aim[1] - from[1], dz = aim[2] - from[2], d = hypot3(dx, dy, dz) || 1;
     let ux, uy, uz;
     if (o.lob) {   // a grenade launcher: the low-angle solution for the range (or 45 deg if out of reach)
-      const hd = Math.hypot(dx, dz) || 1, g = 9.81, v2 = v * v, disc = v2 * v2 - g * (g * hd * hd + 2 * dy * v2);
+      const hd = hypot2(dx, dz) || 1, g = 9.81, v2 = v * v, disc = v2 * v2 - g * (g * hd * hd + 2 * dy * v2);
       const th = disc > 0 ? Math.atan((v2 - Math.sqrt(disc)) / (g * hd)) : Math.PI / 4;
       ux = dx / hd * Math.cos(th); uz = dz / hd * Math.cos(th); uy = Math.sin(th);
     } else {
       const tf = d / v, drop = 0.5 * 9.81 * tf * tf;
-      ux = dx / d; uy = (dy + drop) / d; uz = dz / d; const ul = Math.hypot(ux, uy, uz); ux /= ul; uy /= ul; uz /= ul;
+      ux = dx / d; uy = (dy + drop) / d; uz = dz / d; const ul = hypot3(ux, uy, uz); ux /= ul; uy /= ul; uz /= ul;
     }
-    const ex = gauss() * spread, ey = gauss() * spread, px = -uz, pz = ux, pl = Math.hypot(px, pz) || 1;
+    const ex = gauss() * spread, ey = gauss() * spread, px = -uz, pz = ux, pl = hypot2(px, pz) || 1;
     ux += px / pl * ex; uz += pz / pl * ex; uy += ey;
-    const l = Math.hypot(ux, uy, uz);
+    const l = hypot3(ux, uy, uz);
     const p = { side, src: src.id, ammo, x: from[0], y: from[1], z: from[2], vx: ux / l * v, vy: uy / l * v, vz: uz / l * v, life: o.life ?? Math.min(6, 1400 / v + 0.5), heat: A.type === 'heat', gl: ammo === 'm203', big: ammo === 'coil120' || ammo === 'mbt120' || ammo === 'mbt125', B: src.B, near: null, fuse: o.fuse ?? 0, frag: ammo === 'm67' };
     GS.proj.push(p); GS.stats.shots[side]++; src.firedT = 0;
     const loud = o.loud ?? 330, kind = A.type === 'heat' || p.big ? 'blast' : 'shot';
@@ -208,10 +209,10 @@ export function createGroundSim(o) {
     if (u.kind === 'strider') {
       const sp = a.run ? 4.2 : 1.6, [vx, vz] = dry(u, B.rw.steerVel(u, sp), 2.5);
       if (u.lite) {   // far: kinematic, the AI's velocity over the ground (the body sim waits where it is)
-        if (s.alive) { const v = Math.hypot(vx, vz), k = Math.min(1, dt * 3); u.vx += (vx - u.vx) * k; u.vz += (vz - u.vz) * k; u.x += u.vx * dt; u.z += u.vz * dt; u.y = hAt(u.x, u.z); if (v > 0.2) u.yaw = Math.atan2(-u.vx, -u.vz); }
+        if (s.alive) { const v = hypot2(vx, vz), k = Math.min(1, dt * 3); u.vx += (vx - u.vx) * k; u.vz += (vz - u.vz) * k; u.x += u.vx * dt; u.z += u.vz * dt; u.y = hAt(u.x, u.z); if (v > 0.2) u.yaw = Math.atan2(-u.vx, -u.vz); }
       } else {
         const cmd = { vx, vz, run: a.run, crouch: a.crouch, aim: a.aim || undefined, look: a.aim ? undefined : a.look };
-        if (!a.aim && a.move) { cmd.aimYaw = Math.atan2(-vx, -vz); if (Math.hypot(vx, vz) < 0.2) delete cmd.aimYaw; }
+        if (!a.aim && a.move) { cmd.aimYaw = Math.atan2(-vx, -vz); if (hypot2(vx, vz) < 0.2) delete cmd.aimYaw; }
         for (const e of s.step(dt, cmd, envLand)) {
           if (e.e === 'step') ev('step', { id: u.id, x: e.x, y: e.y, z: e.z, v: e.v, stumble: e.stumble });
           else if (e.e === 'fall') ev('fall', { id: u.id, x: u.x, y: u.y, z: u.z, why: e.why });
@@ -230,11 +231,11 @@ export function createGroundSim(o) {
       if (!s.alive && u.alive) killed(u);
       const w = WPN[u.weaponName];
       // (an aircraft is engaged only close in: rifle fire at a distant helicopter wastes the volley)
-      const tgA = a.aimId != null ? tmap.get(a.aimId) : null, airFar = tgA && tgA.kind === 'air' && Math.hypot(tgA.x - u.x, tgA.z - u.z) > AIR_RANGE;
+      const tgA = a.aimId != null ? tmap.get(a.aimId) : null, airFar = tgA && tgA.kind === 'air' && hypot2(tgA.x - u.x, tgA.z - u.z) > AIR_RANGE;
       if (cadence(u, w, dt, a.fire && !airFar && s.armed && (u.lite || s.up || u.prone) && a.aim)) {
         if (u.lite) { shoot(2, u, w.ammo, [u.x, u.y + 1.6, u.z], a.aim, w.spread + 0.004 + a.supp * 0.01, undefined, { loud: w.loud }); }
         else {
-          const mz = s.muzzle(), err = s.aimError() + a.supp * 0.01, ad = s.aimDir(), tx = a.aim[0] - mz[0], ty = a.aim[1] - mz[1], tz = a.aim[2] - mz[2], tl = Math.hypot(tx, ty, tz) || 1;
+          const mz = s.muzzle(), err = s.aimError() + a.supp * 0.01, ad = s.aimDir(), tx = a.aim[0] - mz[0], ty = a.aim[1] - mz[1], tz = a.aim[2] - mz[2], tl = hypot3(tx, ty, tz) || 1;
           if ((ad[0] * tx + ad[1] * ty + ad[2] * tz) / tl > 0.9993) shoot(2, u, w.ammo, mz, a.aim, w.spread + err, undefined, { loud: w.loud });
           else u.cd = 0.05;
         }
@@ -243,22 +244,22 @@ export function createGroundSim(o) {
       if (a.move && u.kind !== 'hovertank' && hAt(a.move[0], a.move[1]) < 0.6) a.move = landward(B, a.move);   // never a firing position in the sea
       const vehSp = a.run ? 12 : 7, [vx, vz] = u.kind === 'mbt' ? dry(u, B.rw.steerVel(u, vehSp), 7) : B.rw.steerVel(u, vehSp);
       const cmd = { vx, vz };
-      if (a.face !== undefined && Math.hypot(vx, vz) < 1) cmd.face = a.face;
-      if (a.aim) { const mz = s.muzzle(), dx = a.aim[0] - mz[0], dz = a.aim[2] - mz[2]; cmd.turret = Math.atan2(-dx, -dz); cmd.gun = Math.atan2(a.aim[1] - mz[1], Math.hypot(dx, dz)); if (u.kind === 'hovertank') cmd.aimAt = a.aim; }
-      if (u.kind === 'mbt' && hAt(u.x, u.z) < 0.3) { const dx = B.I.x - u.x, dz = B.I.z - u.z, d = Math.hypot(dx, dz) || 1; cmd.vx = dx / d * 4; cmd.vz = dz / d * 4; delete cmd.face; }   // wet tracks: drive up out of the water first
+      if (a.face !== undefined && hypot2(vx, vz) < 1) cmd.face = a.face;
+      if (a.aim) { const mz = s.muzzle(), dx = a.aim[0] - mz[0], dz = a.aim[2] - mz[2]; cmd.turret = Math.atan2(-dx, -dz); cmd.gun = Math.atan2(a.aim[1] - mz[1], hypot2(dx, dz)); if (u.kind === 'hovertank') cmd.aimAt = a.aim; }
+      if (u.kind === 'mbt' && hAt(u.x, u.z) < 0.3) { const dx = B.I.x - u.x, dz = B.I.z - u.z, d = hypot2(dx, dz) || 1; cmd.vx = dx / d * 4; cmd.vz = dz / d * 4; delete cmd.face; }   // wet tracks: drive up out of the water first
       vehicleStep(u, dt, cmd);
       if (!s.alive) return;
       const tg = a.aimId != null ? tmap.get(a.aimId) : null, gd = s.gunDir(), mz = s.muzzle();
-      const onTgt = a.aim && (() => { const tx = a.aim[0] - mz[0], ty = a.aim[1] - mz[1], tz = a.aim[2] - mz[2], tl = Math.hypot(tx, ty, tz) || 1; return (gd[0] * tx + gd[1] * ty + gd[2] * tz) / tl > 0.9985; })();
+      const onTgt = a.aim && (() => { const tx = a.aim[0] - mz[0], ty = a.aim[1] - mz[1], tz = a.aim[2] - mz[2], tl = hypot3(tx, ty, tz) || 1; return (gd[0] * tx + gd[1] * ty + gd[2] * tz) / tl > 0.9985; })();
       const main = u.kind === 'hovertank' ? WPN.coilgun : WPN.mbtgun, coax = u.kind === 'hovertank' ? WPN.coax : WPN.mbtmg;
       const bigTarget = tg && (tg.kind === 'vehicle' || tg.kind === 'at' || tg.kind === 'mg');
       if (a.fire && onTgt && bigTarget && s.fire()) { const am = u.kind === 'hovertank' ? 'coil120' : (u.mbtType === 't90m' ? 'mbt125' : 'mbt120'); shoot(2, u, am, mz, a.aim, 0.0005 + 0.003 * Math.min(1, Math.abs(s.speed || 0) / 10), undefined, { loud: main.loud }); ev('mainGun', { id: u.id, kind: u.kind, x: mz[0], y: mz[1], z: mz[2], dx: gd[0], dy: gd[1], dz: gd[2] }); }
-      if (cadence(u.coax, coax, dt, a.fire && onTgt && tg && tg.kind !== 'vehicle' && !(tg.kind === 'air' && Math.hypot(tg.x - u.x, tg.z - u.z) > AIR_RANGE * 1.5))) shoot(2, u, coax.ammo, mz, a.aim, 0.002 + (tg.kind === 'air' ? 0.004 : 0), undefined, { loud: coax.loud });
+      if (cadence(u.coax, coax, dt, a.fire && onTgt && tg && tg.kind !== 'vehicle' && !(tg.kind === 'air' && hypot2(tg.x - u.x, tg.z - u.z) > AIR_RANGE * 1.5))) shoot(2, u, coax.ammo, mz, a.aim, 0.002 + (tg.kind === 'air' ? 0.004 : 0), undefined, { loud: coax.loud });
     }
   }
   // walkers and tracks keep out of the sea: a commanded velocity that would take them into water within `look` m stops
   function dry(u, v, look) {
-    const l = Math.hypot(v[0], v[1]); if (l < 0.05) return v;
+    const l = hypot2(v[0], v[1]); if (l < 0.05) return v;
     const x = u.x + v[0] / l * look, z = u.z + v[1] / l * look;
     if (hAt(x, z) < (u.kind === 'mbt' ? 0.4 : 0.15)) { v[0] = 0; v[1] = 0; }
     return v;
@@ -310,7 +311,7 @@ export function createGroundSim(o) {
     const from = [M.x - Math.sin(M.yaw) * 0.6, M.y + ey, M.z - Math.cos(M.yaw) * 0.6];
     const spread = w.spread * (1 + 2.5 * Math.min(1, a.supp) + (moving ? 1.5 : 0) + M.wounded * 2) * (M.stanceTo === 'prone' ? 0.7 : 1);
     // lead a mover a little (people under-lead)
-    const tof = Math.hypot(a.aim[0] - from[0], a.aim[2] - from[2]) / w.v, lead = tof * (a.fire === 'law' ? 0.9 : 0.7);   // (a LAW gunner leads properly; riflemen under-lead)
+    const tof = hypot2(a.aim[0] - from[0], a.aim[2] - from[2]) / w.v, lead = tof * (a.fire === 'law' ? 0.9 : 0.7);   // (a LAW gunner leads properly; riflemen under-lead)
     const aim = tg ? [a.aim[0] + (tg.vx || 0) * lead, a.aim[1], a.aim[2] + (tg.vz || 0) * lead] : a.aim;
     if (a.fire === 'law') {
       if (u.laws <= 0) return;
@@ -337,7 +338,7 @@ export function createGroundSim(o) {
     u.thrT += dt;
     if (!u.thr.gone && u.thrT >= AI_RELEASE_T) {
       const ey = M.stanceTo === 'crouch' ? 1.45 : 1.85, rx = Math.cos(M.yaw), rz = -Math.sin(M.yaw);
-      const from = [M.x + rx * 0.15, M.y + ey, M.z + rz * 0.15], tg = u.thrAim, d = Math.hypot(tg[0] - from[0], tg[2] - from[2]);
+      const from = [M.x + rx * 0.15, M.y + ey, M.z + rz * 0.15], tg = u.thrAim, d = hypot2(tg[0] - from[0], tg[2] - from[2]);
       const v = clamp(Math.sqrt(9.81 * d / 0.94) * 1.03, 8, 18);   // (~35 deg: a man throws it as far as he needs to, up to ~32 m)
       shoot(1, u, 'm67', from, [tg[0], tg[1] - 1, tg[2]], 0.03 + 0.02 * Math.min(1, a.supp), v, { lob: true, loud: 25, fuse: 4.5 - 1.0, life: 12 });
       M.frags--; u.frags = M.frags; u.thr.gone = true; a.frag = null; GS.stats.frags = (GS.stats.frags || 0) + 1;
@@ -371,7 +372,7 @@ export function createGroundSim(o) {
     const w = a.fire && (a.fire === 'rifle' || a.fire === 'auto' || a.fire === 'mg') ? a.fire : null;
     let aim = null;
     if (a.aim) {   // lead a mover a little (people under-lead), as the cheap model
-      const tg = tmap.get(a.aimId), tof = Math.hypot(a.aim[0] - M.x, a.aim[2] - M.z) / 900, lead = tof * 0.7;
+      const tg = tmap.get(a.aimId), tof = hypot2(a.aim[0] - M.x, a.aim[2] - M.z) / 900, lead = tof * 0.7;
       aim = tg ? [a.aim[0] + (tg.vx || 0) * lead, a.aim[1], a.aim[2] + (tg.vz || 0) * lead] : a.aim;
     }
     _want.fire = w && !GS.peaceMar && u.thrT == null ? w : null; _want.aim = aim; _want.supp = a.supp; _want.crawl = !M.able && u.crawl && !(u.cas && u.cas.held) ? u.crawl : null;   // (no rifle fire with a grenade in his hand)
@@ -420,7 +421,7 @@ export function createGroundSim(o) {
     const c = GS.cam, cand = [];
     for (const u of GS.units) {
       if (u.kind !== 'marine' || !u.alive) { if (u.richOn) u.richOn = false; continue; }
-      const d = Math.hypot(u.x - c.x, u.y - c.y, u.z - c.z);
+      const d = hypot3(u.x - c.x, u.y - c.y, u.z - c.z);
       if (u.B && u.B.near && d < (u.richOn ? O.r * 1.2 : O.r)) cand.push([d, u]); else if (u.richOn) u.richOn = false;
     }
     cand.sort((a, b) => a[0] - b[0]);
@@ -458,7 +459,7 @@ export function createGroundSim(o) {
     }
   }
   function lod(B) {
-    const c = GS.cam, I = B.I, d = Math.hypot(c.x - I.x, c.z - I.z) - I.r;
+    const c = GS.cam, I = B.I, d = hypot2(c.x - I.x, c.z - I.z) - I.r;
     const near = d < NEAR || o.full;
     if (near === B.near && B.units.length === B.lodN) return;   // (SIM MODE fix: units that join a far fight later go to the distant level too - they ran the full walker sim before)
     B.near = near; B.lodN = B.units.length;
@@ -495,8 +496,8 @@ export function createGroundSim(o) {
   };
   function stepTransit(u, dt) {
     const T = u.transit, s = u.sim, rt = T.route;
-    while (T.i < rt.length - 1 && Math.hypot(rt[T.i][0] - u.x, rt[T.i][1] - u.z) < 25) T.i++;
-    const [tx, tz] = rt[T.i], dx = tx - u.x, dz = tz - u.z, d = Math.hypot(dx, dz) || 1, last = T.i === rt.length - 1, sp = last ? Math.min(14, 2 + d * 0.4) : 15;
+    while (T.i < rt.length - 1 && hypot2(rt[T.i][0] - u.x, rt[T.i][1] - u.z) < 25) T.i++;
+    const [tx, tz] = rt[T.i], dx = tx - u.x, dz = tz - u.z, d = hypot2(dx, dz) || 1, last = T.i === rt.length - 1, sp = last ? Math.min(14, 2 + d * 0.4) : 15;
     vehicleStep(u, dt, { vx: dx / d * sp, vz: dz / d * sp });
     sync(u);
     if (last && d < 12) { const B = T.B; GS.join(B, u, T.order); ev('arrived', { id: u.id, kind: u.kind, I: B.I, x: u.x, z: u.z }); }
@@ -526,7 +527,7 @@ export function createGroundSim(o) {
   const RAD = { marine: 1.2, strider: 1.4, hovertank: 5, mbt: 5.5 };
   // every unit of the other side within reach of a segment (cheap bounding test first)
   function* candidates(side, ax, az, bx, bz, extra = 0) {
-    const mx = (ax + bx) / 2, mz = (az + bz) / 2, half = Math.hypot(bx - ax, bz - az) / 2 + 6 + extra;
+    const mx = (ax + bx) / 2, mz = (az + bz) / 2, half = hypot2(bx - ax, bz - az) / 2 + 6 + extra;
     for (const u of GS.units) {
       if (u.side === side) continue;
       if (!u.alive && !(u.kind === 'strider' && !u.lite)) continue;
@@ -536,7 +537,7 @@ export function createGroundSim(o) {
   }
   function nearMissAt(p, u, ax, az, bx, bz) {
     if (!u.alive || !u.B) return;
-    const cx = u.x - ax, cz = u.z - az, L2 = (bx - ax) ** 2 + (bz - az) ** 2 || 1, k = clamp((cx * (bx - ax) + cz * (bz - az)) / L2, 0, 1), dd = Math.hypot(ax + (bx - ax) * k - u.x, az + (bz - az) * k - u.z);
+    const cx = u.x - ax, cz = u.z - az, L2 = (bx - ax) ** 2 + (bz - az) ** 2 || 1, k = clamp((cx * (bx - ax) + cz * (bz - az)) / L2, 0, 1), dd = hypot2(ax + (bx - ax) * k - u.x, az + (bz - az) * k - u.z);
     if (dd > (u.kind === 'marine' ? 3 : 2.5)) return;
     if (!p.near) p.near = new Set(); if (p.near.has(u.id)) return; p.near.add(u.id);
     if (u.kind === 'marine') u.B.mar.nearMiss(u.id, p.big ? 0.6 : p.ammo === 'mg' || p.ammo === 'needle' ? 0.14 : 0.1);
@@ -546,7 +547,7 @@ export function createGroundSim(o) {
   function groundT(ax, ay, az, bx, by, bz) {
     const I = maps.at((ax + bx) / 2, (az + bz) / 2);
     if (I && maps.has(I) && maps.get(I).ready) { const r = maps.get(I).world.raycast(ax, ay, az, bx, by, bz); return r ? r.t : -1; }
-    const L = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.ceil(L / 3));
+    const L = hypot2(bx - ax, bz - az), n = Math.max(1, Math.ceil(L / 3));
     for (let i = 1; i <= n; i++) { const t = i / n, x = ax + (bx - ax) * t, z = az + (bz - az) * t, y = ay + (by - ay) * t; if (y < Math.max(terrainH(x, z), 0)) return t; }
     return -1;
   }
@@ -601,9 +602,9 @@ export function createGroundSim(o) {
       }
       if (p.side === 2 && hooks.extSeg) { const r = hooks.extSeg(p, ax, ay, az, bx, by, bz); if (r && r.t < hitT) { hitT = r.t; what = { ext: r }; } }
       if (hitT <= 1) {
-        const hx = ax + (bx - ax) * hitT, hy = ay + (by - ay) * hitT, hz = az + (bz - az) * hitT, sp = Math.hypot(p.vx, p.vy, p.vz);
+        const hx = ax + (bx - ax) * hitT, hy = ay + (by - ay) * hitT, hz = az + (bz - az) * hitT, sp = hypot3(p.vx, p.vy, p.vz);
         if (p.frag) {   // a grenade: bounces and rolls a metre or two (GAME), then lies there; or off already if the fuse ran out
-          const k = Math.min(2, sp * 0.12), hl = Math.hypot(p.vx, p.vz) || 1, rxp = hx + p.vx / hl * k, rzp = hz + p.vz / hl * k;
+          const k = Math.min(2, sp * 0.12), hl = hypot2(p.vx, p.vz) || 1, rxp = hx + p.vx / hl * k, rzp = hz + p.vz / hl * k;
           p.x = rxp; p.z = rzp; p.y = hAt(rxp, rzp) + 0.05; p.vx = p.vy = p.vz = 0; p.rest = true;
           if (p.fuse <= 0) { explode(p, p.x, p.y, p.z, null); GS.proj.splice(i, 1); }
           continue;
@@ -627,7 +628,7 @@ export function createGroundSim(o) {
   }
   function pdIntercept(x, y, z) {
     for (const u of GS.units) if (u.kind === 'hovertank' && u.alive && u.sim.pdCool <= 0 && u.sim.hp.pd > 0) {
-      const d = Math.hypot(x - u.x, y - u.y - 1.5, z - u.z);
+      const d = hypot3(x - u.x, y - u.y - 1.5, z - u.z);
       if (d < 45 && d > 6) { u.sim.pdCool = 1.4; const ok = R() < 0.55; ev('pd', { id: u.id, x, y, z, ok, from: [u.x, u.y + 2.4, u.z] }); return ok; }
     }
     return false;
@@ -644,7 +645,7 @@ export function createGroundSim(o) {
   GS.blast = (x, y, z, r, power, side, direct = null) => {
     for (const u of candidates(side, x - r, z - r, x + r, z + r, 4)) {
       if (!u.alive || u === direct) continue;
-      const dd = Math.hypot(u.x - x, u.y + 1 - y, u.z - z), reach = u.kind === 'marine' ? r * 1.3 : r;
+      const dd = hypot3(u.x - x, u.y + 1 - y, u.z - z), reach = u.kind === 'marine' ? r * 1.3 : r;
       if (dd > reach + (RAD[u.kind] || 1) * 0.5) continue;
       const k = clamp(1 - dd / (reach + 0.5), 0.05, 1), dx = (u.x - x) / (dd || 1), dz = (u.z - z) / (dd || 1);
       if (u.kind === 'marine') applyHit(u, { point: null, type: 'blast' }, 260 * power * k);
@@ -653,9 +654,9 @@ export function createGroundSim(o) {
       if (u.B) { if (u.kind === 'marine') u.B.mar.nearMiss(u.id, 0.6 * k + 0.2); else u.B.rw.nearMiss(u.id, 0.5 * k); }
     }
     // suppression a bit further out
-    for (const B of GS.battles) if (Math.hypot(B.I.x - x, B.I.z - z) < B.I.r + 80) {
+    for (const B of GS.battles) if (hypot2(B.I.x - x, B.I.z - z) < B.I.r + 80) {
       B.rw.hear({ x, y, z, loud: 600, side, kind: 'blast' }); B.mar.hear({ x, y, z, loud: 600, side, kind: 'blast' });
-      for (const u of B.units) if (u.alive && u.side !== side) { const dd = Math.hypot(u.x - x, u.z - z); if (dd < r * 2.5 && dd > r) { if (u.kind === 'marine') B.mar.nearMiss(u.id, 0.25); else B.rw.nearMiss(u.id, 0.15); } }
+      for (const u of B.units) if (u.alive && u.side !== side) { const dd = hypot2(u.x - x, u.z - z); if (dd < r * 2.5 && dd > r) { if (u.kind === 'marine') B.mar.nearMiss(u.id, 0.25); else B.rw.nearMiss(u.id, 0.15); } }
     }
   };
   // ------------------------------------------------------------------------------------------------- the war's rounds
@@ -676,7 +677,7 @@ export function createGroundSim(o) {
     return { t: bt, unit: best, x, y, z };
   };
   // the war's projectiles are heard by the battles they pass near (the door gun draws the machines' attention)
-  GS.hearWar = (x, y, z, side, loud = 350, src = 'player') => { for (const B of GS.battles) if (B.units.length && Math.hypot(B.I.x - x, B.I.z - z) < B.I.r + loud) { const s = { x, y, z, loud, side, kind: 'shot', src }; B.rw.hear(s); B.mar.hear(s); } };
+  GS.hearWar = (x, y, z, side, loud = 350, src = 'player') => { for (const B of GS.battles) if (B.units.length && hypot2(B.I.x - x, B.I.z - z) < B.I.r + loud) { const s = { x, y, z, loud, side, kind: 'shot', src }; B.rw.hear(s); B.mar.hear(s); } };
   // ngc/infdepth: the player's own rounds (marine.js's rifleman, game level like the rest): a segment against one unit,
   // and a hit on it (the M16's M193 = 'm16', the M60's M80 = 'm60', the .45 = 'm16' at 0.6)
   GS.unitT = unitT;
@@ -689,7 +690,7 @@ export function createGroundSim(o) {
   };
   // ngc/infdepth: casualty evacuation. The wounded (alive, out of the fight) of side 1 within r of (x, z); evacuate(u)
   // takes one out of the battle (aboard a CH-46 or the player's Huey): he leaves the squad, alive.
-  GS.casualties = (x, z, r) => GS.units.filter(u => u.kind === 'marine' && u.alive && !u.able && !u.evac && Math.hypot(u.x - x, u.z - z) < r);
+  GS.casualties = (x, z, r) => GS.units.filter(u => u.kind === 'marine' && u.alive && !u.able && !u.evac && hypot2(u.x - x, u.z - z) < r);
   GS.evacuate = u => {
     u.evac = true; GS.stats.evac++;
     const k = GS.units.indexOf(u); if (k >= 0) GS.units.splice(k, 1);

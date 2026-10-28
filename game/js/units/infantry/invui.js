@@ -32,7 +32,7 @@ const ICON = {
   round: [20, 20, `${[3, 8, 13].map(x => `<rect fill="${brass}" x="${x}" y="5" width="4" height="11" rx="1"/><path fill="#b07a3a" d="M${x} 5l2-4 2 4z"/>`).join('')}`],
   roundt: [20, 20, `${[3, 8, 13].map(x => `<rect fill="${brass}" x="${x}" y="5" width="4" height="11" rx="1"/><path fill="#e44" d="M${x} 5l2-4 2 4z"/>`).join('')}`],
   roundp: [20, 20, `${[3, 9].map(x => `<rect fill="${brass}" x="${x}" y="7" width="6" height="9" rx="1"/><path fill="#999" d="M${x} 7q3-6 6 0z"/>`).join('')}`],
-  needle: [20, 20, `${[4, 8, 12, 16].map(x => `<rect fill="#dfe" x="${x}" y="3" width="1.5" height="14"/>`).join('')}`],
+  rwneedle: [20, 20, `${[4, 8, 12, 16].map(x => `<rect fill="#dfe" x="${x}" y="3" width="1.5" height="14"/>`).join('')}`],
   r40: [20, 20, `<rect fill="${brass}" x="5" y="9" width="10" height="9" rx="1"/><path fill="#5d6b46" d="M5 9q5-9 10 0z"/><rect fill="${k}" x="5" y="9" width="10" height="2"/>`],
   bando: [40, 40, `<path fill="#8a8a5c" d="M3 8h34v24H3z"/>${[0, 1, 2].map(i => `<rect fill="#6e6e48" x="${5 + i * 11}" y="10" width="9" height="20"/>`).join('')}<path fill="#a9a774" d="M3 8l17 -6 17 6z"/>`],
   can: [60, 40, `<rect fill="#5d6b46" x="4" y="8" width="52" height="28" rx="2"/><rect fill="${k}" x="4" y="6" width="52" height="5"/><rect fill="#d6d29a" x="10" y="17" width="26" height="3"/><rect fill="${k}" x="24" y="2" width="12" height="4" rx="2"/>`],

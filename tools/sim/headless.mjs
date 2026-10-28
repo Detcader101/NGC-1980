@@ -8,10 +8,21 @@
 //          blueKnobs / redKnobs: { aggression: 1.4, 'mix.air': 2 }, every (sample s), grid (Float32Array or null) }
 import { register } from 'node:module';
 import { pathToFileURL } from 'node:url';
+// (ngc/perf-cpu) three.js names every object, geometry and material with generateUUID(), four Math.random() draws each.
+// With Math.random seeded for the war, building one mesh more or less (a lazier model, a level of detail, a new prop)
+// reshuffled every die after it and changed the war for that seed. The loader below gives the UUIDs their own stream
+// (globalThis.__uuidRandom, reseeded per war in runWar), so a seed replays the same war whatever the models cost.
 if (!globalThis.__simThree) {
   globalThis.__simThree = true;
+  const THREE_URL = JSON.stringify(pathToFileURL(new URL('../../game/vendor/three.module.min.js', import.meta.url).pathname).href);
   register('data:text/javascript,' + encodeURIComponent(`
-export async function resolve(s, c, n) { if (s === 'three') return { url: ${JSON.stringify(pathToFileURL(new URL('../../game/vendor/three.module.min.js', import.meta.url).pathname).href)}, shortCircuit: true }; return n(s, c); }`));
+export async function resolve(s, c, n) { if (s === 'three') return { url: ${THREE_URL}, shortCircuit: true }; return n(s, c); }
+export async function load(u, c, n) {
+  const r = await n(u, c); if (u !== ${THREE_URL}) return r;
+  const src = typeof r.source === 'string' ? r.source : new TextDecoder().decode(r.source), out = src.split('4294967295*Math.random()').join('4294967295*(globalThis.__uuidRandom||Math.random)()');
+  if (out === src) console.error('headless.mjs: three.js generateUUID not found - UUIDs draw from the seeded Math.random');
+  return { ...r, source: out, shortCircuit: true };
+}`));
 }
 const noop = () => {};
 // a canvas for the decal / texture builders (ships, aircraft): draws nothing
@@ -30,7 +41,7 @@ const { createRedAI } = await import('../../game/js/sim/redai.js');
 const { createStrikeWing } = await import('../../game/js/sim/strike.js');
 const { createTelemetry } = await import('../../game/js/sim/telemetry.js');
 const { doctrine, tweak } = await import('../../game/js/sim/doctrine.js');
-const { seedMath } = await import('../../game/js/sim/rng.js');
+const { seedMath, sfc32 } = await import('../../game/js/sim/rng.js');
 const { createTech } = await import('../../game/js/techtree.js');
 const { installResearch } = await import('../../game/js/sim/policy.js');
 const { createFleet } = await import('../../game/js/units/commander/fleet.js');
@@ -74,7 +85,7 @@ export async function runWar(cfg) {
   const z = zone(cfg.exact ? null : cfg.grid || (Z ? null : await loadGrid()));
   restore();
   for (const [k, v] of Object.entries(cfg.set || {})) setTunable(k, v);
-  const R = seedMath(cfg.seed ?? 1);
+  const R = seedMath(cfg.seed ?? 1); globalThis.__uuidRandom = sfc32(((cfg.seed ?? 1) ^ 0x5eed) >>> 0);   // (ngc/perf-cpu) the UUIDs' own stream, see the loader
   const dt = cfg.dt ?? 1 / 30, tmax = cfg.tmax ?? 3600;
   const blue = tweak(typeof cfg.blue === 'object' ? cfg.blue : doctrine(1, cfg.blue || 'BALANCED'), cfg.blueKnobs || {});
   const red = tweak(typeof cfg.red === 'object' ? cfg.red : doctrine(2, cfg.red || 'DEFAULT'), cfg.redKnobs || {});

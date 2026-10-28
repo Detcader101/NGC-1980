@@ -30,7 +30,7 @@ export function createTomcatCraft(ctx) {
   // ---------------------------------------------------------------- presence and frames
   D.present = () => TP.active && TP.alive && !TP.ejected;
   D.frame = out => { out.x = A.pos.x; out.y = A.pos.y; out.z = A.pos.z; out.yaw = yawOf(); return out; };
-  D.bounds = () => D.present() && A.onGround ? (D._b ||= {}, Object.assign(D._b, (() => { const y = yawOf(), c = Math.cos(y), s = Math.sin(y), ox = 0.8; return { x: A.pos.x + ox * s, z: A.pos.z + ox * c, yaw: y, hl: 9.6, hw: 1.7, y0: A.pos.y - H0, y1: A.pos.y + 2.6, def: D }; })())) : null;
+  D.bounds = () => { if (!(D.present() && A.onGround)) return null; const y = yawOf(), c = Math.cos(y), s = Math.sin(y), ox = 0.8, b = D._b ||= {}; b.x = A.pos.x + ox * s; b.z = A.pos.z + ox * c; b.yaw = y; b.hl = 9.6; b.hw = 1.7; b.y0 = A.pos.y - H0; b.y1 = A.pos.y + 2.6; b.def = D; return b; };   // (ngc/perf-cpu: no literal or closure per collision query)
   // ---------------------------------------------------------------- taking a Tomcat (8 on the ALBATROSS deck, in the helicopter)
   // COMMANDER (o.command): taken out from any unit, as craftjet.js does it for the HORNET
   D.launch = (o = {}) => {

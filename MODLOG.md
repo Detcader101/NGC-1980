@@ -9,11 +9,60 @@ intakes hollow from the side. The blob now only draws without RenderKit sun shad
 The airframe is traced from public-domain NASA drawings (TP-2769 / TM-83250 1/12 model three-view and dimensioned
 planforms, CR-163098 front view) and lofted: smooth superellipse fuselage, canopy and raked intakes, NACA-section
 gloves, wings, tails and ventrals at their drawn stations, the wings on the real pivot (BL 107 in). Silhouette fit: side
-IoU 0.988 (gap 1.0%), top at 68 deg 0.983, front 0.961. One real airframe: F-14A BuNo 160382, VF-84 AJ 206, September
+IoU 0.988 (gap 1.0%), top at 68 deg 0.983, front 0.976. One real airframe: F-14A BuNo 160382, VF-84 AJ 206, September
 1980 (U.S. Navy photo), overall gull grey, black fins with the skull and crossbones. The cockpit interior moved into the
 drawn airframe. Tools: `tools/blueprint/` (trace, fit), `dev/tomcat.html?ref=side|top|front&sil&mask`, `?legacy=1`.
-Not done: panel lines and the NATOPS cockpit check (the manuals are not public). Details:
+The 1972 NATOPS (archive.org) cross-checks the dimensions and lays out the pilot's panel. Not done: panel lines
+(the maintenance manuals are not public) and a traced RIO panel. Details:
 [findings](docs/ngc1980/findings/look-tomcat.md), evidence in `docs/ngc1980/evidence/look-tomcat/`.
+
+## 2026-10-28 — TypeScript type checking, phase 1 (no build step)
+
+`node tools/check.mjs types` runs TypeScript 6.0.3 over all 269 game modules as they are: JSDoc + `checkJs`, three
+r170 types, not strict. The browser still loads the same `.js` files and nothing about the game changed. The check
+fails only when the error count rises above `tools/typecheck-baseline.json`, so branches keep merging while the count
+comes down: 761 raw, **608** after declaring the `window` hooks and typing the core. The craft host, the war state, the
+RenderKit adoption switch and the `?debug` bridge are now typed, so a misspelt `war.member`, a wrong `crafts.*` call or
+`RK.on('natur')` is an error. It found two real bugs, both left for their owners: the RW NEEDLES ammo shows the medical
+catheter icon (a duplicate icon key), and the `sfx.ui` / `refuel` / `hit` sounds that 20 calls ask for were never
+written. Plan for real `.ts` files after the look pass: [TYPESCRIPT.md](docs/ngc1980/TYPESCRIPT.md); findings:
+[typecheck.md](docs/ngc1980/findings/typecheck.md).
+## 2026-10-28 — main-thread CPU and garbage (ngc/perf-cpu)
+
+Add `?perfhud` to the URL to see the main-thread CPU per system on screen. It shows the player, the war (ships, air,
+guns and AA, ground, AI and deck, structures), fish, world, nature, vehicles, HUD, light, render and markers, with the
+mean and the worst frame each second. The garbage the sims made every game second dropped to a third or less in a
+paired run: the war view went from 50 to 30 MB, the village from 153 to 35 MB and the Huey cruise from 84 to 25 MB.
+GC time per frame fell by half to two thirds.
+
+The causes were:
+- the AA brains re-walked their whole models every step;
+- Math.hypot allocated on every call; the new `game/js/hypot.js` gives bit-identical results without allocating;
+- destructured arrays, temporary objects and closures in the deck, gear and sea-motion queries;
+- every AI Sea Knight built thirteen full Marines at spawn;
+- a parked truck on HOME ISLAND never slept and ran the full vehicle sim every frame;
+- the fish sim boxed its sea-bed cache keys and kept re-optimising.
+
+Seeded headless wars give the same records as before, at a third less wall time. That needed one harness fix: three.js
+drew its object UUIDs from the war's seeded random, so any model change reshuffled a seed's war. `tools/warprof.mjs`,
+`tools/simdiff.mjs` and `tools/scenes/cpuprofile.mjs` profile and compare runs. Findings, worker proposal and
+hotspots for other owners: [perf-cpu.md](docs/ngc1980/findings/perf-cpu.md).
+## 2026-10-28 — look-people: real people instead of blocks
+
+Every person in NGC-1980 is now one continuous, smooth, skinned body built from signed-distance anatomy
+(`units/infantry/sdfmesh.js`, `humanfig.js`). This covers the Marines, the player's own body and first-person hands,
+the Huey / CH-46 / Hornet / Tomcat crews, the ALBATROSS deck crew, the ship's crews, townsfolk and the distant crowd
+stand-ins. The bodies stay on the existing 17-bone rig and animations, so seats, ladder, swim, drag / carry, buddy
+aid, hitboxes and XR all keep working. Faces have eyelids, ring irises and a proper jaw. 1980 utilities have folds and
+ERDL camouflage computed per pixel. The M1 helmet is resized to its reference shell. Flight suits come with SPH-4 or
+HGU-33 (visor and mask), deck crew wear role-coloured jerseys, float coats and cranials, and townsfolk are in shirts
+and jeans. The right thumb now wraps the pistol grip. The M60, M203, LAW and M1911 are rebuilt.
+
+Geometry is shared per variant and LOD (about 25 KB per extra soldier). The deck crew and townsfolk are single
+instanced draws with shader-swung limbs, and LODs keep crowds affordable. Dimensions are cited from public manuals
+and anthropometry (`docs/ngc1980/reference/people/SOURCES.md`). Evidence: `docs/ngc1980/evidence/look-people/`.
+Findings: `docs/ngc1980/findings/look-people.md`. Regressions match the 36eb21b baseline; underwater passes again
+after the crowd LODs. `?figparts=1` shows the previous people, and `?rk=0` the classic game.
 
 ## 2026-10-26 — Continuum reusable shader and UI library
 

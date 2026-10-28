@@ -15,6 +15,9 @@ import { Kit, KITMAT, CAMO, COL, FIG, weldNormals } from './meshkit.js';
 import { tpHand } from './handkit.js';   // RENDERKIT figures
 import { buildWeaponModel } from './weaponmodels.js';
 import { m67Geometry, m67Into, grenadeMaterial } from './grenademodel.js';   // ngc/marine-polish
+import { attachMarine } from './humanfig.js';   // ngc/look-people
+// ngc/look-people: ?figparts=1 keeps the previous (depth-figures) part-built figure for A/B shots
+const PARTS = (() => { try { return new URLSearchParams(location.search).has('figparts'); } catch (e) { return false; } })();
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const sstep = t => t * t * (3 - 2 * t);
@@ -109,7 +112,10 @@ export function buildMarine(o = {}) {
   const od = CAMO.od(0x5a5d3c), web = CAMO.od(COL.webbing), vestC = CAMO.od(0x55583a);
   sk.kit = { helmet: o.helmet !== false, vest: o.vest !== false };
   const put = (bone, build) => { const k = new Kit(); build(k); const m = k.mesh(KITMAT.lambert(), bone + 'Mesh'); m.castShadow = false; B[bone].add(m); return m; };
-  if (FIG) marineFig(sk, o, put, { cloth, skin, od, web, vestC });   // RENDERKIT figures: the same kit, rounded and smooth
+  // RENDERKIT figures (ngc/look-people): one continuous skinned person on these bones (humanfig.js); the part-built
+  // rounded figure (marineFig) stays for ?rk=figures-parts comparisons only
+  if (FIG && !PARTS) attachMarine(sk, { ...o, seed, skin: o.skin, vest: sk.kit.vest, helmet: sk.kit.helmet });
+  else if (FIG) marineFig(sk, o, put, { cloth, skin, od, web, vestC });
   else {
   // pelvis: trousers seat, pistol belt, ammo pouches, canteens, first aid pouch
   put('pelvis', k => {

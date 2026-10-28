@@ -29,7 +29,7 @@ export const DECK_POLY = [
 export const ELEVS = [[10, -26, 16.6, -12], [10, -6, 16.6, 8], [-20.5, 34, -15, 48]];
 function inPoly(x, z, P) {
   let c = false;
-  for (let i = 0, j = P.length - 1; i < P.length; j = i++) { const [xi, zi] = P[i], [xj, zj] = P[j]; if ((zi > z) !== (zj > z) && x < (xj - xi) * (z - zi) / (zj - zi) + xi) c = !c; }
+  for (let i = 0, j = P.length - 1; i < P.length; j = i++) { const xi = P[i][0], zi = P[i][1], xj = P[j][0], zj = P[j][1]; if ((zi > z) !== (zj > z) && x < (xj - xi) * (z - zi) / (zj - zi) + xi) c = !c; }
   return c;
 }
 export function localDeck(lx, lz) {

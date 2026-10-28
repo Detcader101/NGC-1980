@@ -32,19 +32,120 @@
 //   }
 //
 // All functions are optional except id, label, kind, present, update, pl. The host fills in safe defaults.
+//
+// The JSDoc types below say the same for the type checker (node tools/check.mjs types): every crafts.register()
+// caller and every crafts.* use is checked against them.
+
+/** 'air' | 'ground' | 'foot' (a plain string: the factories build defs whose kind TypeScript widens to string) @typedef {string} CraftKind */
+/** @typedef {{ x: number, y: number, z: number, yaw: number }} CraftFrame */
+/**
+ * A seat; door / doors / exit / eye are [x, y, z] in the craft's local frame (x right, y up, -z forward), metres.
+ * @typedef {{ id?: string, label?: string, role?: string, eye?: number[], door?: number[], doors?: number[][],
+ *   exit?: number[], reach?: number, locked?: boolean, [extra: string]: any }} CraftSeat
+ */
+/**
+ * A `pl` field is a value or a function returning it (asked every time war.js reads crafts.PL).
+ * @template T
+ * @typedef {T | (() => T)} PLField
+ */
+/**
+ * What war.js sees of the craft (crafts.PL reads these from the active craft; unset fields use DEFAULT_PL).
+ * @typedef {{ alive?: PLField<boolean>, landed?: PLField<boolean>, inCave?: PLField<boolean>, hitR?: PLField<number>,
+ *   sight?: PLField<number>, sources?: PLField<{ x: number, z: number, r: number }[] | null>, detect?: PLField<number>,
+ *   capTime?: PLField<number> }} CraftPL
+ */
+/** @typedef {{ x: number, z: number, yaw: number, hl: number, hw: number, y0: number, y1: number }} CraftBounds */
+/** @typedef {{ line?: string, hint?: string, tip?: string, weap?: string, fuel?: number | null, fuelLabel?: string, [extra: string]: any }} CraftHud */
+/**
+ * The interface part of a craft definition (see the header above and docs/ngc1980/FOUNDATION.md). After register()
+ * every optional function is filled in, so callers may call them without checking.
+ * @typedef {object} CraftDefCore
+ * @property {string} id
+ * @property {string} [label]
+ * @property {CraftKind} [kind]
+ * @property {CraftSeat[]} [seats]
+ * @property {CraftPL} [pl]
+ * @property {() => boolean} [present]
+ * @property {(out: any) => CraftFrame | null} [frame]   out: an object to fill in (and return)
+ * @property {(seat: number, from: string) => boolean | void} [enter]
+ * @property {() => string} [canExit]
+ * @property {(next?: CraftDef) => void} [exit]
+ * @property {() => CraftFrame[]} [exitSpots]
+ * @property {(i: number) => boolean | void} [setSeat]
+ * @property {(dt: number, input: any) => void} [update]
+ * @property {(dt: number) => void} [idle]
+ * @property {() => void} [afterWar]
+ * @property {(dt: number, time: number, firstPerson: boolean) => void} [render]
+ * @property {(cam: import('three').PerspectiveCamera, dt: number, view: any) => void} [camera]
+ * @property {() => boolean} [firstPerson]
+ * @property {(ckFov: number) => number} [fov]
+ * @property {(code: string, e?: KeyboardEvent) => boolean | void} [key]
+ * @property {(dx: number, dy: number) => void} [look]
+ * @property {() => CraftHud} [hud]
+ * @property {() => void} [silence]
+ * @property {(Z: any) => void} [avatar]
+ * @property {(amount: number, why?: string, at?: any, dir?: any, kind?: any) => void} [hurt]
+ * @property {(out?: any) => CraftBounds | CraftBounds[] | null} [bounds]
+ * @property {() => string} [menuNote]
+ */
+/**
+ * A craft: the interface plus whatever the craft adds for its own callers (the Huey's TP, a vehicle's spawnAt, ...).
+ * @typedef {CraftDefCore & { [extra: string]: any }} CraftDef
+ */
+/**
+ * crafts.PL: the player as war.js sees it (pos / vel are the avatar Z).
+ * @typedef {{ pos: import('three').Vector3, vel: import('three').Vector3, readonly alive: boolean, readonly landed: boolean,
+ *   readonly inCave: boolean, readonly hitR: number, readonly sight: number, readonly sources: { x: number, z: number, r: number }[] | null,
+ *   readonly detect: number, readonly capTime: number, readonly kind: CraftKind, readonly craft: string }} PlayerView
+ */
+/**
+ * The host main.js owns (createCraftHost).
+ * @typedef {object} CraftHost
+ * @property {CraftDef[]} defs
+ * @property {CraftDef | null} active
+ * @property {CraftDef | null} cur        the same as active (read-only getter)
+ * @property {number} seat
+ * @property {{ dx: number, dy: number }} mouse   captured mouse movement since the last frame (the active craft's look())
+ * @property {(from: CraftDef | null, to: CraftDef) => void} onSwitch   main.js hook (cameras, pointer lock, HUD)
+ * @property {<D extends CraftDef>(def: D) => D} register
+ * @property {(def: CraftDef) => boolean} unregister
+ * @property {(id: string) => CraftDef | null} get
+ * @property {(id: string, seat?: number, from?: string) => boolean} control
+ * @property {(id: string, seat?: number) => void} setActive
+ * @property {(def: CraftDef, p: number[], out?: { x: number, y: number, z: number, yaw?: number }) => { x: number, y: number, z: number, yaw?: number } | null} toWorld
+ * @property {(x: number, y: number, z: number, reach?: number, skip?: CraftDef | null) => { def: CraftDef, seat: number, d: number } | null} nearestDoor
+ * @property {(def: CraftDef, i: number) => string} seatName
+ * @property {(dir: number) => boolean} cycleSeat
+ * @property {(dt: number, input: any) => void} update
+ * @property {() => void} afterWar
+ * @property {(dt: number, time: number) => void} render
+ * @property {() => void} silence
+ * @property {(skip?: CraftDef | null) => CraftBounds[]} bounds
+ * @property {PlayerView} PL
+ */
+
+/** @type {(...args: any[]) => any} */
 const NOOP = () => {};
 const DEFAULT_PL = { alive: true, landed: false, inCave: false, hitR: 2.6, sight: 0, sources: null, detect: 1, capTime: 0 };
 
+/**
+ * @param {{ G: any, Z: any, say?: (text: string, secs?: number) => void }} ctx
+ * @returns {CraftHost}
+ */
 export function createCraftHost({ G, Z, say = NOOP }) {
-  const defs = [], byId = new Map();
-  const host = {
+  /** @type {CraftDef[]} */
+  const defs = [];
+  /** @type {Map<string, CraftDef>} */
+  const byId = new Map();
+  const host = /** @type {CraftHost} */ ({
     defs, active: null, seat: 0,
     // captured mouse movement since the last frame, consumed by the active craft's look()
     mouse: { dx: 0, dy: 0 },
     onSwitch: NOOP,   // (from, to) -> void : main.js hook (cameras, pointer lock, HUD)
-  };
+  });
 
-  host.register = def => {
+  // (typed through CraftHost.register: generic, so the caller keeps its own def type)
+  host.register = /** @type {CraftHost["register"]} */ (/** @param {CraftDef} def */ def => {
     if (!def || !def.id || byId.has(def.id)) throw new Error('craft: bad or duplicate id ' + (def && def.id));
     def.seats ||= [{ id: 'pilot', label: 'PILOT', role: 'driver' }];
     def.kind ||= 'air';
@@ -57,7 +158,7 @@ export function createCraftHost({ G, Z, say = NOOP }) {
     if (typeof def.firstPerson !== 'function') def.firstPerson = () => false;
     if (typeof def.hud !== 'function') def.hud = () => ({ line: '', hint: '', weap: '', fuel: null });
     defs.push(def); byId.set(def.id, def); return def;
-  };
+  });
   // ngc/wheeledgame: crafts that come and go (parked town cars, WORLD traffic taken over by the vehicle sim, deliveries)
   host.unregister = def => { if (!def || host.active === def) return false; const i = defs.indexOf(def); if (i >= 0) defs.splice(i, 1); byId.delete(def.id); return true; };
   host.get = id => byId.get(id) || null;

@@ -217,6 +217,7 @@ export function createGamePost(renderer, { reducedMotion = () => false, quality 
   const displayTarget = (samples, depth) => {
     const t = new THREE.WebGLRenderTarget(1, 1, { type: THREE.UnsignedByteType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
       depthBuffer: true, stencilBuffer: false, samples });
+    // @ts-expect-error isXRRenderTarget is a real WebGLRenderer flag (r170 WebGLTextures / WebXRManager) missing from @types/three
     t.isXRRenderTarget = true; t.texture.colorSpace = THREE.SRGBColorSpace; t.texture.internalFormat = 'RGBA8';
     if (depth) { t.depthTexture = new THREE.DepthTexture(1, 1); t.depthTexture.type = THREE.UnsignedIntType; t.depthTexture.name = 'RenderKit/scene-depth'; }
     return t;
