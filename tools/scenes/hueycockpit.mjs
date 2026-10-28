@@ -43,6 +43,7 @@ export default async function (h) {
   await h.waitFor("__at('bat') && document.getElementById('hint').textContent.startsWith('BATTERY')", 5000);
   await h.shot('hover-battery');
   await h.eval('(window.__b0 = __G.SY.bat, __at("bat"), dispatchEvent(new MouseEvent("mousedown", { button: 0 })), dispatchEvent(new MouseEvent("mouseup", { button: 0 })), 1)');
+  await h.waitFor('__G.SY.bat !== __b0', 5000);   // the click lands on the next game frame (slow under load)
   await h.expect('__G.SY.bat !== __b0');
   await h.wait(1500); await h.eval('({ bat: __G.SY.bat, volts: __G.SY.volts, ac: __G.SY.ac })');
   await h.shot('battery-off');

@@ -539,7 +539,7 @@ export function buildHueyHiFi(HUEY, { xr = false } = {}) {
     put(new THREE.SphereGeometry(0.051, 14, 8).translate(s * sx, -1.775, SK.z1), N.od);
     put(lathe([[0, 0], [0.05, 0], [0.051, 0.01], [0, 0.012]], 14).rotateX(Math.PI / 2).rotateX(0.5).translate(s * sx, -1.495, SK.z0 - 0.05), N.od);
     put(rbox(0.07, 0.016, SK.z1 - SK.z0 - 0.75, 0.006).translate(s * sx, -1.838, (SK.z0 + 0.65 + SK.z1 - 0.1) / 2), N.alum);   // skid shoe (wear plate)
-    for (const z of [cz0, cz1]) put(lathe([[0.075, -0.06], [0.08, 0], [0.075, 0.06]], 16).rotateZ(Math.PI / 2).scale(0.8, 1, 1).translate(s * sx, -1.795, z), N.dark);   // saddles
+    for (const z of [cz0, cz1]) put(lathe([[0.057, -0.06], [0.061, 0], [0.057, 0.06]], 16).rotateZ(Math.PI / 2).scale(0.8, 1, 1).translate(s * sx, -1.795, z), N.dark);   // saddles
     // boarding step on the forward cross tube, outboard on its arch
     put(tube([[s * (sx - 0.1), -1.52, cz0 - 0.13], [s * (sx + 0.05), -1.56, cz0 - 0.13], [s * (sx + 0.05), -1.56, cz0 + 0.13], [s * (sx - 0.1), -1.52, cz0 + 0.13]], 0.016, 16, 8), N.alum);
     put(rbox(0.12, 0.012, 0.24, 0.004).translate(s * (sx + 0.0), -1.55, cz0), N.dark);
