@@ -328,9 +328,19 @@ const sc = faceCols.filter(c => c.x >= -0.5 && c.x <= 0.49);   // the glare shie
   plane(0.34, LA, canvasMat(pedA, 0.55), 0, 0, 0.001, PA); plane(0.34, LB, canvasMat(pedB, 0.55), 0, 0, 0.001, PB);
   // caution panel captions (own canvas, redrawn when the lit set changes)
   const cautT = canvasTex(480, 320); plane(0.235, 0.155, new THREE.MeshBasicMaterial({ map: cautT.tex, toneMapped: false }), -0.042, 0.175, 0.003, PA);
+  // hi-fi: the ENGINE and MISC panels laid out as TM -10 fig. 2-6 (engine: LOW RPM AUDIO and the guarded FUEL switch on
+  // top, INT AUX FUEL left / right, DE-ICE and GOV AUTO / EMER below; misc: CHIP DET, FORCE TRIM, HYD CONT)
+  if (HF) {
+    toggle('mc', PA, 0.125, 0.22, 'MASTER CAUTION RESET');
+    toggle('lowrpm', PA, -0.11, 0.03, 'LOW RPM AUDIO'); toggle('engine', PA, 0.0, 0.03, 'MAIN FUEL', { guard: true });
+    toggle('auxL', PA, -0.13, -0.05, '', { dummy: true, on: true }); toggle('auxR', PA, -0.075, -0.05, '', { dummy: true, on: true }); toggle('deice', PA, 0.0, -0.05, '', { dummy: true }); toggle('gov', PA, 0.11, -0.05, 'GOVERNOR  AUTO / EMER', { guard: true });
+    toggle('trim', PA, -0.04, -0.18, 'FORCE TRIM'); toggle('hyd', PA, 0.05, -0.18, 'HYD CONTROL'); toggle('sas', PA, 0.13, -0.18, 'STABILITY ASSIST  (GAME AID)');
+    cyl(0.016, 0.016, 0.012, black, -0.125, -0.18, 0.006, PA, Math.PI / 2, 0, 16);   // CHIP DET rotary selector
+  } else {
   toggle('mc', PA, 0.125, 0.22, 'MASTER CAUTION RESET'); toggle('lowrpm', PA, 0.125, 0.125, 'LOW RPM AUDIO');
   toggle('gov', PA, -0.1, -0.01, 'GOVERNOR  AUTO / EMER', { guard: true }); toggle('deice', PA, 0, -0.01, '', { dummy: true }); toggle('engine', PA, 0.1, -0.01, 'MAIN FUEL', { guard: true });
   toggle('trim', PA, -0.1, -0.18, 'FORCE TRIM'); toggle('hyd', PA, 0, -0.18, 'HYD CONTROL'); toggle('sas', PA, 0.1, -0.18, 'STABILITY ASSIST  (GAME AID)');
+  }
   for (const x of [-0.12, -0.06, 0, 0.06, 0.12]) for (const y of [0.27, 0.16, 0.06, -0.05, -0.15, -0.25]) if ((x * 100 + y * 10) % 3 > 1) cyl(0.008, 0.009, 0.012, black, x, y, 0.006, PB, Math.PI / 2, 0, 10);   // radio knobs
   button('radio', PB, 0.12, 0.13, 0.011, M(0x2a62c8), 'LOGISTICS  -  RADIO CALL (FUEL DROP / FIELD REPAIR)');
   // pedestal art
@@ -343,6 +353,21 @@ const sc = faceCols.filter(c => c.x >= -0.5 && c.x <= 0.49);   // the glare shie
   function drawPedA() {
     const c = pedA.ctx, { X, Y } = pedPx(pedA, LA), l = (t, x, y, s = 16, col = '#e8e4d4') => txt(c, t, X(x), Y(y), col, s * 1.45);
     c.fillStyle = '#17191a'; c.fillRect(0, 0, 680, pedA.cv.height);
+    if (HF) {   // fig. 2-6 lettering
+      plate(c, X, Y, -0.168, LA / 2 - 0.002, 0.168, 0.088, ''); l('TEST', 0.125, 0.256, 14); l('RESET', 0.125, 0.186, 14);
+      plate(c, X, Y, -0.168, 0.084, 0.168, -0.092, ''); for (const [i, ch] of [...'ENGINE'].entries()) l(ch, -0.158, 0.05 - i * 0.02, 11);
+      l('LOW RPM', -0.11, 0.07, 12); l('AUDIO', -0.11, 0.058, 10); l('OFF', -0.11, 0.003, 10);
+      l('MAIN  FUEL', 0.0, 0.07, 12); l('ON', 0.0, 0.058, 10); l('OFF', 0.0, 0.003, 10);
+      l('INT AUX FUEL', -0.1, -0.012, 10); l('LEFT   RIGHT', -0.1, -0.024, 9); l('OFF    OFF', -0.1, -0.078, 9);
+      l('DE-ICE', 0.0, -0.012, 11); l('ON', 0.0, -0.024, 9); l('OFF', 0.0, -0.078, 9);
+      l('GOV', 0.11, -0.012, 12); l('AUTO', 0.11, -0.024, 9); l('EMER', 0.11, -0.078, 10, '#ff8a5a');
+      plate(c, X, Y, -0.168, -0.096, 0.168, -LA / 2 + 0.002, '');
+      l('CHIP DET', -0.125, -0.135, 11); l('XMSN', -0.125, -0.15, 9); l('BOTH   TAIL ROTOR', -0.125, -0.212, 8);
+      l('FORCE TRIM', -0.04, -0.135, 11); l('ON', -0.04, -0.148, 10); l('OFF', -0.04, -0.215, 10);
+      l('HYD CONT', 0.05, -0.135, 11); l('ON', 0.05, -0.148, 10); l('OFF', 0.05, -0.215, 10);
+      c.fillStyle = '#1e4a9a'; c.fillRect(X(0.095), Y(-0.126), 0.07 * 2000, 0.018 * 2000); l('STAB AID', 0.13, -0.135, 10, '#fff'); l('(GAME)', 0.13, -0.232, 9, '#9ab');
+      pedA.tex.needsUpdate = true; return;
+    }
     plate(c, X, Y, -0.168, LA / 2 - 0.002, 0.168, 0.088, '');
     l('TEST', 0.125, 0.256, 14); l('RESET', 0.125, 0.186, 14); l('LOW RPM', 0.125, 0.163, 13); l('AUDIO', 0.125, 0.15, 13); l('OFF', 0.125, 0.094, 13);
     plate(c, X, Y, -0.168, 0.084, 0.168, -0.092, 'ENGINE');
