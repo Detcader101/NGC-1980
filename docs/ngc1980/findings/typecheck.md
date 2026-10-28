@@ -90,3 +90,12 @@ Left in the baseline so the type check keeps pointing at them.
 - `war.js`: a branch that adds `W.something =` must add `@property` to the `War` typedef above `createWar`.
 - `main.js`: the `window.__G = {...}` object moved into `function debugBridge()` just above it (same members, same
   getters, built only under `?debug`). A branch that adds a member to `__G` adds it inside `debugBridge()`.
+
+## 2026-10-28 - Test record: the game runs as before
+**Finding**: the only runtime-visible edits are: the `?debug` bridge object built in `debugBridge()` instead of inline,
+and parentheses around two JSDoc casts (`craft.js` register, `war.js` W). Everything else is comments.
+**Evidence**: `node tools/check.mjs syntax` 530/530; `node tools/check.mjs bench` 56/56; `snap.mjs scenes/smoke.json`
+PASS 5/5, 0 page errors; `scenes/commander.mjs` PASS 29/29. `scenes/vehicle.mjs` FAIL 11/15 on this branch and FAIL
+10/16 on the base `ngc/shader-library` files (same failing expects: carry on the deck under way, the craft switch, the
+engine drowning in the surf); it is a pre-existing failure, not caused by this branch.
+**Action**: vehicle.mjs failure is OPEN for the vehicle / deck owner (seen under SwiftShader at ~1 fps; may be timing).
