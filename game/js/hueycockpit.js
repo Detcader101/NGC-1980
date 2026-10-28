@@ -159,19 +159,36 @@ export function buildHueyCockpit({ classic = false } = {}) {
   // ---------------------------------------------------------------- glare shield
   {
     const pos = [], idx = [], N = 12;
-    for (let i = 0; i <= N; i++) { const x = -1.02 + 2.04 * i / N; pos.push(x, -0.125, Math.min(wsB(x) + 0.01, -2.74), x, -0.125, -2.712); if (i < N) idx.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2); }
+    // hi-fi: as wide as the fig. 2-4 glare shield (+-0.64 m), resting on the hood over the panel, forward to the windscreen
+    const GW = HF ? 0.64 : 1.02, GY = HF ? -0.118 : -0.125, GZ = HF ? -2.72 : -2.712;
+    for (let i = 0; i <= N; i++) { const x = -GW + 2 * GW * i / N; pos.push(x, GY, Math.min(wsB(x) + 0.01, GZ - 0.03), x, GY, GZ); if (i < N) idx.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2); }
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
-    const gs = new THREE.Mesh(geo, glareM); glareM.side = THREE.DoubleSide; g.add(gs);
-    box(2.04, 0.018, 0.02, glareM, 0, -0.128, -2.715);                          // padded lip, flush with the panel top
+    const gs = new THREE.Mesh(geo, glareM); glareM.side = THREE.DoubleSide; if (!HF) g.add(gs);   // hi-fi: the hood over the panel is the glare shield
+    if (!HF) box(2.04, 0.018, 0.02, glareM, 0, -0.128, -2.715);                 // padded lip, flush with the panel top
   }
   // standby magnetic compass on the centre post
-  box(0.075, 0.06, 0.06, black, 0, -0.085, -2.82); cyl(0.006, 0.006, 0.05, metal, 0, -0.035, -2.84);
-  const compass = canvasTex(160, 64); { const o = plane(0.05, 0.02, lit(0xffffff), 0, -0.085, -2.789); o.material.map = compass.tex; }
+  // (hi-fi: fig. 2-4 item 27, on a bracket at the panel's right edge)
+  const CMP = HF ? [0.63, -0.43, -2.6] : [0, -0.085, -2.82];
+  box(0.075, 0.06, 0.06, black, CMP[0], CMP[1], CMP[2]); if (!HF) cyl(0.006, 0.006, 0.05, metal, 0, -0.035, -2.84);
+  const compass = canvasTex(160, 64); { const o = plane(0.05, 0.02, lit(0xffffff), CMP[0], CMP[1], CMP[2] + 0.031); o.material.map = compass.tex; }
 
   // ---------------------------------------------------------------- instrument panel
   // panel group: x right, y up the face, z toward the crew; tilted back
   const P = new THREE.Group(); P.position.set(0, -0.397, -2.653); P.rotation.x = -0.25; g.add(P);
-  box(2.22, 0.48, 0.04, panelM, 0, 0.03, -0.025, P); box(0.56, 0.2, 0.04, panelM, 0.035, -0.31, -0.025, P);
+  // hi-fi: the panel outline, every instrument's place and size from TM 55-1520-210-10 fig. 2-4 "Instrument panel
+  // (typical)" (1988, change 7; archive.org tm-55-1520-210-10-operators-manual-uh-1-h-v-february-1988 page n68), read at
+  // 800 px/m on the page (the 3 in instruments come out ~95 mm across): copilot flight group left, engine and systems
+  // column in the centre, the pilot's tachometer / torque / gas producer / EGT column and flight group on the right
+  const TMP = (px, py) => [(px - 806) / 800, (470 - py) / 800];
+  const PANEL_OUT = [[370, 338], [1245, 338], [1245, 622], [1214, 652], [700, 652], [532, 657], [470, 640], [375, 612]].map(([a, b]) => TMP(a, b));
+  if (HF) {
+    const sh = new THREE.Shape(PANEL_OUT.map(([x, y]) => new THREE.Vector2(x, y)));
+    const pg = new THREE.ExtrudeGeometry(sh, { depth: 0.035, bevelEnabled: true, bevelThickness: 0.006, bevelSize: 0.008, bevelSegments: 2, curveSegments: 6 }).translate(0, 0, -0.041);
+    const o = new THREE.Mesh(pg, panelM); P.add(o);
+    // the glare shield's lip over the panel top, curved like the figure's outline
+    const lip = new THREE.Shape([[-0.6, 0.165], [0.6, 0.165], [0.64, 0.19], [0.34, 0.265], [0.0, 0.29], [-0.34, 0.265], [-0.64, 0.19]].map(([x, y]) => new THREE.Vector2(x, y)));
+    P.add(new THREE.Mesh(new THREE.ExtrudeGeometry(lip, { depth: 0.36, bevelEnabled: true, bevelThickness: 0.01, bevelSize: 0.01, bevelSegments: 2 }).translate(0, 0, -0.33), glareM));   // the glare shield hood, back to the windscreen
+  } else { box(2.22, 0.48, 0.04, panelM, 0, 0.03, -0.025, P); box(0.56, 0.2, 0.04, panelM, 0.035, -0.31, -0.025, P); }
   // gauge layout (panel coords, diameter)
   const GL = {
     asi: [0.40, 0.14, 0.115], adi: [0.555, 0.14, 0.13], alt: [0.71, 0.14, 0.115], rmi: [0.40, 0.005, 0.105], ts: [0.555, 0.005, 0.095], vsi: [0.71, 0.005, 0.105],
@@ -182,23 +199,45 @@ export function buildHueyCockpit({ classic = false } = {}) {
     asi2: [-0.71, 0.14, 0.115], adi2: [-0.555, 0.14, 0.13], alt2: [-0.40, 0.14, 0.115], rmi2: [-0.71, 0.005, 0.105], ts2: [-0.555, 0.005, 0.095], vsi2: [-0.40, 0.005, 0.105],
     cdi2: [-0.71, -0.125, 0.095], clk2: [-0.40, -0.125, 0.075],
   };
+  if (HF) {   // fig. 2-4 item numbers in the comments
+    const T = (px, py, dpx) => [...TMP(px, py), dpx / 800];
+    Object.assign(GL, {
+      asi2: T(420, 405, 76), adi2: T(510, 405, 76), alt2: T(600, 400, 76), rmi2: T(515, 495, 72), vsi2: T(597, 495, 76),   // 10 11 12 21 22 (copilot)
+      fp: T(735, 385, 52), fuel: T(790, 385, 52), eop: T(735, 440, 52), eot: T(790, 440, 52),                            // 15 16 17 18
+      xop: T(735, 495, 52), xot: T(790, 495, 52), load: T(735, 553, 52), dcv: T(790, 553, 52), sload: T(735, 605, 52), acv: T(793, 610, 52),   // 23 24 29 30 36 37
+      tach: T(918, 410, 66), tq: T(918, 485, 52), n1: T(918, 545, 52), egt: T(918, 600, 52),                              // 20 25 32 39
+      asi: T(1008, 410, 80), adi: T(1100, 410, 112), alt: T(1197, 405, 76), rmi: T(1100, 515, 70), vsi: T(1197, 497, 76), // 10 11 13 26 22 (pilot)
+      ts: T(1005, 600, 80), cdi: T(1098, 595, 70), clk: T(1197, 585, 72),                                                  // 40 41 43
+      ralt: T(1008, 492, 60),   // radar altimeter height indicator in the panel slot the V model gives the DME (51): position approximate
+    });
+    for (const k of ['ts2', 'cdi2', 'clk2']) delete GL[k];   // fig. 2-4: the copilot has no turn and slip, course indicator or clock
+  }
   // static panel art: flat black with the sub-panel outlines, square bezels and screws, placards
   const art = canvasTex(1920, 700), PXM = 1000, ax = x => (x + 0.96) * PXM, ay = y => (0.27 - y) * PXM;
   {
     const c = art.ctx; c.clearRect(0, 0, 1920, 700);
+    if (HF) { c.fillStyle = '#1b1d1e'; c.beginPath(); PANEL_OUT.forEach(([x, y], i) => i ? c.lineTo(ax(x), ay(y)) : c.moveTo(ax(x), ay(y))); c.closePath(); c.fill(); c.strokeStyle = '#33373a'; c.lineWidth = 3; c.stroke(); }
+    else {
     c.fillStyle = '#1b1d1e'; c.fillRect(0, 0, 1920, 480); c.fillRect(ax(-0.245), 0, 560, 700);
     c.strokeStyle = '#33373a'; c.lineWidth = 3;
     for (const [x0, x1] of [[-0.95, -0.3], [-0.245, 0.315], [0.33, 0.95]]) { c.strokeRect(ax(x0), ay(0.262), (x1 - x0) * PXM, (x0 === -0.245 ? 0.68 : 0.47) * PXM); }
+    }
     for (const k in GL) {
       const [x, y, d] = GL[k], s = d * 1.12 * PXM; c.fillStyle = '#111213'; c.fillRect(ax(x) - s / 2, ay(y) - s / 2, s, s);
       c.fillStyle = '#5a5e60'; for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { c.beginPath(); c.arc(ax(x) + dx * s * 0.41, ay(y) + dy * s * 0.41, 4, 0, TAU); c.fill(); }
     }
     const lab = (t, x, y, s = 13, col = '#e0ddd0') => txt(c, t, ax(x), ay(y), col, s);
+    if (HF) {   // decals in their fig. 2-4 places: 28 operating limits, 19 cargo caution, 31 engine caution, 14 compass card
+      const decal = (px, py, wpx, hpx, lines, s = 10) => { const [x, y] = TMP(px, py), w = wpx / 800 * PXM, h = hpx / 800 * PXM; c.fillStyle = '#d8d4c4'; c.fillRect(ax(x) - w / 2, ay(y) - h / 2, w, h); lines.forEach((t, i) => txt(c, t, ax(x), ay(y) - h / 2 + (i + 0.8) * h / (lines.length + 0.6), '#151515', s)); };
+      decal(600, 575, 130, 62, ['OPERATING LIMITS', 'ROTOR 294 - 324 RPM', 'ENGINE 6400 - 6600 RPM', 'TORQUE 50 PSI   VNE 124 KIAS', 'EGT 625°C CONT  760°C 10 SEC START'], 9);
+      decal(842, 420, 60, 26, ['CARGO', 'HOOK 4000 LB'], 8); decal(857, 565, 62, 18, ['ENGINE CAUTION'], 8); decal(680, 400, 40, 66, ['COMP', 'CORR', 'CARD', 'N 000', 'E 090'], 7);
+    } else {
     lab('PILOT', 0.86, 0.24, 12, '#8a8d88'); lab('COPILOT', -0.86, 0.24, 12, '#8a8d88');
     lab('ROTOR RPM 294 - 324', 0.04, -0.15, 12); lab('ENGINE RPM 6400 - 6600', 0.04, -0.17, 12); lab('VNE 124 KIAS', 0.04, -0.2, 12);
     lab('TORQUE LIMIT 50 PSI', 0.04, -0.23, 12); lab('EGT 760°C MAX START', 0.04, -0.26, 12);
     c.fillStyle = '#2a2d2e'; c.fillRect(ax(0.15), ay(-0.285), 140, 34); lab('UH-1H', 0.22, -0.302, 16, '#d0d0c8');
     lab('FIRE', -0.02, 0.205, 10, '#9a9d98'); lab('EXT', 0.06, 0.205, 10, '#9a9d98');
+    }
     art.tex.needsUpdate = true;
   }
   plane(1.92, 0.7, new THREE.MeshLambertMaterial({ map: art.tex, emissive: 0xffffff, emissiveMap: art.tex, emissiveIntensity: 0.55, alphaTest: 0.5 }), 0, -0.08, 0, P);
@@ -222,19 +261,22 @@ export function buildHueyCockpit({ classic = false } = {}) {
     o.userData = { tOn, tOff, on: false }; return o;
   }
   const setLamp = (o, v) => { v = !!v; if (o.userData.on !== v) { o.userData.on = v; o.material.map = v ? o.userData.tOn : o.userData.tOff; } };
-  const fireL = lamp(P, 0.065, 0.03, -0.02, 0.232, 0.005, 'FIRE', '#ff2a14', '#3a0e08');
-  const rpmL = lamp(P, 0.06, 0.03, 0.47, 0.232, 0.005, 'RPM', '#ff2a14', '#3a0e08');
-  const mcL = lamp(P, 0.075, 0.03, 0.645, 0.232, 0.005, 'MASTER|CAUTION', '#ffaa18', '#2e2408');
-  const rpmL2 = lamp(P, 0.06, 0.03, -0.555, 0.232, 0.005, 'RPM', '#ff2a14', '#3a0e08');
+  const LP = HF ? { fire: TMP(990, 333), rpm: TMP(890, 327), mc: TMP(770, 325), rpm2: TMP(680, 333), fireBtn: TMP(948, 330), rwr: [0.66, 0.06] } : { fire: [-0.02, 0.232], rpm: [0.47, 0.232], mc: [0.645, 0.232], rpm2: [-0.555, 0.232], fireBtn: [0.06, 0.232], rwr: [0.865, 0.13] };
+  const fireL = lamp(P, 0.05, 0.026, ...LP.fire, 0.005, 'FIRE', '#ff2a14', '#3a0e08');
+  const rpmL = lamp(P, 0.05, 0.026, ...LP.rpm, 0.005, 'RPM', '#ff2a14', '#3a0e08');
+  const mcL = lamp(P, 0.065, 0.026, ...LP.mc, 0.005, 'MASTER|CAUTION', '#ffaa18', '#2e2408');
+  const rpmL2 = lamp(P, 0.05, 0.026, ...LP.rpm2, 0.005, HF ? 'INLET|FILTER' : 'RPM', HF ? '#ffaa18' : '#ff2a14', '#3a0e08');   // hi-fi: item 3, the engine inlet filter clogged light, driven like the RPM light
   // CM (ngc/cmpolish): right of the pilot's flight instruments, the AN/APR-39 radar warning scope (green strobes toward
   // each radar painting you, longer as its lock builds), three threat lamps, and the M130 dispenser's counters
   const rwrT = canvasTex(192, 192);
-  { const o = new THREE.Mesh(new THREE.CircleGeometry(0.05, 32), new THREE.MeshBasicMaterial({ map: rwrT.tex, toneMapped: false })); o.position.set(0.865, 0.13, 0.004); P.add(o);
-    const ring = new THREE.Mesh(new THREE.RingGeometry(0.05, 0.057, 32), ringM); ring.position.set(0.865, 0.13, 0.006); P.add(ring); }
-  const lockL = lamp(P, 0.075, 0.024, 0.865, 0.052, 0.005, 'LOCK', '#ffaa18', '#2e2408');
-  const mslL = lamp(P, 0.075, 0.024, 0.865, 0.024, 0.005, 'MISSILE', '#ff2a14', '#3a0e08');
-  const lasL = lamp(P, 0.075, 0.024, 0.865, -0.004, 0.005, 'LASER', '#40e0ff', '#08262c');
-  const cmT = canvasTex(240, 150); plane(0.088, 0.055, new THREE.MeshBasicMaterial({ map: cmT.tex, toneMapped: false }), 0.865, -0.06, 0.004, P);
+  // (hi-fi: on a small add-on panel outboard of the pilot's flight group, as the APR-39 indicator was retrofitted)
+  const [rx, ry] = LP.rwr; if (HF) box(0.13, 0.3, 0.03, panelM, rx, ry - 0.05, -0.02, P);
+  { const o = new THREE.Mesh(new THREE.CircleGeometry(0.05, 32), new THREE.MeshBasicMaterial({ map: rwrT.tex, toneMapped: false })); o.position.set(rx, ry, 0.004); P.add(o);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.05, 0.057, 32), ringM); ring.position.set(rx, ry, 0.006); P.add(ring); }
+  const lockL = lamp(P, 0.075, 0.024, rx, ry - 0.078, 0.005, 'LOCK', '#ffaa18', '#2e2408');
+  const mslL = lamp(P, 0.075, 0.024, rx, ry - 0.106, 0.005, 'MISSILE', '#ff2a14', '#3a0e08');
+  const lasL = lamp(P, 0.075, 0.024, rx, ry - 0.134, 0.005, 'LASER', '#40e0ff', '#08262c');
+  const cmT = canvasTex(240, 150); plane(0.088, 0.055, new THREE.MeshBasicMaterial({ map: cmT.tex, toneMapped: false }), rx, ry - 0.19, 0.004, P);
   let cmKey = '';
   function drawCm(S) {   // M130 dispenser control panel: counters and the ARM lamp (flat paint, white stencils)
     const d = S.cm, pw = S.volts > 18, k = d ? `${pw}${d.flare}${d.chaff}${d.queue.length > 0}` : '-';
@@ -262,8 +304,8 @@ export function buildHueyCockpit({ classic = false } = {}) {
   };
   const button = (id, p, x, y, r, mat, label) => { const b = cyl(r, r, 0.012, mat, x, y, 0.006, p, Math.PI / 2, 0, 14); push[id] = { o: b, z: 0.006 }; hit(id, r * 3, r * 3, 0.04, x, y, 0.015, p, label); return b; };
   // panel top: FIRE light, FIRE EXT push button, RPM / MASTER CAUTION lights (the master caution lamp also resets)
-  button('fire', P, 0.06, 0.232, 0.013, redM, 'FIRE EXTINGUISHER  -  PUSH');
-  hit('mc', 0.085, 0.04, 0.03, 0.645, 0.232, 0.01, P, 'MASTER CAUTION RESET');
+  button('fire', P, ...LP.fireBtn, 0.011, redM, 'FIRE EXTINGUISHER  -  PUSH');
+  hit('mc', 0.075, 0.036, 0.03, ...LP.mc, 0.01, P, 'MASTER CAUTION RESET');
   // hover marker: a thin yellow frame on whatever the crosshair / cursor is over
   const hovs = [0, 1].map(() => { const o = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color: 0xffd040, depthTest: false, transparent: true })); o.renderOrder = 9; o.visible = false; o.matrixAutoUpdate = false; g.add(o); return o; });   // one per hit box of the id (MASTER CAUTION has two)
 
@@ -384,7 +426,8 @@ export function buildHueyCockpit({ classic = false } = {}) {
     // cyclic: pivot in the floor, long stick with a slight bend, grip with trigger / trim buttons
     const cp = new THREE.Group(); cp.position.set(s * 0.55, FL + 0.04, -2.08); g.add(cp);
     cyl(0.06, 0.075, 0.07, black, 0, 0.0, 0, cp);                               // boot
-    cyl(0.014, 0.017, 0.62, metal, 0, 0.31, 0, cp);
+    if (HF) { const t = tube([V3(0, 0.03, 0), V3(0, 0.3, 0.0), V3(0, 0.44, 0.03), V3(0, 0.52, 0.09), V3(0, 0.6, 0.06), V3(0, 0.64, -0.01)], 0.016, black, cp); t.material = black; cyl(0.03, 0.03, 0.04, metal, 0, 0.1, 0, cp); }   // fig. 2-5: the cyclic's S-bend, cyclic friction collar
+    else cyl(0.014, 0.017, 0.62, metal, 0, 0.31, 0, cp);
     const grip = new THREE.Group(); grip.position.set(0, 0.68, -0.02); cp.add(grip);
     box(0.04, 0.12, 0.045, black, 0, 0, 0, grip, 0.12); box(0.05, 0.035, 0.055, black, 0, 0.07, -0.008, grip); box(0.01, 0.025, 0.012, M(0x444444), 0, 0.02, -0.03, grip);
     cyl(0.005, 0.005, 0.01, redM, 0.012, 0.09, -0.01, grip); cyl(0.005, 0.005, 0.01, M(0x888888), -0.012, 0.09, -0.01, grip);
@@ -546,8 +589,9 @@ export function buildHueyCockpit({ classic = false } = {}) {
   for (const sfx of ['', '2']) {
     gauge('asi' + sfx, 256, F.asi, (c, W, S, G) => { const R = W / 2; if (flaky(S, G.i)) { offFlag(c, W); return; } needle(c, R, asiMap(V.ias), R * 0.86); hub(c, R); });
     gauge('adi' + sfx, 320, null, adiDraw); gauge('alt' + sfx, 256, F.alt, altDraw);
-    gauge('rmi' + sfx, 256, null, rmiDraw); gauge('ts' + sfx, 224, F.ts, tsDraw);
+    gauge('rmi' + sfx, 256, null, rmiDraw); if (GL['ts' + sfx]) gauge('ts' + sfx, 224, F.ts, tsDraw);
     gauge('vsi' + sfx, 256, F.vsi, (c, W, S, G) => { const R = W / 2; if (flaky(S, G.i)) { offFlag(c, W); return; } needle(c, R, vsiMap(V.vsi), R * 0.86); hub(c, R); });
+    if (sfx && HF) continue;   // fig. 2-4: no copilot turn and slip / course indicator / clock
     gauge('cdi' + sfx, 224, F.cdi, cdiDraw); gauge('clk' + sfx, 192, F.clk, clkDraw);
   }
   gauge('ralt', 224, F.ralt, raltDraw);
