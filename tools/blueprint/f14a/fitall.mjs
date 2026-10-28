@@ -17,4 +17,11 @@ shot('ref=side&mask=1', 'mask-side.png', '2273', '3160');
 shot('ref=top&mask=1&sweep=68', 'mask-top.png', '2273', '3160');
 shot('ref=front&mask=1&sweep=20', 'mask-front.png', '3050', '3925');
 execFileSync('node', [path.join(TOOLS, 'blueprint/fit.mjs'), path.join(TOOLS, '../game/js/units/air/f14trace.json'), '--side', path.join(out, 'mask-side.png'), '--top', path.join(out, 'mask-top.png'), '--front', path.join(out, 'mask-front.png'),
-  '--length', '18.821', '--runs', 'front', '--front-runs-above', '0.1', '--zmax-top', '6.5', '--front-y', '0.15,0.7;-1.25,-1.0', '--json', arg('--json') || path.join(out, 'fit.json')], { stdio: 'inherit' });
+  '--length', '18.821', '--runs', 'front', '--front-runs-above', '0.1', '--zmax-top', '6.5', '--front-y', '0.15,0.89;-1.45,-1.0', '--json', arg('--json') || path.join(out, 'fit.json')], { stdio: 'inherit' });
+// the front view split by region (rows; 'runs' = the run through the centre line, as the tracer takes it, 'ext' = the
+// extreme black pixels of the row)
+const bands = [['canopy', '0.15,0.89', 'runs'], ['nacelles+tunnel', '-1.45,-1.0', 'ext'], ['wings (plane)', '-0.22,-0.16', 'ext']];   // (fins and stabilators: tip positions in the findings; the CR outline joins the fuselage to the nacelles across the tunnel, so a centre run there is not comparable)
+for (const [name, yr, mode] of bands) {
+  const o = execFileSync('node', [path.join(TOOLS, 'blueprint/fit.mjs'), path.join(TOOLS, '../game/js/units/air/f14trace.json'), '--front', path.join(out, 'mask-front.png'), '--length', '18.821', ...(mode === 'runs' ? ['--runs', 'front', '--front-runs-above', '-9'] : []), '--front-y', yr]).toString();
+  console.log('front ' + name.padEnd(16), o.replace(/^front\s+/, '').trim());
+}

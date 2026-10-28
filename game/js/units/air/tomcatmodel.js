@@ -213,7 +213,7 @@ export function buildTomcatModel(side = 1, { modex = 201 } = {}) {
   // the cockpit tub seen through the canopy from outside (hidden from inside, where tomcatcockpit.js draws the real one)
   const tub = new THREE.Group(); tub.name = 'cockpitTub'; g.add(tub);
   const tubM = M(0x2a2d30, { side: THREE.DoubleSide, rk: 'flat' });
-  for (const s of [-1, 1]) mesh(new THREE.PlaneGeometry(4.0, 0.95).rotateY(Math.PI / 2).translate(s * 0.6, -0.35, -6.1), tubM, tub, 'tubWall');
+  for (const s of [-1, 1]) mesh(new THREE.PlaneGeometry(4.0, 0.9).rotateY(Math.PI / 2).translate(s * 0.55, -0.37, -6.1), tubM, tub, 'tubWall');
   mesh(new THREE.PlaneGeometry(1.2, 4.0).rotateX(-Math.PI / 2).translate(0, -0.8, -6.1), tubM, tub, 'tubFloor');
   for (const z of [-8.05, -4.15]) mesh(new THREE.PlaneGeometry(1.2, 1.0).translate(0, -0.32, z), tubM, tub, 'tubBulkhead');
   mesh(boxG(0.95, 0.08, 0.5, 0, sill(-7.4) + 0.06, -7.35), darkM, g, 'glareshield');

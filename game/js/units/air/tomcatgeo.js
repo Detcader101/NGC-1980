@@ -20,7 +20,7 @@ export const G = {
   PIVOT: [BL(22.648), -0.19, FS(91.271)],               // wing pivot BL 107 in (2.718 m); wing chord plane y -0.19 (the wing edge-on in the TP-2769 side view)
   WING: { le0: FS(76.949), root: 35.373 * 0.12, semi: BL(81.443), tipC: 9.364 * 0.12, kinkX: BL(21.635), gloveTE: 13.25 * D2R, sweep: 20 * D2R },
   GLOVE_LE0: [1.61, FS(49.741)],                       // the glove leading edge starts at the intake's outer top corner (FS 49.741)
-  VTAIL: { x: BL(11.644), y: WL(34.713), cant: 5 * D2R, rootLE: FS(124.421), rootC: 32.387 * 0.12, tipTE: FS(156.808), tipC: 9.312 * 0.12, h: 21.591 * 0.12, rootTEx: 26.033 * 0.12, tc: 0.045 },
+  VTAIL: { x: BL(11.644) + 0.06, y: WL(34.713), cant: 5 * D2R, rootLE: FS(124.421), rootC: 32.387 * 0.12, tipTE: FS(156.808), tipC: 9.312 * 0.12, h: 21.591 * 0.12, rootTEx: 26.033 * 0.12, tc: 0.045 },
   HTAIL: { x: BL(19.051), y: WL(29.845), anh: 3.5 * D2R, rootLE: FS(122.02), rootC: 31.456 * 0.12, span: 22.488 * 0.12, tipLEz: (36.257 - 6.709) * 0.12, tipTEz: 36.257 * 0.12, axisZ: 16.487 * 0.12, axisSweep: 9.49 * D2R, tc: 0.04 },
   VENTRAL: { y: WL(24.100), z0: FS(137.269) - 28.448 * 0.12, z1: FS(137.269), depth: 6.129 * 0.12, x: 1.41, cant: 15 * D2R },
   HOOK: { pivot: [0, WL(29.209), FS(126.893)], len: 28.701 * 0.12, up: -8.87 * D2R },
@@ -41,7 +41,7 @@ export function fuseT(z) { if (z <= Z_WS) return sideTop(z); if (z <= Z_CANOPY_E
 export function fuseB(z) { if (z <= -5.25) return sideBot(z); return pl([[-5.25, sideBot(-5.25)], [-3.5, -1.12], [-1.0, -1.0], [1.5, -0.86], [4.0, -0.62], [6.0, -0.50], [7.62, -0.44]])(z); }
 export function fuseW(z) { if (z <= -5.30) return topHW(z); return pl([[-5.30, topHW(-5.30)], [-3.5, 0.72], [-1.0, 0.66], [1.0, 0.62], [5.4, 0.62], [6.4, 0.52], [7.62, 0.22]])(z); }
 const fuseYm = z => { const t = fuseT(z), b = fuseB(z); return z < -5.0 ? b + (t - b) * pl([[-11.2, 0.5], [-9.5, 0.42], [-7.5, 0.36], [-5, 0.42]])(z) : b + (t - b) * 0.55; };
-const fuseNT = pl([[-11.2, 2.0], [-9.0, 2.1], [-7.4, 2.4], [-5.0, 2.6], [-2.0, 3.4], [1.0, 5.0], [7.6, 6.0]]);
+const fuseNT = pl([[-11.2, 2.0], [-9.0, 2.1], [-8.4, 2.4], [-8.0, 5.5], [-4.3, 5.5], [-2.0, 3.6], [1.0, 5.0], [7.6, 6.0]]);   // flat-topped under the canopy: the rails sit on the fuselage's shoulders
 const fuseNB = pl([[-11.2, 2.0], [-9.0, 2.3], [-7.0, 2.8], [-5.0, 3.2], [-1.0, 4.0], [7.6, 4.0]]);
 
 // geometry from loftkit arrays, with material groups chosen per quad
@@ -75,11 +75,11 @@ export function fuselageGeo(lod = 0) {
 
 // ---- canopy and windscreen: one loft over the sill from the windscreen base to the aft fairing (top from the trace)
 const canopyT = z => z <= -2.9 ? sideTop(z) : pl([[-2.9, sideTop(-2.9)], [Z_CANOPY_END, sill(Z_CANOPY_END) + 0.02]])(z);
-export const canopyW = pl([[Z_WS, 0.50], [-7.65, 0.58], [-6.6, 0.62], [-5.0, 0.63], [-4.2, 0.60], [-3.2, 0.48], [Z_CANOPY_END, 0.30]]);
+export const canopyW = pl([[Z_WS, 0.44], [-7.65, 0.51], [-6.6, 0.54], [-5.0, 0.54], [-4.2, 0.52], [-3.2, 0.42], [Z_CANOPY_END, 0.28]]);   // widths from the CR-163098 front view (registered)
 export const Z_BOW = -7.62, Z_GLASS_END = -4.05, COCKPIT_OPEN = [-8.05, -4.15];   // windscreen arch (fixed); the canopy's glass ends at the aft frame over the RIO
 export function canopySurface() {
   const zs = stationList([[Z_WS, Z_CANOPY_END, 0.08]], [Z_BOW, Z_GLASS_END]);
-  const keys = stationKeys(zs, z => ({ T: canopyT(z), B: sill(z) - 0.06, W: canopyW(z), ym: sill(z) - 0.03, nT: pl([[Z_WS, 2.0], [-7.6, 2.3], [-5, 2.6], [Z_CANOPY_END, 2.2]])(z), nB: 4 }));
+  const keys = stationKeys(zs, z => ({ T: canopyT(z), B: sill(z) - 0.06, W: canopyW(z), ym: sill(z) - 0.03, nT: pl([[Z_WS, 2.0], [-7.6, 2.1], [-5, 2.2], [Z_CANOPY_END, 2.1]])(z), nB: 4 }));
   return { S: bodySurface(keys), zs };
 }
 // a canopy piece between z0 and z1 (upper half only: phi -PI/2..PI/2), offset outward by off
@@ -101,10 +101,10 @@ export function canopyHoop(z, off = 0.02, n = 16) {
 // TF30 nacelle; centre line BL 13.547 cm (1.626 m) at the nozzles. Sections are superellipses about (cx, cy).
 const NAC = {
   cx: pl([[-5.25, 1.24], [-3.0, 1.30], [-1.0, 1.42], [2.0, 1.60], [4.5, G.NOZZLE.x], [6.0, G.NOZZLE.x]]),
-  a: pl([[-5.25, 0.37], [-3.0, 0.42], [-1.0, 0.48], [2.0, 0.56], [4.5, 0.62], [5.83, 0.64]]),
+  a: pl([[-5.25, 0.37], [-3.0, 0.42], [-1.0, 0.46], [2.0, 0.52], [4.5, 0.56], [5.83, 0.60]]),
   top: pl([[-5.25, -0.27], [-3.0, -0.10], [-1.0, 0.0], [2.0, 0.02], [4.5, -0.04], [5.83, G.NOZZLE.y + 0.62]]),
   bot: pl([[-5.25, -1.40], [-2.3, -1.44], [0.0, -1.55], [2.1, -1.60], [4.0, -1.50], [5.83, G.NOZZLE.y - 0.64]]),
-  n: pl([[-5.25, 6.0], [-3.0, 5.0], [-1.0, 3.6], [2.0, 2.6], [4.5, 2.1], [5.83, 2.0]]),
+  n: pl([[-5.25, 8.0], [-3.0, 7.0], [-1.0, 5.5], [2.0, 4.0], [4.5, 3.0], [5.83, 2.2]]),   // boxy flat-sided ducts (CR-163098 front view) rounding to the TF30 nozzle
 };
 export const LIP_TOP = [-0.27, FS(49.741)];
 // the intake mouth in side view (TP-2769 fig. 2a): the long raked side edge from the top lip (FS 49.741) down and aft to
