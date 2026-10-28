@@ -603,7 +603,11 @@ export function buildHueyHiFi(HUEY, { xr = false } = {}) {
     put(tube([-3.12, -2.98, -2.84, -2.7, -2.56, -2.44].map(z => [0, S.params(z)[0] + 0.022, z]), 0.012, 20, 6), wsp, noseG);
     put(new THREE.ExtrudeGeometry(new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(0.34, 0.0), new THREE.Vector2(0.3, -0.05), new THREE.Vector2(0.02, -0.06)]), { depth: 0.012, bevelEnabled: false }).rotateY(-Math.PI / 2).translate(0.006, S.params(-3.3)[1] + 0.01, -3.58), wsp, noseG);
     put(rod([0.32, 0.495, -2.2], [0.32, 0.63, -2.28], 0.012, 8), N.metal, noseG); put(rod([0.32, 0.63, -2.25], [0.32, 0.63, -2.68], 0.009, 8), N.metal, noseG);   // pitot on the roof
-    put(lathe([[0, 0], [0.012, 0.0], [0.012, 0.06], [0, 0.07]], 8).rotateX(-Math.PI / 2).translate(0.32, 0.63, -2.68), N.metal, noseG);
+    for (const px of [0.32, -0.32]) {   // two pitot tubes on the roof (TM -10 fig. 2-1 items 10 and 27)
+      if (px < 0) { put(rod([px, 0.495, -2.2], [px, 0.63, -2.28], 0.012, 8), N.metal, noseG); put(rod([px, 0.63, -2.25], [px, 0.63, -2.68], 0.009, 8), N.metal, noseG); }
+      put(lathe([[0, 0], [0.012, 0.0], [0.012, 0.06], [0, 0.07]], 8).rotateX(-Math.PI / 2).translate(px, 0.63, -2.68), N.metal, noseG); }
+    // cabin roof air scoop forward of the doghouse (the side trace's bump at FS 100-104; heater / ventilating air intake)
+    put(rbox(0.34, 0.1, 0.2, 0.04).translate(0, ROOF + 0.045, -0.9), N.od2); put(rbox(0.26, 0.05, 0.012, 0.01).translate(0, ROOF + 0.05, -1.0), N.black);
     for (const s of [-1, 1]) { const P = S.at(-3.36, S.yToPhi(-3.36, -0.66, s), {}); put(rbox(0.012, 0.06, 0.12, 0.005).translate(P.x + s * 0.003, P.y, -3.36), N.black, noseG); }   // nose ventilation louvres
     // crew door hinges and handles (outside)
     for (const s of [-1, 1]) { for (const y of [-0.85, -0.05]) { const z = pillarZ(Math.min(y, -0.47)) + 0.03, P = S.at(z, S.yToPhi(z, y, s), {}); put(rbox(0.025, 0.06, 0.05, 0.008).translate(P.x + s * 0.006, y, z), N.dark, noseG); }

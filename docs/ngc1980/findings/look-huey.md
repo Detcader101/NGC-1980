@@ -132,21 +132,24 @@ todo = not modelled. FS from the -23 station diagram mapping; WL/BL in model met
 | Sliding cargo doors, rails, rollers | FS 92.5 .. 169 | -10 side | done |
 | Skids, cross tubes, saddles, steps, upturned toes | cross tubes z -1.71 / 0.60 | -10 side / front | done |
 | Tail skid (stinger) | FS ~430 .. 480 | -10 | done |
-| Wire strike protection (roof / windscreen / chin cutters) | roof FS 52, chin FS 6 | -10 three-view shows cutters | partial (1980 fit not yet confirmed: WSPS was fielded from ~1980) |
-| IR exhaust suppressor | - | - | todo (1980 status unverified; plain stack modelled) |
+| Wire strike protection (upper cutter, windshield deflector, lower cutter) | roof FS 52, centre post, chin FS 6 | -10 (1986) three-view draws all three; -10 (1988) para 2-12.1 and fig. 2-1 items 28/29 | done (fitted: WSPS retrofit began 1979-80; the -10 three-view we fit to shows it) |
+| IR exhaust suppressor ("IR scoop") | - | -10 (1988) para 2-21.1 "aircraft equipped with" | not fitted by choice (optional kit; our aircraft has the plain stack the 1986 three-view draws) |
 | Exhaust stack | FS ~228 | -10 | done |
 | Engine air intake screens | FS ~152 .. 168 | -10 side | done |
-| Antennas: VHF whip, UHF blade, FM towel bars, transponder blade, FM homing, ADF loop | various | -10 three-view | partial (types not verified against the -23 antenna figure) |
-| Radar altimeter antennas | belly | - | todo |
-| APR-39 spirals (nose, tail) | - | - | partial (APR-39 fitted from ~1980; verify) |
+| Antennas: VHF nav (Omni) on the fin top, FM homing (towel bars), FM comm No.1 / No.2, VHF/UHF, ADF loop | boom, cowling, belly | -10 fig. 2-1 general arrangement (items 1, 4, 5, 8, 9, 17) | partial (all present; the Omni is still the boom blade, not yet on the fin) |
+| HF long-wire antenna | - | -10 fig. 2-1 item 20 | not fitted (HF kit) |
+| Radar altimeter (AN/APN-209) antennas + indicator | belly / panel | -10 (1988) section 3 fig. 3-27 | partial (indicator in the panel; belly antennas todo; APN-209 fielding date unverified) |
+| AN/APR-39 radar warning (spirals nose / tail, indicator) | - | -10 para 3-30 | partial (fitted for the game's countermeasures; 1980 fielding unverified) |
 | Landing light, searchlight | belly FS ~30 / 40 | -10 | partial |
 | Anti-collision beacons, position lights | doghouse aft top, belly; roof edges; tail | -10 | partial |
-| Pitot tube | roof FS ~43 | -10 side | partial |
-| Static ports | - | - | todo |
+| Pitot tubes (two, roof) | roof FS ~43, BL +-12.6 in | -10 fig. 2-1 items 10 and 27 | done |
+| Static port | - | -10 fig. 2-1 item 26 | todo |
+| Cabin roof air scoop | FS ~100 | side-view trace bump (worst side gap) | done (identification as the heater / ventilating intake is our reading) |
+| Access doors: radio compartment / battery (nose), heater, oil cooler fan, electrical, aft radio compartment | - | -10 fig. 2-1 items 13, 16, 17, 21, 22 | partial (generic panel lines; not placed per the figure) |
 | Mirrors | - | - | todo (not fitted to Army UH-1H; confirm) |
 | M60D on pintle mounts (left / right) | z 0.56, doorway aft end | photos | done (M23 armament subsystem mount detail todo) |
 | M158 rocket pods on side mounts | z -0.55, floor level | photos | done (fit option) |
-| Cargo hook | belly FS ~150 | airlift HOOKS.uh1h | todo in the hi-fi model (the game's hook works) |
+| Cargo hook (non-rotating cargo suspension unit) | belly FS ~150 | -10 para 4-34; airlift HOOKS.uh1h | todo in the hi-fi model (the game's hook works) |
 | Troop seats (11, TM fig 2-49) | FS 112 .. 166 | -23 | done |
 | Gunner / crew chief figures | well aft places | -23 | done |
 | Floor tie-down rings | cabin floor | - | partial |
@@ -159,7 +162,7 @@ todo = not modelled. FS from the -23 station diagram mapping; WL/BL in model met
 | Paint FS 34087 olive drab, lusterless | skin bake | 1980 Army | done |
 | Markings: U.S. ARMY boom, serial on the fin, data block, NO STEP, FUEL, GROUND HERE | skin bake | 1980 Army subdued | done (letter heights not yet checked against MIL-STD) |
 
-Done 22 / 39 rows (56 %), partial 11, todo 6.
+Done 25 / 42 rows (60 %), partial 11, settled as not fitted 2, todo 4. 1980 fit settled with dated sources where the -10 (1986 / 1988) and photos allow; rows that still need a dated source say so.
 
 ## Triangle budget (measured, what the camera draws)
 
@@ -183,9 +186,22 @@ The near LOD includes ~11 k for the four crew figures and the interior. SwiftSha
 | interiors | unverified (load, average 83-99): the carrier ladder / hangar steps timed out (no Huey code); the Huey cabin step PASSED boarding ("IN THE UH-1H HUEY - TROOP SEAT 3 (AFT BENCH)", clean first-person view past the pilots: `game_troop_seat.png`), "out again" timed out |
 | hueyhotas, xrgameplay | not run: the regression loop was stopped at load average 99 to stop adding to it |
 
+### 2026-10-28 - Cockpit panel from TM -10 fig. 2-4
+**Finding:** the panel was a 2.2 m slab with a made-up layout. **Action:** the outline and every instrument's position
+and size are read from TM 55-1520-210-10 fig. 2-4 (1988 change 7, archive.org page n68) at 800 px/m: copilot ASI / ADI /
+altimeter / RMI / VSI; the centre column fuel pressure / quantity, engine oil, transmission oil, main and standby
+generator loadmeters, DC and AC volts; the pilot's dual tachometer / torque / gas producer / EGT column and his ASI, the
+large ADI, altimeter, RMI, VSI, turn and slip, CDI and clock; master caution, RPM, fire and inlet-filter lights; the
+operating limits, cargo and engine caution decals and the compass card; the glare shield hood; the magnetic compass at
+the panel's right edge; the cyclic's S-bend (fig. 2-5). The radar altimeter sits in the slot the V model gives the DME
+(approximate). The APR-39 / M130 (game countermeasures) are on an add-on panel outboard of the pilot's group. All gauges,
+lamps and hit boxes keep their ids. Evidence: `panel_vs_tm.png`, `cockpit_seats.png` (pilot and copilot eyes).
+Not yet: the pedestal's two-column radio stack and the overhead console from fig. 2-5 sheets 1/3, armoured seat shapes,
+breaker panel labels from the figure.
+
 ## Still open
-- Cockpit to the -10 panel figures (DCS level): only the glazing now comes from the exterior skin; the furniture is
-  still the earlier box-built set. Not done in this pass.
+- Cockpit: pedestal radio stack (two Dzus columns per fig. 2-5), overhead console, seats, breaker placards.
+- Skin panel lines from the -23-1 skin diagrams (figs 2-4 / 2-5) as a station-placed detail map: not done.
 - The two WL disagreements above; the FM's tail rotor side and height (hueyfm.js unchanged by brief).
 - Configuration table rows marked partial / todo; the roof scoop at FS 104 (worst side-view gap).
 - Arc-length UVs for an even texel density (now: even round each section, uneven between sections).
