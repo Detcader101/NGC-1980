@@ -186,21 +186,30 @@ The near LOD includes ~11 k for the four crew figures and the interior. SwiftSha
 | interiors | unverified (load, average 83-99): the carrier ladder / hangar steps timed out (no Huey code); the Huey cabin step PASSED boarding ("IN THE UH-1H HUEY - TROOP SEAT 3 (AFT BENCH)", clean first-person view past the pilots: `game_troop_seat.png`), "out again" timed out |
 | hueyhotas, xrgameplay | not run: the regression loop was stopped at load average 99 to stop adding to it |
 
-### 2026-10-28 - Cockpit panel from TM -10 fig. 2-4
-**Finding:** the panel was a 2.2 m slab with a made-up layout. **Action:** the outline and every instrument's position
-and size are read from TM 55-1520-210-10 fig. 2-4 (1988 change 7, archive.org page n68) at 800 px/m: copilot ASI / ADI /
-altimeter / RMI / VSI; the centre column fuel pressure / quantity, engine oil, transmission oil, main and standby
-generator loadmeters, DC and AC volts; the pilot's dual tachometer / torque / gas producer / EGT column and his ASI, the
-large ADI, altimeter, RMI, VSI, turn and slip, CDI and clock; master caution, RPM, fire and inlet-filter lights; the
-operating limits, cargo and engine caution decals and the compass card; the glare shield hood; the magnetic compass at
-the panel's right edge; the cyclic's S-bend (fig. 2-5). The radar altimeter sits in the slot the V model gives the DME
-(approximate). The APR-39 / M130 (game countermeasures) are on an add-on panel outboard of the pilot's group. All gauges,
-lamps and hit boxes keep their ids. Evidence: `panel_vs_tm.png`, `cockpit_seats.png` (pilot and copilot eyes).
-Not yet: the pedestal's two-column radio stack and the overhead console from fig. 2-5 sheets 1/3, armoured seat shapes,
-breaker panel labels from the figure.
+### 2026-10-28 - Cockpit panel traced from TM -10 fig. 2-4
+**Finding:** a first pass placed the instruments by eye and read as a slab with a grid of one-size dials (orchestrator
+review). **Action:** `tools/hueypanel.mjs` traces fig. 2-4 (1988 change 7, archive.org page n68, saved in
+`reference/uh1/`): each of 41 legend items is fitted on the page as a ring or a box (the largest circle / rectangle
+whose perimeter lies on the drawn line, searched round a seed, so the item numbers and leader lines don't fool it), the
+scale comes from the copilot's airspeed indicator (3ATI, 79.4 mm bezel: 1.613 px/mm), and the glare shield's top edge
+and the panel's bottom edge are read per column. Output `game/js/uh1panel.json` (+ .js): item number, legend name,
+game id, centre and size in panel millimetres, fit coverage. The cockpit builds the face as the traced outline with a
+bezel hole per instrument (square for item 40), recessed dials, bezel tubes whose outer diameter is the traced ring,
+cover glass, decals 14 / 19 / 28 / 31 / 34 / 35 at their traced sizes, lights 3-7 at their places, the glare shield
+hood from the traced top edge. Ids, lamps and hit boxes unchanged.
+**Evidence:** `panel_overlay.png` (orthographic, straight on, the figure in red over the model, `?ck=1&panel=1`),
+`panel_ortho.png`, `panel_vs_tm.png`, `panel_from_seat.png`. Centres are the traced centres (0 mm by construction;
+the trace itself lands each ring on the drawn line: coverage 1.00 for 32 of 34 instruments); worst items: the
+magnetic compass 27 (coverage 0.89, bracket and leader line), the copilot altimeter 12/49 and pilot altimeter 13/50
+(the drawn "/" bar), the face outline's lower-left corner (~1-2 cm, the figure's stepped corner is smoothed by the
+per-column median). Item sizes follow the figure, which draws the engine stack and the main / standby generator
+loadmeters (29, 36: 40 mm) smaller than the flight group (70-94 mm).
+**Not yet:** the pedestal radio stack (two Dzus columns, fig. 2-5 sheet 2) and the overhead console (sheet 3) traced the
+same way; shaped armoured seats; breaker placards.
 
 ## Still open
-- Cockpit: pedestal radio stack (two Dzus columns per fig. 2-5), overhead console, seats, breaker placards.
+- Cockpit: pedestal radio stack (two Dzus columns per fig. 2-5 sheet 2) and overhead console (sheet 3) traced like the
+  panel; shaped armoured seats; breaker placards.
 - Skin panel lines from the -23-1 skin diagrams (figs 2-4 / 2-5) as a station-placed detail map: not done.
 - The two WL disagreements above; the FM's tail rotor side and height (hueyfm.js unchanged by brief).
 - Configuration table rows marked partial / todo; the roof scoop at FS 104 (worst side-view gap).
