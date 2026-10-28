@@ -37,7 +37,7 @@ export const BALANCE = Object.freeze({
 });
 
 export const TIERS = Object.freeze({
-  desktop: { near: { size: 2048, r: 34, min: 0.08 }, far: { size: 2048, r: 175, every: 2 } },
+  desktop: { near: { size: 2048, r: 34, min: 0.08 }, far: { size: 2048, r: 175, every: 2, hz: 24 } },   // ngc/perf-render: far map at most 24 / s (every 3rd frame at 60 fps, 6th at 144)
   xr:      { near: { size: 1536, r: 28, min: 0.2 }, far: { size: 1024, r: 150, every: 3 } },
   low:     { near: { size: 1024, r: 30, min: 0.2 }, far: { size: 1024, r: 150, every: 4 } },
 });
@@ -165,7 +165,7 @@ export function createSunShadows({ renderer, scene, sun, hemi, groundY = () => 0
     if (name === tierName) return; tierName = name;
     const T = TIERS[name];
     for (const c of C) {
-      const t = c.k ? T.far : T.near; c.r = t.r; c.every = t.every || 1; c.min = t.min || 0;
+      const t = c.k ? T.far : T.near; c.r = t.r; c.every = t.every || 1; c.hz = t.hz || 0; c.min = t.min || 0;
       if (c.size !== t.size) { c.size = t.size; c.S.mapSize.set(t.size, t.size); if (c.S.map) { c.S.map.dispose(); c.S.map = null; } }
       const tx = 2 * c.r / c.size;
       // bias in depth units over 2D metres of range; normal offset ~1.5 texels (flat-shaded low poly: acne-free at 57 deg sun)
@@ -234,7 +234,7 @@ export function createSunShadows({ renderer, scene, sun, hemi, groundY = () => 0
       setTier(renderer.xr.isPresenting ? 'xr' : (api.pressure ? 'low' : 'desktop'));
       ruleT -= dt; if (ruleT <= 0) { ruleT = 0.4; applyRules(); }
       api.follow(camera);
-      for (const c of C) { if (++c.n >= c.every) { c.n = 0; c.S.needsUpdate = true; } }
+      for (const c of C) { c.acc = (c.acc || 0) + dt; if (++c.n >= c.every && (!c.hz || c.acc >= 1 / c.hz - 1e-4)) { c.n = 0; c.acc = 0; c.S.needsUpdate = true; } }
     },
     // where the boxes go (update calls it; a test that moves the camera at render time calls it too, then sets needsUpdate)
     follow(camera) {

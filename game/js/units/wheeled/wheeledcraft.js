@@ -22,6 +22,7 @@ import { createMountedGun, GUN } from './vehicleguns.js';
 import { buildMarine } from '../air/rotary/figures.js';
 import { createCabin } from './cabin.js';
 import { createWheelInput, WHEEL_ID } from './wheelinput.js';
+import { mergeUnit } from '../../renderkit/merge.js';   // ngc/perf-render
 // one racing wheel for every vehicle (it learns its pedals' rest values once); the pads are read once per frame
 const WHEEL = createWheelInput({ store: { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } } } });
 let wheelT = -1, wheelR = null;
@@ -107,6 +108,7 @@ export function createWheeledCraft(ctx, type, o = {}) {
     V.model = M; M.setVariant?.(variant); scene.add(M.group);
     try { V.interior = M._interior || (M._interior = buildInterior(spec, M)); } catch (e) { console.warn('interior', e.message); }
     try { V.cabin.attach(M, V.interior); } catch (e) { console.warn('cabin', e.message); }
+    if (!M._rkMerged) M._rkMerged = mergeUnit(M.group, [M, V.interior, V.cabin], { name: type }) || true;   // ngc/perf-render: static parts one draw per material per rigid frame
     M.group.visible = false;
     if (V.wrecked) charModel(M.group, true);
   }

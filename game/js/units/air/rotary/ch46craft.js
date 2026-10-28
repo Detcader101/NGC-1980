@@ -20,6 +20,7 @@ import { createPilot, stateOf } from './pilot.js';
 import { createTransportAI } from './transportai.js';
 import { flyCH46, CH46_AI } from './ch46ai.js';
 import { CH46 } from './ch46fm.js';
+import { mergeUnit } from '../../../renderkit/merge.js';   // ngc/perf-render
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
@@ -34,6 +35,7 @@ export function createCH46Craft(ctx) {
   const P = createCH46Play(), S = P.S, B = S.body;
   const model = buildCH46Mesh({ modex: 7 }), g = model.group; g.visible = false; scene.add(g);
   const ck = buildCH46Cockpit(); g.add(ck.group);
+  mergeUnit(g, [model, ck], { name: 'ch46' });   // ngc/perf-render: static parts one draw per material per rigid frame (every handle kept)
   const groundY = (x, z) => Math.max(ctx.terrainH(x, z), 0, war.deckY(x, z));
   const env = { groundY, water: (x, z) => ctx.waterAt(x, z), surfVel: (x, z) => war.surfVel(x, z), rho: 1.225 };
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 20).rotateX(-Math.PI / 2).scale(2.6, 1, 7.5), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.35, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));

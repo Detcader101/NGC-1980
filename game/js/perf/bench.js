@@ -108,9 +108,11 @@ export function createDesktopBench(d) {
       d.JP.autopilot = J => ({ pitch: Math.max(-1, Math.min(1, -J.vel.y * .03 + (alt - J.pos.y) * .004)), roll: -J.attitude().roll * 2, yaw: 0, throttle: [.7, .7], brakeL: 0, brakeR: 0 });
       d.setView('cockpit');
     } },
-    { id: 'deck', label: 'On foot on the carrier deck', want: 'foot', setup() {
-      clean(); d.getInOut(); d.setView('cockpit');
-    }, again() { d.HI.setCollective(0); const a = d.crafts.active, why = a?.canExit?.(); if (why && cur.notes.at(-1) !== why) cur.notes.push(why); d.getInOut(); d.setView('cockpit');   // (the Huey needs a moment on its skids after the reset)
+    { id: 'deck', label: 'On foot on the carrier deck, beside the Huey, looking along the deck at the island', want: 'foot', setup() {
+      // (on the deck by the Huey's spot: getInOut needs the Huey settled on a moving deck, which took 1-15 s and sometimes
+      // never came in a slow headless run)
+      clean(); const c = war.carrier, H = d.H.pos, s = Math.sin(c.yaw), co = Math.cos(c.yaw), x = H.x + co * 9, z = H.z - s * 9;
+      footAt(x, z, c.p.x, c.p.z); return { x: Math.round(x), z: Math.round(z) };
     } },
     { id: 'village', label: 'On foot in the nearest zone village street', want: 'foot', setup() {
       let best = null; const cp = war.carrier.p;

@@ -259,7 +259,10 @@ export function buildRunningGear(def, mats, side) {
   const lk = linkGeos(def.track.pitch, def.track.width, { pads: def.track.pads, t: def.track.thick });
   const count = def.track.links;
   const parts = [[lk.steel, mats.trackSteel], [lk.bright, mats.bright]]; if (lk.rubber) parts.push([lk.rubber, mats.rubber]);
-  const inst = parts.map(([geo, m]) => { const im = new THREE.InstancedMesh(geo, m, count); im.frustumCulled = false; g.add(im); return im; });
+  // ngc/perf-render: a fixed sphere round the whole belt (the links stay on it) instead of frustumCulled = false, so a
+  // tank behind the camera or outside a shadow box no longer draws its ~100 links x 3 parts
+  const zs = [...def.wheels.map(w => w.z), def.sprocket.z, def.idler?.z ?? 0], z0 = Math.min(...zs), z1 = Math.max(...zs), beltS = new THREE.Sphere(V3(x, def.sprocket.y, (z0 + z1) / 2), (z1 - z0) / 2 + 1.5);
+  const inst = parts.map(([geo, m]) => { const im = new THREE.InstancedMesh(geo, m, count); im.boundingSphere = beltS.clone(); g.add(im); return im; });
   const circles = [], path = { pts: [], len: 0 }, tmp = [0, 0, 0, 0], M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), P = V3(), S = V3(1, 1, 1), E = new THREE.Euler();
   const half = def.track.thick / 2;
   const state = { travel: def.wheels.map(() => 0), trackPos: 0, sink: 0 };

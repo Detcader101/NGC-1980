@@ -35,6 +35,7 @@ import { createControls } from './hotas.js';
 import { createXR } from './xr/runtime.js';
 import { createXRBench } from './xr/bench.js';   // ?xrbench: the one-click in-headset VR benchmark
 import { createDesktopBench } from './perf/bench.js';   // ?bench: the one-click desktop benchmark (ngc/perf-render)
+import { mergeStatic, MERGES, watchMerges } from './renderkit/merge.js'; import { updateLODs, LOD as RKLOD } from './renderkit/lod.js';   // ngc/perf-render: static-part merge, LOD / detail fades
 import { createJetPlay } from './jetplay.js';
 import { createDrop } from './drop.js';
 import { createHelm } from './helm.js';
@@ -250,13 +251,21 @@ addEventListener('mousemove', e => {
 });
 addEventListener('mousedown', e => { if (e.button === 1 && document.pointerLockElement === canvas) { head.yaw = head.pitch = 0; e.preventDefault(); } });
 addEventListener('wheel', e => { if (G.craft === 'jet' && cockpitCam) JP.zoom = clamp(JP.zoom + (e.deltaY < 0 ? 0.25 : -0.25), 0, 1); else if (G.craft === 'tomcat' && cockpitCam) tomcatC.zoom(e.deltaY < 0 ? 0.25 : -0.25); }, { passive: true });
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+// ngc/perf-render: one MSAA, not two. With the RENDERKIT post on, the world and the arms are drawn into the post's own
+// 4x MSAA targets and only a full-screen composite reaches the canvas, so a multisampled canvas was pure cost (4x the
+// backbuffer memory and a resolve every frame). The canvas is then created without it, and its context reports
+// antialias: true to Three's WebXRManager (read once, in the renderer's constructor) so VR still asks for a 4x MSAA layer /
+// target exactly as before. Post off (?rk=0, ?rkpost=off): the canvas keeps its own MSAA as before. ?canvasaa=1 forces it.
+const POST_ON = RK.on('post') && postQuality() !== 'off', CANVAS_AA = !POST_ON || params.get('canvasaa') === '1';
+const glCtx = canvas.getContext('webgl2', { alpha: false, depth: true, stencil: false, antialias: CANVAS_AA, premultipliedAlpha: true, preserveDrawingBuffer: false, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: false });
+if (glCtx && !CANVAS_AA) { const real = glCtx.getContextAttributes.bind(glCtx); glCtx.getContextAttributes = () => { const a = real(); return a && { ...a, antialias: true }; }; glCtx.__canvasAA = false; }
+const renderer = new THREE.WebGLRenderer({ canvas, context: glCtx || undefined, antialias: true, powerPreference: 'high-performance' });
 const PR_MAX = params.has('res') ? +params.get('res') : Math.min(devicePixelRatio, 1.5);
 let pixRatio = PR_MAX; renderer.setPixelRatio(pixRatio);
 // RENDERKIT post: toneMapping stays NoToneMapping (the game's look, display-referred; see renderkit/gamepost.js).
 // The post targets follow the drawing buffer each frame, so dynamic resolution needs nothing extra.
 // ?rkpost=low|medium|high picks the tier (renderkit/gamepost.js POST_TIERS), ?rkpost=off leaves the post out.
-const rkPost = RK.on('post') && postQuality() !== 'off' ? createGamePost(renderer, { reducedMotion: () => !!fx?.reducedMotion }) : null;
+const rkPost = POST_ON ? createGamePost(renderer, { reducedMotion: () => !!fx?.reducedMotion }) : null;
 {
   const gl = renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info');
   $('gpuinfo').textContent = 'GPU: ' + (ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : 'unknown');
@@ -835,7 +844,7 @@ const NAT = RKN ? (() => {
 {   // ARMOUR: the landing hards' concrete, kerbs, marker posts and signs (under the fog of war like the rest of the zone)
   const fp = (m, cls) => cls === undefined ? fogPatch(m, fog, terrainUni.uTime) : applyWorldDetail(fogPatch(m, fog, terrainUni.uTime), { defCls: cls });   // RENDERKIT materials: detail after the fog patch (no-op with ?rk=0)
   const mats = { concrete: fp(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide }), 2), post: fp(new THREE.MeshLambertMaterial({ color: 0x8c8a84, flatShading: true }), 2), red: fp(new THREE.MeshLambertMaterial({ color: RK_SURF ? 0x9a2c22 : 0xb02a20, flatShading: true }), 5), white: fp(new THREE.MeshLambertMaterial({ color: RK_SURF ? 0xd6d4cc : 0xe8e8e0, flatShading: true }), 5), green: fp(new THREE.MeshLambertMaterial({ color: RK_SURF ? 0x34653a : 0x2f7a3a, flatShading: true }), 5), sign: t => fp(new THREE.MeshLambertMaterial({ map: t, side: THREE.DoubleSide })) };
-  for (const h of HARDS) zScene.add(buildHardMesh(h, mats));
+  for (const h of HARDS) { const g = buildHardMesh(h, mats); zScene.add(g); mergeStatic(g); }   // ngc/perf-render: 33 draws -> 6 (all static)
 }
 // base
 const baseGroup = new THREE.Group(); baseGroup.position.set(HOME_B.x, PAD_H, HOME_B.z); zScene.add(baseGroup);
@@ -2691,6 +2700,7 @@ function frame(now, xrFrame) {
   fx.setView(zCam, renderer.domElement.height, atmo && !sealife.under ? atmo.fxFog(zScene.fog) : zScene.fog);   // RENDERKIT sky: CPU particles fade where the haze has built up
   if (G.mode === 'zarch') interiors.update(G.state === 'paused' ? 0 : dt, zCam);   // ngc/interiors: doors swing, rooms near the camera, the carrier's inside
   rkLight?.update(dt, zCam);   // RENDERKIT light: cascades follow the eye, cast / receive rules for new objects
+  RKLOD.setBias(renderer.xr.isPresenting ? 0.7 : 1); updateLODs(zCam); watchMerges(zCam);   // ngc/perf-render: LOD levels and small-part fades on / off by distance
   const drawDesktop = () => {
     const a = G.craft !== 'heli' && G.state !== 'title' ? crafts.active : null;
     // RENDERKIT fx: a craft's own picture (the tank's TTS thermal sight) swaps every visible mesh to a heat material;
@@ -2773,7 +2783,7 @@ if (params.has('bench') && !params.has('xrbench')) DB = createDesktopBench({ ren
   setView: v => { cockpitCam = v === 'cockpit'; chaseCam = v === 'chase'; if (crafts.active === foot && marine) marine.view = v === 'cockpit' ? 'first' : marine.view; } });
 buildCaves(); war.reset(); resetZarch(true); placeVehicles(); updateFogImg(); terrainStream(Z.pos.x, Z.pos.z);
 renderer.setAnimationLoop(frame);
-if (params.has('debug')) { window.__G = { XR, G, airlift, airdrop, ch46C, heliAIenv, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, get forest() { return { count: world.stats.forestTrees || 0 }; }, world, terrainUni, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, rkPost /* RENDERKIT post */, rkLight /* RENDERKIT light */, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, get tech() { return war.tech; }, techUI /* TECH TREE: tech = [null, player, enemy] */, say, feed /* RENDERKIT ui: tools/scenes/rkui.mjs */ }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); H.reset(H.pos.clone(), 0, false, 1); SY.grip = 1; SY.auto = null; enterCave(b); }   /* (ngc/bugsweep) ?thrust=N starts in the cave already flying: engine at flight power, throttle rolled on (it came in at ground idle with the throttle rolling on, the rotor drooped and caveaim / caves crashed in the shaft) */ }
+if (params.has('debug')) { window.__G = { XR, G, airlift, airdrop, ch46C, heliAIenv, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, get forest() { return { count: world.stats.forestTrees || 0 }; }, world, terrainUni, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, rkPost /* RENDERKIT post */, MERGES, RKLOD /* ngc/perf-render */, rkLight /* RENDERKIT light */, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, get tech() { return war.tech; }, techUI /* TECH TREE: tech = [null, player, enemy] */, say, feed /* RENDERKIT ui: tools/scenes/rkui.mjs */ }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); H.reset(H.pos.clone(), 0, false, 1); SY.grip = 1; SY.auto = null; enterCave(b); }   /* (ngc/bugsweep) ?thrust=N starts in the cave already flying: engine at flight power, throttle rolled on (it came in at ground idle with the throttle rolling on, the rotor drooped and caveaim / caves crashed in the shaft) */ }
 // ngc/ch46fly dev: ?fly=ch46 puts you in a CH-46E on the ALBATROSS (with ?auto; ?fly=ch46&cold cold and dark; &at=island at the nearest friendly pad)
 if (params.get('fly') === 'ch46') { const t0 = performance.now(), go = () => { if (G.state === 'play' && G.mode === 'zarch' && Z.alive && H.landed) { const isl = commandBases().filter(b => b.kind === 'island').sort((a, b) => Math.hypot(a.x - Z.pos.x, a.z - Z.pos.z) - Math.hypot(b.x - Z.pos.x, b.z - Z.pos.z))[0]; commander.deploy('ch46', params.get('at') === 'island' && isl ? isl.key : 'ship'); return; } if (performance.now() - t0 < 30000) setTimeout(go, 200); }; setTimeout(go, 300); }
 

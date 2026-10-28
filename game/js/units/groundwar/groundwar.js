@@ -20,6 +20,7 @@ import { FIGURES } from '../air/rotary/figures.js';
 import { createCasevac } from './casevac.js';   // ngc/infdepth
 import { careHands, throwHands } from '../infantry/carepose.js';   // ngc/infdepth-fix
 import { m67Geometry, grenadeMaterial } from '../infantry/grenademodel.js';   // ngc/marine-polish: the AI's M67s drawn in flight
+import { mergeUnit } from '../../renderkit/merge.js';   // ngc/perf-render
 
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -100,8 +101,8 @@ export function createGroundWar(ctx) {
   // ------------------------------------------------------------------------------------------- views
   function viewOf(u) {
     let V = GW.views.get(u.id); if (V) return V;
-    if (u.kind === 'strider') { V = buildStrider({ weapon: u.weaponName, tag: u.tag }); root.add(V.group); }
-    else if (u.kind === 'hovertank') { V = buildHoverTank({ tag: u.tag }); root.add(V.group, V.shadow); }
+    if (u.kind === 'strider') { V = buildStrider({ weapon: u.weaponName, tag: u.tag }); root.add(V.group); mergeUnit(V.group, [V], { name: 'strider' }); }   // ngc/perf-render: static parts one draw per material per rigid frame (every handle kept)
+    else if (u.kind === 'hovertank') { V = buildHoverTank({ tag: u.tag }); root.add(V.group, V.shadow); mergeUnit(V.group, [V], { name: 'hovertank' }); }
     else if (u.kind === 'mbt') { V = u.adoptView || buildMBT(u.mbtType, { tag: u.tag }); if (!V.group.parent || V.group.parent !== root) root.add(V.group); }
     else { V = u.adoptView || buildMarineFigure({ seed: u.seed, weapon: u.role === 'gren' ? 'M16A1/M203' : 'M16A1' }); root.add(V.group); if (u.role === 'gren') V.setWeapon('M16A1/M203'); }
     V.kind = u.kind; GW.views.set(u.id, V); return V;
