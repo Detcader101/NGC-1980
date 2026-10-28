@@ -19,6 +19,8 @@ import {
   TAU, clamp, sstep, mix, bodySurface, gridGeo, steps, stations, contours, surfStrip, stripProfile, airfoilLoft, naca,
   rbox, smoothGeo, lathe, V3, alignY, rod, tube, merge, mirrorX, triCount, vnoise, fbm, hash2, glyphs, sdBox, sdPoly, bake, sweep,
 } from './hueygeo.js';
+import { UH1_TRACE } from './uh1trace.js';
+import { sampler, pl, smooth01, stationList, stationKeys } from './stationtable.js';
 
 const D2R = Math.PI / 180;
 // LOD hand-over distances (m, camera to the model origin): near -> mid, mid -> far, with the dissolve bands
@@ -31,58 +33,48 @@ export const HUEY_LOD = Object.freeze({ nm: [55, 75], mf: [200, 260] });
 // dev/huey.html?ref=side|front|top. Model z = station aft of the CG, nose tip at z -3.69, tail at z 8.93.
 const GEO = Object.freeze({
   HUB: [0, 2.00, -0.12],           // 13 ft 7.40 in to the top of the hub (front view label; the drawn hub sits 0.2 m lower, the photo agrees with the label)
-  TR_HUB: [-0.39, 1.39, 8.66],     // 10 ft 2.5 in above the ground (drawing centre 3.23 m)
+  TR_HUB: [0.39, 1.39, 8.66],      // RIGHT of the fin (tractor), 10 ft 2.5 in above the ground (drawing centre 3.23 m); see findings: TM top view + 1982/1987 photos
+  TR_SIDE: 1,                      // +1 right (1980 US Army UH-1H), -1 left (early production)
   GUN: [-1.1, -0.18, 0.62],        // M60D pintle on the aft post of the cargo doorway
   SKID: { x: 1.30, z0: -2.62, z1: 1.08, cross: [-1.71, 0.60] },   // 8 ft 6.6 in track, cross tubes from the side view
   ELEV: { z: 5.42, y: -0.22, chord: 0.775, span: 2.85 },          // 2 ft 6.5 in chord, 9 ft 4.3 in span
 });
-// fuselage stations [z, top, bottom, half width, widest-line y, upper exponent, lower exponent]; the cabin roof 0.50
-// (2.34 m above the ground), the keel -1.375, the windscreen from the nose top (z -3.07) to the roof bow (z -2.45), the
-// boom a deep tapered beam: top nearly level, bottom rising from -1.0 at the aft bulkhead (z 2.62) to -0.2 at z 7.8
-const FUS = [
-  [-3.69, -0.60, -0.64, 0.0, -0.62, 2.2, 2.2],
-  [-3.665, -0.42, -0.80, 0.30, -0.62, 2.6, 2.6],   // blunt, bulbous nose: rounded-rectangle sections right to the front (photo)
-  [-3.60, -0.31, -0.89, 0.50, -0.62, 3.0, 3.0],
-  [-3.47, -0.20, -0.99, 0.69, -0.62, 3.5, 3.6],
-  [-3.27, -0.12, -1.08, 0.86, -0.60, 4.0, 4.4],
-  [-3.06, -0.06, -1.14, 0.98, -0.56, 4.4, 5.0],
-  [-2.85, 0.13, -1.18, 1.08, -0.50, 4.4, 5.5],
-  [-2.65, 0.32, -1.21, 1.15, -0.44, 5.5, 6.5],
-  [-2.45, 0.46, -1.235, 1.19, -0.38, 7.0, 7.5],
-  [-2.25, 0.50, -1.25, 1.21, -0.36, 8.5, 8],
-  [-1.60, 0.50, -1.30, 1.22, -0.36, 9, 8],
-  [-0.50, 0.50, -1.36, 1.22, -0.37, 9, 8],
-  [0.30, 0.50, -1.375, 1.22, -0.37, 9, 8],
-  [0.86, 0.49, -1.35, 1.20, -0.36, 9, 8],
-  [1.30, 0.45, -1.30, 1.18, -0.38, 6.5, 7],
-  [1.70, 0.38, -1.22, 1.10, -0.42, 4.6, 6.5],
-  [2.00, 0.29, -1.13, 0.98, -0.46, 3.8, 6],
-  [2.30, 0.18, -1.05, 0.78, -0.48, 3.3, 5],
-  [2.62, 0.07, -1.00, 0.45, -0.47, 3.0, 4],
-  [2.85, 0.045, -0.98, 0.32, -0.45, 3.0, 3.5],
-  [3.00, 0.04, -0.96, 0.30, -0.44, 3.0, 3.4],
-  [4.00, 0.05, -0.81, 0.28, -0.37, 3.0, 3.2],
-  [5.00, 0.06, -0.64, 0.26, -0.29, 3.0, 3.0],
-  [6.00, 0.07, -0.48, 0.24, -0.20, 3.0, 2.9],
-  [7.00, 0.08, -0.33, 0.215, -0.12, 3.0, 2.8],
-  [7.70, 0.09, -0.21, 0.19, -0.06, 2.9, 2.6],
-  [7.92, 0.085, -0.15, 0.13, -0.03, 2.6, 2.4],
-  [8.00, 0.06, -0.09, 0.0, -0.01, 2.2, 2.2],
-];
-// transmission and engine cowling ("doghouse"): 0.25 m proud of the cabin roof, about 1.1 m wide (front view), from the
-// mast fairing at z -0.95 to the exhaust at z 2.45; its bottom follows the aft fuselage roof down
-const DOG = [
-  [-0.97, 0.49, 0.40, 0.0, 0.46, 2.5, 8],
-  [-0.88, 0.60, 0.40, 0.36, 0.48, 2.6, 8],
-  [-0.66, 0.70, 0.40, 0.48, 0.50, 2.9, 9],
-  [-0.35, 0.75, 0.40, 0.54, 0.52, 3.4, 10],
-  [0.50, 0.765, 0.40, 0.56, 0.52, 3.6, 10],
-  [1.40, 0.765, 0.36, 0.56, 0.50, 3.6, 10],
-  [1.90, 0.745, 0.22, 0.50, 0.42, 3.4, 10],
-  [2.20, 0.70, 0.12, 0.43, 0.34, 3.0, 10],
-  [2.42, 0.63, 0.04, 0.34, 0.26, 2.8, 10],
-  [2.50, 0.60, 0.02, 0.28, 0.24, 2.6, 10],
-];
+// ---- fuselage, lofted from the traced TM three-view (game/js/uh1trace.json, tools/hueytrace.mjs): the side view gives
+// the upper and lower profile, the top view the half-width, the front view the cabin section (widest at y -0.65, a
+// squarish roof corner, 6 % tumblehome, rounder belly); masked spans (mast, cutters, antennas, struts, the rotor
+// blade over the top view) are bridged. Sections blend to round at the nose cap and the boom.
+const TR_SIDE = sampler(UH1_TRACE.side, 'top', { median: 0.12 }), TR_BOT = sampler(UH1_TRACE.side, 'bottom', { median: 0.2 });
+const TR_HW = sampler(UH1_TRACE.top, 'hw', { median: 0.12 });
+const ROOF = 0.545, KEEL_YM = -0.65, CAB = { nT: 8, nB: 4, lean: 0.06, crown: 0.07 };
+// nose cap and chin where the drawing is masked (chin cutter) or blunt (the plan view outline): read off the TM views
+const NOSE_BOT = pl([[-3.72, -0.80], [-3.66, -0.82], [-3.6, -0.9], [-3.5, -0.99], [-3.35, -1.08], [-3.2, -1.145], [-3.05, -1.195], [-2.94, -1.235]]);
+const NOSE_HW = z => 0.99 * Math.max(0, 1 - Math.max(0, (-3.0 - z) / 0.725) ** 2.3) ** (1 / 2.3);
+const BOOM_TOP = pl([[2.6, 0.04], [3.0, 0.03], [7.7, 0.1], [7.95, 0.095], [8.02, 0.06]]);
+const BOOM_HW = pl([[2.6, 0.36], [3.0, 0.30], [5.0, 0.26], [7.0, 0.215], [7.7, 0.19], [7.9, 0.13], [8.02, 0.0]]);
+function fusAt(z) {
+  // upper profile: windscreen and cockpit roof from the trace, the cabin roof flat under the doghouse, the aft
+  // fuselage shoulder easing down to the boom root, the boom top from the trace (under the fin: extrapolated)
+  // (the traced boom top is the drive-shaft cover's; the boom skin itself runs 2 .. 8 cm under it: BOOM_TOP)
+  let T = z < -2.45 ? Math.min(ROOF, TR_SIDE(z)) : z < 0.84 ? ROOF : z < 2.6 ? ROOF + (BOOM_TOP(2.6) - ROOF) * smooth01(0.84, 2.6, z) ** 1.1 : BOOM_TOP(z);
+  if (z < -3.7) T = -0.62;
+  let B = z < -2.94 ? NOSE_BOT(z) : TR_BOT(z); if (z > 7.95) B = -0.1 - (8.02 - z) * 1.5;
+  const cock = smooth01(-1.95, -1.75, z);   // the cockpit section is narrower than the cabin (top view step at the crew door's aft edge)
+  let W = z < -3.0 ? NOSE_HW(z) : z < 0.8 ? Math.min(1.26, TR_HW(z)) * cock + Math.min(1.14, TR_HW(z)) * (1 - cock) : z < 2.55 ? Math.min(1.26, TR_HW(z)) : BOOM_HW(z);
+  if (z >= 0.8 && z < 0.95) W = 1.26 + (TR_HW(0.95) - 1.26) * smooth01(0.8, 0.95, z);
+  // section: nose cap round -> cabin squarish -> boom round
+  const kn = smooth01(-3.72, -2.95, z), kb = smooth01(0.9, 2.6, z);
+  const ymBoom = (T + B) / 2, ym = z < 0.9 ? KEEL_YM : KEEL_YM + (ymBoom - KEEL_YM) * kb;
+  const nT = 2.4 + (CAB.nT - 2.4) * kn - (CAB.nT - 2.9) * kb, nB = 2.4 + (CAB.nB - 2.4) * kn - (CAB.nB - 2.7) * kb, lean = CAB.lean * kn * (1 - kb), crown = CAB.crown * kn * (1 - kb);
+  if (z < -3.725) W = 0;   // closes the blunt nose face
+  return { T, B: Math.min(B, T - 0.02), W: Math.max(0, W), ym: Math.min(T - 0.01, Math.max(B + 0.01, ym)), nT, nB, lean, crown };
+}
+const FUS_Z = stationList([[-3.735, -3.72, 0.015], [-3.72, -3.6, 0.02], [-3.6, -2.9, 0.035], [-2.9, -1.9, 0.1], [-1.9, 0.8, 0.27], [0.8, 1.0, 0.05], [1.0, 2.7, 0.1], [2.7, 7.7, 0.5], [7.7, 8.02, 0.04]], [-1.85, -1.62, -1.16, 0.8]);
+const FUS = stationKeys(FUS_Z, fusAt);
+// transmission and engine cowling ("doghouse"): top from the side trace (mast pylon span bridged, the forward vent lip
+// ignored), 1.0 m wide from the front view (hw 0.50 at y 0.5 .. 0.62), its bottom following the aft fuselage roof down
+const DOG_TOP = pl([[-0.92, 0.47], [-0.8, 0.56], [-0.7, 0.613], [-0.6, 0.663], [-0.5, 0.693], [0.0, 0.74], [0.5, 0.765], [2.1, 0.765], [2.2, 0.715], [2.32, 0.64], [2.42, 0.56], [2.47, 0.5]]);
+const DOG_HW = pl([[-0.95, 0.0], [-0.85, 0.32], [-0.7, 0.44], [-0.5, 0.5], [2.1, 0.5], [2.3, 0.42], [2.45, 0.3], [2.5, 0.2]]);
+const DOG = stationKeys(stationList([[-0.95, -0.5, 0.05], [-0.5, 2.0, 0.25], [2.0, 2.5, 0.05]]), z => { const T = DOG_TOP(z), B = Math.min(0.4, fusAt(z).T - 0.08); return { T, B, W: DOG_HW(z), ym: Math.min(T - 0.02, Math.max(B + 0.02, 0.56)), nT: 5, nB: 10, lean: 0.04 }; });
 // crew doors and windows (side projection [z, y]; hueycockpit.js uses the same outlines so inside and outside agree)
 const PD_UP = [[-2.74, -0.44], [-1.97, -0.44], [-1.97, 0.27], [-2.36, 0.27], [-2.74, -0.38]];
 const PD_LO = [[-2.74, -0.92], [-2.30, -0.92], [-2.30, -0.56], [-2.74, -0.56]];
@@ -246,12 +238,12 @@ function buildTextures(S, D, xr) {
   }, u => { z = D.z0 + u * (D.z1 - D.z0); });
   // ---- vertical fin (two sides: u < 0.5 right, u >= 0.5 left; u maps to z 7.1..9.1, v to y -0.05..1.70)
   const fin = bake(256 * R, 256 * R, (u, v, o) => {
-    const side = u < 0.5 ? 1 : -1, zz = 7.1 + (u % 0.5) * 2 * 2.0, y = -0.05 + v * 1.75;
+    const side = u < 0.5 ? 1 : -1, zz = 6.9 + (u % 0.5) * 2 * 2.0, y = -0.05 + v * 1.75;
     const nA = fbm(zz * 1.3, y * 1.3 + side * 7), k = 0.93 + 0.1 * nA; o.r = OD[0] * k; o.g = OD[1] * k; o.b = OD[2] * k;
     let pl = 0; for (const ys of [0.55, 1.05]) pl = Math.max(pl, lineMask(y - ys, 0.005));
     o.r *= 1 - 0.35 * pl; o.g *= 1 - 0.35 * pl; o.b *= 1 - 0.35 * pl; o.bump = 0.5 - 0.3 * pl;
     lerp3(o, SOOT, clamp(0.25 * (1 - sstep(0.05, 0.6, y)) * (0.5 + nA), 0, 0.4));
-    const m = g.serial(side > 0 ? (8.6 - zz) / 0.62 : (zz - 7.98) / 0.62, (0.98 - y) / 0.15); if (m > 0) lerp3(o, STENCIL, m * 0.92);
+    const m = g.serial(side > 0 ? (8.5 - zz) / 0.6 : (zz - 7.9) / 0.6, (0.98 - y) / 0.15); if (m > 0) lerp3(o, STENCIL, m * 0.92);
     o.rough = 1 / 1.2;
   });
   // ---- sliding cargo door (u: door-local z -0.98..0.98, v: y 0.36 .. -1.16)
@@ -447,37 +439,39 @@ export function buildHueyHiFi(HUEY, { xr = false } = {}) {
     heatM = B(0x000000); const heat = mesh(new THREE.CircleGeometry(0.19, 20), heatM, exG, 'exhaustGlow'); heat.position.z = 0.12;
     const exM = group(lod1, 'exhaustMid', 0, 0.56, 2.36); exM.rotation.x = -0.32; mesh(new THREE.CylinderGeometry(0.22, 0.2, 0.46, 10, 1, true).rotateX(Math.PI / 2).translate(0, 0, 0.23), PM('pipe', 'm', role(0x3d3833, 'grimy', { side: THREE.DoubleSide })), exM, 'tailpipeMid', 'm');
     // drive shaft cover along the top of the boom, in hinged sections
-    const cov = []; for (const z of steps(2.62, 7.15, 22)) { const t = S.params(z)[0]; cov.push([z, t + 0.105, t - 0.04, 0.105, t + 0.0, 2.6, 10]); }
+    const cov = []; for (const z of steps(2.62, 6.86, 22)) { const t = S.params(z)[0], ct = Math.max(t + 0.05, Math.min(t + 0.14, TR_SIDE(z))); cov.push([z, ct, t - 0.04, 0.105, t + 0.0, 2.6, 10]); }
     cov.unshift([2.52, S.params(2.52)[0] + 0.02, S.params(2.52)[0] - 0.04, 0.0, S.params(2.52)[0], 2.4, 10]);
-    cov.push([7.24, S.params(7.24)[0] + 0.02, S.params(7.24)[0] - 0.04, 0.0, S.params(7.24)[0], 2.4, 10]);
+    cov.push([6.94, S.params(6.94)[0] + 0.02, S.params(6.94)[0] - 0.04, 0.0, S.params(6.94)[0], 2.4, 10]);
     const C = bodySurface(cov);
-    mesh(gridGeo(C, stations([[2.52, 2.67, 0.03], [2.67, 7.1, 0.25], [7.1, 7.24, 0.03]]), steps(0, TAU, 40)), N.od2, lod0, 'shaftCover');
-    mesh(gridGeo(C, stations([[2.52, 7.24, 1.1]]), steps(0, TAU, 10)), Mm.od2, lod1, 'shaftCoverMid', 'm');
+    mesh(gridGeo(C, stations([[2.52, 2.67, 0.03], [2.67, 6.8, 0.25], [6.8, 6.94, 0.03]]), steps(0, TAU, 40)), N.od2, lod0, 'shaftCover');
+    mesh(gridGeo(C, stations([[2.52, 6.94, 1.1]]), steps(0, TAU, 10)), Mm.od2, lod1, 'shaftCoverMid', 'm');
     for (const z of [3.6, 4.7, 5.85, 6.95]) { const t = S.params(z)[0]; put(lathe([[0.112, 0], [0.116, 0.004], [0.116, 0.022], [0.112, 0.026]], 16).rotateX(Math.PI / 2).scale(1, 1.0, 1).translate(0, t + 0.0, z), N.dark); }
   }
 
   // ======================================================================== tail: fin, gearboxes, tail skid, elevator
   // vertical fin: an airfoil loft, two textured sides (serial number both sides)
   // [y, leading edge z, chord, thickness]: swept, from the boom top (z 7.25) to the 90 degree gearbox at the tail rotor hub
-  const FINS = [[0.04, 7.25, 0.84, 0.15], [0.5, 7.66, 0.76, 0.14], [1.0, 8.1, 0.66, 0.12], [1.4, 8.45, 0.5, 0.11], [1.58, 8.6, 0.38, 0.10], [1.63, 8.64, 0.32, 0.08]];
+  // leading edge traced from the side view (y = 0.226 + 0.92 (z - 7.1)); the trailing edge is hidden by the rotor disc
+  const FINS = [[0.06, 6.92, 1.06, 0.15], [0.5, 7.40, 0.88, 0.14], [1.0, 7.94, 0.68, 0.12], [1.4, 8.38, 0.52, 0.11], [1.58, 8.58, 0.38, 0.10], [1.63, 8.63, 0.32, 0.08]];
   const finSide = (sgn, nc, lod) => {
     const pos = [], uv = [], idx = [], ys = []; for (let k = 0; k < FINS.length - 1; k++) for (let j = 0; j < 4; j++) ys.push(k + j / 4); ys.push(FINS.length - 1);
     const cs = steps(0, 1, nc).map(t => 0.5 * (1 - Math.cos(Math.PI * t)));
     const at = q => { const k = Math.min(FINS.length - 2, Math.floor(q)), f = q - k, A = FINS[k], Bf = FINS[k + 1]; return A.map((v, i) => mix(v, Bf[i], f)); };
-    for (const q of ys) { const [y, le, ch, t] = at(q); for (const x of cs) { const z = le + x * ch, w = sgn * naca(x, t) * ch; pos.push(w, y, z); uv.push((sgn > 0 ? 0 : 0.5) + (z - 7.1) / 2.0 * 0.5, (y + 0.05) / 1.75); } }
+    for (const q of ys) { const [y, le, ch, t] = at(q); for (const x of cs) { const z = le + x * ch, w = sgn * naca(x, t) * ch; pos.push(w, y, z); uv.push((sgn > 0 ? 0 : 0.5) + (z - 6.9) / 2.0 * 0.5, (y + 0.05) / 1.75); } }
     const W = cs.length; for (let i = 0; i < ys.length - 1; i++) for (let j = 0; j < W - 1; j++) { const a = i * W + j, b = a + 1, c = a + W, d = c + 1; if (sgn > 0) idx.push(a, c, b, b, c, d); else idx.push(a, b, c, b, d, c); }
     const q = new THREE.BufferGeometry(); q.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); q.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); q.setIndex(idx); q.computeVertexNormals(); return q;
   };
   mesh(merge([finSide(1, 28), finSide(-1, 28)]), N.fin, lod0, 'fin');
   mesh(merge([finSide(1, 7), finSide(-1, 7)]), Mm.fin, lod1, 'finMid', 'm');
   mesh(merge([finSide(1, 3), finSide(-1, 3)]), Fm.od, lod2, 'finFar', 'f');
-  put(airfoilLoft([{ s: 1.61, le: 8.62, chord: 0.36, t: 0.09 }, { s: 1.67, le: 8.67, chord: 0.28, t: 0.07 }], { span: 'y', chord: 'z', thick: 'x', n: 20, capA: false, capB: true }), N.od);   // tip cap
+  put(airfoilLoft([{ s: 1.61, le: 8.61, chord: 0.35, t: 0.09 }, { s: 1.67, le: 8.66, chord: 0.27, t: 0.07 }], { span: 'y', chord: 'z', thick: 'x', n: 20, capA: false, capB: true }), N.od);   // tip cap
   // tail rotor drive shaft cover up the fin's leading edge, 42 and 90 degree gearboxes
   const [, tY, tZ] = GEO.TR_HUB;
-  put(tube([[0, 0.12, 7.2], [0, 0.55, 7.62], [0, 1.05, 8.1], [0, tY, tZ - 0.2]], 0.062, 24, 14), N.od2);
-  put(lathe([[0, -0.2], [0.1, -0.18], [0.16, -0.08], [0.17, 0.08], [0.13, 0.2], [0.07, 0.26], [0, 0.27]], 18).scale(1, 1, 0.9).rotateX(Math.PI / 2 - 0.5).translate(0, 0.16, 7.12), N.od2);   // 42 deg gearbox fairing
-  put(lathe([[0, 0], [0.13, 0], [0.155, 0.04], [0.16, 0.14], [0.14, 0.24], [0.1, 0.3], [0.05, 0.32], [0, 0.32]], 18).rotateZ(Math.PI / 2).translate(-0.02, tY, tZ + 0.02), N.od2);   // 90 deg gearbox (left face)
-  put(lathe([[0, -0.14], [0.12, -0.12], [0.15, 0], [0.12, 0.12], [0, 0.15]], 16).scale(0.8, 1, 1.25).translate(0.02, tY, tZ + 0.06), N.od2);
+  put(tube([[0, 0.16, 6.98], [0, 0.55, 7.43], [0, 1.05, 7.98], [0, tY, tZ - 0.24]], 0.062, 24, 14), N.od2);
+  put(lathe([[0, -0.2], [0.1, -0.18], [0.16, -0.08], [0.17, 0.08], [0.13, 0.2], [0.07, 0.26], [0, 0.27]], 18).scale(1, 1, 0.9).rotateX(Math.PI / 2 - 0.5).translate(0, 0.14, 6.9), N.od2);   // 42 deg gearbox fairing
+  const sd = GEO.TR_SIDE;
+  put(lathe([[0, 0], [0.13, 0], [0.155, 0.04], [0.16, 0.14], [0.14, 0.24], [0.1, 0.3], [0.05, 0.32], [0, 0.32]], 18).rotateZ(-sd * Math.PI / 2).translate(sd * 0.02, tY, tZ + 0.02), N.od2);   // 90 deg gearbox (output face toward the rotor)
+  put(lathe([[0, -0.14], [0.12, -0.12], [0.15, 0], [0.12, 0.12], [0, 0.15]], 16).scale(0.8, 1, 1.25).translate(-sd * 0.02, tY, tZ + 0.06), N.od2);
   // tail skid (stinger) under the boom end, nearly level, braced back to the boom
   put(tube([[0, -0.12, 7.6], [0, -0.22, 7.95], [0, -0.28, 8.4], [0, -0.29, 8.86]], 0.035, 20, 10), N.steel);
   put(tube([[0, -0.02, 8.0], [0, -0.16, 8.3], [0, -0.28, 8.55]], 0.028, 16, 10), N.steel);
@@ -736,14 +730,15 @@ export function buildHueyHiFi(HUEY, { xr = false } = {}) {
   const tipRing = new THREE.Mesh(ringGeo(R - 0.32, R), tipRingM); tipRing.name = 'discTips'; discG.add(tipRing);
   disc.renderOrder = tipRing.renderOrder = 2;
 
-  // ======================================================================== tail rotor (left of the fin): delta-hinge hub, 2 blades
+  // ======================================================================== tail rotor (right of the fin, tractor): delta-hinge hub, 2 blades;
+  // built for the left side and mirrored; it turns bottom blade forward
   const trG = group(g, 'tailRotor', ...GEO.TR_HUB), trSpin = group(trG, 'trSpin');
   { const tb = new Map(), tp = (geo, m) => (tb.get(m) || tb.set(m, []).get(m)).push(geo);
     tp(lathe([[0, -0.12], [0.04, -0.12], [0.045, -0.06], [0.045, 0.08], [0.03, 0.12], [0, 0.13]], 14).rotateZ(Math.PI / 2), N.metal);
     tp(rbox(0.06, 0.32, 0.1, 0.02), N.metal);
     for (const s of [-1, 1]) { tp(rbox(0.05, 0.08, 0.05, 0.01).translate(0.0, s * 0.13, -0.06), N.steel); tp(rod([0.08, s * 0.02, -0.06], [0.01, s * 0.12, -0.06], 0.008, 6), N.steel); }   // pitch horns and links
     tp(lathe([[0.05, 0], [0.06, 0.02], [0.06, 0.05], [0.03, 0.06]], 12).rotateZ(-Math.PI / 2).translate(0.07, 0, 0), N.steel);   // crosshead
-    for (const [m, gs] of tb) mesh(merge(gs), m, trSpin, 'trHub'); }
+    for (const [m, gs] of tb) { const mg = merge(gs); mesh(GEO.TR_SIDE > 0 ? mirrorX(mg) : mg, m, trSpin, 'trHub'); } }
   const TRC = 0.214, trSt = (r0, r1, n, t = 0.12) => steps(r0, r1, n).map(s => ({ s, chord: TRC, le: -0.25 * TRC + 0.03, pivot: 0.25, t, twist: 0 }));
   const trBlades = [0, 1].map(k => {
     const arm = group(trSpin, 'trArm' + k); arm.rotation.x = k * Math.PI;
@@ -756,8 +751,9 @@ export function buildHueyHiFi(HUEY, { xr = false } = {}) {
     return p;
   });
   const trDiscM = B(0x2a2a2a, { transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: false });
-  const trDisc = new THREE.Mesh(new THREE.RingGeometry(0.15, HUEY.TR_R, 32).rotateY(Math.PI / 2), trDiscM); trDisc.name = 'trDisc'; trG.add(trDisc); trDisc.position.x = -0.02;
-  const trStub = mesh(merge([rod([-0.13, 0, 0], [0.03, 0, 0], 0.045, 10), rbox(0.05, 0.3, 0.1, 0.01).translate(-0.1, 0.08, 0).rotateX(0.5)]), N.dark, lod0, 'trStub');
+  const trDisc = new THREE.Mesh(new THREE.RingGeometry(0.15, HUEY.TR_R, 32).rotateY(Math.PI / 2), trDiscM); trDisc.name = 'trDisc'; trG.add(trDisc); trDisc.position.x = -0.02 * GEO.TR_SIDE * -1;
+  const stubG = merge([rod([-0.13, 0, 0], [0.03, 0, 0], 0.045, 10), rbox(0.05, 0.3, 0.1, 0.01).translate(-0.1, 0.08, 0).rotateX(0.5)]);
+  const trStub = mesh(GEO.TR_SIDE > 0 ? mirrorX(stubG) : stubG, N.dark, lod0, 'trStub');
   trStub.position.copy(trG.position); trStub.visible = false;
 
   flush();
@@ -810,7 +806,7 @@ export function buildHueyHiFi(HUEY, { xr = false } = {}) {
     const dk = broken ? 0 : sstep(0.35, 0.9, nr);
     discM.opacity = (inside ? 0.06 : 0.16) * dk; tipRingM.opacity = (inside ? 0.07 : 0.16) * dk; discG.visible = dk > 0.01;
     const lost = !!S0.tailLost; trG.visible = !lost; trStub.visible = lost && lodD < HUEY_LOD.nm[1] + 6;
-    tpsi = (tpsi + nr * HUEY.OMEGA * HUEY.TR_GEAR * dt) % TAU; trSpin.rotation.x = -tpsi;
+    tpsi = (tpsi + nr * HUEY.OMEGA * HUEY.TR_GEAR * dt) % TAU; trSpin.rotation.x = GEO.TR_SIDE > 0 ? tpsi : -tpsi;   // bottom blade forward on the right-side rotor
     for (const p of trBlades) p.rotation.y = 0.08 - (S0.ped || 0) * 0.22;
     trDiscM.opacity = 0.07 * sstep(0.3, 0.8, nr);
     elevG.rotation.x = -clamp(tx * 1.5, -0.15, 0.15);

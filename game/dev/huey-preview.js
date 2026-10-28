@@ -64,6 +64,14 @@ if (REFV) {
     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: 'uniform sampler2D map; uniform float k; varying vec2 vUv; void main(){ float l = dot(texture2D(map, vUv).rgb, vec3(0.333)); gl_FragColor = vec4(0.9, 0.05, 0.05, (1.0 - smoothstep(0.35, 0.75, l)) * k); }' });
   const plane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat); plane.renderOrder = 99; plane.frustumCulled = false; scene.add(plane);
+  // &mask=1: the body alone (skin, glass, doghouse, shaft cover) in flat black on white, no drawing: tools/hueyfit.mjs
+  // measures it against the traced outlines at the drawing's pixel scale
+  if (Q.get('mask') === '1') {
+    plane.visible = false; scene.background = new THREE.Color(0xffffff);
+    const body = new Set(['fuselage', 'noseSkin', 'canopyGlass', 'doghouse', 'shaftCover']), bm = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide });
+    huey.group.traverse(o => { if (!o.isMesh && !o.isSprite && !o.isLine) return; if (body.has(o.name)) o.material = bm; else o.visible = false; });
+    huey.animate = () => {};   // freeze: animate() would re-show parts
+  }
   // plane corners in model space: the ortho camera looks along view, its right/up axes come from map()
   const V = new THREE.Vector3(...REFV.view), U = new THREE.Vector3(...REFV.up), Rt = new THREE.Vector3().crossVectors(V, U);
   const at = (a, b) => REF === 'side' ? new THREE.Vector3(0, b, a) : REF === 'front' ? new THREE.Vector3(a, b, 0) : new THREE.Vector3(b, 0, a);

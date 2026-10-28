@@ -39,16 +39,21 @@ export function track(keys) {
 // ------------------------------------------------------------------------------------- body of revolution-ish
 // cross section: superellipse halves joined at the widest line ym. phi 0 = top centre, PI/2 = right side (+x), PI = keel,
 // 3PI/2 = left. Upper half exponent nT, lower nB (2 = ellipse, 9 = near-rectangle with a small corner radius).
-export function secPt(T, B, W, ym, nT, nB, phi, o) {
+// lean (optional, >= 0): tumblehome of the upper half, the side leans in by lean x W at the top (front view of a cabin)
+// crown (optional): the roof's centre stands crown higher than a plain superellipse puts its shoulders (front views of
+// cabins are crowned: the corners drop, the top centre stays at T)
+export function secPt(T, B, W, ym, nT, nB, phi, o, lean = 0, crown = 0) {
   const s = Math.sin(phi), c = Math.cos(phi), up = c >= 0, e = 2 / (up ? nT : nB);
   o.x = W * Math.sign(s) * Math.abs(s) ** e;
   o.y = up ? ym + (T - ym) * c ** e : ym - (ym - B) * (-c) ** e;
+  if (lean && up && T > ym) o.x *= 1 - lean * (o.y - ym) / (T - ym);
+  if (crown && up && W > 0) { const q = Math.min(1, Math.abs(o.x / W) / 0.6); o.y -= crown * q * q * c * c; }   // full drop from 60 % of the half-width out
   return o;
 }
-// keys [z, T, B, W, ym, nT, nB] -> surface { at(z, phi, o), normal(z, phi, o), params(z), z0, z1, yToPhi(z, y, side) }
+// keys [z, T, B, W, ym, nT, nB, lean?, crown?] -> surface { at(z, phi, o), normal(z, phi, o), params(z), z0, z1, yToPhi(z, y, side) }
 export function bodySurface(keys) {
   const tr = track(keys), p = [], z0 = keys[0][0], z1 = keys[keys.length - 1][0];
-  const at = (z, phi, o = {}) => { tr(z, p); secPt(p[0], p[1], Math.max(0, p[2]), p[3], Math.max(2, p[4]), Math.max(2, p[5]), phi, o); o.z = z; return o; };
+  const at = (z, phi, o = {}) => { tr(z, p); secPt(p[0], p[1], Math.max(0, p[2]), p[3], Math.max(2, p[4]), Math.max(2, p[5]), phi, o, p.length > 6 ? Math.max(0, p[6]) : 0, p.length > 7 ? Math.max(0, p[7]) : 0); o.z = z; return o; };
   const A = {}, Bq = {}, C = {}, D = {};
   const normal = (z, phi, o = {}) => {
     const e = 1e-3, ez = 2e-3;
