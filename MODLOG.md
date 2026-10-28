@@ -1,5 +1,20 @@
 # MODLOG — NGC-1980 (formerly Thrust/Zarch)
 
+## 2026-10-28 — the F-14A rebuilt from the NASA drawings (ngc/look-tomcat)
+
+The "glitchy" Tomcat was four things: a 19.5 m dark square (the old blob shadow) drawn under RenderKit's real shadow on
+the deck, wing roots sliding through the deck with z-fighting as the wings swept, two coincident nacelle shells, and
+intakes hollow from the side. The blob now only draws without RenderKit sun shadows; the rest went with a rebuild.
+
+The airframe is traced from public-domain NASA drawings (TP-2769 / TM-83250 1/12 model three-view and dimensioned
+planforms, CR-163098 front view) and lofted: smooth superellipse fuselage, canopy and raked intakes, NACA-section
+gloves, wings, tails and ventrals at their drawn stations, the wings on the real pivot (BL 107 in). Silhouette fit: side
+IoU 0.988 (gap 1.0%), top at 68 deg 0.983, front 0.961. One real airframe: F-14A BuNo 160382, VF-84 AJ 206, September
+1980 (U.S. Navy photo), overall gull grey, black fins with the skull and crossbones. The cockpit interior moved into the
+drawn airframe. Tools: `tools/blueprint/` (trace, fit), `dev/tomcat.html?ref=side|top|front&sil&mask`, `?legacy=1`.
+Not done: panel lines and the NATOPS cockpit check (the manuals are not public). Details:
+[findings](docs/ngc1980/findings/look-tomcat.md), evidence in `docs/ngc1980/evidence/look-tomcat/`.
+
 ## 2026-10-26 — Continuum reusable shader and UI library
 
 Added an opt-in Three r170/WebGL2 library on `ngc/shader-library`: physical surface presets and
