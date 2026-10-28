@@ -235,13 +235,22 @@ repeated fortification pieces in the buildings rewrite; (3) impostor cards for f
     commandeer / deck / M35 timeouts fail in both. The one extra here is "keyboard steering narrowed at speed", which
     depends on the speed reached in a fixed wall time. No merged part moved over the whole drive.
   - `worldvisibility` 17/18: the 2000 m flight wait times out, and does the same on ae0cacc (17/18).
-  - `underwater`: its frame-interval benchmark crashes ("111/120 rendered intervals"), and ae0cacc's run also ends
-    with a page error.
+  - `underwater`: its frame-interval benchmark crashed once at load 85 ("111/120 rendered intervals"; ae0cacc's run
+    also ended with a page error). On the merged branch at load 70 it **passes 6/6**.
+  - `groundwar` 9/10: "the hover tank came ashore and joined the fight" fails, identically on ae0cacc (9/10).
   - Rerun all of these when the PC is quiet.
-* The `?bench` area pass (reload per RenderKit area): the bench's own reload works (seen in the harness log, URL
-  `...&rk=surface,world,fx,ui,figures,sky,light,nature&benchrun=...`). The headless harness crashed on the navigation
-  (fixed in e71a3c6), and the rerun timed out loading the page at load 100. **Not yet verified end to end:** run
-  `BENCH_VIEWS=foot-home,huey200 node tools/snap.mjs tools/scenes/perfbench.mjs` on a quiet PC.
+* `depthsky.mjs` 14/14 PASS. `underwater.mjs` 6/6 PASS (see above).
+* The `?bench` area pass now runs end to end: `perfbench.mjs` with `bench=2&benchareas=post,light` and two views is
+  4/4 (three reloads, `tools/runs/bench-2026-10-28_23-36-13`). That first per-area table (SwiftShader, relative only):
+
+  | area off | foot-home: GPU ms / draws / triangles it costs | huey200 |
+  |---|---|---|
+  | light (sun shadows) | 173 ms of 917 / +159 draws / +672 k tris (all shadow passes) | 183 ms / +68 / +167 k |
+  | post (AO, bloom, grade) | 18 ms / ±(the shadow cadence) / - | 122 ms / - / - |
+  | everything (`?rk=0`) | 522 ms / +185 / +1166 k | 447 ms / +77 / +411 k |
+
+  So on foot the sun shadows are the largest single RenderKit cost in draws and triangles, mostly the forest's mid set
+  in the far cascade (the census above). The real-GPU split is what Jay Jay's `?bench` run will give.
 
 ## For the look agents (the orchestrator passes this on)
 
