@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { createTomcatSim, TOMCAT, STATIONS, loadout } from './tomcatfm.js';
 import { KT, FT, LB, DECKOPS } from './airframe.js';
 import { buildTomcatModel } from './tomcatmodel.js';
+import { RK } from '../../renderkit/adopt.js';
 import { buildTomcatCockpit, TEYE, ADVS } from './tomcatcockpit.js';
 import { createTomcatDamage, TPARTS } from './tomcatdamage.js';
 import { createTomcatSound } from './tomcatsound.js';
@@ -46,6 +47,10 @@ export function createTomcatPlay(ctx) {
   const crewMeshes = []; model.group.traverse(o => { if (['helmet', 'visor', 'torso', 'seatBack', 'headbox', 'glareshield', 'rioPanel'].includes(o.name)) crewMeshes.push(o); });
   const shadow = new THREE.Mesh(new THREE.PlaneGeometry(19.5, 19.5).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.35, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
   shadow.visible = false; scene.add(shadow);
+  // (ngc/look-tomcat) the flat blob is the shadow only without RenderKit's sun shadows: with them it drew a dark 19.5 m
+  // square on the deck under the real shadow (the "glitchy" Tomcat on the ALBATROSS)
+  const blob = !RK.on('light');
+  const SEATS = TEYE.map(e => [e.x, e.y + 0.2, e.z]);   // ejection: the seats leave from the eyes' stations
   // two crew under their parachutes after an ejection
   const mkChute = () => {
     const g = new THREE.Group(); g.visible = false;
@@ -112,7 +117,7 @@ export function createTomcatPlay(ctx) {
   function eject() {
     if (P.ejected || !P.alive) return;
     const up = A.up(_u);
-    P.ejected = { t: 0, seats: [[0, 1.25, -5.45], [0, 1.25, -4.2]].map((s, i) => ({ pos: A.worldPoint(s), vel: A.vel.clone().addScaledVector(up, 26), t: -(i ? 0 : 0.4), landed: -1, out: false })) };
+    P.ejected = { t: 0, seats: SEATS.map((s, i) => ({ pos: A.worldPoint(s), vel: A.vel.clone().addScaledVector(up, 26), t: -(i ? 0 : 0.4), landed: -1, out: false })) };
     // index 0 = pilot (goes 0.4 s after the RIO), 1 = RIO (first)
     A.canopy = 1; model.parts.canopy.visible = false; say('EJECT  EJECT  EJECT', 2.5); sfx.boom(0.6); sfx.seeker(0); sfx.jetGun(false);
     for (const m of crewMeshes) if (m.name !== 'glareshield' && m.name !== 'rioPanel' && m.name !== 'seatBack') m.visible = false;
@@ -490,16 +495,16 @@ export function createTomcatPlay(ctx) {
     P.kick *= Math.exp(-3 * dt);
     if (!A.onGround && A.nz > 4.5 && A.eas * KT > 220 && Math.random() < 0.7) {   // vapour off the gloves and tips
       model.group.updateMatrixWorld();
-      for (const s of [-1, 1]) { model.wingTipLocal(s, _t).applyMatrix4(model.group.matrixWorld); fx.add.spawn(_t.x, _t.y, _t.z, A.vel.x * 0.9, A.vel.y * 0.9, A.vel.z * 0.9, rnd(0.3, 0.6), 0.5, 1.2, .9, .93, 1, 0.3, 0, 0.5); station([s * 1.6, 0.4, -3.5], _p); fx.add.spawn(_p.x, _p.y, _p.z, A.vel.x * 0.9, A.vel.y * 0.9, A.vel.z * 0.9, rnd(0.15, 0.35), 1.6, 4, .9, .93, 1, 0.25, 0, 0.5); }
+      for (const s of [-1, 1]) { model.wingTipLocal(s, _t).applyMatrix4(model.group.matrixWorld); fx.add.spawn(_t.x, _t.y, _t.z, A.vel.x * 0.9, A.vel.y * 0.9, A.vel.z * 0.9, rnd(0.3, 0.6), 0.5, 1.2, .9, .93, 1, 0.3, 0, 0.5); station([s * 1.95, 0.05, -3.2], _p); fx.add.spawn(_p.x, _p.y, _p.z, A.vel.x * 0.9, A.vel.y * 0.9, A.vel.z * 0.9, rnd(0.15, 0.35), 1.6, 4, .9, .93, 1, 0.25, 0, 0.5); }
     }
     if (A.mach > 0.97 && A.mach < 1.06 && Math.random() < 0.8) { station([0, 0.3, 0], _p); fx.add.spawn(_p.x, _p.y, _p.z, A.vel.x * 0.95, A.vel.y * 0.95, A.vel.z * 0.95, 0.2, 7, 10, .9, .93, 1, 0.3, 0, 0.4); }
     if (A.mach > 1 && !P.boomed) { P.boomed = true; sfx.boom(0.9); } else if (A.mach < 0.95) P.boomed = false;
     for (const k of [0, 1]) {
       const e = A.eng[k];
       if ((D.fire[k] || D.hp[k ? 'engR' : 'engL'] < 0.5 || e.stalled) && Math.random() < (D.fire[k] || e.stalled ? 0.9 : 0.4)) {
-        station([k ? 1.55 : -1.55, -0.55, 8.6], _p); if (D.fire[k] || (e.stalled && Math.random() < 0.3)) fx.add.spawn(_p.x, _p.y, _p.z, rnd(-1, 1), rnd(-1, 1), rnd(-1, 1), rnd(0.2, 0.5), 1.5, 0.5, 1, rnd(.4, .6), .1, 0.9, 0, 1); fx.trail(_p.x, _p.y, _p.z, e.stalled ? 1.0 : 1.4);
+        station(model.nozzles[k].toArray(), _p); if (D.fire[k] || (e.stalled && Math.random() < 0.3)) fx.add.spawn(_p.x, _p.y, _p.z, rnd(-1, 1), rnd(-1, 1), rnd(-1, 1), rnd(0.2, 0.5), 1.5, 0.5, 1, rnd(.4, .6), .1, 0.9, 0, 1); fx.trail(_p.x, _p.y, _p.z, e.stalled ? 1.0 : 1.4);
       }
-      if (e.run && e.n > 0.9 && e.ab < 0.05 && Math.random() < 0.25) { station([k ? 1.55 : -1.55, -0.55, 9], _p); fx.trail(_p.x, _p.y, _p.z, 0.5); }   // the TF30's smoky dry exhaust
+      if (e.run && e.n > 0.9 && e.ab < 0.05 && Math.random() < 0.25) { station([model.nozzles[k].x, model.nozzles[k].y, model.nozzles[k].z + 0.4], _p); fx.trail(_p.x, _p.y, _p.z, 0.5); }   // the TF30's smoky dry exhaust
     }
     if (A.cat && A.cat.state === 'stroke' && Math.random() < 0.6) { const c = env.carrier(); if (c) fx.mix.spawn(p.x + rnd(-1, 1), c.deck + 0.3, p.z + rnd(-1, 1), rnd(-2, 2), rnd(1, 3), rnd(-2, 2), rnd(0.8, 1.6), 1.2, 4, .92, .94, .96, 0.45, -0.2, 1.2, 0.4); }
     if (A.onGround && wasGround === false) { const gy = ctx.groundY(p.x, p.z); for (let i = 0; i < 8; i++) fx.mix.spawn(p.x + rnd(-2.5, 2.5), gy + 0.2, p.z + 1 + rnd(-1, 1), rnd(-3, 3), rnd(0.5, 1.5), rnd(-3, 3), rnd(0.6, 1.2), 0.8, 2.4, .5, .5, .52, 0.5, 0, 1.4); }
@@ -510,7 +515,7 @@ export function createTomcatPlay(ctx) {
     E.t += dt;
     E.seats.forEach((s, i) => {
       s.t += dt; const ch = chutes[i];
-      if (s.t < 0) { s.pos.copy(A.worldPoint(i ? [0, 1.25, -4.2] : [0, 1.25, -5.45])); s.vel.copy(A.vel).addScaledVector(A.up(_u), 26); return; }   // still in the seat
+      if (s.t < 0) { s.pos.copy(A.worldPoint(SEATS[i])); s.vel.copy(A.vel).addScaledVector(A.up(_u), 26); return; }   // still in the seat
       if (!s.out) { s.out = true; ch.visible = true; ch.userData.canopy.visible = false; sfx.boom(0.4); fx.flash(s.pos.x, s.pos.y, s.pos.z, 0.6); }
       if (s.landed < 0) {
         const open = s.t > 1.3; ch.userData.canopy.visible = open;
@@ -537,7 +542,7 @@ export function createTomcatPlay(ctx) {
     if (P.ejected) model.parts.canopy.visible = false;
     for (const m of crewMeshes) m.visible = !inCockpit && !(P.ejected && m.name !== 'glareshield' && m.name !== 'rioPanel' && m.name !== 'seatBack');
     const gy = ctx.groundY(A.pos.x, A.pos.z), alt = A.pos.y - gy;
-    shadow.visible = alt < 140; shadow.position.set(A.pos.x, gy + 0.1, A.pos.z); shadow.rotation.y = Math.atan2(-A.forward(_f).x, -_f.z); shadow.material.opacity = clamp(0.4 - alt * 0.003, 0.05, 0.4);
+    shadow.visible = blob && alt < 140; shadow.position.set(A.pos.x, gy + 0.1, A.pos.z); shadow.rotation.y = Math.atan2(-A.forward(_f).x, -_f.z); shadow.material.opacity = clamp(0.4 - alt * 0.003, 0.05, 0.4);
     shadow.scale.x = 0.55 + 0.45 * Math.cos((A.sweep - 20) * D2R * 1.4);
     cockpit.group.visible = inCockpit;
     if (inCockpit) cockpit.update(A, P.ctl, dt, hudState(hover));
@@ -547,7 +552,7 @@ export function createTomcatPlay(ctx) {
     if (!P.active || !P.alive) return;
     model.group.visible = true; model.group.position.copy(A.pos); model.group.quaternion.copy(A.q); model.animate(A, dt, time, false); cockpit.group.visible = false;
     for (const m of crewMeshes) m.visible = crewed || m.name === 'glareshield' || m.name === 'rioPanel' || m.name === 'seatBack' || m.name === 'headbox';
-    const gy = ctx.groundY(A.pos.x, A.pos.z); shadow.visible = A.pos.y - gy < 120; shadow.position.set(A.pos.x, gy + 0.1, A.pos.z); shadow.rotation.y = Math.atan2(-A.forward(_f).x, -_f.z);
+    const gy = ctx.groundY(A.pos.x, A.pos.z); shadow.visible = blob && A.pos.y - gy < 120; shadow.position.set(A.pos.x, gy + 0.1, A.pos.z); shadow.rotation.y = Math.atan2(-A.forward(_f).x, -_f.z);
     snd.update({ n: [A.eng[0].n, A.eng[1].n], ab: [Math.max(0, A.eng[0].ab || 0), Math.max(0, A.eng[1].ab || 0)], tas: crewed ? A.tas : 0, inside: false, canopy: crewed ? 0 : 1, on: vol, start: [false, false], stalled: [false, false], shaker: 0, lowAlt: false, fire: false, rwr: 0 });
   };
   function hudState(hover) {

@@ -3,7 +3,8 @@
 // or an orbit of the outside. Query: ?ui=0  ?seat=0|1  ?view=cockpit|orbit  ?look=yaw,pitch  ?s={json state}
 import * as THREE from 'three';
 import { createTomcatSim, loadout, cadcSweep } from '../js/units/air/tomcatfm.js';
-import { buildTomcatModel } from '../js/units/air/tomcatmodel.js';
+import { buildTomcatModel as buildNew } from '../js/units/air/tomcatmodel.js';
+import { buildTomcatModel as buildLegacy } from './legacy/tomcatmodel-legacy.js';   // ?legacy=1: the model before ngc/look-tomcat (evidence)
 import { buildTomcatCockpit, TEYE, CAUTS } from '../js/units/air/tomcatcockpit.js';
 
 const Q = new URLSearchParams(location.search);
@@ -16,7 +17,7 @@ for (let i = 0; i < 30; i++) { const isl = new THREE.Mesh(new THREE.ConeGeometry
 const camera = new THREE.PerspectiveCamera(70, 1, 0.05, 6000);
 
 const A = createTomcatSim(9); A.reset(0, 0, 0, 0, { running: true, airborne: true, alt: 600, speed: 120 }); A.stores = loadout('cap');
-const model = buildTomcatModel(1, { modex: 200 }), cockpit = buildTomcatCockpit(); model.group.add(cockpit.group); scene.add(model.group);
+const model = (Q.get('legacy') === '1' ? buildLegacy : buildNew)(1, { modex: 200 }), cockpit = buildTomcatCockpit(); model.group.add(cockpit.group); scene.add(model.group);
 const crew = []; model.group.traverse(o => { if (['helmet', 'visor', 'torso', 'seatBack', 'headbox', 'glareshield', 'rioPanel'].includes(o.name)) crew.push(o); });
 const X = {   // the state the sliders drive
   pitch: 3, roll: 0, hdg: 40, kias: 330, alt: 600, aoa: 6, nz: 1, sweep: -1, rpm: 92, ab: 0, gear: 0, flap: 0, hook: 0, canopy: 0, fuel: 9000,

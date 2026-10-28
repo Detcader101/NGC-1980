@@ -45,12 +45,12 @@ const fuseNT = pl([[-11.2, 2.0], [-9.0, 2.1], [-7.4, 2.4], [-5.0, 2.6], [-2.0, 3
 const fuseNB = pl([[-11.2, 2.0], [-9.0, 2.3], [-7.0, 2.8], [-5.0, 3.2], [-1.0, 4.0], [7.6, 4.0]]);
 
 // geometry from loftkit arrays, with material groups chosen per quad
-export function gridGeo(S, zs, phis, matOf = null, opts = {}) {
+export function gridGeo(S, zs, phis, matOf = null, opts = {}) {   // matOf(i, j) -> material index, or -1 to drop the quad (openings)
   const a = gridArrays(S, zs, phis, { uv: 'arc', ...opts }), g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(a.position, 3)); g.setAttribute('normal', new THREE.BufferAttribute(a.normal, 3)); g.setAttribute('uv', new THREE.BufferAttribute(a.uv, 2));
   if (!matOf) { g.setIndex(a.index); return g; }
   const np = phis.length, buckets = [];
-  for (let q = 0; q < a.index.length; q += 6) { const v = a.index[q], i = Math.floor(v / np), j = v % np, m = matOf(i, j); (buckets[m] ||= []).push(...a.index.slice(q, q + 6)); }
+  for (let q = 0; q < a.index.length; q += 6) { const v = a.index[q], i = Math.floor(v / np), j = v % np, m = matOf(i, j); if (m >= 0) (buckets[m] ||= []).push(...a.index.slice(q, q + 6)); }
   const idx = []; buckets.forEach((b, m) => { if (b) { g.addGroup(idx.length, b.length, m); idx.push(...b); } }); g.setIndex(idx); return g;
 }
 const ring = n => Array.from({ length: n + 1 }, (_, j) => TAU * j / n);
@@ -66,6 +66,7 @@ export function fuselageGeo(lod = 0) {
   const zRadome = -9.30;
   return gridGeo(S, zs, phis, (i, j) => {
     const z = zs[i], ph = phis[j], belly = Math.abs(ph - Math.PI) < 0.95;
+    if (z > COCKPIT_OPEN[0] && z < COCKPIT_OPEN[1] && (ph < 0.75 || ph > TAU - 0.75)) return -1;   // the cockpit opening under the canopy
     if (z < zRadome) return 2;
     if (z < Z_WS && (ph < 0.55 || ph > TAU - 0.55)) return 3;
     return belly ? 1 : 0;
@@ -75,7 +76,7 @@ export function fuselageGeo(lod = 0) {
 // ---- canopy and windscreen: one loft over the sill from the windscreen base to the aft fairing (top from the trace)
 const canopyT = z => z <= -2.9 ? sideTop(z) : pl([[-2.9, sideTop(-2.9)], [Z_CANOPY_END, sill(Z_CANOPY_END) + 0.02]])(z);
 export const canopyW = pl([[Z_WS, 0.50], [-7.65, 0.58], [-6.6, 0.62], [-5.0, 0.63], [-4.2, 0.60], [-3.2, 0.48], [Z_CANOPY_END, 0.30]]);
-export const Z_BOW = -7.62, Z_GLASS_END = -4.05;   // windscreen arch (fixed); the canopy's glass ends at the aft frame over the RIO
+export const Z_BOW = -7.62, Z_GLASS_END = -4.05, COCKPIT_OPEN = [-8.05, -4.15];   // windscreen arch (fixed); the canopy's glass ends at the aft frame over the RIO
 export function canopySurface() {
   const zs = stationList([[Z_WS, Z_CANOPY_END, 0.08]], [Z_BOW, Z_GLASS_END]);
   const keys = stationKeys(zs, z => ({ T: canopyT(z), B: sill(z) - 0.06, W: canopyW(z), ym: sill(z) - 0.03, nT: pl([[Z_WS, 2.0], [-7.6, 2.3], [-5, 2.6], [Z_CANOPY_END, 2.2]])(z), nB: 4 }));

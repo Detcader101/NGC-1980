@@ -202,6 +202,12 @@ export function buildTomcatModel(side = 1, { modex = 201 } = {}) {
     mesh(new THREE.SphereGeometry(0.15, 12, 8).translate(0, y + 0.05, z), helmM, g, 'helmet');
     mesh(new THREE.SphereGeometry(0.152, 12, 6, -Math.PI * 0.75, Math.PI * 0.5, Math.PI * 0.35, Math.PI * 0.3).translate(0, y + 0.05, z), visorM, g, 'visor');
   }
+  // the cockpit tub seen through the canopy from outside (hidden from inside, where tomcatcockpit.js draws the real one)
+  const tub = new THREE.Group(); tub.name = 'cockpitTub'; g.add(tub);
+  const tubM = M(0x2a2d30, { side: THREE.DoubleSide, rk: 'flat' });
+  for (const s of [-1, 1]) mesh(new THREE.PlaneGeometry(4.0, 0.95).rotateY(Math.PI / 2).translate(s * 0.6, -0.35, -6.1), tubM, tub, 'tubWall');
+  mesh(new THREE.PlaneGeometry(1.2, 4.0).rotateX(-Math.PI / 2).translate(0, -0.8, -6.1), tubM, tub, 'tubFloor');
+  for (const z of [-8.05, -4.15]) mesh(new THREE.PlaneGeometry(1.2, 1.0).translate(0, -0.32, z), tubM, tub, 'tubBulkhead');
   mesh(boxG(0.95, 0.08, 0.5, 0, sill(-7.4) + 0.06, -7.35), darkM, g, 'glareshield');
   mesh(boxG(0.85, 0.32, 0.12, 0, TCAT.EYE_RIO[1] - 0.35, -6.0), darkM, g, 'rioPanel');
 
@@ -304,7 +310,7 @@ export function buildTomcatModel(side = 1, { modex = 201 } = {}) {
   // ---- animation from the sim (or a plain state object for the preview page)
   const ZERO2 = [0, 0], WOW0 = [0, 0, 0];
   let hookA = HOOK_UP, sweepNow = 20;
-  const shell = [cg, ws];
+  const shell = [cg, ws, tub];
   function animate(A, dt = 0, time = 0, inside = false) {
     const S = A.surf || A, stab = S.stab || 0, ail = S.ail || 0, rud = S.rud || 0, sweep = A.sweep ?? 20;
     sweepNow = sweep;

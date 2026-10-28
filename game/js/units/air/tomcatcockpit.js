@@ -33,10 +33,14 @@
 import * as THREE from 'three';
 import { KT, FT, LB } from './airframe.js';
 import { arch, loft as mkLoft, tube } from './meshkit.js';
+import { canopyGeo, canopyHoop, canopyW, sill as sillAt, Z_BOW, Z_GLASS_END } from './tomcatgeo.js';
 import { TCAT } from './tomcatmodel.js';
 import { TAU, D2R, SANS, MONO, clamp, canvasTex, P2, txt, faceBg, band, radial, needle, hub, offFlag, barber, lin, dialFace, drum } from './gaugekit.js';
 
-export const TEYE = [new THREE.Vector3(0, 1.04, -5.45), new THREE.Vector3(0, 1.08, -4.22)];   // pilot, RIO
+// (ngc/look-tomcat) the interior is built in its original frame and moved into the drawn airframe by TCAT.COCKPIT_OFFSET:
+// TEYE_L are the eyes in that interior frame (the HUD projection), TEYE in the airframe's frame (cameras, world HUD)
+const TEYE_L = [new THREE.Vector3(0, 1.04, -5.45), new THREE.Vector3(0, 1.08, -4.22)];   // pilot, RIO
+export const TEYE = TEYE_L.map(e => e.clone().add(new THREE.Vector3(...TCAT.COCKPIT_OFFSET)));
 const HUD = { z: -6.12, cy: 1.05, hw: 0.13, hh: 0.12, W: 560, H: 518 };
 const GRN = '#7dff8a';
 const deg = r => r * 180 / Math.PI;
@@ -52,7 +56,8 @@ export const CAUTS = [
 export const ADVS = ['START VALVE', 'LADDER', 'SPD BRK', 'LAUNCH BAR'];
 
 export function buildTomcatCockpit() {
-  const g = new THREE.Group(); g.visible = false; g.name = 'tomcatCockpit';
+  const g = new THREE.Group(); g.visible = false; g.name = 'tomcatCockpit'; g.position.set(...TCAT.COCKPIT_OFFSET);
+  const abs = new THREE.Group(); abs.position.set(...TCAT.COCKPIT_OFFSET).negate(); g.add(abs);   // children in the airframe frame (the drawn canopy)
   // interior: lit through the canopy, so every surface gets some self-light (like the Hornet's and the Huey's)
   const M = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, emissive: new THREE.Color(c).multiplyScalar(0.45), ...o });
   const grey = M(0x3e4449), dark = M(0x1d2023), black = M(0x0a0b0c), tubM = M(0x4a5056), suit = M(0x5b6340), glove = M(0x3a2c22);
@@ -82,18 +87,18 @@ export function buildTomcatCockpit() {
   // ================================================================ windscreen, canopy (inside view; the model's shell is hidden)
   const glass = new THREE.MeshBasicMaterial({ color: 0xb8dcff, transparent: true, opacity: 0.06, depthWrite: false, side: THREE.DoubleSide });
   const frameM = M(0x2b2f33);
-  const wsR = [arch(-6.85, 0.8, 0.56, 0.72, 13), arch(-6.55, 1.12, 0.59, 0.73, 13), arch(-6.2, 1.38, 0.6, 0.74, 13)];
-  const ws = new THREE.Mesh(mkLoft(wsR), glass); ws.renderOrder = 5; g.add(ws);
-  tube(arch(-6.2, 1.39, 0.605, 0.74), 0.03, frameM, g, 'wsBow'); tube(arch(-6.84, 0.81, 0.565, 0.72), 0.02, frameM, g, 'wsBase');
-  for (const s of [-1, 1]) tube([[s * 0.56, 0.72, -6.85], [s * 0.59, 0.73, -6.55], [s * 0.6, 0.74, -6.2]], 0.02, frameM, g, 'wsPost');
-  for (const x of [-0.18, 0, 0.18]) box(0.11, 0.035, 0.015, metal, x, 1.33, -6.17);   // rear-view mirrors on the bow
-  const canopyG = new THREE.Group(); canopyG.position.set(...TCAT.CANOPY_HINGE); g.add(canopyG);
+  // the windscreen and canopy as drawn (tomcatgeo.js: the same lofts as the exterior, seen from inside), in the airframe frame
+  const ws = new THREE.Mesh(canopyGeo(-8.40, Z_BOW, { n: 24 }), glass); ws.renderOrder = 5; abs.add(ws);
+  tube(canopyHoop(Z_BOW, -0.02).map(p => p.toArray()), 0.035, frameM, abs, 'wsBow', 24); tube(canopyHoop(-8.36, -0.015).map(p => p.toArray()), 0.02, frameM, abs, 'wsBase', 24);
+  { const top = canopyHoop(Z_BOW + 0.04, -0.045, 16)[8]; for (const x of [-0.18, 0, 0.18]) box(0.11, 0.035, 0.015, metal, x, top.y - 0.02, top.z + 0.02, abs); }   // rear-view mirrors on the bow
+  const canopyG = new THREE.Group(); canopyG.position.set(...TCAT.CANOPY_HINGE); abs.add(canopyG);
   const cvv = new THREE.Group(); cvv.position.set(...TCAT.CANOPY_HINGE).negate(); canopyG.add(cvv);
-  const cr = [[-6.2, 1.38, .6, .74], [-5.6, 1.58, .64, .74], [-4.9, 1.64, .65, .74], [-4.2, 1.6, .64, .75], [-3.7, 1.44, .6, .76], [-3.35, 1.22, .5, .85], [-3.1, 1.05, .38, .95]];
-  const cnp = new THREE.Mesh(mkLoft(cr.map(c => arch(...c, 13))), glass); cnp.renderOrder = 5; cvv.add(cnp);
-  tube(arch(-4.86, 1.63, 0.64, 0.74), 0.025, frameM, cvv, 'midBow');
-  for (const s of [-1, 1]) tube(cr.map(([z, , hw, b]) => [s * (hw - 0.01), b + 0.01, z]), 0.03, frameM, cvv, 'sill');
-  box(0.6, 0.08, 0.06, frameM, 0, 1.6, -4.9, cvv);                              // canopy bow handgrip bar
+  const cnp = new THREE.Mesh(canopyGeo(Z_BOW, Z_GLASS_END, { n: 28 }), glass); cnp.renderOrder = 5; cvv.add(cnp);
+  cvv.add(new THREE.Mesh(canopyGeo(Z_GLASS_END, -2.95, { n: 20, off: -0.01 }), M(0x3a3e42, { side: THREE.DoubleSide })));   // the canopy's metal aft section
+  tube(canopyHoop(-6.05, -0.02).map(p => p.toArray()), 0.025, frameM, cvv, 'midBow', 24);
+  tube(canopyHoop(Z_GLASS_END, -0.02).map(p => p.toArray()), 0.035, frameM, cvv, 'aftBow', 24);
+  for (const s of [-1, 1]) tube(Array.from({ length: 9 }, (_, i) => { const z = Z_BOW + (Z_GLASS_END - Z_BOW) * i / 8; return [s * (canopyW(z) - 0.01), sillAt(z) - 0.02, z]; }), 0.03, frameM, cvv, 'sill', 16);
+  { const top = canopyHoop(-6.05, -0.06, 16)[8]; box(0.6, 0.05, 0.05, frameM, 0, top.y, top.z, cvv); }   // canopy bow handgrip bar
   // pilot's seat (GRU-7A) with the face-curtain handle over the headbox
   const seat = (z, y0) => {
     const s = new THREE.Group(); s.position.set(0, y0, z); s.name = 'seat'; g.add(s);
@@ -620,7 +625,7 @@ export function buildTomcatCockpit() {
   const _pr = [0, 0];
   function projLocal(d) {
     if (d.z > -1e-4) return null;
-    const E = TEYE[0], t = (HUD.z - E.z) / d.z, x = E.x + d.x * t, y = E.y + d.y * t - HUD.cy;
+    const E = TEYE_L[0], t = (HUD.z - E.z) / d.z, x = E.x + d.x * t, y = E.y + d.y * t - HUD.cy;
     _pr[0] = HUD.W / 2 + x / HUD.hw * HUD.W / 2; _pr[1] = HUD.H / 2 - y / HUD.hh * HUD.H / 2; return _pr;
   }
   const projWorldDir = dw => { _v.copy(dw).applyQuaternion(_iq); return projLocal(_v); };
