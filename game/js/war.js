@@ -22,6 +22,7 @@ import { createDeckOps } from './units/naval/deckops.js';   // (ngc/bugsweep) DE
 import { createAirWar } from './units/air/airwar.js';             // AIR: sim-flown Tomcats, SHRIKE / REAPER / SHAHED (ngc/airfw)
 import { homeAAM, decoyCheck } from './units/air/gameproj.js';     // AIR: the shared game-level missile homing and decoy rule
 import { createTech, unitAllowed, gateMsg, aiPickResearch, techStartFromQuery } from './techtree.js';   // TECH TREE: research gates every buy / build / launch
+import { hypot2, hypot3 } from './hypot.js';   // (ngc/perf-cpu) Math.hypot without the garbage, same bits
 
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -76,7 +77,7 @@ export function createWar(ctx) {
   const store = side => side === 1 ? W.P : W.E;
   // war sounds fall off with distance from the camera, so a battle across the map is a distant rumble
   const ear = ctx.ear;
-  const hear = (x, y, z, range = 650) => Math.max(0, 1 - Math.hypot(x - ear.x, y - ear.y, z - ear.z) / range);
+  const hear = (x, y, z, range = 650) => Math.max(0, 1 - hypot3(x - ear.x, y - ear.y, z - ear.z) / range);
   function boomAt(x, y, z, big) { const k = hear(x, y, z); if (k > 0.02) sfx.boom(big * (0.12 + 0.88 * k * k)); }
   const feed = (t, kind = 'info') => ctx.feed(t, kind);
   // NGC-1980 DEFENCE hook: the 'aa' structures and the ALBATROSS gun mounts are drawn and fought by units/defence/
@@ -103,7 +104,7 @@ export function createWar(ctx) {
     const p = I.pad, n = I.cave ? 4 : 4, r = I.cave ? 15 : 22;
     return Array.from({ length: n }, (_, k) => { const a = k * Math.PI / 2 + Math.PI / 4; return [p.x + Math.cos(a) * r, p.z + Math.sin(a) * r]; });
   }
-  function freeSlot(I) { return aaSlots(I).find(([x, z]) => !I.structs.some(s => s.kind === 'aa' && !s.dead && Math.hypot(s.x - x, s.z - z) < 3)); }
+  function freeSlot(I) { return aaSlots(I).find(([x, z]) => !I.structs.some(s => s.kind === 'aa' && !s.dead && hypot2(s.x - x, s.z - z) < 3)); }
   function buildAA(I, side) {
     const sl = freeSlot(I); if (!sl) return null; const s = addStruct(I, 'aa', sl[0], sl[1], side); s.building = 4; s.mesh.scale.setScalar(0.01);
     const hm = seeding ? 1 : W.techMod(side, 'aa.hp'); if (hm !== 1) { s.hp *= hm; s.max *= hm; }   // TECH: armour for new guns
@@ -198,6 +199,9 @@ export function createWar(ctx) {
   }
   const fwdX = yaw => -Math.sin(yaw), fwdZ = yaw => -Math.cos(yaw);
   function toLocal(u, x, z) { const dx = x - u.p.x, dz = z - u.p.z, c = Math.cos(u.yaw), s = Math.sin(u.yaw); return [dx * c - dz * s, dx * s + dz * c]; }
+  // (ngc/perf-cpu) the same into one shared pair, for the per-gear-leg deck queries below: read it before the next call
+  const _tl = [0, 0];
+  function toLocalS(u, x, z) { const dx = x - u.p.x, dz = z - u.p.z, c = Math.cos(u.yaw), s = Math.sin(u.yaw); _tl[0] = dx * c - dz * s; _tl[1] = dx * s + dz * c; return _tl; }
   function toWorld(u, lx, ly, lz, out = _v) { const c = Math.cos(u.yaw), s = Math.sin(u.yaw); return out.set(u.p.x + lx * c + lz * s, u.p.y + ly, u.p.z - lx * s + lz * c); }
   // deck height under (x, z) if it is over a ship (and the superstructure, so you can fly into it), else -1e9
   W.deckY = (x, z, skipSide = 0) => {
@@ -205,7 +209,7 @@ export function createWar(ctx) {
     for (const u of W.units) {
       if (!u.dims || u.sinking > 4 || u.side === skipSide) continue;
       if (Math.abs(x - u.p.x) > 70 || Math.abs(z - u.p.z) > 70) continue;
-      const [lx, lz] = toLocal(u, x, z), D = u.dims, sink = u.p.y;
+      const L = toLocalS(u, x, z), lx = L[0], lz = L[1], D = u.dims, sink = u.p.y;
       if (u.parts.localDeck) {   // NAVAL: the builder knows its deck and superstructure; heave, pitch and roll included
         const h = u.parts.localDeck(lx, lz); if (h < -1e8) continue;
         const a = u.att; best = Math.max(best, shipPointY(sink, a.heave, a.pitch, a.roll, lx, h, lz)); continue;
@@ -224,11 +228,16 @@ export function createWar(ctx) {
     }
     return best;
   };
-  W.shipAt = (x, z) => W.units.find(u => u.dims && Math.abs(x - u.p.x) < 70 && Math.abs(z - u.p.z) < 70 && (() => { const [lx, lz] = toLocal(u, x, z); return Math.abs(lx) < (u.parts.halfW || u.dims.W / 2) && Math.abs(lz) < u.dims.L / 2 + 4; })());   // SEAWORLD: halfW reaches the outboard lifts
-  // vy: the deck's vertical velocity there (heave + pitch + roll; the sky carrier's climb), for gear that wants it
-  W.surfVel = (x, z) => { const u = W.shipAt(x, z); if (!u || u.sinking) return null; const a = u.att, [lx, lz] = toLocal(u, x, z), h = u.parts.localDeck ? Math.max(0, u.parts.localDeck(lx, lz)) : u.dims.DECK; return { vx: u.v.x, vz: u.v.z, w: u.w, cx: u.p.x, cz: u.p.z, vy: u.v.y + (a ? shipPointVY(a.vHeave, a.pitch, a.roll, a.vPitch, a.vRoll, lx, h, lz) : 0) }; };
+  W.shipAt = (x, z) => {   // SEAWORLD: halfW reaches the outboard lifts. (ngc/perf-cpu: a plain loop, no closure per unit per call)
+    for (const u of W.units) { if (!u.dims || !(Math.abs(x - u.p.x) < 70) || !(Math.abs(z - u.p.z) < 70)) continue; const L = toLocalS(u, x, z); if (Math.abs(L[0]) < (u.parts.halfW || u.dims.W / 2) && Math.abs(L[1]) < u.dims.L / 2 + 4) return u; }
+    return undefined;
+  };
+  // vy: the deck's vertical velocity there (heave + pitch + roll; the sky carrier's climb), for gear that wants it.
+  // (ngc/perf-cpu) the answer is one shared object, overwritten by the next call: every caller reads it at once
+  const _svel = { vx: 0, vz: 0, w: 0, cx: 0, cz: 0, vy: 0 };
+  W.surfVel = (x, z) => { const u = W.shipAt(x, z); if (!u || u.sinking) return null; const a = u.att, L = toLocalS(u, x, z), lx = L[0], lz = L[1], h = u.parts.localDeck ? Math.max(0, u.parts.localDeck(lx, lz)) : u.dims.DECK; const o = _svel; o.vx = u.v.x; o.vz = u.v.z; o.w = u.w; o.cx = u.p.x; o.cz = u.p.z; o.vy = u.v.y + (a ? shipPointVY(a.vHeave, a.pitch, a.roll, a.vPitch, a.vRoll, lx, h, lz) : 0); return o; };
   // the deck height of ship u under (x, z), moving with the sea (the jet's catapult and wires use it)
-  W.deckAt = (u, x, z) => { const [lx, lz] = toLocal(u, x, z), a = u.att, h = u.dims.DECK; return a ? shipPointY(u.p.y, a.heave, a.pitch, a.roll, lx, h, lz) : h + u.p.y; };
+  W.deckAt = (u, x, z) => { const L = toLocalS(u, x, z), lx = L[0], lz = L[1], a = u.att, h = u.dims.DECK; return a ? shipPointY(u.p.y, a.heave, a.pitch, a.roll, lx, h, lz) : h + u.p.y; };
   W.orderCarrier = (x, z) => {
     const u = W.carrier; if (!u || u.sinking) return false;
     if (u.sky && u.sky.up) { u.path = [[x, z]]; u.goal = [x, z]; u.sky.manual = false; return true; }   // it flies: straight there
@@ -277,7 +286,7 @@ export function createWar(ctx) {
       const ahead = Math.max(hullFloor(u), terrainH(u.p.x + fwdX(u.yaw) * 120, u.p.z + fwdZ(u.yaw) * 120), terrainH(u.p.x + fwdX(u.yaw) * 220, u.p.z + fwdZ(u.yaw) * 220));
       const alt = u.path.length ? Math.max(SKY.CRUISE, ahead + 40) : Math.max(S.hold, ahead > 0.5 ? ahead + 30 : 0);
       if (u.path.length) {
-        const [tx, tz] = u.path[0], d = Math.hypot(tx - u.p.x, tz - u.p.z);
+        const [tx, tz] = u.path[0], d = hypot2(tx - u.p.x, tz - u.p.z);
         if (d < 25 && u.speed < 2) { u.path.shift(); S.hold = u.p.y; }
         else { const turn = angDiff(u.yaw, Math.atan2(-(tx - u.p.x), -(tz - u.p.z))); helm = clamp(turn * 3, -1, 1); tel = clamp(d / 260, 0, 1) * (Math.abs(turn) > 0.8 ? 0.3 : 1); }
       }
@@ -359,7 +368,7 @@ export function createWar(ctx) {
   function tickParts(u, dt) {
     if (!u.parts.tick) return;
     if (headless) { u.parts.tick(dt, W.time, 1e9, null); return; }   // SIM MODE: lifts and mounts move, no crowd on deck
-    const d = Math.hypot(u.p.x - ear.x, u.p.y - ear.y, u.p.z - ear.z), pl = W._pl;
+    const d = hypot3(u.p.x - ear.x, u.p.y - ear.y, u.p.z - ear.z), pl = W._pl;
     // deck crew clear out from under a helicopter or jet coming down close to them
     let avoid = null;
     if (pl && pl.alive && pl.pos && Math.abs(pl.pos.x - u.p.x) < 90 && Math.abs(pl.pos.z - u.p.z) < 90) {
@@ -367,8 +376,8 @@ export function createWar(ctx) {
       // QA (ngc/qa-ship): a Marine on foot or a vehicle on the deck is not a helicopter - the crew step aside out of
       // his way (avoid.soft: they keep their pose, a body's width round him), they no longer scatter crouching from 9 m
       const kind = pl.kind;
-      if (kind === 'foot' || kind === 'ground') { const R = kind === 'foot' ? 1.05 : 3.2; if (hy < 2.6 && hy > -0.6) { avoid = (x, z) => { const dx = x - hx, dz = z - hz, r = Math.hypot(dx, dz); return r < R ? [dx || 0.01, dz] : null; }; avoid.soft = R; } }
-      else if (hy < 14 && hy > -2) avoid = (x, z) => { const dx = x - hx, dz = z - hz, r = Math.hypot(dx, dz); return r < 9 ? [dx || 0.1, dz] : null; };
+      if (kind === 'foot' || kind === 'ground') { const R = kind === 'foot' ? 1.05 : 3.2; if (hy < 2.6 && hy > -0.6) { avoid = (x, z) => { const dx = x - hx, dz = z - hz, r = hypot2(dx, dz); return r < R ? [dx || 0.01, dz] : null; }; avoid.soft = R; } }
+      else if (hy < 14 && hy > -2) avoid = (x, z) => { const dx = x - hx, dz = z - hz, r = hypot2(dx, dz); return r < 9 ? [dx || 0.1, dz] : null; };
     }
     if (u === W.carrier && W.deck) { const a0 = avoid; avoid = (x, z) => (a0 && a0(x, z)) || W.deck.crewAvoid(x, z); }   // DECK OPS: out of a taxiing jet's way, off the cat lane
     u.parts.tick(dt, W.time, d, avoid);
@@ -389,7 +398,7 @@ export function createWar(ctx) {
     }
     let tgtYaw = u.yaw, want = 0;
     if (u.path.length && u.sinking === undefined) {
-      const [tx, tz] = u.path[0], d = Math.hypot(tx - u.p.x, tz - u.p.z);
+      const [tx, tz] = u.path[0], d = hypot2(tx - u.p.x, tz - u.p.z);
       if (d < (u.path.length > 1 ? 30 : 12)) u.path.shift();
       else { tgtYaw = Math.atan2(-(tx - u.p.x), -(tz - u.p.z)); const last = u.path.length === 1; want = u.max * (last ? clamp(d / 80, 0.15, 1) : 1); }
     }
@@ -463,11 +472,11 @@ export function createWar(ctx) {
     W.P.mat -= COST.aa; s.building = 12 * W.techMod(1, 'aa.build'); return `AA GUN GOING UP ON ${I.name}`;
   };
   function flyTo(u, tx, ty, tz, sp, dt, k = 1.4) {
-    const dx = tx - u.p.x, dz = tz - u.p.z, d = Math.hypot(dx, dz) || 1, s = Math.min(sp, d * 0.8);
+    const dx = tx - u.p.x, dz = tz - u.p.z, d = hypot2(dx, dz) || 1, s = Math.min(sp, d * 0.8);
     _w.set(dx / d * s, (ty - u.p.y) * 1.2, dz / d * s);
     u.v.lerp(_w, 1 - Math.exp(-k * dt)); u.p.addScaledVector(u.v, dt);
     const floor = Math.max(terrainH(u.p.x, u.p.z), 0, W.deckY(u.p.x, u.p.z)) + 2.5; if (u.p.y < floor) { u.p.y = floor; u.v.y = Math.max(0, u.v.y); }
-    if (Math.hypot(u.v.x, u.v.z) > 2) u.yaw += angDiff(u.yaw, Math.atan2(-u.v.x, -u.v.z)) * Math.min(1, 3 * dt);
+    if (hypot2(u.v.x, u.v.z) > 2) u.yaw += angDiff(u.yaw, Math.atan2(-u.v.x, -u.v.z)) * Math.min(1, 3 * dt);
     return d;
   }
   const cruise = (x, z, alt) => Math.max(terrainH(x, z), 0, W.deckY(x, z)) + alt;
@@ -503,7 +512,7 @@ export function createWar(ctx) {
       const d = flyTo(u, x, cruise(u.p.x, u.p.z, 30), z, 20, dt); if (d < 12) u.dead = true;   // stowed back aboard
       return;
     }
-    const p = I.pad, d = Math.hypot(p.x - u.p.x, p.z - u.p.z);
+    const p = I.pad, d = hypot2(p.x - u.p.x, p.z - u.p.z);
     if (d > 6) { flyTo(u, p.x, d > 60 ? cruise(u.p.x, u.p.z, 30) : p.h + 8, p.z, u.type === 'drone' ? 24 : 19, dt); u.landed = false; return; }
     // over the pad: settle and hold
     u.p.x += (p.x - u.p.x) * Math.min(1, 2 * dt); u.p.z += (p.z - u.p.z) * Math.min(1, 2 * dt);
@@ -534,7 +543,7 @@ export function createWar(ctx) {
       const a = u.ph * 0.5 + u.id, R = 48;
       flyTo(u, tx + Math.cos(a) * R, Math.max(cruise(u.p.x, u.p.z, 14), ty + 6 + Math.sin(u.ph) * 4), tz + Math.sin(a) * R, 17 + W.time / 120, dt, 1.6);
       u.cd -= dt;
-      const d = Math.hypot(tx - u.p.x, ty - u.p.y, tz - u.p.z);
+      const d = hypot3(tx - u.p.x, ty - u.p.y, tz - u.p.z);
       if (u.cd <= 0 && d < 110) {
         u.cd = Math.max(0.8, 2.2 - W.time / 400) + rnd(0.8);
         const tv = u.target === 'player' ? pl.vel : u.target.v || _w.set(0, 0, 0), t = d / 55;
@@ -568,7 +577,7 @@ export function createWar(ctx) {
   // cyan, enemy orange, b.col for the WASP's pulses). It was one 0.9-1.3 m soft spark per frame at the round: at 100+ fps
   // the overlapping sparks read as blue-white balls 60-80 px across over the base (findings/depth-post.md).
   function tracer(b, x, y, z, px, py, pz) {
-    const own = b.side === 1, k = b.col, dx = x - px, dy = y - py, dz = z - pz, n = Math.min(4, 1 + Math.floor(Math.hypot(dx, dy, dz) / 0.5));
+    const own = b.side === 1, k = b.col, dx = x - px, dy = y - py, dz = z - pz, n = Math.min(4, 1 + Math.floor(hypot3(dx, dy, dz) / 0.5));
     const r = k ? k[0] : own ? .5 : 1, g = k ? k[1] : own ? 1 : .55, bl = k ? k[2] : own ? 1 : .2, s0 = k ? 0.42 : 0.2, s1 = k ? 0.3 : 0.14;
     for (let i = 0; i < n; i++) { const t = i / n; fx.add.spawn(x - dx * t, y - dy * t, z - dz * t, 0, 0, 0, 0.04, s0 * (1 - 0.4 * t), s1, r, g, bl, 1 - 0.5 * t); }
   }
@@ -635,9 +644,9 @@ export function createWar(ctx) {
   function blast(x, y, z, r, dmg, side, noGround) {   // (noGround: the ground war's own blast, already applied to its units)
     for (const t of targets(side)) {
       let d;
-      if (t.ship || t.dims) { const tp = t.ship ? t.mesh.getWorldPosition(_w) : t.p; d = Math.hypot(x - tp.x, z - tp.z); if (t.dims) { const [lx, lz] = toLocal(t, x, z); d = Math.hypot(Math.max(0, Math.abs(lx) - t.dims.W / 2), Math.max(0, Math.abs(lz) - t.dims.L / 2), Math.max(0, y - t.dims.DECK - 3)); } }
+      if (t.ship || t.dims) { const tp = t.ship ? t.mesh.getWorldPosition(_w) : t.p; d = hypot2(x - tp.x, z - tp.z); if (t.dims) { const [lx, lz] = toLocal(t, x, z); d = hypot3(Math.max(0, Math.abs(lx) - t.dims.W / 2), Math.max(0, Math.abs(lz) - t.dims.L / 2), Math.max(0, y - t.dims.DECK - 3)); } }
       else if (t.p) d = t.p.distanceTo(_v.set(x, y, z)) - t.r;
-      else d = Math.max(0, Math.hypot(x - t.x, z - t.z) - t.r * 0.7);
+      else d = Math.max(0, hypot2(x - t.x, z - t.z) - t.r * 0.7);
       if (d < r) damage(t, dmg * (1 - 0.6 * d / r), side);
     }
     const pl = ctx.player();
@@ -654,7 +663,7 @@ export function createWar(ctx) {
       if (b.kind === 'aam' && b.tgt && !b.tgt.dead && !b.tgt.dying) {   // proximity fuse on the closest approach along this step (fast missile, big frames)
         const t = b.tgt, sx = b.p.x - _pp.x, sy = b.p.y - _pp.y, sz = b.p.z - _pp.z, L2 = sx * sx + sy * sy + sz * sz || 1;
         const k = clamp(((t.p.x - _pp.x) * sx + (t.p.y - _pp.y) * sy + (t.p.z - _pp.z) * sz) / L2, 0, 1);
-        if (Math.hypot(_pp.x + sx * k - t.p.x, _pp.y + sy * k - t.p.y, _pp.z + sz * k - t.p.z) < 7) { b.boom = true; b.p.set(_pp.x + sx * k, _pp.y + sy * k, _pp.z + sz * k); damage(t, 9, b.side); }
+        if (hypot3(_pp.x + sx * k - t.p.x, _pp.y + sy * k - t.p.y, _pp.z + sz * k - t.p.z) < 7) { b.boom = true; b.p.set(_pp.x + sx * k, _pp.y + sy * k, _pp.z + sz * k); damage(t, 9, b.side); }
       }
       const { x, y, z } = b.p;
       // visuals: tracers are a few short-lived sparks along the path
@@ -713,10 +722,10 @@ export function createWar(ctx) {
   function gunFire(g, gx, gy, gz, side, dt, foes, range) {
     g.cd -= dt; if (g.cd > 0) return;
     let best = null, bd = range;
-    for (const f of foes) { const d = Math.hypot(f.p.x - gx, f.p.y - gy, f.p.z - gz); if (d < bd && d < range * (f.vis ?? 1) && f.p.y > gy - 4) { bd = d; best = f; } }
+    for (const f of foes) { const d = hypot3(f.p.x - gx, f.p.y - gy, f.p.z - gz); if (d < bd && d < range * (f.vis ?? 1) && f.p.y > gy - 4) { bd = d; best = f; } }
     if (!best) { g.cd = 0.5; return; }
     const t = bd / 90;
-    const ax = best.p.x + best.v.x * t - gx, ay = best.p.y + best.v.y * t - gy, az = best.p.z + best.v.z * t - gz, al = Math.hypot(ax, ay, az) || 1;
+    const ax = best.p.x + best.v.x * t - gx, ay = best.p.y + best.v.y * t - gy, az = best.p.z + best.v.z * t - gz, al = hypot3(ax, ay, az) || 1;
     g.aimYaw = Math.atan2(-ax, -az); g.aimPitch = Math.asin(clamp(ay / al, -1, 1));
     if (bd < 45) {   // tracer stream
       g.cd = side === 1 ? 0.12 : 0.2;
@@ -726,7 +735,7 @@ export function createWar(ctx) {
     } else {
       g.cd = side === 1 ? 0.7 : 1.1 + rnd(0.6) - Math.min(0.5, W.time / 900);
       const err = (best.player ? 7 : 5) * (bd / 100);
-      const bx = gx + ax + rnd(-err, err), by = gy + ay + rnd(-err, err), bz = gz + az + rnd(-err, err), d2 = Math.hypot(bx - gx, by - gy, bz - gz);
+      const bx = gx + ax + rnd(-err, err), by = gy + ay + rnd(-err, err), bz = gz + az + rnd(-err, err), d2 = hypot3(bx - gx, by - gy, bz - gz);
       shoot('flak', side, gx, gy, gz, (bx - gx) / d2 * 90, (by - gy) / d2 * 90, (bz - gz) / d2 * 90, d2 / 90);
       fx.add.spawn(gx, gy, gz, 0, 0, 0, 0.08, 2.2, 1, 1, .8, .4, 1);
     }
@@ -752,7 +761,7 @@ export function createWar(ctx) {
   function updateCapture(dt, pl) {
     for (const I of W.islands) {
       const p = I.pad; let side = 0, rate = 0, who = '';
-      if (pl.alive && !pl.inCave && pl.landed && Math.hypot(pl.pos.x - p.x, pl.pos.z - p.z) < p.r + 1 && I.owner !== 1 && !I.cave) { side = 1; rate = 1 / ((pl.capTime || CAP_TIME.heli) * W.techMod(1, 'cap.time')); who = pl.kind === 'foot' ? 'infantry' : 'heli'; }   // FOUNDATION: any craft on the pad (pl.capTime)
+      if (pl.alive && !pl.inCave && pl.landed && hypot2(pl.pos.x - p.x, pl.pos.z - p.z) < p.r + 1 && I.owner !== 1 && !I.cave) { side = 1; rate = 1 / ((pl.capTime || CAP_TIME.heli) * W.techMod(1, 'cap.time')); who = pl.kind === 'foot' ? 'infantry' : 'heli'; }   // FOUNDATION: any craft on the pad (pl.capTime)
       for (const u of W.units) if (u.landed && u.target === I && !u.dead && !u.dying && u.side !== I.owner) {
         if (I.cave && u.side === 1) continue;
         if (I.kind === 'hq' && u.side === 2) continue;   // our HQ can't be taken by transports
@@ -804,9 +813,9 @@ export function createWar(ctx) {
       if (W.units.some(u => (u.type === 'transport' || (u.type === 'squad' && u.side === 2)) && u.target === I && !u.dead)) continue;   // a landing party there counts too
       if (W.time - (I.lostT ?? -1e9) < 100) continue;   // lost a transport there recently: wait for a raid to clear the way
       let danger = 0;   // our guns covering the pad
-      for (const J of W.islands) for (const g of J.structs) if (g.kind === 'aa' && !g.dead && g.side === 1 && Math.hypot(g.x - I.pad.x, g.z - I.pad.z) < 160) danger++;
-      if (W.carrier && W.carrier.sinking === undefined && Math.hypot(W.carrier.p.x - I.pad.x, W.carrier.p.z - I.pad.z) < 170) danger += 3;
-      const sc = Math.hypot(I.x - ox, I.z - oz) * (I.owner === 1 ? 0.8 : 1) * (I.kind === 'factory' ? 0.85 : 1) * (1 + danger);
+      for (const J of W.islands) for (const g of J.structs) if (g.kind === 'aa' && !g.dead && g.side === 1 && hypot2(g.x - I.pad.x, g.z - I.pad.z) < 160) danger++;
+      if (W.carrier && W.carrier.sinking === undefined && hypot2(W.carrier.p.x - I.pad.x, W.carrier.p.z - I.pad.z) < 170) danger += 3;
+      const sc = hypot2(I.x - ox, I.z - oz) * (I.owner === 1 ? 0.8 : 1) * (I.kind === 'factory' ? 0.85 : 1) * (1 + danger);
       if (sc < bs) { bs = sc; best = I; }
     }
     return best;
@@ -834,7 +843,7 @@ export function createWar(ctx) {
     const cap = Math.min(12, 3 + Math.floor(W.time / 110)), mine = W.islands.filter(I => I.owner === 2);
     // 1. defend: the player is poking at one of our islands or the carrier
     if (pl.alive && !pl.inCave) {
-      const near = [...mine.map(I => [I.x, I.z]), ...(ec ? [[ec.p.x, ec.p.z]] : [])].some(([x, z]) => Math.hypot(pl.pos.x - x, pl.pos.z - z) < 260 * (pl.detect ?? 1));
+      const near = [...mine.map(I => [I.x, I.z]), ...(ec ? [[ec.p.x, ec.p.z]] : [])].some(([x, z]) => hypot2(pl.pos.x - x, pl.pos.z - z) < 260 * (pl.detect ?? 1));
       const hunting = guns.filter(g => g.target === 'player').length;
       if (near && hunting < 2 + Math.floor(W.time / 300) && guns.length < cap && W.spendable(2) >= 12 && W.allow(2, 'gunship')) { E.mat -= 12; W.spawnGunship(2, nearestLaunch(pl.pos.x, pl.pos.z)).target = 'player'; }
     }
@@ -854,7 +863,7 @@ export function createWar(ctx) {
       if (tgt) { const n = Math.min(2 + Math.min(3, Math.floor(W.time / 240)), cap - guns.length, Math.floor(W.spendable(2) / 12)); E.mat -= 12 * n; for (let i = 0; i < n; i++) W.spawnGunship(2, null, tgt); feed(tgt === W.carrier ? 'RADAR: ENEMY STRIKE INBOUND ON THE ALBATROSS' : `RADAR: ENEMY STRIKE HEADING FOR ${tgt.I.name}`, 'bad'); }
     }
     // 5. a couple of guards over the carrier
-    if (ec && guns.filter(g => !g.target && Math.hypot(g.home[0] - ec.p.x, g.home[1] - ec.p.z) < 200).length < 2 && W.spendable(2) >= 12 && guns.length < cap && W.allow(2, 'gunship')) { E.mat -= 12; W.spawnGunship(2); }
+    if (ec && guns.filter(g => !g.target && hypot2(g.home[0] - ec.p.x, g.home[1] - ec.p.z) < 200).length < 2 && W.spendable(2) >= 12 && guns.length < cap && W.allow(2, 'gunship')) { E.mat -= 12; W.spawnGunship(2); }
     // 6. supply: a freighter takes an island's stockpile to the KRAKEN (or IRONHOLD)
     W.freightT -= 2;
     if (W.freightT <= 0 && W.allow(2, 'freighter')) {
@@ -890,8 +899,8 @@ export function createWar(ctx) {
     }
   }
   function nearestLaunch(x, z) {
-    let best = launchPoint(2), bd = Math.hypot(best[0] - x, best[2] - z);
-    for (const I of W.islands) if (I.owner === 2 && I.structs.some(s => s.kind === 'hq' && !s.dead)) { const d = Math.hypot(I.pad.x - x, I.pad.z - z); if (d < bd) { bd = d; best = [I.pad.x, I.pad.h + 4, I.pad.z]; } }
+    let best = launchPoint(2), bd = hypot2(best[0] - x, best[2] - z);
+    for (const I of W.islands) if (I.owner === 2 && I.structs.some(s => s.kind === 'hq' && !s.dead)) { const d = hypot2(I.pad.x - x, I.pad.z - z); if (d < bd) { bd = d; best = [I.pad.x, I.pad.h + 4, I.pad.z]; } }
     return best;
   }
   function freightDest() {
@@ -901,7 +910,7 @@ export function createWar(ctx) {
   function updateFreighters(dt) {
     for (const u of W.units) {
       if (u.type !== 'freighter' || u.sinking !== undefined || u.gone) continue;
-      const [dx, dz] = freightDest(), d = Math.hypot(dx - u.p.x, dz - u.p.z);
+      const [dx, dz] = freightDest(), d = hypot2(dx - u.p.x, dz - u.p.z);
       if (d < 75) { W.E.mat += u.cargo; scene.remove(u.mesh); u.gone = true; continue; }   // delivered
       u.repath -= dt; if (u.repath <= 0 || !u.path.length) { u.repath = 12; u.path = nav.path(u.p.x, u.p.z, dx, dz); }
     }
@@ -911,13 +920,13 @@ export function createWar(ctx) {
     for (const t of b.turrets) {
       t.cd -= dt;
       let tgt = W.carrier && W.carrier.sinking === undefined && W.carrier.p.distanceTo(b.p) < 320 ? W.carrier.p : null;
-      if (!tgt) { for (const I of W.islands) if (I.owner === 1) for (const s of I.structs) if (!s.dead && Math.hypot(s.x - b.p.x, s.z - b.p.z) < 260) { tgt = _w.set(s.x, s.y, s.z); break; } }
+      if (!tgt) { for (const I of W.islands) if (I.owner === 1) for (const s of I.structs) if (!s.dead && hypot2(s.x - b.p.x, s.z - b.p.z) < 260) { tgt = _w.set(s.x, s.y, s.z); break; } }
       if (!tgt) continue;
       toWorld(b, 0, BSHIP.DECK + 2, t.mesh.position.z);
       const yaw = Math.atan2(-(tgt.x - _v.x), -(tgt.z - _v.z)) - b.yaw; t.mesh.rotation.y += angDiff(t.mesh.rotation.y, yaw) * Math.min(1, 2 * dt);
       if (t.cd <= 0) {
         t.cd = 6 + rnd(3);
-        const dx = tgt.x - _v.x + rnd(-14, 14), dz = tgt.z - _v.z + rnd(-14, 14), d = Math.hypot(dx, dz), T = 2 + d / 70;   // flight time: a high arc that clears the hills between
+        const dx = tgt.x - _v.x + rnd(-14, 14), dz = tgt.z - _v.z + rnd(-14, 14), d = hypot2(dx, dz), T = 2 + d / 70;   // flight time: a high arc that clears the hills between
         const vy0 = (tgt.y + 6 - _v.y) / T + 0.5 * 9 * T;
         shoot('shell', 2, _v.x, _v.y, _v.z, dx / T, vy0, dz / T, T + 2);
         // NAVAL: the rails elevate to the shot and kick back; a cyan flare at the muzzle
@@ -956,6 +965,7 @@ export function createWar(ctx) {
   };
   W.update = (dt, pl, peace) => {
     W.time += dt; W._pl = pl; W.peace = peace;
+    const lap = W.lap;   // (ngc/perf-cpu) ?perfhud: the war's own split (main.js sets W.lap)
     W.tech[1].update(dt); W.tech[2].update(dt);   // TECH TREE: research runs on game time
     // Finish the deck motion before aircraft use it, including the separation between overlapping hulls.
     for (const u of W.units) if (!u.ext && u.dims) {
@@ -964,7 +974,7 @@ export function createWar(ctx) {
     {   // ships keep clear of each other (a gentle shove when two hulls would overlap)
       const sh = W.units.filter(u => u.dims && u.sinking === undefined && !(u.sky && u.p.y > 12));
       for (let i = 0; i < sh.length; i++) for (let j = i + 1; j < sh.length; j++) {
-        const a = sh[i], b = sh[j], dx = b.p.x - a.p.x, dz = b.p.z - a.p.z, d = Math.hypot(dx, dz) || 1, min = (a.dims.L + b.dims.L) * 0.42;
+        const a = sh[i], b = sh[j], dx = b.p.x - a.p.x, dz = b.p.z - a.p.z, d = hypot2(dx, dz) || 1, min = (a.dims.L + b.dims.L) * 0.42;
         if (d < min) { const k = Math.min(8, (min - d)) * dt / d; a.p.x -= dx * k; a.p.z -= dz * k; b.p.x += dx * k; b.p.z += dz * k; }
       }
     }
@@ -974,19 +984,24 @@ export function createWar(ctx) {
       if (dt > 0) u.v.subVectors(u.p, u._frameP).multiplyScalar(1 / dt);
       placeShip(u);
     }
+    lap?.('war.ships');
     for (const u of W.units) if (!u.ext && !u.dims) updateAir(u, dt, pl);
     for (let i = W.units.length - 1; i >= 0; i--) if (W.units[i].dead || W.units[i].gone) { const u = W.units[i]; if (!u.gone) scene.remove(u.mesh); W.units.splice(i, 1); if (u.dims) nfx.remove(u); }
     ROT.tick(dt);   // NGC-1980 hook: garrisons and fallen troops after their units are gone
+    lap?.('war.air');
     updateProj(dt, pl);
     updateGuns(dt, pl, peace);
     defence.tick(dt);   // DEFENCE hook: missiles in flight, beams, the cockpit warning
+    lap?.('war.guns+aa');
     GW.update(dt, pl, peace);   // NGC-1980 GROUND WAR hook: landings, the island battles, squad proxies, landing craft, views, sound
+    lap?.('war.ground');
     updateCapture(dt, pl);
     updateEconomy(dt);
     updateBattleship(dt); updateFreighters(dt);
     if (!peace) { W.thinkT -= dt; if (W.thinkT <= 0) { W.thinkT = 2; research(2, pl); research(1, pl); if (W.redAI) W.redAI.think(pl, think); else { GW.think(pl); think(pl); W.air.think(pl); } } }   // SIM MODE hook: a CPU doctrine (sim/redai.js) can stand in for the enemy commander; GROUND WAR: its ground plans first (armour is saved up for); AIR: + the enemy air arm's plans
     W.air.frame(dt, pl);   // AIR: launch queue, drone rails, engine sounds
     deckFrame(dt);   // DECK OPS: the ALBATROSS flight deck (units/naval/deckops.js)
+    lap?.('war.ai+deck');
     // buildings animate
     for (const I of W.islands) for (const s of I.structs) {
       s.mesh.userData.tick?.(dt, W.time);   // WORLD: faction structures animate themselves
@@ -996,6 +1011,7 @@ export function createWar(ctx) {
       if (ud.flag) ud.flag.rotation.y = Math.sin(W.time * 2 + s.z) * 0.3;
       if (ud.hull) ud.hull.scale.y = Math.max(0.01, W.E.bship / 100);
     }
+    lap?.('war.structs');
   };
   W.setVisibility = fog => {   // enemy aircraft and ships only where we can see; buildings once explored
     GW.setVisibility(fog);   // NGC-1980 GROUND WAR hook: STRIDERs, RW-7s, MBTs and landing craft only where we can see
