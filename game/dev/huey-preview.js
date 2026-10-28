@@ -24,6 +24,14 @@ const huey = buildHueyMesh(); scene.add(huey.group);
 if (Q.get('rot')) { const [rx, ry, rz] = Q.get('rot').split(',').map(Number); huey.group.rotation.set(rx || 0, ry || 0, rz || 0, 'YXZ'); }   // attitude (pitch, yaw, roll), e.g. to match a photo
 const buildMs = performance.now() - t0;
 huey.group.traverse(o => { if (o.isMesh && !o.material.transparent) { o.castShadow = true; o.receiveShadow = true; } });
+// &checker=1: every baked (UV-mapped) surface shows a 16 x 16 checker instead of its paint: texel density and seams
+if (Q.get('checker') === '1') {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 512; const c = cv.getContext('2d');
+  for (let i = 0; i < 16; i++) for (let j = 0; j < 16; j++) { c.fillStyle = (i + j) % 2 ? '#e8e8e0' : '#c03020'; c.fillRect(i * 32, j * 32, 32, 32); }
+  c.fillStyle = '#103080'; c.font = 'bold 20px sans-serif'; for (let i = 0; i < 16; i += 4) for (let j = 0; j < 16; j += 4) c.fillText('F' + i + j, i * 32 + 2, j * 32 + 22);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(8, 8);
+  huey.group.traverse(o => { if (o.isMesh && o.material && o.material.map && !Array.isArray(o.material)) { o.material = o.material.clone(); o.material.map = tex; o.material.alphaTest = 0; o.material.bumpMap = null; o.material.roughnessMap = null; o.material.needsUpdate = true; } });
+}
 let cockpit = null;
 if (Q.get('ck') === '1') { cockpit = buildHueyCockpit(); huey.group.add(cockpit.group); cockpit.group.visible = true; }
 

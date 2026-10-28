@@ -43,9 +43,12 @@ export function track(keys) {
 // crown (optional): the roof's centre stands crown higher than a plain superellipse puts its shoulders (front views of
 // cabins are crowned: the corners drop, the top centre stays at T)
 export function secPt(T, B, W, ym, nT, nB, phi, o, lean = 0, crown = 0) {
-  const s = Math.sin(phi), c = Math.cos(phi), up = c >= 0, e = 2 / (up ? nT : nB);
-  o.x = W * Math.sign(s) * Math.abs(s) ** e;
-  o.y = up ? ym + (T - ym) * c ** e : ym - (ym - B) * (-c) ** e;
+  // ray parameterisation (the point where the ray at angle phi from (0, ym) meets the superellipse, in the section's
+  // normalised frame): even spacing round the section, so flat roofs and sides are not crushed into a few degrees of
+  // phi (the classic |cos|^(2/n) form put a squarish cabin's whole roof into a sliver of the texture)
+  const s = Math.sin(phi), c = Math.cos(phi), up = c >= 0, n = up ? nT : nB, r = (Math.abs(s) ** n + Math.abs(c) ** n) ** (-1 / n);
+  o.x = W * s * r;
+  o.y = up ? ym + (T - ym) * c * r : ym + (ym - B) * c * r;
   if (lean && up && T > ym) o.x *= 1 - lean * (o.y - ym) / (T - ym);
   if (crown && up && W > 0) { const q = Math.min(1, Math.abs(o.x / W) / 0.6); o.y -= crown * q * q * c * c; }   // full drop from 60 % of the half-width out
   return o;

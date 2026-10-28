@@ -21,6 +21,16 @@ export const VIEWS = [
   ['pilot_pedestal', 'ck=1&ckyaw=0.55&ckpitch=-0.75'],
   ['pilot_left', 'ck=1&ckyaw=1.3&ckpitch=-0.1'],
   ['pilot_back', 'ck=1&ckyaw=2.6&ckpitch=-0.2'],
+  ['checker_side', 'checker=1&cam=' + [-PI / 2 + 0.3, 0.25, 15, 0, 0.0, 2.0]],
+  ['checker_top', 'checker=1&cam=' + [PI + 0.5, 0.9, 13, 0, 0.3, 0.0]],
+  ['mark_boom_left', 'cam=' + [-PI / 2, 0.05, 5, 0, -0.2, 4.1]],
+  ['mark_boom_right', 'cam=' + [PI / 2, 0.05, 5, 0, -0.2, 4.1]],
+  ['mark_top_nostep', 'cam=' + [-PI / 2 + 0.2, 1.1, 4.5, 0, 0.75, 0.65] + '&s=' + encodeURIComponent(JSON.stringify({ nr: 0, run: false }))],
+  ['mark_nose_data', 'cam=' + [-PI / 2 - 0.35, 0.05, 3.2, 0, -0.75, -3.0]],
+  ['mark_fuel', 'cam=' + [PI / 2 + 0.1, 0.05, 3.2, 0, -0.2, 1.4]],
+  ['mark_fin_right', 'cam=' + [PI / 2, 0.1, 5, 0, 0.9, 8.1]],
+  ['mark_fin_left', 'cam=' + [-PI / 2, 0.1, 5, 0, 0.9, 8.1]],
+  ['pods_door', 'cam=' + [-PI / 2 - 0.5, 0.15, 6, -1.2, -0.8, -0.3]],
   ['rest_droop', 'cam=' + [-PI / 2 + 0.25, 0.1, 21, 0, 0.8, 1.5] + '&s=' + encodeURIComponent(JSON.stringify({ nr: 0, run: false, n1: 0, cargoDoor: 0 }))],
 ];
 export default async function (h) {

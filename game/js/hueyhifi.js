@@ -21,6 +21,7 @@ import {
 } from './hueygeo.js';
 import { UH1_TRACE } from './uh1trace.js';
 import { sampler, pl, smooth01, stationList, stationKeys } from './stationtable.js';
+import { CABIN, TROOP_SEATS } from './hueycabin.js';
 
 const D2R = Math.PI / 180;
 // LOD hand-over distances (m, camera to the model origin): near -> mid, mid -> far, with the dissolve bands
@@ -35,7 +36,10 @@ const GEO = Object.freeze({
   HUB: [0, 2.00, -0.12],           // 13 ft 7.40 in to the top of the hub (front view label; the drawn hub sits 0.2 m lower, the photo agrees with the label)
   TR_HUB: [0.39, 1.39, 8.66],      // RIGHT of the fin (tractor), 10 ft 2.5 in above the ground (drawing centre 3.23 m); see findings: TM top view + 1982/1987 photos
   TR_SIDE: 1,                      // +1 right (1980 US Army UH-1H), -1 left (early production)
-  GUN: [-1.1, -0.18, 0.62],        // M60D pintle on the aft post of the cargo doorway
+  GUN: CABIN.GUN,                  // M60D pintle at the aft end of the cargo doorway (hueycabin.js)
+  // M158 seven-tube 2.75 in rocket launchers (fit option) on the side-mounted universal mounts at cabin-floor level,
+  // below the doorway's forward part and ahead of the door gunner: pod 0.27 m across, 1.68 m long (photos + XM156 mount)
+  PODS: [[-1.62, -1.13, -0.55], [1.62, -1.13, -0.55]], POD_R: 0.135, POD_L: 1.68,
   SKID: { x: 1.30, z0: -2.62, z1: 1.08, cross: [-1.71, 0.60] },   // 8 ft 6.6 in track, cross tubes from the side view
   ELEV: { z: 5.42, y: -0.22, chord: 0.775, span: 2.85 },          // 2 ft 6.5 in chord, 9 ft 4.3 in span
 });
@@ -233,7 +237,7 @@ function buildTextures(S, D, xr) {
     if (z > 1.95) lerp3(o, SOOT, clamp(sstep(1.95, 2.5, z) * (0.5 + 0.5 * nA) * 0.85, 0, 0.85));
     if (z < -0.5 && Math.abs(c) < 0.8) { const s = sstep(0.62, 0.9, vnoise(z * 20 + side * 7, y * 3)) * 0.5; lerp3(o, OIL, s); rough -= 0.3 * s; }
     if (c > 0.7 && z > 0.3 && z < 1.9 && nB > 0.86) { lerp3(o, BARE, 0.45); rough = 0.7; }   // roof walk chips
-    if (z > 0.35 && z < 0.95 && c > 0.55) { const m = g.nostep((side > 0 ? (0.95 - z) : (z - 0.35)) / 0.6, (0.42 - Math.abs(x)) / 0.12 * (side > 0 ? 1 : 1)); if (m > 0) lerp3(o, STENCIL, m * 0.85); }
+    if (z > 0.35 && z < 0.95 && c > 0.55) { const m = g.nostep((side > 0 ? (0.95 - z) : (z - 0.35)) / 0.6, (Math.abs(x) - 0.28) / 0.12); /* read from beside the aircraft: letters' tops inboard */ if (m > 0) lerp3(o, STENCIL, m * 0.85); }
     o.bump = bump; o.rough = clamp(rough, 0.3, 1.2) / 1.2;
   }, u => { z = D.z0 + u * (D.z1 - D.z0); });
   // ---- vertical fin (two sides: u < 0.5 right, u >= 0.5 left; u maps to z 7.1..9.1, v to y -0.05..1.70)
@@ -379,37 +383,60 @@ export function buildHueyHiFi(HUEY, { xr = false } = {}) {
       put(geo, isDoorway ? N.od2 : N.dark, isDoorway ? lod0 : noseG);
     }
   }
-  // interior lining of the cabin (back faces, holes at the doorways), rear wall at REAR, floor
-  const REAR = 1.12;
+  // interior lining of the cabin (back faces, holes at the doorways) to the aft cabin bulkhead, the transmission support
+  // structure between the cant bulkheads with the wells either side, floor, and the TM 55-1520-210-23 troop seating
+  // (hueycabin.js: five across facing forward, two-man well seats facing outboard, two folding seats behind the crew)
+  const REAR = CABIN.REAR, AFT = CABIN.AFT, WX = CABIN.WELL_X;
   {
     const pT = S.yToPhi(0, DOORWAY.y + DOORWAY.hy), pB = S.yToPhi(0, DOORWAY.y - DOORWAY.hy);
-    const ph = steps(0, TAU, 80, [pT, pB, TAU - pT, TAU - pB]), zl = steps(ZSPLIT, REAR, 26, [D0, D1, -1.56, -1.24]);
+    const ph = steps(0, TAU, 80, [pT, pB, TAU - pT, TAU - pB]), zl = steps(ZSPLIT, AFT, 26, [D0, D1, -1.56, -1.24]);
     const pW0 = S.yToPhi(-1.4, 0.12), pW1 = S.yToPhi(-1.4, -0.42);   // the hinged panel's window
     const inDoor = (z, p) => (z > D0 && z < D1 && ((p > pT && p < pB) || (p > TAU - pB && p < TAU - pT))) || (z > -1.56 && z < -1.24 && ((p > pW0 && p < pW1) || (p > TAU - pW1 && p < TAU - pW0)));
     const geo = gridGeo(S, zl, ph, { off: -0.04, keep: (i, j) => !inDoor((zl[i] + zl[i + 1]) / 2, (ph[j] + ph[j + 1]) / 2) });
     mesh(geo, liningN, lod0, 'cabinLining');
-    const rw = []; for (let k = 0; k <= 64; k++) { const P = S.at(REAR, TAU * k / 64, {}); rw.push(new THREE.Vector2(P.x * 0.965, P.y * 0.98 - 0.006)); }
-    put(new THREE.ShapeGeometry(new THREE.Shape(rw), 1).translate(0, 0, REAR), PM('wall', 'n', role(0x50563f, 'flat', { side: THREE.DoubleSide }, { ...DETAIL.army, dust: 0.12, wear: 0, streak: 0 })));
-    put(rbox(2.34, 0.05, REAR - ZSPLIT, 0.01).translate(0, -1.075, (REAR + ZSPLIT) / 2), floorN);
-    // floor tie-down rings, a grid of 5 x 4
-    for (let i = 0; i < 4; i++) for (let k = 0; k < 4; k++) put(new THREE.TorusGeometry(0.022, 0.005, 5, 10).rotateX(Math.PI / 2).translate(-0.75 + i * 0.5, -1.045, -1.35 + k * 0.62), N.metal);
-    // the troop bench across the rear wall: tube frame, sagging canvas seat and back
+    const wallM = PM('wall', 'n', role(0x50563f, 'flat', { side: THREE.DoubleSide }, { ...DETAIL.army, dust: 0.12, wear: 0, streak: 0 }));
+    const rw = []; for (let k = 0; k <= 64; k++) { const P = S.at(AFT, TAU * k / 64, {}); rw.push(new THREE.Vector2(P.x * 0.965, P.y * 0.98 - 0.006)); }
+    put(new THREE.ShapeGeometry(new THREE.Shape(rw), 1).translate(0, 0, AFT), wallM);   // aft cabin bulkhead (FS 166)
+    // the transmission support structure: a box from the floor to the roof between the cant bulkheads (FS 127.5 - 166)
+    const roofY = S.params(REAR)[0] - 0.09;
+    put(rbox(2 * WX, roofY + 1.05, AFT - REAR, 0.04).translate(0, (roofY - 1.05) / 2, (REAR + AFT) / 2), wallM);
+    put(rbox(2.34, 0.05, AFT - ZSPLIT, 0.01).translate(0, -1.075, (AFT + ZSPLIT) / 2), floorN);
+    // floor tie-down rings
+    for (let i = 0; i < 4; i++) for (let k = 0; k < 3; k++) put(new THREE.TorusGeometry(0.022, 0.005, 5, 10).rotateX(Math.PI / 2).translate(-0.75 + i * 0.5, -1.045, -1.5 + k * 0.42), N.metal);
+    // canvas seat: a sagging pan between tube rails
     const benchSeat = (x0, x1, y, z0, z1, sag, rows = 6, cols = 14) => {
       const pos = [], idx = [];
       for (let j = 0; j <= rows; j++) for (let i = 0; i <= cols; i++) { const u = i / cols, v = j / rows, s = Math.sin(Math.PI * u) * Math.sin(Math.PI * v) * sag; pos.push(mix(x0, x1, u), y - s, mix(z0, z1, v)); }
       for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) { const a = j * (cols + 1) + i, b = a + 1, c = a + cols + 1, d = c + 1; idx.push(a, c, b, b, c, d); }
       const q = new THREE.BufferGeometry(); q.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); q.setIndex(idx); q.computeVertexNormals(); return q;
     };
-    const B0 = REAR - 0.43, B1 = REAR - 0.03;   // the troop bench across the transmission bulkhead, facing forward
-    put(benchSeat(-0.58, 0.58, -0.6, B0, B1, 0.03), canvasN);
-    const back = benchSeat(-0.58, 0.58, 0, 0, 1, 0.022); back.rotateX(-Math.PI / 2).translate(0, -0.55, REAR - 0.02); put(back, canvasN);
-    put(rod([-0.6, -0.6, B0], [0.6, -0.6, B0], 0.016, 8), N.alum);
-    put(rod([-0.6, -0.6, B1], [0.6, -0.6, B1], 0.016, 8), N.alum); put(rod([-0.6, 0.05, REAR - 0.01], [0.6, 0.05, REAR - 0.01], 0.016, 8), N.alum);
-    for (const x of [-0.57, 0, 0.57]) put(rod([x, -1.05, B0], [x, -0.6, B0], 0.014, 8), N.alum);
-    // seat belts hanging off the bench
-    for (const x of [-0.42, -0.12, 0.12, 0.42]) put(tube([[x, -0.6, B1], [x + 0.03, -0.68, B1 - 0.1], [x + 0.02, -0.9, B0 + 0.06]], 0.012, 8, 4), PM('belt', 'n', role(0x6a684c, 'fabric')));
-    // soundproofing quilt pads on the rear wall
-    for (const x of [-0.55, 0, 0.55]) put(rbox(0.5, 0.5, 0.05, 0.02).translate(x, 0.0, REAR - 0.03), PM('quilt', 'n', role(0x5d6248, 'fabric')));
+    const belt = PM('belt', 'n', role(0x6a684c, 'fabric')), SY = CABIN.SEAT_Y;
+    // five across against the transmission support: two two-man seats with backs, a one-man seat without, between
+    const B0 = REAR - 0.43, B1 = REAR - 0.03;
+    for (const [x0, x1, backed] of [[-1.06, -0.21, true], [-0.2, 0.2, false], [0.21, 1.06, true]]) {
+      put(benchSeat(x0, x1, SY, B0, B1, 0.03), canvasN);
+      put(rod([x0, SY, B0], [x1, SY, B0], 0.016, 8), N.alum); put(rod([x0, SY, B1], [x1, SY, B1], 0.016, 8), N.alum);
+      for (const x of [x0 + 0.03, x1 - 0.03]) put(rod([x, -1.05, B0 + 0.02], [x, SY, B0 + 0.02], 0.014, 8), N.alum);
+      if (backed) { const bk = benchSeat(x0, x1, 0, 0, 1, 0.02); bk.rotateX(-Math.PI / 2).translate(0, SY + 0.05, REAR - 0.02); put(bk, canvasN); put(rod([x0, 0.05, REAR - 0.015], [x1, 0.05, REAR - 0.015], 0.016, 8), N.alum); }
+    }
+    for (const T of TROOP_SEATS) if (T.kind === 'bench') put(tube([[T.x - 0.12, SY, B1], [T.x - 0.1, SY - 0.08, B1 - 0.1], [T.x - 0.1, -0.9, B0 + 0.06]], 0.012, 8, 4), belt);
+    // two-man well seats without backs, along the transmission support's sides, facing outboard
+    for (const s of [-1, 1]) {
+      const x0 = s * (WX + 0.02), x1 = s * (WX + 0.4), z0 = REAR + 0.06, z1 = AFT - 0.06;
+      put(benchSeat(Math.min(x0, x1), Math.max(x0, x1), SY, z0, z1, 0.025, 6, 8), canvasN);
+      for (const x of [x0, x1]) put(rod([x, SY, z0], [x, SY, z1], 0.016, 8), N.alum);
+      for (const z of [z0 + 0.03, z1 - 0.03]) put(rod([x1, -1.05, z], [x1, SY, z], 0.014, 8), N.alum);
+      put(rbox(0.05, 0.4, z1 - z0, 0.02).translate(s * (WX + 0.025), SY + 0.28, (z0 + z1) / 2), PM('quilt', 'n', role(0x5d6248, 'fabric')));   // back pad on the structure
+    }
+    // two single folding seats with backs just aft of the crew seats, facing aft
+    for (const T of TROOP_SEATS) if (T.kind === 'fold') {
+      const z0 = T.z - 0.2, z1 = T.z + 0.2;
+      put(benchSeat(T.x - 0.22, T.x + 0.22, SY, z0, z1, 0.025, 5, 8), canvasN);
+      const bk = benchSeat(T.x - 0.22, T.x + 0.22, 0, 0, 1, 0.02); bk.rotateX(-Math.PI / 2).translate(0, SY + 0.05, z0 - 0.0).rotateY(0); put(bk.scale(1, 0.85, 1).translate(0, 0.0, 0), canvasN);
+      for (const dx of [-0.22, 0.22]) { put(rod([T.x + dx, -1.05, z1 - 0.03], [T.x + dx, SY, z1 - 0.03], 0.014, 8), N.alum); put(rod([T.x + dx, SY, z0], [T.x + dx, SY + 0.6, z0], 0.014, 8), N.alum); }
+    }
+    // soundproofing quilt pads on the transmission support's face
+    for (const x of [-0.31, 0.31]) put(rbox(0.56, 0.5, 0.05, 0.02).translate(x, 0.05, REAR - 0.03), PM('quilt', 'n', role(0x5d6248, 'fabric')));
     // fire extinguisher and first aid kit on the hinged panels forward of the doors
     put(lathe([[0, 0], [0.05, 0], [0.055, 0.02], [0.055, 0.3], [0.04, 0.34], [0.015, 0.36], [0, 0.37]], 14).translate(1.07, -1.0, -1.42), PM('redp', 'n', role(0xa4261a, 'paint')));
     put(rbox(0.08, 0.14, 0.22, 0.015).translate(-1.13, -0.1, -1.4), N.od2);
@@ -511,7 +538,7 @@ export function buildHueyHiFi(HUEY, { xr = false } = {}) {
   }
 
   // ======================================================================== sliding cargo doors (both sides) and rails
-  const DZ = DOORWAY.z, DOOR_PH = [S.yToPhi(DZ, 0.36), S.yToPhi(DZ, -1.16)], DOOR_RUN = 1.9;
+  const DZ = DOORWAY.z, DOOR_PH = [S.yToPhi(DZ, 0.36), S.yToPhi(DZ, -1.16)], DOOR_RUN = 1.82;   // open: the door's front edge stops just aft of the M60D pintle
   const doorGeo = (n, uvOn) => gridGeo(S, steps(DZ - 0.98, DZ + 0.98, n), steps(DOOR_PH[0], DOOR_PH[1], Math.round(n * 0.7)), { off: 0.024, uv: uvOn ? (z, p) => { const P = S.at(DZ, p, {}); return [(z - DZ + 0.98) / 1.96, (0.36 - P.y) / 1.52]; } : null });
   const doors = [];
   for (const s of [-1, 1]) {
@@ -603,18 +630,21 @@ export function buildHueyHiFi(HUEY, { xr = false } = {}) {
   });
 
   // ======================================================================== weapons: M158 pods, M60D door guns, crew
-  const HEX = [[0, 0], ...Array.from({ length: 6 }, (_, i) => [0.128 * Math.cos(i * Math.PI / 3 + Math.PI / 6), 0.128 * Math.sin(i * Math.PI / 3 + Math.PI / 6)])];
-  const rnoseG = lathe([[0, 0.12], [0.02, 0.1], [0.04, 0.05], [0.045, 0]], 10).rotateX(-Math.PI / 2), noseM = PM('rnose', 'n', role(0x8c8a62, 'paint')), pods = [];
-  const podProf = [[0, -0.76], [0.17, -0.76], [0.2, -0.73], [0.205, -0.68], [0.2, -0.66], [0.2, 0.55], [0.205, 0.57], [0.205, 0.62], [0.19, 0.66], [0.13, 0.75], [0.06, 0.8], [0, 0.81]];
-  for (const [px, py, pz] of HUEY.PODS) {
-    const s = Math.sign(px), z0 = pz - 0.76;
+  const PR = GEO.POD_R, PLh = GEO.POD_L / 2, TS = 0.079;   // tube pitch: 2.75 in rockets in 2.9 in tubes
+  const HEX = [[0, 0], ...Array.from({ length: 6 }, (_, i) => [TS * Math.cos(i * Math.PI / 3 + Math.PI / 6), TS * Math.sin(i * Math.PI / 3 + Math.PI / 6)])];
+  const rnoseG = lathe([[0, 0.1], [0.012, 0.085], [0.028, 0.04], [0.034, 0]], 10).rotateX(-Math.PI / 2), noseM = PM('rnose', 'n', role(0x8c8a62, 'paint')), pods = [];
+  const podProf = [[0, -PLh], [PR - 0.02, -PLh], [PR, -PLh + 0.025], [PR + 0.004, -PLh + 0.06], [PR, -PLh + 0.08], [PR, PLh - 0.22], [PR + 0.004, PLh - 0.2], [PR + 0.004, PLh - 0.15], [PR - 0.012, PLh - 0.1], [PR * 0.6, PLh - 0.03], [PR * 0.28, PLh], [0, PLh + 0.01]];
+  for (const [px, py, pz] of GEO.PODS) {
+    const s = Math.sign(px), z0 = pz - PLh, yb = S.params(pz)[1] + 0.25;   // floor-level hard point on the fuselage side
     put(lathe(podProf, 24).rotateX(Math.PI / 2).translate(px, py, pz), N.od2);
     put(lathe(podProf.filter((_, i) => i % 2 === 0), 8).rotateX(Math.PI / 2).translate(px, py, pz), Mm.od2, lod1, 'm');
-    for (const [hx, hy] of HEX) put(new THREE.CircleGeometry(0.05, 12).rotateY(Math.PI).translate(px + hx, py + hy, z0 - 0.002), N.black);
-    for (const z of [z0 + 0.12, pz + 0.55]) put(lathe([[0.205, -0.03], [0.212, -0.02], [0.212, 0.02], [0.205, 0.03]], 24).rotateX(Math.PI / 2).translate(px, py, z), N.dark);
-    put(rbox(0.1, 0.12, 0.6, 0.02).translate(px, py + 0.25, pz), N.dark);
-    put(rbox(Math.abs(px) - 1.1, 0.09, 0.16, 0.025).translate(s * (1.1 + Math.abs(px)) / 2, py + 0.33, pz), N.od);
-    put(rod([s * 1.2, -0.9, pz], [s * 1.47, py + 0.3, pz], 0.03, 10), N.od); put(rod([s * 1.2, -0.85, pz + 0.5], [s * 1.47, py + 0.3, pz], 0.025, 10), N.od);
+    for (const [hx, hy] of HEX) put(new THREE.CircleGeometry(0.036, 12).rotateY(Math.PI).translate(px + hx, py + hy, z0 - 0.002), N.black);
+    for (const z of [z0 + 0.1, pz + PLh - 0.2]) put(lathe([[PR, -0.02], [PR + 0.007, -0.012], [PR + 0.007, 0.012], [PR, 0.02]], 24).rotateX(Math.PI / 2).translate(px, py, z), N.dark);
+    put(rbox(0.07, 0.07, 0.7, 0.015).translate(px, py + PR + 0.03, pz), N.dark);                                        // suspension lugs / rack
+    const P = S.at(pz, S.yToPhi(pz, py + PR + 0.06, s), {});
+    put(rbox(Math.abs(px - P.x), 0.08, 0.14, 0.02).translate((px + P.x) / 2, py + PR + 0.07, pz), N.od);               // the mount's arm out to the rack
+    put(rod([P.x - s * 0.02, yb, pz + 0.3], [px - s * 0.05, py + PR + 0.05, pz + 0.05], 0.022, 10), N.od);               // drag brace
+    put(rbox(0.06, 0.18, 0.22, 0.02).translate(P.x + s * 0.02, py + PR + 0.07, pz), N.dark);                            // hard point fitting
     const noses = HEX.map(([hx, hy]) => { const m = mesh(rnoseG, noseM, lod0, 'rocket'); m.position.set(px + hx, py + hy, z0 + 0.03); return m; });
     pods.push(noses);
   }
@@ -642,16 +672,11 @@ export function buildHueyHiFi(HUEY, { xr = false } = {}) {
   const flashM = B(0xffc860, { transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
   const flash = mesh(merge([new THREE.PlaneGeometry(0.22, 0.5).rotateX(Math.PI / 2), new THREE.PlaneGeometry(0.22, 0.5).rotateX(Math.PI / 2).rotateZ(Math.PI / 2)]).translate(0, 0.03, -1.05), flashM, gunBody, 'muzzleFlash');
   // gunner / crew chief seats (tube frame, canvas), inboard of the pintles, facing out
-  // gunner's and crew chief's seats at the bench ends, facing out of the doorway beside the pintle
-  const gunSeat = s => { const x = s * 0.8, z = gz + 0.2;
-    put(rbox(0.34, 0.06, 0.4, 0.02).translate(x, -0.77, z), canvasN); put(rbox(0.06, 0.5, 0.4, 0.02).translate(x - s * 0.19, -0.5, z), canvasN);
-    for (const dz of [-0.17, 0.17]) for (const dx of [-0.14, 0.14]) put(rod([x + dx, -1.05, z + dz], [x + dx, -0.8, z + dz], 0.012, 8), N.alum); };
-  gunSeat(-1); gunSeat(1);
-  const gunnerG = group(lod0, 'gunner', -0.78, -0.74, gz + 0.18);
+  const gunnerG = group(lod0, 'gunner', CABIN.CREW[0], -0.74, CABIN.CREW[1]);   // on the aft place of the left well seat
   if (FIG) { const m = new THREE.Mesh(crewGeometry('heloPilot', 'seated', { arms: 'controls', seed: 4 }), crewMaterial()); m.rotation.y = Math.PI; m.name = 'gunnerBody'; gunnerG.add(m); }
   const yawR = group(lod0, 'doorGunR', -gx, gy, gz); yawR.rotation.y = -Math.PI / 2; const pR = group(yawR, 'gunPitchR'); pR.rotation.x = -0.35;
   { const loc = new Map(); m60((geo, m) => (loc.get(m) || loc.set(m, []).get(m)).push(geo)); for (const [m, gs] of loc) mesh(merge(gs), m, pR, 'm60RParts'); }
-  const chief = group(lod0, 'crewChief', 0.78, -0.74, gz + 0.18); chief.rotation.y = -Math.PI / 2;
+  const chief = group(lod0, 'crewChief', -CABIN.CREW[0], -0.74, CABIN.CREW[1]); chief.rotation.y = -Math.PI / 2;
   if (FIG) { const m = new THREE.Mesh(crewGeometry('heloPilot', 'seated', { arms: 'controls', seed: 2 }), crewMaterial()); m.rotation.y = Math.PI; m.name = 'crewChiefBody'; chief.add(m); }
   // mid LOD: crew silhouettes as the same figures (no dissolve on the shared crew material: toggled at the far switch)
 
@@ -761,7 +786,7 @@ export function buildHueyHiFi(HUEY, { xr = false } = {}) {
   // far LOD: the gun/pods/skids are folded into simple shapes so the silhouette holds
   {
     const fp = [];
-    for (const [px, py, pz] of HUEY.PODS) fp.push(new THREE.CylinderGeometry(0.2, 0.2, 1.5, 6).rotateX(Math.PI / 2).translate(px, py, pz));
+    for (const [px, py, pz] of GEO.PODS) fp.push(new THREE.CylinderGeometry(GEO.POD_R, GEO.POD_R, GEO.POD_L, 6).rotateX(Math.PI / 2).translate(px, py, pz));
     for (const s of [-1, 1]) fp.push(new THREE.CylinderGeometry(0.05, 0.05, GEO.SKID.z1 - GEO.SKID.z0, 4).rotateX(Math.PI / 2).translate(s * GEO.SKID.x, -1.79, (GEO.SKID.z0 + GEO.SKID.z1) / 2));
     for (const z of GEO.SKID.cross) fp.push(new THREE.BoxGeometry(2.6, 0.08, 0.08).translate(0, -1.45, z));
     mesh(merge(fp), Fm.od2, lod2, 'farParts', 'f');

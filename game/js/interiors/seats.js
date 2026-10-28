@@ -13,6 +13,7 @@
 //   SE.afterWar(dt)   after war.update: the aboard squads seated, the pilot shown, the rider kept in his seat
 import * as THREE from 'three';
 import { crewGeometry, crewMaterial } from './crewfig.js';
+import { TROOP_SEATS, DOOR_PLACES } from '../hueycabin.js';
 
 // seat layouts in each host's model frame (x right, y up, -z forward; the figure origin under the hips, facing yaw:
 // 0 = the craft's forward)
@@ -20,14 +21,14 @@ import { crewGeometry, crewMaterial } from './crewfig.js';
 // rode a slick), aft of the door gunner and the crew chief (the rocket pods are forward, by the gunners). Outer seats on the bench looked straight into the
 // gunner's / the chief's back 1.7 m ahead (hueymodel.js seats them inboard of their pintles, in front of the bench ends):
 // the user's "a person in front of me" in first person. The two bench places between them see clear to the cockpit.
-// ngc/look-huey: the hi-fi airframe follows TM 55-1520-210-10 (cargo doorway z -1.16 .. 0.80, the troop bench against the
-// transmission bulkhead at z 0.69 .. 1.09, the gunner and crew chief at the bench ends): the door places sit forward in
-// the doorway, the bench places on the bench. The classic model (?rk=0) reads the same places.
-const HUEY_SEATS = [
-  { id: 'troop0', label: 'LEFT DOOR', at: [-0.98, -1.05, -0.3], yaw: Math.PI / 2, eye: [-0.92, -0.14, -0.32], door: [-1.45, -0.8, -0.1] },
-  ...[-0.27, 0.27].map((x, i) => ({ id: 'troop' + (i + 1), label: `TROOP SEAT ${i + 2}`, at: [x, -0.58, 0.9], yaw: 0, eye: [x, 0.37, 0.86], door: [Math.sign(x) * 1.45, -0.8, 0.3] })),
-  { id: 'troop3', label: 'RIGHT DOOR', at: [0.98, -1.05, -0.3], yaw: -Math.PI / 2, eye: [0.92, -0.14, -0.32], door: [1.45, -0.8, -0.1] },
-];
+// ngc/look-huey: the UH-1H's TM 55-1520-210-23 seating (hueycabin.js): five across facing forward against the
+// transmission support, the two-man well seats facing outboard (the gunner and the crew chief take the aft place of
+// each), two folding seats behind the crew; plus the doorway places (on the floor, legs over the sill). Any of them
+// can be the player's; the AI troop lift (airlift.js) fills the others from the same table.
+const HUEY_SEATS = [...TROOP_SEATS, ...DOOR_PLACES].map(T => {
+  const s = Math.sign(T.x) || 1, door = T.kind === 'door', out = T.kind === 'well' ? -Math.sign(T.yaw) * 0.06 : 0;
+  return { id: T.id, label: T.label, at: [T.x, door ? -1.05 : -0.58, T.z], yaw: T.yaw, eye: door ? [T.x * 0.94, -0.14, T.z - 0.02] : [T.x + out, 0.37, T.z + (T.kind === 'fold' ? 0.04 : -0.04)], door: [s * 1.45, -0.8, Math.min(0.6, Math.max(-1.0, T.z))] };
+});
 const CH46_SEATS = [{ id: 'r0', label: 'TROOP SEAT 14 (BY THE RAMP)', at: [0.86, -0.49, 3.25], yaw: Math.PI / 2 }, { id: 'r1', label: 'TROOP SEAT 15 (BY THE RAMP)', at: [-0.86, -0.49, 3.25], yaw: -Math.PI / 2 }]
   .map(s => ({ ...s, eye: [s.at[0] * 0.75, s.at[1] + 0.95, s.at[2] - 0.03] }));
 // the CH-46 squad's own seats (13): along both walls facing in, forward of the riders' (figures.js figures stand on
