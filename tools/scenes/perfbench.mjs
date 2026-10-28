@@ -21,7 +21,7 @@ export default { name: 'perfbench' + (process.env.BENCH_TAG ? '-' + process.env.
       if (st?.run) runId = st.run;
       if (st?.done) break;
       const k = st ? `${st.cfg}/${st.id}` : '';
-      if (st && st.m && k !== seen && st.cfg === 'all') { seen = k; await h.shot(`view-${st.seg + 1}-${st.id}`); }
+      if (st && st.m && k !== seen && st.cfg === 'all') { seen = k; try { await h.shot(`view-${st.seg + 1}-${st.id}`); } catch (e) { h.log('note', 'shot skipped: ' + e.message); } }   // (the bench may reload the page under it)
       await new Promise(r => setTimeout(r, 500));
     }
     await h.expect('!!window.__bench && __bench.done', 'the benchmark finished');
