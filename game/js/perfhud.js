@@ -26,13 +26,13 @@ export function createPerfHud({ parent = document.body } = {}) {
       frames++; cpuSum += cpuMs; if (cpuMs > cpuMax) cpuMax = cpuMs; dtSum += dtMs; if (dtMs > dtMax) dtMax = dtMs;
       dts[dtN++ % dts.length] = dtMs;
       if (med > 0 && dtMs > med * 2 && dtMs > 25) hitches++;   // (the median of the last 240 frames, taken once a second)
-      const m = performance.memory;
+      const m = (frames & 7) === 0 ? performance.memory : null;   // (the getter costs ~1 ms: every 8th frame)
       if (m) { const h = m.usedJSHeapSize; if (heapLast && h > heapLast) heapUp += h - heapLast; heapLast = h; }
       const now = performance.now();
       if (now - winT0 >= 1000) {
         const sec = (now - winT0) / 1000, sys = {};
         for (let i = 0; i < names.length; i++) { sys[names[i]] = { mean: sum[i] / frames, max: max[i] }; sum[i] = 0; max[i] = 0; }
-        snap = { systems: sys, frames, cpu: cpuSum / frames, cpuMax, dt: dtSum / frames, dtMax, hitches, heapMB: m ? m.usedJSHeapSize / 1048576 : null, allocMBs: m ? heapUp / 1048576 / sec : null };
+        snap = { systems: sys, frames, cpu: cpuSum / frames, cpuMax, dt: dtSum / frames, dtMax, hitches, heapMB: heapLast ? heapLast / 1048576 : null, allocMBs: heapLast ? heapUp / 1048576 / sec : null };
         frames = 0; cpuSum = cpuMax = dtSum = dtMax = 0; heapUp = 0; hitches = 0; winT0 = now;
         const n = Math.min(dtN, dts.length); if (n > 30) { const a = Array.from(dts.subarray(0, n)).sort((x, y) => x - y); med = a[n >> 1]; }
         draw();

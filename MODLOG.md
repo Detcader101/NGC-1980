@@ -1,5 +1,26 @@
 # MODLOG — NGC-1980 (formerly Thrust/Zarch)
 
+## 2026-10-28 — main-thread CPU and garbage (ngc/perf-cpu)
+
+Add `?perfhud` to the URL to see the main-thread CPU per system on screen. It shows the player, the war (ships, air,
+guns and AA, ground, AI and deck, structures), fish, world, nature, vehicles, HUD, light, render and markers, with the
+mean and the worst frame each second. The garbage the sims made every game second dropped to a third or less in a
+paired run: the war view went from 50 to 30 MB, the village from 153 to 35 MB and the Huey cruise from 84 to 25 MB.
+GC time per frame fell by half to two thirds.
+
+The causes were:
+- the AA brains re-walked their whole models every step;
+- Math.hypot allocated on every call; the new `game/js/hypot.js` gives bit-identical results without allocating;
+- destructured arrays, temporary objects and closures in the deck, gear and sea-motion queries;
+- every AI Sea Knight built thirteen full Marines at spawn;
+- a parked truck on HOME ISLAND never slept and ran the full vehicle sim every frame;
+- the fish sim boxed its sea-bed cache keys and kept re-optimising.
+
+Seeded headless wars give the same records as before, at a third less wall time. That needed one harness fix: three.js
+drew its object UUIDs from the war's seeded random, so any model change reshuffled a seed's war. `tools/warprof.mjs`,
+`tools/simdiff.mjs` and `tools/scenes/cpuprofile.mjs` profile and compare runs. Findings, worker proposal and
+hotspots for other owners: [perf-cpu.md](docs/ngc1980/findings/perf-cpu.md).
+
 ## 2026-10-26 — Continuum reusable shader and UI library
 
 Added an opt-in Three r170/WebGL2 library on `ngc/shader-library`: physical surface presets and
