@@ -17,4 +17,4 @@ shot('ref=side&mask=1', 'mask-side.png', '2273', '3160');
 shot('ref=top&mask=1&sweep=68', 'mask-top.png', '2273', '3160');
 shot('ref=front&mask=1&sweep=20', 'mask-front.png', '3050', '3925');
 execFileSync('node', [path.join(TOOLS, 'blueprint/fit.mjs'), path.join(TOOLS, '../game/js/units/air/f14trace.json'), '--side', path.join(out, 'mask-side.png'), '--top', path.join(out, 'mask-top.png'), '--front', path.join(out, 'mask-front.png'),
-  '--length', '18.821', '--runs', 'side,front', '--front-runs-above', '0.1', '--zmax-top', '6.5', '--front-y', '0.15,0.7;-1.25,-1.0', '--json', arg('--json') || path.join(out, 'fit.json')], { stdio: 'inherit' });
+  '--length', '18.821', '--runs', 'front', '--front-runs-above', '0.1', '--zmax-top', '6.5', '--front-y', '0.15,0.7;-1.25,-1.0', '--json', arg('--json') || path.join(out, 'fit.json')], { stdio: 'inherit' });
