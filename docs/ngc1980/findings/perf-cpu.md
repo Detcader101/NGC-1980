@@ -190,7 +190,7 @@ benches and warsim re-baselined deliberately.
 ## Regression record (2026-10-28, load average 40-115 on the shared box)
 | check | result |
 |---|---|
-| `node tools/check.mjs syntax` | 538/538, no conflict markers |
+| `node tools/check.mjs syntax` | 537/537, no conflict markers |
 | `node tools/check.mjs bench` (all node benches) | 57/57 pass (fishbench 78/78 with every printed outcome identical to the base) |
 | warsim, BALANCED vs DEFAULT, seeds 1-3, 30 min | identical records to the base (tools/simdiff.mjs), wall 149/126/111 s -> 100/82/73 s |
 | smoke | PASS 5/5 |
