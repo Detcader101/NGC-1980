@@ -108,7 +108,7 @@ window.__T = { A, X, cockpit, model, CAUTS };
 const REF = Q.get('ref'), REFV = {
   side: { img: 'ref/f14a-3view.png', W: 2273, H: 3160, map: (px, py) => [(px - 389) / 74.36 - 11.152, (2168 - py) / 74.36 - 0.436], view: [1, 0, 0], up: [0, 1, 0] },
   top: { img: 'ref/f14a-3view.png', W: 2273, H: 3160, map: (px, py) => [(px - 389) / 74.36 - 11.152, -(py - 1035) / 74.36], view: [0, -1, 0], up: [1, 0, 0] },
-  front: { img: 'ref/f14a-front.png', W: 3050, H: 3925, map: (px, py) => [-(px - 1527) / 72.11, (871.5 - py) / 72.11 - 0.19], view: [0, 0, 1], up: [0, 1, 0] },
+  front: { img: 'ref/f14a-front.png', W: 3050, H: 3925, map: (px, py) => [-(px - 1529.2) / 72.11, (871.5 - py) / 72.11 - 0.19], view: [0, 0, 1], up: [0, 1, 0] },
 }[REF];
 if (REFV) {
   sea.visible = false; scene.traverse(o => { if (o.isMesh && o.geometry && o.geometry.type === 'ConeGeometry') o.visible = false; });

@@ -137,12 +137,17 @@ export function buildTomcatCockpit() {
   const art = canvasTex(1100, 660);
   plane(PW, PH, new THREE.MeshLambertMaterial({ map: art.tex, emissive: 0xffffff, emissiveMap: art.tex, emissiveIntensity: 0.55 }), 0, 0, 0, P);
   // ---- round gauges: [x, y, diameter] on the panel
+  // (ngc/look-tomcat) laid out per NATOPS NAVAIR 01-F14A-1 fig. 1-3 (pilot's instrument panel and consoles): LEFT
+  // instrument panel VSI (25), airspeed/Mach (24), altimeter (22), wheels-flaps position (14, by the gear handle); LEFT KNEE
+  // panel the engine instruments (15-21: RPM, TIT, FF, nozzle, oil); RIGHT instrument panel wing sweep (40), accelerometer
+  // (42), standby attitude (43), clock (45); RIGHT KNEE fuel quantity (48); centre VDI (33) over HSD (34). The 1980 ALR-45
+  // threat scope sits top right (not in the 1972 figure)
   const GL = {
-    sweep: [-0.405, 0.185, 0.11], asi: [-0.275, 0.185, 0.105], flap: [-0.405, 0.06, 0.085], gmeter: [-0.29, 0.06, 0.095],
-    alt: [0.17, 0.2, 0.1], vsi: [0.17, 0.085, 0.09], adi: [0.17, -0.03, 0.09], clock: [0.17, -0.145, 0.07],
-    rpmL: [0.285, 0.235, 0.08], rpmR: [0.375, 0.235, 0.08], titL: [0.285, 0.14, 0.08], titR: [0.375, 0.14, 0.08],
-    ffL: [0.285, 0.045, 0.08], ffR: [0.375, 0.045, 0.08], nozL: [0.285, -0.05, 0.08], nozR: [0.375, -0.05, 0.08],
-    oil: [0.48, 0.045, 0.075], rwr: [0.48, 0.2, 0.09],
+    vsi: [-0.43, 0.195, 0.085], asi: [-0.31, 0.195, 0.1], alt: [-0.43, 0.075, 0.1], flap: [-0.31, 0.075, 0.08],
+    sweep: [0.185, 0.195, 0.1], gmeter: [0.305, 0.195, 0.09], adi: [0.185, 0.075, 0.095], clock: [0.305, 0.075, 0.065],
+    rpmL: [-0.37, -0.045, 0.064], rpmR: [-0.302, -0.045, 0.064], titL: [-0.234, -0.075, 0.064], titR: [-0.166, -0.075, 0.064],
+    ffL: [-0.37, -0.12, 0.064], ffR: [-0.302, -0.12, 0.064], nozL: [-0.234, -0.15, 0.064], nozR: [-0.166, -0.15, 0.064],
+    oil: [-0.43, -0.225, 0.06], rwr: [0.465, 0.195, 0.085],
   };
   const gauges = [], ringM = M(0x26282a);
   function gauge(key, size, face, dyn, p = P, gl = GL) {
@@ -173,7 +178,7 @@ export function buildTomcatCockpit() {
     altlo: lamp(P, 0.06, 0.03, -0.155, -0.27, 0.005, 'ALT|LOW', '#ff2a14', '#3a0e08'),
     launch: lamp(P, 0.065, 0.03, 0.48, 0.295, 0.005, 'LAUNCH', '#ff2a14', '#3a0e08'),
     acm: lamp(P, 0.055, 0.026, -0.275, 0.295, 0.005, 'ACM', '#3cff50', '#0e2410'),
-    sweep: lamp(P, 0.065, 0.026, -0.405, 0.255, 0.005, 'SWEEP', '#ffaa18', '#2e2408'),
+    sweep: lamp(P, 0.065, 0.026, 0.185, 0.272, 0.005, 'SWEEP', '#ffaa18', '#2e2408'),
     hook: lamp(P, 0.05, 0.026, 0.49, -0.27, 0.005, 'HOOK', '#ffaa18', '#2e2408'),
     fireL: lamp(g, 0.075, 0.034, -0.38, 0.875, -6.15, 'L FIRE', '#ff2a14', '#3a0e08', '#111', -0.5),
     fireR: lamp(g, 0.075, 0.034, 0.38, 0.875, -6.15, 'R FIRE', '#ff2a14', '#3a0e08', '#111', -0.5),
@@ -203,20 +208,20 @@ export function buildTomcatCockpit() {
   };
   const button = (id, p, x, y, w, h, mat, label, list = hitsP) => { const b = box(w, h, 0.012, mat, x, y, 0.006, p); hit(id, w + 0.012, h + 0.012, 0.04, x, y, 0.015, p, label, list); return b; };
   // panel: gear handle (wheel knob, red light in it), hook handle, master arm, weapon select, HUD mode buttons, ACM jett
-  const gearH = new THREE.Group(); gearH.position.set(-0.49, -0.17, 0.02); P.add(gearH);
+  const gearH = new THREE.Group(); gearH.position.set(-0.505, -0.075, 0.02); P.add(gearH);
   box(0.014, 0.1, 0.014, metal, 0, 0, 0, gearH); cyl(0.028, 0.028, 0.022, M(0xe8e8e0), 0, 0.055, 0, gearH, Math.PI / 2, 0, 14);
   const gearRed = new THREE.Mesh(new THREE.CircleGeometry(0.012, 10), lit(0x300808)); gearRed.position.set(0, 0.055, 0.012); gearH.add(gearRed);
-  hit('gear', 0.07, 0.15, 0.08, -0.49, -0.15, 0.03, P, 'LANDING GEAR');
+  hit('gear', 0.07, 0.15, 0.08, -0.505, -0.055, 0.03, P, 'LANDING GEAR');
   const hookH = new THREE.Group(); hookH.position.set(0.49, -0.17, 0.02); P.add(hookH);
   box(0.014, 0.1, 0.014, metal, 0, 0, 0, hookH); box(0.06, 0.02, 0.03, yellow, 0, 0.055, 0.006, hookH);
   hit('hook', 0.07, 0.15, 0.08, 0.49, -0.15, 0.03, P, 'ARRESTING HOOK');
-  toggle('arm', P, -0.36, -0.115, 'MASTER ARM');
-  button('wpn', P, -0.27, -0.115, 0.05, 0.03, M(0x50565c), 'WEAPON SELECT  SW / SP / PH / GUN');
+  toggle('arm', P, 0.185, -0.06, 'MASTER ARM');
+  button('wpn', P, 0.275, -0.06, 0.05, 0.03, M(0x50565c), 'WEAPON SELECT  SW / SP / PH / GUN');
   const MODES = ['T.O.', 'CRUISE', 'A/A', 'A/G', 'LDG'], modeB = {};
   MODES.forEach((m, i) => { modeB[m] = button('hud:' + m, P, -0.1 + i * 0.05, 0.27, 0.04, 0.022, M(0x50565c), `HUD MODE ${m}`); });
   const hsdB = button('hsdmode', P, 0.115, -0.2, 0.03, 0.02, M(0x50565c), 'HSD  NAV / TID REPEAT');
   hit('mc', 0.085, 0.04, 0.03, -0.47, 0.295, 0.01, P, 'MASTER CAUTION RESET');
-  const jettB = cyl(0.016, 0.016, 0.012, redM, -0.47, -0.27, 0.008, P, Math.PI / 2, 0, 12); hit('jett', 0.05, 0.05, 0.03, -0.47, -0.27, 0.01, P, 'ACM JETTISON (STORES)');
+  const jettB = cyl(0.016, 0.016, 0.012, redM, 0.37, -0.06, 0.008, P, Math.PI / 2, 0, 12); hit('jett', 0.05, 0.05, 0.03, 0.37, -0.06, 0.01, P, 'ACM JETTISON (STORES)');
   hit('fireL', 0.08, 0.05, 0.04, -0.38, 0.875, -6.15, g, 'L FIRE  -  PUSH TO DISCHARGE'); hit('fireR', 0.08, 0.05, 0.04, 0.38, 0.875, -6.15, g, 'R FIRE  -  PUSH TO DISCHARGE');
   // left console (flat, facing up; canvas top = forward): throttle quadrant, sweep handle, flaps, AFCS, crank
   const conL = canvasTex(440, 1520), conR = canvasTex(440, 1520); conL.ctx.scale(2, 2); conR.ctx.scale(2, 2);   // drawn in 220 x 760 units at 2x for legible placards
@@ -355,13 +360,13 @@ export function buildTomcatCockpit() {
     sect(-0.545, -0.325, -0.215, 0.325); sect(0.115, -0.325, 0.545, 0.325); sect(-0.21, -0.325, 0.11, 0.325);
     c.fillStyle = '#e6e2cf'; c.textAlign = 'center'; c.textBaseline = 'middle';
     const lab = (t, x, y, s = 12, col = '#e6e2cf') => { c.fillStyle = col; c.font = `bold ${s}px ${SANS}`; c.fillText(t, px(x), py(y)); };
-    lab('WING SWEEP', -0.405, 0.12, 11); lab('AIRSPEED / MACH', -0.275, 0.12, 11); lab('FLAPS / SLATS', -0.405, 0.007, 10); lab('ACCEL', -0.29, 0.0, 11);
+    lab('VERT VEL', -0.43, 0.143, 10); lab('AIRSPEED / MACH', -0.31, 0.135, 10); lab('ALT', -0.43, 0.015, 11); lab('WHEELS / FLAPS', -0.31, 0.022, 9);
     lab('AOA', -0.16, 0.255, 12); lab('UNITS', -0.16, 0.24, 9);
-    lab('ALT', 0.17, 0.258, 11); lab('VERT VEL', 0.17, 0.035, 10); lab('STBY ATT', 0.17, -0.08, 10); lab('CLOCK', 0.17, -0.188, 9);
-    for (const [t, y] of [['RPM', 0.235], ['TIT', 0.14], ['FF', 0.045], ['NOZ', -0.05]]) lab(t, 0.33, y + 0.05, 10);
-    lab('L', 0.285, 0.285, 11); lab('R', 0.375, 0.285, 11); lab('OIL', 0.48, 0.0, 10); lab('THREAT', 0.48, 0.25, 9);
-    lab('LDG GEAR', -0.49, -0.245, 11); lab('HOOK', 0.49, -0.245, 11); lab('MASTER ARM', -0.36, -0.15, 9); lab('ON', -0.36, -0.083, 9); lab('WPN SEL', -0.27, -0.15, 9);
-    lab('ACM JETT', -0.47, -0.305, 9); lab('VDI', -0.115, 0.05, 10); lab('HSD', -0.105, -0.2, 10); lab('NAV/TID', 0.115, -0.225, 8);
+    lab('WING SWEEP', 0.185, 0.137, 10); lab('ACCEL', 0.305, 0.137, 10); lab('STBY ATT', 0.185, 0.017, 10); lab('CLOCK', 0.305, 0.03, 9);
+    lab('RPM', -0.336, -0.005, 9); lab('TIT', -0.2, -0.035, 9); lab('FF', -0.336, -0.08, 9); lab('NOZ', -0.2, -0.11, 9); lab('L    R', -0.336, -0.162, 8); lab('L    R', -0.2, -0.192, 8);
+    lab('OIL', -0.43, -0.27, 9); lab('THREAT', 0.465, 0.25, 9);
+    lab('LDG GEAR', -0.505, -0.15, 8); lab('HOOK', 0.49, -0.245, 11); lab('MASTER ARM', 0.185, -0.095, 9); lab('ON', 0.185, -0.028, 9); lab('WPN SEL', 0.275, -0.095, 9);
+    lab('ACM JETT', 0.37, -0.095, 9); lab('VDI', -0.115, 0.05, 10); lab('HSD', -0.105, -0.2, 10); lab('NAV/TID', 0.115, -0.225, 8);
     lab('FUEL', 0.33, -0.12, 11); lab('LB X 1000', 0.33, -0.31, 8);
     MODES.forEach((m, i) => lab(m, -0.1 + i * 0.05, 0.3, 9));
     c.fillStyle = '#2a2e32'; c.fillRect(px(-0.545), py(-0.3), 120, 26); lab('F-14A', -0.485, -0.315, 13, '#cfd0c8');
@@ -493,7 +498,7 @@ export function buildTomcatCockpit() {
     c.fillStyle = '#ff9a20'; const yy = y(V.aoa); c.beginPath(); c.moveTo(W * 0.4, yy); c.lineTo(W * 0.04, yy - 8); c.lineTo(W * 0.04, yy + 8); c.fill();
   });
   // gear position indicator: wheels, UP, or a barber pole in transit; brake / flap advisories under it
-  rect('gearInd', 0.11, 0.06, 2000, -0.4, -0.12, (c, W, H, S, A) => {
+  rect('gearInd', 0.11, 0.06, 2000, -0.29, -0.225, (c, W, H, S, A) => {
     c.fillStyle = '#16181a'; c.fillRect(0, 0, W, H); const dn = A.gear > 0.99, up = A.gear < 0.01;
     [[W * 0.36, 4], [W * 0.04, H * 0.48], [W * 0.68, H * 0.48]].forEach(([x, y], i) => {
       const w = W * 0.28, h = H * 0.44; if (!dn && !up) barber(c, x, y, w, h); else { c.fillStyle = '#050505'; c.fillRect(x, y, w, h); if (dn) { c.strokeStyle = '#f2f2ea'; c.lineWidth = 3; c.beginPath(); c.arc(x + w / 2, y + h / 2, h * 0.32, 0, TAU); c.stroke(); } else txt(c, 'UP', x + w / 2, y + h / 2, '#f2f2ea', h * 0.5); }

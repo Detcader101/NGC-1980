@@ -20,7 +20,7 @@ export const G = {
   PIVOT: [BL(22.648), -0.19, FS(91.271)],               // wing pivot BL 107 in (2.718 m); wing chord plane y -0.19 (the wing edge-on in the TP-2769 side view)
   WING: { le0: FS(76.949), root: 35.373 * 0.12, semi: BL(81.443), tipC: 9.364 * 0.12, kinkX: BL(21.635), gloveTE: 13.25 * D2R, sweep: 20 * D2R },
   GLOVE_LE0: [1.61, FS(49.741)],                       // the glove leading edge starts at the intake's outer top corner (FS 49.741)
-  VTAIL: { x: BL(11.644) + 0.06, y: WL(34.713), cant: 5 * D2R, rootLE: FS(124.421), rootC: 32.387 * 0.12, tipTE: FS(156.808), tipC: 9.312 * 0.12, h: 21.591 * 0.12, rootTEx: 26.033 * 0.12, tc: 0.045 },
+  VTAIL: { x: BL(11.644) + 0.11,   /* tips at +-1.73: NATOPS fig 1-1 and CR-163098 as drawn (their labels, 10 ft 8 in and BL 11.644, say 1.62-1.63: drawings trusted, both recorded) */ y: WL(34.713), cant: 5 * D2R, rootLE: FS(124.421), rootC: 32.387 * 0.12, tipTE: FS(156.808), tipC: 9.312 * 0.12, h: 21.591 * 0.12, rootTEx: 26.033 * 0.12, tc: 0.045 },
   HTAIL: { x: BL(19.051), y: WL(29.845), anh: 3.5 * D2R, rootLE: FS(122.02), rootC: 31.456 * 0.12, span: 22.488 * 0.12, tipLEz: (36.257 - 6.709) * 0.12, tipTEz: 36.257 * 0.12, axisZ: 16.487 * 0.12, axisSweep: 9.49 * D2R, tc: 0.04 },
   VENTRAL: { y: WL(24.100), z0: FS(137.269) - 28.448 * 0.12, z1: FS(137.269), depth: 6.129 * 0.12, x: 1.41, cant: 15 * D2R },
   HOOK: { pivot: [0, WL(29.209), FS(126.893)], len: 28.701 * 0.12, up: -8.87 * D2R },
@@ -75,11 +75,11 @@ export function fuselageGeo(lod = 0) {
 
 // ---- canopy and windscreen: one loft over the sill from the windscreen base to the aft fairing (top from the trace)
 const canopyT = z => z <= -2.9 ? sideTop(z) : pl([[-2.9, sideTop(-2.9)], [Z_CANOPY_END, sill(Z_CANOPY_END) + 0.02]])(z);
-export const canopyW = pl([[Z_WS, 0.44], [-7.65, 0.51], [-6.6, 0.54], [-5.0, 0.54], [-4.2, 0.52], [-3.2, 0.42], [Z_CANOPY_END, 0.28]]);   // widths from the CR-163098 front view (registered)
+export const canopyW = pl([[Z_WS, 0.43], [-7.65, 0.50], [-6.6, 0.53], [-5.0, 0.53], [-4.2, 0.51], [-3.2, 0.41], [Z_CANOPY_END, 0.28]]);   // widths from the CR-163098 front view (registered)
 export const Z_BOW = -7.62, Z_GLASS_END = -4.05, COCKPIT_OPEN = [-8.05, -4.15];   // windscreen arch (fixed); the canopy's glass ends at the aft frame over the RIO
 export function canopySurface() {
   const zs = stationList([[Z_WS, Z_CANOPY_END, 0.08]], [Z_BOW, Z_GLASS_END]);
-  const keys = stationKeys(zs, z => ({ T: canopyT(z), B: sill(z) - 0.06, W: canopyW(z), ym: sill(z) - 0.03, nT: pl([[Z_WS, 2.0], [-7.6, 2.1], [-5, 2.2], [Z_CANOPY_END, 2.1]])(z), nB: 4 }));
+  const keys = stationKeys(zs, z => ({ T: canopyT(z), B: sill(z) - 0.06, W: canopyW(z), ym: sill(z) - 0.03, nT: pl([[Z_WS, 2.0], [-7.6, 2.3], [-5, 2.6], [Z_CANOPY_END, 2.2]])(z), nB: 4 }));
   return { S: bodySurface(keys), zs };
 }
 // a canopy piece between z0 and z1 (upper half only: phi -PI/2..PI/2), offset outward by off

@@ -27,8 +27,9 @@ All public domain (NASA NTRS "GOV_PUBLIC_USE_PERMITTED"; U.S. Navy photos):
 - Photos: F-14A BuNo 160382 VF-84 AJ 206 escorting a Tu-95, Sept 1980 (USN 1179034); VF-84 intercepting an Il-38,
   10 Mar 1980 (colour); VF-142 on the catapult, USS Eisenhower, 6 Jul 1980.
 - Third-source cross-check: the low-resolution public-domain Commons three-view (`File:Grumman_F-14_Tomcat.png`).
-- NOT available: NAVAIR 01-F14AAA-1 (F-14A NATOPS) and the -2 maintenance manuals are not publicly scanned (NASM holds
-  a paper NATOPS). So no NATOPS principal-dimensions figure, no cockpit panel figures, no access-panel diagrams.
+- NATOPS: NAVAIR 01-F14A-1 preliminary flight manual, 1 June 1972 (archive.org; declassified, figures marked (U)):
+  fig. 1-1 dimensions, fig. 1-3 / 1-4 pilot and RIO panels. The 1977-80 01-F14AAA-1 editions and the -2 maintenance
+  manuals (access-panel diagrams) were not found in public scans.
 
 ## 3. Frame and dimension table (model metres; converted once in `tomcatgeo.js` G)
 
@@ -50,7 +51,9 @@ the fin tip 4.88 m above it); x = BL. Model cm x 12 = full size (span 162.885 cm
 | TF30 nozzle | from FS 16.980, 1.295 m long, shroud 1.282 m dia, exit 0.646-0.680 (cruise) | TP-2769 fig 4c |
 | Engine centre lines | BL 1.626 | fig 2a 13.547 cm |
 | Intake | top lip FS 5.969 m (z -5.18); side edge raked back to the lower lip at z -2.57 (y -1.10 to -1.40) | TP side view traced |
-| Height | 4.88 m | Jane's 16 ft 0 in (sets the ground under the fin tip) |
+| Height | 4.88 m | Jane's and NATOPS fig 1-1: 16 ft 0 in (sets the ground under the fin tip) |
+| NATOPS fig 1-1 cross-check | length 61 ft 11.9 in = 18.89 m (drawings 18.82: 0.4%); spans 64 ft 1.5 in / 38 ft 1.9 in (as TP); oversweep 32 ft 8.5 in = 9.97 m; stabilator 33 ft 3.5 in = 10.15 m (TM-83250 label 9.97: TM kept, 1.8%) | NATOPS 1972 |
+| Fin tip spacing | labels: NATOPS 10 ft 8 in (3.25 m), TM BL 11.644 at the root (tips 3.25); drawn: NATOPS fig 1-1 3.48 m, CR-163098 3.44 m -> model 3.46 m (tips x +-1.73), cant 5 deg (TM fig 3f) | skill rule: trust the drawing, record both |
 | Wheelbase / track | 7.02 / 5.0 m | Jane's (the sim's GEAR points, unchanged) |
 
 ## 4. Shape: trace, loft, fit
@@ -68,7 +71,7 @@ the fin tip 4.88 m above it); x = BL. Model cm x 12 = full size (span 162.885 cm
 |---|---|---|---|
 | side | **0.988** | 0.19 m (1.0%) PASS | |
 | top (68 deg) | **0.983** | 0.32 m (1.7%) | residual at the 68 deg wingtip: the drawing's tip is ~0.3 m forward of a rigid rotation of its own fig 3a planform about the labelled pivot (the model follows the labels) |
-| front | **0.961** | 0.13 m (0.7%) | by region: canopy 0.912, nacelles+tunnel **0.977**, wing plane **0.975**; fin tips x 1.68 (CR 1.69/1.75); stabilator semi-span 4.985 (TM label; CR draws 5.3) |
+| front | **0.976** | 0.10 m (0.5%) PASS | by region: canopy **0.966**, nacelles+tunnel **0.979**, wing plane **0.975** (CR centre line measured at px 1529.2) |
 
   Front canopy: CR-163098 puts the canopy top 0.13 m lower above the wing plane than TP-2769 (0.92); the Commons
   three-view (third source, +-0.08 m at its resolution) gives 0.86, so TP stays the master for heights and the CR
@@ -137,16 +140,22 @@ Rows done: 27 of 30 (90%); the panel/fastener row needs the -2 manuals.
 - The sim's HOOK_TIP (0, -2.35, 8.0) is 0.88 m aft of the drawn hook's tip (7.12); the drawn hook (pivot, length) is
   modelled and swings down to the sim's tip height. Changing HOOK_TIP moves the AI's trap aim (FM-adjacent): left, reported.
 - STATIONS 1A/8A (the AIM-9 shoulder rails) moved from inside the glove to the pylons' outer faces (geometry only).
-- Fin root spacing +0.06 m over BL 11.644 to the CR front view's tip positions (TM gives the fin root fitting BL).
+- Fin spacing: the drawn 3.46 m between tips (NATOPS fig 1-1, CR-163098), not the labelled 10 ft 8 in (see the table).
 
 ## 7. Cockpit
 
-The NATOPS cockpit figures are not publicly available, so the existing panel layout (instruments, switches, HUD, TID,
-DDD, all interactive) is kept and moved into the drawn airframe: the interior is offset by TCAT.COCKPIT_OFFSET
+Pilot's panel re-laid per NATOPS fig. 1-3 (the 1972 preliminary manual): LEFT instrument panel VSI (25), airspeed/Mach
+(24), altimeter (22) and the wheels/flaps position indicator (14); LEFT KNEE panel the engine instruments (15-21: RPM,
+TIT, fuel flow, nozzle, oil); RIGHT instrument panel wing sweep (40), accelerometer (42), standby attitude (43), clock
+(45); RIGHT KNEE fuel quantity (48); centre VDI (33) over HSD (34); arresting hook handle on the right (51), gear handle
+on the left (13). Before, the engine gauges sat on the right and the flight instruments were swapped side to side. Not
+yet modelled from fig. 1-3: radar altimeter (23), BDHI (46), UHF remote (47), LOX and cabin altitude (49, 50), the
+control-surface position indicator (12); master arm / weapon select sit on the right panel (fig. 1-3 has them on the
+ACM panel, 32). The RIO's panel (fig. 1-4) keeps its earlier layout (open item). Evidence:
+`evidence/look-tomcat/cockpit-pilot-natops-layout.png`. The interior (all interactive) is moved into the drawn airframe: the interior is offset by TCAT.COCKPIT_OFFSET
 (0, -0.66, -1.42) so the eyes sit 0.30 m above the drawn canopy sill (pilot z -6.87, RIO -5.64); the windscreen,
 canopy, bows and sills seen from inside are now the same drawn lofts as the exterior; the fuselage loft has the cockpit
-opening cut out. Clean views from both seats: `tools/runs/*tlook-after*/08-10`. Labels and positions per NATOPS: not
-verifiable without the manual (open item).
+opening cut out. Clean views from both seats: `tools/runs/*tlook-after*/08-10`. 
 
 ## 8. LODs and budgets
 
@@ -170,8 +179,9 @@ LOD 1/2 thin the fuselage, canopy and nacelle lofts and hide ~25 small parts; th
 
 ## 10. Open items
 
-- NATOPS / maintenance manuals (panel lines, fasteners, access doors, cockpit figures): request a scan or the user's
-  own copy; then the panel and fastener rows and the cockpit check.
+- The -2 maintenance manuals (access-panel diagrams) for the panel / fastener rows; failing that, photo-derived panels
+  from PD walkaround close-ups (not done in this pass).
+- RIO panel per NATOPS fig. 1-4; the pilot's missing items listed in 7.
 - LOD 2 airfoil reduction; adopt renderkit/lod.js when ngc/perf-render lands.
 - HOOK_TIP vs the drawn hook (0.88 m).
 - The Hornet's blob shadow square (jetplay.js) is the same G1 glitch.

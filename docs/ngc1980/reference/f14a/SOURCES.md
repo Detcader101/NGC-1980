@@ -24,7 +24,18 @@ Photos (public domain, U.S. Navy; Wikimedia Commons). Not committed (large); URL
 | F-14A of VF-142 on the catapult, USS Eisenhower, 6 July 1980 (PH1 Dave McLean) | https://commons.wikimedia.org/wiki/File:F-14A_VF-142_on_cat_USS_Eisenhower_(CVN-69)_1980.JPEG | 1980 deck configuration on the catapult: launch bar, gear, flaps, wings forward |
 | Public-domain line three-view (low resolution, 574 x 385) | https://commons.wikimedia.org/wiki/File:Grumman_F-14_Tomcat.png | cross-check only |
 
-Not available (searched, 2026-10-28): NAVAIR 01-F14AAA-1 (the F-14A NATOPS) has no public scan on archive.org or DTIC;
-the NASM holds a paper copy (1 January 1986 edition, SOVA NASM.2018.0021). Its principal-dimensions figure and cockpit
-figures are therefore NOT used; the cockpit keeps the earlier layout (see findings). Copyrighted drawings (the-blueprints
-.com, scale-model plans) were not used.
+NATOPS: NAVAIR 01-F14A-1, "Preliminary Flight Manual F-14", 1 June 1972 (Grumman for NAVAIR), scanned on archive.org:
+https://archive.org/details/navair-01-f-14-a-1-natops-flight-manual-f-14-a . US government work. Distribution / marking:
+the cover is CONFIDENTIAL "Group 4, downgraded at 3-year intervals, declassified after 12 years" (so declassified since
+1984); the figures used are themselves marked UNCLASSIFIED / (U). The later NAVAIR 01-F14AAA-1 editions (1977-1980) were
+not found in public scans; the 1972 preliminary is the earliest F-14A manual and its figures match the 1980 airframe
+in everything cross-checked (dimensions, panel arrangement).
+
+| File | What it shows |
+|---|---|
+| `natops-01-f14a-1-1972-fig1-1-dimensions.png` | fig. 1-1 aircraft dimensions: span 64 ft 1.5 in, 68 deg 38 ft 1.9 in, oversweep 32 ft 8.5 in, stabilator 33 ft 3.5 in, length 61 ft 11.9 in, height 16 ft, track 16 ft 5 in, fin tips 10 ft 8 in |
+| `natops-01-f14a-1-1972-fig1-3-pilot-panel.png` | fig. 1-3 pilot's instrument panel and consoles (62 numbered items) |
+| `natops-01-f14a-1-1972-fig1-4-rio-panel.png` | fig. 1-4 NFO's (RIO's) instrument panel and consoles |
+
+Still not available: the -2 maintenance manuals (access-panel diagrams). Copyrighted drawings (the-blueprints.com,
+scale-model plans) were not used.
