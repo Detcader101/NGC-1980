@@ -206,7 +206,7 @@ const sc = faceCols.filter(c => c.x >= -0.5 && c.x <= 0.49);   // the glare shie
     cdi2: [-0.71, -0.125, 0.095], clk2: [-0.40, -0.125, 0.075],
   };
   if (HF) {   // fig. 2-4 item numbers in the comments
-    for (const it of PT.items) if (it.id && GL[it.id]) GL[it.id] = [it.x / 1000, it.y / 1000, Math.min(it.w, it.h) / 1000 * 0.94];   // the face inside the traced bezel ring
+    for (const it of PT.items) if (it.id && GL[it.id]) GL[it.id] = [it.x / 1000, it.y / 1000, Math.min(it.w, it.h) / 1000 - 0.012];   // the dial inside a 6 mm bezel: bezel outer = the traced ring
     for (const k of ['ts2', 'cdi2', 'clk2']) delete GL[k];
     // the panel face: the traced outline with a bezel hole per instrument (round; the turn and slip square), extruded
     const sh = new THREE.Shape(PANEL_OUT.map(([x, y]) => new THREE.Vector2(x, y)));
@@ -252,7 +252,7 @@ const sc = faceCols.filter(c => c.x >= -0.5 && c.x <= 0.49);   // the glare shie
     o.position.set(x, y, HF ? -0.012 : 0.004); P.add(o);   // hi-fi: recessed in its hole, behind the bezel
     if (HF) {   // a bezel: a short tube round the hole (square for the turn and slip), with a glass cover catching light
       if (sq) { for (const [w, h, dx, dy] of [[d + 0.014, 0.007, 0, d / 2 + 0.0035], [d + 0.014, 0.007, 0, -d / 2 - 0.0035], [0.007, d, d / 2 + 0.0035, 0], [0.007, d, -d / 2 - 0.0035, 0]]) box(w, h, 0.02, ringM, x + dx, y + dy, -0.004, P); }
-      else { const bz = new THREE.Mesh(new THREE.LatheGeometry([new THREE.Vector2(d / 2 + 0.004, -0.016), new THREE.Vector2(d / 2 + 0.004, 0.002), new THREE.Vector2(d / 2 + 0.008, 0.006), new THREE.Vector2(d / 2 + 0.003, 0.007)], 36).rotateX(Math.PI / 2), ringM); bz.position.set(x, y, 0); P.add(bz); }
+      else { const bz = new THREE.Mesh(new THREE.LatheGeometry([new THREE.Vector2(d / 2 + 0.004, -0.016), new THREE.Vector2(d / 2 + 0.004, 0.002), new THREE.Vector2(d / 2 + 0.006, 0.005), new THREE.Vector2(d / 2 + 0.002, 0.007)], 36).rotateX(Math.PI / 2), ringM); bz.position.set(x, y, 0); P.add(bz); }
       const gl = new THREE.Mesh(sq ? new THREE.PlaneGeometry(d, d) : new THREE.CircleGeometry(d / 2 + 0.003, 36), new THREE.MeshBasicMaterial({ color: 0x9fb4c0, transparent: true, opacity: 0.07, depthWrite: false })); gl.position.set(x, y, 0.004); gl.renderOrder = 4; P.add(gl);
     } else { const ring = new THREE.Mesh(new THREE.RingGeometry(d / 2, d / 2 + 0.007, 36), ringM); ring.position.set(x, y, 0.006); P.add(ring); }
     let bg = null; if (face) { bg = document.createElement('canvas'); bg.width = bg.height = size; face(bg.getContext('2d'), size); }
