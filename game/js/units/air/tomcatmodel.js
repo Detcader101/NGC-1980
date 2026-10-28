@@ -1,11 +1,12 @@
-// F-14A TOMCAT exterior model, rebuilt from the drawings (ngc/look-tomcat): one real configuration, VF-111 "Sundowners"
-// F-14A, USS Kitty Hawk / CVW-15 (tail code NL), as the squadron flew it in 1980 (docs/ngc1980/findings/look-tomcat.md,
-// configuration table by FS / WL / BL). Shape: lofted from the traced NASA TP-2769 / TM-83250 / CR-163098 three-views
+// F-14A TOMCAT exterior model, rebuilt from the drawings (ngc/look-tomcat): one real configuration, the F-14A-95-GR
+// BuNo 160382 of VF-84 "Jolly Rogers", CVW-8, USS Nimitz, as photographed escorting a Tu-95 in September 1980 (U.S. Navy
+// photo USN 1179034, public domain; docs/ngc1980/findings/look-tomcat.md has the configuration table by FS / WL / BL). Shape: lofted from the traced NASA TP-2769 / TM-83250 / CR-163098 three-views
 // (public domain, docs/ngc1980/reference/f14a); every station in tomcatgeo.js. Fit to the drawing: tools/blueprint/f14a.
 // Everything that moves is driven by the sim (tomcatfm.js) through animate(A): swing wings on the real pivot (BL 107),
 // glove vanes, slats, flaps, spoilers, differential stabilators on their 9.5 deg swept pivots, rudders, speedbrakes,
 // gear (nose with launch bar), hook, canopy, TF30 nozzles and afterburner, lights, the missiles on their stations.
-// Paint: 1980 gloss light gull grey FS 16440 over gloss insignia white FS 17875, full-colour markings.
+// Paint: overall gloss light gull grey FS 16440 (the 1977 change from gull grey over white), VF-84 markings: black fins
+// with the white skull and crossbones, yellow fin caps, tail code AJ, modex 2xx, full-colour national insignia.
 // Local frame: +x right, +y up, nose along -z, origin at the sim's CG (= the drawings' moment reference, FS 92.933 cm
 // model); ground under the static jet at y -2.37. LODs: setLod(0 | 1 | 2) or automatic by camera distance.
 import * as THREE from 'three';
@@ -22,19 +23,20 @@ export const TCAT = {
 };
 const LOD_D = [70, 260];   // m: full detail inside 70 m, medium to 260 m, silhouette beyond (ngc/perf-render budgets: see findings)
 
-// squadron art for the outer face of each fin: VF-111 "Sundowners" (1980: the red-and-white sunburst on the fin, tail
-// code NL of CVW-15, modex 2xx, NAVY), the sharkmouth was not yet worn in 1980 (it came with the 1981 cruise)
+// the squadron art on the outer face of each (black) fin: VF-84's white skull and crossbones, the AJ tail code of CVW-8 near
+// the top (as on BuNo 160382 in September 1980); transparent elsewhere, so the fin's black paint shows round it
 function tailArt(modex) {
-  return canvasTex('tcatTailNL' + modex, 256, 256, (x, w, h) => {
-    x.clearRect(0, 0, w, h);
-    // the sundown: red sun rays sweeping up the fin from the trailing edge, the setting sun at the root
-    x.save(); x.translate(w * 0.86, h * 0.98);
-    for (let k = 0; k < 9; k++) { const a0 = Math.PI + 0.10 + k * 0.17, a1 = a0 + 0.085; x.fillStyle = '#c4161c'; x.beginPath(); x.moveTo(0, 0); x.arc(0, 0, w * 1.15, a0, a1); x.closePath(); x.fill(); }
-    x.fillStyle = '#e8a10f'; x.beginPath(); x.arc(0, 0, w * 0.2, Math.PI, Math.PI * 2); x.fill(); x.restore();
-    x.fillStyle = '#16191c'; x.font = 'bold 64px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.fillText('NL', w * 0.42, h * 0.22);
-    x.font = 'bold 26px sans-serif'; x.fillText(String(modex), w * 0.36, h * 0.40);
-    x.font = 'bold 18px sans-serif'; x.fillText('NAVY', w * 0.30, h * 0.52);
+  return canvasTex('tcatTailAJ' + modex, 256, 256, (x, w, h) => {
+    x.clearRect(0, 0, w, h); x.fillStyle = '#f2f2ee'; x.strokeStyle = '#f2f2ee';
+    const cx = w * 0.56, cy = h * 0.60, r = w * 0.13;
+    x.lineCap = 'round'; x.lineWidth = w * 0.06;   // the crossbones
+    for (const d of [-1, 1]) { x.beginPath(); x.moveTo(cx - r * 2.0, cy + d * r * 1.7); x.lineTo(cx + r * 2.0, cy - d * r * 1.7 + r * 0.2); x.stroke(); for (const e of [-1, 1]) { x.beginPath(); x.arc(cx + e * r * 2.05, cy + (e === -1 ? d : -d) * r * 1.72, w * 0.035, 0, Math.PI * 2); x.fill(); } }
+    x.beginPath(); x.arc(cx, cy - r * 0.15, r, 0, Math.PI * 2); x.fill(); x.fillRect(cx - r * 0.55, cy + r * 0.5, r * 1.1, r * 0.55);   // the skull, the jaw
+    x.fillStyle = '#121314'; for (const e of [-1, 1]) { x.beginPath(); x.ellipse(cx + e * r * 0.4, cy - r * 0.2, r * 0.27, r * 0.32, 0, 0, Math.PI * 2); x.fill(); }
+    x.beginPath(); x.moveTo(cx, cy + r * 0.05); x.lineTo(cx - r * 0.12, cy + r * 0.32); x.lineTo(cx + r * 0.12, cy + r * 0.32); x.fill();
+    for (let k = -2; k <= 2; k++) x.fillRect(cx + k * r * 0.22 - 1, cy + r * 0.62, 2, r * 0.4);
+    x.fillStyle = '#f2f2ee'; x.font = 'bold 50px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText('AJ', w * 0.70, h * 0.17);
   });
 }
 function noseNumber(modex) {
@@ -45,15 +47,18 @@ function stencil(key, text, px = 30, col = '#1b1e22') {
 }
 const starTex = () => canvasTex('starbar', 256, 128, (x, w, h) => { x.clearRect(0, 0, w, h); drawStarBar(x, w, h); });
 // geometry shared by every Tomcat (the player's and the AI's): built once per LOD
+// RenderKit surface detail WITHOUT the generic procedural panel grid (panel 0): a square grid is a look-alike tell. Panel
+// lines and doors are only the ones the drawings locate (configuration table, findings/look-tomcat.md)
+const AIRD = { dust: 0.08, wear: 0.06, scale: 1.6, dustColor: 0x8f8a7c, bareColor: 0x9a9ea0, panel: 0, streak: 0.14, streakColor: 0x34302a };
 const GEO = new Map();
 const geo = (key, make) => { if (!GEO.has(key)) GEO.set(key, make()); return GEO.get(key); };
 
 export function buildTomcatModel(side = 1, { modex = 201 } = {}) {
   const g = new THREE.Group(); g.name = 'tomcat';
   const S0 = { flatShading: false };
-  const greyM = M(0xa9afb4, { ...S0, rk: { detail: true } }), whiteM = M(0xe4e6e3, { ...S0, rk: { detail: true } }), radomeM = M(0xc8c4b4, { ...S0, rk: 'flat' }), darkM = M(0x25282b, S0), blackM = M(0x0c0d0e, { shininess: 5, rk: 'dark' });
+  const greyM = M(0xa9afb4, { ...S0, rk: { detail: AIRD } }), whiteM = M(0xa4aaaf, { ...S0, rk: { detail: AIRD } }),   /* undersides: overall gull grey in 1980 (a shade lighter in shadow-side light) */ radomeM = M(0x9fa5aa, { ...S0, rk: 'flat' }), darkM = M(0x25282b, S0), blackM = M(0x0c0d0e, { shininess: 5, rk: 'dark' });
   const metalM = M(0x4c5055, { shininess: 50 }), gearM = M(0xe2e4e2), tyreM = M(0x1b1b1b, { shininess: 4, rk: 'rubber' }), walkM = M(0x6d7277, { rk: 'flat' });
-  const sqM = M(0xc4161c, S0), glassM = glass(() => new THREE.MeshPhongMaterial({ color: 0x9fc6d8, specular: 0xffffff, shininess: 90, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }), { color: 0x8fb2c4, opacity: 0.24 });
+  const finM = M(0x16181a, { ...S0, rk: { detail: AIRD } }), capM = M(0xe8b81a, S0), glassM = glass(() => new THREE.MeshPhongMaterial({ color: 0x9fc6d8, specular: 0xffffff, shininess: 90, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }), { color: 0x8fb2c4, opacity: 0.24 });
   const frameM = M(0x3a3e42), crewM = M(0x4d5a3c, { rk: 'fabric' }), helmM = M(0xeceee8), visorM = M(0x1d2a33, { shininess: 90, rk: 'lamp' }), seatM = M(0x2c2f31, { rk: 'fabric' });
   const ductM = M(0x1a1c1e, { side: THREE.BackSide, rk: 'dark' }), linerM = M(0x2a2c2e, { side: THREE.DoubleSide, shininess: 30 });
   const detail = [];            // small parts hidden past LOD 0
@@ -85,6 +90,8 @@ export function buildTomcatModel(side = 1, { modex = 201 } = {}) {
     vanes.push({ g: vp, s });
     det(mesh(new THREE.CylinderGeometry(0.30, 0.34, 0.04, 16).translate(s * P0[0], GLOVE.y + GLOVE.t(P0[0]) / 2 - 0.005, P0[2]), M(0x9ea4a9, S0), g, 'pivotCap'));
   }
+  // the inlet bleed doors (two, side by side) on top of each intake duct behind the glove leading edge (TP-2769 fig. 2a top view, 'Inlet bleed': FS 83.3-89.7 cm, BL 6.3-11.1 cm model)
+  for (const s of [-1, 1]) for (const k of [0, 1]) det(mesh(boxG(0.27, 0.006, 0.74, s * (0.89 + k * 0.30), 0.078, -1.39), M(0x8c9297, S0), g, 'bleedDoor'));
   // ---- the deck between the nacelles aft of the gloves (fins, stabilator roots) and the beaver tail between the nozzles
   const deckGeo = () => outward(airfoilGeo({ u0: -1.95, u1: 1.95, nu: 20, nc: 14, LE: u => 1.2 + Math.abs(u) * 0.2, TE: u => pl2(Math.abs(u)), tc: u => (0.32 - 0.08 * Math.abs(u) / 1.95) / (pl2(Math.abs(u)) - 1.2 - Math.abs(u) * 0.2), map: (u, z, h) => [u, -0.17 + h + 0.05 * (1 - (z - 1.2) / 5), z], cap0: true, cap1: true }));
   const pl2 = a => a < 0.62 ? 5.9 : a < 1.2 ? 5.9 - (a - 0.62) * 0.4 : 5.67 - (a - 1.2) * 1.2;
@@ -123,10 +130,11 @@ export function buildTomcatModel(side = 1, { modex = 201 } = {}) {
     const map = (h, z, w) => [s * (VT.x + h * Math.sin(VT.cant) + w * Math.cos(VT.cant)), VT.y + h * Math.cos(VT.cant) - w * Math.sin(VT.cant), z], mapS = map;   // h up the canted fin, w outward
     const tipLE = h => vLE(h) + 0.5 * VT.tipC * Math.max(0, (h - (VT.h - 0.35)) / 0.35) ** 2;   // the rounded tip leading edge
     const fin = (u0, u1, TE) => outward(airfoilGeo({ u0, u1, nu: Math.max(2, Math.round((u1 - u0) * 6)), nc: 14, LE: tipLE, TE, tc: () => VT.tc, map: mapS, cap0: true, cap1: true }));
-    mesh(geo('fin' + s, () => merge([fin(0, R0, vTE), fin(R0, R1, vHinge), fin(R1, VT.h, vTE)])), greyM, g, 'fin' + S);
+    mesh(geo('fin' + s, () => merge([fin(0, R0, vTE), fin(R0, R1, vHinge), fin(R1, VT.h - 0.30, vTE)])), finM, g, 'fin' + S);
+    mesh(geo('finCap' + s, () => fin(VT.h - 0.30, VT.h, vTE)), capM, g, 'finCap' + S);   // VF-84's yellow fin cap
     const rg = outward(airfoilGeo({ u0: R0, u1: R1, nu: 8, nc: 8, LE: vHinge, TE: vTE, tc: h => VT.tc * 0.6 * (vTE(h) - vLE(h)) / (vTE(h) - vHinge(h)), map: mapS, cap0: true, cap1: true }));
     const a = V(...mapS(R0, vHinge(R0), 0)), b = V(...mapS(R1, vHinge(R1), 0));
-    surf['rud' + S] = hinged(g, rg, greyM, a, b, 'rudder' + S);
+    surf['rud' + S] = hinged(g, rg, finM, a, b, 'rudder' + S);
     // squadron art on the outer face (texture u runs nose-ward as seen from outside, v up the fin)
     const art = decal(tailArt(modex), 2.5, 2.5, g, 'tailArt' + S);
     art.position.copy(V(...map(1.30, 5.80, 0.07)));
@@ -211,11 +219,11 @@ export function buildTomcatModel(side = 1, { modex = 201 } = {}) {
   mesh(boxG(0.95, 0.08, 0.5, 0, sill(-7.4) + 0.06, -7.35), darkM, g, 'glareshield');
   mesh(boxG(0.85, 0.32, 0.12, 0, TCAT.EYE_RIO[1] - 0.35, -6.0), darkM, g, 'rioPanel');
 
-  // ---- markings: modex on the nose, NAVY and the national insignia on the intakes, VF-111 on the nose
+  // ---- markings (USN 1179034): modex on the nose, the national insignia on the intake under the canopy, NAVY on the nacelle aft
   for (const s of [-1, 1]) {
     const zM = -8.9, d = decal(noseNumber(modex), 0.66, 0.33, g, 'modex'); d.position.set(s * (fuseW(zM) + 0.012), -0.42, zM); d.rotation.y = s * (Math.PI / 2 - 0.08);
     const zI = -3.2, N = nacelleAt(zI), st = decal(starTex(), 1.25, 0.62, g, 'insignia'); st.position.set(s * (N.cx + N.a + 0.012), (N.top + N.bot) / 2 + 0.05, zI); st.rotation.y = s * Math.PI / 2;
-    const zN = -1.3, N2 = nacelleAt(zN), nv = decal(stencil('navy', 'NAVY', 40), 1.1, 0.28, g, 'navy'); nv.position.set(s * (N2.cx + N2.a + 0.012), N2.bot + 0.42, zN); nv.rotation.y = s * Math.PI / 2;
+    const zN = 3.3, N2 = nacelleAt(zN), nv = decal(stencil('navy', 'NAVY', 40), 1.1, 0.28, g, 'navy'); nv.position.set(s * (N2.cx + N2.a + 0.012), N2.bot + 0.55, zN); nv.rotation.y = s * Math.PI / 2;
     const zR = -6.3, rs = decal(stencil('rescue', 'RESCUE', 22, '#c8361c'), 0.5, 0.12, g, 'rescue'); rs.position.set(s * (fuseW(zR) + 0.01), sill(zR) - 0.25, zR); rs.rotation.y = s * Math.PI / 2;
     det(mesh(boxG(0.45, 0.004, 1.3, s * 1.45, GLOVE.y + GLOVE.t(1.45) / 2 + 0.002, -2.4), walkM, g, 'walkway'));
   }
