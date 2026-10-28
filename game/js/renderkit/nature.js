@@ -324,6 +324,33 @@ export function createNatureShared(tierName = natureTierName()) {
 // as they stream). Each tree: x y z scale yaw tiltX tiltZ seed + a colour + a species. Every frame the camera moved more
 // than a few metres, the detail and mid sets are refilled from the trees in reach (nearest chunks' bounding boxes first:
 // a few thousand trees, ~0.2-0.5 ms). The zone also gets a static far set (the jet sees the whole zone).
+// ------------------------------------------------------------------------------------------------- the view cone
+// (ngc/look-nature) The instanced sets are drawn without frustum culling (one draw per set), so before this every tree and
+// tuft round the eye went through the vertex stage, behind the player too: at the HQ ~60 % of nature's draw cost, and the
+// reason foot.mjs's game-time waits ran out under SwiftShader. Each refill now keeps what lies in a cone round the view
+// (the half-diagonal field of view + CONE_MARGIN), as spheres (a tree with its shadow, a clutter cell); a turn of more
+// than CONE_TURN refills. The host gives the eye { position, dir, tanD } (tanD 0 / missing: no cone, the whole ring).
+export const CONE_MARGIN = 0.4, CONE_TURN = 0.16;
+function viewCone(cam) {
+  if (!cam.tanD || !cam.dir) return null;
+  const a = Math.atan(cam.tanD) + CONE_MARGIN; if (a >= Math.PI * 0.98) return null;
+  return { x: cam.position.x, y: cam.position.y, z: cam.position.z, dx: cam.dir.x, dy: cam.dir.y, dz: cam.dir.z, a };
+}
+function inCone(C, x, y, z, r) {
+  if (!C) return true;
+  const vx = x - C.x, vy = y - C.y, vz = z - C.z, d2 = vx * vx + vy * vy + vz * vz;
+  if (d2 <= r * r) return true;
+  const d = Math.sqrt(d2), b = C.a + Math.asin(r / d);
+  return b >= Math.PI || (vx * C.dx + vy * C.dy + vz * C.dz) / d >= Math.cos(b);
+}
+// has the view turned (or zoomed) enough since the last refill that the cone needs refilling?
+function coneMoved(cam, last) {
+  if (!cam.dir || !cam.tanD) return false;
+  const moved = last.tanD === undefined || cam.dir.x * last.x + cam.dir.y * last.y + cam.dir.z * last.z < Math.cos(CONE_TURN) || Math.abs(Math.atan(cam.tanD) - Math.atan(last.tanD)) > CONE_TURN * 0.5;
+  return moved;
+}
+const coneMark = (cam, last) => { if (cam.dir) { last.x = cam.dir.x; last.y = cam.dir.y; last.z = cam.dir.z; last.tanD = cam.tanD; } };
+
 export function createForest({ scene, fog = null, uTime = null, shared }) {
   const K = [FIR, PINE, BROAD, SCRUB];
   const root = new THREE.Group(); root.name = 'rk-nature-forest'; scene.add(root);
@@ -338,7 +365,7 @@ export function createForest({ scene, fog = null, uTime = null, shared }) {
     }
   }
   const sources = new Map();
-  let dirty = true, farDirty = true, lastReach = 0; const last = new THREE.Vector3(1e9, 0, 0);
+  let dirty = true, farDirty = true, lastReach = 0; const last = new THREE.Vector3(1e9, 0, 0), lastDir = {};
   const stats = { trees: 0, detail: 0, mid: 0, far: 0, ms: 0, rebuilds: 0, tris: 0 };
   // trees: Float32Array x y z s per tree (+ optional kinds Uint8Array, seeds), far: draw past the near radius too (zone)
   function add(id, d, kinds, { far = false } = {}) {
@@ -365,7 +392,7 @@ export function createForest({ scene, fog = null, uTime = null, shared }) {
     const s = sources.get(id); if (!s) return; const l = Math.hypot(dx, dz) || 1;
     s.d[i * 8 + 5] = dz / l * 1.35; s.d[i * 8 + 6] = -dx / l * 1.35; dirty = true; if (s.far) farDirty = true;
   }
-  function rebuild(cx, cy, cz, reach) {
+  function rebuild(cx, cy, cz, reach, C) {
     const t0 = performance.now(), T = shared.tier, dOut = T.detailR + T.band + 12, mOut = Math.min(LOD.near + LOD.blend, reach) + 12, mIn = T.detailR - T.band - 12;
     const M = T.liteMid ? sets.lite : sets.mid;   // the mid trees: icosahedron clumps, or octahedra on the low tier
     for (const k of K) { sets.detail[k].begin(); sets.mid[k].begin(); sets.lite[k].begin(); }
@@ -377,6 +404,7 @@ export function createForest({ scene, fog = null, uTime = null, shared }) {
       for (let i = 0; i < s.n; i++) {
         const dx = D[i * 8] - cx, dy = D[i * 8 + 1] - cy, dz = D[i * 8 + 2] - cz, dd = dx * dx + dy * dy + dz * dz;
         if (dd > mOut * mOut) continue;
+        const sc = D[i * 8 + 3]; if (!inCone(C, D[i * 8], D[i * 8 + 1] + 2.5 * sc, D[i * 8 + 2], 7 * sc + 3)) continue;   // (the crown and its shadow)
         const k = s.k[i];
         if (dd < dOut * dOut) { sets.detail[k].push(s, i); nd++; }
         if (dd > mIn * mIn || mIn < 0) { M[k].push(s, i); nm++; }
@@ -384,10 +412,15 @@ export function createForest({ scene, fog = null, uTime = null, shared }) {
     }
     let tris = 0;
     for (const k of K) { sets.detail[k].end(); sets.mid[k].end(); sets.lite[k].end(); tris += sets.detail[k].n * sets.detail[k].tris + M[k].n * M[k].tris; }
-    if (farDirty) {
-      farDirty = false;
+    {   // the zone's far set: only past the near band (inside it the far material discards every pixel) and in the cone
+      farDirty = false; const fIn = Math.max(0, LOD.near - LOD.blend - 12);
       for (const k of K) sets.far[k].begin();
-      for (const s of sources.values()) if (s.far) for (let i = 0; i < s.n; i++) if (s.k[i] !== SCRUB) sets.far[s.k[i]].push(s, i);
+      for (const s of sources.values()) if (s.far) for (let i = 0; i < s.n; i++) {
+        if (s.k[i] === SCRUB) continue;
+        const D = s.d, dx = D[i * 8] - cx, dy = D[i * 8 + 1] - cy, dz = D[i * 8 + 2] - cz, sc = D[i * 8 + 3];
+        if (dx * dx + dy * dy + dz * dz < fIn * fIn || !inCone(C, D[i * 8], D[i * 8 + 1] + 2.5 * sc, D[i * 8 + 2], 4 * sc + 2)) continue;
+        sets.far[s.k[i]].push(s, i);
+      }
       for (const k of K) sets.far[k].end();
     }
     for (const k of K) tris += sets.far[k].n * sets.far[k].tris;
@@ -399,7 +432,7 @@ export function createForest({ scene, fog = null, uTime = null, shared }) {
     // the mid set reaches the world near radius or the far clip, whichever is nearer (on foot the haze ends at ~265 m);
     // the zone's far set exists only for views that reach past the near band (the jet)
     const reach = cam.far || 1e4, farOn = reach > LOD.near - LOD.blend;
-    if (dirty || p.distanceToSquared(last) > 36 || Math.abs(reach - lastReach) > 40) { dirty = false; last.copy(p); lastReach = reach; rebuild(p.x, p.y, p.z, reach); }
+    if (dirty || p.distanceToSquared(last) > 36 || Math.abs(reach - lastReach) > 40 || coneMoved(cam, lastDir)) { dirty = false; last.copy(p); lastReach = reach; coneMark(cam, lastDir); rebuild(p.x, p.y, p.z, reach, viewCone(cam)); }
     for (const k of K) sets.far[k].mesh.visible = farOn && sets.far[k].n > 0;
     stats.farOn = farOn;
   }
@@ -439,7 +472,7 @@ export function createClutter({ scene, fog = null, uTime = null, shared, sample 
   const sets = {}; for (const t of types) { sets[t] = instanced(geo[t], mats[t], t === 'tuft' ? 20000 : 3000, depthMaterial(shared, 'clutter')); root.add(sets[t].mesh); sets[t].mesh.userData.rkShadow = t === 'rock' || t === 'bush' ? 'both' : 'receive'; }   // (grass and stones do not cast: 15k tiny casters)
   const cells = new Map(), key = (i, j) => i * 65536 + j, ringCache = [];
   const stats = { cells: 0, tuft: 0, bush: 0, rock: 0, stone: 0, genMs: 0, ms: 0, tris: 0 };
-  let lastI = 1e9, lastJ = 1e9, lastY = 1e9, dirty = true;
+  let lastI = 1e9, lastJ = 1e9, lastY = 1e9, dirty = true; const lastDir = {};
   const STONE = lin(0x9a968c), STRAW = [1.35, 1.12, 0.5];   // STRAW: a tint on the grass colour (dry summer tufts, marram on the dunes)
   // one cell: everything that grows in it (whatever the tier: the tier picks by rank at assembly)
   function gen(ci, cj) {
@@ -465,14 +498,18 @@ export function createClutter({ scene, fog = null, uTime = null, shared, sample 
         put('bush', x, q.y - 0.1, z, 0.55 + w * 0.8, h(k, 8), [1.2 + w * 0.25, 1.25 + h(k, 9) * 0.15, 1.05], 0.08);
       }
     }
-    const c = { y: 0 }; for (const t of types) c[t] = new Float32Array(out[t]); return c;
+    // the cell's height span (the cone test treats a cell as a sphere round its middle)
+    let y0 = Infinity, y1 = -Infinity; for (const t of types) for (let o = 1; o < out[t].length; o += 11) { y0 = Math.min(y0, out[t][o]); y1 = Math.max(y1, out[t][o]); }
+    const c = { y: y0 <= y1 ? (y0 + y1) / 2 : 0, dy: y0 <= y1 ? (y1 - y0) / 2 : 0 }; for (const t of types) c[t] = new Float32Array(out[t]); return c;
   }
   // the set is refilled when the camera crosses a cell or climbs/descends a few metres (the ring is 3D: from 200 m up there
   // is nothing in reach, and nothing is drawn)
   function update(cam) {
     const t0 = performance.now(), T = shared.tier, R = T.clutterR, p = cam.position;
     const ci = Math.floor(p.x / CELL), cj = Math.floor(p.z / CELL), yq = Math.round(p.y / 4);
-    if (!dirty && ci === lastI && cj === lastJ && yq === lastY) { stats.ms = 0; return; }
+    const turned = coneMoved(cam, lastDir);
+    if (!dirty && !turned && ci === lastI && cj === lastJ && yq === lastY) { stats.ms = 0; return; }
+    coneMark(cam, lastDir); const C = viewCone(cam);
     const ground = sample(p.x, p.z), above = Math.max(0, p.y - (ground ? ground.y : 0));
     const reach = above < R ? Math.sqrt(R * R - above * above) : 0, n = Math.ceil(reach / CELL) + 1;
     let gen0 = performance.now(), genBudget = 0;
@@ -486,7 +523,8 @@ export function createClutter({ scene, fog = null, uTime = null, shared, sample 
       if (x * x + z * z > (reach + CELL) * (reach + CELL)) continue;
       let c = cells.get(key(i, j));
       if (!c) { if (genBudget > 6) { complete = false; continue; } const g0 = performance.now(); c = gen(i, j); cells.set(key(i, j), c); genBudget += performance.now() - g0; }
-      c.used = true;
+      c.used = true;   // (cells out of the cone are generated too, nearest first, so a turn finds them ready)
+      if (!inCone(C, (i + 0.5) * CELL, c.y, (j + 0.5) * CELL, CELL * 0.71 + 2.5 + c.dy)) continue;
       for (const t of types) { const a = c[t], d = dens[t]; for (let o = 0; o < a.length; o += 11) if (fract(a[o + 7] * 7.31) < d) pushRaw(sets[t], a, o); }
     }
     for (const t of types) { sets[t].end(); stats[t] = sets[t].n; }
