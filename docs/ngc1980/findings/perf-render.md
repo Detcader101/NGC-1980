@@ -231,9 +231,13 @@ repeated fortification pieces in the buildings rewrite; (3) impostor cards for f
 * **Same failures on the base build under the same load** (they are timeouts, not regressions):
   - `armorgame` fails the same 7 waypoint / delivery expects on 36eb21b;
   - `jet.mjs` fails the same 4 catapult / climb expects on ae0cacc;
-  - `wheeledgame` fails its ford / commandeer / deck expects on ae0cacc too (8 there, 4+ here);
-  - `worldvisibility` (a 2000 m flight wait) and `underwater` (its frame-interval benchmark) time out here under this
-    load. Rerun them when the PC is quiet.
+  - `wheeledgame` is 17/28 on ae0cacc and 16/28 here, plus the merge expect, which passes. The same village / ford /
+    commandeer / deck / M35 timeouts fail in both. The one extra here is "keyboard steering narrowed at speed", which
+    depends on the speed reached in a fixed wall time. No merged part moved over the whole drive.
+  - `worldvisibility` 17/18: the 2000 m flight wait times out, and does the same on ae0cacc (17/18).
+  - `underwater`: its frame-interval benchmark crashes ("111/120 rendered intervals"), and ae0cacc's run also ends
+    with a page error.
+  - Rerun all of these when the PC is quiet.
 * The `?bench` area pass (reload per RenderKit area): the bench's own reload works (seen in the harness log, URL
   `...&rk=surface,world,fx,ui,figures,sky,light,nature&benchrun=...`). The headless harness crashed on the navigation
   (fixed in e71a3c6), and the rerun timed out loading the page at load 100. **Not yet verified end to end:** run
