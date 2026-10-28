@@ -131,3 +131,24 @@ home pad and the final take-off). Under load the RenderKit build as a whole is t
 Nature adds the HQ-area steps, where its draw cost is highest.
 **Action**: nothing more in the game (nature's draw at the HQ is below the depth-nature build's: 1378 -> 566 kt). The suite needs a quiet machine,
 or game-time waits in the harness (a test-tool change, not made here: the brief said not to weaken the test).
+
+## 2026-10-28 - Merge of ngc/shader-library (look-people, perf-cpu, typecheck) and the final checks
+**Finding**: the merge conflicted only in MODLOG.md (both sides kept). `check.mjs types` showed 4 new errors in
+nature.js (`side` inferred as the literal FrontSide); a JSDoc type on `natureMaterial` fixed them: 606 errors, baseline
+608.
+**Evidence** (merged build c1a2af7, SwiftShader, load 75-110 on 32 cores from other agents' runs):
+- `check.mjs syntax` 558/558.
+- smoke 5/5, worldvisibility 17/17, depthsky 14/14, depthnature high 9/9 and low 9/9, looknature 4/4 (merged
+  views) and 11/11 (full set, before the merge).
+- **xr 17/19**: "sky dome follows the rendered eye" and "near terrain window follows the world rig" fail. The same two
+  fail on ngc/shader-library ae0cacc itself (17/19, same load), so they came in with the merged branches; nature is
+  not involved. xr was 19/19 twice on this branch before the merge.
+- **foot.mjs 9/17** (carrier turn, both ladders, deck height, pad walk, take-off). The base ae0cacc under the same load
+  scored 9/19, failing more steps (it also missed the deck walk, the island roof and the Huey door hint). `?rk=0` 12/12
+  at load ~85. This branch passed 12/12 at moderate load after the view cone (8148fcc).
+**OPEN**:
+- foot.mjs needs a quiet machine, or game-time waits in the harness (the real-time waits stretch with the frame
+  rate because of the 0.1 s dt clamp).
+- The xr sky dome / terrain window expects on shader-library (owner: whoever merged the XR or perf changes).
+- Real-GPU frame times for the leaf cards (alpha-to-coverage, overdraw of a close crown), desktop and Quest.
+- Felled zone trees still sway; the zone's far set (past ~520 m) keeps the clump crowns.
