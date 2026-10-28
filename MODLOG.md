@@ -1,5 +1,22 @@
 # MODLOG — NGC-1980 (formerly Thrust/Zarch)
 
+## 2026-10-28 — look-people: real people instead of blocks
+
+Every person in NGC-1980 is now one continuous, smooth, skinned body built from signed-distance anatomy
+(`units/infantry/sdfmesh.js`, `humanfig.js`). This covers the Marines, the player's own body and first-person hands,
+the Huey / CH-46 / Hornet / Tomcat crews, the ALBATROSS deck crew, the ship's crews, townsfolk and the distant crowd
+stand-ins. The bodies stay on the existing 17-bone rig and animations, so seats, ladder, swim, drag / carry, buddy
+aid, hitboxes and XR all keep working. Faces have eyelids, ring irises and a proper jaw. 1980 utilities have folds and
+ERDL camouflage computed per pixel. The M1 helmet is resized to its reference shell. Flight suits come with SPH-4 or
+HGU-33 (visor and mask), deck crew wear role-coloured jerseys, float coats and cranials, and townsfolk are in shirts
+and jeans. The right thumb now wraps the pistol grip. The M60, M203, LAW and M1911 are rebuilt.
+
+Geometry is shared per variant and LOD (about 25 KB per extra soldier). The deck crew and townsfolk are single
+instanced draws with shader-swung limbs, and LODs keep crowds affordable. Dimensions are cited from public manuals
+and anthropometry (`docs/ngc1980/reference/people/SOURCES.md`). Evidence: `docs/ngc1980/evidence/look-people/`.
+Findings: `docs/ngc1980/findings/look-people.md`. Regressions match the 36eb21b baseline; underwater passes again
+after the crowd LODs. `?figparts=1` shows the previous people, and `?rk=0` the classic game.
+
 ## 2026-10-26 — Continuum reusable shader and UI library
 
 Added an opt-in Three r170/WebGL2 library on `ngc/shader-library`: physical surface presets and

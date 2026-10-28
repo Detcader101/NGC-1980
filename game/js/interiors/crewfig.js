@@ -123,7 +123,14 @@ export function crewMesh(list, material) {
   if (FIG && !PARTS) {   // ngc/look-people: indexed people, merged with all their attributes
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1), p = new THREE.Vector3();
     const gs = list.map((c, i) => { const g = crewGeometry(c.kind, c.pose, { seed: i * 7 + 3, ...c }); m.compose(p.set(c.x, c.y + (c.pose === 'seated' ? (c.seatH ?? 0.45) : 0), c.z), q.setFromAxisAngle(up, c.yaw || 0), one); return g.applyMatrix4(m); });
-    return new THREE.Mesh(gs.length === 1 ? gs[0] : mergeFig(gs), material || crewMaterial());
+    if (gs.length > 1) return new THREE.Mesh(mergeFig(gs), material || crewMaterial());
+    // one person: a THREE.LOD (crew detail close, 'far' detail beyond 12 m: the ship's interior crews are drawn from
+    // outside the hull too); renderOrder set on it reaches its levels
+    const c = list[0], far = crewGeometry(c.kind, c.pose, { seed: 3, ...c, detail: 'far' }); m.compose(p.set(c.x, c.y + (c.pose === 'seated' ? (c.seatH ?? 0.45) : 0), c.z), q.setFromAxisAngle(up, c.yaw || 0), one); far.applyMatrix4(m);
+    const lod = new THREE.LOD(), mat = material || crewMaterial(), near = new THREE.Mesh(gs[0], mat), farM = new THREE.Mesh(far, mat);
+    lod.addLevel(near, 0); lod.addLevel(farM, 12);
+    let ro = 0; Object.defineProperty(lod, 'renderOrder', { get: () => ro, set: v => { ro = v; near.renderOrder = farM.renderOrder = v; } });
+    return lod;
   }
   const pos = [], nor = [], col = [];
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1), p = new THREE.Vector3(), n3 = new THREE.Matrix3();

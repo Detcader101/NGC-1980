@@ -183,26 +183,37 @@ function lpMaterial() {
 }
 const SKIN_LP = [0xc79a77, 0x8a5d40, 0xd2a888, 0x5e3f2c, 0xb5835e];
 function createCrewLP(members, { seed = 5 } = {}) {
-  const n = members.length, r = rng(seed), geo = restPerson('deck').clone();
-  const aArm = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, n) * 4), 4), aLeg = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, n) * 2), 2), aSkin = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, n) * 3), 3);
-  aArm.setUsage(THREE.DynamicDrawUsage); aLeg.setUsage(THREE.DynamicDrawUsage);
-  geo.setAttribute('aArm', aArm); geo.setAttribute('aLeg', aLeg); geo.setAttribute('aSkin', aSkin);
-  const P = new THREE.InstancedMesh(geo, lpMaterial(), Math.max(1, n)); P.count = n; P.instanceMatrix.setUsage(THREE.DynamicDrawUsage); P.frustumCulled = false; P.name = 'deckcrew-people';
-  const group = new THREE.Group(); group.name = 'deckcrew'; group.add(P);
-  const ref = new THREE.Color(0xc79a77);
+  // two instanced levels: the crowd-detail person within NEAR_LP m of the camera, the far-detail one beyond (each
+  // person goes to one or the other every update; the camera position is caught in the near mesh's onBeforeRender)
+  const n = members.length, r = rng(seed), N = Math.max(1, n), group = new THREE.Group(); group.name = 'deckcrew';
+  const level = (lod, name) => {
+    const geo = restPerson('deck', lod ? { lod } : {}).clone();
+    const aArm = new THREE.InstancedBufferAttribute(new Float32Array(N * 4), 4), aLeg = new THREE.InstancedBufferAttribute(new Float32Array(N * 2), 2), aSkin = new THREE.InstancedBufferAttribute(new Float32Array(N * 3), 3);
+    for (const a of [aArm, aLeg, aSkin]) a.setUsage(THREE.DynamicDrawUsage);
+    geo.setAttribute('aArm', aArm); geo.setAttribute('aLeg', aLeg); geo.setAttribute('aSkin', aSkin);
+    const P = new THREE.InstancedMesh(geo, lpMaterial(), N); P.count = 0; P.instanceMatrix.setUsage(THREE.DynamicDrawUsage); P.frustumCulled = false; P.name = name;
+    P.setColorAt(0, _c.setRGB(1, 1, 1)); P.instanceColor.setUsage(THREE.DynamicDrawUsage);
+    group.add(P); return { P, aArm, aLeg, aSkin, k: 0 };
+  };
+  const LN = level(null, 'deckcrew-people'), LF = level('far', 'deckcrew-people-far');
+  const ref = new THREE.Color(0xc79a77), jer = [], skin = [];
   for (let i = 0; i < n; i++) {
     const p = members[i];
     p.ph = r() * 100; p.look = 0; p.lookT = r() * 6; p.seg = 0; p.s = 0; p.speed ??= 1.2 + r() * 0.3; p.y ??= 0; p.yaw ??= 0;
     p.x0 = p.x; p.z0 = p.z; p.yaw0 = p.yaw;
-    _c.setHex(JERSEY[p.jersey] ?? p.jersey ?? 0xffffff); P.setColorAt(i, _c);
-    _c2.setHex(SKIN_LP[(r() * SKIN_LP.length) | 0]); aSkin.setXYZ(i, _c2.r / ref.r, _c2.g / ref.g, _c2.b / ref.b);
+    jer.push(new THREE.Color(JERSEY[p.jersey] ?? p.jersey ?? 0xffffff)); _c2.setHex(SKIN_LP[(r() * SKIN_LP.length) | 0]); skin.push([_c2.r / ref.r, _c2.g / ref.g, _c2.b / ref.b]);
   }
-  const crew = { group, members, J: P, B: P, A: P, L: P, people: P, scatter: null };
+  const cam = new THREE.Vector3(1e9, 0, 0), NEAR2 = NEAR_LP * NEAR_LP;
+  LN.P.onBeforeRender = LF.P.onBeforeRender = (rr, sc, camera) => { camera.getWorldPosition(cam); group.worldToLocal(cam); };
+  const crew = { group, members, J: LN.P, B: LN.P, A: LN.P, L: LN.P, people: LN.P, peopleFar: LF.P, scatter: null };
   function pose(i, x, y, z, yaw, lean, drop, aL, aR, aLz, aRz, lL, lR) {
-    _q.setFromEuler(_e.set(lean, yaw, 0, 'YXZ')); _m.compose(_v.set(x, y - drop, z), _q, _s); P.setMatrixAt(i, _m);
-    aArm.setXYZW(i, aL, aR, aLz, aRz); aLeg.setXY(i, lL, lR);
+    if (i === 0) LN.k = LF.k = 0;
+    const L = (x - cam.x) ** 2 + (z - cam.z) ** 2 < NEAR2 ? LN : LF, k = L.k++;
+    _q.setFromEuler(_e.set(lean, yaw, 0, 'YXZ')); _m.compose(_v.set(x, y - drop, z), _q, _s); L.P.setMatrixAt(k, _m);
+    L.aArm.setXYZW(k, aL, aR, aLz, aRz); L.aLeg.setXY(k, lL, lR); L.aSkin.setXYZ(k, ...skin[i]); L.P.setColorAt(k, jer[i]);
   }
-  crew.update = crewUpdater(members, pose, () => { P.instanceMatrix.needsUpdate = true; aArm.needsUpdate = aLeg.needsUpdate = true; });
+  crew.update = crewUpdater(members, pose, () => { for (const L of [LN, LF]) { L.P.count = L.k; L.P.instanceMatrix.needsUpdate = true; L.P.instanceColor.needsUpdate = true; L.aArm.needsUpdate = L.aLeg.needsUpdate = L.aSkin.needsUpdate = true; } });
   crew.update(0, 0);
   return crew;
 }
+const NEAR_LP = 25;

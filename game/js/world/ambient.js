@@ -56,7 +56,7 @@ function personGeoFig() {
 // instance colour, jeans, shoes, a short haircut; crowd detail), legs and arms swung by the walk shader with the
 // swing blended at the hips and shoulders (figinst.js aLimb). Colours sqrt-coded like the other world kit colours.
 function personGeoLP() {
-  const g = restPerson('civil').clone(), c = g.attributes.color, n = c.count;
+  const g = restPerson('civil', { lod: 'far' }).clone(), c = g.attributes.color, n = c.count;   // ~1.3k triangles: 180 of them stay near the classic cost
   for (let i = 0; i < n; i++) c.setXYZ(i, Math.sqrt(c.getX(i)), Math.sqrt(c.getY(i)), Math.sqrt(c.getZ(i)));
   g.setAttribute('aPart', new THREE.BufferAttribute(new Float32Array(n), 1));
   return g;
