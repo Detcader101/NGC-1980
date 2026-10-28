@@ -375,6 +375,7 @@ function patchVertex(src, kind) {
       #endif`)
     .replace('#include <defaultnormal_vertex>', '#include <defaultnormal_vertex>\n vNN=normalize(objectNormal);');
 }
+/** @param {{ kind?: string, fog?: any, uTime?: any, shared: any, side?: THREE.Side, gain?: number }} o */
 export function natureMaterial({ kind = 'detail', fog = null, uTime = null, shared, side = THREE.FrontSide, gain = 1 }) {
   const m = new THREE.MeshLambertMaterial({ vertexColors: true, side });
   const uGain = { value: gain };
@@ -621,8 +622,8 @@ export function createClutter({ scene, fog = null, uTime = null, shared, sample 
   const grassMat = natureMaterial({ kind: 'clutter', fog, uTime, shared, side: THREE.DoubleSide, gain: 1.9 });
   {   // (the colour needs only the RK world noise functions, not the world shader: also right with ?rk=nature)
     const ob = grassMat.onBeforeCompile;
-    grassMat.onBeforeCompile = sh => {
-      ob(sh);
+    grassMat.onBeforeCompile = (sh, rr) => {
+      ob(sh, rr);
       // both faces of a blade light as the ground does (DOUBLE_SIDED would turn the back face normal down: black blades)
       sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', THREE.ShaderChunk.normal_fragment_begin.replace('normal *= faceDirection;', ''));
       sh.vertexShader = sh.vertexShader.replace('attribute vec4 aP, aR;', RK_TERRAIN_GLSL + '\n attribute vec4 aP, aR;')
