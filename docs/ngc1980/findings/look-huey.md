@@ -180,7 +180,8 @@ The near LOD includes ~11 k for the four crew figures and the interior. SwiftSha
 | hueymodel, hueycockpit | unverified (load): page navigation timed out at 30 s before the scene started; re-run pending |
 | airlift | unverified (load): FAIL in the sling hook-up (the hover never held steady 0.6 s at ~1 fps, 40 s per screenshot), before the troop lift; expectations updated to nine troops / 945 kg |
 | foot | unverified (load): ladder and walk waits timed out (no Huey code involved), the Huey boarding step not reached in time |
-| interiors, hueyhotas, xrgameplay | see the final report |
+| interiors | unverified (load, average 83-99): the carrier ladder / hangar steps timed out (no Huey code); the Huey cabin step PASSED boarding ("IN THE UH-1H HUEY - TROOP SEAT 3 (AFT BENCH)", clean first-person view past the pilots: `game_troop_seat.png`), "out again" timed out |
+| hueyhotas, xrgameplay | not run: the regression loop was stopped at load average 99 to stop adding to it |
 
 ## Still open
 - Cockpit to the -10 panel figures (DCS level): only the glazing now comes from the exterior skin; the furniture is
