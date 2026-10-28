@@ -16,7 +16,8 @@ import { CAPTIONS } from './heli.js';
 import { RKS } from './renderkit/gamemats.js';   // ngc/look-huey: with RenderKit surface on, the hi-fi airframe (hueyhifi.js) provides the glazing and walls
 import { HUEY_SKIN } from './hueyhifi.js';
 import { rbox } from './hueygeo.js';
-import { UH1_PANEL } from './uh1panel.js';   // traced TM 55-1520-210-10 fig. 2-4 (tools/hueypanel.mjs)
+import { UH1_PANEL } from './uh1panel.js';
+import { UH1_PEDESTAL } from './uh1pedestal.js';   // traced TM 55-1520-210-10 fig. 2-5 sheet 2 (tools/hueypedestal.mjs)   // traced TM 55-1520-210-10 fig. 2-4 (tools/hueypanel.mjs)
 import { drawRwr } from './units/defence/cm.js';   // ngc/cmpolish: the radar warning scope   // circular, but only read inside buildHueyCockpit (after both modules ran)
 
 export const HUEY_EYE = new THREE.Vector3(0.55, 0.16, -1.95), HUEY_EYE_PITCH = -0.16;
@@ -231,7 +232,7 @@ const sc = faceCols.filter(c => c.x >= -0.5 && c.x <= 0.49);   // the glare shie
     const lab = (t, x, y, s = 13, col = '#e0ddd0') => txt(c, t, ax(x), ay(y), col, s);
     if (HF) {   // decals in their fig. 2-4 places: 28 operating limits, 19 cargo caution, 31 engine caution, 14 compass card
       const decal = (n, lines, s = 10) => { const it = PT.items.find(i => i.n === n && !i.id), x = it.x / 1000, y = it.y / 1000, w = it.w / 1000 * PXM, h = it.h / 1000 * PXM; c.fillStyle = '#d8d4c4'; c.fillRect(ax(x) - w / 2, ay(y) - h / 2, w, h); lines.forEach((t, i) => txt(c, t, ax(x), ay(y) - h / 2 + (i + 0.8) * h / (lines.length + 0.6), '#151515', s)); };
-      decal(28, ['OPERATING LIMITS', 'ROTOR 294 - 324 RPM', 'ENGINE 6400 - 6600 RPM', 'TORQUE 50 PSI   VNE 124 KIAS', 'EGT 625°C CONT  760°C 10 SEC START'], 9);
+      decal(28, ['OPERATING LIMITS', 'ROTOR 294 - 324 RPM', 'ENGINE 6400 - 6600 RPM', 'TORQUE 50 PSI   VNE 124 KIAS', 'EGT 625°C CONT  760°C 10 SEC START'], 6.5);
       decal(19, ['CARGO', 'HOOK 4000 LB'], 8); decal(31, ['ENGINE CAUTION'], 8); decal(14, ['COMP', 'CORR', 'CARD', 'N 000', 'E 090'], 7); decal(34, ['T53-L-13B'], 7); decal(35, ['XMTR SEL'], 8);
     } else {
     lab('PILOT', 0.86, 0.24, 12, '#8a8d88'); lab('COPILOT', -0.86, 0.24, 12, '#8a8d88');
@@ -355,7 +356,29 @@ const sc = faceCols.filter(c => c.x >= -0.5 && c.x <= 0.49);   // the glare shie
     pedA.tex.needsUpdate = true;
   }
   const RADIOS = [['AN/ARC-51BX  UHF', 0.31, 0.21, '251.0'], ['AN/ARC-131  FM', 0.21, 0.1, '30.00'], ['AN/ARC-134  VHF', 0.1, 0.0, '121.50'], ['AN/ARN-82  VOR', 0.0, -0.1, '108.00'], ['AN/ARN-83  ADF', -0.1, -0.2, '0350'], ['AN/APX-72  IFF', -0.2, -0.31, '1200']];
+  // hi-fi: the radio stack as two Dzus columns with the traced panel heights (fig. 2-5 sheet 2), scaled to this face;
+  // 1980 radio fit (the -10's communication / navigation chapter): interphone, UHF, FM, VHF, VOR, ADF, IFF and its codes
+  const STACK = [['C-1611 INTERPHONE', 'AN/ARC-51BX  UHF', 'AN/ARC-131  FM', 'AN/ARC-134  VHF', 'AN/ARN-82  VOR', 'AN/ARN-83  ADF', 'AN/APX-72  IFF', 'TSEC/KY-28', 'C-6533 ICS'],
+    ['SIGNAL DIST', 'COMPASS CONTROL', 'AN/ARC-131  FM 2', 'FM HOMING', 'TRANSPONDER CODE', 'MARKER BEACON', 'CARGO / HOIST', 'ARMAMENT', 'SPARE']];
+  function drawPedBhf(pw) {
+    const c = pedB.ctx, Hc = pedB.cv.height, l = (t, x, y, s, col = '#e8e4d4') => txt(c, t, x, y, col, s);
+    c.fillStyle = '#121314'; c.fillRect(0, 0, 680, Hc);
+    UH1_PEDESTAL.columns.forEach((col, ci) => {
+      const tot = col.panels.reduce((m, q) => Math.max(m, q.top + q.height), 0), sy = Hc / tot, x0 = ci ? 342 : 4, w = 334;
+      col.panels.forEach((q, j) => {
+        const y = q.top * sy, h = q.height * sy - 4, name = STACK[ci][j] || '';
+        c.fillStyle = '#222527'; c.fillRect(x0, y + 2, w, h); c.strokeStyle = '#43484b'; c.lineWidth = 3; c.strokeRect(x0, y + 2, w, h);
+        c.fillStyle = '#6a6e70'; for (const [dx, dy] of [[10, 10], [w - 10, 10], [10, h - 8], [w - 10, h - 8]]) { c.beginPath(); c.arc(x0 + dx, y + 2 + dy, 6, 0, TAU); c.fill(); }   // Dzus fasteners
+        l(name, x0 + w / 2, y + 22, 19);
+        if (h > 90) { c.fillStyle = '#050605'; c.fillRect(x0 + 70, y + 40, w - 140, Math.min(54, h - 80)); l(pw ? ['', '251.0', '30.00', '121.50', '108.00', '0350', '1200'][j] || '' : '', x0 + w / 2, y + 40 + Math.min(54, h - 80) / 2, 30, pw ? '#ffb040' : '#2a2018'); }
+        for (const kx of [40, w - 40]) { c.strokeStyle = '#555'; c.lineWidth = 3; c.beginPath(); c.arc(x0 + kx, y + h / 2 + 12, Math.min(26, h / 4), 0, TAU); c.stroke(); }
+      });
+    });
+    l('LOGISTICS', 2000 * (0.12 + 0.17), 2000 * (LB / 2 - 0.13) - 34, 17, '#9cf'); l('CALL', 2000 * (0.12 + 0.17), 2000 * (LB / 2 - 0.13) + 34, 17, '#9cf');
+    pedB.tex.needsUpdate = true;
+  }
   function drawPedB(pw) {
+    if (HF) return drawPedBhf(pw);
     const c = pedB.ctx, { X, Y } = pedPx(pedB, LB), l = (t, x, y, s = 15, col = '#e8e4d4') => txt(c, t, X(x), Y(y), col, s * 1.45);
     c.fillStyle = '#17191a'; c.fillRect(0, 0, 680, pedB.cv.height);
     for (const [name, y0, y1, f] of RADIOS) {
