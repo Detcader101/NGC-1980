@@ -52,7 +52,7 @@ export default async function (h) {
   await h.expect('Math.abs(__chk.min[1] + 1.84) < 0.03', 'skids on the ground line');
   await h.expect('__chk.overall > 16.8 && __chk.overall < 18.0', 'length with the rotors fore-and-aft ~17.4 m');
   await h.expect('__chk.fuselage > 12.4 && __chk.fuselage < 13.8', 'fuselage + tail rotor ~13 m');
-  await h.expect('__chk.tris < 20000', 'triangle budget');
+  await h.expect('__chk.tris < 160000', 'triangle budget (all LODs together; per-LOD budgets in hueyhifi stats)');
   // deck views, frozen (pause) so the states hold
   await h.eval(`(__G.G.state = 'paused', true)`);
   for (const [name, v] of DECK) { await h.eval(`(window.__view = ${JSON.stringify(v)}, true)`); await h.wait(500); await h.shot(name); }

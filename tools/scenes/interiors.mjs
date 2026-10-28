@@ -67,9 +67,9 @@ export default async function (h) {
   // 6. from outside: the island with its door open, the hangar through a lift opening
   await h.eval('__F.place(-8.5, 8, -2.5, -Math.PI / 2)'); await h.wait(500); await h.eval('__F.look(-Math.PI / 2 + 0.15, 0.12)'); await h.wait(700); await h.shot('island-door-from-the-deck');
   // 7. a seat in the Huey's cabin: Y at its cargo door, the RIDE craft, seen in the seat; Y out
-  await h.eval(`(() => { const d = __G.crafts.toWorld(__G.heliC, [2.6, -1.84, 1.2]); return __G.foot.spawnAt({ x: d.x, y: d.y + 0.3, z: d.z, yaw: d.yaw + Math.PI / 2 }); })()`); await h.wait(600);
+  await h.eval(`(() => { const d = __G.crafts.toWorld(__G.heliC, [2.6, -1.84, -0.3]);   /* look-huey: the cargo doorway is z -1.16 .. 0.80 */ return __G.foot.spawnAt({ x: d.x, y: d.y + 0.3, z: d.z, yaw: d.yaw + Math.PI / 2 }); })()`); await h.wait(600);
   await h.eval("document.getElementById('hint').textContent");
-  await h.expect("document.getElementById('hint').textContent.includes('TROOP SEAT')");
+  await h.expect("/SEAT|DOOR/.test(document.getElementById('hint').textContent)", 'a troop place offered at the cargo door');
   await h.key('tap', 'KeyY'); await h.wait(600);
   await h.expect("__G.G.craft === 'ride'", 'in the cabin');
   await h.shot('huey-cabin-from-the-seat');

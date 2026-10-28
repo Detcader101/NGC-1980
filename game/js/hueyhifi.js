@@ -133,7 +133,7 @@ function buildTextures(S, D, xr) {
     ground: glyphs('GROUND HERE', { font: 'bold 30px Arial, "Liberation Sans", sans-serif', W: 256, H: 44 }),
     step: glyphs('STEP', { font: 'bold 40px Arial, "Liberation Sans", sans-serif', W: 128, H: 56 }),
   };
-  const R = xr ? 1 : 2;   // XR: half resolution
+  const R = xr ? 1 : 1.5;   // 1536 x 768 skin, ~8 mm texels on the cabin (start-up cost ~2 s); XR: 1024 x 512
   // ---- fuselage skin
   const P = {}; let z = 0, prm = null;
   const skin = bake(1024 * R, 512 * R, (u, v, o) => {
@@ -368,7 +368,7 @@ export function buildHueyHiFi(HUEY, { xr = false } = {}) {
   // the nose skin (hidden from the cockpit, which has its own) ends at the post behind the crew door, z ZSPLIT
   const ZSPLIT = -1.62, D0 = DOORWAY.z - DOORWAY.hz, D1 = DOORWAY.z + DOORWAY.hz;
   const zNear = stations([[-3.69, -3.4, 0.015], [-3.4, -2.2, 0.04], [-2.2, 0.7, 0.16], [0.7, 2.9, 0.08], [2.9, 7.7, 0.25], [7.7, 8.0, 0.04]], [ZSPLIT, D0 - 0.02, D0, D1, D1 + 0.02, 7.98, 7.995]);
-  const phN = PH(96);
+  const phN = PH(72);
   const zN0 = zNear.filter(z => z <= ZSPLIT), zN1 = zNear.filter(z => z >= ZSPLIT);
   mesh(gridGeo(S, zN0, phN), N.skin, noseG, 'noseSkin');
   mesh(gridGeo(S, zN0, phN, { off: -0.03 }), noseLiningN, noseG, 'noseLining');
@@ -379,7 +379,7 @@ export function buildHueyHiFi(HUEY, { xr = false } = {}) {
   mesh(gridGeo(S, zFar, PH(16)), Fm.skin, lod2, 'fuselageFar', 'f');
   // glass (near): the same surface 6 mm inside, masked to the window shapes; green greenhouse over the pilots
   {
-    const zg = stations([[-3.6, -1.15, 0.035]]), ph = PH(120), gg = gridGeo(S, zg, ph, { off: -0.006, uv: (z, p) => [(z + 3.7) / 2.7, p / TAU] });
+    const zg = stations([[-3.6, -1.15, 0.045]]), ph = PH(80), gg = gridGeo(S, zg, ph, { off: -0.006, uv: (z, p) => [(z + 3.7) / 2.7, p / TAU] });
     // groups: quads on the roof behind the windscreen bow -> green
     const idx = gg.index.array, pos = gg.attributes.position.array, clear = [], green = [];
     for (let t = 0; t < idx.length; t += 3) { const a = idx[t] * 3; (pos[a + 2] > -2.42 && pos[a + 1] > 0.38 ? green : clear).push(idx[t], idx[t + 1], idx[t + 2]); }
@@ -393,7 +393,7 @@ export function buildHueyHiFi(HUEY, { xr = false } = {}) {
     const prof = stripProfile(0.05, 0.016, 0.03, 6), profDoor = stripProfile(0.07, 0.02, 0.06, 6);
     for (const L of lines) {
       const zc = L.pts.reduce((s, p) => s + p[0], 0) / L.pts.length, isDoorway = zc > -1.2;
-      const geo = surfStrip(S, L, isDoorway ? profDoor : prof, 0.025);
+      const geo = surfStrip(S, L, isDoorway ? profDoor : prof, 0.04);
       put(geo, isDoorway ? N.od2 : N.dark, isDoorway ? lod0 : noseG);
     }
   }

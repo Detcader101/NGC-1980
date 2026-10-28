@@ -15,6 +15,7 @@ import * as THREE from 'three';
 import { CAPTIONS } from './heli.js';
 import { RKS } from './renderkit/gamemats.js';   // ngc/look-huey: with RenderKit surface on, the hi-fi airframe (hueyhifi.js) provides the glazing and walls
 import { HUEY_SKIN } from './hueyhifi.js';
+import { rbox } from './hueygeo.js';
 import { drawRwr } from './units/defence/cm.js';   // ngc/cmpolish: the radar warning scope   // circular, but only read inside buildHueyCockpit (after both modules ran)
 
 export const HUEY_EYE = new THREE.Vector3(0.55, 0.16, -1.95), HUEY_EYE_PITCH = -0.16;
@@ -69,8 +70,9 @@ export function buildHueyCockpit({ classic = false } = {}) {
   const black = M(0x161718), panelM = M(0x1d1f20), glareM = M(0x101112), olive = M(0x4a5236), oliveD = M(0x353b28), lining = M(0x5c604c);
   const floorM = M(0x34372e), seatM = M(0x3a3e34), cushion = M(0x2c3127), armour = M(0x56603f), metal = M(0x7b8186), frameM = M(0x2c3029);
   const suit = M(0x5b6340), vest = M(0x4a5233), glove = M(0x5a4a3a), bootM = M(0x141414), redM = M(0xb81a10), whiteM = M(0xd8d8d0);
-  const box = (w, h, d, m, x, y, z, p = g, rx = 0, ry = 0, rz = 0) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); o.rotation.set(rx, ry, rz); p.add(o); return o; };
-  const cyl = (r0, r1, h, m, x, y, z, p = g, rx = 0, rz = 0, seg = 8) => { const o = new THREE.Mesh(new THREE.CylinderGeometry(r0, r1, h, seg), m); o.position.set(x, y, z); o.rotation.set(rx, 0, rz); p.add(o); return o; };
+  // hi-fi: every block is a rounded box (no knife edges), cylinders get twice the segments
+  const box = (w, h, d, m, x, y, z, p = g, rx = 0, ry = 0, rz = 0) => { const o = new THREE.Mesh(HF ? rbox(w, h, d, Math.min(0.012, 0.3 * Math.min(w, h, d)), 2) : new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); o.rotation.set(rx, ry, rz); p.add(o); return o; };
+  const cyl = (r0, r1, h, m, x, y, z, p = g, rx = 0, rz = 0, seg = 8) => { const o = new THREE.Mesh(new THREE.CylinderGeometry(r0, r1, h, HF ? Math.max(16, seg * 2) : seg), m); o.position.set(x, y, z); o.rotation.set(rx, 0, rz); p.add(o); return o; };
   const plane = (w, h, mat, x, y, z, p = g) => { const o = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); o.position.set(x, y, z); p.add(o); return o; };
   const lit = c => new THREE.MeshBasicMaterial({ color: c, toneMapped: false });
   const canvasMat = (t, k = 0.6) => new THREE.MeshLambertMaterial({ map: t.tex, emissive: 0xffffff, emissiveMap: t.tex, emissiveIntensity: k });
@@ -95,7 +97,7 @@ export function buildHueyCockpit({ classic = false } = {}) {
   const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
   const tube = (pts, r, m = frameM, p = g) => { const o = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), Math.max(4, pts.length * 4), r, 6), m); p.add(o); return o; };
   // a limb between two points (static) or re-aimed per frame (setLimb)
-  const limbGeo = new THREE.CylinderGeometry(1, 0.9, 1, 8);
+  const limbGeo = new THREE.CylinderGeometry(1, 0.9, 1, HF ? 16 : 8);
   const limb = (a, b, r, m) => { const o = new THREE.Mesh(limbGeo, m); o.userData.r = r; g.add(o); setLimb(o, a, b); return o; };
   function setLimb(o, a, b) { _v.subVectors(b, a); const L = _v.length(); o.position.copy(a).addScaledVector(_v, 0.5); o.quaternion.setFromUnitVectors(_up, _v.multiplyScalar(1 / L)); o.scale.set(o.userData.r, L, o.userData.r); }
 
