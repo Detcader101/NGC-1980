@@ -11,7 +11,7 @@ import { createMarkerLayer, mapBar } from './ui/markerlayer.js';   // UNIT MARKE
 import { hpOf } from './ui/unitmarkers.js';
 import { CARRIER } from './ships.js';
 import { createFog, FOG_GLSL, fogPatch } from './fog.js';
-import { RK } from './renderkit/adopt.js';
+import { RK, RK_AREAS } from './renderkit/adopt.js';
 import { useSceneEnvironment, RKS as RK_SURF } from './renderkit/gamemats.js';   // RENDERKIT surface: shared unit materials (scene environment hand-over)
 import { padGLSL, shaftRingGLSL, bindXR as bindDetailXR, applyWorldDetail } from './renderkit/detail.js';   // RENDERKIT materials (ngc/depth-materials)
 import { createGamePost, postQuality } from './renderkit/gamepost.js';   // RENDERKIT post: desktop AO, bloom, filmic grade (never in XR)
@@ -34,6 +34,7 @@ import { createFx } from './fx.js';
 import { createControls } from './hotas.js';
 import { createXR } from './xr/runtime.js';
 import { createXRBench } from './xr/bench.js';   // ?xrbench: the one-click in-headset VR benchmark
+import { createDesktopBench } from './perf/bench.js';   // ?bench: the one-click desktop benchmark (ngc/perf-render)
 import { createJetPlay } from './jetplay.js';
 import { createDrop } from './drop.js';
 import { createHelm } from './helm.js';
@@ -86,7 +87,7 @@ const sfx = new Sfx();
 const keys = new Set();
 // flight controls: HOTAS, rudder pedals and gamepads with per-device bindings (hotas.js); J in the jet opens the panel
 const CTL = createControls({ say: (t, s) => say(t, s) });
-let XR = null, XRB = null;   // XRB: ?xrbench (xr/bench.js)
+let XR = null, XRB = null, DB = null;   // XRB: ?xrbench (xr/bench.js); DB: ?bench (perf/bench.js)
 let chaseCam = params.has('chase'), cockpitCam = params.has('cockpit'), bigMap = false;
 const _cf = { x: 0, z: -1 };
 let keyboardOnly = params.has('kb');
@@ -2473,7 +2474,7 @@ function resize() {
 // when there is headroom. Hysteresis + a cooldown keep it from hunting. Off with ?res=N (fixed ratio N).
 const dynRes = { ms: 16.7, cool: 0 };
 function updateDynRes(frameMs) {
-  if (XR?.active || params.has('res') || frameMs > 250) return;
+  if (XR?.active || params.has('res') || frameMs > 250 || DB?.active) return;   // (?bench holds the start ratio)
   dynRes.ms += (frameMs - dynRes.ms) * 0.05; dynRes.cool -= frameMs;
   if (dynRes.cool > 0) return;
   let pr = pixRatio;
@@ -2651,6 +2652,7 @@ let last = performance.now(), fpsAcc = 0, fpsN = 0, fogT = 0;
 function frame(now, xrFrame) {
   const now0 = performance.now();
   XRB?.frameStart();   // ?xrbench: GPU timer, per-frame renderer counters, its hover hold
+  DB?.frameStart();   // ?bench: the same on the desktop
   updateDynRes(now - last);
   // the sims substep, so they keep real time down to 10 fps. Never zero or negative: two frames with the same (or an
   // earlier) timestamp gave dt = 0 and the flight models divide by their step (NaN everywhere, seen in headless runs)
@@ -2712,6 +2714,7 @@ function frame(now, xrFrame) {
   const t3 = performance.now(), pk = 0.05;   // smoothed per-frame CPU cost: sim, scene/HUD prep, render submit
   if (window.__xrlog && XR?.active && (XR.state.frames < 40 || XR.state.frames % 60 === 0)) window.__xrlog(`XRFRAME ${XR.state.frames} dt ${(now - now0 < 0 ? 0 : rdt * 1000).toFixed(0)}ms sim ${(t1 - now0).toFixed(0)} prep ${(t2 - t1).toFixed(0)} render ${(t3 - t2).toFixed(0)} calls ${XR.state.calls} tris ${XR.state.triangles} flat ${XR.state.flat} track ${XR.state.tracking} vis ${document.visibilityState} state ${G.state} ${XR.state.error}`);
   XRB?.frameEnd(now, now0, t1, t2, t3, xrFrame);
+  DB?.frameEnd(now, now0, t1, t2, t3);
   PROF.sim += ((t1 - now0) - PROF.sim) * pk; PROF.prep += ((t2 - t1) - PROF.prep) * pk; PROF.render += ((t3 - t2) - PROF.render) * pk;
 }
 const PROF = { sim: 0, prep: 0, render: 0 };
@@ -2764,6 +2767,10 @@ if (params.has('xrbench')) XRB = createXRBench({ XR, renderer, scene: zScene, G,
   getInOut, toHeli, stowCrafts, resetZarch, launchJet, openMenu, closeMenu, cockpitCam: () => cockpitCam,
   overlay: cam => { if (G.craft === 'foot' && G.state !== 'title' && G.mode === 'zarch' && !XR.blocked) foot.overlay(renderer, cam); },
   armourSpot: () => { const hh = HARDS.find(h => h.I === HOME_B.isl), hp = hh && hh.at(hh.u1 - 5); return hp ? { x: hp[0], z: hp[1], yaw: hh.yaw } : GR.motorPool(HOME_B.isl, 4.6); } });
+// ?bench: the desktop benchmark tour, then one reload per RenderKit area off (perf/bench.js)
+if (params.has('bench') && !params.has('xrbench')) DB = createDesktopBench({ renderer, scene: zScene, THREE, G, war, params, RK_AREAS, rkAll: RK_AREAS.every(a => RK.on(a)), H, HI, JP, HELI, crafts, foot, commander, world, rkLight, rkPost,
+  HOME_B, ISLANDS, groundY, getInOut, toHeli, stowCrafts, resetZarch, launchJet, newGame, openMenu, closeMenu, nature: NAT,
+  setView: v => { cockpitCam = v === 'cockpit'; chaseCam = v === 'chase'; if (crafts.active === foot && marine) marine.view = v === 'cockpit' ? 'first' : marine.view; } });
 buildCaves(); war.reset(); resetZarch(true); placeVehicles(); updateFogImg(); terrainStream(Z.pos.x, Z.pos.z);
 renderer.setAnimationLoop(frame);
 if (params.has('debug')) { window.__G = { XR, G, airlift, airdrop, ch46C, heliAIenv, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, get forest() { return { count: world.stats.forestTrees || 0 }; }, world, terrainUni, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, rkPost /* RENDERKIT post */, rkLight /* RENDERKIT light */, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, get tech() { return war.tech; }, techUI /* TECH TREE: tech = [null, player, enemy] */, say, feed /* RENDERKIT ui: tools/scenes/rkui.mjs */ }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); H.reset(H.pos.clone(), 0, false, 1); SY.grip = 1; SY.auto = null; enterCave(b); }   /* (ngc/bugsweep) ?thrust=N starts in the cave already flying: engine at flight power, throttle rolled on (it came in at ground idle with the throttle rolling on, the rotor drooped and caveaim / caves crashed in the shaft) */ }
