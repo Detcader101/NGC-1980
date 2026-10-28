@@ -373,6 +373,7 @@ export function buildTomcatModel(side = 1, { modex = 201 } = {}) {
     for (const k in stores) stores[k].visible = false;
     if (A.stores && A.stores.length !== undefined) for (const s of A.stores) { const m = stores[s.w + '@' + s.st]; if (m) m.visible = !!s.on; }
     for (const o of shell) o.visible = !inside;
+    for (const o of lightG.children) if (o.name === 'formation') o.visible = !inside;   // (seen through the hull from the cockpit otherwise)
   }
   // world-space-free helpers for the game: where the nozzles and wingtips are (for exhaust and vapour)
   const _t = V();

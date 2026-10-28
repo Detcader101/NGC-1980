@@ -132,24 +132,43 @@ export function buildTomcatCockpit() {
 
   // ================================================================ the main instrument panel (tilted back)
   const P = new THREE.Group(); P.position.set(0, 0.5, -6.22); P.rotation.x = -0.3; g.add(P);
+  // (ngc/look-tomcat) TRACED from NATOPS NAVAIR 01-F14A-1 (1972) fig. 1-3, "Pilot's instrument panel and consoles" (page
+  // rendered at 5x: tools/blueprint/f14a/panel-pilot.json). Item = [NATOPS no., legend, centre x, y (figure px), w, h
+  // (px; a round dial has h 0)]. Scale: the 3ATI airspeed / Mach indicator (24) = 3.125 in = 139 px -> 1760 px/m; origin:
+  // the VDI's centre (33) at panel (0, 0.13). The illustration is a slight perspective, so centres are good to ~1 cm.
+  const PANEL_TRACE = [
+    [25, 'VERTICAL VELOCITY', 1519, 1107, 94, 0], [24, 'AIRSPEED / MACH', 1652, 1092, 139, 0], [22, 'ALTIMETER', 1502, 1240, 139, 0], [23, 'RADAR ALTIMETER', 1658, 1237, 139, 0],
+    [27, 'ANGLE OF ATTACK', 1774, 1162, 56, 244], [33, 'VDI', 1947, 1162, 256, 244], [32, 'AIR COMBAT MANEUVER PANEL', 1947, 925, 378, 144],
+    [43, 'STANDBY ATTITUDE', 2219, 1103, 106, 0], [40, 'WING SWEEP', 2347, 1076, 100, 0], [42, 'ACCELEROMETER', 2386, 1192, 100, 0], [46, 'BDHI', 2238, 1248, 144, 0], [45, 'CLOCK', 2392, 1290, 72, 0],
+    [16, 'NOZZLE POSITION', 1444, 1405, 50, 0], [16, 'NOZZLE POSITION R', 1497, 1405, 50, 0], [17, 'OIL PRESSURE', 1444, 1461, 50, 0], [18, 'HYDRAULIC PRESSURE', 1497, 1461, 50, 0],
+    [19, 'RPM', 1574, 1520, 56, 256], [20, 'TIT', 1641, 1520, 56, 256], [21, 'FUEL FLOW', 1708, 1520, 56, 256], [15, 'ENGINE PRESSURE RATIO', 1461, 1603, 122, 100],
+    [34, 'HSD', 1947, 1555, 222, 272], [48, 'FUEL QUANTITY', 2246, 1517, 161, 250], [49, 'LIQUID OXYGEN', 2424, 1470, 89, 0], [50, 'CABIN PRESSURE ALTIMETER', 2419, 1579, 94, 0],
+  ];
+  const PXM = 1760, TR = Object.fromEntries(PANEL_TRACE.map(([n, name, px, py, w, h]) => [name, { n, x: (px - 1947) / PXM, y: (1162 - py) / PXM + 0.13, w: w / PXM, h: h / PXM }]));
+  const at = name => TR[name], gl = name => [at(name).x, at(name).y, at(name).w];
   const PW = 1.1, PH = 0.66;
-  box(PW, PH, 0.05, dark, 0, 0, -0.03, P);
   const art = canvasTex(1100, 660);
-  plane(PW, PH, new THREE.MeshLambertMaterial({ map: art.tex, emissive: 0xffffff, emissiveMap: art.tex, emissiveIntensity: 0.55 }), 0, 0, 0, P);
+  // the traced outline (fig. 1-3): the main instrument panel (left, centre, right) over the two knee panels and the HSD
+  // between them; every dial and display a cut-out (the dark instrument cases show through round the bezels)
+  const OUT = [[-0.335, 0.03], [-0.30, 0.215], [-0.235, 0.255], [-0.125, 0.255], [-0.118, 0.33], [0.118, 0.33], [0.125, 0.255], [0.235, 0.255], [0.30, 0.215], [0.335, 0.03],
+    [0.33, -0.215], [0.115, -0.215], [0.07, -0.25], [-0.07, -0.25], [-0.115, -0.215], [-0.33, -0.215]];
+  const face = new THREE.Shape(OUT.map(([x, y]) => new THREE.Vector2(x, y)));
+  const holeIf = (x, y, w, h) => { const p = new THREE.Path(); if (h) { p.moveTo(x - w / 2, y - h / 2); p.lineTo(x - w / 2, y + h / 2); p.lineTo(x + w / 2, y + h / 2); p.lineTo(x + w / 2, y - h / 2); p.closePath(); } else p.absarc(x, y, w / 2 - 0.002, 0, TAU, true); face.holes.push(p); };
+  for (const it of Object.values(TR)) if (it.n !== 32 && it.n !== 15) holeIf(it.x, it.y, it.w, it.h);
+  const faceGeo = new THREE.ShapeGeometry(face, 24); { const uv = faceGeo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / PW + 0.5, uv.getY(i) / PH + 0.5); }
+  P.add(new THREE.Mesh(faceGeo, new THREE.MeshLambertMaterial({ map: art.tex, emissive: 0xffffff, emissiveMap: art.tex, emissiveIntensity: 0.55 })));
+  const back = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape(OUT.map(([x, y]) => new THREE.Vector2(x, y)))), black); back.position.z = -0.035; P.add(back);   // the instrument cases' dark behind the cut-outs
   // ---- round gauges: [x, y, diameter] on the panel
-  // (ngc/look-tomcat) laid out per NATOPS NAVAIR 01-F14A-1 fig. 1-3 (pilot's instrument panel and consoles): LEFT
-  // instrument panel VSI (25), airspeed/Mach (24), altimeter (22), wheels-flaps position (14, by the gear handle); LEFT KNEE
-  // panel the engine instruments (15-21: RPM, TIT, FF, nozzle, oil); RIGHT instrument panel wing sweep (40), accelerometer
-  // (42), standby attitude (43), clock (45); RIGHT KNEE fuel quantity (48); centre VDI (33) over HSD (34). The 1980 ALR-45
-  // threat scope sits top right (not in the 1972 figure)
+  const GLV = { flap: [0, 0.075, 0.06] };   // 14 WHEELS-FLAPS POSITION on the left vertical console
   const GL = {
-    vsi: [-0.43, 0.195, 0.085], asi: [-0.31, 0.195, 0.1], alt: [-0.43, 0.075, 0.1], flap: [-0.31, 0.075, 0.08],
-    sweep: [0.185, 0.195, 0.1], gmeter: [0.305, 0.195, 0.09], adi: [0.185, 0.075, 0.095], clock: [0.305, 0.075, 0.065],
-    rpmL: [-0.37, -0.045, 0.064], rpmR: [-0.302, -0.045, 0.064], titL: [-0.234, -0.075, 0.064], titR: [-0.166, -0.075, 0.064],
-    ffL: [-0.37, -0.12, 0.064], ffR: [-0.302, -0.12, 0.064], nozL: [-0.234, -0.15, 0.064], nozR: [-0.166, -0.15, 0.064],
-    oil: [-0.43, -0.225, 0.06], rwr: [0.465, 0.195, 0.085],
+    vsi: gl('VERTICAL VELOCITY'), asi: gl('AIRSPEED / MACH'), alt: gl('ALTIMETER'), ralt: gl('RADAR ALTIMETER'),
+    adi: gl('STANDBY ATTITUDE'), sweep: gl('WING SWEEP'), gmeter: gl('ACCELEROMETER'), bdhi: gl('BDHI'), clock: gl('CLOCK'),
+    nozL: gl('NOZZLE POSITION'), nozR: gl('NOZZLE POSITION R'), oil: gl('OIL PRESSURE'), hyd: gl('HYDRAULIC PRESSURE'),
+    lox: gl('LIQUID OXYGEN'), cabin: gl('CABIN PRESSURE ALTIMETER'), rwr: [0.30, 0.235, 0.05],
   };
   const gauges = [], ringM = M(0x26282a);
+  const VL = new THREE.Group(), VR = new THREE.Group(); VL.position.set(-0.40, -0.04, 0.035); VL.rotation.y = 0.6; VR.position.set(0.40, -0.04, 0.035); VR.rotation.y = -0.6; P.add(VL, VR);
+  for (const v of [VL, VR]) box(0.12, 0.26, 0.02, dark, 0, 0, -0.012, v);   // the left / right vertical consoles (fig. 1-3: 11-14, 51-53)
   function gauge(key, size, face, dyn, p = P, gl = GL) {
     const [x, y, d] = gl[key], t = canvasTex(size, size), o = new THREE.Mesh(new THREE.CircleGeometry(d / 2, 36), new THREE.MeshBasicMaterial({ map: t.tex, toneMapped: false, color: 0xdedede }));
     o.position.set(x, y, 0.004); p.add(o);
@@ -162,7 +181,7 @@ export function buildTomcatCockpit() {
   function rect(key, w, h, px, x, y, dyn, p = P, seatI = 0) { const t = canvasTex(Math.round(w * px), Math.round(h * px)), o = plane(w, h, new THREE.MeshBasicMaterial({ map: t.tex, toneMapped: false, color: 0xdedede }), x, y, 0.004, p); const R = { key, ...t, dyn, mesh: o, seat: seatI }; rects.push(R); return R; }
   // CRT displays: green phosphor, a bezel
   const crt = (w, h, px, x, y, p = P) => { box(w + 0.03, h + 0.03, 0.03, black, x, y, -0.005, p); const t = canvasTex(Math.round(w * px), Math.round(h * px)); const o = plane(w, h, new THREE.MeshBasicMaterial({ map: t.tex, toneMapped: false }), x, y, 0.012, p); return { ...t, mesh: o }; };
-  const vdi = crt(0.2, 0.18, 2400, 0, 0.13), hsd = crt(0.17, 0.17, 2400, 0, -0.13);
+  const vdi = crt(at('VDI').w - 0.03, at('VDI').h - 0.03, 2400, at('VDI').x, at('VDI').y), hsd = crt(at('HSD').w - 0.03, at('HSD').w - 0.03, 2400, at('HSD').x, at('HSD').y + 0.01);
 
   // ---- caption lamps: two pre-drawn textures (off / on), swapped by setLamp
   function lamp(parent, w, h, x, y, z, text, on, off = '#2a2420', ink = '#111', rx = 0, ry = 0) {
@@ -173,13 +192,13 @@ export function buildTomcatCockpit() {
   }
   const setLamp = (o, v) => { v = !!v; if (o.userData.on !== v) { o.userData.on = v; o.material.map = v ? o.userData.tOn : o.userData.tOff; } };
   const L = {
-    mc: lamp(P, 0.075, 0.032, -0.47, 0.295, 0.005, 'MASTER|CAUTION', '#ffaa18', '#2e2408'),
-    wheels: lamp(P, 0.07, 0.03, -0.37, 0.295, 0.005, 'WHEELS', '#ff2a14', '#3a0e08'),
-    altlo: lamp(P, 0.06, 0.03, -0.155, -0.27, 0.005, 'ALT|LOW', '#ff2a14', '#3a0e08'),
-    launch: lamp(P, 0.065, 0.03, 0.48, 0.295, 0.005, 'LAUNCH', '#ff2a14', '#3a0e08'),
-    acm: lamp(P, 0.055, 0.026, -0.275, 0.295, 0.005, 'ACM', '#3cff50', '#0e2410'),
-    sweep: lamp(P, 0.065, 0.026, 0.185, 0.272, 0.005, 'SWEEP', '#ffaa18', '#2e2408'),
-    hook: lamp(P, 0.05, 0.026, 0.49, -0.27, 0.005, 'HOOK', '#ffaa18', '#2e2408'),
+    mc: lamp(P, 0.06, 0.026, -0.19, 0.232, 0.005, 'MASTER|CAUTION', '#ffaa18', '#2e2408'),
+    wheels: lamp(P, 0.05, 0.024, -0.255, 0.232, 0.005, 'WHEELS', '#ff2a14', '#3a0e08'),
+    altlo: lamp(P, 0.04, 0.022, -0.105, 0.045, 0.005, 'ALT|LOW', '#ff2a14', '#3a0e08'),
+    launch: lamp(P, 0.05, 0.024, 0.19, 0.232, 0.005, 'LAUNCH', '#ff2a14', '#3a0e08'),
+    acm: lamp(P, 0.04, 0.02, 0.09, 0.315, 0.005, 'ACM', '#3cff50', '#0e2410'),
+    sweep: lamp(P, 0.05, 0.022, 0.25, 0.232, 0.005, 'SWEEP', '#ffaa18', '#2e2408'),
+    hook: lamp(VR, 0.05, 0.022, 0, 0.1, 0.005, 'HOOK', '#ffaa18', '#2e2408'),
     fireL: lamp(g, 0.075, 0.034, -0.38, 0.875, -6.15, 'L FIRE', '#ff2a14', '#3a0e08', '#111', -0.5),
     fireR: lamp(g, 0.075, 0.034, 0.38, 0.875, -6.15, 'R FIRE', '#ff2a14', '#3a0e08', '#111', -0.5),
   };
@@ -208,20 +227,20 @@ export function buildTomcatCockpit() {
   };
   const button = (id, p, x, y, w, h, mat, label, list = hitsP) => { const b = box(w, h, 0.012, mat, x, y, 0.006, p); hit(id, w + 0.012, h + 0.012, 0.04, x, y, 0.015, p, label, list); return b; };
   // panel: gear handle (wheel knob, red light in it), hook handle, master arm, weapon select, HUD mode buttons, ACM jett
-  const gearH = new THREE.Group(); gearH.position.set(-0.505, -0.075, 0.02); P.add(gearH);
+  const gearH = new THREE.Group(); gearH.position.set(0, -0.06, 0.02); VL.add(gearH);   // 13 LANDING GEAR CONTROL on the left vertical console
   box(0.014, 0.1, 0.014, metal, 0, 0, 0, gearH); cyl(0.028, 0.028, 0.022, M(0xe8e8e0), 0, 0.055, 0, gearH, Math.PI / 2, 0, 14);
   const gearRed = new THREE.Mesh(new THREE.CircleGeometry(0.012, 10), lit(0x300808)); gearRed.position.set(0, 0.055, 0.012); gearH.add(gearRed);
-  hit('gear', 0.07, 0.15, 0.08, -0.505, -0.055, 0.03, P, 'LANDING GEAR');
-  const hookH = new THREE.Group(); hookH.position.set(0.49, -0.17, 0.02); P.add(hookH);
+  hit('gear', 0.07, 0.15, 0.08, 0, -0.04, 0.03, VL, 'LANDING GEAR');
+  const hookH = new THREE.Group(); hookH.position.set(0, -0.04, 0.02); VR.add(hookH);   // 51 ARRESTING HOOK on the right vertical console
   box(0.014, 0.1, 0.014, metal, 0, 0, 0, hookH); box(0.06, 0.02, 0.03, yellow, 0, 0.055, 0.006, hookH);
-  hit('hook', 0.07, 0.15, 0.08, 0.49, -0.15, 0.03, P, 'ARRESTING HOOK');
-  toggle('arm', P, 0.185, -0.06, 'MASTER ARM');
-  button('wpn', P, 0.275, -0.06, 0.05, 0.03, M(0x50565c), 'WEAPON SELECT  SW / SP / PH / GUN');
+  hit('hook', 0.07, 0.15, 0.08, 0, -0.02, 0.03, VR, 'ARRESTING HOOK');
+  toggle('arm', P, -0.07, 0.25, 'MASTER ARM');   // the ACM panel (32) under the HUD
+  button('wpn', P, 0.0, 0.25, 0.045, 0.024, M(0x50565c), 'WEAPON SELECT  SW / SP / PH / GUN');
   const MODES = ['T.O.', 'CRUISE', 'A/A', 'A/G', 'LDG'], modeB = {};
-  MODES.forEach((m, i) => { modeB[m] = button('hud:' + m, P, -0.1 + i * 0.05, 0.27, 0.04, 0.022, M(0x50565c), `HUD MODE ${m}`); });
-  const hsdB = button('hsdmode', P, 0.115, -0.2, 0.03, 0.02, M(0x50565c), 'HSD  NAV / TID REPEAT');
-  hit('mc', 0.085, 0.04, 0.03, -0.47, 0.295, 0.01, P, 'MASTER CAUTION RESET');
-  const jettB = cyl(0.016, 0.016, 0.012, redM, 0.37, -0.06, 0.008, P, Math.PI / 2, 0, 12); hit('jett', 0.05, 0.05, 0.03, 0.37, -0.06, 0.01, P, 'ACM JETTISON (STORES)');
+  MODES.forEach((m, i) => { modeB[m] = button('hud:' + m, P, -0.09 + i * 0.04, 0.293, 0.034, 0.018, M(0x50565c), `HUD MODE ${m}`); });
+  const hsdB = button('hsdmode', P, 0.088, -0.205, 0.026, 0.018, M(0x50565c), 'HSD  NAV / TID REPEAT');
+  hit('mc', 0.07, 0.035, 0.03, -0.19, 0.232, 0.01, P, 'MASTER CAUTION RESET');
+  const jettB = cyl(0.014, 0.014, 0.012, redM, 0.065, 0.25, 0.008, P, Math.PI / 2, 0, 12); hit('jett', 0.04, 0.04, 0.03, 0.065, 0.25, 0.01, P, 'ACM JETTISON (STORES)');
   hit('fireL', 0.08, 0.05, 0.04, -0.38, 0.875, -6.15, g, 'L FIRE  -  PUSH TO DISCHARGE'); hit('fireR', 0.08, 0.05, 0.04, 0.38, 0.875, -6.15, g, 'R FIRE  -  PUSH TO DISCHARGE');
   // left console (flat, facing up; canvas top = forward): throttle quadrant, sweep handle, flaps, AFCS, crank
   const conL = canvasTex(440, 1520), conR = canvasTex(440, 1520); conL.ctx.scale(2, 2); conR.ctx.scale(2, 2);   // drawn in 220 x 760 units at 2x for legible placards
@@ -357,18 +376,14 @@ export function buildTomcatCockpit() {
     c.fillStyle = '#353b40'; c.fillRect(0, 0, W, H);
     // panel sections with screw heads (the F-14's grey panels), white placard lettering
     const sect = (x0, y0, x1, y1) => { c.fillStyle = '#3a4046'; c.fillRect(px(x0), py(y1), (x1 - x0) * 1000, (y1 - y0) * 1000); c.strokeStyle = '#22272b'; c.lineWidth = 3; c.strokeRect(px(x0), py(y1), (x1 - x0) * 1000, (y1 - y0) * 1000); c.fillStyle = '#80868c'; for (const [sx, sy] of [[x0 + 0.008, y0 + 0.008], [x1 - 0.008, y0 + 0.008], [x0 + 0.008, y1 - 0.008], [x1 - 0.008, y1 - 0.008]]) { c.beginPath(); c.arc(px(sx), py(sy), 3, 0, TAU); c.fill(); } };
-    sect(-0.545, -0.325, -0.215, 0.325); sect(0.115, -0.325, 0.545, 0.325); sect(-0.21, -0.325, 0.11, 0.325);
+    sect(-0.335, 0.03, -0.125, 0.255); sect(0.125, 0.03, 0.335, 0.255); sect(-0.118, 0.224, 0.118, 0.33); sect(-0.33, -0.215, -0.115, 0.03); sect(0.115, -0.215, 0.33, 0.03); sect(-0.115, -0.25, 0.115, 0.03);
     c.fillStyle = '#e6e2cf'; c.textAlign = 'center'; c.textBaseline = 'middle';
     const lab = (t, x, y, s = 12, col = '#e6e2cf') => { c.fillStyle = col; c.font = `bold ${s}px ${SANS}`; c.fillText(t, px(x), py(y)); };
-    lab('VERT VEL', -0.43, 0.143, 10); lab('AIRSPEED / MACH', -0.31, 0.135, 10); lab('ALT', -0.43, 0.015, 11); lab('WHEELS / FLAPS', -0.31, 0.022, 9);
-    lab('AOA', -0.16, 0.255, 12); lab('UNITS', -0.16, 0.24, 9);
-    lab('WING SWEEP', 0.185, 0.137, 10); lab('ACCEL', 0.305, 0.137, 10); lab('STBY ATT', 0.185, 0.017, 10); lab('CLOCK', 0.305, 0.03, 9);
-    lab('RPM', -0.336, -0.005, 9); lab('TIT', -0.2, -0.035, 9); lab('FF', -0.336, -0.08, 9); lab('NOZ', -0.2, -0.11, 9); lab('L    R', -0.336, -0.162, 8); lab('L    R', -0.2, -0.192, 8);
-    lab('OIL', -0.43, -0.27, 9); lab('THREAT', 0.465, 0.25, 9);
-    lab('LDG GEAR', -0.505, -0.15, 8); lab('HOOK', 0.49, -0.245, 11); lab('MASTER ARM', 0.185, -0.095, 9); lab('ON', 0.185, -0.028, 9); lab('WPN SEL', 0.275, -0.095, 9);
-    lab('ACM JETT', 0.37, -0.095, 9); lab('VDI', -0.115, 0.05, 10); lab('HSD', -0.105, -0.2, 10); lab('NAV/TID', 0.115, -0.225, 8);
-    lab('FUEL', 0.33, -0.12, 11); lab('LB X 1000', 0.33, -0.31, 8);
-    MODES.forEach((m, i) => lab(m, -0.1 + i * 0.05, 0.3, 9));
+    // placards by each traced item (NATOPS legend names, shortened as stencilled)
+    const L1 = { 'VERTICAL VELOCITY': 'VERT VEL', 'AIRSPEED / MACH': 'AIRSPEED/MACH', 'ALTIMETER': 'ALT', 'RADAR ALTIMETER': 'RADAR ALT', 'STANDBY ATTITUDE': 'STBY ATT', 'WING SWEEP': 'WING SWEEP', 'ACCELEROMETER': 'ACCEL', 'BDHI': 'BDHI', 'CLOCK': 'CLOCK', 'NOZZLE POSITION': 'NOZ L', 'NOZZLE POSITION R': 'NOZ R', 'OIL PRESSURE': 'OIL', 'HYDRAULIC PRESSURE': 'HYD', 'RPM': 'RPM', 'TIT': 'TIT', 'FUEL FLOW': 'FF', 'ENGINE PRESSURE RATIO': 'EPR', 'LIQUID OXYGEN': 'LOX', 'CABIN PRESSURE ALTIMETER': 'CABIN ALT', 'ANGLE OF ATTACK': 'AOA' };
+    for (const [k, t] of Object.entries(L1)) { const it = TR[k]; lab(t, it.x, it.y - (it.h || it.w) / 2 - 0.007, 7); }
+    lab('MASTER ARM', -0.07, 0.228, 6); lab('WPN', 0.0, 0.232, 6); lab('JETT', 0.065, 0.232, 6); lab('F-14A', 0, 0.322, 8, '#cfd0c8');
+    MODES.forEach((m, i) => lab(m, -0.09 + i * 0.04, 0.307, 6));
     c.fillStyle = '#2a2e32'; c.fillRect(px(-0.545), py(-0.3), 120, 26); lab('F-14A', -0.485, -0.315, 13, '#cfd0c8');
     art.tex.needsUpdate = true;
     // the side consoles: grey Dzus panels (console-local metres: x across, y forward), white placards by each control
@@ -441,7 +456,7 @@ export function buildTomcatCockpit() {
     (c, W, S) => { const R = W / 2; needle(c, R, gMap(S.gmax ?? 1), R * 0.8, '#d0a040', R * 0.05, 0.1); needle(c, R, gMap(S.gmin ?? 1), R * 0.8, '#d0a040', R * 0.05, 0.1); needle(c, R, gMap(V.g), R * 0.86); hub(c, R, 0.1); });
   // flap / slat position: two vertical bars in a dial
   gauge('flap', 192, (c, W) => { const R = W / 2; faceBg(c, W); txt(c, 'SLAT', R * 0.6, R * 0.32, '#cfcdc0', R * 0.15); txt(c, 'FLAP', R * 1.4, R * 0.32, '#cfcdc0', R * 0.15); for (const x of [0.6, 1.4]) { c.strokeStyle = '#ecebe2'; c.lineWidth = 2; c.strokeRect(R * x - R * 0.13, R * 0.48, R * 0.26, R * 1.0); for (let k = 0; k <= 4; k++) { const y = R * 0.48 + k * R * 0.25; c.beginPath(); c.moveTo(R * x + R * 0.15, y); c.lineTo(R * x + R * 0.24, y); c.stroke(); } } txt(c, 'UP', R, R * 0.52, '#ecebe2', R * 0.12); txt(c, 'DN', R, R * 1.44, '#ecebe2', R * 0.12); },
-    (c, W) => { const R = W / 2; c.fillStyle = '#f2f2ea'; c.fillRect(R * 0.49, R * 0.5, R * 0.22, R * 0.96 * V.slat + 2); c.fillRect(R * 1.29, R * 0.5, R * 0.22, R * 0.96 * V.flap + 2); });
+    (c, W) => { const R = W / 2; c.fillStyle = '#f2f2ea'; c.fillRect(R * 0.49, R * 0.5, R * 0.22, R * 0.96 * V.slat + 2); c.fillRect(R * 1.29, R * 0.5, R * 0.22, R * 0.96 * V.flap + 2); }, VL, GLV);
   // altimeter: counter-pointer (needle = hundreds, drum = thousands)
   gauge('alt', 256, (c, W) => dialFace(c, W, { map: lin(0, 0, 1000, 360), v0: 0, v1: 980, major: 100, minor: 20, labels: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(k => [k * 100, String(k)]), lr: 0.6 }),
     (c, W, S, G) => { const R = W / 2; if (flaky(S, G.i)) { offFlag(c, W); return; } drum(c, R * 0.5, R * 0.72, R * 1.0, R * 0.28, Math.floor(Math.max(0, V.alt) / 100), 3); txt(c, 'FT', R, R * 1.3, '#cfcdc0', R * 0.1); needle(c, R, (Math.max(0, V.alt) % 1000) / 1000 * 360, R * 0.86); hub(c, R, 0.1); });
@@ -466,15 +481,19 @@ export function buildTomcatCockpit() {
   const rpmMap = lin(0, -135, 110, 135), titMap = lin(0, -135, 1300, 135), ffMap = lin(0, -135, 12, 135), nozMap = lin(0, -120, 100, 120), oilMap = lin(0, -135, 100, 135);
   for (const k of [0, 1]) {
     const s = k ? 'R' : 'L';
-    gauge('rpm' + s, 192, (c, W) => dialFace(c, W, { map: rpmMap, v0: 0, v1: 110, major: 10, minor: 5, labels: [[0, '0'], [20, '2'], [40, '4'], [60, '6'], [80, '8'], [100, '10']], bands: [[90, 104, '#2db040']], reds: [107], ls: 0.2 }),
-      (c, W, S) => { const R = W / 2; txt(c, String(Math.round(V.rpm[k])), R, R * 1.42, '#f2f2ea', R * 0.18, 'center', MONO); needle(c, R, rpmMap(V.rpm[k]), R * 0.86); hub(c, R, 0.1); if (S.stalled && S.stalled[k]) txt(c, 'STALL', R, R * 0.62, '#ff5030', R * 0.16); });
-    gauge('tit' + s, 192, (c, W) => dialFace(c, W, { map: titMap, v0: 0, v1: 1300, major: 200, minor: 100, labels: [[0, '0'], [400, '4'], [800, '8'], [1200, '12']], bands: [[300, 1100, '#2db040']], reds: [1190], ls: 0.2 }),
-      (c, W) => { const R = W / 2; txt(c, String(Math.round(V.tit[k])), R, R * 1.42, '#f2f2ea', R * 0.16, 'center', MONO); needle(c, R, titMap(V.tit[k]), R * 0.86); hub(c, R, 0.1); });
-    gauge('ff' + s, 192, (c, W) => dialFace(c, W, { map: ffMap, v0: 0, v1: 12, major: 2, minor: 1, labels: [[0, '0'], [4, '4'], [8, '8'], [12, '12']], ls: 0.2 }),
-      (c, W) => { const R = W / 2; txt(c, 'PPH', R, R * 0.66, '#cfcdc0', R * 0.1); needle(c, R, ffMap(V.ff[k] / 1000), R * 0.86); hub(c, R, 0.1); });
     gauge('noz' + s, 192, (c, W) => dialFace(c, W, { map: nozMap, v0: 0, v1: 100, major: 25, minor: 12.5, labels: [[0, 'C'], [50, '1/2'], [100, 'O']], ls: 0.2 }),
       (c, W) => { const R = W / 2; needle(c, R, nozMap(V.noz[k]), R * 0.86); hub(c, R, 0.1); });
   }
+  const tape = (key, lab, v0, v1, ticks, val) => { const it = TR[key]; rect('tape' + key, it.w, it.h, 2400, it.x, it.y, (c, W, H) => {
+    c.fillStyle = '#0c0d0e'; c.fillRect(0, 0, W, H); const y = v => H * 0.92 - H * 0.82 * clamp((v - v0) / (v1 - v0), 0, 1);
+    txt(c, lab, W / 2, H * 0.04, '#ecebe2', W * 0.22); for (const t of ticks) { c.strokeStyle = '#ecebe2'; c.lineWidth = 2; c.beginPath(); c.moveTo(W * 0.42, y(t)); c.lineTo(W * 0.58, y(t)); c.stroke(); txt(c, String(t >= 1000 ? t / 100 : t), W * 0.5, y(t) - H * 0.018, '#9a988c', W * 0.16); }
+    for (const k of [0, 1]) { const yy = y(val(k)), x = k ? W * 0.62 : W * 0.38; c.fillStyle = k ? '#9fd0e8' : '#f2f2ea'; c.beginPath(); c.moveTo(x, yy); c.lineTo(k ? W * 0.96 : W * 0.04, yy - 7); c.lineTo(k ? W * 0.96 : W * 0.04, yy + 7); c.fill(); }
+    txt(c, String(Math.round(val(0))) + ' ' + String(Math.round(val(1))), W / 2, H * 0.97, '#f2f2ea', W * 0.17, 'center', MONO); }); };
+  tape('RPM', 'RPM', 0, 110, [0, 20, 40, 60, 80, 100], k => V.rpm[k]); tape('TIT', 'TIT', 0, 1300, [0, 400, 800, 1200], k => V.tit[k]); tape('FUEL FLOW', 'FF', 0, 12000, [0, 4000, 8000, 12000], k => V.ff[k]);
+  const statDial = (key, size, lab, labels) => gauge(key, size, (c, W) => dialFace(c, W, { map: lin(0, -135, 100, 135), v0: 0, v1: 100, major: 25, minor: 12.5, labels, ls: 0.2 }), (c, W) => { const R = W / 2; txt(c, lab, R, R * 0.62, '#cfcdc0', R * 0.15); needle(c, R, lin(0, -135, 100, 135)(70), R * 0.8); hub(c, R, 0.1); });
+  statDial('hyd', 128, 'HYD', [[0, '0'], [50, '1.5'], [100, '3']]); statDial('lox', 128, 'LOX', [[0, '0'], [50, '5'], [100, '10']]); statDial('cabin', 128, 'CABIN', [[0, '0'], [50, '25'], [100, '50']]);
+  gauge('ralt', 224, (c, W) => dialFace(c, W, { map: lin(0, -150, 5000, 150), v0: 0, v1: 5000, major: 1000, minor: 500, labels: [[0, '0'], [1000, '1'], [2000, '2'], [3000, '3'], [4000, '4'], [5000, '5']], ls: 0.2 }), (c, W, S) => { const R = W / 2; txt(c, 'RADAR ALT', R, R * 0.62, '#cfcdc0', R * 0.12); needle(c, R, lin(0, -150, 5000, 150)(Math.min(5000, (S.agl || 0) * 3.28)), R * 0.84); hub(c, R, 0.1); });
+  gauge('bdhi', 256, (c, W) => { const R = W / 2; faceBg(c, W); for (let a = 0; a < 360; a += 10) radial(c, R, a, '#cfcdc0', R * (a % 30 ? 0.86 : 0.8), R * 0.92, 2); [['N', 0], ['E', 90], ['S', 180], ['W', 270]].forEach(([t, a]) => { const [x, y] = P2(R, R * 0.68, a); txt(c, t, x, y, '#f2f2ea', R * 0.14); }); }, (c, W, S, G, A) => { const R = W / 2; needle(c, R, S.wpt ? S.wpt.brg * 180 / Math.PI : 0, R * 0.78, '#e8a020', R * 0.05); hub(c, R, 0.1); });
   gauge('oil', 160, (c, W) => dialFace(c, W, { map: oilMap, v0: 0, v1: 100, major: 25, minor: 12.5, labels: [[0, '0'], [50, '50'], [100, '100']], bands: [[25, 65, '#2db040']], ls: 0.2 }),
     (c, W) => { const R = W / 2; needle(c, R, oilMap(V.oil[0]), R * 0.8, '#f2f2ea', R * 0.08); needle(c, R, oilMap(V.oil[1]), R * 0.62, '#9fd0e8', R * 0.1); hub(c, R, 0.1); txt(c, 'L', R * 0.7, R * 1.4, '#f2f2ea', R * 0.15); txt(c, 'R', R * 1.3, R * 1.4, '#9fd0e8', R * 0.15); });
   // ALR-45 threat azimuth scope (also the RIO's repeat): green CRT, threats by relative bearing, closer = nearer the centre
@@ -491,22 +510,22 @@ export function buildTomcatCockpit() {
   };
   gauge('rwr', 192, null, rwrDraw);
   // AoA tape: 0 .. 30 units with the on-speed band, a pointer that rides it
-  rect('aoa', 0.044, 0.2, 2400, -0.16, 0.12, (c, W, H) => {
+  rect('aoa', at('ANGLE OF ATTACK').w, at('ANGLE OF ATTACK').h, 2400, at('ANGLE OF ATTACK').x, at('ANGLE OF ATTACK').y, (c, W, H) => {
     c.fillStyle = '#0c0d0e'; c.fillRect(0, 0, W, H); const y = u => H - 14 - (H - 28) * clamp(u, 0, 30) / 30;
     c.fillStyle = '#2db040'; c.fillRect(W * 0.18, y(17.5), W * 0.2, y(12.5) - y(17.5)); c.fillStyle = '#e8c020'; c.fillRect(W * 0.18, y(30), W * 0.2, y(20) - y(30));
     for (let u = 0; u <= 30; u += 1) { c.strokeStyle = '#ecebe2'; c.lineWidth = u % 5 ? 1 : 2; c.beginPath(); c.moveTo(W * 0.42, y(u)); c.lineTo(W * (u % 5 ? 0.55 : 0.62), y(u)); c.stroke(); if (u % 10 === 0) txt(c, String(u), W * 0.8, y(u), '#ecebe2', W * 0.24); }
     c.fillStyle = '#ff9a20'; const yy = y(V.aoa); c.beginPath(); c.moveTo(W * 0.4, yy); c.lineTo(W * 0.04, yy - 8); c.lineTo(W * 0.04, yy + 8); c.fill();
   });
   // gear position indicator: wheels, UP, or a barber pole in transit; brake / flap advisories under it
-  rect('gearInd', 0.11, 0.06, 2000, -0.29, -0.225, (c, W, H, S, A) => {
+  rect('gearInd', 0.08, 0.045, 2000, 0, -0.005, (c, W, H, S, A) => {
     c.fillStyle = '#16181a'; c.fillRect(0, 0, W, H); const dn = A.gear > 0.99, up = A.gear < 0.01;
     [[W * 0.36, 4], [W * 0.04, H * 0.48], [W * 0.68, H * 0.48]].forEach(([x, y], i) => {
       const w = W * 0.28, h = H * 0.44; if (!dn && !up) barber(c, x, y, w, h); else { c.fillStyle = '#050505'; c.fillRect(x, y, w, h); if (dn) { c.strokeStyle = '#f2f2ea'; c.lineWidth = 3; c.beginPath(); c.arc(x + w / 2, y + h / 2, h * 0.32, 0, TAU); c.stroke(); } else txt(c, 'UP', x + w / 2, y + h / 2, '#f2f2ea', h * 0.5); }
       void i;
     });
-  });
+  }, VL);
   // fuel quantity: feed tapes (L / R) and the totaliser with the BINGO counter
-  rect('fuel', 0.16, 0.13, 2000, 0.33, -0.215, (c, W, H, S, A) => {
+  rect('fuel', at('FUEL QUANTITY').w, at('FUEL QUANTITY').h * 0.62, 2000, at('FUEL QUANTITY').x, at('FUEL QUANTITY').y - 0.02, (c, W, H, S, A) => {
     c.fillStyle = '#0c0d0e'; c.fillRect(0, 0, W, H); const lb = A.fuel * LB, feed = Math.min(lb / 2, 4000) / 4000;
     for (const [x, t] of [[W * 0.08, 'L'], [W * 0.78, 'R']]) { c.strokeStyle = '#ecebe2'; c.lineWidth = 2; c.strokeRect(x, H * 0.12, W * 0.14, H * 0.7); c.fillStyle = '#f2f2ea'; c.fillRect(x + 3, H * 0.12 + H * 0.7 * (1 - feed), W * 0.14 - 6, H * 0.7 * feed); txt(c, t, x + W * 0.07, H * 0.92, '#cfcdc0', H * 0.1); }
     txt(c, 'TOTAL', W * 0.5, H * 0.12, '#cfcdc0', H * 0.1); drum(c, W * 0.3, H * 0.2, W * 0.4, H * 0.24, Math.round(lb / 10) * 10, 5, lb < 2000 ? '#ffb040' : '#f2f2ea');
