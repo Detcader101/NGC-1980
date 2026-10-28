@@ -93,7 +93,7 @@ const mk = (base, o) => ({ ...base, ...o });
 Object.assign(M, {
   flightSage: mat(0x6b7356, { fold: 0.9, rough: 0.9 }),      // CWU-27/P (Navy / Marine jet crews)
   flightOD: mat(0x56603f, { fold: 0.9, rough: 0.9 }),        // Army / Marine helicopter crews (OG-106 / sage)
-  glove: mat(0x8c8670, { fold: 0.5, rough: 0.85 }),          // Nomex flight gloves (leather palms)
+  glove: mat(0x6e6a58, { fold: 0.5, rough: 0.85 }),          // Nomex flight gloves (leather palms)
   gloveDark: mat(0x3a3a36, { fold: 0.5, rough: 0.85 }),
   jersey: mat(0xffffff, { fold: 0.8, rough: 0.92, paint: 1 }),
   dungaree: mat(0x2b3550, { fold: 0.9, rough: 0.92 }),
@@ -105,7 +105,7 @@ Object.assign(M, {
   beltBlack: mat(0x1a1a1a, { rough: 0.6 }), beltBrown: mat(0x4a3220, { rough: 0.6 }),
   reflect: mat(0xc8c8c0, { rough: 0.4 }), hgu: mat(0xe2e2da, { rough: 0.35 }), sph: mat(0x46502e, { rough: 0.6 }),
   harness: mat(0x4a4a3a, { fold: 0.4, rough: 0.85 }), gsuit: mat(0x5a6048, { fold: 1, rough: 0.9 }), cvc: mat(0x3a3e30, { rough: 0.7 }),
-  hat: mat(0xeeeee6, { fold: 0.6, rough: 0.9 }), cap: mat(0x2a3450, { fold: 0.4, rough: 0.9 }),
+  hat: mat(0xe8e8e0, { fold: 0.2, rough: 0.9 }), cap: mat(0x2a3450, { fold: 0.4, rough: 0.9 }),
 });
 export const OUTFITS = {
   utility: { top: M.coat, legs: M.coat, sleeves: 'rolled', collar: 'fold', chest: 'utility', cargo: 'utility', foot: 'boot', boot: M.leather, belt: M.web },
@@ -143,7 +143,7 @@ export function bodySdf(o = {}) {
   for (const s of [-1, 1]) S.ellip([s * 0.068, 0.9, 0.05], [0.088, 0.1, 0.08], null, { ...T, k: 0.04, mat: trou });   // buttocks
   S.ellip([0, 1.09, -0.004], [0.158 * w, 0.15, 0.113 + 0.012 * b], null, { ...T, k: 0.07 });          // abdomen / waist
   S.ellip([0, 1.265, 0.0], [0.17 * w, 0.17, 0.118], null, { ...T, k: 0.07 });                          // ribcage
-  for (const s of [-1, 1]) S.ellip([s * 0.077, 1.315, -0.052], [0.085, 0.072, 0.064], [0, 0, s * 0.2], { ...T, k: 0.045 });   // pectorals
+  for (const s of [-1, 1]) S.ellip([s * 0.077, 1.315, -0.052], [0.085, 0.07, 0.056], [0, 0, s * 0.2], { ...T, k: 0.06 });   // pectorals (under the cloth: soft)
   S.ellip([0, 1.33, 0.035], [0.168 * w, 0.115, 0.094], null, { ...T, k: 0.05 });                      // upper back
   for (const s of [-1, 1]) S.ellip([s * 0.118, 1.2, 0.03], [0.062, 0.13, 0.072], [0, 0, s * -0.12], { ...T, k: 0.05 });   // lats
   for (const s of [-1, 1]) S.capsule([s * 0.035, 1.475, 0.022], [s * 0.165, 1.432, 0.012], 0.046, 0.04, { ...T, k: 0.045 });   // trapezius
@@ -156,15 +156,15 @@ export function bodySdf(o = {}) {
   if (!o.vest && OF.chest === 'utility') {
     S.rbox([0.006, 1.2, -0.122], [0.012, 0.2, 0.008], 0.006, [0.03, 0, 0], { k: 0.012, mat: cloth, skin: C.torso });
     for (const s of [-1, 1]) {
-      S.rbox([s * 0.085, 1.29, -0.112], [0.05, 0.055, 0.012], 0.01, [-0.1, s * 0.25, 0], { k: 0.01, mat: cloth, skin: C.torso });
+      S.rbox([s * 0.085, 1.29, -0.116], [0.05, 0.055, 0.006], 0.004, [-0.1, s * 0.25, 0], { k: 0.005, mat: cloth, skin: C.torso });
       S.rbox([s * 0.09, 1.0, -0.115], [0.058, 0.06, 0.012], 0.01, [0.05, s * 0.3, 0], { k: 0.012, mat: cloth, skin: C.torso });
     }
   } else if (OF.chest === 'flight') {
     S.capsule([0, 1.44, -0.112], [0, 0.98, -0.124], 0.0028, 0.0028, { sub: true, k: 0.004 });          // the front zip
-    for (const s of [-1, 1]) S.rbox([s * 0.085, 1.3, -0.113], [0.05, 0.06, 0.01], 0.008, [-0.1, s * 0.25, s * 0.3], { k: 0.012, mat: cloth, skin: C.torso });
+    for (const s of [-1, 1]) S.rbox([s * 0.085, 1.3, -0.114], [0.05, 0.06, 0.004], 0.003, [-0.1, s * 0.25, s * 0.3], { k: 0.004, mat: cloth, skin: C.torso });
   } else if (OF.chest === 'shirt') {
     S.capsule([0.004, 1.44, -0.118], [0.004, 0.99, -0.126], 0.0035, 0.0035, { k: 0.006, mat: cloth, skin: C.torso });   // button line
-    S.rbox([-0.085, 1.29, -0.11], [0.045, 0.05, 0.008], 0.008, [-0.1, -0.25, 0], { k: 0.01, mat: cloth, skin: C.torso });
+    S.rbox([-0.085, 1.29, -0.115], [0.045, 0.05, 0.004], 0.003, [-0.1, -0.25, 0], { k: 0.004, mat: cloth, skin: C.torso });
   }
   for (const s of [-1, 1]) {
     const sd = s < 0 ? 'L' : 'R', A = C['arm' + sd], L = C['leg' + sd];
@@ -260,7 +260,7 @@ export function headSdf(fi = 0, o = {}) {
     let c = SKIN0;
     const warm = g2(ax - 0.043, 0.018) * g2(ly - 0.068, 0.02) * sstep(0.0, -0.05, lz) + g2(lx, 0.012) * g2(ly - 0.07, 0.016) * sstep(-0.08, -0.11, lz) + g2(ax - 0.078, 0.01) * g2(ly - 0.09, 0.03);
     c = lerpHex(c, 0xc07a66, 0.3 * Math.min(1, warm));
-    c = lerpHex(c, 0x6e5040, 0.2 * g2(ax - 0.032, 0.013) * g2(ly - 0.095, 0.009));
+    c = lerpHex(c, 0x6e5040, 0.12 * g2(ax - 0.032, 0.013) * g2(ly - 0.095, 0.009));
     // the shaved beard area: the jaw and chin in front of the ears, above the jaw line, not the lips
     const beard = sstep(0.072, 0.045, ly) * sstep(-0.006, 0.012, ly) * sstep(0.03, -0.02, lz) * (1 - 0.8 * g2(ax, 0.026) * g2(ly - 0.038, 0.012));
     c = lerpHex(c, 0x7d6a5c, 0.2 * beard * F.beard);
@@ -279,12 +279,12 @@ export function headSdf(fi = 0, o = {}) {
   S.ellip(P(0, 0.128, -0.045), [0.063, 0.058, 0.055], null, k(0.03));                                  // forehead
   S.ellip(P(0, 0.098, 0.062), [0.058, 0.062, 0.05], null, k(0.03));                                   // occiput
   // the face: the maxilla under the eyes, zygomatic arches, the mandible (ramus and body) to the chin
-  S.ellip(P(0, 0.066, -0.05), [0.05 * F.cheek, 0.05, 0.048], null, k(0.03));
+  S.ellip(P(0, 0.07, -0.05), [0.046 * F.cheek, 0.048, 0.048], null, k(0.03));
   for (const s of [-1, 1]) {
     S.ellip(P(s * 0.053 * F.cheek, 0.085, -0.052), [0.015, 0.011, 0.026], [0, s * 0.35, 0], k(0.04));    // cheekbones
-    S.capsule(P(s * 0.06 * F.jaw, 0.078, 0.01), P(s * 0.056 * F.jaw, 0.03, 0.002), 0.011, 0.012 * F.jaw, k(0.04));          // ramus
-    S.capsule(P(s * 0.056 * F.jaw, 0.03, 0.002), P(s * 0.022 * F.chin, 0.004, -0.068), 0.014 * F.jaw, 0.012, k(0.04));   // body to the chin
-    S.ellip(P(s * 0.033, 0.05, -0.06), [0.018, 0.022, 0.02], null, k(0.035));                         // the cheek over the teeth
+    S.capsule(P(s * 0.058 * F.jaw, 0.078, 0.012), P(s * 0.05 * F.jaw, 0.03, 0.004), 0.01, 0.011 * F.jaw, k(0.04));          // ramus
+    S.capsule(P(s * 0.05 * F.jaw, 0.03, 0.004), P(s * 0.02 * F.chin, 0.004, -0.066), 0.012 * F.jaw, 0.011, k(0.04));   // body to the chin
+    S.ellip(P(s * 0.03, 0.052, -0.062), [0.016, 0.02, 0.018], null, k(0.035));                         // the cheek over the teeth
   }
   S.ellip(P(0, 0.008 - 0.003 * (F.chin - 1), -0.074), [0.021 * F.chin, 0.017, 0.016 * F.chin], null, k(0.02));   // chin (mental protuberance)
   // the brow ridge, the glabella, the eye sockets carved under it
@@ -307,9 +307,8 @@ export function headSdf(fi = 0, o = {}) {
   // the eyes: the sockets carved under the brow, the lids round the eyeballs (separate, finer: eyesKit)
   for (const s of [-1, 1]) {
     S.ellip(P(s * 0.032, 0.0955, -0.087), [0.019, 0.0125, 0.0135], null, { sub: true, k: 0.009 });
-    S.ellip(P(s * 0.032, 0.0985, -0.0822), [0.0146, 0.0062, 0.0112], [0.3, 0, s * -0.06], k(0.004));     // upper lid
-    S.ellip(P(s * 0.032, 0.0888, -0.0818), [0.0134, 0.0042, 0.0094], [-0.25, 0, 0], k(0.004));          // lower lid
-    S.ellip(P(s * 0.032, 0.094, -0.079), [0.0112, 0.0098, 0.0112], null, { sub: true, k: 0.0012 });     // room for the eyeball
+    S.ellip(P(s * 0.032, 0.0942, -0.0792), [0.0128, 0.0124, 0.0122], null, k(0.003));                    // the lids: a shell round the eyeball
+    S.ellip(P(s * 0.0322, 0.0935, -0.0915), [0.0128, 0.0042, 0.0095], [0, 0, s * -0.08], { sub: true, k: 0.0016 });   // the almond opening
   }
   // ears: the helix, the lobe, the concha carved in, the tragus
   for (const s of [-1, 1]) {
@@ -404,8 +403,8 @@ const HEADGEAR = {
   // the Navy enlisted white hat (Dixie cup) and the officer's garrison cap; the ball cap of the ready room
   whiteHat() {
     const S = new SdfKit(), P = headP(), K = { mat: M.hat, skin: 'head' };
-    S.ellip(P(0, 0.17, 0.008), [0.084, 0.06, 0.098], null, { ...K, k: 0.01 });
-    S.band(P(0, 0.162, 0.008), 0.098, 0.112, 0.026, 0.004, [-0.12, 0, 0], { ...K, k: 0.006 }, 0.003);
+    S.ecyl(P(0, 0.175, 0.006), 0.084, 0.099, 0.032, 0.022, [-0.1, 0, 0], { ...K, k: 0.006 });                         // the crown, flat-topped
+    S.band(P(0, 0.152, 0.008), 0.096, 0.111, 0.02, 0.003, [-0.1, 0, 0], { ...K, k: 0.004 }, 0.0025);                // the brim rolled up round it
     return { S, clip: 0.14, skull: 0.16 };
   },
   ballcap(o = {}) {
