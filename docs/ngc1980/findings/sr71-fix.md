@@ -95,4 +95,35 @@ way-home hook for the rest of the run).
 
 ## 6. Tests
 
-(filled in at the end of the run)
+All on the shared PC with other agents' headless runs going (SwiftShader at 0-4 fps).
+
+| Check | Result |
+|---|---|
+| `node tools/check.mjs syntax` | 691/691 |
+| `node tools/check.mjs types` | 572 (baseline 572) |
+| `node tools/sr71bench.mjs` | 24/24 |
+| `scenes/sr71controls.mjs` (new) | PASS 4/4 (runs/2026-10-29_18-26-08-sr71controls) |
+| `scenes/sr71recon.mjs` (new) | PASS 3/3 (runs/2026-10-29_19-02-19-sr71recon) |
+| `scenes/sr71.mjs` | PASS 9/9 (runs/2026-10-29_19-12-50-sr71); was 7/8 on the merged head |
+| `scenes/airbasesr71.mjs` | NOT CONFIRMED: 4/12, every failure a wall-clock `waitFor` timeout (the 60 s simulated cart start did not finish in 600 s real at ~0 fps; screenshots took 40-60 s each), killed by my 20 min timeout. Checked separately with the game loop fast-forwarded: board -> ENTER -> I starts both J58s in 60 s sim time (PASS 2/2), and the run's own SHIFT+L tow step passed with both engines running. Re-run on a quiet machine. |
+
+Scene fixes on the way: `sr71.mjs` reads the mouse-look result in the same frame (with the cursor free the head
+re-centres, by design), holds the head for its look-around shots (`sr71C.holdLook`), and closes the loss board before Y
+(the slow-SAM step is a kill or a hit at random past the ECM; a kill opens the board, which takes every key);
+`sr71recon.mjs` waits a few frames after moving her to 15,000 ft (the air data follow the new place one frame later).
+
+Evidence (`docs/ngc1980/evidence/sr71-fix/`): cockpit-photo-sidebyside.png, pilot-cockpit-strip.png,
+pilot-left-side-panel-throttles.png, recon-pilot-navmap-running.png, recon-rso-obc-panel-running.png (POWER ON green,
+FILM DRIVE lit), recon-pass-complete-feed-minimap.png, recon-big-map-after-pass.png, recon-low-not-running.png,
+rso-forward-dev.png, rso-obc-panel-dev.png.
+
+## 7. Open items
+
+- Panel art: the figures' callout numbers and leader lines survive as faint strokes on some faces; a few legends halo.
+  A hand-cleaned pass per face (or re-drawn legends) would read better up close.
+- The canopy frames from inside are approximate (no dimensioned canopy drawing found); the canopy does not open.
+- Seats: blocks to the SR-1's outline, no harness or survival-kit detail.
+- The side panels' fold angle and the fin hinge axis are read from photos / the three-view, not dimensioned figures.
+- Switches are not clickable (keys only); the OBC panel reflects K, it is not operated by hand.
+- The RSO's forward view: the bulkhead fills it (as in the aircraft); the viewsight hood is a plain block.
+- The big map's baked world texture ends east of the zone (look-terrain's map area); the SR-71 track and arrow draw past it on dark ground.

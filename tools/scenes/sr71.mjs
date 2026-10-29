@@ -12,9 +12,9 @@ export default async function (h) {
   await h.shot('on-the-strip-chase');
   await h.eval('(P.view = "cockpit", 1)'); await h.wait(1500); await h.shot('cockpit-on-the-strip');
   // (ngc/sr71-fix) the mouse: main.js hands captured-mouse movement to look(); it must turn the head (it did nothing)
-  await h.eval('(__G.head.yaw = 0, __G.head.pitch = 0, __G.crafts.active.look(200, 80), { yaw: __G.head.yaw, pitch: __G.head.pitch })');
-  await h.expect('Math.abs(__G.head.yaw + 0.5) < 0.01 && Math.abs(__G.head.pitch + 0.2) < 0.01');
-  await h.eval('(__G.head.yaw = 0.9, __G.head.pitch = -0.35, 1)'); await h.wait(800); await h.shot('cockpit-right-panel');
+  await h.eval('(__G.head.yaw = 0, __G.head.pitch = 0, __G.crafts.active.look(200, 80), window.__lk = { yaw: __G.head.yaw, pitch: __G.head.pitch }, { yaw: __G.head.yaw, pitch: __G.head.pitch })');
+  await h.expect('Math.abs(__lk.yaw + 0.5) < 0.01 && Math.abs(__lk.pitch + 0.2) < 0.01');   // read in the same frame: with the cursor free the head re-centres
+  await h.eval('(__G.sr71C.holdLook = true, __G.head.yaw = 0.9, __G.head.pitch = -0.35, 1)'); await h.wait(800); await h.shot('cockpit-left-side-panel-throttles');
   await h.eval('(__G.head.yaw = 0, __G.head.pitch = 0, P.seat = 1, 1)'); await h.wait(800); await h.shot('rso-cockpit');
   await h.eval('(P.seat = 0, P.view = "chase", 1)');
   // ---- take-off: max AB, rotate from 190 KIAS toward 9 deg, gear up once climbing (fast-forwarded)
@@ -44,7 +44,7 @@ export default async function (h) {
   await h.eval('(ff(80), { sams: P.sams.length, damage: A.damage, alive: P.alive, feed: [...document.querySelectorAll("#feed div")].slice(-4).map(d => d.textContent) })');
   await h.expect('A.damage > 0 || !P.alive || /DEF SYSTEMS/.test(document.querySelector("#feed").textContent)');
   // ---- on the ground again (by the home base: the foot soldier needs land to step onto), get out (Y)
-  await h.eval('(() => { const B = __G.PAD, x = B.x, z = B.z;   /* (ngc/look-terrain: on the home pad; HOME_B + 45 m is village ground on the new land, no room to get out) */ P.alive = true; A.damage = 0; S.out = true; S.home = null; S.crew = false; S.placeOnGround(x, __G.terrainH(x, z), z, 0, { hot: false });   /* (ngc/sr71-fix: out = the air base flag that she is out of her shelter, basesr71.js; without it present() is false and Y cannot get out) */ __G.crafts.control("sr71", 0, "spawn"); return [x, z]; })()'); await h.wait(1500);
+  await h.eval('(() => { const B = __G.PAD, x = B.x, z = B.z;   /* (ngc/look-terrain: on the home pad; HOME_B + 45 m is village ground on the new land, no room to get out) */ P.alive = true; A.damage = 0; __G.commander.lossMode = false; __G.commander.close();   /* (ngc/sr71-fix: the slow pass can be a kill - the SAM hits at random past the ECM - and the loss opens the board, which then takes every key, Y too) */ S.out = true; S.home = null; S.crew = false; S.placeOnGround(x, __G.terrainH(x, z), z, 0, { hot: false });   /* (ngc/sr71-fix: out = the air base flag that she is out of her shelter, basesr71.js; without it present() is false and Y cannot get out) */ __G.crafts.control("sr71", 0, "spawn"); return [x, z]; })()'); await h.wait(1500);
   await h.expect('S.canExit() === "" && __G.G.craft === "sr71"');
   await h.key('tap', 'KeyY'); await h.wait(2000);
   await h.eval('({ craft: __G.G.craft })'); await h.shot('crew-out-beside-it');

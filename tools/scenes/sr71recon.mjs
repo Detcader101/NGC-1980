@@ -20,7 +20,7 @@ export default async function (h) {
   await h.eval('({ on: P.recon.on, ok: P.recon.ok, why: P.recon.why, status: P.reconStatus(), hud: __G.crafts.active.hud().weap })');
   await h.expect('P.recon.on && P.recon.ok && /CAMERAS RUNNING/.test(P.reconStatus())');
   await h.eval('(S.holdLook = true, P.view = "cockpit", __G.head.pitch = -0.32, __G.head.yaw = 0, 1)'); await h.wait(2500); await h.shot('pilot-navmap-cameras-running');
-  await h.eval('(P.seat = 1, __G.head.pitch = -0.85, __G.head.yaw = -0.85, 1)'); await h.wait(2500); await h.shot('rso-obc-panel-running');
+  await h.eval('(P.seat = 1, __G.head.pitch = -0.65, __G.head.yaw = -0.8, 1)'); await h.wait(2500); await h.shot('rso-obc-panel-running');
   await h.eval('(P.seat = 0, __G.head.pitch = 0, __G.head.yaw = 0, P.view = "chase", 1)');
   // the pass: across the enemy islands (fast-forwarded), then cameras off
   await h.eval('ff(22)');
