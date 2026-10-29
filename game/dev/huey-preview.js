@@ -40,7 +40,10 @@ if (Q.get('checker') === '1') {
   huey.group.traverse(o => { if (o.isMesh && o.material && o.material.map && !Array.isArray(o.material)) { o.material = o.material.clone(); o.material.map = tex; o.material.alphaTest = 0; o.material.bumpMap = null; o.material.roughnessMap = null; o.material.needsUpdate = true; } });
 }
 let cockpit = null;
-if (Q.get('ck') === '1' || Q.get('ck') === '2') { cockpit = buildHueyCockpit(); huey.group.add(cockpit.group); cockpit.group.visible = true; }
+if (Q.get('ck') === '1' || Q.get('ck') === '2' || Q.get('sight')) { cockpit = buildHueyCockpit(); huey.group.add(cockpit.group); cockpit.group.visible = true; }
+if (cockpit && cockpit.sight && Q.get('sight') === '1') cockpit.sight.toggle(true);   // ngc/huey-sight: &sight=1 the reflex sight in OPERATE
+// &target=x,y,z (model frame): a marker post, e.g. on the sight line at the harmonisation range
+if (Q.get('target')) { const [x, y, z] = Q.get('target').split(',').map(Number); const t = new THREE.Mesh(new THREE.BoxGeometry(3, 3, 3), new THREE.MeshBasicMaterial({ color: 0xd04020 })); t.position.set(x, y, z); huey.group.add(t); }
 
 const S = { nr: 1, run: true, n1: 0.95, tx: 0, ty: 0, coll: 0.3, ped: 0, cone: 0.05, rockets: 16, light: false, firing: false, aim: null, cargoDoor: 1 };
 if (Q.get('s')) Object.assign(S, JSON.parse(Q.get('s')));
@@ -124,16 +127,16 @@ const PANEL = { avionics: 1, ac: true, volts: 28, amps: 30, ias: 0, alt: 40, vsi
   sw: { bat: true, gen: true, inv: true, engine: true, gov: 'AUTO', hyd: true, trim: true, sas: false, lowrpm: true, light: false, starter: false }, ctl: { cx: 0, cy: 0, coll: 0.1, pedal: 0 } };
 let last = performance.now(), time = 0;
 function place() {
-  if (cockpit) {
+  if (cockpit && Q.get('ck') !== '0') {
     huey.group.updateMatrixWorld();
-    camera.position.copy(HUEY_EYE); if (Q.get('ck') === '2') camera.position.x *= -1; camera.position.applyMatrix4(huey.group.matrixWorld); /* ck=2: the copilot's eye */ camera.rotation.set(0, 0, 0, 'YXZ'); camera.rotation.y = ck.yaw; camera.rotation.x = ck.pitch; camera.near = 0.03; camera.updateProjectionMatrix();
+    camera.position.copy(HUEY_EYE); if (Q.get('ck') === '2') camera.position.x *= -1; if (Q.get('eyeoff')) { const [ex, ey, ez] = Q.get('eyeoff').split(',').map(Number); camera.position.x += ex; camera.position.y += ey; camera.position.z += ez; }   /* &eyeoff=: head movement */ camera.position.applyMatrix4(huey.group.matrixWorld); /* ck=2: the copilot's eye */ camera.rotation.set(0, 0, 0, 'YXZ'); camera.rotation.y = ck.yaw; camera.rotation.x = ck.pitch; camera.near = 0.03; camera.updateProjectionMatrix();
   } else {
     camera.position.set(Math.sin(cam.yaw) * Math.cos(cam.pitch), Math.sin(cam.pitch), Math.cos(cam.yaw) * Math.cos(cam.pitch)).multiplyScalar(cam.dist).add(cam.t);
     camera.near = Math.max(0.05, cam.dist * 0.004); camera.far = 4000; camera.updateProjectionMatrix(); camera.up.set(0, 1, 0); camera.lookAt(cam.t);
   }
 }
 function step(dt) {
-  time += dt; huey.animate(S, dt, time, !!cockpit);
+  time += dt; huey.animate(S, dt, time, !!cockpit && Q.get('ck') !== '0');
   if (cockpit) cockpit.update({}, dt, PANEL);
   place(); renderer.render(scene, panelCam || ortho || camera);
 }

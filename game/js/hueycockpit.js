@@ -18,6 +18,7 @@ import { HUEY_SKIN } from './hueyhifi.js';
 import { rbox } from './hueygeo.js';
 import { UH1_PANEL } from './uh1panel.js';
 import { UH1_PEDESTAL } from './uh1pedestal.js';
+import { buildHueySight } from './hueysight.js';   // ngc/huey-sight: the pilot's XM60 reflex sight on the infinity reflex sight mount
 import { fpHand, sleeveGeo } from './units/infantry/handkit.js';   // ngc/look-people: smooth gloved hands and sleeves
 import { SdfKit } from './units/infantry/sdfmesh.js';
 import { SdfHandRecorder } from './units/infantry/humanfig.js';
@@ -723,22 +724,28 @@ const sc = faceCols.filter(c => c.x >= -0.5 && c.x <= 0.49);   // the glare shie
 
   // ---------------------------------------------------------------- per frame
   let slot = 0, pedPw = null;
+  // ngc/huey-sight: the armament sight hangs from the cabin top in front of the pilot (hi-fi cockpit only)
+  const sight = HF ? buildHueySight({ eye: HUEY_EYE, M, hit }) : null; if (sight) g.add(sight.group);
   const LBL = {}; for (const h of hits) LBL[h.userData.sw] = LBL[h.userData.sw] || h.userData.label;
   const stateLbl = {};   // "<label>  [ON]" strings, built once
   const lblOf = (id, st) => { const k = id + st; return stateLbl[k] || (stateLbl[k] = `${LBL[id]}  [${st}]`); };
   let lastS = null;
   const flip = (id, on) => { const p = sw[id]; if (p) p.rotation.x = -(on ? 0.5 : -0.5) * p.userData.sign; };
   return {
-    group: g, panel: P, hitBoxes: hits, cmLamps: { lock: lockL, msl: mslL, laser: lasL },   // CM: for tests
+    group: g, panel: P, sight, hitBoxes: hits, cmLamps: { lock: lockL, msl: mslL, laser: lasL },   // CM: for tests
     canvases: () => [...gauges.map(G => G.cv), cautT.cv, pedA.cv, pedB.cv, ohR.cv],   // canvases: for test contact sheets
     labelOf(id) {
       const s = lastS && lastS.sw; if (!s || !LBL[id]) return LBL[id] || id;
       if (id === 'gov') return lblOf(id, s.gov); if (id === 'engine' || id === 'inv' || id === 'bat' || id === 'gen' || id === 'hyd' || id === 'trim' || id === 'light' || id === 'sas' || id === 'lowrpm') return lblOf(id, s[id] ? 'ON' : 'OFF');
       if (id === 'starter') return lblOf(id, s.starter ? 'ENGAGED' : 'OFF');
+      if (sight && id === 'sight') return lblOf(id, sight.state.deployed ? 'OPERATE' : 'STOW');
+      if (sight && id === 'sightLamp') return lblOf(id, sight.state.lamp ? 'ON' : 'OFF');
+      if (sight && id === 'sightBril') return lblOf(id, Math.round(sight.state.bril * 100) + '%');
       return LBL[id];
     },
     press(id) { pt[id] = 0.18; if (id === 'mc') lampTest = 1.2; },   // the TEST / RESET switch: a lamp test, then the reset
     update(H, dt, S) {
+      if (sight) { g.updateWorldMatrix(true, false); sight.update(dt, g.matrixWorld); }
       lastS = S; const k = Math.min(1, 7 * dt), kk = Math.min(1, 2.5 * dt), ac = S.ac, s = S.sw, c = S.ctl;
       // needles: pneumatic and self-generating ones always live, AC ones fall to zero without the inverter
       V.ias += (Math.max(0, S.ias) - V.ias) * k; V.alt += (S.alt - V.alt) * k; V.vsi += (S.vsi - V.vsi) * Math.min(1, 3 * dt);
