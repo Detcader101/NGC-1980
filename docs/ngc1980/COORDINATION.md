@@ -3,6 +3,15 @@
 Jay Jay requested direct coordination between the active Codex and Claude sessions on 2026-10-29, then explicitly
 designated Claude as project lead. Codex follows Claude’s task assignments within the user’s existing constraints.
 
+## Latest checkpoint — 2026-10-29 closeout
+
+Jay Jay asked Codex to stop for today. Read the [closeout and resume checkpoint](handoffs/2026-10-29-codex-closeout.md)
+and then the latest mailbox before restarting. The clean implementation `728fbe9` is integrated by Claude at
+`8ee9249`. Claude's next XR/radio/WESTGATE assignment (`CLD-20261029-007` and `008`) is recorded but not started;
+it calls for a new Codex branch from that integration base. The new type ceiling is 578. Check for newer lead
+direction before branching. Codex's server and stale headless browser were stopped; no test processes are left.
+Earlier handoffs and base/branch instructions below describe historical stages of the work.
+
 The canonical local mailbox is `/home/jayjay/thrust-zarch/.git/agent-chat/CHAT.md`.
 It lives in the common Git directory so all worktrees read the same file. Do not create a separate copy in each branch.
 The mailbox is local operational state and is not committed or pushed. This document is its durable discovery note.

@@ -1,5 +1,13 @@
 # MODLOG — NGC-1980 (formerly Thrust/Zarch)
 
+## 2026-10-29 — Codex end-of-day checkpoint
+
+Recorded completed work, test evidence, limitations and Claude's next XR/radio/WESTGATE assignment in the
+[closeout checkpoint](docs/ngc1980/handoffs/2026-10-29-codex-closeout.md). Claude reports integration of clean
+commit `728fbe9` at `8ee9249`, with the type baseline lowered to 578. The known XR desk expectation failure and
+airbase navigation follow-up are queued for the next session. Stopped Codex's detached port-8826 server and
+stale headless browser after verifying ownership. No game changes, new implementation tests or push for this closeout.
+
 ## 2026-10-29 — Keep generated speech local; prepare a clean integration history
 
 Following Jay Jay's local-build decision relayed by project lead Claude, generated speech PCM and its generated

@@ -1348,3 +1348,27 @@ Publish the [local-speech and TP report](../../devlogs/2026-10-29-tp-grips/devlo
 8/8: bundled artifact hashes, links, image decoding, desktop/mobile layout and no browser errors. Desktop and
 390 px screenshots were inspected. Physical microphone operation in Opera GX, subjective listening and Quest/XR
 memory remain manual checks; no new claim is made for them. Keep the earlier integration report unchanged.
+
+## Finding
+
+Claude integrated the clean handoff; XR and airbase navigation need a bounded follow-up after today's closeout.
+
+## Evidence
+
+Mailbox `CLD-20261029-006` through `008` records integration at `8ee9249`: voices 29/29, smoke 5/5,
+XR gameplay 25/25, syntax 648/648 and types 578. The separate XR scene is 18/19 because its command-entry
+assertion expects the commander board, while the entry opens the radio desk. Airbase sorties now live on the
+integrated commander board; the airbase scene has not yet been rerun. These results are reported by Claude.
+
+## Cause
+
+The radio desk changed the command entry route. Existing XR assertions and the newly integrated WESTGATE
+sortie workflow depend on the earlier board route. Reachability of both interfaces needs explicit integration
+coverage. This is separate from the passing XR gameplay scene and cannot be treated as fully passing XR.
+
+## Action
+
+Honor Jay Jay's instruction to close out today. Record, but do not start, Claude's requested new branch from
+`8ee9249`: keep both interfaces reachable in VR, expose a WESTGATE C-130/SR-71 sortie request with readback on
+the radio desk, update the airbase opening step and run XR/airbase/voices serially. Preserve the new 578 type
+ceiling. Resume details and process cleanup are in the [checkpoint](../handoffs/2026-10-29-codex-closeout.md).
