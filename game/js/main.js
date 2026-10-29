@@ -1056,7 +1056,7 @@ const Z = {
 };
 // ---------------------------------------------------------------- the island war (war.js)
 const nav = createNav(terrainH);
-const seaSpot = (x, z) => { const [wx, wz] = nav.nearestWater(x, z); return [wx, wz, Math.atan2(wx, wz)]; };   // facing the map centre
+const seaSpot = (x, z, yaw) => { const [wx, wz] = nav.nearestWater(x, z); return [wx, wz, yaw ?? Math.atan2(wx, wz)]; };   // facing fleetStart's heading (ngc/look-terrain: along open water; the map centre is land now), else the map centre
 const PSTORE = { get fuel() { return G.res; }, set fuel(v) { G.res = v; }, get mat() { return G.mat; }, set mat(v) { G.mat = v; }, get fuelMax() { return RES_MAX; } };
 // FOUNDATION: everything the player can control is a craft (craft.js); PL is how war.js sees whichever one you are in
 const crafts = createCraftHost({ G, Z, say: (t, s) => say(t, s) });

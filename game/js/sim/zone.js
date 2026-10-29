@@ -58,7 +58,7 @@ export function createZone(o = {}) {   // o.pure: on copies of the islands (a ch
   Z.bake = () => { const t = new Float32Array(GRID.N * GRID.N); for (let j = 0; j < GRID.N; j++) for (let i = 0; i < GRID.N; i++) t[j * GRID.N + i] = exact(i * GRID.RES - GRID.EXT, j * GRID.RES - GRID.EXT); return t; };
   Z.useGrid = t => { grid = t; Z.nav = null; return Z; };
   // the sea lanes are planned on whichever ground is in use (built on first ask)
-  Object.defineProperty(Z, 'navReady', { get: () => { if (!Z.nav) { Z.nav = createNav(terrainH); const seaSpot = (x, z) => { const [wx, wz] = Z.nav.nearestWater(x, z); return [wx, wz, Math.atan2(wx, wz)]; }; Z.carrierStart = seaSpot(...fleetStart(1)); Z.enemyStart = seaSpot(...fleetStart(2)); } return Z; } });
+  Object.defineProperty(Z, 'navReady', { get: () => { if (!Z.nav) { Z.nav = createNav(terrainH); const seaSpot = (x, z, yaw) => { const [wx, wz] = Z.nav.nearestWater(x, z); return [wx, wz, yaw ?? Math.atan2(wx, wz)]; }; Z.carrierStart = seaSpot(...fleetStart(1)); Z.enemyStart = seaSpot(...fleetStart(2)); } return Z; } });
   if (!o.pure) ZONE = Z;
   return Z;
 }

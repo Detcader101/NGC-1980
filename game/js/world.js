@@ -36,7 +36,9 @@ export const ISLANDS = [   // (x, z: the site's centre on the land, world/terrai
 ISLANDS.forEach((I, i) => { I.id = i; I.cave = I.kind === 'hq' || I.kind === 'fortress'; });
 // Initial fleet anchorages track the expanded map; the nav grid moves them to verified deep water.
 // (ngc/look-terrain) open water: the Marines' carrier south of HOME ISLAND, the enemy's north of IRON BAY's mouth
-export const fleetStart = side => side === 1 ? [-1150, 2230] : [1100, -2250];
+// [x, z, yaw]: the carriers lie along the open water (forward = -sin yaw, -cos yaw): the ALBATROSS heading east along
+// HOME ISLAND's south coast, the KRAKEN heading west along the north coast (facing the map centre faced land now)
+export const fleetStart = side => side === 1 ? [-1150, 2230, -Math.PI / 2] : [1100, -2250, Math.PI / 2];
 
 const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const mix = (a, b, t) => a + (b - a) * t;

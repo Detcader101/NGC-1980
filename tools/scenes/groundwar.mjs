@@ -5,6 +5,7 @@
 //   4. an RW-7 hover tank crosses from the KRAKEN and comes ashore; an LCAC lands a seized M1A2.
 // The war is stepped in fast-forward loops between screenshots (the browser is slow headless); the Huey is parked on
 // the island so the game draws the terrain round it.     node snap.mjs scenes/groundwar.mjs
+// (ngc/look-terrain: the hover tank and LCAC runs get 150 / 300 s of war time: the KRAKEN is ~3 km out on the 5 km zone)
 const HOOK = `(() => { const G = __G, T = G.THREE, r = G.renderer, cam = new T.PerspectiveCamera(50, 1, 0.3, 2500), orig = r.render.bind(r);
   const t = new T.Vector3(), p = new T.Vector3();
   r.render = (s, c) => {
@@ -82,10 +83,10 @@ export default async function (h) {
   // ---- 4. armour: an RW-7 over the sea, an LCAC with a seized M1A2
   await h.eval(`(() => { const GW = __G.war.ground; window.__hv = GW.launchHover(__I); window.__lc = GW.launchMBT(__I, 'm1a2'); return { hover: !!__hv, lcac: !!__lc }; })()`);
   await h.expect(`!!window.__hv && !!window.__lc`, 'an RW-7 and an LCAC launched');
-  await h.eval(`(window.__cam = { follow: __hv, yaw: 2.2, d: 22, h: 6 }, __ff(60, 1 / 30, () => !__hv.transit), __gw())`);
+  await h.eval(`(window.__cam = { follow: __hv, yaw: 2.2, d: 22, h: 6 }, __ff(150, 1 / 30, () => !__hv.transit), __gw())`);
   await h.shot('hovertank-ashore');
   await h.expect(`!__hv.transit && __hv.B && __hv.B.I === __I`, 'the hover tank came ashore and joined the fight');
-  await h.eval(`(window.__cam = { follow: { x: __lc.x, y: 2, z: __lc.z }, yaw: 2.4, d: 45, h: 14 }, __ff(120, 1 / 30, () => __lc.phase === 'ramp'), { phase: __lc.phase })`);
+  await h.eval(`(window.__cam = { follow: { x: __lc.x, y: 2, z: __lc.z }, yaw: 2.4, d: 45, h: 14 }, __ff(300, 1 / 30, () => __lc.phase === 'ramp'), { phase: __lc.phase })`);
   await h.eval(`(() => { window.__cam = { follow: { x: __lc.x, y: 2, z: __lc.z }, yaw: __lc.yaw + 2.6, d: 34, h: 9 }; __ff(10, 1 / 30, () => !!__lc.mbt); return { phase: __lc.phase, mbt: !!__lc.mbt }; })()`);
   await h.shot('lcac-ramp-down');
   await h.eval(`(() => { __ff(12); const t = __lc.mbt; window.__cam = { follow: t, yaw: 2.8, d: 16, h: 5 }; return { mbt: !!t, speed: t && t.sim.speed, gear: t && t.sim.drive.gear, pos: t && [t.x, t.y, t.z].map(Math.round), ground: t && __G.terrainH(t.x, t.z), lcac: [__lc.x, __lc.z].map(Math.round), lcGround: __G.terrainH(__lc.x, __lc.z) }; })()`);

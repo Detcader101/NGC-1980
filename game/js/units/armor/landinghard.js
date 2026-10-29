@@ -27,7 +27,10 @@ export function planHards(islands, H, o = {}) {
         const [x, z] = pt(u, 0), n = H(x, z), r = ramp(u);
         if (u > 2 && n <= r + 0.3) {   // the ramp has come up to the island's ground: is it fit to drive on from there?
           const [x2, z2] = pt(u + 8, 0), s = Math.abs(H(x2, z2) - n) / 8;
-          if (s < 0.3) { u1 = u; break; }
+          // (ngc/look-terrain) and drivable on inland: no dune bank or cliff step in the next 40 m (an M60 stuck at 34 deg
+          // on the dune ridge behind a beach hard); else the ramp carries on through it
+          let on = s < 0.3; for (let k = 8; on && k < 48; k += 4) { const [xa, za] = pt(u + k, 0), [xb, zb] = pt(u + k + 4, 0); if (Math.abs(H(xb, zb) - H(xa, za)) / 4 > 0.32) on = false; }
+          if (on) { u1 = u; break; }
         }
         let c = Math.abs(n - r);
         for (const lat of [-HARD.W, HARD.W]) { const [xl, zl] = pt(u, lat); c = Math.max(c, Math.abs(H(xl, zl) - r)); }
