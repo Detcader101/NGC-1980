@@ -38,9 +38,10 @@ export default {
     await h.eval('(clearInterval(__fly),1)');
     await h.expect('__flight.maxChunks<180 && __flight.maxPending<=2 && __G.Z.alive');
     await h.eval('__flight');await h.shot('continuous-flight-2km');await h.notblank();
-    // Wider control-zone edge: haze approaches continuously on both sides of x=1280.
-    await hover(1260,234,280,1008,234);await h.wait(4000);const a=await h.eval('__WORLD.stats.draw');await h.shot('zone-edge-inside');
-    await hover(1300,234,280,1008,234);await h.wait(4000);const b=await h.eval('__WORLD.stats.draw');
+    // Wider control-zone edge: haze approaches continuously on both sides of x=BOUND (ngc/look-terrain: read from the game, was 1280).
+    const B=await h.eval("import('/js/world/bound.js').then(m=>m.BOUND).catch(()=>1280)");
+    await hover(B-20,234,280,B-272,234);await h.wait(4000);const a=await h.eval('__WORLD.stats.draw');await h.shot('zone-edge-inside');
+    await hover(B+20,234,280,B-272,234);await h.wait(4000);const b=await h.eval('__WORLD.stats.draw');
     await h.expect(`${Math.abs(a-b)}<12`);await h.shot('zone-edge-outside');
     // Survey fixtures disable strategic intelligence masking to show the different coast shapes and geology.
     await h.eval('(__G.fog.enabled=false,1)');

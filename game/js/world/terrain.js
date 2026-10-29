@@ -190,6 +190,7 @@ function bakePlan() {
       const x = -ZONE_E + i * CC, k = j * NC + i;
       let s = landSD(x, z);
       for (const q of sites) { const d = Math.hypot(x - q.x, z - q.z); if (q.keep - d > s) s = q.keep - d; }   // every site stands on its own land
+      if (s < -380) { S[k] = s; R[k] = 0; WB[k] = 0; WC[k] = 0; RV[k] = 0; continue; }   // open sea: the shelf decides, no relief to work out
       let r = relief(x, z);
       // the sites' basins: town ground graded to the site's height
       let keep = 1;
@@ -284,8 +285,10 @@ function bake() {
       const k = j * N + i, h = H[k], x = -ZONE_E + i * ZONE_C;
       const gx = (H[k + 1] - H[k - 1]) / (2 * ZONE_C), gz = (H[k + N] - H[k - N]) / (2 * ZONE_C), sl = Math.hypot(gx, gz);   // rise per metre
       planLerp(x, z, P);
-      const wb = P.wb, s = P.s, n1 = noise(x / 13 + 7.7, z / 13 - 1.3);
+      const wb = P.wb, s = P.s;
       let id;
+      if (h <= 0) { SID[k] = (wb > 0.4 || h < -4) && sl < 0.45 ? S_SAND : sl > 0.25 || P.wc > 0.5 ? S_ROCK : S_SHINGLE; continue; }   // the sea bed
+      const n1 = noise(x / 13 + 7.7, z / 13 - 1.3);
       if (h <= 0) id = (wb > 0.4 || h < -4) && sl < 0.45 ? S_SAND : sl > 0.25 || P.wc > 0.5 ? S_ROCK : S_SHINGLE;          // the sea bed
       else if (sl > 0.85 || (P.wc > 0.5 && s < 25 && sl > 0.45)) id = S_ROCK;                                            // cliffs, crags, the escarpment
       else if (wb > 0.35 && h < 0.6 && sl < 0.2) id = S_WET;                                                             // the swash zone

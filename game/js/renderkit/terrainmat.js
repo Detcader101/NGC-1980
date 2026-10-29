@@ -33,13 +33,18 @@ export const TERRAIN_TIERS = Object.freeze({
   high: Object.freeze({ layers: 4, anti: 1, tri: 1, res: 512, spec: 1, nearR: 220 }),
 });
 export const TERRAIN_ON = RK.on('terrain') && RK.on('world');
-export function terrainTierName() {
+export function terrainTierName(renderer = null) {
   let q = null, saved = null;
   try { q = new URLSearchParams(location.search).get('rkterrain'); } catch (e) {}
   try { saved = localStorage.getItem('tz_rkterrain'); } catch (e) {}
   const v = (q ?? saved ?? 'high').trim().toLowerCase();
   if (q && TERRAIN_TIERS[v]) try { localStorage.setItem('tz_rkterrain', v); } catch (e) {}
+  if (!q && !saved && renderer && softwareGL(renderer)) return 'low';   // (ngc/look-terrain) a CPU rasteriser pays for every splat sample: the low tier unless asked
   return TERRAIN_TIERS[v] ? v : 'high';
+}
+// SwiftShader / llvmpipe / Microsoft Basic Render: no GPU (headless tests, broken drivers)
+export function softwareGL(renderer) {
+  try { const gl = renderer.getContext(), e = gl.getExtension('WEBGL_debug_renderer_info'), s = String(e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)); return /swiftshader|llvmpipe|softpipe|basic render/i.test(s); } catch (e) { return false; }
 }
 
 // ------------------------------------------------------------------------------------------------- layers
@@ -361,7 +366,7 @@ vec3 rtSpec(vec3 n, vec3 V, vec3 L, float r, vec3 sunC){
 
 // ------------------------------------------------------------------------------------------------- host glue
 // uniforms for the terrain shader; update(dt, renderer, xr) steps the generator and the tier.
-export function createTerrainMaterial(renderer, tierName = terrainTierName()) {
+export function createTerrainMaterial(renderer, tierName = terrainTierName(renderer)) {
   let tier = TERRAIN_TIERS[tierName];
   const tex = createTerrainTextures(renderer, tier.res);
   const uniforms = { uTA: { value: tex.A }, uTN: { value: tex.B }, uTer: { value: new THREE.Vector4(0, tier.layers, tier.anti, tier.nearR) }, uTerSpec: { value: tier.spec }, uTerK: { value: tex.mean } };
