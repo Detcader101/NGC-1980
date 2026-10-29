@@ -131,6 +131,7 @@ addEventListener('keydown', e => {
   if (G.craft === 'heli') {   // the Huey's switches (heli.js / damage.js)
     if (G.state === 'play' && G.mode === 'zarch' && airlift.key(e.code)) return;   // AIRLIFT: . troops (R, the cargo hook, comes through the controls)
     if (e.code === 'KeyH') { if (drop.flying) drop.toggleAP(); else doSwitch('sas'); }
+    if (e.code === 'Backquote' && cockpit.sight) doSwitch('sight');   // ngc/huey-sight: the pilot's reflex sight down / up
     const sw = { KeyI: 'engine', KeyO: 'fire', KeyU: 'hyd', KeyL: 'radio', KeyN: 'light' }[e.code];
     if (sw) doSwitch(sw);
     const cmk = HUEY_CM_KEYS[e.code]; if (cmk && G.mode === 'zarch' && Z.alive && !drop.controlling && !helm.active) cmH.press(cmk);   // CM: M130 flares / chaff
@@ -1298,6 +1299,9 @@ function doSwitch(id) {
   else if (id === 'sas') HI.toggleSas();
   else if (id === 'light') { G.light = !G.light; say(G.light ? 'LANDING LIGHT ON' : 'LANDING LIGHT OFF', 1.2); }
   else if (id === 'radio') callLogistics();
+  else if (id === 'sight' && cockpit.sight) say(cockpit.sight.toggle() ? 'ARMAMENT SIGHT  -  OPERATE' : 'ARMAMENT SIGHT  -  STOWED', 1.2);   // ngc/huey-sight: the XM60 reflex sight (` or click it)
+  else if (id === 'sightLamp' && cockpit.sight) say(cockpit.sight.lampToggle() ? 'SIGHT RETICLE LAMP ON' : 'SIGHT RETICLE LAMP OFF', 1.2);
+  else if (id === 'sightBril' && cockpit.sight) say(`SIGHT RETICLE ${Math.round(cockpit.sight.brighter() * 100)}%`, 1);
   else if (id === 'fire') { const r = D.extinguish(); say(r === 'FIRE OUT' ? 'FIRE EXTINGUISHED' : r, 1.6); if (r === 'FIRE OUT') sfx.refuel?.(); }
   else if (['bat', 'gen', 'inv', 'gov', 'trim', 'lowrpm', 'starter', 'mc'].includes(id)) {   // Huey systems (heli.js)
     const on = SY.toggle(id), name = { bat: 'BATTERY', gen: 'MAIN GENERATOR', inv: 'INVERTER', gov: 'GOVERNOR', trim: 'FORCE TRIM', lowrpm: 'LOW RPM AUDIO', starter: 'STARTER' }[id];
@@ -1530,7 +1534,10 @@ function updateHeli(dt, inp, piloted) {
     if (G.rockets > 0) {
       Z.rkCd = 0.2; G.rockets--; Z.rkSide = -(Z.rkSide || 1);
       const p0 = P.clone().add(_rk.set(1.7 * Z.rkSide, -0.4, -0.6).applyQuaternion(H.q));
-      war.fireRocket(p0, Z.aim.clone().multiplyScalar(105).add(Z.vel)); fx.flash(p0.x, p0.y, p0.z, 0.35);
+      // ngc/huey-sight: the M158 launchers are fixed, boresighted to the airframe (TM 9-1090-204-12 fig 2-4): the rockets
+      // leave along the helicopter's forward axis; the pilot aims them with the airframe through the reflex sight
+      war.fireRocket(p0, fw.clone().multiplyScalar(105).add(Z.vel)); fx.flash(p0.x, p0.y, p0.z, 0.35);
+      if (cockpit.sight && cockpit.group.visible && !cockpit.sight.state.deployed) { cockpit.sight.toggle(true); say('ARMAMENT SIGHT  -  OPERATE (`)', 1.2); }
     } else { Z.rkCd = 1; say('ROCKETS EMPTY  -  REARM ON THE CARRIER OR A FRIENDLY PAD', 1.4); }
   }
   if (((kd('KeyB') && !drop.controlling) || ctl.bomb) && Z.bmCd <= 0) {
@@ -2731,7 +2738,7 @@ function updateHud() {
     for (const id of ['tl', 'hint', 'feed', 'war']) setStyle(id, 'display', bigMap ? 'none' : 'block');   // the command map has its own read-outs
     setStyle('radar', 'bottom', ck && !bigMap ? 'auto' : ''); setStyle('radar', 'top', ck && !bigMap ? '64px' : ''); setStyle('feed', 'top', ck ? 'calc(max(22%, 236px) + 76px)' : '');   // (ngc/bugsweep) under the map and under the centre message (#msg: up to two lines at max(22%, 236px)) - at 236px the feed ran through it
   }
-  crossEl.style.display = document.pointerLockElement === canvas && (cockpit.group.visible || JP.cockpit.group.visible || tomcatC.TP.cockpit.group.visible || armCk()) || (G.craft === 'foot' && !foot.marine && foot.alive && foot.firstPerson() && G.state === 'play') || (G.state === 'play' && crafts.active && crafts.active.switches && crafts.active.firstPerson()) ? 'block' : 'none';   // ngc/wheeledgame: a dot to work the cab's switches / lay the gun
+  crossEl.style.display = document.pointerLockElement === canvas && ((cockpit.group.visible && !cockpit.sight) || JP.cockpit.group.visible || tomcatC.TP.cockpit.group.visible || armCk()) || (G.craft === 'foot' && !foot.marine && foot.alive && foot.firstPerson() && G.state === 'play') || (G.state === 'play' && crafts.active && crafts.active.switches && crafts.active.firstPerson()) ? 'block' : 'none';   // ngc/wheeledgame: a dot to work the cab's switches / lay the gun
   const ch = G.craft !== 'heli' && crafts.active ? crafts.active.hud() : null;   // FOUNDATION: any other craft's read-outs
   {   // g effects in the jet cockpit: grey tunnel closing in, black at G-LOC, red-out under negative g
     const gf = JP.cockpit.group.visible || (G.craft === 'jet' && JP.gloc > 0) ? JP.gfx() : tomcatC.TP.cockpit.group.visible || (G.craft === 'tomcat' && tomcatC.glocNow()) ? tomcatC.gfx() : { grey: 0, red: 0 };
@@ -2940,7 +2947,7 @@ function updateCamsAndMeshes(dt, time) {
   crafts.render(dt, time); if (G.state !== 'play') crafts.silence();   // every craft's model (the HORNET's cockpit, the soldier's arms...)
   if (inCockpit) cockpit.update(H, dt, heliPanel(switchHover));
   const caveAimOn = inCave && T.alive && T.aimX !== undefined && e > 0.9 && G.state === 'play';
-  reticle.visible = (Z.alive && !inCave && G.state !== 'title' && G.craft === 'heli' && !drop.camActive && !helm.active) || caveAimOn; aimLine.visible = reticle.visible && !inCockpit;
+  reticle.visible = (Z.alive && !inCave && G.state !== 'title' && G.craft === 'heli' && !drop.camActive && !helm.active && !(inCockpit && cockpit.sight)) || caveAimOn;   // ngc/huey-sight: no generic crosshair in the Huey's cockpit: its reflex sight aimLine.visible = reticle.visible && !inCockpit;
   if (caveAimOn) _wv0.set(T.aimX, T.aimY, 0); else _wv0.copy(Z.aim);
   if (reticle.visible) {
     reticle.position.copy(P).addScaledVector(_wv0, caveAimOn ? 7 * CS * 0.7 : 40);   // far enough out that it never sits on the helicopter

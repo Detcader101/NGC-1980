@@ -43,6 +43,10 @@ export default {name:'xrgameplay',query:'?debug&kb&peace&res=0.45&tech=all',run:
   await h.expect('__G.m60C.V.sight==="tts" && __G.XR.state.flat','thermal sight remains usable in VR');await h.shot('tank-thermal');await h.notblank();
   await h.eval('(__G.m113C.spawnAt({...__G.GR.motorPool(__G.HOME_B.isl,3),state:"hot"}),__G.crafts.control("m113",0,"swap"),1)');await frames(h,3);
   await h.expect('__G.G.craft==="m113"&&!__G.XR.state.flat&&__G.m113C.firstPerson()','leaving optics restores stereo in the M113');await h.shot('m113-driver');
+  // ngc/huey-sight: the Huey's cockpit in VR - the XM60 reflex sight swung down, no generic crosshair, a stereo view
+  await h.eval('(__G.toHeli(),__G.cockpitCam=true,__G.cockpit.sight&&__G.cockpit.sight.toggle(true),1)');await frames(h,8);
+  await h.expect('__G.G.craft==="heli"&&__G.cockpit.group.visible&&!!__G.cockpit.sight&&__G.cockpit.sight.state.k>0.3&&!__G.XR.state.flat','Huey VR cockpit: the reflex sight swings down in stereo');await h.shot('huey-sight-vr');
+  await h.eval('(__G.cockpit.sight.toggle(false),__G.cockpitCam=false,1)');
   await h.eval('(__G.toHeli(),__G.G.mat=1000,__G.commander.deploy("ch46","ship"),1)');await frames(h,4);
   await h.expect('__G.G.craft==="ch46"&&__G.ch46C.view==="cockpit"','CH-46 commander deployment enters the VR cockpit');
   await h.eval('(__xrDevice.controllers.right.updateAxes("thumbstick",.4,-.3),1)');await frames(h,3);
