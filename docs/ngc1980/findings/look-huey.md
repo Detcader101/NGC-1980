@@ -184,7 +184,7 @@ snap.mjs: navigation timeout for a loaded machine). "Load" = a game-time wait th
 | `node tools/check.mjs syntax` | PASS 562/562 after the merge; no conflict markers |
 | smoke | PASS 5/5 (earlier run) |
 | hueymodel | 5/7: every model check PASSES (skids on the ground line - after fixing the saddles, which sat 4 cm low -, length 17.4 m, fuselage, triangle budget, shell hidden in the cockpit); FAIL: the rotor spin-up wait (load) and the cave view, whose page load hit a mid-run edit (`toggle` used before definition, fixed in b5a2121) |
-| hueycockpit | 6/8: hover on BATTERY PASSES; the click check FAILS on the base too (main.js ignores mousedowns not targeted at the canvas; the scene dispatched on window) - scene fixed in 34fbdc8, re-run pending |
+| hueycockpit | **PASS 7/7** (00:28 re-run, after the scene fix 34fbdc8: the click check had failed on the base too, because main.js ignores mousedowns not targeted at the canvas and the scene dispatched on window) |
 | hueyhotas | 11/12: FAIL only the engine-start wait (load) |
 | xrgameplay | PASS 25/25 |
 | interiors | 11/31: the Huey steps PASS (a troop place offered at the cargo door: "TROOP SEAT 3 (AFT BENCH)", in the cabin); "out again" FAILS (unverified: load, Y tap at ~1 fps); the carrier ladders, the house and the CH-46 steps time out (load; no Huey code) |
@@ -195,7 +195,7 @@ snap.mjs: navigation timeout for a loaded machine). "Load" = a game-time wait th
 - Performance follow-up (ngc/perf-render, now in shader-library): build LOD0/1/2 with `renderkit/lod.js` createLOD,
   show the cockpit only when seated (109 draws + 79 shadow draws in the cockpit view), `renderkit/merge.js` mergeUnit,
   then `enforce: ALL` (PERF-BUDGETS.md). Not started, by instruction.
-- Re-run on a quiet machine: hueymodel's cave view, hueycockpit (scene fix 34fbdc8), interiors "out again", foot, the
+- Re-run on a quiet machine: hueymodel's cave view, interiors "out again", foot, the
   airlift dismount.
 - Cockpit: the overhead console (fig. 2-5 sheet 3), shaped armoured seats, breaker placards; the pedestal's panel
   identities in the traced stack are approximate (heights traced, legends from the 1980 radio list).
