@@ -31,12 +31,11 @@ export function sr71Home(A, H, L, dt, groundY, c, say = null) {
     c.brakeL = c.brakeR = A.kias < 80 ? 1 : 0;
     return 'rollout';
   }
-  if (H.flare) {   // ---- flare: the bench's 155 KIAS touchdown law (flight-path angle, wings level), autopilot off
-    A.ap.on = false;
-    const att = A.attitude(), gamma = Math.atan2(A.vel.y, gs);
-    c.pitch = clamp((-0.012 - gamma) * 5 - A.w.y * 2 + 0.05, -1, 1); c.roll = clamp(-att.roll * 2 - A.w.x * 0.5, -0.5, 0.5);
-    const [qx, qz] = L.toW(u + d * 400, 0); c.yaw = clamp(angDiff(Math.atan2(-(qx - A.pos.x), -(qz - A.pos.z)), A.heading) * 2, -0.6, 0.6);
-    speed(150, 0, 0.5); c.brakeL = c.brakeR = 0;
+  if (H.flare) {   // ---- flare: her own autopilot (it runs in the flight model's 200 Hz substeps, steady at any frame rate) holds
+    // the landing attitude, ~9 deg nose up, wings on the centreline heading; the power comes off for 155 KIAS
+    const [qx, qz] = L.toW(u + d * 400, 0);
+    A.ap.on = true; A.ap.pitch = 'att'; A.ap.att = 0.125; A.ap.roll = 'hdg'; A.ap.hdg = Math.atan2(-(qx - A.pos.x), -(qz - A.pos.z));
+    c.pitch = c.roll = 0; c.yaw = 0; speed(155, 0, 0.5); c.brakeL = c.brakeR = 0;
     return 'flare';
   }
   // ---- en route / final: the SR-71's own autopilot (altitude hold + heading hold), power for the speed

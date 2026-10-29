@@ -14,7 +14,7 @@ export default {
     await h.eval('(__G.G.bench = true, 1)');
     await h.expect(`__G.fleet.n.sr71 === 1 && !${C}.present() && ${C}.P.exists && ${L}.onPavement(${A}.pos.x, ${A}.pos.z) === 'hangar'`, 'one SR-71A in reserve, parked in her shelter');
     // ---- the board
-    await h.key('tap', 'Backslash'); await h.wait(500);
+    await h.eval('(__G.commander.open(), 1)'); await h.wait(500);   // (the board through its API: the \ key opens the radio desk on the integration branch)
     const idx = await h.eval(`__G.roster.findIndex(r => r.id === 'sr71')`, 'row');
     for (let i = 0; i < idx; i++) { await h.key('tap', 'ArrowDown'); await h.wait(120); }
     await h.wait(400); await h.shot('board-sr71');

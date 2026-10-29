@@ -71,7 +71,7 @@ sortie(0, `from ${A.ends[0].num}`); sortie(1, `from ${A.ends[1].num}`);
     const S = createSR71Sim(), gy = (x, z) => Math.max(W.rawH(x, z), 0), env = { groundY: gy, water: () => false };
     const e0 = endSel, [tx, tz] = A.toW(e0.u + e0.dir * 80, 0);
     S.resetGround(tx, A.E, tz, A.yawOf(e0.dir, 0)); S.fuel = (label === 'other end' ? 45000 : 64000) / 2.20462;
-    const dt = 1 / 60, H = {}, c = { pitch: 0, roll: 0, yaw: 0, throttle: [1, 1], brakeL: 0, brakeR: 0, trimRate: 0 };
+    const dt = +(process.env.SRDT || 1 / 60), H = {}, c = { pitch: 0, roll: 0, yaw: 0, throttle: [1, 1], brakeL: 0, brakeR: 0, trimRate: 0 };
     let t = 0, lift = null, td = null, phase = 'roll', chute = false, maxKeas = 0;
     for (; t < 1500 && !S.dead; t += dt) {
       c.pitch = c.roll = c.yaw = 0; c.brakeL = c.brakeR = 0;

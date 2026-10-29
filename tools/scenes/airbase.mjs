@@ -18,7 +18,7 @@ export default {
     await h.expect(`Math.abs(__G.groundY(${L}.x, ${L}.z) - ${L}.E) < 0.01`, 'the runway ground is the flattened field elevation (physics)');
 
     // ---- 1. the board: \\ , down to the C-130 row, ENTER
-    await h.key('tap', 'Backslash'); await h.wait(500);
+    await h.eval('(__G.commander.open(), 1)'); await h.wait(500);   // (the board through its API: the \ key opens the radio desk on the integration branch)
     await h.expect("/C-130/.test(document.getElementById('cmdBoard').textContent) && /SR-71/.test(document.getElementById('cmdBoard').textContent)", 'the command board lists the C-130H and the SR-71A');
     const idx = await h.eval(`__G.roster.findIndex(r => r.id === 'c130')`, 'row');
     for (let i = 0; i < idx; i++) { await h.key('tap', 'ArrowDown'); await h.wait(120); }
