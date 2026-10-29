@@ -62,6 +62,9 @@ export function sr71Home(A, H, L, dt, groundY, c, say = null) {
     kt = toAim > 6000 ? 200 : toAim > 1500 ? 175 : 165; A.gearCmd = 1;
     if (agl < 14 && along > -700) H.flare = true;
   }
+  // the SR-71's altitude hold is a vertical-speed loop (0.04/s on the error): on the glide path it would ride ~60 m
+  // high; lead it by the path's own descent rate
+  if (H.final && alt < A.pos.y + 5) alt -= Math.max(0, gs * TAN3) / 0.04 * 0.9;
   A.ap.on = true; A.ap.pitch = 'alt'; A.ap.alt = alt; A.ap.roll = 'hdg'; A.ap.hdg = hdg;
   c.pitch = 0; c.roll = 0; c.yaw = 0; c.brakeL = c.brakeR = 0;
   speed(kt, 0.08, H.final ? 0.66 : 0.8);

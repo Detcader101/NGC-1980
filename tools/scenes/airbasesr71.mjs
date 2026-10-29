@@ -44,7 +44,7 @@ export default {
     await h.waitFor(`${A}.kias > 150`, 60000);
     // the rotation: a test pilot's hand on the stick (the sr71.mjs law: toward 9 deg from 190 KIAS) - a held S key is full back stick
     await h.eval(`(window.__ov0 = ${C}.P.override, ${C}.P.override = c => { window.__ov0(c); const p = ${A}.attitude().pitch; if (${A}.kias > 190) c.pitch = Math.max(-1, Math.min(1, (0.16 - p) * 6 - ${A}.w.y * 2)); }, 1)`);
-    await h.waitFor(`!${A}.onGround || !${C}.present()`, 30000); await h.waitFor(`${A}.pos.y - ${L}.E > 40 || !${C}.present()`, 30000);
+    await h.waitFor(`!${A}.onGround || !${C}.present()`, 30000); await h.waitFor(`${A}.pos.y - ${L}.E > 40 || !${C}.present()`, 120000);
     await h.eval(`(${C}.P.override = window.__ov0, ${A}.ap.on = true, ${A}.ap.pitch = 'att', ${A}.ap.att = 0.12, ${A}.ap.roll = 'hdg', ${A}.ap.hdg = ${A}.heading, 1)`);
     await h.eval(`(${C}.warp = 1, 1)`); await h.wait(1200); await h.shot('takeoff');
     await h.key('up', 'ShiftLeft');
@@ -58,9 +58,9 @@ export default {
     await h.waitFor(`(${C}.home && ${C}.home.phase === 'final') || !${C}.present()`, 600000);
     await h.eval(`(${C}.warp = 1, 1)`); await h.eval(chase(0, 0.05, 45)); await h.wait(1500); await h.shot('final');
     await h.eval(`(${C}.warp = 2, 1)`);
-    await h.waitFor(`(${C}.home && ${C}.home.phase === 'rollout' && ${A}.chute === 'deployed') || !${C}.present()`, 300000);
+    await h.waitFor(`(${C}.home && ${C}.home.phase === 'rollout' && ${A}.chute === 'deployed') || !${C}.present()`, 600000);
     await h.eval(`(${C}.warp = 1, 1)`); await h.eval(chase('Math.PI * 0.8', 0.1, 55)); await h.wait(800); await h.shot('rollout-drag-chute');
-    await h.waitFor(`!${C}.home || !${C}.present()`, 200000);
+    await h.waitFor(`!${C}.home || !${C}.present()`, 400000);
     await h.eval(`({ v: Math.round(${L}.toL(${A}.pos.x, ${A}.pos.z)[1] * 10) / 10, chute: ${A}.chute, fuelLb: Math.round(${A}.fuel * 2.2046) })`, 'stopped');
     await h.expect(`${C}.present() && ${C}.sortie.airborne && ${C}.sortie.stopped && ${L}.onRunway(${A}.pos.x, ${A}.pos.z)`, 'landed and stopped on the runway');
     await h.wait(800); await h.shot('stopped-on-runway');

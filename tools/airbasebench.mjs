@@ -82,7 +82,7 @@ sortie(0, `from ${A.ends[0].num}`); sortie(1, `from ${A.ends[1].num}`);
       const ev = S.step(dt, c, env); for (const x of ev) if (x.e === 'touchdown' && td === null && phase === 'home') td = { kias: x.kias, at: A.toL(S.pos.x, S.pos.z, [0, 0]) };
     }
     const end = A.toL(S.pos.x, S.pos.z, [0, 0]);
-    console.log(`sr-71 ${label}: lift-off ${lift ? lift.kias.toFixed(0) + ' KIAS' : '-'}; home via RWY ${H.end ? H.end.num : '-'}; touchdown ${td ? td.kias.toFixed(0) + ' KIAS' : '-'}; chute ${chute}; t=${t.toFixed(0)} s; stopped at u=${end[0].toFixed(0)} v=${end[1].toFixed(1)} ${S.dead ? 'DEAD ' + S.dead : ''}`);
+    console.log(`sr-71 ${label}: lift-off ${lift ? lift.kias.toFixed(0) + ' KIAS' : '-'}; home via RWY ${H.end ? H.end.num : '-'}; touchdown ${td ? td.kias.toFixed(0) + ' KIAS at ' + ((td.at[0] - H.end.u) * H.end.dir).toFixed(0) + ' m past the threshold' : '-'}; chute ${chute}; t=${t.toFixed(0)} s; stopped at u=${end[0].toFixed(0)} v=${end[1].toFixed(1)} ${S.dead ? 'DEAD ' + S.dead : ''}`);
     ok(lift && !S.dead, `${label}: SR-71 takes off (${lift ? lift.kias.toFixed(0) : '-'} KIAS, manual ~210)`);
     ok(td && Math.abs(td.kias - 160) < 25 && chute && !S.dead && A.onRunway(S.pos.x, S.pos.z) && Math.hypot(S.vel.x, S.vel.z) < 0.5 && Math.abs(end[1]) < 25, `${label}: SR-71 home autopilot - lands (${td ? td.kias.toFixed(0) : '-'} KIAS, manual 155), chute, stops on the runway (${end[1].toFixed(1)} m off the centreline)`);
   };
