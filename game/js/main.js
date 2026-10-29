@@ -8,7 +8,7 @@ import { createRadioOperations } from './voice/operations.js';
 import { createCommandPanel } from './voice/commandpanel.js';
 import { createDamage, PARTS } from './damage.js';
 import { HELI, EYE, buildHeliMesh, buildCockpit, createHeliSim, createHeliInput, createHeliSystems, fuelBurnPct } from './heli.js';
-import { BOUND, ISLANDS, islandH, createNav, SEA_FLOOR, inZone, fleetStart } from './world.js';
+import { BOUND, ISLANDS, islandH, createNav, SEA_FLOOR, inZone, fleetStart, fbm, noise } from './world.js';
 import { createWar, COST } from './war.js';
 import { createSpectator } from './sim/spectator.js';   // SIM MODE
 import { createMarkerLayer, mapBar } from './ui/markerlayer.js';   // UNIT MARKERS (ngc/healthbars): icon + health bar over every unit
@@ -23,10 +23,11 @@ import { RKUI, UIC, applyUI } from './renderkit/ngcui.js';   // RENDERKIT ui: de
 import { RK_TERRAIN_GLSL, RK_SKY_GLSL, createWorldUniforms, createWorldSky, linearOutput } from './renderkit/world.js';   // RENDERKIT world
 import { createSunShadows, SUN_SHADOW_GLSL, BALANCE as RKL_BAL, matchOverlayLights } from './renderkit/light.js';   // RENDERKIT light: sun shadows + light balance
 import { drawDistance, radialFog } from './world/visibility.js';
-import { zoneGrid, SURF_NAMES, GEOLOGY, geologyOf, zoneSurf } from './world/terrain.js';   // (zoneSurf: RENDERKIT nature clutter)
+import { zoneGrid, SURF_NAMES, SURFACE, GEOLOGY, geologyOf, zoneSurf } from './world/terrain.js';   // (zoneSurf: RENDERKIT nature clutter)
 import { createNatureShared, createForest, createClutter, NATURE_TERRAIN_GLSL, CL } from './renderkit/nature.js';   // RENDERKIT nature
 import { treeKind, PINE, BROAD, SCRUB, natureHash } from './world/forest.js';   // RENDERKIT nature: species by geology / altitude
-import { RK_HAZE_GLSL, RK_CLOUD_GLSL, installAtmosphere, createAtmosphere } from './renderkit/atmosphere.js';   // RENDERKIT sky
+import { RK_HAZE_GLSL, RK_CLOUD_GLSL, installAtmosphere, createAtmosphere } from './renderkit/atmosphere.js';
+import { createTerrainMaterial, RT_GLSL, RT_GRASS_GLSL, TERRAIN_ON, TER_LAYERS, TL as RTL, rkN2js, sstep } from './renderkit/terrainmat.js'; import { createOutcrops } from './renderkit/outcrops.js';   // RENDERKIT terrain: generated ground textures, splatting, smooth normals   // RENDERKIT sky
 radialFog(THREE);
 const RKW = RK.on('world');   // RENDERKIT world: terrain / sea / sky / scene.environment (renderkit/world.js); off = the classic shaders
 // RENDERKIT sky: clouds, sun, aerial perspective on every material (Three's fog chunks, patched before anything compiles)
@@ -72,7 +73,7 @@ import { createWorldSolid } from './world/solid.js';   // SEAWORLD: buildings as
 import { createInteriors } from './interiors/interiors.js';   // ngc/interiors: enterable buildings, doors / hatches, the ALBATROSS inside
 import { createSeats } from './interiors/seats.js';           // ngc/interiors: passenger seats in the Huey / CH-46, the people in the seats
 import { DOORS } from './interiors/doors.js';
-import { createWorldLife } from './world/life.js'; import { clearedAt, clearingAt, structAngle as natStructAngle } from './world/net.js';   // WORLD: the lived-in world (towns, roads, traffic, people, faction structures)
+import { createWorldLife } from './world/life.js'; import { clearedAt, clearingAt, structAngle as natStructAngle, bedBuckets, settlementsNear, netState } from './world/net.js';   // WORLD: the lived-in world (towns, roads, traffic, people, faction structures)
 // ARMOUR (wave 2): the M60A3 TTS and M113A2 as crafts on the island world, their sights, the LCM-8 delivery
 import { createArmorWorld } from './units/armor/armorworld.js';
 import { createArmorCraft } from './units/armor/armorcraft.js';
@@ -137,6 +138,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyJ') HI.startCalibration();   // the controls panel: bind and calibrate HOTAS / pedals (hotas.js)
   if (e.code === 'KeyT' && (G.craft === 'heli' || isJet())) toggleFreeLook();
   if (e.code === 'KeyM') { bigMap = !bigMap; setMapSize(); if (bigMap && document.pointerLockElement) document.exitPointerLock(); }
+  if (bigMap && ['Equal', 'NumpadAdd', 'Minus', 'NumpadSubtract'].includes(e.code)) { e.preventDefault(); mapZoomBy(e.code === 'Equal' || e.code === 'NumpadAdd' ? 1.4 : 1 / 1.4); }   // (ngc/look-terrain) map zoom
   if (['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Digit0'].includes(e.code)) command(+e.code.slice(5));   // TOMCAT: 8; ARMOUR: 9 M60A3, 0 M113A2
   if (e.code === 'Tab') { e.preventDefault(); toggleHelm(); }
   if (G.craft !== 'heli' && !isJet()) { /* foot / vehicles: V and C belong to the craft (above) */ }
@@ -373,7 +375,7 @@ const CS = 1.6, CAVE_SINK = 0.15, CAVE_OX = 32.5, CAVE_DEPTH = 6, HOLE_R = 9, ST
 const TIER_NAMES = ['', 'LIGHT', 'MEDIUM', 'STRONG', 'HEAVY'];
 const BASES = ISLANDS.filter(I => I.cave).sort((a, b) => a.tier - b.tier).map(I => I.base = { kind: I.owner === 1 ? 'home' : 'enemy', name: I.name, tier: I.tier, x: I.x, z: I.z, h: clamp(Math.round(islandH(I.x, I.z)), 4, 16), isl: I });
 const HOME_B = BASES[0], PAD_H = HOME_B.h;
-const PADS = ISLANDS.map(I => I.pad = I.cave ? { x: I.x, z: I.z + 30, h: I.base.h, r0: 12, r1: 34, r: PAD_R, isl: I } : { x: I.x, z: I.z, h: clamp(Math.round(islandH(I.x, I.z)), 3, 14), r0: 30, r1: 52, r: PAD_R, isl: I });
+const PADS = ISLANDS.map(I => I.pad = I.cave ? { x: I.x, z: I.z + 30, h: I.base.h, r0: 12, r1: 34, r: PAD_R, isl: I } : { x: I.x, z: I.z, h: clamp(Math.round(islandH(I.x, I.z)), 3, 140), r0: 30, r1: 52, r: PAD_R, isl: I });   // (ngc/look-terrain: radars / factories on the hills and the plateau, up to 140 m)
 const PAD = HOME_B.isl.pad;   // the home refuel pad
 const RES_MAX = 600;          // the fleet's fuel stores
 const stripW = (x, z, b) => smooth(0, 14, hypot2(Math.max(Math.abs(x - b.x) - STRIP_X, 0), Math.max(Math.abs(z - b.z) - STRIP_Z, 0)));
@@ -432,8 +434,18 @@ sky.renderOrder = -10; zScene.add(sky);
 // which pad / shaft apron (if any) it is near, so the shader only ever shades one of them.
 const TG = 2.5, TN = Math.ceil(DRAW * 2.1 / TG), HM_N = Math.round(2 * BOUND / TG) + 1, DEC_C = 4, DEC_N = Math.ceil(2 * BOUND / DEC_C);
 const hmTex = (() => {
-  const a = new Float32Array(HM_N * HM_N);
-  for (let j = 0; j < HM_N; j++) for (let i = 0; i < HM_N; i++) a[j * HM_N + i] = terrainH(-BOUND + i * TG, -BOUND + j * TG);
+  // (ngc/look-terrain) the zone grid has a vertex on every lattice point (same 2.5 m spacing, aligned), and there terrainH
+  // IS the grid except where roads / building platforms, pads, bases, the ground over the caves and the landing hards
+  // change it: copy the grid, then call terrainH in those boxes only (4.2 M full calls took seconds at BOUND 2560)
+  const a = new Float32Array(HM_N * HM_N), Z = zoneGrid(), o = Math.round((Z.E - BOUND) / Z.C);
+  if (Z.C !== TG || Math.abs(o * Z.C - (Z.E - BOUND)) > 1e-6) throw new Error('zone grid and terrain lattice disagree');
+  for (let j = 0; j < HM_N; j++) a.set(Z.h.subarray((j + o) * Z.N + o, (j + o) * Z.N + o + HM_N), j * HM_N);
+  const box = (x0, z0, x1, z1) => { const i0 = Math.max(0, Math.floor((x0 + BOUND) / TG)), i1 = Math.min(HM_N - 1, Math.ceil((x1 + BOUND) / TG)), j0 = Math.max(0, Math.floor((z0 + BOUND) / TG)), j1 = Math.min(HM_N - 1, Math.ceil((z1 + BOUND) / TG));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) a[j * HM_N + i] = terrainH(-BOUND + i * TG, -BOUND + j * TG); };
+  for (const [x, z, s] of bedBuckets()) box(x, z, x + s, z + s);
+  for (const b of BASES) box(b.x - STRIP_X - 16, b.z - 62, b.x + STRIP_X + 16, b.z + 62);
+  for (const p of PADS) box(p.x - p.r1 - 1, p.z - p.r1 - 1, p.x + p.r1 + 1, p.z + p.r1 + 1);
+  for (const h of /** @type {any[]} */ (HARDS)) box(h.bx0 - 1, h.bz0 - 1, h.bx1 + 1, h.bz1 + 1);
   const t = new THREE.DataTexture(a, HM_N, HM_N, THREE.RedFormat, THREE.FloatType); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t;
 })();
 const SURF_W = { grass: [0,0,0,0], sand: [255,0,0,0], wetsand: [255,0,0,0], rock: [0,255,0,0], mud: [0,0,255,0], dirt: [0,0,0,255], shingle: [0,150,0,105], marsh: [0,0,150,0] };
@@ -449,9 +461,9 @@ const decorTex = (() => {   // r = nearest pad index + 1, g = nearest shaft inde
   const a = new Uint8Array(DEC_N * DEC_N * 4);
   for (let j = 0; j < DEC_N; j++) for (let i = 0; i < DEC_N; i++) {
     const x = -BOUND + (i + 0.5) * DEC_C, z = -BOUND + (j + 0.5) * DEC_C, k = (j * DEC_N + i) * 4;
-    PADS.forEach((p, n) => { if (Math.hypot(x - p.x, z - p.z) < 33) a[k] = n + 1; });
-    BASES.forEach((b, n) => { if (Math.hypot(x - b.x, z - b.z) < 25) a[k + 1] = n + 1; });
-    let bd = 200; ISLANDS.forEach((I, n) => { const d = Math.hypot(x-I.x,z-I.z)-I.r; if(d<bd){bd=d;a[k+2]=n+1;} });
+    PADS.forEach((p, n) => { if (Math.abs(x - p.x) < 33 && Math.abs(z - p.z) < 33 && Math.hypot(x - p.x, z - p.z) < 33) a[k] = n + 1; });
+    BASES.forEach((b, n) => { if (Math.abs(x - b.x) < 25 && Math.abs(z - b.z) < 25 && Math.hypot(x - b.x, z - b.z) < 25) a[k + 1] = n + 1; });
+    let bd = 1e9; ISLANDS.forEach((I, n) => { const d = Math.hypot(x-I.x,z-I.z)-I.r; if(d<bd){bd=d;a[k+2]=n+1;} });   // (ngc/look-terrain: the nearest site everywhere, its region's geology)
   }
   const t = new THREE.DataTexture(a, DEC_N, DEC_N, THREE.RGBAFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t;
 })();
@@ -468,6 +480,7 @@ const previousNear = new THREE.DataTexture(HW[0].tex.image.data.slice(), HW_N, H
 previousNear.minFilter = previousNear.magFilter = THREE.NearestFilter; previousNear.needsUpdate = true;
 const terrainWorker = new Worker(new URL('./terrainworker.js', import.meta.url), { type: 'module' });
 terrainWorker.onmessage = ({ data: d }) => {
+  if (d.id === 2) { buildWorldMap(d); return; }   // (ngc/look-terrain) the map's wide image
   const L = HW[d.id]; L.busy = false;
   if (d.id === 0 && L.ready) {
     previousNear.image = { ...L.tex.image }; previousNear.needsUpdate = true;
@@ -475,6 +488,7 @@ terrainWorker.onmessage = ({ data: d }) => {
   }
   L.tex.image.data = d.h; L.tex.needsUpdate = true; L.ready = true; terrainUni[L.uni].value.set(d.ox, d.oz, d.c);
   if (d.id === 1) { buildFarMap(d); atmo?.farHeights(d); }   // RENDERKIT sky: the land past the draw distance
+  if (d.id === 1 && !worldMap.asked) { worldMap.asked = true; const n = worldMap.N, c = 2 * worldMap.E / n; terrainWorker.postMessage({ id: 2, n, c, ox: -worldMap.E + c / 2, oz: -worldMap.E + c / 2 }); }   // (after the first windows: never ahead of them)
 };
 function terrainStream(x, z, dt = 0) {
   terrainUni.uHMNblend.value = Math.min(1, terrainUni.uHMNblend.value + dt / 1.2);
@@ -497,8 +511,31 @@ function buildFarMap(d) {
   }
   x.putImageData(im, 0, 0); Object.assign(farMap, { ox: d.ox, oz: d.oz, size: d.n * d.c, ready: true });
 }
-const fog = createFog(BOUND, 224); fog.enabled = false; fog.update([]);
+// (ngc/look-terrain) the map's view past the control zone: the world round it (coasts, wild land, the air base) out to
+// BOUND + 7 km at ~43 m (WESTGATE AFB included), baked once by the terrain worker from rawH (the same height function the ground uses) and
+// coloured / hill-shaded here; the zone itself keeps landImg (11 m) and the fog of war on top.
+const worldMap = { E: BOUND + 7040, N: 448, cv: document.createElement('canvas'), ready: false, asked: false };
+function buildWorldMap(d) {
+  const N = d.n, cv = worldMap.cv; cv.width = cv.height = N; const x = cv.getContext('2d'), im = x.createImageData(N, N), h = d.h;
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const y = h[j * N + i], o = (j * N + i) * 4; let col;
+    if (y <= 0) { const t = clamp(-y / 30, 0, 1); col = [lerp(28, 8, t), lerp(92, 34, t), lerp(118, 78, t)]; }
+    else if (y < 2.5) col = [176, 164, 112];
+    else {
+      const t1 = clamp((y - 4) / 60, 0, 1), t2 = clamp((y - 60) / 140, 0, 1), t3 = clamp((y - 200) / 250, 0, 1), t4 = clamp((y - 600) / 500, 0, 1);
+      col = [lerp(lerp(lerp(lerp(52, 92, t1), 128, t2), 150, t3), 235, t4), lerp(lerp(lerp(lerp(112, 120, t1), 112, t2), 146, t3), 238, t4), lerp(lerp(lerp(lerp(52, 62, t1), 78, t2), 140, t3), 244, t4)];
+      const hx = h[j * N + Math.min(N - 1, i + 1)] - h[j * N + Math.max(0, i - 1)], hz = h[Math.min(N - 1, j + 1) * N + i] - h[Math.max(0, j - 1) * N + i];
+      const sh = clamp(1 + (hx + hz) / (4 * d.c) * 1.4, 0.5, 1.4); col = col.map(v => clamp(v * sh, 0, 255));
+    }
+    im.data[o] = col[0]; im.data[o + 1] = col[1]; im.data[o + 2] = col[2]; im.data[o + 3] = 255;
+  }
+  x.putImageData(im, 0, 0); worldMap.ready = true;
+}
+const fog = createFog(BOUND, Math.round(224 * BOUND / 1280)); fog.enabled = false; fog.update([]);   // (11.4 m cells at any zone size)
 const terrainGeo = new THREE.PlaneGeometry(TG * TN, TG * TN, TN, TN); terrainGeo.rotateX(-Math.PI / 2);
+// RENDERKIT terrain: generated ground layers (renderkit/terrainmat.js; built on the GPU over the first frames)
+const rkTer = RKW && TERRAIN_ON ? createTerrainMaterial(renderer) : null;
+if (rkTer && params.has('debug')) /** @type {any} */ (window).__rkTerrain = rkTer;
 const terrainUni = {
   uFog: { value: HORIZON.clone().convertLinearToSRGB() }, uSun: { value: sun.position.clone() } /* RENDERKIT light may lower the sun; classic (.5, 1, .3) */, uBases: { value: baseUniform }, uPadCol: { value: padUniform }, uTime: { value: 0 },
   uPadP: { value: PADS.map(p => new THREE.Vector4(p.x, p.z, p.isl.cave ? 1 : 0, Math.atan2(p.x, p.z))) },   /* w: the pad yaw (padSpot), RENDERKIT materials turn the H to it */ uHM: { value: hmTex }, uDecor: { value: decorTex }, ...fog.uniforms,
@@ -510,10 +547,14 @@ const terrainUni = {
   ...(RKW ? createWorldUniforms() : {}),   // RENDERKIT world: the sky the sea reflects, the sun's colour
   ...(rkLight ? rkLight.uniforms() : {}),   // RENDERKIT light: the two shadow cascades
   ...(RKN ? { uNatK: { value: 1 }, uNatR: { value: 170 } } : {}),   // RENDERKIT nature: terrain near detail strength / radius (tier)
+  ...(rkTer ? { ...rkTer.uniforms, uGeoS: { value: ISLANDS.map(I => ['limestone', 'sandstone'].includes(geologyOf(I)) ? 1 : 0) } } : {}),   // RENDERKIT terrain: the layers; uGeoS 1 = stratified cliffs, 0 = granite / basalt blocks
 };
 const RKL_DEF = rkLight ? { RK_LIGHT: 1, RKL_SUN: RKL_BAL.terrSun.toFixed(3), RKL_AMB: RKL_BAL.terrAmb.toFixed(3) } : {};   // RENDERKIT light
 const terrainVS = `
     varying vec3 vW; varying float vRaw; uniform sampler2D uHM, uHMN, uHMF, uHMNprev; uniform vec3 uHMNo, uHMFo, uNear, uHMNpo; uniform float uHMNblend;
+    #ifdef RK_TERRAIN
+    varying vec3 vN;   // RENDERKIT terrain: a smooth normal from the heights (no 2.5-24 m facets)
+    #endif
     ${SEA_VS_DECL}
     #ifdef FAR
     const float CELL=24.0;   // FAR_C (declared further down)
@@ -550,6 +591,11 @@ const terrainVS = `
       drawCell=mix(CELL,24.,morph);
       #endif
       vRaw=h; w.y=max(h,0.);
+      #ifdef RK_TERRAIN
+      { // RENDERKIT terrain: central differences over the drawn lattice (2.5 m zone / 4 m worker map / 24 m far), sea level clamped
+        float e=max(drawCell,max(abs(w.x),abs(w.z))<${BOUND.toFixed(1)}?CELL:4.);
+        vN=normalize(vec3(max(hAt(w.xz-vec2(e,0.)),0.)-max(hAt(w.xz+vec2(e,0.)),0.),2.*e,max(hAt(w.xz-vec2(0.,e)),0.)-max(hAt(w.xz+vec2(0.,e)),0.))); }
+      #endif
       ${SEA_VS.replaceAll('CELL', 'drawCell')}
       vW=w.xyz;
       gl_Position=projectionMatrix*viewMatrix*w;
@@ -575,6 +621,11 @@ const terrainFS = `
     #if defined(RK_NATURE) && defined(RK_WORLD)   // (RK_NATURE needs the RK world noise; a test may strip RK_WORLD alone)
     ${NATURE_TERRAIN_GLSL}
     #endif
+    #if defined(RK_TERRAIN) && defined(RK_WORLD)   // RENDERKIT terrain: the generated layers and the splat
+    varying vec3 vN; uniform float uGeoS[${ISLANDS.length}];
+    ${RT_GRASS_GLSL}
+    ${RT_GLSL}
+    #endif
     #ifdef RK_SKY
     ${RK_HAZE_GLSL}
     ${RK_CLOUD_GLSL}
@@ -587,6 +638,9 @@ const terrainFS = `
       int pi=int(dc.r+.5)-1, bi=int(dc.g+.5)-1, gi=int(dc.b+.5)-1;
       if(bi>=0 && length(vW.xz-uBases[bi].xy)<${HOLE_R.toFixed(1)}) discard;   // the shaft
       vec3 n=normalize(cross(dFdx(vW),dFdy(vW))); if(n.y<0.) n=-n;
+      #if defined(RK_TERRAIN) && defined(RK_WORLD)
+      n=normalize(vN);   // RENDERKIT terrain: the smooth normal (lighting, shadows, the far land); the bump comes later
+      #endif
       float rkSh=1.;   // RENDERKIT light: 1 lit, 0 in the sun's shadow
       #ifdef RK_LIGHT
       rkSh=rkSunShadow(vW,n);
@@ -641,11 +695,54 @@ const terrainFS = `
         c=(mix(vec3(.2,.43,.14),vec3(.29,.5,.17),chk*.45)*grass+sd*sw.r+rkC*sw.g+vec3(.31,.27,.18)*sw.b+vec3(.47,.38,.26)*sw.a)/max(1.,grass+dot(sw,vec4(1.)));
         #endif
       }
+      float rtR=1., rtAO=1., rtOn=0.;   // RENDERKIT terrain: roughness, cavity AO, splat drawn (the lighting below reads them)
+      #if defined(RK_TERRAIN) && defined(RK_WORLD)
+      // RENDERKIT terrain: what the ground is made of here, as weights over the generated layers (renderkit/terrainmat.js
+      // TL order: grass dry meadow soil mud forest cliff granite sand wetsand snow gravel tarmac track), then the splat
+      if(vRaw>0. && uTer.x>.5){
+        float rtDet=rtDetail(vW);   // (ngc/look-terrain) small detail fades with the pixel footprint (renderkit/terrainmat.js)
+        float W[14]; vec3 TI[14]; for(int L=0;L<14;L++){ W[L]=0.; TI[L]=vec3(1.); }
+        vec2 xz=vW.xz; float y=vW.y, nA=rkN2(xz*.43+17.);
+        float beach=1.-smoothstep(0.,3.+2.5*(rkM2-.5),y), rockW=rk*(1.-rkSnow)*(1.-beach), snowW=rkSnow*(1.-beach);
+        float soilN=smoothstep(.8,.92,rkN2(xz*.19+3.)*.72+mix(.14,rkN2(xz*.83+9.)*.28,rtDet)+rkSl*.35);   // bare soil patches (nature's; ngc/look-terrain: fewer)
+        float scree=wild*smoothstep(.16,.28,rkSl)*(1.-smoothstep(.34,.48,rkSl))*smoothstep(.5,.7,rkN2(xz*.05+1.7));   // loose stone at the foot of slopes
+        float forestF=wild*smoothstep(.62,.8,rkN2(xz*.013+8.2))*smoothstep(40.,120.,y)*(1.-smoothstep(380.,450.,y));
+        float mudW=0., soilW=0., gravW=0., sandW=beach, strata=wild>.5?step(.5,rkN2(xz*.0011+2.)):(gi>=0?uGeoS[gi]:1.);
+        vec3 rkT=wild>.5?mix(vec3(.84,.78,.7),vec3(1.1,1.08,1.07),rkM2):vec3(1.), sdT=vec3(1.);
+        if(wild<.5){   // the zone: the per-point surface types and island geology (the sims' surfaces) decide
+          vec4 sw=texture2D(uSurf,((vW.xz+${BOUND.toFixed(1)})/${TG.toFixed(1)}+.5)/${HM_N.toFixed(1)});
+          float sh=clamp(min(sw.g/.59,sw.a/.41),0.,1.);   // shingle is stored as rock .59 + dirt .41
+          float g=max(0.,1.-dot(sw,vec4(1.))), cl=g*smoothstep(.3,.5,rkSl+.1*(rkM2-.5));
+          rockW=sw.g*(1.-sh)+cl; sandW=sw.r; mudW=sw.b; soilW=sw.a*(1.-sh); gravW=sh; beach=0.; snowW=0.;
+          rkT=(gi>=0?uRockC[gi]:vec3(.55,.53,.5))/RT_BASE[7]*(.92+.16*rkM2);
+          sdT=(gi>=0?uSandC[gi]:vec3(.86,.79,.6))/RT_BASE[8];
+        }
+        float grassW=max(0.,1.-rockW-snowW-sandW-mudW-soilW-gravW);
+        vec3 gw=rtGrassW(xz,y);
+        float sp=grassW*soilN*.5, fo=grassW*forestF*(1.-soilN), gr=grassW-sp-fo;
+        W[0]=gr*gw.x; W[1]=gr*gw.y; W[2]=gr*gw.z; W[3]=soilW+sp; W[4]=mudW; W[5]=fo;
+        W[6]=rockW*strata*(1.-scree*.6); W[7]=rockW*(1.-strata)*(1.-scree*.6); W[11]=gravW+rockW*scree*.6;
+        float wet=1.-smoothstep(.25,.9+.3*sin(uTime*.55+rkN2(xz*.05)*6.)*.5+.3*nA,y);   // the swash: wet sand comes and goes
+        W[8]=sandW*(1.-wet); W[9]=sandW*wet; W[10]=snowW;
+        for(int L=0;L<14;L++) W[L]*=1.+(.5*(L<3?nA:1.-nA)-.25)*(.3+.7*rtDet);   // ragged edges between the families
+        TI[6]=rkT; TI[7]=rkT; TI[8]=sdT; TI[9]=sdT; TI[11]=mix(vec3(1.),rkT,.5);
+        RtOut o=rtSplat(vW,n,W,TI,rkD,1.);
+        float m=rtMacro(xz);
+        c=o.a*(.86+.28*m)*mix(vec3(1.),vec3(1.06,1.03,.9),smoothstep(.55,.9,m));   // the same macro variation as rtGrassMean (the tufts)
+        // the shore: the dark intertidal band on rock (weed and wet stone)
+        float tide=1.15+.25*rkN2(xz*.15)+.08*sin(uTime*.4+xz.x*.03), inter=(1.-smoothstep(tide-.35,tide,y))*(W[6]+W[7]+W[11])/max(.001,dot(vec4(W[6],W[7],W[11],grassW+sandW+mudW+soilW),vec4(1.)));
+        c=mix(c,mix(vec3(.11,.12,.09),vec3(.16,.2,.11),mix(.5,rkN2(xz*1.7),rtDet))*(1.+(.4*rkN2(xz*5.)-.2)*rtDet),inter*.8); o.r=mix(o.r,.3,inter);
+        n=o.n; rtR=o.r; rtAO=o.ao; rtOn=1.;
+      }
+      #endif
       #if defined(RK_NATURE) && defined(RK_WORLD)   // (RK_NATURE needs the RK world noise; a test may strip RK_WORLD alone)
-      if(vRaw>0.) rnDetail(c,n,vW,rnG,rnR,rnS,rnSoil,rnSn,rkSl,rkD,uTime);   // RENDERKIT nature: patches, grain, pebbles, strata, shore (n tilted)
+      if(vRaw>0. && rtOn<.5) rnDetail(c,n,vW,rnG,rnR,rnS,rnSoil,rnSn,rkSl,rkD,uTime);   // RENDERKIT nature: patches, grain, pebbles, strata, shore (n tilted); (RENDERKIT terrain: replaced by the layers)
       #endif
       #ifdef RK_WORLD
-      c*=rkSunCol*max(dot(n,normalize(uSun)),0.)*RKL_SUN*rkSh+mix(vec3(.6,.64,.55),vec3(.98,1.01,1.06),n.y*.5+.5)*RKL_AMB;   // RENDERKIT world: the sun's colour + hemisphere ambient
+      c*=rkSunCol*max(dot(n,normalize(uSun)),0.)*RKL_SUN*rkSh*mix(1.,rtAO,.45)+mix(vec3(.6,.64,.55),vec3(.98,1.01,1.06),n.y*.5+.5)*RKL_AMB*rtAO;   // RENDERKIT world: the sun's colour + hemisphere ambient (RENDERKIT terrain: x cavity AO)
+      #if defined(RK_TERRAIN) && defined(RK_WORLD)
+      if(rtOn>.5) c+=rtSpec(n,normalize(cameraPosition-vW),normalize(uSun),rtR,rkSunCol)*rkSh;   // RENDERKIT terrain: wet sand, mud, snow, tarmac catch the sun
+      #endif
       #else
       c*=l;
       #endif
@@ -717,7 +814,7 @@ const terrainFS = `
       gl_FragColor=vec4(c,1.);
       #endif
     }`;
-const RK_DEF = { ...(RKW ? { RK_WORLD: 1 } : {}), ...(RKS ? { RK_SKY: 1 } : {}), ...(RKW && RKN ? { RK_NATURE: 1 } : {}) };   // RENDERKIT world / sky / nature (RK_NATURE needs RK_WORLD)
+const RK_DEF = { ...(RKW ? { RK_WORLD: 1 } : {}), ...(RKS ? { RK_SKY: 1 } : {}), ...(RKW && RKN ? { RK_NATURE: 1 } : {}), ...(rkTer ? { RK_TERRAIN: 1 } : {}), ...(params.has('rkgrain') ? { RT_NOFADE: 1 } : {}) };   // (?rkgrain: no footprint fade, A/B)   // RENDERKIT world / sky / nature / terrain (RK_NATURE and RK_TERRAIN need RK_WORLD)
 const terrainMat = new THREE.ShaderMaterial({ uniforms: terrainUni, vertexShader: terrainVS, fragmentShader: terrainFS, defines: { ...RK_DEF, ...RKL_DEF } });
 const terrain = new THREE.Mesh(terrainGeo, RKW ? linearOutput(terrainMat) : terrainMat);   // RENDERKIT world: the define
 terrain.frustumCulled = false; zScene.add(terrain);
@@ -739,6 +836,11 @@ sky.onBeforeRender = (r, s, cam) => { sky.position.setFromMatrixPosition(cam.mat
 // sky rebuilt only when the sun or the weather changes (renderkit/world.js). Off: the classic dome, no environment.
 // RENDERKIT sky: the atmosphere takes the dome (clouds, sun, the far land) and hands world.js its environment variant
 const atmo = RKS ? createAtmosphere({ scene: zScene, sky, sun, uniforms: terrainUni, renderer }) : null;
+if (atmo) {   // (ngc/look-terrain) the zone's heights at 16 m for the far land: 2 x 2.5 m texels averaged at every 16 m point
+  const Z = zoneGrid(), c = 16, n = Math.round(2 * BOUND / c), h = new Float32Array(n * n), k = Math.round(c / Z.C), o = Math.round((Z.E - BOUND) / Z.C);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { let s = 0; for (let b = 0; b < k; b++) for (let a = 0; a < k; a++) s += Z.h[(o + Math.round((j + 0.5) * c / Z.C) - (k >> 1) + b) * Z.N + o + Math.round((i + 0.5) * c / Z.C) - (k >> 1) + a]; h[j * n + i] = s / (k * k); }
+  atmo.zoneHeights({ h, n, ox: -BOUND + c / 2, oz: -BOUND + c / 2, c });
+}
 if (atmo && params.has('debug')) window.__rkSky = atmo;
 const worldSky = RKW ? createWorldSky({ renderer, scene: zScene, sky, sun, uniforms: terrainUni, atmosphere: atmo }) : null;
 if (worldSky && params.has('debug')) window.__rkWorld = worldSky;
@@ -751,16 +853,25 @@ const _nrm = new THREE.Vector3();
 const normalAt = (x, z) => { const e = 1.5; return isWater(x, z) ? new THREE.Vector3(0, 1, 0) : _nrm.set(terrainH(x - e, z) - terrainH(x + e, z), 2 * e, terrainH(x, z - e) - terrainH(x, z + e)).normalize().clone(); };
 const fx = createFx(zScene, { groundY: (x, z) => Math.max(terrainH(x, z), 0), isWater, normalAt });
 
+// (ngc/look-terrain) the site whose region (x, z) is in: the nearest by distance past its radius (its geology colours the rock)
+const siteIdx = (x, z) => { let b = 0, bd = Infinity; for (let i = 0; i < ISLANDS.length; i++) { const I = ISLANDS[i], d = hypot2(x - I.x, z - I.z) - I.r; if (d < bd) { bd = d; b = i; } } return b; };
 // trees
-const TREES = [];
+const TREES = [], ZONE_TREES = Math.round(3200 * 3 * (BOUND / 1280) ** 2 / 4);   // (ngc/look-terrain: 9600 at BOUND 2560: woods on 4x the land)
 {
   let s = 12345; const r = () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296;
   const geo = RKN ? null : new THREE.ConeGeometry(1.3, 5, 6); geo?.translate(0, 2.5, 0);
-  const mesh = RKN ? null : new THREE.InstancedMesh(geo, fogPatch(new THREE.MeshLambertMaterial({ color: 0x1f7a2a, flatShading: true }), fog, terrainUni.uTime), 3200);
+  const mesh = RKN ? null : new THREE.InstancedMesh(geo, fogPatch(new THREE.MeshLambertMaterial({ color: 0x1f7a2a, flatShading: true }), fog, terrainUni.uTime), ZONE_TREES);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(); let n = 0;
-  for (let i = 0; i < 60000 && n < 3200; i++) {
-    const x = (r() * 2 - 1) * BOUND, z = (r() * 2 - 1) * BOUND, h = terrainH(x, z);
-    if (h < 2.5 || h > 24 || clearedAt(x, z) || onHard(HARDS, x, z, 6) || PADS.some(p => Math.hypot(x - p.x, z - p.z) < (p.isl.cave ? 16 : 34)) || BASES.some(b => Math.hypot(x - b.x, z - b.z) < 30 || stripW(x, z, b) < 1)) continue;   // WORLD: clearedAt keeps trees off the villages and roads
+  // (ngc/look-terrain) woods where the woodland field says so (valley sides, the hills, the spine's lower slopes), copses
+  // and hedgerow trees in the farmland, none on steep rock, above ~300 m or in the sea
+  for (let i = 0; i < 600000 && n < ZONE_TREES; i++) {
+    const x = (r() * 2 - 1) * BOUND, z = (r() * 2 - 1) * BOUND, u = r();
+    const wd = fbm(x / 900 + 5.5, z / 900 + 9.2, 3) + 0.3 * noise(x / 240 + 1.3, z / 240 - 4.1);
+    if (u > (wd > 0.12 ? 0.85 : wd > -0.02 ? 0.25 : 0.025)) continue;
+    const h = terrainH(x, z);
+    if (h < 2.5 || h > 300 - 40 * noise(x / 300, z / 300)) continue;
+    { const e = 2, sy = 2 * e / Math.hypot(terrainH(x + e, z) - terrainH(x - e, z), 2 * e, terrainH(x, z + e) - terrainH(x, z - e)); if (sy < 0.8) continue; }
+    if ( clearedAt(x, z) || onHard(HARDS, x, z, 6) || PADS.some(p => Math.hypot(x - p.x, z - p.z) < (p.isl.cave ? 16 : 34)) || BASES.some(b => Math.hypot(x - b.x, z - b.z) < 30 || stripW(x, z, b) < 1)) continue;   // WORLD: clearedAt keeps trees off the villages and roads
     const k = 0.7 + r() * 1.1; sc.set(k, k * (0.8 + r() * 0.6), k);
     if (mesh) { m.compose(new THREE.Vector3(x, h, z), q, sc); mesh.setMatrixAt(n, m); } n++; TREES.push({ x, z, y: h, r: 0.9 * k, k });   // (TREES: colliders for the ground host)
   }
@@ -771,7 +882,7 @@ const TREES = [];
 const NAT = RKN ? (() => {
   const shared = createNatureShared();
   const forest = createForest({ scene: zScene, fog, uTime: terrainUni.uTime, shared });
-  const geoAt = (x, z) => { const I = ISLANDS.find(I => Math.hypot(x - I.x, z - I.z) < I.r + 60); return I ? geologyOf(I) : 'granite'; };
+  const geoAt = (x, z) => geologyOf(ISLANDS[siteIdx(x, z)]);
   { const d = new Float32Array(TREES.length * 4), kinds = new Uint8Array(TREES.length);
     TREES.forEach((t, i) => { d.set([t.x, t.y, t.z, t.k], i * 4); kinds[i] = treeKind(t.x, t.z, t.y, natureHash(Math.round(t.x * 10), Math.round(t.z * 10)), geoAt(t.x, t.z)); });
     forest.add('zone', d, kinds, { far: true }); }
@@ -792,11 +903,11 @@ const NAT = RKN ? (() => {
   let shrubs = false;
   function buildShrubs() {
     shrubs = true; let s = 777; const r = () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; const d = [];
-    for (let i = 0; i < 90000 && d.length < 5200 * 4; i++) {
+    for (let i = 0; i < 360000 && d.length < 12000 * 4; i++) {
       const x = (r() * 2 - 1) * BOUND, z = (r() * 2 - 1) * BOUND, u = r(), w = r();
       const stand = Math.sin(x * 0.021 + Math.sin(z * 0.017) * 2.3) * Math.sin(z * 0.019 - x * 0.006 + 1.3);   // patches of scrub, open grass between
       if (u > 0.25 + 0.6 * Math.max(0, stand)) continue;
-      const h = terrainH(x, z); if (h < 3 || h > 90) continue;
+      const h = terrainH(x, z); if (h < 3 || h > 280) continue;
       const sy = 2 / Math.hypot(2, terrainH(x + 2, z) - h, terrainH(x, z + 2) - h); if (sy < 0.72 || !open(x, z, 2)) continue;
       d.push(x, h, z, 0.8 + w * 1.3);
     }
@@ -819,7 +930,7 @@ const NAT = RKN ? (() => {
     if (zone) { s = SURF_CL[zoneSurf(x, z)]; if (s === undefined || s < 0) return null; if (s === CL.SAND && y > 1.6) s = CL.DUNE; }
     else { const sy = 2 / Math.hypot(2, latH(x + 2, z) - y, latH(x, z + 2) - y); s = y < 2.5 ? (y > 1.4 ? CL.DUNE : CL.SAND) : sy < 0.78 || y > 300 ? (y > 470 ? -1 : CL.ROCK) : CL.GRASS; if (s < 0) return null; }
     if (!openGround(x, z)) return null;
-    const I = zone ? ISLANDS.findIndex(I => Math.hypot(x - I.x, z - I.z) < I.r + 40) : -1;
+    const I = zone ? siteIdx(x, z) : -1;
     return { y, s, rock: I >= 0 ? rockC[I] : null };
   };
   const clutter = createClutter({ scene: zScene, fog, uTime: terrainUni.uTime, shared, sample });
@@ -856,6 +967,39 @@ const NAT = RKN ? (() => {
   const natEye = { position: new THREE.Vector3(), dir: new THREE.Vector3(0, 0, -1), tanD: 0, far: 0, seen: false }, terrainOBR = terrain.onBeforeRender;
   terrain.onBeforeRender = (r, s, cam) => { terrainOBR(r, s, cam); if (cam.isPerspectiveCamera) N.place(cam); };   // (terrain always renders, once per eye; not for a shadow map)
   return N;
+})() : null;
+// RENDERKIT terrain: rock outcrops and boulders as geometry (renderkit/outcrops.js), shaded with the terrain's own rock
+// layers and the island's geology; kept off roads, towns, pads, bases and structures (the nature agent's open() test).
+const OUTCROPS = rkTer ? (() => {
+  const rockC = ISLANDS.map(I => GEOLOGY[geologyOf(I)].rock.map((v, c) => v / TER_LAYERS[RTL.GRANITE].base[c]));
+  const strata = ISLANDS.map(I => ['limestone', 'sandstone'].includes(geologyOf(I)));
+  const sample = (x, z) => {
+    const y = terrainH(x, z); if (y < 0.4 || inHole(x, z)) return null;
+    const e = 2, hx = terrainH(x + e, z) - terrainH(x - e, z), hz = terrainH(x, z + e) - terrainH(x, z - e), l = Math.hypot(hx, 2 * e, hz) || 1;   // (normal, unnormalised: -hx, 2e, -hz)
+    const nx = -hx / l, nz = -hz / l, sl = 1 - 2 * e / l, zone = Math.max(Math.abs(x), Math.abs(z)) < BOUND;
+    if (zone) { if (NAT ? !NAT.open(x, z, 2) : (clearedAt(x, z) || PADS.some(p => Math.hypot(x - p.x, z - p.z) < 40) || BASES.some(b => Math.hypot(x - b.x, z - b.z) < BASE_R + 10))) return null; }
+    else if (clearingAt(x, z) || clearedAt(x, z)) return null;
+    const m2 = rkN2js(x * 0.047 + 3.1, z * 0.047 + 3.1);
+    if (zone) {
+      const s = zoneSurf(x, z), I = siteIdx(x, z); if (s === 'sand' || s === 'wetsand' || s === 'marsh' || s === 'mud') return null;
+      const rock = s === 'rock' ? 1 : s === 'shingle' ? 0.5 : sstep(0.3, 0.5, sl) * 0.8;
+      return { y, sl, nx, nz, rock, layer: I >= 0 && strata[I] ? 6 : 7, tint: (I >= 0 ? rockC[I] : [1, 1, 1]).map(v => v * (0.92 + 0.16 * m2)) };
+    }
+    if (y < 3) return null;
+    const rock = Math.max(sstep(170, 300, y), sstep(0.2, 0.4, sl)) * (1 - sstep(470, 540, y) * 0.6);
+    const wt = [0, 1, 2].map(c => [0.84, 0.78, 0.7][c] + ([1.1, 1.08, 1.07][c] - [0.84, 0.78, 0.7][c]) * m2);
+    return { y, sl, nx, nz, rock, layer: rkN2js(x * 0.0011 + 2, z * 0.0011 + 2) > 0.5 ? 6 : 7, tint: wt };
+  };
+  const oc = createOutcrops({ scene: zScene, ter: rkTer, fog, uTime: terrainUni.uTime, sample, tierName: rkTer.tierName });
+  const T = { oc, sample, xr: false, eye: new THREE.Vector3(), seen: false,
+    update() {
+      const xr = !!(XR && XR.active); if (xr !== T.xr) { T.xr = xr; oc.setTier(xr ? 'low' : rkTer.tierName); }
+      if (T.seen) oc.update(T.eye, Math.max(0, terrainH(T.eye.x, T.eye.z)));
+    } };
+  const obr = terrain.onBeforeRender;   // (follow the camera that renders, like the nature clutter; applied in update())
+  terrain.onBeforeRender = (r, s, cam, ...rest) => { /** @type {any} */ (obr)(r, s, cam, ...rest); if (/** @type {any} */ (cam).isPerspectiveCamera) { T.eye.setFromMatrixPosition(cam.matrixWorld); T.seen = true; } };
+  if (params.has('debug')) /** @type {any} */ (window).__outcrops = T;
+  return T;
 })() : null;
 // Wild forests stream with towns in stable tiles (world/life.js).
 {   // ARMOUR: the landing hards' concrete, kerbs, marker posts and signs (under the fog of war like the rest of the zone)
@@ -945,7 +1089,7 @@ const Z = {
 };
 // ---------------------------------------------------------------- the island war (war.js)
 const nav = createNav(terrainH);
-const seaSpot = (x, z) => { const [wx, wz] = nav.nearestWater(x, z); return [wx, wz, Math.atan2(wx, wz)]; };   // facing the map centre
+const seaSpot = (x, z, yaw) => { const [wx, wz] = nav.nearestWater(x, z); return [wx, wz, yaw ?? Math.atan2(wx, wz)]; };   // facing fleetStart's heading (ngc/look-terrain: along open water; the map centre is land now), else the map centre
 const PSTORE = { get fuel() { return G.res; }, set fuel(v) { G.res = v; }, get mat() { return G.mat; }, set mat(v) { G.mat = v; }, get fuelMax() { return RES_MAX; } };
 // FOUNDATION: everything the player can control is a craft (craft.js); PL is how war.js sees whichever one you are in
 const crafts = createCraftHost({ G, Z, say: (t, s) => say(t, s) });
@@ -1403,7 +1547,7 @@ function updateHeli(dt, inp, piloted) {
 // Everything the player can control registers here (craft.js): the Huey (still special: the cave, the drop, the helm),
 // the HORNET (craftjet.js), the soldier on foot (foot.js) and ground vehicles (vehicle.js on the ground host,
 // ground.js). Wave-2 units register the same way - see docs/ngc1980/FOUNDATION.md.
-const GR = createGround({ war, terrainH, holeOf, PADS, ISLANDS, CARRIER, trees: TREES, crafts, inZone });
+const GR = createGround({ war, terrainH, holeOf, PADS, ISLANDS, CARRIER, trees: TREES, crafts, inZone, zoneGround: (x, z) => SURFACE[zoneSurf(x, z)].ground });
 // SEAWORLD: the lived-in world is solid - buildings, walls, hedges, parapets and poles collide; piers and bridge decks
 // are floors; roads are road / dirt surfaces (world/solid.js, from the same generators the world is drawn from)
 const worldSolid = createWorldSolid({ hf: islandH, zoneHf: terrainH, zone: () => world.zone || [] });
@@ -2327,13 +2471,17 @@ addEventListener('resize', () => { if (bigMap) setMapSize(); });
 // The map: the sea and islands, the fog of war (black where never seen, dim where not watched now), islands as you
 // last saw them, your units always, enemy units only inside your sight. The big map (M) is the command screen.
 const landImg = (() => {
-  const N = 320, c = document.createElement('canvas'); c.width = c.height = N; const x = c.getContext('2d'), im = x.createImageData(N, N);
+  const N = Math.round(320 * Math.sqrt(BOUND / 1280)), c = document.createElement('canvas'); c.width = c.height = N; const x = c.getContext('2d'), im = x.createImageData(N, N);
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-    const h = terrainH(-BOUND + (i + 0.5) * 2 * BOUND / N, -BOUND + (j + 0.5) * 2 * BOUND / N), k = (j * N + i) * 4;
+    const x0 = -BOUND + (i + 0.5) * 2 * BOUND / N, z0 = -BOUND + (j + 0.5) * 2 * BOUND / N, e = BOUND / N, h = terrainH(x0, z0), k = (j * N + i) * 4;
     let col;
     if (h <= 0) { const d = clamp(-h / 10, 0, 1); col = [lerp(28, 8, d), lerp(92, 34, d), lerp(118, 78, d)]; }
     else if (h < 2.5) col = [176, 164, 112];
-    else { const t = clamp((h - 6) / 28, 0, 1); col = [lerp(48, 120, t), lerp(118, 102, t), lerp(50, 80, t)]; }
+    else {   // (ngc/look-terrain) a relief map: green lowland, olive hills, brown and grey high ground, shaded from the north-west
+      const t1 = clamp((h - 4) / 60, 0, 1), t2 = clamp((h - 60) / 140, 0, 1), t3 = clamp((h - 200) / 150, 0, 1);
+      col = [lerp(lerp(lerp(52, 92, t1), 128, t2), 150, t3), lerp(lerp(lerp(112, 120, t1), 112, t2), 146, t3), lerp(lerp(lerp(52, 62, t1), 78, t2), 140, t3)];
+      const sh = clamp(1 + ((terrainH(x0 + e, z0 + e) - terrainH(x0 - e, z0 - e)) / (2 * e)) * 0.9, 0.55, 1.35); col = col.map(v => clamp(v * sh, 0, 255));
+    }
     im.data[k] = col[0]; im.data[k + 1] = col[1]; im.data[k + 2] = col[2]; im.data[k + 3] = 255;
   }
   x.putImageData(im, 0, 0); return c;
@@ -2350,22 +2498,68 @@ const KIND_TAG = { hq: 'HQ', fortress: 'C', fuel: 'F', factory: 'M', radar: 'R' 
 const OWN_COL = ['#e8e4d0', '#4cf', '#f54'];
 let mapView = null;
 const _mapF = { x: 0, y: 0, z: 0, yaw: 0 };
+// (ngc/look-terrain) map zoom and pan: the big map zooms (wheel about the cursor, + / - keys, the on-map buttons, a
+// gamepad's shoulder buttons) from the whole world image (BOUND + 5.1 km) in to ~8x, and drags to pan; the minimap zooms
+// with the wheel over it. mapZ.zoom 1 = the control zone fitted to the screen.
+const mapZ = { zoom: 1, cx: 0, cz: 0, mini: 1, drag: null, wild: null };
+const MAPZ = { min: 0.32, max: 8, miniMin: 0.35, miniMax: 4 };
+function mapClampPan() { const E = worldMap.E; mapZ.cx = clamp(mapZ.cx, -E, E); mapZ.cz = clamp(mapZ.cz, -E, E); }
+function mapZoomBy(f, sx, sy) {
+  const v = mapView; if (!bigMap || !v) return;
+  if (sx === undefined) { sx = v.cx; sy = v.cy; }
+  const wx = v.ox + (sx - v.cx) / v.half, wz = v.oz + (sy - v.cy) / v.half;
+  mapZ.zoom = clamp(mapZ.zoom * f, MAPZ.min, MAPZ.max); const nh = v.base * mapZ.zoom;
+  mapZ.cx = wx - (sx - v.cx) / nh; mapZ.cz = wz - (sy - v.cy) / nh; mapClampPan(); Z.mapT = 0;
+}
+const mapSeesOutside = (x, z) => {   // past the zone there is no fog of war: an enemy shows where something of ours can see it
+  if (!fog.enabled || Math.hypot(x - Z.pos.x, z - Z.pos.z) < 1500) return true;
+  for (const u of war.units) if (u.side === 1 && Math.hypot(x - u.p.x, z - u.p.z) < 1200) return true;
+  return false;
+};
 function drawMap() {
   const W = radar.canvas.width, Hh = radar.canvas.height; radar.clearRect(0, 0, W, Hh);
-  const big = bigMap, half = big ? Math.min(W, Hh - 120) * 0.47 / BOUND : 72 / 260, cx = W / 2, cy = big ? (Hh - 60) / 2 : Hh / 2;
-  const ox = big ? 0 : Z.pos.x, oz = big ? 0 : Z.pos.z;
+  const big = bigMap, base = big ? Math.min(W, Hh - 120) * 0.47 / BOUND : 72 / 260, half = base * (big ? mapZ.zoom : mapZ.mini), cx = W / 2, cy = big ? (Hh - 60) / 2 : Hh / 2;
+  if (big) {   // a gamepad: shoulder buttons zoom, the d-pad pans
+    const gp = navigator.getGamepads ? [...navigator.getGamepads()].find(g => g && g.connected) : null;
+    if (gp) { const b = i => gp.buttons[i] && gp.buttons[i].pressed; if (b(5)) mapZ.zoom = Math.min(MAPZ.max, mapZ.zoom * 1.05); if (b(4)) mapZ.zoom = Math.max(MAPZ.min, mapZ.zoom / 1.05);
+      const st = 30 / half; if (b(12)) mapZ.cz -= st; if (b(13)) mapZ.cz += st; if (b(14)) mapZ.cx -= st; if (b(15)) mapZ.cx += st; mapClampPan(); }
+  }
+  const ox = big ? mapZ.cx : Z.pos.x, oz = big ? mapZ.cz : Z.pos.z;
   const px = x => cx + (x - ox) * half, py = z => cy + (z - oz) * half;
-  mapView = { half, cx, cy, ox, oz };
+  mapView = { half, base, cx, cy, ox, oz, btns: /** @type {any[]} */ ([]) };
   radar.save();
   if (!big) { radar.beginPath(); radar.arc(cx, cy, 74, 0, 6.283); radar.clip(); }
   else { radar.fillStyle = 'rgba(2,8,16,.88)'; radar.fillRect(0, 0, W, Hh); }
   radar.imageSmoothingEnabled = true;
-  if (!big) { radar.fillStyle = 'rgb(10,38,74)'; radar.fillRect(0, 0, W, Hh); if (farMap.ready) radar.drawImage(farMap.cv, px(farMap.ox), py(farMap.oz), farMap.size * half, farMap.size * half); }
+  if (!big) { radar.fillStyle = 'rgb(10,38,74)'; radar.fillRect(0, 0, W, Hh); }
+  if (worldMap.ready) radar.drawImage(worldMap.cv, px(-worldMap.E), py(-worldMap.E), 2 * worldMap.E * half, 2 * worldMap.E * half);   // the world round the zone
+  if (!big && farMap.ready) radar.drawImage(farMap.cv, px(farMap.ox), py(farMap.oz), farMap.size * half, farMap.size * half);
   radar.drawImage(landImg, px(-BOUND), py(-BOUND), 2 * BOUND * half, 2 * BOUND * half);
+  if (big) {   // (ngc/look-terrain) roads: the zone's and the wild ones built so far (under the fog of war)
+    radar.lineCap = 'round';
+    for (const R of netState.roads) {
+      if (R.kind === 'track' && half < 0.6) continue;
+      radar.strokeStyle = R.type === 'tarmac' ? 'rgba(52,52,58,.9)' : 'rgba(96,82,62,.85)'; radar.lineWidth = Math.max(1, (R.type === 'tarmac' ? 6.6 : 4.4) * half);
+      radar.beginPath(); const st = Math.max(1, Math.round(4 / Math.max(half, 0.05) / 8)); radar.moveTo(px(R.xs[0]), py(R.zs[0]));
+      for (let i = st; i < R.xs.length; i += st) radar.lineTo(px(R.xs[i]), py(R.zs[i])); radar.lineTo(px(R.xs[R.xs.length - 1]), py(R.zs[R.zs.length - 1])); radar.stroke();
+    }
+  }
   radar.drawImage(fogImg, px(-BOUND), py(-BOUND), 2 * BOUND * half, 2 * BOUND * half);
   for(const p of radioNet.marks){radar.strokeStyle='#e9c884';radar.fillStyle='#e9c884';radar.lineWidth=1;radar.beginPath();radar.arc(px(p.x),py(p.z),4,0,Math.PI*2);radar.stroke();if(big){radar.font='12px monospace';radar.fillText(p.name,px(p.x)+7,py(p.z)-6);}}
   radar.strokeStyle = 'rgba(255,220,120,.5)'; radar.lineWidth = 1; radar.setLineDash([4, 4]); radar.strokeRect(px(-BOUND), py(-BOUND), 2 * BOUND * half, 2 * BOUND * half); radar.setLineDash([]);   // the control zone
   if (big) { radar.fillStyle = 'rgba(255,220,120,.8)'; radar.font = 'bold 12px monospace'; radar.textAlign = 'left'; radar.fillText('CONTROL ZONE', px(-BOUND) + 6, py(-BOUND) + 16); }
+  if (big) {   // (ngc/look-terrain) the wild settlements past the zone
+    const vx0 = ox - cx / half, vx1 = ox + cx / half, vz0 = oz - cy / half, vz1 = oz + (Hh - cy) / half;
+    if (vx0 < -BOUND || vx1 > BOUND || vz0 < -BOUND || vz1 > BOUND) {
+      mapZ.wild ||= settlementsNear(0, 0, worldMap.E);   // (once: the settlement candidates of the whole world image)
+      radar.font = '11px monospace'; radar.textAlign = 'left';
+      for (const S of mapZ.wild) {
+        const X = px(S.x), Y = py(S.z); if (X < -20 || Y < -20 || X > W + 20 || Y > Hh + 20) continue;
+        const r = Math.max(2.5, S.R * half * 0.5); radar.fillStyle = 'rgba(200,170,140,.85)'; radar.fillRect(X - r, Y - r, 2 * r, 2 * r);
+        if (half > 0.06) { radar.fillStyle = 'rgba(230,220,200,.8)'; radar.fillText(S.size.toUpperCase(), X + r + 4, Y + 4); }
+      }
+    }
+  }
   drawAirbaseMap(radar, AIRBASE, px, py, half, { big, W, H: Hh, from: Z.pos });   // (ngc/look-airbases)
   // islands, as last seen
   for (const I of ISLANDS) {
@@ -2391,7 +2585,7 @@ function drawMap() {
   }
   // units
   for (const u of war.units) {
-    if (u.side === 2 && !fog.visibleAt(u.p.x, u.p.z)) continue;
+    if (u.side === 2 && !(inZone(u.p.x, u.p.z) ? fog.visibleAt(u.p.x, u.p.z) : mapSeesOutside(u.p.x, u.p.z))) continue;   // (outside the zone: no fog of war, only what we can see)
     const X = px(u.p.x), Y = py(u.p.z), col = u.side === 1 ? '#6ef' : '#f64';
     if (u.dims) {
       radar.save(); radar.translate(X, Y); radar.rotate(-u.yaw); radar.fillStyle = u.sinking !== undefined ? '#555' : col;
@@ -2415,6 +2609,12 @@ function drawMap() {
   radar.moveTo(X + fx_ * sz, Y + fz * sz); radar.lineTo(X - fx_ * sz - fz * sz * .6, Y - fz * sz + fx_ * sz * .6); radar.lineTo(X - fx_ * sz + fz * sz * .6, Y - fz * sz - fx_ * sz * .6); radar.fill();
   radar.restore();
   if (big) {
+    {   // (ngc/look-terrain) zoom buttons, top right (mouse and the XR pointer)
+      const bw = 44, bx = W - 3 * (bw + 8) - 16, by = 16, btns = [['+', 1.5], ['−', 1 / 1.5], ['ZONE', 0]];
+      mapView.btns = btns.map(([t, f], i) => ({ x: bx + i * (bw + 8), y: by, w: i === 2 ? bw + 16 : bw, h: 34, t, f }));
+      for (const B of mapView.btns) { radar.fillStyle = 'rgba(20,34,44,.92)'; radar.fillRect(B.x, B.y, B.w, B.h); radar.strokeStyle = 'rgba(190,230,240,.7)'; radar.lineWidth = 1.5; radar.strokeRect(B.x, B.y, B.w, B.h); radar.fillStyle = '#dff'; radar.font = B.t.length > 1 ? 'bold 13px monospace' : 'bold 22px monospace'; radar.textAlign = 'center'; radar.fillText(B.t, B.x + B.w / 2, B.y + (B.t.length > 1 ? 22 : 25)); }
+      radar.font = '12px monospace'; radar.textAlign = 'right'; radar.fillStyle = '#9bc'; radar.fillText(`ZOOM ${mapZ.zoom.toFixed(1)}x  ·  WHEEL / + - / LB RB  ·  DRAG TO PAN`, W - 16, by + 52);
+    }
     radar.font = '14px monospace'; radar.textAlign = 'center'; radar.fillStyle = '#bfe';
     // (TECH TREE: the orders on two lines, each shrunk to fit - the one long line ran off both edges at 1280 px)
     const fit = (t, y, px) => { radar.font = `${px}px monospace`; const w = radar.measureText(t).width; if (w > W - 24) radar.font = `${Math.floor(px * (W - 24) / w)}px monospace`; radar.fillText(t, W / 2, y); };
@@ -2438,13 +2638,34 @@ function drawMap() {
 $('radar').addEventListener('mousedown', e => {
   if (!bigMap || !mapView) return;
   e.stopPropagation(); e.preventDefault();
+  const rc = $('radar').getBoundingClientRect(), mx = e.clientX - rc.left, my = e.clientY - rc.top;
+  const B = (mapView.btns || []).find(B => mx >= B.x && mx <= B.x + B.w && my >= B.y && my <= B.y + B.h);
+  if (B) { if (B.f) mapZoomBy(B.f); else { mapZ.zoom = 1; mapZ.cx = mapZ.cz = 0; Z.mapT = 0; } return; }
+  mapZ.drag = { x: e.clientX, y: e.clientY, cx: mapZ.cx, cz: mapZ.cz, moved: false };
+});
+addEventListener('mousemove', e => {
+  const D = mapZ.drag; if (!D || !bigMap || !mapView) return;
+  const dx = e.clientX - D.x, dy = e.clientY - D.y; if (Math.hypot(dx, dy) > 5) D.moved = true;
+  if (D.moved) { mapZ.cx = D.cx - dx / mapView.half; mapZ.cz = D.cz - dy / mapView.half; mapClampPan(); Z.mapT = 0; }
+});
+addEventListener('mouseup', e => {
+  const D = mapZ.drag; mapZ.drag = null; if (!D || D.moved || !bigMap || !mapView) return;
+  mapClick(e);
+});
+$('radar').addEventListener('wheel', e => {
+  if (document.pointerLockElement) return;
+  e.preventDefault(); const f = e.deltaY < 0 ? 1.25 : 1 / 1.25;
+  if (bigMap) { const rc = $('radar').getBoundingClientRect(); mapZoomBy(f, e.clientX - rc.left, e.clientY - rc.top); }
+  else { mapZ.mini = clamp(mapZ.mini * f, MAPZ.miniMin, MAPZ.miniMax); Z.mapT = 0; }
+}, { passive: false });
+function mapClick(e) {
   const v = mapView, rc = $('radar').getBoundingClientRect(), mx = e.clientX - rc.left, my = e.clientY - rc.top;
   const wx = v.ox + (mx - v.cx) / v.half, wz = v.oz + (my - v.cy) / v.half;
   const I = ISLANDS.find(I => (fog.exploredAt(I.x, I.z) || fog.exploredAt(I.pad.x, I.pad.z)) && Math.hypot(v.cx + (I.pad.x - v.ox) * v.half - mx, v.cy + (I.pad.z - v.oz) * v.half - my) < 16);
   if (I) { selIsl = I; sfx.blip?.(500, 700, 0.06, 'square', 0.06); return; }
   const island=ISLANDS.find(J=>Math.hypot(wx-J.x,wz-J.z)<J.r&&terrainH(wx,wz)>0.5);
   const point=radioNet.mark(wx,wz,island);if(point){feed(point.name.toUpperCase()+': RADIO DESTINATION MARKED');radioCommands.compose('carrier','proceed',point.name);sfx.blip?.(400,300,0.08,'square',0.06);}
-});
+}
 $('radar').addEventListener('contextmenu', e => e.preventDefault());
 const _hud = {};
 function setText(id, v) { if (_hud[id] !== v) { _hud[id] = v; $(id).textContent = v; } }
@@ -2794,6 +3015,8 @@ function frame(now, xrFrame) {
   PF?.lap('world');
   NAT?.update(dt, zCam, G.state === 'play');   // RENDERKIT nature: wind clock (game time), trees and clutter round the camera
   PF?.lap('nature');
+  rkTer?.update(!!XR?.active); OUTCROPS?.update();   // RENDERKIT terrain: builds the ground layers over the first frames (XR runs the low tier); the rock outcrops round the eye
+  PF?.lap('terrain');
   commander.update(dt, G.state !== 'title');   // COMMANDER: the fleet strip under the score, the open board's statuses
   techUI.update(dt);   // TECH TREE: the open RESEARCH page refreshes ~4x a second
   PF?.lap('ui/trans');

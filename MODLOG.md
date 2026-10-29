@@ -1,5 +1,29 @@
 # MODLOG — NGC-1980 (formerly Thrust/Zarch)
 
+## 2026-10-29 — Calm ground from the air, a map that zooms past the zone (branch ngc/look-terrain, WIP at close)
+
+After Jay Jay's review: the ground's fine detail (normal map, height blend, small noise) now fades with the pixel's
+ground footprint, so it no longer reads grainy from the Huey or the jet; small boulders fade with distance by size
+(`?rkgrain` = the old look for A/B). The big map zooms (wheel, + / -, on-map buttons, gamepad LB / RB) and drags to pan,
+out to the world round the zone (coasts, wild land, settlements, roads, WESTGATE AFB) baked by the terrain worker; the
+minimap zooms with the wheel. ngc/look-huey and the voices merged in. Full-resolution grain A/B and the gameplay
+scenes on the merged build are still to run (docs/ngc1980/findings/look-terrain.md).
+
+## 2026-10-29 — Land instead of sea-hill blobs, a 5 km control zone, textured ground (branch ngc/look-terrain)
+
+The user: "make sure to also have a pass at the terrain again, I want it more like land with more varied terrain and a
+bigger control zone." The control zone is now 5.12 km square (`BOUND = 2560`, one constant in `world/bound.js`,
+was 2.56 km). Instead of 17 round islands of the same sine hills it holds real land (`world/terrain.js`, fixed plan
+plus fixed-seed noise): a main island about 4 x 3.5 km with bays and headlands, a mountain spine across the north
+(peaks to ~315 m), a limestone plateau ending in an escarpment, granite hills, rolling farmland, a tidal river (the
+Kessel) into a deep southern bay (THE SOUND) and two more river valleys, cliffs where high ground meets the sea and
+beaches where the lowland does; HOME ISLAND across a strait in the south-west, SOUTH REEF and islets in the south.
+Every site keeps its name, kind, owner and tier as a place on that land; the two sides start ~4.3 km apart (HOME
+south-west, IRONHOLD on IRON BAY in the north-east). Roads now join the sites across the main island. Inside and
+outside the zone join without a seam. The jet's far land draws the whole zone from any height. Textured ground
+(generated layers, splat, triplanar cliffs, rock outcrops) from the WIP is kept and toned down. Overview maps:
+docs/ngc1980/evidence/look-terrain/map-old.png and map-new.png. Findings: docs/ngc1980/findings/look-terrain.md.
+
 ## 2026-10-29 — WESTGATE AFB: an air base outside the zone, C-130 sorties from it (branch ngc/look-airbases)
 
 User: "have another agent work on our bases outside the control zone that has big hangers and such to fly the

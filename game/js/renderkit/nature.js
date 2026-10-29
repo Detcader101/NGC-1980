@@ -25,6 +25,7 @@ import * as THREE from 'three';
 import { FOG_GLSL } from '../fog.js';
 import { LOD } from '../world/visibility.js';
 import { RK_TERRAIN_GLSL } from './world.js';
+import { TERRAIN_ON, RT_GRASS_GLSL } from './terrainmat.js';   // RENDERKIT terrain: tufts take the textured ground's grass mean
 import { FIR, PINE, BROAD, SCRUB } from '../world/forest.js';
 
 // ------------------------------------------------------------------------------------------------- tiers
@@ -626,8 +627,10 @@ export function createClutter({ scene, fog = null, uTime = null, shared, sample 
       ob(sh, rr);
       // both faces of a blade light as the ground does (DOUBLE_SIDED would turn the back face normal down: black blades)
       sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', THREE.ShaderChunk.normal_fragment_begin.replace('normal *= faceDirection;', ''));
-      sh.vertexShader = sh.vertexShader.replace('attribute vec4 aP, aR;', RK_TERRAIN_GLSL + '\n attribute vec4 aP, aR;')
-        .replace('vColor.rgb*=aC*uNatGain;', `{ vec2 P=aP.xz; float m1=rkN2(P*.011), m2=rkN2(P*.047+3.1), m3=rkN2(P*.23+7.7), v=m1*.55+m2*.3+m3*.15;
+      sh.vertexShader = sh.vertexShader.replace('attribute vec4 aP, aR;', RK_TERRAIN_GLSL + (TERRAIN_ON ? RT_GRASS_GLSL : '') + '\n attribute vec4 aP, aR;')
+        .replace('vColor.rgb*=aC*uNatGain;', TERRAIN_ON   // RENDERKIT terrain: the ground's own grass mean (the textured layers' base colours, same weights)
+          ? `{ vec3 g=pow(rtGrassMean(aP.xz,aP.y),vec3(2.2)); vColor.rgb*=g*aC*uNatGain*(.78+.44*fract(aR.w*13.7)); }`
+          : `{ vec2 P=aP.xz; float m1=rkN2(P*.011), m2=rkN2(P*.047+3.1), m3=rkN2(P*.23+7.7), v=m1*.55+m2*.3+m3*.15;
             vec3 g=mix(mix(vec3(.14,.37,.12),vec3(.22,.5,.16),smoothstep(.25,.65,v)),vec3(.36,.5,.2),smoothstep(.5,.85,m1+max(aP.y,0.)*.0008));
             float dry=smoothstep(.55,.8,rkN2(P*.06+11.)+.15*rkN2(P*.3)); g=mix(g,vec3(.52,.5,.27),dry*.55);
             g=pow(g,vec3(2.2)); vColor.rgb*=g*aC*uNatGain*(.78+.44*fract(aR.w*13.7)); }   // (+ a per-tuft brightness)`);

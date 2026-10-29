@@ -41,7 +41,7 @@ export default async function (h) {
   await h.eval('(ff(80), { sams: P.sams.length, damage: A.damage, alive: P.alive, feed: [...document.querySelectorAll("#feed div")].slice(-4).map(d => d.textContent) })');
   await h.expect('A.damage > 0 || !P.alive || /DEF SYSTEMS/.test(document.querySelector("#feed").textContent)');
   // ---- on the ground again (by the home base: the foot soldier needs land to step onto), get out (Y)
-  await h.eval('(() => { const B = __G.HOME_B, x = B.x + 45, z = B.z + 45; P.alive = true; A.damage = 0; S.placeOnGround(x, __G.terrainH(x, z), z, 0, { hot: false }); __G.crafts.control("sr71", 0, "spawn"); return [x, z]; })()'); await h.wait(1500);
+  await h.eval('(() => { const B = __G.PAD, x = B.x, z = B.z;   /* (ngc/look-terrain: on the home pad; HOME_B + 45 m is village ground on the new land, no room to get out) */ P.alive = true; A.damage = 0; S.placeOnGround(x, __G.terrainH(x, z), z, 0, { hot: false }); __G.crafts.control("sr71", 0, "spawn"); return [x, z]; })()'); await h.wait(1500);
   await h.expect('S.canExit() === "" && __G.G.craft === "sr71"');
   await h.key('tap', 'KeyY'); await h.wait(2000);
   await h.eval('({ craft: __G.G.craft })'); await h.shot('crew-out-beside-it');

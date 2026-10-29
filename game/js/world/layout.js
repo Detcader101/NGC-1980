@@ -353,6 +353,11 @@ export function zoneItems(hf) {
     for (const it of items) it.isl = I.id;
     out.push({ I, items, roads: site.roads });
   }
+  // (ngc/look-terrain) the link roads between the sites: each its own piece, centred on its middle, sized to reach its ends
+  for (const id of netState.zoneLinks || []) {
+    const R = netState.roads[id], m = R.xs.length >> 1; let rad = 0; for (let i = 0; i < R.xs.length; i += 4) rad = Math.max(rad, Math.hypot(R.xs[i] - R.xs[m], R.zs[i] - R.zs[m]));
+    out.push({ I: { id: -1 - id, name: 'ROAD', x: R.xs[m], z: R.zs[m], r: rad + 10 }, items: [], roads: [id] });
+  }
   return out;
 }
 export { cellReady, settlementOf, farmOf, CELL, FARM_CELL, ROAD };

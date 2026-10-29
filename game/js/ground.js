@@ -65,7 +65,7 @@ export function createGround(ctx) {
       const hx = terrainH(x + e, z) - terrainH(x - e, z), hz = terrainH(x, z + e) - terrainH(x, z - e), l = hypot3(hx, 2 * e, hz);
       out.nx = -hx / l; out.ny = 2 * e / l; out.nz = -hz / l;
       let s = null; for (const f of providers) { s = f(x, z, t); if (s) break; }
-      out.surface = s || (t <= 0 ? 'water' : padAt(x, z) ? 'road' : t < 2.5 ? 'sand' : out.ny < 0.78 || (ctx.inZone(x, z) ? t > 30 : t > 200) ? 'rock' : 'grass');
+      out.surface = s || (t <= 0 ? 'water' : padAt(x, z) ? 'road' : ctx.zoneGround && ctx.inZone(x, z) ? ctx.zoneGround(x, z) : t < 2.5 ? 'sand' : out.ny < 0.78 || (ctx.inZone(x, z) ? t > 30 : t > 200) ? 'rock' : 'grass');   // (ngc/look-terrain: the zone's per-point surfaces, world/terrain.js; "rock above 30 m" was most of the new land)
     }
     const S = SURF[out.surface] || SURF.grass; out.mu = S.mu; out.crr = S.crr; out.sink = S.sink;
     return out;

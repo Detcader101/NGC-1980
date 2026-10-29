@@ -1,0 +1,256 @@
+# ngc/look-terrain: land instead of sea-hill blobs, a 5 km control zone, textured ground (LOOK-PLAN workstream C)
+
+Branch `ngc/look-terrain`: WIP a06f1f1 (generated ground layers, splat, outcrops) on 36eb21b, then `ngc/shader-library`
+f8abdbb merged in (24071fd; MODLOG kept both sides, `RK_AREAS` typed with `'terrain'` added).
+
+User, 2026-10-28: **"make sure to also have a pass at the terrain again, I want it more like land with more varied
+terrain and a bigger control zone."**
+
+## 2026-10-29 - Design (written before the code)
+
+### What was there
+- `BOUND = 1280`: a 2.56 km square control zone. Inside it 17 round islands (`ISLANDS`), each its own radial
+  height model (`world/terrain.js` `islandHeight`: a plateau, 1-3 peaks, coves / cliffs / rocky shore by angle), baked
+  on a 1.25 m grid over +-1400 m (2241^2 cells, 20 MB per thread, 1.7 s per thread: main, terrain worker, world
+  worker). From the air it reads as 17 blobs of sea-hills of one design, 300-500 m across, in an empty sea.
+- Outside the zone (`world.js` `wildH`): open sea for 0.4-2.4 km, then fixed-seed continents and ridged-noise ranges
+  to 1.7 km. That part already reads as land and stays.
+
+### The new zone: BOUND 2560 (5.12 km square, 4x the area)
+One constant (`world.js BOUND`). Everything that scales with it is derived from it or listed here:
+
+| What | Old | New | Note |
+|---|---|---|---|
+| zone ground grid (`terrain.js`) | 1.25 m over +-1400 (2241^2) | 2.5 m over +-2720 (2177^2) | same memory (19 MB), same as the render lattice (TG 2.5) |
+| core heightmap `hmTex` (main.js) | 1025^2 f32, 4 MB | 2049^2 f32, 16.8 MB | filled from the zone grid, `terrainH` only where pads / roads / hards change it |
+| surface texture `surfTex` | 1025^2 RGBA, 4 MB | 2049^2 RGBA, 16.8 MB | |
+| decor texture | 640^2 | 1280^2 RGBA, 6.5 MB | pad / shaft / region index |
+| fog of war | 224^2 (11.4 m cells) | 448^2 (same cell) | per-update cost per source unchanged |
+| minimap land image | 320^2 | 512^2 | |
+| sea nav grid (A*) | 20 m cells, 128^2 | 40 m cells, 128^2 | same search size; carrier and LEVIATHAN are 250-330 m |
+| sim/zone.js table (headless war) | 0.5 m over +-1540 (152 MB) | 1.0 m over +-2820 (127 MB) | |
+| zone trees (colliders) | 3200 random at 2.5-24 m | woods and hedgerows on the new land, ~4x | |
+
+### The land: "the Kessel coast" (fixed seed, same every run)
+A real-looking piece of coast in the 5 km square, built from a hand-laid plan plus noise:
+- **One large main island** (about 4 x 3.5 km) filling the centre and north of the zone, with an irregular coastline:
+  a deep southern bay (THE SOUND) between a south-west lobe and a southern barrier spit, smaller bays and
+  headlands everywhere else (two scales of domain-warped noise on the shoreline).
+- **HOME ISLAND** (about 1.8 x 1 km) off the south-west, across a 300-600 m strait from the main island: the Marines'
+  island base, the carrier off its south coast. PELICAN (fuel) at its east end.
+- **SOUTH REEF**: a low limestone island in the south-east, with KILN on a second small island / headland to its north.
+- Islets and sea stacks off the cliffs.
+- **Relief, varied by region** (not one sine): a **mountain spine** across the north (ridged noise, peaks 300-380 m,
+  spurs and side valleys), a **limestone plateau** in the east at ~110 m ending in a 60-80 m **escarpment** on its
+  west and south side, **rolling farmland** in the south-central lowlands (5-40 m, long gentle swells), **granite
+  hills** in the west (60-160 m), low dunes and marsh on the barrier spit.
+- **Rivers**: two valleys from the spine (one south through the farmland to an estuary in THE SOUND, one west to the
+  coast), carved as valleys with a floor graded to the sea and an estuary channel below sea level at the mouth
+  (the sea shader fills it); mud / marsh surface along the stream.
+- **Coasts by what meets the sea**: cliffs where high ground reaches the coast (the north under the spine, the west
+  granite, the plateau's east side), beaches where the lowlands do (THE SOUND, the farmland coast, HOME ISLAND's south
+  and east, SOUTH REEF), rocky shore elsewhere. Sea floor: beach shoreface ~1 in 15, shelf to -14, deeper (-30) offshore.
+- **Sites as places on the land**: every ISLANDS entry keeps its name, kind, owner and tier, moved onto the new map at
+  roughly twice its old position (so the two sides still start ~4 km apart: HOME south-west, IRONHOLD north-east, on
+  a north-east bay with water for its shipyard and the enemy fleet). Each site sits in its own flat basin (town
+  ground) at a designed height: low (4-16 m) for the cave bases, up on the plateau / hills for some radars and
+  factories (pad heights may go above the old 14 m cap). `I.r` stays the war's radius for buildings and guns.
+- **Seamless at BOUND**: the zone's outer ~250 m is open sea that blends into `wildH` (which is open sea there too),
+  so heights, the sea bed and the far-land texture agree across the line; `rawH` switches to `wildH` past the grid.
+
+### Gameplay checks the land must pass
+- both fleet starts and IRONHOLD's shipyard on navigable deep water; the carrier can reach every coastal site;
+- a landing hard (LCM-8) on every coastal site; inland sites (CITADEL, WELLSPRING, CINDER) are reached by air / road;
+- the zone net: a village by every big site, roads from the pads, harbour quays, **and roads joining the sites
+  across the main island** (new: the zone had no roads between places before, because there was sea between them);
+- trees, scrub and clutter on the new land (woods on slopes and valley sides, hedgerow trees in the farmland);
+- per-point surfaces (`zoneSurf`) now drive the ground host too (it fell back to "rock above 30 m", which would be
+  most of the new land).
+
+### Cost targets
+Load: the zone bake <= the old 1.7 s per thread (coarse 10 m plan fields + a 2.5 m fine pass); the main thread's core
+heightmap filled from the grid, not 4.2 M `terrainH` calls. Frame: the terrain draw is the same mesh (TN x TN at 2.5 m
+round the camera), so the bigger zone costs memory, not triangles.
+
+## 2026-10-29 - The land, built (2446f03, 42f2e7b)
+**What changed**
+- `world/bound.js`: `BOUND = 2560`, the single source; `world.js` re-exports it (it and `world/terrain.js` import
+  each other, so the constant lives in its own module).
+- `world/terrain.js` rewritten (API kept: `zoneH`, `zoneSurf(Id)`, `SURF_NAMES`, `SURFACE`, `GEOLOGY`, `geologyOf`,
+  `zoneGrid`, `beaches`, `shoreAt`, `islandInfo`, `bakeMs`; new: `planAt`, `SITE_H`, `ZONE_E` = BOUND + 160). The plan
+  (signed distance to the coast from 13 land shapes and 3 bays with two scales of domain warp, regional relief with
+  soft-max blending, 3 rivers, 17 site basins, beach / cliff weights) is baked on a 10 m grid (545^2); the fine
+  pass (coast profiles, sea bed, hummocks, broken rock, sea stacks) and the surfaces on the 2.5 m grid (2177^2).
+  Bake 1.95 s per thread in node (old: 1.7 s); 19 MB heights + 4.7 MB surfaces (old: 20 + 5 MB).
+- `world.js`: the 17 sites moved onto the land (names, kinds, owners, tiers and radii kept); `fleetStart` is two
+  fixed open-water spots (south of HOME ISLAND, north of IRON BAY's mouth); `ridged` exported; `rawH` switches to
+  `wildH` at the grid edge (the grid's outer ring already blends into `wildH`, sea on both sides: no seam);
+  `createNav` cell scales with BOUND (40 m, 128^2 as before; 55 ms to build in node).
+- **Hook for ngc/look-airbases** (orchestrator, 2026-10-29): BOUND stays the single source (`world/bound.js`, re-exported by world.js) and `wildH` keeps its structure; after the merge of ngc/shader-library the air base flattens through its own `AIRBASE.H` in `rawH` (outside the zone grid), so the interim `FLATS` list I had added was removed.
+- Pads may now sit up to 140 m (radars and the plateau factory: LOOKOUT 59, SPIRE 65, BEACON 97, CINDER 109 m);
+  cave bases stay 4-16 m (all designed at 6-15). `main.js` and `sim/zone.js` agree (simmode.json checks it).
+- `world/net.js`: link roads between the sites on the same land (relaxed relative-neighbourhood graph, routed by the
+  existing DP with a new `avoid` cost round bases and pad aprons; dropped when the path is wet for > 130 m); villages
+  allowed up to 18 m above the site's pad; `bedBuckets()` for the heightmap fill.
+- `main.js`: the core heightmap is copied from the zone grid (same 2.5 m lattice, aligned) and `terrainH` is called
+  only in road / platform buckets, pads, bases with their cave strips and the hards (4.2 M full calls would take
+  seconds); fog of war 448^2 (same 11.4 m cells); minimap image 453^2; decor texture's region index = the nearest
+  site everywhere (geology colours by region); zone trees 9600 in woods / copses / hedgerows; scrub 12000 to 280 m.
+- `ground.js`: inside the zone the ground host's fallback surface is the zone's own per-point surface
+  (`SURFACE[name].ground`), not "rock above 30 m" (which would have been most of the new land). `wheeledenv.js`
+  maps `dirt` (was falling back to grass).
+- `war.js` / `sim/redai.js`: the enemy carrier's retreat point was a fixed (330, -300) - land now; it goes back to its
+  own start.
+**Gameplay data (node, sim/zone.js)**: every coastal site has a landing hard (12 of 17; LOOKOUT, BEACON, CINDER,
+WELLSPRING and SPIRE are inland or on cliffs: reached by air / road); IRONHOLD's shipyard point is 234 m from its
+centre on IRON BAY; both fleet starts are on deep water and the carrier has a sea path to water off every site
+(135-514 m off, WELLSPRING 1 km inland).
+
+## 2026-10-29 - Every player view, before / after (tools/scenes/lookterrain.mjs)
+**Scene**: rewritten so it finds its places from the game's data on either map: foot and feet at the home base, Huey
+at 30 m and 200 m, jet at 1200 m and 3000 m, the carrier's deck, a tank sight (2.8 m eye, 10 degree field, 1.3 km
+across farmland), a village, a link road, a beach, a cliff from the sea, the river, the spine on foot, the LOD band,
+and the in-game big map. Before = 24071fd (the shader-library ground on the old archipelago, `rkterrain` off), after
+= this branch at `rk=all`, tier high. Side-by-sides: `docs/ngc1980/evidence/look-terrain/sbs-*.png`.
+
+**Findings and fixes, in the order they showed up**
+- *Jet at 3000 m saw only the home island and a few slivers of land.* Two causes. (1) The far land (depth-sky's dome
+  raymarch) only had the 8 km height window round the eye, and at 3 km up the draw distance (2.6 km) ends before the
+  ground under the jet; the zone 4-5 km away was outside the window. Fix: the dome also gets the zone's own heights at
+  16 m (`atmosphere.zoneHeights`, 320^2 half floats from the zone grid), used wherever a ray is over the zone, and the
+  ray is not clipped at the window edge while it is still crossing the zone. (2) A ray from above 1600 m starts at
+  exactly y = 1600 and the test `y < 1600.` dropped it (from any height above 1600 m, no far land at all). Then the
+  low land came out in horizontal slices: the march steps (2-3 % of the distance) jumped over 5-30 m lowland onto the
+  sea plane. Fix: the last step lands on t1 (the sea plane); land there means the ray met it in between -> bisect.
+- *Huge brown blobs everywhere from the air* (before too): dry-grass patches at full straw colour, bare soil, and the
+  zone's dirt rule. Dry grass is now a partial olive sward (base 0.42 0.43 0.23, 65 %), soil patches rarer and half
+  strength, zone dirt only small worn patches on slopes; `grassAverage` (the far land's mean) uses the same rule.
+- *Grass at the feet read as a neon speckle*: blade colour spread 0.68-1.3 x base over dark gaps. Now 0.82-1.16 over
+  lighter thatch, gentler bleached tips.
+- *Outcrops were tent-shaped and nearly black*: the sharp noise octave made ridges; the albedo was darkened three times.
+  Rounder masses, lighter albedo (x 1.3).
+- *Road cuttings with vertical walls* where a link road crosses the escarpment: road shoulders blended over at most
+  18 m whatever the height difference. Now up to 45 m (1.1 m per metre of cut: ~42 degrees), wild roads too.
+- *Woods*: the 9600 zone trees (colliders, as before) read as savanna; the zone's chunks now stream like the wild ones
+  but carry only woods (`forest.js zoneWood`: the same woodland field as the zone trees, none within site radius +
+  200 m, so no trees on pads, bases, hards or town ground; roads and villages via `clearedAt`).
+- *River*: a 60-80 m mud stripe did not read as a river. The Kessel and the west river are tidal in their lower half
+  (bed below sea level: the sea shader fills it, 30-120 m wide), the flood plain stays dry; the upper courses are
+  streams in their valleys.
+
+## 2026-10-29 - Cost (SwiftShader, this PC shared with other agents: relative numbers only)
+`lookterrain.mjs` frame (full render + 1 px readback, median of 6) and the terrain pass alone, ms:
+
+| view | before: old map, ground layers off | new land, layers off | new land, low | new land, high |
+|---|---|---|---|---|
+| foot (home base) | 280 / 83 | 226 / 63 | 318 / 172 | 579 / 352 |
+| Huey 30 m | 281 / 77 | 234 / 62 | 330 / 162 | 503 / 260 |
+| Huey 200 m | 179 / 59 | 173 / 48 | 226 / 100 | 328 / 122 |
+| deck | 208 / 71 | 233 / 57 | 270 / 86 | 361 / 126 |
+
+The land itself costs nothing per frame (the terrain mesh is the same 185 k triangles round the camera at any zone
+size; the new land is a little cheaper than the old islands' views at layers off). The generated ground layers are
+what costs on a CPU rasteriser: high is ~4-5x the classic terrain pass. So `terrainTierName` now picks the low tier
+when the WebGL renderer is software (SwiftShader / llvmpipe) and no tier was asked for; a GPU keeps high.
+Load (node, per thread): the zone bake 1.7 s (old 1.7-2.0 s), zoneNet 0.2 s (old 0.07 s: the link roads); main.js's
+core heightmap is a copy of the zone grid plus `terrainH` in the boxes where roads / pads / bases / hards change it.
+Memory: zone grid 19 MB heights + 4.7 MB surfaces per thread (as before); main thread +12.8 MB heightmap texture,
++12.8 MB surface texture, +4.9 MB decor texture (4x area, same cell size), 0.2 MB far-land zone heights.
+
+## 2026-10-29 - Keeping the game working on the new land (tests)
+SwiftShader, the PC shared with other agents' runs: game-time waits stretch with the frame time, so every result was
+compared with ngc/shader-library (f8abdbb, its own worktree) under the same load where it failed.
+
+| scene | first run on the new land | after the fixes below | shader-library base |
+|---|---|---|---|
+| smoke.json | 5/5 | 5/5 | |
+| foot.mjs | 9/21 | 11/14 (stern ladder climb + its deck check, walk to the pad: 10.4 of 16 m in the 30 s wait) | 11/13 (stern ladder + deck check) |
+| worldvisibility.mjs | 16/18 | 17/17 | |
+| depthsky.mjs | 14/14 | | |
+| depthnature.mjs | 9/9 | | |
+| groundwar.mjs | 4/10 | 9/10 (hover tank ashore: fails on the base too) | 9/10 (same) |
+| armorgame.mjs | 13/20 | 15/19 | not run (40 min a run) |
+| wheeledgame.mjs | 15/33 | 17/30 | not run |
+| xr.mjs | 19/19 | | |
+
+**What the failures were and what changed**
+- *Frame time (foot, everything with a game-time wait)*: the high ground tier is 2.5x the frame on SwiftShader (see
+  Cost); software GL now gets the low tier. foot's remaining extra failure is the 16 m walk to the pad running 6 m short
+  in its 30 s wait (fps-marginal, as look-nature found on the base).
+- *groundwar: no STRIDERs* - the MV-22 flew into the plateau: the transport AI looked 400 m ahead for its cruise
+  height (3 s at 118 m/s, a 25 m climb). It now looks as far ahead as the climb takes (14 s of flight) and slows down
+  when it is well below the height it needs (`transportai.js`; `tools/rotarymission.mjs` 18/18). The hover tank / LCAC
+  waits were scaled to the bigger zone (the KRAKEN starts ~3 km out).
+- *armorgame: the M60 stuck at 34 degrees on the hard* - HOME's landing hard ended on the beach at u = 4 m with the dune
+  bank behind it. `planHards` now also wants the next 40 m inland drivable (no 4 m step over 0.32), else the ramp
+  carries on through (HOME's hard is 62 m). The M113's swim then passes. The LCM-8 run can now land on a beach hard,
+  whose top is on the sand at ~1.5 m: the scene's "ashore" height test is > 1.2 m (was > 3). Left: getting out at the
+  hatch after the hillside, the first 105 mm round hitting a CITADEL AA gun in front of the aimed building (a layout
+  coincidence of the new site), the M113 creeping 4 m on the ALBATROSS's deck while she turns 25 degrees.
+- *foot / armorgame: the carrier would not sail where ordered* - both start facing the map centre, which is land now.
+  `fleetStart` gives a heading too: the ALBATROSS east along HOME ISLAND's south coast, the KRAKEN west along the north.
+- *wheeledgame*: its wild-land village, bridge and ford were fixed coordinates ~3.7-4.3 km east. The wild lands start
+  BOUND + 0.4-2.4 km out, so those places are sea now. The scene finds a town past 5 km, the nearest generated bridge
+  and shallows instead; the street drive and off-road parts pass, the bridge / ford / deck vehicle parts did not in the
+  run I had time for (open item).
+- *worldvisibility*: the zone-edge check hovered at x = 1260 / 1300 (the old edge); it reads BOUND now.
+
+## 2026-10-29 - After merging ngc/shader-library 0369261 (look-airbases, look-sr71)
+Conflicts: world.js (BOUND from `world/bound.js`; the air base's `AIRBASE.H` applied past the zone grid in `rawH`),
+atmosphere.js (the air-base far-land tint after the terrain-layer palette, both branches), net.js (both route costs:
+`avoid` round the zone's bases, `AIRBASE.keep` round the field). The interim `FLATS` hook is gone (unused).
+- `node tools/airbasebench.mjs`: ALL PASS (flat field, keep-outs, mesh budget, C-130 sorties from both ends).
+- `scenes/sr71.mjs`: 8/8 after parking the SR-71 on the home pad for the get-out check (HOME_B + 45 m is village
+  ground on the new land: "no room to get out"; 7/8 before).
+- `scenes/airbase.mjs`: 12/16 here, 14/14 on 0369261 under the same load. The four are one chain of real-time waits:
+  the autopilot's flare / stop came after the waits ran out (1515 s and 1750 s into the run, against 1126 s for the whole
+  base run), so O (hand-in) found her still rolling. The field sits further out at BOUND 2560 and the frame is heavier
+  (low ground tier on SwiftShader). Open: re-run with longer waits or `rkterrain=off` to confirm it is only time.
+- **Far land at 3000 m** (the air-base agent saw bands with sea between them): fixed here - the march stepped over low
+  land onto the sea plane; the last step now lands on the sea plane and bisects back when there is land there
+  (`sbs-06-jet3000.png`: the whole zone, no bands). The dome also reads the zone's own 16 m heights, so the zone shows
+  from any height and distance.
+- `lookterrain.mjs` final run 15/15; `?rk=0` smoke 3/3 (classic everything on the new land).
+
+## Open items
+- Cliff faces: one dark triplanar rock colour from top to bottom when they face away from the sun (`sbs-12-cliff`);
+  they want strata colour bands, ledges with grass, wet dark foot. The limestone (white) cliffs read well.
+- Grass at the feet is still busy at 1-3 m on the high tier (`sbs-02-feet`); tone down the normal map / blade density.
+- Woods are streamed chunk trees outside the colliders' set: a tank drives through them (the 9600 zone trees still
+  collide and fall). Same as the wild lands before.
+- Wasp gunships (waspai.js) look 40-80 m ahead for terrain: fine on the old islands, may clip the escarpment at speed.
+- armorgame (hatch exit after the hillside; first round hits an AA in front of the CITADEL target; the M113 creeps 4 m
+  on the turning deck) and wheeledgame (bridge / ford / deck M151 / M35 parts) not compared against the base (40 min
+  each under this load); airbase.mjs timing as above.
+- Tests are SwiftShader-bound: the high ground tier is ~2.5x the frame there; on a GPU the ?bench numbers are needed.
+
+## 2026-10-29 (evening) - Jay Jay's review: grainy grass from the air, a map that zooms and shows the world (WIP at close)
+User: "terrain is good except for the aliasing grass texture which makes everything look grainy when flying" and "map
+should have zoom and be able to see outside the control zone too".
+
+**Grain - cause and fix (done, partly verified).** The layers are mipmapped and anisotropic, but three things are
+non-linear in the minified texels and flicker from the air: the normal map's lighting, the height blend between layers
+and the high-frequency shader noise (ragged layer edges, soil-patch edges, the intertidal weed). `rtDetail(P)`
+(terrainmat.js) measures the pixel's ground footprint (screen derivatives of the world position) and fades all of them
+between 3.5 cm and 22 cm a pixel: towards the layer's mean colour, a flat normal and a weight-only blend, so from a Huey
+at 200 m and the jet the ground carries only the macro variation; on foot nothing changes. Small boulders now fade by
+size (70 m + 55 m per metre of rock, the big masses keep the ring). `?rkgrain` turns the fade off for A/B.
+Evidence: `grain-high-*.png` (before / after at the default 0.6 resolution: the difference is subtle at that
+resolution; the fade only matters at full resolution, where Jay Jay saw it). The full-resolution A/B
+(`GRAIN=1 RES=1` vs `RES=1`, `tools/grainmetric.mjs` to measure the pixel-scale contrast) was stopped at close:
+the `-grain` run finished (tools/runs/2026-10-29_17-03-09-lookterrain-all-high-grain), the fade run did not. Low tier
+after-shots: tools/runs/2026-10-29_16-53-02-lookterrain-all-low (before: 2026-10-29_16-32-53-lookterrain-all-low),
+not yet looked at or made into side-by-sides. UNTESTED: a real GPU at full resolution (needs Jay Jay's eye on :8813).
+
+**Map (done, seen in lookmap.mjs).** The big map zooms 0.32x-8x (wheel about the cursor, + / - keys, on-map + / - /
+ZONE buttons that the XR pointer can press too, a gamepad's LB / RB, d-pad pans) and pans by dragging (a click without a
+drag is still the radio-destination / select click). Past the zone it shows the world to BOUND + 7 km: a 448^2 image
+baked by the terrain worker from `rawH` after the first height windows (relief-shaded, coasts, WESTGATE AFB's field),
+the wild settlements, and every road built so far (the zone's under the fog of war). The fog of war still covers the
+zone; outside it, enemy units show only within 1.5 km of you or 1.2 km of a friendly unit. The minimap zooms with the
+wheel over it and draws the world image under the local far map. `tools/scenes/lookmap.mjs` 2/2 (its "page error" was
+only "source changed during the run" - my edits). UNTESTED: gamepad and XR pointer in a headset.
+
+**Merge.** ngc/shader-library d6d0bad (look-huey, voices, Codex closeout) merged: the map click keeps the radio
+destination marking (on mouse-up now). Types 578 = the new baseline. UNTESTED after this merge: everything except
+syntax / types, lookterrain (5 views, both tiers) and lookmap - no smoke / foot / xr runs on the merged build yet.

@@ -34,9 +34,12 @@ export function approach(st, tgt, o, world, out = {}) {
   const clr = o.hover - 1 + (o.clear - o.hover + 1) * clamp((d - o.flat) / 120, 0, 1);   // clearance shrinks to the hover height on short final
   const floor = world.floorAlong(st.x, st.z, ux, uz, look) + clr;
   const glide = tgt.y + o.hover + Math.max(0, d - o.flat) * Math.tan(o.glide);
-  const cruiseH = Math.max(floor, world.floorAlong(st.x, st.z, ux, uz, Math.min(d, 400)) + o.agl);
+  // (ngc/look-terrain) the cruise height looks as far ahead as the climb takes at this speed: on the land's ridges and
+  // escarpments (100-300 m) 400 m was 3 s at 118 m/s, a 25 m climb - the Osprey flew into the plateau
+  const gs0 = Math.hypot(st.vx, st.vz), cruiseH = Math.max(floor, world.floorAlong(st.x, st.z, ux, uz, Math.min(d, Math.max(400, gs0 * 14))) + o.agl);
   const hDes = Math.max(Math.min(cruiseH, glide), floor);
   out.hDes = hDes;
+  { const need = hDes - st.y; if (need > 25 && d > o.flat) { const k = clamp(1 - (need - 25) / 120, 0.3, 1); if (Vc > o.cruise * k) { out.vx = (tgt.vx || 0) + ux * o.cruise * k; out.vz = (tgt.vz || 0) + uz * o.cruise * k; } } }   // well below the height it needs: slow down and climb
   // descent limit: slow, steep descents put a rotor in its own wake (vortex ring) - below ~40 kt keep it under
   // o.vDescSlow (the V-22's ~800 fpm below 40 KCAS rule; a good habit for the CH-46 too)
   const vd = Math.hypot(st.vx - (tgt.vx || 0), st.vz - (tgt.vz || 0)) < 20 ? Math.min(o.vDesc, o.vDescSlow ?? 3.5) : o.vDesc;
