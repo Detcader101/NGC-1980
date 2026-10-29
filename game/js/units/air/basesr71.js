@@ -34,8 +34,8 @@ export function sr71Home(A, H, L, dt, groundY, c, say = null) {
   if (H.flare) {   // ---- flare: her own autopilot (it runs in the flight model's 200 Hz substeps, steady at any frame rate) holds
     // the landing attitude, ~9 deg nose up, wings on the centreline heading; the power comes off for 155 KIAS
     const [qx, qz] = L.toW(u + d * 400, 0);
-    A.ap.on = true; A.ap.pitch = 'att'; A.ap.att = 0.125; A.ap.roll = 'hdg'; A.ap.hdg = Math.atan2(-(qx - A.pos.x), -(qz - A.pos.z));
-    c.pitch = c.roll = 0; c.yaw = 0; speed(155, 0, 0.5); c.brakeL = c.brakeR = 0;
+    A.ap.on = true; A.ap.pitch = 'alt'; A.ap.alt = A.pos.y - 0.5 / 0.04; A.ap.roll = 'hdg';   // a 0.5 m/s (world; ~200 fpm real) sink: her altitude hold is a vertical-speed loop A.ap.hdg = Math.atan2(-(qx - A.pos.x), -(qz - A.pos.z));
+    c.pitch = c.roll = 0; c.yaw = 0; speed(157, 0, 0.55); c.brakeL = c.brakeR = 0;
     return 'flare';
   }
   // ---- en route / final: the SR-71's own autopilot (altitude hold + heading hold), power for the speed

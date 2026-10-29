@@ -158,3 +158,15 @@ SR-71 API to call. The base is ready for it:
 - Scene: `tools/scenes/airbasesr71.mjs` (board, shelter, cart start, taxi out, tow, take-off, N home, chute, stop, O,
   parked). The take-off rotation is a test pilot's law through P.override (a held S key is full back stick and scrapes
   the tail: a keyboard player has to ease it, as in look-sr71's own scene).
+- **Flare at any frame rate**: the first flare law (the sr71bench gamma law, applied once a frame) touched down at
+  122-125 KIAS with a 4.7 g overstress at the headless 10 fps (P.override runs per frame, not per substep). The flare
+  now uses her own autopilot's attitude hold (it runs inside the flight model's 200 Hz substeps) at 7.2 deg with
+  power for 155 KIAS: 155 KIAS at 60 Hz, 157 at 10 Hz, ~500 m past the threshold. The glide path also leads the
+  autopilot's vertical-speed loop (it rode ~60 m high and landed 3 km in).
+- Scenes open the command board with `__G.commander.open()` (Codex's radio desk takes the `\` key on the integration
+  branch).
+- **Touchdown "overstress"**: sr71fm checked the g limit on the ground too, where nz carries the gear's touchdown
+  reaction: every landing (even ~200 fpm) read 4-6.5 g OVERSTRESS and took 5 % damage. Now airborne only (one marked
+  line in sr71fm.js; sr71bench 24/24). The flare is a 0.5 m/s (world) sink on her altitude hold with power for ~157:
+  touchdown 144 KIAS at 60 Hz, 151 at 10 Hz, no overstress. (At SRDT=0.1 the bench's own scripted climb-out from the
+  obstructed end hits the hill; that is the bench pilot, not the base code.)

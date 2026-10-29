@@ -79,7 +79,7 @@ sortie(0, `from ${A.ends[0].num}`); sortie(1, `from ${A.ends[1].num}`);
       else if (phase === 'climb') { c.throttle = S.keas < 280 ? [0.85, 0.85] : [0.6, 0.6]; S.ap.on = true; S.ap.pitch = 'alt'; S.ap.alt = A.E + 800; S.ap.roll = 'hdg'; S.ap.hdg = A.yawOf(e0.dir, 0); if (S.pos.y - A.E > 60) S.gearCmd = 0; if (S.pos.y - A.E > 500) phase = 'home'; }
       else { const ph = sr71Home(S, H, A, dt, gy, c); if (ph === 'rollout' && !td) td = { kias: S.kias, at: A.toL(S.pos.x, S.pos.z, [0, 0]) }; if (S.chute === 'deployed' || S.chute === 'jettisoned') chute = true; if (ph === 'rollout' && Math.hypot(S.vel.x, S.vel.z) < 0.5) break; }
       maxKeas = Math.max(maxKeas, S.keas);
-      const ev = S.step(dt, c, env); for (const x of ev) if (x.e === 'touchdown' && td === null && phase === 'home') td = { kias: x.kias, at: A.toL(S.pos.x, S.pos.z, [0, 0]) };
+      const ev = S.step(dt, c, env); for (const x of ev) if (x.e === 'overstress' && phase === 'home') console.log('   overstress', x.g.toFixed(1), 'g, agl', (S.pos.y - gy(S.pos.x, S.pos.z)).toFixed(1), 'onGround', S.onGround, 'kias', S.kias.toFixed(0), H.flare ? 'flare' : '', H.rollout ? 'rollout' : ''); for (const x of ev) if (x.e === 'touchdown' && td === null && phase === 'home') td = { kias: x.kias, at: A.toL(S.pos.x, S.pos.z, [0, 0]) };
     }
     const end = A.toL(S.pos.x, S.pos.z, [0, 0]);
     console.log(`sr-71 ${label}: lift-off ${lift ? lift.kias.toFixed(0) + ' KIAS' : '-'}; home via RWY ${H.end ? H.end.num : '-'}; touchdown ${td ? td.kias.toFixed(0) + ' KIAS at ' + ((td.at[0] - H.end.u) * H.end.dir).toFixed(0) + ' m past the threshold' : '-'}; chute ${chute}; t=${t.toFixed(0)} s; stopped at u=${end[0].toFixed(0)} v=${end[1].toFixed(1)} ${S.dead ? 'DEAD ' + S.dead : ''}`);
