@@ -214,7 +214,7 @@ function createCrewLP(members, { seed = 5 } = {}) {
     jer.push(new THREE.Color(JERSEY[p.jersey] ?? p.jersey ?? 0xffffff)); _c2.setHex(SKIN_LP[(r() * SKIN_LP.length) | 0]); skin.push([_c2.r / ref.r, _c2.g / ref.g, _c2.b / ref.b]);
   }
   const cam = new THREE.Vector3(1e9, 0, 0), NEAR2 = NEAR_LP * NEAR_LP;
-  LN.P.onBeforeRender = LF.P.onBeforeRender = (rr, sc, camera) => { camera.getWorldPosition(cam); group.worldToLocal(cam); };
+  LN.P.onBeforeRender = LF.P.onBeforeRender = (rr, sc, camera) => { cam.setFromMatrixPosition(camera.matrixWorld); group.worldToLocal(cam); };   // (not getWorldPosition: on a parentless XR eye camera that rewrites matrixWorld to the local pose mid-render)
   const crew = { group, members, J: LN.P, B: LN.P, A: LN.P, L: LN.P, people: LN.P, peopleFar: LF.P, scatter: null };
   function pose(i, x, y, z, yaw, lean, drop, aL, aR, aLz, aRz, lL, lR) {
     if (i === 0) LN.k = LF.k = 0;
