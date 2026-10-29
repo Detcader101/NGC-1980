@@ -262,6 +262,22 @@ stretched its game-time waits; it passed 12/12 after the cone. Under heavy machi
 time out (see [findings](docs/ngc1980/findings/look-nature.md)). Before/after side-by-sides for the HQ, single trees,
 the forest edge, a village, the Huey at 30 / 200 m and the jet at 1200 m are in
 `docs/ngc1980/evidence/look-nature/` (`tools/scenes/looknature.mjs`).
+
+## 2026-10-28 — UH-1H rebuilt from the TM blueprints (ngc/look-huey)
+
+The hi-fi Huey (`game/js/hueyhifi.js`, RenderKit surface on; `?rk=0` keeps the classic model) is now lofted from the
+public-domain TM 55-1520-210-10 principal-dimensions three-view, traced by `tools/hueytrace.mjs` into
+`game/js/uh1trace.json` and turned into 89 fuselage and 30 doghouse stations by the shared `game/js/stationtable.js`
+(ready for the UH-1N). Silhouette fit (`tools/hueyfit.mjs`): IoU side 0.985, top 0.989, front 0.975; max edge gap
+0.87 % / 0.80 % / 3.3 % of the length. Stations and the troop seating come from TM 55-1520-210-23-1 (fig. 2-3, fig.
+2-49): eleven seats, nine troops with the gunner and crew chief; the airlift squad is now nine Marines
+(`game/js/hueycabin.js` shared by the model, `interiors/seats.js` and `airlift.js`). Tail rotor on the right
+(tractor) per the TM top view and dated photos; smaller M158 pods at floor level; Fresnel glass; markings read
+correctly; the cockpit uses the exterior's glazing. Triangles: 115 k near, 5.4 k mid, 1.9 k far. `hueyfm.js` unchanged
+(its tail rotor is still left and 0.64 m high: flagged). Open: the cockpit furniture rebuild, two WL disagreements
+between the -10 and -23 figures, configuration rows marked partial/todo. Details:
+[findings](docs/ngc1980/findings/look-huey.md), evidence in `docs/ngc1980/evidence/look-huey/`.
+
 ## 2026-10-28 — TypeScript type checking, phase 1 (no build step)
 
 `node tools/check.mjs types` runs TypeScript 6.0.3 over all 269 game modules as they are: JSDoc + `checkJs`, three

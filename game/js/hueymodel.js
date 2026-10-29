@@ -7,6 +7,8 @@ import * as THREE from 'three';
 import { wrapFactory, glass, decal, DETAIL } from './renderkit/gamemats.js';   // RENDERKIT surface
 import { crewGeometry, crewMaterial } from './interiors/crewfig.js';   // RENDERKIT figures: the crew as rounded people
 import { FIG } from './units/infantry/meshkit.js';
+import { RKS } from './renderkit/gamemats.js';   // ngc/look-huey: the hi-fi model with RenderKit surface on
+import { buildHueyHiFi } from './hueyhifi.js';
 
 const D2R = Math.PI / 180, MAST_TILT = 5 * D2R;
 export const HUEY = {
@@ -178,7 +180,9 @@ function crewman(put, mats, arms = true) {
 }
 
 // ------------------------------------------------------------------------------------------- the model
-export function buildHueyMesh() {
+// ngc/look-huey: with RenderKit surface on (default) the hi-fi model (hueyhifi.js); ?rk=0 keeps this classic one
+export function buildHueyMesh(opts = {}) { return RKS && !opts.classic ? buildHueyHiFi(HUEY, opts) : buildHueyClassic(); }
+export function buildHueyClassic() {
   const g = new THREE.Group(); g.name = 'huey';
   const oliveM = M(0x4b5320, { rk: { detail: true } }), olive2M = M(0x434a1d, { rk: { detail: true } }), frameM = M(0x30351c), blackM = M(0x141512, { shininess: 6, rk: 'dark' }), darkM = M(0x23261e);
   const metalM = M(0x45484a, { shininess: 50 }), bladeM = M(0x272927, { shininess: 25, rk: 'paint' }), tipM = M(0xe2bb1a), redM = M(0xb81c16), whiteM = M(0xe8e8e2);

@@ -121,6 +121,7 @@ const strip0 = o => { if (!('rk' in o)) return o; const r = { ...o }; delete r.r
 
 // Glass / canopies: RenderKit glass WITHOUT transmission (transmission renders the whole scene again into a target,
 // far too costly for every canopy and in VR); transparent physical dielectric, IOR 1.5.
+/** @param {() => any} legacy @param {{ color?: number, opacity?: number, side?: number, roughness?: number, [k: string]: any }} [opts] */
 export function glass(legacy, { color = 0x9fc6d8, opacity = 0.25, side = THREE.DoubleSide, roughness = 0.05, ...o } = {}) {
   if (!RKS) return legacy();
   // the env reflection adds sky irradiance to the (alpha-blended) tint, so the tint colour is cut to 40% to keep the

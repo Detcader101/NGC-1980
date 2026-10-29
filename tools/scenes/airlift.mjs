@@ -1,7 +1,7 @@
 // AIRLIFT: the Huey's cargo hook and troop lift in the game. The M35A2 is TOO HEAVY for the hook (the crew chief says
 // so); the Huey (flown by the crew's AI pilot through the real flight model: G.benchAI) is talked onto an M151A2, the
 // hookup man puts the apex on the hook, she lifts it, flies it to another island and sets it down; R releases it and it
-// is a unit there (the command board lists it, you can switch into it). Then a squad of six boards on the pad (.),
+// is a unit there (the command board lists it, you can switch into it). Then a squad of nine (the full cabin, TM seating) boards on the pad (.),
 // rides on the bench and in the doors, and dismounts at the other island into the ground war.
 // All waits are on game state (headless runs at 1-8 fps).
 export default {
@@ -76,11 +76,11 @@ export default {
     await h.waitFor(`${AL}.troops && ${AL}.troops.Q.figs.some(F => F.st === 'embark' && F.wp > 0)`, 120000);
     await h.eval(`(${AL}.camLocal = [[-7, 0.6, 5], [-1, -1.2, 0.8]], 1)`); await h.wait(600); await h.shot('squad-running-in'); await h.eval(`(${AL}.camLocal = null, 1)`);
     await h.waitFor(`${AL}.troops && ${AL}.troops.st === 'aboard'`, 240000);
-    await h.expect(`${AL}.troops.aboard() === 6 && __G.airlift.mass() === 630`, 'six aboard (630 kg on the airframe)');
+    await h.expect(`${AL}.troops.aboard() === 9 && __G.airlift.mass() === 945`, 'nine aboard, a full cabin with the gunner and crew chief (945 kg on the airframe)');
     await h.wait(600);
-    await h.eval(`(${AL}.camLocal = [[6.5, 0.6, 1.0], [0, -0.8, 1.5]], 1)`); await h.wait(900); await h.shot('troops-aboard-outside');
-    await h.eval(`(${AL}.camLocal = [[-4.2, 1.2, -1.2], [0, -0.8, 1.4]], 1)`); await h.wait(900); await h.shot('troops-aboard-left');
-    await h.eval(`(${AL}.camLocal = [[0.05, 0.3, -1.25], [0, -0.75, 2.1]], 1)`); await h.wait(900); await h.shot('troops-from-the-cockpit-looking-aft');
+    await h.eval(`(${AL}.camLocal = [[6.5, 0.6, -0.4], [0, -0.8, -0.3]], 1)`); await h.wait(900); await h.shot('troops-aboard-outside');
+    await h.eval(`(${AL}.camLocal = [[-4.2, 1.2, -1.6], [0, -0.8, -0.2]], 1)`); await h.wait(900); await h.shot('troops-aboard-left');
+    await h.eval(`(${AL}.camLocal = [[0.05, 0.3, -1.75], [0, -0.75, 0.1]], 1)`); await h.wait(900); await h.shot('troops-from-the-cockpit-looking-aft');
     await h.eval(`(${AL}.camLocal = null, 1)`);
 
     // ---- 5. fly them to the other island, land, put them out: they join the ground war there

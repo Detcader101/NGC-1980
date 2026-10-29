@@ -239,7 +239,7 @@ async function main() {
         evidence.assertIdle();
         const u = new URL(q ?? query, base).href;
         log('goto', u);
-        await page.goto(u, { waitUntil: 'load' });
+        await page.goto(u, { waitUntil: 'load', timeout: +(process.env.SNAP_NAV_MS || 30000) });   // SNAP_NAV_MS: a loaded machine needs longer than 30 s to boot the game
         await page.bringToFront();
       },
       wait: async (ms) => { log('wait', `${ms} ms`); await gameSleep(ms); },
