@@ -76,7 +76,9 @@ leaning forward 0.12 rad over a front thigh at hip height: from the side it read
 position: pelvis 0.46 m and 0.1 m back, the right knee on the ground (joint 0.09 m up), the rear thigh 45 degrees forward
 of vertical, the shin rising 12 degrees to the ankle 0.18 m up with the toes tucked (foot 63 degrees down), the seat back
 over that heel; the left foot flat ahead by plantLeg (0.43 m forward), knee out 0.16 rad; trunk upright (spine -0.05).
-The crouch-walk blend (w > 0) and prone are unchanged. Eye height kneeling is now ~1.1 m, closer to soldier.js'
+The crouch-walk blend (w > 0) and prone are unchanged. Measured in Node (buildMarine + poseSkeleton, crouch, still):
+lowest vertex +0.011 m (base -0.040 m: the old kneel's knee / boot sank 4 cm into the floor), pelvis 0.481 m (base 0.567),
+head bone 1.070 m (base 1.154). Eye height kneeling is now ~1.1 m, closer to soldier.js'
 BODY.eye.crouch 1.12. Transitions stand > crouch > prone > crouch > stand checked (`transitions-before/after.png`).
 **Coordination (Codex)**: the kneel changes hip height and the trunk angle, so the rifle-hand IK targets move with the
 chest; I did not touch handkit.js / handposes.js / viewmodel.js or the grip parts of soldiermodel.js. Please eye the
@@ -104,6 +106,12 @@ knee down for crews (it was already), with the seat back.
 | people.mjs | 1 / 1 (one skinned body per LOD; near Marine with M16A1 25.7 k visible incl. weapon) | |
 | faces.mjs / kneel.mjs / lpstudio.mjs / lpcrews.mjs | pass, 0 errors, screenshots checked | same scenes run on a `git archive` of the base for the before shots |
 | foot.mjs (load average ~50) | 9 / 20 | look-people logged 8 / 20 on its branch and 8 / 21 on its base with the SAME failing steps: the carrier-moving wait, the ladders, the walk to the pad, "GET IN THE UH-1H" (wall-clock waits under SwiftShader load) |
+
+## Not run (orchestrator's load hold, 18:38-20:15 UTC: no headless browsers)
+- **xrgameplay.mjs** was started at 18:29 and stopped by me when the hold came; it has NOT been run on this branch.
+- foot.mjs on the base under the same load (the comparison above uses look-people's logged base result).
+- In-game shots of the Huey crew / door gunner and deck crew at their real cameras (the face studio and lpstudio cover the
+  same geometry and material, but not the game's post / lighting).
 
 ## Open items
 - The near Marine is 22 k triangles against the 15 k LOD0 budget (unchanged by this branch, which saved ~0.6 k). The
