@@ -27,7 +27,7 @@ export const TOMCAT = {
   // undercarriage: wheelbase 7.02 m, track 5.0 m (CONFIRMED 23 ft 0.5 in / 16 ft 5 in); CG 1.0 m ahead of the mains (INFERRED)
   GEAR: [[0, -2.5, -6.0], [-2.5, -2.5, 1.0], [2.5, -2.5, 1.0]],
   K: [430000, 820000, 820000], DAMP: [90000, 165000, 165000], STROKE: 0.45,   // INFERRED: Hornet struts scaled by weight
-  HOOK_TIP: [0, -2.35, 8.0],
+  HOOK_TIP: [0, -2.35, 7.12],   // (ngc/look-tomcat) the drawn hook: pivot FS 126.893 cm / WL 29.209 cm (1/12 model), 3.444 m long, tip at the deck (was 8.0, inferred: the wire caught 0.9 m behind the visible hook)
   VNE_GEAR: 116,         // m/s EAS: 225 kt flap / gear limit (CONFIRMED NATOPS: 225 KIAS flaps, 280 gear)
   // store masses (kg): AIM-54A 1,008 lb, AIM-7F 510 lb, AIM-9L 190 lb (CONFIRMED); drag in "store units"
   STORE: { aim54: { kg: 457, drag: 1.6 }, aim7: { kg: 231, drag: 0.9 }, aim9: { kg: 86, drag: 0.5 } },
