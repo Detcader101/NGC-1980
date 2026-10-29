@@ -194,3 +194,32 @@ compared with ngc/shader-library (f8abdbb, its own worktree) under the same load
   and shallows instead; the street drive and off-road parts pass, the bridge / ford / deck vehicle parts did not in the
   run I had time for (open item).
 - *worldvisibility*: the zone-edge check hovered at x = 1260 / 1300 (the old edge); it reads BOUND now.
+
+## 2026-10-29 - After merging ngc/shader-library 0369261 (look-airbases, look-sr71)
+Conflicts: world.js (BOUND from `world/bound.js`; the air base's `AIRBASE.H` applied past the zone grid in `rawH`),
+atmosphere.js (the air-base far-land tint after the terrain-layer palette, both branches), net.js (both route costs:
+`avoid` round the zone's bases, `AIRBASE.keep` round the field). The interim `FLATS` hook is gone (unused).
+- `node tools/airbasebench.mjs`: ALL PASS (flat field, keep-outs, mesh budget, C-130 sorties from both ends).
+- `scenes/sr71.mjs`: 8/8 after parking the SR-71 on the home pad for the get-out check (HOME_B + 45 m is village
+  ground on the new land: "no room to get out"; 7/8 before).
+- `scenes/airbase.mjs`: 12/16 here, 14/14 on 0369261 under the same load. The four are one chain of real-time waits:
+  the autopilot's flare / stop came after the waits ran out (1515 s and 1750 s into the run, against 1126 s for the whole
+  base run), so O (hand-in) found her still rolling. The field sits further out at BOUND 2560 and the frame is heavier
+  (low ground tier on SwiftShader). Open: re-run with longer waits or `rkterrain=off` to confirm it is only time.
+- **Far land at 3000 m** (the air-base agent saw bands with sea between them): fixed here - the march stepped over low
+  land onto the sea plane; the last step now lands on the sea plane and bisects back when there is land there
+  (`sbs-06-jet3000.png`: the whole zone, no bands). The dome also reads the zone's own 16 m heights, so the zone shows
+  from any height and distance.
+- `lookterrain.mjs` final run 15/15; `?rk=0` smoke 3/3 (classic everything on the new land).
+
+## Open items
+- Cliff faces: one dark triplanar rock colour from top to bottom when they face away from the sun (`sbs-12-cliff`);
+  they want strata colour bands, ledges with grass, wet dark foot. The limestone (white) cliffs read well.
+- Grass at the feet is still busy at 1-3 m on the high tier (`sbs-02-feet`); tone down the normal map / blade density.
+- Woods are streamed chunk trees outside the colliders' set: a tank drives through them (the 9600 zone trees still
+  collide and fall). Same as the wild lands before.
+- Wasp gunships (waspai.js) look 40-80 m ahead for terrain: fine on the old islands, may clip the escarpment at speed.
+- armorgame (hatch exit after the hillside; first round hits an AA in front of the CITADEL target; the M113 creeps 4 m
+  on the turning deck) and wheeledgame (bridge / ford / deck M151 / M35 parts) not compared against the base (40 min
+  each under this load); airbase.mjs timing as above.
+- Tests are SwiftShader-bound: the high ground tier is ~2.5x the frame there; on a GPU the ?bench numbers are needed.
