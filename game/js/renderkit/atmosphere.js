@@ -163,7 +163,9 @@ float rkFarHit(vec3 C, vec3 v, float t0, float t1){
       for(int k=0;k<5;k++){ float m=(a+b)*.5; vec3 q=C+v*m; if(q.y<max(rkFarH(q.xz),0.)) b=m; else a=m; }
       return b; }
     tp=t; t+=max(t*.022,dd*.55);
-    if(t>t1) break;
+    if(t>t1){   // (ngc/look-terrain) the last step lands at t1 (the sea plane, usually): land there means the ray met it between
+      t=t1; p=C+v*t; if(rkFarH(p.xz)>.3 && p.y<rkFarH(p.xz)+.5){ float a=tp, b=t; for(int k=0;k<6;k++){ float m=(a+b)*.5; vec3 q=C+v*m; if(q.y<max(rkFarH(q.xz),0.)) b=m; else a=m; } return b; }
+      break; }
   }
   return -1.;
 }

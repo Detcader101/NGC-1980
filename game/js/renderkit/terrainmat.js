@@ -109,12 +109,12 @@ void main(){
   if(L<=2){   // grass: lush (0), dry summer (1), meadow (2: shorter, clover, a few flowers)
     float dry=L==1?1.:0., mead=L==2?1.:0.;
     float m=fbm(uv,4.,4), m2=fbm(uv,12.,3);
-    vec3 gap=uBase*mix(vec3(.42,.36,.3),vec3(.75,.62,.45),dry)*(.8+.4*m2);   // thatch and soil between the blades
+    vec3 gap=uBase*mix(vec3(.62,.6,.5),vec3(.8,.7,.55),dry)*(.85+.3*m2);   // (ngc/look-terrain: less contrast: the blades read as a neon speckle)   // thatch and soil between the blades
     c=gap; h=.12*m2;
     float P0=mead>.5?28.:18.;
     for(int k=0;k<3;k++){ float t, id; float P=floor(P0*(1.+.55*float(k))), cv=blades(uv,P,.85,.13+.03*float(k),float(k)*31.7,t,id);
-      vec3 bc=uBase*mix(.68,1.3,id)*(.86+.28*m);
-      bc*=mix(vec3(1.),dry>.5?vec3(1.12,1.1,.95):vec3(1.25,1.18,.7),t*t*(.4+.6*h12(vec2(id,3.))));   // sun-bleached tips
+      vec3 bc=uBase*mix(.82,1.16,id)*(.88+.24*m);
+      bc*=mix(vec3(1.),dry>.5?vec3(1.08,1.06,.97):vec3(1.12,1.09,.86),t*t*(.4+.6*h12(vec2(id,3.))));   // sun-bleached tips
       if(id>.86) bc=mix(bc,dry>.5?uBase*vec3(.55,.75,.45):uBase*vec3(1.35,1.2,.7),.6);   // the odd green stalk in the straw, a yellowed blade in the green
       c=mix(c,bc,cv); h=mix(h,.35+.22*float(k)+.2*(1.-t),cv); }
     if(mead>.5){   // clover leaves (rounded cells) and tiny flowers

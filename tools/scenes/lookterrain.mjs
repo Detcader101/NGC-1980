@@ -54,10 +54,10 @@ export default { name: 'lookterrain-' + RK.replace(/[^\w]+/g, '_') + '-' + TER, 
   await view('jet1200', `(() => { const g = __G, B = g.inZone ? 1 : 1; return { wp: [-1800, 1200, 2400], wt: [400, 0, -900], hover: -400 }; })()`, 7000);
   await view('jet3000', `(() => ({ wp: [-2600, 3000, 3600], wt: [300, 0, -700], hover: -1500 }))()`, 9000);
   // the carrier's deck, standing aft looking forward along it
-  await view('deck', `(() => { const g = __G, c = g.war.carrier.p, yaw = g.war.carrier.yaw ?? 0; let fx = -Math.sin(yaw), fz = -Math.cos(yaw);
-      if (g.war.deckY(c.x - fx * 80, c.z - fz * 80) < g.war.deckY(c.x + fx * 80, c.z + fz * 80) - 1) { fx = -fx; fz = -fz; }   // (whichever end is the flight deck aft)
-      const x = c.x - fx * 70 + fz * 10, z = c.z - fz * 70 - fx * 10, y = Math.max(g.war.deckY(x, z), 5) + 1.7;
-      return { wp: [x, y, z], wt: [c.x + fx * 300, y - 4, c.z + fz * 300] }; })()`, 4000);
+  await view('deck', `(() => { const g = __G, C = g.war.carrier, c = C.p, fx = -Math.sin(C.yaw), fz = -Math.cos(C.yaw); let best = null;
+      for (let u = -160; u <= 160; u += 5) for (const w of [-12, 0, 12]) { const x = c.x + fx * u + fz * w, z = c.z + fz * u - fx * w, y = g.war.deckY(x, z); if (y > 8 && (!best || u < best.u)) best = { u, x, z, y }; }
+      if (!best) best = { u: 0, x: c.x, z: c.z, y: 20 }; let f = 1; if (g.war.deckY(c.x + fx * (best.u + 60), c.z + fz * (best.u + 60)) < 8) f = -1;
+      return { wp: [best.x + fx * f * 6, best.y + 1.7, best.z + fz * f * 6], wt: [best.x + fx * f * 300, best.y - 4, best.z + fz * f * 300] }; })()`, 4000);
   // a tank sight's eye (2.8 m), on open farmland, looking 1-2 km across it (6x: fov 10)
   await view('tank', `(() => { const g = __G; let best = null; for (let k = 0; k < 900 && !best; k++) { const x = -1200 + (k % 30) * 70, z = -300 + Math.floor(k / 30) * 40, y = g.terrainH(x, z);
       if (y > 6 && y < 60 && __TM.zoneSurf(x, z) === 'grass' && g.terrainH(x + 1200, z - 500) > 5) best = { x, z }; } if (!best) best = { x: -400, z: 300 };

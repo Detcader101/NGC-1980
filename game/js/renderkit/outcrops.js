@@ -82,7 +82,7 @@ function rockMaterial({ ter, fog, uTime, lodU, near }) {
           ocBump=vec3(0.,bx.y-.5,bx.x-.5)*bw.x+vec3(by.x-.5,0.,by.y-.5)*bw.y+vec3(bz.x-.5,bz.y-.5,0.)*bw.z;
           float top=smoothstep(.55,.85,N.y)*smoothstep(.4,.6,ay.a);   // moss / grass on the flat tops
           a=mix(a*vOC.rgb,vec3(.2,.3,.12)*(.8+.4*ay.a),top*.6);
-          diffuseColor.rgb=a*(.55+.45*ao)*(.75+.25*smoothstep(-.6,.4,N.y));   // darker underneath (contact, the ground's bounce is greener)
+          diffuseColor.rgb=a*1.3*(.7+.3*ao)*(.82+.18*smoothstep(-.6,.4,N.y));   // darker underneath (contact, the ground's bounce is greener); (ngc/look-terrain: x1.3, they read black next to the terrain's own rock)
           diffuseColor.rgb=pow(diffuseColor.rgb,vec3(2.2));   // (display -> linear: Lambert lights in linear)
         }`)
       .replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>

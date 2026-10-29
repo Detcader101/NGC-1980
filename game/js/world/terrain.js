@@ -243,7 +243,7 @@ function groundAt(x, z, P) {
   } else {
     // the sea bed: shoreface, then the shelf (-14), deeper (-26) offshore; cliffs drop straight to deep water
     const d = -s, hB = d < 45 ? -0.066 * d : -2.97 - (d - 45) * 0.03, hC = -3 - d * 0.35, hR = -0.6 - d * 0.16;
-    h = Math.max(wb * hB + wc * hC + wr * hR, -14 - 12 * sm(300, 1000, d) * (1 - sm(BOUND - 700, BOUND - 250, Math.max(Math.abs(x), Math.abs(z)))));   // (back to the -14 shelf where wildH takes over)
+    h = Math.max(wb * hB + wc * hC + wr * hR, -14 - 12 * sm(300, 1000, d) * (1 - sm(BOUND - 1200, BOUND - 200, Math.max(Math.abs(x), Math.abs(z)))));   // (back to the -14 shelf where wildH takes over)
     if (wc > 0.3 && d < 70) {   // sea stacks: the headland the sea has not taken yet
       const st = noise(x / 23 + 4.1, z / 23 - 2.9); if (st > 0.56 && d > 12) h = Math.max(h, mix(h, (8 + 18 * noise(x / 61, z / 61 + 3)) * wc, sm(0.56, 0.62, st)));
     }

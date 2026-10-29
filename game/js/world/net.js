@@ -17,7 +17,7 @@ import { hash2, rng } from './rng.js';
 import { townItems, farmItems } from './layout.js';   // lots and farm buildings (their platforms are part of the ground)
 
 export const CELL = 1600, FARM_CELL = 420, BKT = 64;
-const SH_MAX = 18, FLAT = 1.6;                       // shoulder blend (max) and flat strip past the paved edge
+const SH_MAX = 45, FLAT = 1.6;                       // shoulder blend (max) and flat strip past the paved edge
 export const ROAD = {                                 // half widths (m), max grade, surface
   tarmac: { hw: 3.3, g: 0.085, surface: 'tarmac' },
   lane: { hw: 2.6, g: 0.10, surface: 'tarmac' },
