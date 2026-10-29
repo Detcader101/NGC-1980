@@ -50,8 +50,11 @@ export const CH46 = {
   // fuselage: flat-plate drag area (INFERRED: tuned to the 144 kt max speed), side and vertical areas, pitch moment
   // (unstable, no tail plane), aft pylon weathercock
   FUS: { fx: 5.6, fy: 32, fz: 36, Mw: 60, Nv: 55, Yv: 0 },
-  // gear: fixed tricycle - twin nose wheels, main wheels in the sponsons (INFERRED positions)
-  GEAR: [[4.6, -0.35], [4.6, 0.35], [-1.6, -1.95], [-1.6, 1.95]],
+  // gear: fixed tricycle - twin nose wheels, main wheels on the sponsons; ngc/look-units: at the stations of NADC-81118-60
+  // fig. 2-1 (CONFIRMED: nose 5.08 m ahead of the hub midpoint, mains 2.43 m behind, track 3.78 m; was 4.6 / 1.6 / 3.9
+  // INFERRED). The same figure puts the hubs at STA 96.1 / 492.4, WL 95.0 / 150.1, shafts 9.5 / 7.0 deg forward of the
+  // fuselage datum (here: 4.5 deg, hubs 0.3 m lower): left for the flight-model owner (findings/look-units.md)
+  GEAR: [[5.08, -0.35], [5.08, 0.35], [-2.43, -1.89], [-2.43, 1.89]],
   // published performance (CONFIRMED, CH-46E SL ISA): max speed 144 kt, cruise 143 kt, climb 1,715 ft/min,
   // hover ceiling OGE 5,750 ft / IGE 9,500 ft, service ceiling 17,000 ft
   PUB: { VMAX: 144, VCRUISE: 143, ROC: 1715, HOGE: 5750, HIGE: 9500 },

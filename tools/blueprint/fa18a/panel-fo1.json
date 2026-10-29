@@ -1,0 +1,348 @@
+{
+ "source": "NATOPS A1-F18AC-NFM-000 (15 Sep 2008), fig. FO-1 sheet 1 'Front Cockpit F/A-18A/B Aircraft', instrument panel, 'aircraft thru 161528' variants (the FSD jets predate them); page rendered at 3x (3672 x 2376 px): docs/ngc1980/reference/fa18a/natops-a1-f18ac-nfm-000-fo1-front-cockpit-sheet1.png",
+ "scale": "2126 px/m from the DDI's 5 in display (270 px); checks: standby airspeed dial 111 px = 52 mm (2 in instrument: 2.06 in), standby attitude 156 px = 73 mm (3 in ATI: 2.9 in)",
+ "frame": "panel-local metres: x = (px - 1326) / 2126 (the UFC / DDI centre line), y = 0.21 - (py - 560) / 2126 (py 560 = the panel's top edge, placed just under the glare shield's lip)",
+ "items": [
+  {
+   "n": 13,
+   "name": "LEFT DDI (screen)",
+   "px": [
+    929,
+    863
+   ],
+   "size_px": [
+    270,
+    262
+   ],
+   "m": [
+    -0.187,
+    0.067
+   ],
+   "size_m": 0.127
+  },
+  {
+   "n": 15,
+   "name": "RIGHT DDI (screen)",
+   "px": [
+    1722,
+    863
+   ],
+   "size_px": [
+    267,
+    262
+   ],
+   "m": [
+    0.186,
+    0.067
+   ],
+   "size_m": 0.127
+  },
+  {
+   "n": 14,
+   "name": "UFC",
+   "px": [
+    1327,
+    744
+   ],
+   "size_px": [
+    372,
+    250
+   ],
+   "m": [
+    0,
+    0.123
+   ],
+   "size_m": [
+    0.175,
+    0.118
+   ]
+  },
+  {
+   "n": 25,
+   "name": "HORIZONTAL INDICATOR (screen)",
+   "px": [
+    1329,
+    1372
+   ],
+   "size_px": [
+    319,
+    295
+   ],
+   "m": [
+    0.001,
+    -0.172
+   ],
+   "size_m": 0.15
+  },
+  {
+   "n": 22,
+   "name": "ENGINE MONITOR INDICATOR (EFD)",
+   "px": [
+    853,
+    1308
+   ],
+   "size_px": [
+    194,
+    300
+   ],
+   "m": [
+    -0.222,
+    -0.142
+   ],
+   "size_m": [
+    0.091,
+    0.141
+   ],
+   "model": "landscape canvas 0.10 x 0.06 at the traced centre (the display is drawn landscape)"
+  },
+  {
+   "n": 23,
+   "name": "FUEL QUANTITY INDICATOR",
+   "px": [
+    1030,
+    1285
+   ],
+   "m": [
+    -0.139,
+    -0.131
+   ],
+   "model": "on the EFD page"
+  },
+  {
+   "n": 26,
+   "name": "STANDBY ATTITUDE (3 in)",
+   "px": [
+    1664,
+    1230
+   ],
+   "dia_px": 156,
+   "m": [
+    0.159,
+    -0.105
+   ]
+  },
+  {
+   "n": 27,
+   "name": "AZIMUTH INDICATOR (RWR)",
+   "px": [
+    1870,
+    1228
+   ],
+   "dia_px": 139,
+   "m": [
+    0.256,
+    -0.104
+   ],
+   "model": [
+    0.272,
+    -0.102,
+    0.068
+   ]
+  },
+  {
+   "n": 28,
+   "name": "STANDBY AIRSPEED (2 in)",
+   "px": [
+    1617,
+    1391
+   ],
+   "dia_px": 111,
+   "m": [
+    0.137,
+    -0.181
+   ]
+  },
+  {
+   "n": 29,
+   "name": "STANDBY ALTIMETER",
+   "px": [
+    1767,
+    1391
+   ],
+   "dia_px": 111,
+   "m": [
+    0.207,
+    -0.181
+   ]
+  },
+  {
+   "n": 30,
+   "name": "STANDBY VSI",
+   "px": [
+    1917,
+    1391
+   ],
+   "dia_px": 111,
+   "m": [
+    0.278,
+    -0.181
+   ]
+  },
+  {
+   "n": "26-30",
+   "name": "standby cluster (model: one canvas)",
+   "m": [
+    0.165,
+    -0.145
+   ],
+   "size_m": 0.13
+  },
+  {
+   "n": 4,
+   "name": "L FIRE",
+   "px": [
+    931,
+    619
+   ],
+   "m": [
+    -0.186,
+    0.182
+   ]
+  },
+  {
+   "n": 5,
+   "name": "MASTER CAUTION",
+   "px": [
+    980,
+    616
+   ],
+   "m": [
+    -0.163,
+    0.184
+   ]
+  },
+  {
+   "n": 9,
+   "name": "APU FIRE",
+   "px": [
+    1667,
+    619
+   ],
+   "m": [
+    0.16,
+    0.182
+   ]
+  },
+  {
+   "n": 10,
+   "name": "R FIRE",
+   "px": [
+    1719,
+    619
+   ],
+   "m": [
+    0.185,
+    0.182
+   ]
+  },
+  {
+   "n": 6,
+   "name": "LEFT WARNING / CAUTION / ADVISORY LIGHTS",
+   "px": [
+    1050,
+    613
+   ],
+   "m": [
+    -0.13,
+    0.185
+   ],
+   "model": "[-0.13, 0.19, 0.08 x 0.047] (0.012 m above the trace: clear of the DDI page legends)"
+  },
+  {
+   "n": 8,
+   "name": "RIGHT WARNING / CAUTION / ADVISORY LIGHTS",
+   "px": [
+    1600,
+    624
+   ],
+   "m": [
+    0.129,
+    0.18
+   ],
+   "model": "[0.13, 0.19, 0.05] (0.014 m above the trace)"
+  },
+  {
+   "n": 12,
+   "name": "MASTER ARM PANEL",
+   "px": [
+    697,
+    924
+   ],
+   "m": [
+    -0.296,
+    0.039
+   ]
+  },
+  {
+   "n": 17,
+   "name": "EMERGENCY JETTISON BUTTON",
+   "px": [
+    700,
+    1071
+   ],
+   "m": [
+    -0.295,
+    -0.03
+   ]
+  },
+  {
+   "n": 16,
+   "name": "SPIN RECOVERY PANEL",
+   "px": [
+    1958,
+    966
+   ],
+   "m": [
+    0.297,
+    0.019
+   ],
+   "model": "not modelled"
+  },
+  {
+   "n": 32,
+   "name": "LANDING GEAR HANDLE (left vertical panel)",
+   "px": [
+    350,
+    1582
+   ],
+   "m": [
+    -0.459,
+    -0.271
+   ],
+   "model": [
+    -0.43,
+    -0.25
+   ]
+  },
+  {
+   "n": 44,
+   "name": "ARRESTING HOOK HANDLE (right vertical panel)",
+   "px": [
+    2249,
+    1505
+   ],
+   "m": [
+    0.434,
+    -0.234
+   ],
+   "model": [
+    0.43,
+    -0.23
+   ]
+  },
+  {
+   "n": 47,
+   "name": "CAUTION LIGHTS PANEL (right vertical panel, low)",
+   "px": [
+    2309,
+    1914
+   ],
+   "m": [
+    0.462,
+    -0.427
+   ],
+   "model": "[0.33, -0.25, 0.08 x 0.104]: kept on the main panel face (the right vertical panel is not modelled; the hook handle sits where it would go)"
+  }
+ ],
+ "notes": "FIRE / MASTER CAUTION / APU FIRE stay where the glare shield lamps were (their x within 2-10 cm of the trace; the lamp row is in the cockpit frame, not on the panel group). Before this trace the DDIs sat at x +-0.255 (6.8 cm too far out) and 12 cm too low, the UFC 4 cm too low against them."
+}

@@ -2,35 +2,47 @@
 // tip-path plane, droop at rest, blur discs), the two T58 nacelles beside the aft pylon, sponsons with the main gear,
 // twin nose wheels, the rear ramp that lowers to the ground, crew door, cockpit glazing with the crew inside, cabin
 // windows, red troop seats, lights, 1980 USMC markings (overall dark green, black MARINES, full-colour insignia, the
-// HMM-261 "EM" tail code - squadron choice INFERRED). Real metres; local frame x right, y up, nose -z, origin at the
-// CG, wheels on the ground at y = -1.80.
+// HMM-261 "EM" tail code - squadron choice INFERRED). Real metres; local frame x right, y up, nose -z, origin midway
+// between the rotor hubs (the flight model's CG), wheels on the ground at y = -1.80.
+// ngc/look-units: the airframe is drawn to NADC-81118-60 fig. 2-1 'Helicopter Geometry' (Naval Air Development Center
+// 1981, public domain; traced at 99.4 px/m, tools/blueprint/ch46e -> ch46trace.js): fuselage stations every 0.12-0.2 m
+// from the traced side outline and top-view widths, pylons from the traced outline, hubs, shaft angles, gear and
+// windows at their drawn stations. The drawing sits the fuselage 3.4 deg nose-up on its gear; the model keeps that.
 // API: buildCH46Mesh() -> { group, animate(S, dt, time), RAMP_END (local point of the lowered ramp lip), parts }
 import * as THREE from 'three';
+import { sampler, pl } from '../loftkit.js';
+import { CH46_TRACE } from './ch46trace.js';
+import { createLOD, detail } from '../../../renderkit/lod.js';
 import { M, B, V, clamp, smooth, slab, loft, merge, cylZ, cylX, cylY, boxG, sphG, mesh, group, rodG, tubeG, bucket, rr, full, QH, shift, ringGeo, decal, canDecal, sideDecal, drawInsignia, drawText, glass } from './modelkit.js';   // RENDERKIT surface: glass
 
 const D2R = Math.PI / 180, _qa = new THREE.Quaternion(), _va = new THREE.Vector3();
 export const CH46M = {
-  GROUND: -1.80, R: 7.62, OMEGA: 264 * Math.PI / 30, TILT: 4.5 * D2R,
-  HUB_F: [0, 2.20, -5.08], HUB_A: [0, 3.05, 5.08],
-  RAMP_HINGE: [0, -1.2, 3.9], RAMP_LEN: 3.65, RAMP_UP: 0.517, RAMP_DOWN: -0.165,   // ramp angle (rad, + = tail end up)
+  GROUND: -1.80, R: 7.77, OMEGA: 264 * Math.PI / 30, TILT: 4.5 * D2R,   // R: 51 ft (fig. 2-1 label, NNAM, NASM; the flight model keeps 7.62)
+  TILT_F: 6.1 * D2R, TILT_A: 3.6 * D2R,   // shafts 9.5 / 7.0 deg forward of the fuselage datum (fig. 2-1), less the 3.4 deg the datum sits nose-up on the gear
+  HUB_F: [0, 2.53, -5.03], HUB_A: [0, 3.33, 5.03],   // fig. 2-1 side view (STA 96.1 / 492.4: 10.07 m apart); flight model hubs: y 2.20 / 3.05, z -+5.08
+  NOSE_WHEEL: -5.08, MAIN_WHEEL: [1.89, 2.43],   // fig. 2-1: 24 ft 10 in apart (drawn 7.52 m); track 3.78 m (top view)
+  RAMP_HINGE: [0, -1.12, 3.55], RAMP_LEN: 3.77, RAMP_UP: 0.477, RAMP_DOWN: -0.18,   // fig. 2-1: the ramp is the sloping underside from the cabin floor's end to the tail (lowered, its lip on the deck)   // ramp angle (rad, + = tail end up)
 };
 const LV = [0.55, 0.15, -0.25];
 // fuselage stations [z, top, bottom, half width, top corner r, bottom corner r]
-const CAB = [0.98, -1.28, 1.12, 0.36, 0.2];
-const FUS = [
-  [-6.62, -0.45, -0.95, 0.06, 0.05, 0.05], [-6.56, -0.12, -1.1, 0.58, 0.36, 0.3], [-6.42, 0.18, -1.2, 0.86, 0.42, 0.3],
-  [-6.18, 0.48, -1.25, 1.0, 0.44, 0.25], [-5.82, 0.76, -1.27, 1.08, 0.42, 0.2], [-5.42, 0.92, -1.28, 1.11, 0.38, 0.2],
-  ...[-5.0, -4.6, -3.8, -2.6, -1.2, 0, 1.2, 2.6, 3.4, 3.9].map(z => [z, ...CAB]),
-  [4.6, 0.98, -0.80, 1.11, 0.36, 0.2], [5.4, 0.98, -0.34, 1.08, 0.36, 0.2], [6.3, 0.98, 0.16, 1.03, 0.34, 0.18], [7.07, 0.98, 0.6, 0.97, 0.3, 0.12],
-];
+// the traced profiles: side top (nose and pylons) / bottom, top-view half-width; the cabin roof (the drawn roof line
+// under the pylons, rows 2545-2572 px), the nose cap and the tail closing from the outline
+const TR = CH46_TRACE, sTop = sampler(TR.side, 'top', { median: 0.12 }), sBot = sampler(TR.side, 'bottom', { median: 0.15 }), tHW = sampler(TR.top, 'hw', { median: 0.12 });
+export const roofY = pl([[-6.0, 1.11], [-5.5, 1.36], [-1.6, 1.38], [2.1, 1.20], [4.5, 1.15], [6.95, 1.10]]);
+const Z0 = -6.84, Z1 = 7.0;   // nose: side view -6.91, top view -6.76 (the views differ by 0.15 m: mean); tail z 7.0 both
+const cabTop = z => z < -6.0 ? Math.min(sTop(z), roofY(-6.0) + (z + 6.0) * 0.9) : z > 6.6 ? roofY(z) - (z - 6.6) * 1.2 : roofY(z);
+const cabW = z => Math.min(1.12, z > 0.6 && z < 2.8 ? 1.12 : tHW(z));   // (the sponsons are their own lofts)
+const FZS = []; for (let z = Z0; z < Z1 - 1e-6; z += z < -5.5 ? 0.06 : z > 6.0 ? 0.1 : 0.2) FZS.push(+z.toFixed(3)); FZS.push(Z1);
+const FUS = FZS.map((z, i) => { const t = cabTop(z), b = Math.min(t - 0.05, sBot(z)), w = Math.max(0.06, i === 0 ? 0.06 : cabW(z)), hgt = t - b; const nose = z < -5.2 ? Math.min(1, (-5.2 - z) / 1.2) : 0;   // the nose rounds into a bulb (photos; fig. 2-1 front view)
+  return [z, t, b, w, Math.min(0.42 + 0.4 * nose, w * (0.5 + 0.35 * nose), hgt * (0.35 + 0.12 * nose)), Math.min(0.22 + 0.3 * nose, w * (0.4 + 0.3 * nose), hgt * (0.25 + 0.15 * nose))]; });
 const FZ = FUS.map(f => f[0]);
 // skin material: 0 green, 1 glass, 2 anti-glare black, 3 lighter green (access panels), -1 hole (crew door, ramp)
 function skinMat(z0, z1, qh, s) {
-  if (z0 >= -6.56 && z1 <= -6.42 && qh <= 3) return 2;                    // anti-glare above the windscreens
-  if (z0 >= -6.56 && z1 <= -5.42 && qh >= 2 && qh <= 6) return 1;         // windscreens wrapping round to the side windows
-  if (z0 >= -6.42 && z1 <= -5.82 && qh <= 1) return 1;                      // the two big front windscreens either side of the centre post (ngc/ch46fly)
+  if (z0 >= -6.70 && z1 <= -6.55 && qh <= 3) return 2;                    // anti-glare above the windscreens
+  if (z0 >= -6.70 && z1 <= -5.42 && qh >= 2 && qh <= 6) return 1;         // windscreens wrapping round to the side windows
+  if (z0 >= -6.55 && z1 <= -5.82 && qh <= 1) return 1;                      // the two big front windscreens either side of the centre post (ngc/ch46fly)
   if (z0 >= -5.82 && z1 <= -5.0 && qh <= 1) return 1;                      // overhead windows
-  if (z0 >= -6.56 && z1 <= -6.18 && qh >= 8 && qh <= 10) return 1;         // chin windows
+  if (z0 >= -6.70 && z1 <= -6.30 && qh >= 8 && qh <= 10) return 1;         // chin windows
   if (s > 0 && z0 >= -4.6 && z1 <= -3.8 && qh >= 5 && qh <= 11) return -1; // crew door (right), open
   if (z0 >= 3.9 && qh >= 11) return -1;                                    // the ramp opening (the ramp panel closes it)
   if (z0 >= -1.2 && z1 <= 1.2 && (qh === 3 || qh === 4)) return 3;
@@ -50,18 +62,21 @@ export function buildCH46Mesh(o = {}) {
   const rings = FUS.map(([z, t, b, w, rt, rb]) => full(rr(z, t, b, w, rt, rb, LV)));
   const mats = [greenM, glassM, blackM, green2M];
   mesh(loft(rings, (r, k) => skinMat(FZ[r], FZ[r + 1], QH(k), k < 13 ? 1 : -1), 0, 0), mats, g, 'fuselage');
+  const farParts = [loft(rings.filter((_, i) => i % 4 === 0 || i === rings.length - 1), () => 0, 0, 0)];   // the far level (past 700 m): coarse fuselage, pylons, sponsons in one draw
   mesh(loft(rings.slice(1), (r, k) => { const m = skinMat(FZ[r + 1], FZ[r + 2], QH(k), k < 13 ? 1 : -1); return m === 1 ? -1 : 0; }), innerM, g, 'lining');
-  body.add(boxG(2.1, 0.05, 9.0, 0, -0.95, -0.6), floorM);                          // cabin floor
+  body.add(boxG(2.1, 0.05, 7.85, 0, -0.95, -0.375), floorM);                        // cabin floor (from z -4.3: ahead of it the drawn belly rises to the floor line)
   for (const s of [-1, 1]) {                                                       // red nylon troop seats along both walls
     body.add(boxG(0.42, 0.06, 7.6, s * 0.86, -0.52, -0.2), seatM); body.add(boxG(0.06, 0.5, 7.6, s * 1.05, -0.24, -0.2), seatM);
     for (let z = -3.6; z <= 3.6; z += 0.9) body.add(rodG([s * 0.68, -0.95, z], [s * 0.68, -0.52, z], 0.03, 4), metalM);
   }
   body.add(boxG(2.0, 1.9, 0.06, 0, 0.0, -5.0), darkM);                              // cockpit bulkhead (seen through the ramp)
 
-  // ---- cabin windows (square, five a side), crew door frame, hoist, steps
-  for (const s of [-1, 1]) for (const z of [-2.9, -1.7, -0.5, 0.7, 1.9]) {
-    if (s > 0 && z < -2.5) continue;
-    body.add(boxG(0.04, 0.42, 0.46, s * 1.125, 0.38, z), winM); body.add(boxG(0.03, 0.5, 0.54, s * 1.118, 0.38, z), darkM);
+  // ---- cabin windows: round portholes and the square escape hatch with its round window at the drawn stations (fig.
+  // 2-1 side view z -2.38, -0.84 hatch, 0.03, 1.54; the 1983 HMM-261 photo shows the same round windows), crew door
+  // frame, hoist, steps
+  for (const s of [-1, 1]) for (const { z, y, hatch } of [{ z: -2.38, y: 0.23 }, { z: -0.84, y: 0.08, hatch: true }, { z: 0.03, y: 0.05 }, { z: 1.54, y: -0.05 }]) {
+    body.add(cylX(0.215, 0.03, 16).translate(s * 1.127, y, z), winM); body.add(cylX(0.25, 0.022, 16).translate(s * 1.12, y, z), darkM);
+    if (hatch) body.add(boxG(0.02, 0.62, 0.62, s * 1.115, y, z), green2M);
   }
   body.add(boxG(0.05, 0.06, 0.92, 1.12, 0.62, -4.2), darkM); body.add(boxG(0.05, 1.7, 0.06, 1.12, -0.2, -4.62), darkM); body.add(boxG(0.05, 1.7, 0.06, 1.12, -0.2, -3.78), darkM);
   { const up = group(g, 'doorUpper', 1.13, 0.62, -4.2); up.rotation.z = -1.2; mesh(boxG(0.04, 0.7, 0.82, 0, 0.35, 0), greenM, up); mesh(boxG(0.045, 0.32, 0.5, 0, 0.42, 0), winM, up); }
@@ -69,27 +84,31 @@ export function buildCH46Mesh(o = {}) {
   body.add(boxG(0.36, 0.3, 0.5, 1.0, 1.08, -4.2), green2M); body.add(rodG([1.1, 1.05, -4.2], [1.45, 1.05, -4.2], 0.06), metalM);   // rescue hoist
 
   // ---- sponsons (main gear, fuel) with the main wheels, nose gear with twin wheels
-  const SP = [[0.15, -0.5, -0.95, 0.2], [0.45, -0.4, -1.22, 0.5], [0.9, -0.38, -1.28, 0.56], [2.7, -0.38, -1.28, 0.56], [3.25, -0.42, -1.24, 0.5], [3.6, -0.55, -1.05, 0.2]];
+  // sponson: the side view's oval (z 0.3..4.0, y -0.47..-1.28) seen from above bulges out to x +-2.02 only between
+  // z 1.0 and 2.5 (top view), its tapered ends tucked against the cabin: [z, top, bottom, outer x]; inner edge at x 0.9
+  const SP = [[0.3, -0.62, -0.95, 1.05], [0.65, -0.5, -1.15, 1.08], [0.83, -0.49, -1.2, 1.12], [0.92, -0.48, -1.23, 1.55], [1.05, -0.47, -1.26, 1.88], [1.2, -0.47, -1.27, 2.0], [2.55, -0.47, -1.28, 2.0], [2.68, -0.48, -1.27, 1.45], [2.8, -0.5, -1.25, 1.12], [3.3, -0.53, -1.2, 1.05], [4.0, -0.66, -1.02, 1.0]];
   for (const s of [-1, 1]) {
-    const sr = SP.map(([z, t, b, w]) => shift(full(rr(z, t, b, w, Math.min(0.2, w), Math.min(0.18, w), [t - 0.1, (t + b) / 2, b + 0.1])), s * 1.45));
-    body.add(loft(sr, () => 0, 0, 0), greenM);
-    body.add(boxG(0.03, 0.28, 2.2, s * 1.94, -0.72, 1.4), green2M);                  // fuel filler panel
-    body.add(rodG([s * 1.6, -1.2, 1.6], [s * 1.95, -1.42, 1.6], 0.14, 6), metalM); body.add(rodG([s * 1.45, -0.9, 1.1], [s * 1.95, -1.42, 1.6], 0.08, 5), metalM);
-    body.add(cylX(0.38, 0.26, 14).translate(s * 2.0, -1.42, 1.6), tyreM); body.add(cylX(0.18, 0.28, 10).translate(s * 2.0, -1.42, 1.6), metalM);
+    const sr = SP.map(([z, t, b, xo]) => { const w = (xo - 0.9) / 2; return shift(full(rr(z, t, b, w, Math.min(0.2, w), Math.min(0.18, w), [t - 0.1, (t + b) / 2, b + 0.1])), s * (0.9 + w)); });
+    body.add(loft(sr, () => 0, 0, 0), greenM); farParts.push(loft(sr.filter((_, i) => i % 2 === 0 || i === sr.length - 1), () => 0, 0, 0));
+    const [gx, gz] = CH46M.MAIN_WHEEL;
+    body.add(boxG(0.03, 0.28, 2.2, s * 1.98, -0.8, 1.7), green2M);                  // fuel filler panel
+    body.add(rodG([s * (gx - 0.3), -1.22, gz], [s * gx, -1.42, gz], 0.14, 6), metalM); body.add(rodG([s * 1.5, -0.95, gz - 0.55], [s * gx, -1.42, gz], 0.08, 5), metalM);
+    body.add(cylX(0.38, 0.26, 14).translate(s * gx, -1.42, gz), tyreM); body.add(cylX(0.18, 0.28, 10).translate(s * gx, -1.42, gz), metalM);
   }
-  body.add(rodG([0, -1.25, -4.6], [0, -1.5, -4.6], 0.12, 6), metalM); body.add(boxG(0.8, 0.1, 0.14, 0, -1.5, -4.6), metalM);
-  for (const s of [-1, 1]) { body.add(cylX(0.3, 0.2, 12).translate(s * 0.35, -1.5, -4.6), tyreM); body.add(cylX(0.13, 0.22, 8).translate(s * 0.35, -1.5, -4.6), metalM); }
+  { const nz = CH46M.NOSE_WHEEL; body.add(rodG([0, sBot(nz) + 0.05, nz], [0, -1.5, nz], 0.12, 6), metalM); body.add(boxG(0.8, 0.1, 0.14, 0, -1.5, nz), metalM);
+    for (const s of [-1, 1]) { body.add(cylX(0.3, 0.2, 12).translate(s * 0.35, -1.5, nz), tyreM); body.add(cylX(0.13, 0.22, 8).translate(s * 0.35, -1.5, nz), metalM); } }
 
   // ---- forward pylon over the cockpit, the hump along the roof, aft pylon, engine nacelles
-  const FP = [[-6.15, 1.0, 0.82, 0.25], [-5.85, 1.55, 0.86, 0.48], [-5.45, 1.86, 0.9, 0.6], [-4.9, 1.92, 0.92, 0.62], [-4.2, 1.82, 0.94, 0.58], [-3.6, 1.42, 0.95, 0.46], [-3.2, 1.08, 0.96, 0.3]];
-  body.add(loft(FP.map(([z, t, b, w]) => full(rr(z, t, b, w, Math.min(0.32, w), 0.05, [t - 0.3, t - 0.5, t - 0.7]))), () => 0, 0, 0), greenM);
+  // pylons: tops from the traced side outline (the masts' columns bridged), widths from the front / top views
+  const FPW = pl([[-6.0, 0.2], [-5.7, 0.5], [-5.0, 0.62], [-4.0, 0.56], [-3.1, 0.38], [-2.6, 0.16]]), APW = pl([[2.25, 0.3], [2.9, 0.7], [3.8, 0.86], [5.2, 0.86], [5.9, 0.8], [6.5, 0.6], [6.95, 0.42]]);
+  const FP = [-6.0, -5.85, -5.7, -5.5, -5.25, -5.0, -4.6, -4.2, -3.8, -3.4, -3.0, -2.6].map(z => [z, Math.max(roofY(z) + 0.05, sTop(z)), roofY(z) - 0.08, FPW(z)]);
+  { const fp = loft(FP.map(([z, t, b, w]) => full(rr(z, t, b, w, Math.min(0.32, w), 0.05, [t - 0.3, t - 0.5, t - 0.7]))), () => 0, 0, 0); body.add(fp, greenM); farParts.push(fp.clone()); }
   body.add(boxG(0.5, 0.22, 6.0, 0, 1.06, -0.2), green2M); body.add(boxG(0.56, 0.05, 6.0, 0, 0.97, -0.2), darkM);   // drive shaft tunnel
-  const AP = [[2.5, 1.05, 0.9, 0.42], [3.1, 1.75, 0.9, 0.62], [3.8, 2.45, 0.92, 0.74], [4.6, 2.78, 0.94, 0.76], [5.5, 2.85, 0.95, 0.72], [6.3, 2.7, 0.96, 0.6], [6.9, 2.25, 0.97, 0.44], [7.2, 1.4, 0.98, 0.26]];
-  body.add(loft(AP.map(([z, t, b, w]) => full(rr(z, t, b, w, Math.min(0.36, w), 0.05, [t - 0.4, t - 0.8, t - 1.1]))), () => 0, 0, 0), greenM);
-  body.add(slab([[5.2, 2.8, 0.12], [6.9, 2.3, 0.1], [7.45, 1.2, 0.1], [7.3, 1.0, 0.12], [6.6, 1.0, 0.14]], (a, b, w) => [w, b, a]), greenM);   // trailing pylon fin
+  const AP = [2.25, 2.5, 2.8, 3.1, 3.4, 3.8, 4.2, 4.6, 5.0, 5.4, 5.8, 6.2, 6.6, 6.85, 6.97].map(z => [z, Math.max(roofY(z) + 0.05, sTop(z)), z > 6.4 ? sBot(z) + 0.04 : Math.min(roofY(z) - 0.08, sBot(z) + 0.3), APW(z)]);   // (the pylon's trailing edge runs down to the tail: fig. 2-1)
+  { const ap = loft(AP.map(([z, t, b, w]) => full(rr(z, t, b, w, Math.min(0.36, w), 0.05, [t - 0.4, t - 0.8, t - 1.1]))), () => 0, 0, 0); body.add(ap, greenM); farParts.push(ap.clone()); }
   const engines = [];
   for (const s of [-1, 1]) {   // T58-GE-16 in nacelles either side of the aft pylon, intakes forward (screens), exhaust out and back
-    const eg = group(g, 'engine', s * 0.86, 1.32, 3.9);
+    const eg = group(g, 'engine', s * 0.80, 1.18, 3.9);   // (fig. 2-1: the nacelles sit low on the pylon's flanks, outboard edge x +-1.14)
     mesh(cylZ(0.34, 0.36, 2.2, 14), greenM, eg); mesh(sphG(0.34, 0, 0, -1.1, 1, 1, 0.5, 12, 6), green2M, eg);
     mesh(new THREE.CircleGeometry(0.24, 12).rotateY(Math.PI).translate(0, 0, -1.22), darkM, eg);   // intake screen
     mesh(boxG(0.04, 0.5, 1.8, -s * 0.3, -0.05, 0), green2M, eg);                                      // fairing into the pylon
@@ -150,10 +169,11 @@ export function buildCH46Mesh(o = {}) {
 
   // ---- rotors: tilted masts, articulated 3-blade heads (blades flap / lag / feather), blur discs
   const blades = [], discs = [];
-  const bladeBody = slab([[0.7, -0.12, 0.07], [7.25, -0.12, 0.055], [7.25, 0.34, 0.015], [0.7, 0.34, 0.015]], (a, b, w) => [a, w, b]);
-  const bladeTip = slab([[7.25, -0.12, 0.055], [7.62, -0.12, 0.05], [7.62, 0.34, 0.012], [7.25, 0.34, 0.015]], (a, b, w) => [a, w, b]);
+  const RT = CH46M.R - 0.37;   // (the yellow tip band)
+  const bladeBody = slab([[0.7, -0.12, 0.07], [RT, -0.12, 0.055], [RT, 0.34, 0.015], [0.7, 0.34, 0.015]], (a, b, w) => [a, w, b]);
+  const bladeTip = slab([[RT, -0.12, 0.055], [CH46M.R, -0.12, 0.05], [CH46M.R, 0.34, 0.012], [RT, 0.34, 0.015]], (a, b, w) => [a, w, b]);
   const rotor = (name, hub, dir) => {
-    const mast = group(g, name, ...hub); mast.rotation.x = -CH46M.TILT;
+    const mast = group(g, name, ...hub); mast.rotation.x = -(hub === CH46M.HUB_F ? CH46M.TILT_F : CH46M.TILT_A);
     { const mb = bucket(); mb.add(cylY(0.13, 0.11, 0.6, 10).translate(0, -0.28, 0), metalM); mb.add(cylY(0.32, 0.26, 0.12, 12).translate(0, -0.42, 0), metalM);   // shaft, swashplate
       mb.flush(mast, name + 'Mast'); }
     const spin = group(mast, name + 'Hub');
@@ -170,15 +190,15 @@ export function buildCH46Mesh(o = {}) {
     }
     const discG = group(mast, name + 'Disc');
     const dm = B(0x181a17, { transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: false }), tm = B(0xd8b020, { transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, fog: false });
-    const d1 = mesh(ringGeo(0.8, 7.25), dm, discG, 'disc'), d2 = mesh(ringGeo(7.25, 7.62), tm, discG, 'discTips'); d1.renderOrder = d2.renderOrder = 2;
+    const d1 = mesh(ringGeo(0.8, RT), dm, discG, 'disc'), d2 = mesh(ringGeo(RT, CH46M.R), tm, discG, 'discTips'); d1.renderOrder = d2.renderOrder = 2;
     blades.push({ spin, bl, dir, mast, discG, dm, tm, psi: Math.random() * 6 });
   };
   rotor('rotorF', CH46M.HUB_F, +1); rotor('rotorA', CH46M.HUB_A, -1);   // front counter-clockwise from above, aft clockwise
 
   // ---- lights
   const beaconM = B(0xff2414), beaconOff = M(0x5a120e), navR = B(0xff2a1a), navG = B(0x2aff5a), navOff = M(0x333333);
-  const beacons = [[0, 2.95, 6.0], [0, -1.3, 0.8]].map(p => { const h = mesh(sphG(0.09), beaconOff, g, 'beacon'); h.position.set(...p); return h; });
-  const navs = [[-2.05, -0.5, 0.0, navR], [2.05, -0.5, 0.0, navG], [0, 2.25, 7.05, B(0xffffff)]].map(([x, y, z, m]) => { const n = mesh(sphG(0.06), navOff, g, 'nav'); n.position.set(x, y, z); n.userData.on = m; return n; });
+  const beacons = [[0, sTop(6.0) + 0.08, 6.0], [0, sBot(0.8) - 0.06, 0.8]].map(p => { const h = mesh(sphG(0.09), beaconOff, g, 'beacon'); h.position.set(...p); return h; });
+  const navs = [[-2.06, -0.75, 1.7, navR], [2.06, -0.75, 1.7, navG], [0, 2.25, 7.03, B(0xffffff)]].map(([x, y, z, m]) => { const n = mesh(sphG(0.06), navOff, g, 'nav'); n.position.set(x, y, z); n.userData.on = m; return n; });
   const lensM = B(0x3a3a34); const lens = mesh(new THREE.CircleGeometry(0.14, 10), lensM, g, 'landingLight'); lens.position.set(0, -1.29, -5.6); lens.rotation.x = Math.PI / 2;
 
   // ---- markings (1980 USMC): MARINES, national insignia, EM tail code + modex, BuNo, rotor-tip warning
@@ -193,6 +213,11 @@ export function buildCH46Mesh(o = {}) {
     }
   }
   body.flush(g, 'airframe');
+  // levels: past 700 m the airframe is one coarse draw; every other part dissolves out by 700 m (renderkit/lod.js)
+  { const near = new THREE.Group(); near.name = 'skinLOD0'; g.add(near); const far = new THREE.Group(); far.name = 'skinLOD2'; g.add(far);
+    mesh(merge(farParts), greenM, far, 'farBody');
+    g.traverse(o => { if (o.isMesh && o.parent !== far) detail(o, 700); });
+    createLOD(g, [{ object: near, far: 700 }, { object: far }]); }
 
   // ---- animation (no allocations). S: { nr, F: { tx, ty }, A: { tx, ty }, coll, ramp 0..1, run, light, n1, chief }
   const RF = blades;

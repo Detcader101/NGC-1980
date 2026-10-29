@@ -11,9 +11,9 @@ const E0 = ['lod0'], ALL = ['lod0', 'm200', 'm800'];
 export const BUDGETS = {
   // aircraft: exterior + cockpit (DCS-level cockpits are the big part); LOD1 by 200 m, LOD2 by 800 m
   huey:     { lod0: [260, 250e3], m200: [120, 80e3], m800: [40, 20e3], enforce: E0 },   // look-huey: switch to ALL with its LODs
-  hornet:   { lod0: [160, 200e3], m200: [110, 60e3], m800: [40, 15e3], enforce: E0 },
+  hornet:   { lod0: [160, 200e3], m200: [110, 60e3], m800: [40, 15e3], enforce: ALL },   // look-units: traced airframe with its levels (59 / 67 / 20 draws)
   tomcat:   { lod0: [200, 200e3], m200: [130, 60e3], m800: [40, 15e3], enforce: E0 },
-  ch46:     { lod0: [160, 150e3], m200: [100, 50e3], m800: [40, 15e3], enforce: E0 },
+  ch46:     { lod0: [160, 150e3], m200: [100, 50e3], m800: [40, 15e3], enforce: ALL },   // look-units: drawn airframe with its far level (54 / 54 / 3 draws)
   wasp:     { lod0: [90, 60e3], m200: [70, 30e3], m800: [30, 10e3], enforce: E0 },
   // ground vehicles: exterior + crew-station interior (wheeled: the game swaps in a 1-draw baked far model past 60 m)
   M60A3:    { lod0: [160, 120e3], m200: [80, 60e3], m800: [30, 15e3], enforce: E0 },

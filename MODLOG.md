@@ -225,6 +225,31 @@ Validation: voices **29/29**, command integration **8/8**, smoke **5/5**, syntax
 page/console errors. See the [offline devlog](docs/devlogs/2026-10-28-voices/devlog.html); it also retains historical
 failed diagnostics, explains scripted events and identifies the final identity/CSS follow-up checks.
 
+## 2026-10-29 — CH-46E Sea Knight rebuilt on the Navy's geometry figure (branch ngc/look-units)
+
+Second unit of the blueprint pass. Source: NADC-81118-60 (Naval Air Development Center 1981, public domain) fig. 2-1, a
+dimensioned three-view of the CH-46E, plus a dated 1983 photo of an HMM-261 CH-46. Silhouette fit side 0.833 → **0.985**,
+top 0.888 → **0.977** IoU. Fuselage stations every 0.06-0.2 m from the traced outline, the drawn 3.4° nose-up
+posture on the gear, round cabin windows, sponsons with their real plan shape, gear, hubs, shaft angles and 51 ft blades
+at the drawn stations, the ramp along the drawn underside; flight-model gear contacts moved to match. LODs 54 / 54 / 3
+draws. Evidence docs/ngc1980/evidence/look-units/ch46e/.
+
+## 2026-10-29 — Blueprint audit of every unit; the Hornet rebuilt from NASA drawings (branch ngc/look-units)
+
+The user: "make sure you have an agent blueprint skill every unit". **docs/ngc1980/BLUEPRINT-AUDIT.md** lists every
+real-world model in the game with its 1980 pin, how it is built today (all box / hand-placed outside the Huey and
+Tomcat work), the open-access drawings found and their licences, and the rebuild order.
+
+First rebuilt: the **F/A-18A Hornet** (FSD #3, BuNo 160777, the 1979 carrier-trials jet the player flies). The airframe
+is now lofted from the NASA Dryden three-view (calibrated on the NATOPS length) instead of hand-typed rings:
+silhouette fit side 0.674 → **0.987**, top 0.784 → **0.980**, front 0.788 → **0.981** IoU, max gaps 0.4-1 % of
+length. The nose was 1.9 m short ahead of the main gear; gear, hook, nozzles, eye and seat now sit at the drawn
+stations (jetfm's gear / hook / hull points moved with them). From two dated 1979 USN photographs the jet now wears
+the real FSD test scheme, gloss white with dark blue wings, LEX and fin bands, MARINES / NAVY titles, instead of an
+inferred fleet grey. The cockpit moved 0.70 m forward with the airframe; its main panel items sit where NATOPS fig.
+FO-1 draws them. LODs: 59 / 67 / 20 draws at near / 200 m / 800 m (budget enforced).
+Findings: docs/ngc1980/findings/look-units.md; evidence: docs/ngc1980/evidence/look-units/fa18a/.
+
 ## 2026-10-29 — VR: deck crew no longer corrupts the eye cameras (branch ngc/xr-fix)
 
 xr.mjs was 17/19 on ngc/shader-library (sky dome and near terrain window "not following the eye"). Cause: the deck

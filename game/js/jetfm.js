@@ -31,12 +31,14 @@ export const HORNET = {
   // N per engine. 1980 = F404-GE-400: 16,000 lbf with afterburner (GE, Jane's Aero-Engines: CONFIRMED), ~10,600 lbf
   // dry (sources give 10,500-10,700: INFERRED). Was 48,900 / 79,200 N, the 1990s F404-GE-402 EPE of the F/A-18C.
   TMIL: 47150, TAB: 71170,
-  GEAR: [[0, -2.05, -4.6], [-1.6, -2.05, 0.6], [1.6, -2.05, 0.6]],   // nose, left main, right main: wheel bottoms
+  // ngc/look-units: gear and hook at the drawn stations (NASA three-view: wheelbase 5.51 m, track 3.09 m; hook from the
+  // F-18 HARV side view), = jetmodel.js JET.GEAR / hookTip; was nose z -4.6, track 3.2 m, hook tip z 6.9
+  GEAR: [[0, -2.05, -4.913], [-1.544, -2.05, 0.6], [1.544, -2.05, 0.6]],   // nose, left main, right main: wheel bottoms
   K: [260000, 480000, 480000], DAMP: [55000, 95000, 95000], STROKE: 0.42,
-  HOOK_TIP: [0, -1.95, 6.9],
+  HOOK_TIP: [0, -1.95, 5.89],
   // airframe points that must never touch the ground (nose, belly, nozzles, fin tips, wingtips, stab tips, canopy)
-  HULL: [[0, -0.1, -8.6], [0, -0.95, -1], [0, -0.85, 3], [-0.62, -0.72, 7.6], [0.62, -0.72, 7.6], [-2.2, 3.3, 8.0], [2.2, 3.3, 8.0],
-    [-5.9, 0, 2.4], [5.9, 0, 2.4], [-3.3, -0.15, 7.9], [3.3, -0.15, 7.9], [0, 1.45, -4]],
+  HULL: [[0, -0.36, -10.47], [0, -0.80, -1], [0, -0.80, 2.4], [-0.38, -0.55, 6.0], [0.38, -0.55, 6.0], [-1.84, 2.65, 4.5], [1.84, 2.65, 4.5],
+    [-5.8, -0.05, 2.35], [5.8, -0.05, 2.35], [-3.18, -0.17, 6.4], [3.18, -0.17, 6.4], [0, 1.31, -5.4]],   // (ngc/look-units: the drawn airframe)
   STORES: { aam: 86, bomb: 241 },
   VNE_GEAR: 130,   // m/s EAS (250 kt): gear / flaps limit
 };
