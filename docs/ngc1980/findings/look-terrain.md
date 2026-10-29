@@ -156,3 +156,41 @@ Load (node, per thread): the zone bake 1.7 s (old 1.7-2.0 s), zoneNet 0.2 s (old
 core heightmap is a copy of the zone grid plus `terrainH` in the boxes where roads / pads / bases / hards change it.
 Memory: zone grid 19 MB heights + 4.7 MB surfaces per thread (as before); main thread +12.8 MB heightmap texture,
 +12.8 MB surface texture, +4.9 MB decor texture (4x area, same cell size), 0.2 MB far-land zone heights.
+
+## 2026-10-29 - Keeping the game working on the new land (tests)
+SwiftShader, the PC shared with other agents' runs: game-time waits stretch with the frame time, so every result was
+compared with ngc/shader-library (f8abdbb, its own worktree) under the same load where it failed.
+
+| scene | first run on the new land | after the fixes below | shader-library base |
+|---|---|---|---|
+| smoke.json | 5/5 | 5/5 | |
+| foot.mjs | 9/21 | 11/14 (stern ladder climb + its deck check, walk to the pad: 10.4 of 16 m in the 30 s wait) | 11/13 (stern ladder + deck check) |
+| worldvisibility.mjs | 16/18 | 17/17 | |
+| depthsky.mjs | 14/14 | | |
+| depthnature.mjs | 9/9 | | |
+| groundwar.mjs | 4/10 | 9/10 (hover tank ashore: fails on the base too) | 9/10 (same) |
+| armorgame.mjs | 13/20 | 15/19 | not run (40 min a run) |
+| wheeledgame.mjs | 15/33 | 17/30 | not run |
+| xr.mjs | 19/19 | | |
+
+**What the failures were and what changed**
+- *Frame time (foot, everything with a game-time wait)*: the high ground tier is 2.5x the frame on SwiftShader (see
+  Cost); software GL now gets the low tier. foot's remaining extra failure is the 16 m walk to the pad running 6 m short
+  in its 30 s wait (fps-marginal, as look-nature found on the base).
+- *groundwar: no STRIDERs* - the MV-22 flew into the plateau: the transport AI looked 400 m ahead for its cruise
+  height (3 s at 118 m/s, a 25 m climb). It now looks as far ahead as the climb takes (14 s of flight) and slows down
+  when it is well below the height it needs (`transportai.js`; `tools/rotarymission.mjs` 18/18). The hover tank / LCAC
+  waits were scaled to the bigger zone (the KRAKEN starts ~3 km out).
+- *armorgame: the M60 stuck at 34 degrees on the hard* - HOME's landing hard ended on the beach at u = 4 m with the dune
+  bank behind it. `planHards` now also wants the next 40 m inland drivable (no 4 m step over 0.32), else the ramp
+  carries on through (HOME's hard is 62 m). The M113's swim then passes. The LCM-8 run can now land on a beach hard,
+  whose top is on the sand at ~1.5 m: the scene's "ashore" height test is > 1.2 m (was > 3). Left: getting out at the
+  hatch after the hillside, the first 105 mm round hitting a CITADEL AA gun in front of the aimed building (a layout
+  coincidence of the new site), the M113 creeping 4 m on the ALBATROSS's deck while she turns 25 degrees.
+- *foot / armorgame: the carrier would not sail where ordered* - both start facing the map centre, which is land now.
+  `fleetStart` gives a heading too: the ALBATROSS east along HOME ISLAND's south coast, the KRAKEN west along the north.
+- *wheeledgame*: its wild-land village, bridge and ford were fixed coordinates ~3.7-4.3 km east. The wild lands start
+  BOUND + 0.4-2.4 km out, so those places are sea now. The scene finds a town past 5 km, the nearest generated bridge
+  and shallows instead; the street drive and off-road parts pass, the bridge / ford / deck vehicle parts did not in the
+  run I had time for (open item).
+- *worldvisibility*: the zone-edge check hovered at x = 1260 / 1300 (the old edge); it reads BOUND now.
