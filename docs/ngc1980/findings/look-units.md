@@ -120,3 +120,18 @@ dissolve ranges: 21 against 13 outside, 26 in the cockpit). Compiling these when
 plausibly causes that >1 s SwiftShader frame. **Action taken:** every part dissolves on one range (700 m), and all
 paints are smooth Phong (one variant less). **Remaining:** a shader prewarm at jet build (renderer.compile) would remove
 the first-look compile on real GPUs too. That is a main.js / jetplay change, left for the owner of the render loop.
+
+## 2026-10-29 - F/A-18A: shader precompile, lighter LOD0 skin (coordinator: "precompile the Hornet's shaders")
+
+**Action:** jetplay.js compiles every program of the jet and its cockpit right after the jet first draws (a
+one-triangle warm-up handle catches renderer / camera; the compile runs in a setTimeout after that frame: compiling
+inside the render pass broke three's state, `Cannot read properties of null (reading 'state')`). No main.js change. The
+LOD0 fuselage dropped from 150 x 48 to ~115 x 36 quads (fit unchanged: side 0.986, top 0.980, front 0.981). Smoke
+and flare ports moved to the drawn nozzle / belly stations.
+
+**Finding (load, not logic):** hornetcockpit with the precompile: 9/10 (FUEL LO), 10/10 (flagged only for a source edit
+mid-run), 9/11 (APU READY) in three runs; base 10/10 in three runs. Measured cockpit frame times on the cat in the same
+session (SwiftShader, res 0.6, a loaded machine): median 1.37 s (base 1.08 s) looking out ahead, 0.87 s (0.82 s) at the
+panel, 0.45 / 0.48 s (0.43 / 0.48 s) at the consoles. Frames sit near the 1 s limit of snap.mjs's waitFor (it gives up
+once 40 s have passed and a single frame takes over 1 s). The base trips that limit less often, the new jet a little more.
+On a real GPU these are 1-2 ms frames.

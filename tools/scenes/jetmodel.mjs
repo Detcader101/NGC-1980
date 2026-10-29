@@ -34,7 +34,7 @@ export default async function (h) {
     // anything other than the shell inside the cockpit volume?
     const shell = new Set(); J.jet.shell.forEach(s => s.traverse(o => shell.add(o)));
     const v = new T.Vector3(), hits = {};
-    J.jet.group.traverse(o => { if (!o.isMesh || shell.has(o) || !o.visible || o.name === 'farWhite' || o.name === 'coaming') return;   // (the 700 m+ level carries a canopy shape; the coaming is the rim at sill height)
+    J.jet.group.traverse(o => { if (!o.isMesh || shell.has(o) || !o.visible || o.name === 'farWhite' || o.name === 'coaming' || /^skinLOD[12]$/.test(o.parent?.name)) return;   // (the 150 m+ / 700 m+ levels are never drawn from the seat; the coaming is the rim at sill height)
       const p = o.geometry.attributes.position, ix = o.geometry.index ? new Set(o.geometry.index.array) : null;   // (indexed lofts: only vertices a triangle uses)
       for (let i = 0; i < p.count; i++) { if (ix && !ix.has(i)) continue; v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld); if (Math.abs(v.x) < 0.36 && v.y > -0.5 && v.y < 1.38 && v.z > -6.43 && v.z < -4.55) hits[o.name] = (hits[o.name] || 0) + 1; } });
     out.intrusions = hits; window.__chk = out; return out; })()`);

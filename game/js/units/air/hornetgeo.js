@@ -70,7 +70,7 @@ export const ring = n => Array.from({ length: n + 1 }, (_, j) => TAU * j / n);
 // materials: 0 upper, 1 belly, 2 radome, 3 anti-glare
 export const COCKPIT_OPEN = [G.Z_WS + 0.05, G.Z_CANOPY_END - 0.32];
 export function fuselageSurface(lod = 0) {
-  const k = [1, 2.5, 5][lod];
+  const k = [1.3, 2.5, 5][lod];
   const zs = stationList([[G.NOSE, -9.6, 0.03 * k], [-9.6, -7.2, 0.08 * k], [-7.2, -3.5, 0.08 * k], [-3.5, G.NOZ.z0, 0.14 * k]], lod ? [] : [G.Z_WS, G.Z_CANOPY_END - 0.3, G.Z_CANOPY_END, -9.33]);
   zs[0] += 0.002;
   const keys = stationKeys(zs, z => ({ T: fuseT(z), B: fuseB(z), W: fuseW(z), ym: fuseYm(z), nT: fuseNT(z), nB: fuseNB(z), lean: fuseLean(z), crown: fuseCrown(z) }));
@@ -78,7 +78,7 @@ export function fuselageSurface(lod = 0) {
 }
 const _o = {};
 export function fuselageGeo(lod = 0) {
-  const { S: Sf, zs } = fuselageSurface(lod), phis = ring([48, 24, 12][lod]);
+  const { S: Sf, zs } = fuselageSurface(lod), phis = ring([36, 20, 12][lod]);   // (36 round: smooth analytic normals carry the shading; the cockpit view sees this skin every frame)
   const zRadome = -9.95;   // the cream radome tip (photos: the FSD jets painted the rest of the radome white; its joint is the top view line at z -9.33)
   return gridGeo(Sf, zs, phis, (i, j) => {
     const z = zs[i], ph = phis[j], belly = Math.abs(ph - Math.PI) < 1.05;

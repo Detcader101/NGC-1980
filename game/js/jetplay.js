@@ -26,7 +26,21 @@ export function createJetPlay(ctx) {
   const J = createJetSim(GRAV), D = createJetDamage();
   const model = buildJetMesh(1, 0), cockpit = buildJetCockpit();   // FSD #3, BuNo 160777
   model.group.add(cockpit.group); model.group.visible = false; scene.add(model.group);
-  mergeUnit(model.group, [model, cockpit], { name: 'hornet' });   // ngc/perf-render: static parts one draw per material per rigid frame (every handle kept)
+  // ngc/look-units: compile every shader the jet and its cockpit can need the first time the jet draws (its LOD / dissolve
+  // ranges add ~8 programs; compiled lazily they stalled the frame when the view first turned to a console). A one-triangle
+  // warm-up mesh (a handle, so never merged) catches the renderer and camera; the compile runs right after that frame
+  // (one hitch at launch instead of one per new view). No main.js hook needed.
+  const warm = new THREE.Mesh(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 0, 0, 0, 0, 0, 0], 3)), new THREE.MeshBasicMaterial());
+  warm.name = 'shaderWarm'; warm.frustumCulled = false; model.group.add(warm);
+  warm.onBeforeRender = (r, sc, cam) => {
+    warm.onBeforeRender = () => {}; warm.visible = false;
+    setTimeout(() => {   // after this frame: compiling inside a render pass corrupts the renderer's state
+      const ck = cockpit.group.visible; cockpit.group.visible = true;
+      try { r.compile(model.group, cam, sc); } catch (e) { /* (a compile failure must never stop the jet) */ }
+      cockpit.group.visible = ck;
+    }, 0);
+  };
+  mergeUnit(model.group, [model, cockpit, { warm }], { name: 'hornet' });   // ngc/perf-render: static parts one draw per material per rigid frame (every handle kept)
   const shadow = new THREE.Mesh(new THREE.PlaneGeometry(11.4, 17).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.35, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
   shadow.visible = false; scene.add(shadow);
   // the ejected pilot under his parachute
@@ -47,7 +61,7 @@ export function createJetPlay(ctx) {
   };
   // CM: the ALE-39 dispenser in the aft fuselage (headline: 60 cartridges, here 30 flares + 30 chaff); a press drops a
   // pair of flares or two chaff, out of the bottom of the fuselage behind the main gear
-  P.cm = createDispenser({ name: 'ALE-39', flares: 30, chaff: 30, program: { flare: 2, chaff: 2 }, gap: 0.12, ports: [[-0.45, -0.95, 3.6], [0.45, -0.95, 3.6]], eject: { flare: [0, -1, 0.15], chaff: [0, -1, 0.1] }, sfx, say });
+  P.cm = createDispenser({ name: 'ALE-39', flares: 30, chaff: 30, program: { flare: 2, chaff: 2 }, gap: 0.12, ports: [[-0.45, -0.85, 3.6], [0.45, -0.85, 3.6]], eject: { flare: [0, -1, 0.15], chaff: [0, -1, 0.1] }, sfx, say });
   const cmPose = { get vel() { return J.vel; }, toWorld: (l, o) => { _cmv.set(l[0], l[1], l[2]).applyQuaternion(J.q).add(J.pos); o.x = _cmv.x; o.y = _cmv.y; o.z = _cmv.z; return o; }, dirWorld: (l, o) => { _cmv.set(l[0], l[1], l[2]).normalize().applyQuaternion(J.q); o.x = _cmv.x; o.y = _cmv.y; o.z = _cmv.z; return o; } };
   const env = {
     groundY: ctx.groundY, water: ctx.waterAt, surfVel: war.surfVel, mods: null,
@@ -399,7 +413,7 @@ export function createJetPlay(ctx) {
     if (J.mach > 0.97 && J.mach < 1.06 && Math.random() < 0.8) { station([0, 0.2, 1], _p); fx.add.spawn(_p.x, _p.y, _p.z, J.vel.x * 0.95, J.vel.y * 0.95, J.vel.z * 0.95, 0.2, 6, 9, .9, .93, 1, 0.3, 0, 0.4); }
     if (J.mach > 1 && !P.boomed) { P.boomed = true; sfx.boom(0.9); } else if (J.mach < 0.95) P.boomed = false;
     for (const k of [0, 1]) if ((D.fire[k] || D.hp[k ? 'engR' : 'engL'] < 0.5) && Math.random() < (D.fire[k] ? 0.9 : 0.4)) {
-      station([k ? 0.62 : -0.62, -0.25, 7.9], _p); if (D.fire[k]) fx.add.spawn(_p.x, _p.y, _p.z, rnd(-1, 1), rnd(-1, 1), rnd(-1, 1), rnd(0.2, 0.4), 1.5, 0.5, 1, rnd(.4, .6), .1, 0.9, 0, 1); fx.trail(_p.x, _p.y, _p.z, 1.4);
+      station([k ? 0.38 : -0.38, -0.12, 6.1], _p); if (D.fire[k]) fx.add.spawn(_p.x, _p.y, _p.z, rnd(-1, 1), rnd(-1, 1), rnd(-1, 1), rnd(0.2, 0.4), 1.5, 0.5, 1, rnd(.4, .6), .1, 0.9, 0, 1); fx.trail(_p.x, _p.y, _p.z, 1.4);   // (ngc/look-units: at the drawn nozzle exits)
     }
     if (J.cat && J.cat.state === 'stroke' && Math.random() < 0.6) { const c = env.carrier(); if (c) fx.mix.spawn(p.x + rnd(-1, 1), c.deck + 0.3, p.z + rnd(-1, 1), rnd(-2, 2), rnd(1, 3), rnd(-2, 2), rnd(0.8, 1.6), 1.2, 4, .92, .94, .96, 0.45, -0.2, 1.2, 0.4); }
     if (J.onGround && wasGround === false) { const gy = ctx.groundY(p.x, p.z); for (let i = 0; i < 8; i++) fx.mix.spawn(p.x + rnd(-2, 2), gy + 0.2, p.z + 1 + rnd(-1, 1), rnd(-3, 3), rnd(0.5, 1.5), rnd(-3, 3), rnd(0.6, 1.2), 0.8, 2.4, .5, .5, .52, 0.5, 0, 1.4); }
