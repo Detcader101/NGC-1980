@@ -12,6 +12,9 @@ register('data:text/javascript,' + encodeURIComponent(`
 export async function resolve(s, c, n) { if (s === 'three') return { url: ${JSON.stringify(pathToFileURL(new URL('../game/vendor/three.module.min.js', import.meta.url).pathname).href)}, shortCircuit: true }; return n(s, c); }`));
 const { createSR71Sim, SR71, aero, j58, spikeSched, worldHOfFt, KT, FT, LB, K_EQ } = await import('../game/js/units/air/sr71fm.js');
 const THREE = await import('three');
+// deterministic: every sim gets the same seeded generator for its random unstarts (mulberry32)
+const seeded = (a = 12345) => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const _create = createSR71Sim; const mk = () => { const A = _create(); A.rand = () => 1; return A; };   // (no random unstarts in the performance checks: test 7 forces one)
 const VERBOSE = process.argv.includes('--v');
 let pass = 0, fail = 0;
 const results = [];
@@ -24,7 +27,7 @@ const DT = 1 / 50;
 const tasFor = (keas, h) => { const rho = 4.9 * Math.exp(-h / 6000); return keas / KT * Math.sqrt(1.225 / rho); };
 // in the air, trimmed for 1 g: o.mach instead of a KEAS; the attitude is the alpha for 1 g (the lift curve inverted)
 const air = (ft, keas, fuelLb, o = {}) => {
-  const A = createSR71Sim(); const h = worldHOfFt(ft), sigR = Math.exp(-h / 6000);
+  const A = mk(); const h = worldHOfFt(ft), sigR = Math.exp(-h / 6000);
   const T = 288.15 - 0.0065 * Math.min(ft / FT, 11000) + (ft / FT > 20000 ? 0.001 * (ft / FT - 20000) : 0), aS = Math.sqrt(1.4 * 287.05 * T);
   const V = o.mach ? o.mach * aS / K_EQ : tasFor(keas, h), M = V * K_EQ / aS, q = 0.5 * 4.9 * sigR * V * V, W = (60000 + fuelLb) / LB * 9.80665;
   let al = 0.02; for (let i = 0; i < 40; i++) { const c = aero(al, 0, M, { gear: 0, rud: 0, extra: 0, flapE: 0 }); al += (W / (q * SR71.S) - c.CL) * 0.2; al = Math.max(-0.1, Math.min(0.4, al)); }
@@ -45,7 +48,7 @@ const air = (ft, keas, fuelLb, o = {}) => {
 }
 // ---- 2. take-off at 125,000 lb (manual: ~210 KIAS, 8-10 deg attitude), full AB from brake release
 {
-  const A = createSR71Sim(); A.resetGround(0, 0, 0, 0); A.fuel = (125000 - 60000) / LB;
+  const A = mk(); A.resetGround(0, 0, 0, 0); A.fuel = (125000 - 60000) / LB;
   let t = 0, lift = null, x0 = A.pos.clone(), maxPitch = 0;
   while (t < 120 && !A.dead) {
     const kias = A.kias, rot = kias > 188, att = A.attitude().pitch;   // back pressure 15-25 kt below rotation speed (manual)
@@ -116,7 +119,7 @@ let climb = null;
 }
 // ---- 8. landing: 175 KIAS final with ~12,000 lb of fuel, 155 KIAS touchdown, chute below 210 KIAS, brakes at the end
 {
-  const A = createSR71Sim(), h = 120; A.reset(new THREE.Vector3(0, h, 0), 0, tasFor(175, h), { fuel: 12000 / LB, gear: 1, thr: 0.55 }); A.gear = A.gearCmd = 1;
+  const A = mk(), h = 120; A.reset(new THREE.Vector3(0, h, 0), 0, tasFor(175, h), { fuel: 12000 / LB, gear: 1, thr: 0.55 }); A.gear = A.gearCmd = 1;
   let t = 0, td = null, x0 = null, stop = null, thr = 0.55, flare = false, chuteT = null, minAlpha = 1;
   while (t < 200 && !A.dead) {
     const att = A.attitude().pitch;

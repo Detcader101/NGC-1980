@@ -126,6 +126,7 @@ export function createSR71Sim(GRAV = 9.80665) {
     gear: 1, gearCmd: 1, chute: 'stowed', canopy: 0, canopyCmd: 0, steer: 0, wow: [0, 0, 0], slip: [0, 0, 0], onGround: false, events: [], dead: false,
     alpha: 0, beta: 0, tas: 0, eas: 0, kias: 0, keas: 0, mach: 0, qbar: 0, nz: 1, ny: 0, rho: ATM.RHO0, sigma: 1, altFt: 0, isaT: 288, cit: 15, skinT: 15, burst: 0,
     spikeMode: 'auto', spikeManual: [0, 0], restartArm: true, sas: { pitch: true, roll: true, yaw: true }, limiter: true,
+    rand: Math.random,   // (the bench seeds it: unstarts are random)
     leak: 0, refuel: 0, tSim: 0, strut: [0, 0, 0], wheelRot: 0, nzMax: 1, nzMin: 1, overspeedT: 0, damage: 0,
     get mass() { return P.EMPTY + A.fuel; },
     forward(out = new THREE.Vector3()) { return out.set(0, 0, -1).applyQuaternion(A.q); },
@@ -206,7 +207,7 @@ export function createSR71Sim(GRAV = 9.80665) {
       if (!e.unstart && e.run && M > 2.2 && e.calm <= 0) {
         const mis = Math.abs(e.spike - spikeSched(M)), a = A.alpha * 57.3, b = Math.abs(A.beta * 57.3);
         const hz = (A.spikeMode !== 'auto' && mis > 0.22 ? 3 : 0) + (a > 10 ? (a - 10) * 0.6 : 0) + (b > 2.5 ? (b - 2.5) * 0.8 : 0) + 1 / 2400 + (A.forceUnstart === k ? 1e6 : 0);
-        if (Math.random() < hz * h) { e.unstart = 1; ev('unstart', { k }); A.forceUnstart = null; if (A.restartArm) { for (const f of A.eng) f.restart = Math.max(f.restart, 3.5); } }
+        if (A.rand() < hz * h) { e.unstart = 1; ev('unstart', { k }); A.forceUnstart = null; if (A.restartArm) { for (const f of A.eng) f.restart = Math.max(f.restart, 3.5); } }
       }
       // thrust
       const base = e.run || e.n > 0.2 ? j58(thr, M, sig, A.kias) : 0;
