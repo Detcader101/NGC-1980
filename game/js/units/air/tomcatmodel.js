@@ -25,20 +25,27 @@ export const TCAT = {
 };
 const LOD_D = [70, 260];   // m: full detail inside 70 m, medium to 260 m, silhouette beyond (ngc/perf-render budgets: see findings)
 
-// the squadron art on the outer face of each (black) fin: VF-84's white skull and crossbones, the AJ tail code of CVW-8 near
-// the top (as on BuNo 160382 in September 1980); transparent elsewhere, so the fin's black paint shows round it
-function tailArt(modex) {
-  return canvasTex('tcatTailAJ' + modex, 256, 256, (x, w, h) => {
-    x.clearRect(0, 0, w, h); x.fillStyle = '#f2f2ee'; x.strokeStyle = '#f2f2ee';
-    const cx = w * 0.56, cy = h * 0.60, r = w * 0.13;
-    x.lineCap = 'round'; x.lineWidth = w * 0.06;   // the crossbones
-    for (const d of [-1, 1]) { x.beginPath(); x.moveTo(cx - r * 2.0, cy + d * r * 1.7); x.lineTo(cx + r * 2.0, cy - d * r * 1.7 + r * 0.2); x.stroke(); for (const e of [-1, 1]) { x.beginPath(); x.arc(cx + e * r * 2.05, cy + (e === -1 ? d : -d) * r * 1.72, w * 0.035, 0, Math.PI * 2); x.fill(); } }
+// the squadron art on the outer face of each (black) fin: VF-84's white skull and crossbones on the fixed fin ahead of the
+// rudder hinge, the AJ tail code of CVW-8 near the top under the yellow cap (as on BuNo 160382 in September 1980). Drawn
+// per side in FIN coordinates (z along the fin, h up it) so the art lands at the same place on both fins and reads
+// left to right from outside; the decal is then conformed onto the fin surface (conform below), so anything off the fin
+// is cut away rather than hanging in the air.
+const ART = { z: 6.0, h: 1.30, size: 2.4 };   // the decal's centre and size in fin coordinates
+function tailArt(modex, s) {
+  return canvasTex('tcatTailAJ' + modex + (s < 0 ? 'L' : 'R'), 512, 512, (x, w, hh) => {
+    x.clearRect(0, 0, w, hh);
+    const px = z => (0.5 + (s > 0 ? ART.z - z : z - ART.z) / ART.size) * w, py = h => (0.5 - (h - ART.h) / ART.size) * hh, m = w / ART.size;   // fin (z, h) -> canvas
+    x.fillStyle = '#f2f2ee'; x.strokeStyle = '#f2f2ee';
+    const cx = px(5.86), cy = py(1.32), r = 0.2 * m;   // the skull, between the fin's leading edge and the rudder hinge
+    x.lineCap = 'round'; x.lineWidth = 0.075 * m;   // the crossbones
+    for (const d of [-1, 1]) { x.beginPath(); x.moveTo(cx - r * 2.0, cy + d * r * 1.7); x.lineTo(cx + r * 2.0, cy - d * r * 1.7 + r * 0.2); x.stroke(); for (const e of [-1, 1]) { x.beginPath(); x.arc(cx + e * r * 2.05, cy + (e === -1 ? d : -d) * r * 1.72, 0.045 * m, 0, Math.PI * 2); x.fill(); } }
     x.beginPath(); x.arc(cx, cy - r * 0.15, r, 0, Math.PI * 2); x.fill(); x.fillRect(cx - r * 0.55, cy + r * 0.5, r * 1.1, r * 0.55);   // the skull, the jaw
     x.fillStyle = '#121314'; for (const e of [-1, 1]) { x.beginPath(); x.ellipse(cx + e * r * 0.4, cy - r * 0.2, r * 0.27, r * 0.32, 0, 0, Math.PI * 2); x.fill(); }
     x.beginPath(); x.moveTo(cx, cy + r * 0.05); x.lineTo(cx - r * 0.12, cy + r * 0.32); x.lineTo(cx + r * 0.12, cy + r * 0.32); x.fill();
     for (let k = -2; k <= 2; k++) x.fillRect(cx + k * r * 0.22 - 1, cy + r * 0.62, 2, r * 0.4);
-    x.fillStyle = '#f2f2ee'; x.font = 'bold 50px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.fillText('AJ', w * 0.70, h * 0.17);
+    // AJ: block letters 0.34 m tall, white, centred on the fixed fin under the cap (leading edge z 5.97 to hinge 6.74 at h 2.02)
+    x.fillStyle = '#f2f2ee'; x.font = `bold ${Math.round(0.34 * m * 1.33)}px sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText('AJ', px(6.38), py(2.0));
   });
 }
 function noseNumber(modex) {
@@ -48,6 +55,23 @@ function stencil(key, text, px = 30, col = '#1b1e22') {
   return canvasTex('tcatSt' + key, 256, 64, (x, w, h) => { x.clearRect(0, 0, w, h); x.font = `bold ${px}px sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = col; x.fillText(text, w * 0.5, h * 0.5); });
 }
 const starTex = () => canvasTex('starbar', 256, 128, (x, w, h) => { x.clearRect(0, 0, w, h); drawStarBar(x, w, h); });
+// conform a decal plane onto target meshes: subdivide it, cast each vertex back along the plane's normal onto the skin
+// (from 0.4 m out), lift it 6 mm; triangles with a vertex that misses the skin are dropped (the marking ends at the edge)
+const _rc = new THREE.Raycaster(), _cv = new THREE.Vector3(), _cn = new THREE.Vector3();
+function conform(m, targets, sx = 12, sy = 6, lift = 0.006) {
+  const P = m.geometry.parameters, geo = new THREE.PlaneGeometry(P.width, P.height, sx, sy); m.geometry = geo;
+  const pos = geo.attributes.position, inv = m.matrixWorld.clone().invert(), ok = [];
+  _cn.set(0, 0, 1).transformDirection(m.matrixWorld);
+  for (let i = 0; i < pos.count; i++) {
+    _cv.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld);
+    _rc.set(_cv.clone().addScaledVector(_cn, 0.4), _cn.clone().negate()); _rc.far = 0.8;
+    const hit = _rc.intersectObjects(targets, false)[0]; ok[i] = !!hit;
+    if (hit) _cv.copy(hit.point).addScaledVector(_cn, lift);
+    _cv.applyMatrix4(inv); pos.setXYZ(i, _cv.x, _cv.y, _cv.z);
+  }
+  const ix = geo.index.array, keep = []; for (let q = 0; q < ix.length; q += 3) if (ok[ix[q]] && ok[ix[q + 1]] && ok[ix[q + 2]]) keep.push(ix[q], ix[q + 1], ix[q + 2]);
+  geo.setIndex(keep); geo.computeBoundingSphere(); return m;
+}
 // geometry shared by every Tomcat (the player's and the AI's): built once per LOD
 // RenderKit surface detail WITHOUT the generic procedural panel grid (panel 0): a square grid is a look-alike tell. Panel
 // lines and doors are only the ones the drawings locate (configuration table, findings/look-tomcat.md)
@@ -69,10 +93,10 @@ export function buildTomcatModel(side = 1, { modex = 201 } = {}) {
   const det = m => { detail.push(m); return m; };
 
   // ---- fuselage: radome, nose, cockpit, spine, the centre body between the nacelles, beaver tail (one loft)
-  const fus = lodded('fus', fuselageGeo, [greyM, whiteM, radomeM, darkM], g, 'fuselage');
+  const fus = lodded('fus', fuselageGeo, [greyM, whiteM, radomeM, darkM], g, 'fuselage'), nacs = [];
   // ---- intakes and nacelles (raked 2D intakes, round TF30 nacelles), with the dark ducts inside
   for (const s of [-1, 1]) {
-    lodded('nac' + s, l => nacelleGeo(s, l), [greyM, whiteM], g, 'nacelle');
+    nacs.push(lodded('nac' + s, l => nacelleGeo(s, l), [greyM, whiteM], g, 'nacelle'));
     // duct: the same section 6 cm in, from the lip 1.6 m down to the first compressor face
     const duct = geo('duct' + s, () => { const pts = [], n = 16; for (const z of [0, 1.6]) { for (let j = 0; j <= n; j++) { const ph = Math.PI * 2 * j / n, N = nacelleAt(-5.25 + z * 0.5), cy = (N.top + N.bot) / 2, a = N.a - 0.06, b = (N.top - N.bot) / 2 - 0.06, sn = Math.sin(ph), cs = Math.cos(ph), y = cy + b * Math.sign(cs) * Math.abs(cs) ** 0.33; pts.push(s * (N.cx + a * Math.sign(sn) * Math.abs(sn) ** 0.33), y, zLip(y) + 0.03 + z); } } const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); const ix = []; for (let j = 0; j < n; j++) ix.push(j, j + 1, n + 1 + j, j + 1, n + 2 + j, n + 1 + j); gg.setIndex(ix); gg.computeVertexNormals(); return gg; });
     mesh(duct, ductM, g, 'intakeDuct');
@@ -123,7 +147,7 @@ export function buildTomcatModel(side = 1, { modex = 201 } = {}) {
   }
 
   // ---- vertical tails (TM-83250 fig. 3f: NACA 65A004.5, canted 5 deg out at BL 11.644) with rudders; squadron art outside
-  const VT = G.VTAIL, surf = {};
+  const VT = G.VTAIL, surf = {}, onto = [];   // onto: [decal, target meshes, segments x, y] conformed at the end
   const vLE = h => VT.rootLE + h * ((VT.tipTE - VT.tipC) - VT.rootLE) / VT.h, vTE = h => VT.rootLE + VT.rootTEx + h * (VT.tipTE - VT.rootLE - VT.rootTEx) / VT.h;
   const vHinge = h => vTE(h) - (0.95 - 0.25 * h / VT.h);   // rudder hinge line (rudder chord 0.95 m at the root, 0.70 m at the top)
   const R0 = 0.16, R1 = VT.h - 0.28;
@@ -132,15 +156,16 @@ export function buildTomcatModel(side = 1, { modex = 201 } = {}) {
     const map = (h, z, w) => [s * (VT.x + h * Math.sin(VT.cant) + w * Math.cos(VT.cant)), VT.y + h * Math.cos(VT.cant) - w * Math.sin(VT.cant), z], mapS = map;   // h up the canted fin, w outward
     const tipLE = h => vLE(h) + 0.5 * VT.tipC * Math.max(0, (h - (VT.h - 0.35)) / 0.35) ** 2;   // the rounded tip leading edge
     const fin = (u0, u1, TE) => outward(airfoilGeo({ u0, u1, nu: Math.max(2, Math.round((u1 - u0) * 6)), nc: 14, LE: tipLE, TE, tc: () => VT.tc, map: mapS, cap0: true, cap1: true }));
-    mesh(geo('fin' + s, () => merge([fin(0, R0, vTE), fin(R0, R1, vHinge), fin(R1, VT.h - 0.30, vTE)])), finM, g, 'fin' + S);
+    const finMesh = mesh(geo('fin' + s, () => merge([fin(0, R0, vTE), fin(R0, R1, vHinge), fin(R1, VT.h - 0.30, vTE)])), finM, g, 'fin' + S);
     mesh(geo('finCap' + s, () => fin(VT.h - 0.30, VT.h, vTE)), capM, g, 'finCap' + S);   // VF-84's yellow fin cap
     const rg = outward(airfoilGeo({ u0: R0, u1: R1, nu: 8, nc: 8, LE: vHinge, TE: vTE, tc: h => VT.tc * 0.6 * (vTE(h) - vLE(h)) / (vTE(h) - vHinge(h)), map: mapS, cap0: true, cap1: true }));
     const a = V(...mapS(R0, vHinge(R0), 0)), b = V(...mapS(R1, vHinge(R1), 0));
     surf['rud' + S] = hinged(g, rg, finM, a, b, 'rudder' + S);
     // squadron art on the outer face (texture u runs nose-ward as seen from outside, v up the fin)
-    const art = decal(tailArt(modex), 2.5, 2.5, g, 'tailArt' + S);
-    art.position.copy(V(...map(1.30, 5.80, 0.07)));
+    const art = decal(tailArt(modex, s), ART.size, ART.size, g, 'tailArt' + S);
+    art.position.copy(V(...map(ART.h, ART.z, 0.12)));
     art.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(V(0, 0, -s), V(s * Math.sin(VT.cant), Math.cos(VT.cant), 0), V(s * Math.cos(VT.cant), -Math.sin(VT.cant), 0)));
+    onto.push([art, [finMesh], 24, 24]);
     surf['finTip' + S] = V(...map(VT.h, VT.tipTE - 0.1, 0));
     det(mesh(cylZ(0.07, 0.05, 0.55, 8).translate(...map(VT.h - 0.06, VT.tipTE + 0.12, 0)), M(0x9ea4a9), g, 'finTipFairing'));   // ECM / position light fairing on the fin cap
   }
@@ -186,8 +211,9 @@ export function buildTomcatModel(side = 1, { modex = 201 } = {}) {
     }
     // 1980 practice: insignia on top of the left wing and under the right; NAVY under the left; nav light at the tip
     const xi = 6.4, zi = (frac(xi, 0.3) + frac(xi, 0.62)) / 2 - P0[2], ti = tcw(xi) * (TEw(xi) - LEw(xi)) * 0.5 * 0.98;
-    const ins = decal(starTex(), 1.7, 0.85, pv, 'wingStar'); ins.position.set(s * xi - s * P0[0], s < 0 ? ti + 0.012 : -ti - 0.012, zi); ins.rotation.set(s < 0 ? -Math.PI / 2 : Math.PI / 2, 0, s < 0 ? 0 : Math.PI);
-    if (s < 0) { const nv = decal(stencil('navyW', 'NAVY', 44), 2.2, 0.55, pv, 'wingNavy'); nv.position.set(-xi + P0[0], -ti - 0.012, zi); nv.rotation.set(Math.PI / 2, 0, Math.PI); }
+    const wingMeshes = pv.children.filter(o => o.name === 'wing');
+    const ins = decal(starTex(), 1.7, 0.85, pv, 'wingStar'); onto.push([ins, wingMeshes, 16, 8]); ins.position.set(s * xi - s * P0[0], s < 0 ? ti + 0.012 : -ti - 0.012, zi); ins.rotation.set(s < 0 ? -Math.PI / 2 : Math.PI / 2, 0, s < 0 ? 0 : Math.PI);
+    if (s < 0) { const nv = decal(stencil('navyW', 'NAVY', 44), 2.2, 0.55, pv, 'wingNavy'); onto.push([nv, wingMeshes, 16, 6]); nv.position.set(-xi + P0[0], -ti - 0.012, zi); nv.rotation.set(Math.PI / 2, 0, Math.PI); }
     const nav = det(mesh(new THREE.SphereGeometry(0.06, 8, 6), B(s < 0 ? 0xff2a1a : 0x2aff5a), pv, 'navLight')); nav.position.set(s * (WG.semi - 0.08) - s * P0[0], 0, frac(WG.semi - 0.08, 0.3) - P0[2]);
     wings.push({ pv, slat, flap, spoilers, s });
   }
@@ -229,7 +255,7 @@ export function buildTomcatModel(side = 1, { modex = 201 } = {}) {
   for (const s of [-1, 1]) {
     const zM = -8.9, d = decal(noseNumber(modex), 0.66, 0.33, g, 'modex'); d.position.set(s * (fuseW(zM) + 0.012), -0.42, zM); d.rotation.y = s * (Math.PI / 2 - 0.08);
     const zI = -3.6, N = nacelleAt(zI), st = decal(starTex(), 1.25, 0.62, g, 'insignia'); st.position.set(s * (N.cx + N.a + 0.012), -0.45, zI); st.rotation.y = s * Math.PI / 2;
-    const zN = 2.0, N2 = nacelleAt(zN), nv = decal(stencil('navy', 'NAVY', 44), 1.5, 0.38, g, 'navy'); nv.position.set(s * (N2.cx + N2.a + 0.012), N2.bot + 0.5, zN); nv.rotation.y = s * Math.PI / 2;
+    const zN = 2.5, N2 = nacelleAt(zN), nv = decal(stencil('navy', 'NAVY', 44), 2.0, 0.5, g, 'navy'); nv.position.set(s * (N2.cx + N2.a + 0.012), N2.bot + 0.5, zN); nv.rotation.y = s * Math.PI / 2;
     const zR = -6.3, rs = decal(stencil('rescue', 'RESCUE', 22, '#c8361c'), 0.5, 0.12, g, 'rescue'); rs.position.set(s * (fuseW(zR) + 0.01), sill(zR) - 0.25, zR); rs.rotation.y = s * Math.PI / 2;
     det(mesh(boxG(0.45, 0.004, 1.3, s * 1.45, GLOVE.y + GLOVE.t(1.45) / 2 + 0.002, -2.4), walkM, g, 'walkway'));
   }
@@ -243,6 +269,12 @@ export function buildTomcatModel(side = 1, { modex = 201 } = {}) {
   det(mesh(slab([[0, 0, .02], [0.28, 0.12, .015], [0.32, 0.24, .015], [0.05, 0.24, .02]], (a, b, w) => [w, b, -1.2 + a]), M(0x9aa0a5), g, 'uhfBlade')).position.y = 0.26;
   det(mesh(slab([[0, 0, .02], [0.22, -0.16, .015], [0.26, -0.24, .015], [0.04, -0.24, .02]], (a, b, w) => [w, b, -3.0 + a]), M(0x9aa0a5), g, 'tacanBlade')).position.y = fuseB(-3.0);
   det(mesh(cylZ(0.11, 0.11, 0.42, 10).translate(0, fuseB(-8.6) - 0.06, -8.6), M(0xc8c4b4), g, 'alq100'));
+
+  // every marking conformed onto the skin it is painted on (fuselage, nacelles, wings, fins): no flat plane floating
+  // off a curved surface, and no part of a marking hanging past an edge (its triangles that miss the skin are dropped)
+  for (const o of g.children) if (o.isMesh && ['modex', 'rescue'].includes(o.name)) onto.push([o, [fus], 16, 8]); else if (o.isMesh && ['insignia', 'navy'].includes(o.name)) onto.push([o, nacs, 16, 8]);
+  g.updateMatrixWorld(true);
+  for (const [m, targets, sx, sy] of onto) conform(m, targets, sx, sy);
 
   // ---- landing gear: nose (twin wheels, launch bar, retracts forward), mains (single wheels, fold forward/up into the gloves)
   const NP = V(0, fuseB(TOMCAT.GEAR[0][2]) + 0.05, TOMCAT.GEAR[0][2]), nose = new THREE.Group(); nose.name = 'noseGear'; nose.position.copy(NP); g.add(nose);
