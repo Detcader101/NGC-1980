@@ -147,6 +147,14 @@ export function figMaterial(o = {}) {
   m.userData.lp = U;
   m.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, U);
+    // look-faces: skin takes WRAPPED diffuse light, wider in red than in blue (light scattered under the skin softens the
+    // terminator and warms it), instead of a hard Lambert edge that makes a face look like painted plastic
+    sh.fragmentShader = sh.fragmentShader.replace('#include <lights_physical_pars_fragment>', THREE.ShaderChunk.lights_physical_pars_fragment.replace(
+      'reflectedLight.directDiffuse += irradiance * BRDF_Lambert( material.diffuseColor );',
+      `{ float lpS = clamp(vFig.z, 0.0, 1.0);
+        vec3 lpW = vec3(0.42, 0.2, 0.13) * lpS, lpNL = vec3(dot(geometryNormal, directLight.direction));
+        vec3 lpWrap = clamp((lpNL + lpW) / (1.0 + lpW), 0.0, 1.0) / (1.0 + 0.5 * lpW);
+        reflectedLight.directDiffuse += mix(irradiance, lpWrap * directLight.color, lpS) * BRDF_Lambert( material.diffuseColor ); }`));
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nattribute vec4 aFig; attribute vec2 aRM; varying vec4 vFig; varying vec2 vRM; varying vec3 vCP;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFig = aFig; vRM = aRM; vCP = position;');
@@ -163,22 +171,30 @@ export function figMaterial(o = {}) {
         diffuseColor.rgb = mix(diffuseColor.rgb, cam, clamp(vFig.y, 0.0, 1.0));
       }
       // skin: the person's tone, a faint blotchy variation (freckles, redness)
-      diffuseColor.rgb *= mix(vec3(1.0), lpSkin * (0.94 + 0.12 * lpNoise(vCP * 90.0 + lpSeed)), clamp(vFig.z, 0.0, 1.0));`)
-      .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = vRM.x;')
+      diffuseColor.rgb *= mix(vec3(1.0), lpSkin * (0.94 + 0.12 * lpNoise(vCP * 90.0 + lpSeed)), clamp(vFig.z, 0.0, 1.0));
+      // hair on skin (look-faces): on skin the fold channel is the hair density (the cropped scalp, brows, stubble, a
+      // moustache): short dark strands / follicles per pixel, faded out where they get smaller than a pixel
+      if (vFig.z > 0.5 && vFig.w > 0.02) {
+        vec3 hp = vCP * vec3(2600.0, 900.0, 2600.0);
+        float fw = max(length(fwidth(hp)), 1e-3), vis = 1.0 - smoothstep(0.6, 2.2, fw);
+        float st = smoothstep(0.55, 0.85, lpNoise(hp)) * vis;
+        diffuseColor.rgb *= 1.0 - vFig.w * (0.45 * st - 0.12 * vis + 0.05);
+      }`)
+      .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = vRM.x * mix(1.0, 0.9 + 0.2 * lpNoise(vCP * 160.0), clamp(vFig.z, 0.0, 1.0));')
       .replace('#include <metalnessmap_fragment>', 'float metalnessFactor = vRM.y;')
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
       {   // cloth: creases and a fine twill; skin: pores. Heights in metres along the bind-pose surface
         float hc = 0.0;
-        if (vFig.w > 0.01) {
+        if (vFig.w > 0.01 && vFig.z < 0.5) {
           vec3 q = vCP * vec3(28.0, 70.0, 28.0) + lpSeed;
           float cr = abs(lpNoise(q) - 0.5) + 0.5 * abs(lpNoise(q * 2.1 + 5.0) - 0.5);
           hc += vFig.w * 0.0016 * cr;
         }
-        if (vFig.z > 0.01) hc += vFig.z * 0.00009 * lpNoise(vCP * 900.0);
+        if (vFig.z > 0.01) hc += vFig.z * (0.00007 * lpNoise(vCP * 900.0) + 0.00004 * lpNoise(vCP * 2300.0));
         if (hc > 0.0) normal = lpPerturb(-vViewPosition, normal, vec2(dFdx(hc), dFdy(hc)), faceDirection);
       }`);
   };
-  m.customProgramCacheKey = () => 'lp-person-v1';
+  m.customProgramCacheKey = () => 'lp-person-v2';
   MATS.set(key, m);
   return m;
 }

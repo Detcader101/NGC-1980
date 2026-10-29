@@ -20,6 +20,10 @@
 import * as THREE from 'three';
 import { SdfKit, mat } from './sdfmesh.js';
 import { FigBuilder, figMaterial, makeSkinned, bakePose, mergeFig } from './figgeo.js';
+import { simplifySurface, cutSurface } from './sdfsimplify.js';
+import { unpackSurface, sourceKey } from './headcodec.js';
+import { HEAD_BANK } from './headbank.js';
+import { FIG_BONES } from './figgeo.js';
 import { Kit, COL } from './meshkit.js';
 import { m67Into } from './grenademodel.js';
 import { tpHand, tpGripFrame } from './handkit.js';
@@ -73,6 +77,10 @@ const SKIN0 = 0xc79a77;   // the modelled tone (others via the material's lpSkin
 export const SKIN_TONES = [0xc79a77, 0xb5835e, 0x8a5d40, 0x5e3f2c];
 const hash = (x, y, z) => { const h = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453; return h - Math.floor(h); };
 const sstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+// sRGB hex <-> linear rgb (the face's colour masks mix in linear, like THREE.Color.lerp, without allocating)
+const LINC = new Map(), toLin = v => (v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)), toS = v => (v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055);
+const linOf = h => { let c = LINC.get(h); if (!c) LINC.set(h, c = [toLin(((h >> 16) & 255) / 255), toLin(((h >> 8) & 255) / 255), toLin((h & 255) / 255)]); return c; };
+const hexOfLin = c => (Math.round(Math.max(0, Math.min(1, toS(c[0]))) * 255) << 16) | (Math.round(Math.max(0, Math.min(1, toS(c[1]))) * 255) << 8) | Math.round(Math.max(0, Math.min(1, toS(c[2]))) * 255);
 const lerpHex = (a, b, t) => { const c = new THREE.Color(a).lerp(new THREE.Color(b), Math.max(0, Math.min(1, t))); return c.getHex(); };
 export const M = {
   coat: mat(0x4a5733, { erdl: 1, fold: 1, rough: 0.93 }),
@@ -243,101 +251,271 @@ export function vestSdf() {
 }
 
 // ------------------------------------------------------------------------------------------------ heads and faces
-// head-bone frame (origin at the head bone, +y up, -z forward); three face shapes
+// look-faces (2026-10-29): the head is built from MEASURED landmarks (docs/ngc1980/reference/faces/SOURCES.md):
+//   ANSUR 1988 men (n = 1774, means): head length 197.1, breadth 151.7, bizygomatic 140.5, menton-sellion 121.9,
+//   interpupillary 64.7, ear length 64.7 / breadth 37.7 / protrusion 24.2 / above tragion 31.9, neck at the larynx 379.6
+//   Farkas norms for North American white men (via Mbugua et al. 2019, CC BY): n-sn 54.8, sn-me 72.6, sn-sto 22.3,
+//   sto-sl 19.7, philtrum 15.9, en-en 33.3, ex-en 31.3, ex-ex 91.2, al-al 34.9, ch-ch 54.5, ft-ft 115.9, go-go 105.6;
+//   African-American men: al-al 44.1, en-en 35.8, sn-sto 26.1, vermilion 13.6 / 13.8 (face 3)
+// Head frame (metres, origin at the head bone, +y up, -z forward): vertex y 0.219, nasion (0, 0.106, -0.0905),
+// pupils (+-0.0324, 0.098), subnasale y 0.053, stomion 0.031, menton -0.016 (n-me 122), tragion (+-0.071, 0.094, 0.004).
+// The face is a LOFT (a custom field): per height a superellipse cross-section (half width W, front depth D, squareness
+// p) through those landmarks, so the forehead, cheeks, the jaw's U and the chin follow the numbers instead of a pile of
+// blended blobs; the nose, lips, brow, lids, ears and neck are small primitives with small blend radii (a smooth union
+// of radius k swells the surface by k / 4, which made the old head lumpy).
+// Five faces: 0 young (the mean), 1 broad (heavy brow, wide jaw), 2 lean (long nose, hollow cheeks), 3 African-American
+// proportions, 4 older (40s: deeper folds, receding hairline, greying, a 1980 moustache).
 export const FACES = [
-  { jaw: 1.0, chin: 1.0, nose: 1.0, noseW: 1.0, brow: 1.0, cheek: 1.0, lip: 1.0, ear: 1.0, skull: 1.0, beard: 1.0, hair: 0x2a2118 },
-  { jaw: 1.12, chin: 1.15, nose: 0.92, noseW: 1.12, brow: 1.15, cheek: 0.9, lip: 1.08, ear: 1.05, skull: 1.03, beard: 1.3, hair: 0x1a1612 },
-  { jaw: 0.92, chin: 0.9, nose: 1.1, noseW: 0.9, brow: 0.9, cheek: 1.12, lip: 0.92, ear: 0.95, skull: 0.98, beard: 0.6, hair: 0x5a4028 },
+  { name: 'young', jaw: 1.0, chin: 1.0, chinP: 1.0, nose: 1.0, noseW: 0.0175, noseP: 1.0, lip: 1.0, mouthW: 1.0, upLip: 1.0, brow: 1.0, cheek: 1.0, hollow: 0.2, skull: 1.0, eyeW: 1.0, lidH: 1.0, beard: 0.8, age: 0.1, hair: 0x2e2419, cut: 'hightight', moustache: 0, ear: 1.0, iris: 0x4a3523 },
+  { name: 'broad', jaw: 1.08, chin: 1.12, chinP: 1.04, nose: 0.97, noseW: 0.0185, noseP: 0.96, lip: 1.08, mouthW: 1.03, upLip: 1.0, brow: 1.45, cheek: 1.05, hollow: 0.0, skull: 1.02, eyeW: 0.97, lidH: 0.92, beard: 1.3, age: 0.25, hair: 0x1c1712, cut: 'hightight', moustache: 0, ear: 1.04, iris: 0x3c5464 },
+  { name: 'lean', jaw: 0.95, chin: 0.94, chinP: 1.02, nose: 1.08, noseW: 0.016, noseP: 1.08, lip: 0.88, mouthW: 0.97, upLip: 1.02, brow: 0.95, cheek: 1.15, hollow: 1.0, skull: 0.99, eyeW: 1.0, lidH: 1.0, beard: 0.55, age: 0.2, hair: 0x5a4028, cut: 'hightight', moustache: 0, ear: 0.96, iris: 0x55603a },
+  { name: 'afam', jaw: 1.03, chin: 1.02, chinP: 0.98, nose: 0.95, noseW: 0.0221, noseP: 0.9, lip: 1.65, mouthW: 1.02, upLip: 1.15, brow: 1.1, cheek: 1.05, hollow: 0.1, skull: 1.0, eyeW: 1.05, lidH: 1.02, beard: 0.9, age: 0.15, hair: 0x120e0b, cut: 'hightight', moustache: 0, ear: 0.98, iris: 0x2a1a10 },
+  { name: 'older', jaw: 1.04, chin: 1.0, chinP: 0.98, nose: 1.04, noseW: 0.0185, noseP: 1.04, lip: 0.85, mouthW: 1.02, upLip: 1.0, brow: 1.2, cheek: 0.95, hollow: 0.5, skull: 1.01, eyeW: 0.98, lidH: 0.85, beard: 1.0, age: 0.9, hair: 0x3a3028, cut: 'receding', moustache: 1, ear: 1.08, iris: 0x46586a },
 ];
-export function headSdf(fi = 0, o = {}) {
-  const F = FACES[fi % FACES.length], S = new SdfKit(), C = chains(), H = at('head', [0, 0, 0]);
-  const P = (x, y, z) => [H[0] + x, H[1] + y, H[2] + z];
-  const hair = o.hair ?? F.hair, bald = !!o.noHair;
-  // skin colour over the head (head frame): smooth masks only (per-vertex colour interpolates: a hard threshold would
-  // show the mesh), warmer cheeks / nose / ears / lips, a shaved jaw's shadow, the short hair on the scalp, sideburns
-  const g2 = (d, w) => Math.exp(-(d * d) / (w * w));
-  const skinFn = (x, y, z) => {
-    const lx = x - H[0], ly = y - H[1], lz = z - H[2], ax = Math.abs(lx);
-    let c = SKIN0;
-    const warm = g2(ax - 0.043, 0.018) * g2(ly - 0.068, 0.02) * sstep(0.0, -0.05, lz) + g2(lx, 0.012) * g2(ly - 0.07, 0.016) * sstep(-0.08, -0.11, lz) + g2(ax - 0.078, 0.01) * g2(ly - 0.09, 0.03);
-    c = lerpHex(c, 0xc07a66, 0.3 * Math.min(1, warm));
-    c = lerpHex(c, 0x6e5040, 0.12 * g2(ax - 0.032, 0.013) * g2(ly - 0.095, 0.009));
-    // the shaved beard area: the jaw and chin in front of the ears, above the jaw line, not the lips
-    const beard = sstep(0.072, 0.045, ly) * sstep(-0.006, 0.012, ly) * sstep(0.03, -0.02, lz) * (1 - 0.8 * g2(ax, 0.026) * g2(ly - 0.038, 0.012));
-    c = lerpHex(c, 0x7d6a5c, 0.2 * beard * F.beard);
-    if (!bald) {   // a high-and-tight: the hair on top, a dark stubble on the sides and the back down to the nape
-      const inFace = sstep(-0.04, -0.06, lz), ear = g2(ax - 0.076, 0.014) * g2(ly - 0.088, 0.028);
-      const top = sstep(0.128, 0.142, ly + 0.15 * lz);
-      const stub = sstep(0.035, 0.06, ly) * (1 - inFace) * (1 - ear);
-      c = lerpHex(c, hair, Math.max(0.92 * top, 0.5 * stub));
-    }
-    return lerpHex(c, 0x000000, (hash(x * 300, y * 300, z * 300) - 0.5) * 0.04);
+// the face for a person: darker tones take the African-American proportions; o.older admits face 4
+export function faceFor(seed, tone = null, older = false) {
+  if (tone === 0x5e3f2c || tone === 0x6b4630) return 3;
+  if (tone === 0x8a5d40) return [3, 0, 2][seed % 3];   // brown irises with the medium-dark tone
+  const pool = older ? [4, 0, 1, 2, 4] : [0, 1, 2];
+  return pool[Math.floor(seed / 4) % pool.length];
+}
+// a smooth curve through [y, value] knots (Catmull-Rom, clamped at the ends), tabulated every 0.25 mm
+function curve(K) {
+  const f = spline(K), y0 = K[0][0], y1 = K[K.length - 1][0], n = Math.ceil((y1 - y0) / 0.00025), T = new Float64Array(n + 1);
+  for (let i = 0; i <= n; i++) T[i] = f(y0 + (y1 - y0) * i / n);
+  return y => { const u = (y - y0) / (y1 - y0) * n; if (u <= 0) return T[0]; if (u >= n) return T[n]; const i = Math.floor(u), t = u - i; return T[i] + (T[i + 1] - T[i]) * t; };
+}
+function spline(K) {
+  const n = K.length;
+  return y => {
+    if (y <= K[0][0]) return K[0][1]; if (y >= K[n - 1][0]) return K[n - 1][1];
+    let i = 0; while (i < n - 2 && y > K[i + 1][0]) i++;
+    const p0 = K[Math.max(0, i - 1)], p1 = K[i], p2 = K[i + 1], p3 = K[Math.min(n - 1, i + 2)];
+    const t = (y - p1[0]) / (p2[0] - p1[0]), h = p2[0] - p1[0];
+    const m1 = (p2[1] - p0[1]) / (p2[0] - p0[0]) * h, m2 = (p3[1] - p1[1]) / (p3[0] - p1[0]) * h;
+    const t2 = t * t, t3 = t2 * t;
+    return (2 * t3 - 3 * t2 + 1) * p1[1] + (t3 - 2 * t2 + t) * m1 + (-2 * t3 + 3 * t2) * p2[1] + (t3 - t2) * m2;
   };
-  const SK = { mat: mk(M.skin, { col: skinFn }), skin: 'head' }, k = (kk, ex = {}) => ({ ...SK, k: kk, ...ex });
-  const sk = F.skull;
-  // the skull: cranium (longer front to back), the forehead's slope, the occiput, temples a touch flat
-  S.ellip(P(0, 0.122, 0.012), [0.074 * sk, 0.094 * sk, 0.1 * sk], null, k(0.01));
-  S.ellip(P(0, 0.128, -0.045), [0.063, 0.058, 0.055], null, k(0.03));                                  // forehead
-  S.ellip(P(0, 0.098, 0.062), [0.058, 0.062, 0.05], null, k(0.03));                                   // occiput
-  // the face: the maxilla under the eyes, zygomatic arches, the mandible (ramus and body) to the chin
-  S.ellip(P(0, 0.07, -0.05), [0.046 * F.cheek, 0.048, 0.048], null, k(0.03));
+}
+const smax = (a, b, k) => { const h = Math.max(k - Math.abs(a - b), 0) / k; return Math.max(a, b) + h * h * k * 0.25; };
+// the eye (head frame): centre of the globe, radius; the lid aperture in angles round it (azimuth + = lateral)
+const EYE = { x: 0.0324, y: 0.098, z: -0.0738, r: 0.0118 };
+export function headSdf(fi = 0, o = {}) {
+  const F = FACES[fi % FACES.length], S = new SdfKit(), C = chains(), H = at('head', [0, 0, 0]), low = !!o.low;
+  const P = (x, y, z) => [H[0] + x, H[1] + y, H[2] + z], age = F.age;
+  const bald = !!o.noHair;
+  // ---- colour, hair density (the shader draws hair and stubble per pixel from it) and roughness, head frame
+  const g2 = (d, w) => Math.exp(-(d * d) / (w * w));
+  const hairline = F.cut === 'receding' ? 0.18 : 0.172;
+  const browY = ax => 0.1188 - 0.0012 * (F.brow - 1) + 0.0026 * Math.sin(Math.PI * 0.8 * Math.min(1, Math.max(0, (ax - 0.011) / 0.043)));   // nearly level, the peak two thirds out
+  let mX = NaN, mY = NaN, mZ = NaN, mR = null;   // the mesher asks colour, hair and roughness at the same point for each primitive
+  const masks = (x, y, z) => { if (x === mX && y === mY && z === mZ) return mR; mX = x; mY = y; mZ = z; return (mR = masks0(x, y, z)); };
+  const masks0 = (x, y, z) => {
+    const lx = x - H[0], ly = y - H[1], lz = z - H[2], ax = Math.abs(lx);
+    const front = sstep(-0.035, -0.06, lz);   // on the face (not the sides / back)
+    // scalp hair: above a hairline that dips at the temples, runs down in front of the ear (sideburn) and round the nape
+    const temple = F.cut === 'receding' ? 0.024 : 0.007;   // the hairline rises at the temples
+    const hl = hairline + temple * sstep(0.012, 0.04, ax) * front;
+    const topHair = sstep(hl - 0.004, hl + 0.006, ly) * front + (1 - front) * sstep(0.17, 0.182, ly);
+    // the sides and back: clipped short (a high-and-tight) from above the ear to the nape
+    const sideLow = 0.098 - 0.06 * sstep(-0.0, 0.07, lz);   // in front of the ear 0.098 (sideburn), down to the nape behind
+    const ear = g2(ax - 0.075, 0.012) * g2(ly - 0.094, 0.035) * g2(lz - 0.015, 0.03);
+    const sides = sstep(sideLow - 0.004, sideLow + 0.006, ly) * (1 - front * sstep(-0.06, -0.075, lz)) * (1 - ear) * sstep(0.045, 0.06, ax + 0.2 * Math.max(0, lz));
+    const sideburn = sstep(0.083, 0.09, ly) * sstep(-0.022, -0.016, lz) * sstep(0.002, -0.004, lz) * sstep(0.055, 0.062, ax) * sstep(0.13, 0.125, ly);
+    let hair = bald ? 0 : Math.max(topHair, 0.62 * Math.max(sides, sideburn));
+    // brows: a band along the arch, thick at the head, thin at the tail
+    const by = browY(ax), bw = 0.0034 - 0.0016 * sstep(0.02, 0.054, ax);
+    const brow = sstep(0.0085, 0.013, ax) * sstep(0.058, 0.05, ax) * sstep(bw, bw * 0.45, Math.abs(ly - by)) * sstep(-0.055, -0.07, lz);
+    // the beard area (shaved): cheeks below the cheek line, the upper lip, the chin, under the jaw; not the lips
+    const cheekLine = 0.072 - 0.022 * sstep(0.055, 0.02, ax) * front;
+    const beardA = sstep(cheekLine + 0.004, cheekLine - 0.006, ly) * sstep(-0.045, -0.02, ly) * sstep(0.03, 0.0, lz) * sstep(0.0, 0.012, ax + 0.012);
+    const upper = sstep(0.0545, 0.05, ly) * sstep(0.034, 0.039, ly) * sstep(0.03, 0.022, ax) * front;
+    const lipsZone = g2(ax / 1.6, 0.017) * g2(ly - 0.0305, 0.0075) * front;
+    const beard = Math.max(beardA, upper) * (1 - lipsZone);
+    const mt = 0.0525 - 0.011 * (ax / 0.03) ** 2, mb = 0.0365 - 0.004 * (ax / 0.03) ** 2;   // a 1980 moustache: full over the lip, tapering to the corners
+    const must = F.moustache ? sstep(mt + 0.0015, mt - 0.0015, ly) * sstep(mb - 0.001, mb + 0.0015, ly) * sstep(0.032, 0.027, ax) * front : 0;
+    return { lx, ly, lz, ax, hair, brow, beard, must, front };
+  };
+  let cX = NaN, cY = NaN, cZ = NaN, cR = 0;
+  const skinFn = (x, y, z) => { if (x === cX && y === cY && z === cZ) return cR; cX = x; cY = y; cZ = z; return (cR = skinFn0(x, y, z)); };
+  const skinFn0 = (x, y, z) => {
+    const m = masks(x, y, z), { ly, lz, ax } = m;
+    const c = linOf(SKIN0).slice(), lerpHex = (cc, hex, t) => { const b = linOf(hex), u = Math.max(0, Math.min(1, t)); for (let i = 0; i < 3; i++) c[i] += (b[i] - c[i]) * u; return c; };
+    // warmth: the cheeks, the nose, the ears; the eyelids and under the eyes a touch darker and pinker
+    const warm = 0.8 * g2(ax - 0.042, 0.016) * g2(ly - 0.07, 0.016) * m.front + 0.7 * g2(ax, 0.012) * g2(ly - 0.062, 0.014) * sstep(-0.09, -0.11, lz) + 0.6 * g2(ax - 0.077, 0.01) * g2(ly - 0.09, 0.03);
+    lerpHex(c, 0xc4806a, 0.32 * Math.min(1, warm));
+    const orbit = g2(ax - EYE.x, 0.016) * g2(ly - EYE.y + 0.002, 0.011) * m.front;
+    lerpHex(c, 0x8e6754, (0.09 + 0.1 * age) * orbit);
+    lerpHex(c, 0x7a6658, 0.24 * m.beard * F.beard);
+    if (!bald) lerpHex(c, F.hair, Math.max(0.94 * m.hair * (m.ly > 0.17 ? 1 : 0.85), 0.88 * m.brow, 0.8 * m.must));
+    if (age > 0.5 && !bald) lerpHex(c, 0x9a958c, 0.45 * m.hair * sstep(0.12, 0.05, ly) * (1 - m.front * 0.5));   // greying at the temples
+    return hexOfLin(c);
+  };
+  const hairFn = (x, y, z) => { const m = masks(x, y, z); return Math.min(1, Math.max(bald ? 0 : m.hair, m.brow, m.must, 0.42 * m.beard * F.beard)); };
+  const roughFn = (x, y, z) => {
+    const m = masks(x, y, z);
+    const tz = Math.max(g2(m.ax, 0.03) * sstep(0.12, 0.16, m.ly) * sstep(0.19, 0.17, m.ly), g2(m.ax, 0.011) * g2(m.ly - 0.075, 0.03)) * m.front;   // the T-zone: forehead and nose
+    return 0.56 - 0.12 * tz + 0.3 * Math.max(m.hair, m.brow, m.must);
+  };
+  const skinM = mk(M.skin, { col: skinFn, fold: hairFn, rough: roughFn });
+  const SK = { mat: skinM, skin: 'head' }, k = (kk, ex = {}) => ({ ...SK, k: kk, ...ex });
+  const sk = F.skull, jaw = F.jaw;
+  // ---- the cranium (head length 197, breadth 152, vertex 0.219)
+  S.ellip(P(0, 0.126, 0.0065), [0.0755 * sk, 0.093 * sk, 0.0985 * sk], null, k(0.01));
+  // ---- the face loft: knots [y, value]
+  const W = curve([[-0.024, 0.014], [-0.014, 0.028], [0.0, 0.0405 * F.chin], [0.018, 0.0548 * jaw], [0.036, 0.0605 + 0.002 * (jaw - 1)], [0.06, 0.066 - 0.002 * F.hollow], [0.085, 0.0695], [0.104, 0.066], [0.125, 0.0595], [0.15, 0.06], [0.175, 0.058], [0.2, 0.05]]);
+  const cz = F.chinP;
+  const D = curve([[-0.024, 0.06], [-0.016, 0.079], [-0.006, 0.0895 * cz], [0.002, 0.0935 * cz], [0.013, 0.0915], [0.024, 0.093], [0.04, 0.0935], [0.053, 0.0945], [0.068, 0.0905], [0.088, 0.0865], [0.104, 0.0885], [0.118, 0.0935 + 0.001 * (F.brow - 1)], [0.135, 0.093], [0.16, 0.089], [0.185, 0.078], [0.2, 0.066]]);
+  const PX = curve([[-0.02, 2.4], [0.0, 2.6], [0.02, 2.8], [0.04, 2.9], [0.07, 3.0], [0.098, 3.2], [0.115, 3.0], [0.15, 2.5], [0.2, 2.2]]);
+  const ZC = 0.02, Zb = curve([[-0.02, 0.03], [0.02, 0.045], [0.2, 0.045]]);   // the section's centre sits 2 cm behind the head bone
+  const hollowAmp = 0.0035 * F.hollow + 0.0015 * age;
+  const loft = (x, y, z) => {
+    const lx = x - H[0], ly = y - H[1], lz = z - H[2];
+    const w = W(ly), zz = lz - ZC, dd = zz < 0 ? D(ly) + ZC : Zb(ly), p = PX(ly);
+    const ax = Math.abs(lx) / w, az = Math.abs(zz) / dd, rho = Math.pow(Math.pow(ax, p) + Math.pow(az, p), 1 / p);
+    let d = (rho - 1) * Math.min(w, dd) * 0.85;
+    // the buccal hollow under the cheekbone (lean and older faces)
+    d += hollowAmp * Math.exp(-(((Math.abs(lx) - 0.047) / 0.012) ** 2 + ((ly - 0.05) / 0.016) ** 2 + ((lz + 0.05) / 0.02) ** 2));
+    // the lower border of the mandible: rises from the menton to the angle
+    const yb = -0.0185 + 0.036 * sstep(-0.075, -0.004, lz) + 0.006 * (Math.abs(lx) / 0.05) ** 2;
+    d = smax(d, yb - ly, 0.007);
+    d = smax(d, ly - 0.205, 0.02);
+    return d;
+  };
+  S.field(loft, [H[0] - 0.08, H[1] - 0.03, H[2] - 0.105, H[0] + 0.08, H[1] + 0.21, H[2] + 0.07], k(0.012));
+  // ---- cheekbones, the angle of the jaw, the chin, the muzzle over the teeth
   for (const s of [-1, 1]) {
-    S.ellip(P(s * 0.053 * F.cheek, 0.085, -0.052), [0.015, 0.011, 0.026], [0, s * 0.35, 0], k(0.04));    // cheekbones
-    S.capsule(P(s * 0.058 * F.jaw, 0.078, 0.012), P(s * 0.05 * F.jaw, 0.03, 0.004), 0.01, 0.011 * F.jaw, k(0.04));          // ramus
-    S.capsule(P(s * 0.05 * F.jaw, 0.03, 0.004), P(s * 0.02 * F.chin, 0.004, -0.066), 0.012 * F.jaw, 0.011, k(0.04));   // body to the chin
-    S.ellip(P(s * 0.03, 0.052, -0.062), [0.016, 0.02, 0.018], null, k(0.035));                         // the cheek over the teeth
+    S.ellip(P(s * 0.0485, 0.0815, -0.065), [0.0115 * F.cheek, 0.0078, 0.0105], [0, s * 0.62, 0], k(0.014));
+    S.ellip(P(s * 0.0515 * jaw, 0.0215, -0.005), [0.0085, 0.013, 0.013], null, k(0.012));
+    if (age > 0.5) S.ellip(P(s * 0.036, 0.012, -0.068), [0.011, 0.009, 0.0095], null, k(0.012));   // the jowl
+    if (age > 0.3) S.ellip(P(s * 0.033, 0.058, -0.08), [0.0125 * age, 0.0145 * age, 0.0095 * age], [0, s * 0.4, 0], k(0.012));   // the malar fat over the nasolabial fold (older)
   }
-  S.ellip(P(0, 0.008 - 0.003 * (F.chin - 1), -0.074), [0.021 * F.chin, 0.017, 0.016 * F.chin], null, k(0.02));   // chin (mental protuberance)
-  // the brow ridge, the glabella, the eye sockets carved under it
-  for (const s of [-1, 1]) S.capsule(P(s * 0.011, 0.118, -0.089), P(s * 0.05, 0.116, -0.079), 0.0105 * F.brow, 0.008 * F.brow, k(0.026));
-  // the nose: the bridge from the nasion, the dorsum, the tip, the alae; nostrils
-  const nl = F.nose, nw = F.noseW;
-  S.capsule(P(0, 0.106, -0.088), P(0, 0.074 - 0.005 * (nl - 1), -0.111 - 0.006 * (nl - 1)), 0.0068 * nw, 0.0085 * nw, k(0.009));
-  S.ellip(P(0, 0.07 - 0.005 * (nl - 1), -0.1125 - 0.006 * (nl - 1)), [0.0098 * nw, 0.0094, 0.0098], null, k(0.006));
-  for (const s of [-1, 1]) S.ellip(P(s * 0.0122 * nw, 0.0665, -0.1025), [0.0078 * nw, 0.0072, 0.0088], [0, s * 0.3, 0], k(0.005));
-  for (const s of [-1, 1]) S.ellip(P(s * 0.0058, 0.0615, -0.1075), [0.0034, 0.0019, 0.0042], [0.2, 0, 0], { sub: true, k: 0.0015 });   // nostrils
-  // the mouth: the philtrum and its ridges, the lips (wide, flat, the corners tucked into the cheeks), the mouth line,
-  // the groove under the lower lip
-  const L = F.lip, lipM = { mat: mk(M.lip, { col: 0xa97563 }), skin: 'head' };
-  S.ellip(P(0, 0.051, -0.09), [0.022, 0.012, 0.012], null, k(0.012));
-  S.ellip(P(0, 0.0435, -0.0935), [0.0215 * L, 0.0052 * L, 0.0088], [0.15, 0, 0], { ...lipM, k: 0.006 });
-  S.ellip(P(0, 0.0338, -0.0912), [0.0195 * L, 0.0058 * L, 0.0088], [-0.25, 0, 0], { ...lipM, k: 0.006 });
-  S.capsule(P(-0.023 * L, 0.0388, -0.096), P(0.023 * L, 0.0388, -0.096), 0.0011, 0.0011, { sub: true, k: 0.004 });
-  S.capsule(P(-0.012, 0.0245, -0.094), P(0.012, 0.0245, -0.094), 0.0028, 0.0028, { sub: true, k: 0.006 });            // mentolabial sulcus
-  for (const s of [-1, 1]) S.capsule(P(s * 0.019, 0.066, -0.097), P(s * 0.03, 0.036, -0.088), 0.0008, 0.0008, { sub: true, k: 0.01 });   // nasolabial folds
-  // the eyes: the sockets carved under the brow, the lids round the eyeballs (separate, finer: eyesKit)
+  S.ellip(P(0, 0.034, -0.071), [0.031 * F.mouthW, 0.025, 0.0235], null, k(0.014));
+  S.ellip(P(0, 0.0005, -0.0868), [0.019 * F.chin, 0.0118, 0.0105 * F.chinP], null, k(0.012));
+  // ---- the eyes: the socket under the brow, the lids (a shell round the globe), the aperture cut through the shell
+  const ew = F.eyeW;
   for (const s of [-1, 1]) {
-    S.ellip(P(s * 0.032, 0.0955, -0.087), [0.019, 0.0125, 0.0135], null, { sub: true, k: 0.009 });
-    S.ellip(P(s * 0.032, 0.0942, -0.0792), [0.0128, 0.0124, 0.0122], null, k(0.003));                    // the lids: a shell round the eyeball
-    S.ellip(P(s * 0.0322, 0.0935, -0.0915), [0.0128, 0.0042, 0.0095], [0, 0, s * -0.08], { sub: true, k: 0.0016 });   // the almond opening
+    S.ellip(P(s * 0.0322, 0.0985, -0.0905), [0.0178 * ew, 0.0128, 0.0115], null, { sub: true, k: 0.0065 });
+    S.capsule(P(s * 0.014, 0.1168, -0.0922), P(s * 0.05, 0.1155, -0.0775), 0.0056 * (0.85 + 0.15 * F.brow), 0.0042, k(0.012));   // the brow
+    S.ellip(P(s * EYE.x, EYE.y, EYE.z), [0.0152, 0.0132, 0.0132], null, k(0.004));                                       // the lids
   }
-  // ears: the helix, the lobe, the concha carved in, the tragus
+  if (!low) {
+    for (const s of [-1, 1]) {
+      // the palpebral fissure, cut from the front through the lid shell: from the medial corner 14.7 mm in from the pupil
+      // to the lateral 13.1 mm out (en-en 33.3, ex-ex 91.2 with the pupils 64.7 apart), ~10 mm high, the upper lid over
+      // the top of the iris and peaking medially, the lower lid at the iris' lower edge, the lateral corner higher (tilt)
+      const cx = H[0] + s * EYE.x, cy = H[1] + EYE.y, czz = H[2] + EYE.z, hw = 0.0139 * ew, xc = -0.0008, upH = 0.0047 * F.lidH - 0.0006 * age, loH = 0.0052 * F.lidH;
+      S.field((x, y, z) => {
+        const vx = (x - cx) * s, vy = y - cy, vz = z - czz, u = (vx - xc) / hw, sh = Math.max(0, 1 - u * u), tilt = 0.0011 * u;
+        const up = upH * Math.pow(sh, 0.5) + tilt - 0.0007 * Math.max(0, u), lo = -loH * Math.pow(sh, 0.75) + tilt;
+        return Math.max(vy - up, lo - vy, (Math.abs(u) - 1) * hw, vz - 0.002, Math.hypot(vx, vy, vz) - 0.0185);
+      }, [cx - 0.02, cy - 0.02, czz - 0.02, cx + 0.02, cy + 0.02, czz + 0.02], { sub: true, k: 0.0018 });
+      // the upper lid crease (deeper with age)
+      S.capsule(P(s * 0.019, EYE.y + 0.0072, -0.0862), P(s * 0.0335, EYE.y + 0.0088 - 0.0015 * age, -0.0868), 0.0007, 0.0007, { sub: true, k: 0.0028 + 0.0015 * age });
+      S.capsule(P(s * 0.0335, EYE.y + 0.0088 - 0.0015 * age, -0.0868), P(s * 0.045, EYE.y + 0.0055 - 0.002 * age, -0.079), 0.0007, 0.0007, { sub: true, k: 0.0028 + 0.0015 * age });
+    }
+  }
+  // ---- the nose: the radix at the nasion, the dorsum, the side walls, the tip lobule, the alae, the columella
+  const nl = F.nose, nw = F.noseW / 0.0175, np = F.noseP;
+  const tipY = 0.0625 - 0.004 * (nl - 1), tipZ = -0.1125 - 0.007 * (np - 1);
+  S.capsule(P(0, 0.104, -0.0905), P(0, tipY + 0.005, tipZ - 0.0015), 0.0056, 0.0062, k(0.006));
+  for (const s of [-1, 1]) S.capsule(P(s * 0.0052, 0.098, -0.0885), P(s * 0.0102 * nw, tipY + 0.0015, -0.1025 - 0.004 * (np - 1)), 0.0044, 0.0066 * Math.sqrt(nw), k(0.008));
+  S.ellip(P(0, tipY, tipZ), [0.0088 * (0.6 + 0.4 * nw), 0.0083, 0.0086], null, k(0.005));
+  for (const s of [-1, 1]) S.ellip(P(s * (F.noseW - 0.0058 * nw), 0.0573 - 0.003 * (nl - 1), -0.1003 - 0.003 * (np - 1)), [0.0058 * nw, 0.0058, 0.0078], [0, s * 0.42, 0], k(0.0028));
+  S.capsule(P(0, tipY - 0.0062, tipZ + 0.0015), P(0, 0.0535, -0.1015), 0.0034, 0.0031, k(0.003));
+  if (!low) for (const s of [-1, 1]) S.ellip(P(s * 0.0062 * nw, 0.0566 - 0.002 * (nl - 1), -0.1036 - 0.002 * (np - 1)), [0.0032 * nw, 0.0016, 0.0046], [0.5, s * 0.35, 0], { sub: true, k: 0.0014 });
+  // ---- the mouth: the philtral columns, the vermilion of each lip, the mouth line following the dental arch, the corners
+  const L = F.lip, mw = F.mouthW, ul = F.upLip, lipM = { mat: mk(M.lip, { col: 0x8f5d4d, rough: 0.42 }), skin: 'head' };
+  const sto = 0.031 - 0.003 * (ul - 1);
+  S.ellip(P(0, 0.0445, -0.091 - 0.001 * (L - 1)), [0.0215 * mw, 0.0105 * ul, 0.0108], [0.12, 0, 0], k(0.008));   // the upper lip's skin (philtrum)
+  if (!low) S.capsule(P(0, 0.0505, -0.1032), P(0, sto + 0.0095 * L, -0.1055 - 0.001 * (L - 1)), 0.0011, 0.0013, { sub: true, k: 0.0035 });   // the philtral groove
+  S.ellip(P(0, sto + 0.0038 * L, -0.0978), [0.0258 * mw, 0.0045 * L, 0.0074 + 0.0018 * (L - 1)], [0.3, 0, 0], { ...lipM, k: 0.0034 });
+  S.ellip(P(0, sto - 0.0048 * L, -0.0958), [0.0235 * mw, 0.0056 * L, 0.0079 + 0.0018 * (L - 1)], [-0.32, 0, 0], { ...lipM, k: 0.0034 });
+  if (!low) {
+    const pts = []; for (let i = 0; i <= 8; i++) { const t = -1 + i / 4; pts.push(P(t * 0.0272 * mw, sto - 0.0006 * t * t, -0.1022 - 0.001 * (L - 1) + 0.0125 * t * t)); }
+    for (let i = 0; i < 8; i++) S.capsule(pts[i], pts[i + 1], 0.00075, 0.00075, { sub: true, k: 0.0022 });
+    for (const s of [-1, 1]) S.ellip(P(s * 0.0282 * mw, sto - 0.0004, -0.0892), [0.0016, 0.0019, 0.0016], null, { sub: true, k: 0.0035 });
+    // the nasolabial fold, from beside the ala to past the corner of the mouth (deeper with age)
+    for (const s of [-1, 1]) S.capsule(P(s * (F.noseW + 0.0062), 0.058, -0.094), P(s * 0.0335 * mw, 0.0255, -0.0845), 0.0003 + 0.0012 * age, 0.0002 + 0.0009 * age, { sub: true, k: 0.004 + 0.0035 * age });
+    // the labiomental fold
+    S.capsule(P(-0.011, sto - 0.0175, -0.0952), P(0.011, sto - 0.0175, -0.0952), 0.0016, 0.0016, { sub: true, k: 0.006 });
+  }
+  // ---- ears (length 64.7, breadth 37.7, protrusion 24.2; 31.9 above the tragion), tilted back ~15 degrees
+  const e = F.ear;
   for (const s of [-1, 1]) {
-    const e = F.ear;
-    S.ellip(P(s * 0.075, 0.093, 0.012), [0.0085, 0.03 * e, 0.019 * e], [0, s * 0.35, s * -0.1], k(0.006));
-    S.ellip(P(s * 0.0735, 0.0765, 0.006), [0.0065, 0.01 * e, 0.0085], null, k(0.006));
-    S.ellip(P(s * 0.0825, 0.092, 0.008), [0.0055, 0.017 * e, 0.0105 * e], [0, s * 0.35, 0], { sub: true, k: 0.003 });
-    S.ellip(P(s * 0.074, 0.086, -0.004), [0.004, 0.006, 0.004], null, k(0.004));
+    const ex = s * 0.0745, ey = 0.0935, ez = 0.0175, R = [0.26, s * 0.62, 0];   // back edge flares out; top tilts back
+    S.ellip(P(ex, ey, ez), [0.0042, 0.0305 * e, 0.0172 * e], R, k(0.0045));                                     // the plate
+    S.torus(P(ex + s * 0.0012, ey + 0.002, ez + 0.0012), 0.0158 * e, 0.0029, [0.26, s * 0.62, Math.PI / 2], k(0.0022), 1.78, 1.0);   // the helix rim
+    S.ellip(P(s * 0.0738, 0.0665, 0.013), [0.0042, 0.0092 * e, 0.0078 * e], [0.2, s * 0.3, 0], k(0.004));           // the lobe
+    S.ellip(P(s * 0.0752, 0.0915, 0.0028), [0.0042, 0.0052, 0.0042], null, k(0.003));                              // the tragus
+    if (!low) {
+      S.ellip(P(s * 0.0785, 0.0905, 0.0115), [0.0048, 0.0105 * e, 0.0078 * e], R, { sub: true, k: 0.0024 });    // the concha
+      S.capsule(P(s * 0.0795, 0.113, 0.019), P(s * 0.0805, 0.096, 0.0245), 0.0018, 0.0021, k(0.0025));             // the antihelix
+      S.ellip(P(s * 0.081, 0.112, 0.023), [0.0035, 0.009, 0.006], R, { sub: true, k: 0.002 });                     // the scapha behind it
+    }
   }
-  // the neck: the column, the sternocleidomastoids, the Adam's apple, the trapezius behind
-  const NK = { mat: mk(M.skin, { col: skinFn }), skin: C.neck };
-  S.capsule(P(0, -0.12, 0.014), P(0, 0.05, 0.016), 0.057, 0.051, { ...NK, k: 0.03 });
-  for (const s of [-1, 1]) S.capsule(P(s * 0.047, 0.06, 0.024), P(s * 0.015, -0.085, -0.036), 0.0135, 0.012, { ...NK, k: 0.02 });
-  S.ellip(P(0, -0.02, -0.045), [0.01, 0.015, 0.0095], null, { ...NK, k: 0.012 });
+  // ---- the neck: the column, the sternocleidomastoids, the larynx (neck at the larynx 380 mm round)
+  const NK = { mat: skinM, skin: C.neck };
+  S.capsule(P(0, -0.13, 0.016), P(0, 0.012, 0.024), 0.058, 0.051, { ...NK, k: 0.02 });
+  S.ellip(P(0, 0.035, 0.045), [0.05, 0.055, 0.04], null, { ...NK, k: 0.02 });                          // the nape into the occiput
+  for (const s of [-1, 1]) S.capsule(P(s * 0.056, 0.066, 0.03), P(s * 0.016, -0.1, -0.042), 0.0125, 0.0115, { ...NK, k: 0.02 });
+  S.ellip(P(0, -0.042, -0.0455), [0.0078, 0.0115, 0.0068], null, { ...NK, k: 0.014 });
   return S;
 }
-// eyeballs (sclera, iris, pupil): fine spheres with the pole on the gaze, so the iris and pupil edges are latitude
-// rings (crisp circles, not vertex-colour stars)
-function eyesKit(k, fi = 0, hi = true) {
-  const H = at('head', [0, 0, 0]), irisC = [0x4a3523, 0x3a5060, 0x4b4026][fi % 3];
+// eyeballs: the sclera (matte, warm grey, shaded under the upper lid and into the corners) and the cornea cap with the
+// iris (radial fibres, a darker limbal ring) and the pupil; the pole on the gaze so the rings are crisp latitude lines.
+// Two parts, two roughnesses: the sclera reads wet but not glossy, the cornea keeps a small highlight.
+function eyesKit(sclera, cornea, fi = 0, hi = true) {
+  const F = FACES[fi % FACES.length], H = at('head', [0, 0, 0]), ir = new THREE.Color(F.iris);
   for (const s of [-1, 1]) {
-    const c = [H[0] + s * 0.032, H[1] + 0.094, H[2] - 0.079];
-    const g = new THREE.SphereGeometry(0.0108, hi ? 24 : 10, hi ? 32 : 14).rotateX(-Math.PI / 2);   // the +y pole -> -z (looking forward)
-    k.add(g, (x, y, z) => {
-      const dx = x - c[0], dy = y - c[1], dz = z - c[2], l = Math.hypot(dx, dy, dz) || 1, f = -dz / l;
-      return f > 0.965 ? 0x080706 : f > 0.85 ? irisC : f > 0.8 ? 0x5a4e44 : f > 0.5 ? 0xbfb6a8 : 0x9a8c80;
+    const c = [H[0] + s * EYE.x, H[1] + EYE.y, H[2] + EYE.z], r = EYE.r, cap = 0.56;
+    const shade = (x, y, z) => {
+      const dx = (x - c[0]) / r, dy = (y - c[1]) / r;
+      return (1 - 0.5 * sstep(-0.05, 0.75, dy)) * (1 - 0.3 * sstep(0.45, 0.95, Math.abs(dx)));   // under the lid, into the corners
+    };
+    const gS = new THREE.SphereGeometry(r, hi ? 28 : 12, hi ? 18 : 8, 0, Math.PI * 2, cap, Math.PI * 0.62 - cap).rotateX(-Math.PI / 2);
+    { const p = gS.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i); p.setX(i, x + Math.sign(x) * 0.42 * Math.max(0, Math.abs(x) - 0.0063)); } gS.computeVertexNormals(); }   // the globe's visible white reaches the canthi
+    sclera.add(gS, (x, y, z) => { const dx = (x - c[0]) / r; const base = new THREE.Color(0xb2a597).lerp(new THREE.Color(0xb48a7c), 0.35 * sstep(0.55, 0.95, Math.abs(dx))); return base.multiplyScalar(shade(x, y, z)).getHex(); }, c, [0, 0, 0], null, 'vertex');
+    const gC = new THREE.SphereGeometry(r * 1.004, hi ? 28 : 12, hi ? 10 : 5, 0, Math.PI * 2, 0, cap + 0.02).rotateX(-Math.PI / 2);
+    sclera.ellip(0.0019, 0.0025, 0.003, 0x96706a, [c[0] - s * 0.0142, c[1] - 0.0004, c[2] - 0.0068], [0, 0, 0], hi ? 10 : 6);   // the caruncle in the medial corner
+    cornea.add(gC, (x, y, z) => {
+      const dx = x - c[0], dy = y - c[1], dz = z - c[2], l = Math.hypot(dx, dy, dz) || 1, f = -dz / l, th = Math.atan2(dy, dx);
+      let col;
+      if (f > 0.988) col = new THREE.Color(0x060505);
+      else if (f > 0.87) { const fib = 0.86 + 0.14 * Math.sin(th * 23 + 1.3 * Math.sin(th * 7)), inner = sstep(0.93, 0.975, f); col = ir.clone().multiplyScalar(fib * (0.85 + 0.35 * inner)); }
+      else if (f > 0.845) col = ir.clone().multiplyScalar(0.45);
+      else col = new THREE.Color(0xb2a597);
+      return col.multiplyScalar(shade(x, y, z)).getHex();
     }, c, [0, 0, 0], null, 'vertex');
   }
+}
+function addEyes(B, face, lod) { const a = new Kit(), b = new Kit(); eyesKit(a, b, face, lod === 'hero'); B.addKit(a, { rough: 0.5 }, 'head'); B.addKit(b, { rough: 0.12 }, 'head'); }
+// the head surface for a level of detail: near levels (hero, near, crew) are meshed ONCE per face at a fine cell and
+// reduced to the level's triangle budget (sdfsimplify.js); far levels are meshed coarse without the small carves.
+// skullY (head frame): the scalp above it is hidden under headgear and dropped
+const FINE_CELL = 0.0026;
+export const HEAD_TRIS = { hero: 7000, near: 4200, crew: 2900 };   // hero is the player's own body (its face is rarely seen)
+// the key of everything that shapes a head: the baked bank (headbank.js, tools/facebake.mjs) is used only while it matches
+let HKEY = null;
+export const headKey = () => HKEY ||= sourceKey([headSdf.toString(), curve.toString(), spline.toString(), JSON.stringify(FACES), JSON.stringify(EYE), JSON.stringify(M.skin), JSON.stringify(M.lip), String(SKIN0), String(FINE_CELL), String(HEAD_TRIS.hero), SdfKit.prototype.mesh.toString(), simplifySurface.toString()]);
+let bankWarned = false;
+// the fine head of face nf reduced to the hero budget: from the bank when it is current, else meshed here (~1.3 s)
+export function headTop(nf, o = {}) {
+  const H = at('head', [0, 0, 0]);
+  if (!o.build && HEAD_BANK && HEAD_BANK.key === headKey() && HEAD_BANK.faces[nf]) return unpackSurface(HEAD_BANK.faces[nf], HEAD_BANK.bones, FINE_CELL);
+  if (!o.build && !bankWarned) { bankWarned = true; console.warn('[look-faces] head bank is stale or missing: meshing faces at load (run node tools/facebake.mjs)'); }
+  const fine = headSdf(nf).mesh(FINE_CELL, { band: 1.6, iters: 3, clip: [-1, H[1] - 0.095, -1, 1, 9, 1] });
+  return simplifySurface(fine, HEAD_TRIS.hero);
+}
+export function headSurfaceFor(fi, lod, skullY = null) {
+  const L = LODS[lod], nf = fi % FACES.length, H = at('head', [0, 0, 0]);
+  if (!HEAD_TRIS[lod]) return cached(`head|${lod}|${nf}|${skullY}`, () => headSdf(nf, { low: true }).mesh(L.head, skullY != null ? { clipFn: (x, y) => y - (H[1] + skullY) } : undefined));
+  // fine (~60k triangles) -> the hero budget once per face; the nearer budgets from that (a tenth of the work)
+  const top = cached(`headtop|${nf}`, () => headTop(nf));
+  return cached(`headlo|${nf}|${lod}|${skullY}`, () => {
+    const src = skullY == null ? top : cutSurface(top, (x, y) => y > H[1] + skullY + 0.004);
+    return simplifySurface(src, Math.round(HEAD_TRIS[lod] * (skullY == null ? 1 : 0.85)));
+  });
 }
 
 // ---- the M1 helmet: steel shell with the flared rim, the Mitchell cover over it, the cover band (head frame)
@@ -350,7 +528,6 @@ export function helmetSdf() {
   return S;
 }
 const helmetClip = () => { const y0 = at('head', [0, 0.119, 0])[1]; return (x, y, z) => y0 - y; };
-const headClip = () => { const y0 = at('head', [0, 0.165, 0])[1]; return (x, y, z) => y - y0; };   // the scalp under the helmet is never seen
 const helmetPaint = () => { const y0 = at('head', [0, 0.124, 0])[1]; return (x, y, z, nx, ny) => (ny < -0.55 && y < y0 + 0.006 ? 0x2f3226 : null); };
 
 // ------------------------------------------------------------------------------------------------ other headgear
@@ -404,9 +581,12 @@ const HEADGEAR = {
   // the Navy enlisted white hat (Dixie cup) and the officer's garrison cap; the ball cap of the ready room
   whiteHat() {
     const S = new SdfKit(), P = headP(), K = { mat: M.hat, skin: 'head' };
-    S.ecyl(P(0, 0.175, 0.006), 0.084, 0.099, 0.032, 0.022, [-0.1, 0, 0], { ...K, k: 0.006 });                         // the crown, flat-topped
-    S.band(P(0, 0.152, 0.008), 0.096, 0.111, 0.02, 0.003, [-0.1, 0, 0], { ...K, k: 0.004 }, 0.0025);                // the brim rolled up round it
-    return { S, clip: 0.14, skull: 0.16 };
+    // look-faces: a cotton white hat worn square on the head, the crown seated over the skull, the brim rolled up all
+    // round 45-50 mm high and flared a little; meshed at its own fine cell (the old 3 mm brim at an 18 mm cell crumpled)
+    S.ecyl(P(0, 0.183, 0.006), 0.081, 0.099, 0.03, 0.026, [-0.08, 0, 0], { ...K, k: 0.008 });                         // the crown
+    S.band(P(0, 0.162, 0.007), 0.092, 0.11, 0.022, 0.0055, [-0.08, 0, 0], { ...K, k: 0.006 }, 0.004);              // the brim rolled up round it
+    S.torus(P(0, 0.184, 0.007), 0.094, 0.006, [-0.08, 0, 0], { ...K, k: 0.004 }, 1.0, 1.17);                         // its rolled top edge
+    return { S, clip: 0.14, skull: 0.165, cell: 0.007 };
   },
   ballcap(o = {}) {
     const S = new SdfKit(), P = headP(), K = { mat: o.mat || M.cap, skin: 'head' };
@@ -416,8 +596,10 @@ const HEADGEAR = {
   },
   garrison() {
     const S = new SdfKit(), P = headP(), K = { mat: M.khakiL, skin: 'head' };
-    S.rbox(P(0.008, 0.198, 0.0), [0.042, 0.03, 0.118], 0.02, [0, 0, -0.18], { ...K, k: 0.02 });
-    return { S, clip: 0.17, skull: 0.2 };
+    // look-faces: the khaki garrison cap fits the crown (it was a ridge on top), worn tipped to the right
+    S.rbox(P(0.006, 0.192, 0.004), [0.064, 0.034, 0.122], 0.028, [0, 0, -0.1], { ...K, k: 0.02 });
+    S.rbox(P(0.006, 0.226, 0.004), [0.008, 0.012, 0.11], 0.006, [0, 0, -0.1], { ...K, k: 0.012 });                    // the fold along the top
+    return { S, clip: 0.158, skull: 0.172, cell: 0.008 };
   },
   cvc() { return HEADGEAR.sph4({ mat: M.cvc, noVisor: true, mic: true }); },
   m1() { return { S: helmetSdf(), clip: 0.119, kit: null, skull: 0.165, paint: helmetPaint() }; },
@@ -425,9 +607,13 @@ const HEADGEAR = {
 // civilian hair (no hat): a short men's cut with volume over the cranium, the face left open
 function hairSdf(fi = 0) {
   const S = new SdfKit(), P = headP(), F = FACES[fi % FACES.length], K = { mat: mat(F.hair, { rough: 0.8, fold: 0.3 }), skin: 'head' };
-  S.ellip(P(0, 0.133, 0.016), [0.081, 0.09, 0.104], null, { ...K, k: 0.01, ...disp((x, y, z) => 0.0012 * Math.sin(x * 300 + z * 120) * Math.sin(y * 260), 0.0012) });
-  S.rbox(P(0, 0.05, -0.12), [0.1, 0.087, 0.1], 0.03, null, { sub: true, k: 0.03 });                                  // the face and forehead open
-  for (const s of [-1, 1]) S.ellip(P(s * 0.088, 0.085, 0.006), [0.03, 0.035, 0.03], null, { sub: true, k: 0.012 });  // round the ears
+  // look-faces: a 1980 civilian cut over the measured cranium (ellipsoid 0.0755 x 0.093 x 0.0985 at y 0.126): 10-14 mm
+  // of hair over the top, the sides over the tops of the ears, a side-parted fringe at the hairline, full at the nape
+  S.ellip(P(0, 0.131, 0.009), [0.0835, 0.1005, 0.1085], null, { ...K, k: 0.01, ...disp((x, y, z) => 0.0012 * Math.sin(x * 300 + z * 120) * Math.sin(y * 260), 0.0012) });
+  S.ellip(P(0.012, 0.19, -0.05), [0.06, 0.035, 0.05], [0, 0, 0.2], { ...K, k: 0.02 });                              // volume over the forehead (the parting's fall)
+  S.rbox(P(0, 0.06, -0.135), [0.1, 0.105, 0.1], 0.03, [0.12, 0, 0], { sub: true, k: 0.025 });                        // the face and forehead open (hairline ~0.17)
+  for (const s of [-1, 1]) S.ellip(P(s * 0.088, 0.078, 0.012), [0.03, 0.03, 0.034], null, { sub: true, k: 0.012 });  // the lobes and lower ears show
+  S.rbox(P(0, -0.0, 0.06), [0.1, 0.055, 0.1], 0.02, null, { sub: true, k: 0.02 });                                   // the nape cut above the collar
   return S;
 }
 
@@ -585,17 +771,17 @@ export function marineGeometry(o = {}) {
   const left = o.gripProfiles?.L || null, right = o.gripProfiles?.R || null;
   tpGripFrame(left); tpGripFrame(right); // reject unknown IDs even when open hands will ignore their shape
   const profiles = o.hands === 'open' ? {} : { L: left, R: right };
-  const L = LODS[o.lod || 'near'], keyParts = ['marine', o.lod, o.face % 3, o.sleeves, !!o.vest, o.helmet !== false, !!o.pack, o.frags !== 0, o.camo === 'og107', o.hands || 'grip'];
+  const L = LODS[o.lod || 'near'], keyParts = ['marine', o.lod, (o.face || 0) % FACES.length, o.sleeves, !!o.vest, o.helmet !== false, !!o.pack, o.frags !== 0, o.camo === 'og107', o.hands || 'grip'];
   if (profiles.L || profiles.R) keyParts.push(profiles.L || null, profiles.R || null);
   const key = JSON.stringify(keyParts);
   return cached(key, () => {
     const B = new FigBuilder(), lod = o.lod || 'near', helmet = o.helmet !== false;
     B.addSurface(surf(`body|${lod}|${o.sleeves}|${!!o.vest}|${o.camo === 'og107'}`, () => bodySdf({ sleeves: o.sleeves, vest: o.vest, camo: o.camo }), L.body));
     if (o.vest) B.addSurface(surf(`vest|${lod}`, vestSdf, L.vest));
-    B.addSurface(surf(`head|${lod}|${o.face % 3}|${helmet}`, () => headSdf(o.face || 0), L.head, helmet ? { clipFn: headClip() } : undefined));
+    B.addSurface(headSurfaceFor(o.face || 0, lod, helmet ? 0.165 : null));
     if (helmet) B.addSurface(surf(`helmet|${lod}`, helmetSdf, L.helmet, { paint: helmetPaint(), clipFn: helmetClip() }));
     for (const sd of ['L', 'R']) B.addSurface(handSurface(sd, o.hands || 'grip', L.hand, null, profiles[sd] || null));
-    if (L.hq) { const ke = new Kit(); eyesKit(ke, o.face || 0, lod === 'hero'); B.addKit(ke, { rough: 0.15 }, 'head'); }
+    if (L.hq) addEyes(B, o.face || 0, lod);
     for (const [k, m, bone, off] of gearKits(o, L.hq)) B.addKit(k, m, bone, new THREE.Matrix4().makeTranslation(...off));
     if (helmet) B.addKit(helmetKit(L.hq), { rough: 0.7 }, 'head', bindPose().head);
     if (o.sleeves === 'rolled' && L.hq) B.addKit(watchKit(), { rough: 0.5 }, 'forearmL', bindPose().forearmL);
@@ -604,7 +790,7 @@ export function marineGeometry(o = {}) {
 }
 // put the person on a soldier skeleton: a THREE.LOD with one SkinnedMesh per level, all on sk.bones
 export function attachMarine(sk, o = {}) {
-  const seed = o.seed ?? 1, face = o.face ?? (seed % 3), skin = o.skin ?? SKIN_TONES[seed % 4];
+  const seed = o.seed ?? 1, skin = o.skin ?? SKIN_TONES[seed % 4], face = o.face ?? faceFor(seed, skin);
   const sleeves = o.sleeves || (o.detail === 'high' || seed % 3 !== 1 ? 'rolled' : 'down');
   const matl = figMaterial({ camo: o.camo === 'og107' ? 'og107' : 'erdl', seed, skin });
   const base = { face, sleeves, vest: o.vest !== false, helmet: o.helmet !== false, pack: !!o.pack, frags: o.frags, camo: o.camo, hands: o.weapon === null ? 'open' : 'grip' };
@@ -661,7 +847,7 @@ export const ROLES = {
 // one person of any role (cached): o = { lod, face, hands: 'grip' | 'open', sleeves }
 export function personGeometry(role, o = {}) {
   if (role === 'marine' && o.full) return marineGeometry(o);
-  const R = { ...ROLES[role] || ROLES.civil, ...o }, lod = o.lod || 'near', L = LODS[lod], face = (o.face ?? 0) % 3, hands = o.hands || 'open';
+  const R = { ...ROLES[role] || ROLES.civil, ...o }, lod = o.lod || 'near', L = LODS[lod], face = (o.face ?? 0) % FACES.length, hands = o.hands || 'open';
   const key = JSON.stringify(['person', role, lod, face, hands, R.sleeves || '', R.camo || '', R.outfit, R.head || '', R.garment || '', !!R.vest]);
   return cached(key, () => {
     const B = new FigBuilder(), OF = OUTFITS[R.outfit], H = at('head', [0, 0, 0]);
@@ -670,16 +856,16 @@ export function personGeometry(role, o = {}) {
     if (R.garment) B.addSurface(surf(`garm|${R.garment}|${lod}`, GARMENTS[R.garment], L.vest));
     const hg = R.head ? HEADGEAR[R.head]() : null;
     const skullY = H[1] + (hg ? hg.skull : 9);
-    B.addSurface(surf(`head|${lod}|${face}|clip${hg ? hg.skull : 'none'}`, () => headSdf(face), L.head, hg ? { clipFn: (x, y) => y - skullY } : undefined));
+    B.addSurface(headSurfaceFor(face, lod, hg ? hg.skull : null));
     if (hg) {
       const cy = H[1] + hg.clip;
-      B.addSurface(surf(`hg|${R.head}|${lod}`, () => hg.S, L.helmet, { clipFn: (x, y) => cy - y, paint: hg.paint }));
+      B.addSurface(surf(`hg|${R.head}|${lod}`, () => hg.S, L.hq ? Math.min(L.helmet, hg.cell || L.helmet) : L.helmet, { clipFn: (x, y) => cy - y, paint: hg.paint }));
       if (hg.kit) B.addKit(hg.kit, { rough: 0.6 }, 'head', bindPose().head);
       if (R.head === 'm1') B.addKit(helmetKit(L.hq), { rough: 0.7 }, 'head', bindPose().head);
-    } else B.addSurface(surf(`hair|${lod}|${face}`, () => hairSdf(face), L.helmet));
+    } else B.addSurface(surf(`hair|${lod}|${face}`, () => hairSdf(face), L.hq ? Math.min(L.helmet, 0.01) : L.helmet));
     const glove = OF.gloves && R.sleeves !== 'rolled' ? OF.gloves : null;
     for (const sd of ['L', 'R']) B.addSurface(handSurface(sd, hands, L.hand, glove));
-    if (L.hq) { const ke = new Kit(); eyesKit(ke, face, lod === 'hero'); B.addKit(ke, { rough: 0.15 }, 'head'); }
+    if (L.hq) addEyes(B, face, lod);
     if (R.gear) for (const [k, m, bone, off] of gearKits({ vest: true, frags: 0 }, L.hq)) B.addKit(k, m, bone, new THREE.Matrix4().makeTranslation(...off));
     const g = B.geometry(); g.userData.lod = lod; g.userData.role = role; return g;
   });
@@ -698,30 +884,36 @@ export function crewPose(pose = 'stand', arms = null, o = {}) {
   const P = {}, A = CREW_ARMS[arms || (pose === 'seated' ? 'knees' : 'side')] || CREW_ARMS.side;
   let pel = [0, 0.98, 0];
   if (pose === 'seated') { pel = [0, 0.14, 0.02]; P.spine = [0.08, 0, 0]; for (const s of ['L', 'R']) { P['thigh' + s] = [1.5, 0, s === 'L' ? -0.06 : 0.06]; P['shin' + s] = [-1.45, 0, 0]; P['foot' + s] = [0.0, 0, 0]; } }
-  else if (pose === 'kneel') { pel = [0, 0.56, 0]; P.spine = [-0.05, 0, 0]; P.thighR = [1.5, 0, 0]; P.shinR = [-1.5, 0, 0]; P.thighL = [0.05, 0, 0]; P.shinL = [-1.5, 0, 0]; P.footL = [0.6, 0, 0]; }
+  else if (pose === 'kneel') {   // look-faces: kneeling on the left knee, seat back over the tucked left heel, right foot flat ahead
+    pel = [0, 0.46, 0.1]; P.spine = [-0.03, 0, 0];
+    P.thighR = [1.86, 0, 0.12]; P.shinR = [-1.86, 0, 0]; P.footR = [0, 0, -0.12];
+    P.thighL = [0.79, 0, -0.06]; P.shinL = [-2.58, 0, 0]; P.footL = [0.69, 0, 0];
+  }
   // crewfig's arm 0 (its -x side, facing +z) ends up on our right after the 180-degree turn
   for (const [i, s] of [[0, 'R'], [1, 'L']]) { const [p, r, b] = A[i]; P['upperArm' + s] = [p, 0, s === 'L' ? -r : r]; P['forearm' + s] = [b, 0, 0]; }
   P.head = [o.look === 'down' ? -0.35 : 0, o.headYaw || 0, 0];
   return { pose: P, pelvis: pel, grip: !!GRIP_ARMS[arms] };
 }
 const CREW_SKIN = [0xc79a77, 0x8a5d40, 0x5e3f2c, 0xd2a888, 0xb5835e];
-const KIND_ROLE = { sailor: 'sailor', officer: 'officer', pilot: 'pilot', jetPilot: 'jetPilot', heloPilot: 'heloPilot', deck: 'deck', marine: 'marine', tanker: 'tanker' };
+const OLDER = { officer: true, pilot: true, jetPilot: true, heloPilot: true, sailor: true };   // crews that may be in their 30s-40s (face 4)
+const KIND_ROLE = { civil: 'civil', sailor: 'sailor', officer: 'officer', pilot: 'pilot', jetPilot: 'jetPilot', heloPilot: 'heloPilot', deck: 'deck', marine: 'marine', tanker: 'tanker' };
 // a baked crew figure: position / normal / color (+ aFig / aRM / aPaint), indexed; facing +z, origin at the feet
 // standing or the seat under the hips seated. o: { seed, jersey (hex), arms, look, headYaw, detail: 'crew' | 'near' }
 export function crewPerson(kind, pose = 'stand', o = {}) {
   const seed = o.seed ?? 1, role = KIND_ROLE[kind] || 'sailor', cp = crewPose(pose, o.arms, o);
-  const g0 = personGeometry(role, { lod: o.detail || 'crew', face: seed % 3, hands: cp.grip ? 'grip' : 'open' });
+  const tone = o.skin ?? CREW_SKIN[seed % CREW_SKIN.length];
+  const g0 = personGeometry(role, { lod: o.detail || 'crew', face: o.face ?? faceFor(seed, tone, OLDER[role]), hands: cp.grip ? 'grip' : 'open' });
   const g = bakedPerson(g0, cp.pose, cp.pelvis);
   g.rotateY(Math.PI);
   // the person's skin tone and the jersey / shirt colour into the vertex colours (no per-person material)
-  const tone = new THREE.Color(o.skin ?? CREW_SKIN[seed % CREW_SKIN.length]), base = new THREE.Color(SKIN0), tint = new THREE.Color(o.paint ?? o.jersey ?? 0xffffff);
+  const toneC = new THREE.Color(tone), base = new THREE.Color(SKIN0), tint = new THREE.Color(o.paint ?? o.jersey ?? 0xffffff);
   const c = g.attributes.color, f = g.attributes.aFig, p = g.attributes.aPaint;
   for (let i = 0; i < c.count; i++) {
     const sw = f.getZ(i), pw = p ? p.getX(i) : 0;
     let r = c.getX(i), gg = c.getY(i), b = c.getZ(i);
-    r *= 1 + sw * (tone.r / base.r - 1); gg *= 1 + sw * (tone.g / base.g - 1); b *= 1 + sw * (tone.b / base.b - 1);
+    r *= 1 + sw * (toneC.r / base.r - 1); gg *= 1 + sw * (toneC.g / base.g - 1); b *= 1 + sw * (toneC.b / base.b - 1);
     r *= 1 + pw * (tint.r - 1); gg *= 1 + pw * (tint.g - 1); b *= 1 + pw * (tint.b - 1);
-    c.setXYZ(i, r, gg, b); f.setZ(i, 0);
+    c.setXYZ(i, r, gg, b);   // (look-faces: the skin channel stays: wrap lighting and hair per pixel; crewMaterial's tone ratio is 1)
   }
   if (o.arms === 'rifle') {   // the M16A1 upright between the knees, muzzle up (a rounded stand-in, crew scale)
     const k = new Kit();

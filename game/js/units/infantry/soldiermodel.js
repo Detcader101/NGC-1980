@@ -382,10 +382,16 @@ function stancePose(st, p, out, time = 0) {
     out.pos[1] = 0.55 * kneel + 0.68 * mv - 0.02 * mv * Math.abs(c); out.pos[2] = 0.02 * kneel;
     E.spine[0] = -0.12 - 0.12 * mv; E.chest[0] = 0.04;
     if(FIG){
-      const w=sstep(mv);out.pos[1]=.565*(1-w)+(.68-.012*Math.abs(c))*w;
-      E.thighL[0]=1.54*(1-w)+E.thighL[0]*w;E.shinL[0]=-1.54*(1-w)+E.shinL[0]*w;
-      E.thighR[0]=-.08*(1-w)+E.thighR[0]*w;E.shinR[0]=-1.5*(1-w)+E.shinR[0]*w;
-      E.footR[0]=1.58*(1-w)+E.footR[0]*w;
+      // look-faces: a real kneel (FM 23-9's kneeling position), not a lunge: the right knee on the ground, the right
+      // foot's toes tucked under with the heel up behind the hip, the seat back over that heel (pelvis 0.46 m, was a
+      // 0.565 m high kneel with the thigh upright), the left foot flat ahead with the shin near vertical, trunk upright.
+      // Rear leg: knee joint 0.09 m up, thigh 45 deg forward of vertical, shin rising 12 deg to the ankle 0.18 m up, foot 63 deg down
+      const w=sstep(mv);out.pos[1]=.46*(1-w)+(.68-.012*Math.abs(c))*w;out.pos[2]=.1*(1-w);
+      const kn={thighL:[0,0,0],shinL:[0,0,0],footL:[0,0,0]};plantLeg(kn,'L',.46-.06,.43,.071);
+      E.thighL[0]=kn.thighL[0]*(1-w)+E.thighL[0]*w;E.shinL[0]=kn.shinL[0]*(1-w)+E.shinL[0]*w;E.footL[0]=kn.footL[0]*(1-w)+E.footL[0]*w;
+      E.thighR[0]=.79*(1-w)+E.thighR[0]*w;E.shinR[0]=-2.58*(1-w)+E.shinR[0]*w;
+      E.footR[0]=.69*(1-w)+E.footR[0]*w;
+      E.thighL[2]=-.16*(1-w);E.thighR[2]=.06*(1-w);E.spine[0]=-.05*(1-w)+E.spine[0]*w;E.chest[0]=.02*(1-w)+E.chest[0]*w;
       if(w>.001){
         for(const sd of SIDES){
           const q=((ph+(sd==='R'?Math.PI:0))%(Math.PI*2)+Math.PI*2)%(Math.PI*2),u=q/Math.PI,swing=u<1;
