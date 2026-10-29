@@ -23,6 +23,9 @@ export const FLEET_TYPES = [
   { id: 'marine', label: 'MARINE RIFLEMAN', short: 'MARINES', cost: 5, start: 6, at: ['ship', 'island'], kind: 'foot', note: 'ON FOOT  -  M16A1, ALICE GEAR' },
   // ngc/ch46fly: the flyable Sea Knight (last: the board's older keys stay where they were); a stick of 13 Marines boards on deck or at a pad (B)
   { id: 'ch46', label: 'CH-46E SEA KNIGHT', short: 'CH-46', cost: 70, start: 2, at: ['ship', 'island'], kind: 'air', note: 'MEDIUM ASSAULT HELICOPTER  -  13 MARINES' },
+  // (ngc/look-airbases) the air base's aircraft (units/air/basecraft.js): taken out at the air base only, parked back in its hangar after the sortie
+  { id: 'c130', label: 'C-130H HERCULES', short: 'C-130', cost: 120, start: 1, at: ['airbase'], kind: 'air', support: true, note: 'TACTICAL AIRLIFT  -  FROM THE AIR BASE' },
+  { id: 'sr71', label: 'SR-71A BLACKBIRD', short: 'SR-71', cost: 400, start: 1, at: ['airbase'], kind: 'air', support: true, note: 'STRATEGIC RECONNAISSANCE  -  FROM THE AIR BASE' },
 ];
 
 export function createFleet(types = FLEET_TYPES) {
@@ -47,7 +50,7 @@ export function createFleet(types = FLEET_TYPES) {
   F.total = () => types.reduce((s, t) => s + Math.max(0, F.n[t.id]), 0);
   F.losses = () => types.reduce((s, t) => s + F.lost[t.id], 0);
   // spent: nothing in reserve and nothing alive out (outAlive(id) -> bool, from the host)
-  F.spent = (outAlive = () => false) => types.every(t => F.n[t.id] <= 0 && !outAlive(t.id));
+  F.spent = (outAlive = () => false) => types.every(t => t.support || (F.n[t.id] <= 0 && !outAlive(t.id)));   // (ngc/look-airbases: support types - the air base's - don't keep a lost war going)
   // the HUD strip: reserve, + how many are out ("HUEY 3+1"; outAlive may return a count)
   F.strip = (outAlive = () => false) => types.map(t => ({ id: t.id, short: t.short, n: Math.max(0, F.n[t.id]), out: Number(outAlive(t.id)) || 0, lost: F.lost[t.id] }));
   return F.reset();

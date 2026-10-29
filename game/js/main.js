@@ -77,6 +77,7 @@ import { planHards, hardsH, onHard } from './units/armor/landinghard.js';
 import { buildHardMesh } from './units/armor/lcm8.js';
 import { createPerfHud } from './perfhud.js';   // (ngc/perf-cpu) ?perfhud: CPU ms per system
 import { hypot2 } from './hypot.js';   // (ngc/perf-cpu) Math.hypot without the garbage, same bits (the ground height functions)
+import { AIRBASE } from './world.js'; import { buildAirbase, drawAirbaseMap } from './world/airbasemesh.js'; import { createC130Sortie, createBaseOps } from './units/air/basecraft.js';   // (ngc/look-airbases) the air base outside the zone, its C-130 / SR-71 sorties
 
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -805,6 +806,7 @@ const NAT = RKN ? (() => {
   const SURF_CL = { grass: CL.GRASS, sand: CL.SAND, wetsand: -1, rock: CL.ROCK, mud: CL.MUD, dirt: CL.DIRT, shingle: CL.SHINGLE, marsh: CL.MUD };
   const sample = (x, z) => {
     const y = renderH(x, z); if (y < 0.35 || inHole(x, z)) return null;
+    if (AIRBASE.onPavement(x, z, 2)) return null;   // (ngc/look-airbases) no grass tufts on the runway
     const zone = Math.max(Math.abs(x), Math.abs(z)) < BOUND;
     let s;
     if (zone) { s = SURF_CL[zoneSurf(x, z)]; if (s === undefined || s < 0) return null; if (s === CL.SAND && y > 1.6) s = CL.DUNE; }
@@ -970,6 +972,7 @@ war = createWar({
 if (params.has('sea')) war.setSeaDrift(params.has('seadrift')); else { war.setSea(SEA_PREF.ss); war.setSeaDrift(SEA_PREF.drift); }   // SEAWORLD
 const markers = createMarkerLayer({ war, fog, sim: params.has('sim'), before: $('hud'), query: params.get('markers'), keepOut: '#tl,#war,#feed>div,#tr,#bot,#radar,#hint,#simov .pan,#simov .top,#simov .tl,#simov .map,#simov .keys' });   // UNIT MARKERS (game/js/ui/)
 if (params.has('debug')) window.__MK = markers;   // (tests)
+const AIRBASE_MESH = buildAirbase(AIRBASE, { scene: zScene });   // (ngc/look-airbases) runway, hangars, tower, lights (world/airbasemesh.js)
 const world = createWorldLife({ scene: zScene, fx, sfx, terrainH, isWater, nav, war, fog, uTime: terrainUni.uTime, view, ISLANDS, PADS, BASES, nature: NAT });   // WORLD (world/life.js); nature: RENDERKIT nature (wild forests as instances)
 // ---------------------------------------------------------------- the HORNET (jetplay.js)
 const jetGroundY = (x, z) => Math.max(terrainH(x, z), 0, war.deckY(x, z));   // no shaft holes for a jet: the apron is solid
@@ -1040,6 +1043,7 @@ function drawJetMap(c, k) {
   c.strokeStyle = 'rgba(255,220,120,.7)'; c.lineWidth = 2 / k; c.setLineDash([12 / k, 10 / k]); c.strokeRect(-BOUND, -BOUND, 2 * BOUND, 2 * BOUND); c.setLineDash([]);
   c.save(); c.translate(-BOUND + 8 / k, -BOUND + 22 / k); c.scale(1 / k, 1 / k); c.fillStyle = 'rgba(255,220,120,.9)'; c.font = 'bold 15px monospace'; c.textAlign = 'left'; c.fillText('CONTROL ZONE', 0, 0); c.restore();
   c.lineWidth = 2 / k;
+  drawAirbaseMap(c, AIRBASE, x => x, z => z, 1);   // (ngc/look-airbases)
   for (const I of ISLANDS) { if (!fog.exploredAt(I.pad.x, I.pad.z)) continue; c.strokeStyle = I.seen < 0 ? '#999' : OWN_COL[I.seen]; c.beginPath(); if (I.cave) c.rect(I.pad.x - 14, I.pad.z - 14, 28, 28); else c.arc(I.pad.x, I.pad.z, 14, 0, 6.283); c.stroke(); if (I === selIsl) { c.strokeStyle = '#ff8'; c.beginPath(); c.arc(I.pad.x, I.pad.z, 26, 0, 6.283); c.stroke(); } }
   for (const u of war.units) {
     if (u.side === 2 && !fog.visibleAt(u.p.x, u.p.z)) continue; c.fillStyle = u.side === 1 ? '#6ef' : '#f64';
@@ -1478,6 +1482,16 @@ const ch46C = crafts.register(createCH46Craft({
   serviceAt: (x, z) => serviceAt(x, z), whereIs: (x, z) => whereIs(x, z), camZ: () => zCam, hover: () => switchHover, view: { locked: () => document.pointerLockElement === canvas },
   onUnitLost: (id, why, mine) => onUnitLost(id, why, mine), autoNext: () => autoNext(), heliPos: () => Z.alive && !G.heliStowed && G.mode === 'zarch' ? H.pos : null,
 }));
+// --- (ngc/look-airbases) the AIR BASE's aircraft (units/air/basecraft.js): sorties from the hangar whenever you like,
+// from the command board (the C-130H / SR-71A rows, base: the air base); landing back there parks them in the hangar
+const BASE_CTX = {   // what every base aircraft gets (the SR-71 too: baseOps.attach(createSR71...(baseOps.ctx)))
+  scene: zScene, war, G, Z, CTL, keyDown: kd, hwOn: () => !!XR?.motionInput || !keyboardOnly, say, feed, sfx, fx, crafts, head, AIRBASE, terrainH,
+  camZ: () => zCam, hover: () => switchHover, view: { locked: () => document.pointerLockElement === canvas },
+  onUnitLost: (id, why, mine) => onUnitLost(id, why, mine), autoNext: () => autoNext(), onSortieEnd: (d, mine) => baseSortieEnd(d, mine), params,
+};
+const baseOps = createBaseOps(BASE_CTX), c130C = baseOps.attach(createC130Sortie(BASE_CTX));
+function baseSortieEnd(def, mine) { if (!def.noGive) fleet.give(def.id); if (mine && !G.over) autoNext('SORTIE COMPLETE  -  BACK IN THE HUEY'); }
+globalThis.__AIRBASE = { AIRBASE, AIRBASE_MESH, baseOps, c130C };   // tests (tools/scenes/airbase*.mjs); the SR-71 plugs in with baseOps.add(def)
 // --- ON FOOT
 const foot = crafts.register(createFootCraft({
   scene: zScene, GR, crafts, war, fx, sfx, say, keyDown: kd, groundEnv: GR, camera: () => zCam,
@@ -1599,7 +1613,7 @@ function toHeli(msg) {
   if (msg) say(msg, 2.5);
 }
 // title screen / new game: everyone back in the hangar, the player in the helicopter
-function stowCrafts() { ch46C.stow(); JP.stow(); jetC.park.on = false; tomcatC.TP.stow(); tomcatC.park.on = false; if (foot.exists) foot.exit(); G.heliStowed = false; G.crewDownT = 0; crafts.setActive('heli'); crafts.silence(); }
+function stowCrafts() { c130C.parkAt(AIRBASE.spot('c130', 'park')); /* (ngc/look-airbases) */ ch46C.stow(); JP.stow(); jetC.park.on = false; tomcatC.TP.stow(); tomcatC.park.on = false; if (foot.exists) foot.exit(); G.heliStowed = false; G.crewDownT = 0; crafts.setActive('heli'); crafts.silence(); }
 // a new war: the TEST CAR waits at the home island's motor pool (else on the carrier deck)
 function placeVehicles() {
   pool.newGame();   // ngc/wheeledgame: M151s and M35s at every friendly motor pool and on the deck park
@@ -1654,6 +1668,7 @@ function commandBases() {
   const out = [], c = war.carrier;
   if (c && c.sinking === undefined) out.push({ key: 'ship', kind: 'ship', name: 'ALBATROSS', x: c.p.x, z: c.p.z });
   for (const I of ISLANDS) if (I.owner === 1 && I.pad) out.push({ key: I.name, kind: 'island', name: I.name, I, x: I.pad.x, z: I.pad.z });
+  out.push({ key: 'airbase', kind: 'airbase', name: AIRBASE.name, x: AIRBASE.x, z: AIRBASE.z });   // (ngc/look-airbases)
   return out;
 }
 // spots: a clear deck park on the ALBATROSS (r = the vehicle's half length), a motor pool spot, a pad
@@ -1775,6 +1790,9 @@ const roster = [
   { id: 'ch46', label: 'CH-46E SEA KNIGHT', out: () => ch46C.present(), active: () => crafts.active === ch46C && ch46C.present(), status: () => ch46C.status(), can: () => '',
     deploy: b => ch46C.deploy(b), switchTo: () => crafts.control('ch46', 0, 'command') ? '' : 'CANNOT REACH THE SEA KNIGHT',
     canStandDown: () => crafts.active !== ch46C && ch46C.atBase() && !ch46C.crew, standDown: () => ch46C.atBase() ? (ch46C.stow(), '') : 'THE SEA KNIGHT MUST BE ON THE ALBATROSS OR A FRIENDLY PAD' },
+  ...['c130', 'sr71'].map(id => ({ id, label: fleet.type(id).label, out: () => !!baseOps.defs[id]?.present(), active: () => !!baseOps.defs[id] && crafts.active === baseOps.defs[id] && baseOps.defs[id].present(),   // (ngc/look-airbases)
+    status: () => baseOps.status(id), can: () => baseOps.defs[id] ? '' : 'NOT ON THE BASE YET', deploy: () => baseOps.deploy(id), switchTo: () => baseOps.deploy(id),
+    canStandDown: () => { const d = baseOps.defs[id]; return !!d && d.present() && crafts.active !== d && !!d.sortie?.stopped; }, standDown: () => { const d = baseOps.defs[id]; if (!d?.handIn) return 'NOTHING TO STAND DOWN'; d.noGive = true; const w = d.handIn(); d.noGive = false; return w; } })),
 ];
 airdrop.decorate(roster);   // AIRLIFT: the vehicle rows get the C-130 air drop (board key C)
 const rosterOut = id => { const r = roster.find(r => r.id === id); return !!(r && r.out()); };
@@ -2289,6 +2307,7 @@ function drawMap() {
   radar.drawImage(fogImg, px(-BOUND), py(-BOUND), 2 * BOUND * half, 2 * BOUND * half);
   radar.strokeStyle = 'rgba(255,220,120,.5)'; radar.lineWidth = 1; radar.setLineDash([4, 4]); radar.strokeRect(px(-BOUND), py(-BOUND), 2 * BOUND * half, 2 * BOUND * half); radar.setLineDash([]);   // the control zone
   if (big) { radar.fillStyle = 'rgba(255,220,120,.8)'; radar.font = 'bold 12px monospace'; radar.textAlign = 'left'; radar.fillText('CONTROL ZONE', px(-BOUND) + 6, py(-BOUND) + 16); }
+  drawAirbaseMap(radar, AIRBASE, px, py, half, { big, W, H: Hh, from: Z.pos });   // (ngc/look-airbases)
   // islands, as last seen
   for (const I of ISLANDS) {
     if (!fog.exploredAt(I.x, I.z) && !fog.exploredAt(I.pad.x, I.pad.z)) continue;
@@ -2522,7 +2541,7 @@ const camA = new THREE.PerspectiveCamera(), camS = new THREE.PerspectiveCamera()
 let camB = 0;
 function updateCamsAndMeshes(dt, time) {
   camA.userData.xr = !!XR?.active;
-  const P = Z.pos, inCave = G.mode === 'thrust' && !!T.lvl, jet = isJet() && G.state !== 'title';
+  const P = Z.pos, inCave = G.mode === 'thrust' && !!T.lvl, jet = (isJet() || !!crafts.active?.farView) && G.state !== 'title';   // (ngc/look-airbases: farView, the base aircraft)
   { const want = inCave ? DRAW : drawDistance(zCam.position.y, jet); view.draw += (want - view.draw) * Math.min(1, 1.5 * dt); if (Math.abs(view.draw - want) < 1) view.draw = want; }
   if (inCave) {   // keep Z.pos on the ship so the 3D camera keeps following it through the swing
     caveToWorld(T.x, T.y, P); T.zOff *= Math.exp(-5 * dt); P.z = T.base.z + T.zOff;
