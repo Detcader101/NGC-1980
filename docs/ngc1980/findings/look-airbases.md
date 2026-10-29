@@ -13,12 +13,16 @@ standards. Sources and the dimension table: `docs/ngc1980/reference/airbase/SOUR
 standards, Beale's runway from the FAA chart supplement, the SAC double-cantilever hangar type from Lincoln AFB /
 HAER, SR-71 and C-130 principal dimensions). No images downloaded, no game assets used.
 
-- **Where**: a deterministic site search (`planAirbase`) over ~650 candidate sites along the two zone edges on the
-  friendly side (the side the player's HQ island is on), 2.6-6.2 km past `BOUND`, scored on the relief of the natural
-  ground under the 5.4 x 1.05 km footprint, sea under it, obstacles in the approach and climb-out (1:25 out to 7 km)
-  and distance. It reads `BOUND` and `wildH`, so the terrain agent's bigger zone moves it: BOUND 1280 -> (-2304, 4180),
-  2.9 km south of the zone, elevation 25 m, runway 09/27; BOUND 2560 -> (-8760, -1024), 6.2 km west of the zone,
-  elevation 46 m, runway 18/36 (both checked in node). Runs in ~90 ms in each thread that imports world.js.
+- **Where**: a deterministic site search (`planAirbase`) over ~1,300 candidate sites along the two zone edges on the
+  friendly side (the side the player's HQ island is on), 2.6-7.4 km past `BOUND`, with the runway either parallel to
+  the edge or pointing at the zone. Scored on the relief of the natural ground under the 5.4 x 1.05 km footprint, sea
+  under it, **both approach corridors** (+-900 m, 8 km, against the 3 deg glide path + 150 m: at least one must be
+  clear) and distance. It reads `BOUND` and `wildH`, so the terrain agent's bigger zone moves it:
+  BOUND 1280 -> (-1152, 5880), 4.6 km south of the zone, runway 36/18 pointing at it, elevation 41 m;
+  BOUND 2560 -> (-8360, 0), 5.8 km west, runway 18/36, elevation 34 m (both flown in the node bench). The ground
+  round it is real wild land: in both cases one approach has mountains (RWY 36 at 1280: 506 m over the path), which
+  the autopilot avoids (it lands on the clear end, SHIFT+L lines up so the climb-out goes over the clear side).
+  The search costs ~220 ms in each thread that imports world.js (main, terrain worker, world worker).
 - **Ground**: `world.js` has one marked hook: `rawH = ... : AIRBASE.H(x, z, wildH(x, z))`. Inside the field it is
   exactly the field elevation; it blends back to the natural ground over 380 m. Because it is inside `rawH`, the
   physics (`terrainH`), the terrain worker's near (islandH) and far (rawH) windows, the lived-in world and the far
@@ -61,7 +65,9 @@ HAER, SR-71 and C-130 principal dimensions). No images downloaded, no game asset
     down does it by itself): towed into the hangar, the sortie ends, she is back in reserve and you are back in the
     Huey. Left in the air for another unit, the crew flies her home and lands; left on the base, she is towed in.
   - The hangars and tanks stop her (`hitBuilding`); fast into one is a crash. Lost: the fleet's loss, the hangar empty.
-- RAIDER 21 (drop.js, the para-drop) now comes in from the air base's side and is announced from it.
+- RAIDER 21 (drop.js, the para-drop) is announced from the air base. Its run-in direction is unchanged: bringing it in
+  from the base's side broke drop.json (5/6) and c130jump.json (7/8: the jump run geometry the scenes rely on); with the
+  direction reverted c130jump is 7/7 again.
 
 ### SR-71 hook (status: slot ready, waiting for ngc/look-sr71)
 ngc/look-sr71 had no commits and no findings yet when this was written (worktree clean at f8abdbb), so there is no

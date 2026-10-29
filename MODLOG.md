@@ -1,5 +1,27 @@
 # MODLOG — NGC-1980 (formerly Thrust/Zarch)
 
+## 2026-10-29 — WESTGATE AFB: an air base outside the zone, C-130 sorties from it (branch ngc/look-airbases)
+
+User: "have another agent work on our bases outside the control zone that has big hangers and such to fly the
+blackbird and heracles from there whenever we want."
+
+- **The base** (`world/airbase.js`, `world/airbasemesh.js`): a 1980 USAF field in the Beale AFB mould on the friendly
+  side of the zone, found by a deterministic site search (relief, sea, both approach corridors; it follows `BOUND`).
+  A 12,000 x 300 ft runway with overruns, a 75 ft parallel taxiway, a 1.6 km ramp, a SAC double-cantilever
+  maintenance hangar (the C-130's), four SR-71 shelters, tower, base ops, fire station, shops, supply, a fuel farm,
+  the fence; FAA / USAF markings and lights of the period (edge, threshold, ALSF-1, VASI, taxiway blue). 6 draws.
+  Sources: `docs/ngc1980/reference/airbase/SOURCES.md`.
+- **The ground** is flattened inside `rawH` (one marked line in world.js), so physics, both terrain-worker windows and
+  the far land agree; no towns, farms, roads or trees on it (world/net.js, five marked lines). The far land greys the
+  runway past the draw distance, so it reads from 3,000 m.
+- **Fly from it whenever you like**: the command board's new **C-130** row (`\`, down, ENTER, from any unit) puts
+  the C-130H on the ramp in front of its hangar, engines running (`?cold`: cold, K for the engineer). Taxi on the
+  real flight model, SHIFT+L line up, take off, N flies her home and lands; stopped on the base, O hands her in: towed
+  into the hangar, back in reserve, you are back in the Huey. The **SR-71** row and shelter wait for ngc/look-sr71
+  (`baseOps.attach(def)`, documented in the findings).
+- Tests: `node tools/airbasebench.mjs` (flat ground, keep-outs, mesh budget, full sorties from both ends at BOUND 1280
+  and 2560), `tools/scenes/airbase.mjs` (board to hand-in, 14/14). Findings: docs/ngc1980/findings/look-airbases.md.
+
 ## 2026-10-29 — VR: deck crew no longer corrupts the eye cameras (branch ngc/xr-fix)
 
 xr.mjs was 17/19 on ngc/shader-library (sky dome and near terrain window "not following the eye"). Cause: the deck
