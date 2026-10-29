@@ -17,6 +17,38 @@ On foot in the sea, **hold C to dive** and release it to surface. The underwater
 ordinary conditions, with natural nearby schools and distinct species markings. See the
 [swimming devlog](docs/devlogs/2026-10-26-swimming/devlog.html), or open `dev/fish.html` on the game server to inspect all 12 sea-life types.
 
+## What's new: the simulator look pass (development build, 2026-10-29)
+
+NGC-1980 is turning into a Cold War simulator in the spirit of Arma Reforger and DCS: every real aircraft, vehicle and
+cockpit is being rebuilt from open-access blueprints (US Army / Navy / Air Force manuals, NASA drawings, dated photos),
+with the model's silhouette checked against the drawing to about 98 %. This work lives on the
+[`ngc/shader-library`](https://github.com/Detcader101/NGC-1980/tree/ngc/shader-library) branch; it is playable but its
+full regression run is still in progress, so `main` below is unchanged until it passes.
+
+- **A bigger, real land.** The control zone is now 5.1 km of land instead of 17 round islands: a main island with a
+  mountain spine, a plateau and escarpment, river valleys, farmland, cliffs and beaches. The map zooms and shows the
+  world beyond the zone.
+- **UH-1H Huey** rebuilt from TM 55-1520-210-10: traced instrument panel, 1980 radio fit, nine-troop cabin, and the
+  real **XM60 reflex sight** that flips down from the cabin roof (the cockpit crosshair is gone).
+- **F-14A Tomcat** (VF-84 "Jolly Rogers", 1980) from NASA drawings and the 1972 flight manual; **F/A-18A Hornet**,
+  **CH-46E** and **C-130H** exteriors from Navy and USAF drawings.
+- **SR-71A Blackbird**: a new aircraft from the declassified flight manual and NASA data: J58 inlets and unstarts,
+  Mach 3.2 at 80,000 ft, recon cameras that reveal the enemy on the map, both cockpits.
+- **WESTGATE AFB**, an air base outside the zone modelled on Beale AFB: fly C-130 and SR-71 sorties from its hangars,
+  with an autopilot that brings you home and lands.
+- **People**: smooth figures with 1980 ERDL camouflage, faces proportioned from US Army anthropometric data, a proper
+  kneel, gloved hands fitted to each weapon.
+- **Radio and voices**: addressed radio commands with readbacks, push-to-talk with offline speech recognition, and crew
+  voices generated on your own PC (`node tools/voice-build.mjs`; the audio is never stored in the repo).
+- New trees, a desktop benchmark (`?bench`), fewer draw calls, and VR fixes.
+
+| | |
+|---|---|
+| ![The new 5.1 km control zone: real land with mountains, a plateau, rivers and roads](docs/screens/2026-10-29/terrain-map.png) | ![SR-71A Blackbird cruising at 80,000 ft](docs/screens/2026-10-29/sr71-cruise.png) |
+| ![The Huey's XM60 reflex sight flipped down in front of the pilot](docs/screens/2026-10-29/huey-xm60-sight.png) | ![C-130H taking off from WESTGATE AFB](docs/screens/2026-10-29/c130-westgate-takeoff.png) |
+| ![UH-1H against its manual drawing](docs/screens/2026-10-29/huey-blueprint.png) | ![F/A-18A Hornet against its NASA drawing](docs/screens/2026-10-29/hornet-blueprint.png) |
+| ![F-14A Tomcat before and after the rebuild](docs/screens/2026-10-29/tomcat-before-after.png) | ![Faces before and after](docs/screens/2026-10-29/faces-before-after.png) |
+
 **Experimental VR:** select **ENTER VR** in a WebXR headset browser. Head tracking, controllers and optional hand
 tracking share the desktop sandbox; menus and keyboard actions are available on a spatial panel. See the
 [VR setup and controls](docs/ngc1980/WEBXR.md), including HTTPS/USB setup and hardware-testing limits. AR comes later.
@@ -39,7 +71,8 @@ Screenshots from 2026-10-26 builds; more in [VALIDATION.md](docs/ngc1980/VALIDAT
 
 **Branches.** `main` is the latest tested NGC-1980 build, so clone or download that. `experimental` is where new
 features are integrated and tested first; once a batch passes regression it is merged into `main`. Feature work lives
-on `ngc/<feature>` branches. Right now `main` and `experimental` hold the same game.
+on `ngc/<feature>` branches. Right now `main` and `experimental` hold the same game. The newest development build (the
+simulator look pass above) is on `ngc/shader-library`.
 
 ## What's in it
 
