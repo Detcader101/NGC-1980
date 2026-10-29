@@ -218,7 +218,7 @@ function planLerp(x, z, out = _pl) {
   out.s = L(PL.S); out.R = L(PL.R); out.wb = L(PL.WB); out.wc = L(PL.WC); out.riv = L(PL.RV);
   return out;
 }
-export function planAt(x, z) { if (!PL.S) bakePlan(); return { ...planLerp(x, z, {}) }; }
+export function planAt(x, z) { if (!PL.S) bakePlan(); return { ...planLerp(x, z, { s: 0, R: 0, wb: 0, wc: 0, riv: 0 }) }; }
 
 // ------------------------------------------------------------------------------------------------- the fine ground
 function groundAt(x, z, P) {
@@ -293,7 +293,7 @@ function bake() {
       else if (P.riv > 0.55 && sl < 0.12 && h < 4) id = S_MARSH;                                                         // estuary salt marsh
       else if (P.riv > 0.75 && sl < 0.1) id = S_MUD;                                                                     // the stream's flood plain
       else if ((sl > 0.6 && n1 > -0.1) || (sl > 0.42 && n1 > 0.3) || (h > 230 && sl > 0.3)) id = S_ROCK;                  // outcrops, scree, the high spine
-      else if (noise(x / 31 - 3.3, z / 31 + 6.1) < -0.46 && sl < 0.3 || (sl > 0.4 && n1 < -0.35)) id = S_DIRT;          // bare earth, sheep scrapes
+      else if ((noise(x / 19 - 3.3, z / 19 + 6.1) < -0.56 && sl > 0.12 && sl < 0.3) || (sl > 0.4 && n1 < -0.4)) id = S_DIRT;   // worn earth on the slopes, sheep scrapes (small: the big bare blobs read as mud from the air)
       else id = S_GRASS;
       SID[k] = id;
     }
@@ -330,7 +330,7 @@ export function islandInfo(I) {
 // the nearest coast to (x, z) within `range` m: ray-march 32 directions to the first water
 export function shoreAt(x, z, range = 200) {
   if (!PL.S) bakePlan();
-  const p = planLerp(x, z, {}), I = nearestSite(x, z);
+  const p = planLerp(x, z, { s: 0, R: 0, wb: 0, wc: 0, riv: 0 }), I = nearestSite(x, z);
   if (Math.abs(p.s) > range) return null;
   return { island: I, s: p.s, beach: p.wb, kind: p.wb > 0.5 ? 'beach' : p.wc > 0.5 ? 'cliff' : 'rocky' };
 }
@@ -350,7 +350,7 @@ export function beaches() {
       const a = k / 48 * Math.PI * 2, cx = Math.cos(a), sz = Math.sin(a);
       let w0 = -1; for (let d = 20; d < I.r + 700; d += 4) if (zoneH(I.x + cx * d, I.z + sz * d) < 0) { w0 = d; break; }
       if (w0 < 0) continue;
-      const x = I.x + cx * w0, z = I.z + sz * w0, p = planLerp(x, z, {});
+      const x = I.x + cx * w0, z = I.z + sz * w0, p = planLerp(x, z, { s: 0, R: 0, wb: 0, wc: 0, riv: 0 });
       if (p.wb < 0.6 || found.some(b => Math.hypot(b.x - x, b.z - z) < 150)) continue;
       const B = { I, name: `${I.name} BEACH${found.length ? ' ' + (found.length + 1) : ''}`, main: !found.length, x, z, fx: -cx, fz: -sz, grade: 0.066, u0: -36, w: 30 };
       B.at = (u, lat = 0) => [B.x + B.fx * u - B.fz * lat, B.z + B.fz * u + B.fx * lat];

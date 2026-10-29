@@ -117,7 +117,7 @@ export function createOutcrops({ scene, ter, fog = null, uTime = null, sample, t
     const g = new THREE.InstancedBufferGeometry(); g.index = geos[v][lod].index;
     for (const k of Object.keys(geos[v][lod].attributes)) g.setAttribute(k, geos[v][lod].attributes[k]);
     const set = { v, lod, g, cap: 0, n: 0, tris: geos[v][lod].index.count / 3 };
-    set.alloc = n => { set.cap = n; for (const [k, w] of [['aP', 4], ['aR', 4], ['aC', 4]]) { const a = new THREE.InstancedBufferAttribute(new Float32Array(n * w), w); a.setUsage(THREE.DynamicDrawUsage); g.setAttribute(k, a); set[k] = a; } };
+    set.alloc = n => { set.cap = n; for (const [k, w] of /** @type {[string, number][]} */ ([['aP', 4], ['aR', 4], ['aC', 4]])) { const a = new THREE.InstancedBufferAttribute(new Float32Array(n * w), w); a.setUsage(THREE.DynamicDrawUsage); g.setAttribute(k, a); set[k] = a; } };
     set.alloc(512); g.instanceCount = 0;
     const mesh = new THREE.Mesh(g, mats[lod]); mesh.frustumCulled = false; mesh.matrixAutoUpdate = false; mesh.customDepthMaterial = depth;
     mesh.userData.rkShadow = lod === 'near' ? 'both' : 'receive'; root.add(mesh); set.mesh = mesh; sets.push(set);

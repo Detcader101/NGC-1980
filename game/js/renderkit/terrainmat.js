@@ -219,7 +219,7 @@ export function createTerrainTextures(renderer, res = 512) {
     if (T.ready) return true;
     const t0 = performance.now(), L = T.step >> 1, pass = T.step & 1, Ly = TER_LAYERS[L];
     const prevRT = renderer.getRenderTarget(), prevXR = renderer.xr.enabled; renderer.xr.enabled = false;
-    uni.uL.value = L; uni.uBase.value.set(...Ly.base); uni.uRough.value = Ly.rough;
+    uni.uL.value = L; uni.uBase.value.fromArray(Ly.base); uni.uRough.value = Ly.rough;
     uni.uSlope.value = Ly.bump / (Ly.tile / res) * 0.5;   // height amplitude (m) over two texels' width (m)
     quad.material = pass ? matB : matA;
     renderer.setRenderTarget(pass ? B : A, L); renderer.render(scene, cam);

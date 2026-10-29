@@ -436,7 +436,7 @@ const hmTex = (() => {
   for (const [x, z, s] of bedBuckets()) box(x, z, x + s, z + s);
   for (const b of BASES) box(b.x - STRIP_X - 16, b.z - 62, b.x + STRIP_X + 16, b.z + 62);
   for (const p of PADS) box(p.x - p.r1 - 1, p.z - p.r1 - 1, p.x + p.r1 + 1, p.z + p.r1 + 1);
-  for (const h of HARDS) box(h.bx0 - 1, h.bz0 - 1, h.bx1 + 1, h.bz1 + 1);
+  for (const h of /** @type {any[]} */ (HARDS)) box(h.bx0 - 1, h.bz0 - 1, h.bx1 + 1, h.bz1 + 1);
   const t = new THREE.DataTexture(a, HM_N, HM_N, THREE.RedFormat, THREE.FloatType); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t;
 })();
 const SURF_W = { grass: [0,0,0,0], sand: [255,0,0,0], wetsand: [255,0,0,0], rock: [0,255,0,0], mud: [0,0,255,0], dirt: [0,0,0,255], shingle: [0,150,0,105], marsh: [0,0,150,0] };
@@ -500,11 +500,11 @@ function buildFarMap(d) {
   }
   x.putImageData(im, 0, 0); Object.assign(farMap, { ox: d.ox, oz: d.oz, size: d.n * d.c, ready: true });
 }
-const fog = createFog(BOUND, Math.round(224 * BOUND / 1280));   // (11.4 m cells at any zone size) fog.enabled = false; fog.update([]);
+const fog = createFog(BOUND, Math.round(224 * BOUND / 1280)); fog.enabled = false; fog.update([]);   // (11.4 m cells at any zone size)
 const terrainGeo = new THREE.PlaneGeometry(TG * TN, TG * TN, TN, TN); terrainGeo.rotateX(-Math.PI / 2);
 // RENDERKIT terrain: generated ground layers (renderkit/terrainmat.js; built on the GPU over the first frames)
 const rkTer = RKW && TERRAIN_ON ? createTerrainMaterial(renderer) : null;
-if (rkTer && params.has('debug')) window.__rkTerrain = rkTer;
+if (rkTer && params.has('debug')) /** @type {any} */ (window).__rkTerrain = rkTer;
 const terrainUni = {
   uFog: { value: HORIZON.clone().convertLinearToSRGB() }, uSun: { value: sun.position.clone() } /* RENDERKIT light may lower the sun; classic (.5, 1, .3) */, uBases: { value: baseUniform }, uPadCol: { value: padUniform }, uTime: { value: 0 },
   uPadP: { value: PADS.map(p => new THREE.Vector4(p.x, p.z, p.isl.cave ? 1 : 0, Math.atan2(p.x, p.z))) },   /* w: the pad yaw (padSpot), RENDERKIT materials turn the H to it */ uHM: { value: hmTex }, uDecor: { value: decorTex }, ...fog.uniforms,
@@ -959,8 +959,8 @@ const OUTCROPS = rkTer ? (() => {
       if (T.seen) oc.update(T.eye, Math.max(0, terrainH(T.eye.x, T.eye.z)));
     } };
   const obr = terrain.onBeforeRender;   // (follow the camera that renders, like the nature clutter; applied in update())
-  terrain.onBeforeRender = (r, s, cam) => { obr(r, s, cam); if (cam.isPerspectiveCamera) { T.eye.setFromMatrixPosition(cam.matrixWorld); T.seen = true; } };
-  if (params.has('debug')) window.__outcrops = T;
+  terrain.onBeforeRender = (r, s, cam, ...rest) => { /** @type {any} */ (obr)(r, s, cam, ...rest); if (/** @type {any} */ (cam).isPerspectiveCamera) { T.eye.setFromMatrixPosition(cam.matrixWorld); T.seen = true; } };
+  if (params.has('debug')) /** @type {any} */ (window).__outcrops = T;
   return T;
 })() : null;
 // Wild forests stream with towns in stable tiles (world/life.js).
