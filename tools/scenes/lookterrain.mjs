@@ -9,7 +9,7 @@
 const TER = process.env.TER ?? 'high', RK = process.env.RK ?? (TER === 'off' ? 'surface,world,fx,post,ui,figures,sky,light,nature' : 'all');
 const VIEWS = (process.env.VIEWS || 'all').split(',');
 const want = v => VIEWS.includes('all') || VIEWS.includes(v);
-export default { name: 'lookterrain-' + RK.replace(/[^\w]+/g, '_') + '-' + TER, seed: 1980, query: `?debug&auto&kb&peace&res=0.6&sea=3&nofog&rk=${RK}&rkterrain=${TER}`, run: async h => {
+export default { name: 'lookterrain-' + RK.replace(/[^\w]+/g, '_') + '-' + TER + (process.env.GRAIN ? '-grain' : ''), seed: 1980, query: `?debug&auto&kb&peace&res=${process.env.RES || 0.6}&sea=3&nofog&rk=${RK}&rkterrain=${TER}${process.env.GRAIN ? '&rkgrain' : ''}`, run: async h => {
   await h.waitFor("window.__G && __G.G.state==='play'", 90000);
   await h.eval('(__G.G.bench=true,1)');
   if (TER !== 'off' && RK !== '0') await h.waitFor('!window.__rkTerrain || __rkTerrain.ready', 60000);

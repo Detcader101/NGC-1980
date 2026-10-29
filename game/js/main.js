@@ -814,7 +814,7 @@ const terrainFS = `
       gl_FragColor=vec4(c,1.);
       #endif
     }`;
-const RK_DEF = { ...(RKW ? { RK_WORLD: 1 } : {}), ...(RKS ? { RK_SKY: 1 } : {}), ...(RKW && RKN ? { RK_NATURE: 1 } : {}), ...(rkTer ? { RK_TERRAIN: 1 } : {}) };   // RENDERKIT world / sky / nature / terrain (RK_NATURE and RK_TERRAIN need RK_WORLD)
+const RK_DEF = { ...(RKW ? { RK_WORLD: 1 } : {}), ...(RKS ? { RK_SKY: 1 } : {}), ...(RKW && RKN ? { RK_NATURE: 1 } : {}), ...(rkTer ? { RK_TERRAIN: 1 } : {}), ...(params.has('rkgrain') ? { RT_NOFADE: 1 } : {}) };   // (?rkgrain: no footprint fade, A/B)   // RENDERKIT world / sky / nature / terrain (RK_NATURE and RK_TERRAIN need RK_WORLD)
 const terrainMat = new THREE.ShaderMaterial({ uniforms: terrainUni, vertexShader: terrainVS, fragmentShader: terrainFS, defines: { ...RK_DEF, ...RKL_DEF } });
 const terrain = new THREE.Mesh(terrainGeo, RKW ? linearOutput(terrainMat) : terrainMat);   // RENDERKIT world: the define
 terrain.frustumCulled = false; zScene.add(terrain);

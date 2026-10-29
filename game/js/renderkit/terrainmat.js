@@ -337,7 +337,11 @@ void rtSample(int L, vec3 P, vec3 N, float k, float near, float tri, out vec4 A,
 // lighting, the height blend and the specular are non-linear in them, so a minified texel still flickers (the "grainy"
 // ground from a Huey at 200 m and the jet). Past the footprint they fade to the layer's mean colour and a flat normal;
 // the macro variation (rtMacro, the splat weights) carries the look from the air.
-float rtDetail(vec3 P){ vec3 a=dFdx(P), b=dFdy(P); float fp=sqrt(max(dot(a,a),dot(b,b))); return 1.-smoothstep(.035,.22,fp); }
+float rtDetail(vec3 P){
+  #ifdef RT_NOFADE
+  return 1.;   // (?rkgrain: the old full-detail ground, for A/B)
+  #endif
+  vec3 a=dFdx(P), b=dFdy(P); float fp=sqrt(max(dot(a,a),dot(b,b))); return 1.-smoothstep(.035,.22,fp); }
 RtOut rtSplat(vec3 P, vec3 N, float w[${NL}], vec3 tint[${NL}], float dist, float hblend){
   RtOut o; o.a=vec3(0.); o.n=N; o.r=1.; o.ao=1.;
   float det=rtDetail(P); hblend*=det;
