@@ -1,6 +1,23 @@
 # NGC-1980 hand-off (read this first in a fresh session)
 
 Last updated: 2026-10-29, by the orchestrating Claude session. Update the tables when a branch merges or an agent reports.
+The desktop shortcut `NGC-1980 CLAUDE.bat` starts a session that reads this file first.
+
+## Progress (2026-10-29 16:55 UTC; estimates from commits and running tests)
+
+| Agent | Task | Done | State | Branch head |
+|---|---|---|---|---|
+| look-airbases | SR-71 sorties from WESTGATE (shelter, takeoff, autopilot home, chute landing, park) | ~85% | landing solved; final sr71/airbase scenes running | ngc/look-airbases 18968e4 |
+| look-terrain | grainy grass from the air, map zoom + view outside the zone, Huey pulled in | ~75% | grass fade + map zoom committed, shader-library merged; lookterrain scene running | ngc/look-terrain 822d667 |
+| look-units | CH-46E from NADC-81118-60 | ~70% of the CH-46 | fit side 0.833 -> 0.985, evidence capture running; stops after the CH-46 | ngc/look-units 15c7713 |
+| look-units | whole blueprint list (Hornet, CH-46, C-130, M60A3, M113A2, M151A2, M35A2, LCM-8, ships, weapons last) | ~20% | 2 of ~10 units | |
+| Codex | radio/voices; next: XR desk route + WESTGATE sortie on the radio desk | 100% for today | closed out, next task in CHAT.md | ngc/look-voices-clean 45a6798 |
+| Held: Huey | merged (3e1eaf7) | 100% | rerun hueymodel/airlift/interiors/foot on a quiet PC | |
+| Held: Tomcat | done, not merged | 95% | quiet-PC reruns, then merge | ngc/look-tomcat 73a5eff |
+| Held: terrain (first pass) | done, not merged | see above | quiet-PC reruns of airbase/armorgame/wheeledgame/foot, then merge | |
+
+**When a fresh session starts:** for each row, compare the branch head with the hash above; if it moved, read that
+branch's findings file, review evidence, run its scenes one at a time and merge into `ngc/shader-library` if they pass.
 
 ## How to start a fresh session
 
