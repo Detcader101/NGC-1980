@@ -188,9 +188,15 @@ snap.mjs: navigation timeout for a loaded machine). "Load" = a game-time wait th
 | hueyhotas | 11/12: FAIL only the engine-start wait (load) |
 | xrgameplay | PASS 25/25 |
 | interiors | 11/31: the Huey steps PASS (a troop place offered at the cargo door: "TROOP SEAT 3 (AFT BENCH)", in the cabin); "out again" FAILS (unverified: load, Y tap at ~1 fps); the carrier ladders, the house and the CH-46 steps time out (load; no Huey code) |
-| foot, airlift | see the final report |
+| foot | 8/21: the carrier / ladder / swim / walk waits time out (load); the Huey re-boarding step is never reached because the walk to the pad times out |
+| airlift | 12/17: the M35 too-heavy call, hook-up, lift, the long island flight with the jeep and its release all PASS; the troop lift PASSES "nine aboard, a full cabin with the gunner and crew chief (945 kg)" and the loaded flight; the AI's landing at the island timed out (load), so the dismount checks did not run (`airlift_nine_troops.png`: aboard from outside and the cockpit, the squad over the island) |
 
 ## Still open
+- Performance follow-up (ngc/perf-render, now in shader-library): build LOD0/1/2 with `renderkit/lod.js` createLOD,
+  show the cockpit only when seated (109 draws + 79 shadow draws in the cockpit view), `renderkit/merge.js` mergeUnit,
+  then `enforce: ALL` (PERF-BUDGETS.md). Not started, by instruction.
+- Re-run on a quiet machine: hueymodel's cave view, hueycockpit (scene fix 34fbdc8), interiors "out again", foot, the
+  airlift dismount.
 - Cockpit: the overhead console (fig. 2-5 sheet 3), shaped armoured seats, breaker placards; the pedestal's panel
   identities in the traced stack are approximate (heights traced, legends from the 1980 radio list).
 - Skin panel lines from the -23-1 skin diagrams (figs 2-4 / 2-5) as a station-placed detail map: not done.
