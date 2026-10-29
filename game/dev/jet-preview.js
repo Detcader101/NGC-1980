@@ -7,11 +7,11 @@ const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixel
 const scene = new THREE.Scene(); scene.background = new THREE.Color(0x8fb6d8);
 scene.add(new THREE.HemisphereLight(0xcfe6ff, 0x4a5a34, 0.9));
 const sun = new THREE.DirectionalLight(0xfff0d0, 1.1); sun.position.set(0.5, 1, 0.3); scene.add(sun);
-const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 500);
+const camera = new THREE.PerspectiveCamera(+(Q.get('fov') || 40), 1, 0.05, 5000);
 // deck at the wheel-contact height
 const deck = new THREE.Mesh(new THREE.PlaneGeometry(60, 60).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0x3c4045 })); deck.position.y = JET.GEAR.nose[1]; scene.add(deck);
 const grid = new THREE.GridHelper(60, 60, 0x667080, 0x50565e); grid.position.y = JET.GEAR.nose[1] + 0.002; scene.add(grid);
-const jet = buildJetMesh(1); scene.add(jet.group);
+const jet = buildJetMesh(1, Q.get('fsd') != null ? +Q.get('fsd') : undefined); scene.add(jet.group);   // ?fsd=0: the player's FSD #3, BuNo 160777
 const tip = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff00ff })); scene.add(tip);
 
 const S = { stab: 0, stabDiff: 0, ail: 0, rud: 0, flap: 0, lef: 0, brake: 0, gear: 1, hook: 0, canopy: 0, steer: 0, wow: [0, 0, 0], launchBar: false,
@@ -110,4 +110,15 @@ if (REFV) {
   window.__ortho = ortho; renderer.setPixelRatio(1);
   const fsz = () => { renderer.setSize(innerWidth, innerHeight); }; addEventListener('resize', fsz); fsz();
   window.__J.camera = ortho; window.__J.render = () => { jet.animate(S, 0, time, inside); renderer.render(scene, ortho); };
+}
+
+// ---- ?ck=1 (ngc/look-units): the seat view, the cockpit module (jetcockpit.js) in the airframe, eye at JEYE;
+// &look=yaw,pitch,fov looks round from the seat (shell hidden as in the game)
+if (Q.get('ck') === '1') {
+  const { buildJetCockpit, JEYE } = await import('../js/jetcockpit.js');
+  const ck = buildJetCockpit(); ck.group.visible = true; jet.group.add(ck.group); inside = true;
+  const [ly, lp, lf] = (Q.get('look') || '0,-0.25,70').split(',').map(Number);
+  const eye = new THREE.PerspectiveCamera(lf, innerWidth / innerHeight, 0.02, 500); eye.position.copy(JEYE); eye.rotation.set(lp, ly, 0, 'YXZ'); jet.group.add(eye);
+  addEventListener('resize', () => { eye.aspect = innerWidth / innerHeight; eye.updateProjectionMatrix(); });
+  window.__ortho = eye; window.__J.ck = ck;
 }

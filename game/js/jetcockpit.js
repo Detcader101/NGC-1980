@@ -19,6 +19,9 @@ import { COCKPIT_SHIFT } from './jetmodel.js';      // ngc/look-units: the cockp
 // (jetmodel.js COCKPIT_SHIFT: 0.70 m forward, 0.10 m down). JEYE is the eye in the jet frame (the camera); the HUD maths
 // works in the build frame (E0 and HUD), where the combiner sits.
 const E0 = new THREE.Vector3(0, 0.98, -4.35);
+// the F/A-18A main instrument panel traced from NATOPS fig. FO-1 (see tools/blueprint/fa18a/panel-fo1.json): [x, y, size]
+// or [x, y, w, h] in panel-local metres; ddi = the right DDI's screen centre and 5 in screen (the left is mirrored)
+export const PANEL_FO1 = { ddi: [0.187, 0.067, 0.127], ddiBez: 0.166, hi: [0, -0.172, 0.15], ufc: [0, 0.123, 0.175, 0.118], efd: [-0.222, -0.142, 0.1, 0.06], stby: [0.165, -0.145, 0.13], rwr: [0.272, -0.102, 0.068], adv: [-0.13, 0.19, 0.08, 0.047], thr: [0.13, 0.19, 0.05], caut: [0.33, -0.25, 0.08, 0.104], gear: [-0.43, -0.25], gearLt: [-0.43, -0.12], hook: [0.43, -0.23], arm: [-0.296, 0.039], jett: [-0.295, -0.03] };
 export const JEYE = E0.clone().add(new THREE.Vector3(...COCKPIT_SHIFT));
 const HUD = { z: -5.1, cy: 1.0, hw: 0.15, hh: 0.135, W: 600, H: 540 };   // ~22° wide from the eye
 const GRN = '#6dff7c', AMB = '#ffb21e', RED = '#ff3a2a';
@@ -101,14 +104,19 @@ export function buildJetCockpit() {
   // 1980 F/A-18A main panel: two monochrome green DDIs, the HI (horizontal indicator: a projected colour-film moving map
   // with the HSI drawn over it; the colour AMPCD came with the F/A-18C), the EFD (engine fuel display, LCD; the IFEI is
   // later), standby instruments, the caution light panel, the UFC under the HUD.
-  const ddiL = disp(0.15, 0.15, 360, 360, -0.255, 0.035), ddiR = disp(0.15, 0.15, 360, 360, 0.255, 0.035);
-  const ampcd = disp(0.155, 0.155, 380, 380, 0, -0.14), ufc = disp(0.2, 0.11, 400, 220, 0, 0.19);
-  const ifei = disp(0.14, 0.08, 336, 192, -0.2, -0.205), stby = disp(0.14, 0.14, 300, 300, 0.205, -0.205);
-  const caut = disp(0.1, 0.13, 200, 260, 0.41, 0.09), gearL = disp(0.08, 0.06, 160, 120, -0.41, -0.2);
+  // ngc/look-units: every item at its centre traced from NATOPS A1-F18AC-NFM-000 fig. FO-1 (F/A-18A front cockpit, the
+  // 'aircraft thru 161528' panels), scaled by the DDI's 5 in display (2126 px/m; the 2 in standby airspeed and the 3 in
+  // standby attitude dials check to 4 %): tools/blueprint/fa18a/panel-fo1.json. Panel-local metres (x right, y up the
+  // face; y 0.21 = the panel's top edge in FO-1, just under the glare shield's lip).
+  const L = PANEL_FO1;
+  const ddiL = disp(L.ddi[2], L.ddi[2], 360, 360, -L.ddi[0], L.ddi[1]), ddiR = disp(L.ddi[2], L.ddi[2], 360, 360, L.ddi[0], L.ddi[1]);
+  const ampcd = disp(L.hi[2], L.hi[2], 380, 380, L.hi[0], L.hi[1]), ufc = disp(L.ufc[2], L.ufc[3], 400, 220, L.ufc[0], L.ufc[1]);
+  const ifei = disp(L.efd[2], L.efd[3], 336, 192, L.efd[0], L.efd[1]), stby = disp(L.stby[2], L.stby[2], 300, 300, L.stby[0], L.stby[1]);
+  const caut = disp(L.caut[2], L.caut[3], 200, 260, L.caut[0], L.caut[1]), gearL = disp(0.07, 0.052, 160, 120, L.gearLt[0], L.gearLt[1]);
   // CM (ngc/cmpolish): the RWR azimuth indicator right of the UFC (threat letters by bearing, ALR-style); right of it the
   // threat lights of the right warning panel (SAM / AAA / AI / CW) over the ALE-39 FLARE / CHAFF counters; left of the
   // UFC the left advisory lights (L / R BLEED, SPD BRK, STBY, L BAR red / green, REC, XMIT)
-  const rwrD = disp(0.1, 0.1, 200, 200, 0.25, 0.215), thrD = disp(0.1, 0.1, 200, 200, 0.41, 0.225), advD = disp(0.17, 0.1, 340, 200, -0.235, 0.215);
+  const rwrD = disp(L.rwr[2], L.rwr[2], 200, 200, L.rwr[0], L.rwr[1]), thrD = disp(L.thr[2], L.thr[2], 200, 200, L.thr[0], L.thr[1]), advD = disp(L.adv[2], L.adv[3], 340, 200, L.adv[0], L.adv[1]);
   // HUD combiner glass and its symbology
   const hud = canvasTex(HUD.W, HUD.H);
   const hudMesh = new THREE.Mesh(new THREE.PlaneGeometry(HUD.hw * 2, HUD.hh * 2), new THREE.MeshBasicMaterial({ map: hud.tex, transparent: true, depthWrite: false, toneMapped: false }));
@@ -136,14 +144,14 @@ export function buildJetCockpit() {
   const hitM = new THREE.MeshBasicMaterial({ visible: false }), hits = [], sw = {};
   const hit = (id, w, h, d, x, y, z, p = g, label = id) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), hitM); o.position.set(x, y, z); o.userData.sw = id; o.userData.label = label; p.add(o); hits.push(o); return o; };
   // gear handle (wheel-shaped knob, red light inside) and hook handle on the panel sides
-  const gearH = new THREE.Group(); gearH.position.set(-0.41, -0.08, 0.02); P.add(gearH);
+  const gearH = new THREE.Group(); gearH.position.set(L.gear[0], L.gear[1], 0.02); P.add(gearH);
   box(0.012, 0.09, 0.012, metal, 0, 0, 0, gearH); const knob = cyl(0.026, 0.026, 0.02, M(0xe8e8e0), 0, 0.05, 0, gearH, Math.PI / 2, 0, 12);
   const gearRed = new THREE.Mesh(new THREE.CircleGeometry(0.012, 10), lit(0x300808)); gearRed.position.set(0, 0.05, 0.012); gearH.add(gearRed);
-  hit('gear', 0.07, 0.13, 0.08, -0.41, -0.06, 0.03, P, 'LANDING GEAR');
-  const hookH = new THREE.Group(); hookH.position.set(0.41, -0.08, 0.02); P.add(hookH);
+  hit('gear', 0.07, 0.13, 0.08, L.gear[0], L.gear[1] + 0.02, 0.03, P, 'LANDING GEAR');
+  const hookH = new THREE.Group(); hookH.position.set(L.hook[0], L.hook[1], 0.02); P.add(hookH);
   box(0.012, 0.09, 0.012, metal, 0, 0, 0, hookH); box(0.05, 0.016, 0.03, yellow, 0, 0.05, 0.005, hookH);
-  hit('hook', 0.07, 0.13, 0.08, 0.41, -0.06, 0.03, P, 'ARRESTING HOOK');
-  const hookLamp = lamp(0.04, 0.018, 0.41, -0.165, 0.006, 0xffb020, 0x1a1a1a, P);
+  hit('hook', 0.07, 0.13, 0.08, L.hook[0], L.hook[1] + 0.02, 0.03, P, 'ARRESTING HOOK');
+  const hookLamp = lamp(0.04, 0.018, L.hook[0], L.hook[1] + 0.11, 0.006, 0xffb020, 0x1a1a1a, P);
   // toggle switches: a bat that flips up/down
   const toggle = (id, x, y, z, p, label, flat = false) => {
     const piv = new THREE.Group(); piv.position.set(x, y, z); p.add(piv);
@@ -152,11 +160,11 @@ export function buildJetCockpit() {
     hit(id, 0.05, flat ? 0.04 : 0.06, flat ? 0.06 : 0.05, x, y + (flat ? 0.015 : 0), z + (flat ? 0 : 0.015), p, label);
     sw[id] = piv; return piv;
   };
-  toggle('arm', -0.41, 0.12, 0.012, P, 'MASTER ARM');
+  toggle('arm', L.arm[0], L.arm[1], 0.012, P, 'MASTER ARM');
   hit('mc', 0.075, 0.04, 0.03, -0.282, 0.885, -5.07, g, 'MASTER CAUTION RESET');
   hit('fireL', 0.08, 0.05, 0.04, -0.36, 0.885, -5.07, g, 'L FIRE - PUSH TO EXTINGUISH'); hit('fireR', 0.08, 0.05, 0.04, 0.36, 0.885, -5.07, g, 'R FIRE - PUSH TO EXTINGUISH');
-  hit('jett', 0.05, 0.04, 0.03, -0.41, 0.24, 0.01, P, 'EMER JETT  -  JETTISON THE BOMBS');
-  const jettB = cyl(0.014, 0.014, 0.012, redM, -0.41, 0.24, 0.008, P, Math.PI / 2, 0, 10);
+  hit('jett', 0.05, 0.04, 0.03, L.jett[0], L.jett[1], 0.01, P, 'EMER JETT  -  JETTISON THE BOMBS');
+  const jettB = cyl(0.014, 0.014, 0.012, redM, L.jett[0], L.jett[1], 0.008, P, Math.PI / 2, 0, 10);
   hit('eject', 0.2, 0.08, 0.08, 0, 0.2, -4.42, g, 'EJECT (CLICK TWICE)');
   // consoles (flat switch plates facing up; canvas top = forward)
   const conL = canvasTex(200, 640), conR = canvasTex(200, 640);
@@ -175,8 +183,9 @@ export function buildJetCockpit() {
   toggle('pbrake', 0.43, 0.38, -4.02, g, 'PARKING BRAKE', true);
   // DDI / HI bezel page buttons (top row of each display)
   const PAGES = ['RDR', 'SMS', 'FCS', 'ENG', 'CHK'];   // CHK = the takeoff / landing CHECKLIST page (the HSI is on the HI)
-  for (const [d, cx] of [['L', -0.255], ['R', 0.255]]) PAGES.forEach((pg, i) => { box(0.016, 0.012, 0.01, M(0x55585c), cx - 0.06 + i * 0.03, 0.035 + 0.088, 0.004, P); hit(`ddi${d}:${pg}`, 0.026, 0.02, 0.03, cx - 0.06 + i * 0.03, 0.035 + 0.088, 0.01, P, `DDI ${pg} PAGE`); });
-  ['MAP', 'MAP+', 'MAP-'].forEach((pg, i) => { box(0.016, 0.012, 0.01, M(0x55585c), -0.03 + i * 0.03, -0.14 + 0.09, 0.004, P); hit(`ampcd:${pg}`, 0.026, 0.02, 0.03, -0.03 + i * 0.03, -0.14 + 0.09, 0.01, P, pg === 'MAP' ? 'HI  NORTH UP / TRACK UP' : pg === 'MAP+' ? 'HI  MAP SCALE IN' : 'HI  MAP SCALE OUT'); });
+  const BY = L.ddi[1] + L.ddiBez / 2 - 0.006, HY = L.hi[1] + L.hi[2] / 2 + 0.014;   // the top row of bezel buttons (FO-1: five over each DDI, the HI's over its screen)
+  for (const [d, cx] of [['L', -L.ddi[0]], ['R', L.ddi[0]]]) PAGES.forEach((pg, i) => { box(0.016, 0.012, 0.01, M(0x55585c), cx - 0.06 + i * 0.03, BY, 0.004, P); hit(`ddi${d}:${pg}`, 0.026, 0.02, 0.03, cx - 0.06 + i * 0.03, BY, 0.01, P, `DDI ${pg} PAGE`); });
+  ['MAP', 'MAP+', 'MAP-'].forEach((pg, i) => { box(0.016, 0.012, 0.01, M(0x55585c), -0.03 + i * 0.03, HY, 0.004, P); hit(`ampcd:${pg}`, 0.026, 0.02, 0.03, -0.03 + i * 0.03, HY, 0.01, P, pg === 'MAP' ? 'HI  NORTH UP / TRACK UP' : pg === 'MAP+' ? 'HI  MAP SCALE IN' : 'HI  MAP SCALE OUT'); });
   // hover marker: a thin yellow frame that sits on whatever the crosshair / cursor is over
   const hov = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color: 0xffd040, depthTest: false, transparent: true })); hov.renderOrder = 9; hov.visible = false; g.add(hov);
 
@@ -206,15 +215,16 @@ export function buildJetCockpit() {
     c.fillStyle = '#2b3036'; c.fillRect(0, 0, W, H);
     c.strokeStyle = '#4b5258'; c.lineWidth = 3; c.strokeRect(4, 4, W - 8, H - 8);
     const bez = (cx, cy, s) => { c.fillStyle = '#16181b'; c.fillRect(px(cx - s / 2), py(cy + s / 2), s * 1000, s * 1000); c.strokeStyle = '#555c62'; c.strokeRect(px(cx - s / 2), py(cy + s / 2), s * 1000, s * 1000); };
-    bez(-0.255, 0.035, 0.19); bez(0.255, 0.035, 0.19); bez(0, -0.14, 0.19); bez(-0.2, -0.205, 0.155); bez(0.205, -0.205, 0.155); bez(0, 0.19, 0.22); bez(0.25, 0.215, 0.115); bez(-0.235, 0.215, 0.18); bez(0.41, 0.225, 0.11); bez(0.41, 0.09, 0.14);
+    bez(-L.ddi[0], L.ddi[1], L.ddiBez); bez(L.ddi[0], L.ddi[1], L.ddiBez); bez(L.hi[0], L.hi[1], L.hi[2] + 0.04); bez(L.efd[0], L.efd[1], L.efd[2] + 0.02); bez(L.stby[0], L.stby[1], L.stby[2] + 0.015); bez(L.ufc[0], L.ufc[1], L.ufc[2] + 0.02); bez(L.rwr[0], L.rwr[1], L.rwr[2] + 0.012); bez(L.adv[0], L.adv[1], L.adv[2] + 0.01); bez(L.thr[0], L.thr[1], L.thr[2] + 0.01); bez(L.caut[0], L.caut[1], L.caut[3] + 0.012);
     c.fillStyle = '#e8e4d0'; c.font = `bold 12px ${FONT}`; c.textAlign = 'center';
     const lab = (t, x, y) => c.fillText(t, px(x), py(y));
-    lab('MASTER ARM', -0.41, 0.175); lab('ARM', -0.41, 0.155); lab('SAFE', -0.41, 0.075); lab('EMER', -0.41, 0.285); lab('JETT', -0.41, 0.205);
-    lab('RWR', 0.25, 0.152); lab('LDG GEAR', -0.41, 0.0); lab('HOOK', 0.41, -0.19); lab('CAUTION LIGHTS', 0.41, 0.012);
-    lab('EFD', -0.2, -0.282); lab('STBY', 0.205, -0.282); lab('LEFT DDI', -0.255, -0.07); lab('RIGHT DDI', 0.255, -0.07); lab('HORIZONTAL INDICATOR', 0, -0.245);
+    lab('MASTER ARM', L.arm[0], L.arm[1] + 0.055); lab('ARM', L.arm[0], L.arm[1] + 0.035); lab('SAFE', L.arm[0], L.arm[1] - 0.045); lab('EMER', L.jett[0], L.jett[1] + 0.045); lab('JETT', L.jett[0], L.jett[1] - 0.035);
+    lab('RWR', L.rwr[0], L.rwr[1] - L.rwr[2] / 2 - 0.018); lab('LDG GEAR', L.gear[0], L.gear[1] + 0.095); lab('HOOK', L.hook[0], L.hook[1] - 0.06); lab('CAUTION LIGHTS', L.caut[0], L.caut[1] - L.caut[3] / 2 - 0.02);
+    lab('EFD', L.efd[0], L.efd[1] - L.efd[3] / 2 - 0.02); lab('STBY', L.stby[0], L.stby[1] - L.stby[2] / 2 - 0.02); lab('LEFT DDI', -L.ddi[0], L.ddi[1] - L.ddiBez / 2 - 0.016); lab('RIGHT DDI', L.ddi[0], L.ddi[1] - L.ddiBez / 2 - 0.016); lab('HORIZONTAL INDICATOR', L.hi[0], L.hi[1] - L.hi[2] / 2 - 0.035);
     c.font = `bold 11px ${FONT}`;
-    PAGES.forEach((pg, i) => { lab(pg, -0.255 - 0.06 + i * 0.03, 0.035 + 0.102); lab(pg, 0.255 - 0.06 + i * 0.03, 0.035 + 0.102); });
-    ['N/T', 'SCL+', 'SCL-'].forEach((pg, i) => lab(pg, -0.03 + i * 0.03, -0.14 + 0.104));
+    const BY = L.ddi[1] + L.ddiBez / 2 + 0.008, HY = L.hi[1] + L.hi[2] / 2 + 0.028;
+    PAGES.forEach((pg, i) => { lab(pg, -L.ddi[0] - 0.06 + i * 0.03, BY); lab(pg, L.ddi[0] - 0.06 + i * 0.03, BY); });
+    ['N/T', 'SCL+', 'SCL-'].forEach((pg, i) => lab(pg, -0.03 + i * 0.03, HY));
     art.tex.needsUpdate = true;
     for (const [cv, items] of [[conL, [['FLAPS', 'AUTO HALF FULL', -4.48], ['THROTTLES', 'IDLE  MIL  MAX', -4.02]]], [conR, [['FCS', 'CAS / DIRECT', -4.48], ['BATT    APU', 'ON        READY', -4.36], ['CANOPY  LIGHTS', '', -4.25], ['ENG CRANK', 'L   OFF   R', -4.13], ['PARK BRK', '', -4.02]]]]) {
       const x = cv.ctx; x.fillStyle = '#262a2e'; x.fillRect(0, 0, 200, 640); x.strokeStyle = '#555'; x.strokeRect(2, 2, 196, 636);

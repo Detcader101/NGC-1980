@@ -79,7 +79,7 @@ export function fuselageSurface(lod = 0) {
 const _o = {};
 export function fuselageGeo(lod = 0) {
   const { S: Sf, zs } = fuselageSurface(lod), phis = ring([48, 24, 12][lod]);
-  const zRadome = -9.33;   // the radome's aft joint (top view line at px' 1072)
+  const zRadome = -9.95;   // the cream radome tip (photos: the FSD jets painted the rest of the radome white; its joint is the top view line at z -9.33)
   return gridGeo(Sf, zs, phis, (i, j) => {
     const z = zs[i], ph = phis[j], belly = Math.abs(ph - Math.PI) < 1.05;
     if (z > COCKPIT_OPEN[0] && z < COCKPIT_OPEN[1] && (ph < 1.2 || ph > TAU - 1.2)) { Sf.at(z, ph, _o); if (Math.abs(_o.x) < canopyW(z) - 0.02) return -1; }   // cockpit opening: everything inside the canopy's base
@@ -214,7 +214,7 @@ export function chineStripeGeo(s, n = 40) {
   for (let i = 0; i <= n; i++) {
     const z = z0 + (z1 - z0) * i / n, t = i / n, yc = -0.08 + 0.46 * t, hw = 0.005 + 0.055 * Math.sqrt(t);
     for (const y of [yc - hw, yc + hw]) { const ph = Sf.yToPhi(z, y, s); Sf.at(z, ph, o); Sf.normal(z, ph, nn); pos.push(o.x + nn.x * 0.005, o.y + nn.y * 0.005, o.z + nn.z * 0.005); }
-    if (i) { const a = (i - 1) * 2; s > 0 ? idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3) : idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    if (i) { const a = (i - 1) * 2; s < 0 ? idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3) : idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }   // (outward on each side)
   }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
 }

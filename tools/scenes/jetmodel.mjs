@@ -34,7 +34,8 @@ export default async function (h) {
     // anything other than the shell inside the cockpit volume?
     const shell = new Set(); J.jet.shell.forEach(s => s.traverse(o => shell.add(o)));
     const v = new T.Vector3(), hits = {};
-    J.jet.group.traverse(o => { if (!o.isMesh || shell.has(o) || !o.visible) return; const p = o.geometry.attributes.position, ix = o.geometry.index ? new Set(o.geometry.index.array) : null;   // (indexed lofts: only vertices a triangle uses)
+    J.jet.group.traverse(o => { if (!o.isMesh || shell.has(o) || !o.visible || o.name === 'farWhite' || o.name === 'coaming') return;   // (the 700 m+ level carries a canopy shape; the coaming is the rim at sill height)
+      const p = o.geometry.attributes.position, ix = o.geometry.index ? new Set(o.geometry.index.array) : null;   // (indexed lofts: only vertices a triangle uses)
       for (let i = 0; i < p.count; i++) { if (ix && !ix.has(i)) continue; v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld); if (Math.abs(v.x) < 0.36 && v.y > -0.5 && v.y < 1.38 && v.z > -6.43 && v.z < -4.55) hits[o.name] = (hits[o.name] || 0) + 1; } });
     out.intrusions = hits; window.__chk = out; return out; })()`);
   await h.expect(`Object.entries(__chk).filter(([k]) => k.startsWith('tyre')).every(([, v]) => Math.abs(+v[0] + 2.05) < 0.03)`);

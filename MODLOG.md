@@ -1,5 +1,21 @@
 # MODLOG — NGC-1980 (formerly Thrust/Zarch)
 
+## 2026-10-29 — Blueprint audit of every unit; the Hornet rebuilt from NASA drawings (branch ngc/look-units)
+
+The user: "make sure you have an agent blueprint skill every unit". **docs/ngc1980/BLUEPRINT-AUDIT.md** lists every
+real-world model in the game with its 1980 pin, how it is built today (all box / hand-placed outside the Huey and
+Tomcat work), the open-access drawings found and their licences, and the rebuild order.
+
+First rebuilt: the **F/A-18A Hornet** (FSD #3, BuNo 160777, the 1979 carrier-trials jet the player flies). The airframe
+is now lofted from the NASA Dryden three-view (calibrated on the NATOPS length) instead of hand-typed rings:
+silhouette fit side 0.674 → **0.987**, top 0.784 → **0.980**, front 0.788 → **0.981** IoU, max gaps 0.4-1 % of
+length. The nose was 1.9 m short ahead of the main gear; gear, hook, nozzles, eye and seat now sit at the drawn
+stations (jetfm's gear / hook / hull points moved with them). From two dated 1979 USN photographs the jet now wears
+the real FSD test scheme, gloss white with dark blue wings, LEX and fin bands, MARINES / NAVY titles, instead of an
+inferred fleet grey. The cockpit moved 0.70 m forward with the airframe; its main panel items sit where NATOPS fig.
+FO-1 draws them. LODs: 59 / 67 / 20 draws at near / 200 m / 800 m (budget enforced).
+Findings: docs/ngc1980/findings/look-units.md; evidence: docs/ngc1980/evidence/look-units/fa18a/.
+
 ## 2026-10-29 — VR: deck crew no longer corrupts the eye cameras (branch ngc/xr-fix)
 
 xr.mjs was 17/19 on ngc/shader-library (sky dome and near terrain window "not following the eye"). Cause: the deck
