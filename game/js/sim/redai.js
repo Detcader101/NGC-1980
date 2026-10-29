@@ -8,6 +8,7 @@
 // ground (GW.think) and air (AW.think) arms throttled by the doctrine's mix.
 import { GW_T } from '../units/groundwar/groundwar.js';
 import { AIR } from '../units/air/airwar.js';
+import { fleetStart } from '../world.js';   // (ngc/look-terrain)
 
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
 const BASE_GW = { ...GW_T }, BASE_AIR = { SHRIKE_MAX: AIR.SHRIKE_MAX };
@@ -72,7 +73,7 @@ export function createRedAI({ W, nav, feed = () => {}, sfx = {}, doctrine, log =
       if (ec.plan <= 0 || !ec.path.length) {
         ec.plan = 25;
         let gx, gz;
-        if (ec.hp < ec.hpMax * (1 - D.risk)) { gx = 330; gz = -300; }
+        if (ec.hp < ec.hpMax * (1 - D.risk)) { [gx, gz] = fleetStart(2); }   // (ngc/look-terrain: its own start, open water; the old fixed spot is land now)
         else if (W.battleship || (E.mat > 160 / Math.max(0.25, A) && guns.length > 6 / Math.max(0.25, A))) { const c = W.carrier || { p: { x: 0, z: 0 } }; const a = Math.atan2(ec.p.z - c.p.z, ec.p.x - c.p.x); gx = c.p.x + Math.cos(a) * 330; gz = c.p.z + Math.sin(a) * 330; }
         else { const I = W.pickExpansion(ec.p.x, ec.p.z) || W.islands.find(I => I.name === 'CITADEL'); const a = Math.atan2(ec.p.z - I.z, ec.p.x - I.x); gx = I.x + Math.cos(a) * (I.r + 90); gz = I.z + Math.sin(a) * (I.r + 90); }
         const [wx, wz] = nav.wet(gx, gz) ? [gx, gz] : nav.nearestWater(gx, gz); ec.path = nav.path(ec.p.x, ec.p.z, wx, wz);

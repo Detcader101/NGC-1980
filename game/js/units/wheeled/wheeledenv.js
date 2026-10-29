@@ -25,7 +25,7 @@ import { hypot2, hypot3 } from '../../hypot.js';   // (ngc/perf-cpu) Math.hypot 
 const CK = (i, j) => i * 4194304 + j;   // cell key (|i|, |j| < 2e6 m)
 const S_TARMAC = SURF.tarmac, S_DIRT = SURF.dirt, S_DECK = SURF.deck;
 const LIFT = { tarmac: 0.14, lane: 0.13, street: 0.12, dirt: 0.10 };   // world/chunkgen.js LIFT
-const FROM_GR = { road: SURF.tarmac, deck: SURF.deck, rock: SURF.rock, grass: SURF.grass, sand: SURF.sand, mud: SURF.mud, water: SURF.sand, hole: SURF.rock };
+const FROM_GR = { road: SURF.tarmac, deck: SURF.deck, rock: SURF.rock, grass: SURF.grass, sand: SURF.sand, mud: SURF.mud, water: SURF.sand, hole: SURF.rock, dirt: SURF.dirt };
 
 export function createWorldEnv(o) {
   const { GR, terrainH, holes = [], world = {} } = o;

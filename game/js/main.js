@@ -4,7 +4,7 @@ import { buildCaveMesh, makeTurret, makeTank, makePod, makeRope } from './cave3d
 import { Sfx } from './audio.js';
 import { createDamage, PARTS } from './damage.js';
 import { HELI, EYE, buildHeliMesh, buildCockpit, createHeliSim, createHeliInput, createHeliSystems, fuelBurnPct } from './heli.js';
-import { BOUND, ISLANDS, islandH, createNav, SEA_FLOOR, inZone, fleetStart } from './world.js';
+import { BOUND, ISLANDS, islandH, createNav, SEA_FLOOR, inZone, fleetStart, fbm, noise } from './world.js';
 import { createWar, COST } from './war.js';
 import { createSpectator } from './sim/spectator.js';   // SIM MODE
 import { createMarkerLayer, mapBar } from './ui/markerlayer.js';   // UNIT MARKERS (ngc/healthbars): icon + health bar over every unit
@@ -19,7 +19,7 @@ import { RKUI, UIC, applyUI } from './renderkit/ngcui.js';   // RENDERKIT ui: de
 import { RK_TERRAIN_GLSL, RK_SKY_GLSL, createWorldUniforms, createWorldSky, linearOutput } from './renderkit/world.js';   // RENDERKIT world
 import { createSunShadows, SUN_SHADOW_GLSL, BALANCE as RKL_BAL, matchOverlayLights } from './renderkit/light.js';   // RENDERKIT light: sun shadows + light balance
 import { drawDistance, radialFog } from './world/visibility.js';
-import { zoneGrid, SURF_NAMES, GEOLOGY, geologyOf, zoneSurf } from './world/terrain.js';   // (zoneSurf: RENDERKIT nature clutter)
+import { zoneGrid, SURF_NAMES, SURFACE, GEOLOGY, geologyOf, zoneSurf } from './world/terrain.js';   // (zoneSurf: RENDERKIT nature clutter)
 import { createNatureShared, createForest, createClutter, NATURE_TERRAIN_GLSL, CL } from './renderkit/nature.js';   // RENDERKIT nature
 import { treeKind, PINE, BROAD, SCRUB, natureHash } from './world/forest.js';   // RENDERKIT nature: species by geology / altitude
 import { RK_HAZE_GLSL, RK_CLOUD_GLSL, installAtmosphere, createAtmosphere } from './renderkit/atmosphere.js';
@@ -68,7 +68,7 @@ import { createWorldSolid } from './world/solid.js';   // SEAWORLD: buildings as
 import { createInteriors } from './interiors/interiors.js';   // ngc/interiors: enterable buildings, doors / hatches, the ALBATROSS inside
 import { createSeats } from './interiors/seats.js';           // ngc/interiors: passenger seats in the Huey / CH-46, the people in the seats
 import { DOORS } from './interiors/doors.js';
-import { createWorldLife } from './world/life.js'; import { clearedAt, clearingAt, structAngle as natStructAngle } from './world/net.js';   // WORLD: the lived-in world (towns, roads, traffic, people, faction structures)
+import { createWorldLife } from './world/life.js'; import { clearedAt, clearingAt, structAngle as natStructAngle, bedBuckets } from './world/net.js';   // WORLD: the lived-in world (towns, roads, traffic, people, faction structures)
 // ARMOUR (wave 2): the M60A3 TTS and M113A2 as crafts on the island world, their sights, the LCM-8 delivery
 import { createArmorWorld } from './units/armor/armorworld.js';
 import { createArmorCraft } from './units/armor/armorcraft.js';
@@ -366,7 +366,7 @@ const CS = 1.6, CAVE_SINK = 0.15, CAVE_OX = 32.5, CAVE_DEPTH = 6, HOLE_R = 9, ST
 const TIER_NAMES = ['', 'LIGHT', 'MEDIUM', 'STRONG', 'HEAVY'];
 const BASES = ISLANDS.filter(I => I.cave).sort((a, b) => a.tier - b.tier).map(I => I.base = { kind: I.owner === 1 ? 'home' : 'enemy', name: I.name, tier: I.tier, x: I.x, z: I.z, h: clamp(Math.round(islandH(I.x, I.z)), 4, 16), isl: I });
 const HOME_B = BASES[0], PAD_H = HOME_B.h;
-const PADS = ISLANDS.map(I => I.pad = I.cave ? { x: I.x, z: I.z + 30, h: I.base.h, r0: 12, r1: 34, r: PAD_R, isl: I } : { x: I.x, z: I.z, h: clamp(Math.round(islandH(I.x, I.z)), 3, 14), r0: 30, r1: 52, r: PAD_R, isl: I });
+const PADS = ISLANDS.map(I => I.pad = I.cave ? { x: I.x, z: I.z + 30, h: I.base.h, r0: 12, r1: 34, r: PAD_R, isl: I } : { x: I.x, z: I.z, h: clamp(Math.round(islandH(I.x, I.z)), 3, 140), r0: 30, r1: 52, r: PAD_R, isl: I });   // (ngc/look-terrain: radars / factories on the hills and the plateau, up to 140 m)
 const PAD = HOME_B.isl.pad;   // the home refuel pad
 const RES_MAX = 600;          // the fleet's fuel stores
 const stripW = (x, z, b) => smooth(0, 14, hypot2(Math.max(Math.abs(x - b.x) - STRIP_X, 0), Math.max(Math.abs(z - b.z) - STRIP_Z, 0)));
@@ -425,8 +425,18 @@ sky.renderOrder = -10; zScene.add(sky);
 // which pad / shaft apron (if any) it is near, so the shader only ever shades one of them.
 const TG = 2.5, TN = Math.ceil(DRAW * 2.1 / TG), HM_N = Math.round(2 * BOUND / TG) + 1, DEC_C = 4, DEC_N = Math.ceil(2 * BOUND / DEC_C);
 const hmTex = (() => {
-  const a = new Float32Array(HM_N * HM_N);
-  for (let j = 0; j < HM_N; j++) for (let i = 0; i < HM_N; i++) a[j * HM_N + i] = terrainH(-BOUND + i * TG, -BOUND + j * TG);
+  // (ngc/look-terrain) the zone grid has a vertex on every lattice point (same 2.5 m spacing, aligned), and there terrainH
+  // IS the grid except where roads / building platforms, pads, bases, the ground over the caves and the landing hards
+  // change it: copy the grid, then call terrainH in those boxes only (4.2 M full calls took seconds at BOUND 2560)
+  const a = new Float32Array(HM_N * HM_N), Z = zoneGrid(), o = Math.round((Z.E - BOUND) / Z.C);
+  if (Z.C !== TG || Math.abs(o * Z.C - (Z.E - BOUND)) > 1e-6) throw new Error('zone grid and terrain lattice disagree');
+  for (let j = 0; j < HM_N; j++) a.set(Z.h.subarray((j + o) * Z.N + o, (j + o) * Z.N + o + HM_N), j * HM_N);
+  const box = (x0, z0, x1, z1) => { const i0 = Math.max(0, Math.floor((x0 + BOUND) / TG)), i1 = Math.min(HM_N - 1, Math.ceil((x1 + BOUND) / TG)), j0 = Math.max(0, Math.floor((z0 + BOUND) / TG)), j1 = Math.min(HM_N - 1, Math.ceil((z1 + BOUND) / TG));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) a[j * HM_N + i] = terrainH(-BOUND + i * TG, -BOUND + j * TG); };
+  for (const [x, z, s] of bedBuckets()) box(x, z, x + s, z + s);
+  for (const b of BASES) box(b.x - STRIP_X - 16, b.z - 62, b.x + STRIP_X + 16, b.z + 62);
+  for (const p of PADS) box(p.x - p.r1 - 1, p.z - p.r1 - 1, p.x + p.r1 + 1, p.z + p.r1 + 1);
+  for (const h of HARDS) box(h.bx0 - 1, h.bz0 - 1, h.bx1 + 1, h.bz1 + 1);
   const t = new THREE.DataTexture(a, HM_N, HM_N, THREE.RedFormat, THREE.FloatType); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t;
 })();
 const SURF_W = { grass: [0,0,0,0], sand: [255,0,0,0], wetsand: [255,0,0,0], rock: [0,255,0,0], mud: [0,0,255,0], dirt: [0,0,0,255], shingle: [0,150,0,105], marsh: [0,0,150,0] };
@@ -442,9 +452,9 @@ const decorTex = (() => {   // r = nearest pad index + 1, g = nearest shaft inde
   const a = new Uint8Array(DEC_N * DEC_N * 4);
   for (let j = 0; j < DEC_N; j++) for (let i = 0; i < DEC_N; i++) {
     const x = -BOUND + (i + 0.5) * DEC_C, z = -BOUND + (j + 0.5) * DEC_C, k = (j * DEC_N + i) * 4;
-    PADS.forEach((p, n) => { if (Math.hypot(x - p.x, z - p.z) < 33) a[k] = n + 1; });
-    BASES.forEach((b, n) => { if (Math.hypot(x - b.x, z - b.z) < 25) a[k + 1] = n + 1; });
-    let bd = 200; ISLANDS.forEach((I, n) => { const d = Math.hypot(x-I.x,z-I.z)-I.r; if(d<bd){bd=d;a[k+2]=n+1;} });
+    PADS.forEach((p, n) => { if (Math.abs(x - p.x) < 33 && Math.abs(z - p.z) < 33 && Math.hypot(x - p.x, z - p.z) < 33) a[k] = n + 1; });
+    BASES.forEach((b, n) => { if (Math.abs(x - b.x) < 25 && Math.abs(z - b.z) < 25 && Math.hypot(x - b.x, z - b.z) < 25) a[k + 1] = n + 1; });
+    let bd = 1e9; ISLANDS.forEach((I, n) => { const d = Math.hypot(x-I.x,z-I.z)-I.r; if(d<bd){bd=d;a[k+2]=n+1;} });   // (ngc/look-terrain: the nearest site everywhere, its region's geology)
   }
   const t = new THREE.DataTexture(a, DEC_N, DEC_N, THREE.RGBAFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t;
 })();
@@ -490,7 +500,7 @@ function buildFarMap(d) {
   }
   x.putImageData(im, 0, 0); Object.assign(farMap, { ox: d.ox, oz: d.oz, size: d.n * d.c, ready: true });
 }
-const fog = createFog(BOUND, 224); fog.enabled = false; fog.update([]);
+const fog = createFog(BOUND, Math.round(224 * BOUND / 1280));   // (11.4 m cells at any zone size) fog.enabled = false; fog.update([]);
 const terrainGeo = new THREE.PlaneGeometry(TG * TN, TG * TN, TN, TN); terrainGeo.rotateX(-Math.PI / 2);
 // RENDERKIT terrain: generated ground layers (renderkit/terrainmat.js; built on the GPU over the first frames)
 const rkTer = RKW && TERRAIN_ON ? createTerrainMaterial(renderer) : null;
@@ -806,16 +816,25 @@ const _nrm = new THREE.Vector3();
 const normalAt = (x, z) => { const e = 1.5; return isWater(x, z) ? new THREE.Vector3(0, 1, 0) : _nrm.set(terrainH(x - e, z) - terrainH(x + e, z), 2 * e, terrainH(x, z - e) - terrainH(x, z + e)).normalize().clone(); };
 const fx = createFx(zScene, { groundY: (x, z) => Math.max(terrainH(x, z), 0), isWater, normalAt });
 
+// (ngc/look-terrain) the site whose region (x, z) is in: the nearest by distance past its radius (its geology colours the rock)
+const siteIdx = (x, z) => { let b = 0, bd = Infinity; for (let i = 0; i < ISLANDS.length; i++) { const I = ISLANDS[i], d = hypot2(x - I.x, z - I.z) - I.r; if (d < bd) { bd = d; b = i; } } return b; };
 // trees
-const TREES = [];
+const TREES = [], ZONE_TREES = Math.round(3200 * 3 * (BOUND / 1280) ** 2 / 4);   // (ngc/look-terrain: 9600 at BOUND 2560: woods on 4x the land)
 {
   let s = 12345; const r = () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296;
   const geo = RKN ? null : new THREE.ConeGeometry(1.3, 5, 6); geo?.translate(0, 2.5, 0);
-  const mesh = RKN ? null : new THREE.InstancedMesh(geo, fogPatch(new THREE.MeshLambertMaterial({ color: 0x1f7a2a, flatShading: true }), fog, terrainUni.uTime), 3200);
+  const mesh = RKN ? null : new THREE.InstancedMesh(geo, fogPatch(new THREE.MeshLambertMaterial({ color: 0x1f7a2a, flatShading: true }), fog, terrainUni.uTime), ZONE_TREES);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(); let n = 0;
-  for (let i = 0; i < 60000 && n < 3200; i++) {
-    const x = (r() * 2 - 1) * BOUND, z = (r() * 2 - 1) * BOUND, h = terrainH(x, z);
-    if (h < 2.5 || h > 24 || clearedAt(x, z) || onHard(HARDS, x, z, 6) || PADS.some(p => Math.hypot(x - p.x, z - p.z) < (p.isl.cave ? 16 : 34)) || BASES.some(b => Math.hypot(x - b.x, z - b.z) < 30 || stripW(x, z, b) < 1)) continue;   // WORLD: clearedAt keeps trees off the villages and roads
+  // (ngc/look-terrain) woods where the woodland field says so (valley sides, the hills, the spine's lower slopes), copses
+  // and hedgerow trees in the farmland, none on steep rock, above ~300 m or in the sea
+  for (let i = 0; i < 600000 && n < ZONE_TREES; i++) {
+    const x = (r() * 2 - 1) * BOUND, z = (r() * 2 - 1) * BOUND, u = r();
+    const wd = fbm(x / 900 + 5.5, z / 900 + 9.2, 3) + 0.3 * noise(x / 240 + 1.3, z / 240 - 4.1);
+    if (u > (wd > 0.12 ? 0.85 : wd > -0.02 ? 0.25 : 0.025)) continue;
+    const h = terrainH(x, z);
+    if (h < 2.5 || h > 300 - 40 * noise(x / 300, z / 300)) continue;
+    { const e = 2, sy = 2 * e / Math.hypot(terrainH(x + e, z) - terrainH(x - e, z), 2 * e, terrainH(x, z + e) - terrainH(x, z - e)); if (sy < 0.8) continue; }
+    if ( clearedAt(x, z) || onHard(HARDS, x, z, 6) || PADS.some(p => Math.hypot(x - p.x, z - p.z) < (p.isl.cave ? 16 : 34)) || BASES.some(b => Math.hypot(x - b.x, z - b.z) < 30 || stripW(x, z, b) < 1)) continue;   // WORLD: clearedAt keeps trees off the villages and roads
     const k = 0.7 + r() * 1.1; sc.set(k, k * (0.8 + r() * 0.6), k);
     if (mesh) { m.compose(new THREE.Vector3(x, h, z), q, sc); mesh.setMatrixAt(n, m); } n++; TREES.push({ x, z, y: h, r: 0.9 * k, k });   // (TREES: colliders for the ground host)
   }
@@ -826,7 +845,7 @@ const TREES = [];
 const NAT = RKN ? (() => {
   const shared = createNatureShared();
   const forest = createForest({ scene: zScene, fog, uTime: terrainUni.uTime, shared });
-  const geoAt = (x, z) => { const I = ISLANDS.find(I => Math.hypot(x - I.x, z - I.z) < I.r + 60); return I ? geologyOf(I) : 'granite'; };
+  const geoAt = (x, z) => geologyOf(ISLANDS[siteIdx(x, z)]);
   { const d = new Float32Array(TREES.length * 4), kinds = new Uint8Array(TREES.length);
     TREES.forEach((t, i) => { d.set([t.x, t.y, t.z, t.k], i * 4); kinds[i] = treeKind(t.x, t.z, t.y, natureHash(Math.round(t.x * 10), Math.round(t.z * 10)), geoAt(t.x, t.z)); });
     forest.add('zone', d, kinds, { far: true }); }
@@ -847,11 +866,11 @@ const NAT = RKN ? (() => {
   let shrubs = false;
   function buildShrubs() {
     shrubs = true; let s = 777; const r = () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; const d = [];
-    for (let i = 0; i < 90000 && d.length < 5200 * 4; i++) {
+    for (let i = 0; i < 360000 && d.length < 12000 * 4; i++) {
       const x = (r() * 2 - 1) * BOUND, z = (r() * 2 - 1) * BOUND, u = r(), w = r();
       const stand = Math.sin(x * 0.021 + Math.sin(z * 0.017) * 2.3) * Math.sin(z * 0.019 - x * 0.006 + 1.3);   // patches of scrub, open grass between
       if (u > 0.25 + 0.6 * Math.max(0, stand)) continue;
-      const h = terrainH(x, z); if (h < 3 || h > 90) continue;
+      const h = terrainH(x, z); if (h < 3 || h > 280) continue;
       const sy = 2 / Math.hypot(2, terrainH(x + 2, z) - h, terrainH(x, z + 2) - h); if (sy < 0.72 || !open(x, z, 2)) continue;
       d.push(x, h, z, 0.8 + w * 1.3);
     }
@@ -873,7 +892,7 @@ const NAT = RKN ? (() => {
     if (zone) { s = SURF_CL[zoneSurf(x, z)]; if (s === undefined || s < 0) return null; if (s === CL.SAND && y > 1.6) s = CL.DUNE; }
     else { const sy = 2 / Math.hypot(2, latH(x + 2, z) - y, latH(x, z + 2) - y); s = y < 2.5 ? (y > 1.4 ? CL.DUNE : CL.SAND) : sy < 0.78 || y > 300 ? (y > 470 ? -1 : CL.ROCK) : CL.GRASS; if (s < 0) return null; }
     if (!openGround(x, z)) return null;
-    const I = zone ? ISLANDS.findIndex(I => Math.hypot(x - I.x, z - I.z) < I.r + 40) : -1;
+    const I = zone ? siteIdx(x, z) : -1;
     return { y, s, rock: I >= 0 ? rockC[I] : null };
   };
   const clutter = createClutter({ scene: zScene, fog, uTime: terrainUni.uTime, shared, sample });
@@ -924,7 +943,7 @@ const OUTCROPS = rkTer ? (() => {
     else if (clearingAt(x, z) || clearedAt(x, z)) return null;
     const m2 = rkN2js(x * 0.047 + 3.1, z * 0.047 + 3.1);
     if (zone) {
-      const s = zoneSurf(x, z), I = ISLANDS.findIndex(I => Math.hypot(x - I.x, z - I.z) < I.r + 60); if (s === 'sand' || s === 'wetsand' || s === 'marsh' || s === 'mud') return null;
+      const s = zoneSurf(x, z), I = siteIdx(x, z); if (s === 'sand' || s === 'wetsand' || s === 'marsh' || s === 'mud') return null;
       const rock = s === 'rock' ? 1 : s === 'shingle' ? 0.5 : sstep(0.3, 0.5, sl) * 0.8;
       return { y, sl, nx, nz, rock, layer: I >= 0 && strata[I] ? 6 : 7, tint: (I >= 0 ? rockC[I] : [1, 1, 1]).map(v => v * (0.92 + 0.16 * m2)) };
     }
@@ -1487,7 +1506,7 @@ function updateHeli(dt, inp, piloted) {
 // Everything the player can control registers here (craft.js): the Huey (still special: the cave, the drop, the helm),
 // the HORNET (craftjet.js), the soldier on foot (foot.js) and ground vehicles (vehicle.js on the ground host,
 // ground.js). Wave-2 units register the same way - see docs/ngc1980/FOUNDATION.md.
-const GR = createGround({ war, terrainH, holeOf, PADS, ISLANDS, CARRIER, trees: TREES, crafts, inZone });
+const GR = createGround({ war, terrainH, holeOf, PADS, ISLANDS, CARRIER, trees: TREES, crafts, inZone, zoneGround: (x, z) => SURFACE[zoneSurf(x, z)].ground });
 // SEAWORLD: the lived-in world is solid - buildings, walls, hedges, parapets and poles collide; piers and bridge decks
 // are floors; roads are road / dirt surfaces (world/solid.js, from the same generators the world is drawn from)
 const worldSolid = createWorldSolid({ hf: islandH, zoneHf: terrainH, zone: () => world.zone || [] });
@@ -2347,7 +2366,7 @@ addEventListener('resize', () => { if (bigMap) setMapSize(); });
 // The map: the sea and islands, the fog of war (black where never seen, dim where not watched now), islands as you
 // last saw them, your units always, enemy units only inside your sight. The big map (M) is the command screen.
 const landImg = (() => {
-  const N = 320, c = document.createElement('canvas'); c.width = c.height = N; const x = c.getContext('2d'), im = x.createImageData(N, N);
+  const N = Math.round(320 * Math.sqrt(BOUND / 1280)), c = document.createElement('canvas'); c.width = c.height = N; const x = c.getContext('2d'), im = x.createImageData(N, N);
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
     const h = terrainH(-BOUND + (i + 0.5) * 2 * BOUND / N, -BOUND + (j + 0.5) * 2 * BOUND / N), k = (j * N + i) * 4;
     let col;

@@ -95,6 +95,7 @@ function route(ax, az, bx, bz, o = {}) {
         const h0 = H[(k - 1) * m + p], sl = Math.hypot(ds, d * step), g = Math.abs(h1 - h0) / sl;
         let c = sl * (1 + 3 * g + 500 * Math.max(0, g - gmax) ** 2) + Math.abs(d) * 3 + Math.abs(q - M) * step * 0.004 * sl;
         if (h0 < 0.6 || h1 < 0.6) c += sl * waterCost * (1 + Math.max(0, -Math.min(h0, h1)) * 0.12);
+        if (o.avoid && o.avoid(ax + dx * ds * k + nx * (q - M) * step, az + dz * ds * k + nz * (q - M) * step)) c += sl * 400;   // (ngc/look-terrain: keep off bases and pads)
         if (c0 + c < best) { best = c0 + c; bp = p; }
       }
       C[k * m + q] = best; P[k * m + q] = bp;
@@ -379,7 +380,7 @@ export function zoneNet() {
     let best = null;
     for (let a = 0; a < 32; a++) for (let d = 40; d < I.r - 22; d += 8) {
       const x = I.x + Math.cos(a / 32 * Math.PI * 2) * d, z = I.z + Math.sin(a / 32 * Math.PI * 2) * d, h = rawH(x, z);
-      if (h < 3 || h > 22 || zoneReserved(I, x, z, 22)) continue;
+      if (h < 3 || h > Math.max(22, rawH(p.x, p.z) + 18) || zoneReserved(I, x, z, 22)) continue;   // (ngc/look-terrain: villages on the hills and the plateau too)
       let n = 0, rough = 0; for (let k = 0; k < 12; k++) { const hh = rawH(x + Math.cos(k * 0.52) * 30, z + Math.sin(k * 0.52) * 30); if (hh > 2 && !zoneReserved(I, x + Math.cos(k * 0.52) * 30, z + Math.sin(k * 0.52) * 30, 6)) n++; rough = Math.max(rough, Math.abs(hh - h)); }
       const sc = n * 2 - rough * 0.5 - h * 0.08 + r() * 0.5;
       if (!best || sc > best.sc) best = { x, z, y: h, sc };
@@ -429,6 +430,34 @@ export function zoneNet() {
     const p0 = padOf(I), a0 = structAngle(I), slots = I.cave ? [[p0.x - 17, p0.z + 9], [p0.x + 19, p0.z + 6]] : [[p0.x + Math.cos(a0) * 17, p0.z + Math.sin(a0) * 17], [p0.x - Math.cos(a0) * 18, p0.z - Math.sin(a0) * 18]];
     site.blocked = (x, z, rad = 0) => zoneReserved(I, x, z, rad) || slots.some(([sx, sz]) => Math.hypot(x - sx, z - sz) < 16 + rad);
     townItems(V, null, { blocked: site.blocked });
+  }
+  zoneLinks();
+}
+// (ngc/look-terrain) the roads between the sites: the zone is one main island and two smaller ones now, so the places on
+// the same land are joined (a relaxed relative-neighbourhood graph like the wild network: each site to its natural
+// neighbours, never across a strait). Tarmac between the big places, lanes to the small ones; they keep off every
+// base, shaft strip and pad apron, start at the village square where there is one (else at the pad apron's edge).
+function zoneLinks() {
+  const ends = S.zoneSites.map(st => { const I = st.I, p = padOf(I), V = st.village; return V ? { st, I, x: V.x, z: V.z, y: V.y, id: V.id, pin: 9 } : { st, I, x: p.x, z: p.z, y: undefined, id: `zl${I.id}`, pin: 0, pad: p }; });
+  const avoid = (x, z) => ISLANDS.some(J => { if (Math.abs(x - J.x) > J.r + 120 || Math.abs(z - J.z) > J.r + 120) return false; const p = padOf(J); return Math.hypot(x - p.x, z - p.z) < p.r1 + 6 || (J.cave && (Math.hypot(x - J.x, z - J.z) < 70 || (Math.abs(x - J.x) < 100 && Math.abs(z - J.z) < 26))); });
+  for (let a = 0; a < ends.length; a++) for (let b = a + 1; b < ends.length; b++) {
+    const A = ends[a], B = ends[b], dAB = Math.hypot(B.x - A.x, B.z - A.z); if (dAB > 2300) continue;
+    let blocked = false;
+    for (const C of ends) { if (C === A || C === B) continue; const dAC = Math.hypot(C.x - A.x, C.z - A.z), dBC = Math.hypot(C.x - B.x, C.z - B.z); if (dAC < dAB && dBC < dAB && dAC + dBC < dAB * 1.25) { blocked = true; break; } }
+    if (blocked) continue;
+    const big = I => I.r >= 100, type = big(A.I) && big(B.I) ? 'tarmac' : 'lane';
+    const start = E => { if (!E.pad) return [E.x, E.z]; const ang = Math.atan2((E === A ? B : A).z - E.z, (E === A ? B : A).x - E.x); return [E.x + Math.cos(ang) * (E.pad.r1 + 10), E.z + Math.sin(ang) * (E.pad.r1 + 10)]; };
+    const [ax, az] = start(A), [bx, bz] = start(B);
+    const pts = route(ax, az, bx, bz, { g: ROAD[type].g, water: 60, avoid, wmax: 600 });
+    if (!pts) continue;
+    // never across the sea: a link whose path is wet for more than a river's width is dropped
+    let wet = 0, maxWet = 0; for (const [x, z] of pts) { if (rawH(x, z) < 0.4) { wet += 8; maxWet = Math.max(maxWet, wet); } else wet = 0; }
+    if (maxWet > 130) continue;
+    const prof = profile(pts, type, A.pad ? undefined : A.y, B.pad ? undefined : B.y, { pin0: A.pin, pin1: B.pin, maxBridge: 160 });
+    if (!prof) continue;
+    prof.kind = 'link'; prof.a = A.id; prof.b = B.id; prof.key = A.id + '|' + B.id;
+    const r = addRoad(prof); A.st.roads.push(r.id); B.st.roads.push(r.id);
+    node(A.id, ax, az, prof.ys[0]).roads.push({ road: r.id, end: 0 }); node(B.id, bx, bz, prof.ys[prof.ys.length - 1]).roads.push({ road: r.id, end: 1 });
   }
 }
 
@@ -480,6 +509,9 @@ function bedPads(x, z, h) {
   }
   return sw ? (h + sy) / (1 + sw) : h;
 }
+// (ngc/look-terrain) the 64 m buckets where roadBed can change the ground: [x0, z0, size] each (main.js fills the zone's
+// core heightmap straight from the terrain grid and calls the full height function only in these)
+export function bedBuckets() { const out = [], seen = new Set(); for (const m of [S.buckets, S.pads]) for (const k of m.keys()) if (!seen.has(k)) { seen.add(k); out.push([(Math.floor(k / 65536) - 32768) * BKT, (k % 65536 - 32768) * BKT, BKT]); } return out; }
 // the ground under construction (roads and squares only): what lots are levelled from
 export const ground0 = (x, z) => bedRoads(x, z, rawH(x, z));
 // the terrain with road beds, squares, quays, farmyards and building platforms (world.js calls this inside islandH)

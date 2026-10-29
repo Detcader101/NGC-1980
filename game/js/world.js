@@ -1,4 +1,6 @@
-// The archipelago: open sea with islands. Every height query (JS physics and the GLSL terrain shader) comes from the
+// The control zone's sites on the land of world/terrain.js (ngc/look-terrain: a main island with bays, a mountain spine,
+// a plateau and farmland, HOME ISLAND across a strait, SOUTH REEF; the sites were round islands of their own before).
+// The kinds and names stayed; "island" in the code means a site / named place. Every height query (JS physics and the GLSL terrain shader) comes from the
 // same island list, so what you see is what you collide with. Islands are static; who owns them is game state (war.js).
 //
 // kinds:  hq        - a side's headquarters island; has a cave (home reservoir / enemy fortress). Taken only via its cave.
@@ -7,31 +9,34 @@
 //         factory   - materiel for drones, guns and helicopters (enemy factories also build the battleship)
 //         radar     - long-range sight through the fog of war
 import { roadBed } from './world/net.js';   // the lived-in world (roads, towns, farms): flattened into islandH below
-import { zoneH } from './world/terrain.js';
+import { zoneH, ZONE_E } from './world/terrain.js';
+import { BOUND } from './world/bound.js';   // (ngc/look-terrain) the one zone-size constant
+export { BOUND };
 import { hypot2 } from './hypot.js';   // (ngc/perf-cpu) Math.hypot without the garbage, same bits
-export const BOUND = 1280, SEA_FLOOR = -14;
-export const ISLANDS = [
-  { name: 'HOME ISLAND', kind: 'hq', owner: 1, x: -756, z: 720, r: 230, tier: 0 },
-  { name: 'IRONHOLD', kind: 'hq', owner: 2, x: 756, z: -720, r: 250, tier: 4 },
-  { name: 'NORTH ROCK', kind: 'fortress', owner: 2, x: -720, z: -648, r: 190, tier: 1 },
-  { name: 'SOUTH REEF', kind: 'fortress', owner: 2, x: 720, z: 648, r: 165, tier: 2 },
+export const SEA_FLOOR = -14;
+export const ISLANDS = [   // (x, z: the site's centre on the land, world/terrain.js; r: the war's radius for buildings and guns)
+  { name: 'HOME ISLAND', kind: 'hq', owner: 1, x: -1500, z: 1500, r: 230, tier: 0 },
+  { name: 'IRONHOLD', kind: 'hq', owner: 2, x: 1690, z: -1450, r: 250, tier: 4 },
+  { name: 'NORTH ROCK', kind: 'fortress', owner: 2, x: -1440, z: -1300, r: 190, tier: 1 },
+  { name: 'SOUTH REEF', kind: 'fortress', owner: 2, x: 1450, z: 1360, r: 165, tier: 2 },
   { name: 'CITADEL', kind: 'fortress', owner: 2, x: 0, z: 0, r: 250, tier: 3 },
-  { name: 'PELICAN', kind: 'fuel', owner: 1, x: -306, z: 864, r: 74 },
-  { name: 'ANVIL', kind: 'factory', owner: 2, x: 306, z: -864, r: 118 },
-  { name: 'LOOKOUT', kind: 'radar', owner: 0, x: -972, z: 198, r: 88 },
-  { name: 'BEACON', kind: 'radar', owner: 0, x: 972, z: -198, r: 72 },
-  { name: 'FORGE', kind: 'factory', owner: 0, x: -378, z: 342, r: 160 },
-  { name: 'CINDER', kind: 'factory', owner: 0, x: 378, z: -342, r: 118 },
-  { name: 'WELLSPRING', kind: 'fuel', owner: 0, x: -270, z: -414, r: 92 },
-  { name: 'SANDBAR', kind: 'fuel', owner: 0, x: 270, z: 414, r: 140 },
-  { name: 'DRIFTWOOD', kind: 'factory', owner: 0, x: -1008, z: -234, r: 70 },
-  { name: 'KILN', kind: 'factory', owner: 0, x: 1008, z: 234, r: 145 },
-  { name: 'SPIRE', kind: 'radar', owner: 0, x: -108, z: -1008, r: 66 },
-  { name: 'ECHO', kind: 'radar', owner: 0, x: 108, z: 1008, r: 100 },
+  { name: 'PELICAN', kind: 'fuel', owner: 1, x: -560, z: 1640, r: 74 },
+  { name: 'ANVIL', kind: 'factory', owner: 2, x: 760, z: -1690, r: 118 },
+  { name: 'LOOKOUT', kind: 'radar', owner: 0, x: -1880, z: 350, r: 88 },
+  { name: 'BEACON', kind: 'radar', owner: 0, x: 1930, z: -400, r: 72 },
+  { name: 'FORGE', kind: 'factory', owner: 0, x: -800, z: 580, r: 160 },
+  { name: 'CINDER', kind: 'factory', owner: 0, x: 830, z: -640, r: 118 },
+  { name: 'WELLSPRING', kind: 'fuel', owner: 0, x: -720, z: -780, r: 92 },
+  { name: 'SANDBAR', kind: 'fuel', owner: 0, x: 520, z: 900, r: 140 },
+  { name: 'DRIFTWOOD', kind: 'factory', owner: 0, x: -1940, z: -420, r: 70 },
+  { name: 'KILN', kind: 'factory', owner: 0, x: 1940, z: 420, r: 145 },
+  { name: 'SPIRE', kind: 'radar', owner: 0, x: -250, z: -1720, r: 66 },
+  { name: 'ECHO', kind: 'radar', owner: 0, x: 260, z: 1980, r: 100 },
 ];
 ISLANDS.forEach((I, i) => { I.id = i; I.cave = I.kind === 'hq' || I.kind === 'fortress'; });
 // Initial fleet anchorages track the expanded map; the nav grid moves them to verified deep water.
-export const fleetStart = side => { const I = ISLANDS[side === 1 ? 0 : 1], k = side === 1 ? 1 : -1; return [I.x + k * (I.r + 95), I.z - k * 140]; };
+// (ngc/look-terrain) open water: the Marines' carrier south of HOME ISLAND, the enemy's north of IRON BAY's mouth
+export const fleetStart = side => side === 1 ? [-1150, 2230] : [1100, -2250];
 
 const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const mix = (a, b, t) => a + (b - a) * t;
@@ -52,7 +57,7 @@ export function noise(x, z) {   // 2D gradient noise, about -0.7..0.7
   return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
 }
 export function fbm(x, z, oct) { let s = 0, a = 1, n = 0; for (let i = 0; i < oct; i++) { s += noise(x, z) * a; n += a; a *= 0.5; const t = x * 1.6 - z * 1.2; z = x * 1.2 + z * 1.6; x = t + 17.3; } return s / n; }
-function ridged(x, z, oct) {   // sharp crests: 1 - |noise|, squared, each octave weighted by the last (rugged on the ridges)
+export function ridged(x, z, oct) {   // sharp crests: 1 - |noise|, squared, each octave weighted by the last (rugged on the ridges)
   let s = 0, a = 1, w = 1, n = 0;
   for (let i = 0; i < oct; i++) { let r = 1 - Math.abs(noise(x, z)) * 1.6; r = r < 0 ? 0 : r * r; s += r * a * w; n += a; w = Math.min(1, r * 1.8); a *= 0.5; const t = x * 1.7 - z * 1.1; z = x * 1.1 + z * 1.7; x = t - 9.1; }
   return s / n;
@@ -66,19 +71,31 @@ export function wildH(x, z) {
   const low = 2 + coast * (40 + 45 * fbm(x / 1900 + 3.1, z / 1900 - 8.4, 3)) + coast * hills(x, z) * 0.5;   // plains and hills
   const belt = sm(-0.08, 0.24, fbm(x / 8000 - 7.1, z / 8000 + 3.3, 3));          // where the mountain ranges run
   const r = ridged(x / 2400, z / 2400, 5), mtn = belt * coast * r * r * 1700;   // ranges, peaks past 1 km
-  return mix(SEA_FLOOR - 4, low + mtn, sm(-0.12, 0.0, land));
+  return flats(x, z, mix(SEA_FLOOR - 4, low + mtn, sm(-0.12, 0.0, land)));
+}
+// FLATS: flat footprints outside the zone (air bases, ngc/look-airbases) that wildH grades the ground to. Each
+// { x, z, hw, hl (half width / length, m), yaw, h (height), blend (m of slope round it) }; add before anything bakes.
+export const FLATS = [];
+function flats(x, z, h) {
+  for (let i = 0; i < FLATS.length; i++) {
+    const F = FLATS[i], c = Math.cos(F.yaw || 0), s = Math.sin(F.yaw || 0), dx = x - F.x, dz = z - F.z;
+    const u = Math.abs(c * dx - s * dz) - F.hw, v = Math.abs(s * dx + c * dz) - F.hl, d = Math.hypot(Math.max(u, 0), Math.max(v, 0));
+    const b = F.blend ?? 60; if (d < b) h = mix(F.h, h, sm(0, b, d));
+  }
+  return h;
 }
 // forests: where the forest noise says so, on gentle slopes between the beach and the tree line (~360 m)
 export function forestAt(x, z, h, slopeY) { return h > 3.5 && h < 360 - 60 * noise(x / 300, z / 300) && slopeY > 0.82 && fbm(x / 1700 + 5.5, z / 1700 + 9.2, 3) > -0.08; }
 // rawH: the natural ground. islandH: the ground people built on - road beds, town squares, quays and farmyards are
 // flattened in by world/net.js (the lived-in world), so physics, the terrain bake and the road ribbons all agree.
-export const rawH = (x, z) => Math.max(Math.abs(x), Math.abs(z)) < BOUND + 300 ? zoneH(x, z) : wildH(x, z);
+// (the zone grid runs to ZONE_E = BOUND + 160 and its outer ring already IS wildH: no seam where the two meet)
+export const rawH = (x, z) => Math.max(Math.abs(x), Math.abs(z)) < ZONE_E - 5 ? zoneH(x, z) : wildH(x, z);
 export const islandH = (x, z) => roadBed(x, z, rawH(x, z));
 export const islandAt = (x, z, pad = 0) => ISLANDS.find(I => hypot2(x - I.x, z - I.z) < I.r + pad);
 
 // --------------------------------------------------------------------------------------------- sea navigation
 // Ships route over a coarse grid of deep-water cells (A*), so carriers sail round islands instead of beaching.
-export function createNav(heightAt, { cell = 20, draft = -5, margin = 14 } = {}) {
+export function createNav(heightAt, { cell = 20 * BOUND / 1280, draft = -5, margin = 14 } = {}) {
   const N = Math.ceil(2 * BOUND / cell), ok = new Uint8Array(N * N);
   const cx = i => -BOUND + (i + 0.5) * cell;
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {

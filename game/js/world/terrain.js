@@ -1,45 +1,39 @@
-// NGC-1980 TERRAIN (adapted from ngc/terrain): natural geometry and visual surface types for 17 control-zone islands.
-// This integration retains the existing ground-host friction rules and logistics landing hards. The surface table
-// and natural-beach descriptors below are available for later integration; they do not replace those gameplay APIs.
+// NGC-1980 TERRAIN (ngc/look-terrain): the control zone's land - one large main island with bays, headlands, a
+// mountain spine, a limestone plateau with an escarpment, rolling farmland, granite hills and two river valleys,
+// HOME ISLAND across a strait, SOUTH REEF and islets - and the visual / sim surface types on it.
 // Pure JS (no THREE, no DOM): the main thread, the terrain / world workers and the node benches all build exactly the
-// same ground.
+// same ground (fixed plan + fixed-seed noise: the same world every run).
 //
-// Each island gets a geology (granite, volcanic, limestone / coral, sandstone: rock and sand colours, how rugged it is)
-// and a coast made of three kinds of shore, blended by angle round the island:
-//   BEACH  - a sand beach in a cove (big islands: a bay with a stream valley behind it) or on a spit (small islands):
-//            sandy shoreface 1 in 14-20 out to ~2.5 m depth then the shelf, a wet-sand swash zone, a berm at ~1.7 m,
-//            dunes behind the big beaches, a marshy stream mouth in the valley behind the dunes.
-//   CLIFF  - the exposed side of the high islands: a 6-20 m face straight out of deep water, rock platform at its foot.
-//   ROCKY  - everywhere else: a low rocky / shingle bank rising 1 in 2-3 to the island's own ground, steep sea bed.
-// Inland: a plateau at the pad / base height (so the pad, the shaft apron and the ground over the cave sit on natural
-// ground), hills and granite tors / volcanic cones on the high islands, rolling grass, valleys from the coves.
+// How it is built (docs/ngc1980/findings/look-terrain.md, "Design"):
+//   1. PLAN fields on a 10 m grid: the land as signed distance to the coast in metres (union of hand-laid ellipses
+//      and capsules, bays cut out, both scales of domain-warped noise on the shoreline), the inland relief R (regional
+//      landforms blended with a soft max, river valleys carved, a flat basin at each ISLANDS site), and the coast kind
+//      (beach where the lowland meets the sea, cliff where high ground does, rocky shore between).
+//   2. The FINE pass on a 2.5 m grid (the render lattice): each coast kind's profile across the shore applied to the
+//      interpolated plan fields (cliffs stay sharp), the sea bed's shoreface / shelf, hummocks and broken rock.
+//   3. SURFACES from the fine ground's slope and what the plan knew (beach, river, high ground).
+//   4. The outer ring of the grid blends into world.js wildH (open sea on both sides), so there is no seam at BOUND.
 //
 // API (all pure, all world metres; y up, sea level 0):
-//   zoneH(x, z)            -> natural ground / sea-bed height inside the zone grid (|x|,|z| <= ZONE_E), else SEA_FLOOR.
-//                             Bilinear over a 1.25 m grid baked lazily once per thread. Rendering samples this ground
-//                             at its current LOD; collision and headless terrain agreement are tested separately.
-//   zoneSurf(x, z)         -> the natural surface name at (x, z): one of SURF_NAMES (see below). Roads, pads, decks are
-//                             handled separately by the current hosts; under water this describes the sea bed.
+//   zoneH(x, z)            -> natural ground / sea-bed height inside the zone grid (|x|,|z| <= ZONE_E), else SEA_FLOOR
+//   zoneSurf(x, z)         -> the natural surface name at (x, z): one of SURF_NAMES (under water: the sea bed)
 //   zoneSurfId(x, z)       -> the same as an index into SURF_NAMES
-//   SURF_NAMES             -> ['grass','sand','wetsand','rock','mud','dirt','shingle','marsh']
-//   SURFACE[name]          -> { mu, crr, sink, speed, skid, tyre, soil, foot }: the canonical friction table and how each
-//                             sim's own dictionary names it (tyre.js SURF, trackfm.js SOILS, infantry audio / marinesim)
-//   beaches()              -> the LANDING BEACHES (one or more per island): { I, name, x, z (waterline on the centre
-//                             line), fx, fz (unit, inland), yaw (craft convention: facing inland), w (half width, m),
-//                             u0, u1 (m along the centre line from the waterline: sea end, top of the sand), y(u),
-//                             at(u, lat) -> [x, z], grade (foreshore rise per metre), runIn (m of clear water) }.
-//                             Compatible descriptor for future beach delivery; LCM-8 currently uses landing hards.
-//   islandInfo(I)          -> the generated island: geology, shore kinds by angle, coves, peaks (debug / other agents)
-//   shoreAt(x, z)          -> { island, s (m inland of the natural coastline, negative offshore), kind: 'beach'|'cliff'|
-//                             'rocky' (the dominant shore here), beach (0..1 beach weight) } - for the sea / shallows
+//   SURF_NAMES, SURFACE    -> the canonical surface table (see below) and how each sim names a surface
+//   GEOLOGY, geologyOf(I)  -> rock / sand colours of a site's region
+//   beaches(), beachesOf(I)-> sand beaches near each site (waterline point, inland direction, width, run-in)
+//   islandInfo(I)          -> the site's plan: geology, basin height, coast kind nearby (debug / other agents)
+//   shoreAt(x, z)          -> { island (nearest site), s (m inland, negative offshore), kind, beach } near a coast, else null
 //   zoneGrid()             -> { N, C, E, h: Float32Array (N*N, row-major z then x), s: Uint8Array (surface ids) }
-//                             (main.js builds the terrain textures from it)
-import { ISLANDS, SEA_FLOOR, noise } from '../world.js';
+//   planAt(x, z)           -> the plan fields at (x, z): { s, R, wb, wc, riv } (tools, the overview map)
+//   SITE_H                 -> the designed basin height of every site (main.js / sim/zone.js clamp their pads to it)
+import { ISLANDS, SEA_FLOOR, noise, fbm, ridged, wildH } from '../world.js';
+import { BOUND } from './bound.js';
 
-export const ZONE_E = 1400;                       // the grid covers -ZONE_E..ZONE_E (the zone, 1280, plus the island shelves)
-export const ZONE_C = 1.25;                      // grid spacing (m): the near-camera render mesh uses the same vertices
-const N = Math.round(2 * ZONE_E / ZONE_C) + 1;   // 2241
-const TAU = Math.PI * 2;
+export const ZONE_E = BOUND + 160;                // the grid covers -ZONE_E..ZONE_E (the zone plus its blend ring)
+export const ZONE_C = 2.5;                        // fine grid spacing (m): the render lattice (main.js TG) uses the same vertices
+const N = Math.round(2 * ZONE_E / ZONE_C) + 1;    // 2177 at BOUND 2560
+const CC = 10, NC = Math.round(2 * ZONE_E / CC) + 1;   // the plan grid
+const BLEND0 = BOUND - 220, BLEND1 = BOUND + 120; // the ring where the zone's sea becomes wildH's sea
 
 // ------------------------------------------------------------------------------------------------- surfaces
 // The canonical surface table. mu: peak friction for a tyre / boot (Wong, Theory of Ground Vehicles 4th ed. tables 1.2,
@@ -47,22 +41,25 @@ const TAU = Math.PI * 2;
 // crr: rolling resistance of a pneumatic tyre (Wong 1.2: grass 0.05-0.08, sand 0.15-0.3, firm wet sand 0.04-0.08,
 // mud 0.1-0.15), sink: how far a wheel / foot settles (m), speed: walking-pace factor, skid: helicopter skid (steel shoe)
 // friction relative to concrete (it ploughs in sand and shingle, glides on mud) - all INFERRED within those ranges.
-// tyre / soil / foot: the names this surface has in tyre.js SURF, trackfm.js SOILS and the infantry footstep audio.
+// tyre / soil / foot: the names this surface has in tyre.js SURF, trackfm.js SOILS and the infantry footstep audio;
+// ground: the name in ground.js SURF (the ground host's fallback inside the zone, ngc/look-terrain).
 export const SURF_NAMES = ['grass', 'sand', 'wetsand', 'rock', 'mud', 'dirt', 'shingle', 'marsh'];
 export const SURFACE = {
-  grass:   { mu: 0.50, crr: 0.06,  sink: 0.02, speed: 0.95, skid: 0.85, tyre: 'grass', soil: 'grass', foot: 'grass' },
-  sand:    { mu: 0.50, crr: 0.18,  sink: 0.06, speed: 0.80, skid: 1.20, tyre: 'sand',  soil: 'sand',  foot: 'sand' },
-  wetsand: { mu: 0.62, crr: 0.06,  sink: 0.02, speed: 0.95, skid: 1.00, tyre: 'dirt',  soil: 'dirt',  foot: 'sand' },   // the swash zone: firm, the landing craft's road
-  rock:    { mu: 0.70, crr: 0.02,  sink: 0,    speed: 0.85, skid: 1.05, tyre: 'rock',  soil: 'rock',  foot: 'rock' },
-  mud:     { mu: 0.35, crr: 0.13,  sink: 0.08, speed: 0.70, skid: 0.70, tyre: 'mud',   soil: 'mud',   foot: 'mud' },
-  dirt:    { mu: 0.65, crr: 0.04,  sink: 0.02, speed: 1.00, skid: 1.00, tyre: 'dirt',  soil: 'dirt',  foot: 'dirt' },
-  shingle: { mu: 0.55, crr: 0.09,  sink: 0.04, speed: 0.80, skid: 1.10, tyre: 'sand',  soil: 'sand',  foot: 'rock' },   // pebble strand on the rocky shores
-  marsh:   { mu: 0.30, crr: 0.20,  sink: 0.15, speed: 0.55, skid: 0.80, tyre: 'mud',   soil: 'bog',   foot: 'mud' },    // salt marsh behind the low islands' dunes
+  grass:   { mu: 0.50, crr: 0.06,  sink: 0.02, speed: 0.95, skid: 0.85, tyre: 'grass', soil: 'grass', foot: 'grass', ground: 'grass' },
+  sand:    { mu: 0.50, crr: 0.18,  sink: 0.06, speed: 0.80, skid: 1.20, tyre: 'sand',  soil: 'sand',  foot: 'sand',  ground: 'sand' },
+  wetsand: { mu: 0.62, crr: 0.06,  sink: 0.02, speed: 0.95, skid: 1.00, tyre: 'dirt',  soil: 'dirt',  foot: 'sand',  ground: 'dirt' },   // the swash zone: firm, the landing craft's road
+  rock:    { mu: 0.70, crr: 0.02,  sink: 0,    speed: 0.85, skid: 1.05, tyre: 'rock',  soil: 'rock',  foot: 'rock',  ground: 'rock' },
+  mud:     { mu: 0.35, crr: 0.13,  sink: 0.08, speed: 0.70, skid: 0.70, tyre: 'mud',   soil: 'mud',   foot: 'mud',   ground: 'mud' },
+  dirt:    { mu: 0.65, crr: 0.04,  sink: 0.02, speed: 1.00, skid: 1.00, tyre: 'dirt',  soil: 'dirt',  foot: 'dirt',  ground: 'dirt' },
+  shingle: { mu: 0.55, crr: 0.09,  sink: 0.04, speed: 0.80, skid: 1.10, tyre: 'sand',  soil: 'sand',  foot: 'rock',  ground: 'sand' },   // pebble strand on the rocky shores
+  marsh:   { mu: 0.30, crr: 0.20,  sink: 0.15, speed: 0.55, skid: 0.80, tyre: 'mud',   soil: 'bog',   foot: 'mud',   ground: 'mud' },    // salt marsh on the estuaries and behind the spit
 };
 const S_GRASS = 0, S_SAND = 1, S_WET = 2, S_ROCK = 3, S_MUD = 4, S_DIRT = 5, S_SHINGLE = 6, S_MARSH = 7;
 
 // ------------------------------------------------------------------------------------------------- geology
-// rock / sand colours (linear-ish RGB 0..1, the shader's palette), ruggedness (micro relief on rock), tors (outcrops)
+// rock / sand colours (linear-ish RGB 0..1, the shader's palette), ruggedness, tors, cliffs. By region: granite in the
+// west, the spine and HOME ISLAND; limestone on the plateau and the south-east; sandstone in the farmland and the river
+// country; volcanic round IRON BAY.
 export const GEOLOGY = {
   granite:   { rock: [0.56, 0.55, 0.52], sand: [0.86, 0.79, 0.60], rugged: 1.0, tors: 1.0, cliffs: 1.0 },
   volcanic:  { rock: [0.30, 0.28, 0.27], sand: [0.48, 0.45, 0.42], rugged: 1.2, tors: 0.6, cliffs: 1.2 },
@@ -70,328 +67,238 @@ export const GEOLOGY = {
   sandstone: { rock: [0.62, 0.45, 0.33], sand: [0.88, 0.74, 0.52], rugged: 0.8, tors: 0.5, cliffs: 1.0 },
 };
 const GEO_OF = {
-  'HOME ISLAND': 'granite', 'NORTH ROCK': 'granite', LOOKOUT: 'granite', SPIRE: 'granite',
-  IRONHOLD: 'volcanic', CINDER: 'volcanic', ANVIL: 'volcanic', KILN: 'volcanic', FORGE: 'volcanic',
-  'SOUTH REEF': 'limestone', SANDBAR: 'limestone', PELICAN: 'limestone', ECHO: 'limestone', BEACON: 'limestone',
-  CITADEL: 'sandstone', WELLSPRING: 'sandstone', DRIFTWOOD: 'sandstone',
+  'HOME ISLAND': 'granite', PELICAN: 'granite', 'NORTH ROCK': 'granite', LOOKOUT: 'granite', SPIRE: 'granite', DRIFTWOOD: 'granite',
+  IRONHOLD: 'volcanic', ANVIL: 'volcanic',
+  CINDER: 'limestone', BEACON: 'limestone', KILN: 'limestone', 'SOUTH REEF': 'limestone', ECHO: 'limestone', SANDBAR: 'limestone',
+  CITADEL: 'sandstone', WELLSPRING: 'sandstone', FORGE: 'sandstone',
 };
 export const geologyOf = I => GEO_OF[I.name] || 'granite';
 
 // ------------------------------------------------------------------------------------------------- small maths
 const sm = (a, b, x) => { const t = (x - a) / (b - a); const u = t < 0 ? 0 : t > 1 ? 1 : t; return u * u * (3 - 2 * u); };
 const mix = (a, b, t) => a + (b - a) * t;
-const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
-const adiff = (a, b) => { let d = a - b; d -= TAU * Math.round(d / TAU); return d; };
-const bump = (d, w) => { const t = Math.abs(d) / w; return t >= 1 ? 0 : 0.5 + 0.5 * Math.cos(Math.PI * t); };   // raised cosine, 1 at 0, 0 at w
-const seedOf = s => { let h = 2166136261; for (const c of String(s)) h = Math.imul(h ^ c.charCodeAt(0), 16777619); return h >>> 0; };
-const mulberry = s => () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+const smax = (a, b, k) => { const h = Math.max(0, Math.min(1, 0.5 + 0.5 * (a - b) / k)); return mix(b, a, h) + k * h * (1 - h); };   // soft max (no crease)
+// signed distance (m, + inside) to a capsule a-b of radius r, and (approximately) to a rotated ellipse
+const segD = (x, z, ax, az, bx, bz) => { const dx = bx - ax, dz = bz - az, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz))); return Math.hypot(x - ax - dx * t, z - az - dz * t); };
+const cap = (ax, az, bx, bz, r) => (x, z) => r - segD(x, z, ax, az, bx, bz);
+const ell = (cx, cz, rx, rz, rot = 0) => { const c = Math.cos(rot), s = Math.sin(rot), m = Math.min(rx, rz);
+  return (x, z) => { const dx = x - cx, dz = z - cz, u = (c * dx + s * dz) / rx, v = (-s * dx + c * dz) / rz; return (1 - Math.hypot(u, v)) * m; }; };
 
-// ------------------------------------------------------------------------------------------------- island plans
-// pad / base positions: the same rule as main.js PADS / net.js padOf (cave islands: base at the centre, pad 30 m south)
-const padXZ = I => I.cave ? [I.x, I.z + 30] : [I.x, I.z];
-let PLANS = null;
-function plans() {
-  if (PLANS) return PLANS;
-  PLANS = ISLANDS.map(planIsland);
-  return PLANS;
-}
-// how much open water there is from island I's coast in direction a (m, capped): beaches face the open sea and a
-// landing craft needs a clear run in
-function fetchOf(I, a, R) {
-  const cx = Math.cos(a), sz = Math.sin(a);
-  for (let d = R; d < R + 420; d += 8) {
-    const x = I.x + cx * d, z = I.z + sz * d;
-    for (const J of ISLANDS) if (J !== I && Math.hypot(x - J.x, z - J.z) < J.r * 1.05 + 40) return d - R;
-  }
-  return 420;
-}
-function planIsland(I) {
-  const r = mulberry(seedOf(I.name + '/terrain')), geo = geologyOf(I), G = GEOLOGY[geo];
-  const big = I.r >= 100, low = I.kind === 'fuel', small = !big;
-  const P = { I, x: I.x, z: I.z, geo, G, big, low, kind: I.kind };
-  // the coastline: a mean radius near I.r (the war places its buildings and guns inside I.r) with low harmonics
-  P.R = I.r * (big ? 0.95 : 1.02);
-  P.harm = [[2, 0.08], [3, 0.06], [4, 0.035], [5, 0.025], [7, 0.014]].map(([k, a]) => ({ k, a: a * (0.5 + r()), ph: r() * TAU }));
-  // the plateau the pad stands on and the rise above it
-  P.Hpl = low ? 3.4 + r() * 0.8 : big ? 9.5 + r() * 3 : I.kind === 'radar' ? 9 + r() * 3 : 6 + r() * 2.5;
-  P.edge = low ? 0.35 : 0.3;                      // fraction of the plateau height left at the coast (rocky shores)
-  P.warp = (low ? 5 : big ? 14 : 9) * G.rugged;              // coastline irregularity (m) on the rocky stretches
-  const [px, pz] = padXZ(I);
-  P.pad = { x: px, z: pz };
-  // keep-outs: the pad and its apron, the cave base and the ground over it, the RUNAWAY shipyard on IRONHOLD's coast
-  const shipyardA = I.name === 'IRONHOLD' ? Math.atan2(-I.z, -I.x) : null;
-  // ---- coves / beaches: score every 6 degrees; the best ones (spaced) become beaches, the first is the landing beach
-  const nCove = big ? 2 : low ? 3 : 1;
-  const cand = [];
-  for (let k = 0; k < 60; k++) {
-    const a = k / 60 * TAU, f = fetchOf(I, a, P.R);
-    let sc = Math.min(f, 320) / 320 + r() * 0.25;
-    if (f < 140) sc -= 2;                                                  // no beach into a narrow channel
-    if (shipyardA !== null && Math.abs(adiff(a, shipyardA)) < 0.7) sc -= 3;
-    if (I.cave) {
-      if (Math.abs(Math.sin(a)) < 0.45) sc -= 1.5;                         // the ground over the cave runs east-west
-      if (Math.abs(adiff(a, Math.PI / 2)) < 0.5) sc -= 0.6;                // the pad is south of the shaft: beaches elsewhere
-    }
-    cand.push({ a, f, sc });
-  }
-  cand.sort((p, q) => q.sc - p.sc);
-  P.coves = [];
-  for (const c of cand) {
-    if (P.coves.length >= nCove) break;
-    if (P.coves.some(o => Math.abs(adiff(o.a, c.a)) < (low ? 1.9 : 1.7))) continue;
-    if (c.sc < -0.5 && P.coves.length) continue;
-    const main = P.coves.length === 0;
-    P.coves.push({
-      a: c.a, fetch: c.f, main,
-      w: low ? 0.85 + r() * 0.25 : big ? 0.3 + r() * 0.1 : 0.5 + r() * 0.15,         // angular half width of the sand (the low islands: a sandy ring)
-      d: big ? (main ? 26 : 18) + r() * 8 : low ? -(2 + r() * 4) : -(5 + r() * 6),     // indentation (m): a bay, or a spit (<0) on small islands
-      g: main ? 0.07 : 0.045 + r() * 0.03,                                             // foreshore grade (landing beach 1 in 14)
-      berm: 1.5 + r() * 0.4,
-      dune: big ? 2.6 + r() * 2.2 : low ? 1.6 + r() * 1.4 : 0.8 + r() * 0.8,            // dune ridge height above the berm
-      valley: big,
-    });
-  }
-  // ---- cliffs: on the high islands, the most exposed side away from the beaches
-  P.cliffs = [];
-  if (!low) {
-    const nCl = big ? 2 : I.kind === 'radar' ? 1 + (r() < 0.5 ? 1 : 0) : (r() < 0.6 ? 1 : 0);
-    const cc = cand.filter(c => P.coves.every(o => Math.abs(adiff(o.a, c.a)) > o.w + 0.75)).sort((p, q) => (q.f + r() * 120) - (p.f + r() * 120));
-    for (const c of cc) {
-      if (P.cliffs.length >= nCl) break;
-      if (P.cliffs.some(o => Math.abs(adiff(o.a, c.a)) < 1.3)) continue;
-      if (shipyardA !== null && Math.abs(adiff(c.a, shipyardA)) < 0.6) continue;
-      P.cliffs.push({ a: c.a, w: 0.45 + r() * 0.35, hc: (big ? 10 + r() * 9 : 7 + r() * 6) * G.cliffs });
-    }
-  }
-  // sea stacks off the cliffs: the bits of the old headland the sea has not taken yet
-  P.stacks = [];
-  for (const c of P.cliffs) for (let k = 0, n = 1 + Math.floor(r() * 3); k < n; k++) {
-    const a = c.a + (r() * 2 - 1) * c.w * 0.8, d = coastR(P, a) + 7 + r() * 16;
-    P.stacks.push({ x: I.x + Math.cos(a) * d, z: I.z + Math.sin(a) * d, rad: 2.2 + r() * 3, h: (4 + r() * 10) * G.cliffs });
-  }
-  // ---- hills: peaks off the pad / base, ridged, granite tors / volcanic cones
-  P.peaks = [];
-  const relief = low ? 2 + r() * 1.5 : big ? 16 + r() * 12 : I.kind === 'radar' ? 6 + r() * 6 : 4 + r() * 5;
-  const nPk = low ? 2 : big ? 3 : 1;
-  for (let t = 0; t < 80 && P.peaks.length < nPk; t++) {
-    const a = r() * TAU, d = P.R * (big ? 0.5 + r() * 0.25 : 0.62 + r() * 0.15), x = I.x + Math.cos(a) * d, z = I.z + Math.sin(a) * d;
-    const rad = big ? 26 + r() * 22 : 14 + r() * 8;
-    if (Math.hypot(x - P.pad.x, z - P.pad.z) < (I.cave ? 40 : 34) + rad * 0.4) continue;                       // the pad's apron
-    if (I.cave && (Math.hypot(x - I.x, z - I.z) < 58 + rad * 0.3 || (Math.abs(z - I.z) < 22 + rad * 0.5 && Math.abs(x - I.x) < 100))) continue;   // the base and the cave strip
-    if (P.coves.some(c => Math.abs(adiff(c.a, a)) < c.w + 0.35)) continue;                                   // not on a beach
-    if (P.peaks.some(p => Math.hypot(p.x - x, p.z - z) < (p.rad + rad) * 0.8)) continue;
-    P.peaks.push({ x, z, rad, h: relief * (0.7 + r() * 0.3), ridge: r() * TAU });
-  }
-  P.relief = relief;
-  P.cone = geo === 'volcanic' && big;              // a volcanic island's main peak is a cone with a crater
-  // the extent of this island's influence (coast + shelf)
-  let Rmax = 0; for (let k = 0; k < 64; k++) Rmax = Math.max(Rmax, coastR(P, k / 64 * TAU));
-  P.Rmax = Rmax + P.warp + 8; P.ext = P.Rmax + 125;
-  // per-angle tables (the bake reads these, not the sums): coast radius with its rocky bites, shore weights, cove, cliff height
-  P.tR = new Float32Array(TA + 1); P.tWb = new Float32Array(TA + 1); P.tWc = new Float32Array(TA + 1); P.tHc = new Float32Array(TA + 1); P.tCv = new Int8Array(TA + 1);
-  P.tWbW = new Float32Array(TA + 1); P.tWcW = new Float32Array(TA + 1);   // the same weights blurred over +-0.55 rad: offshore the shelves spread out
-  for (let k = 0; k <= TA; k++) {
-    const a = k / TA * TAU - Math.PI; shoreW(P, a, _sw);
-    P.tWb[k] = _sw.wb; P.tWc[k] = _sw.wc; P.tCv[k] = _sw.cove ? P.coves.indexOf(_sw.cove) : -1;
-    P.tR[k] = coastR(P, a) + (1 - _sw.wb) * 2.5 * noise(a * P.R / 22, 5.5);
-    let cl = null; for (const c of P.cliffs) if (!cl || Math.abs(adiff(a, c.a)) < Math.abs(adiff(a, cl.a))) cl = c;
-    P.tHc[k] = cl ? cl.hc * (0.8 + 0.3 * noise(a * 7, 1.7)) : 8;
-  }
-  const B = Math.round(0.55 / TAU * TA);
-  for (let k = 0; k <= TA; k++) { let b = 0, c = 0, n = 0; for (let q = -B; q <= B; q += 4) { const j = ((k + q) % TA + TA) % TA, wq = 1 - Math.abs(q) / (B + 1); b += P.tWb[j] * wq; c += P.tWc[j] * wq; n += wq; } P.tWbW[k] = b / n; P.tWcW[k] = c / n; }
-  return P;
-}
+// ------------------------------------------------------------------------------------------------- the plan
+// North is -z (the map's top). Sites (world.js ISLANDS) sit on this land at roughly twice their old archipelago spots.
+const LAND = [
+  ell(100, -450, 1950, 1400, 0.08),        // the main island
+  ell(1520, -1430, 620, 470, 0.2),         // its north-east lobe (IRONHOLD)
+  ell(-1000, 430, 900, 520, -0.2),         // the south-west lobe (FORGE), across the strait from HOME ISLAND
+  cap(-1050, -950, -1650, -1460, 330),     // the north-west peninsula (NORTH ROCK)
+  cap(-1300, 330, -2060, 370, 270),        // the west headland (LOOKOUT)
+  cap(-1450, -420, -2080, -470, 280),      // DRIFTWOOD's coast
+  cap(1300, -420, 2090, -380, 320),        // the east headland under the plateau (BEACON)
+  cap(900, -50, 2040, 440, 360),           // the south-east (KILN)
+  cap(560, 890, 260, 1090, 95),            // the sand spit across THE SOUND's mouth (SANDBAR)
+  ell(-1150, 1580, 1000, 390, -0.12),      // HOME ISLAND
+  ell(1450, 1380, 540, 380, 0.25),         // SOUTH REEF
+  ell(260, 1980, 210, 160, 0.4),           // ECHO's islet
+  ell(-2150, 1150, 130, 90, 0.6), ell(2200, 1050, 110, 80, -0.3), ell(-600, -2150, 90, 70, 0.2),   // islets
+];
+const SEA = [
+  cap(-50, 1150, -20, 650, 285),           // THE SOUND: a deep bay from the south to CITADEL's door
+  cap(1130, -2350, 1215, -1300, 285),      // IRON BAY: from the north to IRONHOLD's shipyard
+  cap(-2300, 900, -1750, 820, 120),        // the west bay between LOOKOUT's headland and the strait
+];
+// regional landforms (the relief R where there is land)
+const SPINE = { ax: -1050, az: -1330, bx: 1050, bz: -1300, w: 520, fall: 380 };   // the mountain spine across the north
+const PLATEAU = ell(1180, -480, 760, 520, 0.1);   // the limestone plateau: 105 m, escarpment W and S, cliffs at the east coast
+const WHILLS = ell(-1600, -80, 600, 850, 0.15);   // the granite hills in the west
+const HHILLS = ell(-1520, 1560, 560, 300, -0.12); // HOME ISLAND's hills
+const LOW = [ell(1450, 1380, 600, 440, 0.25), ell(260, 1980, 260, 200, 0.4), cap(560, 890, 260, 1090, 160)];   // low islands and the spit: relief held down
+// rivers: polylines from source to mouth (the last point is in the sea); floor heights at the source
+const RIVERS = [
+  { pts: [[-320, -1220], [-470, -980], [-540, -720], [-430, -420], [-300, -170], [-190, 120], [-110, 330], [-60, 520]], h0: 70, w0: 14, w1: 55 },   // the Kessel: spine -> WELLSPRING -> the farmland -> THE SOUND
+  { pts: [[-1000, -1120], [-1200, -900], [-1420, -720], [-1700, -640], [-1950, -620], [-2200, -640]], h0: 60, w0: 12, w1: 45 },                  // the west river, past DRIFTWOOD
+  { pts: [[480, -1250], [560, -1480], [600, -1700], [620, -1900], [640, -2050]], h0: 80, w0: 10, w1: 35 },                                     // the north valley down to ANVIL's harbour
+];
+// each site's flat basin: the height its town ground is graded to (cave bases 4-16 m: main.js clamps them there)
+export const SITE_H = {
+  'HOME ISLAND': 9, IRONHOLD: 10, 'NORTH ROCK': 11, 'SOUTH REEF': 6, CITADEL: 14,
+  PELICAN: 5, ANVIL: 6, LOOKOUT: 58, BEACON: 96, FORGE: 9, CINDER: 108, WELLSPRING: 34, SANDBAR: 3.5,
+  DRIFTWOOD: 7, KILN: 8, SPIRE: 64, ECHO: 22,
+};
+// beaches: lowland coasts, plus these preferred stretches (landing beaches, holiday sand)
+const BEACHY = [ell(-1250, 1900, 700, 260, -0.1), ell(-500, 1450, 260, 260), ell(0, 950, 420, 300), ell(1450, 1600, 600, 260, 0.25), ell(-900, 980, 500, 160, -0.2), ell(1950, 650, 300, 260), ell(600, 1000, 360, 200)];
+const CLIFFY = [ell(-300, -1850, 900, 220, 0.03), ell(-2150, 100, 250, 700, 0.1), ell(2100, -420, 200, 380), ell(-1900, 1500, 260, 300)];
 
-// ------------------------------------------------------------------------------------------------- the height model
-// the coastline radius at angle a (before the domain warp), with the coves cut in / the spits pushed out
-function coastR(P, a) {
-  let R = P.R;
-  for (const h of P.harm) R += P.R * h.a * Math.sin(h.k * a + h.ph);
-  for (const c of P.coves) {
-    const d = adiff(a, c.a);
-    R -= c.d * bump(d, c.w * (c.d > 0 ? 1.15 : 1.25));
-    if (c.d > 0) R += c.d * 0.35 * (bump(d - c.w * 1.3, 0.35) + bump(d + c.w * 1.3, 0.35));   // headlands either side of a bay
-  }
+function landSD(x, z) {
+  // the coastline: domain-warped (bays and headlands at ~1 km and ~250 m), then a small-scale ragged edge
+  const wx = x + 230 * fbm(x / 1300 + 3.1, z / 1300 - 8.4, 3) + 60 * noise(x / 260 + 1.7, z / 260 + 4.4);
+  const wz = z + 230 * fbm(x / 1300 - 5.3, z / 1300 + 1.9, 3) + 60 * noise(x / 260 - 2.9, z / 260 - 6.1);
+  let m = -1e9; for (const f of LAND) { const v = f(wx, wz); if (v > m) m = v; }
+  for (const f of SEA) { const v = f(wx, wz); if (-v < m) m = -v; }
+  m += 45 * fbm(x / 520 + 9.1, z / 520 + 2.2, 2);
+  return m;
+}
+const PL = { S: null, R: null, WB: null, WC: null, RV: null, siteM: null };
+function siteMask() {   // per site: its centre, keep-land radius, basin radii
+  return ISLANDS.map(I => ({ I, x: I.x, z: I.z, keep: I.r * 0.8, rin: I.r * (I.cave ? 0.85 : 0.75), rout: I.r * (I.cave ? 0.85 : 0.75) + 260 + I.r * 0.5, h: SITE_H[I.name] ?? 8 }));
+}
+function relief(x, z) {
+  // farmland / lowland everywhere: long gentle swells 5-40 m
+  let R = 7 + 26 * (0.5 + 0.5 * fbm(x / 1500 + 2.7, z / 1500 - 1.1, 3)) + 7 * noise(x / 420 + 5.5, z / 420 + 3.3);
+  // scattered farm hills and downs (20-70 m)
+  { const hv = fbm(x / 650 + 7.7, z / 650 - 3.9, 3); if (hv > 0) R += 130 * hv * hv * (0.6 + 0.4 * noise(x / 210, z / 210 + 2)); }
+  // the mountain spine: ridged crests, peaks 300-380 m, spurs falling to the lowland
+  const ds = segD(x, z, SPINE.ax, SPINE.az, SPINE.bx, SPINE.bz), spine = sm(SPINE.w + SPINE.fall, SPINE.w - 120, ds);
+  if (spine > 0) { const rd = ridged(x / 1150 + 4.2, z / 1150 - 2.6, 5); R = smax(R, spine * (60 + 330 * rd * rd * (0.55 + 0.45 * (1 - ds / (SPINE.w + SPINE.fall))) + 40 * spine), 25); }
+  // the plateau: a flat top at ~105 m with a steep escarpment (the edge is a narrow band of the ellipse field)
+  const pv = PLATEAU(x + 70 * noise(x / 300, z / 300 + 7), z + 70 * noise(x / 300 + 3, z / 300)), pt = sm(-35, 45, pv);
+  if (pt > 0) R = smax(R, pt * (98 + 10 * fbm(x / 600 + 1.3, z / 600 + 8.8, 2)) + 3 * noise(x / 90, z / 90), 10);
+  // the granite hills of the west and HOME ISLAND: rounded hills and tors
+  const wh = sm(-60, 260, WHILLS(x, z)); if (wh > 0) R = smax(R, wh * (45 + 115 * (0.5 + 0.5 * fbm(x / 520 - 3.3, z / 520 + 6.6, 4))), 20);
+  const hh = sm(-40, 160, HHILLS(x, z)); if (hh > 0) R = smax(R, hh * (30 + 75 * (0.5 + 0.5 * fbm(x / 380 + 8.8, z / 380 - 4.4, 3))), 15);
+  // the low islands and the spit
+  let low = 0; for (const f of LOW) low = Math.max(low, sm(-80, 60, f(x, z)));
+  if (low > 0) R = mix(R, 3 + 9 * (0.5 + 0.5 * fbm(x / 300 + 1.1, z / 300 + 2.2, 2)), low);
   return R;
 }
-// shore kind weights at angle a: beach / cliff (rocky = the rest), and the cove it belongs to
-function shoreW(P, a, out) {
-  let wb = 0, wc = 0, cv = null;
-  for (const c of P.coves) { const e = c.d > 0 ? c.w * 0.72 : c.w, v = sm(e + 0.1, e - 0.06, Math.abs(adiff(a, c.a))); if (v > wb) { wb = v; cv = c; } }   // a bay's sand is at its head, its flanks are rock
-  for (const c of P.cliffs) { const v = sm(c.w + 0.2, c.w - 0.1, Math.abs(adiff(a, c.a))); if (v > wc) wc = v; }
-  wc = Math.min(wc, 1 - wb);
-  out.wb = wb; out.wc = wc; out.cove = cv;
+// rivers: distance to the (meandering) course and where along it (0 source .. 1 mouth)
+function riverAt(x, z, out) {
+  out.v = 0; out.floor = 0; out.t = 0;
+  const mx = x + 35 * noise(x / 170 + 3.3, z / 170 - 1.2), mz = z + 35 * noise(x / 170 - 6.1, z / 170 + 2.8);
+  for (const Rv of RIVERS) {
+    const P = Rv.pts; let L = 0; for (let i = 1; i < P.length; i++) L += Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]);
+    let acc = 0, bd = 1e9, bt = 0;
+    for (let i = 1; i < P.length; i++) {
+      const [ax, az] = P[i - 1], [bx, bz] = P[i], sl = Math.hypot(bx - ax, bz - az), dx = bx - ax, dz = bz - az;
+      const t = Math.max(0, Math.min(1, ((mx - ax) * dx + (mz - az) * dz) / (sl * sl))), d = Math.hypot(mx - ax - dx * t, mz - az - dz * t);
+      if (d < bd) { bd = d; bt = (acc + t * sl) / L; } acc += sl;
+    }
+    const est = sm(0.68, 0.8, bt), w = mix(Rv.w0, Rv.w1, bt) * (1 + 0.8 * est), side = 140 + 220 * (1 - bt);   // the last third: an estuary
+    const floor = bt < 0.72 ? mix(Rv.h0, 1.2, Math.pow(bt / 0.72, 0.8)) : mix(1.2, -3.8, sm(0.72, 0.9, bt));
+    const v = 1 - sm(w, w + side, bd);
+    if (v > out.v) { out.v = v; out.floor = floor; out.t = bt; out.d = bd; out.w = w; }
+  }
   return out;
 }
-const _sw = { wb: 0, wc: 0, cove: null };
-const TA = 2048;
-// the tables at angle a (-PI..PI): linear between entries
-const _ta = { R: 0, wb: 0, wc: 0, hc: 0, cove: null, wbW: 0, wcW: 0 };
-function angAt(P, a) {
-  const g = (a + Math.PI) / TAU * TA, k = g | 0, f = g - k, k1 = k < TA ? k + 1 : TA;
-  _ta.R = P.tR[k] + (P.tR[k1] - P.tR[k]) * f; _ta.wb = P.tWb[k] + (P.tWb[k1] - P.tWb[k]) * f; _ta.wc = P.tWc[k] + (P.tWc[k1] - P.tWc[k]) * f;
-  _ta.hc = P.tHc[k] + (P.tHc[k1] - P.tHc[k]) * f; _ta.wbW = P.tWbW[k] + (P.tWbW[k1] - P.tWbW[k]) * f; _ta.wcW = P.tWcW[k] + (P.tWcW[k1] - P.tWcW[k]) * f; let c = P.tCv[f < 0.5 ? k : k1]; if (c < 0) c = P.tCv[f < 0.5 ? k1 : k]; _ta.cove = c >= 0 ? P.coves[c] : null;
-  return _ta;
+const _rv = { v: 0, floor: 0, t: 0, d: 0, w: 0 };
+function bakePlan() {
+  const S = new Float32Array(NC * NC), R = new Float32Array(NC * NC), WB = new Float32Array(NC * NC), WC = new Float32Array(NC * NC), RV = new Float32Array(NC * NC);
+  const sites = siteMask();
+  for (let j = 0; j < NC; j++) {
+    const z = -ZONE_E + j * CC;
+    for (let i = 0; i < NC; i++) {
+      const x = -ZONE_E + i * CC, k = j * NC + i;
+      let s = landSD(x, z);
+      for (const q of sites) { const d = Math.hypot(x - q.x, z - q.z); if (q.keep - d > s) s = q.keep - d; }   // every site stands on its own land
+      let r = relief(x, z);
+      // the sites' basins: town ground graded to the site's height
+      let keep = 1;
+      for (const q of sites) { const d = Math.hypot(x - q.x, z - q.z); if (d < q.rout) { const t = sm(q.rin, q.rout, d); r = mix(q.h + Math.min(4, Math.max(0, r - q.h) * 0.1) * sm(0.3 * q.rin, q.rin, d), r, t); keep *= sm(q.rin * 0.8 + 10, q.rin * 0.8 + 110, d); } }
+      // river valleys: the ground falls to the stream's graded floor (only ever lowered), the stream's own bed, an
+      // estuary below sea level in the last third; they pass the towns but never cut a pad or a base
+      riverAt(x, z, _rv);
+      const vk = _rv.v * keep;
+      if (vk > 0) { const cut = Math.max(0, r - _rv.floor); r -= cut * vk * (0.85 + 0.15 * vk); }
+      if (_rv.d < _rv.w * 0.6 && keep > 0) r = mix(r, Math.min(r, _rv.floor - 2.2 * (1 - _rv.d / (_rv.w * 0.6))), keep);
+      const rv = keep * (1 - sm(_rv.w * 0.7, _rv.w * 1.9, _rv.d));   // (the stream and its flood plain, for the surfaces)
+      // coast kind: beach where the lowland meets the sea (and the stretches in BEACHY), cliffs where high ground does
+      let pb = 0, pc = 0; for (const f of BEACHY) pb = Math.max(pb, sm(-60, 80, f(x, z))); for (const f of CLIFFY) pc = Math.max(pc, sm(-60, 80, f(x, z)));
+      const n = noise(x / 380 + 2.2, z / 380 - 7.7);
+      let wb = Math.max(pb, sm(0.05, 0.3, n) * (1 - sm(12, 26, r))) * (1 - sm(28, 50, r)) * sm(0.5, 2.5, r);
+      let wc = Math.max(pc * sm(14, 30, r), sm(26, 60, r) * sm(-0.3, 0.1, n + 0.25)) * (1 - wb);
+      S[k] = s; R[k] = r; WB[k] = wb; WC[k] = wc; RV[k] = rv;
+    }
+  }
+  PL.S = S; PL.R = R; PL.WB = WB; PL.WC = WC; PL.RV = RV;
 }
-// the island's own height at (x, z), and what the surface pass needs (aux)
-function islandHeight(P, x, z, aux) {
-  const dx0 = x - P.x, dz0 = z - P.z, rho0 = Math.hypot(dx0, dz0);
-  if (rho0 > P.ext) return -1e9;
-  const a0 = Math.atan2(dz0, dx0);
-  // domain warp on the rocky shores: irregular headlands and inlets; beaches stay smooth arcs
-  const wk = P.warp * (1 - 0.85 * angAt(P, a0).wb);
-  const wx = wk * noise(x / 38 + 3.1, z / 38 - 7.7), wz = wk * noise(x / 38 - 5.3, z / 38 + 1.9);
-  const dx = dx0 + wx, dz = dz0 + wz, rho = Math.hypot(dx, dz), a = Math.atan2(dz, dx);
-  const A = angAt(P, a);
-  const wb = A.wb, wc = A.wc, wr = 1 - wb - wc, cove = A.cove, Rc = A.R, hcA = A.hc;   // (Rc: with the rocky coast's small bites)
-  const s = Rc - rho;                                                    // m inland of the coastline
-  const t = rho / Rc;                                                    // 0 centre .. 1 coast
-  if (s < -1) {   // under the sea: the shore profiles alone (cheap: most of the cells); further out they spread and blend
-    const kb = sm(2, 70, -s), wbE = mix(wb, A.wbW, kb), wcE = mix(wc, A.wcW, kb), wrE = 1 - wbE - wcE, g = cove ? cove.g : 0.06;
-    let h = wbE * (-s > 36 ? -g * 36 - 0.2 * (-s - 36) : g * s) + wcE * (-2.6 + 0.45 * s) + wrE * (-0.6 + 0.3 * s);
-    h += 1.4 * noise(x / 47 + 2.2, z / 47 - 9.1) * sm(8, 40, -s);            // an uneven bottom
-    for (const st of P.stacks) {                                             // sea stacks
-      const d = Math.hypot(x - st.x, z - st.z); if (d > st.rad * 1.8) continue;
-      const top = st.h * (0.85 + 0.25 * noise(x / 2.1, z / 2.1)), k = sm(st.rad * 1.15, st.rad * 0.7, d);
-      h = Math.max(h, mix(h, top, k));
+const _pl = { s: 0, R: 0, wb: 0, wc: 0, riv: 0 };
+function planLerp(x, z, out = _pl) {
+  let gx = (x + ZONE_E) / CC, gz = (z + ZONE_E) / CC; gx = Math.max(0, Math.min(NC - 1.001, gx)); gz = Math.max(0, Math.min(NC - 1.001, gz));
+  const i = gx | 0, j = gz | 0, fx = gx - i, fz = gz - j, k = j * NC + i;
+  const L = A => { const a = A[k], b = A[k + 1], c = A[k + NC], d = A[k + NC + 1]; return a + (b - a) * fx + (c - a) * fz + (a - b - c + d) * fx * fz; };
+  out.s = L(PL.S); out.R = L(PL.R); out.wb = L(PL.WB); out.wc = L(PL.WC); out.riv = L(PL.RV);
+  return out;
+}
+export function planAt(x, z) { if (!PL.S) bakePlan(); return { ...planLerp(x, z, {}) }; }
+
+// ------------------------------------------------------------------------------------------------- the fine ground
+function groundAt(x, z, P) {
+  const s = P.s, R = P.R;
+  const wb = P.wb * sm(0.5, 3, R), wc = P.wc, wr = Math.max(0, 1 - wb - wc);
+  let h;
+  if (s >= 0) {
+    // beach: foreshore 1 in 15 to the berm (~1.7 m), a backshore with low dunes, then up to the land over a long run
+    let hB = 0;
+    if (wb > 0) {
+      const g = 0.066, berm = 1.7 + 0.2 * noise(x / 60, z / 60), sb = berm / g;
+      hB = s < sb ? g * s : berm + 0.15 * sm(sb, sb + 8, s);
+      const ds = s - sb - 8; if (ds > 0 && R < 25) hB += Math.max(0, (1.2 + 1.8 * (0.5 + 0.5 * noise(x / 26 + 9, z / 26))) * Math.exp(-(((ds - 14) / 9) ** 2)));   // the dune ridge
+      hB = mix(hB, R, sm(sb + 12, sb + 40 + Math.abs(R) * 3.5, s));
     }
-    if (h < SEA_FLOOR) h = SEA_FLOOR;
-    if (aux) { aux.wb = wb; aux.wc = wc; aux.s = s; aux.dune = 0; aux.vall = 0; aux.tor = 0; aux.peak = 0; aux.P = P; aux.sand = wb > 0.4; aux.track = false; aux.main = false; }
-    return h;
-  }
-  // ---- inland ground E: the plateau, falling toward the coast, hills, peaks, valleys
-  let E = P.Hpl * mix(1, P.edge, sm(0.5, 1.0, t));
-  const hn = noise(x / 52 + 11.3, z / 52 - 4.1), hn2 = noise(x / 23 - 2.7, z / 23 + 8.4);
-  E += P.Hpl * (0.22 * hn + 0.08 * hn2) * sm(0.25, 0.6, t);              // rolling ground, flat round the pad
-  let peakW = 0;
-  for (const p of P.peaks) {
-    const d = Math.hypot(x - p.x, z - p.z); if (d > p.rad * 1.6) continue;
-    const q = d / p.rad;
-    let ph = p.h * Math.exp(-q * q * 1.6);
-    const ang = Math.atan2(z - p.z, x - p.x);
-    ph *= 0.8 + 0.25 * Math.cos(2 * ang + p.ridge) + 0.2 * noise(x / 17, z / 17);   // a ridge through the summit, spurs
-    if (P.cone && p === P.peaks[0]) ph -= p.h * 0.28 * Math.exp(-q * q * 18);        // the crater
-    E += ph; peakW = Math.max(peakW, Math.exp(-q * q * 1.6));
-  }
-  // granite tors / volcanic knolls on the high ground
-  const torN = noise(x / 15 + 4.4, z / 15 + 2.2);
-  const tor = P.G.tors * Math.max(0, torN - 0.28) * 7 * sm(0.3, 0.8, peakW);
-  E += tor;
-  // valleys from the bays: a stream valley up the cove's axis, meandering, floor rising 1 in 18 inland
-  let vall = 0;
-  const mean = cove ? cove.a + (cove.valley ? 0.12 * Math.sin(rho * 0.045 + cove.a * 3) : 0) : 0;
-  const latV = cove ? Math.abs(adiff(a, mean)) * rho : 1e9;              // m off the cove's axis / the valley line
-  if (cove && cove.valley) {
-    const lat = latV;
-    const sIn = Rc - rho;
-    const wv = mix(34, 18, sm(10, 80, sIn));                             // wide at the mouth, narrowing inland
-    const reach = sm(-10, 0, -(rho - 62));                               // ends before the base apron
-    vall = (1 - sm(wv * 0.35, wv, lat)) * reach;
-    const floor = 1.9 + Math.max(0, sIn - 30) / 12;
-    if (vall > 0) E = mix(E, Math.min(E, floor + lat * 0.12), vall);
-  }
-  // ---- the shore: each kind's profile across the coast, blended by angle
-  let hB = 0, hC = 0, hR = 0, dune = 0;
-  if (wb > 0 && cove) {
-    const g = cove.g, berm = cove.berm;
-    if (s < 0) hB = -s > 36 ? -g * 36 - 0.2 * (-s - 36) : g * s;      // shoreface, then the shelf
-    else {
-      hB = Math.min(berm, g * s) + 0.15 * sm(berm / g, berm / g + 8, s);     // foreshore to the berm, the backshore
-      const ds = s - (berm / g + 10);                                        // dunes start ~10 m behind the berm
-      if (ds > 0) {
-        const along = a * Rc;
-        const blow = 0.55 + 0.45 * noise(along / 26 + 9.1, 3.3);              // blowouts and saddles along the ridge
-        const gap = sm(6, 20, latV);                                          // the stream (and the beach exit) cut through the dunes
-        dune = cove.dune * blow * gap * (bump(ds - 6, 7) + 0.6 * bump(ds - 17, 7)) + 0.5 * noise(x / 9.5, z / 9.5) * sm(0, 6, ds) * (1 - sm(26, 34, ds));
-        hB += Math.max(0, dune);
-      }
-      const back = berm / g + 30;                                           // behind the dunes the land takes over
-      hB = mix(hB, Math.max(E, hB * 0.6), sm(back, back + 26, s));
+    // rocky shore: a bank rising to the land; cliff: the land right to the edge, a short broken face
+    const hR = R * sm(0, 22 + Math.abs(R) * 0.7, s) + 0.9 * sm(0, 5, s) * (R > 0 ? 1 : 0);
+    const hC = R * sm(0, 4 + Math.max(0, R) * 0.09, s) + 0.5 * sm(0, 2, s);
+    h = wb * hB + wc * hC + wr * hR;
+    if (R < 0) h = Math.min(h, R * sm(0, 30, s));   // estuary water reaches the coast
+  } else {
+    // the sea bed: shoreface, then the shelf (-14), deeper (-26) offshore; cliffs drop straight to deep water
+    const d = -s, hB = d < 45 ? -0.066 * d : -2.97 - (d - 45) * 0.03, hC = -3 - d * 0.35, hR = -0.6 - d * 0.16;
+    h = Math.max(wb * hB + wc * hC + wr * hR, -14 - 12 * sm(300, 1000, d) * (1 - sm(BOUND - 700, BOUND - 250, Math.max(Math.abs(x), Math.abs(z)))));   // (back to the -14 shelf where wildH takes over)
+    if (wc > 0.3 && d < 70) {   // sea stacks: the headland the sea has not taken yet
+      const st = noise(x / 23 + 4.1, z / 23 - 2.9); if (st > 0.56 && d > 12) h = Math.max(h, mix(h, (8 + 18 * noise(x / 61, z / 61 + 3)) * wc, sm(0.56, 0.62, st)));
     }
   }
-  if (wc > 0) {
-    const hc = hcA;
-    if (s < 0) hC = -2.6 + 0.5 * s;                                         // deep water at the foot
-    else {
-      const top = Math.max(E, hc * (1 - sm(30, 70, s)) + E * sm(30, 70, s));
-      hC = mix(-2.6, top, sm(0, 1.6 + hc * 0.12, s));
-      hC += 0.6 * P.G.rugged * Math.abs(noise(x / 4.5, z / 4.5)) * (1 - sm(0, 8, s));   // a broken face
-    }
-  }
-  if (wr > 0) {
-    if (s < 0) hR = -0.6 + 0.42 * s;
-    else hR = Math.min(E, -0.6 + 0.55 * s + 0.4 * noise(x / 6, z / 6)) ;
-  }
-  let h = wb * hB + wc * hC + wr * hR;
-  h = mix(h, E, sm(0.62, 0.3, t));                                         // the interior is the island's own ground (no polar seams)
-  // ---- near-camera relief (the 1.25 m grid shows it): grass hummocks, rock and boulders on the rough ground
-  if (s > 0) {
-    const fine = noise(x / 6.3 + 1.1, z / 6.3 - 2.3), fine2 = noise(x / 2.9 - 4.2, z / 2.9 + 3.8);
-    const beachy = wb * (1 - sm(40, 70, s));                                 // the sand is smooth
-    const rocky = Math.max(wc * (1 - sm(0, 25, s)), wr * (1 - sm(0, 10, s)), sm(0.45, 0.9, peakW) * 0.6, tor > 0.4 ? 1 : 0);
-    h += (1 - beachy) * (0.22 * fine + 0.1 * fine2) * sm(0, 6, s);
-    h += rocky * P.G.rugged * 0.7 * Math.max(0, fine2 + 0.15);
-  }
-  if (h < SEA_FLOOR) h = SEA_FLOOR;
-  if (aux) {
-    aux.wb = wb; aux.wc = wc; aux.s = s; aux.dune = dune; aux.vall = vall; aux.tor = tor; aux.peak = peakW; aux.P = P;
-    // the sand: the beach and its dunes, with a ragged edge where the grass takes over
-    const sn = noise(x / 11 + 6.6, z / 11 - 3.3);
-    aux.sand = !!cove && wb > 0.3 + 0.35 * sn && s < cove.berm / cove.g + 22 + 10 * sn;
-    // the main landing beach's exit: a dirt track from the top of the sand up the valley / to the plateau
-    aux.track = !!cove && cove.main && latV < 3.2 && s > cove.berm / cove.g + 6 && t > 0.3;
-    aux.main = !!cove && cove.main;
+  // near-camera relief: grass hummocks, broken rock on cliffs and the high spine
+  if (h > 0) {
+    const f1 = noise(x / 9.3 + 1.1, z / 9.3 - 2.3), sandy = wb * (1 - sm(40, 80, s));
+    h += (1 - sandy) * 0.35 * f1 * sm(0, 6, s);
+    const rocky = Math.max(wc * (1 - sm(0, 30, s)), sm(150, 260, R));
+    if (rocky > 0) h += rocky * 1.6 * Math.max(0, noise(x / 6.1 - 4.2, z / 6.1 + 3.8) + 0.1);
   }
   return h;
 }
 
 // ------------------------------------------------------------------------------------------------- the bake
 let H = null, SID = null;
-const AUX = { wb: 0, wc: 0, s: 0, dune: 0, vall: 0, tor: 0, peak: 0, P: null, sand: false };
 function bake() {
   if (H) return;
   const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
-  const PL = plans();
-  H = new Float32Array(N * N).fill(SEA_FLOOR); SID = new Uint8Array(N * N);
-  const owner = new Int8Array(N * N).fill(-1), wbA = new Uint8Array(N * N), info = new Uint8Array(N * N);   // per cell: which island, beach weight, flags
-  for (let pi = 0; pi < PL.length; pi++) {
-    const P = PL[pi];
-    const i0 = Math.max(0, Math.floor((P.x - P.ext + ZONE_E) / ZONE_C)), i1 = Math.min(N - 1, Math.ceil((P.x + P.ext + ZONE_E) / ZONE_C));
-    const j0 = Math.max(0, Math.floor((P.z - P.ext + ZONE_E) / ZONE_C)), j1 = Math.min(N - 1, Math.ceil((P.z + P.ext + ZONE_E) / ZONE_C));
-    for (let j = j0; j <= j1; j++) {
-      const z = -ZONE_E + j * ZONE_C;
-      for (let i = i0; i <= i1; i++) {
-        const x = -ZONE_E + i * ZONE_C, k = j * N + i;
-        const h = islandHeight(P, x, z, AUX);
-        if (h <= H[k]) continue;
-        H[k] = h; owner[k] = pi; wbA[k] = AUX.wb * 255;
-        info[k] = (AUX.dune > 0.6 ? 1 : 0) | (AUX.vall > 0.5 ? 2 : 0) | (AUX.tor > 0.5 ? 4 : 0) | (AUX.wc > 0.5 && AUX.s < 25 ? 8 : 0) | (AUX.s < 45 && AUX.s > -60 ? 16 : 0) | (AUX.sand ? 32 : 0) | (AUX.track ? 64 : 0) | (AUX.main ? 128 : 0);
-      }
+  if (!PL.S) bakePlan();
+  const t1 = typeof performance !== 'undefined' ? performance.now() : 0;
+  H = new Float32Array(N * N); SID = new Uint8Array(N * N);
+  const P = { s: 0, R: 0, wb: 0, wc: 0, riv: 0 };
+  for (let j = 0; j < N; j++) {
+    const z = -ZONE_E + j * ZONE_C;
+    for (let i = 0; i < N; i++) {
+      const x = -ZONE_E + i * ZONE_C, k = j * N + i, cheb = Math.max(Math.abs(x), Math.abs(z));
+      planLerp(x, z, P);
+      let h = groundAt(x, z, P);
+      if (cheb > BLEND0) h = mix(h, wildH(x, z), sm(BLEND0, BLEND1, cheb));   // the seam ring: the zone's sea becomes the wild sea
+      H[k] = h;
     }
   }
-  // ---- surfaces, from the baked ground (its slope) and what the height pass knew
-  for (let j = 1; j < N - 1; j++) for (let i = 1; i < N - 1; i++) {
-    const k = j * N + i, h = H[k], o = owner[k];
-    if (o < 0) { SID[k] = S_SAND; continue; }
-    const P = PL[o], wb = wbA[k] / 255, f = info[k];
-    const gx = (H[k + 1] - H[k - 1]) / (2 * ZONE_C), gz = (H[k + N] - H[k - N]) / (2 * ZONE_C), sl = Math.hypot(gx, gz);   // rise per metre
-    const x = -ZONE_E + i * ZONE_C, z = -ZONE_E + j * ZONE_C;
-    const n1 = noise(x / 13 + 7.7, z / 13 - 1.3), n2 = noise(x / 31 - 3.3, z / 31 + 6.1);
-    let s;
-    if (h <= 0) s = (wb > 0.4 || h < -4) && sl < 0.45 ? S_SAND : sl > 0.25 || f & 8 ? S_ROCK : S_SHINGLE;   // the sea bed
-    else if (sl > 0.85 || f & 8 && sl > 0.45) s = S_ROCK;                                                       // cliffs, crags
-    else if (wb > 0.35 && h < 0.55 && sl < 0.2) s = S_WET;                                                      // the swash zone
-    else if (f & 32) s = (f & 1) && n1 > 0.4 ? S_GRASS : S_SAND;                                                // beach, dunes (marram tufts)
-    else if (wb < 0.35 && h < 1.4 && f & 16) s = sl > 0.5 ? S_ROCK : S_SHINGLE;                                // the strand under a rocky bank
-    else if (f & 4 || (sl > 0.6 && n1 > -0.1) || (sl > 0.42 && P.G.rugged >= 1 && n1 > 0.25)) s = S_ROCK;        // tors, scree, outcrops
-    else if (f & 64 && sl < 0.35) s = S_DIRT;                                                                   // the beach exit track
-    else if (f & 2 && !(f & 128) && h < 4.2 && sl < 0.12) s = P.low ? S_MARSH : S_MUD;                          // the stream mouth (not behind the landing beach)                                         // the stream mouth
-    else if (P.low && h < 3.2 && sl < 0.08 && n2 > 0.22) s = S_MARSH;                                           // salt marsh on the low islands
-    else if (n2 < -0.46 && sl < 0.3 || (sl > 0.4 && n1 < -0.35)) s = S_DIRT;                                   // bare earth, sheep scrapes
-    else s = S_GRASS;
-    SID[k] = s;
+  // ---- surfaces, from the fine ground (its slope) and what the plan knew
+  for (let j = 1; j < N - 1; j++) {
+    const z = -ZONE_E + j * ZONE_C;
+    for (let i = 1; i < N - 1; i++) {
+      const k = j * N + i, h = H[k], x = -ZONE_E + i * ZONE_C;
+      const gx = (H[k + 1] - H[k - 1]) / (2 * ZONE_C), gz = (H[k + N] - H[k - N]) / (2 * ZONE_C), sl = Math.hypot(gx, gz);   // rise per metre
+      planLerp(x, z, P);
+      const wb = P.wb, s = P.s, n1 = noise(x / 13 + 7.7, z / 13 - 1.3);
+      let id;
+      if (h <= 0) id = (wb > 0.4 || h < -4) && sl < 0.45 ? S_SAND : sl > 0.25 || P.wc > 0.5 ? S_ROCK : S_SHINGLE;          // the sea bed
+      else if (sl > 0.85 || (P.wc > 0.5 && s < 25 && sl > 0.45)) id = S_ROCK;                                            // cliffs, crags, the escarpment
+      else if (wb > 0.35 && h < 0.6 && sl < 0.2) id = S_WET;                                                             // the swash zone
+      else if (wb > 0.3 + 0.25 * n1 && s < 52 + 18 * n1 && P.R < 30) id = s > 40 && n1 > 0.25 ? S_GRASS : S_SAND;        // beach, dunes (marram tufts)
+      else if (wb < 0.35 && h < 1.5 && s < 14) id = sl > 0.5 ? S_ROCK : S_SHINGLE;                                       // the strand under a rocky bank
+      else if (P.riv > 0.55 && sl < 0.12 && h < 4) id = S_MARSH;                                                         // estuary salt marsh
+      else if (P.riv > 0.75 && sl < 0.1) id = S_MUD;                                                                     // the stream's flood plain
+      else if ((sl > 0.6 && n1 > -0.1) || (sl > 0.42 && n1 > 0.3) || (h > 230 && sl > 0.3)) id = S_ROCK;                  // outcrops, scree, the high spine
+      else if (noise(x / 31 - 3.3, z / 31 + 6.1) < -0.46 && sl < 0.3 || (sl > 0.4 && n1 < -0.35)) id = S_DIRT;          // bare earth, sheep scrapes
+      else id = S_GRASS;
+      SID[k] = id;
+    }
   }
-  if (t0 && typeof globalThis.__TERRAIN_LOG === 'function') globalThis.__TERRAIN_LOG(`terrain bake ${(performance.now() - t0).toFixed(0)} ms`);
+  if (t0 && typeof globalThis.__TERRAIN_LOG === 'function') globalThis.__TERRAIN_LOG(`terrain bake ${(performance.now() - t0).toFixed(0)} ms (plan ${(t1 - t0).toFixed(0)})`);
   BAKE_MS = t0 ? performance.now() - t0 : 0;
 }
 let BAKE_MS = 0;
@@ -401,7 +308,7 @@ export const bakeMs = () => BAKE_MS;   // how long this thread's bake took (ms)
 export function zoneH(x, z) {
   if (!H) bake();
   const gx = (x + ZONE_E) / ZONE_C, gz = (z + ZONE_E) / ZONE_C;
-  if (gx < 0 || gz < 0 || gx >= N - 1 || gz >= N - 1) return SEA_FLOOR;
+  if (!(gx >= 0 && gz >= 0 && gx < N - 1 && gz < N - 1)) return SEA_FLOOR;
   const i = gx | 0, j = gz | 0, fx = gx - i, fz = gz - j, k = j * N + i;
   const a = H[k], b = H[k + 1], c = H[k + N], d = H[k + N + 1];
   return a + (b - a) * fx + (c - a) * fz + (a - b - c + d) * fx * fz;
@@ -409,54 +316,53 @@ export function zoneH(x, z) {
 export function zoneSurfId(x, z) {
   if (!H) bake();
   const i = Math.round((x + ZONE_E) / ZONE_C), j = Math.round((z + ZONE_E) / ZONE_C);
-  if (i < 0 || j < 0 || i >= N || j >= N) return S_SAND;
+  if (!(i >= 0 && j >= 0 && i < N && j < N)) return S_SAND;
   return SID[j * N + i];
 }
 export const zoneSurf = (x, z) => SURF_NAMES[zoneSurfId(x, z)];
 export const inGrid = (x, z) => Math.abs(x) < ZONE_E - 2 && Math.abs(z) < ZONE_E - 2;
 export function zoneGrid() { if (!H) bake(); return { N, C: ZONE_C, E: ZONE_E, h: H, s: SID }; }
 export function islandInfo(I) {
-  const P = plans()[ISLANDS.indexOf(I)]; if (!P) return null;
-  return { name: I.name, geology: P.geo, R: P.R, plateau: P.Hpl, relief: P.relief, coves: P.coves.map(c => ({ a: c.a, w: c.w, main: c.main, grade: c.g, bay: c.d > 0, dunes: c.dune, valley: c.valley, fetch: c.fetch })),
-    cliffs: P.cliffs.map(c => ({ a: c.a, w: c.w, h: c.hc })), peaks: P.peaks.map(p => ({ x: p.x, z: p.z, h: p.h, rad: p.rad })) };
+  if (!PL.S) bakePlan();
+  const near = shoreAt(I.x, I.z, 600);
+  return { name: I.name, geology: geologyOf(I), plateau: SITE_H[I.name] ?? 8, coast: near ? { kind: near.kind, s: near.s } : null };
 }
-export function shoreAt(x, z) {
-  const PL = plans(); let best = null, bd = Infinity;
-  for (const P of PL) { const d = Math.hypot(x - P.x, z - P.z) - P.R; if (d < bd) { bd = d; best = P; } }
-  if (!best || bd > 200) return null;
-  const A = angAt(best, Math.atan2(z - best.z, x - best.x));
-  const s = A.R - Math.hypot(x - best.x, z - best.z);
-  return { island: best.I, s, beach: A.wb, kind: A.wb > 0.5 ? 'beach' : A.wc > 0.5 ? 'cliff' : 'rocky' };
+// the nearest coast to (x, z) within `range` m: ray-march 32 directions to the first water
+export function shoreAt(x, z, range = 200) {
+  if (!PL.S) bakePlan();
+  const p = planLerp(x, z, {}), I = nearestSite(x, z);
+  if (Math.abs(p.s) > range) return null;
+  return { island: I, s: p.s, beach: p.wb, kind: p.wb > 0.5 ? 'beach' : p.wc > 0.5 ? 'cliff' : 'rocky' };
 }
+const nearestSite = (x, z) => { let best = null, bd = Infinity; for (const I of ISLANDS) { const d = Math.hypot(x - I.x, z - I.z) - I.r; if (d < bd) { bd = d; best = I; } } return best; };
 
-// ------------------------------------------------------------------------------------------------- landing beaches
-// One per cove: the waterline point on the cove's axis (from the baked ground), inland direction, how far the sand runs
-// up, and the clear water off it. Same shape as the old landing hards (landinghard.js) so the LCM-8 run-in code works.
+// ------------------------------------------------------------------------------------------------- beaches
+// Sand beaches within 700 m of each site: the waterline point on a ray from the site, inland direction, how far the sand
+// runs up, the clear water off it. Same shape as the landing hards (landinghard.js) so the LCM-8 run-in code works.
 let BEACHES = null;
 export function beaches() {
   if (BEACHES) return BEACHES;
+  if (!PL.S) bakePlan();
   BEACHES = [];
-  for (const P of plans()) {
-    P.coves.forEach((c, n) => {
-      const cx = Math.cos(c.a), sz = Math.sin(c.a);
-      // from far out, in to the first dry ground
-      let w0 = -1;
-      for (let d = P.Rmax + 40; d > 10; d -= 0.5) if (zoneH(P.x + cx * d, P.z + sz * d) >= 0) { w0 = d; break; }
-      if (w0 < 0) return;
-      const x = P.x + cx * w0, z = P.z + sz * w0, fx = -cx, fz = -sz;
-      const B = { I: P.I, name: `${P.I.name} ${n === 0 ? 'BEACH' : 'BEACH ' + (n + 1)}`, main: c.main, x, z, fx, fz, grade: c.g, u0: -36, w: Math.max(6, Math.min(40, c.w * w0 * 0.55)) };
+  for (const I of ISLANDS) {
+    const found = [];
+    for (let k = 0; k < 48; k++) {
+      const a = k / 48 * Math.PI * 2, cx = Math.cos(a), sz = Math.sin(a);
+      let w0 = -1; for (let d = 20; d < I.r + 700; d += 4) if (zoneH(I.x + cx * d, I.z + sz * d) < 0) { w0 = d; break; }
+      if (w0 < 0) continue;
+      const x = I.x + cx * w0, z = I.z + sz * w0, p = planLerp(x, z, {});
+      if (p.wb < 0.6 || found.some(b => Math.hypot(b.x - x, b.z - z) < 150)) continue;
+      const B = { I, name: `${I.name} BEACH${found.length ? ' ' + (found.length + 1) : ''}`, main: !found.length, x, z, fx: -cx, fz: -sz, grade: 0.066, u0: -36, w: 30 };
       B.at = (u, lat = 0) => [B.x + B.fx * u - B.fz * lat, B.z + B.fz * u + B.fx * lat];
       B.y = u => { const [px, pz] = B.at(u); return zoneH(px, pz); };
-      // the top of the sand (the berm / first dune foot): where the climb steepens or the sand ends
-      let u1 = 6;
-      for (let u = 2; u < 70; u += 1) { const [px, pz] = B.at(u); if (zoneSurfId(px, pz) !== S_SAND && zoneSurfId(px, pz) !== S_WET) break; if (B.y(u + 2) - B.y(u) > 1.2) break; u1 = u; }
+      let u1 = 6; for (let u = 2; u < 70; u++) { const [px, pz] = B.at(u), sid = zoneSurfId(px, pz); if (sid !== S_SAND && sid !== S_WET) break; if (B.y(u + 2) - B.y(u) > 1.2) break; u1 = u; }
       B.u1 = u1;
       let run = 0; for (let d = 6; d < 300; d += 6) { const [px, pz] = B.at(-d); if (zoneH(px, pz) > -1.8 && d > 40) break; run = d; }
-      B.runIn = run;
-      B.yaw = Math.atan2(-fx, -fz);
+      B.runIn = run; B.yaw = Math.atan2(cx, sz);
       B.bx0 = Math.min(x, B.at(u1)[0]) - B.w; B.bx1 = Math.max(x, B.at(u1)[0]) + B.w; B.bz0 = Math.min(z, B.at(u1)[1]) - B.w; B.bz1 = Math.max(z, B.at(u1)[1]) + B.w;
-      BEACHES.push(B);
-    });
+      found.push(B); if (found.length >= 2) break;
+    }
+    BEACHES.push(...found);
   }
   return BEACHES;
 }

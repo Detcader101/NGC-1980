@@ -970,7 +970,7 @@ export function createWar(ctx) {
       if (ec.plan <= 0 || !ec.path.length) {
         ec.plan = 25;
         let gx, gz;
-        if (ec.hp < ec.hpMax * 0.35) { gx = 330; gz = -300; }
+        if (ec.hp < ec.hpMax * 0.35) { gx = ctx.enemyStart[0]; gz = ctx.enemyStart[1]; }   // (ngc/look-terrain: back to its own start, open water by IRON BAY; was a fixed spot that is land now)
         else if (W.battleship || (E.mat > 160 && guns.length > 6)) { const c = W.carrier || { p: { x: 0, z: 0 } }; const a = Math.atan2(ec.p.z - c.p.z, ec.p.x - c.p.x); gx = c.p.x + Math.cos(a) * 330; gz = c.p.z + Math.sin(a) * 330; }
         else { const I = pickExpansion(ec.p.x, ec.p.z) || W.islands.find(I => I.name === 'CITADEL'); const a = Math.atan2(ec.p.z - I.z, ec.p.x - I.x); gx = I.x + Math.cos(a) * (I.r + 90); gz = I.z + Math.sin(a) * (I.r + 90); }
         const [wx, wz] = nav.wet(gx, gz) ? [gx, gz] : nav.nearestWater(gx, gz); ec.path = nav.path(ec.p.x, ec.p.z, wx, wz);
