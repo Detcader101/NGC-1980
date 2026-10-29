@@ -15,7 +15,7 @@ import { C130M } from './units/air/c130model.js';
 import { buildC130Deck, DECK_EYE, DECK_EYE_PITCH } from './units/air/c130cockpit.js';
 import { createC130Audio } from './units/air/c130audio.js';
 import { buildDoorBundle } from './units/air/jumper.js';
-import { AIRBASE } from './world.js';   // (ngc/look-airbases) home base is the air base now: the Hercules comes in from its side
+import { AIRBASE } from './world.js';   // (ngc/look-airbases) home base is the air base now (its name in the call; the run-in direction is unchanged: the scenes and the jump run geometry rely on it)
 
 const CALL = 'RAIDER 21';
 const N_JUMPERS = 3, WORK = 10, FUEL_EACH = 20, ENTRY = 1400, RUN = 4.5;
@@ -106,7 +106,6 @@ export function createDrop(ctx) {
   function entryPoint(target, from) {
     let a = Math.atan2(from.z - target.z, from.x - target.x);
     if (Math.hypot(from.x - target.x, from.z - target.z) < 1) a = Math.atan2(1, -1);
-    if (AIRBASE) a = Math.atan2(AIRBASE.z - target.z, AIRBASE.x - target.x);   // (ngc/look-airbases) from the air base
     a += rnd(-0.35, 0.35);
     return new THREE.Vector3(target.x + Math.cos(a) * ENTRY, 0, target.z + Math.sin(a) * ENTRY);
   }
