@@ -86,10 +86,7 @@ round the camera), so the bigger zone costs memory, not triangles.
   fixed open-water spots (south of HOME ISLAND, north of IRON BAY's mouth); `ridged` exported; `rawH` switches to
   `wildH` at the grid edge (the grid's outer ring already blends into `wildH`, sea on both sides: no seam);
   `createNav` cell scales with BOUND (40 m, 128^2 as before; 55 ms to build in node).
-- **Hook for ngc/look-airbases** (orchestrator, 2026-10-29): `world.js` exports `FLATS` (flat footprints
-  `{ x, z, hw, hl, yaw, h, blend }`), applied at the end of `wildH` by `flats()`. `wildH`'s structure is unchanged
-  otherwise and reads `BOUND`; push footprints before anything bakes (both workers import world.js, so a footprint
-  list must be built by the module itself, not set from main.js at run time).
+- **Hook for ngc/look-airbases** (orchestrator, 2026-10-29): BOUND stays the single source (`world/bound.js`, re-exported by world.js) and `wildH` keeps its structure; after the merge of ngc/shader-library the air base flattens through its own `AIRBASE.H` in `rawH` (outside the zone grid), so the interim `FLATS` list I had added was removed.
 - Pads may now sit up to 140 m (radars and the plateau factory: LOOKOUT 59, SPIRE 65, BEACON 97, CINDER 109 m);
   cave bases stay 4-16 m (all designed at 6-15). `main.js` and `sim/zone.js` agree (simmode.json checks it).
 - `world/net.js`: link roads between the sites on the same land (relaxed relative-neighbourhood graph, routed by the

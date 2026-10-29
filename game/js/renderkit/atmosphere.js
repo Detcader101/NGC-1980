@@ -22,6 +22,7 @@ import { uniform } from './core.js';
 import { RK } from './adopt.js';
 import { TERRAIN_ON, farLandGLSL } from './terrainmat.js';   // RENDERKIT terrain   // RENDERKIT nature: the far land matches the nature terrain's average colour
 const NAT_DEF = { ...(RK.on('nature') && RK.on('world') ? { RK_NATURE: 1 } : {}), ...(TERRAIN_ON ? { RK_TERRAIN: 1 } : {}) };   // (RK_TERRAIN: RENDERKIT terrain, the far land takes the texture layers' averages)
+import { AIRBASE } from '../world.js'; import { airbaseFarGLSL } from '../world/airbase.js';   // (ngc/look-airbases) the air base in the far land
 
 // ---- the shared haze state (display space). x: extinction per metre at sea level, y: 1 / scale height, z: weight
 // (0 = classic fog: under water, in the caves), w: Mie glow strength.
@@ -80,6 +81,7 @@ vec3 rkFarLand(vec3 p, vec3 n){   // land far off (32 m detail): grass / forest,
   c=mix(c,vec3(.92,.94,.97),smoothstep(440.,520.,p.y)*(1.-smoothstep(.35,.7,sl)));
   c=mix(vec3(.70,.64,.44),c,smoothstep(0.,4.,p.y));
   #endif
+  ${airbaseFarGLSL(AIRBASE)}   // (ngc/look-airbases)
   return c*(rkHazeSunC*max(dot(n,rkHazeSun.xyz),0.)*.75+mix(vec3(.6,.64,.55),vec3(.98,1.01,1.06),n.y*.5+.5)*.4);
 }
 `;

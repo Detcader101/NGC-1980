@@ -15,6 +15,49 @@ outside the zone join without a seam. The jet's far land draws the whole zone fr
 (generated layers, splat, triplanar cliffs, rock outcrops) from the WIP is kept and toned down. Overview maps:
 docs/ngc1980/evidence/look-terrain/map-old.png and map-new.png. Findings: docs/ngc1980/findings/look-terrain.md.
 
+## 2026-10-29 — WESTGATE AFB: an air base outside the zone, C-130 sorties from it (branch ngc/look-airbases)
+
+User: "have another agent work on our bases outside the control zone that has big hangers and such to fly the
+blackbird and heracles from there whenever we want."
+
+- **The base** (`world/airbase.js`, `world/airbasemesh.js`): a 1980 USAF field in the Beale AFB mould on the friendly
+  side of the zone, found by a deterministic site search (relief, sea, both approach corridors; it follows `BOUND`).
+  A 12,000 x 300 ft runway with overruns, a 75 ft parallel taxiway, a 1.6 km ramp, a SAC double-cantilever
+  maintenance hangar (the C-130's), four SR-71 shelters, tower, base ops, fire station, shops, supply, a fuel farm,
+  the fence; FAA / USAF markings and lights of the period (edge, threshold, ALSF-1, VASI, taxiway blue). 6 draws.
+  Sources: `docs/ngc1980/reference/airbase/SOURCES.md`.
+- **The ground** is flattened inside `rawH` (one marked line in world.js), so physics, both terrain-worker windows and
+  the far land agree; no towns, farms, roads or trees on it (world/net.js, five marked lines). The far land greys the
+  runway past the draw distance, so it reads from 3,000 m.
+- **Fly from it whenever you like**: the command board's new **C-130** row (`\`, down, ENTER, from any unit) puts
+  the C-130H on the ramp in front of its hangar, engines running (`?cold`: cold, K for the engineer). Taxi on the
+  real flight model, SHIFT+L line up, take off, N flies her home and lands; stopped on the base, O hands her in: towed
+  into the hangar, back in reserve, you are back in the Huey. The **SR-71** row and shelter wait for ngc/look-sr71
+  (`baseOps.attach(def)`, documented in the findings).
+- Tests: `node tools/airbasebench.mjs` (flat ground, keep-outs, mesh budget, full sorties from both ends at BOUND 1280
+  and 2560), `tools/scenes/airbase.mjs` (board to hand-in, 14/14). Findings: docs/ngc1980/findings/look-airbases.md.
+
+## 2026-10-29 — SR-71A Blackbird, a playable strategic reconnaissance aircraft (branch ngc/look-sr71)
+
+Built blueprints-first (milsim-blueprint): SR-71A **61-7964** of the 9th SRW, Beale AFB, as photographed in August 1981.
+The shape is traced from the public-domain USAF three-view and scaled by the declassified flight manual (SR-71A-1: 107.4 ft,
+55.6 ft, 18.5 ft). One chined-body loft from radome to tail cone, with sharp chines and the fuselage hump blending into the
+inboard wing. Nacelles carry translating spikes; the outer wings have conical camber; the fins are canted and all-moving.
+Silhouette fit to the drawing: side 0.982, top 0.997, front hump 0.898 (that drawing's front view is inconsistent).
+Markings follow the 1981 photo. The pilot's panel is traced from the manual's fig. 1-12, with every instrument live.
+
+The flight model (`sr71fm.js`) uses the manual's J58 data: take-off and military thrust, min AB 85 % at sea level and
+55 % at altitude, AB fill times. It models the spike schedule, unstarts with the auto restart, the CIT 427 C limit, the
+transonic drag rise, the drag chute and the gear. `tools/sr71bench.mjs` is 24/24: lift-off 217 KIAS at 8 deg;
+refuelling-to-Mach 3 / 70,000 ft in 17.6 min real-equivalent (NASA TM-104330: 16-17); Mach 3.2 / 80,000 ft cruise in
+partial AB at 352 KEAS; touchdown 154 KIAS.
+
+In the game: `?fly=sr71` (a strip west of the zone) or `?fly=sr71air`. K runs the cameras. A Mach 3 pass over the zone
+photographs the enemy, and the strip becomes photo intel in the fog of war for 10 min. Enemy HQ / radar SAMs fall short of
+it at speed and height. Above ~3 km the view shows the curved Earth from altitude. The craft has an API for the air-bases
+work (`placeOnGround` / `placeInAir` / `enter` / `stow` / `addStrip` / `onLanded`). Findings:
+docs/ngc1980/findings/look-sr71.md.
+
 ## 2026-10-29 — VR: deck crew no longer corrupts the eye cameras (branch ngc/xr-fix)
 
 xr.mjs was 17/19 on ngc/shader-library (sky dome and near terrain window "not following the eye"). Cause: the deck

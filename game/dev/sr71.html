@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SR-71 Blackbird</title>
+<script type="importmap">{"imports":{"three":"../vendor/three.module.min.js"}}</script>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#8fb6d8;font:12px Consolas,monospace;color:#dff}
+canvas{display:block}
+#ui{position:fixed;right:0;top:0;bottom:0;width:250px;overflow:auto;background:rgba(0,15,30,.7);padding:8px}
+#ui label{display:flex;justify-content:space-between;align-items:center;gap:4px;margin:2px 0}
+#ui input[type=range]{width:120px}
+#ui.hide{display:none}
+#info{position:fixed;left:8px;top:6px;color:#023;text-shadow:0 0 3px #fff;white-space:pre}
+#tele{position:fixed;left:8px;bottom:6px;color:#eff;background:rgba(0,10,20,.55);padding:4px 6px;white-space:pre;font:12px Consolas,monospace}
+</style></head><body>
+<div id="info">SR-71A 61-7964 (9th SRW, Beale, 1981) | drag: orbit / look | ?ui=0 ?view=orbit|cockpit|chase ?cam=yaw,pitch,dist ?ref=side|top|front[&sil=1|&mask=1] ?start=air|runway|cruise ?s={state}</div><div id="ui"></div><div id="tele"></div>
+<script type="module" src="./sr71-dev.js"></script>
+</body></html>

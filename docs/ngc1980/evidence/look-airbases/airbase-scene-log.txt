@@ -1,0 +1,144 @@
+[   0.047] server   serving /home/jayjay/thrust-zarch/.claude/worktrees/look-airbases/game at http://127.0.0.1:38739/
+[   0.143] browser  /home/jayjay/.cache/chs/chrome.sh HeadlessChrome/156.0.8078.47
+[   0.172] goto     http://127.0.0.1:38739/?debug&auto&kb&res=0.5
+[  17.670] webgl    {"webgl":true,"renderer":"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"}
+[  17.670] waitFor  window.__G && __G.G.state === 'play' && __G.Z.alive && __G.H.landed && window.__AIRBASE (≤40000 ms)
+[  18.357] wait     500 ms
+[  18.937] eval     base: (__G.G.bench = true, { base: __AIRBASE.AIRBASE.label, x: Math.round(__AIRBASE.AIRBASE.x), z: Math.round(__AIRBASE.AIRBASE.z), E: __AIRBASE.AIRBASE.E, n: __G.fleet.n.c130, mesh: __AIRBASE.AIRBASE_MESH.lightCount })  =>  {"base":"WESTGATE AFB  ·  RWY 36/18","x":-1152,"z":5880,"E":41,"n":1,"mesh":790}
+[  18.938] PASS     expect one C-130H in reserve, parked in its hangar: __G.fleet.n.c130 === 1 && __AIRBASE.c130C.parked && !__AIRBASE.c130C.present()  =>  true
+[  19.239] PASS     expect the runway ground is the flattened field elevation (physics): Math.abs(__G.groundY(__AIRBASE.AIRBASE.x, __AIRBASE.AIRBASE.z) - __AIRBASE.AIRBASE.E) < 0.01  =>  true
+[  19.239] key      tap Backslash
+[  21.693] wait     500 ms
+[  22.758] PASS     expect the command board lists the C-130H and the SR-71A: /C-130/.test(document.getElementById('cmdBoard').textContent) && /SR-71/.test(document.getElementById('cmdBoard').textContent)  =>  true
+[  22.758] eval     row: __G.roster.findIndex(r => r.id === 'c130')  =>  9
+[  22.759] key      tap ArrowDown
+[  24.600] wait     120 ms
+[  25.631] key      tap ArrowDown
+[  26.821] wait     120 ms
+[  28.475] key      tap ArrowDown
+[  28.740] wait     120 ms
+[  29.774] key      tap ArrowDown
+[  30.156] wait     120 ms
+[  31.213] key      tap ArrowDown
+[  31.720] wait     120 ms
+[  33.445] key      tap ArrowDown
+[  34.916] wait     120 ms
+[  36.480] key      tap ArrowDown
+[  38.772] wait     120 ms
+[  40.253] key      tap ArrowDown
+[  42.295] wait     120 ms
+[  43.339] key      tap ArrowDown
+[  44.875] wait     120 ms
+[  45.927] wait     400 ms
+[  81.645] shot     01-board-c130.png  {"w":1280,"h":720,"meanLuma":64.3,"litFraction":0.9973,"colors":446}
+[  81.668] PASS     expect the C-130 row deploys at the air base whatever base is selected: /DEPLOY AT WESTGATE/.test(document.querySelector('#cmdBoard .row.sel').textContent)  =>  true
+[  81.668] key      tap Enter
+[  82.358] wait     1200 ms
+[  83.568] PASS     expect ENTER: the C-130H out of the reserve, you are in it: __G.G.craft === 'c130' && __AIRBASE.c130C.present() && __G.fleet.n.c130 === 0  =>  true
+[  83.571] PASS     expect on the ramp in front of the hangar, engines running: __AIRBASE.c130C.S.onGround && __AIRBASE.AIRBASE.onPavement(__AIRBASE.c130C.S.pos.x, __AIRBASE.c130C.S.pos.z) === 'ramp' && __AIRBASE.c130C.S.eng.every(e => e.run)  =>  true
+[  83.571] eval     (() => { const A = __AIRBASE.AIRBASE, p = A.toW(-640, 470), q = A.toW(-737, 560); __AIRBASE.c130C.camAt = [p[0], A.E + 1.8, p[1], q[0], A.E + 6, q[1]]; return 1; })()  =>  1
+[  83.571] wait     2500 ms
+[ 100.585] shot     02-ramp-ground.png  {"w":1280,"h":720,"meanLuma":105.7,"litFraction":0.9967,"colors":223}
+[ 100.609] eval     (() => { const A = __AIRBASE.AIRBASE, p = A.toW(-560, 420), q = A.toW(-560, 560); __AIRBASE.c130C.camAt = [p[0], A.E + 3, p[1], q[0], A.E + 8, q[1]]; return 1; })()  =>  1
+[ 100.609] wait     2500 ms
+[ 126.449] shot     03-hangar-row.png  {"w":1280,"h":720,"meanLuma":117.6,"litFraction":0.9996,"colors":252}
+[ 126.471] eval     (() => { const A = __AIRBASE.AIRBASE, p = A.toW(-60, 470), q = A.toW(-150, 545); __AIRBASE.c130C.camAt = [p[0], A.E + 2, p[1], q[0], A.E + 14, q[1]]; return 1; })()  =>  1
+[ 126.471] wait     2500 ms
+[ 141.733] shot     04-tower-firestation.png  {"w":1280,"h":720,"meanLuma":131.5,"litFraction":1,"colors":265}
+[ 141.756] eval     (() => { const A = __AIRBASE.AIRBASE, p = A.toW(-1949, 0), q = A.toW(0, 0); __AIRBASE.c130C.camAt = [p[0], A.E + 4, p[1], q[0], A.E + 0, q[1]]; return 1; })()  =>  1
+[ 141.756] wait     2500 ms
+[ 177.352] shot     05-runway-threshold.png  {"w":1280,"h":720,"meanLuma":99.8,"litFraction":1,"colors":234}
+[ 177.375] eval     (() => { const A = __AIRBASE.AIRBASE, p = A.toW((__AIRBASE.AIRBASE.ends[0].obst < __AIRBASE.AIRBASE.ends[1].obst ? -1 : 1) * 1400, -900), q = A.toW(-400, 300); __AIRBASE.c130C.camAt = [p[0], A.E + 300, p[1], q[0], A.E + 0, q[1]]; return 1; })()  =>  1
+[ 177.375] wait     2500 ms
+[ 196.894] shot     06-air-300m.png  {"w":1280,"h":720,"meanLuma":132.7,"litFraction":1,"colors":192}
+[ 196.911] eval     (() => { const A = __AIRBASE.AIRBASE, p = A.toW((__AIRBASE.AIRBASE.ends[0].obst < __AIRBASE.AIRBASE.ends[1].obst ? -1 : 1) * 3500, -2500), q = A.toW(0, 300); __AIRBASE.c130C.camAt = [p[0], A.E + 3000, p[1], q[0], A.E + 0, q[1]]; return 1; })()  =>  1
+[ 196.911] wait     2500 ms
+[ 208.763] shot     07-air-3000m.png  {"w":1280,"h":720,"meanLuma":124.1,"litFraction":1,"colors":196}
+[ 208.781] eval     (() => { const A = __AIRBASE.AIRBASE, p = A.toW((__AIRBASE.AIRBASE.ends[0].obst < __AIRBASE.AIRBASE.ends[1].obst ? -1 : 1) * 6500, -1200), q = A.toW(0, 200); __AIRBASE.c130C.camAt = [p[0], A.E + 700, p[1], q[0], A.E + 0, q[1]]; return 1; })()  =>  1
+[ 208.781] wait     2500 ms
+[ 229.216] shot     08-long-range.png  {"w":1280,"h":720,"meanLuma":150.6,"litFraction":1,"colors":230}
+[ 229.234] eval     (() => { const A = __AIRBASE.AIRBASE, p = A.toW((__AIRBASE.AIRBASE.ends[0].obst < __AIRBASE.AIRBASE.ends[1].obst ? -1 : 1) * 4200, 0), q = A.toW(0, 0); __AIRBASE.c130C.camAt = [p[0], A.E + 230, p[1], q[0], A.E + 0, q[1]]; return 1; })()  =>  1
+[ 229.234] wait     2500 ms
+[ 243.531] shot     09-final-approach-view.png  {"w":1280,"h":720,"meanLuma":139.5,"litFraction":1,"colors":192}
+[ 243.552] eval     (() => { __AIRBASE.c130C.parkAt(__AIRBASE.AIRBASE.spot('c130', 'park')); return 1; })()  =>  1
+[ 243.566] eval     (() => { const A = __AIRBASE.AIRBASE, p = A.toW(-700, 470), q = A.toW(-737, 545); __AIRBASE.c130C.camAt = [p[0], A.E + 8, p[1], q[0], A.E + 5, q[1]]; return 1; })()  =>  1
+[ 243.566] wait     2500 ms
+[ 265.842] shot     10-c130-in-hangar.png  {"w":1280,"h":720,"meanLuma":93.1,"litFraction":0.9956,"colors":237}
+[ 265.866] eval     (() => { const A = __AIRBASE.AIRBASE, p = A.toW(-690, 524), q = A.toW(-745, 548); __AIRBASE.c130C.camAt = [p[0], A.E + 4, p[1], q[0], A.E + 5, q[1]]; return 1; })()  =>  1
+[ 265.866] wait     1500 ms
+[ 287.789] shot     11-hangar-inside.png  {"w":1280,"h":720,"meanLuma":59.1,"litFraction":0.9458,"colors":213}
+[ 287.813] eval     (() => { __AIRBASE.c130C.spawnAt(__AIRBASE.AIRBASE.spot('c130', 'ramp'), 'hot'); __AIRBASE.c130C.camAt = null; return 1; })()  =>  1
+[ 287.853] eval     (__AIRBASE.c130C.view = 'chase', __AIRBASE.c130C.orbitTo(2.4, 0.15, 60), 1)  =>  1
+[ 287.853] wait     1500 ms
+[ 305.259] shot     12-c130-on-ramp-chase.png  {"w":1280,"h":720,"meanLuma":106.5,"litFraction":0.9999,"colors":280}
+[ 305.279] eval     (__AIRBASE.c130C.view = 'cockpit', 1)  =>  1
+[ 305.279] wait     1500 ms
+[ 313.964] shot     13-cockpit-on-ramp.png  {"w":1280,"h":720,"meanLuma":100.2,"litFraction":0.9195,"colors":348}
+[ 313.964] key      tap KeyB
+[ 314.256] eval     (window.__p0 = __AIRBASE.c130C.S.pos.clone(), 1)  =>  1
+[ 314.256] key      down ShiftLeft
+[ 314.258] wait     700 ms
+[ 316.311] key      up ShiftLeft
+[ 316.311] waitFor  __AIRBASE.c130C.S.pos.distanceTo(window.__p0) > 6 (≤40000 ms)
+[ 320.985] PASS     expect taxiing on the ramp under her own power: __AIRBASE.c130C.S.onGround && !__AIRBASE.c130C.S.dead  =>  true
+[ 320.985] eval     (__AIRBASE.c130C.view = 'chase', 1)  =>  1
+[ 320.985] wait     1200 ms
+[ 335.533] shot     14-taxi.png  {"w":1280,"h":720,"meanLuma":109.8,"litFraction":1,"colors":276}
+[ 335.533] key      down ControlLeft
+[ 335.547] wait     900 ms
+[ 338.214] key      up ControlLeft
+[ 338.215] key      tap KeyB
+[ 338.821] waitFor  Math.hypot(__AIRBASE.c130C.S.vel.x, __AIRBASE.c130C.S.vel.z) < 0.5 (≤40000 ms)
+[ 351.332] key      down ShiftLeft
+[ 351.333] key      tap KeyL
+[ 351.910] key      up ShiftLeft
+[ 351.910] wait     400 ms
+[ 353.600] PASS     expect SHIFT+L: lined up on the runway, flaps 50: __AIRBASE.AIRBASE.onRunway(__AIRBASE.c130C.S.pos.x, __AIRBASE.c130C.S.pos.z) && __AIRBASE.c130C.S.flap > 0.45  =>  true
+[ 353.601] wait     800 ms
+[ 369.174] shot     15-lined-up.png  {"w":1280,"h":720,"meanLuma":93.8,"litFraction":1,"colors":253}
+[ 369.199] eval     (__AIRBASE.c130C.warp = 3, 1)  =>  1
+[ 369.199] key      down ShiftLeft
+[ 369.218] waitFor  __AIRBASE.c130C.S.kias > 105 (≤60000 ms)
+[ 378.443] key      down KeyS
+[ 378.446] waitFor  !__AIRBASE.c130C.S.onGround (≤30000 ms)
+[ 379.402] key      up KeyS
+[ 379.402] waitFor  __AIRBASE.c130C.S.pos.y - __AIRBASE.AIRBASE.E > 25 (≤30000 ms)
+[ 384.329] key      down KeyS
+[ 384.330] wait     300 ms
+[ 385.373] key      up KeyS
+[ 385.374] key      up ShiftLeft
+[ 385.375] PASS     expect keyboard take-off: airborne: !__AIRBASE.c130C.S.onGround && !__AIRBASE.c130C.S.dead  =>  true
+[ 385.376] eval     (__AIRBASE.c130C.warp = 1, 1)  =>  1
+[ 385.376] wait     1500 ms
+[ 404.225] shot     16-takeoff-chase.png  {"w":1280,"h":720,"meanLuma":93.5,"litFraction":0.9999,"colors":262}
+[ 404.242] eval     (__AIRBASE.c130C.warp = 3, 1)  =>  1
+[ 404.242] waitFor  __AIRBASE.c130C.S.pos.y - __AIRBASE.AIRBASE.E > 20 (≤60000 ms)
+[ 404.309] key      tap KeyG
+[ 404.422] key      tap KeyN
+[ 404.524] PASS     expect N: the autopilot takes her home: __AIRBASE.c130C.ap && __AIRBASE.c130C.ap.mode === 'home'  =>  true
+[ 404.524] waitFor  __AIRBASE.c130C.ap && __AIRBASE.c130C.ap.final (≤400000 ms)
+[ 568.985] eval     (__AIRBASE.c130C.warp = 1, __AIRBASE.c130C.view = 'cockpit', 1)  =>  1
+[ 568.985] wait     1500 ms
+[ 575.501] shot     17-final-cockpit.png  {"w":1280,"h":720,"meanLuma":107.8,"litFraction":0.9161,"colors":358}
+[ 575.526] eval     (__AIRBASE.c130C.view = 'chase', __AIRBASE.c130C.orbitTo(0.3, 0.1, 70), __AIRBASE.c130C.warp = 3, 1)  =>  1
+[ 575.526] waitFor  __AIRBASE.c130C.ap && __AIRBASE.c130C.ap.flare || !__AIRBASE.c130C.present() (≤400000 ms)
+[ 778.662] eval     (__AIRBASE.c130C.warp = 1, 1)  =>  1
+[ 778.662] wait     500 ms
+[ 792.804] shot     18-flare.png  {"w":1280,"h":720,"meanLuma":119,"litFraction":1,"colors":301}
+[ 792.804] waitFor  !__AIRBASE.c130C.present() || (__AIRBASE.c130C.sortie.stopped && __AIRBASE.c130C.S.onGround) (≤200000 ms)
+[ 847.421] PASS     expect landed on the runway and stopped: __AIRBASE.c130C.present() && __AIRBASE.c130C.sortie.airborne && __AIRBASE.AIRBASE.onRunway(__AIRBASE.c130C.S.pos.x, __AIRBASE.c130C.S.pos.z)  =>  true
+[ 847.421] eval     rollout: ({ v: Math.round(__AIRBASE.AIRBASE.toL(__AIRBASE.c130C.S.pos.x, __AIRBASE.c130C.S.pos.z)[1] * 10) / 10, hdg: Math.round(((-__AIRBASE.c130C.S.heading * 180 / Math.PI) % 360 + 360) % 360), nzMax: __AIRBASE.c130C.S.nzMax })  =>  {"v":0.1,"hdg":180,"nzMax":1.6908338446791686}
+[ 860.471] shot     19-stopped-on-runway.png  {"w":1280,"h":720,"meanLuma":113.9,"litFraction":1,"colors":310}
+[ 860.471] key      tap KeyO
+[ 860.599] wait     1500 ms
+[ 865.934] PASS     expect O: parked in the hangar, the sortie complete, the C-130 back in reserve, you are back in another unit: !__AIRBASE.c130C.present() && __AIRBASE.c130C.parked && __G.fleet.n.c130 === 1 && __G.G.craft !== 'c130'  =>  true
+[ 865.935] PASS     expect the C-130 stands in the maintenance hangar: (() => { const sp = __AIRBASE.AIRBASE.spot('c130', 'park'); return Math.hypot(__AIRBASE.c130C.S.pos.x - sp.x, __AIRBASE.c130C.S.pos.z - sp.z) < 1; })()  =>  true
+[ 865.935] key      tap KeyM
+[ 866.959] wait     1200 ms
+[ 892.234] shot     20-command-map.png  {"w":1280,"h":720,"meanLuma":19.8,"litFraction":0.3727,"colors":336}
+[ 892.234] key      tap KeyM
+[ 892.360] wait     500 ms
+[ 927.328] shot     21-minimap-at-base.png  {"w":1280,"h":720,"meanLuma":77.6,"litFraction":0.9974,"colors":517}
+[ 927.328] PASS     notblank minimap-at-base: litFraction=0.9974 (min 0.05) colors=517
+[ 927.350] final    {"gpu":"GPU: ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)","fps":"1 fps  ·  res 50%","mode":"zarch","state":"play"}
+[ 928.359] result   PASS: 14/14 expects, 0 page errors, 0 console errors

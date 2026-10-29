@@ -60,17 +60,19 @@ export function createCommander(h) {
     return bs;
   }
   const base = () => C.bases.find(b => b.key === C.baseKey) || C.bases[0] || null;
+  const baseFor = t => { const b = base(); if (b && t && !t.at.includes(b.kind) && t.at.length === 1) return C.bases.find(x => x.kind === t.at[0]) || b; return b; };   // (ngc/look-airbases)
   function nearestBaseKey() { let best = null; for (const b of C.bases) if (!best || b.d < best.d) best = b; return best ? best.key : null; }
 
   // ---------------------------------------------------------------- what each row offers at the selected base
   function rowOf(r, fresh = false) {   // fresh: another of a type that can have several out (r.multi: the motor pool)
-    const t = fleet.type(r.id), n = Math.max(0, fleet.n[r.id] || 0), b = base(), out = r.out(), act = r.active(), another = fresh && r.multi;
+    const t = fleet.type(r.id), n = Math.max(0, fleet.n[r.id] || 0), out = r.out(), act = r.active(), another = fresh && r.multi;
+    const b = baseFor(t);   // (ngc/look-airbases: a type that only one kind of base takes goes there whatever base is selected)
     const o = { r, t, n, out, act, status: out ? r.status() : '', action: 'none', label: '', why: '' };
     if (act && !another) { o.action = 'here'; o.label = 'YOU ARE HERE'; return o; }
     if (out && !another) { o.action = 'switch'; o.label = 'SWITCH TO IT'; return o; }
     const gate = h.gate ? h.gate(r.id) : '';   // TECH TREE: a type not yet researched can't be taken out
     if (gate) { o.why = gate; o.label = gate; o.locked = true; return o; }
-    const why = !b ? 'NO BASE' : !t.at.includes(b.kind) ? (b.kind === 'island' ? 'CARRIER ONLY' : 'ISLANDS ONLY') : r.can(b);
+    const why = !b ? 'NO BASE' : !t.at.includes(b.kind) ? (t.at.includes('island') ? (t.at.includes('ship') ? 'CARRIER OR ISLANDS ONLY' : 'ISLANDS ONLY') : 'CARRIER ONLY') : r.can(b);
     if (why) { o.why = why; o.label = why; return o; }
     if (n > 0) { o.action = 'deploy'; o.label = `DEPLOY AT ${b.name}`; return o; }
     if (h.mat() >= t.cost) { o.action = 'buy'; o.label = `BUY (${t.cost} MATERIEL) + DEPLOY`; return o; }
@@ -81,7 +83,7 @@ export function createCommander(h) {
   function done() { C.lossMode = false; C.choosing = false; C.banner = ''; h.picked?.(); C.close(); }
   C.act = (i = C.sel, fresh = false) => {
     const o = fresh ? h.roster[i] && rowOf(h.roster[i], true) : C.rows[i] || rowOf(h.roster[i]); if (!o) return false;
-    const r = o.r, b = base();
+    const r = o.r, b = baseFor(o.t);
     sfx?.ui?.('select');
     if (o.action === 'here') { say(`YOU ARE IN THE ${r.label}`, 1.2); return false; }
     if (o.action === 'switch') { const tok = h.leaving?.(); const w = r.switchTo(); if (w) { say(w, 1.8); return false; } h.left?.(tok); done(); return true; }

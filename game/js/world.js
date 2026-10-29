@@ -12,6 +12,7 @@ import { roadBed } from './world/net.js';   // the lived-in world (roads, towns,
 import { zoneH, ZONE_E } from './world/terrain.js';
 import { BOUND } from './world/bound.js';   // (ngc/look-terrain) the one zone-size constant
 export { BOUND };
+import { planAirbase } from './world/airbase.js';   // (ngc/look-airbases) the friendly air base outside the zone
 import { hypot2 } from './hypot.js';   // (ngc/perf-cpu) Math.hypot without the garbage, same bits
 export const SEA_FLOOR = -14;
 export const ISLANDS = [   // (x, z: the site's centre on the land, world/terrain.js; r: the war's radius for buildings and guns)
@@ -73,25 +74,16 @@ export function wildH(x, z) {
   const low = 2 + coast * (40 + 45 * fbm(x / 1900 + 3.1, z / 1900 - 8.4, 3)) + coast * hills(x, z) * 0.5;   // plains and hills
   const belt = sm(-0.08, 0.24, fbm(x / 8000 - 7.1, z / 8000 + 3.3, 3));          // where the mountain ranges run
   const r = ridged(x / 2400, z / 2400, 5), mtn = belt * coast * r * r * 1700;   // ranges, peaks past 1 km
-  return flats(x, z, mix(SEA_FLOOR - 4, low + mtn, sm(-0.12, 0.0, land)));
-}
-// FLATS: flat footprints outside the zone (air bases, ngc/look-airbases) that wildH grades the ground to. Each
-// { x, z, hw, hl (half width / length, m), yaw, h (height), blend (m of slope round it) }; add before anything bakes.
-export const FLATS = [];
-function flats(x, z, h) {
-  for (let i = 0; i < FLATS.length; i++) {
-    const F = FLATS[i], c = Math.cos(F.yaw || 0), s = Math.sin(F.yaw || 0), dx = x - F.x, dz = z - F.z;
-    const u = Math.abs(c * dx - s * dz) - F.hw, v = Math.abs(s * dx + c * dz) - F.hl, d = Math.hypot(Math.max(u, 0), Math.max(v, 0));
-    const b = F.blend ?? 60; if (d < b) h = mix(F.h, h, sm(0, b, d));
-  }
-  return h;
+  return mix(SEA_FLOOR - 4, low + mtn, sm(-0.12, 0.0, land));
 }
 // forests: where the forest noise says so, on gentle slopes between the beach and the tree line (~360 m)
 export function forestAt(x, z, h, slopeY) { return h > 3.5 && h < 360 - 60 * noise(x / 300, z / 300) && slopeY > 0.82 && fbm(x / 1700 + 5.5, z / 1700 + 9.2, 3) > -0.08; }
 // rawH: the natural ground. islandH: the ground people built on - road beds, town squares, quays and farmyards are
 // flattened in by world/net.js (the lived-in world), so physics, the terrain bake and the road ribbons all agree.
+// (ngc/look-airbases) the air base: a site on the friendly side past the sea band, its ground flattened into the wild land
+export const AIRBASE = planAirbase({ natH: wildH, BOUND, home: ISLANDS.find(I => I.kind === 'hq' && I.owner === 1) });
 // (the zone grid runs to ZONE_E = BOUND + 160 and its outer ring already IS wildH: no seam where the two meet)
-export const rawH = (x, z) => Math.max(Math.abs(x), Math.abs(z)) < ZONE_E - 5 ? zoneH(x, z) : wildH(x, z);
+export const rawH = (x, z) => Math.max(Math.abs(x), Math.abs(z)) < ZONE_E - 5 ? zoneH(x, z) : AIRBASE.H(x, z, wildH(x, z));
 export const islandH = (x, z) => roadBed(x, z, rawH(x, z));
 export const islandAt = (x, z, pad = 0) => ISLANDS.find(I => hypot2(x - I.x, z - I.z) < I.r + pad);
 

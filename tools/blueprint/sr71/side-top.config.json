@@ -1,0 +1,11 @@
+{
+ "image": "../../../docs/ngc1980/reference/sr71/usaf-sr71a-3view-2x.png",
+ "out": "trace-side-top.json",
+ "source": "USAF 'Blackbird 3-view' (af.mil art gallery, public domain; Wikimedia Commons File:Lockheed_SR-71A_3view.svg), rasterised at 2x by rasterize.mjs",
+ "frame": "trace metres: X aft of the pitot tip (z), Y above the static ground (y), x = BL. Side: 32.74 m (SR-71A-1 fig 1-1 text: 107.4 ft overall) over 3055 px; ground set so the fin tip is 5.64 m (18.5 ft) up, the drawn wheels being schematic. Top: 32.74 m over 3072 px (span then 16.93 m vs 55.6 ft = 16.95 m)",
+ "threshold": 140, "eraseLen": 5000, "dilate": 2,
+ "side": { "x0": 651, "x1": 3706, "rows": [2255, 2760], "s": 93.31, "zAtX0": 0, "groundPx": 2795.3, "yGround": 0,
+   "centre": [[0, 1.50], [3, 1.55], [10, 1.66], [22, 1.75], [28, 1.95], [32.74, 2.42]],
+   "exclude": { "top": [[25.1, 31.2]], "bottom": [] } },
+ "top": { "x0": 634, "x1": 3706, "rows": [0, 1600], "s": 93.83, "xRef": 634, "zRef": 0, "centrePx": 795.5, "probe": [0, 3, -3], "exclude": [] }
+}

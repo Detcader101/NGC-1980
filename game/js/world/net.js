@@ -12,7 +12,7 @@
 // given a grade-limited height profile, and flattened into the terrain (roadBed) except where they bridge water or a
 // deep valley. world.js applies roadBed() inside islandH(), so the physics height, the terrain bake and the road
 // ribbons agree to the centimetre.
-import { rawH, BOUND, ISLANDS, forestAt } from '../world.js';
+import { rawH, BOUND, ISLANDS, forestAt, AIRBASE } from '../world.js';   // (ngc/look-airbases: AIRBASE.keep - no towns, farms, roads or trees on the air base)
 import { hash2, rng } from './rng.js';
 import { townItems, farmItems } from './layout.js';   // lots and farm buildings (their platforms are part of the ground)
 
@@ -96,6 +96,7 @@ function route(ax, az, bx, bz, o = {}) {
         let c = sl * (1 + 3 * g + 500 * Math.max(0, g - gmax) ** 2) + Math.abs(d) * 3 + Math.abs(q - M) * step * 0.004 * sl;
         if (h0 < 0.6 || h1 < 0.6) c += sl * waterCost * (1 + Math.max(0, -Math.min(h0, h1)) * 0.12);
         if (o.avoid && o.avoid(ax + dx * ds * k + nx * (q - M) * step, az + dz * ds * k + nz * (q - M) * step)) c += sl * 400;   // (ngc/look-terrain: keep off bases and pads)
+        if (AIRBASE.keep(ax + dx * ds * k + nx * (q - M) * step, az + dz * ds * k + nz * (q - M) * step, 40)) c += sl * 60;   // (ngc/look-airbases) roads go round the air base
         if (c0 + c < best) { best = c0 + c; bp = p; }
       }
       C[k * m + q] = best; P[k * m + q] = bp;
@@ -173,7 +174,7 @@ export function settlementOf(ci, cj) {
     const r = rng(ci * 7919 + cj * 104729 + 11); let best = null;
     for (let t = 0; t < 7; t++) {
       const x = (ci + 0.12 + 0.76 * r()) * CELL, z = (cj + 0.12 + 0.76 * r()) * CELL;
-      if (cheb(x, z) < BOUND + 520) continue;
+      if (cheb(x, z) < BOUND + 520 || AIRBASE.keep(x, z, 320)) continue;   // (ngc/look-airbases)
       const h = rawH(x, z); if (h < 3.5 || h > 170) continue;
       let rough = 0, land = 0, sea = null;
       for (let a = 0; a < 8; a++) {
@@ -211,6 +212,7 @@ function ownEdges(ci, cj) {
       if (dAC < dAB && dBC < dAB && dAC + dBC < dAB * 1.22) { blocked = true; break; }
     }
     if (blocked) { S.edges.set(ek, null); continue; }
+    { let ab = false; for (let t = 0; t <= 1 && !ab; t += 60 / dAB) ab = AIRBASE.keep(A.x + (B.x - A.x) * t, A.z + (B.z - A.z) * t, 150); if (ab) { S.edges.set(ek, null); continue; } }   // (ngc/look-airbases) no road through the air base
     const [P, Q] = A.id < B.id ? [A, B] : [B, A], type = roadType(P, Q);
     const pts = route(P.x, P.z, Q.x, Q.z, { g: ROAD[type].g });
     const prof = pts && profile(pts, type, P.y, Q.y, { pin0: plazaR(P), pin1: plazaR(Q) });
@@ -305,7 +307,7 @@ export function farmOf(fi, fj) {
   let rough = 0; for (let a = 0; a < 6; a++) rough = Math.max(rough, Math.abs(rawH(x + Math.cos(a) * 35, z + Math.sin(a) * 35) - y));
   if (rough > 10) return null;
   if (forestAt(x, z, y, 0.95) && r() < 0.6) return null;
-  if (inTown(x, z, 90)) return null;
+  if (inTown(x, z, 90) || AIRBASE.keep(x, z, 200)) return null;   // (ngc/look-airbases)
   const rp = nearestRoadPoint(x, z, 900, joinable); if (!rp) return null;
   const dRoad = Math.hypot(rp.x - x, rp.z - z); if (dRoad < 45) return null;
   const yaw = Math.atan2(rp.z - z, rp.x - x) + (r() < 0.5 ? 0 : Math.PI / 2);
@@ -519,6 +521,7 @@ export const ground0 = (x, z) => bedRoads(x, z, rawH(x, z));
 export function roadBed(x, z, h) { ensure(x, z); return bedPads(x, z, bedRoads(x, z, h)); }
 // is this spot kept clear of trees (roads, towns, fields, yards)?
 export function clearedAt(x, z) {
+  if (AIRBASE.keep(x, z, 25)) return true;   // (ngc/look-airbases) the air base is cleared ground
   ensure(x, z);
   const q = nearestSeg(x, z, false); if (q && q.e < 7) return true;
   const a = S.fbk.get(ckey(Math.floor(x / BKT), Math.floor(z / BKT))); if (!a) return false;
