@@ -47,7 +47,8 @@ export function createWorldLife(ctx) {
     for (const { I, items, roads } of zoneItems(terrainH)) {
       const rd = new Map(); for (const id of roads) { const R = roadById(id); rd.set(R, new Set(Array.from({ length: R.xs.length - 1 }, (_, i) => i))); }
       const discs = []; for (const [, a] of netState.buckets) for (const s of a) if (s.disc && Math.hypot(s.ax - I.x, s.az - I.z) < I.r + 30 && !discs.includes(s)) discs.push(s);
-      const c = buildGeo({ items, roads: rd, discs, x0: -1e9, z0: -1e9, x1: 1e9, z1: 1e9 }, terrainH, { lat: 2.5 });
+      const c = buildGeo({ items, roads: rd, discs, x0: -1e9, z0: -1e9, x1: 1e9, z1: 1e9 }, terrainH, { lat: 2.5, natTrees: !!ctx.nature });
+      if (ctx.nature && c.vtrees?.length) ctx.nature.forest.add('zone-v' + zone.length, c.vtrees, c.vkinds);   // RENDERKIT nature (ngc/look-nature): village / hedgerow trees as species
       const e = { I, x: I.x, z: I.z, sN: mk(c.near, ZM.sN), sF: mk(c.far, ZM.sF), gN: mk(c.gnear, ZM.gN), gF: mk(c.gfar, ZM.gF), sD: mk(c.detail, ZM.sD), wires: wiresOf(c.wires), dyn: c.dyn, items, roads, zone: true, materials: ZM, reveal: { value: 1 } };   // SEAWORLD: roads kept for world/solid.js (bridge parapets)
       stats.zoneTris += c.near.tris + c.gnear.tris + c.detail.tris; zone.push(e);
     }
@@ -63,7 +64,7 @@ export function createWorldLife(ctx) {
     const c = chunks.get(key(d.ci, d.cj)); stats.pending--;
     if (!c || c.state !== 'pending' || c.reqId !== d.id) return;   // dropped while building
     c.reveal = { value: 0 }; c.materials = materials(false, c.reveal); const M = c.materials;
-    if (ctx.nature && d.forest) { ctx.nature.forest.add(c.k, d.forest, d.kinds); if (d.scrub?.length) ctx.nature.forest.add(c.k + 's', d.scrub, new Uint8Array(d.scrub.length / 4).fill(3)); }   // RENDERKIT nature
+    if (ctx.nature && d.forest) { ctx.nature.forest.add(c.k, d.forest, d.kinds); if (d.scrub?.length) ctx.nature.forest.add(c.k + 's', d.scrub, new Uint8Array(d.scrub.length / 4).fill(3)); if (d.vtrees?.length) ctx.nature.forest.add(c.k + 'v', d.vtrees, d.vkinds); }   // RENDERKIT nature
     Object.assign(c, { state: 'ready', forestTrees: d.forestTrees || 0, sN: mk(d.near, M.sN), sF: mk(d.far, M.sF), gN: mk(d.gnear, M.gN), gF: mk(d.gfar, M.gF), sD: mk(d.detail, M.sD), wires: wiresOf(d.wires), dyn: d.dyn, tris: d.near.tris + d.gnear.tris, dtris: d.detail.tris });
     stats.built++; stats.buildMs = d.ms; ambient.addChunk(c);
     if (c.dyn.bld && c.dyn.bld.some(b => DAMAGE.cond(b.k) !== 'intact')) applyRuins(c);   // knocked down before it was last streamed out
@@ -81,7 +82,7 @@ export function createWorldLife(ctx) {
     want.sort((a, b) => a[0] - b[0]);
     for (const [, i, j, k] of want) { if (stats.pending >= 2 || !worker) break; chunks.set(k, { i, j, k, x: (i + 0.5) * CHUNK, z: (j + 0.5) * CHUNK, state: 'pending', reqId }); stats.pending++; worker.postMessage({ id: reqId++, ci: i, cj: j, nature: !!ctx.nature }); }   // (nature: RENDERKIT nature)
     for (const [k, c] of chunks) if (Math.hypot(c.x - cx, c.z - cz) > R + CHUNK * 1.6) {
-      if (c.state === 'ready') { for (const p of ['sN', 'sF', 'gN', 'gF', 'sD', 'ruins', 'wires']) dispose(c[p]); ambient.dropChunk(c); for (const m of Object.values(c.materials)) m.dispose(); ctx.nature?.forest.remove(k); ctx.nature?.forest.remove(k + 's'); }   // (RENDERKIT nature)
+      if (c.state === 'ready') { for (const p of ['sN', 'sF', 'gN', 'gF', 'sD', 'ruins', 'wires']) dispose(c[p]); ambient.dropChunk(c); for (const m of Object.values(c.materials)) m.dispose(); ctx.nature?.forest.remove(k); ctx.nature?.forest.remove(k + 's'); ctx.nature?.forest.remove(k + 'v'); }   // (RENDERKIT nature)
       chunks.delete(k);
     }
   }

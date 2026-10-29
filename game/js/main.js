@@ -836,10 +836,15 @@ const NAT = RKN ? (() => {
     // the forest and clutter sets follow the camera that RENDERS (hooked on terrain.onBeforeRender below): scripted test
     // cameras and XR eyes, not just zCam as the game loop left it
     place(cam) { natEye.position.setFromMatrixPosition(cam.matrixWorld); natEye.far = cam.far; natEye.seen = true;   // (applied in update(): never change buffers mid-render)
+      // ngc/look-nature: the view cone (forward + tangent of the half-diagonal field of view). The sets hold only what can be
+      // seen or can shade what is seen; before, every set was the whole ring round the eye, half of it behind the player
+      const M = cam.matrixWorld.elements, P = cam.projectionMatrix.elements;
+      natEye.dir.set(-M[8], -M[9], -M[10]).normalize();
+      natEye.tanD = Math.hypot((1 + Math.abs(P[8])) / Math.abs(P[0] || 1), (1 + Math.abs(P[9])) / Math.abs(P[5] || 1));   // (off-axis XR eyes: widened by the skew)
     },
   };
   if (params.has('debug')) window.__nature = N;
-  const natEye = { position: new THREE.Vector3(), far: 0, seen: false }, terrainOBR = terrain.onBeforeRender;
+  const natEye = { position: new THREE.Vector3(), dir: new THREE.Vector3(0, 0, -1), tanD: 0, far: 0, seen: false }, terrainOBR = terrain.onBeforeRender;
   terrain.onBeforeRender = (r, s, cam) => { terrainOBR(r, s, cam); if (cam.isPerspectiveCamera) N.place(cam); };   // (terrain always renders, once per eye; not for a shadow map)
   return N;
 })() : null;

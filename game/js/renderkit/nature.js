@@ -6,6 +6,9 @@
 //   altitude), each a trunk and irregular, offset canopy layers / clumps with a darker inner canopy (baked AO toward the
 //   trunk and under each layer), soft outward normals (foliage, not facets), leaf mottling, sun-side translucency, and a
 //   gentle wind sway on the game clock. Per instance: size, yaw, lean and colour.
+//   ngc/look-nature: the detail and mid crowns are clustered leaf cards (a generated leaf atlas, alpha-to-coverage edges,
+//   sphere normals, sun-side translucency) over a small dark hull; the fir is star skirts fringed with branch sprays.
+//   Village, garden and hedgerow trees (world/chunkgen.js) are instances of these species too.
 // - LOD: detail mesh near, a ~30-triangle mid mesh out to the world's near radius, the old far impostors past it
 //   (chunk sF pyramids in the wild, a static instanced far set in the zone), all cross-faded with the complementary
 //   screen-door masks of world/visibility.js (detail | mid | far never overlap, never leave a gap).
@@ -28,7 +31,7 @@ import { FIR, PINE, BROAD, SCRUB } from '../world/forest.js';
 // detailR: full trees within (cross-fade band +-band); clutterR: the clutter ring; grass/rocks/bush: density factors;
 // micro: terrain near detail (0 = off: the low tier's terrain costs what RK world cost); microR: its radius.
 export const NATURE_TIERS = Object.freeze({
-  low: Object.freeze({ detailR: 90, band: 30, clutterR: 38, grass: 0.35, rocks: 0.6, bush: 0.5, micro: 0, microR: 0, liteMid: true }),
+  low: Object.freeze({ detailR: 90, band: 30, clutterR: 38, grass: 0.35, rocks: 0.6, bush: 0.5, micro: 0, microR: 0, liteMid: false }),
   med: Object.freeze({ detailR: 170, band: 45, clutterR: 70, grass: 0.7, rocks: 0.85, bush: 0.8, micro: 1, microR: 110 }),
   high: Object.freeze({ detailR: 260, band: 60, clutterR: 105, grass: 1, rocks: 1, bush: 1, micro: 1, microR: 170 }),
 });
@@ -48,17 +51,38 @@ const mixc = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a
 const prng = s => () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 const norm3 = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
 const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const add3 = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 
-class Builder {   // non-indexed triangles: position, normal, color (linear, AO baked), aSway (m above the root), aLeaf (0/1)
-  constructor() { this.p = []; this.n = []; this.c = []; this.s = []; this.l = []; }
+class Builder {   // non-indexed triangles: position, normal, color (linear, AO baked), aSway (m above the root), aLeaf (0/1),
+  // aLUv (leaf atlas uv) and aCard (1: a leaf card, alpha-tested against the atlas; 0: solid)
+  constructor() { this.p = []; this.n = []; this.c = []; this.s = []; this.l = []; this.uv = []; this.k = []; }
   // nrm: per-vertex normals or null (face normal); bend: 0..1 how far the face normal is pulled to `nrm`
-  tri(a, b, c, col, nrm = null, bend = 0, leaf = 0, cols = null) {
+  tri(a, b, c, col, nrm = null, bend = 0, leaf = 0, cols = null, uvs = null) {
     const f = norm3(cross3(sub3(b, a), sub3(c, a)));
     [a, b, c].forEach((v, i) => {
       const m = nrm ? norm3(mixc(f, nrm[i], bend)) : f;
       this.p.push(...v); this.n.push(...m); this.c.push(...(cols ? cols[i] : col)); this.s.push(Math.max(0, v[1])); this.l.push(leaf);
+      this.uv.push(...(uvs ? uvs[i] : [0, 0])); this.k.push(uvs ? 1 : 0);
     });
+  }
+  // ngc/look-nature: a leaf card, the quad o +- U +- V showing atlas tile `tile` (LEAF_TILES), normals bent to point away
+  // from `centre` (a crown shades as one soft volume, not card by card), AO baked from where the corner sits in the crown
+  card(o, U, V, tile, shade, centre, r, bend = 0.8) {
+    const q = [sub3(sub3(o, U), V), sub3(add3(o, U), V), add3(add3(o, U), V), add3(sub3(o, U), V)];
+    const u0 = tile / LEAF_TILES, u1 = (tile + 1) / LEAF_TILES, flip = r() < 0.5;
+    let uv = [[u0, 0], [u1, 0], [u1, 1], [u0, 1]]; if (flip) uv = [uv[1], uv[0], uv[3], uv[2]];
+    const nr = q.map(v => norm3(sub3(v, centre))), cl = q.map(shade);
+    this.tri(q[0], q[1], q[2], null, [nr[0], nr[1], nr[2]], bend, 1, [cl[0], cl[1], cl[2]], [uv[0], uv[1], uv[2]]);
+    this.tri(q[0], q[2], q[3], null, [nr[0], nr[2], nr[3]], bend, 1, [cl[0], cl[2], cl[3]], [uv[0], uv[2], uv[3]]);
+  }
+  // a leaf cluster: three crossed cards round o (one across `out`, two along it, turned at random about it), size sz
+  cluster(o, out, sz, tile, shade, centre, r, n = 3) {
+    const up = Math.abs(out[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0], t0 = norm3(cross3(out, up)), b0 = cross3(out, t0), a = r() * Math.PI;
+    const t = add3(mulc(t0, Math.cos(a)), mulc(b0, Math.sin(a))), b = cross3(out, t), k = sz * (0.85 + r() * 0.3);
+    this.card(o, mulc(t, k), mulc(b, k), tile, shade, centre, r);
+    if (n > 1) this.card(add3(o, mulc(out, -0.15 * k)), mulc(t, k), mulc(out, k * 0.8), tile, shade, centre, r);
+    if (n > 2) this.card(add3(o, mulc(out, -0.15 * k)), mulc(b, k), mulc(out, k * 0.8), tile, shade, centre, r);
   }
   geometry() {
     const g = new THREE.BufferGeometry();
@@ -67,6 +91,8 @@ class Builder {   // non-indexed triangles: position, normal, color (linear, AO 
     g.setAttribute('color', new THREE.Float32BufferAttribute(this.c, 3));
     g.setAttribute('aSway', new THREE.Float32BufferAttribute(this.s, 1));
     g.setAttribute('aLeaf', new THREE.Float32BufferAttribute(this.l, 1));
+    g.setAttribute('aLUv', new THREE.Float32BufferAttribute(this.uv, 2));
+    g.setAttribute('aCard', new THREE.Float32BufferAttribute(this.k, 1));
     g.computeBoundingSphere();
     return g;
   }
@@ -115,6 +141,41 @@ class Builder {   // non-indexed triangles: position, normal, color (linear, AO 
       this.clump(o, rr, rr * (0.75 + r() * 0.25), rr * (0.85 + r() * 0.3), mixc(P.leaf, P.leaf2, Math.max(0, Math.min(1, 0.5 + y * 0.5 + (r() - 0.5) * 0.4))), r, C, ax, oct);
     }
   }
+  // ngc/look-nature: a broadleaf / pine crown as n leaf clusters (crossed cards, tile) on an ellipsoid shell round C (radii
+  // A); cluster size szK * A.x. top: 0..1 how far the clusters keep to the upper shell (the pine's umbrella). What keeps
+  // the crown from reading hollow: `inner` darker clusters near the middle (detail: a smooth hull showed as a ball among
+  // the textured cards) or a low-poly hull (`hull` > 0: the mid LOD and the scrub, where it is a few pixels). Normals
+  // point away from C: the crown shades as one volume.
+  cardCrown(C, A, n, szK, P, r, tile, { top = 0, hullOct = false, per = 3, hull = 0.46, inner = 0 } = {}) {
+    const ga = Math.PI * (3 - Math.sqrt(5)), ax = Math.max(A[0], A[2]);
+    if (hull > 0) this.clump(C, A[0] * hull, A[1] * hull * 0.92, A[2] * hull, mulc(P.leaf, 1.45), r, C, ax, hullOct);   // (clump shading takes the core to ~0.3)
+    for (let j = 0; j < inner; j++) {
+      const th = j / inner * Math.PI * 2 + r(), y = (r() - 0.5) * 0.6, d = 0.28 + r() * 0.15, dir = norm3([Math.cos(th), y, Math.sin(th)]);
+      const o = [C[0] + dir[0] * A[0] * d, C[1] + dir[1] * A[1] * d, C[2] + dir[2] * A[2] * d], col = mulc(P.leaf, 0.7);
+      this.cluster(o, dir, ax * szK * 0.95, tile, () => mulc(col, 0.85 + r() * 0.3), C, r, 3);
+    }
+    for (let i = 0; i < n; i++) {
+      const y = 1 - (i + 0.5) / n * (1.6 - top * 0.75), rad = Math.sqrt(Math.max(0, 1 - y * y)), th = i * ga + r() * 0.7, d = 0.72 + r() * 0.2;
+      const dir = [Math.cos(th) * rad, y, Math.sin(th) * rad], o = [C[0] + dir[0] * A[0] * d, C[1] + dir[1] * A[1] * d, C[2] + dir[2] * A[2] * d];
+      const out = norm3([dir[0] / A[0], dir[1] / A[1], dir[2] / A[2]]);
+      const col = mixc(P.leaf, P.leaf2, Math.max(0, Math.min(1, 0.45 + y * 0.45 + (r() - 0.5) * 0.5)));
+      const shade = v => { const q = [(v[0] - C[0]) / A[0], (v[1] - C[1]) / A[1], (v[2] - C[2]) / A[2]], rr = Math.min(1.2, Math.hypot(q[0], q[1], q[2]));
+        return mulc(col, (0.42 + 0.58 * Math.min(1, rr)) * (0.78 + 0.22 * Math.max(-1, Math.min(1, q[1]))) * (0.92 + r() * 0.16)); };
+      this.cluster(o, out, ax * szK, tile, shade, C, r, per);
+    }
+  }
+  // the fir's drooping branch sprays round one tier: a card from near the trunk out past each star tip
+  fringe(y0, h, R, seg, col, r, droop) {
+    const ph = r() * Math.PI * 2, centre = [0, y0 + h * 0.25, 0];
+    for (let i = 0; i < seg; i++) {
+      const t = ph + (i + 0.5 + (r() - 0.5) * 0.4) / seg * Math.PI * 2, c = Math.cos(t), sn = Math.sin(t), L = R * (1.0 + r() * 0.25), lift = (i % 2) * h * 0.22;
+      const a = [c * R * 0.15, y0 + h * 0.18 + lift, sn * R * 0.15], b = [c * L, y0 + lift * 0.6 - droop * h * (0.7 + r() * 0.5), sn * L];
+      const o = mulc(add3(a, b), 0.5), V = mulc(sub3(b, a), 0.5), roll = (r() - 0.5) * 1.3, w = R * (0.4 + r() * 0.12);
+      const side = [-sn, 0, c], U = mulc(norm3(add3(mulc(side, Math.cos(roll)), [0, Math.sin(roll), 0])), w);
+      const shade = v => mulc(col, (0.5 + 0.5 * Math.min(1, Math.hypot(v[0], v[2]) / R)) * (0.9 + r() * 0.2));
+      this.card(o, U, V, 2, shade, centre, r, 0.7);
+    }
+  }
   // one conifer tier: a star-shaped skirt (tips out and drooping, notches in and higher) round the trunk, apex offset
   tier(y0, h, R, seg, col, r, under = true, droop = 0.35) {
     const ax = (r() - 0.5) * R * 0.25, az = (r() - 0.5) * R * 0.25, apex = [ax, y0 + h, az], ring = [];
@@ -136,9 +197,9 @@ class Builder {   // non-indexed triangles: position, normal, color (linear, AO 
 
 // species palettes (sRGB hex -> linear): leaf, leaf variation, trunk
 const PAL = {
-  [FIR]: { leaf: lin(0x2b4a2c), leaf2: lin(0x3a5f37), trunk: lin(0x4a3a2e) },
-  [PINE]: { leaf: lin(0x45652f), leaf2: lin(0x587540), trunk: lin(0x6e4b34) },
-  [BROAD]: { leaf: lin(0x4b7330), leaf2: lin(0x668a39), trunk: lin(0x5c5248) },
+  [FIR]: { leaf: lin(0x2b4a2c), leaf2: lin(0x3a5f37), trunk: lin(0x5c4a3b) },   // (bark lighter: ngc/look-nature)
+  [PINE]: { leaf: lin(0x45652f), leaf2: lin(0x587540), trunk: lin(0x80604a) },
+  [BROAD]: { leaf: lin(0x4b7330), leaf2: lin(0x668a39), trunk: lin(0x736a5e) },
   [SCRUB]: { leaf: lin(0x5a7438), leaf2: lin(0x74804a), trunk: lin(0x5a4a3a) },
 };
 // The trees are built to a unit size that matches the old cone at scale 1 (5 m tall, 1.3 m radius): the hosts keep their
@@ -146,35 +207,53 @@ const PAL = {
 function treeGeo(kind, level) {
   const B = new Builder(), r = prng(kind * 101 + (level === 'detail' ? 7 : 3)), P = PAL[kind];
   const detail = level === 'detail', lite = level === 'lite';   // lite: the mid LOD with octahedron clumps (the low tier, the zone's far set)
-  if (kind === FIR) {
+  // ngc/look-nature: detail and mid crowns are leaf cards (cardCrown / fringe) over a dark hull; lite (the zone's far set,
+  // past ~520 m) keeps the clump crowns, which read the same at that size
+  if (lite) return treeGeoLite(kind, B, r, P);
+  if (kind === FIR) {   // fir: a straight trunk, tiers of star skirts (the body) fringed with drooping branch sprays
     B.trunk([0, -0.4, 0], [0, 4.6, 0], 0.17, 0.05, detail ? 6 : 4, P.trunk);
-    const n = detail ? 5 : 3;
+    const n = detail ? 5 : 3, seg = 5;
     for (let k = 0; k < n; k++) {
-      const f = k / n, y0 = 0.9 + f * 3.2, R = 1.75 * (1 - f * 0.78), h = 1.25 + (1 - f) * 0.5;
-      B.tier(y0, h + (k === n - 1 ? 0.6 : 0), R, detail ? 7 : 5, mixc(P.leaf, P.leaf2, f * 0.7), r, detail, detail ? 0.38 : 0.25);
+      const f = k / n, y0 = 0.9 + f * 3.2, R = 1.75 * (1 - f * 0.78), h = 1.25 + (1 - f) * 0.5, col = mixc(P.leaf, P.leaf2, f * 0.7);
+      B.tier(y0, h + (k === n - 1 ? 0.6 : 0), R * 0.7, seg, mulc(col, 0.62), r, false, detail ? 0.3 : 0.22);   // (the shaded inner mass)
+      B.fringe(y0, h, R, detail ? 10 : 6, col, r, detail ? 0.42 : 0.3);   // (the silhouette: needle sprays)
+      if (detail && k === n - 1) B.fringe(y0 + h * 0.55, h * 0.6, R * 0.55, 4, col, r, 0.2);   // (the leader's tuft)
     }
-  } else if (kind === PINE) {   // maritime pine: a tall, slightly bent trunk, an irregular oval crown of clumps on its top half
+  } else if (kind === PINE) {   // maritime pine: a tall, slightly bent trunk, bare limbs, an umbrella of needle tufts on top
     const top = [0.22, 4.4, 0.08];
     B.trunk([0, -0.4, 0], [0.12, 2.2, 0], 0.17, 0.12, detail ? 6 : 4, P.trunk);
     B.trunk([0.12, 2.2, 0], top, 0.12, 0.06, detail ? 6 : 4, P.trunk);
-    if (detail) { B.trunk([0.15, 3.0, 0], [-0.6, 3.75, 0.4], 0.06, 0.03, 4, P.trunk); B.trunk([0.18, 3.2, 0], [0.8, 3.9, -0.45], 0.06, 0.03, 4, P.trunk); }
-    B.crown([0.18, 4.55, 0.04], [1.45, 1.2, 1.35], detail ? 8 : 3, detail ? 0.5 : 0.62, P, r, lite);
-  } else if (kind === BROAD) {   // oak: short trunk, two limbs, a domed crown of 6 clumps (inner ones darker)
+    if (detail) { B.trunk([0.15, 3.0, 0], [-0.75, 3.95, 0.5], 0.07, 0.03, 4, P.trunk); B.trunk([0.18, 3.2, 0], [0.95, 4.05, -0.5], 0.07, 0.03, 4, P.trunk); B.trunk([0.2, 3.6, 0.05], [0.1, 4.3, 0.95], 0.05, 0.03, 3, P.trunk); }
+    B.cardCrown([0.18, 4.6, 0.04], [1.55, 1.0, 1.45], detail ? 10 : 5, detail ? 0.56 : 0.76, P, r, 1, { top: 0.55, hullOct: !detail, hull: detail ? 0 : 0.3, inner: detail ? 2 : 0, per: detail ? 3 : 2 });
+  } else if (kind === BROAD) {   // oak: short trunk, two limbs, a domed crown of leafy clusters
     B.trunk([0, -0.4, 0], [0, 1.9, 0], 0.22, 0.16, detail ? 6 : 4, P.trunk);
-    if (detail) { B.trunk([0, 1.7, 0], [-0.6, 2.9, 0.3], 0.1, 0.05, 4, P.trunk); B.trunk([0, 1.7, 0], [0.6, 3.0, -0.25], 0.1, 0.05, 4, P.trunk); }
-    B.crown([0, 3.35, 0], [2.0, 1.65, 1.9], detail ? 9 : 3, detail ? 0.47 : 0.6, P, r, lite);
-  } else {   // maquis scrub (lentisk, myrtle, broom): a low cushion of 3-4 clumps, no trunk to speak of. Unit: ~1.2 m tall.
-    const centre = [0, 0.3, 0], clumps = detail ? [[0, 0.55, 0, 0.75, 0.55], [-0.6, 0.35, 0.35, 0.55, 0.42], [0.55, 0.35, -0.3, 0.6, 0.45], [0.1, 0.3, 0.65, 0.5, 0.38]] : [[0, 0.5, 0, 0.9, 0.6], [0.4, 0.3, 0.4, 0.55, 0.4]];
-    clumps.forEach(([x, y, z, rr, ry], i) => B.clump([x, y, z], rr, ry, rr * (0.85 + r() * 0.3), mixc(P.leaf, P.leaf2, i / 3), r, centre, 0.9, lite));
+    if (detail) { B.trunk([0, 1.7, 0], [-0.7, 3.0, 0.35], 0.1, 0.05, 4, P.trunk); B.trunk([0, 1.7, 0], [0.7, 3.1, -0.3], 0.1, 0.05, 4, P.trunk); }
+    B.cardCrown([0, 3.4, 0], [2.05, 1.7, 1.95], detail ? 12 : 6, detail ? 0.55 : 0.76, P, r, 0, { hullOct: !detail, hull: detail ? 0 : 0.46, inner: detail ? 3 : 0, per: detail ? 3 : 2 });
+  } else {   // maquis scrub (lentisk, myrtle, broom): a low cushion of leafy clusters, no trunk to speak of. Unit: ~1.2 m tall.
+    B.cardCrown([0, 0.42, 0], [0.95, 0.55, 0.9], detail ? 7 : 3, detail ? 0.55 : 0.8, P, r, 0, { top: 0.35, hullOct: true, per: detail ? 3 : 2 });
+  }
+  return B;
+}
+function treeGeoLite(kind, B, r, P) {   // (the depth-nature clump crowns, octahedra: the far set)
+  if (kind === FIR) {
+    B.trunk([0, -0.4, 0], [0, 4.6, 0], 0.17, 0.05, 4, P.trunk);
+    for (let k = 0; k < 3; k++) { const f = k / 3, y0 = 0.9 + f * 3.2, R = 1.75 * (1 - f * 0.78), h = 1.25 + (1 - f) * 0.5; B.tier(y0, h + (k === 2 ? 0.6 : 0), R, 5, mixc(P.leaf, P.leaf2, f * 0.7), r, false, 0.25); }
+  } else if (kind === PINE) {
+    B.trunk([0, -0.4, 0], [0.12, 2.2, 0], 0.17, 0.12, 4, P.trunk); B.trunk([0.12, 2.2, 0], [0.22, 4.4, 0.08], 0.12, 0.06, 4, P.trunk);
+    B.crown([0.18, 4.6, 0.04], [1.55, 1.0, 1.45], 3, 0.66, P, r, true);
+  } else if (kind === BROAD) {
+    B.trunk([0, -0.4, 0], [0, 1.9, 0], 0.22, 0.16, 4, P.trunk); B.crown([0, 3.4, 0], [2.05, 1.7, 1.95], 3, 0.62, P, r, true);
+  } else {
+    [[0, 0.5, 0, 0.9, 0.6], [0.4, 0.3, 0.4, 0.55, 0.4]].forEach(([x, y, z, rr, ry], i) => B.clump([x, y, z], rr, ry, rr, mixc(P.leaf, P.leaf2, i / 3), r, [0, 0.3, 0], 0.9, true));
   }
   return B;
 }
 // clutter: grass tuft (blades, normals up so they light like the ground they grow from), bush (= scrub detail),
 // rock (a flattened faceted boulder, half buried), stone (a pebble)
 function tuftGeo(r) {
-  const B = new Builder(), n = 13, g0 = [1, 1, 1];
+  const B = new Builder(), n = 10, g0 = [1, 1, 1];   // (ngc/look-nature: 13 -> 10 blades, a little wider: tufts were most of the high tier's triangles)
   for (let i = 0; i < n; i++) {
-    const a = i / n * Math.PI * 2 + r() * 0.6, rr = 0.06 + r() * 0.12, x = Math.cos(a) * rr, z = Math.sin(a) * rr, h = 0.28 + r() * 0.4, w = 0.022 + r() * 0.016;
+    const a = i / n * Math.PI * 2 + r() * 0.6, rr = 0.06 + r() * 0.12, x = Math.cos(a) * rr, z = Math.sin(a) * rr, h = 0.28 + r() * 0.4, w = 0.026 + r() * 0.018;
     const lean = 0.12 + r() * 0.22, tx = x + Math.cos(a) * lean, tz = z + Math.sin(a) * lean, px = -Math.sin(a) * w, pz = Math.cos(a) * w;
     const up = [Math.cos(a) * 0.35, 1, Math.sin(a) * 0.35], root = [0.42, 0.46, 0.4], tip = [1.5, 1.42, 0.95];   // dark, self-shaded roots; sun-bleached, yellower tips: grass reads by its contrast, not its hue
     const a0 = [x - px, 0, z - pz], a1 = [x + px, 0, z + pz], m0 = [x + (tx - x) * 0.45 - px * 0.7, h * 0.5, z + (tz - z) * 0.45 - pz * 0.7], m1 = [x + (tx - x) * 0.45 + px * 0.7, h * 0.5, z + (tz - z) * 0.45 + pz * 0.7], t = [tx, h, tz];
@@ -182,6 +261,7 @@ function tuftGeo(r) {
     B.tri(a0, a1, m1, g0, [up, up, up], 1, 1, [root, root, mid]); B.tri(a0, m1, m0, g0, [up, up, up], 1, 1, [root, mid, mid]);
     B.tri(m0, m1, t, g0, [up, up, up], 1, 1, [mid, mid, tip]);
   }
+  for (let i = 0; i < 15; i++) r();   // (the 3 dropped blades' draws: the rocks built next from the same stream keep their shapes)
   return B;
 }
 function rockGeo(r, oct = false) {
@@ -200,13 +280,66 @@ function rockGeo(r, oct = false) {
   return B;
 }
 
+// ------------------------------------------------------------------------------------------------- leaf atlas
+// ngc/look-nature: three 256 px tiles drawn once at start: 0 a broadleaf spray (oval leaves on twigs, denser in the middle,
+// a ragged edge), 1 pine needle tufts (bursts of long needles), 2 a fir branch spray (a twig with side twigs and short
+// needles, base at v = 0, tip at v = 1). RGB is a grey shade that multiplies the vertex colour (leaf-to-leaf contrast), A the
+// leaf mask; transparent texels carry a mid grey so the mip chain does not darken the edges.
+export const LEAF_TILES = 3;
+function leafAtlas() {
+  const T = 256;
+  if (typeof document === 'undefined') { const t = new THREE.DataTexture(new Uint8Array([200, 200, 200, 255]), 1, 1); t.needsUpdate = true; return t; }
+  const cv = document.createElement('canvas'); cv.width = T * LEAF_TILES; cv.height = T;
+  const g = cv.getContext('2d'), r = prng(4242), grey = (a, b) => { const v = Math.round(a + r() * (b - a)); return `rgb(${v},${v},${v})`; };
+  // 0: broadleaf
+  g.save(); g.translate(T / 2, T / 2);
+  g.lineCap = 'round';
+  for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2 + r() * 0.5, L = 70 + r() * 35; g.strokeStyle = grey(70, 95); g.lineWidth = 2.2; g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(Math.cos(a + 0.3) * L * 0.5, Math.sin(a + 0.3) * L * 0.5, Math.cos(a) * L, Math.sin(a) * L); g.stroke(); }
+  for (let i = 0; i < 300; i++) {
+    const a = r() * Math.PI * 2, rad = 116 * Math.sqrt(r()), edge = 0.74 + 0.16 * Math.sin(a * 5 + 1.3) + 0.1 * Math.sin(a * 11 + 0.4);
+    if (rad > 116 * edge) continue;
+    const x = Math.cos(a) * rad, y = Math.sin(a) * rad, L = 12 + r() * 9, W = L * (0.4 + r() * 0.12), rot = a + (r() - 0.5) * 1.6;
+    const v = Math.round(130 + r() * 110 - y * 0.15); g.fillStyle = `rgb(${v},${v},${v})`;
+    g.beginPath(); g.ellipse(x, y, L / 2, W / 2, rot, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = `rgba(255,255,255,0.18)`; g.lineWidth = 0.8; g.beginPath(); g.moveTo(x - Math.cos(rot) * L * 0.4, y - Math.sin(rot) * L * 0.4); g.lineTo(x + Math.cos(rot) * L * 0.4, y + Math.sin(rot) * L * 0.4); g.stroke();
+  }
+  g.restore();
+  // 1: pine needle tufts
+  g.save(); g.translate(T * 1.5, T / 2); g.lineCap = 'round';
+  const tufts = Array.from({ length: 9 }, (_, i) => { const a = i / 9 * Math.PI * 2 + r(), d = i ? 38 + r() * 40 : 0; return [Math.cos(a) * d, Math.sin(a) * d]; });
+  for (const [x, y] of tufts) { g.strokeStyle = grey(70, 90); g.lineWidth = 2.5; g.beginPath(); g.moveTo(0, 0); g.lineTo(x, y); g.stroke(); }
+  for (const [x, y] of tufts) for (let j = 0; j < 70; j++) {
+    const a = r() * Math.PI * 2, L = 22 + r() * 28; g.strokeStyle = grey(125, 235); g.lineWidth = 1.3 + r() * 0.8;
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * L, y + Math.sin(a) * L * 0.85); g.stroke();
+  }
+  g.restore();
+  // 2: fir branch spray (canvas y = v * T: base at the top row, tip at the bottom)
+  g.save(); g.translate(T * 2.5, 0); g.lineCap = 'round';
+  const wOf = t => 116 * Math.pow(Math.sin(Math.PI * (0.12 + 0.88 * t)), 0.7) * (1 - 0.5 * t);
+  g.strokeStyle = grey(70, 85); g.lineWidth = 3; g.beginPath(); g.moveTo(0, 2); g.lineTo(0, T - 6); g.stroke();
+  for (let y = 8; y < T - 10; y += 9 + r() * 5) for (const sd of [-1, 1]) {
+    const t = y / T, w = wOf(t) * (0.8 + r() * 0.25), ex = sd * w, ey = y + w * 0.55;
+    g.strokeStyle = grey(75, 95); g.lineWidth = 1.6; g.beginPath(); g.moveTo(0, y); g.lineTo(ex, Math.min(T - 2, ey)); g.stroke();
+    for (let k = 0.05; k < 1; k += 0.06) { const px = ex * k, py = y + (ey - y) * k; for (const q of [-1, 1]) {
+      const a = Math.atan2(ey - y, ex) + q * (0.8 + r() * 0.5), L = 9 + r() * 7; g.strokeStyle = grey(120, 230); g.lineWidth = 1.9;
+      g.beginPath(); g.moveTo(px, py); g.lineTo(px + Math.cos(a) * L, Math.min(T - 1, py + Math.sin(a) * L)); g.stroke(); } }
+  }
+  g.restore();
+  const img = g.getImageData(0, 0, cv.width, T), d = img.data;
+  for (let i = 0; i < d.length; i += 4) if (d[i + 3] < 8) { d[i] = d[i + 1] = d[i + 2] = 170; d[i + 3] = 0; }
+  const t = new THREE.DataTexture(d, cv.width, T, THREE.RGBAFormat, THREE.UnsignedByteType);
+  t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.anisotropy = 4;
+  t.colorSpace = THREE.NoColorSpace; t.name = 'RenderKit/nature-leaves'; t.needsUpdate = true;
+  return t;
+}
+
 // ------------------------------------------------------------------------------------------------- material
 // kind: 'detail' | 'mid' | 'far' (screen-door LOD bands) | 'clutter' (shrinks into the ground by distance)
 const LOD_GLSL = `float natDoor(){ return fract(52.9829189*fract(dot(floor(gl_FragCoord.xy),vec2(.06711056,.00583715)))); }`;
 const VERT_HEAD = `
-  attribute vec4 aP, aR; attribute vec3 aC; attribute float aSway, aLeaf;
+  attribute vec4 aP, aR; attribute vec3 aC; attribute float aSway, aLeaf, aCard; attribute vec2 aLUv;
   uniform float uWind, uClutR, uNatGain;
-  varying vec3 vNW; varying float vLeaf; varying vec3 vNN;
+  varying vec3 vNW; varying float vLeaf; varying vec3 vNN; varying vec2 vLUv; varying float vCard;
   mat3 natRot(vec4 r){
     float c=cos(r.x), s=sin(r.x); mat3 Y=mat3(c,0.,-s, 0.,1.,0., s,0.,c);
     vec3 t=vec3(r.y,0.,r.z); float a=length(t); if(a<1e-4) return Y;
@@ -235,13 +368,14 @@ function patchVertex(src, kind) {
         wd+=aLeaf*.035*vec2(sin(uWind*5.1+dot(position,vec3(3.1,2.3,1.7))+ph),cos(uWind*4.3+dot(position,vec3(1.9,2.9,3.7))+ph))*min(h,3.);
         transformed.xz+=wd;
       }
-      vNW=transformed; vLeaf=aLeaf;`)
+      vNW=transformed; vLeaf=aLeaf; vLUv=aLUv; vCard=aCard;`)
     .replace('#include <color_vertex>', `#include <color_vertex>
       #ifdef USE_COLOR
       vColor.rgb*=aC*uNatGain;
       #endif`)
     .replace('#include <defaultnormal_vertex>', '#include <defaultnormal_vertex>\n vNN=normalize(objectNormal);');
 }
+/** @param {{ kind?: string, fog?: any, uTime?: any, shared: any, side?: THREE.Side, gain?: number }} o */
 export function natureMaterial({ kind = 'detail', fog = null, uTime = null, shared, side = THREE.FrontSide, gain = 1 }) {
   const m = new THREE.MeshLambertMaterial({ vertexColors: true, side });
   const uGain = { value: gain };
@@ -252,30 +386,44 @@ export function natureMaterial({ kind = 'detail', fog = null, uTime = null, shar
     const door = kind === 'detail' ? 'if(natDoor()>=wD) discard;'
       : kind === 'mid' ? 'float sdm=natDoor(); if(sdm<wD||sdm>=wN) discard;'
         : kind === 'far' ? 'if(natDoor()<wN) discard;' : '';
-    sh.fragmentShader = `varying vec3 vNW; varying float vLeaf; varying vec3 vNN; uniform vec4 uNatLod; uniform vec3 uNatSun, uNatSunCol; uniform float uWind;
+    if (side === THREE.DoubleSide) sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', THREE.ShaderChunk.normal_fragment_begin.replace('normal *= faceDirection;', ''));   // (both faces light by the bent normals)
+    sh.fragmentShader = `varying vec3 vNW; varying float vLeaf; varying vec3 vNN; varying vec2 vLUv; varying float vCard; uniform sampler2D uLeafTex; uniform vec4 uNatLod; uniform vec3 uNatSun, uNatSunCol; uniform float uWind;
       ${fog ? 'uniform sampler2D uFogT; uniform float uFogB; uniform float uTime;\n' + FOG_GLSL : ''}
       ${LOD_GLSL}\n` + sh.fragmentShader
       .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
-        { float d=length(vNW-cameraPosition), wD=1.-smoothstep(uNatLod.x,uNatLod.y,d), wN=1.-smoothstep(uNatLod.z,uNatLod.w,d); ${door} }`)
+        { float d=length(vNW-cameraPosition), wD=1.-smoothstep(uNatLod.x,uNatLod.y,d), wN=1.-smoothstep(uNatLod.z,uNatLod.w,d); ${door} }
+        ${side === THREE.DoubleSide ? 'if(vCard<.5&&!gl_FrontFacing) discard;   // (double-sided for the cards only: trunks and hulls skip their back faces)' : ''}`)
       .replace('#include <color_fragment>', `#include <color_fragment>
+        if(vCard>.5){   // a leaf card: the atlas mask, sharpened to a one-pixel edge for alpha-to-coverage (MSAA) and held up in the
+          // smaller mips (a mipped mask thins a crown out with distance), and the leaf-to-leaf shade
+          vec4 lt=texture2D(uLeafTex,vLUv); vec2 ts=fwidth(vLUv)*vec2(${256 * LEAF_TILES}.,256.);
+          float la=min(1.,lt.a*(1.+.3*max(0.,log2(max(ts.x,ts.y))))), aw=max(fwidth(la),.03);
+          la=clamp((la-.5)/aw+.5,0.,1.); if(la<.3) discard;
+          diffuseColor.a=la; diffuseColor.rgb*=lt.rgb*1.35;
+        }
         if(vLeaf>.5){   // leaf mottling: clusters of lit and shaded foliage (world-space, so it does not swim with the sway)
           vec3 q=vNW*1.9; float m=sin(q.x+sin(q.y*1.3+q.z*.7)*1.7)*sin(q.z*1.1+sin(q.x*.9-q.y)*1.5)*.5+.5;
-          diffuseColor.rgb*=.8+.4*m;
+          diffuseColor.rgb*=mix(.8+.4*m,.9+.2*m,vCard);
         }`)
       .replace('#include <opaque_fragment>', `#include <opaque_fragment>
         if(vLeaf>.5){   // light through the leaves: sun behind the canopy, and a little wrap on the shaded side
           vec3 V=normalize(vNW-cameraPosition); float back=pow(max(dot(V,uNatSun),0.),5.), wrap=max(0.,-dot(normalize(vNN),uNatSun))*.12;
-          gl_FragColor.rgb+=diffuseColor.rgb*uNatSunCol*(back*.45+wrap);
+          // leaf cards: thin leaves glow yellow-green against the sun (stronger, wider) and at the crown's sun-side rim
+          float sv=max(dot(V,uNatSun),0.), cb=vCard*(pow(sv,3.)*.55+pow(sv,12.)*.5);
+          gl_FragColor.rgb+=diffuseColor.rgb*uNatSunCol*(back*.45*(1.-vCard)+wrap+cb*vec3(1.05,1.2,.55));
         }`)
       .replace('#include <fog_fragment>', (fog ? 'gl_FragColor.rgb = fogOfWar(gl_FragColor.rgb, vNW.xz, uTime);\n' : '') + '#include <fog_fragment>');
   };
   m.customProgramCacheKey = () => 'rknature-' + kind + (fog ? 'F' : '') + side;
+  m.alphaToCoverage = true;   // ngc/look-nature: leaf-card edges (the world target and XR are MSAA)
   m.userData.gain = uGain;
   return m;
 }
-function depthMaterial(shared, kind) {
+function depthMaterial(shared, kind) {   // (mid: the cards cast as whole quads, no atlas fetch: those shadows are a few pixels)
   const m = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
-  m.onBeforeCompile = sh => { Object.assign(sh.uniforms, shared.uniforms, { uNatGain: { value: 1 } }); sh.vertexShader = patchVertex(sh.vertexShader, kind); };
+  m.onBeforeCompile = sh => { Object.assign(sh.uniforms, shared.uniforms, { uNatGain: { value: 1 } }); sh.vertexShader = patchVertex(sh.vertexShader, kind);
+    sh.fragmentShader = 'varying vec2 vLUv; varying float vCard; uniform sampler2D uLeafTex;\n' + sh.fragmentShader.replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n' + (kind === 'mid' ? '' : ' if(vCard>.5&&texture2D(uLeafTex,vLUv).a<.5) discard;')); };
+  m.side = THREE.DoubleSide;
   m.customProgramCacheKey = () => 'rknature-depth-' + kind;
   return m;
 }
@@ -311,6 +459,7 @@ export function createNatureShared(tierName = natureTierName()) {
   const uniforms = {
     uWind: { value: 0 }, uClutR: { value: 60 }, uNatLod: { value: new THREE.Vector4() },
     uNatSun: { value: new THREE.Vector3(0.5, 1, 0.3).normalize() }, uNatSunCol: { value: new THREE.Color(1, 0.94, 0.82) },
+    uLeafTex: { value: leafAtlas() },   // ngc/look-nature: the leaf cards' atlas
   };
   const S = { uniforms, tierName, tier: NATURE_TIERS[tierName] };
   S.setTier = name => { if (!NATURE_TIERS[name]) return false; S.tierName = name; S.tier = NATURE_TIERS[name]; S.apply(); return true; };
@@ -324,12 +473,39 @@ export function createNatureShared(tierName = natureTierName()) {
 // as they stream). Each tree: x y z scale yaw tiltX tiltZ seed + a colour + a species. Every frame the camera moved more
 // than a few metres, the detail and mid sets are refilled from the trees in reach (nearest chunks' bounding boxes first:
 // a few thousand trees, ~0.2-0.5 ms). The zone also gets a static far set (the jet sees the whole zone).
+// ------------------------------------------------------------------------------------------------- the view cone
+// (ngc/look-nature) The instanced sets are drawn without frustum culling (one draw per set), so before this every tree and
+// tuft round the eye went through the vertex stage, behind the player too: at the HQ ~60 % of nature's draw cost, and the
+// reason foot.mjs's game-time waits ran out under SwiftShader. Each refill now keeps what lies in a cone round the view
+// (the half-diagonal field of view + CONE_MARGIN), as spheres (a tree with its shadow, a clutter cell); a turn of more
+// than CONE_TURN refills. The host gives the eye { position, dir, tanD } (tanD 0 / missing: no cone, the whole ring).
+export const CONE_MARGIN = 0.4, CONE_TURN = 0.16;
+function viewCone(cam) {
+  if (!cam.tanD || !cam.dir) return null;
+  const a = Math.atan(cam.tanD) + CONE_MARGIN; if (a >= Math.PI * 0.98) return null;
+  return { x: cam.position.x, y: cam.position.y, z: cam.position.z, dx: cam.dir.x, dy: cam.dir.y, dz: cam.dir.z, a };
+}
+function inCone(C, x, y, z, r) {
+  if (!C) return true;
+  const vx = x - C.x, vy = y - C.y, vz = z - C.z, d2 = vx * vx + vy * vy + vz * vz;
+  if (d2 <= r * r) return true;
+  const d = Math.sqrt(d2), b = C.a + Math.asin(r / d);
+  return b >= Math.PI || (vx * C.dx + vy * C.dy + vz * C.dz) / d >= Math.cos(b);
+}
+// has the view turned (or zoomed) enough since the last refill that the cone needs refilling?
+function coneMoved(cam, last) {
+  if (!cam.dir || !cam.tanD) return false;
+  const moved = last.tanD === undefined || cam.dir.x * last.x + cam.dir.y * last.y + cam.dir.z * last.z < Math.cos(CONE_TURN) || Math.abs(Math.atan(cam.tanD) - Math.atan(last.tanD)) > CONE_TURN * 0.5;
+  return moved;
+}
+const coneMark = (cam, last) => { if (cam.dir) { last.x = cam.dir.x; last.y = cam.dir.y; last.z = cam.dir.z; last.tanD = cam.tanD; } };
+
 export function createForest({ scene, fog = null, uTime = null, shared }) {
   const K = [FIR, PINE, BROAD, SCRUB];
   const root = new THREE.Group(); root.name = 'rk-nature-forest'; scene.add(root);
   const mats = {}, sets = { detail: {}, mid: {}, lite: {}, far: {} }, geos = {};
   for (const lvl of ['detail', 'mid', 'lite', 'far']) {
-    mats[lvl] = natureMaterial({ kind: lvl === 'lite' ? 'mid' : lvl, fog, uTime, shared, gain: 1.4 });
+    mats[lvl] = natureMaterial({ kind: lvl === 'lite' ? 'mid' : lvl, fog, uTime, shared, gain: 1.4, side: lvl === 'detail' || lvl === 'mid' ? THREE.DoubleSide : THREE.FrontSide });   // (cards: both faces)
     const depth = depthMaterial(shared, lvl === 'lite' ? 'mid' : lvl);
     for (const k of K) {
       const g = geos[lvl + k] = treeGeo(k, lvl === 'far' ? 'lite' : lvl).geometry();
@@ -338,8 +514,8 @@ export function createForest({ scene, fog = null, uTime = null, shared }) {
     }
   }
   const sources = new Map();
-  let dirty = true, farDirty = true, lastReach = 0; const last = new THREE.Vector3(1e9, 0, 0);
-  const stats = { trees: 0, detail: 0, mid: 0, far: 0, ms: 0, rebuilds: 0, tris: 0 };
+  let dirty = true, farDirty = true, lastReach = 0; const last = new THREE.Vector3(1e9, 0, 0), lastDir = {};
+  const stats = { trees: 0, detail: 0, mid: 0, far: 0, ms: 0, frames: 0, rebuilds: 0, tris: 0 };
   // trees: Float32Array x y z s per tree (+ optional kinds Uint8Array, seeds), far: draw past the near radius too (zone)
   function add(id, d, kinds, { far = false } = {}) {
     const n = kinds.length, D = new Float32Array(n * 8), C = new Float32Array(n * 3);
@@ -365,33 +541,56 @@ export function createForest({ scene, fog = null, uTime = null, shared }) {
     const s = sources.get(id); if (!s) return; const l = Math.hypot(dx, dz) || 1;
     s.d[i * 8 + 5] = dz / l * 1.35; s.d[i * 8 + 6] = -dx / l * 1.35; dirty = true; if (s.far) farDirty = true;
   }
-  function rebuild(cx, cy, cz, reach) {
-    const t0 = performance.now(), T = shared.tier, dOut = T.detailR + T.band + 12, mOut = Math.min(LOD.near + LOD.blend, reach) + 12, mIn = T.detailR - T.band - 12;
-    const M = T.liteMid ? sets.lite : sets.mid;   // the mid trees: icosahedron clumps, or octahedra on the low tier
-    for (const k of K) { sets.detail[k].begin(); sets.mid[k].begin(); sets.lite[k].begin(); }
-    let nd = 0, nm = 0;
-    for (const s of sources.values()) {
-      const bx = Math.max(s.x0 - cx, 0, cx - s.x1), bz = Math.max(s.z0 - cz, 0, cz - s.z1);
-      if (bx * bx + bz * bz > mOut * mOut) continue;
-      const D = s.d;
-      for (let i = 0; i < s.n; i++) {
-        const dx = D[i * 8] - cx, dy = D[i * 8 + 1] - cy, dz = D[i * 8 + 2] - cz, dd = dx * dx + dy * dy + dz * dz;
-        if (dd > mOut * mOut) continue;
-        const k = s.k[i];
-        if (dd < dOut * dOut) { sets.detail[k].push(s, i); nd++; }
-        if (dd > mIn * mIn || mIn < 0) { M[k].push(s, i); nm++; }
+  // ngc/look-nature: the refill is a job spread over frames (perf-cpu profile: the one-shot rebuild spiked a frame by up to
+  // ~20 ms in the wild forests). The scan (distance + view cone per tree) runs under REBUILD_MS a frame into staging lists
+  // and the instance buffers are written in one commit at the end, so a set is never half-built (the old set stays on screen
+  // until then). Cone margin and the 6 m / CONE_TURN triggers leave room for the few frames a job takes.
+  const REBUILD_MS = 2;
+  let job = null;
+  function startJob(cx, cy, cz, reach, C) {
+    const T = shared.tier;
+    job = { cx, cy, cz, C, t0: performance.now(), work: 0, frames: 0, srcs: [...sources.values()], si: 0, i: 0, phase: 0,
+      dOut: T.detailR + T.band + 12, mOut: Math.min(LOD.near + LOD.blend, reach) + 12, mIn: T.detailR - T.band - 12, fIn: Math.max(0, LOD.near - LOD.blend - 12),
+      M: T.liteMid ? 'lite' : 'mid', pick: { detail: K.map(() => []), mid: K.map(() => []), far: K.map(() => []) } };   // pick[level][kind] = [source, index, ...]
+  }
+  function stepJob(budget) {   // true when the scan is done
+    const J = job, tEnd = performance.now() + budget, { cx, cy, cz, C, dOut, mOut, mIn, fIn } = J;
+    let n = 0;
+    while (J.phase < 2) {
+      if (J.si >= J.srcs.length) { J.phase++; J.si = 0; J.i = 0; continue; }
+      const s = J.srcs[J.si], D = s.d;
+      if (J.i === 0) {   // whole sources out of reach (the mid / detail pass) or not the zone's (the far pass) are skipped at once
+        const bx = Math.max(s.x0 - cx, 0, cx - s.x1), bz = Math.max(s.z0 - cz, 0, cz - s.z1);
+        if (J.phase === 0 ? bx * bx + bz * bz > mOut * mOut : !s.far) { J.si++; continue; }
       }
+      for (; J.i < s.n; J.i++) {
+        if ((++n & 255) === 0 && performance.now() > tEnd) return false;
+        const i = J.i, dx = D[i * 8] - cx, dy = D[i * 8 + 1] - cy, dz = D[i * 8 + 2] - cz, dd = dx * dx + dy * dy + dz * dz, sc = D[i * 8 + 3], k = s.k[i];
+        if (J.phase === 0) {
+          if (dd > mOut * mOut || !inCone(C, D[i * 8], D[i * 8 + 1] + 2.5 * sc, D[i * 8 + 2], 7 * sc + 3)) continue;   // (the crown and its shadow)
+          if (dd < dOut * dOut) J.pick.detail[k].push(s, i);
+          if (dd > mIn * mIn || mIn < 0) J.pick.mid[k].push(s, i);
+        } else {   // the zone's far set: only past the near band (inside it the far material discards every pixel) and in the cone
+          if (k === SCRUB || dd < fIn * fIn || !inCone(C, D[i * 8], D[i * 8 + 1] + 2.5 * sc, D[i * 8 + 2], 4 * sc + 2)) continue;
+          J.pick.far[k].push(s, i);
+        }
+      }
+      J.si++; J.i = 0;
     }
-    let tris = 0;
-    for (const k of K) { sets.detail[k].end(); sets.mid[k].end(); sets.lite[k].end(); tris += sets.detail[k].n * sets.detail[k].tris + M[k].n * M[k].tris; }
-    if (farDirty) {
-      farDirty = false;
-      for (const k of K) sets.far[k].begin();
-      for (const s of sources.values()) if (s.far) for (let i = 0; i < s.n; i++) if (s.k[i] !== SCRUB) sets.far[s.k[i]].push(s, i);
-      for (const k of K) sets.far[k].end();
+    return true;
+  }
+  function commitJob() {
+    const J = job, t0 = performance.now(), M = sets[J.M]; job = null; farDirty = false;
+    let tris = 0, nd = 0, nm = 0;
+    for (const k of K) {
+      for (const [lvl, set] of [['detail', sets.detail[k]], ['mid', M[k]], ['far', sets.far[k]]]) {
+        const L = J.pick[lvl][k]; set.begin(); for (let j = 0; j < L.length; j += 2) set.push(L[j], L[j + 1]); set.end(); tris += set.n * set.tris;
+      }
+      for (const lv of ['mid', 'lite']) if (lv !== J.M) { sets[lv][k].begin(); sets[lv][k].end(); }
+      nd += sets.detail[k].n; nm += M[k].n;
     }
-    for (const k of K) tris += sets.far[k].n * sets.far[k].tris;
-    Object.assign(stats, { detail: nd, mid: nm, far: K.reduce((a, k) => a + sets.far[k].n, 0), ms: +(performance.now() - t0).toFixed(2), tris, trees: [...sources.values()].reduce((a, s) => a + s.n, 0) });
+    J.work += performance.now() - t0;
+    Object.assign(stats, { detail: nd, mid: nm, far: K.reduce((a, k) => a + sets.far[k].n, 0), ms: +J.work.toFixed(2), frames: J.frames, tris, trees: J.srcs.reduce((a, s) => a + s.n, 0) });
     stats.rebuilds++;
   }
   function update(cam) {
@@ -399,7 +598,8 @@ export function createForest({ scene, fog = null, uTime = null, shared }) {
     // the mid set reaches the world near radius or the far clip, whichever is nearer (on foot the haze ends at ~265 m);
     // the zone's far set exists only for views that reach past the near band (the jet)
     const reach = cam.far || 1e4, farOn = reach > LOD.near - LOD.blend;
-    if (dirty || p.distanceToSquared(last) > 36 || Math.abs(reach - lastReach) > 40) { dirty = false; last.copy(p); lastReach = reach; rebuild(p.x, p.y, p.z, reach); }
+    if (!job && (dirty || p.distanceToSquared(last) > 36 || Math.abs(reach - lastReach) > 40 || coneMoved(cam, lastDir))) { dirty = false; last.copy(p); lastReach = reach; coneMark(cam, lastDir); startJob(p.x, p.y, p.z, reach, viewCone(cam)); }
+    if (job) { const t = performance.now(); job.frames++; const done = stepJob(REBUILD_MS); job.work += performance.now() - t; if (done) commitJob(); }
     for (const k of K) sets.far[k].mesh.visible = farOn && sets.far[k].n > 0;
     stats.farOn = farOn;
   }
@@ -422,8 +622,8 @@ export function createClutter({ scene, fog = null, uTime = null, shared, sample 
   const grassMat = natureMaterial({ kind: 'clutter', fog, uTime, shared, side: THREE.DoubleSide, gain: 1.9 });
   {   // (the colour needs only the RK world noise functions, not the world shader: also right with ?rk=nature)
     const ob = grassMat.onBeforeCompile;
-    grassMat.onBeforeCompile = sh => {
-      ob(sh);
+    grassMat.onBeforeCompile = (sh, rr) => {
+      ob(sh, rr);
       // both faces of a blade light as the ground does (DOUBLE_SIDED would turn the back face normal down: black blades)
       sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', THREE.ShaderChunk.normal_fragment_begin.replace('normal *= faceDirection;', ''));
       sh.vertexShader = sh.vertexShader.replace('attribute vec4 aP, aR;', RK_TERRAIN_GLSL + '\n attribute vec4 aP, aR;')
@@ -434,12 +634,12 @@ export function createClutter({ scene, fog = null, uTime = null, shared, sample 
     };
     grassMat.customProgramCacheKey = () => 'rknature-grass' + (fog ? 'F' : '');
   }
-  const mats = { tuft: grassMat, bush: natureMaterial({ kind: 'clutter', fog, uTime, shared, gain: 1.4 }), rock: natureMaterial({ kind: 'clutter', fog, uTime, shared, gain: 1.5 }) };
+  const mats = { tuft: grassMat, bush: natureMaterial({ kind: 'clutter', fog, uTime, shared, gain: 1.4, side: THREE.DoubleSide }), rock: natureMaterial({ kind: 'clutter', fog, uTime, shared, gain: 1.5 }) };
   mats.stone = mats.rock;
   const sets = {}; for (const t of types) { sets[t] = instanced(geo[t], mats[t], t === 'tuft' ? 20000 : 3000, depthMaterial(shared, 'clutter')); root.add(sets[t].mesh); sets[t].mesh.userData.rkShadow = t === 'rock' || t === 'bush' ? 'both' : 'receive'; }   // (grass and stones do not cast: 15k tiny casters)
   const cells = new Map(), key = (i, j) => i * 65536 + j, ringCache = [];
   const stats = { cells: 0, tuft: 0, bush: 0, rock: 0, stone: 0, genMs: 0, ms: 0, tris: 0 };
-  let lastI = 1e9, lastJ = 1e9, lastY = 1e9, dirty = true;
+  let lastI = 1e9, lastJ = 1e9, lastY = 1e9, dirty = true; const lastDir = {};
   const STONE = lin(0x9a968c), STRAW = [1.35, 1.12, 0.5];   // STRAW: a tint on the grass colour (dry summer tufts, marram on the dunes)
   // one cell: everything that grows in it (whatever the tier: the tier picks by rank at assembly)
   function gen(ci, cj) {
@@ -465,14 +665,18 @@ export function createClutter({ scene, fog = null, uTime = null, shared, sample 
         put('bush', x, q.y - 0.1, z, 0.55 + w * 0.8, h(k, 8), [1.2 + w * 0.25, 1.25 + h(k, 9) * 0.15, 1.05], 0.08);
       }
     }
-    const c = { y: 0 }; for (const t of types) c[t] = new Float32Array(out[t]); return c;
+    // the cell's height span (the cone test treats a cell as a sphere round its middle)
+    let y0 = Infinity, y1 = -Infinity; for (const t of types) for (let o = 1; o < out[t].length; o += 11) { y0 = Math.min(y0, out[t][o]); y1 = Math.max(y1, out[t][o]); }
+    const c = { y: y0 <= y1 ? (y0 + y1) / 2 : 0, dy: y0 <= y1 ? (y1 - y0) / 2 : 0 }; for (const t of types) c[t] = new Float32Array(out[t]); return c;
   }
   // the set is refilled when the camera crosses a cell or climbs/descends a few metres (the ring is 3D: from 200 m up there
   // is nothing in reach, and nothing is drawn)
   function update(cam) {
     const t0 = performance.now(), T = shared.tier, R = T.clutterR, p = cam.position;
     const ci = Math.floor(p.x / CELL), cj = Math.floor(p.z / CELL), yq = Math.round(p.y / 4);
-    if (!dirty && ci === lastI && cj === lastJ && yq === lastY) { stats.ms = 0; return; }
+    const turned = coneMoved(cam, lastDir);
+    if (!dirty && !turned && ci === lastI && cj === lastJ && yq === lastY) { stats.ms = 0; return; }
+    coneMark(cam, lastDir); const C = viewCone(cam);
     const ground = sample(p.x, p.z), above = Math.max(0, p.y - (ground ? ground.y : 0));
     const reach = above < R ? Math.sqrt(R * R - above * above) : 0, n = Math.ceil(reach / CELL) + 1;
     let gen0 = performance.now(), genBudget = 0;
@@ -485,8 +689,9 @@ export function createClutter({ scene, fog = null, uTime = null, shared, sample 
       const i = ci + di, j = cj + dj, x = (i + 0.5) * CELL - p.x, z = (j + 0.5) * CELL - p.z;
       if (x * x + z * z > (reach + CELL) * (reach + CELL)) continue;
       let c = cells.get(key(i, j));
-      if (!c) { if (genBudget > 6) { complete = false; continue; } const g0 = performance.now(); c = gen(i, j); cells.set(key(i, j), c); genBudget += performance.now() - g0; }
-      c.used = true;
+      if (!c) { if (genBudget > 4) { complete = false; continue; } const g0 = performance.now(); c = gen(i, j); cells.set(key(i, j), c); genBudget += performance.now() - g0; }   // (generation budget 6 -> 4 ms a frame: ngc/look-nature, frame spikes)
+      c.used = true;   // (cells out of the cone are generated too, nearest first, so a turn finds them ready)
+      if (!inCone(C, (i + 0.5) * CELL, c.y, (j + 0.5) * CELL, CELL * 0.71 + 2.5 + c.dy)) continue;
       for (const t of types) { const a = c[t], d = dens[t]; for (let o = 0; o < a.length; o += 11) if (fract(a[o + 7] * 7.31) < d) pushRaw(sets[t], a, o); }
     }
     for (const t of types) { sets[t].end(); stats[t] = sets[t].n; }
