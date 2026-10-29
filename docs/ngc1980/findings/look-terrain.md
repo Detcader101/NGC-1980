@@ -223,3 +223,34 @@ atmosphere.js (the air-base far-land tint after the terrain-layer palette, both 
   on the turning deck) and wheeledgame (bridge / ford / deck M151 / M35 parts) not compared against the base (40 min
   each under this load); airbase.mjs timing as above.
 - Tests are SwiftShader-bound: the high ground tier is ~2.5x the frame there; on a GPU the ?bench numbers are needed.
+
+## 2026-10-29 (evening) - Jay Jay's review: grainy grass from the air, a map that zooms and shows the world (WIP at close)
+User: "terrain is good except for the aliasing grass texture which makes everything look grainy when flying" and "map
+should have zoom and be able to see outside the control zone too".
+
+**Grain - cause and fix (done, partly verified).** The layers are mipmapped and anisotropic, but three things are
+non-linear in the minified texels and flicker from the air: the normal map's lighting, the height blend between layers
+and the high-frequency shader noise (ragged layer edges, soil-patch edges, the intertidal weed). `rtDetail(P)`
+(terrainmat.js) measures the pixel's ground footprint (screen derivatives of the world position) and fades all of them
+between 3.5 cm and 22 cm a pixel: towards the layer's mean colour, a flat normal and a weight-only blend, so from a Huey
+at 200 m and the jet the ground carries only the macro variation; on foot nothing changes. Small boulders now fade by
+size (70 m + 55 m per metre of rock, the big masses keep the ring). `?rkgrain` turns the fade off for A/B.
+Evidence: `grain-high-*.png` (before / after at the default 0.6 resolution: the difference is subtle at that
+resolution; the fade only matters at full resolution, where Jay Jay saw it). The full-resolution A/B
+(`GRAIN=1 RES=1` vs `RES=1`, `tools/grainmetric.mjs` to measure the pixel-scale contrast) was stopped at close:
+the `-grain` run finished (tools/runs/2026-10-29_17-03-09-lookterrain-all-high-grain), the fade run did not. Low tier
+after-shots: tools/runs/2026-10-29_16-53-02-lookterrain-all-low (before: 2026-10-29_16-32-53-lookterrain-all-low),
+not yet looked at or made into side-by-sides. UNTESTED: a real GPU at full resolution (needs Jay Jay's eye on :8813).
+
+**Map (done, seen in lookmap.mjs).** The big map zooms 0.32x-8x (wheel about the cursor, + / - keys, on-map + / - /
+ZONE buttons that the XR pointer can press too, a gamepad's LB / RB, d-pad pans) and pans by dragging (a click without a
+drag is still the radio-destination / select click). Past the zone it shows the world to BOUND + 7 km: a 448^2 image
+baked by the terrain worker from `rawH` after the first height windows (relief-shaded, coasts, WESTGATE AFB's field),
+the wild settlements, and every road built so far (the zone's under the fog of war). The fog of war still covers the
+zone; outside it, enemy units show only within 1.5 km of you or 1.2 km of a friendly unit. The minimap zooms with the
+wheel over it and draws the world image under the local far map. `tools/scenes/lookmap.mjs` 2/2 (its "page error" was
+only "source changed during the run" - my edits). UNTESTED: gamepad and XR pointer in a headset.
+
+**Merge.** ngc/shader-library d6d0bad (look-huey, voices, Codex closeout) merged: the map click keeps the radio
+destination marking (on mouse-up now). Types 578 = the new baseline. UNTESTED after this merge: everything except
+syntax / types, lookterrain (5 views, both tiers) and lookmap - no smoke / foot / xr runs on the merged build yet.

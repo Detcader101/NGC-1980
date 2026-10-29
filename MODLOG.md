@@ -1,5 +1,14 @@
 # MODLOG — NGC-1980 (formerly Thrust/Zarch)
 
+## 2026-10-29 — Calm ground from the air, a map that zooms past the zone (branch ngc/look-terrain, WIP at close)
+
+After Jay Jay's review: the ground's fine detail (normal map, height blend, small noise) now fades with the pixel's
+ground footprint, so it no longer reads grainy from the Huey or the jet; small boulders fade with distance by size
+(`?rkgrain` = the old look for A/B). The big map zooms (wheel, + / -, on-map buttons, gamepad LB / RB) and drags to pan,
+out to the world round the zone (coasts, wild land, settlements, roads, WESTGATE AFB) baked by the terrain worker; the
+minimap zooms with the wheel. ngc/look-huey and the voices merged in. Full-resolution grain A/B and the gameplay
+scenes on the merged build are still to run (docs/ngc1980/findings/look-terrain.md).
+
 ## 2026-10-29 — Land instead of sea-hill blobs, a 5 km control zone, textured ground (branch ngc/look-terrain)
 
 The user: "make sure to also have a pass at the terrain again, I want it more like land with more varied terrain and a
