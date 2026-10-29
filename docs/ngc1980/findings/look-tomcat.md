@@ -201,7 +201,10 @@ in cascade; every FAIL below was read in its log.
 | tomcatcockpit.mjs | FAIL 15/53: the first failure is the 90 s wait for the engines to spin down (0 fps); the start sequence cascades from it |
 | deckseq.mjs | FAIL 2/6: four launches did not finish inside the wall-clock limit (1 fps) |
 | escorts.mjs | FAIL 1/15: the first AI escort never reached the cat inside 60 s; the rest cascades |
-| jets.json, commander.mjs, xr.mjs, tomcat.mjs, tomcatlook.mjs (after) | see the final report (still running at the deadline, or not reached) |
+| jets.json | FAIL 0/6 + 1 page error: the page error is "game source changed during this run" (the hook-tip commit landed mid-run); the expects are AI-escort waitFor timeouts at 0-1 fps |
+| commander.mjs | 29/30: the one failure is a timeout waiting for the Huey AI's phase (not the Tomcat) |
+| xr.mjs | 17/19: the two failures are the sky dome and the near terrain window following the XR eye (environment, not the Tomcat) |
+| tomcat.mjs, tomcatlook.mjs (after) | not finished before the 01:30 hard stop (stopped) |
 
 Not established here: whether catshot / tomcatcockpit / deckseq / escorts pass at a normal frame rate; rerun them on an
 idle machine before merging.
