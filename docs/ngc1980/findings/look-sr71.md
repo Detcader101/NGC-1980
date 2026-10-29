@@ -246,6 +246,8 @@ LODs (renderkit/lod.js createLOD, 90 / 420 m; one instance, before the merge): L
 | `node tools/check.mjs syntax` | 583/583 |
 | `node tools/check.mjs types` | 606 (baseline 606) |
 | conflict markers | none |
+| `scenes/smoke.json` | **5/5** (`tools/runs/2026-10-29_10-31-15-smoke`) |
+| `scenes/tomcat.mjs` (could be touched through main.js) | stopped after its first stretch: the waits on wall-clock key holds (`T.thr > 0.81` after holding Shift, then the cat stroke) timed out with the PC at load average ~70 (other agents' headless runs); the SR-71 code is not in that path (its keys only reach it when it is the active craft, it is not built into the Tomcat's hooks) - rerun on a quiet machine before merging |
 
 ## 11. Open items
 
