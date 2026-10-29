@@ -15,6 +15,7 @@ import { C130M } from './units/air/c130model.js';
 import { buildC130Deck, DECK_EYE, DECK_EYE_PITCH } from './units/air/c130cockpit.js';
 import { createC130Audio } from './units/air/c130audio.js';
 import { buildDoorBundle } from './units/air/jumper.js';
+import { AIRBASE } from './world.js';   // (ngc/look-airbases) home base is the air base now: the Hercules comes in from its side
 
 const CALL = 'RAIDER 21';
 const N_JUMPERS = 3, WORK = 10, FUEL_EACH = 20, ENTRY = 1400, RUN = 4.5;
@@ -105,6 +106,7 @@ export function createDrop(ctx) {
   function entryPoint(target, from) {
     let a = Math.atan2(from.z - target.z, from.x - target.x);
     if (Math.hypot(from.x - target.x, from.z - target.z) < 1) a = Math.atan2(1, -1);
+    if (AIRBASE) a = Math.atan2(AIRBASE.z - target.z, AIRBASE.x - target.x);   // (ngc/look-airbases) from the air base
     a += rnd(-0.35, 0.35);
     return new THREE.Vector3(target.x + Math.cos(a) * ENTRY, 0, target.z + Math.sin(a) * ENTRY);
   }
@@ -130,7 +132,7 @@ export function createDrop(ctx) {
     M.env.wind.x = M.wind.x; M.env.wind.z = M.wind.y;
     const dir = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(((Math.atan2(M.wind.x, -M.wind.y) + 6.283) % 6.283) / 0.785) % 8];
     const from8 = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(((Math.atan2(e.x - target.x, -(e.z - target.z)) + 6.283) % 6.283) / 0.785) % 8];
-    feed(`HOME BASE: REPAIR TEAM OF ${N_JUMPERS} ON THE WAY  -  KC-130 ${CALL} FROM THE ${from8}, ${(ENTRY / 1000).toFixed(1)} km`, 'good');
+    feed(`${AIRBASE ? AIRBASE.name : 'HOME BASE'}: REPAIR TEAM OF ${N_JUMPERS} ON THE WAY  -  KC-130 ${CALL} FROM THE ${from8}, ${(ENTRY / 1000).toFixed(1)} km`, 'good');   // (ngc/look-airbases: the base's name)
     feed(`WIND ${ws.toFixed(0)} m/s TOWARD ${dir}`, 'info');
     say(`YOU HAVE ${CALL}  -  AUTOPILOT ON (H)  ·  STICK TO FLY IT  ·  V VIEW  ·  F GREEN LIGHT  ·  R FLAPS`, 4);
     sfx.dock();

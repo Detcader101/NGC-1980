@@ -17,7 +17,7 @@ const FT = 0.3048;
 // palette (hexes from renderkit/surfclass.js so the RenderKit detail shader gives each its texture)
 const C = {
   rwy: col(0x8e8b84), rwyB: col(0x86847c), twy: col(0x9a978e), ramp: col(0xa8a49a), floor: col(0x8a8780), ovr: col(0x4c4d50), shoulder: col(0x5e5c5a),
-  rubber: col(0x3e3f42), joint: col(0x5a5852), white: col(0xe8e6dc), yellow: col(0xd8b84a), black: col(0x1c1c1e),
+  rubber: col(0x3e3f42), joint: col(0x76736c), jointT: col(0x86847c), white: col(0xe8e6dc), yellow: col(0xd8b84a), black: col(0x1c1c1e),
   wall: col(0xd9c79a), wall2: col(0xe8e0c8), core: col(0xc8c4b0), concrete: col(0xa8a49a), conc2: col(0x9a958a), roof: col(0x6a6a6a), roofD: col(0x575d66),
   metal: col(0x9aa0a6), metal2: col(0x7c8186), metalD: col(0x6c7276), red: col(0x8a2a1a), glass: col(0x2b3846), glassL: col(0x3d4e5c), frame: col(0x18191a),
   tank: col(0xe8e6e0), earth: col(0x6e6a52), orange: col(0xd8b84a, 1.0), lamp: col(0x9aa0a6), sign: col(0x1c1c1e),
@@ -26,6 +26,7 @@ const C = {
 // 3 x 5 block digits (runway designators, distance-remaining signs): rows top to bottom
 const DIG = ['111101101101111', '010010010010010', '111001111100111', '111001111001111', '101101111001001', '111100111001111', '111100111101111', '111001001001001', '111101111101111', '111101111001111'];
 
+/** @param {any} L  @param {{ scene?: import('three').Object3D }} [o] */
 export function buildAirbase(L, { scene } = {}) {
   const root = new THREE.Group(); root.name = 'airbase';
   const E = L.E, R = AB.RWY_L / 2, W = AB.RWY_W / 2, T = AB.TWY_W / 2, TV = AB.TWY_V;
@@ -59,11 +60,12 @@ export function buildAirbase(L, { scene } = {}) {
   // ------------------------------------------------------------------------------------------------ markings
   const M = new Geo(), y1 = 0.1;
   // concrete slab joints: 25 ft panels (lines every 7.6 m along, every 12.5 ft across in the runway's lanes)
-  for (let u = -R + 7.62; u < R; u += 7.62) rect(M, u - 0.06, u + 0.06, -W, W, 0.085, C.joint);
-  for (let v = -W + 7.62; v < W; v += 7.62) rect(M, -R, R, v - 0.06, v + 0.06, 0.085, C.joint);
-  for (let u = -R + 18 + 7.62; u < R - 18; u += 7.62) rect(M, u - 0.05, u + 0.05, TV - T, TV + T, 0.085, C.joint);
-  for (let u = AB.APRON_U0 + 7.62; u < AB.APRON_U1; u += 7.62) rect(M, u - 0.05, u + 0.05, TV + T, AB.APRON_V1, 0.085, C.joint);
-  for (let v = TV + T + 7.62; v < AB.APRON_V1; v += 7.62) rect(M, AB.APRON_U0, AB.APRON_U1, v - 0.05, v + 0.05, 0.085, C.joint);
+  // (sealant lines: thin, a shade off the concrete - they read up close and fade into the slab tone further off)
+  for (let u = -R + 7.62; u < R; u += 7.62) rect(M, u - 0.04, u + 0.04, -W, W, 0.085, C.jointT);
+  for (let v = -W + 7.62; v < W; v += 7.62) rect(M, -R, R, v - 0.04, v + 0.04, 0.085, C.jointT);
+  for (let u = -R + 18 + 7.62; u < R - 18; u += 7.62) rect(M, u - 0.04, u + 0.04, TV - T, TV + T, 0.085, C.joint);
+  for (let u = AB.APRON_U0 + 7.62; u < AB.APRON_U1; u += 7.62) rect(M, u - 0.04, u + 0.04, TV + T, AB.APRON_V1, 0.085, C.joint);
+  for (let v = TV + T + 7.62; v < AB.APRON_V1; v += 7.62) rect(M, AB.APRON_U0, AB.APRON_U1, v - 0.04, v + 0.04, 0.085, C.joint);
   // rubber deposits in both touchdown zones: dark down the middle, fading out to the concrete (vertex colours)
   for (const e of L.ends) {
     const a = e.u + e.dir * 130, b = e.u + e.dir * 900;
@@ -161,7 +163,7 @@ export function buildAirbase(L, { scene } = {}) {
     for (let k = 1; k <= 11; k++) for (const sd of [-1, 1]) {
       const u = e.u + e.dir * k * 304.8, left = 12 - k; if (left < 1) continue;
       const p = w(u, sd * (W + 20)); X.push(p[0], E, p[2], yawB); X.box(0, 0.4, 0, 3.4, 1.8, 0.4, C.sign); X.box(-1.2, 0, 0, 0.12, 0.4, 0.12, C.lamp); X.box(1.2, 0, 0, 0.12, 0.4, 0.12, C.lamp);
-      const txt = String(left); for (let q = 0; q < txt.length; q++) { const dg = DIG[+txt[q]], x0 = (q - (txt.length - 1) / 2) * 1.0; for (let r = 0; r < 5; r++) for (let cc = 0; cc < 3; cc++) if (dg[r * 3 + cc] === '1') for (const fz of [-0.21, 0.21]) X.box(x0 + (cc - 1) * 0.24 * (fz > 0 ? 1 : -1), 0.55 + (4 - r) * 0.28, fz, 0.22, 0.26, 0.02, C.white); }
+      const txt = String(left); for (let q = 0; q < txt.length; q++) { const dg = DIG[+txt[q]]; for (let r = 0; r < 5; r++) for (let cc = 0; cc < 3; cc++) if (dg[r * 3 + cc] === '1') for (const fz of [-0.21, 0.21]) X.box(((q - (txt.length - 1) / 2) * 1.0 + (cc - 1) * 0.24) * (fz > 0 ? 1 : -1), 0.55 + (4 - r) * 0.28, fz, 0.22, 0.26, 0.02, C.white); }
       X.pop();
     }
   }
@@ -258,7 +260,7 @@ export function buildAirbase(L, { scene } = {}) {
     for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) { const x = sx * (hw - 1.2 - leaf / 2 - i * 0.15); g.box(x, 0, zf + 1.4 + i * 0.5, leaf - 0.1, Dh, 0.4, i % 2 ? C.metal : C.metal2); }
     // the door track at the threshold and a hangar number on the fascia (white block digits)
     g.box(0, 0, zf + 1.4, b.w - 2, 0.06, 1.6, C.metalD, 1);
-    const num = '102'; for (let q = 0; q < 3; q++) { const dg = DIG[+num[q]]; for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++) if (dg[r * 3 + c] === '1') g.box(-hw + 12 + q * 3.2 + (c - 1) * 0.8, Dh + 0.6 + (4 - r) * 0.7, zf - 0.08, 0.75, 0.68, 0.1, C.white); }
+    const num = '102'; for (let q = 0; q < 3; q++) { const dg = DIG[+num[q]]; for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++) if (dg[r * 3 + c] === '1') g.box(hw - 12 - q * 3.2 - (c - 1) * 0.8, Dh + 0.6 + (4 - r) * 0.7, zf - 0.08, 0.75, 0.68, 0.1, C.white); }
   }
   // SR-71 shelter: a steel-framed barn, corrugated walls, shallow gable roof, two door leaves pushed back to the sides
   function barn(g, b) {
@@ -332,7 +334,7 @@ export function drawAirbaseMap(c, L, px, py, half, { big = false, W = 0, H = 0, 
   const R = AB.RWY_L / 2, Wd = AB.RWY_W / 2;
   const P = (u, v) => { const p = L.toW(u, v); return [px(p[0]), py(p[1])]; };
   const [cx, cy] = P(0, 300);
-  const off = W && H && (cx < 10 || cy < 10 || cx > W - 10 || cy > H - 10);
+  const off = big && W && H && (cx < 10 || cy < 10 || cx > W - 10 || cy > H - 10);   // (the minimap clips to its circle: always drawn)
   c.save();
   if (!off) {
     c.fillStyle = 'rgba(160,160,150,.9)';

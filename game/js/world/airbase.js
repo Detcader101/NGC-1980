@@ -144,3 +144,17 @@ export function makeLayout(s) {
   return L;
 }
 const _l = [0, 0];
+
+// The field in the far land (renderkit/atmosphere.js rkFarLand: the ground past the draw distance, and the terrain's
+// hand-over band): a GLSL snippet that greys the runway, the parallel taxiway and the ramp, so the base still reads as
+// an airfield from 3,000 m and at long range. Analytic (per pixel), so it is sharp although the far heightmap is 32 m.
+// Expects vec3 p (world position) and vec3 c (the colour being built).
+export function airbaseFarGLSL(L) {
+  const f = v => v.toFixed(3), R = AB.RWY_L / 2 + AB.OVR, W = AB.RWY_W / 2, T = AB.TWY_W / 2, TV = AB.TWY_V;
+  return `{ vec2 abD=p.xz-vec2(${f(L.x)},${f(L.z)}); float abU=dot(abD,vec2(${f(L.ax)},${f(L.az)})), abV=dot(abD,vec2(${f(L.nx)},${f(L.nz)}));
+    float abR=(1.-step(${f(R)},abs(abU)))*(1.-step(${f(W)},abs(abV)));
+    float abT=(1.-step(${f(R - 18)},abs(abU)))*(1.-step(${f(T)},abs(abV-${f(TV)})));
+    float abA=step(${f(AB.APRON_U0)},abU)*(1.-step(${f(AB.APRON_U1)},abU))*step(${f(TV)},abV)*(1.-step(${f(AB.APRON_V1 + 100)},abV));
+    float abG=(1.-step(${f(AB.FLAT.u)},abs(abU)))*step(${f(AB.FLAT.v0)},abV)*(1.-step(${f(AB.FLAT.v1)},abV));
+    c=mix(c,vec3(.22,.30,.13),abG*.6); c=mix(c,vec3(.50,.49,.46),max(abR,max(abT,abA*.85))); }`;
+}
