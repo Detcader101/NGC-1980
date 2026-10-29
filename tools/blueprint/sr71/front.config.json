@@ -1,0 +1,8 @@
+{
+ "image": "../../../docs/ngc1980/reference/sr71/usaf-sr71a-3view-2x.png",
+ "out": "trace-front.json",
+ "source": "USAF 'Blackbird 3-view' front view (public domain), rasterised at 2x",
+ "frame": "trace metres: y above the static ground registered to the side view by the body (belly and canopy: the front view drawn as is would put the belly 0.77 m higher than the side view; its fins are drawn ~0.77 m short, see findings), x = BL; span 16.947 m (55.6 ft) over 2326 px, centre px 1163 (midway between the fin tips and the wing tips)",
+ "threshold": 140, "eraseLen": 5000, "dilate": 2,
+ "front": { "rows": [1360, 1960], "cols": [0, 2327], "s": 137.25, "centrePx": 1163, "groundPx": 2042.4, "yGround": 0 }
+}
