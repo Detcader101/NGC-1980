@@ -59,8 +59,8 @@ export function createSR71Craft(ctx) {
   const _f = new THREE.Vector3();
   const yawOf = () => { A.forward(_f); return Math.atan2(-_f.x, -_f.z); };
   // ---------------------------------------------------------------- API
-  D.placeOnGround = (x, y, z, yaw = 0, o = {}) => { P.placeOnGround(x, y ?? groundY(x, z), z, yaw, o); D.parked = !o.hot; P.model.group.visible = true; return D; };
-  D.placeInAir = (x, y, z, yaw = 0, o = {}) => { P.placeInAir(x, y, z, yaw, { ...o, y: o.y ?? (o.ft === undefined ? y : undefined) }); D.parked = false; return D; };
+  D.placeOnGround = (x, y, z, yaw = 0, o = {}) => { P.placeOnGround(x, y ?? groundY(x, z), z, yaw, o); D.parked = !o.hot; D.downT = 0; P.model.group.visible = true; return D; };
+  D.placeInAir = (x, y, z, yaw = 0, o = {}) => { P.placeInAir(x, y, z, yaw, { ...o, y: o.y ?? (o.ft === undefined ? y : undefined) }); D.parked = false; D.downT = 0; return D; };
   // a runway (the bases build their own and call this with its rectangle so the SR-71 rolls on it; mesh: false to draw
   // nothing): centre x, z, heading yaw (along the runway), length, width, floor height y
   D.addStrip = ({ x, z, yaw = 0, len = 1200, wid = 45, y = 0, mesh = true }) => {

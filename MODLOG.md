@@ -1,5 +1,26 @@
 # MODLOG — NGC-1980 (formerly Thrust/Zarch)
 
+## 2026-10-29 — SR-71A Blackbird, a playable strategic reconnaissance aircraft (branch ngc/look-sr71)
+
+Built blueprints-first (milsim-blueprint): SR-71A **61-7964** of the 9th SRW, Beale AFB, as photographed in August 1981.
+The shape is traced from the public-domain USAF three-view and scaled by the declassified flight manual (SR-71A-1: 107.4 ft,
+55.6 ft, 18.5 ft). One chined-body loft from radome to tail cone, with sharp chines and the fuselage hump blending into the
+inboard wing. Nacelles carry translating spikes; the outer wings have conical camber; the fins are canted and all-moving.
+Silhouette fit to the drawing: side 0.982, top 0.997, front hump 0.898 (that drawing's front view is inconsistent).
+Markings follow the 1981 photo. The pilot's panel is traced from the manual's fig. 1-12, with every instrument live.
+
+The flight model (`sr71fm.js`) uses the manual's J58 data: take-off and military thrust, min AB 85 % at sea level and
+55 % at altitude, AB fill times. It models the spike schedule, unstarts with the auto restart, the CIT 427 C limit, the
+transonic drag rise, the drag chute and the gear. `tools/sr71bench.mjs` is 24/24: lift-off 217 KIAS at 8 deg;
+refuelling-to-Mach 3 / 70,000 ft in 17.6 min real-equivalent (NASA TM-104330: 16-17); Mach 3.2 / 80,000 ft cruise in
+partial AB at 352 KEAS; touchdown 154 KIAS.
+
+In the game: `?fly=sr71` (a strip west of the zone) or `?fly=sr71air`. K runs the cameras. A Mach 3 pass over the zone
+photographs the enemy, and the strip becomes photo intel in the fog of war for 10 min. Enemy HQ / radar SAMs fall short of
+it at speed and height. Above ~3 km the view shows the curved Earth from altitude. The craft has an API for the air-bases
+work (`placeOnGround` / `placeInAir` / `enter` / `stow` / `addStrip` / `onLanded`). Findings:
+docs/ngc1980/findings/look-sr71.md.
+
 ## 2026-10-29 — VR: deck crew no longer corrupts the eye cameras (branch ngc/xr-fix)
 
 xr.mjs was 17/19 on ngc/shader-library (sky dome and near terrain window "not following the eye"). Cause: the deck

@@ -214,11 +214,50 @@ DRAG CHUTE handle, the restart and spike switches are placed. Around it: glare s
 stick (moving), seat, the canopy sills, the periscope; the cockpit walls are the body skin seen from inside. The RSO's
 cockpit is a layout (the big viewsight, sub-panels), not traced item by item.
 
-## 9. Evidence
+## 9. Evidence (docs/ngc1980/evidence/look-sr71/)
 
-`docs/ngc1980/evidence/look-sr71/`: `ref_side.png`, `ref_top.png`, `ref_front.png` (overlays), `fit.json`,
-`sr71bench.json`, `ext-front-left.png`, and the scene's shots (sec. 10).
+- Shape: `ref_side.png`, `ref_top.png`, `ref_front.png` (model silhouette over the drawing), `fit.json`.
+- Photo side-by-side: `proportions.png` (61-7964, 2 Aug 1981, left side from above, vs the model in the same aspect).
+  Same features in the same places: canopy humps, chine line, U.S. AIR FORCE and the insignia ahead of the wing root, 964
+  on the nacelle forward of the wing, 17964 on the fin's outer face, the left upper wing insignia. Marking sizes were
+  scaled to the photo (letters ~0.5 m, insignia disc ~1 m) after the first comparison (they were ~2/3 size).
+  `markings-both-sides.png`: every marking reads correctly from outside on both sides (no mirrored text).
+- Cockpit: `panel_overlay.png` (the traced panel straight on, orthographic, over fig. 1-12 at its calibration: every
+  instrument sits on its figure dial; by eye the centres are within ~15 figure px = 5 mm and the sizes within ~5 %),
+  `game-02-cockpit-on-the-strip.png`, `game-03-cockpit-right-panel.png`, `game-04-rso-cockpit.png`,
+  `game-07-cruise-80000-cockpit.png`, `game-08-cruise-80000-look-down-right.png` (the Earth's curve through the side window).
+- In the game: `game-01-on-the-strip-chase.png`, `game-05-climb-out.png`, `game-06-cruise-80000-chase.png` (Mach 3.18,
+  80,000 ft, cameras running, the view from altitude), `game-09-after-the-pass-map.png` (RECON PASS: 28 TARGETS
+  PHOTOGRAPHED - 5 HQ, 12 AA, 5 ISLAND, 3 FUEL, 1 CARRIER, 1 FACTORY, 1 SHIPYARD; PHOTO INTEL ... MARKED FOR 10 MIN),
+  `game-10-sam-in-the-air.png`, `game-11-crew-out-beside-it.png`; `ext-front-left.png` (dev page).
+- Flight model: `sr71bench.json` (24/24).
+
+LODs (renderkit/lod.js createLOD, 90 / 420 m; one instance, before the merge): LOD0 91.4 k triangles / 106 draws
+(+ the cockpit, shown only from inside), LOD1 14.1 k / 11, LOD2 2.4 k / 7 - inside the jet budget (PERF-BUDGETS.md:
+160-200 / 200 k, 110-130 / 60 k, 40 / 15 k). In the game the static parts are merged (mergeUnit, every moving part kept).
 
 ## 10. Tests
 
-(filled in below)
+| Test | Result |
+|---|---|
+| `node tools/sr71bench.mjs` (flight model vs SR-71A-1 / TM-104330) | **24/24** |
+| `tools/blueprint/sr71/fitall.mjs` | side 0.982 PASS, top 0.997 (one step column), front hump 0.898 (drawing inconsistent, sec. 4) |
+| `node snap.mjs scenes/sr71.mjs` (in game: strip, cockpits, take-off, recon pass, photo intel, SAM falls short at Mach 3.1 / 75,000 ft and hits a slow one at 320 KEAS / 30,000 ft, get out) | **8/8**, 0 page / console errors (`tools/runs/2026-10-29_10-22-56-sr71`) |
+| `node tools/check.mjs syntax` | 583/583 |
+| `node tools/check.mjs types` | 606 (baseline 606) |
+| conflict markers | none |
+
+## 11. Open items
+
+| # | Item | Why / where |
+|---|---|---|
+| 1 | KC-135Q tanker and air refuelling | not built; the FM takes it already (`sim.refuel` = kg/s while the boom is in, ~6,000 lb/min) - a tanker track at 25,000 ft outside the zone is the simple version |
+| 2 | Fleet / commander board entry for the SR-71 | `fleet.type('sr71')` is unknown, so a loss is not booked and there is no board row; belongs with the bases (where the airframes live) |
+| 3 | Leaving it in the air (switching units) | it keeps flying on its autopilot (whatever mode is set) with no crew AI to bring it home; a "return to base" AI is for when the bases exist |
+| 4 | The view from altitude shows a procedural Earth | `sr71sky.js setMap(tex)` takes the zone's map image (main.js `landImg`) so the zone itself shows from 80,000 ft: one line in main.js, not wired to keep main.js changes small |
+| 5 | Canopies open only as a state (no hatch geometry lifts) | the hinge groups exist (`SR71M.CANOPY`); the hatches are part of the body loft |
+| 6 | Fig. 1-1 details: antennas, the refuelling receptacle, forward bypass louvres, porous bleed, the RAM sawtooth edge texture, skin corrugations, panel lines | sec. 5 table; panel lines need maintenance-manual diagrams that are not public |
+| 7 | Front-view fit 0.898 | the drawing's front view is internally inconsistent (sec. 4); a second public front view (a NASA wind-tunnel report) would settle the lower flanks |
+| 8 | RSO cockpit traced item by item; clickable switches | layout only; keys drive the systems |
+| 9 | Air start (windmill, TEB), DAFICS (post-1980, deliberately not modelled), fuel-leak drips as an effect | FM has the leak itself |
+| 10 | Real-time film | the game reads the film out at once (`SR71_INTEL_S`); a "film processed after landing" option is one flag in craftsr71.js onRecon |

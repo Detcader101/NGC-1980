@@ -120,3 +120,21 @@ if (REFV) {
 const tele = document.getElementById('tele');
 setInterval(() => { if (tele && !hooks.tele) tele.textContent = `LOD ${model.lod.level ?? '-'}`; else if (tele) tele.textContent = hooks.tele(); }, 250);
 if (Q.get('start')) import('./sr71-fly.js').then(m => m.startFlight(window.__T, Q)).catch(e => console.error(e));
+// ---- ?panel=1: the pilot's centre panel straight on (orthographic) over SR-71A-1 fig. 1-12 at its calibration
+// (2821 px/m, figure centre px 1103, 1340): the milsim-blueprint skill's panel check. &refa= the figure's opacity.
+if (Q.get('panel') === '1') {
+  import('../js/units/air/sr71cockpit.js').then(({ buildSR71Cockpit, PANEL }) => {
+    const ck = buildSR71Cockpit(), pp = ck.panel; pp.parent.remove(pp); pp.position.set(0, 0, 0); pp.rotation.set(0, 0, 0);
+    const sc = new THREE.Scene(); sc.background = new THREE.Color(0xffffff); sc.add(new THREE.AmbientLight(0xffffff, 2.2)); sc.add(pp);
+    const W = 2084 / PANEL.pxPerM, H = 2917 / PANEL.pxPerM, cx = (1042 - PANEL.centre[0]) / PANEL.pxPerM, cy = -(1458.5 - PANEL.centre[1]) / PANEL.pxPerM;
+    const tex = new THREE.TextureLoader().load('ref/sr71-panel.jpg'); tex.colorSpace = THREE.SRGBColorSpace;
+    const fig = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: Number(Q.get('refa') || 0.5), depthTest: false }));
+    fig.position.set(cx, cy, 0.2); fig.renderOrder = 9; sc.add(fig);
+    const oc = new THREE.OrthographicCamera(cx - W / 2, cx + W / 2, cy + H / 2, cy - H / 2, 0.01, 10); oc.position.set(0, 0, 1);
+    window.__ortho = oc; size();
+    const A = { attitude: () => ({ pitch: 0.05, roll: 0.1, yaw: 0 }), keas: 352, mach: 3.18, altFt: 80000, vel: new THREE.Vector3(), heading: 0.3, alpha: 0.1, cit: 400, sigma: 0.034, skinT: 300, nz: 1, nzMax: 1.4, trim: 0.05,
+      eng: [0, 1].map(() => ({ n: 1, egt: 830, nozzle: 0.8, ff: 21000, spike: 1, bypass: 0.2, unstart: 0, thr: 0.8 })) };
+    hooks.post = () => { ck.update(A, null, 0.2); renderer.render(sc, oc); };
+    renderer.setAnimationLoop(() => { ck.update(A, null, 0.2); renderer.render(sc, oc); });
+  });
+}

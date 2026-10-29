@@ -175,22 +175,22 @@ export function buildSR71Model(opts = {}) {
   const decals = new THREE.Group(); decals.name = 'markings'; L0.add(decals);
   for (const s of [-1, 1]) {
     // U.S. AIR FORCE on the forward fuselage side above the chine (X 11.0 - 13.6), 0.30 m letters
-    surfDecal((u, v) => { const X = s < 0 ? 11.0 + 2.7 * u : 13.7 - 2.7 * u; return onBody(X, xAtY(X, 2.02 + 0.36 * v, s)); }, txt('usaf', 'U.S. AIR FORCE', 1024, 128, 104), decals, 'usaf');
+    surfDecal((u, v) => { const X = s < 0 ? 10.9 + 3.7 * u : 14.6 - 3.7 * u; return onBody(X, xAtY(X, 1.93 + 0.55 * v, s)); }, txt('usaf', 'U.S. AIR FORCE', 1024, 128, 104), decals, 'usaf');
     // national insignia aft of it, on the side of the fuselage at the wing root (X 15.6 - 17.2)
-    surfDecal((u, v) => { const X = s < 0 ? 15.4 + 1.8 * u : 17.2 - 1.8 * u; return onBody(X, xAtY(X, 1.80 + 0.86 * v, s)); }, star(), decals, 'insignia');
+    surfDecal((u, v) => { const X = s < 0 ? 15.1 + 2.4 * u : 17.5 - 2.4 * u; return onBody(X, xAtY(X, 1.72 + 1.06 * v, s)); }, star(), decals, 'insignia');
     // nacelle number 964, on the outboard side of the nacelle forward of the wing
-    surfDecal((u, v) => { const X = s < 0 ? 20.2 + 1.1 * u : 21.3 - 1.1 * u, t = (0.15 + 0.35 * v) * s, r = 0.886; return [s * G.NAC.bl + Math.sin(Math.PI / 2 - 0.0) * r * s * Math.cos(t) * 1.0 * (G.NAC.rx / 0.88), toY(nacY(X) + r * (G.NAC.ry / 0.88) * Math.sin(t) * s), toZ(X)]; }, txt('nac' + short, short, 256, 128, 96), decals, 'nacelleNo');
+    surfDecal((u, v) => { const X = s < 0 ? 19.9 + 1.7 * u : 21.6 - 1.7 * u, t = (0.12 + 0.5 * v) * s, r = 0.886; return [s * G.NAC.bl + Math.sin(Math.PI / 2 - 0.0) * r * s * Math.cos(t) * 1.0 * (G.NAC.rx / 0.88), toY(nacY(X) + r * (G.NAC.ry / 0.88) * Math.sin(t) * s), toZ(X)]; }, txt('nac' + short, short, 256, 128, 96), decals, 'nacelleNo');
   }
   // the serial on the outer face of both fins (17964, 0.35 m), placed in fin coordinates
   for (const [k, s] of [[0, -1], [1, 1]]) {
     const fin = fins[k], base = fin.position;
-    const g = surfDecalGeo((u, v) => { const xi = s < 0 ? 0.30 + 0.5 * u : 0.80 - 0.5 * u, eta = 0.42 + 0.20 * v; const [x, y, z] = finPt(s, xi, eta, 0.012 + 0.07 * 4 * xi * (1 - xi) * 0.5); return [x - base.x, toY(y) - base.y, toZ(z) - base.z]; });
-    mesh(g, decalMat(txt('ser' + serial, serial, 512, 128, 100)), fin, 'finSerial');
+    const g = surfDecalGeo((u, v) => { const xi = s < 0 ? 0.22 + 0.62 * u : 0.84 - 0.62 * u, eta = 0.38 + 0.28 * v; const ch = (FIN.rTE[0] - FIN.rLE[0]) * (1 - eta) + (FIN.tTE[0] - FIN.tLE[0]) * eta, [x, y, z] = finPt(s, xi, eta, 0.012 + 2 * G.FIN.tc * ch * xi * (1 - xi)); return [x - base.x, toY(y) - base.y, toZ(z) - base.z]; });
+    const sm = decalMat(txt('ser' + serial, serial, 512, 128, 100)); sm.side = THREE.DoubleSide; mesh(g, sm, fin, 'finSerial');
   }
   // left upper wing insignia (photo), and the right lower wing (USAF practice of the period: INFERRED, not visible)
   for (const [s, top] of /** @type {[number, boolean][]} */ ([[-1, true], [1, false]])) {
-    const xc = 6.4, Xc = (wingLE(xc) + wingTE(xc)) / 2;
-    surfDecal((u, v) => { const x = xc - 0.9 + 1.8 * (top ? 1 - v : v), X = Xc - 0.45 + 0.9 * u; const p = wingPt(x, Math.max(0, Math.min(1, (X - wingLE(x)) / (wingTE(x) - wingLE(x)))), top); return [s * p[0], toY(p[1]) + (top ? 0.006 : -0.006), toZ(p[2])]; }, star(), decals, 'wingInsignia');
+    const xc = 6.5, Xc = (wingLE(xc) + wingTE(xc)) / 2 + 0.4;
+    surfDecal((u, v) => { const x = xc - 1.2 + 2.4 * (top ? 1 - v : v), X = Xc - 0.6 + 1.2 * u; const p = wingPt(x, Math.max(0, Math.min(1, (X - wingLE(x)) / (wingTE(x) - wingLE(x)))), top); return [s * p[0], toY(p[1]) + (top ? 0.006 : -0.006), toZ(p[2])]; }, star(), decals, 'wingInsignia');
   }
   // ---------------------------------------------------------------- LOD1 / LOD2: the same lofts, coarser, no interior
   const l1 = mesh(bodyGeometry({ xs: [...new Set(BODY_X.filter((x, i) => i % 3 === 0 || (x > 29.2 && x < 31.6 && i % 2 === 0)).concat([BODY_X[BODY_X.length - 1]]))].sort((a, b) => a - b), nu: 24 }), paintM, L1, 'fuselageL1');
@@ -229,8 +229,8 @@ export function buildSR71Model(opts = {}) {
       const sig = Math.min(1, A.sigma ?? 1), on = ab > 0.02 && n > 0.6;
       b.g.visible = on; if (!on) continue;
       const fl = 0.55 + 0.8 * ab, fk = 0.85 + 0.15 * Math.sin(time * 37 + k * 2.1);
-      b.core.material.opacity = (0.30 + 0.4 * ab) * fk * (0.5 + 0.5 * sig); b.core.scale.set(1, 1, fl * (0.6 + 0.5 * (1 - sig)));
-      b.inner.material.opacity = 0.45 * ab * fk; b.inner.scale.set(1, 1, fl);
+      b.core.material.opacity = (0.30 + 0.4 * ab) * fk * (0.4 + 0.6 * sig); b.core.scale.set(1, 1, fl * (0.35 + 0.65 * Math.min(1, sig * 3)));   // (thin air: a short, pale cone)
+      b.inner.material.opacity = 0.45 * ab * fk * (0.5 + 0.5 * sig); b.inner.scale.set(1, 1, fl * (0.4 + 0.6 * Math.min(1, sig * 3)));
       for (const [i, d] of diamonds[k].entries()) { d.visible = sig > 0.25; d.material.opacity = (0.55 - i * 0.07) * ab * sig * fk; }
     }
     beaconT += dt; const on = A.lights !== false, blink = (beaconT % 1.1) < 0.12;
