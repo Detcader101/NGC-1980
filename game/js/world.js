@@ -8,7 +8,8 @@
 //         radar     - long-range sight through the fog of war
 import { roadBed } from './world/net.js';   // the lived-in world (roads, towns, farms): flattened into islandH below
 import { zoneH } from './world/terrain.js';
-import { hypot2 } from './hypot.js';   // (ngc/perf-cpu) Math.hypot without the garbage, same bits
+import { hypot2 } from './hypot.js';
+import { planAirbase } from './world/airbase.js';   // (ngc/look-airbases) the friendly air base outside the zone   // (ngc/perf-cpu) Math.hypot without the garbage, same bits
 export const BOUND = 1280, SEA_FLOOR = -14;
 export const ISLANDS = [
   { name: 'HOME ISLAND', kind: 'hq', owner: 1, x: -756, z: 720, r: 230, tier: 0 },
@@ -72,7 +73,9 @@ export function wildH(x, z) {
 export function forestAt(x, z, h, slopeY) { return h > 3.5 && h < 360 - 60 * noise(x / 300, z / 300) && slopeY > 0.82 && fbm(x / 1700 + 5.5, z / 1700 + 9.2, 3) > -0.08; }
 // rawH: the natural ground. islandH: the ground people built on - road beds, town squares, quays and farmyards are
 // flattened in by world/net.js (the lived-in world), so physics, the terrain bake and the road ribbons all agree.
-export const rawH = (x, z) => Math.max(Math.abs(x), Math.abs(z)) < BOUND + 300 ? zoneH(x, z) : wildH(x, z);
+// (ngc/look-airbases) the air base: a site on the friendly side past the sea band, its ground flattened into the wild land
+export const AIRBASE = planAirbase({ natH: wildH, BOUND, home: ISLANDS.find(I => I.kind === 'hq' && I.owner === 1) });
+export const rawH = (x, z) => Math.max(Math.abs(x), Math.abs(z)) < BOUND + 300 ? zoneH(x, z) : AIRBASE.H(x, z, wildH(x, z));
 export const islandH = (x, z) => roadBed(x, z, rawH(x, z));
 export const islandAt = (x, z, pad = 0) => ISLANDS.find(I => hypot2(x - I.x, z - I.z) < I.r + pad);
 
