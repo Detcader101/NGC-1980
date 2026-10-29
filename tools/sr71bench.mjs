@@ -106,7 +106,7 @@ let climb = null;
 {
   const A = air(80000, 0, 40000, { mach: 3.2, thr: 1 }); A.ap.on = true; A.ap.pitch = 'alt'; A.ap.alt = A.pos.y;
   let t = 0, citT = null, mMax = 0; while (t < 300) { A.step(DT, ctl({ throttle: [1, 1] }), sky); t += DT; mMax = Math.max(mMax, A.mach); if (!citT && A.cit > 427) citT = t; }
-  check('full AB at 80,000 ft: past Mach 3.3 / CIT 427 C (the limit is the pilot\'s), thrust runs out by ~3.6', A.mach > 3.3 && A.mach < 3.7, `M ${A.mach.toFixed(2)}, CIT ${A.cit.toFixed(0)} C${citT ? ' (427 at ' + citT.toFixed(0) + ' s)' : ''}, ${A.eng[0].damaged ? 'engine damaged' : 'engines ok'}`, '> 3.3', 'CONFIRMED');
+  check('full AB at 80,000 ft: past Mach 3.3 / CIT 427 C (the limit is the pilot\'s), thrust runs out by ~3.6; 30 s over the CIT limit damages the engines', mMax > 3.3 && mMax < 3.7 && !!A.eng[0].damaged, `max M ${mMax.toFixed(2)}, CIT ${A.cit.toFixed(0)} C${citT ? ' (427 at ' + citT.toFixed(0) + ' s)' : ''}, ${A.eng[0].damaged ? 'engine damaged' : 'engines ok'}`, '> 3.3', 'CONFIRMED');
 }
 // ---- 7. an inlet unstart at Mach 3 (left): the nose yaws left hard, the restart brings both inlets back
 {
