@@ -15,6 +15,7 @@
 // aircraft's frame and compared with the sight line, so the pattern is fixed to the airframe at infinity, does not swim
 // with head movement and is seen only through the glass (each XR eye uses its own camera position).
 import * as THREE from 'three';
+import { rbox } from './hueygeo.js';
 
 export const MIL = Math.PI * 2 / 6400;   // US Army mil
 // the sight line: harmonised so the pipper sits on the rocket pair's mean point of impact at H.range (game rockets:
@@ -73,8 +74,10 @@ export function buildHueySight({ eye, M, hit, hinge = [0.55, 0.455, -2.28] }) {
     add(new THREE.PlaneGeometry(0.045, 0.056), new THREE.MeshBasicMaterial({ map: tx, toneMapped: false }), 0, -0.09, 0.0125, arm); }
   // the sight: the lamp / collimator housing (9.1 lb), the elevation drum on the left, the rheostat and lamp switch
   const body = new THREE.Group(); body.name = 'sightBody'; body.position.set(0, -0.2, 0); arm.add(body);
-  add(new THREE.BoxGeometry(0.105, 0.075, 0.13), dark, 0, 0.0, 0, body);                                    // housing
-  add(new THREE.BoxGeometry(0.08, 0.02, 0.1), dark, 0, 0.045, 0, body);                                     // circular support / rack ring
+  add(rbox(0.1, 0.07, 0.125, 0.018, 3), dark, 0, 0.0, 0, body);                                             // housing (rounded casting)
+  add(new THREE.CylinderGeometry(0.058, 0.058, 0.016, 32), grey, 0, 0.042, 0, body);                        // circular support assembly (azimuth ring)
+  add(new THREE.CylinderGeometry(0.02, 0.026, 0.035, 20), dark, 0, -0.17, 0.018, body);                     // collimator / lamp housing under the glass cage (fig 1-4)
+  add(new THREE.TorusGeometry(0.024, 0.005, 6, 20).rotateX(Math.PI / 2), grey, 0, -0.155, 0.018, body);
   const drum = add(new THREE.CylinderGeometry(0.036, 0.036, 0.022, 28).rotateZ(Math.PI / 2), grey, -0.064, -0.005, 0.0, body);   // elevation / depression knob, graduated
   { const cv = document.createElement('canvas'); cv.width = 256; cv.height = 32; const c = cv.getContext('2d'); c.fillStyle = '#4c5154'; c.fillRect(0, 0, 256, 32); for (let i = 0; i < 40; i++) { c.fillStyle = i < 20 ? '#e8e8e0' : '#d03020'; c.fillRect(i * 6.4, 0, 1.6, i % 5 ? 10 : 18); }
     const tx = new THREE.CanvasTexture(cv); tx.wrapS = THREE.RepeatWrapping; drum.material = new THREE.MeshLambertMaterial({ map: tx }); }
