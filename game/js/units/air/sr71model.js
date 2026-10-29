@@ -215,8 +215,9 @@ export function buildSR71Model(opts = {}) {
     const sf = A.surf || {}, spike = A.spike || [0, 0];
     // elevons: + = trailing edge down. Left / right each: pitch +- roll (sr71fm.js mixes them)
     for (const k of [0, 1]) { const d = k ? sf.elevR || 0 : sf.elevL || 0; elevons.out[k].rotation.x = d; elevons.in[k].rotation.x = d; }
-    // all-moving fins: + = trailing edge left (yaw left)
-    for (const k of [0, 1]) { const f = fins[k]; f.quaternion.setFromAxisAngle(f.userData.axis, -(sf.rud || 0)); }
+    // all-moving fins: A.surf.rud + = right pedal = nose right = trailing edges to the right (+x): about the (upward)
+    // canted axis a positive angle swings the aft edge (+z) toward +x (ngc/sr71-fix: was the opposite)
+    for (const k of [0, 1]) { const f = fins[k]; f.quaternion.setFromAxisAngle(f.userData.axis, sf.rud || 0); }
     // spikes: forward at low Mach, aft by 26 in on the schedule
     for (const k of [0, 1]) spikes[k].position.z = SR71M.SPIKE_TIP_Z + (spike[k] || 0) * SR71M.SPIKE_TRAVEL;
     gear.set(A.gear ?? 1, A.onGround ? A.strut || [0, 0, 0] : [0, 0, 0], A.steer || 0, A.wheelRot || 0);

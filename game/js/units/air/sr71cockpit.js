@@ -78,11 +78,27 @@ function dial(kind) {
     byp: k => (c, W, s) => { const m = lin(0, -130, 1, 130); dialFace(c, W, { map: m, v0: 0, v1: 1, major: 0.25, minor: 0.125, labels: [[0, 'CL'], [1, 'OP']], title: (k ? 'R' : 'L') + ' FWD|BYPASS', ty: 1.3 }); needle(c, W / 2, m(s.eng[k].bypass), W * 0.42); hub(c, W / 2); },
     acc: (c, W, s) => { const m = lin(-2, -140, 4, 140); dialFace(c, W, { map: m, v0: -2, v1: 4, major: 1, minor: 0.5, labels: [[-2, '-2'], [0, '0'], [2, '2'], [4, '4']], reds: [3], title: 'G', ty: 1.3 }); needle(c, W / 2, m(s.nzMax), W * 0.36, '#e8b01a'); needle(c, W / 2, m(s.nz), W * 0.42); hub(c, W / 2); },
     trim: key => (c, W, s) => { const m = lin(-1, -120, 1, 120); dialFace(c, W, { map: m, v0: -1, v1: 1, major: 0.5, minor: 0.25, labels: [], title: key.toUpperCase() + '|TRIM', ty: 1.3 }); needle(c, W / 2, m(key === 'pitch' ? s.trim / 0.6 : 0), W * 0.42); hub(c, W / 2); },
-    map: (c, W, s) => { c.fillStyle = '#0d120f'; c.fillRect(0, 0, W, W); c.strokeStyle = '#2e4a36'; for (let i = 0; i <= 8; i++) { c.beginPath(); c.moveTo(i * W / 8, 0); c.lineTo(i * W / 8, W); c.moveTo(0, i * W / 8); c.lineTo(W, i * W / 8); c.stroke(); }
-      txt(c, 'NAV MAP', W / 2, W * 0.08, '#6a9a72', W * 0.06); c.fillStyle = '#e8d070'; c.beginPath(); c.moveTo(W / 2, W / 2 - 8); c.lineTo(W / 2 - 6, W / 2 + 7); c.lineTo(W / 2 + 6, W / 2 + 7); c.fill();
-      if (s.wptRel) { const [dx, dz] = s.wptRel, k = W / 2 / 60000, x = W / 2 + Math.max(-W / 2 + 6, Math.min(W / 2 - 6, dx * k)), y = W / 2 + Math.max(-W / 2 + 6, Math.min(W / 2 - 6, dz * k)); c.strokeStyle = '#e8d070'; c.beginPath(); c.arc(x, y, 6, 0, TAU); c.stroke(); }
-      txt(c, `RECON ${s.recon ? 'ON' : 'OFF'}  FILM ${s.film}`, W / 2, W * 0.93, s.recon ? '#7fe08a' : '#6a9a72', W * 0.05); },
-  };
+    // (ngc/sr71-fix) the Nav Map Display (item 41) as a moving map: heading up, the aircraft at the centre a little low,
+    // the control zone's square, the photo-intel strips and photographed targets, the track (cyan where the cameras ran),
+    // the strip being photographed now, the waypoint; the range ring's distance at the top. s.map from sr71play.js
+    map: (c, W, s) => {
+      const M = s.map; c.fillStyle = '#0c120e'; c.fillRect(0, 0, W, W);
+      if (!M) { txt(c, 'NAV MAP', W / 2, W / 2, '#6a9a72', W * 0.07); return; }
+      const R = M.range, k = W * 0.45 / R, cx = W / 2, cy = W * 0.6, h = s.hdg;
+      const sx = (x, z) => { const dx = x - M.x, dz = z - M.z, ca = Math.cos(-h), sa = Math.sin(-h); return [cx + (dx * ca - dz * sa) * k, cy + (dx * sa + dz * ca) * k]; };
+      c.save(); c.beginPath(); c.rect(0, 0, W, W); c.clip();
+      c.strokeStyle = '#1f3a28'; c.lineWidth = 1; for (const r of [0.5, 1]) { c.beginPath(); c.arc(cx, cy, R * r * k, 0, TAU); c.stroke(); }
+      const B = M.bound; c.strokeStyle = '#d8b84a'; c.lineWidth = 1.5; c.beginPath(); [[-B, -B], [B, -B], [B, B], [-B, B]].forEach(([x, z], i) => { const [X, Y] = sx(x, z); i ? c.lineTo(X, Y) : c.moveTo(X, Y); }); c.closePath(); c.stroke();
+      for (const S of M.strips) { const dx = S.x1 - S.x0, dz = S.z1 - S.z0, L = Math.hypot(dx, dz) || 1, nx = -dz / L * S.w, nz = dx / L * S.w; c.fillStyle = 'rgba(80,220,255,.22)'; c.beginPath(); [[S.x0 + nx, S.z0 + nz], [S.x1 + nx, S.z1 + nz], [S.x1 - nx, S.z1 - nz], [S.x0 - nx, S.z0 - nz]].forEach(([x, z], i) => { const [X, Y] = sx(x, z); i ? c.lineTo(X, Y) : c.moveTo(X, Y); }); c.fill(); }
+      c.lineWidth = 1.5; for (let i = 1; i < M.trail.length; i++) { const p = M.trail[i - 1], q = M.trail[i], [X0, Y0] = sx(p.x, p.z), [X1, Y1] = sx(q.x, q.z); c.strokeStyle = q.on ? '#7fe8ff' : '#7f9a84'; c.beginPath(); c.moveTo(X0, Y0); c.lineTo(X1, Y1); c.stroke(); }
+      for (const m of M.marks) { const [X, Y] = sx(m.x, m.z); c.fillStyle = '#ff7050'; c.beginPath(); c.moveTo(X, Y - 4); c.lineTo(X + 4, Y); c.lineTo(X, Y + 4); c.lineTo(X - 4, Y); c.fill(); }
+      if (M.ok) { const w = M.swath * k; c.fillStyle = 'rgba(127,232,255,.25)'; c.fillRect(cx - w, cy - W * 0.08, 2 * w, W * 0.08); c.strokeStyle = '#7fe8ff'; c.beginPath(); c.moveTo(cx - w, cy); c.lineTo(cx + w, cy); c.stroke(); }
+      if (s.wptRel) { const [X, Y] = sx(M.x + s.wptRel[0], M.z + s.wptRel[1]); c.strokeStyle = '#e8d070'; c.beginPath(); c.arc(X, Y, 6, 0, TAU); c.stroke(); }
+      c.restore();
+      c.fillStyle = '#e8e8d8'; c.beginPath(); c.moveTo(cx, cy - 9); c.lineTo(cx - 6, cy + 7); c.lineTo(cx + 6, cy + 7); c.fill();
+      txt(c, (R * 2 / 1000).toFixed(0) + ' KM', W * 0.13, W * 0.06, '#8fbf98', W * 0.05); txt(c, 'HDG ' + String(Math.round(((-h * 57.3) % 360 + 360) % 360)).padStart(3, '0'), W * 0.84, W * 0.06, '#8fbf98', W * 0.05);
+      txt(c, s.recon ? (s.reconOk ? 'CAMERAS RUN  ' : 'CAMERAS STBY  ') + 'FILM ' + s.film : 'CAMERAS OFF', W / 2, W * 0.95, s.reconOk ? '#7fe8ff' : '#6a9a72', W * 0.05);
+    },  };
   return D[kind];
 }
 const LAMPS = { lampUnstL: ['L UNSTART', s => s.eng[0].unstart], lampUnstR: ['R UNSTART', s => s.eng[1].unstart], lampMC: ['MASTER CAUTION', s => s.caution], lampKEAS: ['KEAS', s => s.keas > 440] };
@@ -120,41 +136,132 @@ export function buildSR71Cockpit() {
     const fn = { rpm: dial('rpm')(k), egt: dial('egt')(k), noz: dial('noz')(k), ff: dial('ff')(k), oil: dial('oil')(k), spike: dial('spike')(k), byp: dial('byp')(k), trimP: dial('trim')('pitch'), trimR: dial('trim')('roll'), trimY: dial('trim')('yaw'), hyd: dial('hyd') }[base] || dial(g);
     if (fn) gauges.push({ S, fn });
   }
-  // ---- glare shield along the panel's top, the side consoles, the throttle quadrant, stick, pedals, seat
-  const glare = mesh(new THREE.BoxGeometry(0.32, 0.015, 0.05), panelM, group, 'glareshield'); glare.position.set(EYE[0], EYE[1] - PANEL_POSE.drop + 0.30 * Math.cos(PANEL_POSE.tilt), EYE[2] - PANEL_POSE.dist - 0.30 * Math.sin(PANEL_POSE.tilt) + 0.02);
-  for (const s of [-1, 1]) { const con = mesh(new THREE.BoxGeometry(0.16, 0.06, 0.75), panelM, group, 'console'); con.position.set(EYE[0] + s * 0.36, EYE[1] - 0.48, EYE[2] - 0.15); con.rotation.z = -s * 0.15; }
-  const thr = new THREE.Group(); thr.name = 'throttles'; thr.position.set(EYE[0] - 0.36, EYE[1] - 0.43, EYE[2] - 0.12); group.add(thr);
-  const levers = [0, 1].map(k => { const l = new THREE.Group(); l.position.x = (k - 0.5) * 0.035; thr.add(l); mesh(new THREE.BoxGeometry(0.014, 0.12, 0.02).translate(0, 0.06, 0), M(0x2a2b2c), l, 'throttleLever'); mesh(new THREE.BoxGeometry(0.03, 0.03, 0.045).translate(0, 0.125, 0.0), M(0x1a1a1a, { rk: 'dark' }), l, 'throttleGrip'); return l; });
-  const stick = new THREE.Group(); stick.name = 'stick'; stick.position.set(EYE[0], EYE[1] - 0.72, EYE[2] - 0.32); group.add(stick);
-  mesh(new THREE.CylinderGeometry(0.012, 0.016, 0.42).translate(0, 0.21, 0), M(0x2a2b2c), stick, 'stickShaft'); mesh(new THREE.CylinderGeometry(0.02, 0.022, 0.11).translate(0, 0.46, 0), M(0x151515, { rk: 'dark' }), stick, 'stickGrip');
-  const seat = mesh(new THREE.BoxGeometry(0.5, 0.95, 0.12), M(0x2b2e2a, { rk: 'fabric' }), group, 'seatBack'); seat.position.set(EYE[0], EYE[1] - 0.25, EYE[2] + 0.28);
-  // the canopy frame from inside: the windscreen's centre post and the bow, the periscope housing on top
-  const frameM = M(0x18191b, { rk: 'dark' });
-  const wsZ = toZ(5.12), wsY = toY(2.48);
+  // ---- (ngc/sr71-fix) the rest of both cockpits, rebuilt from the flight manual's figures and the cockpit photos
+  // (docs/ngc1980/reference/sr71: figs. 1-13 side panels, 1-14 / 1-15 consoles, 1-17 aft panel, 1-18 / 1-19 aft consoles,
+  // 4-29 the OBC control panel; photos: NMUSAF / Udvar-Hazy / Brian Shul). Panel and console faces are the figures
+  // themselves turned into panel art (tools/blueprint/sr71/panelart.mjs: black faces, white legends, 2821 px/m as fig. 1-12)
+  // on planes at the places the figures' cockpit insets show: the two instrument side panels fold back from the centre
+  // panel into the V the photos show, the consoles run beside the seat at elbow height. Colours from the photos: black
+  // panel faces and canopy interior, grey (FS 36231-ish) console sides and tub, the black stick grip, a dark seat.
+  const ART = { fwdSideL: [0.321, 0.411], fwdSideR: [0.323, 0.471], fwdConsoleL: [0.279, 0.695], fwdConsoleR: [0.235, 0.574], aftPanel: [0.561, 0.295], aftConsoleL: [0.302, 0.534], aftConsoleR: [0.254, 0.515] };
+  const base = (typeof location !== 'undefined' && location.pathname.includes('/dev/')) ? '../img/sr71/' : 'img/sr71/';
+  const loader = typeof document !== 'undefined' ? new THREE.TextureLoader() : null;
+  const artM = id => { const m = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide }); if (loader) loader.load(base + id + '.png', t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; m.map = t; m.needsUpdate = true; }); else m.color.setHex(0x151618); return m; };
+  // a panel plane w x h (m) whose corner (ax, ay in 0..1 of the plane, 0,0 = left bottom) sits at the group's origin
+  const artPlane = (id, parent, ax, ay) => { const [w, h] = ART[id], g = new THREE.PlaneGeometry(w, h).translate(w * (0.5 - ax), h * (0.5 - ay), 0); return mesh(g, artM(id), parent, 'art_' + id); };
+  const greyM = M(0x6f7479, { rk: 'paint' }), blackM = M(0x141517, { rk: 'dark' });
+  // instrument side panels (fig. 1-13): hinged on the centre panel's lower corners, folded 52 deg toward the pilot
+  const sideL = new THREE.Group(); sideL.position.set(-0.302, -0.20, -0.002); sideL.rotation.y = 0.78; pp.add(sideL); artPlane('fwdSideL', sideL, 1, 0);
+  const sideR = new THREE.Group(); sideR.position.set(0.302, 0.211, -0.002); sideR.rotation.y = -0.78; pp.add(sideR); artPlane('fwdSideR', sideR, 0, 1);
+  // the hood / glare shield over the three panels: a V of black plates following their top edges (Shul photo)
+  for (const [x0, y0, x1, y1] of [[-0.24, 0.17, -0.06, 0.30], [-0.06, 0.30, 0.06, 0.30], [0.06, 0.30, 0.24, 0.17]]) {
+    const L = Math.hypot(x1 - x0, y1 - y0), hd = mesh(new THREE.BoxGeometry(L, 0.01, 0.07).translate(0, 0, 0.035), blackM, pp, 'glareshield'); hd.position.set((x0 + x1) / 2, (y0 + y1) / 2, 0); hd.rotation.z = Math.atan2(y1 - y0, x1 - x0);
+  }
+  // consoles (figs. 1-14 / 1-15): flat tops at elbow height beside the seat, front ends under the side panels; grey bodies
+  const consoles = (E, idL, idR, zF) => {
+    for (const [id, s] of [[idL, -1], [idR, 1]]) {
+      const [w, h] = ART[id], cg = new THREE.Group(); cg.position.set(E[0] + s * (0.27 + w / 2), E[1] - 0.50, E[2] + zF); cg.rotation.x = -Math.PI / 2; cg.rotation.z = 0; group.add(cg);
+      const top = artPlane(id, cg, 0.5, 1); top.rotation.z = 0;   // the figure's top edge is forward
+      const body = mesh(new THREE.BoxGeometry(w + 0.02, h, 0.42).translate(0, -h / 2, -0.215), greyM, cg, 'consoleBody'); void body;
+    }
+  };
+  consoles(EYE, 'fwdConsoleL', 'fwdConsoleR', -0.52);
+  // the throttle quadrant (fig. 1-14 items 3-7): two levers side by side in the quadrant's slot, AB past the detent
+  const thr = new THREE.Group(); thr.name = 'throttles'; thr.position.set(EYE[0] - 0.27 - 0.279 / 2 + 0.279 * (0.62 - 0.5), EYE[1] - 0.50, EYE[2] - 0.52 + 0.695 * 0.40); group.add(thr);
+  mesh(new THREE.BoxGeometry(0.10, 0.04, 0.24).translate(0, 0.02, 0), M(0x2a2c2f, { rk: 'dark' }), thr, 'throttleQuadrant');
+  const levers = [0, 1].map(k => { const l = new THREE.Group(); l.position.set((k - 0.5) * 0.04, 0.03, 0); thr.add(l); mesh(new THREE.BoxGeometry(0.012, 0.14, 0.022).translate(0, 0.07, 0), M(0x8a8c8e, { rk: 'metal' }), l, 'throttleLever'); mesh(new THREE.BoxGeometry(0.026, 0.04, 0.045).translate(0, 0.15, -0.01), M(0x161616, { rk: 'dark' }), l, 'throttleGrip'); return l; });
+  // the stick (photos: a long black stick from the floor, the grip with trigger and trim hat), rudder pedals
+  const stick = new THREE.Group(); stick.name = 'stick'; stick.position.set(EYE[0], EYE[1] - 0.95, EYE[2] - 0.36); group.add(stick);
+  mesh(new THREE.CylinderGeometry(0.014, 0.02, 0.42).translate(0, 0.21, 0), M(0x1c1d1f, { rk: 'dark' }), stick, 'stickShaft');
+  mesh(new THREE.CylinderGeometry(0.024, 0.02, 0.13, 10).translate(0, 0.47, 0.01).rotateX(-0.15), M(0x111111, { rk: 'dark' }), stick, 'stickGrip');
+  mesh(new THREE.BoxGeometry(0.012, 0.025, 0.02).translate(0, 0.47, -0.035), M(0x222222), stick, 'stickTrigger');
+  const pedals = [-1, 1].map(s => { const p = mesh(new THREE.BoxGeometry(0.09, 0.14, 0.03).rotateX(-0.5), M(0x2a2b2c), group, 'rudderPedal'); p.position.set(EYE[0] + s * 0.14, EYE[1] - 0.95, EYE[2] - 0.92); return p; });
+  const pedZ0 = EYE[2] - 0.92;
+  // the SR-1 seat (fig. 1-83 text: headrest with the inertia reel, survival kit in the bucket, the D-ring forward): dark
+  const seatAt = (E, name) => {
+    const sg = new THREE.Group(); sg.name = name; sg.position.set(E[0], E[1], E[2]); group.add(sg); const seatM = M(0x30342e, { rk: 'fabric' });
+    mesh(new THREE.BoxGeometry(0.44, 0.58, 0.10).translate(0, -0.50, 0.30), seatM, sg, 'seatBack');
+    mesh(new THREE.BoxGeometry(0.30, 0.18, 0.12).translate(0, -0.08, 0.28), seatM, sg, 'seatHeadrest');
+    mesh(new THREE.BoxGeometry(0.48, 0.16, 0.5).translate(0, -0.84, -0.02), M(0x3a3d39, { rk: 'paint' }), sg, 'seatBucket');
+    mesh(new THREE.TorusGeometry(0.045, 0.008, 6, 14, Math.PI).rotateZ(Math.PI).translate(0, -0.76, -0.27), M(0xe0c020), sg, 'seatDRing');
+    for (const s of [-1, 1]) mesh(new THREE.BoxGeometry(0.03, 0.3, 0.46).translate(s * 0.25, -0.66, -0.02), M(0x2a2d29, { rk: 'paint' }), sg, 'seatSide');
+  };
+  seatAt(EYE, 'seatPilot');
+  // the tubs: a floor ~1 m under each eye, grey side walls up to the sills, and the bulkhead between the two cockpits
+  // (the cockpits are separate: the RSO sees his panel and the bulkhead, not the pilot's seat)
+  const tubM = M(0x777c81, { rk: 'paint', side: THREE.DoubleSide });
+  for (const [E, z0, z1] of /** @type {[number[], number, number][]} */ ([[EYE, -1.0, 0.55], [SR71M.EYE_RSO, -0.75, 0.55]])) {
+    mesh(new THREE.BoxGeometry(0.86, 0.02, z1 - z0).translate(E[0], E[1] - 1.02, E[2] + (z0 + z1) / 2), tubM, group, 'tubFloor');
+    for (const s of [-1, 1]) mesh(new THREE.BoxGeometry(0.02, 0.52, z1 - z0).translate(E[0] + s * 0.43, E[1] - 0.76, E[2] + (z0 + z1) / 2), tubM, group, 'tubWall');
+  }
+  mesh(new THREE.BoxGeometry(0.9, 1.15, 0.03).translate(EYE[0], EYE[1] - 0.45, EYE[2] + 0.56), M(0x2a2c2f, { rk: 'paint' }), group, 'bulkhead');
+  // the canopy from inside: the windscreen's frame posts and the rear-view periscope (the walls are the black skin)
+  const frameM = M(0x0f1012, { rk: 'dark' });
   const scope = mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.16).translate(0, toY(2.86), toZ(6.7)), frameM, group, 'periscope');
-  // ---- the RSO's cockpit (layout from fig. 1-28): panel with the viewsight scope, DEF / sensor panels, side consoles
-  const ER = SR71M.EYE_RSO, rp = new THREE.Group(); rp.name = 'panelRSO'; rp.position.set(ER[0], ER[1] - 0.28, ER[2] - 0.6); rp.rotation.x = -0.15; group.add(rp);
-  mesh(new THREE.BoxGeometry(0.62, 0.42, 0.04).translate(0, 0, -0.02), panelM, rp, 'rsoPanel');
-  mesh(new THREE.CylinderGeometry(0.075, 0.09, 0.12, 24).rotateX(Math.PI / 2).translate(0, -0.03, 0.06), M(0x202224, { rk: 'dark' }), rp, 'viewsight');
-  mesh(new THREE.CircleGeometry(0.065, 24).translate(0, -0.03, 0.121), new THREE.MeshBasicMaterial({ color: 0x1d3a26 }), rp, 'viewsightScreen');
-  for (const [x, y, w, h] of [[-0.22, 0.12, 0.14, 0.1], [0.22, 0.12, 0.14, 0.1], [-0.22, -0.1, 0.14, 0.14], [0.22, -0.1, 0.14, 0.14]]) mesh(new THREE.BoxGeometry(w, h, 0.01).translate(x, y, 0.005), bezelM, rp, 'rsoSubpanel');
+  // ---- the RSO's cockpit: fig. 1-17's panel (the viewsight under its round hood at the top, the radar / display
+  // screen below it, the two triangular side panels), the aft consoles with the NOSE OBC panel (fig. 4-29) on the right
+  const ER = SR71M.EYE_RSO, rp = new THREE.Group(); rp.name = 'panelRSO'; rp.position.set(ER[0], ER[1] - 0.30, ER[2] - 0.62); rp.rotation.x = -0.18; group.add(rp);
+  artPlane('aftPanel', rp, 0.5, 0.5);
+  // viewsight (item 13): a hood over a 9 in round display; the display screen (item 14): both live (sr71 views)
+  const scr = canvasTex(256, 256), scrM = new THREE.MeshBasicMaterial({ map: scr.tex, toneMapped: false });
+  const vsC = [(747 - 752) / 2821 * 1.459, -(470 - 585) / 2821 * 1.459];   // fig. px (display) -> panel m (centre at the crop's middle)
+  mesh(new THREE.CylinderGeometry(0.115, 0.12, 0.10, 32, 1, true).rotateX(Math.PI / 2).translate(vsC[0], vsC[1], 0.05), blackM, rp, 'viewsightHood');
+  const vsScreen = mesh(new THREE.CircleGeometry(0.11, 32).translate(vsC[0], vsC[1], 0.004), scrM, rp, 'viewsightScreen');
+  const scr2 = canvasTex(256, 256), scr2M = new THREE.MeshBasicMaterial({ map: scr2.tex, toneMapped: false });
+  mesh(new THREE.PlaneGeometry(310 * 1.459 / 2821, 280 * 1.459 / 2821).translate((750 - 752) / 2821 * 1.459, -(710 - 585) / 2821 * 1.459, 0.004), scr2M, rp, 'rsoDisplay');
+  consoles(ER, 'aftConsoleL', 'aftConsoleR', -0.40);
+  seatAt(ER, 'seatRSO');
+  // the NOSE OBC control panel (fig. 4-29) in the radar panel's place at the head of the right aft console: FILM REMAIN
+  // counter, POWER (OBC / ON - FAIL), OPERATE (OPR / SRT - STP), MODE (10 / 55), FILM DRIVE, SELF TEST - live
+  const obc = canvasTex(512, 160), obcM = new THREE.MeshBasicMaterial({ map: obc.tex, toneMapped: false });
+  const obcMesh = mesh(new THREE.PlaneGeometry(0.235, 0.073).rotateX(-Math.PI / 2), obcM, group, 'obcPanel');
+  obcMesh.position.set(ER[0] + 0.27 + 0.254 / 2, ER[1] - 0.497, ER[2] - 0.40 + 0.04);
+  function drawOBC(o) {
+    const c = obc.ctx, W = 512, H = 160; c.fillStyle = '#141517'; c.fillRect(0, 0, W, H); c.strokeStyle = '#555'; c.strokeRect(2, 2, W - 4, H - 4);
+    txt(c, 'NOSE OBC', 22, H / 2, '#d6d4c8', 12, 'center'); c.save(); c.translate(22, H / 2); c.rotate(-Math.PI / 2); c.restore();
+    txt(c, 'FILM REMAIN', 120, 26, '#d6d4c8', 14); drum(c, 70, 38, 100, 30, o.remain, 4);
+    const lamp = (x, y, top, bot, onTop, onBot, colTop, colBot) => { c.fillStyle = '#0a0a0a'; c.fillRect(x - 34, y - 26, 68, 52); c.strokeStyle = '#777'; c.strokeRect(x - 34, y - 26, 68, 52);
+      c.fillStyle = onTop ? colTop : '#262626'; c.fillRect(x - 30, y - 22, 60, 22); c.fillStyle = onBot ? colBot : '#262626'; c.fillRect(x - 30, y + 2, 60, 20);
+      txt(c, top, x, y - 11, onTop ? '#101010' : '#8a8a80', 12); txt(c, bot, x, y + 12, onBot ? '#101010' : '#8a8a80', 11); };
+    txt(c, 'POWER', 260, 18, '#d6d4c8', 14); lamp(260, 56, 'OBC', 'ON  FAIL', o.on, o.on, '#e8e8e0', '#4ce06a');
+    txt(c, 'OPERATE', 370, 18, '#d6d4c8', 14); lamp(370, 56, 'OPR', 'SRT STP', o.run, o.on && !o.run, '#e8e8e0', '#e8b030');
+    txt(c, 'MODE', 370, 92, '#d6d4c8', 13); lamp(370, 126, '', '10  55', false, o.on, '#e8e8e0', '#e8e8e0');
+    lamp(150, 126, 'SELF', 'TEST', false, false, '#e8e8e0', '#e8e8e0'); lamp(260, 126, 'FILM', 'DRIVE', o.run, o.run, '#f0f0e8', '#f0f0e8');
+    obc.tex.needsUpdate = true;
+  }
+  function drawViewsight(s) {   // the viewsight: the ground straight below, drift lines, the camera's strip edges
+    const c = scr.ctx, W = 256; c.fillStyle = '#0b1a10'; c.fillRect(0, 0, W, W);
+    const t = (s.time || 0) * (s.gs || 0) * 0.002; c.strokeStyle = 'rgba(120,200,140,.25)';
+    for (let i = -6; i <= 6; i++) { const y = ((i * 40 + t * 60) % 480 + 480) % 480 - 240 + W / 2; c.beginPath(); c.moveTo(0, y); c.lineTo(W, y + 10); c.stroke(); }
+    c.strokeStyle = '#8fe0a0'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(W / 2, 20); c.lineTo(W / 2, W - 20); c.moveTo(30, W / 2); c.lineTo(W - 30, W / 2); c.stroke();
+    if (s.recon) { c.strokeStyle = s.reconOk ? '#7fe8ff' : '#55707a'; c.setLineDash([6, 6]); c.beginPath(); c.moveTo(48, 0); c.lineTo(48, W); c.moveTo(W - 48, 0); c.lineTo(W - 48, W); c.stroke(); c.setLineDash([]); }
+    txt(c, s.reconOk ? 'OBC RUN' : s.recon ? 'OBC STBY' : 'OBC OFF', W / 2, W - 30, s.reconOk ? '#7fe8ff' : '#6a9a72', 14);
+    scr.tex.needsUpdate = true;
+  }
   // ---- live update
   let tAcc = 0;
   function update(A, inp, dt, extra = {}) {
     // throttles, stick
-    for (let k = 0; k < 2; k++) levers[k].rotation.x = -0.5 + (inp && inp.throttle ? inp.throttle[k] : A.eng[k].thr || 0) * 1.0;
-    stick.rotation.x = -(inp ? inp.pitch || 0 : 0) * 0.25; stick.rotation.z = -(inp ? inp.roll || 0 : 0) * 0.25;
+    // (ngc/sr71-fix) signs checked against the inputs: throttle forward = the lever's top forward (-z: rotation.x < 0);
+    // stick aft (pitch +, nose up) = the grip toward the pilot (+z: rotation.x > 0); stick right = the grip to +x
+    // (rotation.z < 0); right pedal (yaw +) = the right pedal forward
+    for (let k = 0; k < 2; k++) levers[k].rotation.x = 0.5 - (inp && inp.throttle ? inp.throttle[k] : A.eng[k].thr || 0) * 1.0;
+    stick.rotation.x = (inp ? inp.pitch || 0 : 0) * 0.25; stick.rotation.z = -(inp ? inp.roll || 0 : 0) * 0.25;
+    const yw = inp ? inp.yaw || 0 : 0; pedals[0].position.z = pedZ0 + yw * 0.05; pedals[1].position.z = pedZ0 - yw * 0.05;
     for (const [g, m] of Object.entries(lampMs)) { const on = LAMPS[g][1]({ ...A, caution: extra.caution }); m.color.setHex(on ? 0xffc040 : 0x332a10); }
     tAcc += dt; if (tAcc < 1 / 12) return; tAcc = 0;   // the dials redraw at 12 Hz
     const att = A.attitude(), s = {
       keas: A.keas, mach: A.mach, altFt: A.altFt, vs: A.vel.y * 2 * FT * 60, pitch: att.pitch, roll: att.roll, hdg: A.heading, brg: extra.brg || 0, wptNm: extra.wptNm || 0, wptRel: extra.wptRel || null,
       aoa: A.alpha * 57.3, cit: A.cit, cip: 14.7 * (A.sigma) * Math.pow(1 + 0.2 * A.mach * A.mach, 3.5) * 0.85, skinF: A.skinT * 1.8 + 32, time: extra.time || 0,
       eng: A.eng.map(e => ({ n: e.n, egt: e.egt, nozzle: e.nozzle, ff: e.ff, spike: e.spike, bypass: e.bypass, unstart: e.unstart })), sched: extra.sched || 0,
-      nz: A.nz, nzMax: A.nzMax, trim: A.trim, recon: extra.recon, film: extra.film || 0,
+      nz: A.nz, nzMax: A.nzMax, trim: A.trim, recon: extra.recon, reconOk: extra.reconOk, film: extra.film || 0, map: extra.map || null,
     };
     const c = atlas.ctx;
     for (const G of gauges) { c.save(); c.translate(G.S.x, G.S.y); c.beginPath(); c.rect(0, 0, G.S.w, G.S.w); c.clip(); try { G.fn(c, G.S.w, s); } catch (e) { /* a dial's bad frame */ } c.restore(); }
     atlas.tex.needsUpdate = true;
+    const mc = scr2.ctx; mc.save(); try { dial('map')(mc, 256, s); } catch (e) {} mc.restore(); scr2.tex.needsUpdate = true;   // the RSO display: the same moving map
+    drawViewsight({ ...s, gs: Math.hypot(A.vel.x, A.vel.z), reconOk: extra.reconOk });
+    drawOBC({ on: !!extra.recon, run: !!extra.reconOk, remain: extra.filmRemain ?? 2000 });
   }
-  return { group, update, panel: pp, atlas, gauges };
+  return { group, update, panel: pp, atlas, gauges, rsoPanel: rp };
 }

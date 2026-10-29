@@ -12,6 +12,19 @@ along the fixed launchers' boresight; the sight is harmonised to them at 250 m (
 lands -6.6 / +5.9 mils either side of the pipper, mean 0.35 mils. The generic crosshair is gone in the Huey cockpit
 only. Details: [findings](docs/ngc1980/findings/huey-sight.md), evidence in `docs/ngc1980/evidence/huey-sight/`.
 
+## 2026-10-29 — The SR-71 after Jay Jay's first flights: mouse look, controls, cockpits, cameras on the map (branch ngc/sr71-fix)
+
+Jay Jay: the cockpit mouse look did nothing / "looks straight down", the HOTAS animations were flipped, the interior
+didn't look like a Blackbird, and "cameras on and nav map don't change anything". The mouse now turns the head in both
+cockpits (the SR-71 had no `look()`; a HOTAS hat resting off-centre walked the head to the floor: the hat now counts
+only when it moves). Stick pitch, throttles and the fins were reversed; fixed and checked (pedals added). The cockpits
+are rebuilt from the SR-71A-1 figures 1-13 to 1-19 and 4-29 and museum photos: side panels in the V, consoles with the
+figures' panel art, throttle quadrant, stick, pedals, SR-1 seats, the RSO's panel with a live viewsight, map display and
+NOSE OBC control panel (film counter). The cameras run from 20,000 ft and K says why when they don't; M opens the map
+again (spikes moved to SHIFT+M); the big map follows her and the minimap zooms out; the maps and the cockpit's moving
+Nav Map show the photographed strips, every photographed target, her track and the strip in work; the feed says RECON
+PASS COMPLETE with the count. Findings: docs/ngc1980/findings/sr71-fix.md; evidence: docs/ngc1980/evidence/sr71-fix/.
+
 ## 2026-10-29 — Calm ground from the air, a map that zooms past the zone (branch ngc/look-terrain, WIP at close)
 
 After Jay Jay's review: the ground's fine detail (normal map, height blend, small noise) now fades with the pixel's

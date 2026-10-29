@@ -60,8 +60,10 @@ function frame(now) {
     const E = X.view === 'rso' ? SR71M.EYE_RSO : SR71M.EYE; camera.position.set(...E).applyQuaternion(A.q).add(A.pos);
     camera.quaternion.copy(A.q).multiply(_q.setFromEuler(_e.set(X.look, X.yaw, 0, 'YXZ'))); camera.near = 0.05; camera.fov = 70;
   } else if (!hooks.cam || !hooks.cam(camera, dt)) {
-    camera.position.set(Math.sin(orbit.yaw) * Math.cos(orbit.pitch), Math.sin(orbit.pitch), Math.cos(orbit.yaw) * Math.cos(orbit.pitch)).multiplyScalar(orbit.dist).add(A.pos);
-    camera.lookAt(A.pos); camera.near = 0.3; camera.fov = 50;
+    // ?tgt=x,y,z: orbit a point of the aircraft (model frame) instead of the CG; ?fov=; (ngc/sr71-fix: the cockpit photo side-by-side)
+    const tg = Q.get('tgt') ? _v.set(...Q.get('tgt').split(',').map(Number)).applyQuaternion(A.q).add(A.pos) : _v.copy(A.pos);
+    camera.position.set(Math.sin(orbit.yaw) * Math.cos(orbit.pitch), Math.sin(orbit.pitch), Math.cos(orbit.yaw) * Math.cos(orbit.pitch)).multiplyScalar(orbit.dist).add(tg);
+    camera.lookAt(tg); camera.near = Q.get('tgt') ? 0.02 : 0.3; camera.fov = +(Q.get('fov') || 50);
   }
   camera.updateProjectionMatrix();
   updateLODs(window.__ortho || camera);
@@ -119,6 +121,8 @@ if (REFV) {
 // tele line
 const tele = document.getElementById('tele');
 setInterval(() => { if (tele && !hooks.tele) tele.textContent = `LOD ${model.lod.level ?? '-'}`; else if (tele) tele.textContent = hooks.tele(); }, 250);
+// ?open=1: the canopy region opened up (the skin over the cockpits hidden, the cockpit shown) for the interior photo comparison
+if (Q.get('open') === '1') import('../js/units/air/sr71cockpit.js').then(({ buildSR71Cockpit }) => { const ck = buildSR71Cockpit(); model.group.add(ck.group); model.group.traverse(o => { if (o.name === 'fuselage' || o.name === 'canopyFrame' || o.name === 'crew' || /torso|helmet|visor|cockpitTub/.test(o.name)) o.visible = false; }); const an = model.animate; model.animate = (...a) => { an(...a); model.group.traverse(o => { if (/^(fuselage|crew|torso|helmet|visor|cockpitTub|canopyFrame)$/.test(o.name)) o.visible = false; }); ck.update(SA, { pitch: 0, roll: 0, yaw: 0, throttle: [0.3, 0.3] }, 0.1, {}); }; const SA = { attitude: () => ({ pitch: 0, roll: 0, yaw: 0 }), keas: 0, mach: 0, altFt: 0, vel: new THREE.Vector3(), heading: 0, alpha: 0, cit: 15, sigma: 1, skinT: 15, nz: 1, nzMax: 1, trim: 0, eng: [0, 1].map(() => ({ n: 0, egt: 20, nozzle: 0.5, ff: 0, spike: 0, bypass: 1, unstart: 0, thr: 0 })) }; });
 if (Q.get('start')) import('./sr71-fly.js').then(m => m.startFlight(window.__T, Q)).catch(e => console.error(e));
 // ---- ?panel=1: the pilot's centre panel straight on (orthographic) over SR-71A-1 fig. 1-12 at its calibration
 // (2821 px/m, figure centre px 1103, 1340): the milsim-blueprint skill's panel check. &refa= the figure's opacity.

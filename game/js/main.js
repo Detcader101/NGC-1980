@@ -2525,7 +2525,10 @@ const mapSeesOutside = (x, z) => {   // past the zone there is no fog of war: an
 };
 function drawMap() {
   const W = radar.canvas.width, Hh = radar.canvas.height; radar.clearRect(0, 0, W, Hh);
-  const big = bigMap, base = big ? Math.min(W, Hh - 120) * 0.47 / BOUND : 72 / 260, half = base * (big ? mapZ.zoom : mapZ.mini), cx = W / 2, cy = big ? (Hh - 60) / 2 : Hh / 2;
+  const mf = crafts.active && crafts.active.mapFollow ? crafts.active.mapFollow() : null;   // (ngc/sr71-fix) a fast craft (the SR-71): the big map follows it, the minimap zooms out
+  if (bigMap && mf && !mapZ.drag) { mapZ.cx = Z.pos.x; mapZ.cz = Z.pos.z; if (!mapZ.mfZ && mf.zoom) mapZ.zoom = Math.min(mapZ.zoom, mf.zoom); mapZ.mfZ = true; }   // (opened while she flies: zoomed out once, then yours)
+  if (!bigMap) mapZ.mfZ = false;
+  const big = bigMap, base = big ? Math.min(W, Hh - 120) * 0.47 / BOUND : 72 / 260, half = base * (big ? mapZ.zoom : mf && mf.mini ? mf.mini : mapZ.mini), cx = W / 2, cy = big ? (Hh - 60) / 2 : Hh / 2;
   if (big) {   // a gamepad: shoulder buttons zoom, the d-pad pans
     const gp = navigator.getGamepads ? [...navigator.getGamepads()].find(g => g && g.connected) : null;
     if (gp) { const b = i => gp.buttons[i] && gp.buttons[i].pressed; if (b(5)) mapZ.zoom = Math.min(MAPZ.max, mapZ.zoom * 1.05); if (b(4)) mapZ.zoom = Math.max(MAPZ.min, mapZ.zoom / 1.05);
@@ -2601,6 +2604,7 @@ function drawMap() {
     } else { radar.fillStyle = col; const sz = big ? (u.type === 'transport' ? 7 : u.type === 'dropship' ? 9 : 5) : u.type === 'dropship' ? 5 : 3; radar.fillRect(X - sz / 2, Y - sz / 2, sz, sz); }
     if (big && markers.mode !== 'off' && u.sinking === undefined && !u.dying && !(u.type === 'squad' && u.members)) { const hp = hpOf(u); if (markers.mode === 'all' || hp < 0.985) mapBar(radar, X, Y + (u.dims ? 10 : 6), u.dims ? 18 : 10, hp); }   // UNIT MARKERS: health on the command map
   }
+  for (const d of crafts.defs) if (d.mapOverlay) d.mapOverlay(radar, px, py, half, big, W, Hh);   // (ngc/sr71-fix) the SR-71's photo intel, track and camera strip
   // FOUNDATION: your parked crafts (the Huey you walked away from, a Hornet on deck, vehicles): hollow white marks
   for (const d of crafts.defs) {
     if (d === crafts.active || d.kind === 'foot' || d.id === 'ride' || !d.present()) continue;   // (ngc/interiors: the RIDE seats are not a vehicle)

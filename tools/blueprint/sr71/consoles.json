@@ -1,0 +1,13 @@
+{
+ "note": "SR-71A-1 cockpit panel and console figures traced for the cockpit (ngc/sr71-fix). Coordinates in DISPLAY px of the 2084 x 2917 page images scaled by 1/1.459 (multiply by 1.459 for page px). Scale: the same drafting scale as fig. 1-12, 2821 page px per metre (checked: fig. 1-14 console 0.28 m wide, 0.70 m long; fig. 1-19 0.25 x 0.51 m). Each polygon outlines the panel faces; the art (panelart.mjs) keeps the figure's black faces and white legends and clears everything else.",
+ "k": 1.459, "pxPerM": 2821,
+ "panels": [
+  { "id": "fwdSideL", "fig": "sr71a-1-fig1-13-side-panels-forward.jpg", "title": "INSTRUMENT SIDE PANELS - Forward Cockpit (left)", "crop": [70, 515, 690, 1310], "polys": [[[78,1305],[108,1095],[175,930],[270,800],[390,690],[520,595],[684,520],[684,1305]]] },
+  { "id": "fwdSideR", "fig": "sr71a-1-fig1-13-side-panels-forward.jpg", "title": "INSTRUMENT SIDE PANELS - Forward Cockpit (right)", "crop": [686, 515, 1310, 1425], "polys": [[[690,555],[880,600],[1020,680],[1140,780],[1230,900],[1290,1040],[1305,1255],[1015,1255],[1015,1420],[830,1420],[830,1290],[690,1290]]] },
+  { "id": "fwdConsoleL", "fig": "sr71a-1-fig1-14-left-console-forward.jpg", "title": "LEFT CONSOLE - Forward Cockpit", "crop": [250, 255, 790, 1600], "polys": [[[400,262],[780,262],[780,440],[400,440]], [[255,530],[480,530],[480,835],[255,835]], [[500,430],[780,430],[780,838],[500,838]], [[255,845],[780,845],[780,1595],[255,1595]]] },
+  { "id": "fwdConsoleR", "fig": "sr71a-1-fig1-15-right-console-forward.jpg", "title": "RIGHT CONSOLE - Forward Cockpit", "crop": [670, 290, 1125, 1400], "polys": [[[675,295],[980,295],[980,1395],[675,1395]], [[980,515],[1080,515],[1080,800],[980,800]], [[985,840],[1120,840],[1120,1140],[985,1140]]] },
+  { "id": "aftPanel", "fig": "sr71a-1-fig-aft-cockpit-panel.jpg", "title": "INSTRUMENT PANEL - Aft Cockpit", "crop": [210, 300, 1295, 870], "polys": [[[215,800],[530,390],[570,390],[570,862],[215,862]], [[578,862],[578,380],[640,322],[870,322],[915,380],[915,862]], [[935,390],[985,390],[1290,740],[1290,862],[935,862]]] },
+  { "id": "aftConsoleL", "fig": "sr71a-1-fig1-18-left-console-aft.jpg", "title": "LEFT CONSOLE - Aft Cockpit", "crop": [410, 505, 993, 1538], "polys": [[[413,508],[990,508],[990,1535],[413,1535]]] },
+  { "id": "aftConsoleR", "fig": "sr71a-1-fig1-19-right-console-aft.jpg", "title": "RIGHT CONSOLE - Aft Cockpit (OBC fit: the NOSE OBC panel replaces the radar panel, fig. 4-29)", "crop": [522, 432, 1013, 1428], "polys": [[[525,435],[1010,435],[1010,1425],[525,1425]]] }
+ ]
+}
