@@ -1,0 +1,180 @@
+{
+ "pass": 24,
+ "fail": 0,
+ "results": [
+  {
+   "name": "J58 max AB, SL static, per engine (fig. 1-3, 15 C)",
+   "ok": true,
+   "got": "25500 lbf",
+   "want": "25,500",
+   "tag": "CONFIRMED"
+  },
+  {
+   "name": "J58 max AB at 200 KIAS, SL (fig. 1-3: ~28,100)",
+   "ok": true,
+   "got": "28500 lbf",
+   "want": "~28,100",
+   "tag": "CONFIRMED"
+  },
+  {
+   "name": "minimum AB / max AB at SL (manual: ~85 %)",
+   "ok": true,
+   "got": "0.850",
+   "want": "0.85",
+   "tag": "CONFIRMED"
+  },
+  {
+   "name": "minimum AB / max AB at altitude (manual: ~55 %)",
+   "ok": true,
+   "got": "0.554",
+   "want": "0.55",
+   "tag": "CONFIRMED"
+  },
+  {
+   "name": "MIL / max AB, SL static (fig. 1-4: ~17,500 lbf at 15 C)",
+   "ok": true,
+   "got": "17595 lbf",
+   "want": "~17,500",
+   "tag": "CONFIRMED"
+  },
+  {
+   "name": "J58 max AB at Mach 3.2 / 80,000 ft, per engine",
+   "ok": true,
+   "got": "13474 lbf",
+   "want": "8.5-14 k (cruise ~8.5 k needed)",
+   "tag": "INFERRED"
+  },
+  {
+   "name": "spike: forward below Mach 1.6, 26 in aft at 3.2",
+   "ok": true,
+   "got": "0 / 0.4999999999999999 / 1",
+   "want": "0 / 0.5 / 1",
+   "tag": "CONFIRMED"
+  },
+  {
+   "name": "take-off at 125,000 lb: lift-off KIAS",
+   "ok": true,
+   "got": "217 KIAS",
+   "want": "~210",
+   "tag": "CONFIRMED"
+  },
+  {
+   "name": "take-off: attitude at lift-off (manual 8-10 deg)",
+   "ok": true,
+   "got": "8.0 deg",
+   "want": "8-10",
+   "tag": "CONFIRMED"
+  },
+  {
+   "name": "level 20000 ft at 400 KEAS: holds (alpha, throttle)",
+   "ok": true,
+   "got": "398 KEAS, 20004 ft, alpha 2.3 deg, thr 0.41, M 0.92",
+   "want": "400",
+   "tag": "INFERRED"
+  },
+  {
+   "name": "level 30000 ft at 324 KEAS: holds (alpha, throttle)",
+   "ok": true,
+   "got": "322 KEAS, 30002 ft, alpha 4.0 deg, thr 1.00, M 0.89",
+   "want": "324",
+   "tag": "INFERRED"
+  },
+  {
+   "name": "Mach 0.9 at 30,000 ft = 324 KEAS (manual)",
+   "ok": true,
+   "got": "M 0.899",
+   "want": "M 0.90",
+   "tag": "CONFIRMED"
+  },
+  {
+   "name": "climb Mach 0.75 / 25,000 ft -> Mach 3 / 70,000 ft (world time)",
+   "ok": true,
+   "got": "35.8 min world = 17.9 min real-equivalent",
+   "want": "16-17 min real = ~32-34 world (heights at half the vertical speed)",
+   "tag": "CONFIRMED"
+  },
+  {
+   "name": "climb fuel used (TM-104330: 140,000 lb start, ~21,400 lb left at M3 with N2O... clean ~ 30-40,000 used)",
+   "ok": true,
+   "got": "23375 lb",
+   "want": "20-45 k",
+   "tag": "INFERRED"
+  },
+  {
+   "name": "cruise Mach 3.2 / 80,000 ft: holds in partial AB",
+   "ok": true,
+   "got": "M 3.20 thr 0.66 alpha 6.3 deg, 352 KEAS, CIT 401 C",
+   "want": "partial AB",
+   "tag": "CONFIRMED"
+  },
+  {
+   "name": "cruise fuel flow (38-44,000 lb/h)",
+   "ok": true,
+   "got": "45352 lb/h",
+   "want": "38-44 k",
+   "tag": "INFERRED"
+  },
+  {
+   "name": "cruise KEAS (manual: 310 min; ~310-350 at 80,000 ft / Mach 3.2)",
+   "ok": true,
+   "got": "352 KEAS",
+   "want": "310-350",
+   "tag": "CONFIRMED"
+  },
+  {
+   "name": "CIT at Mach 3.2 below the 427 C limit",
+   "ok": true,
+   "got": "401 C",
+   "want": "< 427",
+   "tag": "CONFIRMED"
+  },
+  {
+   "name": "full AB at 80,000 ft: past Mach 3.3 / CIT 427 C (the limit is the pilot's), thrust runs out by ~3.6; 30 s over the CIT limit damages the engines",
+   "ok": true,
+   "got": "max M 3.45, CIT 300 C (427 at 12 s), engine damaged",
+   "want": "> 3.3",
+   "tag": "CONFIRMED"
+  },
+  {
+   "name": "unstart (left inlet, Mach 3): nose yaws left, then the auto restart",
+   "ok": true,
+   "got": "unstart true, restarted true, max yaw rate left 7.37 deg/s, sideslip 2.30 deg",
+   "want": "yaw left, restart",
+   "tag": "CONFIRMED"
+  },
+  {
+   "name": "touchdown ~155 KIAS (manual: 155 + 1 kt / 1,000 lb over 10,000)",
+   "ok": true,
+   "got": "154 KIAS, sink -211 fpm real, alpha 8.9 deg",
+   "want": "~157",
+   "tag": "CONFIRMED"
+  },
+  {
+   "name": "rollout with the drag chute: stops",
+   "ok": true,
+   "got": "200 m world = 2619 ft real-equivalent",
+   "want": "~ 3,000-5,000 ft",
+   "tag": "INFERRED"
+  },
+  {
+   "name": "full roll stick at 300 KEAS: roll rate",
+   "ok": true,
+   "got": "33 deg/s",
+   "want": "25-90",
+   "tag": "UNVERIFIED"
+  },
+  {
+   "name": "half aft stick at 300 KEAS: pulls g (3 g limit)",
+   "ok": true,
+   "got": "2.51 g",
+   "want": "1.8-4.5",
+   "tag": "UNVERIFIED"
+  }
+ ],
+ "climb": {
+  "t": 2149.859999998335,
+  "fuel": 56625.472388393275,
+  "alt": 70669.84337439129,
+  "mach": 3.0000126551374042
+ }
+}

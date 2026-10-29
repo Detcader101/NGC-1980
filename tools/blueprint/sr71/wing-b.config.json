@@ -1,0 +1,8 @@
+{
+ "image": "../../../docs/ngc1980/reference/sr71/usaf-sr71a-3view-2x.png",
+ "out": "trace-wing-b.json",
+ "source": "USAF 'Blackbird 3-view' top view (public domain), the right outer wing traced row by row (span)",
+ "frame": "rows = span x (m) = (795.5 - py) / 93.83; left / right = metres forward / aft of the reference column (X = (px - 634) / 93.83)",
+ "threshold": 140, "eraseLen": 5000, "dilate": 2,
+ "front": { "rows": [0, 140], "cols": [2000, 3708], "s": 93.83, "centrePx": 3374, "groundPx": 795.5, "yGround": 0 }
+}

@@ -49,6 +49,7 @@ import { createVehicleCraft } from './vehicle.js';
 import { createJetCraft } from './craftjet.js';
 import { createTomcatCraft } from './crafttomcat.js';   // TOMCAT: the flyable F-14A (crafttomcat.js, units/air/tomcatplay.js)
 import { createCH46Craft } from './units/air/rotary/ch46craft.js';   // ngc/ch46fly: the flyable CH-46E Sea Knight
+import { createSR71Craft } from './craftsr71.js';   // (ngc/look-sr71) the flyable SR-71A: strategic reconnaissance from the air bases outside the zone
 import { DECK_OPS } from './units/naval/deckops.js';
 const isJet = () => G.craft === 'jet' || G.craft === 'tomcat';   // TOMCAT: the fixed-wing crafts share the HORNET's hooks below
 // COMMANDER: the player commands the task force - the fleet ledger (lives -> unit counts), the command board (\),
@@ -1492,6 +1493,12 @@ const BASE_CTX = {   // what every base aircraft gets (the SR-71 too: baseOps.at
 const baseOps = createBaseOps(BASE_CTX), c130C = baseOps.attach(createC130Sortie(BASE_CTX));
 function baseSortieEnd(def, mine) { if (!def.noGive) fleet.give(def.id); if (mine && !G.over) autoNext('SORTIE COMPLETE  -  BACK IN THE HUEY'); }
 globalThis.__AIRBASE = { AIRBASE, AIRBASE_MESH, baseOps, c130C };   // tests (tools/scenes/airbase*.mjs); the SR-71 plugs in with baseOps.add(def)
+// --- (ngc/look-sr71) the SR-71A BLACKBIRD (craftsr71.js): parked at an air base outside the zone (the bases place it:
+// sr71C.placeOnGround / enter, docs/ngc1980/findings/look-sr71.md 'API for the bases agent'); ?fly=sr71 | sr71air to try it
+const sr71C = crafts.register(createSR71Craft({
+  scene: zScene, war, G, Z, CTL, keyDown: kd, hwOn: () => !!XR?.motionInput || !keyboardOnly, say, feed, sfx, crafts, head, terrainH, waterAt, fog, bound: BOUND,
+  camZ: () => zCam, view: { locked: () => document.pointerLockElement === canvas }, onUnitLost: (id, why, mine) => onUnitLost(id, why, mine), autoNext: () => autoNext(),
+}));
 // --- ON FOOT
 const foot = crafts.register(createFootCraft({
   scene: zScene, GR, crafts, war, fx, sfx, say, keyDown: kd, groundEnv: GR, camera: () => zCam,
@@ -1613,7 +1620,7 @@ function toHeli(msg) {
   if (msg) say(msg, 2.5);
 }
 // title screen / new game: everyone back in the hangar, the player in the helicopter
-function stowCrafts() { c130C.parkAt(AIRBASE.spot('c130', 'park')); /* (ngc/look-airbases) */ ch46C.stow(); JP.stow(); jetC.park.on = false; tomcatC.TP.stow(); tomcatC.park.on = false; if (foot.exists) foot.exit(); G.heliStowed = false; G.crewDownT = 0; crafts.setActive('heli'); crafts.silence(); }
+function stowCrafts() { c130C.parkAt(AIRBASE.spot('c130', 'park')); /* (ngc/look-airbases) */ sr71C.P.stow(); /* (ngc/look-sr71) */ ch46C.stow(); JP.stow(); jetC.park.on = false; tomcatC.TP.stow(); tomcatC.park.on = false; if (foot.exists) foot.exit(); G.heliStowed = false; G.crewDownT = 0; crafts.setActive('heli'); crafts.silence(); }
 // a new war: the TEST CAR waits at the home island's motor pool (else on the carrier deck)
 function placeVehicles() {
   pool.newGame();   // ngc/wheeledgame: M151s and M35s at every friendly motor pool and on the deck park
@@ -2836,9 +2843,12 @@ renderer.setAnimationLoop(frame);
 // ?debug: the test / debug bridge (window.__G; tools/scenes read it with page.evaluate). DebugBridge is its type, so
 // game/types/globals.d.ts types window.__G and a renamed or removed member shows up in node tools/check.mjs types.
 /** @typedef {ReturnType<typeof debugBridge>} DebugBridge */
-function debugBridge() { return { XR, G, airlift, airdrop, ch46C, heliAIenv, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, get forest() { return { count: world.stats.forestTrees || 0 }; }, world, terrainUni, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, rkPost /* RENDERKIT post */, MERGES, RKLOD /* ngc/perf-render */, rkLight /* RENDERKIT light */, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, get tech() { return war.tech; }, techUI /* TECH TREE: tech = [null, player, enemy] */, say, feed /* RENDERKIT ui: tools/scenes/rkui.mjs */ }; }
+function debugBridge() { return { XR, G, airlift, airdrop, ch46C, sr71C /* (ngc/look-sr71) */, heliAIenv, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, get forest() { return { count: world.stats.forestTrees || 0 }; }, world, terrainUni, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, rkPost /* RENDERKIT post */, MERGES, RKLOD /* ngc/perf-render */, rkLight /* RENDERKIT light */, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, get tech() { return war.tech; }, techUI /* TECH TREE: tech = [null, player, enemy] */, say, feed /* RENDERKIT ui: tools/scenes/rkui.mjs */ }; }
 if (params.has('debug')) { window.__G = debugBridge(); if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); H.reset(H.pos.clone(), 0, false, 1); SY.grip = 1; SY.auto = null; enterCave(b); }   /* (ngc/bugsweep) ?thrust=N starts in the cave already flying: engine at flight power, throttle rolled on (it came in at ground idle with the throttle rolling on, the rotor drooped and caveaim / caves crashed in the shaft) */ }
 // ngc/ch46fly dev: ?fly=ch46 puts you in a CH-46E on the ALBATROSS (with ?auto; ?fly=ch46&cold cold and dark; &at=island at the nearest friendly pad)
+// (ngc/look-sr71) ?fly=sr71: an SR-71 on a strip 6 km west of the zone, engines running, the player in it; ?fly=sr71air: at
+// 25,000 ft heading for the zone (until the air bases exist)
+if (/^sr71/.test(params.get('fly') || '')) { const t0 = performance.now(), go = () => { if (G.state === 'play' && G.mode === 'zarch') { const air = params.get('fly') === 'sr71air', x = -BOUND - 6000, z = 0; if (air) sr71C.placeInAir(x - 20000, 0, z, -Math.PI / 2, { ft: 25000, keas: 380, fuelLb: 70000 }); else { sr71C.addStrip({ x: x + 300, z, yaw: Math.PI / 2, len: 1400, wid: 45, y: 2 }); sr71C.placeOnGround(x, 2, z, -Math.PI / 2, { hot: true, fuelLb: 65000 }); } crafts.control('sr71', 0, 'spawn'); return; } if (performance.now() - t0 < 30000) setTimeout(go, 200); }; setTimeout(go, 300); }
 if (params.get('fly') === 'ch46') { const t0 = performance.now(), go = () => { if (G.state === 'play' && G.mode === 'zarch' && Z.alive && H.landed) { const isl = commandBases().filter(b => b.kind === 'island').sort((a, b) => Math.hypot(a.x - Z.pos.x, a.z - Z.pos.z) - Math.hypot(b.x - Z.pos.x, b.z - Z.pos.z))[0]; commander.deploy('ch46', params.get('at') === 'island' && isl ? isl.key : 'ship'); return; } if (performance.now() - t0 < 30000) setTimeout(go, 200); }; setTimeout(go, 300); }
 
 // SIM MODE (?sim): both sides CPU commanders, the player's Huey parked out of the war, a spectator camera and overlay
