@@ -68,7 +68,10 @@ reticle's tick ladder when the hat is centred (not separately harmonised).
 | check types | 572 (baseline 572) |
 | hueysight (dev turntable views) | PASS, 0 errors |
 | hueysightfire (rockets vs reticle, in the game) | PASS 4/4 |
-| hueycockpit, hueyhotas, xrgameplay (new step: Huey VR cockpit with the sight down in stereo), smoke | see MODLOG / the report |
+| hueycockpit | PASS 7/7 |
+| hueyhotas | PASS 11/11 |
+| xrgameplay | PASS 26/26 (new step: the Huey's VR cockpit with the sight swung down, both eyes: `xr_stereo.png`) |
+| smoke | PASS 5/5 |
 
 ## Open
 - The elevation drum is modelled but not operable: the reticle is fixed at the 250 m harmonisation (no

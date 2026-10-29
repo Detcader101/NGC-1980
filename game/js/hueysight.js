@@ -63,7 +63,7 @@ export function buildHueySight({ eye, M, hit, hinge = [0.55, 0.455, -2.28] }) {
   // the swinging part: pivots about the fore-aft hub axis (z); operate = hanging down, stow = swung up inboard
   const arm = new THREE.Group(); arm.name = 'sightArm'; root.add(arm);
   add(new THREE.BoxGeometry(0.05, 0.13, 0.016), od, 0, -0.07, 0.004, arm);                                   // the mount's drop plate
-  for (let i = 0; i < 4; i++) add(new THREE.CylinderGeometry(0.005, 0.005, 0.018, 8).rotateX(Math.PI / 2), dark, (i % 2 ? 0.013 : -0.013), -0.09 - Math.floor(i / 2) * 0.025, 0.004, arm);   // lightening holes
+  for (let i = 0; i < 2; i++) add(new THREE.CylinderGeometry(0.005, 0.005, 0.018, 8).rotateX(Math.PI / 2), dark, (i ? 0.013 : -0.013), -0.03, 0.004, arm);   // fasteners above the decal
   add(new THREE.BoxGeometry(0.008, 0.035, 0.012), dark, 0.025, -0.045, 0.012, arm);                         // locking lever
   // aiming data decal on the bracket (SIGHT REFLEX HELICOPTER XM60 - ELEVATION SETTING: range / altitude table)
   { const cv = document.createElement('canvas'); cv.width = 128; cv.height = 160; const c = cv.getContext('2d'); c.fillStyle = '#d8d4c4'; c.fillRect(0, 0, 128, 160); c.fillStyle = '#151515'; c.font = 'bold 11px Arial'; c.textAlign = 'center';

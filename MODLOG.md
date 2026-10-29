@@ -1,5 +1,17 @@
 # MODLOG — NGC-1980 (formerly Thrust/Zarch)
 
+## 2026-10-29 — Huey: the pilot's XM60 reflex sight replaces the crosshair (ngc/huey-sight)
+
+The sight that flips down from the cabin top in front of a Huey pilot is the M60-series helicopter **reflex** sight
+(XM60) on the infinity reflex sight mount (TM 9-1090-204-12, 1967; FM 1-40 Helicopter Gunnery, 1973; both public
+domain on archive.org) - not a holographic sight. `game/js/hueysight.js` models it (mount hub with operate / stow,
+drop plate, aiming-data decal, housing, elevation drum, rheostat, lamp switch, beam-splitter glass) and draws the FM
+1-40 reticle in the glass with a collimating shader, fixed to the airframe at infinity (stays on target when the head
+moves; per-eye in VR). ` or a click flips it down / up; the first rocket fired swings it down. The rockets now leave
+along the fixed launchers' boresight; the sight is harmonised to them at 250 m (game ranges): in-game check, the pair
+lands -6.6 / +5.9 mils either side of the pipper, mean 0.35 mils. The generic crosshair is gone in the Huey cockpit
+only. Details: [findings](docs/ngc1980/findings/huey-sight.md), evidence in `docs/ngc1980/evidence/huey-sight/`.
+
 ## 2026-10-29 — Calm ground from the air, a map that zooms past the zone (branch ngc/look-terrain, WIP at close)
 
 After Jay Jay's review: the ground's fine detail (normal map, height blend, small noise) now fades with the pixel's
