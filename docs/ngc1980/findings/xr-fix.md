@@ -36,4 +36,4 @@ the local pose — the underwater test there is wrong in VR. Pre-existing, outsi
 ## Results
 - xr.mjs 19/19 (was 17/19).
 - check.mjs syntax 556/556; check.mjs types 608 (baseline 608); no conflict markers.
-- xrgameplay.mjs, smoke.json: see below.
+- xrgameplay.mjs 25/25; smoke.json 5/5 (0 page / console errors each).
