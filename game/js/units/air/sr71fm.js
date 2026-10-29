@@ -307,7 +307,7 @@ export function createSR71Sim(GRAV = 9.80665) {
     if (!A.onGround) { A.nzMax = Math.max(A.nzMax, A.nz); A.nzMin = Math.min(A.nzMin, A.nz); }
     // limits: the airframe is a 3 g aircraft at heavy weights (2.5 g at high Mach); KEAS over 450 heats and loads it
     const gLim = A.mach > 2 ? 2.5 : 3.0;
-    if (A.nz > gLim + 0.3 && !A.overG) { A.overG = true; ev('overstress', { g: A.nz }); A.damage += 0.05; } else if (A.nz < gLim) A.overG = false;
+    if (!A.onGround && A.wow.every(w => !w) && A.nz > gLim + 0.3 && !A.overG) { A.overG = true;   /* (ngc/look-airbases: in the air only - the gear's touchdown reaction is in nz: a 200 fpm landing read 4 g) */ ev('overstress', { g: A.nz }); A.damage += 0.05; } else if (A.nz < gLim) A.overG = false;
     if (A.keas > P.KEAS_MAX + 10) { A.overspeedT += h; if (A.overspeedT > 0.5 && !A.osEv) { A.osEv = true; ev('overspeed'); } if (A.keas > 520) A.damage += h * 0.02; } else { A.overspeedT = 0; A.osEv = false; }
     // fuel leaks on the ground until the airframe has been heat-soaked (the tank sealant): a slow drip, cold (INFERRED)
     A.leak = A.onGround && A.skinT < 60 ? 0.012 : 0; A.fuel = Math.max(0, A.fuel - A.leak * h);

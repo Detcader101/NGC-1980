@@ -126,3 +126,47 @@ SR-71 API to call. The base is ready for it:
 - Keyboard flying: letting go of the yoke holds heading and height (as RAIDER 21 does); in the climb-out it holds a
   climb to 1,000 ft AGL. A HOTAS flies it raw.
 - The site search costs ~220 ms per thread at load (main + 2 workers); it could be cached if load time matters.
+
+## 2026-10-29 (afternoon) - The SR-71 at the base (after merging ngc/shader-library with ngc/look-sr71)
+
+`units/air/basesr71.js attachSR71(BASE_CTX, sr71C)` gives look-sr71's craft the base contract on top of its own API
+(placeOnGround, addStrip, P.override, its altitude / heading autopilot); main.js: `baseOps.add(attachSR71(BASE_CTX, sr71C))`.
+- **Board**: the SR-71 row (`\`, down, ENTER) puts the crew in her in **shelter 1**, cold (`?quick`: engines running).
+  I: the start cart lights both J58s; she taxis out of the shelter on her own power (the shelters, hangar, tanks and
+  buildings stop her: `hitBuilding`). SHIFT+L: towed to the runway (the departure end), engines running.
+- **Pavement**: every paved rectangle of the field (runway + overruns, taxiways, ramp, shelter and hangar floors) is
+  registered with `sr71C.addStrip({ ..., mesh: false })`, so she rolls on it exactly (never "sea").
+- **N: home** (`sr71Home`, pure): the initial fix 9 km out at 1,600 ft over the field (500 ft over the ground ahead
+  at least), 250 KEAS, 200 KEAS and gear down inside 5 km, a 175 KEAS final on a 3 deg path (165 short final), the flare
+  law of sr71bench to touchdown, power off, the **drag chute below 205 KIAS** (jettisoned at a walk), brakes below 80
+  KIAS, nose wheel on the centreline. It flies her own autopilot (altitude + heading hold) and the throttles; any stick
+  input hands back. SHIFT+N is now her lights (N was).
+- **End**: stopped on the base, O (engines off) - the crew tows her into the shelter after 2 s; SHIFT+O at once. Fleet:
+  back in reserve; a loss is booked by craftsr71's `onUnitLost('sr71')`. Left in the air for another unit, the crew flies
+  her home. New game: she is parked in her shelter. **?fly=sr71** now lines her up on the base runway (engines running);
+  ?fly=sr71air unchanged.
+- **Bench** (`node tools/airbasebench.mjs`): SR-71 sorties from both ends on sr71fm: lift-off 217 KIAS (manual ~210),
+  home, touchdown 148 KIAS (manual 155), chute out, stopped on the centreline (0.0 m), ~440 m short of the far end.
+- **Landing weight**: a 64,000 lb sortie could not hold the 175 KEAS final at MIL (high and slow over the runway in the
+  first scene run). The way home now dumps fuel to ~15,000 lb on the way to the fix (the SR-71 has a dump; the rate is
+  fast-forwarded, 450 lb/s, and announced). Bench: a heavy (64,000 lb) and a light (45,000 lb) sortie both land, 149
+  KIAS touchdown, chute, stop on the centreline.
+- **SAMs at the base**: look-sr71's SA-2 sites reach 45 km, and with BOUND 1280 IRONHOLD is ~7 km from the field's
+  approach: they fired at her on the runway (first scene run: lost on the take-off). The adapter gives the base a HAWK
+  battery: within 15 km of the field below 20,000 ft enemy SAMs are destroyed (feed line). Open: with runways pointing
+  at the zone the clear approach can lead over enemy ground; a proper fix is SAM coverage that respects the zone.
+- Scene: `tools/scenes/airbasesr71.mjs` (board, shelter, cart start, taxi out, tow, take-off, N home, chute, stop, O,
+  parked). The take-off rotation is a test pilot's law through P.override (a held S key is full back stick and scrapes
+  the tail: a keyboard player has to ease it, as in look-sr71's own scene).
+- **Flare at any frame rate**: the first flare law (the sr71bench gamma law, applied once a frame) touched down at
+  122-125 KIAS with a 4.7 g overstress at the headless 10 fps (P.override runs per frame, not per substep). The flare
+  now uses her own autopilot's attitude hold (it runs inside the flight model's 200 Hz substeps) at 7.2 deg with
+  power for 155 KIAS: 155 KIAS at 60 Hz, 157 at 10 Hz, ~500 m past the threshold. The glide path also leads the
+  autopilot's vertical-speed loop (it rode ~60 m high and landed 3 km in).
+- Scenes open the command board with `__G.commander.open()` (Codex's radio desk takes the `\` key on the integration
+  branch).
+- **Touchdown "overstress"**: sr71fm checked the g limit on the ground too, where nz carries the gear's touchdown
+  reaction: every landing (even ~200 fpm) read 4-6.5 g OVERSTRESS and took 5 % damage. Now airborne only (one marked
+  line in sr71fm.js; sr71bench 24/24). The flare is a 0.5 m/s (world) sink on her altitude hold with power for ~157:
+  touchdown 144 KIAS at 60 Hz, 151 at 10 Hz, no overstress. (At SRDT=0.1 the bench's own scripted climb-out from the
+  obstructed end hits the hill; that is the bench pilot, not the base code.)

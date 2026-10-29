@@ -17,8 +17,10 @@ blackbird and heracles from there whenever we want."
 - **Fly from it whenever you like**: the command board's new **C-130** row (`\`, down, ENTER, from any unit) puts
   the C-130H on the ramp in front of its hangar, engines running (`?cold`: cold, K for the engineer). Taxi on the
   real flight model, SHIFT+L line up, take off, N flies her home and lands; stopped on the base, O hands her in: towed
-  into the hangar, back in reserve, you are back in the Huey. The **SR-71** row and shelter wait for ngc/look-sr71
-  (`baseOps.attach(def)`, documented in the findings).
+  into the hangar, back in reserve, you are back in the Huey. **SR-71** (after look-sr71 merged): her row puts the crew
+  in shelter 1, cold (I: start cart; `?quick` hot); she taxis out, SHIFT+L tows her to the runway, N flies her home
+  (fuel dumped to landing weight, 175 KEAS final, 155 KIAS touchdown, drag chute), O shuts down and she is towed in.
+  The base's HAWK battery keeps the zone's SA-2s off her near the field. `?fly=sr71` now uses the base runway.
 - Tests: `node tools/airbasebench.mjs` (flat ground, keep-outs, mesh budget, full sorties from both ends at BOUND 1280
   and 2560), `tools/scenes/airbase.mjs` (board to hand-in, 14/14). Findings: docs/ngc1980/findings/look-airbases.md.
 

@@ -60,6 +60,34 @@ const sortie = (endIdx, label) => {
   ok(H.rollout && !S.dead && A.onRunway(S.pos.x, S.pos.z) && Math.hypot(S.vel.x, S.vel.z) < 0.5 && Math.abs(end[1]) < 25, `${label}: autopilot home - lands on the runway and stops on it (${end[1].toFixed(1)} m off the centreline)`);
 };
 sortie(0, `from ${A.ends[0].num}`); sortie(1, `from ${A.ends[1].num}`);
+// 5. an SR-71 sortie on its own flight model (sr71fm.js) and the base adapter's way home (basesr71.js sr71Home): lined
+// up for the departure end, full AB, rotate at ~190 KIAS (the sr71bench law), gear up, climb out, then N: the fix,
+// a 175 KEAS final, flare, 155 KIAS touchdown, drag chute, brakes, stop on the centreline
+{
+  const { createSR71Sim } = await import('../game/js/units/air/sr71fm.js');
+  const { sr71Home } = await import('../game/js/units/air/basesr71.js');
+  const { departEnd } = await import('../game/js/units/air/basecraft.js');
+  const sr = (endSel, label) => {
+    const S = createSR71Sim(), gy = (x, z) => Math.max(W.rawH(x, z), 0), env = { groundY: gy, water: () => false };
+    const e0 = endSel, [tx, tz] = A.toW(e0.u + e0.dir * 80, 0);
+    S.resetGround(tx, A.E, tz, A.yawOf(e0.dir, 0)); S.fuel = (label === 'other end' ? 45000 : 64000) / 2.20462;
+    const dt = +(process.env.SRDT || 1 / 60), H = {}, c = { pitch: 0, roll: 0, yaw: 0, throttle: [1, 1], brakeL: 0, brakeR: 0, trimRate: 0 };
+    let t = 0, lift = null, td = null, phase = 'roll', chute = false, maxKeas = 0;
+    for (; t < 1500 && !S.dead; t += dt) {
+      c.pitch = c.roll = c.yaw = 0; c.brakeL = c.brakeR = 0;
+      if (phase === 'roll') { c.throttle = [1, 1]; const att = S.attitude().pitch; if (S.kias > 188) c.pitch = Math.max(-1, Math.min(1, (0.165 - att) * 8 - S.w.y * 2)); if (!S.onGround) { lift = { kias: S.kias, at: A.toL(S.pos.x, S.pos.z, [0, 0]) }; phase = 'climb'; } }
+      else if (phase === 'climb') { c.throttle = S.keas < 280 ? [0.85, 0.85] : [0.6, 0.6]; S.ap.on = true; S.ap.pitch = 'alt'; S.ap.alt = A.E + 800; S.ap.roll = 'hdg'; S.ap.hdg = A.yawOf(e0.dir, 0); if (S.pos.y - A.E > 60) S.gearCmd = 0; if (S.pos.y - A.E > 500) phase = 'home'; }
+      else { const ph = sr71Home(S, H, A, dt, gy, c); if (ph === 'rollout' && !td) td = { kias: S.kias, at: A.toL(S.pos.x, S.pos.z, [0, 0]) }; if (S.chute === 'deployed' || S.chute === 'jettisoned') chute = true; if (ph === 'rollout' && Math.hypot(S.vel.x, S.vel.z) < 0.5) break; }
+      maxKeas = Math.max(maxKeas, S.keas);
+      const ev = S.step(dt, c, env); for (const x of ev) if (x.e === 'overstress' && phase === 'home') console.log('   overstress', x.g.toFixed(1), 'g, agl', (S.pos.y - gy(S.pos.x, S.pos.z)).toFixed(1), 'onGround', S.onGround, 'kias', S.kias.toFixed(0), H.flare ? 'flare' : '', H.rollout ? 'rollout' : ''); for (const x of ev) if (x.e === 'touchdown' && td === null && phase === 'home') td = { kias: x.kias, at: A.toL(S.pos.x, S.pos.z, [0, 0]) };
+    }
+    const end = A.toL(S.pos.x, S.pos.z, [0, 0]);
+    console.log(`sr-71 ${label}: lift-off ${lift ? lift.kias.toFixed(0) + ' KIAS' : '-'}; home via RWY ${H.end ? H.end.num : '-'}; touchdown ${td ? td.kias.toFixed(0) + ' KIAS at ' + ((td.at[0] - H.end.u) * H.end.dir).toFixed(0) + ' m past the threshold' : '-'}; chute ${chute}; t=${t.toFixed(0)} s; stopped at u=${end[0].toFixed(0)} v=${end[1].toFixed(1)} ${S.dead ? 'DEAD ' + S.dead : ''}`);
+    ok(lift && !S.dead, `${label}: SR-71 takes off (${lift ? lift.kias.toFixed(0) : '-'} KIAS, manual ~210)`);
+    ok(td && Math.abs(td.kias - 160) < 25 && chute && !S.dead && A.onRunway(S.pos.x, S.pos.z) && Math.hypot(S.vel.x, S.vel.z) < 0.5 && Math.abs(end[1]) < 25, `${label}: SR-71 home autopilot - lands (${td ? td.kias.toFixed(0) : '-'} KIAS, manual 155), chute, stops on the runway (${end[1].toFixed(1)} m off the centreline)`);
+  };
+  sr(departEnd(A, 0), 'departure end'); sr(A.ends[0] === departEnd(A, 0) ? A.ends[1] : A.ends[0], 'other end');
+}
 for (const k in AB_SLOTS) { const sp = A.spot(k, 'park'); ok(!A.hitBuilding(sp.x, sp.z, 0) && A.onPavement(sp.x, sp.z), `slot ${k}: inside its hangar on paved floor`); }
 console.log(fails ? `${fails} FAILED` : 'ALL PASS');
 process.exit(fails ? 1 : 0);
