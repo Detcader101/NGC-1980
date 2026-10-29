@@ -78,7 +78,7 @@ import { planHards, hardsH, onHard } from './units/armor/landinghard.js';
 import { buildHardMesh } from './units/armor/lcm8.js';
 import { createPerfHud } from './perfhud.js';   // (ngc/perf-cpu) ?perfhud: CPU ms per system
 import { hypot2 } from './hypot.js';   // (ngc/perf-cpu) Math.hypot without the garbage, same bits (the ground height functions)
-import { AIRBASE } from './world.js'; import { buildAirbase, drawAirbaseMap } from './world/airbasemesh.js'; import { createC130Sortie, createBaseOps } from './units/air/basecraft.js';   // (ngc/look-airbases) the air base outside the zone, its C-130 / SR-71 sorties
+import { AIRBASE } from './world.js'; import { buildAirbase, drawAirbaseMap } from './world/airbasemesh.js'; import { createC130Sortie, createBaseOps } from './units/air/basecraft.js'; import { attachSR71 } from './units/air/basesr71.js';   // (ngc/look-airbases) the air base outside the zone, its C-130 / SR-71 sorties
 
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -1499,6 +1499,7 @@ const sr71C = crafts.register(createSR71Craft({
   scene: zScene, war, G, Z, CTL, keyDown: kd, hwOn: () => !!XR?.motionInput || !keyboardOnly, say, feed, sfx, crafts, head, terrainH, waterAt, fog, bound: BOUND,
   camZ: () => zCam, view: { locked: () => document.pointerLockElement === canvas }, onUnitLost: (id, why, mine) => onUnitLost(id, why, mine), autoNext: () => autoNext(),
 }));
+baseOps.add(attachSR71(BASE_CTX, sr71C)); globalThis.__AIRBASE.sr71C = sr71C;   // (ngc/look-airbases) the SR-71 lives in shelter 1 at the air base: board row, sorties, N home, hand-in
 // --- ON FOOT
 const foot = crafts.register(createFootCraft({
   scene: zScene, GR, crafts, war, fx, sfx, say, keyDown: kd, groundEnv: GR, camera: () => zCam,
@@ -1620,7 +1621,7 @@ function toHeli(msg) {
   if (msg) say(msg, 2.5);
 }
 // title screen / new game: everyone back in the hangar, the player in the helicopter
-function stowCrafts() { c130C.parkAt(AIRBASE.spot('c130', 'park')); /* (ngc/look-airbases) */ sr71C.P.stow(); /* (ngc/look-sr71) */ ch46C.stow(); JP.stow(); jetC.park.on = false; tomcatC.TP.stow(); tomcatC.park.on = false; if (foot.exists) foot.exit(); G.heliStowed = false; G.crewDownT = 0; crafts.setActive('heli'); crafts.silence(); }
+function stowCrafts() { c130C.parkAt(AIRBASE.spot('c130', 'park')); /* (ngc/look-airbases) */ sr71C.parkAt(AIRBASE.spot('sr71', 'park')); /* (ngc/look-sr71, ngc/look-airbases: in her shelter) */ ch46C.stow(); JP.stow(); jetC.park.on = false; tomcatC.TP.stow(); tomcatC.park.on = false; if (foot.exists) foot.exit(); G.heliStowed = false; G.crewDownT = 0; crafts.setActive('heli'); crafts.silence(); }
 // a new war: the TEST CAR waits at the home island's motor pool (else on the carrier deck)
 function placeVehicles() {
   pool.newGame();   // ngc/wheeledgame: M151s and M35s at every friendly motor pool and on the deck park
@@ -2846,9 +2847,9 @@ renderer.setAnimationLoop(frame);
 function debugBridge() { return { XR, G, airlift, airdrop, ch46C, sr71C /* (ngc/look-sr71) */, heliAIenv, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, get forest() { return { count: world.stats.forestTrees || 0 }; }, world, terrainUni, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, rkPost /* RENDERKIT post */, MERGES, RKLOD /* ngc/perf-render */, rkLight /* RENDERKIT light */, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, get tech() { return war.tech; }, techUI /* TECH TREE: tech = [null, player, enemy] */, say, feed /* RENDERKIT ui: tools/scenes/rkui.mjs */ }; }
 if (params.has('debug')) { window.__G = debugBridge(); if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); H.reset(H.pos.clone(), 0, false, 1); SY.grip = 1; SY.auto = null; enterCave(b); }   /* (ngc/bugsweep) ?thrust=N starts in the cave already flying: engine at flight power, throttle rolled on (it came in at ground idle with the throttle rolling on, the rotor drooped and caveaim / caves crashed in the shaft) */ }
 // ngc/ch46fly dev: ?fly=ch46 puts you in a CH-46E on the ALBATROSS (with ?auto; ?fly=ch46&cold cold and dark; &at=island at the nearest friendly pad)
-// (ngc/look-sr71) ?fly=sr71: an SR-71 on a strip 6 km west of the zone, engines running, the player in it; ?fly=sr71air: at
+// (ngc/look-sr71) ?fly=sr71: the SR-71 lined up on the air base runway, engines running (ngc/look-airbases); ?fly=sr71air: at
 // 25,000 ft heading for the zone (until the air bases exist)
-if (/^sr71/.test(params.get('fly') || '')) { const t0 = performance.now(), go = () => { if (G.state === 'play' && G.mode === 'zarch') { const air = params.get('fly') === 'sr71air', x = -BOUND - 6000, z = 0; if (air) sr71C.placeInAir(x - 20000, 0, z, -Math.PI / 2, { ft: 25000, keas: 380, fuelLb: 70000 }); else { sr71C.addStrip({ x: x + 300, z, yaw: Math.PI / 2, len: 1400, wid: 45, y: 2 }); sr71C.placeOnGround(x, 2, z, -Math.PI / 2, { hot: true, fuelLb: 65000 }); } crafts.control('sr71', 0, 'spawn'); return; } if (performance.now() - t0 < 30000) setTimeout(go, 200); }; setTimeout(go, 300); }
+if (/^sr71/.test(params.get('fly') || '')) { const t0 = performance.now(), go = () => { if (G.state === 'play' && G.mode === 'zarch') { const air = params.get('fly') === 'sr71air', x = -BOUND - 6000, z = 0; if (air) { sr71C.spawnAt({ x: x - 20000, z, yaw: 0 }, 'hot'); sr71C.placeInAir(x - 20000, 0, z, -Math.PI / 2, { ft: 25000, keas: 380, fuelLb: 70000 }); fleet.take('sr71'); } else { fleet.take('sr71'); baseOps.deploy('sr71', 'runway'); return; } /* (ngc/look-airbases: ?fly=sr71 = lined up on the air base's runway, engines running) */ crafts.control('sr71', 0, 'spawn'); return; } if (performance.now() - t0 < 30000) setTimeout(go, 200); }; setTimeout(go, 300); }
 if (params.get('fly') === 'ch46') { const t0 = performance.now(), go = () => { if (G.state === 'play' && G.mode === 'zarch' && Z.alive && H.landed) { const isl = commandBases().filter(b => b.kind === 'island').sort((a, b) => Math.hypot(a.x - Z.pos.x, a.z - Z.pos.z) - Math.hypot(b.x - Z.pos.x, b.z - Z.pos.z))[0]; commander.deploy('ch46', params.get('at') === 'island' && isl ? isl.key : 'ship'); return; } if (performance.now() - t0 < 30000) setTimeout(go, 200); }; setTimeout(go, 300); }
 
 // SIM MODE (?sim): both sides CPU commanders, the player's Huey parked out of the war, a spectator camera and overlay

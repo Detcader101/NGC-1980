@@ -65,13 +65,13 @@ export function createC130Sortie(ctx) {
     pose(0);
   };
   D.lineUp = () => {   // quick start: lined up for take-off (departEnd), engines running, 50 % flaps
-    const e = departEnd(), [x, z] = L.toW(e.u + e.dir * 60, 0);
+    const e = departEnd_(), [x, z] = L.toW(e.u + e.dir * 60, 0);
     S.resetGround(x, L.E, z, L.yawOf(e.dir, 0)); S.flapSel = S.flap = 0.5; ctl.lever.fill(18); parkBrake = false; snapChase = true;
     say(`LINED UP ON RUNWAY ${String(e.num).padStart(2, '0')}  -  SHIFT POWER UP, PULL BACK AT ~105 KIAS`, 3);
   };
   const nearestEnd = () => { const [u] = L.toL(S.pos.x, S.pos.z, _l); return L.ends.reduce((a, b) => Math.abs(b.u - u) < Math.abs(a.u - u) ? b : a); };
   // the end to take off from: the one whose climb-out goes over the clear approach (high ground behind you), else the nearer
-  const departEnd = () => { const [a, b] = L.ends, hi = a.obst > b.obst ? a : b, lo = hi === a ? b : a; return hi.obst > 0 && hi.obst - lo.obst > 100 ? hi : nearestEnd(); };
+  const departEnd_ = () => departEnd(L, L.toL(S.pos.x, S.pos.z, _l)[0]);
 
   // ---------------------------------------------------------------- in / out
   D.enter = (seat, from) => {
@@ -334,6 +334,11 @@ export function createC130Sortie(ctx) {
   return D;
 }
 
+// which runway end: home = the end on our side of the field (u: our position along it), unless its approach is over
+// high ground and the other's is clearer; depart = the end whose climb-out goes over the clear approach, else the nearer
+export function homeEnd(L, u) { const near = u < 0 ? L.ends[0] : L.ends[1], far = near === L.ends[0] ? L.ends[1] : L.ends[0]; return near.obst > -60 && far.obst < near.obst ? far : near; }
+export function departEnd(L, u) { const [a, b] = L.ends, hi = a.obst > b.obst ? a : b, lo = hi === a ? b : a; return hi.obst > 0 && hi.obst - lo.obst > 100 ? hi : (Math.abs(a.u - u) < Math.abs(b.u - u) ? a : b); }
+
 // ------------------------------------------------------------------------------------------------ the way home (pure)
 // The C-130 autopilot's HOME mode: to the initial approach fix 6 km out on the centreline of the runway end it can
 // join with the least turning, a final with a 3 deg glide path (1,000 ft until it meets it), flaps 50 then 100, gear
@@ -343,7 +348,7 @@ export function createC130Sortie(ctx) {
 export function homeAutopilot(S, A, L, dt, groundY, say = null) {
   const _p = [0, 0], [u, v] = L.toL(S.pos.x, S.pos.z, _p);
   // the end: the one on our side of the field, unless its approach is over high ground and the other's is clearer
-  const e = A.end || (A.end = (() => { const near = u < 0 ? L.ends[0] : L.ends[1], far = near === L.ends[0] ? L.ends[1] : L.ends[0]; return near.obst > -60 && far.obst < near.obst ? far : near; })()), d = e.dir;
+  const e = A.end || (A.end = homeEnd(L, u)), d = e.dir;
   const along = (u - e.u) * d;   // metres past the threshold (negative on final)
   const agl = S.pos.y - groundY(S.pos.x, S.pos.z);
   let tgt, alt, kias;
@@ -388,8 +393,8 @@ export function createBaseOps(ctx) {
     deploy(id, mode = ctx.params?.has('cold') ? 'cold' : 'hot') {
       const def = defs[id]; if (!def) return id === 'sr71' ? 'THE SR-71 IS NOT ON THE BASE YET (ngc/look-sr71)' : 'NOT AT THE AIR BASE';
       if (def.present()) return ctx.crafts.control(def.id, 0, 'command') ? '' : `CANNOT REACH THE ${def.label}`;
-      const sp = L.spot(def.baseSlot, 'ramp'); if (!sp) return 'NO HANGAR SLOT';
-      def.spawnAt(sp, mode); if (mode === 'runway' && def.lineUp) def.lineUp();
+      const sp = L.spot(def.baseSlot, def.startSpot || 'ramp'); if (!sp) return 'NO HANGAR SLOT';
+      def.spawnAt(sp, mode !== 'runway' && def.defaultMode ? def.defaultMode() : mode); if (mode === 'runway' && def.lineUp) def.lineUp();
       return ctx.crafts.control(def.id, 0, 'command') ? '' : `THE ${def.label} WOULD NOT TAKE A CREW`;
     },
     status(id) {
