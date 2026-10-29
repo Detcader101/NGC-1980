@@ -19,7 +19,7 @@ export const ISLANDS = [   // (x, z: the site's centre on the land, world/terrai
   { name: 'IRONHOLD', kind: 'hq', owner: 2, x: 1690, z: -1450, r: 250, tier: 4 },
   { name: 'NORTH ROCK', kind: 'fortress', owner: 2, x: -1440, z: -1300, r: 190, tier: 1 },
   { name: 'SOUTH REEF', kind: 'fortress', owner: 2, x: 1450, z: 1360, r: 165, tier: 2 },
-  { name: 'CITADEL', kind: 'fortress', owner: 2, x: 0, z: 0, r: 250, tier: 3 },
+  { name: 'CITADEL', kind: 'fortress', owner: 2, x: 120, z: -20, r: 250, tier: 3 },
   { name: 'PELICAN', kind: 'fuel', owner: 1, x: -560, z: 1640, r: 74 },
   { name: 'ANVIL', kind: 'factory', owner: 2, x: 760, z: -1690, r: 118 },
   { name: 'LOOKOUT', kind: 'radar', owner: 0, x: -1880, z: 350, r: 88 },

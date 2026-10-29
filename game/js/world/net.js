@@ -438,6 +438,7 @@ export function zoneNet() {
 // neighbours, never across a strait). Tarmac between the big places, lanes to the small ones; they keep off every
 // base, shaft strip and pad apron, start at the village square where there is one (else at the pad apron's edge).
 function zoneLinks() {
+  S.zoneLinks = [];
   const ends = S.zoneSites.map(st => { const I = st.I, p = padOf(I), V = st.village; return V ? { st, I, x: V.x, z: V.z, y: V.y, id: V.id, pin: 9 } : { st, I, x: p.x, z: p.z, y: undefined, id: `zl${I.id}`, pin: 0, pad: p }; });
   const avoid = (x, z) => ISLANDS.some(J => { if (Math.abs(x - J.x) > J.r + 120 || Math.abs(z - J.z) > J.r + 120) return false; const p = padOf(J); return Math.hypot(x - p.x, z - p.z) < p.r1 + 6 || (J.cave && (Math.hypot(x - J.x, z - J.z) < 70 || (Math.abs(x - J.x) < 100 && Math.abs(z - J.z) < 26))); });
   for (let a = 0; a < ends.length; a++) for (let b = a + 1; b < ends.length; b++) {
@@ -456,7 +457,7 @@ function zoneLinks() {
     const prof = profile(pts, type, A.pad ? undefined : A.y, B.pad ? undefined : B.y, { pin0: A.pin, pin1: B.pin, maxBridge: 160 });
     if (!prof) continue;
     prof.kind = 'link'; prof.a = A.id; prof.b = B.id; prof.key = A.id + '|' + B.id;
-    const r = addRoad(prof); A.st.roads.push(r.id); B.st.roads.push(r.id);
+    const r = addRoad(prof); S.zoneLinks.push(r.id);   // (drawn as their own zone pieces: layout.js zoneItems)
     node(A.id, ax, az, prof.ys[0]).roads.push({ road: r.id, end: 0 }); node(B.id, bx, bz, prof.ys[prof.ys.length - 1]).roads.push({ road: r.id, end: 1 });
   }
 }

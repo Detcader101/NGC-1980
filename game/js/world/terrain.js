@@ -114,9 +114,9 @@ const HHILLS = ell(-1520, 1560, 560, 300, -0.12); // HOME ISLAND's hills
 const LOW = [ell(1450, 1380, 600, 440, 0.25), ell(260, 1980, 260, 200, 0.4), cap(560, 890, 260, 1090, 160)];   // low islands and the spit: relief held down
 // rivers: polylines from source to mouth (the last point is in the sea); floor heights at the source
 const RIVERS = [
-  { pts: [[-320, -1220], [-470, -980], [-540, -720], [-430, -420], [-300, -170], [-190, 120], [-110, 330], [-60, 520]], h0: 70, w0: 14, w1: 55 },   // the Kessel: spine -> WELLSPRING -> the farmland -> THE SOUND
-  { pts: [[-1000, -1120], [-1200, -900], [-1420, -720], [-1700, -640], [-1950, -620], [-2200, -640]], h0: 60, w0: 12, w1: 45 },                  // the west river, past DRIFTWOOD
-  { pts: [[480, -1250], [560, -1480], [600, -1700], [620, -1900], [640, -2050]], h0: 80, w0: 10, w1: 35 },                                     // the north valley down to ANVIL's harbour
+  { pts: [[-320, -1220], [-470, -980], [-540, -720], [-430, -420], [-300, -170], [-190, 120], [-110, 330], [-60, 520]], h0: 70, w0: 14, w1: 55, tide: 0.45 },   // the Kessel: spine -> WELLSPRING -> the farmland -> THE SOUND
+  { pts: [[-1000, -1120], [-1200, -900], [-1420, -720], [-1700, -640], [-1950, -620], [-2200, -640]], h0: 60, w0: 12, w1: 45, tide: 0.5 },                  // the west river, past DRIFTWOOD
+  { pts: [[480, -1250], [560, -1480], [600, -1700], [620, -1900], [640, -2050]], h0: 80, w0: 10, w1: 35, tide: 0.7 },                                     // the north valley down to ANVIL's harbour
 ];
 // each site's flat basin: the height its town ground is graded to (cave bases 4-16 m: main.js clamps them there)
 export const SITE_H = {
@@ -172,8 +172,9 @@ function riverAt(x, z, out) {
       const t = Math.max(0, Math.min(1, ((mx - ax) * dx + (mz - az) * dz) / (sl * sl))), d = Math.hypot(mx - ax - dx * t, mz - az - dz * t);
       if (d < bd) { bd = d; bt = (acc + t * sl) / L; } acc += sl;
     }
-    const est = sm(0.68, 0.8, bt), w = mix(Rv.w0, Rv.w1, bt) * (1 + 0.8 * est), side = 140 + 220 * (1 - bt);   // the last third: an estuary
-    const floor = bt < 0.72 ? mix(Rv.h0, 1.2, Math.pow(bt / 0.72, 0.8)) : mix(1.2, -3.8, sm(0.72, 0.9, bt));
+    // the upper river a stream in its valley; from Rv.tide on a tidal river (water: the floor is below the sea), widening to the mouth
+    const est = sm(Rv.tide, 1, bt), w = mix(Rv.w0, Rv.w1, bt) * (1 + 0.8 * est), side = 140 + 220 * (1 - bt);
+    const floor = bt < Rv.tide - 0.08 ? mix(Rv.h0, 1.2, Math.pow(bt / (Rv.tide - 0.08), 0.8)) : mix(1.2, -3.2, sm(Rv.tide - 0.08, Rv.tide + 0.06, bt)) - 0.8 * est;
     const v = 1 - sm(w, w + side, bd);
     if (v > out.v) { out.v = v; out.floor = floor; out.t = bt; out.d = bd; out.w = w; }
   }
@@ -197,7 +198,7 @@ function bakePlan() {
       // estuary below sea level in the last third; they pass the towns but never cut a pad or a base
       riverAt(x, z, _rv);
       const vk = _rv.v * keep;
-      if (vk > 0) { const cut = Math.max(0, r - _rv.floor); r -= cut * vk * (0.85 + 0.15 * vk); }
+      if (vk > 0) { const cut = Math.max(0, r - Math.max(_rv.floor, 1.3)); r -= cut * vk * (0.85 + 0.15 * vk); }   // (the flood plain stays dry; only the bed below takes the water)
       if (_rv.d < _rv.w * 0.6 && keep > 0) r = mix(r, Math.min(r, _rv.floor - 2.2 * (1 - _rv.d / (_rv.w * 0.6))), keep);
       const rv = keep * (1 - sm(_rv.w * 0.7, _rv.w * 1.9, _rv.d));   // (the stream and its flood plain, for the surfaces)
       // coast kind: beach where the lowland meets the sea (and the stretches in BEACHY), cliffs where high ground does

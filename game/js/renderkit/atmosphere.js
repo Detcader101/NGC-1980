@@ -148,9 +148,12 @@ vec4 rkClouds(vec3 C, vec3 v, float tMax, vec3 hor){   // premultiplied cloud co
 // The far land: the 8 km far height window downsampled to 256 x 256 at 32 m (R16F, linear), raymarched in the dome past
 // the draw distance. uniform rkFarO: x/z origin, size (m), ready.
 export const RK_FAR_GLSL = /* glsl */`
-uniform sampler2D rkFarT; uniform vec4 rkFarO;
-float rkFarH(vec2 xz){ vec2 u=(xz-rkFarO.xy)/rkFarO.z; return (u.x<0.||u.y<0.||u.x>1.||u.y>1.)?-20.:texture2D(rkFarT,u).r; }
-float rkFarEdge(vec2 xz){ vec2 u=(xz-rkFarO.xy)/rkFarO.z; return min(min(u.x,u.y),min(1.-u.x,1.-u.y))*rkFarO.z; }
+uniform sampler2D rkFarT, rkZoneT; uniform vec4 rkFarO, rkZoneO;
+// (ngc/look-terrain) the control zone's own heights at 16 m (rkZoneO: x/z origin, size, ready): the zone is drawn from any
+// distance (a jet at 3 km over a 5 km zone sees all of it; the 8 km window round the eye did not reach)
+bool rkInZone(vec2 xz){ vec2 u=(xz-rkZoneO.xy)/rkZoneO.z; return rkZoneO.w>.5 && u.x>0. && u.y>0. && u.x<1. && u.y<1.; }
+float rkFarH(vec2 xz){ if(rkInZone(xz)) return texture2D(rkZoneT,(xz-rkZoneO.xy)/rkZoneO.z).r; vec2 u=(xz-rkFarO.xy)/rkFarO.z; return (u.x<0.||u.y<0.||u.x>1.||u.y>1.)?-20.:texture2D(rkFarT,u).r; }
+float rkFarEdge(vec2 xz){ if(rkInZone(xz)) return 1e4; vec2 u=(xz-rkFarO.xy)/rkFarO.z; return min(min(u.x,u.y),min(1.-u.x,1.-u.y))*rkFarO.z; }
 // first hit of the ray with max(height, sea) between t0 and t1; returns t or -1
 float rkFarHit(vec3 C, vec3 v, float t0, float t1){
   float t=t0, tp=t0;
@@ -226,9 +229,11 @@ void main(){
     // the land past the draw distance (the terrain fades into exactly this), then the sea plane
     float tS=v.y<-1e-4?max(C.y,.1)/-v.y:1e9, t0=max(rkDraw*.94,v.y<0.?(C.y-1600.)/-v.y:0.), t1=min(tS,9000.);
     { vec2 lo=rkFarO.xy-C.xz, hi=lo+rkFarO.z, vx=v.xz+vec2(1e-6);   // stop where the ray leaves the far window (its edge fades to sea)
-      vec2 te=max(lo/vx,hi/vx); t1=min(t1,min(te.x,te.y)); }
+      vec2 te=max(lo/vx,hi/vx); float tw=min(te.x,te.y);
+      if(rkZoneO.w>.5){ vec2 zl=rkZoneO.xy-C.xz, zh=zl+rkZoneO.z, za=min(zl/vx,zh/vx), zb=max(zl/vx,zh/vx); float zin=max(za.x,za.y), zout=min(zb.x,zb.y); if(zout>zin) tw=max(tw,zout); }   // (or the zone, wherever it is along the ray)
+      t1=min(t1,tw); }
     float tH=-1.;
-    if(rkFarO.w>.5 && t1>t0 && C.y+v.y*t0<1600.) tH=rkFarHit(C,v,t0,t1);
+    if(rkFarO.w>.5 && t1>t0 && C.y+v.y*t0<1601.) tH=rkFarHit(C,v,t0,t1);   // (ngc/look-terrain: 1601: from above 1600 m t0 puts the ray at exactly 1600 and the strict test dropped all of it)
     if(tH>0.){
       vec3 p=C+v*tH; float e=16.;
       vec3 n=normalize(vec3(rkFarH(p.xz-vec2(e,0.))-rkFarH(p.xz+vec2(e,0.)),2.*e,rkFarH(p.xz-vec2(0.,e))-rkFarH(p.xz+vec2(0.,e))));
@@ -299,6 +304,7 @@ export function createAtmosphere({ scene, sky, sun, uniforms, renderer }) {
     rkHaze: { value: HAZE.haze }, rkHazeSun: { value: HAZE.sun }, rkHazeSea: { value: HAZE.sea }, rkHazeZen: { value: HAZE.zenith }, rkHazeSunC: { value: HAZE.sunCol },
     rkCloudT: uniform(cloudT), rkCloud: uniform(new THREE.Vector4(ATMO.coverFair, 0, 0, 0)), rkCloudL: uniform(new THREE.Vector4(ATMO.cloudBase, ATMO.cloudThick, ATMO.cloudScale, 0.38)),
     rkFarT: uniform(farT), rkFarO: uniform(new THREE.Vector4(0, 0, 1, 0)), rkDraw: uniform(720),
+    rkZoneT: uniform(farT), rkZoneO: uniform(new THREE.Vector4(0, 0, 1, 0)),
   };
   Object.assign(uniforms, U);   // the terrain shares them (same objects)
   const shared = { ...U, uFog: uniforms.uFog };
@@ -337,6 +343,12 @@ export function createAtmosphere({ scene, sky, sun, uniforms, renderer }) {
       farT.needsUpdate = true;
       // texel (i, j) covers samples i*k..i*k+k-1: its centre is ox + (i*k + (k-1)/2) * c
       U.rkFarO.value.set(d.ox - d.c / 2, d.oz - d.c / 2, d.n * d.c, 1);
+    },
+    /** (ngc/look-terrain) the control zone's heights (h: n x n floats, row-major z, origin ox / oz, spacing c), 16 m */
+    zoneHeights({ h, n, ox, oz, c }) {
+      const d = new Uint16Array(n * n); for (let k = 0; k < n * n; k++) d[k] = THREE.DataUtils.toHalfFloat(h[k]);
+      const t = new THREE.DataTexture(d, n, n, THREE.RedFormat, THREE.HalfFloatType); t.magFilter = t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.needsUpdate = true;
+      U.rkZoneT.value = t; U.rkZoneO.value.set(ox - c / 2, oz - c / 2, n * c, 1);
     },
     /** the env (PMREM) variant: sky, sun and clouds over a darker ground, no far land */
     envMaterial() { return displayOut(new THREE.ShaderMaterial({ name: 'RenderKit/atmosphere-env', side: THREE.BackSide, depthWrite: false, uniforms: { ...shared, rkCloud: uniform(U.rkCloud.value.clone()) }, defines: { RK_CLOUD_STEPS: 16, RK_CLOUD_DETAIL: 1 }, vertexShader: DOME_VS, fragmentShader: domeFS(true) })); },

@@ -54,8 +54,10 @@ export default { name: 'lookterrain-' + RK.replace(/[^\w]+/g, '_') + '-' + TER, 
   await view('jet1200', `(() => { const g = __G, B = g.inZone ? 1 : 1; return { wp: [-1800, 1200, 2400], wt: [400, 0, -900], hover: -400 }; })()`, 7000);
   await view('jet3000', `(() => ({ wp: [-2600, 3000, 3600], wt: [300, 0, -700], hover: -1500 }))()`, 9000);
   // the carrier's deck, standing aft looking forward along it
-  await view('deck', `(() => { const g = __G, c = g.war.carrier.p, yaw = g.war.carrier.yaw ?? 0, fx = -Math.sin(yaw), fz = -Math.cos(yaw), y = g.war.deckY(c.x, c.z) + 1.7;
-      return { wp: [c.x - fx * 110 + fz * 8, y, c.z - fz * 110 - fx * 8], wt: [c.x + fx * 300, y - 6, c.z + fz * 300] }; })()`, 4000);
+  await view('deck', `(() => { const g = __G, c = g.war.carrier.p, yaw = g.war.carrier.yaw ?? 0; let fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+      if (g.war.deckY(c.x - fx * 80, c.z - fz * 80) < g.war.deckY(c.x + fx * 80, c.z + fz * 80) - 1) { fx = -fx; fz = -fz; }   // (whichever end is the flight deck aft)
+      const x = c.x - fx * 70 + fz * 10, z = c.z - fz * 70 - fx * 10, y = Math.max(g.war.deckY(x, z), 5) + 1.7;
+      return { wp: [x, y, z], wt: [c.x + fx * 300, y - 4, c.z + fz * 300] }; })()`, 4000);
   // a tank sight's eye (2.8 m), on open farmland, looking 1-2 km across it (6x: fov 10)
   await view('tank', `(() => { const g = __G; let best = null; for (let k = 0; k < 900 && !best; k++) { const x = -1200 + (k % 30) * 70, z = -300 + Math.floor(k / 30) * 40, y = g.terrainH(x, z);
       if (y > 6 && y < 60 && __TM.zoneSurf(x, z) === 'grass' && g.terrainH(x + 1200, z - 500) > 5) best = { x, z }; } if (!best) best = { x: -400, z: 300 };
@@ -70,10 +72,13 @@ export default { name: 'lookterrain-' + RK.replace(/[^\w]+/g, '_') + '-' + TER, 
   await view('beach', `(() => { const g = __G, B = __TM.beaches().find(b => b.I.owner === 1) || __TM.beaches()[0]; const [x, z] = B.at(Math.max(4, B.u1 - 4), 0);
       return __eye(x, z, Math.atan2(-B.fx, B.fz) + 0.5, 1.7, 2); })()`);
   // a cliff: the highest coast near the shoreline, from a boat 80 m off
-  await view('cliff', `(() => { const g = __G; let best = { y: 0 };
-      for (let x = -__TM.ZONE_E + 200; x < __TM.ZONE_E - 200; x += 20) for (let z = -__TM.ZONE_E + 200; z < __TM.ZONE_E - 200; z += 20) { if (__TM.planAt) { const p = __TM.planAt(x, z); if (p.s < 8 || p.s > 30 || p.wc < 0.6) continue; } else if (![0, 1.57, 3.14, 4.71].some(q => g.terrainH(x + Math.cos(q) * 30, z + Math.sin(q) * 30) < -1)) continue; const y = g.terrainH(x, z); if (y > best.y) best = { x, z, y }; }
-      let wx = best.x, wz = best.z, a = 0; for (let k = 0; k < 16; k++) { const aa = k / 16 * 6.283; if (g.terrainH(best.x + Math.cos(aa) * 60, best.z + Math.sin(aa) * 60) < -2) { a = aa; break; } }
-      wx = best.x + Math.cos(a) * 140; wz = best.z + Math.sin(a) * 140; return { wp: [wx + Math.sin(a) * 40, 5, wz - Math.cos(a) * 40], wt: [best.x, best.y * 0.55, best.z] }; })()`, 4000);
+  await view('cliff', `(() => { const g = __G, C = [];
+      for (let x = -__TM.ZONE_E + 200; x < __TM.ZONE_E - 200; x += 20) for (let z = -__TM.ZONE_E + 200; z < __TM.ZONE_E - 200; z += 20) { if (__TM.planAt) { const p = __TM.planAt(x, z); if (p.s < 8 || p.s > 30 || p.wc < 0.6) continue; } else if (![0, 1.57, 3.14, 4.71].some(q => g.terrainH(x + Math.cos(q) * 30, z + Math.sin(q) * 30) < -1)) continue; C.push({ x, z, y: g.terrainH(x, z) }); }
+      C.sort((p, q) => q.y - p.y);
+      for (const best of C) { let a = null, d0 = 0; for (let k = 0; k < 32 && a === null; k++) { const aa = k / 32 * 6.283; for (let d = 20; d < 200; d += 5) if (g.terrainH(best.x + Math.cos(aa) * d, best.z + Math.sin(aa) * d) < -4) { if (g.terrainH(best.x + Math.cos(aa) * (d + 150), best.z + Math.sin(aa) * (d + 150)) < -4) { a = aa; d0 = d; } break; } }
+        if (a === null || Math.cos(a) * 0.86 + Math.sin(a) * 0.51 < 0.15) continue;   // a sea face the sun reaches
+        const wx = best.x + Math.cos(a) * (d0 + 130), wz = best.z + Math.sin(a) * (d0 + 130); return { wp: [wx + Math.sin(a) * 50, 6, wz - Math.cos(a) * 50], wt: [best.x, best.y * 0.5, best.z] }; }
+      return { wp: [0, 50, 0], wt: [100, 0, 100] }; })()`, 4000);
   // a river valley from 60 m up, looking down it
   await view('river', `(() => { const g = __G; return { wp: [-560, g.groundY(-560, -980) + 60, -980], wt: [-420, 10, -300] }; })()`, 4000);
   // the spine on foot: a high slope near the crest

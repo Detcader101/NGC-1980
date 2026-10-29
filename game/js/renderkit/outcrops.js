@@ -28,13 +28,13 @@ function vnoise(x, y, z) {
 }
 function rockGeometry(seed, detail) {
   const g = new THREE.IcosahedronGeometry(1, detail), P = g.attributes.position, o = seed * 13.7;
-  const sx = 1.1 + fract(seed * 3.3) * 0.5, sy = 0.55 + fract(seed * 5.1) * 0.35, sz = 0.85 + fract(seed * 7.9) * 0.4;
+  const sx = 1.05 + fract(seed * 3.3) * 0.45, sy = 0.62 + fract(seed * 5.1) * 0.3, sz = 0.9 + fract(seed * 7.9) * 0.35;
   for (let i = 0; i < P.count; i++) {
     let x = P.getX(i), y = P.getY(i), z = P.getZ(i);
-    const n = vnoise(x * 1.3 + o, y * 1.3, z * 1.3) * 0.55 + vnoise(x * 2.9, y * 2.9 + o, z * 2.9) * 0.3 + Math.abs(vnoise(x * 6.1 + o, y * 6.1, z * 6.1) - 0.5) * 0.3;
-    let r = 0.72 + n * 0.62;
+    const n = vnoise(x * 1.3 + o, y * 1.3, z * 1.3) * 0.55 + vnoise(x * 2.9, y * 2.9 + o, z * 2.9) * 0.3 + Math.abs(vnoise(x * 6.1 + o, y * 6.1, z * 6.1) - 0.5) * 0.12;
+    let r = 0.8 + n * 0.42;   // (ngc/look-terrain: rounder masses; the sharper octave made tent-like ridges)
     x *= r * sx; y *= r * sy; z *= r * sz;
-    if (y > 0.35 * sy) y = 0.35 * sy + (y - 0.35 * sy) * 0.55;   // a flatter top: bedding
+    if (y > 0.4 * sy) y = 0.4 * sy + (y - 0.4 * sy) * 0.7;   // a flatter top: bedding
     if (y < -0.1) y *= 0.6;
     P.setXYZ(i, x, y, z);
   }

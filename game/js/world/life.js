@@ -46,7 +46,7 @@ export function createWorldLife(ctx) {
     const t0 = performance.now();
     for (const { I, items, roads } of zoneItems(terrainH)) {
       const rd = new Map(); for (const id of roads) { const R = roadById(id); rd.set(R, new Set(Array.from({ length: R.xs.length - 1 }, (_, i) => i))); }
-      const discs = []; for (const [, a] of netState.buckets) for (const s of a) if (s.disc && Math.hypot(s.ax - I.x, s.az - I.z) < I.r + 30 && !discs.includes(s)) discs.push(s);
+      const discs = []; if (I.id >= 0) for (const [, a] of netState.buckets) for (const s of a) if (s.disc && Math.hypot(s.ax - I.x, s.az - I.z) < I.r + 30 && !discs.includes(s)) discs.push(s);
       const c = buildGeo({ items, roads: rd, discs, x0: -1e9, z0: -1e9, x1: 1e9, z1: 1e9 }, terrainH, { lat: 2.5, natTrees: !!ctx.nature });
       if (ctx.nature && c.vtrees?.length) ctx.nature.forest.add('zone-v' + zone.length, c.vtrees, c.vkinds);   // RENDERKIT nature (ngc/look-nature): village / hedgerow trees as species
       const e = { I, x: I.x, z: I.z, sN: mk(c.near, ZM.sN), sF: mk(c.far, ZM.sF), gN: mk(c.gnear, ZM.gN), gF: mk(c.gfar, ZM.gF), sD: mk(c.detail, ZM.sD), wires: wiresOf(c.wires), dyn: c.dyn, items, roads, zone: true, materials: ZM, reveal: { value: 1 } };   // SEAWORLD: roads kept for world/solid.js (bridge parapets)
@@ -76,7 +76,7 @@ export function createWorldLife(ctx) {
     const i0 = Math.floor((cx - R) / CHUNK), i1 = Math.floor((cx + R) / CHUNK), j0 = Math.floor((cz - R) / CHUNK), j1 = Math.floor((cz + R) / CHUNK);
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
       const x = (i + 0.5) * CHUNK, z = (j + 0.5) * CHUNK, d = Math.hypot(x - cx, z - cz);
-      if (d > R + CHUNK * 0.71 || Math.max(Math.abs(x), Math.abs(z)) < BOUND + 300 - CHUNK * 0.5) continue;   // the zone is built at start
+      if (d > R + CHUNK * 0.71) continue;   // (ngc/look-terrain: zone chunks stream too, for their woods; chunkgen gives them nothing else)
       const k = key(i, j); if (!chunks.has(k)) want.push([d, i, j, k]);
     }
     want.sort((a, b) => a[0] - b[0]);

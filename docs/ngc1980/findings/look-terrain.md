@@ -71,3 +71,40 @@ A real-looking piece of coast in the 5 km square, built from a hand-laid plan pl
 Load: the zone bake <= the old 1.7 s per thread (coarse 10 m plan fields + a 2.5 m fine pass); the main thread's core
 heightmap filled from the grid, not 4.2 M `terrainH` calls. Frame: the terrain draw is the same mesh (TN x TN at 2.5 m
 round the camera), so the bigger zone costs memory, not triangles.
+
+## 2026-10-29 - The land, built (2446f03, 42f2e7b)
+**What changed**
+- `world/bound.js`: `BOUND = 2560`, the single source; `world.js` re-exports it (it and `world/terrain.js` import
+  each other, so the constant lives in its own module).
+- `world/terrain.js` rewritten (API kept: `zoneH`, `zoneSurf(Id)`, `SURF_NAMES`, `SURFACE`, `GEOLOGY`, `geologyOf`,
+  `zoneGrid`, `beaches`, `shoreAt`, `islandInfo`, `bakeMs`; new: `planAt`, `SITE_H`, `ZONE_E` = BOUND + 160). The plan
+  (signed distance to the coast from 13 land shapes and 3 bays with two scales of domain warp, regional relief with
+  soft-max blending, 3 rivers, 17 site basins, beach / cliff weights) is baked on a 10 m grid (545^2); the fine
+  pass (coast profiles, sea bed, hummocks, broken rock, sea stacks) and the surfaces on the 2.5 m grid (2177^2).
+  Bake 1.95 s per thread in node (old: 1.7 s); 19 MB heights + 4.7 MB surfaces (old: 20 + 5 MB).
+- `world.js`: the 17 sites moved onto the land (names, kinds, owners, tiers and radii kept); `fleetStart` is two
+  fixed open-water spots (south of HOME ISLAND, north of IRON BAY's mouth); `ridged` exported; `rawH` switches to
+  `wildH` at the grid edge (the grid's outer ring already blends into `wildH`, sea on both sides: no seam);
+  `createNav` cell scales with BOUND (40 m, 128^2 as before; 55 ms to build in node).
+- **Hook for ngc/look-airbases** (orchestrator, 2026-10-29): `world.js` exports `FLATS` (flat footprints
+  `{ x, z, hw, hl, yaw, h, blend }`), applied at the end of `wildH` by `flats()`. `wildH`'s structure is unchanged
+  otherwise and reads `BOUND`; push footprints before anything bakes (both workers import world.js, so a footprint
+  list must be built by the module itself, not set from main.js at run time).
+- Pads may now sit up to 140 m (radars and the plateau factory: LOOKOUT 59, SPIRE 65, BEACON 97, CINDER 109 m);
+  cave bases stay 4-16 m (all designed at 6-15). `main.js` and `sim/zone.js` agree (simmode.json checks it).
+- `world/net.js`: link roads between the sites on the same land (relaxed relative-neighbourhood graph, routed by the
+  existing DP with a new `avoid` cost round bases and pad aprons; dropped when the path is wet for > 130 m); villages
+  allowed up to 18 m above the site's pad; `bedBuckets()` for the heightmap fill.
+- `main.js`: the core heightmap is copied from the zone grid (same 2.5 m lattice, aligned) and `terrainH` is called
+  only in road / platform buckets, pads, bases with their cave strips and the hards (4.2 M full calls would take
+  seconds); fog of war 448^2 (same 11.4 m cells); minimap image 453^2; decor texture's region index = the nearest
+  site everywhere (geology colours by region); zone trees 9600 in woods / copses / hedgerows; scrub 12000 to 280 m.
+- `ground.js`: inside the zone the ground host's fallback surface is the zone's own per-point surface
+  (`SURFACE[name].ground`), not "rock above 30 m" (which would have been most of the new land). `wheeledenv.js`
+  maps `dirt` (was falling back to grass).
+- `war.js` / `sim/redai.js`: the enemy carrier's retreat point was a fixed (330, -300) - land now; it goes back to its
+  own start.
+**Gameplay data (node, sim/zone.js)**: every coastal site has a landing hard (12 of 17; LOOKOUT, BEACON, CINDER,
+WELLSPRING and SPIRE are inland or on cliffs: reached by air / road); IRONHOLD's shipyard point is 234 m from its
+centre on IRON BAY; both fleet starts are on deep water and the carrier has a sea path to water off every site
+(135-514 m off, WELLSPRING 1 km inland).

@@ -14,7 +14,7 @@ import { netState, BKT, settlementOf, cellReady, CELL, FARM_CELL, farmOf, roadBy
 import { townItems, farmItems, polesOf, mastOf } from './layout.js';
 import { rng } from './rng.js';
 import { isDrivableCar } from './parked.js';   // ngc/wheeledgame: some garden cars are real, drivable ones
-import { rawH } from '../world.js';
+import { rawH, BOUND } from '../world.js';
 import { forestTile, scrubTile, treeKind, natureHash, FIR, PINE, BROAD } from './forest.js';   // (scrubTile, treeKind: RENDERKIT nature)
 
 export const CHUNK = 400;
@@ -204,6 +204,9 @@ function pole(g, x, y, z, yaw) { g.push(x, y, z, yaw); g.cyl(0, -0.4, 0, 0.13, 9
 // ------------------------------------------------------------------------------------------- a chunk
 export function chunkContent(ci, cj, hf) {
   const x0 = ci * CHUNK, z0 = cj * CHUNK, x1 = x0 + CHUNK, z1 = z0 + CHUNK, inC = (x, z) => x >= x0 && x < x1 && z >= z0 && z < z1;
+  // (ngc/look-terrain) a chunk inside the control zone: its roads, villages and site dressing are built at start (life.js
+  // zone pieces); the stream brings only its woods
+  if (Math.max(Math.abs(x0 + CHUNK / 2), Math.abs(z0 + CHUNK / 2)) < BOUND + 300 - CHUNK * 0.5) return { items: [], roads: new Map(), discs: [], x0, z0, x1, z1, forest: forestTile(x0, z0, CHUNK, hf) };
   for (const [x, z] of [[x0, z0], [x1, z0], [x0, z1], [x1, z1]]) cellReady(Math.floor(x / CELL), Math.floor(z / CELL));
   const items = [];
   const c0 = Math.floor(x0 / CELL) - 1, c1 = Math.floor(x1 / CELL) + 1, d0 = Math.floor(z0 / CELL) - 1, d1 = Math.floor(z1 / CELL) + 1;

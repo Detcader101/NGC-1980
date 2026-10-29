@@ -672,7 +672,7 @@ const terrainFS = `
         float W[14]; vec3 TI[14]; for(int L=0;L<14;L++){ W[L]=0.; TI[L]=vec3(1.); }
         vec2 xz=vW.xz; float y=vW.y, nA=rkN2(xz*.43+17.);
         float beach=1.-smoothstep(0.,3.+2.5*(rkM2-.5),y), rockW=rk*(1.-rkSnow)*(1.-beach), snowW=rkSnow*(1.-beach);
-        float soilN=smoothstep(.72,.86,rkN2(xz*.19+3.)*.72+rkN2(xz*.83+9.)*.28+rkSl*.35);   // bare soil patches (nature's)
+        float soilN=smoothstep(.8,.92,rkN2(xz*.19+3.)*.72+rkN2(xz*.83+9.)*.28+rkSl*.35);   // bare soil patches (nature's; ngc/look-terrain: fewer)
         float scree=wild*smoothstep(.16,.28,rkSl)*(1.-smoothstep(.34,.48,rkSl))*smoothstep(.5,.7,rkN2(xz*.05+1.7));   // loose stone at the foot of slopes
         float forestF=wild*smoothstep(.62,.8,rkN2(xz*.013+8.2))*smoothstep(40.,120.,y)*(1.-smoothstep(380.,450.,y));
         float mudW=0., soilW=0., gravW=0., sandW=beach, strata=wild>.5?step(.5,rkN2(xz*.0011+2.)):(gi>=0?uGeoS[gi]:1.);
@@ -687,7 +687,7 @@ const terrainFS = `
         }
         float grassW=max(0.,1.-rockW-snowW-sandW-mudW-soilW-gravW);
         vec3 gw=rtGrassW(xz,y);
-        float sp=grassW*soilN*.75, fo=grassW*forestF*(1.-soilN), gr=grassW-sp-fo;
+        float sp=grassW*soilN*.5, fo=grassW*forestF*(1.-soilN), gr=grassW-sp-fo;
         W[0]=gr*gw.x; W[1]=gr*gw.y; W[2]=gr*gw.z; W[3]=soilW+sp; W[4]=mudW; W[5]=fo;
         W[6]=rockW*strata*(1.-scree*.6); W[7]=rockW*(1.-strata)*(1.-scree*.6); W[11]=gravW+rockW*scree*.6;
         float wet=1.-smoothstep(.25,.9+.3*sin(uTime*.55+rkN2(xz*.05)*6.)*.5+.3*nA,y);   // the swash: wet sand comes and goes
@@ -804,6 +804,11 @@ sky.onBeforeRender = (r, s, cam) => { sky.position.setFromMatrixPosition(cam.mat
 // sky rebuilt only when the sun or the weather changes (renderkit/world.js). Off: the classic dome, no environment.
 // RENDERKIT sky: the atmosphere takes the dome (clouds, sun, the far land) and hands world.js its environment variant
 const atmo = RKS ? createAtmosphere({ scene: zScene, sky, sun, uniforms: terrainUni, renderer }) : null;
+if (atmo) {   // (ngc/look-terrain) the zone's heights at 16 m for the far land: 2 x 2.5 m texels averaged at every 16 m point
+  const Z = zoneGrid(), c = 16, n = Math.round(2 * BOUND / c), h = new Float32Array(n * n), k = Math.round(c / Z.C), o = Math.round((Z.E - BOUND) / Z.C);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { let s = 0; for (let b = 0; b < k; b++) for (let a = 0; a < k; a++) s += Z.h[(o + Math.round((j + 0.5) * c / Z.C) - (k >> 1) + b) * Z.N + o + Math.round((i + 0.5) * c / Z.C) - (k >> 1) + a]; h[j * n + i] = s / (k * k); }
+  atmo.zoneHeights({ h, n, ox: -BOUND + c / 2, oz: -BOUND + c / 2, c });
+}
 if (atmo && params.has('debug')) window.__rkSky = atmo;
 const worldSky = RKW ? createWorldSky({ renderer, scene: zScene, sky, sun, uniforms: terrainUni, atmosphere: atmo }) : null;
 if (worldSky && params.has('debug')) window.__rkWorld = worldSky;
@@ -2368,11 +2373,15 @@ addEventListener('resize', () => { if (bigMap) setMapSize(); });
 const landImg = (() => {
   const N = Math.round(320 * Math.sqrt(BOUND / 1280)), c = document.createElement('canvas'); c.width = c.height = N; const x = c.getContext('2d'), im = x.createImageData(N, N);
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-    const h = terrainH(-BOUND + (i + 0.5) * 2 * BOUND / N, -BOUND + (j + 0.5) * 2 * BOUND / N), k = (j * N + i) * 4;
+    const x0 = -BOUND + (i + 0.5) * 2 * BOUND / N, z0 = -BOUND + (j + 0.5) * 2 * BOUND / N, e = BOUND / N, h = terrainH(x0, z0), k = (j * N + i) * 4;
     let col;
     if (h <= 0) { const d = clamp(-h / 10, 0, 1); col = [lerp(28, 8, d), lerp(92, 34, d), lerp(118, 78, d)]; }
     else if (h < 2.5) col = [176, 164, 112];
-    else { const t = clamp((h - 6) / 28, 0, 1); col = [lerp(48, 120, t), lerp(118, 102, t), lerp(50, 80, t)]; }
+    else {   // (ngc/look-terrain) a relief map: green lowland, olive hills, brown and grey high ground, shaded from the north-west
+      const t1 = clamp((h - 4) / 60, 0, 1), t2 = clamp((h - 60) / 140, 0, 1), t3 = clamp((h - 200) / 150, 0, 1);
+      col = [lerp(lerp(lerp(52, 92, t1), 128, t2), 150, t3), lerp(lerp(lerp(112, 120, t1), 112, t2), 146, t3), lerp(lerp(lerp(52, 62, t1), 78, t2), 140, t3)];
+      const sh = clamp(1 + ((terrainH(x0 + e, z0 + e) - terrainH(x0 - e, z0 - e)) / (2 * e)) * 0.9, 0.55, 1.35); col = col.map(v => clamp(v * sh, 0, 255));
+    }
     im.data[k] = col[0]; im.data[k + 1] = col[1]; im.data[k + 2] = col[2]; im.data[k + 3] = 255;
   }
   x.putImageData(im, 0, 0); return c;

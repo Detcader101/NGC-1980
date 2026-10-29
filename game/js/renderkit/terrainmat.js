@@ -48,7 +48,7 @@ export function terrainTierName() {
 export const TL = Object.freeze({ GRASS: 0, DRY: 1, MEADOW: 2, SOIL: 3, MUD: 4, FOREST: 5, CLIFF: 6, GRANITE: 7, SAND: 8, WETSAND: 9, SNOW: 10, GRAVEL: 11, TARMAC: 12, TRACK: 13 });
 export const TER_LAYERS = [
   { id: 'grass', base: [0.19, 0.40, 0.13], tile: 2.4, bump: 0.035, rough: 0.92 },
-  { id: 'dry', base: [0.50, 0.47, 0.27], tile: 2.4, bump: 0.03, rough: 0.94 },
+  { id: 'dry', base: [0.42, 0.43, 0.23], tile: 2.4, bump: 0.03, rough: 0.94 },
   { id: 'meadow', base: [0.25, 0.44, 0.16], tile: 2.0, bump: 0.025, rough: 0.9 },
   { id: 'soil', base: [0.40, 0.32, 0.22], tile: 3.2, bump: 0.05, rough: 0.95 },
   { id: 'mud', base: [0.27, 0.23, 0.17], tile: 3.6, bump: 0.04, rough: 0.55 },
@@ -245,7 +245,7 @@ export function createTerrainTextures(renderer, res = 512) {
 // Needs rkN2 (renderkit/world.js RK_TERRAIN_GLSL).
 export const RT_GRASS_GLSL = /* glsl */`
 vec3 rtGrassW(vec2 xz, float y){
-  float dry=smoothstep(.5,.8,rkN2(xz*.06+11.)*.8+rkN2(xz*.31+2.)*.2)+smoothstep(140.,320.,y)*.35;
+  float dry=smoothstep(.58,.9,rkN2(xz*.045+11.)*.8+rkN2(xz*.31+2.)*.2)*.65+smoothstep(140.,320.,y)*.35;   // (dry swards: partial, larger and softer - full straw blobs read as mud from the air)
   float mead=smoothstep(.5,.78,rkN2(xz*.023+5.3))*(1.-smoothstep(60.,160.,y));
   dry=clamp(dry,0.,1.); mead*=1.-dry;
   return vec3(max(0.,1.-dry-mead),dry,mead);
@@ -270,7 +270,7 @@ export function grassAverage(y = 40) {   // mean grass colour (display) at heigh
   const acc = [0, 0, 0]; let n = 0;
   for (let k = 0; k < 4000; k++) {
     const x = (k * 97.31) % 9000, z = Math.floor(k * 0.6180339 * 9000) % 9000;
-    let dry = sstep(0.5, 0.8, rkN2js(x * 0.06 + 11, z * 0.06 + 11) * 0.8 + rkN2js(x * 0.31 + 2, z * 0.31 + 2) * 0.2) + sstep(140, 320, y) * 0.35;
+    let dry = sstep(0.58, 0.9, rkN2js(x * 0.045 + 11, z * 0.045 + 11) * 0.8 + rkN2js(x * 0.31 + 2, z * 0.31 + 2) * 0.2) * 0.65 + sstep(140, 320, y) * 0.35;   // (= rtGrassW)
     let mead = sstep(0.5, 0.78, rkN2js(x * 0.023 + 5.3, z * 0.023 + 5.3)) * (1 - sstep(60, 160, y));
     dry = Math.min(1, dry); mead *= 1 - dry; const w = [Math.max(0, 1 - dry - mead), dry, mead];
     const m = rkN2js(x * 0.011, z * 0.011) * 0.55 + rkN2js(x * 0.047 + 3.1, z * 0.047 + 3.1) * 0.3 + rkN2js(x * 0.19 + 7.7, z * 0.19 + 7.7) * 0.15;
