@@ -13,7 +13,7 @@
 //          onLost(why), onEvent(e) }, mapTex?, bound? }
 // Keys (pilot): W/S pitch, A/D roll, Q/E rudder, Shift/Space and Ctrl/Z throttles (they stop at the MIL detent: press
 // again to go past it into AB), G gear, C drag chute (again: jettison), B / . brakes, I engine start (cart), O engines
-// off, U canopy, ` autopilot (ATT -> KEAS -> MACH -> ALT -> OFF), ; ' pitch trim, R inlet restart, M spikes AUTO/MAN
+// off, U canopy, ` autopilot (ATT -> KEAS -> MACH -> ALT -> OFF), ; ' pitch trim, R inlet restart, SHIFT+M spikes AUTO/MAN
 // (then , . move them), K the cameras (OBC + TEOC) ON/OFF, T time compression (x1/x2/x4/x8 on long legs), V view,
 // [ ] pilot / RSO seat, N lights.
 import * as THREE from 'three';
@@ -26,7 +26,10 @@ import { G as GEO, toY, toZ } from './sr71geo.js';
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v)), lerp = (a, b, t) => a + (b - a) * t, D2R = Math.PI / 180;
 export const SR71CFG = {
-  RECON_MIN_FT: 60000, RECON_MAX_BANK: 10 * D2R,    // the cameras want height and wings level (OBC: the scan is across track)
+  // (ngc/sr71-fix) the cameras work from 20,000 ft (the strip narrows with height: 0.7 km either side there, 2.4 km at
+  // 80,000 ft) with the wings within 15 deg of level (OBC: the scan is across track); was 60,000 ft / 10 deg, which a
+  // player who had not finished the 30 min climb never saw work
+  RECON_MIN_FT: 20000, RECON_MAX_BANK: 15 * D2R,
   // GAME scaling: the OBC's real swath (~72 nm at 80,000 ft) would cover the whole control zone from anywhere near it;
   // here the photographed strip is ~12 % of the height to each side (2.4 km at the cruise height), so a pass must be flown
   SWATH_K: 0.12, SWATH_MIN: 400, SWATH_MAX: 3200,
@@ -46,7 +49,7 @@ export function createSR71Play(ctx) {
   const P = {
     A, model, cockpit, sky, snd, seat: 0, view: 'chase', active: false, alive: true, exists: false, thr: 0, thrDetent: true, kb: { pitch: 0, roll: 0, yaw: 0 },
     ctl: { pitch: 0, roll: 0, yaw: 0, throttle: [0, 0], brakeL: 0, brakeR: 0, trimRate: 0 }, timeK: 0, lights: true, cart: 0, starting: false,
-    recon: { on: false, film: 0, frames: 0, pass: null, seen: new Set(), last: 0, swath: 0, ok: false }, sams: [], rwr: 0, warn: 0, caution: false, cautions: [],
+    recon: { on: false, film: 0, frames: 0, pass: null, seen: new Set(), last: 0, swath: 0, ok: false, why: '', marks: [], trail: [], strips: [], passes: 0 }, sams: [], rwr: 0, warn: 0, caution: false, cautions: [],
     look: { yaw: 0, pitch: 0 }, chase: { yaw: 0, pitch: 0.12, dist: 42 }, wpt: null, time: 0,
   };
   const env = ctx.env || { groundY: () => 0, water: () => false };
@@ -98,14 +101,17 @@ export function createSR71Play(ctx) {
       case 'ap': { const i = (AP_MODES.indexOf(A.ap.on ? A.ap.pitch : 'off') + 1) % AP_MODES.length, m = AP_MODES[i]; A.ap.on = m !== 'off'; if (A.ap.on) { A.ap.pitch = m; A.ap.roll = 'hdg'; A.ap.hdg = A.heading; A.ap.att = A.attitude().pitch; A.ap.keas = Math.round(A.keas); A.ap.mach = Math.round(A.mach * 100) / 100; A.ap.alt = A.pos.y; } say(A.ap.on ? `AUTOPILOT  ${m === 'att' ? 'ATTITUDE' : m === 'keas' ? 'KEAS ' + A.ap.keas : m === 'mach' ? 'MACH ' + A.ap.mach.toFixed(2) : 'ALTITUDE ' + Math.round(A.altFt / 100) * 100 + ' FT'}  +  HEADING HOLD` : 'AUTOPILOT OFF', 1.6); break; }
       case 'restart': A.restartArm = true; for (const e of A.eng) e.restart = Math.max(e.restart, 3.5); say('INLET RESTART', 1.2); break;
       case 'spikemode': A.spikeMode = A.spikeMode === 'auto' ? 'manual' : 'auto'; A.spikeManual = A.eng.map(e => e.spike); say(`SPIKES ${A.spikeMode.toUpperCase()}${A.spikeMode === 'manual' ? '  -  , / . TO MOVE THEM (SCHEDULE ' + Math.round(spikeSched(A.mach) * 26) + ' IN)' : ''}`, 1.8); break;
-      case 'recon': P.recon.on = !P.recon.on; if (!P.recon.on && P.recon.pass) endPass(); say(P.recon.on ? 'CAMERAS ON  -  OBC / TEOC  (LEVEL, ABOVE 60,000 FT)' : `CAMERAS OFF  -  ${P.recon.frames} FRAMES`, 1.6); break;
+      case 'recon': { P.recon.on = !P.recon.on; if (!P.recon.on && P.recon.pass) endPass(); reconState(); const R = P.recon; snd?.chime(); say(R.on ? (R.ok ? `CAMERAS ON  -  RUNNING  ·  STRIP ${(R.swath * 2 / 1000).toFixed(1)} KM` : `CAMERAS ON  -  NOT RUNNING: ${R.why}`) : `CAMERAS OFF  -  ${Math.round(R.frames)} FRAMES ON THE FILM`, 2.2); break; }
       case 'time': { const L = SR71CFG.TIME_K, why = A.onGround ? 'ON THE GROUND' : A.altFt < 20000 ? 'BELOW 20,000 FT' : P.sams.length ? 'MISSILE IN THE AIR' : ''; if (why) { P.timeK = 0; say('TIME x1  -  ' + why, 1.2); break; } P.timeK = (P.timeK + 1) % L.length; say(`TIME x${L[P.timeK]}`, 1); break; }
       case 'lights': P.lights = !P.lights; break;
       case 'view': P.view = P.view === 'cockpit' ? 'chase' : 'cockpit'; break;
     }
   };
-  P.key = code => {
-    const m = { KeyG: 'gear', KeyC: 'chute', KeyI: 'start', KeyO: 'stop', KeyU: 'canopy', Backquote: 'ap', KeyR: 'restart', KeyM: 'spikemode', KeyK: 'recon', KeyT: 'time', KeyN: 'lights', KeyV: 'view' }[code];
+  // (ngc/sr71-fix) M is the game's map (main.js): it used to be swallowed here as the spike AUTO / MAN key, so the big
+  // map never opened in the SR-71; the spikes are SHIFT+M now
+  P.key = (code, e) => {
+    if (code === 'KeyM') { if (e && e.shiftKey) { P.cmd('spikemode'); return true; } return false; }
+    const m = { KeyG: 'gear', KeyC: 'chute', KeyI: 'start', KeyO: 'stop', KeyU: 'canopy', Backquote: 'ap', KeyR: 'restart', KeyK: 'recon', KeyT: 'time', KeyN: 'lights', KeyV: 'view' }[code];
     if (m) { P.cmd(m); return true; }
     if (code === 'BracketLeft' || code === 'BracketRight') { P.seat = code === 'BracketRight' ? 1 : 0; say(P.seat ? 'RSO  -  RECONNAISSANCE SYSTEMS OFFICER (K CAMERAS)' : 'PILOT', 1.2); return true; }
     if ((code === 'Comma' || code === 'Period') && A.spikeMode === 'manual') { const d = code === 'Comma' ? -1 / 26 : 1 / 26; A.spikeManual = A.spikeManual.map(v => clamp(v + d, 0, 1)); return true; }
@@ -123,19 +129,31 @@ export function createSR71Play(ctx) {
 
   // ---------------------------------------------------------------- reconnaissance: the OBC / TEOC strip under the track
   const _swT = [];
-  function recon(dt) {
+  // whether the cameras can run now, and why not (the HUD, the cockpit lamps and the K message say it)
+  function reconState() {
     const R = P.recon, att = A.attitude();
-    R.ok = R.on && !A.onGround && A.altFt >= SR71CFG.RECON_MIN_FT && Math.abs(att.roll) < SR71CFG.RECON_MAX_BANK;
     R.swath = clamp(A.pos.y * SR71CFG.SWATH_K, SR71CFG.SWATH_MIN, SR71CFG.SWATH_MAX);
+    R.why = !R.on ? 'OFF' : A.onGround ? 'ON THE GROUND' : A.altFt < SR71CFG.RECON_MIN_FT ? `BELOW 20,000 FT (${Math.round(A.altFt / 1000)},000)` : Math.abs(att.roll) >= SR71CFG.RECON_MAX_BANK ? `NOT LEVEL (BANK ${Math.round(Math.abs(att.roll) * 57.3)}°)` : '';
+    R.ok = R.on && !R.why;
+  }
+  P.reconStatus = () => { const R = P.recon; return !R.on ? 'CAMERAS OFF (K)' : R.ok ? `CAMERAS RUNNING  ·  STRIP ${(R.swath * 2 / 1000).toFixed(1)} KM  ·  ${R.pass ? R.pass.found.length : 0} TARGETS THIS PASS` : `CAMERAS ON  ·  NOT RUNNING: ${R.why}`; };
+  function recon(dt) {
+    const R = P.recon; reconState();
+    // the track, for the maps (a point every 2 s, the last ~30 min)
+    if (!A.onGround && (!R.trail.length || P.time - R.trail[R.trail.length - 1].t > 2)) { R.trail.push({ x: A.pos.x, z: A.pos.z, t: P.time, on: R.ok }); if (R.trail.length > 900) R.trail.shift(); }
     if (!R.ok) { if (R.pass && P.time - R.last > 4) endPass(); return; }
     R.last = P.time; R.frames += dt * 2;   // the OBC cycles about 2 frames a second
     R.film += dt * 0.6;   // film used (ft, notional): ~10,500 ft of film on the OBC's spool (INFERRED)
-    if (!R.pass) R.pass = { t0: P.time, found: [], x0: A.pos.x, z0: A.pos.z };
+    if (!R.pass) { R.pass = { t0: P.time, found: [], seen: new Set(), x0: A.pos.x, z0: A.pos.z }; R.strips.push(R.cur = { x0: A.pos.x, z0: A.pos.z, x1: A.pos.x, z1: A.pos.z, w: R.swath, t: P.time }); }
+    R.cur.x1 = A.pos.x; R.cur.z1 = A.pos.z; R.cur.w = R.swath;
     const list = H.reconTargets ? H.reconTargets() : [];
     for (const t of list) {
       const dx = t.x - A.pos.x, dz = t.z - A.pos.z, d = Math.hypot(dx, dz);
-      if (d > R.swath || R.seen.has(t.u || t)) continue;
-      R.seen.add(t.u || t); R.pass.found.push(t);
+      if (d > R.swath || R.pass.seen.has(t.u || t)) continue;
+      R.pass.seen.add(t.u || t); R.seen.add(t.u || t); R.pass.found.push(t);
+      // the photo: where it was and when (each target once per pass; a later pass refreshes it)
+      const k = R.marks.findIndex(m => m.u === (t.u || t)); const mk = { x: t.x, z: t.z, kind: t.kind, name: t.name || '', u: t.u || t, t: P.time };
+      if (k >= 0) R.marks[k] = mk; else R.marks.push(mk);
     }
   }
   function endPass() {
@@ -143,7 +161,8 @@ export function createSR71Play(ctx) {
     const n = p.found.length;
     if (H.onRecon) H.onRecon(p.found, { from: [p.x0, p.z0], to: [A.pos.x, A.pos.z], swath: R.swath, t: P.time - p.t0 });
     const kinds = {}; for (const t of p.found) kinds[t.kind] = (kinds[t.kind] || 0) + 1;
-    feed(n ? `RECON PASS: ${n} TARGETS PHOTOGRAPHED  -  ${Object.entries(kinds).map(([k, v]) => v + ' ' + k.toUpperCase()).join(', ')}` : 'RECON PASS: NOTHING ON THE FILM', n ? 'good' : 'info');
+    R.passes++;
+    feed(n ? `RECON PASS COMPLETE: ${n} TARGETS PHOTOGRAPHED  -  ${Object.entries(kinds).map(([k, v]) => v + ' ' + k.toUpperCase()).join(', ')}` : 'RECON PASS COMPLETE: NOTHING ON THE FILM', n ? 'good' : 'info');
   }
   P.reconSources = () => {   // the strip being photographed now (a live sight source for the host's fog of war)
     const R = P.recon; if (!R.ok) return null;
@@ -239,7 +258,10 @@ export function createSR71Play(ctx) {
     cockpit.group.visible = inside;
     if (inside) {
       const w = P.wpt; let brg = 0, nm = 0, rel = null; if (w) { const dx = w.x - A.pos.x, dz = w.z - A.pos.z; brg = Math.atan2(-dx, -dz) - A.heading; nm = Math.hypot(dx, dz) * 2 / 1852; rel = [dx, dz]; }
-      cockpit.update(A, P.ctl, dt, { brg, wptNm: nm, wptRel: rel, time: P.time, sched: spikeSched(A.mach), recon: P.recon.on, film: Math.round(P.recon.frames), caution: P.caution });
+      const R = P.recon, gsp = Math.hypot(A.vel.x, A.vel.z);
+      // (ngc/sr71-fix) the Nav Map (moving map) and the OBC panel get the cameras' state, the track, the strips, the photos
+      cockpit.update(A, P.ctl, dt, { brg, wptNm: nm, wptRel: rel, time: P.time, sched: spikeSched(A.mach), recon: R.on, reconOk: R.ok, film: Math.round(R.frames), filmRemain: Math.max(0, 2000 - Math.round(R.frames / 3.5)), caution: P.caution,
+        map: { x: A.pos.x, z: A.pos.z, bound: ctx.bound || 2560, range: A.onGround || gsp < 60 ? 3000 : clamp(gsp * 40, 6000, 30000), trail: R.trail, strips: R.strips, marks: R.marks, swath: R.swath, ok: R.ok } });
     }
     if (camera) sky.update(camera, true, time);
     if (snd) snd.update({ n: A.eng.map(e => e.n), ab: A.eng.map(e => e.ab), keas: A.keas, mach: A.mach, sigma: A.sigma, inside, canopy: A.canopy, on: 1, cart: P.cart, unstart: A.eng.some(e => e.unstart), warn: P.warn, rwr: P.rwr });
@@ -272,7 +294,7 @@ export function createSR71Play(ctx) {
     if (A.onGround && A.kias < 60) return 'THROTTLES TO MAX AB  ·  ROTATE AT ~210 KIAS (8-10°)  ·  GEAR UP BY 300 KEAS  ·  . BRAKES';
     const R = P.recon;
     const lines = [P.cautions.join('  ')];
-    if (R.on) lines.push(R.ok ? `CAMERAS RUNNING  -  STRIP ${Math.round(R.swath * 2 / 100) / 10} KM  ·  ${R.pass ? R.pass.found.length : 0} TARGETS THIS PASS` : `CAMERAS ON  -  NEED LEVEL FLIGHT ABOVE 60,000 FT`);
+    if (R.on) lines.push(P.reconStatus());
     if (A.mach > 0.95 && A.mach < 1.3) lines.push('TRANSONIC: DIVE TO ~30,000 FT AT MAX AB, THEN 450 KEAS CLIMB');
     if (!A.onGround && A.altFt < 3000 && A.gear < 0.5 && A.keas < 260) lines.push('GEAR!  ·  FINAL 175 KIAS, TOUCHDOWN 155, CHUTE BELOW 210');
     return lines.filter(Boolean).join('  ·  ');

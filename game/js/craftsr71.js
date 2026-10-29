@@ -59,8 +59,8 @@ export function createSR71Craft(ctx) {
   const _f = new THREE.Vector3();
   const yawOf = () => { A.forward(_f); return Math.atan2(-_f.x, -_f.z); };
   // ---------------------------------------------------------------- API
-  D.placeOnGround = (x, y, z, yaw = 0, o = {}) => { P.placeOnGround(x, y ?? groundY(x, z), z, yaw, o); D.parked = !o.hot; D.downT = 0; P.model.group.visible = true; return D; };
-  D.placeInAir = (x, y, z, yaw = 0, o = {}) => { P.placeInAir(x, y, z, yaw, { ...o, y: o.y ?? (o.ft === undefined ? y : undefined) }); D.parked = false; D.downT = 0; return D; };
+  D.placeOnGround = (x, y, z, yaw = 0, o = {}) => { P.placeOnGround(x, y ?? groundY(x, z), z, yaw, o); D.parked = !o.hot; D.downT = 0; if ('out' in D) D.out = true; /* (ngc/sr71-fix) the air base's 'out of her shelter' flag: placed = out (its parkAt clears it after) */ P.model.group.visible = true; return D; };
+  D.placeInAir = (x, y, z, yaw = 0, o = {}) => { P.placeInAir(x, y, z, yaw, { ...o, y: o.y ?? (o.ft === undefined ? y : undefined) }); D.parked = false; D.downT = 0; if ('out' in D) D.out = true; return D; };
   // a runway (the bases build their own and call this with its rectangle so the SR-71 rolls on it; mesh: false to draw
   // nothing): centre x, z, heading yaw (along the runway), length, width, floor height y
   D.addStrip = ({ x, z, yaw = 0, len = 1200, wid = 45, y = 0, mesh = true }) => {
@@ -74,18 +74,19 @@ export function createSR71Craft(ctx) {
   D.stow = () => { P.stow(); D.parked = false; if (crafts.active === D) ctx.autoNext?.(); };
   D.towTo = (x, z, yaw) => { if (!A.onGround) return false; A.pos.x = x; A.pos.z = z; A.pos.y = groundY(x, z) + 1.97 - 0.045; A.q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw); A.vel.set(0, 0, 0); A.w.set(0, 0, 0); return true; };
   D.present = () => P.exists && P.alive;
-  D.status = () => !P.exists ? '' : !P.alive ? 'LOST' : A.onGround ? (A.eng.some(e => e.run) ? 'ON THE GROUND, ENGINES RUNNING' : 'PARKED') : `${Math.round(A.altFt / 1000)}k FT  M ${A.mach.toFixed(1)}`;
+  D.status = () => !P.exists ? '' : !P.alive ? 'LOST' : A.onGround ? (A.eng.some(e => e.run) ? 'ON THE GROUND, ENGINES RUNNING' : 'PARKED') : `${Math.round(A.altFt / 1000)}k FT  M ${A.mach.toFixed(1)}${P.recon.on ? (P.recon.ok ? '  CAMERAS RUNNING' : '  CAMERAS ON') : ''}${P.recon.marks.length ? '  ' + P.recon.marks.length + ' PHOTOGRAPHED' : ''}`;
   D.frame = out => { out.x = A.pos.x; out.y = A.pos.y; out.z = A.pos.z; out.yaw = yawOf(); return out; };
   D.bounds = () => { if (!(D.present() && A.onGround)) return null; const y = yawOf(), c = Math.cos(y), s = Math.sin(y), b = D._b ||= {}, off = 1.0; b.x = A.pos.x + off * s; b.z = A.pos.z + off * c; b.yaw = y; b.hl = 16.4; b.hw = 2.2; b.y0 = A.pos.y - 1.97; b.y1 = A.pos.y + 1.2; b.def = D; return b; };
   // ---------------------------------------------------------------- in and out
   D.enter = (seat = 0, from) => {
     if (from === undefined) return crafts.control('sr71', seat, 'spawn');   // (called by the bases' code: take it)
     if (!D.present()) return false;
-    P.seat = seat === 1 ? 1 : 0; head.yaw = head.pitch = 0; P.snapChase(); D.parked = false;
+    P.seat = seat === 1 ? 1 : 0; resetLook(); P.snapChase(); D.parked = false;
     if (from === 'foot' || from === 'spawn') { A.canopyCmd = 0; say(`IN THE SR-71  -  ${P.seat ? 'RSO' : 'PILOT'}  ·  ${A.eng.some(e => e.run) ? 'ENGINES RUNNING' : 'I: START CART'}  ·  [ ] SEAT  ·  V VIEW  ·  Y CLIMB OUT`, 2.6); }
     return true;
   };
-  D.setSeat = i => { P.seat = i ? 1 : 0; return true; };
+  D.setSeat = i => { P.seat = i ? 1 : 0; resetLook(); return true; };
+  D.key = (code, e) => { if (code === 'KeyV') resetLook(); return P.key(code, e); };
   D.canExit = () => A.onGround && Math.hypot(A.vel.x, A.vel.z) < 0.5 ? '' : 'STOP ON THE GROUND FIRST';
   D.exitSpots = () => { const s = D.seats[crafts.seat] || D.seats[0], w = crafts.toWorld(D, s.exit), w2 = crafts.toWorld(D, [3.2, -1.95, -15]); return [w, w2].filter(Boolean).map(p => ({ x: p.x, y: p.y, z: p.z, yaw: yawOf() })); };
   D.exit = () => { A.canopyCmd = 1; P.thr = 0; D.parked = true; P.silence(); A.ap.on = false; };
@@ -106,23 +107,38 @@ export function createSR71Craft(ctx) {
     const mine = crafts.active === D; feed(`SR-71 LOST  -  ${why}`, 'bad'); ctx.fx?.boom?.(A.pos.x, A.pos.y, A.pos.z, 3);
     ctx.onUnitLost?.('sr71', why, mine); if (mine) D.downT = 3; else P.stow();
   }
-  D.key = code => P.key(code);
   // ---------------------------------------------------------------- views, HUD
   let view = 'chase';
   D.firstPerson = () => P.view === 'cockpit';
   D.fov = ck => ck;
+  // (ngc/sr71-fix) the mouse: main.js routes captured-mouse movement to look() for every craft that is not the Huey or a
+  // carrier jet (craftLooks()); before this the SR-71 had no look(), so the mouse did nothing and the head was moved only
+  // by a HOTAS hat - one resting off-centre (some POV axes read -1 at rest) walked the view to the floor. Now: the mouse
+  // turns the head in the cockpit and orbits the chase camera; the hat counts only when it moves away from its rest value
+  // (read when you get in); the head re-centres on every enter and seat change; NaN can never reach the camera.
+  const SENS = 0.0025, hatRest = { x: 0, y: 0, set: false };
+  const resetLook = () => { head.yaw = head.pitch = 0; const st = ctx.CTL && ctx.CTL.state; hatRest.x = st ? st.hatX || 0 : 0; hatRest.y = st ? st.hatY || 0 : 0; hatRest.set = true; };
+  D.look = (dx, dy) => {
+    if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
+    if (P.view === 'cockpit') { head.yaw = clamp(head.yaw - dx * SENS, -2.4, 2.4); head.pitch = clamp(head.pitch - dy * SENS, -1.0, 0.8); }
+    else { P.chase.yaw = clamp(P.chase.yaw - dx * 0.004, -Math.PI, Math.PI); P.chase.pitch = clamp(P.chase.pitch + dy * 0.003, -0.5, 1.2); }
+  };
   D.camera = (cam, dt) => {
+    if (!Number.isFinite(head.yaw) || !Number.isFinite(head.pitch)) head.yaw = head.pitch = 0;
     if (P.view === 'cockpit') {
       const st = ctx.CTL && ctx.CTL.state, h = st && st.actions && st.actions.lookhat !== false;
-      if (h && (st.hatX || st.hatY)) { head.yaw = clamp(head.yaw - st.hatX * 2.2 * dt, -2.4, 2.4); head.pitch = clamp(head.pitch + st.hatY * 1.6 * dt, -1.0, 0.8); }
-      else if (!ctx.view.locked()) { const k = Math.exp(-6 * dt); head.yaw *= k; head.pitch *= k; }
+      if (!hatRest.set) resetLook();
+      const hx = st ? (st.hatX || 0) - hatRest.x : 0, hy = st ? (st.hatY || 0) - hatRest.y : 0;
+      if (st && Math.abs((st.hatX || 0)) < 0.2 && Math.abs((st.hatY || 0)) < 0.2) { hatRest.x = 0; hatRest.y = 0; }   // a centred hat is the rest
+      if (h && (Math.abs(hx) > 0.5 || Math.abs(hy) > 0.5)) { head.yaw = clamp(head.yaw - hx * 2.2 * dt, -2.4, 2.4); head.pitch = clamp(head.pitch + hy * 1.6 * dt, -1.0, 0.8); }
+      else if (!ctx.view.locked() && !D.holdLook) { const k = Math.exp(-6 * dt); head.yaw *= k; head.pitch *= k; }   // (holdLook: tests)
       P.cockpitCam(cam, dt, head);
     } else P.chaseCam(cam, dt);
     void view;
   };
   D.render = (dt, time, fp) => { if (!P.exists) return; const cam = ctx.camZ(); P.render(dt, time, crafts.active === D && P.view === 'cockpit', cam); if (crafts.active !== D) P.sky.update(cam, false); };
   D.silence = () => P.silence();
-  D.hud = () => ({ line: P.hudLine(), hint: P.hint(), weap: P.recon.on ? `CAMERAS ${P.recon.ok ? 'RUNNING' : 'ON'}  ·  ${Math.round(P.recon.frames)} FRAMES` : 'CAMERAS OFF (K)', fuel: A.fuel / SR71.FUEL_MAX * 100, fuelLabel: 'JP-7' });
+  D.hud = () => ({ line: P.hudLine(), hint: P.hint(), weap: P.reconStatus(), fuel: A.fuel / SR71.FUEL_MAX * 100, fuelLabel: 'JP-7' });
   D.menuNote = () => `SR-71 JP-7 ${Math.round(A.fuel * LB)} LB`;
   // ---------------------------------------------------------------- what war.js sees
   D.pl = {
@@ -155,6 +171,48 @@ export function createSR71Craft(ctx) {
     if (found.length) feed(`PHOTO INTEL: ${found.filter(t => t.kind === 'island').map(t => t.name).join(', ') || 'TARGETS'} MARKED FOR ${SR71_INTEL_S / 60} MIN`, 'info');
   }
   D.onRecon = onRecon;
+  // ---------------------------------------------------------------- the maps (ngc/sr71-fix): main.js drawMap calls these
+  // follow: while she flies, the big map stays on her (unless you drag it) and the minimap zooms out to ~5 km
+  D.mapFollow = () => crafts.active === D && D.present() && !A.onGround ? { mini: 0.055, zoom: 0.4 } : null;
+  const TAG = { hq: 'HQ', aa: 'AA', radar: 'R', fuel: 'F', factory: 'M', fortress: 'C', island: 'I', carrier: 'K', battleship: 'L', freighter: 'S', shipyard: 'Y' };
+  D.mapOverlay = (r, px, py, half, big, W, Hh) => {
+    if (!P.exists && !P.recon.marks.length) return;
+    const R = P.recon, now = P.time;
+    r.save();
+    // the photographed strips (photo intel) - cyan bands, fading over SR71_INTEL_S
+    for (const S of R.strips) {
+      const age = now - S.t; if (age > SR71_INTEL_S + 30) continue;
+      const a = Math.max(0.15, 1 - age / SR71_INTEL_S), dx = S.x1 - S.x0, dz = S.z1 - S.z0, L = Math.hypot(dx, dz) || 1, nx = -dz / L * S.w, nz = dx / L * S.w;
+      r.fillStyle = `rgba(80,220,255,${0.16 * a})`; r.strokeStyle = `rgba(120,235,255,${0.7 * a})`; r.lineWidth = big ? 1.5 : 1;
+      r.beginPath(); r.moveTo(px(S.x0 + nx), py(S.z0 + nz)); r.lineTo(px(S.x1 + nx), py(S.z1 + nz)); r.lineTo(px(S.x1 - nx), py(S.z1 - nz)); r.lineTo(px(S.x0 - nx), py(S.z0 - nz)); r.closePath(); r.fill(); r.stroke();
+      if (big) { r.fillStyle = `rgba(150,240,255,${a})`; r.font = 'bold 11px monospace'; r.textAlign = 'left'; r.fillText('PHOTO INTEL ' + Math.max(0, Math.round((SR71_INTEL_S - age) / 60)) + ' MIN', px(S.x0 + nx) + 4, py(S.z0 + nz) - 4); }
+    }
+    // the photographed targets where the film saw them: red diamonds with their kind
+    for (const m of R.marks) {
+      const age = now - m.t; if (age > SR71_INTEL_S) continue;
+      const X = px(m.x), Y = py(m.z), q = big ? 6 : 3, a = 1 - 0.6 * age / SR71_INTEL_S;
+      r.strokeStyle = `rgba(255,110,80,${a})`; r.fillStyle = `rgba(255,110,80,${0.35 * a})`; r.lineWidth = big ? 2 : 1;
+      r.beginPath(); r.moveTo(X, Y - q); r.lineTo(X + q, Y); r.lineTo(X, Y + q); r.lineTo(X - q, Y); r.closePath(); r.fill(); r.stroke();
+      if (big && half > 0.04) { r.fillStyle = `rgba(255,160,130,${a})`; r.font = '10px monospace'; r.textAlign = 'left'; r.fillText((TAG[m.kind] || String(m.kind).slice(0, 3).toUpperCase()) + (m.name ? ' ' + m.name : ''), X + q + 3, Y + 3); }
+    }
+    if (P.exists && P.alive) {
+      // her track (dotted; cyan where the cameras ran) and the strip being photographed now
+      r.lineWidth = big ? 1.5 : 1; r.setLineDash([4, 4]);
+      for (let i = 1; i < R.trail.length; i++) { const p = R.trail[i - 1], q = R.trail[i]; r.strokeStyle = q.on ? 'rgba(120,235,255,.9)' : 'rgba(255,255,255,.55)'; r.beginPath(); r.moveTo(px(p.x), py(p.z)); r.lineTo(px(q.x), py(q.z)); r.stroke(); }
+      r.setLineDash([]);
+      if (R.ok) { A.forward(_f); const f = Math.hypot(_f.x, _f.z) || 1, fx = _f.x / f, fz = _f.z / f, w = R.swath; r.strokeStyle = 'rgba(120,235,255,.95)'; r.lineWidth = 2; r.beginPath(); r.moveTo(px(A.pos.x - fz * w), py(A.pos.z + fx * w)); r.lineTo(px(A.pos.x + fz * w), py(A.pos.z - fx * w)); r.stroke(); }
+      // off the map: an arrow on the edge pointing at her, with the range
+      const X = px(A.pos.x), Y = py(A.pos.z), m = 18, inside = X > m && Y > m && X < W - m && Y < Hh - m;
+      if (!inside && big) {
+        const cx = W / 2, cy = Hh / 2, dx = X - cx, dy = Y - cy, k = Math.min((W / 2 - m) / Math.abs(dx || 1e-6), (Hh / 2 - m) / Math.abs(dy || 1e-6)), ex = cx + dx * k, ey = cy + dy * k, an = Math.atan2(dy, dx);
+        r.translate(ex, ey); r.rotate(an); r.fillStyle = '#9ef'; r.beginPath(); r.moveTo(10, 0); r.lineTo(-8, -7); r.lineTo(-8, 7); r.fill(); r.setTransform(1, 0, 0, 1, 0, 0);
+        r.fillStyle = '#9ef'; r.font = 'bold 12px monospace'; r.textAlign = an > Math.PI / 2 || an < -Math.PI / 2 ? 'left' : 'right'; r.fillText('SR-71 ' + (Math.hypot(A.pos.x - (cx - 0), A.pos.z) / 1000 > 0 ? Math.round(Math.hypot(dx, dy) / half / 1000) : 0) + ' KM', ex + (an > Math.PI / 2 || an < -Math.PI / 2 ? 14 : -14), ey - 10);
+      } else if (crafts.active !== D) {   // parked / flown by someone else: a mark
+        r.strokeStyle = '#9ef'; r.lineWidth = big ? 2 : 1.2; r.beginPath(); r.arc(X, Y, big ? 6 : 3.5, 0, 6.283); r.stroke();
+      }
+    }
+    r.restore();
+  };
   return D;
 }
 export { createSR71Craft as createSR71 };

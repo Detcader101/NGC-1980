@@ -1,6 +1,7 @@
 # SR-71A references (ngc/look-sr71)
 
-All files here are public domain (US government works) or public-domain-marked. Fetched with a generic User-Agent.
+Files are public domain (US government works) or public-domain-marked, except the cockpit photos marked CC BY / CC BY-SA
+(attribution per row; reference only, not shipped in the game). Fetched with a generic User-Agent.
 
 | File | Source (URL) | Licence | Author / agency | What it shows |
 |---|---|---|---|---|
@@ -16,6 +17,16 @@ All files here are public domain (US government works) or public-domain-marked. 
 | `photo-61-7964-beale-1981-08-02.jpg` | https://commons.wikimedia.org/wiki/File:SR-71A_in_flight_near_Beale_AFB_1981.JPEG (DoD DF-ST series, 2 Aug 1981) | Public domain (US DoD) | US Air Force | 61-7964, 9th SRW, near Beale AFB: THE configuration and markings pinned (U.S. AIR FORCE, insignia on the fuselage and left upper wing, 17964 on the fin, 964 on the nacelle) |
 | `photo-61-7979-takeoff-beale-1981-08-02.jpg` | https://commons.wikimedia.org/wiki/File:SR-71A_taking_off_from_Beale_AFB_1981.JPEG | Public domain (US DoD) | US Air Force | 61-7979 taking off, Beale, 2 Aug 1981: afterburners, gear, markings of the period |
 | `photo-61-7974-kc135q-1983.jpg` | https://commons.wikimedia.org/wiki/File:Boeing_KC-135Q_refueling_SR-71.JPEG | Public domain (US DoD) | US Air Force | 61-7974 approaching a KC-135Q (59-1513), 1983: the refuelling receptacle area, left side |
+| `sr71a-1-fig1-13-side-panels-forward.jpg` | same SR-71A-1 item (vol. 01), leaf 40 (p. 1-24) | Public Domain Mark 1.0 | USAF / Lockheed SR-71A-1 | Fig. 1-13 instrument side panels, forward cockpit: panel art (ngc/sr71-fix) |
+| `sr71a-1-fig1-14-left-console-forward.jpg` | same item, leaf 41 (p. 1-25) | Public Domain Mark 1.0 | same | Fig. 1-14 left console, forward: throttle quadrant, panel art |
+| `sr71a-1-fig1-15-right-console-forward.jpg` | same item, leaf 42 (p. 1-26) | Public Domain Mark 1.0 | same | Fig. 1-15 right console, forward: panel art |
+| `sr71a-1-fig1-18-left-console-aft.jpg` | same item, leaf 45 (p. 1-29) | Public Domain Mark 1.0 | same | Fig. 1-18 left console, aft cockpit: panel art |
+| `sr71a-1-fig1-19-right-console-aft.jpg` | same item, leaf 46 (p. 1-30) | Public Domain Mark 1.0 | same | Fig. 1-19 right console, aft cockpit: panel art, the OBC panel's place |
+| `sr71a-1-fig1-83-ejection-seat.jpg` | same item, leaf 211 | Public Domain Mark 1.0 | same | SR-1 ejection seat text: D-ring, headrest, inertia reel |
+| `sr71a-1-fig4-29-obc-control-panel.jpg` | same archive.org item, vol. 03, leaf 70 | Public Domain Mark 1.0 | same | Fig. 4-29 NOSE optical bar camera control panel (FILM REMAIN, POWER, OPERATE, MODE, FILM DRIVE, SELF TEST): the live RSO panel |
+| `photo-cockpit-shul-pd.jpg` | Wikimedia Commons, Brian Shul in the SR-71 cockpit (USAF photo) | Public domain (USAF) | USAF / Brian Shul | Pilot in flight: black canopy interior, side windows, pressure suit |
+| `photo-cockpit-pilot-abbott-ccbysa.jpg`, `-pilot-vertical-`, `-pilot-canopy-`, `photo-cockpit-rso-abbott-ccbysa.jpg` | Wikimedia Commons / Flickr, Bill Abbott, SR-71 cockpits (museum, canopies open) | CC BY-SA 2.0 (attribution: Bill Abbott); reference only, not shipped | Bill Abbott | Grey tub and consoles, black panel faces, V of centre + side panels, stick, seat; RSO cockpit; the side-by-side reference |
+| `photo-cockpit-udvarhazy-cutrer-ccby.jpg` | Wikimedia Commons / Flickr, Jonathan Cutrer, SR-71 at the Udvar-Hazy Center | CC BY 2.0 (attribution: Jonathan Cutrer); reference only | Jonathan Cutrer | Canopy close-up: the pilot's trapezoid side window |
 
 Text sources (read, not stored as images):
 - SR-71A-1 flight manual (the archive.org item above, the OCR text of vols. 01-03): section I "Dimensions" (length 107.4 ft,
