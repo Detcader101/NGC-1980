@@ -187,3 +187,7 @@ every other part dissolves by 700 m. `perfbudget.mjs`: 54 / 54 / 3 draws at near
 **Tests:** `scenes/ch46fly.mjs` (the player's CH-46 end to end: cold start, 13 Marines up the ramp, flight, landing,
 dismount) 16/19 on look-units and 16/19 on the base under the same load, identical failures (the boarding waitFor and
 the 45 kt waitFor time out at ~1 fps in SwiftShader); every screenshot checked (deck, cockpit, cabin, LZ, dismount).
+* `SCENE=ch46capture.mjs scenes/mergecheck.mjs` (the AI CH-46 taking SANDBAR): no merged part moved (`bad: []`). The
+  scene's AI waitFors timed out at ~1 fps: 3/14 expects; the AI did lift off and fly to the LZ. **UNTESTED against the
+  base:** the base comparison run was stopped part-way when the PC was handed back. Rerun both on a quiet machine
+  before merging (ch46capture on look-units and on ngc/shader-library).
