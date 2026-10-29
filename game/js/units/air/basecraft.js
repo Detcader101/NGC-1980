@@ -123,21 +123,22 @@ export function createC130Sortie(ctx) {
     const along = (u - e.u) * d;   // metres past the threshold (negative on final)
     let tgt, alt, kias = 150;
     if (!A.final) {
-      const fu = e.u - d * 5200, [fx, fz] = L.toW(fu, 0), dist = Math.hypot(fx - S.pos.x, fz - S.pos.z);
+      const fu = e.u - d * 7500, [fx, fz] = L.toW(fu, 0), dist = Math.hypot(fx - S.pos.x, fz - S.pos.z);   // the initial approach fix: 7.5 km out on the centreline
       tgt = Math.atan2(-(fx - S.pos.x), -(fz - S.pos.z)); alt = L.E + 330; kias = 170;
-      if (dist < 700 || (along < -900 && along > -6000 && Math.abs(v) < 250 && Math.abs(angDiff(S.track(), L.yawOf(d, 0))) < 0.6)) { A.final = true; feed(`C-130: ESTABLISHED ON FINAL, RUNWAY ${String(e.num).padStart(2, '0')}`, 'info'); }
+      if (dist < 600 || (along < -2500 && along > -7600 && Math.abs(v) < 300 && Math.abs(angDiff(S.track(), L.yawOf(d, 0))) < 0.5)) { A.final = true; feed(`C-130: ESTABLISHED ON FINAL, RUNWAY ${String(e.num).padStart(2, '0')}`, 'info'); }
       S.flapSel = dist < 3500 ? 0.5 : 0;
     } else {
       const [px, pz] = L.toW(u + d * 700, 0); tgt = Math.atan2(-(px - S.pos.x), -(pz - S.pos.z));
       const toAim = -(along - 300);
-      alt = L.E + Math.max(0, toAim) * Math.tan(3 * Math.PI / 180) + 2.6; kias = 122;
+      alt = L.E + Math.min(330, Math.max(0, toAim) * Math.tan(3 * Math.PI / 180)) + 2.6; kias = toAim > 4000 ? 150 : 122;
       S.gearCmd = 1; S.flapSel = toAim < 3500 ? 1 : 0.5;
     }
     const c = S.autopilot(dt, { track: tgt, alt, kias, vsMax: A.final ? 4 : 6 });
     if (A.final && S.pos.y - groundY(S.pos.x, S.pos.z) < 9) { A.flare = true; }
     if (A.flare) { c.throttle = [0, 0, 0, 0]; c.pitch = Math.max(c.pitch, 0.12); }
     if (A.flare && S.onGround) A.rollout = true;
-    if (A.rollout) return { pitch: 0, roll: 0, yaw: clamp(-v * 0.05 - angDiff(L.yawOf(d, 0), S.heading) * 2, -1, 1), lever: Array(4).fill(Math.hypot(S.vel.x, S.vel.z) > 8 ? 5 : 18), brakeL: 1, brakeR: 1, tiller: 0 };
+    // rollout: rudder and nose wheel toward a point 150 m down the centreline (right pedal turns right = heading down)
+    if (A.rollout) { const [qx, qz] = L.toW(u + d * 150, 0), st = clamp(angDiff(Math.atan2(-(qx - S.pos.x), -(qz - S.pos.z)), S.heading) * 3, -1, 1); return { pitch: 0, roll: 0, yaw: st, tiller: st * 0.3, lever: Array(4).fill(Math.hypot(S.vel.x, S.vel.z) > 8 ? 5 : 18), brakeL: 1, brakeR: 1 }; }
     return { ...c, lever: c.throttle.map(x => 34 + x * 56), brakeL: 0, brakeR: 0, trimRate: c.trimRate };
   }
   function bestEnd() {   // the end whose final we can join with the least turning (into the wind would be the real rule)
@@ -281,7 +282,7 @@ export function createC130Sortie(ctx) {
     if (hat) { look.yaw = clamp(look.yaw - H.hatX * 2.2 * dt, -2.6, 2.6); look.pitch = clamp(look.pitch + H.hatY * 1.6 * dt, -1.1, 1.0); }
     else if (!ctx.view.locked() && !D.holdLook && D.view === 'cockpit') { const k = Math.exp(-5 * dt); look.yaw *= k; look.pitch *= k; }
     if (D.view === 'cockpit') {
-      cam.position.copy(DECK_EYE).applyMatrix4(g.matrixWorld);
+      cam.position.copy(DECK_EYE).applyQuaternion(S.q).add(S.pos);   // from the sim state, not the mesh (posed later this frame: a frame behind at speed is metres)
       cam.quaternion.copy(S.q).multiply(_q.setFromEuler(_e.set(DECK_EYE_PITCH + look.pitch, look.yaw, 0, 'YXZ')));
       if (!cam.userData.xr && S.buffet > 0.05) { cam.position.y += (Math.random() - 0.5) * 0.03 * S.buffet; }
       hover = null; cam.updateMatrixWorld();
@@ -363,8 +364,10 @@ export function createC130Sortie(ctx) {
 export function createBaseOps(ctx) {
   const L = ctx.AIRBASE, defs = {};
   const ops = {
-    L, defs,
+    L, defs, ctx,
     add(def) { defs[def.id] = def; if (!def.present()) def.parkAt?.(L.spot(def.baseSlot, 'park')); return def; },
+    // register a base aircraft with the craft host and park it in its slot (the SR-71: ops.attach(createSR71Craft(ops.ctx)))
+    attach(def) { if (!ctx.crafts.get(def.id)) ctx.crafts.register(def); return ops.add(def); },
     // the board: '' = out, else why not. mode: 'cold' | 'hot' | 'runway'
     deploy(id, mode = ctx.params?.has('cold') ? 'cold' : 'hot') {
       const def = defs[id]; if (!def) return id === 'sr71' ? 'THE SR-71 IS NOT ON THE BASE YET (ngc/look-sr71)' : 'NOT AT THE AIR BASE';
@@ -376,9 +379,8 @@ export function createBaseOps(ctx) {
     status(id) {
       const def = defs[id]; if (!def) return 'NO AIRCRAFT IN THE SLOT';
       if (!def.present()) return `IN THE HANGAR AT ${L.name}`;
-      const S = def.S, so = def.sortie || {};
-      const d = Math.hypot(S.pos.x - L.x, S.pos.z - L.z);
-      return def.crew ? `CREW FLYING HER HOME TO ${L.name}` : so.onBase ? `ON THE GROUND AT ${L.name}` : so.airborne || !S.onGround ? `FLYING  ${(d / 1000).toFixed(1)} km FROM ${L.name}` : 'ON THE GROUND';
+      const f = def.frame({}), so = def.sortie || {}, d = Math.hypot(f.x - L.x, f.z - L.z);
+      return def.crew ? `CREW FLYING HER HOME TO ${L.name}` : so.onBase ? `ON THE GROUND AT ${L.name}` : def.flying?.() ? `FLYING  ${(d / 1000).toFixed(1)} km FROM ${L.name}` : `ON THE GROUND ${(d / 1000).toFixed(1)} km FROM ${L.name}`;
     },
   };
   return ops;

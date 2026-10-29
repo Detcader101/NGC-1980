@@ -1484,12 +1484,12 @@ const ch46C = crafts.register(createCH46Craft({
 }));
 // --- (ngc/look-airbases) the AIR BASE's aircraft (units/air/basecraft.js): sorties from the hangar whenever you like,
 // from the command board (the C-130H / SR-71A rows, base: the air base); landing back there parks them in the hangar
-const c130C = crafts.register(createC130Sortie({
+const BASE_CTX = {   // what every base aircraft gets (the SR-71 too: baseOps.attach(createSR71...(baseOps.ctx)))
   scene: zScene, war, G, Z, CTL, keyDown: kd, hwOn: () => !!XR?.motionInput || !keyboardOnly, say, feed, sfx, fx, crafts, head, AIRBASE, terrainH,
   camZ: () => zCam, hover: () => switchHover, view: { locked: () => document.pointerLockElement === canvas },
-  onUnitLost: (id, why, mine) => onUnitLost(id, why, mine), autoNext: () => autoNext(), onSortieEnd: (d, mine) => baseSortieEnd(d, mine),
-}));
-const baseOps = createBaseOps({ AIRBASE, crafts, params }); baseOps.add(c130C);
+  onUnitLost: (id, why, mine) => onUnitLost(id, why, mine), autoNext: () => autoNext(), onSortieEnd: (d, mine) => baseSortieEnd(d, mine), params,
+};
+const baseOps = createBaseOps(BASE_CTX), c130C = baseOps.attach(createC130Sortie(BASE_CTX));
 function baseSortieEnd(def, mine) { if (!def.noGive) fleet.give(def.id); if (mine && !G.over) autoNext('SORTIE COMPLETE  -  BACK IN THE HUEY'); }
 globalThis.__AIRBASE = { AIRBASE, AIRBASE_MESH, baseOps, c130C };   // tests (tools/scenes/airbase*.mjs); the SR-71 plugs in with baseOps.add(def)
 // --- ON FOOT

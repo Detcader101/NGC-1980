@@ -63,11 +63,12 @@ export default {
     await h.eval(`(${C}.warp = 3, 1)`);
     await h.key('down', 'ShiftLeft');
     await h.waitFor(`${C}.S.kias > 105`, 60000);
-    await h.key('down', 'KeyS'); await h.waitFor(`!${C}.S.onGround`, 30000); await h.key('up', 'KeyS'); await h.key('up', 'ShiftLeft');
-    await h.expect(`${L}.onRunway(${C}.S.pos.x, ${C}.S.pos.z, 200) || true`, 'airborne');
+    await h.key('down', 'KeyS'); await h.waitFor(`!${C}.S.onGround`, 30000); await h.key('up', 'KeyS');
+    await h.waitFor(`${C}.S.pos.y - ${L}.E > 25`, 30000); await h.key('down', 'KeyS'); await h.wait(300); await h.key('up', 'KeyS'); await h.key('up', 'ShiftLeft');
+    await h.expect(`!${C}.S.onGround && !${C}.S.dead`, 'keyboard take-off: airborne');
     await h.eval(`(${C}.warp = 1, 1)`); await h.wait(1500); await h.shot('takeoff-chase');
     await h.eval(`(${C}.warp = 3, 1)`);
-    await h.waitFor(`${C}.S.pos.y - ${L}.E > 60`, 60000);
+    await h.waitFor(`${C}.S.pos.y - ${L}.E > 20`, 60000);
     await h.key('tap', 'KeyG');
     // ---- 5. N: home, approach, landing
     await h.key('tap', 'KeyN');
@@ -79,6 +80,7 @@ export default {
     await h.eval(`(${C}.warp = 1, 1)`); await h.wait(500); await h.shot('flare');
     await h.waitFor(`!${C}.present() || (${C}.sortie.stopped && ${C}.S.onGround)`, 200000);
     await h.expect(`${C}.present() && ${C}.sortie.airborne && ${L}.onRunway(${C}.S.pos.x, ${C}.S.pos.z)`, 'landed on the runway and stopped');
+    await h.eval(`({ v: Math.round(${L}.toL(${C}.S.pos.x, ${C}.S.pos.z)[1] * 10) / 10, hdg: Math.round(((-${C}.S.heading * 180 / Math.PI) % 360 + 360) % 360), nzMax: ${C}.S.nzMax })`, 'rollout');
     await h.shot('stopped-on-runway');
     // ---- 6. O: hand in - towed into the hangar, the sortie ends
     await h.key('tap', 'KeyO'); await h.wait(1500);
