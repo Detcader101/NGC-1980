@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 2,
+  "name": "offlinevoice",
+  "query": "?debug&auto&kb&res=0.45&voices=generated",
+  "seed": null,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "bc4b4d3173aca7a665284ad67aa5513aa354f2ea99261e6d3417f68306f60d8a",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/snap.mjs",
+    "scenes/offlinevoice.mjs",
+    "--out",
+    "runs/offlinevoice",
+    "--url",
+    "http://127.0.0.1:8826/"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7839427d84197e7273289e6158e6d8a45fbbe26b",
+    "branch": "ngc/look-voices",
+    "gameTree": "515bc2c65213bfffcc64c05603aa5a3469c998f6",
+    "gameSha256": "2c28cb3482f3fdfa6a00e294e963b1f4d9c54296cbf75d7bc230409b53796d57",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/dev/voices.html\n M game/js/main.js\n M game/js/units/air/rotary/figures.js\n M game/js/units/commander/board.js\n M game/js/units/groundwar/marineai.js\n M game/js/units/groundwar/marinefigure.js\n M game/js/units/infantry/bodyvm.js\n M game/js/units/infantry/handkit.js\n M game/js/units/infantry/meshkit.js\n M game/js/units/infantry/soldiermodel.js\n M game/js/units/infantry/viewmodel.js\n M game/js/units/infantry/weaponmodels.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/commands.js\n M game/js/voice/localrecognition.js\n M game/js/voice/voice.js\n M tools/scenes/offlinevoice.mjs\n M tools/scenes/voices.mjs\n M tools/serve.mjs\n?? game/dev/people.html\n?? game/dev/people.js\n?? game/js/units/infantry/figurematerials.js\n?? game/js/units/infantry/handposes.js\n?? game/js/units/infantry/humanmesh.js\n?? game/js/voice/commanddesk.css.js\n?? game/js/voice/delivery.js\n?? game/js/voice/fieldstations.js\n?? game/js/voice/localvoices.js\n?? game/js/voice/operations.js\n?? tools/figuresurfacebench.mjs\n?? tools/firstpersonbench.mjs\n?? tools/livevoicebench.mjs\n?? tools/peoplebench.mjs\n?? tools/radiodeskbench.mjs\n?? tools/radionetbench.mjs\n?? tools/radiooperationsbench.mjs\n?? tools/scenes/figuresurfaces.mjs\n?? tools/scenes/firstpersondiagnostic.mjs\n?? tools/scenes/firstpersonmotion.mjs\n?? tools/scenes/firstpersonpolish.mjs\n?? tools/scenes/handanatomy.mjs\n?? tools/scenes/livevoices.mjs\n?? tools/scenes/people.mjs\n?? tools/scenes/radioops.mjs\n?? tools/voice-server.mjs\n?? tools/voice-synthesize.ps1"
+  },
+  "url": "http://127.0.0.1:8826/?debug&auto&kb&res=0.45&voices=generated",
+  "ok": true,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": "1 fps  ·  res 45%",
+  "shots": [
+    {
+      "name": "offline-radio-reply",
+      "file": "01-offline-radio-reply.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 65.4,
+      "litFraction": 0.9999,
+      "colors": 403
+    }
+  ],
+  "clips": [],
+  "benchmarks": [],
+  "evals": [
+    {
+      "expr": "(async()=>{await __radioCommands.rec.ready;return {backend:__radioCommands.rec.backend,error:__radioCommands.rec.probeError,requests:performance.getEntriesByType(\"resource\").filter(e=>e.name.includes(\"/version\")||e.name.includes(\"/__speech\")).map(e=>({name:e.name,ms:e.duration}))};})()",
+      "value": {
+        "backend": "Windows offline",
+        "error": "",
+        "requests": []
+      }
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__micFixture.opened===0 && !__radioCommands.rec.active",
+      "label": "opening RADIO never opens the microphone",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__radioCommands.ptt.key===\"KeyV\" && __micFixture.opened===0",
+      "label": "keyboard PTT can be rebound without opening the microphone",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__radioCommands.rec.active && !__radioCommands.net.last",
+      "label": "held microphone shows level without issuing an order",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "!__G.cockpitCam",
+      "label": "bound V transmits without also toggling the cockpit",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__radioCommands.net.last.action===\"check\" && __radioCommands.net.last.target===\"carrier\"",
+      "label": "actual offline transcript reaches the live carrier command net",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "document.querySelector(\"#radioCommand output\").textContent.includes(\"Roger. Out.\")",
+      "label": "carrier reply is visible after local recognition",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__micFixture.dest.stream.getTracks().every(t=>t.readyState===\"ended\") && !__radioCommands.rec.active",
+      "label": "release closes actual captured tracks after transcription",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "document.querySelector(\"[data-heard]\").textContent.toLowerCase().includes(\"this is command\")",
+      "label": "recognized call remains visible for diagnosis",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.V.vol===4 && document.querySelector(\"[data-volume]\").textContent===\"4/10\"",
+      "label": "RADIO voice slider controls the actual voice mixer",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__micFixture.opened===1 && !__radioCommands.rec.active",
+      "label": "typing a bound letter in the radio form does not transmit",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__micFixture.opened===1 && !__radioCommands.rec.active",
+      "label": "controller binding through the real controls panel never opens the mic",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "!__radioCommands.rec.active",
+      "label": "closing controls with the assigned button held does not transmit",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "document.querySelector(\"#radioCommand output\").textContent.includes(\"cancelled\")",
+      "label": "disconnecting the bound controller cancels its unfinished call",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__radioCommands.ptt.key===\"F9\"",
+      "label": "RADIO can restore the default F9 binding",
+      "ok": true,
+      "value": true
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-28T22:10:48.556Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7839427",
+    "dirty": true,
+    "date": "2026-10-28_20:41",
+    "served": "2026-10-28T22:10:48.688Z",
+    "speech": "windows"
+  },
+  "sourceQualification": "External server version is recorded separately; the local source fingerprint alone does not prove remote content.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": "zarch",
+    "state": "play"
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7839427d84197e7273289e6158e6d8a45fbbe26b",
+    "branch": "ngc/look-voices",
+    "gameTree": "515bc2c65213bfffcc64c05603aa5a3469c998f6",
+    "gameSha256": "2c28cb3482f3fdfa6a00e294e963b1f4d9c54296cbf75d7bc230409b53796d57",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/dev/voices.html\n M game/js/main.js\n M game/js/units/air/rotary/figures.js\n M game/js/units/commander/board.js\n M game/js/units/groundwar/marineai.js\n M game/js/units/groundwar/marinefigure.js\n M game/js/units/infantry/bodyvm.js\n M game/js/units/infantry/handkit.js\n M game/js/units/infantry/meshkit.js\n M game/js/units/infantry/soldiermodel.js\n M game/js/units/infantry/viewmodel.js\n M game/js/units/infantry/weaponmodels.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/commands.js\n M game/js/voice/localrecognition.js\n M game/js/voice/voice.js\n M tools/scenes/offlinevoice.mjs\n M tools/scenes/voices.mjs\n M tools/serve.mjs\n?? game/dev/people.html\n?? game/dev/people.js\n?? game/js/units/infantry/figurematerials.js\n?? game/js/units/infantry/handposes.js\n?? game/js/units/infantry/humanmesh.js\n?? game/js/voice/commanddesk.css.js\n?? game/js/voice/delivery.js\n?? game/js/voice/fieldstations.js\n?? game/js/voice/localvoices.js\n?? game/js/voice/operations.js\n?? tools/figuresurfacebench.mjs\n?? tools/firstpersonbench.mjs\n?? tools/livevoicebench.mjs\n?? tools/peoplebench.mjs\n?? tools/radiodeskbench.mjs\n?? tools/radionetbench.mjs\n?? tools/radiooperationsbench.mjs\n?? tools/scenes/figuresurfaces.mjs\n?? tools/scenes/firstpersondiagnostic.mjs\n?? tools/scenes/firstpersonmotion.mjs\n?? tools/scenes/firstpersonpolish.mjs\n?? tools/scenes/handanatomy.mjs\n?? tools/scenes/livevoices.mjs\n?? tools/scenes/people.mjs\n?? tools/scenes/radioops.mjs\n?? tools/voice-server.mjs\n?? tools/voice-synthesize.ps1"
+  },
+  "summary": "PASS: 14/14 expects, 0 page errors, 0 console errors",
+  "durationMs": 80420,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/runs/offlinevoice"
+}

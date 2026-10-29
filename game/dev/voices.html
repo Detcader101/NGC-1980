@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NGC-1980 · Voice listening room</title>
+<style>
+body{font:17px/1.5 system-ui;background:#101a20;color:#e4ecea;max-width:850px;margin:3rem auto;padding:0 1.2rem}h1{font-size:2rem}label{display:block;margin:1rem 0}select,button,input{font:inherit;padding:.45rem;border-radius:3px}button{margin:.3rem .3rem .3rem 0;cursor:pointer}select{max-width:100%}output{color:#9ce3ca}#line{min-height:4em;border-left:3px solid #9ce3ca;padding:1rem;background:#1e2c32}small{color:#b4c4c8}a{color:#9ce3ca}
+</style>
+<h1>Voice listening room</h1>
+<p>Listen to the game's dialogue, radios and open-air acoustics. On the local Windows speech server, complete lines use the installed cast. The generated speech bank covers other hosts; this preview enables that bank even without installed voices.</p>
+<label>Speaker <select id="role"></select></label>
+<label>Call <select id="call"></select></label>
+<label>Person <select id="person"><option>One</option><option>Two</option><option>Three</option></select></label>
+<label>Channel <select id="net"><option value="ic">Crew intercom</option><option value="uhf">Aircraft radio</option><option value="fm">Ground radio</option><option value="air">Open air</option><option value="pa">Deck loudspeaker</option></select></label>
+<label>Distance <input id="distance" type="range" min="2" max="110" value="4"> <output id="meters">4 m</output></label>
+<label><input id="wall" type="checkbox"> Wall between speaker and listener</label>
+<label>Complete line <input id="custom" maxlength="480" style="width:100%;box-sizing:border-box" value="Command, this is Tower. Your air patrol is on station over Sandbar. Out."></label>
+<button id="sentence">Play complete line</button>
+<button id="play">Play call</button><button id="urgent">Urgent wave-off</button><button id="stop">Stop</button>
+<p id="line" aria-live="polite">Choose a speaker and press Play call.</p><output id="status">Audio starts after a click.</output>
+<p><small>Radio samples pass through band limiting and light saturation, followed by generated squelch. Open-air voices follow distance and wall controls while speaking. Voice identity stays with the selected person. <a href="../?debug&kb">Return to the game</a>.</small></p>
+<script type="module">
+import {createVoices} from '../js/voice/voice.js';
+import {PHRASES} from '../js/voice/phrases.js';
+const $=id=>document.getElementById(id), role=$('role'), call=$('call');
+for(const r of Object.keys(PHRASES).filter(r=>Object.keys(PHRASES[r]).length)) role.add(new Option(r,r));
+function choices(){call.replaceChildren();for(const c of Object.keys(PHRASES[role.value]))call.add(new Option(c,c));}
+role.onchange=choices;choices();
+let v,ctx;
+async function start(){
+  if(!v){ctx=new AudioContext();const master=ctx.createGain();master.gain.value=.5;master.connect(ctx.destination);
+    const noise=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate), a=noise.getChannelData(0);for(let i=0;i<a.length;i++)a[i]=Math.random()*2-1;
+    v=createVoices({sfx:{ctx,master,noise},params:new URLSearchParams('debug&voices=generated'),feed:t=>$('line').textContent=t});
+    v.ctx={state:'play',unit:'preview',inside:false,ear:{x:0,y:1.6,z:0,yaw:0}};
+    v.occluded=()=>$('wall').checked;
+    let t=performance.now();const tick=n=>{v.update(Math.min(.1,(n-t)/1000));t=n;$('status').textContent=`${v.speechInfo().engine} · ${v.cur?(v.cur.actor||v.cur.backend)+' speaking':v.queue.length?'loading / queued':'ready'}`;requestAnimationFrame(tick);};requestAnimationFrame(tick);
+  }await ctx.resume();v.setMode('on');
+}
+$('play').onclick=async()=>{await start();v.stop('preview');v.speak({who:'preview:'+role.value+':'+$('person').value,role:role.value,cat:call.value,net:$('net').value,unit:'preview',pos:()=>({x:+$('distance').value,y:1.6,z:0}),shout:true,cd:0,maxAge:60,vars:{cs:'Falcon one-one',cs2:'Hotel two',side:'three zero five',type:'Hornet',fuel:'four point two',clock:"nine o'clock",dir:'left',dist:'one hundred',isl:'Sandbar',n:'two',what:'Marines'}});};
+$('sentence').onclick=async()=>{await start();v.stop('preview');v.speak({who:'preview:'+role.value+':'+$('person').value,role:role.value,text:$('custom').value,net:$('net').value,pos:()=>({x:+$('distance').value,y:1.6,z:0}),cd:0,maxAge:60});};
+$('urgent').onclick=async()=>{await start();v.speak({who:'lso',role:'lso',cat:'waveoff',net:'uhf',pri:3,cd:0});};
+$('stop').onclick=()=>v?.stop('preview');
+$('distance').oninput=()=>$('meters').textContent=$('distance').value+' m';
+</script></html>

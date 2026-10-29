@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "title": "Crew voices and command radio",
+  "createdAt": "2026-10-28T19:13:40.065Z",
+  "artifacts": [
+    {
+      "file": "data/voices-db9cf1-result.json",
+      "bytes": 31717,
+      "sha256": "5c2f65b9af0ab2f73425477221aee84ecedfb06b4203122250913a9efda353fc"
+    },
+    {
+      "file": "data/commands-10f5f7-result.json",
+      "bytes": 7793,
+      "sha256": "f565e1c1843c30dfeca414f49249c7cc910066790ae79890e74fc81c4968c4fe"
+    },
+    {
+      "file": "data/smoke-04d588-result.json",
+      "bytes": 6466,
+      "sha256": "13cefaa25495d9490f744d13f09f6fca3c067fab56948651e5317b25dd2698e0"
+    },
+    {
+      "file": "data/preview-5975cf-result.json",
+      "bytes": 5819,
+      "sha256": "b7935a59801ab9e10972a920f21094fc8d17d5c1adbf495e25ee5ac3a3774e72"
+    },
+    {
+      "file": "data/diagnostic-5a695e-result.json",
+      "bytes": 31834,
+      "sha256": "beb4a77150aa024e23afa2c00c3b1fc1bcd387f4bab0df1a759176438b5bd19b"
+    },
+    {
+      "file": "data/casualty-diagnostic-8eeac9-result.json",
+      "bytes": 30714,
+      "sha256": "0179590d4e6e5e08c526747dcf8a044f50512ad0b146f19003ed243a0b77d4c6"
+    },
+    {
+      "file": "data/interrupted-browser-b66e6f-result.json",
+      "bytes": 14831,
+      "sha256": "749a01d04f23ef0a80fa6d0cdc1ab067cb575815ed9358bb0756999eff977fad"
+    },
+    {
+      "file": "data/notes.json",
+      "bytes": 6943,
+      "sha256": "3b0ef6338a3284310cab0a010c0d37ebd1c666f5f707972efd395b6c6bbc268c"
+    },
+    {
+      "file": "assets/7d411f441b92-01-huey-lift.png",
+      "bytes": 692446,
+      "sha256": "7d411f441b92f391d59964a5504ac5e58f2c13608392e75b7443b338bfcb30cd"
+    },
+    {
+      "file": "assets/74338056918c-01-listening-room.png",
+      "bytes": 49805,
+      "sha256": "74338056918c2600e32ed75d1c22a7dad93619b553f8cbecb3109a23782048ac"
+    },
+    {
+      "file": "assets/76b4a803cfed-02-contact.png",
+      "bytes": 625030,
+      "sha256": "76b4a803cfed27303ecb7ed6d03830c9743694f4e38f762c4ad5cce17c0d5c53"
+    },
+    {
+      "file": "assets/4442f6011cad-01-radio-panel.png",
+      "bytes": 614657,
+      "sha256": "4442f6011cad3e61a4a8901f1bed014712c3dd0317fc6f7b1810770d5dcf6744"
+    },
+    {
+      "file": "assets/43379d15c652-02-after-thrust.png",
+      "bytes": 654864,
+      "sha256": "43379d15c652a3e4b2d1bcd85bc04b10aa2dfe2d4daf454f4858850687674e19"
+    },
+    {
+      "file": "devlog.html",
+      "bytes": 36874,
+      "sha256": "b7879a4caf8bb86b930d7638be24cb720563b0914de8a423e1851f814ce68d36"
+    }
+  ]
+}

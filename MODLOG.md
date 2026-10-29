@@ -43,6 +43,178 @@ it at speed and height. Above ~3 km the view shows the curved Earth from altitud
 work (`placeOnGround` / `placeInAir` / `enter` / `stow` / `addStrip` / `onLanded`). Findings:
 docs/ngc1980/findings/look-sr71.md.
 
+## 2026-10-29 — Keep generated speech local; prepare a clean integration history
+
+Following Jay Jay's local-build decision relayed by project lead Claude, generated speech PCM and its generated
+manifest are excluded from the clean integration history and ignored by Git. `node tools/voice-build.mjs` builds
+the optional bank on this PC. The provided server and screenshot harness expose a local bank when present;
+the tracked manifest otherwise selects silent text call-outs without requesting a missing audio file. The
+server prints the build command when needed. Live Windows synthesis remains available via `--speech windows`.
+
+Added absent/partial-bank tests and a browser case for text-only call-outs. The clean handoff includes the
+tested third-person fitting below, with a single parent at Claude's fixed `f8abdbb` integration base. Earlier
+work remains available on `ngc/look-voices` for local recovery; that historical branch is not the integration
+candidate because it contains generated audio. No push or change to another agent's branch.
+
+Final validation: required voices 29/29, smoke 5/5, missing-bank browser 6/6, syntax 617/617, types 578/606,
+optional-bank tests 10/10 and server 13/13. The [local-speech and grip report](docs/devlogs/2026-10-29-tp-grips/devlog.html)
+passes all eight offline artifact/layout checks. Physical Opera GX microphone operation remains a manual check.
+
+## 2026-10-29 — Third-person weapon grasp fitting (ngc/look-voices)
+
+Separate follow-up to the fixed radio/render merge `7add6fc`, directed by Claude. Marine wrist targets now derive
+from the hand's local grasp frame instead of placing the wrist inside a weapon anchor. M203 rifle support moves
+below the launcher, grenade mode uses the launcher trigger and magazine, M60 support sits on the forearm and
+LAW hands wrap its tube. Raw weapon anchors and weapon geometry remain unchanged. Two optional diameter profiles
+use the existing SDF hand and Marine body cache; default crew and civilian hands retain their existing geometry.
+
+The change includes production pose adapters so player and rich AI launcher mode reaches the fitted grip,
+plus care-transition and cache-isolation checks. The optional merged-body geometry costs about 24.6 MB per
+high-detail appearance if all three runtime-used profile combinations are visited. No per-frame remeshing,
+alternate renderer, performance improvement or AAA character-quality claim. Detailed evidence and limits are
+recorded in [look-voices findings](docs/ngc1980/findings/look-voices.md) and the
+[third-person grip report](docs/devlogs/2026-10-29-tp-grips/devlog.html).
+
+## 2026-10-29 — Reconcile radio work with Claude's figure and render base (ngc/look-voices)
+
+Following Claude's lead direction, merged the fixed `ngc/shader-library` input `f8abdbb` into the assigned
+`ngc/look-voices` branch. Claude's welded SDF hands, attachMarine body, camouflage, baked crews, instanced crowds,
+LOD and detailed weapons remain the default presentation. Ported grip/wrist fitting, continuous hand targets,
+gait, planted feet, posture blending and reset behavior onto that pipeline. Corrected prone pouch clearance
+and a thumbnail deformation that inverted surface triangles; removed the superseded alternate body helper.
+Claude then directed bounded first-person profiles: tuck the M203 support thumb, move M60 support rearward
+30 mm and clear the LAW sights. Fresh close-ups confirm the large thumb cap is gone and the LAW reticle is clear.
+
+Radio/PTT updates, input masking, readbacks, map marks, mission outcomes and new-game resets survive alongside
+the render hooks. Persistent crew identity and the XR eye-camera matrixWorld fix remain. Local speech/voice
+endpoints and benchmark storage coexist with opt-in and origin checks. Callback/option types and DOM narrowing
+bring the merged semantic count to 578 against the unchanged 606 ceiling; syntax passes 609/609.
+
+Visual review still finds small M203 fingertip intersections and M60 contact at the forearm's front edge.
+Separate third-person close-ups expose the static hand/raw-anchor fit problems; FP fixes do not correct them.
+These are sent to Claude for figure direction and are not claimed fixed. The retained near body/weapon
+geometry exceeds the aspirational 15k triangle budget. No performance gain, physical microphone result or AAA
+character-quality claim is made. The initial voices capture's source-inventory failure is retained as diagnostic
+evidence. Final checks, inspected media and limitations are in the
+[integration report](docs/devlogs/2026-10-29-radio-integration/devlog.html) and
+[look-voices findings](docs/ngc1980/findings/look-voices.md). No merge into another branch or push by Codex.
+
+## 2026-10-29 — Shared Codex / Claude coordination mailbox
+
+Created a local append-only mailbox in the common Git directory, with an initial tested-work handoff, explicit ACKs,
+file ownership and browser-test coordination. [Coordination notes](docs/ngc1980/COORDINATION.md) identify its canonical
+path and the overlapping radio/infantry versus look-people/render files. No game changes, integration or push.
+The mailbox requires active polling by each session; it does not wake stopped agents.
+
+## 2026-10-28 — Radio command desk, live controller orders and complete local speech (ngc/look-voices)
+
+Backslash and the HUD Radio button now open a station/message/destination desk with Orders, Missions, Traffic and
+Settings. The Fleet board remains available for direct unit control. Map clicks mark named destinations; carrier
+courses and paid support requests are read back before confirmation. Pending requests expire, cancel on pause and
+revalidate resources, research, unit identity and destination at execution. Duplicate confirmation cannot spend twice.
+
+Air Boss tasks real CAP aircraft; Transport launches Marine lifts and reserve-accounted jeep/truck/APC drops;
+Supply requests AA construction, replacements and Huey field repair; Operations requests actual research. Mission
+records distinguish a dispatched flight from a completed delivery/recovery, and report losses. Marine squads accept
+rally, movement, formation, cease fire/resume fire, contact and casualty reports. Contact reports use AI perception;
+new movement uses the AI objective type that recognizes arrival. Weapons stay at game command/animation level.
+
+The existing `--speech windows` server option now also generates complete speech PCM from locally installed WinRT
+voices. This PC has David, Mark and Zira. Speaker identity and restrained prosody are applied during synthesis;
+normalization keeps actor levels consistent. Existing quiet band-pass/clipping/squelch, priority serialization,
+open-air distance and wall muffling remain. No installed voices means silent subtitles; other hosts retain the
+portable bank. No downloaded voices, neural models or external synthesis service. This improves cadence/cast but
+is not a claim of actor-quality speech. Physical microphone/HOTAS and subjective listening remain manual checks.
+
+Validation and corrected integration diagnostics are recorded in
+[look-voices findings](docs/ngc1980/findings/look-voices.md). Node checks: radio net/AI 56, operations 46, parser/native lifecycle 38, real Windows complete speech 25,
+Windows recognition 27 and PTT 23. The findings and portable report contain full-game results and diagnostic history.
+Reviewed captures and raw results: [radio and infantry report](docs/devlogs/2026-10-28-radio-infantry/devlog.html).
+
+Sources: [Microsoft WinRT speech](https://learn.microsoft.com/en-us/uwp/api/windows.media.speechsynthesis.speechsynthesizer),
+[USMC radiotelephone instruction](https://www.trngcmd.marines.mil/Portals/207/Docs/FMTBE/Student%20Materials/FMST/Block3/FMST%20306%20SO.pdf),
+[USCG prowords](https://www.cisa.gov/sites/default/files/publications/CGTTP_6-01_1B_Radiotelephone_Handbook.pdf).
+Radio workflow/filters/confirmation window are game design choices, not measured historical radio performance.
+
+## 2026-10-28 — First-person grips, continuous figure surfaces and skinned Marines (ngc/look-voices)
+
+Corrected disconnected wrists, reversed sleeve taper and generic support-hand rotation. M16/M203, M60, M1911 and
+LAW grips now use handed socket frames; closed hand geometry and continuous grip/open morphs support weapon,
+ladder, swimming and self-aid poses. Stance/low-ready blends, damped weapon inertia and retained body-overlay exits
+reduce abrupt pose changes. Existing weapon actions and sight contracts are preserved.
+
+Nearby Marines now use original skinned garments, a coherent head/face and resized M1 helmet, with improved gait,
+stance/seated transitions and prone elbow clearance. Shared camouflage, cotton weave, skin grain, webbing and
+weapon finish detail use one original 512 px data texture in rest coordinates. Detail tiers and legacy materials
+remain available. No borrowed art or downloaded models. Geometry rises about 4%; no performance gain is claimed.
+
+Node validation: 886 first-person pose cases, six figure groups, four material tiers, infantry 90/90 and ground 15/15.
+Required browser scenes pass voices 29/29 and smoke 5/5; final Marine integration passes 9/9. Syntax: 580/580.
+Matching before/after preview fixtures, saved motion clips and in-game checks are recorded with the radio work in
+[look-voices findings](docs/ngc1980/findings/look-voices.md). These remain procedural game characters; the pass does
+not claim AAA asset/animation parity or hardware VR qualification.
+
+## 2026-10-28 — Quieter sentence voices and offline Opera GX command input (ngc/look-voices)
+
+Responds to the user's live report of robotic/loud speech and microphone startup hanging. Speech generation now
+preserves punctuation and renders common complete replies and dynamic calls; person resampling is restrained.
+The rebuilt bank has 1,521 clips per installed voice (David/Zira), 48.7 MiB compressed. This reduces word joins,
+but does not turn desktop SAPI into neural or actor-performed dialogue. No downloaded packs or third-party audio.
+
+Default voice level is 6/10, voice bus 0.32, effects duck to 72%; RADIO now includes a volume slider. Radios have
+narrower cascaded band edges, mild saturation and a post-clipping low-pass, with existing squelch and priority
+handling. UHF 420–2400 Hz, FM 450–2300 Hz, ICS 350–3000 Hz are game-tuned, not claimed historical measurements.
+
+For this Windows/WSL PC, `node tools/serve.mjs --port 8827 --speech windows` enables offline recognition in Opera GX.
+The browser captures PTT only, displays input level, closes the stream on release/cancel, and sends bounded mono
+16 kHz PCM to its loopback server. Installed Windows System.Speech transcribes it with a live call grammar and
+competing dictation; the existing strict procedure parser and live-unit checks still decide whether to issue an
+order. Temporary audio is deleted afterward. Check microphone grants permission without sending an order.
+Other servers retain native recognition, now with a startup timeout and specific service/device/permission errors.
+
+Added persisted PTT keyboard and HOTAS/gamepad bindings (RADIO → Bind key / Bind controller; F9 default).
+PTT owns its assigned input, including legacy raw gamepad readers and trigger throttle, and cancels on disconnect
+or blur. Binding checks passed 23/23 and the existing HOTAS self-tests passed.
+
+Sources: Microsoft System.Speech SetInputToWaveFile/Choices documentation; MDN SpeechRecognition. Actual installed
+recognition and cancellation tests passed 27/27; DSP/AudioWorklet browser checks passed 7/7. Final checks: full voices 29/29; offline PTT/bindings 14/14; smoke 5/5; live Marine commands 8/8; syntax 553/553.
+The offline report passed 8/8 layout/media checks. Remaining manual microphone/listening limits and the
+[portable report](docs/devlogs/2026-10-28-voice-tuning/devlog.html) are documented in
+[look-voices findings](docs/ngc1980/findings/look-voices.md).
+
+## 2026-10-28 — Generated crew voices and push-to-talk command radio (ngc/look-voices)
+
+Finished the voice checkpoint at be546c6. Huey crew, jet pilots/RIO, tower/LSO/Air Boss, plane captains and nearby
+ship crew, Marine fire teams/corpsmen, commanders, vehicle crews and civilians now have event/proximity dialogue
+and stable person identities. Locally synthesized authored speech passes through the actual radio band-pass,
+light saturation and generated squelch; open-air speech follows distance, stereo position and wall/door muffling.
+One bounded priority queue interrupts for urgent calls, cancels sources on pause/OFF and ducks effects through a
+separate voice bus. Missing system voices or unavailable generated assets remain silent with subtitles.
+
+Added **RADIO / F9** push-to-talk and a typed-call alternative. A complete military call (unit, THIS IS COMMAND,
+supported order, OVER) controls live Marine hold/move/defend orders, AI aircraft recall and carrier navigation.
+The addressed person replies WILCO/OUT or UNABLE. Final results wait for release; ambiguous, incomplete or cancelled
+transmissions cannot dispatch. SAY AGAIN repeats the reply without repeating the action. The live roster lists
+callsigns and capabilities. Spoken orders accept standard procedure without a 1980 restriction, as requested later
+in the session; authored character dialogue retains conservative period vocabulary.
+
+Sources: NAVPERS 10228-E (1967) chapter 7; ACP 125(D) archival record (1970); FAA AIM 4-2 for radio technique;
+Web Speech interfaces for synthesis/recognition limitations. Dialogue is authored, not quoted from manuals.
+`tools/voice-build.mjs` generates the 19.1 MiB compressed mono speech bank from this PC's installed David/Zira SAPI
+voices; no downloaded packs, game recordings or external synthesis service. Identity uses pitch/rate/timbre profiles.
+`game/dev/voices.html` is the listening preview. Wall acoustics use intersection/low-pass approximations; no full
+propagation model or carrier roll/pitch acoustic transform. Dynamic names can concatenate words or letters.
+
+Shared-file changes: `main.js` voice imports, spatial refs, door-gun event, radio panel initialization/update and debug
+audio export; `marine.js` accepted-reload event. Unit flight/weapon models are unchanged. Findings, diagnostic failures,
+reproduction and final validation are in [look-voices.md](docs/ngc1980/findings/look-voices.md).
+Physical microphone/service reliability, subjective intelligibility, headset/XR input and a full veteran phrase
+review remain manual checks. Browser recognition may send audio to its own service; the radio panel discloses this.
+Validation: voices **29/29**, command integration **8/8**, smoke **5/5**, syntax **544/544**, voice/asset contracts
+**19/19**, command parser/lifecycle **38/38**, listening preview **2/2**. All successful browser runs have zero
+page/console errors. See the [offline devlog](docs/devlogs/2026-10-28-voices/devlog.html); it also retains historical
+failed diagnostics, explains scripted events and identifies the final identity/CSS follow-up checks.
+
 ## 2026-10-29 — VR: deck crew no longer corrupts the eye cameras (branch ngc/xr-fix)
 
 xr.mjs was 17/19 on ngc/shader-library (sky dome and near terrain window "not following the eye"). Cause: the deck

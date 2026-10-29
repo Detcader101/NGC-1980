@@ -1,0 +1,108 @@
+{
+  "title": "Quieter radios, local microphone commands and PTT bindings",
+  "date": "2026-10-28",
+  "summary": "The updated mix reduces voice prominence and narrows radio speech. Punctuation and complete common sentences reduce choppy synthesis. Opera GX can use the installed Windows recognizer through local push-to-talk, with saved keyboard and controller bindings. Final passing runs are identified below; failed diagnostic runs remain in the evidence totals.",
+  "reproduce": "Use the supplied Chrome wrapper for snap.mjs from tools. Run scenes/voices.mjs, scenes/voicequality.mjs, scenes/voicecommands.mjs and scenes/smoke.json. For scenes/offlinevoice.mjs use a local tools/serve.mjs server with --speech windows and pass its URL. Run tools/speechbench.mjs --windows, tools/pttbench.mjs and tools/check.mjs syntax from the worktree root.",
+  "changes": [
+    {
+      "title": "Quieter, more strongly filtered speech",
+      "change": "Default volume moves from 8/10 to 6/10 and the separate voice bus from 0.5 to 0.32. Effects duck less. UHF and FM have narrower cascaded band edges and filtering after mild clipping. The same installed David/Zira voices now synthesize punctuation and common full sentences, with gentler pitch changes.",
+      "observed": "The listening preview displays the LSO wave-off through the generated backend. OfflineAudioContext measurements show much lower 120 Hz and 6000 Hz output than the earlier radio chain while retaining the speech midrange. A common carrier acknowledgement resolves to one clip.",
+      "checks": [
+        "Audio quality scene: 7/7, zero browser errors.",
+        "Voice scene: 29/29, zero browser errors; priority, real PCM, pause, occlusion, silent fallback and role hooks.",
+        "Generated bank and hook checks: 19/19."
+      ],
+      "limitations": [
+        "The 48.7 MiB bank is larger than the original 19.1 MiB bank.",
+        "These remain desktop SAPI voices. Human-perceived naturalness is for the user to judge; no neural model or performed dialogue was added.",
+        "The voice scene precedes the later PTT binding changes, which have their own integrated and controller tests."
+      ],
+      "media": [
+        {
+          "run": "quality",
+          "shot": "quieter-radio-preview",
+          "label": "Current listening preview",
+          "caption": "Generated LSO wave-off; DSP assertions measure the filtering rather than inferring sound from this screenshot.",
+          "reviewed": true
+        },
+        {
+          "run": "voices",
+          "shot": "huey-lift",
+          "caption": "Scripted Huey departure in the full voice scene. Audio assertions and logs carry the evidence for call timing.",
+          "reviewed": true
+        }
+      ]
+    },
+    {
+      "title": "Local microphone path in Opera GX",
+      "change": "An opt-in loopback server transcribes the browser’s short PTT WAV with the already installed Windows recognizer. RADIO shows the backend, microphone level, received text, errors and voice level. Check microphone grants permission and immediately closes the stream.",
+      "observed": "The browser fixture captured our generated radio check via a real AudioWorklet, sent it to the Windows recognizer and received the live carrier reply. The screenshot shows both the recognized text and Read you. Out.",
+      "checks": [
+        "Final integrated offline/binding scene: 14/14, zero browser errors.",
+        "Speech lifecycle and real installed Windows recognition: 27/27.",
+        "Invalid procedure, wrong caller, missing OVER, unrelated speech, multiple calls and silence do not issue accepted orders."
+      ],
+      "limitations": [
+        "The microphone fixture is generated speech injected as a MediaStream; the user’s physical microphone, accent, background noise and permission choice remain unqualified.",
+        "Windows offline needs the speech-enabled server on this PC. Other hosts retain the browser-service path.",
+        "The game was rendered by SwiftShader for these assertions; no performance or headset claim is made."
+      ],
+      "media": [
+        {
+          "run": "offline",
+          "shot": "offline-radio-reply",
+          "label": "Real local recognition with generated input",
+          "caption": "PTT rebound to V, offline recognition, transcript and carrier reply. The volume slider was deliberately set to 4/10 by the fixture.",
+          "reviewed": true
+        }
+      ]
+    },
+    {
+      "title": "Persistent push-to-talk bindings",
+      "change": "RADIO offers Bind key, Reset F9 and Bind controller. Flight Controls exposes RADIO PUSH-TO-TALK (HOLD). The binding owns its input in both named actions and legacy raw gamepad readers, including trigger throttle.",
+      "observed": "The browser fixture changed F9 to V, transmitted without toggling the cockpit, left typed V as text, assigned a controller button, required release after binding, cancelled on disconnect and restored F9.",
+      "checks": [
+        "PTT binding bench: 23/23, including persistence, simultaneous input holds, disconnect/reconnect and trigger ownership.",
+        "Existing HOTAS, wiggle calibration and rocker-countermeasure self-tests passed."
+      ],
+      "limitations": [
+        "Controller state was injected through the production Gamepad path; a physical HOTAS has not been exercised."
+      ],
+      "media": []
+    },
+    {
+      "title": "Failures retained and corrected",
+      "change": "Fixes followed failing runs instead of discarding the evidence.",
+      "observed": "One voice assertion compared a float gain to an exact decimal. Initial local discovery could time out during cold game startup. A meter assertion selected a HUD element, and a later fake-controller release was shorter than a rendered frame.",
+      "checks": [
+        "Gain checks now use float tolerance and log both buses.",
+        "Local discovery retries once after yielding; a deterministic timeout case passes.",
+        "The meter selector is scoped to RADIO.",
+        "The controller fixture explicitly polls its neutral state before pressing again."
+      ],
+      "limitations": [
+        "The earlier failed runs contribute to the report’s aggregate failures; they are historical diagnostics, not the final status."
+      ],
+      "media": []
+    },
+    {
+      "title": "Game regression",
+      "change": "Kept the existing command parser and live-unit order paths while adding local recognition and input binding.",
+      "observed": "Smoke checks exercise the real helicopter climb. The command scene uses a fake browser recognition provider with real Marine squads and orders.",
+      "checks": [
+        "Syntax: 553/553 modules.",
+        "Command parser and native recognition lifecycle: 38/38.",
+        "Smoke: 5/5; native/typed Marine command scene: 8/8."
+      ],
+      "limitations": [
+        "The native microphone provider in the command fixture is simulated; actual Windows transcription is checked separately."
+      ],
+      "media": []
+    }
+  ],
+  "limitations": [
+    "Physical microphone/HOTAS testing and subjective voice listening remain manual.",
+    "Source snapshots include dirty worktree hashes, recorded per run; no branch was merged or pushed."
+  ]
+}

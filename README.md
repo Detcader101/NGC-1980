@@ -13,6 +13,27 @@ Bungeling Bay* and *Carrier Command*. Design bible: [BIBLE.md](docs/ngc1980/BIBL
 You fly a simulated helicopter from the deck of your carrier, the ALBATROSS, across a sea of 17 islands.
 The enemy carrier KRAKEN is out there doing the same, and whoever controls the map wins.
 
+**Voices and command radio:** crews, pilots, controllers and troops speak through processed radios or nearby
+open-air voices. Esc offers **VOICES: ON / RADIO ONLY / OFF** and voice volume. Without installed English voices,
+the game remains silent with subtitles. Open `dev/voices.html` on the game server to audition the generated voices.
+Hold **F9** to transmit, or open **RADIO** for callsigns and supported orders. For example:
+“Hotel one, this is Command. Hold position. Over.” Release to send. Complete addressed calls are required;
+the panel also accepts typed calls. **RADIO → Settings → Check microphone** grants permission without sending an order;
+wait for **LISTENING**, speak, then release. The panel shows input level, transcript, and voice volume.
+Use **RADIO → Settings → Bind key** for another keyboard key, or **Bind controller** to assign a HOTAS/gamepad button in
+Flight Controls. Both bindings persist; **Reset F9** restores the keyboard default. Controller PTT can also be
+bound under **J → RADIO PUSH-TO-TALK (HOLD)**. Release to send; disconnecting or losing focus cancels the call.
+For Opera GX on this Windows/WSL PC, launch `node tools/serve.mjs --port 8826 --speech windows` and open
+`http://127.0.0.1:8826/`. The panel should show **Windows offline**: PTT audio is recognized locally using the
+installed Windows US English recognizer and its temporary WAV is deleted afterward. Other servers fall back
+to browser speech recognition, which may use a network service. No recognizer or voice packs are downloaded.
+Voices now have a quieter default, narrower radio filtering and complete-sentence recordings generated locally
+for common calls. The local Windows service now renders dynamic sentences with David, Mark and Zira; these
+remain synthesized voices rather than human performances.
+See [decisions and test limits](docs/ngc1980/findings/look-voices.md) and the
+[initial voice devlog](docs/devlogs/2026-10-28-voices/devlog.html) and
+[quieter radios, local mic and bindings report](docs/devlogs/2026-10-28-voice-tuning/devlog.html).
+
 The experimental build now has a 2.56 km control zone, varied rocky and sandy islands, and continuous distance haze
 with blended scenery LOD. Click **RESEARCH / TECH TREE** on the HUD or in the Esc menu to open research.
 Fish schools now populate the water ahead of the flying camera: look for moving dark shoals and silver flashes;
@@ -35,6 +56,49 @@ Commands and report format: [tools guide](tools/README.md#benchmark-and-html-dev
 
 ![The KRAKEN and the enemy battleship](docs/screenshot.png)
 
+### Radio command desk (ngc/look-voices)
+
+Press **\\** for the command radio. Choose a station, message and destination; read the displayed call while holding
+**F9**, or send it as a written transmission. Bind another key or controller button under **Radio → Settings**.
+Resource requests and carrier courses are read back first: answer **“Air Boss, this is Command. Correct. Over.”**
+or **“Air Boss, this is Command. Disregard. Out.”** to cancel (use the addressed station). Unconfirmed requests expire after
+45 seconds and cancel on pause. **Missions** reports actual progress; **Traffic** retains calls and refusals.
+The **Fleet board** button retains direct unit control. **Shift+\\** opens research; **/** cycles existing units.
+
+Air Boss tasks real CAP aircraft; Transport sends Marine lifts and vehicle drops; Supply handles replacement reserves,
+air defense construction and field repair; Operations requests research. All existing research, resource, reserve,
+ownership and deck limits apply. Live squad callsigns accept movement, rally, formation, cease fire, resume fire,
+contact and casualty reports. Map clicks away from island labels create named radio points instead of immediately
+ordering the carrier. Squads need transport across water. Contact reports use perceived/remembered contacts.
+
+For Opera GX on this PC, start this worktree with `node tools/serve.mjs --port 8826 --speech windows`.
+That enables both offline recognition and full-sentence speech from installed Windows voices (David, Mark, Zira here).
+Microphone audio is captured only while you hold PTT, transcribed locally and deleted; use Settings → Check microphone
+to grant permission. Full generated utterances still pass through the quieter radio filter. Other hosts retain the
+portable generated bank; without installed English voices the game stays silent with subtitles. These remain
+synthesized voices, not human actors or downloaded neural voice packs.
+
+The optional speech bank is **built on your own PC and is not distributed in Git**. From the repo root in WSL,
+with Windows US English voices installed, run `node tools/voice-build.mjs`, then use `node tools/serve.mjs`
+(or the launcher). The generated `speech.logpcm.gz` and `local-index.json` stay ignored. The provided server
+exposes them through the voice manifest; an ordinary static deployment uses the tracked text-only manifest.
+Without a bank or live local synthesis, radio call-outs remain on the HUD without audio or missing-file errors.
+The server prints the build command if the bank is absent. `--speech windows` can synthesize complete lines live
+without a prebuilt bank. Do not include locally generated speech files when publishing the game.
+
+
+**Infantry presentation:** weapon-specific grips keep wrists attached to their cuffs; hand opening, low-ready and
+body transitions blend continuously. Marines use the shared look-people body, camouflage and distance-detail
+pipeline, with planted-foot gait, posture blending and pose resets. Fitted hands use one welded SDF surface with
+matching grip, open and rail targets. Use
+`dev/infantry.html` and `dev/people.html` for the production-model inspection ranges.
+See the [current integration report](docs/devlogs/2026-10-29-radio-integration/devlog.html) for Claude's retained
+figure pipeline and radio checks. The separate
+[third-person grip report](docs/devlogs/2026-10-29-tp-grips/devlog.html) records the M203, M60 and LAW fitting
+follow-up, production pose adapters, unchanged crew/crowd checks and remaining contact limits. The
+[earlier radio and infantry report](docs/devlogs/2026-10-28-radio-infantry/devlog.html) contains the preceding
+comparisons and saved motion clips.
+
 ## What's in it
 
 - **Endless world.** The 17 islands are the CONTROL ZONE, where the war happens. Past it the world goes on for ever: open sea, then continents with coasts, forests and mountain ranges over a kilometre high, all perfectly flyable, just without objectives.
@@ -46,7 +110,7 @@ Commands and report format: [tools guide](tools/README.md#benchmark-and-html-dev
 - **A tech tree for both sides.** TASK FORCE ALBATROSS sails with Hueys, Marines, CH-46 air assault, AA batteries, the motor pool and the Hornets; Tomcat escorts and the flyable F-14A, LCM-8 armour (M113A2, then the M60A3), C-130 logistics, airmobile logistics (the Huey's cargo hook and troop lift), field medicine, radar pickets, Seabees, island production, heliborne doctrine, damage control and the SKY CARRIER refit are researched with materiel on war time (SHIFT+\\ or T on the command board: the RESEARCH page, a grease-pencil plotting board). The RUNAWAY commander researches its own tree (REAPER, RW-7 hover tanks, LANCE lasers, SHRIKEs, SHAHEDs, seized MBTs, the LEVIATHAN programme) and the feed reports what it fields. Pure logic in `game/js/techtree.js`, so the CPU-vs-CPU simulation explores the same trees.
 - **An enemy commander.** It sends RUNAWAY MV-22 Ospreys full of machine troopers to take islands, swarms of RW-3 WASP ducted-fan drones to hunt you, fortifies, raids your carrier, ships supplies in autonomous container ships, and builds the LEVIATHAN railgun monitor in its factories to hunt the ALBATROSS. Bomb the factories to slow it down.
 - **HORNET carrier jet.** Land on the ALBATROSS and press 5: an F/A-18-style fighter on the catapult. Full 6-DOF flight model with a Hornet-like flight computer, a 3D cockpit with a conformal HUD and working displays, catapult launches, arrested landings, gun, AIM-9s and CCIP bombs, ejection. Built for a T.Flight HOTAS 4 and rudder pedals with toe brakes (any stick, pad or keyboard works).
-- **Fly the CH-46 SEA KNIGHT.** The command board (\\, then 9) puts a CH-46E on the ALBATROSS deck or beside a friendly pad, on the same validated tandem-rotor flight model the AI Sea Knights fly: differential collective on the stick, differential lateral cyclic on the pedals, longitudinal cyclic trim, two T58s on one drive train. The dual SAS and an AFCS (attitude command, hands-off hover hold relative to the deck under you, heading hold) are on by default (H, Shift+H). A 1980 cockpit (dual torquemeter, triple tach, N1 gauges, flight instruments for both pilots, the caution panel, an overhead you start it from with the mouse: battery, APU, start switches, engine condition levers, rotor brake), a chase view and the cabin (troop seats, door gunners, the ramp). Lower the ramp on deck or at a pad and a stick of 13 Marines files aboard (B); land at an island and they come off the ramp into the ground war. Rotor strikes, hard landings, single-engine flight and battle damage are simulated; leave her in the air and the crew flies her home. `?fly=ch46` starts you in one.
+- **Fly the CH-46 SEA KNIGHT.** The Fleet board (Radio → Fleet board, then 9) puts a CH-46E on the ALBATROSS deck or beside a friendly pad, on the same validated tandem-rotor flight model the AI Sea Knights fly: differential collective on the stick, differential lateral cyclic on the pedals, longitudinal cyclic trim, two T58s on one drive train. The dual SAS and an AFCS (attitude command, hands-off hover hold relative to the deck under you, heading hold) are on by default (H, Shift+H). A 1980 cockpit (dual torquemeter, triple tach, N1 gauges, flight instruments for both pilots, the caution panel, an overhead you start it from with the mouse: battery, APU, start switches, engine condition levers, rotor brake), a chase view and the cabin (troop seats, door gunners, the ramp). Lower the ramp on deck or at a pad and a stick of 13 Marines files aboard (B); land at an island and they come off the ramp into the ground war. Rotor strikes, hard landings, single-engine flight and battle damage are simulated; leave her in the air and the crew flies her home. `?fly=ch46` starts you in one.
 - **Fly the TOMCAT.** Land on the ALBATROSS and press 8: an F-14A on cat 1 (two in the hangar). The AI escorts' real flight model (swing wings on the CADC, TF30s that stall at high AoA, a mechanical stick with stability augmentation and no limiter) with a 1980 analog cockpit: the AVG-12 HUD, the VDI and HSD CRTs, steam gauges (AoA in units, airspeed / Mach, altimeter, VSI, accelerometer, the wing sweep indicator, TF30 RPM / TIT / fuel flow / nozzles, fuel), the caution panel, the throttles' sweep switch and the emergency sweep handle (OVERSWEEP on deck), pitch trim and the autopilot; every switch clickable, and a cold start on them (ENG CRANK, the throttles OFF -> IDLE at 20%, generators, a wet start if you rush it). The RIO sits behind you. Change to the RIO's seat for the AWG-9's TID and DDD (hook, lock, launch Phoenix and Sparrow) while the pilot flies where you tell him. Warnings are 1980 tones and lights, not a voice. Ejection takes both of you.
 - **Tomcat escorts and the RUNAWAY air arm.** Press 4: an F-14A Tomcat goes to the ALBATROSS's bow catapult and an AI pilot flies its real flight model (swing wings, TF30s, mechanical stick) through stick, pedals and throttle: catapult shot, CAP over the ship or the island you selected, intercepts and dogfights with game-level missiles and the gun, bingo, the carrier pattern and an arrested landing (with wave-offs and bolters). The enemy answers with RW-4 SHRIKE fighter drones off the KRAKEN, an MQ-9 REAPER that hunts for the ALBATROSS and SHAHED drone salvos. Watch them alone on `game/dev/air.html`.
 - **Para-drop repair team: the KC-130 Hercules.** Downed on land? Press L and home base sends a Marine KC-130R from over the horizon with a repair team. Fly it in from a full 1980 flight deck (or let the crew and autopilot do it) on a real C-130H flight model: four T56 turboprops with governed propellers, beta, feathering and engine-out handling, Fowler flaps, the blown wing. Slow to 130 KIAS with 50% flaps, call the green light, and the stick goes out of both para doors under MC1-1 canopies that you steer down. Whoever lands on dry ground runs over with fuel and fixes the helicopter. Flak knocks out engines and can bring the Hercules down.
@@ -144,8 +208,8 @@ anti-torque, toe brakes = wheel brakes, hat = look around (Huey: door gun aim), 
 | 12 | eject (hold 1 s) | - |
 ### COMMAND (you command the task force)
 
-You are TASK FORCE ALBATROSS's commander, not one helicopter crew. **\\** opens the command board (the war keeps
-running while it is open): every unit type of the fleet - UH-1H Huey, F/A-18A Hornet, F-14A Tomcat, M60A3, M113A2,
+You command TASK FORCE ALBATROSS. **\\** opens the radio desk; its **Fleet board** button opens direct unit control.
+The war keeps running while either is open. The fleet board shows every unit type of the fleet - UH-1H Huey, F/A-18A Hornet, F-14A Tomcat, M60A3, M113A2,
 M151A2 jeep, M35A2 truck, a Marine rifleman and CH-46E Sea Knight - with how many are in reserve and the one that is out (where it is, what
 it is doing). Pick the base with LEFT / RIGHT (the ALBATROSS, or any friendly island: jets only from the carrier's cat 1),
 ENTER (or 1-9) takes a unit out there and puts you in it, or switches you to the one already out; with none left in

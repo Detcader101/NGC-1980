@@ -3,6 +3,8 @@
 //   node tools/check.mjs types
 
 type DebugBridge = import('../js/main.js').DebugBridge;
+type VoiceEngine = ReturnType<typeof import('../js/voice/voice.js').createVoices>;
+type CommandRadio = ReturnType<typeof import('../js/voice/commandpanel.js').createCommandPanel>;
 
 declare global {
   interface Window {
@@ -31,6 +33,22 @@ declare global {
     __WORLD?: any;
     /** ?sim spectator (sim/spectator.js). */
     __SIM?: any;
+    /** (ngc/look-voices) Production voice controller and command desk; microphone ownership remains explicit. */
+    __voiceEngine?: VoiceEngine;
+    __radioCommands?: CommandRadio;
+    /** Read-only voice evidence exposed to the browser fixtures. */
+    __voices?: {
+      readonly log: Partial<VoiceEngine['log'][number]>[];
+      played: () => VoiceEngine['log'];
+      overlaps: () => number;
+      readonly mode: string;
+      readonly backend: string;
+      readonly stats: VoiceEngine['stats'];
+      readonly cur: string;
+      readonly queue: string[];
+      voices: () => string[];
+      V: VoiceEngine;
+    };
 
     // ---- dev pages (game/dev/*.js, not type-checked yet) ----------------------------------------------------
     /** Every dev page's bench hook: { renderer, host, mode, state, ... } (tools/*bench.mjs). */
@@ -51,6 +69,13 @@ declare global {
   /** world/terrain.js: optional bake-time logger (tests). */
   // eslint-disable-next-line no-var
   var __TERRAIN_LOG: ((msg: string) => void) | undefined;
+
+  /** Audio worklet global scope (mic-worklet.js); not provided by lib.dom. */
+  abstract class AudioWorkletProcessor {
+    readonly port: MessagePort;
+    abstract process(inputs: Float32Array[][], outputs: Float32Array[][], parameters: Record<string, Float32Array>): boolean;
+  }
+  function registerProcessor(name: string, processorCtor: new () => AudioWorkletProcessor): void;
 }
 
 export {};

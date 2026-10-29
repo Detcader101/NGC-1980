@@ -1,0 +1,902 @@
+{
+  "schemaVersion": 2,
+  "name": "radiogripmerge",
+  "query": "dev/people.html?debug&res=1&ui=0",
+  "seed": null,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "171da0dfcb99853952507de0ecfcbb59a86c78acc530645ab48b6a72b640bc2b",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/snap.mjs",
+    "scenes/radiogripmerge.mjs",
+    "--out",
+    "runs/tp-grips-final"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7add6fc60a720a0829959d1b4d6062816d874ee5",
+    "branch": "ngc/look-voices",
+    "gameTree": "5a1b91781451e3b80f92db7b0c38eb42257ca374",
+    "gameSha256": "898fd996f20d6a5a30fc8f0ca10c57808264c2465ca4374d7ab2f71dad504b53",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/js/marine.js\n M game/js/units/groundwar/groundwar.js\n M game/js/units/infantry/handkit.js\n M game/js/units/infantry/humanfig.js\n M game/js/units/infantry/soldiermodel.js\n M tools/README.md\n M tools/scenes/radiogripmerge.mjs\n?? tools/figurecrowdbench.mjs\n?? tools/scenes/tpgripcrowd.mjs\n?? tools/scenes/tpgripgame.mjs\n?? tools/tpgripprofilebench.mjs"
+  },
+  "url": "http://127.0.0.1:45935/dev/people.html?debug&res=1&ui=0",
+  "ok": true,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": null,
+  "shots": [
+    {
+      "name": "tp-m203-rifle-support",
+      "file": "01-tp-m203-rifle-support.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 88.8,
+      "litFraction": 0.975,
+      "colors": 119
+    },
+    {
+      "name": "tp-m203-gl-support",
+      "file": "02-tp-m203-gl-support.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 73.7,
+      "litFraction": 0.9864,
+      "colors": 119
+    },
+    {
+      "name": "tp-m60-support",
+      "file": "03-tp-m60-support.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 95,
+      "litFraction": 0.9561,
+      "colors": 74
+    },
+    {
+      "name": "tp-law-support",
+      "file": "04-tp-law-support.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 103.3,
+      "litFraction": 0.9993,
+      "colors": 135
+    },
+    {
+      "name": "tp-law-trigger",
+      "file": "05-tp-law-trigger.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 94.2,
+      "litFraction": 0.9959,
+      "colors": 128
+    },
+    {
+      "name": "tp-law-sights-oblique",
+      "file": "06-tp-law-sights-oblique.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 95.1,
+      "litFraction": 0.9964,
+      "colors": 111
+    },
+    {
+      "name": "tp-m203-gl-trigger",
+      "file": "07-tp-m203-gl-trigger.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 65.1,
+      "litFraction": 0.9643,
+      "colors": 103
+    }
+  ],
+  "clips": [],
+  "benchmarks": [],
+  "evals": [
+    {
+      "expr": "(() => {\n    const counts=__H.set('aim',{\"weapon\":\"M16A1/M203\",\"cls\":\"rifle\",\"detail\":0,\"inspect\":{\"pos\":[-0.48,-0.03,-0.27],\"look\":[0,-0.1,-0.29]},\"weaponState\":{\"bipod\":0,\"handle\":0,\"quadUp\":false}}),m=__H.active();\n    return {...counts,modelKey:m.weaponModel.key,hasLauncher:!!m.weaponModel.parts.glBarrel,\n     handSystem:'LP/tpHand SDF',handProfiles:m.person.gripProfiles,inspect:__H.state.inspect,\n     camera:{position:__H.camera.position.toArray(),quaternion:__H.camera.quaternion.toArray(),matrix:__H.camera.matrixWorld.toArray(),projection:__H.camera.projectionMatrix.toArray()},\n     weaponMatrix:m.weaponModel.group.matrixWorld.toArray()};\n   })()",
+      "value": {
+        "triangles": 87016,
+        "meshes": 15,
+        "skinned": 1,
+        "lod": "hero",
+        "view": "aim",
+        "detail": "high",
+        "weapon": "M16A1/M203",
+        "cls": "rifle",
+        "modelKey": "M16A1",
+        "hasLauncher": true,
+        "handSystem": "LP/tpHand SDF",
+        "handProfiles": {
+          "L": "tube28",
+          "R": null
+        },
+        "inspect": {
+          "pos": [
+            -0.48,
+            -0.03,
+            -0.27
+          ],
+          "look": [
+            0,
+            -0.1,
+            -0.29
+          ]
+        },
+        "camera": {
+          "position": [
+            -0.481806030949648,
+            1.6359976016518063,
+            -0.44
+          ],
+          "quaternion": [
+            -0.052163603593949344,
+            -0.6904210224594871,
+            -0.05003538138063626,
+            0.7197876289685619
+          ],
+          "matrix": [
+            0.041630544712181305,
+            -4.163336342344337e-17,
+            0.999133073092352,
+            0,
+            0.14405939411402358,
+            0.9895508381403751,
+            -0.006002474754750964,
+            0,
+            -0.9886929698923057,
+            0.14418439144262804,
+            0.04119554041217932,
+            0,
+            -0.481806030949648,
+            1.6359976016518063,
+            -0.44,
+            1
+          ],
+          "projection": [
+            1.9616706246605113,
+            0,
+            0,
+            0,
+            0,
+            3.4874144438409087,
+            0,
+            0,
+            0,
+            0,
+            -1.0002000200020003,
+            -1,
+            0,
+            0,
+            -0.020002000200020003,
+            0
+          ]
+        },
+        "weaponMatrix": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          -0.0018060309496480687,
+          1.6659976016518063,
+          -0.16999999999999998,
+          1
+        ]
+      }
+    },
+    {
+      "expr": "(() => {\n    const counts=__H.set('aim',{\"weapon\":\"M16A1/M203\",\"cls\":\"gl\",\"detail\":0,\"inspect\":{\"pos\":[-0.48,-0.1,-0.07],\"look\":[0,-0.2,-0.07]},\"weaponState\":{\"bipod\":0,\"handle\":0,\"quadUp\":false}}),m=__H.active();\n    return {...counts,modelKey:m.weaponModel.key,hasLauncher:!!m.weaponModel.parts.glBarrel,\n     handSystem:'LP/tpHand SDF',handProfiles:m.person.gripProfiles,inspect:__H.state.inspect,\n     camera:{position:__H.camera.position.toArray(),quaternion:__H.camera.quaternion.toArray(),matrix:__H.camera.matrixWorld.toArray(),projection:__H.camera.projectionMatrix.toArray()},\n     weaponMatrix:m.weaponModel.group.matrixWorld.toArray()};\n   })()",
+      "value": {
+        "triangles": 87016,
+        "meshes": 15,
+        "skinned": 1,
+        "lod": "hero",
+        "view": "aim",
+        "detail": "high",
+        "weapon": "M16A1/M203",
+        "cls": "gl",
+        "modelKey": "M16A1",
+        "hasLauncher": true,
+        "handSystem": "LP/tpHand SDF",
+        "handProfiles": {
+          "L": "tube28",
+          "R": null
+        },
+        "inspect": {
+          "pos": [
+            -0.48,
+            -0.1,
+            -0.07
+          ],
+          "look": [
+            0,
+            -0.2,
+            -0.07
+          ]
+        },
+        "camera": {
+          "position": [
+            -0.481806030949648,
+            1.5659976016518062,
+            -0.24
+          ],
+          "quaternion": [
+            -0.0724906550225526,
+            -0.7033811946124244,
+            -0.0724906550225526,
+            0.7033811946124244
+          ],
+          "matrix": [
+            0,
+            0,
+            1,
+            0,
+            0.20395425411200077,
+            0.9789804197376051,
+            0,
+            0,
+            -0.9789804197376051,
+            0.20395425411200077,
+            0,
+            0,
+            -0.481806030949648,
+            1.5659976016518062,
+            -0.24,
+            1
+          ],
+          "projection": [
+            1.9616706246605113,
+            0,
+            0,
+            0,
+            0,
+            3.4874144438409087,
+            0,
+            0,
+            0,
+            0,
+            -1.0002000200020003,
+            -1,
+            0,
+            0,
+            -0.020002000200020003,
+            0
+          ]
+        },
+        "weaponMatrix": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          -0.0018060309496480687,
+          1.6659976016518063,
+          -0.16999999999999998,
+          1
+        ]
+      }
+    },
+    {
+      "expr": "(() => {\n    const counts=__H.set('aim',{\"weapon\":\"M60\",\"cls\":\"mg\",\"detail\":0,\"inspect\":{\"pos\":[-0.48,-0.04,-0.32],\"look\":[0,-0.13,-0.34]},\"weaponState\":{\"bipod\":0,\"handle\":0,\"quadUp\":false}}),m=__H.active();\n    return {...counts,modelKey:m.weaponModel.key,hasLauncher:!!m.weaponModel.parts.glBarrel,\n     handSystem:'LP/tpHand SDF',handProfiles:m.person.gripProfiles,inspect:__H.state.inspect,\n     camera:{position:__H.camera.position.toArray(),quaternion:__H.camera.quaternion.toArray(),matrix:__H.camera.matrixWorld.toArray(),projection:__H.camera.projectionMatrix.toArray()},\n     weaponMatrix:m.weaponModel.group.matrixWorld.toArray()};\n   })()",
+      "value": {
+        "triangles": 94504,
+        "meshes": 25,
+        "skinned": 1,
+        "lod": "hero",
+        "view": "aim",
+        "detail": "high",
+        "weapon": "M60",
+        "cls": "mg",
+        "modelKey": "M60",
+        "hasLauncher": false,
+        "handSystem": "LP/tpHand SDF",
+        "handProfiles": {
+          "L": "tube41",
+          "R": null
+        },
+        "inspect": {
+          "pos": [
+            -0.48,
+            -0.04,
+            -0.32
+          ],
+          "look": [
+            0,
+            -0.13,
+            -0.34
+          ]
+        },
+        "camera": {
+          "position": [
+            -0.481806030949648,
+            1.6259976016518063,
+            -0.505
+          ],
+          "quaternion": [
+            -0.06672840803094765,
+            -0.6892662512925959,
+            -0.06400595654281932,
+            0.7185837403655513
+          ],
+          "matrix": [
+            0.04163054471218164,
+            0,
+            0.9991330730923518,
+            0,
+            0.18397455863285614,
+            0.9829011141773881,
+            -0.0076656066097023495,
+            0,
+            -0.9820490107539503,
+            0.18413418951636584,
+            0.0409187087814149,
+            0,
+            -0.481806030949648,
+            1.6259976016518063,
+            -0.505,
+            1
+          ],
+          "projection": [
+            1.9616706246605113,
+            0,
+            0,
+            0,
+            0,
+            3.4874144438409087,
+            0,
+            0,
+            0,
+            0,
+            -1.0002000200020003,
+            -1,
+            0,
+            0,
+            -0.020002000200020003,
+            0
+          ]
+        },
+        "weaponMatrix": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          -0.0018060309496480687,
+          1.6659976016518063,
+          -0.185,
+          1
+        ]
+      }
+    },
+    {
+      "expr": "(() => {\n    const counts=__H.set('aim',{\"weapon\":\"M72A2\",\"cls\":\"law\",\"detail\":0,\"inspect\":{\"pos\":[-0.48,0.015,-0.3],\"look\":[0,-0.07,-0.3]},\"weaponState\":{\"law\":1,\"lawSights\":1}}),m=__H.active();\n    return {...counts,modelKey:m.weaponModel.key,hasLauncher:!!m.weaponModel.parts.glBarrel,\n     handSystem:'LP/tpHand SDF',handProfiles:m.person.gripProfiles,inspect:__H.state.inspect,\n     camera:{position:__H.camera.position.toArray(),quaternion:__H.camera.quaternion.toArray(),matrix:__H.camera.matrixWorld.toArray(),projection:__H.camera.projectionMatrix.toArray()},\n     weaponMatrix:m.weaponModel.group.matrixWorld.toArray()};\n   })()",
+      "value": {
+        "triangles": 82024,
+        "meshes": 8,
+        "skinned": 1,
+        "lod": "hero",
+        "view": "aim",
+        "detail": "high",
+        "weapon": "M72A2",
+        "cls": "law",
+        "modelKey": "M72A2",
+        "hasLauncher": false,
+        "handSystem": "LP/tpHand SDF",
+        "handProfiles": {
+          "L": "tube41",
+          "R": "tube41"
+        },
+        "inspect": {
+          "pos": [
+            -0.48,
+            0.015,
+            -0.3
+          ],
+          "look": [
+            0,
+            -0.07,
+            -0.3
+          ]
+        },
+        "camera": {
+          "position": [
+            -0.481806030949648,
+            1.6809976016518062,
+            -0.45499999999999996
+          ],
+          "quaternion": [
+            -0.061886739816636435,
+            -0.7043933783297994,
+            -0.061886739816636435,
+            0.7043933783297994
+          ],
+          "matrix": [
+            0,
+            0,
+            1,
+            0,
+            0.1743704389330314,
+            0.9846801257394718,
+            0,
+            0,
+            -0.9846801257394717,
+            0.1743704389330314,
+            0,
+            0,
+            -0.481806030949648,
+            1.6809976016518062,
+            -0.45499999999999996,
+            1
+          ],
+          "projection": [
+            1.9616706246605113,
+            0,
+            0,
+            0,
+            0,
+            3.4874144438409087,
+            0,
+            0,
+            0,
+            0,
+            -1.0002000200020003,
+            -1,
+            0,
+            0,
+            -0.020002000200020003,
+            0
+          ]
+        },
+        "weaponMatrix": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          -0.0018060309496480687,
+          1.6659976016518063,
+          -0.155,
+          1
+        ]
+      }
+    },
+    {
+      "expr": "(() => {\n    const counts=__H.set('aim',{\"weapon\":\"M72A2\",\"cls\":\"law\",\"detail\":0,\"inspect\":{\"pos\":[0.48,0.015,-0.19],\"look\":[0,-0.07,-0.19]},\"weaponState\":{\"law\":1,\"lawSights\":1}}),m=__H.active();\n    return {...counts,modelKey:m.weaponModel.key,hasLauncher:!!m.weaponModel.parts.glBarrel,\n     handSystem:'LP/tpHand SDF',handProfiles:m.person.gripProfiles,inspect:__H.state.inspect,\n     camera:{position:__H.camera.position.toArray(),quaternion:__H.camera.quaternion.toArray(),matrix:__H.camera.matrixWorld.toArray(),projection:__H.camera.projectionMatrix.toArray()},\n     weaponMatrix:m.weaponModel.group.matrixWorld.toArray()};\n   })()",
+      "value": {
+        "triangles": 82024,
+        "meshes": 8,
+        "skinned": 1,
+        "lod": "hero",
+        "view": "aim",
+        "detail": "high",
+        "weapon": "M72A2",
+        "cls": "law",
+        "modelKey": "M72A2",
+        "hasLauncher": false,
+        "handSystem": "LP/tpHand SDF",
+        "handProfiles": {
+          "L": "tube41",
+          "R": "tube41"
+        },
+        "inspect": {
+          "pos": [
+            0.48,
+            0.015,
+            -0.19
+          ],
+          "look": [
+            0,
+            -0.07,
+            -0.19
+          ]
+        },
+        "camera": {
+          "position": [
+            0.47819396905035194,
+            1.6809976016518062,
+            -0.345
+          ],
+          "quaternion": [
+            -0.061886739816636435,
+            0.7043933783297994,
+            0.061886739816636435,
+            0.7043933783297994
+          ],
+          "matrix": [
+            0,
+            0,
+            -1,
+            0,
+            -0.1743704389330314,
+            0.9846801257394718,
+            0,
+            0,
+            0.9846801257394717,
+            0.1743704389330314,
+            0,
+            0,
+            0.47819396905035194,
+            1.6809976016518062,
+            -0.345,
+            1
+          ],
+          "projection": [
+            1.9616706246605113,
+            0,
+            0,
+            0,
+            0,
+            3.4874144438409087,
+            0,
+            0,
+            0,
+            0,
+            -1.0002000200020003,
+            -1,
+            0,
+            0,
+            -0.020002000200020003,
+            0
+          ]
+        },
+        "weaponMatrix": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          -0.0018060309496480687,
+          1.6659976016518063,
+          -0.155,
+          1
+        ]
+      }
+    },
+    {
+      "expr": "(() => {\n    const counts=__H.set('aim',{\"weapon\":\"M72A2\",\"cls\":\"law\",\"detail\":0,\"inspect\":{\"pos\":[0.24,0.16,-0.03],\"look\":[0,-0.015,-0.24]},\"weaponState\":{\"law\":1,\"lawSights\":1}}),m=__H.active();\n    return {...counts,modelKey:m.weaponModel.key,hasLauncher:!!m.weaponModel.parts.glBarrel,\n     handSystem:'LP/tpHand SDF',handProfiles:m.person.gripProfiles,inspect:__H.state.inspect,\n     camera:{position:__H.camera.position.toArray(),quaternion:__H.camera.quaternion.toArray(),matrix:__H.camera.matrixWorld.toArray(),projection:__H.camera.projectionMatrix.toArray()},\n     weaponMatrix:m.weaponModel.group.matrixWorld.toArray()};\n   })()",
+      "value": {
+        "triangles": 82024,
+        "meshes": 8,
+        "skinned": 1,
+        "lod": "hero",
+        "view": "aim",
+        "detail": "high",
+        "weapon": "M72A2",
+        "cls": "law",
+        "modelKey": "M72A2",
+        "hasLauncher": false,
+        "handSystem": "LP/tpHand SDF",
+        "handProfiles": {
+          "L": "tube41",
+          "R": "tube41"
+        },
+        "inspect": {
+          "pos": [
+            0.24,
+            0.16,
+            -0.03
+          ],
+          "look": [
+            0,
+            -0.015,
+            -0.24
+          ]
+        },
+        "camera": {
+          "position": [
+            0.23819396905035192,
+            1.8259976016518062,
+            -0.185
+          ],
+          "quaternion": [
+            -0.22612610268848934,
+            0.40027380865581635,
+            0.10260884060307812,
+            0.8821107014525863
+          ],
+          "matrix": [
+            0.6585046078685179,
+            0,
+            -0.7525766947068779,
+            0,
+            -0.36204942543847146,
+            0.8766768230260138,
+            -0.3167932472586625,
+            0,
+            0.659766545799044,
+            0.4810797729784691,
+            0.5772957275741634,
+            0,
+            0.23819396905035192,
+            1.8259976016518062,
+            -0.185,
+            1
+          ],
+          "projection": [
+            1.9616706246605113,
+            0,
+            0,
+            0,
+            0,
+            3.4874144438409087,
+            0,
+            0,
+            0,
+            0,
+            -1.0002000200020003,
+            -1,
+            0,
+            0,
+            -0.020002000200020003,
+            0
+          ]
+        },
+        "weaponMatrix": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          -0.0018060309496480687,
+          1.6659976016518063,
+          -0.155,
+          1
+        ]
+      }
+    },
+    {
+      "expr": "(() => {\n    const counts=__H.set('aim',{\"weapon\":\"M16A1/M203\",\"cls\":\"gl\",\"detail\":0,\"inspect\":{\"pos\":[0.43,-0.08,-0.34],\"look\":[0,-0.165,-0.2]},\"weaponState\":{\"bipod\":0,\"handle\":0,\"quadUp\":false}}),m=__H.active();\n    return {...counts,modelKey:m.weaponModel.key,hasLauncher:!!m.weaponModel.parts.glBarrel,\n     handSystem:'LP/tpHand SDF',handProfiles:m.person.gripProfiles,inspect:__H.state.inspect,\n     camera:{position:__H.camera.position.toArray(),quaternion:__H.camera.quaternion.toArray(),matrix:__H.camera.matrixWorld.toArray(),projection:__H.camera.projectionMatrix.toArray()},\n     weaponMatrix:m.weaponModel.group.matrixWorld.toArray()};\n   })()",
+      "value": {
+        "triangles": 87016,
+        "meshes": 15,
+        "skinned": 1,
+        "lod": "hero",
+        "view": "aim",
+        "detail": "high",
+        "weapon": "M16A1/M203",
+        "cls": "gl",
+        "modelKey": "M16A1",
+        "hasLauncher": true,
+        "handSystem": "LP/tpHand SDF",
+        "handProfiles": {
+          "L": "tube28",
+          "R": null
+        },
+        "inspect": {
+          "pos": [
+            0.43,
+            -0.08,
+            -0.34
+          ],
+          "look": [
+            0,
+            -0.165,
+            -0.2
+          ]
+        },
+        "camera": {
+          "position": [
+            0.4281939690503519,
+            1.5859976016518063,
+            -0.51
+          ],
+          "quaternion": [
+            -0.054502862811844896,
+            0.8057036821899032,
+            0.07506397428878755,
+            0.5850097556579008
+          ],
+          "matrix": [
+            -0.30958604746079255,
+            -2.7755575615628914e-17,
+            -0.9508714314867197,
+            0,
+            -0.17565262902957826,
+            0.9827896754185709,
+            0.057189228056141767,
+            0,
+            0.9345066255156251,
+            0.18472805388099564,
+            -0.3042579710981106,
+            0,
+            0.4281939690503519,
+            1.5859976016518063,
+            -0.51,
+            1
+          ],
+          "projection": [
+            1.9616706246605113,
+            0,
+            0,
+            0,
+            0,
+            3.4874144438409087,
+            0,
+            0,
+            0,
+            0,
+            -1.0002000200020003,
+            -1,
+            0,
+            0,
+            -0.020002000200020003,
+            0
+          ]
+        },
+        "weaponMatrix": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          -0.0018060309496480687,
+          1.6659976016518063,
+          -0.16999999999999998,
+          1
+        ]
+      }
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__H.active().weaponKey===\"M16A1/M203\" && __H.state.cls===\"rifle\" && __H.counts().skinned===1",
+      "label": "tp-m203-rifle-support: intended weapon/class and one LP body",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "!!__H.active().weaponModel.parts.glBarrel",
+      "label": "tp-m203-rifle-support: M203 furniture is present",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__H.active().weaponKey===\"M16A1/M203\" && __H.state.cls===\"gl\" && __H.counts().skinned===1",
+      "label": "tp-m203-gl-support: intended weapon/class and one LP body",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "!!__H.active().weaponModel.parts.glBarrel",
+      "label": "tp-m203-gl-support: M203 furniture is present",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__H.active().weaponKey===\"M60\" && __H.state.cls===\"mg\" && __H.counts().skinned===1",
+      "label": "tp-m60-support: intended weapon/class and one LP body",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__H.active().weaponKey===\"M72A2\" && __H.state.cls===\"law\" && __H.counts().skinned===1",
+      "label": "tp-law-support: intended weapon/class and one LP body",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__H.active().weaponKey===\"M72A2\" && __H.state.cls===\"law\" && __H.counts().skinned===1",
+      "label": "tp-law-trigger: intended weapon/class and one LP body",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__H.active().weaponKey===\"M72A2\" && __H.state.cls===\"law\" && __H.counts().skinned===1",
+      "label": "tp-law-sights-oblique: intended weapon/class and one LP body",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__H.active().weaponKey===\"M16A1/M203\" && __H.state.cls===\"gl\" && __H.counts().skinned===1",
+      "label": "tp-m203-gl-trigger: intended weapon/class and one LP body",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "!!__H.active().weaponModel.parts.glBarrel",
+      "label": "tp-m203-gl-trigger: M203 furniture is present",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(tp-m203-gl-trigger)",
+      "ok": true,
+      "value": 0.9643
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-29T10:31:55.538Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7add6fc60a720a0829959d1b4d6062816d874ee5",
+    "branch": "ngc/look-voices",
+    "gameTree": "5a1b91781451e3b80f92db7b0c38eb42257ca374",
+    "gameSha256": "898fd996f20d6a5a30fc8f0ca10c57808264c2465ca4374d7ab2f71dad504b53",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/js/marine.js\n M game/js/units/groundwar/groundwar.js\n M game/js/units/infantry/handkit.js\n M game/js/units/infantry/humanfig.js\n M game/js/units/infantry/soldiermodel.js\n M tools/README.md\n M tools/scenes/radiogripmerge.mjs\n?? tools/figurecrowdbench.mjs\n?? tools/scenes/tpgripcrowd.mjs\n?? tools/scenes/tpgripgame.mjs\n?? tools/tpgripprofilebench.mjs"
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": null,
+    "state": null
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7add6fc60a720a0829959d1b4d6062816d874ee5",
+    "branch": "ngc/look-voices",
+    "gameTree": "5a1b91781451e3b80f92db7b0c38eb42257ca374",
+    "gameSha256": "898fd996f20d6a5a30fc8f0ca10c57808264c2465ca4374d7ab2f71dad504b53",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/js/marine.js\n M game/js/units/groundwar/groundwar.js\n M game/js/units/infantry/handkit.js\n M game/js/units/infantry/humanfig.js\n M game/js/units/infantry/soldiermodel.js\n M tools/README.md\n M tools/scenes/radiogripmerge.mjs\n?? tools/figurecrowdbench.mjs\n?? tools/scenes/tpgripcrowd.mjs\n?? tools/scenes/tpgripgame.mjs\n?? tools/tpgripprofilebench.mjs"
+  },
+  "summary": "PASS: 11/11 expects, 0 page errors, 0 console errors",
+  "durationMs": 48227,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/runs/tp-grips-final"
+}

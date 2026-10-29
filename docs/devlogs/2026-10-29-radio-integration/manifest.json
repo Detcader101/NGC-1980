@@ -1,0 +1,152 @@
+{
+  "schemaVersion": 1,
+  "title": "Radio and infantry integration under Claude’s lead",
+  "createdAt": "2026-10-29T09:52:41.991Z",
+  "artifacts": [
+    {
+      "file": "data/figures-dc2e39-result.json",
+      "bytes": 44041,
+      "sha256": "2f6b9f8a08f745420c28f67e736db681c39c9b9edd28b6614d2ac6b60fe02af5"
+    },
+    {
+      "file": "data/figures-initial-a56c25-result.json",
+      "bytes": 42557,
+      "sha256": "1fa2b99a5733e8312f73644673e48f27a75eeeae207f61cc341ddb4572d33f41"
+    },
+    {
+      "file": "data/tp-3abd80-result.json",
+      "bytes": 41875,
+      "sha256": "7552127f6a047d7f9c6e1f0cb2ec3ea43374b3c953f1302333895658830f5765"
+    },
+    {
+      "file": "data/desk-49be41-result.json",
+      "bytes": 21612,
+      "sha256": "0377197cca8333a27ee60e68a143f595f673d778fe7f5eec1d35a1a42db0e093"
+    },
+    {
+      "file": "data/operations-74de07-result.json",
+      "bytes": 30472,
+      "sha256": "6059dc80d7223ad7827a9a4644e6ca69e988df4bd67b81ec39ebfd316c8362f8"
+    },
+    {
+      "file": "data/recovery-8c5853-result.json",
+      "bytes": 27136,
+      "sha256": "783e494c193c9e2aedbf10a33dffd3ec11cfaa14d3c518257d981c256f995611"
+    },
+    {
+      "file": "data/voices-db9cf1-result.json",
+      "bytes": 49616,
+      "sha256": "814d0c3f4e8f98b6358e0d596d5ffe612b8e53bc89386eaa0199f408863faebc"
+    },
+    {
+      "file": "data/voices-provenance-diagnostic-2df4d5-result.json",
+      "bytes": 50393,
+      "sha256": "ee5215040e9bdbb83bf6a5db313a6cce2363f62eeb4e7062ef8e794627d073ab"
+    },
+    {
+      "file": "data/smoke-04d588-result.json",
+      "bytes": 25230,
+      "sha256": "cf6ea33f3596c631f5852bcaa9f8dbf1c00eab6f83158ca12d026f77f43826a0"
+    },
+    {
+      "file": "data/node-545ea5-result.json",
+      "bytes": 100313,
+      "sha256": "552906eaa0c3337978128f48c2ec280fbaac51e06597f1f500d4f7935f02b037"
+    },
+    {
+      "file": "data/notes.json",
+      "bytes": 12809,
+      "sha256": "b4c935098dfc25a2ee9bf30564e15ce349debc230ad268024066c3cfaddff74a"
+    },
+    {
+      "file": "assets/38bc3bdbb966-12-stand.png",
+      "bytes": 169163,
+      "sha256": "38bc3bdbb966338437f204983c3d96a49de4e6a68b66a9b73b6c22049b4b5763"
+    },
+    {
+      "file": "assets/eaff5f344414-14-prone.png",
+      "bytes": 149890,
+      "sha256": "eaff5f3444143abfcbcb3c235aca6f69ee816835fdcbf05485638888c19fd75b"
+    },
+    {
+      "file": "assets/4560ded185fe-03-m16-trigger.png",
+      "bytes": 238551,
+      "sha256": "4560ded185fe09617b123d19e11d513799e5aa90f9f7e93e31cb281bb55a57a4"
+    },
+    {
+      "file": "assets/3c0890e56b8b-03-m16-trigger.png",
+      "bytes": 237611,
+      "sha256": "3c0890e56b8bf04dae09d52ee9d9a2336a8165abd6402e7927c3b00f6f5e1d44"
+    },
+    {
+      "file": "assets/e734fcf1aa24-06-m1911-support.png",
+      "bytes": 220131,
+      "sha256": "e734fcf1aa24b6bacf17592a6ffa5f01aaf99d58e29ed62b6b509780d3e9696e"
+    },
+    {
+      "file": "assets/0eaf27c78898-09-law-aim.png",
+      "bytes": 190470,
+      "sha256": "0eaf27c7889855f7b937b3814647ee248b3f2629c2981f9b5d639af991000d07"
+    },
+    {
+      "file": "assets/25469d3b9770-05-m60-support.png",
+      "bytes": 182123,
+      "sha256": "25469d3b9770a30c4518ec5bcfb56615ccf5c4f0e6b1f16f111aa2a2e2665dde"
+    },
+    {
+      "file": "assets/93b56f016e46-01-tp-m203-rifle-support.png",
+      "bytes": 294093,
+      "sha256": "93b56f016e46a80470f21f181797fac5ad3347c77f8ab3f402559e4baca36fc8"
+    },
+    {
+      "file": "assets/d8535caf288a-02-tp-m203-gl-support.png",
+      "bytes": 384940,
+      "sha256": "d8535caf288a84e5d15f42f7ed1c5c8e5f2243c5d1c389d00a4ffc16495be489"
+    },
+    {
+      "file": "assets/ddec5229c138-03-tp-m60-support.png",
+      "bytes": 259499,
+      "sha256": "ddec5229c138db9681165e3e397d329566955dc0682d52be0bffb4fba457a545"
+    },
+    {
+      "file": "assets/24b176fc5a69-04-tp-law-support.png",
+      "bytes": 265680,
+      "sha256": "24b176fc5a69b093021b93be1af85bcc40728cecf5376a543d74f1809c16500f"
+    },
+    {
+      "file": "assets/4e4d71b1091d-05-tp-law-trigger.png",
+      "bytes": 346914,
+      "sha256": "4e4d71b1091d8cf0cb1838c66292a337d6c6cf413077ec0fd54df3145ff8c744"
+    },
+    {
+      "file": "assets/63094d0740f0-06-tp-law-sights-oblique.png",
+      "bytes": 258465,
+      "sha256": "63094d0740f0dc6a9bed12408861614f11ffe54a17ae8dee7c9140537bf9948a"
+    },
+    {
+      "file": "assets/5925addac4bc-readback-desktop.png",
+      "bytes": 84298,
+      "sha256": "5925addac4bc4024626036d9b987593253fbb5cb17c08ae7864d82c07988b4db"
+    },
+    {
+      "file": "assets/276746512874-orders-mobile.png",
+      "bytes": 61872,
+      "sha256": "27674651287429ba060a4ccc4d5b4e4fc0e3aeea12305ad094988e28288b0590"
+    },
+    {
+      "file": "assets/5428f3fc20a2-02-mission-ledger.png",
+      "bytes": 537127,
+      "sha256": "5428f3fc20a2359dba3bb7fb3dd15b0ff6a1c17752bd230799b43f3c6c658855"
+    },
+    {
+      "file": "assets/7773b1c8c0e1-03-command-traffic.png",
+      "bytes": 544281,
+      "sha256": "7773b1c8c0e11ce189822c9f72cb5cac89fbc63b1058a8009aa4c437c4e64d4e"
+    },
+    {
+      "file": "devlog.html",
+      "bytes": 102435,
+      "sha256": "61e52d3e9d7fcaa8e30435761abdb6b6deba7ed2f74b284c570c00dcf5dbdb56"
+    }
+  ]
+}

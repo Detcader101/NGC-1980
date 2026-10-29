@@ -5,7 +5,7 @@
 //
 //   FIGURES.marine(opts) -> { group, pose(state, phase, dt) }                    (the rotary contract: squad.js)
 //     + poseFull(p, dt)   p = { stance, stanceFrom, stanceTo, stanceT, speed, gaitPhase, aimPitch, down, cls, ads }
-//     + setDetail(level)  'full' (skeleton + weapon, ~18 draw calls) | 'lite' (6 meshes) | 'off'
+//     + setDetail(level)  'full' (one LOD body + weapon) | 'lite' (6 meshes) | 'off'
 //     + setWeapon(key)    'M16A1' | 'M16A1/M203' | 'M72A2' | null
 import * as THREE from 'three';
 import { buildMarine as buildSoldier, poseSkeleton, makePose } from '../infantry/soldiermodel.js';
@@ -17,7 +17,9 @@ export function buildMarineFigure(o = {}) {
   let sk = null;   // the full skeleton is built on first use (a CH-46 full of men that never get out costs nothing)
   const lite = buildLite({ variant: seed }); lite.group.scale.setScalar(1); group.add(lite.group);
   let level = 'lite', weapon = o.weapon === undefined ? 'M16A1' : o.weapon;
-  const P = makePose({ cls: 'rifle' });
+  const defaults=makePose({cls:'rifle'});
+  /** @type {ReturnType<typeof makePose> & {hands?: {L?: number[], R?: number[], spine?: number[], chest?: number[], dy?: number, stand?: boolean} | null, sling?: number, climb?: number | null, swim?: {ph: number, speed: number} | null, action?: {name: string, p: number} | null, down?: boolean, seat?: boolean, grenade?: boolean}} */
+  const P={...defaults};
   const ensure = () => { if (!sk) { sk = buildSoldier({ camo: seed % 5 === 4 ? 'og107' : 'erdl', seed: seed + 1, weapon, detail: 'low' }); group.add(sk.root); sk.root.visible = level === 'full'; } return sk; };
   const F = {
     group,
@@ -33,21 +35,21 @@ export function buildMarineFigure(o = {}) {
     pose(state, ph = 0, dt = 0.016) {
       lite.pose(state, ph);
       if (level !== 'full') return;
+      Object.assign(P,defaults);P.hands=null;P.sling=0;P.climb=null;P.swim=null;
       P.down = state === 'fall' || state === 'dead'; P.stanceT = 1; P.seat = state === 'seated';   // (ngc/marine-polish: seated on the troop seat, rifle between the knees)
       P.stance = P.stanceFrom = P.stanceTo = state === 'kneel' || state === 'aim' ? 'crouch' : 'stand';
-      P.speed = state === 'run' ? 2.7 : state === 'walk' ? 1.4 : 0; P.gaitPhase = ph; P.gait = state === 'run' ? 'run' : 'walk';
+      P.speed = state === 'run' ? 2.7 : state === 'walk' ? 1.4 : 0; P.gaitPhase = ph; P.gait = state === 'run' ? 'run' : state === 'walk' ? 'walk' : 'idle';P.moveF=P.speed;
       P.ads = state === 'aim' ? 1 : 0; P.aimPitch = 0;
       poseSkeleton(ensure(), P, dt);
     },
     poseFull(p, dt = 0.016) {
       if (level === 'lite') {   // map to the stand-in's few states
-        const st = p.down ? 'dead' : p.stance === 'prone' ? 'dead' : p.stance === 'crouch' ? 'kneel' : p.speed > 2 ? 'run' : p.speed > 0.3 ? 'walk' : 'stand';
+        const st = p.down ? 'dead' : p.seat ? 'seated' : p.stance === 'prone' ? 'prone' : p.stance === 'crouch' ? (p.ads>.5?'aim':'kneel') : p.speed > 2 ? 'run' : p.speed > 0.3 ? 'walk' : 'stand';
         lite.pose(st, p.down ? 1 : p.gaitPhase || 0);
-        if (p.stance === 'prone' && !p.down) { lite.group.children[0].rotation.x = 1.5; lite.group.children[0].position.y = 0.1; }
         return;
       }
       if (level !== 'full') return;
-      Object.assign(P, p); if (p.cls) P.cls = p.cls; P.seat = !!p.seat; P.climb = p.climb ?? null; P.swim = p.swim || null;
+      Object.assign(P,defaults,p);P.stanceFrom=p.stanceFrom??P.stance;P.stanceTo=p.stanceTo??P.stance;P.hands=p.hands||null;P.sling=p.sling||0;P.action=p.action||null;P.down=!!p.down;P.seat=!!p.seat;P.climb=p.climb??null;P.swim=p.swim||null;P.grenade=!!p.grenade;
       poseSkeleton(ensure(), P, dt);
     },
   };

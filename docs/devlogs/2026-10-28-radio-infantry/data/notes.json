@@ -1,0 +1,203 @@
+{
+  "title": "Command by radio, with a more coherent infantry rig",
+  "date": "2026-10-28",
+  "summary": "The radio desk now orders real patrols, transport, supplies, research and Marine movement. Complete local Windows utterances improve continuity through the existing quiet radio chain. The following infantry pass corrects grips, wrist attachment, clothing surfaces and figure poses. Historical integration failures are retained below; final checks are identified separately.",
+  "reproduce": "Branch ngc/look-voices in /home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838. From tools, run CHROME_PATH=/home/jayjay/.cache/chs/chrome.sh node snap.mjs scenes/<scene>. The livevoices and offlinevoice scenes use --url http://127.0.0.1:8826/ against node tools/serve.mjs --port 8826 --speech windows. people and firstpersonmotion use --capture. Root: node tools/check.mjs syntax. Node benches and their captured output are included as a separate evidence record. No merge or push.",
+  "changes": [
+    {
+      "title": "An addressed command net that controls the sandbox",
+      "change": "Backslash opens Orders, Missions, Traffic and Settings. Choose a station, message and destination, then transmit the displayed call with held F9 or send it in writing. Costly requests and carrier courses wait for Correct. Over. or Disregard. Out. Revalidation, expiry, duplicate rejection and bounded tasks protect the actual economy and unit controllers. The Fleet board remains a direct-control handoff.",
+      "observed": "The inspected full-game readback shows the Air Boss request and 30 materiel cost. The mission ledger distinguishes the launching Tomcat and moving squad from completed formation/fire-control commands. The narrow Settings image shows binding and voice level controls with a persistent PTT footer; that image uses an isolated UI fixture, not a real microphone.",
+      "checks": [
+        "Final radioops: 13/13; real Tomcat launch, synchronous materiel cost, duplicate confirmation, live squad orders, pause cancellation and no microphone opening.",
+        "Radio net/AI: 56/56. Operations adapters: 46/46. Desk UI: 16/16 including desktop and 390 px.",
+        "Full thirteen-man column, retained carrier navigation goals, recovery/loss tracking, emergency commands and task bounds covered by the Node regressions.",
+        "Actual main.js field-support reporting: 9/9 for partial success, cancellation and failure independent of fuel level. Terminal flags are scripted on real drop missions; complete sorties are not flown."
+      ],
+      "limitations": [
+        "The command grammar is bounded and game-specific. Perceived contacts, named map points and readback workflow are not a complete doctrinal communications simulation.",
+        "Debug fixtures supply resources, unlock research and place units. They do not prove a long campaign or every possible mission outcome."
+      ],
+      "media": [
+        {
+          "run": "radio",
+          "shot": "patrol-readback",
+          "label": "Live readback",
+          "caption": "The Air Boss waits for confirmation before launching a patrol.",
+          "reviewed": true
+        },
+        {
+          "run": "radio",
+          "shot": "mission-ledger",
+          "label": "Mission progress",
+          "caption": "Dispatch remains active while the aircraft waits for a launch spot.",
+          "reviewed": true
+        },
+        {
+          "run": "desk",
+          "shot": "settings-mobile",
+          "label": "390 px Settings fixture",
+          "caption": "Mic setup, PTT binding and volume remain reachable in the narrow layout.",
+          "reviewed": true
+        }
+      ]
+    },
+    {
+      "title": "Whole local sentences and a working recognition path",
+      "change": "The opt-in Windows bridge generates full utterance PCM with installed David, Mark and Zira voices. Stable speaker identity controls restrained synthesis cadence and pitch. Normalized PCM still uses band-pass, clipping, squelch, distance/occlusion and the serialized priority queue. The same local server provides offline push-to-talk recognition for Opera GX.",
+      "observed": "The listening-room capture shows the complete-line backend and selected installed actor. Offline PTT evidence uses our own synthesized WAV as a microphone MediaStream through the actual AudioWorklet, HTTP endpoint and installed recognizer. The transcript reaches the real carrier command net and release closes captured tracks.",
+      "checks": [
+        "Windows synthesis: 25/25; Windows recognition: 27/27. PTT ownership/bindings: 23/23; parser/native lifecycle: 38/38; bank/hooks: 19/19.",
+        "Full voice scene 29/29; smoke 5/5; offline browser PTT 14/14; complete-line browser 8/8. All final runs have zero page/console errors."
+      ],
+      "limitations": [
+        "These remain installed Windows synthetic voices. No neural voice packs, actor recordings, cloud synthesis or other-game audio were added. Waveforms and UI captures do not qualify listening preference.",
+        "The automated microphone test never opens the physical device. Live human recognition, microphone selection/noise and physical HOTAS input still need a user check. Captured videos are silent."
+      ],
+      "media": [
+        {
+          "run": "live",
+          "shot": "complete-local-line",
+          "label": "Full local utterance",
+          "caption": "The controller line is synthesized locally, then enters the same radio mixer.",
+          "reviewed": true
+        },
+        {
+          "run": "mic",
+          "shot": "offline-radio-reply",
+          "label": "Local recognition",
+          "caption": "Synthetic microphone input passes through the real capture/recognition path; the station replies. The fixture temporarily binds V and sets 4/10; shipped defaults remain F9 and 6/10.",
+          "reviewed": true
+        }
+      ]
+    },
+    {
+      "title": "Hands, cuffs and weapon-specific grips",
+      "change": "Per-weapon handed socket frames correct support-hand orientation. The arm solver reaches the actual wrist and rolls its cuff with the hand. Rounded closed palms/fingers, embedded nails and continuous open/grip morphs replace disconnected surfaces and abrupt shape switches. Body overlays retain their final pose while blending back. Climbing uses a dedicated tight closed hand shape independently of the carried weapon.",
+      "observed": "In the same support-side camera, the revised wrist meets the cuff and the hand supports the underside of the M203 instead of floating beside it. The sleeve now has organic camouflage and fine weave rather than triangle-shaped colour patches. The trigger-side inspection shows a connected wrist and rounded palm, although the anatomy and weapon surfaces remain stylized. Twelve decoded saved frames show only the early ready/aimed/return poses; the final still shows the later pistol draw completed, but that interval was not retained by the recorder. The final in-game ladder image shows the slung weapon and dedicated hand profile; the left hand is below the camera during this climb phase. Hand-to-rail placement is still approximate, not a physical contact solve.",
+      "checks": [
+        "886 weapon/action/stance/body/degenerate pose cases; maximum cuff endpoint error 2.83e-16 m. Baseline hip gaps were 10.8 cm for the M16/M203 and 19.7 cm for the M60.",
+        "Watertight hand surfaces, matching morph topology, chirality, sleeve taper and finite transforms checked separately from rendering.",
+        "Final actual Marine integration: 9/9, zero browser errors; self-aid completion, ladder pose, swimming and dropped-grenade simulation. The two final rendered poses were inspected."
+      ],
+      "limitations": [
+        "The paired M16 images show rifle mode with the M203 attached. A separate companion view covers the bare M16.",
+        "This is original procedural anatomy and existing weapon geometry, not scanned AAA art. Observer-camera clips deliberately expose the rig and are not normal combat footage.",
+        "The short SwiftShader sample was 98.3 ms mean versus 22.7 ms before, with six unrelated test browsers also active. Additional material shader cost and host contention are not separated; this is not an isolated performance comparison.",
+        "At extreme standalone closeup the simplified fingernails still read as surface caps. The rig is better connected, but it is not anatomically photorealistic.",
+        "The paired weapon views and short motion clip precede the final narrow ladder-grip correction. The final in-game ladder check covers that correction. World rail contact remains an authored pose."
+      ],
+      "media": [
+        {
+          "run": "hands-before",
+          "shot": "m16-support",
+          "label": "Before",
+          "caption": "The support wrist floats beyond its cuff; the hand and sleeve are incorrectly oriented.",
+          "reviewed": true
+        },
+        {
+          "run": "hands-after",
+          "shot": "m16-support",
+          "label": "After",
+          "caption": "The same camera shows the revised grip, connected cuff and continuous camouflage.",
+          "reviewed": true
+        },
+        {
+          "run": "hands-motion",
+          "clip": "first-person-transitions",
+          "caption": "Early ready and aimed poses from the production rig. Only 2.24 seconds encoded from 8 seconds wall time; later self-aid and pistol transitions are not present in this saved clip.",
+          "reviewed": true
+        },
+        {
+          "run": "motion-review",
+          "shot": "hands-12frames",
+          "caption": "Twelve decoded saved frames show the actual limited coverage, including repeated frames.",
+          "reviewed": true
+        },
+        {
+          "run": "marine",
+          "shot": "ladder-first-person",
+          "label": "Actual carrier ladder",
+          "caption": "Final ladder blend with the weapon slung. The hand shape is independent of the weapon; contact alignment remains an authored approximation.",
+          "reviewed": true
+        },
+        {
+          "run": "marine",
+          "shot": "swim-first-person",
+          "label": "Actual swimming pose",
+          "caption": "Open hands and continuous camouflage on the production first-person arms during a swim stroke.",
+          "reviewed": true
+        }
+      ]
+    },
+    {
+      "title": "Skinned clothing and a more coherent Marine",
+      "change": "Nearby figures use original skinned garments, a continuous face/head, a resized M1 helmet and revised stance, seated and gait poses. Prone elbows clear the floor. Lightweight seated/casualty states reset on transition. Original shared material fields provide camouflage, cotton weave, skin grain and equipment finish without per-person textures.",
+      "observed": "The matched face view now has a continuous cheek/jaw surface, a mouth on the face, inset round eyes and a smaller helmet instead of separate protruding facial pieces. The stand view shows continuous cloth across the elbows and knees with a readable equipment silhouette. The face is still visibly procedural and stylized. Twelve decoded frames from the saved clip show alternating walking legs, a return to standing and the start of a lowered stance. The saved 4.88 seconds do not cover a complete stance cycle.",
+      "checks": [
+        "Six people geometry/pose groups, including 192 walking/crouching phases; infantry 90/90 and ground 15/15.",
+        "Detailed/squad figures: 25,660/10,616 triangles and 29 meshes each versus 24,680/10,238 before. About 4% more geometry; no speedup claim.",
+        "One shared 512 px texture; four material-mode Node checks. Runtime low/detail-off/legacy checks pass 11/11 with zero browser errors."
+      ],
+      "limitations": [
+        "The preview uses neutral studio lighting and scripted poses. It does not cover every battlefield camera, transition or costume.",
+        "The figures remain stylized procedural characters. Arma Reforger/Battlefield 6 asset and motion quality remains a longer-term ambition."
+      ],
+      "media": [
+        {
+          "run": "people-before",
+          "shot": "face",
+          "label": "Before",
+          "caption": "Disconnected facial forms and an oversized helmet in the original preview.",
+          "reviewed": true
+        },
+        {
+          "run": "people-after",
+          "shot": "face",
+          "label": "After",
+          "caption": "Same preview camera with revised head, helmet and material surfaces.",
+          "reviewed": true
+        },
+        {
+          "run": "people-after",
+          "clip": "walking-and-stance",
+          "caption": "Production figure walking in place, then standing and beginning to lower its stance. Reviewed 12 saved frames plus playback; 4.88 seconds encoded from 8 seconds of wall time, not a full stance cycle.",
+          "reviewed": true
+        },
+        {
+          "run": "motion-review",
+          "shot": "people-12frames",
+          "caption": "Twelve saved-video samples: walking, standing and the beginning of lowering stance.",
+          "reviewed": true
+        }
+      ]
+    },
+    {
+      "title": "Integration failures kept visible",
+      "change": "Static hosts now advertise speech capability before endpoint discovery. Test currency deltas are captured synchronously so island income is not mistaken for a command charge. The radio desk is the new Backslash entry point, and existing scene fixtures explicitly hand off to the Fleet board when testing deployment.",
+      "observed": [
+        "The original diagnostic hit an unadvertised /__voice endpoint and had a reversed keyboard helper call. A later complete run had no browser errors but failed balance comparisons because island income accrued during screenshots. A follow-up retained two old fixture references. The corrected final run passes 13/13.",
+        "A long capture process exited with signal 15 after four passing scenes, leaving firstperson-after incomplete. Its partial evidence remains in firstperson-interrupted; this report uses the completed replacement. The termination cause was not established.",
+        "The long Marine fixture advanced only a few simulation seconds during lengthy captures. It was deliberately stopped. The focused replacement retains the original assertions and advances the actual treatment and grenade updates; it never assigns health, bleeding or explosion outcomes. Separate attempts exposed a wall-time ladder-pose assumption and a randomized 75-second medical action beyond the first 45-second cap. The final fixture waits for the real ladder blend and derives its treatment budget from the action duration (bounded at 180 seconds). The interrupted duration run has no completed result and is excluded from totals. Only the final ladder and swimming images are retained for this focused check.",
+        "The first field-support fixture transmitted immediately after teleporting the Huey, before its landing state updated. Its later two cases passed. Waiting for actual landing before transmission produces 9/9 passing checks. The rejected setup remains in the report."
+      ],
+      "checks": [
+        "Historical runs are deliberately included with their failure counts. They are not the final build result.",
+        "Final voice, smoke, microphone, material and infantry browser results appear under Reproduce and inspect.",
+        "Final syntax check: 580/580 modules, including the focused integration fixtures."
+      ],
+      "limitations": [
+        "The short frame samples use SwiftShader on a shared machine with other work running. They are diagnostic only; no desktop GPU or VR performance conclusion is supported.",
+        "The focused Marine fixture retains all original gameplay assertions and captures the final ladder and swimming poses. Treatment and grenade timers use real fixed simulation steps and do not measure normal wall-time duration."
+      ],
+      "media": []
+    }
+  ],
+  "limitations": [
+    "Final physical microphone and subjective voice listening remain manual checks in Opera GX.",
+    "No hardware VR, long-duration campaign, network/multiplayer or cross-platform OS speech qualification was performed.",
+    "The report retains initial failed runs so its aggregate header includes diagnostic failures; consult the final run labels.",
+    "Shared-host software rendering and capture overhead prevent a performance improvement claim.",
+    "The slower first-person timing is retained in raw data. A controlled hardware comparison is still needed to assess the added shader cost."
+  ]
+}

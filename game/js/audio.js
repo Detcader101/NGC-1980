@@ -190,6 +190,7 @@ export class Sfx {
   catShot() { this.noiseBurst(500, 90, 2.0, 0.45); }
   // "Bitching Betty": the Hornet's voice warnings, through the browser's speech synthesis (rate-limited per message)
   betty(msg, every = 6) {
+    if (window.__voiceEngine) return window.__voiceEngine.betty(msg, every);   // VOICES: one queue for every voice (voice/voice.js)
     try {
       const now = performance.now() / 1000; this._bt = this._bt || {};
       if (now - (this._bt[msg] || -1e9) < every || !window.speechSynthesis || this.muteVoice) return;

@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "title": "Quieter radios, local microphone commands and PTT bindings",
+  "createdAt": "2026-10-28T20:40:27.191Z",
+  "artifacts": [
+    {
+      "file": "data/voices-db9cf1-result.json",
+      "bytes": 31426,
+      "sha256": "c861a93b87b3555452e2b2370245c92b42be1c9c1bdc1ddd40cf5821cff8cdcf"
+    },
+    {
+      "file": "data/quality-acef2c-result.json",
+      "bytes": 9185,
+      "sha256": "c3a626be5d1d1c3119f389ad34f56feb472285dd7152ed3237cc43a32dc7948e"
+    },
+    {
+      "file": "data/offline-8e2c7a-result.json",
+      "bytes": 7728,
+      "sha256": "c2011fe9cb9c6c7558d6c291bf984417e9ec75a43c2d3e70d9b507b50bfbfe57"
+    },
+    {
+      "file": "data/smoke-04d588-result.json",
+      "bytes": 6955,
+      "sha256": "c4cecbd038a94556466cf8eb587a07dbdff3750e235dfce5e48aaa60781d5ffa"
+    },
+    {
+      "file": "data/commands-10f5f7-result.json",
+      "bytes": 8384,
+      "sha256": "dcf1f515cb5d4f5481b6381b6f63bab3dbe7b62327d9c0bb1fbd59ae98323d49"
+    },
+    {
+      "file": "data/gain-diagnostic-331b1d-result.json",
+      "bytes": 31768,
+      "sha256": "751bcd265bc61901161e48d9d21d805a2aa14c17a43dae3730deee13c2b909b2"
+    },
+    {
+      "file": "data/discovery-diagnostic-7298b6-result.json",
+      "bytes": 6409,
+      "sha256": "ae659bdcbf165a18178cc79db95e6ecd291a98a4c5ea52653ce19faa280db148"
+    },
+    {
+      "file": "data/meter-diagnostic-303dd3-result.json",
+      "bytes": 6320,
+      "sha256": "99a3b31b2d97d165c381f79ef727e6d1d89080ccfa03317c560af362a469435f"
+    },
+    {
+      "file": "data/binding-diagnostic-86f3e0-result.json",
+      "bytes": 7853,
+      "sha256": "daf6627a8484a1a23a49c83136a17146b3492e2504300af596974c360c198f1b"
+    },
+    {
+      "file": "data/notes.json",
+      "bytes": 7240,
+      "sha256": "b6c5a4a1f76df26a3c5b59d9ee55aac29e3ee126384d96d15a985c05f5820397"
+    },
+    {
+      "file": "assets/7a70c32ddc6e-01-quieter-radio-preview.png",
+      "bytes": 38299,
+      "sha256": "7a70c32ddc6e5432fc2699d7483e5d3fbb01052cc80e343feeca3ded09158e25"
+    },
+    {
+      "file": "assets/146df07a063c-01-huey-lift.png",
+      "bytes": 696350,
+      "sha256": "146df07a063c2ec873ad1c033799b89ceea943e90e6c53a7e8bffaf590560887"
+    },
+    {
+      "file": "assets/144c59d15231-01-offline-radio-reply.png",
+      "bytes": 594191,
+      "sha256": "144c59d1523109da001f73e0485886a6e7d1557534a6abdd55456aa4bc2594f4"
+    },
+    {
+      "file": "devlog.html",
+      "bytes": 41084,
+      "sha256": "a9471a02142d4c48a9e7348673d1883f9b095d0b2e8530450444021591c174a6"
+    }
+  ]
+}

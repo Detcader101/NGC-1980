@@ -8,11 +8,17 @@ import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { createSpeechService } from './speech-server.mjs';
+import { createVoiceService } from './voice-server.mjs';
+import { voiceBankIndex } from './voice-bank.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const GAME = path.join(ROOT, 'game');
-const { values } = parseArgs({options:{port:{type:'string',default:'8765'},host:{type:'string',default:'127.0.0.1'},cert:{type:'string'},key:{type:'string'},help:{type:'boolean'}}});
-if(values.help){console.log('node tools/serve.mjs [--port 8765] [--host 127.0.0.1] [--cert cert.pem --key key.pem]\nWebXR requires localhost or HTTPS with a certificate trusted by the headset.');process.exit(0);}
+const { values } = parseArgs({options:{port:{type:'string',default:'8765'},host:{type:'string',default:'127.0.0.1'},speech:{type:'string'},cert:{type:'string'},key:{type:'string'},help:{type:'boolean'}}});
+if(values.help){console.log('node tools/serve.mjs [--port 8765] [--host 127.0.0.1] [--speech windows] [--cert cert.pem --key key.pem]\n--speech windows enables local offline push-to-talk and complete-line voices (loopback only).\nWebXR requires localhost or HTTPS with a certificate trusted by the headset.');process.exit(0);}
+if(values.speech&&values.speech!=='windows')throw new Error('--speech must be windows');
+const speech=createSpeechService({enabled:values.speech==='windows'});
+const voice=createVoiceService({enabled:values.speech==='windows'});
 const port = Number(values.port), host = values.host;
 if(!Number.isInteger(port)||port<0||port>65535)throw new Error('--port must be 0..65535');
 if(!!values.cert!==!!values.key)throw new Error('HTTPS needs both --cert and --key');
@@ -22,13 +28,16 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/ja
 
 function version() {
   const git = c => { try { return execSync(`git ${c}`, { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch { return ''; } };
-  return { root: ROOT, commit: git('rev-parse --short HEAD') || 'nogit', dirty: !!git('status --porcelain -- game'), date: git('log -1 --format=%cd --date=format:%Y-%m-%d_%H:%M'), served: new Date().toISOString() };
+  return { root: ROOT, commit: git('rev-parse --short HEAD') || 'nogit', dirty: !!git('status --porcelain -- game'), date: git('log -1 --format=%cd --date=format:%Y-%m-%d_%H:%M'), served: new Date().toISOString(), speech: values.speech || null };
 }
 
 const handler = (req, res) => {
   const send = (code, body, type = 'text/plain') => { res.writeHead(code, { 'Content-Type': type, 'Cache-Control': 'no-store' }); res.end(body); };
   let url;try{url=decodeURIComponent(new URL(req.url,'http://x').pathname);}catch{return send(400,'bad URL');}
   if(url.includes('\0'))return send(400,'bad URL');
+  if(url==='/__speech'){speech(req,res).catch(()=>{if(!res.headersSent)send(500,'speech unavailable');});return;}
+  if(url==='/__voice'){voice(req,res).catch(()=>{if(!res.headersSent)send(500,'voice unavailable');});return;}
+  if(url==='/audio/voices/index.json')return send(200,JSON.stringify(voiceBankIndex(GAME)),'application/json');
   // ?xrlog diagnostics (loopback only): the page posts errors and frame timings, appended to tools/runs/client-log.txt
   if (url === '/__log' && req.method === 'POST') {
     const a = req.socket.remoteAddress || '';
@@ -64,4 +73,5 @@ const handler = (req, res) => {
   fs.readFile(file, (err, data) => err ? send(404, 'not found') : send(200, data, TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream'));
 };
 const server=tls?https.createServer(tls,handler):http.createServer(handler);
+if(!voiceBankIndex(GAME).available)console.log('Optional speech bank missing. Build locally (WSL + installed Windows voices): node tools/voice-build.mjs. Text call-outs remain available; --speech windows can synthesize live lines.');
 server.listen(port,host,()=>console.log(`serving ${GAME} at ${tls?'https':'http'}://${host.includes(':')?'['+host+']':host}:${server.address().port}/`));

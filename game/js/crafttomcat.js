@@ -178,5 +178,6 @@ export function createTomcatCraft(ctx) {
     },
   };
   D.hurt = (amount, why) => TP.hurt(amount, why);
+  D.A = A;   // VOICES: the LSO reads the approach (voice/hooks.js)
   return D;
 }

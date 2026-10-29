@@ -1,0 +1,389 @@
+{
+  "schemaVersion": 2,
+  "name": "voices",
+  "query": "?debug&auto",
+  "seed": null,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "f80b4e188a8320ee02d787f7d408c4afc6265bcc1f18ae2551a57515989171de",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/snap.mjs",
+    "scenes/voices.mjs"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "be546c63dd589aa62b74ab6a93828f465ddac6ec",
+    "branch": "ngc/look-voices",
+    "gameTree": "a794ad19bd9da9e7e414ed6d797619b5d7ad0c3e",
+    "gameSha256": "43a0e9e4e242a809d6f33051f5ae5d3e20b871690452717f53c7685cc16ffc83",
+    "dirty": true,
+    "status": "M README.md\n M game/js/main.js\n M game/js/marine.js\n M game/js/voice/hooks.js\n M game/js/voice/phrases.js\n M game/js/voice/radio.js\n M game/js/voice/voice.js\n M tools/scenes/voices.mjs\n?? docs/ngc1980/findings/look-voices.md\n?? game/audio/\n?? game/dev/voices.html\n?? game/js/voice/commandnet.js\n?? game/js/voice/commandpanel.js\n?? game/js/voice/commands.js\n?? game/js/voice/occlusion.js\n?? game/js/voice/recognition.js\n?? game/js/voice/samples.js\n?? tools/scenes/voicecommands.mjs\n?? tools/voice-build.mjs\n?? tools/voicebench.mjs\n?? tools/voicecommandbench.mjs"
+  },
+  "url": "http://127.0.0.1:35385/?debug&auto",
+  "ok": false,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": null,
+  "shots": [
+    {
+      "name": "huey-lift",
+      "file": "01-huey-lift.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 79.3,
+      "litFraction": 0.9973,
+      "colors": 549
+    },
+    {
+      "name": "contact",
+      "file": "02-contact.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 93.4,
+      "litFraction": 0.9877,
+      "colors": 482
+    }
+  ],
+  "clips": [],
+  "benchmarks": [],
+  "evals": [
+    {
+      "expr": "(__G.HI.setCollective(0.62), {dead:__G.H.dead,landed:__G.H.landed})",
+      "value": {
+        "dead": false,
+        "landed": true
+      }
+    },
+    {
+      "expr": "__voices.log.filter(e => e.role === 'huey').map(e => [e.who, e.text, e.net, e.state, e.start, e.end])",
+      "value": [
+        [
+          "huey:crewchief",
+          "You're clear left.",
+          "ic",
+          "done",
+          62.690700000000184,
+          63.43240000000037
+        ],
+        [
+          "huey:gunner",
+          "Clear right.",
+          "ic",
+          "done",
+          63.82720000000019,
+          64.503
+        ],
+        [
+          "huey:crewchief",
+          "Tail's clear.",
+          "ic",
+          "done",
+          64.96090000000038,
+          65.57490000000037
+        ],
+        [
+          "pilot",
+          "Coming up.",
+          "ic",
+          "done",
+          66.04770000000019,
+          66.60340000000038
+        ],
+        [
+          "huey:crewchief",
+          "Off the ground.",
+          "ic",
+          "done",
+          67.1335,
+          67.78320000000019
+        ]
+      ]
+    },
+    {
+      "expr": "(() => { const P = __G.H.pos, hd = __G.H.heading(); const L = { x: P.x - Math.cos(hd) * 60, y: P.y, z: P.z - Math.sin(hd) * 60 }; __G.hurtPlayer(0.5, 'TEST ROUND', L); return { hd, L }; })()",
+      "value": {
+        "hd": 0.8346525005705506,
+        "L": {
+          "x": -493.11460227468285,
+          "y": 20.21251098981204,
+          "z": 567.1415403947439
+        }
+      }
+    },
+    {
+      "expr": "(() => { const c = __G.war.carrier; __G.H.reset(new __G.THREE.Vector3(c.p.x - 5.5 * Math.cos(c.yaw) + 32 * Math.sin(c.yaw), c.p.y + 8 + 1.9, c.p.z + 5.5 * Math.sin(c.yaw) + 32 * Math.cos(c.yaw)), c.yaw, true, 1); __G.HI.setCollective(0); return true; })()",
+      "value": true
+    },
+    {
+      "expr": "__G.commander.deploy(\"heli\")",
+      "value": true
+    },
+    {
+      "expr": "(() => { const I = __G.ISLANDS.find(i => i.name === 'SANDBAR'); window.__I = I; const W = __G.war; W.E.mat = 0; W.transT = 1e9; __G.G.bench = true; W.ground.godPlayer = true;\n    const x = I.pad.x - 22, z = I.pad.z + 14; __G.H.reset(new __G.THREE.Vector3(x, __G.terrainH(x, z) + 1.9, z), 0.6, true, 1); __G.HI.setCollective(0);\n    window.__marines = W.ground.addSquad(1, I, 13, x + 15, z + 10, { order: { type: 'defend', x, z, r: 25 } });\n    window.__enemy = W.ground.addSquad(2, I, 3, x + 55, z - 10, { order: { type: 'take', x, z, r: 30 } });\n    window.__ff = (secs, until) => { for (let i = 0; i < secs * 30; i++) { W.update(1 / 30, __G.PL, false); if (until && until()) return i / 30; } return -1; };\n    return { pad: [I.pad.x, I.pad.z] }; })()",
+      "value": {
+        "pad": [
+          270,
+          414
+        ]
+      }
+    },
+    {
+      "expr": "(() => { const s=__enemy.members[0], m=__marines.members[0], gs=__G.war.ground.sim, n=gs.events.length; gs.shoot(2,s,'xm7',[s.x,s.y+1.5,s.z],[m.x,m.y+1.5,m.z],0); __G.war.ground.onEvents(gs.events.slice(n)); return {source:s.id,marine:m.id}; })()",
+      "value": {
+        "source": 14,
+        "marine": 1
+      }
+    },
+    {
+      "expr": "__ff(40, () => __voices.log.some(e => e.role === 'marine' && /corpsman|manDown|hit/.test(e.cat)))",
+      "value": 0
+    },
+    {
+      "expr": "({ marine: __voices.log.filter(e => e.role === 'marine' || e.role === 'sl' || e.role === 'rto').slice(-14).map(e => [e.who, e.cat, e.text, e.state, e.dist]) })",
+      "value": {
+        "marine": [
+          [
+            "albatross",
+            "ack",
+            "Hotel two, copy all. Out.",
+            "done",
+            null
+          ],
+          [
+            "m11",
+            "walker",
+            "It's a walker! right, fifty meters!",
+            "done",
+            43
+          ],
+          [
+            "m11",
+            "walker",
+            "Walker! front!",
+            "cooldown",
+            41
+          ],
+          [
+            "m3",
+            "cover",
+            "Covering!",
+            "expired",
+            30
+          ],
+          [
+            "m11",
+            "walker",
+            "Strider front!",
+            "cooldown",
+            38
+          ],
+          [
+            "m7",
+            "cover",
+            "Keep their heads down!",
+            "done",
+            22
+          ],
+          [
+            "m11",
+            "walker",
+            "Walker! front!",
+            "cooldown",
+            38
+          ],
+          [
+            "m11",
+            "walker",
+            "It's a walker! front, fifty meters!",
+            "done",
+            39
+          ],
+          [
+            "m8",
+            "cover",
+            "Suppress!",
+            "done",
+            31
+          ],
+          [
+            "m11",
+            "walker",
+            "Walker! front!",
+            "cooldown",
+            39
+          ],
+          [
+            "m11",
+            "walker",
+            "It's a walker! front, fifty meters!",
+            "cooldown",
+            40
+          ],
+          [
+            "m4",
+            "cover",
+            "Cover me!",
+            "done",
+            23
+          ],
+          [
+            "m12",
+            "backblast",
+            "Rocket!",
+            "done",
+            24
+          ],
+          [
+            "m13",
+            "cover",
+            "Suppress!",
+            "done",
+            27
+          ]
+        ]
+      }
+    },
+    {
+      "expr": "(() => { const c = __G.war.carrier; __G.H.reset(new __G.THREE.Vector3(c.p.x - 5.5 * Math.cos(c.yaw) + 32 * Math.sin(c.yaw), c.p.y + 8 + 1.9, c.p.z + 5.5 * Math.sin(c.yaw) + 32 * Math.cos(c.yaw)), c.yaw, true, 1); return true; })()",
+      "value": true
+    },
+    {
+      "expr": "(() => { const J = __G.JP.J, c = __G.war.carrier, co = Math.cos(c.yaw), si = Math.sin(c.yaw), lz = 37 + 1000, lx = -2.5 + 0;\n    const x = c.p.x + lx * co + lz * si, z = c.p.z - lx * si + lz * co; J.cat = null; J.launchBar = false;\n    J.reset(x, 0, z, c.yaw, { running: true, airborne: true, alt: c.p.y + 8 + 3 + Math.tan(3.5 * Math.PI / 180) * 1000 + 0, speed: 70 });\n    J.gearCmd = J.gear = 1; J.hookCmd = J.hook = 1; J.flapSel = 2; return { x, z, y: J.pos.y }; })()",
+      "value": {
+        "x": -1043.5389578743066,
+        "z": 1426.0033753782914,
+        "y": 74.08262015048432
+      }
+    },
+    {
+      "expr": "(() => { const J = __G.JP.J, c = __G.war.carrier, co = Math.cos(c.yaw), si = Math.sin(c.yaw), lz = 37 + 700, lx = -2.5 + 0;\n    const x = c.p.x + lx * co + lz * si, z = c.p.z - lx * si + lz * co; J.cat = null; J.launchBar = false;\n    J.reset(x, 0, z, c.yaw, { running: true, airborne: true, alt: c.p.y + 8 + 3 + Math.tan(3.5 * Math.PI / 180) * 700 + 25, speed: 70 });\n    J.gearCmd = J.gear = 1; J.hookCmd = J.hook = 1; J.flapSel = 2; return { x, z, y: J.pos.y }; })()",
+      "value": {
+        "x": -868.2062259478848,
+        "z": 1182.4742541693179,
+        "y": 80.73383410533901
+      }
+    },
+    {
+      "expr": "(() => { const J = __G.JP.J, c = __G.war.carrier, co = Math.cos(c.yaw), si = Math.sin(c.yaw), lz = 37 + 200, lx = -2.5 + 0;\n    const x = c.p.x + lx * co + lz * si, z = c.p.z - lx * si + lz * co; J.cat = null; J.launchBar = false;\n    J.reset(x, 0, z, c.yaw, { running: true, airborne: true, alt: c.p.y + 8 + 3 + Math.tan(3.5 * Math.PI / 180) * 200 + 25, speed: 70 });\n    J.gearCmd = J.gear = 1; J.hookCmd = J.hook = 1; J.flapSel = 2; return { x, z, y: J.pos.y }; })()",
+      "value": {
+        "x": -572.6700630540298,
+        "z": 779.086864415364,
+        "y": 50.15252403009686
+      }
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__voices.backend === 'generated' && __voices.mode === 'on'",
+      "label": "generated PCM backend, voices ON",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "!!__G.sfx.ctx && __G.sfx.ctx.state === 'running'",
+      "label": "the AudioContext runs",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.played().some(e => e.role === 'boss' && /flight quarters/i.test(e.text))",
+      "label": "the Air Boss calls flight quarters on the 5MC when the war starts",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.played().some(e => e.role === 'huey' && e.cat === 'clearR' && e.who === 'huey:gunner')",
+      "label": "gunner: clear right",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.log.some(e => e.cat === 'takingFire' && e.who === 'huey:crewchief' && /(eight|nine|ten) o'clock/.test(e.text) && e.pri === 3)",
+      "label": "crew chief (left door): taking fire, nine o'clock, priority 3",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__G.G.craft === 'foot'",
+      "label": "a Marine out from the board",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.log.some(e => e.role === 'marine' && /contact|walker|armour/.test(e.cat) && /(front|left|right|rear)/i.test(e.text) && e.net === 'air' && e.dist !== undefined)",
+      "label": "a Marine calls the contact: direction and range, open air, from where he stands",
+      "ok": true,
+      "value": true
+    },
+    {
+      "ok": false,
+      "msg": "waitFor timed out: __voices.played().some(e => e.role === 'marine' && /corpsman|manDown|hit/.test(e.cat))"
+    },
+    {
+      "expr": "__voices.played().some(e => e.role === 'marine' && /corpsman|man down|hit|doc/i.test(e.text))",
+      "label": "a casualty call: corpsman / doc / man down",
+      "ok": false,
+      "value": false
+    },
+    {
+      "expr": "__G.G.craft === 'jet'",
+      "label": "in the Hornet",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.log.some(e => e.role === 'pilotBall' && /Hornet ball/.test(e.text))",
+      "label": "the ball call: side number, Hornet ball, fuel",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.log.some(e => e.cat === 'waveoff' && e.pri === 3 && e.net === 'uhf')",
+      "label": "LSO: wave off, priority 3 on the recovery freq",
+      "ok": true,
+      "value": true
+    }
+  ],
+  "errors": [
+    "harness: Protocol error (Page.captureScreenshot): Target closed"
+  ],
+  "consoleErrors": [],
+  "startedAt": "2026-10-28T18:55:33.553Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "be546c63dd589aa62b74ab6a93828f465ddac6ec",
+    "branch": "ngc/look-voices",
+    "gameTree": "a794ad19bd9da9e7e414ed6d797619b5d7ad0c3e",
+    "gameSha256": "43a0e9e4e242a809d6f33051f5ae5d3e20b871690452717f53c7685cc16ffc83",
+    "dirty": true,
+    "status": "M README.md\n M game/js/main.js\n M game/js/marine.js\n M game/js/voice/hooks.js\n M game/js/voice/phrases.js\n M game/js/voice/radio.js\n M game/js/voice/voice.js\n M tools/scenes/voices.mjs\n?? docs/ngc1980/findings/look-voices.md\n?? game/audio/\n?? game/dev/voices.html\n?? game/js/voice/commandnet.js\n?? game/js/voice/commandpanel.js\n?? game/js/voice/commands.js\n?? game/js/voice/occlusion.js\n?? game/js/voice/recognition.js\n?? game/js/voice/samples.js\n?? tools/scenes/voicecommands.mjs\n?? tools/voice-build.mjs\n?? tools/voicebench.mjs\n?? tools/voicecommandbench.mjs"
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "be546c63dd589aa62b74ab6a93828f465ddac6ec",
+    "branch": "ngc/look-voices",
+    "gameTree": "a794ad19bd9da9e7e414ed6d797619b5d7ad0c3e",
+    "gameSha256": "43a0e9e4e242a809d6f33051f5ae5d3e20b871690452717f53c7685cc16ffc83",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M game/js/main.js\n M game/js/marine.js\n M game/js/voice/hooks.js\n M game/js/voice/phrases.js\n M game/js/voice/radio.js\n M game/js/voice/voice.js\n M tools/scenes/voices.mjs\n?? docs/ngc1980/findings/look-voices.md\n?? game/audio/\n?? game/dev/voices.html\n?? game/js/voice/commandnet.js\n?? game/js/voice/commandpanel.js\n?? game/js/voice/commands.js\n?? game/js/voice/occlusion.js\n?? game/js/voice/recognition.js\n?? game/js/voice/samples.js\n?? tools/scenes/voicecommands.mjs\n?? tools/voice-build.mjs\n?? tools/voicebench.mjs\n?? tools/voicecommandbench.mjs"
+  },
+  "summary": "FAIL: 10/12 expects, 1 page errors, 0 console errors",
+  "durationMs": 232038,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/runs/2026-10-28_18-55-33-voices"
+}

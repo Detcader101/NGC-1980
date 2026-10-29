@@ -328,6 +328,9 @@ export function createMarineAI(world, opt = {}) {
       const k = (m.ai.slot - 1) % 4, side = team === 0 ? 0 : (k % 2 ? 1 : -1) * (1 + Math.floor(k / 2)) * 0.5;
       const ahead = Math.min(14, hl);
       dest = [cx + fx * ahead - fx * row * 9 - fz * (lat * 14 + side * 8), cz + fz * ahead - fz * row * 9 + fx * (lat * 14 + side * 8)];
+      // Radio formation orders affect travel; contact drills still use the existing squad AI.
+      if (S.formation === 'column') { const offset = (n - (ms.length - 1) / 2) * 5; dest = [cx + fx * (ahead - offset), cz + fz * (ahead - offset)]; }
+      else if (S.formation === 'line') { const offset = (n - (ms.length - 1) / 2) * 6; dest = [cx + fx * ahead - fz * offset, cz + fz * ahead + fx * offset]; }
       if (hl < 12) dest = ringSlot(S, m, gx, gz, 9, S.members.length);
       pace = hl > 60 ? 'run' : 'walk'; stance = 'stand'; a.state = 'move';
     } else if (st === 'defend' || st === 'hold') {
@@ -398,6 +401,9 @@ export function createMarineAI(world, opt = {}) {
     if (dest && (pace === 'rush' || pace === 'run') && stance !== 'stand' && d2(dest[0], dest[1], m.x, m.z) > 2.5) stance = 'stand';   // you get up to run
     if (dest && pace === 'crawl') stance = 'prone';
     a.move = dest; a.pace = pace; a.stance = stance;
+    // Cease fire is persistent across new movement orders and both near/far simulation detail.
+    // Projectiles already released remain in the world; this inhibits subsequent shots/throws.
+    if (S.firePolicy === 'hold') { a.fire = null; a.law = false; a.frag = false; }
   }
 
   AI.update = (dt, targets) => {

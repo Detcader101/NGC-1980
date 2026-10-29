@@ -1,0 +1,233 @@
+{
+  "title": "Local speech and third-person weapon grips",
+  "date": "2026-10-29",
+  "summary": "Claude-directed follow-up to the radio/render integration: fit Marine hands to the M203, M60 and LAW while preserving crew and crowds. Jay Jay then chose locally built speech banks; generated audio is excluded from the clean handoff. This report retains an intermediate visual defect and a failed browser capture alongside accepted results.",
+  "reproduce": "Node: node tools/thirdpersongripbench.mjs; node tools/tpgripprofilebench.mjs; node tools/figurecrowdbench.mjs --baseline tools/runs/tp-crowd-before.json --out tools/runs/tp-crowd-after.json; node tools/voicebankbench.mjs; node tools/voicebench.mjs; node tools/check.mjs syntax; node tools/check.mjs types. From tools with CHROME_PATH=/home/jayjay/.cache/chs/chrome.sh: node snap.mjs scenes/radiogripmerge.mjs; scenes/tpm60grip.json; scenes/tpgripcrowd.mjs; scenes/tpgripgame.mjs; scenes/voicebankmissing.mjs; scenes/voices.mjs; scenes/smoke.json. Build the optional speech bank first at the repo root with node tools/voice-build.mjs (WSL + installed Windows US English voices).",
+  "changes": [
+    {
+      "title": "Hands meet weapon surfaces",
+      "change": "Solve each wrist from a hand-local grasp frame and per-weapon orientation. Two finite Marine-only diameter profiles use the existing SDF hand/body cache. GL mode places the right index at the launcher trigger and the support hand around the magazine. Raw anchors and weapon geometry stay unchanged.",
+      "observed": "The M203 palm no longer crosses the upper handguard. GL hands reach the launcher trigger and magazine. LAW palms cradle the tube; a 30-degree support-hand roll clears its sling. The original six camera/projection/weapon transforms match exactly. Final close-ups pass 11 structural assertions; visual inspection and posed-surface checks qualify contact separately.",
+      "checks": [
+        "Six pose groups cover 240 weapon/posture/action states, all three LODs, care entry/release and reset paths.",
+        "Twelve meshed hand surfaces pass contact and clearance checks. Primary envelope tests permit up to 3 mm penetration; they are conservative cylinder/box checks, not exact triangle collision everywhere.",
+        "The care-release regression is corrected: final M203 rifle step 0.271 mm, GL 0.027 mm and LAW 0.137 mm."
+      ],
+      "limitations": [
+        "Broad smooth palms, coarse fingers/thumbs and wrist/watch joins remain visible. This is a bounded fit correction, not a new character model.",
+        "The LAW hands cradle its tube; the top trigger pad remains untouched. No authentic trigger-hand or eye-line sight claim.",
+        "Static views do not establish every hidden contact or full animation quality."
+      ],
+      "media": [
+        {
+          "run": "grips-before",
+          "shot": "tp-m203-rifle-support",
+          "label": "Before",
+          "caption": "Wrist/palm intersects the upper handguard.",
+          "reviewed": true
+        },
+        {
+          "run": "grips-after",
+          "shot": "tp-m203-rifle-support",
+          "label": "After",
+          "caption": "Palm sits beneath the launcher; large handguard intersection removed.",
+          "reviewed": true
+        },
+        {
+          "run": "grips-before",
+          "shot": "tp-m203-gl-support",
+          "label": "Before",
+          "caption": "Support palm intersects magazine and firing hand stays at rifle grip.",
+          "reviewed": true
+        },
+        {
+          "run": "grips-after",
+          "shot": "tp-m203-gl-support",
+          "label": "After",
+          "caption": "Support hand wraps magazine; firing hand has moved to the launcher.",
+          "reviewed": true
+        },
+        {
+          "run": "grips-after",
+          "shot": "tp-m203-gl-trigger",
+          "label": "Added view",
+          "caption": "After-only firing-side view makes the launcher trigger/index placement visible.",
+          "reviewed": true
+        },
+        {
+          "run": "grips-before",
+          "shot": "tp-law-support",
+          "label": "Before",
+          "caption": "Palms sink into the tube.",
+          "reviewed": true
+        },
+        {
+          "run": "grips-after",
+          "shot": "tp-law-support",
+          "label": "After",
+          "caption": "Palms sit outside the tube; the support frame is rolled to clear the sling.",
+          "reviewed": true
+        },
+        {
+          "run": "grips-after",
+          "shot": "tp-law-trigger",
+          "label": "After",
+          "caption": "Opposite side: sling clears support fingers. The filename does not establish contact with the top trigger pad.",
+          "reviewed": true
+        }
+      ]
+    },
+    {
+      "title": "The M60 needed an adjacent-part check",
+      "change": "The first fitted support hand reached the forearm but intersected a folded bipod foot. Move it another 70 mm rearward and check actual bipod mesh vertices against the posed hand triangles.",
+      "observed": "The final folded-foot gap is at least 3.453 mm across the tested LODs, while forearm contact remains. The original camera crops the rearward hand, so an additional centred after-only view shows the full grip without changing the comparison camera.",
+      "checks": [
+        "Final centred M60 view: 2/2 structural checks.",
+        "Actual adjacent geometry checks also cover the LAW sling, with minimum gaps 3.180 mm left / 0.619 mm right."
+      ],
+      "limitations": [
+        "The rejected intermediate capture passed structural assertions. Its visible intersection is retained here because those assertions were insufficient."
+      ],
+      "media": [
+        {
+          "run": "grips-before",
+          "shot": "tp-m60-support",
+          "label": "Before",
+          "caption": "Original wrist-at-anchor placement on the folded bipod.",
+          "reviewed": true
+        },
+        {
+          "run": "grips-diagnostic",
+          "shot": "tp-m60-support",
+          "label": "Intermediate — visual defect",
+          "caption": "First fit reached the forearm, but the bipod tip still entered the palm.",
+          "reviewed": true
+        },
+        {
+          "run": "m60-detail",
+          "shot": "m60-forearm-grip-centred",
+          "label": "Final — added view",
+          "caption": "Centred view of the rearward forearm grip and cleared bipod foot.",
+          "reviewed": true
+        }
+      ]
+    },
+    {
+      "title": "Shared crew and crowds are unchanged",
+      "change": "Optional hand profiles affect only Marine geometry on existing LOD mesh objects. Default hand descriptors/cache keys, materials and baked/instanced crew paths are preserved.",
+      "observed": "All four before/after PNGs are byte-identical: deck crew, townsfolk, and default Marine near/mid LOD. The saved fingerprint of 16 geometries and 3 material contracts remains c8f65bc1a2dd2b88db02573546f0def3fc6628762a71ee2ee66ad330f570315a.",
+      "checks": [
+        "Crowd browser fixture: 7/7 before and 7/7 after.",
+        "Nine finite profile combinations reuse caches over four cycles; exact geometry, mesh, material and skeleton identities restore. Invalid profile names are rejected; open-hand requests canonicalize to the existing default cache."
+      ],
+      "limitations": [
+        "These are isolated production-model and shader views, not live crowd navigation or performance tests.",
+        "The merged-body cache retains 24,577,456 bytes per high-detail appearance for three runtime-used optional combinations; all eight optional combinations would retain 65,510,520 bytes. Claude accepts the desktop cost; Quest/XR memory impact remains unmeasured."
+      ],
+      "media": [
+        {
+          "run": "crowd-before",
+          "shot": "deck-instanced-fixed",
+          "label": "Before",
+          "caption": "Actual instanced deck crew, fixed phase.",
+          "reviewed": true
+        },
+        {
+          "run": "crowd-after",
+          "shot": "deck-instanced-fixed",
+          "label": "After",
+          "caption": "Byte-identical output after the Marine changes.",
+          "reviewed": true
+        },
+        {
+          "run": "crowd-before",
+          "shot": "town-instanced-fixed",
+          "label": "Before",
+          "caption": "Actual civilian geometry and walk shader.",
+          "reviewed": true
+        },
+        {
+          "run": "crowd-after",
+          "shot": "town-instanced-fixed",
+          "label": "After",
+          "caption": "Byte-identical townsperson output.",
+          "reviewed": true
+        },
+        {
+          "run": "crowd-before",
+          "shot": "marine-mid-fixed",
+          "label": "Before",
+          "caption": "Default Marine mid LOD.",
+          "reviewed": true
+        },
+        {
+          "run": "crowd-after",
+          "shot": "marine-mid-fixed",
+          "label": "After",
+          "caption": "Default body/pose preserved exactly.",
+          "reviewed": true
+        }
+      ]
+    },
+    {
+      "title": "Production player and AI adapters use the new grip",
+      "change": "Stop converting grenade-launcher mode to rifle before posing player and rich AI Marines. Project the existing LAW deployment state into its display model; lightweight AI display follows its existing selected firing intent.",
+      "observed": "The actual marine.render and groundwar renderUnits paths pass 8/8 checks for GL class/trigger position, folded/deployed LAW parts and AI hand profiles. The first run passed seven checks then Chrome disconnected during the fourth screenshot; that failed artifact is retained. The rerun completed without runtime or console errors.",
+      "checks": [
+        "Real rifleman state is fed through production render adapters. The scene pauses combat scheduling to isolate presentation.",
+        "The final inspection camera uses the existing explicit no-overlay post-render option and hides the HUD."
+      ],
+      "limitations": [
+        "This does not validate AI combat decisions, a full mission or physical first-person controls.",
+        "The browser disconnection cause was not established; it is not reclassified as a passing run."
+      ],
+      "media": [
+        {
+          "run": "game-after",
+          "shot": "player-m203-launch",
+          "label": "Player",
+          "caption": "Correct launcher grip reaches the production player model.",
+          "reviewed": true
+        },
+        {
+          "run": "game-after",
+          "shot": "rich-ai-law-selected",
+          "label": "Rich AI",
+          "caption": "Selected LAW state reaches deployed geometry and the tube grips.",
+          "reviewed": true
+        }
+      ]
+    },
+    {
+      "title": "Generated speech stays on the local PC",
+      "change": "Keep only an unavailable-bank descriptor in Git. node tools/voice-build.mjs generates ignored speech.logpcm.gz and local-index.json using installed Windows voices. The provided server exposes a local bank only when its matching PCM exists and prints a build hint otherwise. Plain static hosting uses silent text call-outs. Live local Windows synthesis remains available.",
+      "observed": "The missing-bank browser case passes 6/6: normal subtitles, completed queue entries, no audio source/noise and no request for missing PCM. Node checks cover absent/partial/corrupt local builds and load numerical test PCM without relying on installed voices. The normal voice scene uses the preserved local bank and records its SHA-256 separately from the committed game source.",
+      "checks": [
+        "Optional-bank Node contracts: 10/10.",
+        "Voice hooks and existing local-bank integrity: 19/19. Server contracts: 13/13.",
+        "Final syntax: 617/617; semantic diagnostics 578 against the unchanged 606 ceiling.",
+        "Required voices scene: 29/29 with local bank; smoke: 5/5; both zero runtime/console errors. Final game hash 8d8a77cf3e167c7747f48ca5dfd594a51b6d8df1e2810398acc6c2890cbb8e85."
+      ],
+      "limitations": [
+        "Missing-bank browser evidence intercepts only the manifest response with the real unavailable descriptor; Node tests separately exercise actual absent/partial files in the server resolver.",
+        "Locally generated audio is not bundled with this report or clean history. Earlier bank-containing branch history is retained only for local recovery.",
+        "No new physical microphone, Opera listening, headset or actor-quality voice claim."
+      ],
+      "media": [
+        {
+          "run": "missing-bank",
+          "shot": "text-only-radio",
+          "label": "Bank absent",
+          "caption": "Radio check appears on the normal HUD and completes silently without missing-file errors.",
+          "reviewed": true
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "One historical browser capture failure and the rejected M60 intermediate fit are preserved. Accepted final runs have their own recorded source provenance.",
+    "TP proof uses game hash 898fd996f20d6a5a30fc8f0ca10c57808264c2465ca4374d7ab2f71dad504b53. Subsequent cleanup changes only speech loading/manifest, ignored local assets, tools and docs; final bank tests record the newer hash.",
+    "SwiftShader on the shared host is unsuitable for performance claims. No FPS improvement or AAA-fidelity claim.",
+    "Claude owns integration and later XR review. Weapon rebuilds must be coordinated because these grips are fitted to the current geometry."
+  ]
+}

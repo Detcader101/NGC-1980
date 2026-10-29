@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 2,
+  "name": "tpm60grip",
+  "query": "dev/people.html?debug&res=1&ui=0",
+  "seed": null,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "7ace8b8bb553f4b5e7c145f232fcc42b3ed2de33e4694d02e2dd3536de4d8900",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/snap.mjs",
+    "scenes/tpm60grip.json",
+    "--out",
+    "runs/tp-m60-final"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7add6fc60a720a0829959d1b4d6062816d874ee5",
+    "branch": "ngc/look-voices",
+    "gameTree": "5a1b91781451e3b80f92db7b0c38eb42257ca374",
+    "gameSha256": "898fd996f20d6a5a30fc8f0ca10c57808264c2465ca4374d7ab2f71dad504b53",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/js/marine.js\n M game/js/units/groundwar/groundwar.js\n M game/js/units/infantry/handkit.js\n M game/js/units/infantry/humanfig.js\n M game/js/units/infantry/soldiermodel.js\n M tools/README.md\n M tools/scenes/radiogripmerge.mjs\n?? tools/figurecrowdbench.mjs\n?? tools/scenes/tpgripcrowd.mjs\n?? tools/scenes/tpgripgame.mjs\n?? tools/scenes/tpm60grip.json\n?? tools/thirdpersongripbench.mjs\n?? tools/tpgripprofilebench.mjs"
+  },
+  "url": "http://127.0.0.1:45899/dev/people.html?debug&res=1&ui=0",
+  "ok": true,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": null,
+  "shots": [
+    {
+      "name": "m60-forearm-grip-centred",
+      "file": "01-m60-forearm-grip-centred.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 87,
+      "litFraction": 0.953,
+      "colors": 166
+    }
+  ],
+  "clips": [],
+  "benchmarks": [],
+  "evals": [
+    {
+      "expr": "__H.set('aim',{weapon:'M60',cls:'mg',detail:0,inspect:{pos:[-.48,-.04,-.13],look:[0,-.13,-.14]},weaponState:{bipod:0,handle:0}})",
+      "value": {
+        "triangles": 94504,
+        "meshes": 25,
+        "skinned": 1,
+        "lod": "hero",
+        "view": "aim",
+        "detail": "high",
+        "weapon": "M60",
+        "cls": "mg"
+      }
+    },
+    {
+      "expr": "({camera:{position:__H.camera.position.toArray(),quaternion:__H.camera.quaternion.toArray(),projection:__H.camera.projectionMatrix.toArray()},profiles:__H.active().person.gripProfiles,weaponMatrix:__H.active().weaponModel.group.matrixWorld.toArray()})",
+      "value": {
+        "camera": {
+          "position": [
+            -0.481806030949648,
+            1.6259976016518063,
+            -0.315
+          ],
+          "quaternion": [
+            -0.06610063026978613,
+            -0.6967026628627401,
+            -0.06473787700449729,
+            0.711368479424591
+          ],
+          "projection": [
+            1.9616706246605113,
+            0,
+            0,
+            0,
+            0,
+            3.4874144438409087,
+            0,
+            0,
+            0,
+            0,
+            -1.0002000200020003,
+            -1,
+            0,
+            0,
+            -0.020002000200020003,
+            0
+          ]
+        },
+        "profiles": {
+          "L": "tube41",
+          "R": null
+        },
+        "weaponMatrix": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          -0.0018060309496480687,
+          1.6659976016518063,
+          -0.185,
+          1
+        ]
+      }
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__H.active().weaponKey==='M60' && __H.counts().skinned===1 && __H.active().person.gripProfiles.L==='tube41'",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(m60-forearm-grip-centred)",
+      "ok": true,
+      "value": 0.953
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-29T10:34:29.477Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7add6fc60a720a0829959d1b4d6062816d874ee5",
+    "branch": "ngc/look-voices",
+    "gameTree": "5a1b91781451e3b80f92db7b0c38eb42257ca374",
+    "gameSha256": "898fd996f20d6a5a30fc8f0ca10c57808264c2465ca4374d7ab2f71dad504b53",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/js/marine.js\n M game/js/units/groundwar/groundwar.js\n M game/js/units/infantry/handkit.js\n M game/js/units/infantry/humanfig.js\n M game/js/units/infantry/soldiermodel.js\n M tools/README.md\n M tools/scenes/radiogripmerge.mjs\n?? tools/figurecrowdbench.mjs\n?? tools/scenes/tpgripcrowd.mjs\n?? tools/scenes/tpgripgame.mjs\n?? tools/scenes/tpm60grip.json\n?? tools/thirdpersongripbench.mjs\n?? tools/tpgripprofilebench.mjs"
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": null,
+    "state": null
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7add6fc60a720a0829959d1b4d6062816d874ee5",
+    "branch": "ngc/look-voices",
+    "gameTree": "5a1b91781451e3b80f92db7b0c38eb42257ca374",
+    "gameSha256": "898fd996f20d6a5a30fc8f0ca10c57808264c2465ca4374d7ab2f71dad504b53",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/js/marine.js\n M game/js/units/groundwar/groundwar.js\n M game/js/units/infantry/handkit.js\n M game/js/units/infantry/humanfig.js\n M game/js/units/infantry/soldiermodel.js\n M tools/README.md\n M tools/scenes/radiogripmerge.mjs\n?? tools/figurecrowdbench.mjs\n?? tools/scenes/tpgripcrowd.mjs\n?? tools/scenes/tpgripgame.mjs\n?? tools/scenes/tpm60grip.json\n?? tools/thirdpersongripbench.mjs\n?? tools/tpgripprofilebench.mjs"
+  },
+  "summary": "PASS: 2/2 expects, 0 page errors, 0 console errors",
+  "durationMs": 11336,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/runs/tp-m60-final"
+}

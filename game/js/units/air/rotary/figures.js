@@ -178,6 +178,7 @@ function buildFigure(G, o = {}) {
   function pose(state, ph = 0) {
     const sn = Math.sin(ph), L = legs;
     body.rotation.set(0, 0, 0); body.position.set(0, 0, 0); arms.rotation.set(0, 0, 0);
+    for(const l of L){l.hip.rotation.set(0,0,0);l.knee.rotation.set(0,0,0);} // no knee bend leaks from a previous seated or casualty pose
     if (state === 'run' || state === 'walk') {
       const a = state === 'run' ? 0.75 : 0.4;
       L[0].hip.rotation.x = sn * a; L[1].hip.rotation.x = -sn * a;
@@ -188,6 +189,8 @@ function buildFigure(G, o = {}) {
       L[0].hip.rotation.x = 1.45; L[0].knee.rotation.x = -1.45; L[1].hip.rotation.x = -0.15; L[1].knee.rotation.x = -1.5; body.position.y = -0.47; body.rotation.x = 0.05; arms.rotation.x = state === 'aim' ? 0.42 : 0.15;
     } else if (state === 'seated') {
       for (const l of L) { l.hip.rotation.x = 1.5; l.knee.rotation.x = -1.5; } body.position.y = -0.45;
+    } else if (state === 'prone') {
+      body.rotation.x=-1.5;body.position.y=.15;body.position.z=.68;L[0].hip.rotation.z=-.14;L[1].hip.rotation.z=.14;arms.rotation.x=.18;
     } else if (state === 'fall' || state === 'dead') {
       const k = state === 'dead' ? 1 : Math.min(1, ph);
       body.rotation.x = k * 1.5; body.position.y = 0.12 * k; body.position.z = k * 0.9;

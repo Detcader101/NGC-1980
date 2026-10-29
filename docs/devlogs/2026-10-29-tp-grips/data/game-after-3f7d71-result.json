@@ -1,0 +1,258 @@
+{
+  "schemaVersion": 2,
+  "name": "tpgripgame",
+  "query": "?debug&auto&kb&peace&nofog&voices=silent&res=.7&rk=all&seed=1980&ui=0",
+  "seed": null,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "cb9da7f848b013825f9d63c1c6cd18ee9a4bca4fd03746482668b72e1ccbf55f",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/snap.mjs",
+    "scenes/tpgripgame.mjs",
+    "--out",
+    "runs/tp-game-final"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7add6fc60a720a0829959d1b4d6062816d874ee5",
+    "branch": "ngc/look-voices",
+    "gameTree": "5a1b91781451e3b80f92db7b0c38eb42257ca374",
+    "gameSha256": "898fd996f20d6a5a30fc8f0ca10c57808264c2465ca4374d7ab2f71dad504b53",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/js/marine.js\n M game/js/units/groundwar/groundwar.js\n M game/js/units/infantry/handkit.js\n M game/js/units/infantry/humanfig.js\n M game/js/units/infantry/soldiermodel.js\n M tools/README.md\n M tools/scenes/radiogripmerge.mjs\n?? tools/figurecrowdbench.mjs\n?? tools/scenes/tpgripcrowd.mjs\n?? tools/scenes/tpgripgame.mjs\n?? tools/scenes/tpm60grip.json\n?? tools/thirdpersongripbench.mjs\n?? tools/tpgripprofilebench.mjs"
+  },
+  "url": "http://127.0.0.1:33363/?debug&auto&kb&peace&nofog&voices=silent&res=.7&rk=all&seed=1980&ui=0",
+  "ok": true,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": "1 fps  ·  res 70%",
+  "shots": [
+    {
+      "name": "player-m203-launch",
+      "file": "01-player-m203-launch.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 81.3,
+      "litFraction": 0.9876,
+      "colors": 297
+    },
+    {
+      "name": "player-law-armed",
+      "file": "02-player-law-armed.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 81.4,
+      "litFraction": 0.9881,
+      "colors": 321
+    },
+    {
+      "name": "rich-ai-m203-launch",
+      "file": "03-rich-ai-m203-launch.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 80.6,
+      "litFraction": 0.9936,
+      "colors": 267
+    },
+    {
+      "name": "rich-ai-law-selected",
+      "file": "04-rich-ai-law-selected.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 80.8,
+      "litFraction": 0.9941,
+      "colors": 276
+    }
+  ],
+  "clips": [],
+  "benchmarks": [],
+  "evals": [
+    {
+      "expr": "(__G.G.bench=true,__G.commander.deploy(\"marine\",\"ship\"))",
+      "value": true
+    },
+    {
+      "expr": "(async()=>{\n      const G=__G,T=G.THREE,M=G.marine,GW=G.war.ground,GS=GW.sim,I=G.ISLANDS.find(i=>i.name==='SANDBAR');\n      const {createWeapon}=await import('./js/units/infantry/weapons.js');\n      const {buildWeaponModel}=await import('./js/units/infantry/weaponmodels.js');\n      const x=I.pad.x-18,z=I.pad.z+16;\n      G.foot.spawnAt({x,y:G.terrainH(x,z),z,yaw:0},{force:true});M.view='third';M.aim(0,0);\n      G.G.state='paused';G.war.E.mat=0;GW.godPlayer=true;GS.FC.pause=true;\n      G.say('');G.G.msgT=0;\n      // Main-game UI has no ui=0 switch: this fixture hides DOM overlays while preserving the world canvas.\n      if(new URLSearchParams(location.search).get('ui')==='0'){\n        const style=document.createElement('style');style.textContent='body > :not(#gl):not(script):not(style){visibility:hidden!important}';document.head.appendChild(style);\n      }\n      M.S.ads=1;M.S.speed=0;M.S.gaitPhase=.75;\n      const rifle=M.R.slots.find(w=>w.key==='M16A1');if(!rifle)throw Error('Player fixture needs the service rifle');\n      rifle.gl ||= createWeapon('M203',{loaded:true});\n      const squad=GW.addSquad(1,I,5,x+5,z,{order:{type:'defend',x:x+5,z,r:5}}),unit=squad.members.find(u=>u.role==='gren');\n      if(!unit)throw Error('Five-man fixture did not include the actual grenadier');\n      GS.enrich(unit);GS.place(unit,x+4,z,0);unit.rich.S.ads=1;unit.rich.S.speed=0;unit.rich.S.gaitPhase=.75;\n      const state=window.__tpg={G,M,GW,GS,unit,scene:GW.root.parent,rifle,createWeapon,target:null,lastPlayer:null,lastAI:null};\n      // Use the post pipeline's explicit no-overlay contract for an external inspection camera. An empty\n      // foot overlay callback still selects its MSAA overlay texture, which may contain a prior first-person frame.\n      if(G.rkPost){const post=G.rkPost.render.bind(G.rkPost);G.rkPost.render=(scene,camera,overlay)=>post(scene,camera,state.target?null:overlay);}\n      else {const overlay=G.foot.overlay.bind(G.foot);G.foot.overlay=(...args)=>{if(!state.target)overlay(...args);};}\n      // Keep the pose object returned by the real soldier: the production adapter subsequently fills it.\n      const playerPose=M.S.pose.bind(M.S);M.S.pose=(...args)=>{const p=playerPose(...args);state.lastPlayer=p;return p;};\n      const aiPose=unit.rich.S.pose.bind(unit.rich.S);unit.rich.S.pose=(...args)=>{const p=aiPose(...args);state.lastAI=p;return p;};\n      const reference=buildWeaponModel('M16A1/M203',{detail:'low'}),trigger=new T.Vector3().fromArray(reference.anchors.glTrigger);\n      state.playerRoot=()=>state.scene.children.find(o=>o.name==='soldier'&&o.visible&&Math.hypot(o.position.x-M.S.pos.x,o.position.z-M.S.pos.z)<.05);\n      state.aiRoot=()=>GW.views.get(unit.id)?.skeleton?.root;\n      state.model=root=>root?.children.find(o=>/^M16A1|^M72A2/.test(o.name));\n      state.metrics=(who)=>{\n        const root=who==='player'?state.playerRoot():state.aiRoot(),model=state.model(root),p=who==='player'?state.lastPlayer:state.lastAI;\n        if(!root||!model)return {ready:false};root.updateMatrixWorld(true);\n        const hand=root.getObjectByName('handR'),finger=hand.localToWorld(new T.Vector3(-.027,-.1104,-.05)),target=model.localToWorld(trigger.clone());\n        let finite=true;root.traverse(o=>{if(!o.matrixWorld.elements.every(Number.isFinite))finite=false;});\n        return {ready:true,cls:p?.cls,weaponState:p?.weaponState,model:model.name,finite,triggerGap:finger.distanceTo(target),\n          inner:model.getObjectByName('inner')?.position.z,rearSight:model.getObjectByName('rearSight')?.rotation.x,\n          frontSight:model.getObjectByName('frontSight')?.rotation.x,frontCap:model.getObjectByName('frontCap')?.visible,\n          profiles:who==='ai'?GW.views.get(unit.id)?.skeleton?.person?.gripProfiles:null};\n      };\n      state.drawPlayer=()=>{M.render(0,0,false,true);state.target=state.playerRoot();return state.metrics('player');};\n      state.drawAI=()=>{\n        // Freeze simulation intent only for this call; GW.update still runs its production renderUnits path.\n        const step=GS.step;GS.step=()=>[];try{GW.update(0,G.PL,true);}finally{GS.step=step;}\n        state.target=state.aiRoot();return state.metrics('ai');\n      };\n      const camera=new T.PerspectiveCamera(38,innerWidth/innerHeight,.1,2500),render=G.renderer.render.bind(G.renderer),at=new T.Vector3();\n      G.renderer.render=(s,c)=>{\n        if(c!==G.zCam||!state.target)return render(s,c);\n        state.target.getWorldPosition(at);camera.position.copy(at).add(new T.Vector3(1.45,1.6,-2.5));camera.lookAt(at.x,at.y+1.15,at.z-.16);\n        camera.aspect=c.aspect;camera.updateProjectionMatrix();return render(s,camera);\n      };\n      // The visibility test uses the live camera position even though the camera for each shot is fixed.\n      G.zCam.position.set(x, G.terrainH(x,z)+1.8,z+3);G.zCam.updateMatrixWorld(true);\n      M.R.slot=M.R.slots.indexOf(rifle);M.R.glMode=true;M.R.swap=null;rifle.act=rifle.gl.act=null;\n      return state.drawPlayer();\n    })()",
+      "value": {
+        "ready": true,
+        "cls": "gl",
+        "weaponState": null,
+        "model": "M16A1_M203",
+        "finite": true,
+        "triggerGap": 1.1546319456101628e-14,
+        "profiles": null
+      }
+    },
+    {
+      "expr": "(()=>{const t=__tpg,R=t.M.R;let law=R.slots.find(w=>w.key==='M72A2');if(!law){law=t.createWeapon('M72A2');R.slots.push(law);}R.slot=R.slots.indexOf(law);R.glMode=false;law.law='closed';law.act=null;return t.drawPlayer();})()",
+      "value": {
+        "ready": true,
+        "cls": "law",
+        "weaponState": {
+          "law": 0,
+          "lawSights": 0,
+          "armed": false
+        },
+        "model": "M72A2",
+        "finite": true,
+        "triggerGap": 0.11062621750740875,
+        "inner": 0.14,
+        "rearSight": -1.5,
+        "frontSight": 1.5,
+        "frontCap": true,
+        "profiles": null
+      }
+    },
+    {
+      "expr": "(__tpg.M.R.carrier.law=\"armed\",__tpg.drawPlayer())",
+      "value": {
+        "ready": true,
+        "cls": "law",
+        "weaponState": {
+          "law": 1,
+          "lawSights": 1,
+          "armed": true
+        },
+        "model": "M72A2",
+        "finite": true,
+        "triggerGap": 0.11062621750741022,
+        "inner": 0.378,
+        "rearSight": 0,
+        "frontSight": 0,
+        "frontCap": false,
+        "profiles": null
+      }
+    },
+    {
+      "expr": "(()=>{const t=__tpg,R=t.unit.rich.R;R.slot=R.slots.findIndex(w=>w.key==='M16A1'&&w.gl);if(R.slot<0)throw Error('Rich grenadier has no M203');R.glMode=true;R.swap=null;R.carrier.act=R.carrier.gl.act=null;t.unit.ai.fire=null;return t.drawAI();})()",
+      "value": {
+        "ready": true,
+        "cls": "gl",
+        "weaponState": null,
+        "model": "M16A1_M203",
+        "finite": true,
+        "triggerGap": 0,
+        "profiles": {
+          "L": "tube28",
+          "R": null
+        }
+      }
+    },
+    {
+      "expr": "(__tpg.unit.rich.R.glMode=false,__tpg.unit.ai.fire=\"law\",__tpg.unit.body.laws=1,__tpg.unit.laws=1,__tpg.drawAI())",
+      "value": {
+        "ready": true,
+        "cls": "law",
+        "weaponState": {
+          "law": 1,
+          "lawSights": 1,
+          "armed": true
+        },
+        "model": "M72A2",
+        "finite": true,
+        "triggerGap": 0.11062621750740291,
+        "inner": 0.378,
+        "rearSight": 0,
+        "frontSight": 0,
+        "frontCap": false,
+        "profiles": {
+          "L": "tube41",
+          "R": "tube41"
+        }
+      }
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__tpg.M.R.cls===\"gl\" && __tpg.metrics(\"player\").cls===\"gl\"",
+      "label": "Real player adapter preserves M203 launch mode",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__tpg.metrics(\"player\").finite && __tpg.metrics(\"player\").triggerGap<.025",
+      "label": "Rendered player index fingertip meets the M203 trigger within 25 mm",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "Math.abs(__tpg.metrics(\"player\").inner-.14)<1e-6 && __tpg.metrics(\"player\").frontCap===true",
+      "label": "Real player closed LAW keeps its tube collapsed and cap visible",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__tpg.metrics(\"player\").cls===\"law\" && __tpg.metrics(\"player\").weaponState.armed && Math.abs(__tpg.metrics(\"player\").inner-.378)<1e-6 && Math.abs(__tpg.metrics(\"player\").rearSight)<1e-6 && Math.abs(__tpg.metrics(\"player\").frontSight)<1e-6 && __tpg.metrics(\"player\").frontCap===false",
+      "label": "Actual armed LAW state reaches deployed tube, sights and cap geometry",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__tpg.unit.richOn && __tpg.unit.rich.R.cls===\"gl\" && __tpg.metrics(\"ai\").cls===\"gl\"",
+      "label": "Actual rich Marine render adapter preserves M203 launch mode",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__tpg.metrics(\"ai\").finite && __tpg.metrics(\"ai\").triggerGap<.025",
+      "label": "Rendered rich AI index fingertip meets the M203 trigger within 25 mm",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__tpg.metrics(\"ai\").model===\"M72A2\" && __tpg.metrics(\"ai\").cls===\"law\" && Math.abs(__tpg.metrics(\"ai\").inner-.378)<1e-6 && Math.abs(__tpg.metrics(\"ai\").rearSight)<1e-6 && __tpg.metrics(\"ai\").profiles.L===\"tube41\" && __tpg.metrics(\"ai\").profiles.R===\"tube41\"",
+      "label": "Rich AI visual LAW selection deploys the tube and selects its two support profiles",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(rich-ai-law-selected)",
+      "ok": true,
+      "value": 0.9941
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-29T10:35:07.472Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7add6fc60a720a0829959d1b4d6062816d874ee5",
+    "branch": "ngc/look-voices",
+    "gameTree": "5a1b91781451e3b80f92db7b0c38eb42257ca374",
+    "gameSha256": "898fd996f20d6a5a30fc8f0ca10c57808264c2465ca4374d7ab2f71dad504b53",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/js/marine.js\n M game/js/units/groundwar/groundwar.js\n M game/js/units/infantry/handkit.js\n M game/js/units/infantry/humanfig.js\n M game/js/units/infantry/soldiermodel.js\n M tools/README.md\n M tools/scenes/radiogripmerge.mjs\n?? tools/figurecrowdbench.mjs\n?? tools/scenes/tpgripcrowd.mjs\n?? tools/scenes/tpgripgame.mjs\n?? tools/scenes/tpm60grip.json\n?? tools/thirdpersongripbench.mjs\n?? tools/tpgripprofilebench.mjs"
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": "zarch",
+    "state": "paused"
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7add6fc60a720a0829959d1b4d6062816d874ee5",
+    "branch": "ngc/look-voices",
+    "gameTree": "5a1b91781451e3b80f92db7b0c38eb42257ca374",
+    "gameSha256": "898fd996f20d6a5a30fc8f0ca10c57808264c2465ca4374d7ab2f71dad504b53",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/js/marine.js\n M game/js/units/groundwar/groundwar.js\n M game/js/units/infantry/handkit.js\n M game/js/units/infantry/humanfig.js\n M game/js/units/infantry/soldiermodel.js\n M tools/README.md\n M tools/scenes/radiogripmerge.mjs\n?? tools/figurecrowdbench.mjs\n?? tools/scenes/tpgripcrowd.mjs\n?? tools/scenes/tpgripgame.mjs\n?? tools/scenes/tpm60grip.json\n?? tools/thirdpersongripbench.mjs\n?? tools/tpgripprofilebench.mjs"
+  },
+  "summary": "PASS: 8/8 expects, 0 page errors, 0 console errors",
+  "durationMs": 114820,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/runs/tp-game-final"
+}

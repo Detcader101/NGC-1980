@@ -1,0 +1,105 @@
+{
+  "title": "Crew voices and command radio",
+  "date": "2026-10-28",
+  "summary": "The required tests pass: voices 29/29, smoke 5/5, syntax 544/544; command integration passes 8/8. Generated speech uses actual radio/spatial processing and push-to-talk controls live units through complete addressed calls. Historical failed diagnostics are retained below; aggregate totals include those failures.",
+  "reproduce": "Set CHROME_PATH to /home/jayjay/.cache/chs/chrome.sh. From tools/, run node snap.mjs scenes/voices.mjs, then scenes/voicecommands.mjs and scenes/smoke.json with the same launcher. From the repository root: node tools/check.mjs syntax; node tools/voicebench.mjs; node tools/voicecommandbench.mjs. Open game/dev/voices.html through the game server for the listening preview.",
+  "changes": [
+    {
+      "title": "Crew dialogue through the actual audio graph",
+      "change": "Authored text was synthesized locally with the PC's installed SAPI voices. Radio words are band-limited and lightly saturated with generated keying/squelch; effects duck independently. Speaker identity has stable pitch, rate and timbre.",
+      "observed": "The lift screenshot shows separate chief, gunner and pilot subtitles. The voice scene exercised the Huey, command-board deployment, Marine contact/casualty calls, Hornet ball calls and urgent LSO wave-off. The isolated voice bus produced PCM with a peak of 0.1813 and zero overlapping utterances.",
+      "checks": [
+        "29/29 browser voice assertions; no page or console errors.",
+        "Rendered radio RMS: 0.00356 at 80 Hz, 0.0683 at 1 kHz, 0.00702 at 6.5 kHz.",
+        "19/19 asset and hook checks, including civilian/vehicle identity regressions added after the full scene."
+      ],
+      "limitations": [
+        "Screenshots prove subtitle state, not intelligibility. The headless browser mutes hardware output.",
+        "The bank is 19.1 MiB compressed. Missing installed English voices or unavailable assets produce silent subtitles.",
+        "The full voice run precedes the final civilian/vehicle identity fix and last RADIO button position; targeted checks and later game runs cover those changes."
+      ],
+      "media": [
+        {
+          "run": "voices",
+          "shot": "huey-lift",
+          "caption": "Huey leaving the carrier, with the chief, gunner and pilot identified in the subtitle feed.",
+          "reviewed": true
+        },
+        {
+          "run": "preview",
+          "shot": "listening-room",
+          "caption": "Standalone listening room: generated speech produces PCM and exposes speaker, channel, distance and wall controls (2/2 checks).",
+          "reviewed": true
+        }
+      ]
+    },
+    {
+      "title": "Local combat voices and interruption",
+      "change": "Nearby Marines speak from live positions. Distance and wall/door intersections change gain and low-pass filtering. Urgent calls stop lower-priority sources; pause, OFF and out-of-range events cancel real audio.",
+      "observed": "The contact image shows Marines near the landed Huey and a contact/corpsman subtitle. Separate audio checks move a listener, insert a wall, interrupt a line and stop the voice bus.",
+      "checks": [
+        "Live distance fading, wall low-pass, out-of-range cancellation and radio-only mode passed.",
+        "Pause/OFF, zero volume, queue age/bounds and no-system-voices silence passed."
+      ],
+      "limitations": [
+        "The scene positions units and delivers deterministic hostile-shot and field-care events through game hooks. It does not validate autonomous combat tactics.",
+        "Wall acoustics approximate obstruction, without diffraction, room reverberation or carrier roll/pitch transforms."
+      ],
+      "media": [
+        {
+          "run": "voices",
+          "shot": "contact",
+          "caption": "Scripted Sandbar encounter: the subtitle feed includes a nearby contact and a corpsman call.",
+          "reviewed": true
+        }
+      ]
+    },
+    {
+      "title": "Speak an addressed order",
+      "change": "Hold F9, say the called station, THIS IS COMMAND, one supported order, OVER, then release. The live roster lists callers and capabilities; typed calls use the same parser. Units reply WILCO/OUT or UNABLE with their existing voice identity.",
+      "observed": "A controlled final microphone transcript waited for release, then changed a real Marine squad to hold. A typed call then ordered that squad to defend Sandbar. Invalid procedure and paused-game calls did not mutate orders.",
+      "checks": [
+        "8/8 real-game command assertions.",
+        "38/38 parser, recognition lifecycle and dispatch checks, including ambiguity, cancellation, permission/network errors, stale units and SAY AGAIN without repeating the action."
+      ],
+      "limitations": [
+        "Recognition was driven by a test provider. A physical microphone, accents/noise and remote browser speech services need manual testing.",
+        "This is a bounded military command-net convention, not a validator of every legal aviation transmission. Only listed unit orders are supported.",
+        "Browsers may send microphone audio to their own speech service; the panel discloses this before use."
+      ],
+      "media": [
+        {
+          "run": "commands",
+          "shot": "radio-panel",
+          "caption": "The command radio panel displays the complete call and the addressed squad's acknowledgement.",
+          "reviewed": true
+        }
+      ]
+    },
+    {
+      "title": "Regression checks and retained failures",
+      "change": "The required smoke scene remains intact. Failed diagnostic runs are retained alongside passing results and explained in the findings document.",
+      "observed": "Smoke screenshots show the carrier start and the helicopter climbing above its scripted 40 m starting altitude. Earlier failures exposed stale listener/parking assumptions, casualty-fixture ambiguity and a browser termination during screenshot capture.",
+      "checks": [
+        "Smoke 5/5 with no browser errors; syntax 544/544 modules.",
+        "Earlier 24/31 and 28/29 runs, and a terminated screenshot run, are failed evidence, not passing validation."
+      ],
+      "limitations": [
+        "SwiftShader software rendering at 45% resolution; no performance improvement is claimed.",
+        "A veteran phrase review, subjective voice listening and physical headset/XR controls remain manual checks."
+      ],
+      "media": [
+        {
+          "run": "smoke",
+          "shot": "after-thrust",
+          "caption": "Unmodified smoke scene: helicopter climb after collective input.",
+          "reviewed": true
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "All work stays on ngc/look-voices in the requested worktree. No merge, push or publication.",
+    "Character dialogue uses conservative period vocabulary; the newly requested spoken-order grammar is not restricted to 1980."
+  ]
+}

@@ -1,0 +1,1122 @@
+{
+  "schemaVersion": 2,
+  "name": "firstpersonpolish",
+  "query": "?debug&auto",
+  "seed": 1980,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "589cb4c36ab93e3f46dbf01e9252e2f755fc032ed8e53125da9b884e488cc96b",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/snap.mjs",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/scenes/firstpersonpolish.mjs",
+    "--out",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/runs/firstperson-before",
+    "--seed",
+    "1980"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7839427d84197e7273289e6158e6d8a45fbbe26b",
+    "branch": "ngc/look-voices",
+    "gameTree": "515bc2c65213bfffcc64c05603aa5a3469c998f6",
+    "gameSha256": "5a6a7eaff0aa25256065da74a841ce4f1c2e6f43f8e24e4a838d1924bb8a5b84",
+    "dirty": true,
+    "status": "M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/dev/voices.html\n M game/js/main.js\n M game/js/units/commander/board.js\n M game/js/units/groundwar/marineai.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/commands.js\n M game/js/voice/localrecognition.js\n M game/js/voice/voice.js\n M tools/scenes/offlinevoice.mjs\n M tools/scenes/voices.mjs\n M tools/serve.mjs\n?? game/dev/people.html\n?? game/dev/people.js\n?? game/js/voice/commanddesk.css.js\n?? game/js/voice/delivery.js\n?? game/js/voice/fieldstations.js\n?? game/js/voice/localvoices.js\n?? game/js/voice/operations.js\n?? tools/livevoicebench.mjs\n?? tools/radiodeskbench.mjs\n?? tools/radionetbench.mjs\n?? tools/radiooperationsbench.mjs\n?? tools/scenes/firstpersonpolish.mjs\n?? tools/scenes/livevoices.mjs\n?? tools/scenes/people.mjs\n?? tools/scenes/radioops.mjs\n?? tools/voice-server.mjs\n?? tools/voice-synthesize.ps1"
+  },
+  "url": "http://127.0.0.1:40613/?debug&auto",
+  "ok": true,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": null,
+  "shots": [
+    {
+      "name": "m16-player",
+      "file": "01-m16-player.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 124.4,
+      "litFraction": 0.9978,
+      "colors": 118
+    },
+    {
+      "name": "m16-support",
+      "file": "02-m16-support.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 112.2,
+      "litFraction": 0.9342,
+      "colors": 102
+    },
+    {
+      "name": "m16-trigger",
+      "file": "03-m16-trigger.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 101.1,
+      "litFraction": 0.9693,
+      "colors": 117
+    },
+    {
+      "name": "m16-aim",
+      "file": "04-m16-aim.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 116.8,
+      "litFraction": 0.993,
+      "colors": 112
+    },
+    {
+      "name": "m203-player",
+      "file": "05-m203-player.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 123,
+      "litFraction": 0.9968,
+      "colors": 122
+    },
+    {
+      "name": "m203-support",
+      "file": "06-m203-support.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 104.3,
+      "litFraction": 0.9229,
+      "colors": 97
+    },
+    {
+      "name": "m203-aim",
+      "file": "07-m203-aim.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 115.2,
+      "litFraction": 0.9914,
+      "colors": 122
+    },
+    {
+      "name": "m60-player",
+      "file": "08-m60-player.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 125,
+      "litFraction": 0.9973,
+      "colors": 119
+    },
+    {
+      "name": "m60-support",
+      "file": "09-m60-support.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 114.9,
+      "litFraction": 0.9447,
+      "colors": 143
+    },
+    {
+      "name": "m60-aim",
+      "file": "10-m60-aim.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 118,
+      "litFraction": 0.998,
+      "colors": 103
+    },
+    {
+      "name": "m1911-player",
+      "file": "11-m1911-player.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 125.6,
+      "litFraction": 0.9993,
+      "colors": 117
+    },
+    {
+      "name": "m1911-support",
+      "file": "12-m1911-support.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 116.1,
+      "litFraction": 0.9815,
+      "colors": 108
+    },
+    {
+      "name": "m1911-aim",
+      "file": "13-m1911-aim.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 121.8,
+      "litFraction": 0.9952,
+      "colors": 121
+    },
+    {
+      "name": "law-player",
+      "file": "14-law-player.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 121.7,
+      "litFraction": 0.9941,
+      "colors": 144
+    },
+    {
+      "name": "law-support",
+      "file": "15-law-support.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 107.3,
+      "litFraction": 0.9523,
+      "colors": 109
+    },
+    {
+      "name": "law-aim",
+      "file": "16-law-aim.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 120.9,
+      "litFraction": 0.9906,
+      "colors": 121
+    },
+    {
+      "name": "m16-sprint",
+      "file": "17-m16-sprint.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 125.1,
+      "litFraction": 0.9972,
+      "colors": 117
+    },
+    {
+      "name": "m16-prone-transition",
+      "file": "18-m16-prone-transition.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 125,
+      "litFraction": 0.9977,
+      "colors": 117
+    },
+    {
+      "name": "m16-reload",
+      "file": "19-m16-reload.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 121.4,
+      "litFraction": 0.9905,
+      "colors": 122
+    },
+    {
+      "name": "ladder-hands",
+      "file": "20-ladder-hands.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 123.3,
+      "litFraction": 0.9995,
+      "colors": 112
+    },
+    {
+      "name": "ladder-exit",
+      "file": "21-ladder-exit.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 117.5,
+      "litFraction": 0.999,
+      "colors": 123
+    },
+    {
+      "name": "swim-hands",
+      "file": "22-swim-hands.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 124.5,
+      "litFraction": 0.9977,
+      "colors": 109
+    },
+    {
+      "name": "swim-exit",
+      "file": "23-swim-exit.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 126.3,
+      "litFraction": 0.9999,
+      "colors": 91
+    },
+    {
+      "name": "aid-hands",
+      "file": "24-aid-hands.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 123.1,
+      "litFraction": 0.9982,
+      "colors": 118
+    },
+    {
+      "name": "aid-exit",
+      "file": "25-aid-exit.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 124.4,
+      "litFraction": 0.9973,
+      "colors": 99
+    }
+  ],
+  "clips": [],
+  "benchmarks": [
+    {
+      "name": "first-person-ready",
+      "policy": {
+        "frames": 30,
+        "warmup": 10,
+        "timeoutMs": 120000
+      },
+      "rows": [
+        {
+          "frame": 34,
+          "ms": 17.09999999962747,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 36,
+          "ms": 22.299999998882413,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 38,
+          "ms": 9.100000001490116,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 40,
+          "ms": 17.09999999962747,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 42,
+          "ms": 17.199999999254942,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 44,
+          "ms": 18.40000000037253,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 46,
+          "ms": 13.900000000372529,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 48,
+          "ms": 20.59999999962747,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 50,
+          "ms": 13.199999999254942,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 52,
+          "ms": 16.300000000745058,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 54,
+          "ms": 16,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 56,
+          "ms": 19.09999999962747,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 58,
+          "ms": 16,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 60,
+          "ms": 15.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 62,
+          "ms": 19.800000000745058,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 64,
+          "ms": 14,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 66,
+          "ms": 16.40000000037253,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 68,
+          "ms": 18.299999998882413,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 70,
+          "ms": 15.900000000372529,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 72,
+          "ms": 18.800000000745058,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 74,
+          "ms": 14.099999999627471,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 76,
+          "ms": 16.40000000037253,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 78,
+          "ms": 17.59999999962747,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 80,
+          "ms": 15.199999999254942,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 82,
+          "ms": 16.59999999962747,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 84,
+          "ms": 20.600000001490116,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 86,
+          "ms": 18.299999998882413,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 88,
+          "ms": 11.700000001117587,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 90,
+          "ms": 75.39999999850988,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        },
+        {
+          "frame": 92,
+          "ms": 140.60000000149012,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9516,
+          "textures": 9,
+          "geometries": 114
+        }
+      ],
+      "xr": false,
+      "host": "dev-infantry",
+      "route": "/dev/infantry.html?debug&fixed&nosway&res=1&ui=0&seed=1980",
+      "state": "paused",
+      "mode": "preview",
+      "drawingBuffer": [
+        1280,
+        720
+      ],
+      "eyeViewports": [],
+      "summary": {
+        "samples": 30,
+        "frameMs": {
+          "count": 30,
+          "mean": 22.716666666666665,
+          "p50": 16.59999999962747,
+          "p95": 22.299999998882413,
+          "p99": 75.39999999850988,
+          "min": 9.100000001490116,
+          "max": 140.60000000149012
+        },
+        "observedFps": 44.02054292002935,
+        "cpuMs": {
+          "sim": null,
+          "prep": null,
+          "renderSubmit": null
+        },
+        "drawCalls": {
+          "count": 30,
+          "mean": 7,
+          "p50": 7,
+          "p95": 7,
+          "p99": 7,
+          "min": 7,
+          "max": 7
+        },
+        "triangles": {
+          "count": 30,
+          "mean": 9516,
+          "p50": 9516,
+          "p95": 9516,
+          "p99": 9516,
+          "min": 9516,
+          "max": 9516
+        },
+        "textures": {
+          "count": 30,
+          "mean": 9,
+          "p50": 9,
+          "p95": 9,
+          "p99": 9,
+          "min": 9,
+          "max": 9
+        },
+        "geometries": {
+          "count": 30,
+          "mean": 114,
+          "p50": 114,
+          "p95": 114,
+          "p99": 114,
+          "min": 114,
+          "max": 114
+        }
+      },
+      "qualification": "Wall-clock intervals between observed rendered frames. CPU phases are game-smoothed CPU timings, not GPU durations. Render counters describe the last render pass. No capture during sampling."
+    }
+  ],
+  "evals": [
+    {
+      "expr": "(() => {\n    __I.aimTarget(100); __I.advance(0.8);\n    window.__handFinite = () => {\n      let finite = true;\n      __I.vm.root.updateMatrixWorld(true);\n      __I.vm.root.traverse(o => { if (!o.matrixWorld.elements.every(Number.isFinite)) finite = false; });\n      return finite;\n    };\n    window.__handMetrics = () => Object.fromEntries(Object.entries(__I.vm.arms).map(([side,a]) => {\n      const wrist = a.hand.localToWorld(a.hand.userData.wrist.clone());\n      const cuff = a.fo.localToWorld(new __I.THREE.Vector3(0,-0.28,0));\n      return [side, { wrist: wrist.toArray(), cuffGap: cuff.distanceTo(wrist) }];\n    }));\n    return true;\n  })()",
+      "value": true
+    },
+    {
+      "expr": "(__I.clear(), __I.slot(0), __I.R.glMode=false, __I.aimTarget(100), __I.advance(0.8,{ads:false}), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.inspect={\"pos\":[-0.48,-0.28,-0.23],\"look\":[0.02,-0.22,-0.27]}, __I.render(), __handMetrics())",
+      "value": {
+        "L": {
+          "wrist": [
+            0.05231416785438354,
+            -0.29786961611350976,
+            -0.5097363332519932
+          ],
+          "cuffGap": 0.10766127419879735
+        },
+        "R": {
+          "wrist": [
+            0.1605734297782786,
+            -0.25703000066498044,
+            -0.05839134657742334
+          ],
+          "cuffGap": 6.206335383118183e-17
+        }
+      }
+    },
+    {
+      "expr": "(__I.vm.inspect={pos:[0.5,-0.11,-0.09],look:[0.06,-0.27,-0.12]}, __I.render(), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.inspect=null, __I.render(), true)",
+      "value": true
+    },
+    {
+      "expr": "__I.advance(1,{ads:true})",
+      "value": {
+        "pos": [
+          0,
+          0,
+          1.2
+        ],
+        "stance": "stand",
+        "speed": 0,
+        "ads": 1,
+        "rounds": 20,
+        "act": null,
+        "malf": null,
+        "bolt": "fwd"
+      }
+    },
+    {
+      "expr": "(__I.clear(), __I.slot(0), __I.R.glMode=true, __I.aimTarget(100), __I.advance(0.8,{ads:false}), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.inspect={\"pos\":[-0.48,-0.28,-0.23],\"look\":[0.02,-0.22,-0.27]}, __I.render(), __handMetrics())",
+      "value": {
+        "L": {
+          "wrist": [
+            0.02797368650749507,
+            -0.2914503522684449,
+            -0.2341198784311229
+          ],
+          "cuffGap": 7.850462293418876e-17
+        },
+        "R": {
+          "wrist": [
+            0.10519017057450647,
+            -0.21682720446369266,
+            -0.37644660492272697
+          ],
+          "cuffGap": 2.044325800678625e-16
+        }
+      }
+    },
+    {
+      "expr": "(__I.vm.inspect=null, __I.render(), true)",
+      "value": true
+    },
+    {
+      "expr": "__I.advance(1,{ads:true})",
+      "value": {
+        "pos": [
+          0,
+          0,
+          1.2
+        ],
+        "stance": "stand",
+        "speed": 0,
+        "ads": 1,
+        "rounds": 1,
+        "act": null,
+        "malf": null,
+        "bolt": "fwd"
+      }
+    },
+    {
+      "expr": "(__I.clear(), __I.slot(1), __I.R.glMode=false, __I.aimTarget(100), __I.advance(0.8,{ads:false}), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.inspect={\"pos\":[-0.48,-0.28,-0.23],\"look\":[0.02,-0.22,-0.27]}, __I.render(), __handMetrics())",
+      "value": {
+        "L": {
+          "wrist": [
+            0.07382978833035618,
+            -0.38125081158184615,
+            -0.5877396209978772
+          ],
+          "cuffGap": 0.19748178341684694
+        },
+        "R": {
+          "wrist": [
+            0.18738459947165478,
+            -0.31044646700783163,
+            -0.04824141711161781
+          ],
+          "cuffGap": 1.1443916996305594e-16
+        }
+      }
+    },
+    {
+      "expr": "(__I.vm.inspect=null, __I.render(), true)",
+      "value": true
+    },
+    {
+      "expr": "__I.advance(1,{ads:true})",
+      "value": {
+        "pos": [
+          0,
+          0,
+          1.2
+        ],
+        "stance": "stand",
+        "speed": 0,
+        "ads": 1,
+        "rounds": 100,
+        "act": null,
+        "malf": null,
+        "bolt": "cocked"
+      }
+    },
+    {
+      "expr": "(__I.clear(), __I.slot(3), __I.R.glMode=false, __I.aimTarget(100), __I.advance(0.8,{ads:false}), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.inspect={\"pos\":[-0.48,-0.28,-0.23],\"look\":[0.02,-0.22,-0.27]}, __I.render(), __handMetrics())",
+      "value": {
+        "L": {
+          "wrist": [
+            0.008519070720323763,
+            -0.22818368102749784,
+            -0.2299563204490217
+          ],
+          "cuffGap": 0
+        },
+        "R": {
+          "wrist": [
+            0.10140800659672475,
+            -0.20671964315799057,
+            -0.23475595143031858
+          ],
+          "cuffGap": 9.614813431917819e-17
+        }
+      }
+    },
+    {
+      "expr": "(__I.vm.inspect=null, __I.render(), true)",
+      "value": true
+    },
+    {
+      "expr": "__I.advance(1,{ads:true})",
+      "value": {
+        "pos": [
+          0,
+          0,
+          1.2
+        ],
+        "stance": "stand",
+        "speed": 0,
+        "ads": 1,
+        "rounds": 7,
+        "act": null,
+        "malf": null,
+        "bolt": "fwd"
+      }
+    },
+    {
+      "expr": "(__I.clear(), __I.slot(2), __I.R.glMode=false, __I.aimTarget(100), __I.advance(0.8,{ads:false}), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.inspect={\"pos\":[-0.48,-0.28,-0.23],\"look\":[0.02,-0.22,-0.27]}, __I.render(), __handMetrics())",
+      "value": {
+        "L": {
+          "wrist": [
+            0.028448835255375546,
+            -0.21593572356170404,
+            -0.3471965597682218
+          ],
+          "cuffGap": 1.249000902703301e-16
+        },
+        "R": {
+          "wrist": [
+            0.16964655090774122,
+            -0.20593572356170403,
+            -0.2093698385036075
+          ],
+          "cuffGap": 1.0385185452638061e-16
+        }
+      }
+    },
+    {
+      "expr": "(__I.vm.inspect=null, __I.render(), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.press('law'), __I.advance(3.4), __I.press('law'), __I.advance(1), true)",
+      "value": true
+    },
+    {
+      "expr": "__I.advance(1,{ads:true})",
+      "value": {
+        "pos": [
+          0,
+          0,
+          1.2
+        ],
+        "stance": "stand",
+        "speed": 0,
+        "ads": 1,
+        "rounds": 1,
+        "act": null,
+        "malf": null,
+        "bolt": "fwd"
+      }
+    },
+    {
+      "expr": "(__I.slot(0), __I.clear(), __I.advance(0.8,{ads:false}), true)",
+      "value": true
+    },
+    {
+      "expr": "__I.advance(0.7,{move:[0,1],sprint:true})",
+      "value": {
+        "pos": [
+          -0.01,
+          0,
+          0.45
+        ],
+        "stance": "stand",
+        "speed": 2.12,
+        "ads": 0,
+        "rounds": 20,
+        "act": null,
+        "malf": null,
+        "bolt": "fwd"
+      }
+    },
+    {
+      "expr": "(__I.advance(0.5,{move:[0,0],sprint:false}), __I.input({stance:'prone'}), __I.advance(0.7), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.advance(2), __I.press('reload'), __I.advance(0.9), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.advance(5), __I.clear(), __I.teleport(0,1.2,0), __I.advance(0.7), true)",
+      "value": true
+    },
+    {
+      "expr": "import('../js/units/infantry/bodyvm.js').then(m => { window.__BV=m.createBodyVM(__I.vm); return true; })",
+      "value": true
+    },
+    {
+      "expr": "(() => { for(let i=0;i<30;i++){__I.vm.update(1/60,__I.R);__BV.update(1/60,{\"mode\":\"ladder\",\"climbY\":1.83,\"pitch\":0.15});}return __handFinite();})()",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.update(1/60,__I.R), __BV.update(1/60,null), __handMetrics())",
+      "value": {
+        "L": {
+          "wrist": [
+            -0.2114599505192646,
+            0.06967865792977987,
+            -0.31603547227836737
+          ],
+          "cuffGap": 3.002224531865041e-16
+        },
+        "R": {
+          "wrist": [
+            0.20546950066667058,
+            -0.2155012948664845,
+            -0.31164260867385657
+          ],
+          "cuffGap": 1.2412670766236366e-16
+        }
+      }
+    },
+    {
+      "expr": "(() => {for(let i=0;i<30;i++){__I.vm.update(1/60,__I.R);__BV.update(1/60,null);}return true;})()",
+      "value": true
+    },
+    {
+      "expr": "(() => { for(let i=0;i<30;i++){__I.vm.update(1/60,__I.R);__BV.update(1/60,{\"mode\":\"swim\",\"speed\":0.8,\"pitch\":-0.2});}return __handFinite();})()",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.update(1/60,__I.R), __BV.update(1/60,null), __handMetrics())",
+      "value": {
+        "L": {
+          "wrist": [
+            -0.2939548320140728,
+            -0.4008259522683064,
+            -0.3054755572143732
+          ],
+          "cuffGap": 5.551115123125783e-17
+        },
+        "R": {
+          "wrist": [
+            0.30677506144937955,
+            -0.39038657287040196,
+            -0.30415979300662066
+          ],
+          "cuffGap": 1.1102230246251565e-16
+        }
+      }
+    },
+    {
+      "expr": "(() => {for(let i=0;i<30;i++){__I.vm.update(1/60,__I.R);__BV.update(1/60,null);}return true;})()",
+      "value": true
+    },
+    {
+      "expr": "(() => { for(let i=0;i<30;i++){__I.vm.update(1/60,__I.R);__BV.update(1/60,{\"mode\":\"aid\",\"region\":\"legL\",\"item\":\"dress\",\"pitch\":-0.65});}return __handFinite();})()",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.update(1/60,__I.R), __BV.update(1/60,null), __handMetrics())",
+      "value": {
+        "L": {
+          "wrist": [
+            -0.21350294785593907,
+            -0.3248040512780557,
+            -0.3330671954875036
+          ],
+          "cuffGap": 1.6653345369377348e-16
+        },
+        "R": {
+          "wrist": [
+            -0.05572401075345554,
+            -0.3298992213816813,
+            -0.3279506758310812
+          ],
+          "cuffGap": 1.3597399555105182e-16
+        }
+      }
+    },
+    {
+      "expr": "(() => {for(let i=0;i<30;i++){__I.vm.update(1/60,__I.R);__BV.update(1/60,null);}return true;})()",
+      "value": true
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__handFinite()",
+      "label": "m16: finite first-person transforms",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__handFinite()",
+      "label": "m203: finite first-person transforms",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__handFinite()",
+      "label": "m60: finite first-person transforms",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__handFinite()",
+      "label": "m1911: finite first-person transforms",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__handFinite()",
+      "label": "law: finite first-person transforms",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__handFinite()",
+      "label": "stance/reload: finite first-person transforms",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__handFinite()",
+      "label": "body overlays: finite first-person transforms",
+      "ok": true,
+      "value": true
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-28T21:38:30.044Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7839427d84197e7273289e6158e6d8a45fbbe26b",
+    "branch": "ngc/look-voices",
+    "gameTree": "515bc2c65213bfffcc64c05603aa5a3469c998f6",
+    "gameSha256": "5a6a7eaff0aa25256065da74a841ce4f1c2e6f43f8e24e4a838d1924bb8a5b84",
+    "dirty": true,
+    "status": "M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/dev/voices.html\n M game/js/main.js\n M game/js/units/commander/board.js\n M game/js/units/groundwar/marineai.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/commands.js\n M game/js/voice/localrecognition.js\n M game/js/voice/voice.js\n M tools/scenes/offlinevoice.mjs\n M tools/scenes/voices.mjs\n M tools/serve.mjs\n?? game/dev/people.html\n?? game/dev/people.js\n?? game/js/voice/commanddesk.css.js\n?? game/js/voice/delivery.js\n?? game/js/voice/fieldstations.js\n?? game/js/voice/localvoices.js\n?? game/js/voice/operations.js\n?? tools/livevoicebench.mjs\n?? tools/radiodeskbench.mjs\n?? tools/radionetbench.mjs\n?? tools/radiooperationsbench.mjs\n?? tools/scenes/firstpersonpolish.mjs\n?? tools/scenes/livevoices.mjs\n?? tools/scenes/people.mjs\n?? tools/scenes/radioops.mjs\n?? tools/voice-server.mjs\n?? tools/voice-synthesize.ps1"
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": null,
+    "state": null
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7839427d84197e7273289e6158e6d8a45fbbe26b",
+    "branch": "ngc/look-voices",
+    "gameTree": "515bc2c65213bfffcc64c05603aa5a3469c998f6",
+    "gameSha256": "5a6a7eaff0aa25256065da74a841ce4f1c2e6f43f8e24e4a838d1924bb8a5b84",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/dev/voices.html\n M game/js/main.js\n M game/js/units/commander/board.js\n M game/js/units/groundwar/marineai.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/commands.js\n M game/js/voice/localrecognition.js\n M game/js/voice/voice.js\n M tools/scenes/offlinevoice.mjs\n M tools/scenes/voices.mjs\n M tools/serve.mjs\n?? game/dev/people.html\n?? game/dev/people.js\n?? game/js/voice/commanddesk.css.js\n?? game/js/voice/delivery.js\n?? game/js/voice/fieldstations.js\n?? game/js/voice/localvoices.js\n?? game/js/voice/operations.js\n?? tools/livevoicebench.mjs\n?? tools/radiodeskbench.mjs\n?? tools/radionetbench.mjs\n?? tools/radiooperationsbench.mjs\n?? tools/scenes/firstpersonpolish.mjs\n?? tools/scenes/livevoices.mjs\n?? tools/scenes/people.mjs\n?? tools/scenes/radioops.mjs\n?? tools/voice-server.mjs\n?? tools/voice-synthesize.ps1"
+  },
+  "summary": "PASS: 7/7 expects, 0 page errors, 0 console errors",
+  "durationMs": 106484,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/runs/firstperson-before"
+}

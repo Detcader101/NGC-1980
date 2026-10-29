@@ -1,0 +1,1122 @@
+{
+  "schemaVersion": 2,
+  "name": "firstpersonpolish",
+  "query": "?debug&auto",
+  "seed": 1980,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "589cb4c36ab93e3f46dbf01e9252e2f755fc032ed8e53125da9b884e488cc96b",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/snap.mjs",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/scenes/firstpersonpolish.mjs",
+    "--out",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/runs/firstperson-after",
+    "--seed",
+    "1980"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7839427d84197e7273289e6158e6d8a45fbbe26b",
+    "branch": "ngc/look-voices",
+    "gameTree": "515bc2c65213bfffcc64c05603aa5a3469c998f6",
+    "gameSha256": "2c28cb3482f3fdfa6a00e294e963b1f4d9c54296cbf75d7bc230409b53796d57",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/dev/voices.html\n M game/js/main.js\n M game/js/units/air/rotary/figures.js\n M game/js/units/commander/board.js\n M game/js/units/groundwar/marineai.js\n M game/js/units/groundwar/marinefigure.js\n M game/js/units/infantry/bodyvm.js\n M game/js/units/infantry/handkit.js\n M game/js/units/infantry/meshkit.js\n M game/js/units/infantry/soldiermodel.js\n M game/js/units/infantry/viewmodel.js\n M game/js/units/infantry/weaponmodels.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/commands.js\n M game/js/voice/localrecognition.js\n M game/js/voice/voice.js\n M tools/scenes/offlinevoice.mjs\n M tools/scenes/voices.mjs\n M tools/serve.mjs\n?? game/dev/people.html\n?? game/dev/people.js\n?? game/js/units/infantry/figurematerials.js\n?? game/js/units/infantry/handposes.js\n?? game/js/units/infantry/humanmesh.js\n?? game/js/voice/commanddesk.css.js\n?? game/js/voice/delivery.js\n?? game/js/voice/fieldstations.js\n?? game/js/voice/localvoices.js\n?? game/js/voice/operations.js\n?? tools/figuresurfacebench.mjs\n?? tools/firstpersonbench.mjs\n?? tools/livevoicebench.mjs\n?? tools/peoplebench.mjs\n?? tools/radiodeskbench.mjs\n?? tools/radionetbench.mjs\n?? tools/radiooperationsbench.mjs\n?? tools/scenes/figuresurfaces.mjs\n?? tools/scenes/firstpersondiagnostic.mjs\n?? tools/scenes/firstpersonmotion.mjs\n?? tools/scenes/firstpersonpolish.mjs\n?? tools/scenes/handanatomy.mjs\n?? tools/scenes/livevoices.mjs\n?? tools/scenes/people.mjs\n?? tools/scenes/radioops.mjs\n?? tools/voice-server.mjs\n?? tools/voice-synthesize.ps1"
+  },
+  "url": "http://127.0.0.1:43983/?debug&auto",
+  "ok": true,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": null,
+  "shots": [
+    {
+      "name": "m16-player",
+      "file": "01-m16-player.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 124.2,
+      "litFraction": 0.998,
+      "colors": 120
+    },
+    {
+      "name": "m16-support",
+      "file": "02-m16-support.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 111.6,
+      "litFraction": 0.9414,
+      "colors": 96
+    },
+    {
+      "name": "m16-trigger",
+      "file": "03-m16-trigger.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 101.5,
+      "litFraction": 0.9754,
+      "colors": 108
+    },
+    {
+      "name": "m16-aim",
+      "file": "04-m16-aim.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 116.9,
+      "litFraction": 0.9936,
+      "colors": 105
+    },
+    {
+      "name": "m203-player",
+      "file": "05-m203-player.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 123,
+      "litFraction": 0.9973,
+      "colors": 122
+    },
+    {
+      "name": "m203-support",
+      "file": "06-m203-support.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 104.4,
+      "litFraction": 0.93,
+      "colors": 94
+    },
+    {
+      "name": "m203-aim",
+      "file": "07-m203-aim.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 115.3,
+      "litFraction": 0.9925,
+      "colors": 119
+    },
+    {
+      "name": "m60-player",
+      "file": "08-m60-player.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 125.2,
+      "litFraction": 0.9987,
+      "colors": 122
+    },
+    {
+      "name": "m60-support",
+      "file": "09-m60-support.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 115.5,
+      "litFraction": 0.9559,
+      "colors": 131
+    },
+    {
+      "name": "m60-aim",
+      "file": "10-m60-aim.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 118.1,
+      "litFraction": 0.9995,
+      "colors": 105
+    },
+    {
+      "name": "m1911-player",
+      "file": "11-m1911-player.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 125.6,
+      "litFraction": 0.9992,
+      "colors": 119
+    },
+    {
+      "name": "m1911-support",
+      "file": "12-m1911-support.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 115.7,
+      "litFraction": 0.9876,
+      "colors": 110
+    },
+    {
+      "name": "m1911-aim",
+      "file": "13-m1911-aim.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 121.7,
+      "litFraction": 0.998,
+      "colors": 115
+    },
+    {
+      "name": "law-player",
+      "file": "14-law-player.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 122.1,
+      "litFraction": 0.9938,
+      "colors": 147
+    },
+    {
+      "name": "law-support",
+      "file": "15-law-support.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 106.7,
+      "litFraction": 0.9709,
+      "colors": 144
+    },
+    {
+      "name": "law-aim",
+      "file": "16-law-aim.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 120.8,
+      "litFraction": 0.9905,
+      "colors": 128
+    },
+    {
+      "name": "m16-sprint",
+      "file": "17-m16-sprint.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 123.5,
+      "litFraction": 0.9955,
+      "colors": 115
+    },
+    {
+      "name": "m16-prone-transition",
+      "file": "18-m16-prone-transition.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 124.6,
+      "litFraction": 0.9971,
+      "colors": 115
+    },
+    {
+      "name": "m16-reload",
+      "file": "19-m16-reload.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 121.3,
+      "litFraction": 0.9907,
+      "colors": 123
+    },
+    {
+      "name": "ladder-hands",
+      "file": "20-ladder-hands.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 123.3,
+      "litFraction": 0.9988,
+      "colors": 115
+    },
+    {
+      "name": "ladder-exit",
+      "file": "21-ladder-exit.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 123.5,
+      "litFraction": 0.9988,
+      "colors": 111
+    },
+    {
+      "name": "swim-hands",
+      "file": "22-swim-hands.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 124.5,
+      "litFraction": 0.9974,
+      "colors": 109
+    },
+    {
+      "name": "swim-exit",
+      "file": "23-swim-exit.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 124.5,
+      "litFraction": 0.9973,
+      "colors": 109
+    },
+    {
+      "name": "aid-hands",
+      "file": "24-aid-hands.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 122.6,
+      "litFraction": 0.9978,
+      "colors": 119
+    },
+    {
+      "name": "aid-exit",
+      "file": "25-aid-exit.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 122.6,
+      "litFraction": 0.9979,
+      "colors": 118
+    }
+  ],
+  "clips": [],
+  "benchmarks": [
+    {
+      "name": "first-person-ready",
+      "policy": {
+        "frames": 30,
+        "warmup": 10,
+        "timeoutMs": 120000
+      },
+      "rows": [
+        {
+          "frame": 34,
+          "ms": 15.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 36,
+          "ms": 17.800000000745058,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 38,
+          "ms": 18.299999998882413,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 40,
+          "ms": 13.099999999627471,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 42,
+          "ms": 17.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 44,
+          "ms": 16.800000000745058,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 46,
+          "ms": 18.09999999962747,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 48,
+          "ms": 13.800000000745058,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 50,
+          "ms": 17.90000000037253,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 52,
+          "ms": 18.299999998882413,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 54,
+          "ms": 16,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 56,
+          "ms": 17.09999999962747,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 58,
+          "ms": 16.600000001490116,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 60,
+          "ms": 20.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 62,
+          "ms": 13.399999998509884,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 64,
+          "ms": 252.7000000011176,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 66,
+          "ms": 441.09999999962747,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 68,
+          "ms": 156.19999999925494,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 70,
+          "ms": 159.30000000074506,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 72,
+          "ms": 264.30000000074506,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 74,
+          "ms": 96.39999999850988,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 76,
+          "ms": 58.100000001490116,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 78,
+          "ms": 324.2999999988824,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 80,
+          "ms": 45.40000000037253,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 82,
+          "ms": 169.5,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 84,
+          "ms": 126.69999999925494,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 86,
+          "ms": 131.2000000011176,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 88,
+          "ms": 161.19999999925494,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 90,
+          "ms": 184.30000000074506,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        },
+        {
+          "frame": 92,
+          "ms": 127.09999999962747,
+          "sim": null,
+          "prep": null,
+          "render": null,
+          "calls": 7,
+          "triangles": 9580,
+          "textures": 17,
+          "geometries": 121
+        }
+      ],
+      "xr": false,
+      "host": "dev-infantry",
+      "route": "/dev/infantry.html?debug&fixed&nosway&res=1&ui=0&seed=1980",
+      "state": "paused",
+      "mode": "preview",
+      "drawingBuffer": [
+        1280,
+        720
+      ],
+      "eyeViewports": [],
+      "summary": {
+        "samples": 30,
+        "frameMs": {
+          "count": 30,
+          "mean": 98.28333333333333,
+          "p50": 20.5,
+          "p95": 264.30000000074506,
+          "p99": 324.2999999988824,
+          "min": 13.099999999627471,
+          "max": 441.09999999962747
+        },
+        "observedFps": 10.174665083940987,
+        "cpuMs": {
+          "sim": null,
+          "prep": null,
+          "renderSubmit": null
+        },
+        "drawCalls": {
+          "count": 30,
+          "mean": 7,
+          "p50": 7,
+          "p95": 7,
+          "p99": 7,
+          "min": 7,
+          "max": 7
+        },
+        "triangles": {
+          "count": 30,
+          "mean": 9580,
+          "p50": 9580,
+          "p95": 9580,
+          "p99": 9580,
+          "min": 9580,
+          "max": 9580
+        },
+        "textures": {
+          "count": 30,
+          "mean": 17,
+          "p50": 17,
+          "p95": 17,
+          "p99": 17,
+          "min": 17,
+          "max": 17
+        },
+        "geometries": {
+          "count": 30,
+          "mean": 121,
+          "p50": 121,
+          "p95": 121,
+          "p99": 121,
+          "min": 121,
+          "max": 121
+        }
+      },
+      "qualification": "Wall-clock intervals between observed rendered frames. CPU phases are game-smoothed CPU timings, not GPU durations. Render counters describe the last render pass. No capture during sampling."
+    }
+  ],
+  "evals": [
+    {
+      "expr": "(() => {\n    __I.aimTarget(100); __I.advance(0.8);\n    window.__handFinite = () => {\n      let finite = true;\n      __I.vm.root.updateMatrixWorld(true);\n      __I.vm.root.traverse(o => { if (!o.matrixWorld.elements.every(Number.isFinite)) finite = false; });\n      return finite;\n    };\n    window.__handMetrics = () => Object.fromEntries(Object.entries(__I.vm.arms).map(([side,a]) => {\n      const wrist = a.hand.localToWorld(a.hand.userData.wrist.clone());\n      const cuff = a.fo.localToWorld(new __I.THREE.Vector3(0,-0.28,0));\n      return [side, { wrist: wrist.toArray(), cuffGap: cuff.distanceTo(wrist) }];\n    }));\n    return true;\n  })()",
+      "value": true
+    },
+    {
+      "expr": "(__I.clear(), __I.slot(0), __I.R.glMode=false, __I.aimTarget(100), __I.advance(0.8,{ads:false}), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.inspect={\"pos\":[-0.48,-0.28,-0.23],\"look\":[0.02,-0.22,-0.27]}, __I.render(), __handMetrics())",
+      "value": {
+        "L": {
+          "wrist": [
+            0.016456184382929867,
+            -0.30170742115955274,
+            -0.41555867669171576
+          ],
+          "cuffGap": 1.3092278833360675e-16
+        },
+        "R": {
+          "wrist": [
+            0.16097683091998843,
+            -0.25509551112503165,
+            -0.051676064175416994
+          ],
+          "cuffGap": 6.798699777552591e-17
+        }
+      }
+    },
+    {
+      "expr": "(__I.vm.inspect={pos:[0.5,-0.11,-0.09],look:[0.06,-0.27,-0.12]}, __I.render(), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.inspect=null, __I.render(), true)",
+      "value": true
+    },
+    {
+      "expr": "__I.advance(1,{ads:true})",
+      "value": {
+        "pos": [
+          0,
+          0,
+          1.2
+        ],
+        "stance": "stand",
+        "speed": 0,
+        "ads": 1,
+        "rounds": 20,
+        "act": null,
+        "malf": null,
+        "bolt": "fwd"
+      }
+    },
+    {
+      "expr": "(__I.clear(), __I.slot(0), __I.R.glMode=true, __I.aimTarget(100), __I.advance(0.8,{ads:false}), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.inspect={\"pos\":[-0.48,-0.28,-0.23],\"look\":[0.02,-0.22,-0.27]}, __I.render(), __handMetrics())",
+      "value": {
+        "L": {
+          "wrist": [
+            0.028532641902659507,
+            -0.29173027760775133,
+            -0.22714784783232095
+          ],
+          "cuffGap": 1.2586013583571652e-16
+        },
+        "R": {
+          "wrist": [
+            0.1058807989607677,
+            -0.21571891909401364,
+            -0.3695694880870577
+          ],
+          "cuffGap": 9.614813431917819e-17
+        }
+      }
+    },
+    {
+      "expr": "(__I.vm.inspect=null, __I.render(), true)",
+      "value": true
+    },
+    {
+      "expr": "__I.advance(1,{ads:true})",
+      "value": {
+        "pos": [
+          0,
+          0,
+          1.2
+        ],
+        "stance": "stand",
+        "speed": 0,
+        "ads": 1,
+        "rounds": 1,
+        "act": null,
+        "malf": null,
+        "bolt": "fwd"
+      }
+    },
+    {
+      "expr": "(__I.clear(), __I.slot(1), __I.R.glMode=false, __I.aimTarget(100), __I.advance(0.8,{ads:false}), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.inspect={\"pos\":[-0.48,-0.28,-0.23],\"look\":[0.02,-0.22,-0.27]}, __I.render(), __handMetrics())",
+      "value": {
+        "L": {
+          "wrist": [
+            0.04155302035866916,
+            -0.29171479491178254,
+            -0.43394668094721445
+          ],
+          "cuffGap": 5.721958498152797e-17
+        },
+        "R": {
+          "wrist": [
+            0.18779129856678908,
+            -0.30871463929304993,
+            -0.04147123479410736
+          ],
+          "cuffGap": 1.6939998869943826e-16
+        }
+      }
+    },
+    {
+      "expr": "(__I.vm.inspect=null, __I.render(), true)",
+      "value": true
+    },
+    {
+      "expr": "__I.advance(1,{ads:true})",
+      "value": {
+        "pos": [
+          0,
+          0,
+          1.2
+        ],
+        "stance": "stand",
+        "speed": 0,
+        "ads": 1,
+        "rounds": 100,
+        "act": null,
+        "malf": null,
+        "bolt": "cocked"
+      }
+    },
+    {
+      "expr": "(__I.clear(), __I.slot(3), __I.R.glMode=false, __I.aimTarget(100), __I.advance(0.8,{ads:false}), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.inspect={\"pos\":[-0.48,-0.28,-0.23],\"look\":[0.02,-0.22,-0.27]}, __I.render(), __handMetrics())",
+      "value": {
+        "L": {
+          "wrist": [
+            0.014119534368621962,
+            -0.23411503958086846,
+            -0.24147199386527163
+          ],
+          "cuffGap": 1.1123893155135927e-16
+        },
+        "R": {
+          "wrist": [
+            0.10164201625276008,
+            -0.2046510017113612,
+            -0.22807269159351967
+          ],
+          "cuffGap": 4.163336342344337e-17
+        }
+      }
+    },
+    {
+      "expr": "(__I.vm.inspect=null, __I.render(), true)",
+      "value": true
+    },
+    {
+      "expr": "__I.advance(1,{ads:true})",
+      "value": {
+        "pos": [
+          0,
+          0,
+          1.2
+        ],
+        "stance": "stand",
+        "speed": 0,
+        "ads": 1,
+        "rounds": 7,
+        "act": null,
+        "malf": null,
+        "bolt": "fwd"
+      }
+    },
+    {
+      "expr": "(__I.clear(), __I.slot(2), __I.R.glMode=false, __I.aimTarget(100), __I.advance(0.8,{ads:false}), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.inspect={\"pos\":[-0.48,-0.28,-0.23],\"look\":[0.02,-0.22,-0.27]}, __I.render(), __handMetrics())",
+      "value": {
+        "L": {
+          "wrist": [
+            0.018821075339144053,
+            -0.16193572356170408,
+            -0.2199341272224853
+          ],
+          "cuffGap": 1.1188630228279524e-16
+        },
+        "R": {
+          "wrist": [
+            0.19457489812515272,
+            -0.16193572356170408,
+            -0.06013404640617591
+          ],
+          "cuffGap": 8.886119947416683e-17
+        }
+      }
+    },
+    {
+      "expr": "(__I.vm.inspect=null, __I.render(), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.press('law'), __I.advance(3.4), __I.press('law'), __I.advance(1), true)",
+      "value": true
+    },
+    {
+      "expr": "__I.advance(1,{ads:true})",
+      "value": {
+        "pos": [
+          0,
+          0,
+          1.2
+        ],
+        "stance": "stand",
+        "speed": 0,
+        "ads": 1,
+        "rounds": 1,
+        "act": null,
+        "malf": null,
+        "bolt": "fwd"
+      }
+    },
+    {
+      "expr": "(__I.slot(0), __I.clear(), __I.advance(0.8,{ads:false}), true)",
+      "value": true
+    },
+    {
+      "expr": "__I.advance(0.7,{move:[0,1],sprint:true})",
+      "value": {
+        "pos": [
+          -0.01,
+          0,
+          0.45
+        ],
+        "stance": "stand",
+        "speed": 2.12,
+        "ads": 0,
+        "rounds": 20,
+        "act": null,
+        "malf": null,
+        "bolt": "fwd"
+      }
+    },
+    {
+      "expr": "(__I.advance(0.5,{move:[0,0],sprint:false}), __I.input({stance:'prone'}), __I.advance(0.7), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.advance(2), __I.press('reload'), __I.advance(0.9), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.advance(5), __I.clear(), __I.teleport(0,1.2,0), __I.advance(0.7), true)",
+      "value": true
+    },
+    {
+      "expr": "import('../js/units/infantry/bodyvm.js').then(m => { window.__BV=m.createBodyVM(__I.vm); return true; })",
+      "value": true
+    },
+    {
+      "expr": "(() => { for(let i=0;i<30;i++){__I.vm.update(1/60,__I.R);__BV.update(1/60,{\"mode\":\"ladder\",\"climbY\":1.83,\"pitch\":0.15});}return __handFinite();})()",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.update(1/60,__I.R), __BV.update(1/60,null), __handMetrics())",
+      "value": {
+        "L": {
+          "wrist": [
+            -0.2171357128871511,
+            -0.005520590947500849,
+            -0.31204278729415835
+          ],
+          "cuffGap": 1.1275702593849246e-16
+        },
+        "R": {
+          "wrist": [
+            0.2054769197115038,
+            -0.2886503658625191,
+            -0.26489193613261175
+          ],
+          "cuffGap": 2.0014830212433605e-16
+        }
+      }
+    },
+    {
+      "expr": "(() => {for(let i=0;i<30;i++){__I.vm.update(1/60,__I.R);__BV.update(1/60,null);}return true;})()",
+      "value": true
+    },
+    {
+      "expr": "(() => { for(let i=0;i<30;i++){__I.vm.update(1/60,__I.R);__BV.update(1/60,{\"mode\":\"swim\",\"speed\":0.8,\"pitch\":-0.2});}return __handFinite();})()",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.update(1/60,__I.R), __BV.update(1/60,null), __handMetrics())",
+      "value": {
+        "L": {
+          "wrist": [
+            -0.2241130685561229,
+            -0.16924589870390497,
+            -0.4525909248763732
+          ],
+          "cuffGap": 1.1775693440128312e-16
+        },
+        "R": {
+          "wrist": [
+            0.22872210272598215,
+            -0.15251973676973699,
+            -0.4494583243000464
+          ],
+          "cuffGap": 0
+        }
+      }
+    },
+    {
+      "expr": "(() => {for(let i=0;i<30;i++){__I.vm.update(1/60,__I.R);__BV.update(1/60,null);}return true;})()",
+      "value": true
+    },
+    {
+      "expr": "(() => { for(let i=0;i<30;i++){__I.vm.update(1/60,__I.R);__BV.update(1/60,{\"mode\":\"aid\",\"region\":\"legL\",\"item\":\"dress\",\"pitch\":-0.65});}return __handFinite();})()",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.update(1/60,__I.R), __BV.update(1/60,null), __handMetrics())",
+      "value": {
+        "L": {
+          "wrist": [
+            -0.21332209174215602,
+            -0.0535249601722436,
+            -0.45483484724530276
+          ],
+          "cuffGap": 1.0591761858187545e-16
+        },
+        "R": {
+          "wrist": [
+            -0.05618348218806587,
+            -0.06568835022629209,
+            -0.45259768145044216
+          ],
+          "cuffGap": 8.913170603436999e-17
+        }
+      }
+    },
+    {
+      "expr": "(() => {for(let i=0;i<30;i++){__I.vm.update(1/60,__I.R);__BV.update(1/60,null);}return true;})()",
+      "value": true
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__handFinite()",
+      "label": "m16: finite first-person transforms",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__handFinite()",
+      "label": "m203: finite first-person transforms",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__handFinite()",
+      "label": "m60: finite first-person transforms",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__handFinite()",
+      "label": "m1911: finite first-person transforms",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__handFinite()",
+      "label": "law: finite first-person transforms",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__handFinite()",
+      "label": "stance/reload: finite first-person transforms",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__handFinite()",
+      "label": "body overlays: finite first-person transforms",
+      "ok": true,
+      "value": true
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-28T22:17:08.380Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7839427d84197e7273289e6158e6d8a45fbbe26b",
+    "branch": "ngc/look-voices",
+    "gameTree": "515bc2c65213bfffcc64c05603aa5a3469c998f6",
+    "gameSha256": "2c28cb3482f3fdfa6a00e294e963b1f4d9c54296cbf75d7bc230409b53796d57",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/dev/voices.html\n M game/js/main.js\n M game/js/units/air/rotary/figures.js\n M game/js/units/commander/board.js\n M game/js/units/groundwar/marineai.js\n M game/js/units/groundwar/marinefigure.js\n M game/js/units/infantry/bodyvm.js\n M game/js/units/infantry/handkit.js\n M game/js/units/infantry/meshkit.js\n M game/js/units/infantry/soldiermodel.js\n M game/js/units/infantry/viewmodel.js\n M game/js/units/infantry/weaponmodels.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/commands.js\n M game/js/voice/localrecognition.js\n M game/js/voice/voice.js\n M tools/scenes/offlinevoice.mjs\n M tools/scenes/voices.mjs\n M tools/serve.mjs\n?? game/dev/people.html\n?? game/dev/people.js\n?? game/js/units/infantry/figurematerials.js\n?? game/js/units/infantry/handposes.js\n?? game/js/units/infantry/humanmesh.js\n?? game/js/voice/commanddesk.css.js\n?? game/js/voice/delivery.js\n?? game/js/voice/fieldstations.js\n?? game/js/voice/localvoices.js\n?? game/js/voice/operations.js\n?? tools/figuresurfacebench.mjs\n?? tools/firstpersonbench.mjs\n?? tools/livevoicebench.mjs\n?? tools/peoplebench.mjs\n?? tools/radiodeskbench.mjs\n?? tools/radionetbench.mjs\n?? tools/radiooperationsbench.mjs\n?? tools/scenes/figuresurfaces.mjs\n?? tools/scenes/firstpersondiagnostic.mjs\n?? tools/scenes/firstpersonmotion.mjs\n?? tools/scenes/firstpersonpolish.mjs\n?? tools/scenes/handanatomy.mjs\n?? tools/scenes/livevoices.mjs\n?? tools/scenes/people.mjs\n?? tools/scenes/radioops.mjs\n?? tools/voice-server.mjs\n?? tools/voice-synthesize.ps1"
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": null,
+    "state": null
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7839427d84197e7273289e6158e6d8a45fbbe26b",
+    "branch": "ngc/look-voices",
+    "gameTree": "515bc2c65213bfffcc64c05603aa5a3469c998f6",
+    "gameSha256": "2c28cb3482f3fdfa6a00e294e963b1f4d9c54296cbf75d7bc230409b53796d57",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/dev/voices.html\n M game/js/main.js\n M game/js/units/air/rotary/figures.js\n M game/js/units/commander/board.js\n M game/js/units/groundwar/marineai.js\n M game/js/units/groundwar/marinefigure.js\n M game/js/units/infantry/bodyvm.js\n M game/js/units/infantry/handkit.js\n M game/js/units/infantry/meshkit.js\n M game/js/units/infantry/soldiermodel.js\n M game/js/units/infantry/viewmodel.js\n M game/js/units/infantry/weaponmodels.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/commands.js\n M game/js/voice/localrecognition.js\n M game/js/voice/voice.js\n M tools/scenes/offlinevoice.mjs\n M tools/scenes/voices.mjs\n M tools/serve.mjs\n?? game/dev/people.html\n?? game/dev/people.js\n?? game/js/units/infantry/figurematerials.js\n?? game/js/units/infantry/handposes.js\n?? game/js/units/infantry/humanmesh.js\n?? game/js/voice/commanddesk.css.js\n?? game/js/voice/delivery.js\n?? game/js/voice/fieldstations.js\n?? game/js/voice/localvoices.js\n?? game/js/voice/operations.js\n?? tools/figuresurfacebench.mjs\n?? tools/firstpersonbench.mjs\n?? tools/livevoicebench.mjs\n?? tools/peoplebench.mjs\n?? tools/radiodeskbench.mjs\n?? tools/radionetbench.mjs\n?? tools/radiooperationsbench.mjs\n?? tools/scenes/figuresurfaces.mjs\n?? tools/scenes/firstpersondiagnostic.mjs\n?? tools/scenes/firstpersonmotion.mjs\n?? tools/scenes/firstpersonpolish.mjs\n?? tools/scenes/handanatomy.mjs\n?? tools/scenes/livevoices.mjs\n?? tools/scenes/people.mjs\n?? tools/scenes/radioops.mjs\n?? tools/voice-server.mjs\n?? tools/voice-synthesize.ps1"
+  },
+  "summary": "PASS: 7/7 expects, 0 page errors, 0 console errors",
+  "durationMs": 180459,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/runs/firstperson-after"
+}
