@@ -218,6 +218,7 @@ const LEp = pl(PLAN.map(p => [p[0], p[1]]));
 export const wingLE = x => x < G.NAC.bl + 0.95 ? Math.max(LEp(x), G.NAC.lip + 0.4) : LEp(x), wingTE = x => pl(PLAN.map(p => [p[0], p[2]]))(x);
 export const wingY = x => G.WING.yRoot + (G.WING.yTip - G.WING.yRoot) * smooth01(G.NAC.bl, WING_TIP, x);
 // a biconvex section with the conical-camber droop of the outer leading edge; xi 0 = LE .. 1 = TE
+/** @returns {number[]} */
 export function wingPt(x, xi, top) {
   const le = wingLE(x), te = wingTE(x), c = te - le, sp = smooth01(G.NAC.bl + 0.8, WING_TIP, x);
   const t = c * (G.WING.tcRoot + (G.WING.tcTip - G.WING.tcRoot) * sp);

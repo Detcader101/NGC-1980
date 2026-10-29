@@ -14,9 +14,13 @@ export function createFog(bound, N = 112) {
   const ij = (x, z) => [Math.floor((x + bound) / cell), Math.floor((z + bound) / cell)];
   const fog = {
     N, tex, uniforms, vis, exp, enabled: true,
+    // (ngc/look-sr71) photo intel: extra sight circles { x, z, r, until (performance.now() s) } that keep an area revealed
+    // after a reconnaissance pass (craftsr71.js); expired ones are dropped
+    intel: [],
     // sources: [{ x, z, r }]
     update(sources) {
       vis.fill(0);
+      if (fog.intel.length) { const now = performance.now() / 1000; fog.intel = fog.intel.filter(s => s.until > now); sources = fog.intel.length ? sources.concat(fog.intel) : sources; }   // (ngc/look-sr71)
       for (const s of sources) {
         const [ci, cj] = ij(s.x, s.z), rc = Math.ceil(s.r / cell) + 1, soft = cell * 2.2;
         for (let j = Math.max(0, cj - rc); j <= Math.min(N - 1, cj + rc); j++) for (let i = Math.max(0, ci - rc); i <= Math.min(N - 1, ci + rc); i++) {
@@ -30,7 +34,7 @@ export function createFog(bound, N = 112) {
       }
       tex.needsUpdate = true;
     },
-    reset() { exp.fill(0); vis.fill(0); },
+    reset() { exp.fill(0); vis.fill(0); fog.intel = []; },
     visibleAt(x, z) { if (!fog.enabled) return true; const [i, j] = ij(x, z); return i >= 0 && j >= 0 && i < N && j < N && vis[j * N + i] > 0.3; },
     exploredAt(x, z) { if (!fog.enabled) return true; const [i, j] = ij(x, z); return i >= 0 && j >= 0 && i < N && j < N && exp[j * N + i] > 0.3; },
     explore(x, z, r) { fog.update([{ x, z, r }]); },

@@ -34,8 +34,10 @@ const txt = (key, text, w, h, px, col = '#e9e9e2') => canvasTex('sr71' + key, w,
 const star = () => canvasTex('sr71star', 256, 128, (x, w, h) => { x.clearRect(0, 0, w, h); drawStarBar(x, w, h); });
 // the black skin's detail texture: the radar-absorbing sawtooth wedges along the chine and wing edges are geometry-free
 // (a texture on the edge bands), as are the corrugations of the wing skin (chordwise, the heat-expansion "wrinkles")
+// (a small polygon offset: the decals are lifted 6 mm off the skin already; a big one pulls a thin wing's lower-surface
+// marking through to the upper side at grazing angles)
 function decalMat(tex) {
-  return rkDecal(() => new THREE.MeshLambertMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 }), { map: tex, roughness: 0.6, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+  return rkDecal(() => new THREE.MeshLambertMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), { map: tex, roughness: 0.6, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
 }
 // a decal laid ON a surface: f(u, v) -> [x, y, z] (model), u 0..1 across the texture left -> right, v 0..1 bottom -> top
 function surfDecal(f, tex, parent, name, nu = 12, nv = 4) {
@@ -80,6 +82,9 @@ export function buildSR71Model(opts = {}) {
   const bodyG = bodyGeometry({ glassAt, keep: (X, x, top) => !inbElevon(X, x) && !canopyCut(X, x, top) });
   function canopyCut(X, x, top) { return false; }
   const body = mesh(bodyG, [paintM, glassM], L0, 'fuselage');
+  // the cockpits' walls seen from inside: the same skin over X 4.9-9.4, back faces, dark (the glazing stays open)
+  const wallG = bodyGeometry({ glassAt, keep: (X) => X > 3.4 && X < 10.6, xs: BODY_X.filter(x => x > 3.3 && x < 10.7) });
+  const walls = mesh(wallG, [M(0x1d1f22, { side: THREE.BackSide, rk: 'dark' }), new THREE.MeshBasicMaterial({ visible: false })], L0, 'cockpitWalls'); walls.visible = false;
   // the canopies' frames: a raised band around each glazed area (thin tubes along the sills)
   for (const [X0, X1, Y] of [[5.1, 6.85, 2.50], [7.35, 8.85, 2.62]]) for (const s of [-1, 1]) {
     const pts = []; for (let X = X0; X <= X1 + 1e-6; X += 0.1) { const x = xAtY(X, Y, s); pts.push(new THREE.Vector3(x, toY(Y) + 0.004, toZ(X))); }
@@ -164,7 +169,7 @@ export function buildSR71Model(opts = {}) {
   // lights: the red anti-collision beacons (top and bottom), the position lights on the wing tips and the fins
   const lights = [];
   for (const [p, c, n] of [[[0, toY(2.86) + 0.04, toZ(14.5)], 0xff2a1a, 'beacon'], [[0, toY(1.10) - 0.04, toZ(16.0)], 0xff2a1a, 'beacon'], [[-WING_TIP + 0.1, toY(G.WING.yTip), toZ(wingLE(WING_TIP - 0.1) + 0.4)], 0xff2a1a, 'navLight'], [[WING_TIP - 0.1, toY(G.WING.yTip), toZ(wingLE(WING_TIP - 0.1) + 0.4)], 0x2aff5a, 'navLight']]) {
-    const m = mesh(new THREE.SphereGeometry(0.06, 8, 6), B(c), L0, n); m.position.set(...p); lights.push(m);
+    const m = mesh(new THREE.SphereGeometry(0.06, 8, 6), B(c), L0, n); m.position.set(/** @type {number} */ (p[0]), /** @type {number} */ (p[1]), /** @type {number} */ (p[2])); lights.push(m);
   }
   // markings
   const decals = new THREE.Group(); decals.name = 'markings'; L0.add(decals);
@@ -183,7 +188,7 @@ export function buildSR71Model(opts = {}) {
     mesh(g, decalMat(txt('ser' + serial, serial, 512, 128, 100)), fin, 'finSerial');
   }
   // left upper wing insignia (photo), and the right lower wing (USAF practice of the period: INFERRED, not visible)
-  for (const [s, top] of [[-1, true], [1, false]]) {
+  for (const [s, top] of /** @type {[number, boolean][]} */ ([[-1, true], [1, false]])) {
     const xc = 6.4, Xc = (wingLE(xc) + wingTE(xc)) / 2;
     surfDecal((u, v) => { const x = xc - 0.9 + 1.8 * (top ? 1 - v : v), X = Xc - 0.45 + 0.9 * u; const p = wingPt(x, Math.max(0, Math.min(1, (X - wingLE(x)) / (wingTE(x) - wingLE(x)))), top); return [s * p[0], toY(p[1]) + (top ? 0.006 : -0.006), toZ(p[2])]; }, star(), decals, 'wingInsignia');
   }
@@ -230,7 +235,7 @@ export function buildSR71Model(opts = {}) {
     }
     beaconT += dt; const on = A.lights !== false, blink = (beaconT % 1.1) < 0.12;
     for (const m of lights) m.visible = on && (m.name !== 'beacon' || blink);
-    crew.visible = !inside; tub.visible = true;
+    crew.visible = !inside; tub.visible = !inside; walls.visible = inside;
   }
   return { group: root, animate, lod, parts: { body, spikes, elevons, fins, gear, chute, canopies, decals, burners }, SR71M };
 }
