@@ -3,7 +3,8 @@
 // or an orbit of the outside. Query: ?ui=0  ?seat=0|1  ?view=cockpit|orbit  ?look=yaw,pitch  ?s={json state}
 import * as THREE from 'three';
 import { createTomcatSim, loadout, cadcSweep } from '../js/units/air/tomcatfm.js';
-import { buildTomcatModel } from '../js/units/air/tomcatmodel.js';
+import { buildTomcatModel as buildNew } from '../js/units/air/tomcatmodel.js';
+import { buildTomcatModel as buildLegacy } from './legacy/tomcatmodel-legacy.js';   // ?legacy=1: the model before ngc/look-tomcat (evidence)
 import { buildTomcatCockpit, TEYE, CAUTS } from '../js/units/air/tomcatcockpit.js';
 
 const Q = new URLSearchParams(location.search);
@@ -16,7 +17,7 @@ for (let i = 0; i < 30; i++) { const isl = new THREE.Mesh(new THREE.ConeGeometry
 const camera = new THREE.PerspectiveCamera(70, 1, 0.05, 6000);
 
 const A = createTomcatSim(9); A.reset(0, 0, 0, 0, { running: true, airborne: true, alt: 600, speed: 120 }); A.stores = loadout('cap');
-const model = buildTomcatModel(1, { modex: 200 }), cockpit = buildTomcatCockpit(); model.group.add(cockpit.group); scene.add(model.group);
+const model = (Q.get('legacy') === '1' ? buildLegacy : buildNew)(1, { modex: 200 }), cockpit = buildTomcatCockpit(); model.group.add(cockpit.group); scene.add(model.group);
 const crew = []; model.group.traverse(o => { if (['helmet', 'visor', 'torso', 'seatBack', 'headbox', 'glareshield', 'rioPanel'].includes(o.name)) crew.push(o); });
 const X = {   // the state the sliders drive
   pitch: 3, roll: 0, hdg: 40, kias: 330, alt: 600, aoa: 6, nz: 1, sweep: -1, rpm: 92, ab: 0, gear: 0, flap: 0, hook: 0, canopy: 0, fuel: 9000,
@@ -34,11 +35,12 @@ select('view', ['cockpit', 'orbit']); select('seat', ['0', '1']); select('mode',
 for (const [k, a, b, s] of [['pitch', -60, 60, 0.5], ['roll', -180, 180, 1], ['hdg', 0, 360, 1], ['kias', 0, 800, 1], ['alt', 0, 5000, 10], ['aoa', -5, 30, 0.1], ['nz', -3, 9, 0.1], ['sweep', -1, 75, 1], ['rpm', 0, 105, 1], ['ab', 0, 1], ['gear', 0, 1], ['flap', 0, 1], ['hook', 0, 1], ['canopy', 0, 1], ['fuel', 0, 16200, 10], ['stick', -1, 1], ['rollStick', -1, 1], ['thr', 0, 1], ['tracks', 0, 8, 1], ['yaw', -2.5, 2.5], ['look', -1.1, 0.8]]) slider(k, a, b, s);
 for (const k of ['lock', 'mc', 'stall', 'fire', 'wheels', 'altLow', 'launch']) toggle(k);
 let drag = null; const orbit = { yaw: 0.8, pitch: 0.3, dist: 34 };
+if (Q.get('cam')) { const [y, p, d] = Q.get('cam').split(',').map(Number); Object.assign(orbit, { yaw: y, pitch: p, dist: d }); X.view = 'orbit'; }
 renderer.domElement.addEventListener('pointerdown', e => drag = { x: e.clientX, y: e.clientY });
 addEventListener('pointerup', () => drag = null);
 addEventListener('pointermove', e => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY; if (X.view === 'orbit') { orbit.yaw -= dx * 0.006; orbit.pitch += dy * 0.006; } else { X.yaw -= dx * 0.004; X.look -= dy * 0.004; } });
 addEventListener('wheel', e => orbit.dist *= Math.exp(e.deltaY * 0.001));
-function size() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+function size() { let w = innerWidth, h = innerHeight; if (window.__ortho) { const o = window.__ortho, a = (o.right - o.left) / (o.top - o.bottom); if (w / h > a) w = Math.round(h * a); else h = Math.round(w / a); } renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
 addEventListener('resize', size); size();
 
 const D2R = Math.PI / 180, _e = new THREE.Euler(), _q = new THREE.Quaternion(), _v = new THREE.Vector3();
@@ -91,8 +93,54 @@ function frame(now) {
     camera.lookAt(A.pos); camera.near = 0.5;
   }
   camera.updateProjectionMatrix();
-  renderer.render(scene, camera);
+  renderer.render(scene, window.__ortho || camera);
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 window.__T = { A, X, cockpit, model, CAUTS };
+
+// ---- ?ref=side|top|front (ngc/look-tomcat): orthographic view over the traced drawing at its calibration (dev/ref/,
+// copies of docs/ngc1980/reference/f14a: NASA TP-2769 fig. 2a squared, CR-163098 fig. 4), drawing lines in red
+// (&refa= opacity); &sil=1 the model as a flat translucent silhouette; &mask=1 the airframe flat black on white for
+// tools/blueprint/fit.mjs. The top view is the drawing's lower half (wings at 68 deg): ?ref=top&sweep=68.
+// Calibration (px): side/top x 389 = nose (z -11.152), 74.36 px/m; side y 2168 = FRL (y -0.436); top centre line y 1035;
+// front 72.11 px/m, centre x 1527, wing plane y 871.5 (= y -0.19, as the side view).
+const REF = Q.get('ref'), REFV = {
+  side: { img: 'ref/f14a-3view.png', W: 2273, H: 3160, map: (px, py) => [(px - 389) / 74.36 - 11.152, (2168 - py) / 74.36 - 0.436], view: [1, 0, 0], up: [0, 1, 0] },
+  top: { img: 'ref/f14a-3view.png', W: 2273, H: 3160, map: (px, py) => [(px - 389) / 74.36 - 11.152, -(py - 1035) / 74.36], view: [0, -1, 0], up: [1, 0, 0] },
+  front: { img: 'ref/f14a-front.png', W: 3050, H: 3925, map: (px, py) => [-(px - 1529.2) / 72.11, (871.5 - py) / 72.11 - 0.19], view: [0, 0, 1], up: [0, 1, 0] },
+}[REF];
+if (REFV) {
+  sea.visible = false; scene.traverse(o => { if (o.isMesh && o.geometry && o.geometry.type === 'ConeGeometry') o.visible = false; });
+  scene.background = new THREE.Color(0xf4f4ee); scene.fog = null; X.view = 'orbit'; X.gear = Q.get('gear') ? +Q.get('gear') : 0; X.sweep = Q.get('sweep') ? +Q.get('sweep') : (REF === 'top' ? 68 : 20); X.flap = 0; X.ab = 0; X.rpm = 70;
+  A.stores = []; model.group.userData.lockLod = 0;
+  const { W, H } = REFV, [a0, b0] = REFV.map(0, 0), [a1, b1] = REFV.map(W, H);
+  const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
+  const tex = new THREE.TextureLoader().load(REFV.img); tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.ShaderMaterial({ uniforms: { map: { value: tex }, k: { value: Number(Q.get('refa') || 0.85) } }, transparent: true, depthTest: false, depthWrite: false,
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform sampler2D map; uniform float k; varying vec2 vUv; void main(){ float l = dot(texture2D(map, vUv).rgb, vec3(0.333)); gl_FragColor = vec4(0.9, 0.05, 0.05, (1.0 - smoothstep(0.35, 0.75, l)) * k); }' });
+  const plane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat); plane.renderOrder = 99; plane.frustumCulled = false; scene.add(plane);
+  const Vd = new THREE.Vector3(...REFV.view), U = new THREE.Vector3(...REFV.up), Rt = new THREE.Vector3().crossVectors(Vd, U);
+  const at = (a, b) => REF === 'side' ? new THREE.Vector3(0, b, a) : REF === 'front' ? new THREE.Vector3(a, b, 0) : new THREE.Vector3(b, 0, a);
+  const c00 = at(a0, b0), c11 = at(a1, b1), ctr = c00.clone().add(c11).multiplyScalar(0.5);
+  const w = Math.abs(c11.clone().sub(c00).dot(Rt)), h = Math.abs(c11.clone().sub(c00).dot(U));
+  ortho.position.copy(ctr).addScaledVector(Vd, -60); ortho.up.copy(U); ortho.lookAt(ctr);
+  ortho.left = -w / 2; ortho.right = w / 2; ortho.top = h / 2; ortho.bottom = -h / 2; ortho.updateProjectionMatrix();
+  plane.scale.set(w, h, 1); plane.position.copy(ctr).addScaledVector(Vd, -30); plane.quaternion.copy(ortho.quaternion);
+  const dA = Rt.dot(at(a1, b0).sub(at(a0, b0))), dB = U.dot(at(a0, b0).sub(at(a0, b1)));
+  tex.repeat.set(dA > 0 ? 1 : -1, dB > 0 ? 1 : -1); tex.offset.set(dA > 0 ? 0 : 1, dB > 0 ? 0 : 1); tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  // the model at the drawing's origin, level (frame() places it at A.pos with the sliders' attitude)
+  X.pitch = 0; X.roll = 0; X.hdg = 0; A.pos.set(0, 0, 0);
+  Object.defineProperty(X, 'alt', { get: () => 0, set: () => {} });
+  if (Q.get('mask') === '1') {
+    plane.visible = false; scene.background = new THREE.Color(0xffffff);
+    const skip = /^(aim|pitot|shockDiamond|abOuter|abCore|navLight|strobe|beacon|tailLight|formation|launchBar|taxiLight|burnerFace|liner|tailCone|helmet|visor|torso|seatBack|headbox|glareshield|rioPanel|modex|insignia|navy|rescue|wingStar|wingNavy|tailArt|walkway|alq100|noseDoor|gearDoor|uhfBlade|tacanBlade|aoaProbe|probeDoor|gunVent|gunMuzzle|fuelDump)/;   // (protrusions the wind-tunnel model does not have)
+    const bm = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide });
+    model.group.traverse(o => { if (!o.isMesh) return; if (skip.test(o.name)) o.visible = false; else o.material = bm; });
+    const an = model.animate; model.animate = (...a) => { an(...a); model.group.traverse(o => { if (o.isMesh && skip.test(o.name)) o.visible = false; }); };
+  }
+  if (Q.get('sil') === '1') { const sm = new THREE.MeshBasicMaterial({ color: 0x5a6a90, transparent: true, opacity: 0.55, depthWrite: false }); model.group.traverse(o => { if (o.isMesh) o.material = sm; }); }
+  window.__ortho = ortho; size();
+  window.__T.ref = { REF, W, H };
+}

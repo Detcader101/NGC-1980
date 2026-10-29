@@ -29,7 +29,7 @@ export default async function (h) {
     let tris = 0, meshes = 0; A.model.group.traverse(o => { if (o.isMesh) { meshes++; const g = o.geometry; tris += (g.index ? g.index.count : g.attributes.position.count) / 3; } });
     out.tris = tris; out.meshes = meshes; window.__chk = out; return out; })()`);
   await h.expect(`Object.entries(__chk).filter(([k]) => k.startsWith('tyre')).every(([, v]) => Math.abs(v[0] + 2.5) < 0.04)`);
-  await h.expect(`Math.hypot(__chk.hookTip[1] + 2.35, __chk.hookTip[2] - 8.0) < 0.15`);
+  await h.expect(`Math.hypot(__chk.hookTip[1] + 2.35, __chk.hookTip[2] - 7.12) < 0.15`);
   for (const m of ['shrike', 'reaper', 'shahed']) {
     await h.goto(`dev/air.html?model=${m}&ui=0`);
     await h.waitFor('window.__A', 10000);

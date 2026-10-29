@@ -1,0 +1,12 @@
+{
+ "image": "../../../docs/ngc1980/reference/f14a/f14a-3view-trace.png",
+ "out": "trace-side-top.json",
+ "source": "NASA TP-2769 (1987) fig. 2(a), 1/12-scale F-14 model, Langley (NTRS 19880003073, GOV_PUBLIC_USE_PERMITTED); page rendered at 4x and squared (y x 1.00378)",
+ "frame": "model metres: x right, y up, z aft; z = FS_full - 11.152 (moment reference FS 92.933 cm model = CG); y = WL_full - 4.246 (FRL WL 31.749 cm model at y -0.436; ground static at y -2.37)",
+ "threshold": 140, "eraseLen": 330, "dilate": 2, "draw": [[390, 1026, 390, 1044], [1786, 1026, 1786, 1044]],
+ "side": { "x0": 389, "x1": 1800, "rows": [1880, 2330], "s": 74.36, "zAtX0": -11.152, "groundPx": 2168, "yGround": -0.436,
+   "centre": [[-11.15, -0.91], [-10.0, -0.9], [-6.0, -0.8], [-3.5, -0.75], [3.0, -0.7], [7.7, -0.55]],
+   "exclude": { "top": [[-11.16, -11.118], [-0.72, -0.48], [-0.26, 0.06], [3.85, 7.75]], "bottom": [[-11.16, -11.118], [-7.6, -6.6], [2.3, 6.1]] } },
+ "top": { "x0": 389, "x1": 1800, "rows": [280, 1780], "s": 74.36, "xRef": 389, "zRef": -11.152, "centrePx": 1035, "half": "lower",
+   "probe": [0, 3, 6], "exclude": [[-11.16, -11.104], [-5.3, -4.62], [-4.4, -2.2], [-1.42, -1.18]] }
+}

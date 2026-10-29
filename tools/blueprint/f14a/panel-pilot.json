@@ -1,0 +1,16 @@
+{
+ "source": "NATOPS NAVAIR 01-F14A-1 (1 June 1972), fig. 1-3 Pilot's instrument panel and consoles, page 21 of the archive.org scan rendered at 5x (pdf.js); the left-hand illustration (near straight-on for the main and knee panels)",
+ "scale": "3ATI airspeed / Mach indicator (24) bezel 3.125 in = 139 px -> 1760 px/m; check: VSI (25, a 2ATI 2.25 in) measures 94 px = 0.053 m (2.10 in, -7%: the illustration's slight perspective)",
+ "origin": "VDI (33) centre at figure px (1947, 1162) = panel (0, 0.13) m",
+ "items": [
+  [25, "VERTICAL VELOCITY", 1519, 1107, 94, 0], [24, "AIRSPEED / MACH", 1652, 1092, 139, 0], [22, "ALTIMETER", 1502, 1240, 139, 0], [23, "RADAR ALTIMETER", 1658, 1237, 139, 0],
+  [27, "ANGLE OF ATTACK", 1774, 1162, 56, 244], [33, "VDI", 1947, 1162, 256, 244], [32, "AIR COMBAT MANEUVER PANEL", 1947, 925, 378, 144],
+  [43, "STANDBY ATTITUDE", 2219, 1103, 106, 0], [40, "WING SWEEP", 2347, 1076, 100, 0], [42, "ACCELEROMETER", 2386, 1192, 100, 0], [46, "BDHI", 2238, 1248, 144, 0], [45, "CLOCK", 2392, 1290, 72, 0],
+  [16, "NOZZLE POSITION", 1444, 1405, 50, 0], [16, "NOZZLE POSITION R", 1497, 1405, 50, 0], [17, "OIL PRESSURE", 1444, 1461, 50, 0], [18, "HYDRAULIC PRESSURE", 1497, 1461, 50, 0],
+  [19, "RPM", 1574, 1520, 56, 256], [20, "TIT", 1641, 1520, 56, 256], [21, "FUEL FLOW", 1708, 1520, 56, 256], [15, "ENGINE PRESSURE RATIO", 1461, 1603, 122, 100],
+  [34, "HSD", 1947, 1555, 222, 272], [48, "FUEL QUANTITY", 2246, 1517, 161, 250], [49, "LIQUID OXYGEN", 2424, 1470, 89, 0], [50, "CABIN PRESSURE ALTIMETER", 2419, 1579, 94, 0]
+ ],
+ "item_format": "[NATOPS no., legend, centre x px, centre y px, width (dial diameter) px, height px (0 = round)]",
+ "uncertain": "40 / 42 / 43 / 45 / 46 assignment on the right instrument panel read from the key diagram's box order; clock (45) position approximate (the UHF remote indicator, 47, shares the corner)",
+ "vertical_consoles": "13 landing gear control and 14 wheels-flaps position on the left vertical console, 51 arrested hook panel on the right vertical console: angled plates beside the knee panels (positions approximate, the illustration is foreshortened there)"
+}

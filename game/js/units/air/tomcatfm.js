@@ -27,7 +27,7 @@ export const TOMCAT = {
   // undercarriage: wheelbase 7.02 m, track 5.0 m (CONFIRMED 23 ft 0.5 in / 16 ft 5 in); CG 1.0 m ahead of the mains (INFERRED)
   GEAR: [[0, -2.5, -6.0], [-2.5, -2.5, 1.0], [2.5, -2.5, 1.0]],
   K: [430000, 820000, 820000], DAMP: [90000, 165000, 165000], STROKE: 0.45,   // INFERRED: Hornet struts scaled by weight
-  HOOK_TIP: [0, -2.35, 8.0],
+  HOOK_TIP: [0, -2.35, 7.12],   // (ngc/look-tomcat) the drawn hook: pivot FS 126.893 cm / WL 29.209 cm (1/12 model), 3.444 m long, tip at the deck (was 8.0, inferred: the wire caught 0.9 m behind the visible hook)
   VNE_GEAR: 116,         // m/s EAS: 225 kt flap / gear limit (CONFIRMED NATOPS: 225 KIAS flaps, 280 gear)
   // store masses (kg): AIM-54A 1,008 lb, AIM-7F 510 lb, AIM-9L 190 lb (CONFIRMED); drag in "store units"
   STORE: { aim54: { kg: 457, drag: 1.6 }, aim7: { kg: 231, drag: 0.9 }, aim9: { kg: 86, drag: 0.5 } },
@@ -35,7 +35,8 @@ export const TOMCAT = {
 };
 // stations: 1A/8A glove shoulder rails (AIM-9), 1B/8B glove pylons (AIM-7 / AIM-54), 3-6 tunnel between the nacelles
 export const STATIONS = {
-  '1A': [-2.62, -0.12, -1.6], '8A': [2.62, -0.12, -1.6], '1B': [-2.3, -0.95, -1.2], '8B': [2.3, -0.95, -1.2],
+  '1A': [-2.56, -0.46, -1.3], '8A': [2.56, -0.46, -1.3],   // (ngc/look-tomcat: the AIM-9 shoulder rails on the glove pylons' outer faces, from the drawings)
+  '1B': [-2.3, -0.95, -1.2], '8B': [2.3, -0.95, -1.2],
   3: [-0.62, -1.15, -3.2], 6: [0.62, -1.15, -3.2], 4: [-0.62, -1.15, 1.6], 5: [0.62, -1.15, 1.6],
   gun: [-0.95, -0.15, -8.4],   // M61 muzzle, left side of the nose
 };

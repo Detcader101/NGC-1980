@@ -1,6 +1,6 @@
 {
  "note": "node tools/check.mjs types --update; the check fails when the total rises",
- "total": 578,
+ "total": 572,
  "files": {
   "game/js/audio.js": 4,
   "game/js/drop.js": 4,
@@ -44,8 +44,8 @@
   "game/js/units/air/rotary/waspfm.js": 4,
   "game/js/units/air/rotary/waspmodel.js": 2,
   "game/js/units/air/rwmodel.js": 6,
-  "game/js/units/air/tomcatcockpit.js": 14,
-  "game/js/units/air/tomcatmodel.js": 10,
+  "game/js/units/air/tomcatcockpit.js": 15,
+  "game/js/units/air/tomcatmodel.js": 3,
   "game/js/units/air/tomcatplay.js": 13,
   "game/js/units/air/tomcatsound.js": 86,
   "game/js/units/armor/armorballistics.js": 10,

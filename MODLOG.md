@@ -286,6 +286,22 @@ correctly; the cockpit uses the exterior's glazing. Triangles: 115 k near, 5.4 k
 between the -10 and -23 figures, configuration rows marked partial/todo. Details:
 [findings](docs/ngc1980/findings/look-huey.md), evidence in `docs/ngc1980/evidence/look-huey/`.
 
+## 2026-10-28 — the F-14A rebuilt from the NASA drawings (ngc/look-tomcat)
+
+The "glitchy" Tomcat was four things: a 19.5 m dark square (the old blob shadow) drawn under RenderKit's real shadow on
+the deck, wing roots sliding through the deck with z-fighting as the wings swept, two coincident nacelle shells, and
+intakes hollow from the side. The blob now only draws without RenderKit sun shadows; the rest went with a rebuild.
+
+The airframe is traced from public-domain NASA drawings (TP-2769 / TM-83250 1/12 model three-view and dimensioned
+planforms, CR-163098 front view) and lofted: smooth superellipse fuselage, canopy and raked intakes, NACA-section
+gloves, wings, tails and ventrals at their drawn stations, the wings on the real pivot (BL 107 in). Silhouette fit: side
+IoU 0.988 (gap 1.0%), top at 68 deg 0.983, front 0.976. One real airframe: F-14A BuNo 160382, VF-84 AJ 206, September
+1980 (U.S. Navy photo), overall gull grey, black fins with the skull and crossbones. The cockpit interior moved into the
+drawn airframe. Tools: `tools/blueprint/` (trace, fit), `dev/tomcat.html?ref=side|top|front&sil&mask`, `?legacy=1`.
+The 1972 NATOPS (archive.org) cross-checks the dimensions and lays out the pilot's panel. Not done: panel lines
+(the maintenance manuals are not public) and a traced RIO panel. Details:
+[findings](docs/ngc1980/findings/look-tomcat.md), evidence in `docs/ngc1980/evidence/look-tomcat/`.
+
 ## 2026-10-28 — TypeScript type checking, phase 1 (no build step)
 
 `node tools/check.mjs types` runs TypeScript 6.0.3 over all 269 game modules as they are: JSDoc + `checkJs`, three
