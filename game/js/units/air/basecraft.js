@@ -64,12 +64,14 @@ export function createC130Sortie(ctx) {
     D.out = false; D.parked = true; D.crew = false; D.ap = null; snd.stop(); g.visible = true; deck.group.visible = false;
     pose(0);
   };
-  D.lineUp = () => {   // quick start: lined up on the nearer runway end, engines running, 50 % flaps
-    const e = nearestEnd(), [x, z] = L.toW(e.u + e.dir * 60, 0);
+  D.lineUp = () => {   // quick start: lined up for take-off (departEnd), engines running, 50 % flaps
+    const e = departEnd(), [x, z] = L.toW(e.u + e.dir * 60, 0);
     S.resetGround(x, L.E, z, L.yawOf(e.dir, 0)); S.flapSel = S.flap = 0.5; ctl.lever.fill(18); parkBrake = false; snapChase = true;
     say(`LINED UP ON RUNWAY ${String(e.num).padStart(2, '0')}  -  SHIFT POWER UP, PULL BACK AT ~105 KIAS`, 3);
   };
   const nearestEnd = () => { const [u] = L.toL(S.pos.x, S.pos.z, _l); return L.ends.reduce((a, b) => Math.abs(b.u - u) < Math.abs(a.u - u) ? b : a); };
+  // the end to take off from: the one whose climb-out goes over the clear approach (high ground behind you), else the nearer
+  const departEnd = () => { const [a, b] = L.ends, hi = a.obst > b.obst ? a : b, lo = hi === a ? b : a; return hi.obst > 0 && hi.obst - lo.obst > 100 ? hi : nearestEnd(); };
 
   // ---------------------------------------------------------------- in / out
   D.enter = (seat, from) => {
@@ -118,33 +120,7 @@ export function createC130Sortie(ctx) {
 
   // ---------------------------------------------------------------- autopilot: hold, and the way home (approach + landing)
   // home: fly to a 5 km final for the nearer runway end, join the centreline, a 3 deg glide path, flare, land, stop.
-  function approach(dt) {
-    const A = D.ap, e = A.end || (A.end = bestEnd()), [u, v] = L.toL(S.pos.x, S.pos.z, _l), d = e.dir;
-    const along = (u - e.u) * d;   // metres past the threshold (negative on final)
-    let tgt, alt, kias = 150;
-    if (!A.final) {
-      const fu = e.u - d * 7500, [fx, fz] = L.toW(fu, 0), dist = Math.hypot(fx - S.pos.x, fz - S.pos.z);   // the initial approach fix: 7.5 km out on the centreline
-      tgt = Math.atan2(-(fx - S.pos.x), -(fz - S.pos.z)); alt = L.E + 330; kias = 170;
-      if (dist < 600 || (along < -2500 && along > -7600 && Math.abs(v) < 300 && Math.abs(angDiff(S.track(), L.yawOf(d, 0))) < 0.5)) { A.final = true; feed(`C-130: ESTABLISHED ON FINAL, RUNWAY ${String(e.num).padStart(2, '0')}`, 'info'); }
-      S.flapSel = dist < 3500 ? 0.5 : 0;
-    } else {
-      const [px, pz] = L.toW(u + d * 700, 0); tgt = Math.atan2(-(px - S.pos.x), -(pz - S.pos.z));
-      const toAim = -(along - 300);
-      alt = L.E + Math.min(330, Math.max(0, toAim) * Math.tan(3 * Math.PI / 180)) + 2.6; kias = toAim > 4000 ? 150 : 122;
-      S.gearCmd = 1; S.flapSel = toAim < 3500 ? 1 : 0.5;
-    }
-    const c = S.autopilot(dt, { track: tgt, alt, kias, vsMax: A.final ? 4 : 6 });
-    if (A.final && S.pos.y - groundY(S.pos.x, S.pos.z) < 9) { A.flare = true; }
-    if (A.flare) { c.throttle = [0, 0, 0, 0]; c.pitch = Math.max(c.pitch, 0.12); }
-    if (A.flare && S.onGround) A.rollout = true;
-    // rollout: rudder and nose wheel toward a point 150 m down the centreline (right pedal turns right = heading down)
-    if (A.rollout) { const [qx, qz] = L.toW(u + d * 150, 0), st = clamp(angDiff(Math.atan2(-(qx - S.pos.x), -(qz - S.pos.z)), S.heading) * 3, -1, 1); return { pitch: 0, roll: 0, yaw: st, tiller: st * 0.3, lever: Array(4).fill(Math.hypot(S.vel.x, S.vel.z) > 8 ? 5 : 18), brakeL: 1, brakeR: 1 }; }
-    return { ...c, lever: c.throttle.map(x => 34 + x * 56), brakeL: 0, brakeR: 0, trimRate: c.trimRate };
-  }
-  function bestEnd() {   // the end whose final we can join with the least turning (into the wind would be the real rule)
-    const [u] = L.toL(S.pos.x, S.pos.z, _l);
-    return u < 0 ? L.ends.find(e => e.dir === 1) : L.ends.find(e => e.dir === -1);
-  }
+  function approach(dt) { return homeAutopilot(S, D.ap, L, dt, groundY, msg => feed(msg, 'info')); }
   // a crew take-off when she is sent home from the ground somewhere else (rare: a field landing)
   function crewTakeoff(dt) { const c = S.autopilot(dt, { track: S.heading, alt: S.pos.y + 200, kias: 160 }); if (S.onGround) c.pitch = S.kias > 105 ? 0.5 : 0; return { ...c, lever: [90, 90, 90, 90], brakeL: 0, brakeR: 0 }; }
 
@@ -174,7 +150,7 @@ export function createC130Sortie(ctx) {
       if (D.ap && D.ap.mode === 'home') c = approach(dt);
       else if (D.ap) { const a = S.autopilot(dt, { track: D.ap.track, alt: D.ap.alt, kias: D.ap.kias }); c = { ...a, lever: a.throttle.map(x => 34 + x * 56), brakeL: 0, brakeR: 0 }; ctl.lever.fill(c.lever[0]); }
       else if (!S.onGround && !ctx.hwOn() && kb.noInput > 0.3) {   // keyboard, hands off: hold the attitude it was left in (heading and height)
-        if (!kb.hold) kb.hold = { track: S.track(), alt: S.pos.y };
+        if (!kb.hold) { const gy = groundY(S.pos.x, S.pos.z); kb.hold = { track: S.track(), alt: S.pos.y - gy < 250 && S.vel.y > 0.5 ? Math.max(S.pos.y, gy + 300) : S.pos.y }; }   // (let go in the climb-out: she climbs on to 1,000 ft)
         const a = S.autopilot(dt, { track: kb.hold.track, alt: kb.hold.alt, kias: S.kias }); c = { ...a, yaw: a.yaw + ctl.yaw, lever: ctl.lever, brakeL: 0, brakeR: 0, trimRate: ctl.trimRate };
       } else { if (stick) kb.hold = null; if (!S.onGround) S.apState.Iq = S.surf.ele / 0.38; c = ctl; }
     } else if (D.crew) {
@@ -356,6 +332,46 @@ export function createC130Sortie(ctx) {
     const b = D._b ||= {}; b.x = S.pos.x; b.z = S.pos.z; b.yaw = S.heading; b.hl = C130M.LENGTH / 2; b.hw = 2.2; b.y0 = S.pos.y - 2.64; b.y1 = S.pos.y + 9; b.def = D; return b;
   };
   return D;
+}
+
+// ------------------------------------------------------------------------------------------------ the way home (pure)
+// The C-130 autopilot's HOME mode: to the initial approach fix 6 km out on the centreline of the runway end it can
+// join with the least turning, a final with a 3 deg glide path (1,000 ft until it meets it), flaps 50 then 100, gear
+// down, flare at ~30 ft, power to idle, rollout with reverse, rudder / nose wheel on the centreline and brakes.
+// S: the c130fm sim, A: the mode's state object ({} to start), L: the AIRBASE layout. Returns the controls for S.step.
+// Pure (tools/airbasebench.mjs flies it in node).
+export function homeAutopilot(S, A, L, dt, groundY, say = null) {
+  const _p = [0, 0], [u, v] = L.toL(S.pos.x, S.pos.z, _p);
+  // the end: the one on our side of the field, unless its approach is over high ground and the other's is clearer
+  const e = A.end || (A.end = (() => { const near = u < 0 ? L.ends[0] : L.ends[1], far = near === L.ends[0] ? L.ends[1] : L.ends[0]; return near.obst > -60 && far.obst < near.obst ? far : near; })()), d = e.dir;
+  const along = (u - e.u) * d;   // metres past the threshold (negative on final)
+  const agl = S.pos.y - groundY(S.pos.x, S.pos.z);
+  let tgt, alt, kias;
+  if (!A.final) {
+    const [fx, fz] = L.toW(e.u - d * 6000, 0), dist = Math.hypot(fx - S.pos.x, fz - S.pos.z);   // the initial approach fix
+    tgt = Math.atan2(-(fx - S.pos.x), -(fz - S.pos.z)); kias = 170;
+    // 1,000 ft over the field, and never less than 500 ft over the ground ahead (the land round the base is not flat)
+    const sp = Math.max(30, Math.hypot(S.vel.x, S.vel.z)); let fl = groundY(S.pos.x, S.pos.z); for (const k of [8, 16, 30, 45]) fl = Math.max(fl, groundY(S.pos.x + S.vel.x / sp * k * sp, S.pos.z + S.vel.z / sp * k * sp));
+    alt = Math.max(L.E + 330, fl + 160);
+    if (agl < 120 && S.vel.y > -1) { kias = 160; tgt = S.track(); }   // just off the ground: climb out straight ahead first
+    if (dist < 600 || (along < -2500 && along > -6100 && Math.abs(v) < 300 && Math.abs(angDiff(S.track(), L.yawOf(d, 0))) < 0.5)) { A.final = true; say?.(`C-130: ESTABLISHED ON FINAL, RUNWAY ${String(e.num).padStart(2, '0')}`); }
+    S.flapSel = dist < 3500 ? 0.5 : agl < 120 ? 0.5 : 0; if (agl > 40) S.gearCmd = dist < 3500 ? 1 : 0;
+  } else {
+    const [px, pz] = L.toW(u + d * 900, 0); tgt = Math.atan2(-(px - S.pos.x), -(pz - S.pos.z));
+    const toAim = -(along - 300);
+    alt = L.E + Math.min(330, Math.max(0, toAim) * Math.tan(3 * Math.PI / 180)) + 2.6; kias = toAim > 4000 ? 150 : 122;
+    if (toAim > 2500) { let fl = 0; for (const k of [0, 400, 900]) { const [qx, qz] = L.toW(u + d * k, v); fl = Math.max(fl, groundY(qx, qz)); } alt = Math.max(alt, fl + 100); }   // terrain under the final
+    S.gearCmd = 1; S.flapSel = toAim < 3500 ? 1 : 0.5;
+  }
+  const c = S.autopilot(dt, { track: tgt, alt, kias, vsMax: A.final ? 4 : 6, bankMax: agl < 150 ? 0.3 : undefined });
+  if (A.final && agl < 9 && along > -400) A.flare = true;
+  if (A.flare) { c.throttle = [0, 0, 0, 0]; c.pitch = Math.max(c.pitch, 0.12); c.roll = clamp(c.roll, -0.3, 0.3); }
+  if (A.flare && S.onGround) A.rollout = true;
+  if (A.rollout) {   // rudder and nose wheel toward a point 150 m down the centreline (right pedal: heading decreases)
+    const [qx, qz] = L.toW(u + d * 150, 0), st = clamp(angDiff(Math.atan2(-(qx - S.pos.x), -(qz - S.pos.z)), S.heading) * 3, -1, 1), gs = Math.hypot(S.vel.x, S.vel.z);
+    return { pitch: 0, roll: 0, yaw: st, tiller: st * 0.3, lever: Array(4).fill(gs > 8 ? 5 : 18), brakeL: 1, brakeR: 1 };
+  }
+  return { ...c, lever: c.throttle.map(x => 34 + x * 56), brakeL: 0, brakeR: 0, trimRate: c.trimRate };
 }
 
 // ------------------------------------------------------------------------------------------------ the base: ops

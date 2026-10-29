@@ -41,7 +41,7 @@ export default {
     // the C-130 in its hangar: parked there for the picture (the hangar slot the sortie ends in), then back on the ramp
     await h.eval(`(() => { ${C}.parkAt(${L}.spot('c130', 'park')); return 1; })()`);
     await h.eval(cam(-700, 470, 8, -737, 545, 5)); await h.wait(2500); await h.shot('c130-in-hangar');
-    await h.eval(cam(-737, 528, 3, -737, 600, 6)); await h.wait(1500); await h.shot('hangar-inside');
+    await h.eval(cam(-690, 524, 4, -745, 548, 5)); await h.wait(1500); await h.shot('hangar-inside');
     await h.eval(`(() => { ${C}.spawnAt(${L}.spot('c130', 'ramp'), 'hot'); ${C}.camAt = null; return 1; })()`);
     await h.eval(`(${C}.view = 'chase', ${C}.orbitTo(2.4, 0.15, 60), 1)`); await h.wait(1500); await h.shot('c130-on-ramp-chase');
     await h.eval(`(${C}.view = 'cockpit', 1)`); await h.wait(1500); await h.shot('cockpit-on-ramp');

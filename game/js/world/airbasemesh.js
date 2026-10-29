@@ -167,6 +167,23 @@ export function buildAirbase(L, { scene } = {}) {
       X.pop();
     }
   }
+  // ramp life (1980 USAF ground equipment): apron floodlight towers, R-9 refuellers, MB-4 tugs, MD-3 power carts, the
+  // crash truck at the fire station, tie-down rings for the transient row
+  {
+    const gse = surf(col(0xd8b84a), 'METAL'), olive = col(0x5d6532), tyre = col(0x1c1c1e), red = C.red;
+    const at = (u, v, yawL, fn) => { const p = w(u, v); X.push(p[0], E, p[2], yawB + yawL); fn(); X.pop(); };
+    for (let u = AB.APRON_U0 + 40; u < AB.APRON_U1; u += 130) at(u, AB.APRON_V1 - 4, 0, () => {
+      X.box(0, 0, 0, 1.2, 0.6, 1.2, C.concrete); X.box(0, 0.6, 0, 0.45, 21, 0.45, C.metal); X.box(0, 21.4, -0.3, 4.2, 1.1, 1.0, C.metalD);
+      for (let i = -1; i <= 1; i++) { const p = X.at(i * 1.3, 21.6, -0.85); lights.push([p[0], p[1], p[2], 0xfff0c8]); }
+    });
+    const refueller = () => { X.box(0, 0.5, -4.2, 2.5, 2.2, 2.2, olive); X.box(0, 0.5, 1.2, 2.5, 2.4, 8.2, olive); X.box(0, 2.9, 1.2, 0.6, 0.4, 0.6, C.metal); for (const z of [-4.2, 0.5, 3.6]) for (const x of [-1.25, 1.25]) X.box(x, 0, z, 0.35, 1.0, 1.0, tyre); };
+    const tug = () => { X.box(0, 0.35, 0, 1.9, 0.9, 3.2, gse); X.box(0, 1.25, 0.6, 1.6, 1.1, 1.2, gse); for (const z of [-1.1, 1.1]) for (const x of [-0.95, 0.95]) X.box(x, 0, z, 0.3, 0.7, 0.7, tyre); };
+    const cart = () => { X.box(0, 0.3, 0, 1.3, 1.1, 2.0, gse); X.box(0, 0, -1.4, 0.12, 0.3, 1.0, C.metalD); for (const z of [-0.7, 0.7]) for (const x of [-0.7, 0.7]) X.box(x, 0, z, 0.2, 0.5, 0.5, tyre); };
+    const crash = () => { X.box(0, 0.6, 0, 2.9, 3.0, 9.5, red); X.box(0, 3.6, 2.0, 0.6, 0.6, 0.8, C.metal); for (const z of [-3.3, 0.5, 3.0]) for (const x of [-1.4, 1.4]) X.box(x, 0, z, 0.4, 1.2, 1.2, tyre); };
+    at(-600, 470, 0.3, refueller); at(-560, 474, 0.3, refueller); at(230, 548, Math.PI / 2, refueller);
+    at(-722, 506, 0, tug); at(-505, 500, 0.4, tug); at(-470, 496, -0.2, cart); at(-748, 512, 0.2, cart); at(-640, 512, 1.2, cart);
+    at(31, 532, 0, crash); at(48, 532, 0, crash);
+  }
   for (let u = -R + 18; u <= R - 18; u += AB.EDGE_LT) for (const sd of [-1, 1]) if (!L.connectors.some(cu => Math.abs(cu - u) < T + 10)) lamp(u, TV + sd * (T + 1.2), BLU, 0.35);
   for (const cu of L.connectors) for (let v = W + 25; v < TV - T - 10; v += 30.5) for (const sd of [-1, 1]) lamp(cu + sd * (T + 1.2), v, BLU, 0.35);
   // tower beacon and obstruction lights on the tall buildings

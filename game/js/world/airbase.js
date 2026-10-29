@@ -62,10 +62,12 @@ export const AB_SLOTS = Object.freeze({
 export function planAirbase({ natH, BOUND, home = { x: -1, z: 1 }, name = 'WESTGATE AFB' }) {
   const sx = Math.sign(home.x) || -1, sz = Math.sign(home.z) || 1, F = AB.FLAT;
   let best = null;
-  for (const edge of ['z', 'x']) for (let d = 2600; d <= 6200; d += 300) for (let t = -0.8; t <= 1.81; t += 0.1) {
+  // runways parallel to the zone edge (the base complex on the zone side), or pointing at the zone (one approach comes
+  // in over the sea band; the complex on the side towards the friendly corner)
+  for (const edge of ['z', 'x']) for (const perp of [false, true]) for (let d = perp ? 3800 : 2600; d <= (perp ? 7400 : 6200); d += 400) for (let t = -0.8; t <= 1.81; t += 0.1) {
     const along = t * BOUND;
-    const S = edge === 'z' ? { x: sx * along, z: sz * (BOUND + d), ax: 1, az: 0, nx: 0, nz: -sz }
-      : { x: sx * (BOUND + d), z: sz * along, ax: 0, az: 1, nx: -sx, nz: 0 };
+    const S = !perp ? (edge === 'z' ? { x: sx * along, z: sz * (BOUND + d), ax: 1, az: 0, nx: 0, nz: -sz } : { x: sx * (BOUND + d), z: sz * along, ax: 0, az: 1, nx: -sx, nz: 0 })
+      : (edge === 'z' ? { x: sx * along, z: sz * (BOUND + d), ax: 0, az: -sz, nx: -sx, nz: 0 } : { x: sx * (BOUND + d), z: sz * along, ax: -sx, az: 0, nx: 0, nz: -sz });
     const at = (u, v) => natH(S.x + u * S.ax + v * S.nx, S.z + u * S.az + v * S.nz);
     const hs = []; let sea = 0;
     for (let u = -F.u; u <= F.u + 1; u += F.u / 5) for (let v = F.v0; v <= F.v1 + 1; v += (F.v1 - F.v0) / 4) { const h = at(u, v); hs.push(h); if (h < 2) sea++; }
@@ -73,13 +75,22 @@ export function planAirbase({ natH, BOUND, home = { x: -1, z: 1 }, name = 'WESTG
     const E = land.length > hs.length * 0.3 ? Math.max(6, Math.min(90, Math.round(land[land.length >> 1]))) : 6;
     let dev = 0, worst = 0; for (const h of hs) { const e = Math.abs(Math.max(h, 0) - E); dev += e; worst = Math.max(worst, e); }
     dev /= hs.length;
-    // the approach and climb-out: nothing above a 1-in-25 surface from the runway ends out to 7 km
-    let obst = 0;
-    for (const s of [-1, 1]) for (let k = 0; k <= 8; k++) { const u = s * (F.u + 300 + k * 550); obst = Math.max(obst, at(u, 0) - E - (Math.abs(u) - F.u) / 25); }
-    const score = dev + worst * 0.15 + (sea / hs.length) * 40 + Math.max(0, obst) * 0.6 + d * 0.003 + Math.abs(t) * 2 + (edge === 'x' ? 1 : 0);
-    if (!best || score < best.score) best = { ...S, E, score, edge, d, t };
+    // the approaches: the ground in each end's corridor against the 3 deg glide path + 150 m (1,000 ft at 6 km); at
+    // least one end must be clear, both is better
+    const ob = approachObst(at, E, 900, 1000, 8000), o = Math.max(0, Math.min(ob[0], ob[1])), o2 = Math.max(0, Math.max(ob[0], ob[1]));
+    const score = dev + worst * 0.15 + (sea / hs.length) * 40 + o * 3 + o2 * 0.4 + d * 0.003 + Math.abs(t) * 2 + (edge === 'x' ? 1 : 0);
+    if (!best || score < best.score) best = { ...S, E, score, edge, perp, d, t, endObst: ob };
   }
+  // endObst: each runway end's approach corridor, metres of ground above (glide path + 150 m): the autopilot's way
+  // home picks an end it can come down to (basecraft.js homeAutopilot)
+  { const S = best, at = (u, v) => natH(S.x + u * S.ax + v * S.nx, S.z + u * S.az + v * S.nz); best.endObst = approachObst(at, best.E, 1500, 500, 8000); }
   return makeLayout({ ...best, name, BOUND });
+}
+// [end 0 (lands +u, approach from -u), end 1]: max over an 8 km corridor (+-half m wide, every step m) of ground - E -
+// (3 deg glide path from the threshold + 150 m), the glide path capped at the 1,000 ft the approach is flown at
+function approachObst(at, E, half, step, len) {
+  const tan3 = Math.tan(3 * Math.PI / 180);
+  return [1, -1].map(dir => { let m = -1e9; for (let s0 = 0; s0 <= len; s0 += step) for (let v = -half; v <= half; v += half / 2) m = Math.max(m, at(-dir * (AB.RWY_L / 2 + s0), v) - E - Math.min(330, s0 * tan3) - 150); return m; });
 }
 
 // the layout object for a chosen site (also used by tests with a fixed site)
@@ -139,7 +150,7 @@ export function makeLayout(s) {
   for (const b of AB_BUILDINGS) if (b.type === 'dch' || b.type === 'barn') L.paved.push(['hangar', b.u - b.w / 2, b.u + b.w / 2, b.v - b.d / 2, b.type === 'dch' ? b.v - b.d / 2 + b.bay : b.v + b.d / 2]);
   // designations: the runway number is the landing heading / 10 (true north here: the world has no magnetic variation)
   const hdgOf = (du) => { const wx = du * ax, wz = du * az; let deg = Math.atan2(wx, -wz) * 180 / Math.PI; deg = (deg + 360) % 360; let n = Math.round(deg / 10) % 36; return n === 0 ? 36 : n; };
-  L.ends = [{ dir: 1, u: -R, num: hdgOf(1) }, { dir: -1, u: R, num: hdgOf(-1) }];
+  L.ends = [{ dir: 1, u: -R, num: hdgOf(1), obst: s.endObst ? s.endObst[0] : 0 }, { dir: -1, u: R, num: hdgOf(-1), obst: s.endObst ? s.endObst[1] : 0 }];   // obst: ground above the 3 deg path on the approach (m)
   L.label = `${L.name}  ·  RWY ${String(L.ends[0].num).padStart(2, '0')}/${String(L.ends[1].num).padStart(2, '0')}`;
   return L;
 }
