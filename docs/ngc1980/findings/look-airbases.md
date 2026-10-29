@@ -96,8 +96,33 @@ SR-71 API to call. The base is ready for it:
   (sr71fm.js) is not committed yet. Not merged here (no merging between branches).
 
 
-## Test results
-<filled in below>
+## Test results (2026-10-29, headless SwiftShader, one scene at a time)
+- `node tools/airbasebench.mjs`: ALL PASS. Paved surfaces flat to 0.000 m in rawH and islandH; the blend reaches the
+  wild land; one approach clear; no trees / scrub / roads on the field; mesh 6 draws, 129 k tris, 790 lamps, ~190 ms;
+  full sorties on the real C-130 flight model and the craft's own `homeAutopilot` from **both** runway ends: lift-off
+  ~117 m from brake release (world scale), circuit, final, flare, rollout on the centreline (0.1 m), nz 0.32-1.75.
+  The same bench with BOUND = 2560 (world.js edited temporarily, then restored): ALL PASS (the site moves 5.8 km west
+  of the bigger zone).
+- `tools/scenes/airbase.mjs`: **PASS 14/14** (run 2026-10-29_11-23-57): board -> C-130 row -> ENTER on the ramp,
+  taxi under power, SHIFT+L, keyboard take-off, N home, approach, landing, stopped on the centreline, O: parked in
+  the hangar, back in reserve, back in the Huey. Evidence in `docs/ngc1980/evidence/look-airbases/`: 01 board, 02-05
+  ground views, 06 300 m, 07 3,000 m, 09 4 km out on the clear approach, 10-11 the C-130 in its hangar, 12-13 ramp
+  chase / flight deck, 15-19 line-up, take-off, final from the flight deck, flare, stopped, 20 command map arrow,
+  21 minimap, and the scene log.
+- Regressions: smoke.json 5/5, drop.json 5/5, c130jump.json 7/7, airdrop.mjs 10/10, c130.mjs 8/8,
+  worldvisibility.mjs 17/17, commanderbench 39/39, `check.mjs syntax` 562/562, `check.mjs types` 606 (baseline 606).
 
 ## Open items
-<filled in below>
+- **SR-71**: plug it in when ngc/look-sr71 has a flight model (see "SR-71 hook"). Until then the SR-71 row says NOT ON
+  THE BASE YET and its shelter stands empty.
+- **3,000 m view**: the far land (renderkit/atmosphere.js) shows the runway, but at that height the far heightmap draws
+  in bands with sea between them (07-air-3000m; it happens away from the base too, so it is not from this branch). For
+  the sky / terrain agent. The base geometry itself only draws inside the game-wide 2.6 km draw distance.
+- **Merge with ngc/look-terrain**: the world.js changes are two marked lines; the site re-plans itself on the new
+  BOUND / wildH. If the terrain agent changes `wildH`, re-run `node tools/airbasebench.mjs`.
+- No static display aircraft on the ramp yet (a KC-135Q or T-38 of the period would sell the 9th SRW look); no night
+  lighting pass (the lamps are unlit emissive points, sized up with distance); the hangar interiors are simple.
+- The tower is a generic 1960s USAF concrete tower: no open-access standard drawing was found (UNVERIFIED).
+- Keyboard flying: letting go of the yoke holds heading and height (as RAIDER 21 does); in the climb-out it holds a
+  climb to 1,000 ft AGL. A HOTAS flies it raw.
+- The site search costs ~220 ms per thread at load (main + 2 workers); it could be cached if load time matters.
