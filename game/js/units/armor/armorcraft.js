@@ -29,6 +29,7 @@ import { ROUNDS } from './armorballistics.js';
 import { createTrackDriver } from './armordriver.js';
 import { createGunnery } from './armorgunnery.js';
 import { buildStations } from './armorstations.js';
+import { mergeUnit } from '../../renderkit/merge.js';   // ngc/perf-render
 
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
@@ -85,6 +86,7 @@ export function createArmorCraft(ctx, type = 'm60', id = type) {
   model.group.visible = false; scene.add(model.group);
   model.group.userData.heat = 0.42;
   model.group.traverse(o => { if (o.name && /runningGear/.test(o.name)) o.userData.heat = 0.66; });
+  const MRG = mergeUnit(model.group, [model, interior, ST], { name: type });   // ngc/perf-render: static parts one draw per material per rigid frame (every handle kept)
   const origColors = []; model.group.traverse(o => { if (o.isMesh && o.material && o.material.color && !origColors.some(e => e[0] === o.material)) origColors.push([o.material, o.material.color.clone()]); });
   const turretRest = M60 ? { y: model.turret.position.y, rz: model.turret.rotation.z, rx: model.turret.rotation.x } : null;
   // ---- the crew, head and shoulders out of their hatches (1980 US armour crewmen: the DH-132 CVC helmet in olive drab

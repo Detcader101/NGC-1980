@@ -15,7 +15,7 @@ import { townItems, farmItems, polesOf, mastOf } from './layout.js';
 import { rng } from './rng.js';
 import { isDrivableCar } from './parked.js';   // ngc/wheeledgame: some garden cars are real, drivable ones
 import { rawH } from '../world.js';
-import { forestTile, scrubTile, treeKind, natureHash, FIR } from './forest.js';   // (scrubTile, treeKind: RENDERKIT nature)
+import { forestTile, scrubTile, treeKind, natureHash, FIR, PINE, BROAD } from './forest.js';   // (scrubTile, treeKind: RENDERKIT nature)
 
 export const CHUNK = 400;
 const LIFT = { tarmac: 0.14, lane: 0.13, street: 0.12, dirt: 0.10 };
@@ -110,7 +110,12 @@ function field(G, it, hf, vh, dyn) {
   });
   if (it.crop === 'pasture') dyn.pastures.push([it.x, it.z, it.yaw, it.w, it.d, it.seed]);
 }
+// RENDERKIT nature (ngc/look-nature): with nature on, village, garden and hedgerow trees are not merged into the chunk; they
+// come back as instances (x y z scale + species) for renderkit/nature.js, scaled so the crown matches the old blob's width
+// (the colliders in world/solid.js keep the item's own size). Set by buildGeo for the build it runs.
+let NAT_TREES = null;
 function tree(g, x, y, z, s, r) {   // a round broadleaf: trunk and a lumpy crown
+  if (NAT_TREES) { const h = natureHash(Math.round(x * 10), Math.round(z * 10)); NAT_TREES.push(x, y, z, s * 1.2, h < 0.2 ? PINE : BROAD); r(); r.pick(LEAF); r.pick(LEAF); return; }   // (the same draws as below: the rest of the build is unchanged)
   g.push(x, y, z, r() * 6); g.cyl(0, -0.3, 0, 0.22 * s, 2.6 * s, 5, TRUNK, 0); g.blob(0, 4.2 * s, 0, 2.4 * s, 2.3 * s, 2.4 * s, r.pick(LEAF), r.pick(LEAF)); g.pop();
 }
 
@@ -218,6 +223,7 @@ export function chunkContent(ci, cj, hf) {
   return { items, roads, discs, x0, z0, x1, z1, forest: forestTile(x0, z0, CHUNK, hf) };
 }
 export function buildGeo(content, hf, opts = {}) {
+  NAT_TREES = opts.nature || opts.natTrees ? [] : null;   // RENDERKIT nature: village / hedgerow trees as instances
   const G = { sN: new Geo(), sF: new Geo(), gN: new Geo(), gF: new Geo(), sD: new Geo() }, vh = visHeight(hf, opts.lat || 4), dyn = { doors: [], chimneys: [], moorings: [], pastures: [], lights: [], masts: [], bld: [] }, wires = [];
   for (const [R, idx] of content.roads) {
     const sorted = [...idx].sort((a, b) => a - b);
@@ -244,13 +250,20 @@ export function buildGeo(content, hf, opts = {}) {
       else G.sF.pyramid(x, y + 1.2 * s, z, 3.2 * s, 3.2 * s, 3.6 * s, c).push(x, y + 1.2 * s, z, 0, Math.PI, 0).pyramid(0, 0, 0, 3.2 * s, 3.2 * s, 0.9 * s, shade(c, 0.6)).pop();
     }
     const scrub = scrubTile(content.x0, content.z0, CHUNK, hf);
-    return { forestTrees: forest.length / 4, forest: new Float32Array(forest), kinds, scrub: new Float32Array(scrub), near: G.sN.build(), far: G.sF.build(), gnear: G.gN.build(), gfar: G.gF.build(), detail: G.sD.build(), wires: new Float32Array(wires), dyn };
+    const vt = natTreesOut();
+    return { ...vt, forestTrees: forest.length / 4, forest: new Float32Array(forest), kinds, scrub: new Float32Array(scrub), near: G.sN.build(), far: G.sF.build(), gnear: G.gN.build(), gfar: G.gF.build(), detail: G.sD.build(), wires: new Float32Array(wires), dyn };
   }
   for (let i = 0; i < forest.length; i += 4) {
     const [x, y, z, s] = forest.slice(i, i + 4), color = col(0x1b6a26);
     G.sN.cyl(x, y - 0.3, z, 1.3 * s, 5 * s, 6, color, 0, 0);
     G.sF.pyramid(x, y - 0.3, z, 2.6 * s, 2.6 * s, 5 * s, color);
   }
-  return { forestTrees: forest.length / 4, near: G.sN.build(), far: G.sF.build(), gnear: G.gN.build(), gfar: G.gF.build(), detail: G.sD.build(), wires: new Float32Array(wires), dyn };
+  const vt = natTreesOut();
+  return { ...vt, forestTrees: forest.length / 4, near: G.sN.build(), far: G.sF.build(), gnear: G.gN.build(), gfar: G.gF.build(), detail: G.sD.build(), wires: new Float32Array(wires), dyn };
+}
+function natTreesOut() {   // the build's village / hedgerow trees: vtrees (x y z s), vkinds (species)
+  if (!NAT_TREES) return {}; const T = NAT_TREES, n = T.length / 5, d = new Float32Array(n * 4), k = new Uint8Array(n);
+  for (let i = 0; i < n; i++) { d.set(T.slice(i * 5, i * 5 + 4), i * 4); k[i] = T[i * 5 + 4]; }
+  NAT_TREES = null; return { vtrees: d, vkinds: k };
 }
 export function buildChunk(ci, cj, hf, opts = {}) { return buildGeo(chunkContent(ci, cj, hf), hf, opts); }

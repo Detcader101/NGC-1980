@@ -9,8 +9,11 @@
 // ?rk=0 turns everything off, ?rk=1 / ?rk=all everything on, ?rk=surface,fx only those.
 // Without the query the saved pause-menu choice (localStorage tz_rk) applies, default on.
 // Materials are built at load, so a change applies after reload. Nothing here touches the DOM.
+/** @typedef {'surface' | 'world' | 'fx' | 'post' | 'ui' | 'figures' | 'sky' | 'light' | 'nature' | 'terrain'} RKArea */
+/** @type {RKArea[]} */
 export const RK_AREAS = ['surface', 'world', 'fx', 'post', 'ui', 'figures', 'sky', 'light', 'nature', 'terrain'];   // (nature: RENDERKIT nature, ngc/depth-nature; terrain: RENDERKIT terrain, ngc/look-terrain)
 
+/** @returns {Set<RKArea>} */
 function read() {
   let q = null, saved = null;
   try { q = new URLSearchParams(location.search).get('rk'); } catch (e) {}
@@ -18,10 +21,14 @@ function read() {
   const v = (q ?? saved ?? 'all').trim().toLowerCase();
   if (v === '0' || v === 'off' || v === 'none') return new Set();
   if (v === '1' || v === 'on' || v === 'all' || v === '') return new Set(RK_AREAS);
-  return new Set(v.split(',').map(s => s.trim()).filter(s => RK_AREAS.includes(s)));
+  return new Set(v.split(',').map(s => s.trim()).filter(/** @returns {s is RKArea} */ s => RK_AREAS.includes(/** @type {RKArea} */ (s))));
 }
 
 const on = read();
+/**
+ * The adoption switch every RenderKit hook asks: RK.on('nature'). A misspelt area is a type error.
+ * @type {{ on: (area: RKArea) => boolean, readonly any: boolean, readonly label: string, save: (all: boolean) => void }}
+ */
 export const RK = {
   on: area => on.has(area),
   get any() { return on.size > 0; },

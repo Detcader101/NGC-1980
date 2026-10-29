@@ -1,5 +1,100 @@
 # MODLOG — NGC-1980 (formerly Thrust/Zarch)
 
+## 2026-10-29 — VR: deck crew no longer corrupts the eye cameras (branch ngc/xr-fix)
+
+xr.mjs was 17/19 on ngc/shader-library (sky dome and near terrain window "not following the eye"). Cause: the deck
+crew's render hook (`units/naval/deckcrew.js`, look-people b70d756) called `camera.getWorldPosition()` on the XR eye
+camera, which has no parent, so three re-derived its matrixWorld from the local head pose mid-render. In a headset,
+later draws in that eye pass could pick up a view at the tracking origin. Now it reads `matrixWorld` without updating it.
+Findings: docs/ngc1980/findings/xr-fix.md.
+
+## 2026-10-28 — Render performance: desktop benchmark, budgets, LODs, merges (branch ngc/perf-render)
+
+A one-click **desktop benchmark** (`?bench`, the new NGC-1980 BENCHMARK shortcut) tours 8 seeded views (on foot at the
+HQ, Huey at 30 / 200 m, Hornet at 1200 m, carrier deck, village, forest edge, busiest fight). Per view it records the
+uncapped frame cost, GPU time, CPU split, draws and triangles of every pass, and a who-draws census. It then reloads once
+per RenderKit area switched off to give a per-area cost table. The report goes to `tools/runs/bench-<run>/report.html`.
+
+Fixes, measured with scripted-camera A/B in the same seed:
+- **One MSAA:** with the post on, the canvas was multisampled under a post pipeline that already renders in 4x MSAA.
+  VR keeps its 4x layer.
+- **Static-part merge** (`renderkit/merge.js`) for the landing hards, tanks, M113, trucks, jeeps, Hornet, CH-46,
+  MV-22, wasps and RUNAWAY walkers. Every hook stays. A watchdog splits out any part that turns out to move.
+- **Deck crew** are now culled and fade out by 600 m. They had been drawn everywhere on the map.
+- **Tank track links** are now frustum culled.
+- **Far shadow cascade** is capped at 24 Hz.
+
+Draws per frame fell by 11-53 % across 9 views (on foot at the HQ 533 → 472, landing hard 793 → 538, M60 771 → 514,
+deck 1203 → 953, 200 m over the home island 573 → 363, jet 612 → 288), with no visible change in the side-by-sides
+(`docs/ngc1980/evidence/perf-render/`). New `renderkit/lod.js` gives authored LODs and small-part dissolves with
+complementary screen-door cross-fades: no popping, no holes (`tools/scenes/perflod.mjs`). It also adds an XR distance
+bias. `docs/ngc1980/PERF-BUDGETS.md` sets frame and per-model budgets, checked by `tools/scenes/perfbudget.mjs`.
+Findings, the census and what the look agents should do with it: `docs/ngc1980/findings/perf-render.md`.
+
+
+## 2026-10-28 — look-nature: leaf-card trees, village trees on the species, foot.mjs with nature on
+
+Tree crowns were clusters of faceted icosahedra. On `ngc/look-nature` they are clustered leaf cards over a small dark
+hull, using a generated leaf atlas (broadleaf, pine tufts, fir sprays), with alpha-to-coverage edges, sphere normals,
+translucency toward the sun and leafy shadows. The fir is star skirts fringed with drooping branch sprays. Village,
+garden and hedgerow trees, which were the old trunk-and-blob merged into the world mesh, are now instances of the same
+species. Grass tufts have 10 blades, not 13.
+
+The nature sets were drawn without frustum culling and refilled with the whole ring round the eye. They now refill
+within the view cone, and the forest refill is spread over frames (2 ms a frame, one commit). At the home island HQ
+this takes rendered triangles from 1378 k to 566 k. foot.mjs failed 3/14 with nature on because the extra draw
+stretched its game-time waits; it passed 12/12 after the cone. Under heavy machine load from other agents it can still
+time out (see [findings](docs/ngc1980/findings/look-nature.md)). Before/after side-by-sides for the HQ, single trees,
+the forest edge, a village, the Huey at 30 / 200 m and the jet at 1200 m are in
+`docs/ngc1980/evidence/look-nature/` (`tools/scenes/looknature.mjs`).
+## 2026-10-28 — TypeScript type checking, phase 1 (no build step)
+
+`node tools/check.mjs types` runs TypeScript 6.0.3 over all 269 game modules as they are: JSDoc + `checkJs`, three
+r170 types, not strict. The browser still loads the same `.js` files and nothing about the game changed. The check
+fails only when the error count rises above `tools/typecheck-baseline.json`, so branches keep merging while the count
+comes down: 761 raw, **608** after declaring the `window` hooks and typing the core. The craft host, the war state, the
+RenderKit adoption switch and the `?debug` bridge are now typed, so a misspelt `war.member`, a wrong `crafts.*` call or
+`RK.on('natur')` is an error. It found two real bugs, both left for their owners: the RW NEEDLES ammo shows the medical
+catheter icon (a duplicate icon key), and the `sfx.ui` / `refuel` / `hit` sounds that 20 calls ask for were never
+written. Plan for real `.ts` files after the look pass: [TYPESCRIPT.md](docs/ngc1980/TYPESCRIPT.md); findings:
+[typecheck.md](docs/ngc1980/findings/typecheck.md).
+## 2026-10-28 — main-thread CPU and garbage (ngc/perf-cpu)
+
+Add `?perfhud` to the URL to see the main-thread CPU per system on screen. It shows the player, the war (ships, air,
+guns and AA, ground, AI and deck, structures), fish, world, nature, vehicles, HUD, light, render and markers, with the
+mean and the worst frame each second. The garbage the sims made every game second dropped to a third or less in a
+paired run: the war view went from 50 to 30 MB, the village from 153 to 35 MB and the Huey cruise from 84 to 25 MB.
+GC time per frame fell by half to two thirds.
+
+The causes were:
+- the AA brains re-walked their whole models every step;
+- Math.hypot allocated on every call; the new `game/js/hypot.js` gives bit-identical results without allocating;
+- destructured arrays, temporary objects and closures in the deck, gear and sea-motion queries;
+- every AI Sea Knight built thirteen full Marines at spawn;
+- a parked truck on HOME ISLAND never slept and ran the full vehicle sim every frame;
+- the fish sim boxed its sea-bed cache keys and kept re-optimising.
+
+Seeded headless wars give the same records as before, at a third less wall time. That needed one harness fix: three.js
+drew its object UUIDs from the war's seeded random, so any model change reshuffled a seed's war. `tools/warprof.mjs`,
+`tools/simdiff.mjs` and `tools/scenes/cpuprofile.mjs` profile and compare runs. Findings, worker proposal and
+hotspots for other owners: [perf-cpu.md](docs/ngc1980/findings/perf-cpu.md).
+## 2026-10-28 — look-people: real people instead of blocks
+
+Every person in NGC-1980 is now one continuous, smooth, skinned body built from signed-distance anatomy
+(`units/infantry/sdfmesh.js`, `humanfig.js`). This covers the Marines, the player's own body and first-person hands,
+the Huey / CH-46 / Hornet / Tomcat crews, the ALBATROSS deck crew, the ship's crews, townsfolk and the distant crowd
+stand-ins. The bodies stay on the existing 17-bone rig and animations, so seats, ladder, swim, drag / carry, buddy
+aid, hitboxes and XR all keep working. Faces have eyelids, ring irises and a proper jaw. 1980 utilities have folds and
+ERDL camouflage computed per pixel. The M1 helmet is resized to its reference shell. Flight suits come with SPH-4 or
+HGU-33 (visor and mask), deck crew wear role-coloured jerseys, float coats and cranials, and townsfolk are in shirts
+and jeans. The right thumb now wraps the pistol grip. The M60, M203, LAW and M1911 are rebuilt.
+
+Geometry is shared per variant and LOD (about 25 KB per extra soldier). The deck crew and townsfolk are single
+instanced draws with shader-swung limbs, and LODs keep crowds affordable. Dimensions are cited from public manuals
+and anthropometry (`docs/ngc1980/reference/people/SOURCES.md`). Evidence: `docs/ngc1980/evidence/look-people/`.
+Findings: `docs/ngc1980/findings/look-people.md`. Regressions match the 36eb21b baseline; underwater passes again
+after the crowd LODs. `?figparts=1` shows the previous people, and `?rk=0` the classic game.
+
 ## 2026-10-26 — Continuum reusable shader and UI library
 
 Added an opt-in Three r170/WebGL2 library on `ngc/shader-library`: physical surface presets and

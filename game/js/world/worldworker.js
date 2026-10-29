@@ -8,7 +8,7 @@ onmessage = ({ data: q }) => {
   const t0 = performance.now();
   const c = buildChunk(q.ci, q.cj, islandH, { nature: !!q.nature });   // RENDERKIT nature: trees come back as instances
   const bufs = [c.wires.buffer];
-  for (const k of ['forest', 'kinds', 'scrub']) if (c[k]) bufs.push(c[k].buffer);
+  for (const k of ['forest', 'kinds', 'scrub', 'vtrees', 'vkinds']) if (c[k]) bufs.push(c[k].buffer);
   for (const k of ['near', 'far', 'gnear', 'gfar', 'detail']) { bufs.push(c[k].pos.buffer, c[k].nrm.buffer, c[k].col.buffer); if (c[k].srf) bufs.push(c[k].srf.buffer); }   // (srf: RENDERKIT materials)
   postMessage({ id: q.id, ci: q.ci, cj: q.cj, ...c, ms: performance.now() - t0 }, bufs);
 };

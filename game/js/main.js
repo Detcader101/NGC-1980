@@ -11,7 +11,7 @@ import { createMarkerLayer, mapBar } from './ui/markerlayer.js';   // UNIT MARKE
 import { hpOf } from './ui/unitmarkers.js';
 import { CARRIER } from './ships.js';
 import { createFog, FOG_GLSL, fogPatch } from './fog.js';
-import { RK } from './renderkit/adopt.js';
+import { RK, RK_AREAS } from './renderkit/adopt.js';
 import { useSceneEnvironment, RKS as RK_SURF } from './renderkit/gamemats.js';   // RENDERKIT surface: shared unit materials (scene environment hand-over)
 import { padGLSL, shaftRingGLSL, bindXR as bindDetailXR, applyWorldDetail } from './renderkit/detail.js';   // RENDERKIT materials (ngc/depth-materials)
 import { createGamePost, postQuality } from './renderkit/gamepost.js';   // RENDERKIT post: desktop AO, bloom, filmic grade (never in XR)
@@ -35,6 +35,8 @@ import { createFx } from './fx.js';
 import { createControls } from './hotas.js';
 import { createXR } from './xr/runtime.js';
 import { createXRBench } from './xr/bench.js';   // ?xrbench: the one-click in-headset VR benchmark
+import { createDesktopBench } from './perf/bench.js';   // ?bench: the one-click desktop benchmark (ngc/perf-render)
+import { mergeStatic, MERGES, watchMerges } from './renderkit/merge.js'; import { updateLODs, LOD as RKLOD } from './renderkit/lod.js';   // ngc/perf-render: static-part merge, LOD / detail fades
 import { createJetPlay } from './jetplay.js';
 import { createDrop } from './drop.js';
 import { createHelm } from './helm.js';
@@ -74,6 +76,8 @@ import { createSight } from './units/armor/armorsight.js';
 import { createArmorDelivery } from './units/armor/armordelivery.js';
 import { planHards, hardsH, onHard } from './units/armor/landinghard.js';
 import { buildHardMesh } from './units/armor/lcm8.js';
+import { createPerfHud } from './perfhud.js';   // (ngc/perf-cpu) ?perfhud: CPU ms per system
+import { hypot2 } from './hypot.js';   // (ngc/perf-cpu) Math.hypot without the garbage, same bits (the ground height functions)
 
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -87,7 +91,7 @@ const sfx = new Sfx();
 const keys = new Set();
 // flight controls: HOTAS, rudder pedals and gamepads with per-device bindings (hotas.js); J in the jet opens the panel
 const CTL = createControls({ say: (t, s) => say(t, s) });
-let XR = null, XRB = null;   // XRB: ?xrbench (xr/bench.js)
+let XR = null, XRB = null, DB = null;   // XRB: ?xrbench (xr/bench.js); DB: ?bench (perf/bench.js)
 let chaseCam = params.has('chase'), cockpitCam = params.has('cockpit'), bigMap = false;
 const _cf = { x: 0, z: -1 };
 let keyboardOnly = params.has('kb');
@@ -250,13 +254,21 @@ addEventListener('mousemove', e => {
 });
 addEventListener('mousedown', e => { if (e.button === 1 && document.pointerLockElement === canvas) { head.yaw = head.pitch = 0; e.preventDefault(); } });
 addEventListener('wheel', e => { if (G.craft === 'jet' && cockpitCam) JP.zoom = clamp(JP.zoom + (e.deltaY < 0 ? 0.25 : -0.25), 0, 1); else if (G.craft === 'tomcat' && cockpitCam) tomcatC.zoom(e.deltaY < 0 ? 0.25 : -0.25); }, { passive: true });
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+// ngc/perf-render: one MSAA, not two. With the RENDERKIT post on, the world and the arms are drawn into the post's own
+// 4x MSAA targets and only a full-screen composite reaches the canvas, so a multisampled canvas was pure cost (4x the
+// backbuffer memory and a resolve every frame). The canvas is then created without it, and its context reports
+// antialias: true to Three's WebXRManager (read once, in the renderer's constructor) so VR still asks for a 4x MSAA layer /
+// target exactly as before. Post off (?rk=0, ?rkpost=off): the canvas keeps its own MSAA as before. ?canvasaa=1 forces it.
+const POST_ON = RK.on('post') && postQuality() !== 'off', CANVAS_AA = !POST_ON || params.get('canvasaa') === '1';
+const glCtx = /** @type {any} */ (/** @type {HTMLCanvasElement} */ (canvas).getContext('webgl2', { alpha: false, depth: true, stencil: false, antialias: CANVAS_AA, premultipliedAlpha: true, preserveDrawingBuffer: false, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: false }));
+if (glCtx && !CANVAS_AA) { const real = glCtx.getContextAttributes.bind(glCtx); glCtx.getContextAttributes = () => { const a = real(); return a && { ...a, antialias: true }; }; glCtx.__canvasAA = false; }
+const renderer = new THREE.WebGLRenderer({ canvas, context: glCtx || undefined, antialias: true, powerPreference: 'high-performance' });
 const PR_MAX = params.has('res') ? +params.get('res') : Math.min(devicePixelRatio, 1.5);
 let pixRatio = PR_MAX; renderer.setPixelRatio(pixRatio);
 // RENDERKIT post: toneMapping stays NoToneMapping (the game's look, display-referred; see renderkit/gamepost.js).
 // The post targets follow the drawing buffer each frame, so dynamic resolution needs nothing extra.
 // ?rkpost=low|medium|high picks the tier (renderkit/gamepost.js POST_TIERS), ?rkpost=off leaves the post out.
-const rkPost = RK.on('post') && postQuality() !== 'off' ? createGamePost(renderer, { reducedMotion: () => !!fx?.reducedMotion }) : null;
+const rkPost = POST_ON ? createGamePost(renderer, { reducedMotion: () => !!fx?.reducedMotion }) : null;
 {
   const gl = renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info');
   $('gpuinfo').textContent = 'GPU: ' + (ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : 'unknown');
@@ -337,6 +349,7 @@ const SLIDERS = {
   sea: { min: 0, max: 7, nudge: 1, get: () => SEA_PREF.ss, set: v => setSeaPref(v), show: v => `${v}  ${war ? war.sea.name : ''}${SEA_PREF.drift && war ? `  (NOW ${war.sea.ss.toFixed(1)})` : ''}`, small: `SWELL, WHITECAPS AND HOW THE SHIPS PITCH AND ROLL  ·  0 GLASSY ... 7 HIGH  ·  DEFAULT ${4}` },
 };
 function addScore(n) { G.score += n; if (G.score > G.hi) { G.hi = G.score; try { localStorage.setItem('tz_hi', G.hi); } catch (e) {} } }
+/** @type {import('./war.js').War} */
 let war = null;   // the island war (created once the world exists)
 let SIM = null;   // SIM MODE (?sim): CPU vs CPU, you watch (sim/spectator.js)
 let markerFP = '';   // UNIT MARKERS: the first-person view this frame ('' outside; see markerView)
@@ -356,11 +369,11 @@ const HOME_B = BASES[0], PAD_H = HOME_B.h;
 const PADS = ISLANDS.map(I => I.pad = I.cave ? { x: I.x, z: I.z + 30, h: I.base.h, r0: 12, r1: 34, r: PAD_R, isl: I } : { x: I.x, z: I.z, h: clamp(Math.round(islandH(I.x, I.z)), 3, 14), r0: 30, r1: 52, r: PAD_R, isl: I });
 const PAD = HOME_B.isl.pad;   // the home refuel pad
 const RES_MAX = 600;          // the fleet's fuel stores
-const stripW = (x, z, b) => smooth(0, 14, Math.hypot(Math.max(Math.abs(x - b.x) - STRIP_X, 0), Math.max(Math.abs(z - b.z) - STRIP_Z, 0)));
+const stripW = (x, z, b) => smooth(0, 14, hypot2(Math.max(Math.abs(x - b.x) - STRIP_X, 0), Math.max(Math.abs(z - b.z) - STRIP_Z, 0)));
 const terrainH0 = (x, z) => {   // (ARMOUR: terrainH below is this plus the landing hards)
   let h = islandH(x, z);
-  for (const b of BASES) h = lerp(b.h, h, smooth(BASE_R, 60, Math.hypot(x - b.x, z - b.z)));   // flat apron round the shaft
-  for (const p of PADS) { const d = Math.hypot(x - p.x, z - p.z); if (d < p.r1) h = lerp(p.h, h, smooth(p.r0, p.r1, d)); }   // flat pads
+  for (const b of BASES) h = lerp(b.h, h, smooth(BASE_R, 60, hypot2(x - b.x, z - b.z)));   // flat apron round the shaft
+  for (const p of PADS) { const d = hypot2(x - p.x, z - p.z); if (d < p.r1) h = lerp(p.h, h, smooth(p.r0, p.r1, d)); }   // flat pads
   for (const b of BASES) h = lerp(Math.max(h, b.h), h, stripW(x, z, b));                      // ground over the cave
   return h;
 };
@@ -371,7 +384,7 @@ const HARDS = planHards(ISLANDS, terrainH0, {
   keepOut: I => { if (I.name !== 'IRONHOLD') return []; const a = Math.atan2(-I.z, -I.x); for (let r = 20; r < I.r + 60; r += 2) { const x = I.x + Math.cos(a) * r, z = I.z + Math.sin(a) * r; if (terrainH0(x, z) < 2.5) return [{ x, z, r: 40 }]; } return []; },   // the RUNAWAY shipyard (war.js coastPoint)
 });
 const terrainH = (x, z) => hardsH(HARDS, x, z, terrainH0(x, z));
-const holeOf = (x, z) => BASES.find(b => Math.hypot(x - b.x, z - b.z) < HOLE_R);
+const holeOf = (x, z) => { for (const b of BASES) if (hypot2(x - b.x, z - b.z) < HOLE_R) return b; return undefined; };   // (ngc/perf-cpu: a loop, no closure per ground query)
 const inHole = (x, z) => !!holeOf(x, z);
 const groundY = (x, z) => inHole(x, z) ? -1e4 : Math.max(terrainH(x, z), 0, war ? war.deckY(x, z) : -1e9);   // ship decks count as ground
 const isWater = (x, z) => terrainH(x, z) <= 0;
@@ -886,10 +899,15 @@ const NAT = RKN ? (() => {
     // the forest and clutter sets follow the camera that RENDERS (hooked on terrain.onBeforeRender below): scripted test
     // cameras and XR eyes, not just zCam as the game loop left it
     place(cam) { natEye.position.setFromMatrixPosition(cam.matrixWorld); natEye.far = cam.far; natEye.seen = true;   // (applied in update(): never change buffers mid-render)
+      // ngc/look-nature: the view cone (forward + tangent of the half-diagonal field of view). The sets hold only what can be
+      // seen or can shade what is seen; before, every set was the whole ring round the eye, half of it behind the player
+      const M = cam.matrixWorld.elements, P = cam.projectionMatrix.elements;
+      natEye.dir.set(-M[8], -M[9], -M[10]).normalize();
+      natEye.tanD = Math.hypot((1 + Math.abs(P[8])) / Math.abs(P[0] || 1), (1 + Math.abs(P[9])) / Math.abs(P[5] || 1));   // (off-axis XR eyes: widened by the skew)
     },
   };
   if (params.has('debug')) window.__nature = N;
-  const natEye = { position: new THREE.Vector3(), far: 0, seen: false }, terrainOBR = terrain.onBeforeRender;
+  const natEye = { position: new THREE.Vector3(), dir: new THREE.Vector3(0, 0, -1), tanD: 0, far: 0, seen: false }, terrainOBR = terrain.onBeforeRender;
   terrain.onBeforeRender = (r, s, cam) => { terrainOBR(r, s, cam); if (cam.isPerspectiveCamera) N.place(cam); };   // (terrain always renders, once per eye; not for a shadow map)
   return N;
 })() : null;
@@ -930,7 +948,7 @@ const OUTCROPS = rkTer ? (() => {
 {   // ARMOUR: the landing hards' concrete, kerbs, marker posts and signs (under the fog of war like the rest of the zone)
   const fp = (m, cls) => cls === undefined ? fogPatch(m, fog, terrainUni.uTime) : applyWorldDetail(fogPatch(m, fog, terrainUni.uTime), { defCls: cls });   // RENDERKIT materials: detail after the fog patch (no-op with ?rk=0)
   const mats = { concrete: fp(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide }), 2), post: fp(new THREE.MeshLambertMaterial({ color: 0x8c8a84, flatShading: true }), 2), red: fp(new THREE.MeshLambertMaterial({ color: RK_SURF ? 0x9a2c22 : 0xb02a20, flatShading: true }), 5), white: fp(new THREE.MeshLambertMaterial({ color: RK_SURF ? 0xd6d4cc : 0xe8e8e0, flatShading: true }), 5), green: fp(new THREE.MeshLambertMaterial({ color: RK_SURF ? 0x34653a : 0x2f7a3a, flatShading: true }), 5), sign: t => fp(new THREE.MeshLambertMaterial({ map: t, side: THREE.DoubleSide })) };
-  for (const h of HARDS) zScene.add(buildHardMesh(h, mats));
+  for (const h of HARDS) { const g = buildHardMesh(h, mats); zScene.add(g); mergeStatic(g); }   // ngc/perf-render: 33 draws -> 6 (all static)
 }
 // base
 const baseGroup = new THREE.Group(); baseGroup.position.set(HOME_B.x, PAD_H, HOME_B.z); zScene.add(baseGroup);
@@ -1515,8 +1533,9 @@ const heliC = crafts.register({
     if (!Z.alive || G.heliStowed) return null;
     const y = yawOfQ(H.q), c = Math.cos(y), s = Math.sin(y), y0 = H.pos.y + HELI.SKID_Y;
     heliC._b ||= [{}, {}];
-    Object.assign(heliC._b[0], { x: H.pos.x + 0.3 * s, z: H.pos.z + 0.3 * c, yaw: y, hl: 2.7, hw: 1.35, y0, y1: y0 + 3.2, def: heliC });
-    Object.assign(heliC._b[1], { x: H.pos.x + 6.2 * s, z: H.pos.z + 6.2 * c, yaw: y, hl: 3.4, hw: 0.45, y0: y0 + 1.1, y1: y0 + 4, def: heliC });
+    const b0 = heliC._b[0], b1 = heliC._b[1];   // (ngc/perf-cpu: field writes, no two literals per collision query)
+    b0.x = H.pos.x + 0.3 * s; b0.z = H.pos.z + 0.3 * c; b0.yaw = y; b0.hl = 2.7; b0.hw = 1.35; b0.y0 = y0; b0.y1 = y0 + 3.2; b0.def = heliC;
+    b1.x = H.pos.x + 6.2 * s; b1.z = H.pos.z + 6.2 * c; b1.yaw = y; b1.hl = 3.4; b1.hw = 0.45; b1.y0 = y0 + 1.1; b1.y1 = y0 + 4; b1.def = heliC;
     return heliC._b;
   },
   pl: {
@@ -2569,7 +2588,7 @@ function resize() {
 // when there is headroom. Hysteresis + a cooldown keep it from hunting. Off with ?res=N (fixed ratio N).
 const dynRes = { ms: 16.7, cool: 0 };
 function updateDynRes(frameMs) {
-  if (XR?.active || params.has('res') || frameMs > 250) return;
+  if (XR?.active || params.has('res') || frameMs > 250 || DB?.active) return;   // (?bench holds the start ratio)
   dynRes.ms += (frameMs - dynRes.ms) * 0.05; dynRes.cool -= frameMs;
   if (dynRes.cool > 0) return;
   let pr = pixRatio;
@@ -2746,7 +2765,9 @@ function updateCamsAndMeshes(dt, time) {
 let last = performance.now(), fpsAcc = 0, fpsN = 0, fogT = 0;
 function frame(now, xrFrame) {
   const now0 = performance.now();
+  PF?.begin();   // (ngc/perf-cpu) ?perfhud: each PF?.lap(name) below charges the time since the last one to name
   XRB?.frameStart();   // ?xrbench: GPU timer, per-frame renderer counters, its hover hold
+  DB?.frameStart();   // ?bench: the same on the desktop
   updateDynRes(now - last);
   // the sims substep, so they keep real time down to 10 fps. Never zero or negative: two frames with the same (or an
   // earlier) timestamp gave dt = 0 and the flight models divide by their step (NaN everywhere, seen in headless runs)
@@ -2757,35 +2778,53 @@ function frame(now, xrFrame) {
   const inp = readInput();
   if (inp.start && !padWasStart) { sfx.init(); if (G.state === 'paused') menuPick(); else pressStart(); }
   padWasStart = inp.start;
+  PF?.lap('input');
   if (G.state !== 'paused') war.tickSea(dt);   // SEAWORLD: the sea's clock and the weather (the title screen too)
   if (G.msgT > 0) { G.msgT -= dt; if (G.msgT <= 0 && G.state !== 'paused') say(''); }
   if (G.state === 'play') {
+    PF?.lap('sea');
     if (G.mode === 'zarch') updateZarch(dt, inp); else updateThrust(dt, inp);
+    PF?.lap('player');
     if (SIM) SIM.step(dt, params.has('peace')); else war.update(dt, PL, params.has('peace'));   // SIM MODE: the CPU commanders' war (time x 1 / 4 / 16)
+    PF?.lap('war');
     if (G.mode === 'zarch') { crafts.afterWar(); seats.afterWar(dt); }   // FOUNDATION: decks moved - the soldier, vehicles, parked jets catch up (ngc/interiors: the troops in their seats)
     fogT -= dt; if (fogT <= 0) { fogT = 0.25; fog.update(war.visionSources(PL)); war.setVisibility(fog); updateFogImg(); }
+    PF?.lap('afterwar+fog');
   } else if (G.state === 'trans') {
     const tr = G.tr; tr.t += dt; const D = 0.8;
     if (tr.phase === 0) { $('fade').style.opacity = Math.min(1, tr.t / D); if (tr.t >= D) { tr.swap(); tr.phase = 1; tr.t = 0; } }
     else { $('fade').style.opacity = Math.max(0, 1 - tr.t / D); if (tr.t >= D) { G.state = 'play'; $('fade').style.opacity = 0; $('fadeText').textContent = ''; } }
   }
+  PF?.lap('ui/trans');
   fx.update(RK.on('fx') && G.state === 'paused' ? 0 : dt);   // RENDERKIT fx: one simulation clock, frozen on pause (?rk=0: as before)
   rkPost?.tick(G.state === 'paused' ? 0 : dt);   // RENDERKIT post
+  PF?.lap('fx');
   sealife.update(G.state === 'paused' ? 0 : dt);   // SEALIFE
+  PF?.lap('sealife');
   const t1 = performance.now();
   updateCamsAndMeshes(dt, now / 1000);
+  PF?.lap('cams+meshes');
   world.update(dt, zCam, G.state === 'play');   // WORLD: stream the lived-in world round the camera, ambient life
+  PF?.lap('world');
   NAT?.update(dt, zCam, G.state === 'play');   // RENDERKIT nature: wind clock (game time), trees and clutter round the camera
+  PF?.lap('nature');
   rkTer?.update(!!XR?.active); OUTCROPS?.update();   // RENDERKIT terrain: builds the ground layers over the first frames (XR runs the low tier); the rock outcrops round the eye
+  PF?.lap('terrain');
   commander.update(dt, G.state !== 'title');   // COMMANDER: the fleet strip under the score, the open board's statuses
   techUI.update(dt);   // TECH TREE: the open RESEARCH page refreshes ~4x a second
+  PF?.lap('ui/trans');
   pool.update(dt, G.state === 'play' && G.mode === 'zarch'); if (motorPick > 0) motorPick -= dt;   // ngc/wheeledgame: parked / town / traffic vehicles, MG rounds, engine sound
+  PF?.lap('vehicles');
   updateHud();
   { const hide = drop.flying || helm.active ? 'none' : ''; setStyle('bot', 'display', hide); setStyle('caution', 'display', hide); }
+  PF?.lap('hud');
   const t2 = performance.now();
   fx.setView(zCam, renderer.domElement.height, atmo && !sealife.under ? atmo.fxFog(zScene.fog) : zScene.fog);   // RENDERKIT sky: CPU particles fade where the haze has built up
   if (G.mode === 'zarch') interiors.update(G.state === 'paused' ? 0 : dt, zCam);   // ngc/interiors: doors swing, rooms near the camera, the carrier's inside
+  PF?.lap('interiors');
   rkLight?.update(dt, zCam);   // RENDERKIT light: cascades follow the eye, cast / receive rules for new objects
+  RKLOD.setBias(renderer.xr.isPresenting ? 0.7 : 1); updateLODs(zCam); watchMerges(zCam);   // ngc/perf-render: LOD levels and small-part fades on / off by distance
+  PF?.lap('light');
   const drawDesktop = () => {
     const a = G.craft !== 'heli' && G.state !== 'title' ? crafts.active : null;
     // RENDERKIT fx: a craft's own picture (the tank's TTS thermal sight) swaps every visible mesh to a heat material;
@@ -2805,13 +2844,19 @@ function frame(now, xrFrame) {
     if (ov && !ovDone) ov();
   };
   if (!XR?.render(drawDesktop)) drawDesktop();
+  PF?.lap('render');
   markers.draw(zCam, markerView());   // UNIT MARKERS: icons + health bars, one 2D layer over the frame
+  PF?.lap('markers');
   const t3 = performance.now(), pk = 0.05;   // smoothed per-frame CPU cost: sim, scene/HUD prep, render submit
+  PF?.end(t3 - now0, rdt * 1000);
   if (window.__xrlog && XR?.active && (XR.state.frames < 40 || XR.state.frames % 60 === 0)) window.__xrlog(`XRFRAME ${XR.state.frames} dt ${(now - now0 < 0 ? 0 : rdt * 1000).toFixed(0)}ms sim ${(t1 - now0).toFixed(0)} prep ${(t2 - t1).toFixed(0)} render ${(t3 - t2).toFixed(0)} calls ${XR.state.calls} tris ${XR.state.triangles} flat ${XR.state.flat} track ${XR.state.tracking} vis ${document.visibilityState} state ${G.state} ${XR.state.error}`);
   XRB?.frameEnd(now, now0, t1, t2, t3, xrFrame);
+  DB?.frameEnd(now, now0, t1, t2, t3);
   PROF.sim += ((t1 - now0) - PROF.sim) * pk; PROF.prep += ((t2 - t1) - PROF.prep) * pk; PROF.render += ((t3 - t2) - PROF.render) * pk;
 }
 const PROF = { sim: 0, prep: 0, render: 0 };
+const PF = params.has('perfhud') ? createPerfHud() : null;   // (ngc/perf-cpu) ?perfhud
+if (PF) war.lap = PF.lap;   // the war splits its own update (war.js W.update)
 // UNIT MARKERS (ngc/healthbars): what the marker layer needs from the view this frame. Hidden on the title, in the cave,
 // under the command map and the full-screen pages; the craft you are in gets its own marker in the outside views.
 const MARKER_PANEL = { heli: 0.57, jet: 0.5, drop: 0.62, vehicle: 0.72 };   // first person: the instrument panel's top edge (fraction of the screen height); armour: none (vision blocks, see markerView)
@@ -2861,9 +2906,17 @@ if (params.has('xrbench')) XRB = createXRBench({ XR, renderer, scene: zScene, G,
   getInOut, toHeli, stowCrafts, resetZarch, launchJet, openMenu, closeMenu, cockpitCam: () => cockpitCam,
   overlay: cam => { if (G.craft === 'foot' && G.state !== 'title' && G.mode === 'zarch' && !XR.blocked) foot.overlay(renderer, cam); },
   armourSpot: () => { const hh = HARDS.find(h => h.I === HOME_B.isl), hp = hh && hh.at(hh.u1 - 5); return hp ? { x: hp[0], z: hp[1], yaw: hh.yaw } : GR.motorPool(HOME_B.isl, 4.6); } });
+// ?bench: the desktop benchmark tour, then one reload per RenderKit area off (perf/bench.js)
+if (params.has('bench') && !params.has('xrbench')) DB = createDesktopBench({ renderer, scene: zScene, THREE, G, war, params, RK_AREAS, rkAll: RK_AREAS.every(a => RK.on(a)), H, HI, JP, HELI, crafts, foot, commander, world, rkLight, rkPost,
+  HOME_B, ISLANDS, groundY, getInOut, toHeli, stowCrafts, resetZarch, launchJet, newGame, openMenu, closeMenu, nature: NAT,
+  setView: v => { cockpitCam = v === 'cockpit'; chaseCam = v === 'chase'; if (crafts.active === foot && marine) marine.view = v === 'cockpit' ? 'first' : marine.view; } });
 buildCaves(); war.reset(); resetZarch(true); placeVehicles(); updateFogImg(); terrainStream(Z.pos.x, Z.pos.z);
 renderer.setAnimationLoop(frame);
-if (params.has('debug')) { window.__G = { XR, G, airlift, airdrop, ch46C, heliAIenv, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, get forest() { return { count: world.stats.forestTrees || 0 }; }, world, terrainUni, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, rkPost /* RENDERKIT post */, rkLight /* RENDERKIT light */, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, get tech() { return war.tech; }, techUI /* TECH TREE: tech = [null, player, enemy] */, say, feed /* RENDERKIT ui: tools/scenes/rkui.mjs */ }; if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); H.reset(H.pos.clone(), 0, false, 1); SY.grip = 1; SY.auto = null; enterCave(b); }   /* (ngc/bugsweep) ?thrust=N starts in the cave already flying: engine at flight power, throttle rolled on (it came in at ground idle with the throttle rolling on, the rotor drooped and caveaim / caves crashed in the shaft) */ }
+// ?debug: the test / debug bridge (window.__G; tools/scenes read it with page.evaluate). DebugBridge is its type, so
+// game/types/globals.d.ts types window.__G and a renamed or removed member shows up in node tools/check.mjs types.
+/** @typedef {ReturnType<typeof debugBridge>} DebugBridge */
+function debugBridge() { return { XR, G, airlift, airdrop, ch46C, heliAIenv, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, get forest() { return { count: world.stats.forestTrees || 0 }; }, world, terrainUni, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, rkPost /* RENDERKIT post */, MERGES, RKLOD /* ngc/perf-render */, rkLight /* RENDERKIT light */, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, get tech() { return war.tech; }, techUI /* TECH TREE: tech = [null, player, enemy] */, say, feed /* RENDERKIT ui: tools/scenes/rkui.mjs */ }; }
+if (params.has('debug')) { window.__G = debugBridge(); if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); H.reset(H.pos.clone(), 0, false, 1); SY.grip = 1; SY.auto = null; enterCave(b); }   /* (ngc/bugsweep) ?thrust=N starts in the cave already flying: engine at flight power, throttle rolled on (it came in at ground idle with the throttle rolling on, the rotor drooped and caveaim / caves crashed in the shaft) */ }
 // ngc/ch46fly dev: ?fly=ch46 puts you in a CH-46E on the ALBATROSS (with ?auto; ?fly=ch46&cold cold and dark; &at=island at the nearest friendly pad)
 if (params.get('fly') === 'ch46') { const t0 = performance.now(), go = () => { if (G.state === 'play' && G.mode === 'zarch' && Z.alive && H.landed) { const isl = commandBases().filter(b => b.kind === 'island').sort((a, b) => Math.hypot(a.x - Z.pos.x, a.z - Z.pos.z) - Math.hypot(b.x - Z.pos.x, b.z - Z.pos.z))[0]; commander.deploy('ch46', params.get('at') === 'island' && isl ? isl.key : 'ship'); return; } if (performance.now() - t0 < 30000) setTimeout(go, 200); }; setTimeout(go, 300); }
 

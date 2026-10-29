@@ -87,7 +87,7 @@ export function createRotary(ctx) {
     const spot = sp ? [sp.lx, sp.lz] : null;
     const deck = () => { const c = carrierOf(side); return c && spot ? deckSpot(c, spot[0], spot[1]) : null; };
     const home = () => deck() || homePad(side);
-    const U = createCH46Unit({ parent: scene, env, world, lz: () => u.lz, home, pad: I.pad, start, modex: 1 + Math.floor(rnd(30)), squad: 13, board: true, deck: spot ? deck : null,   // the stick boards on deck (embark.js)
+    const U = createCH46Unit({ parent: scene, env, world, lz: () => u.lz, home, pad: I.pad, start, modex: 1 + Math.floor(rnd(30)), squad: 13, ear: ctx.ear, board: true, deck: spot ? deck : null,   // the stick boards on deck (embark.js)
       onParked: () => { u.dead = true; u.stowed = true; if (!U.squadExternal) U.squad.dispose(); } });
     u.lz = lz; u.rot = U; u.mesh = U.model.group; U.AI.hooks.fouled = () => fouled(u); crews.push(u);
     // the Marines become a ground unit of their own when they come off the ramp

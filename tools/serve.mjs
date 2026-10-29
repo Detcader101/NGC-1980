@@ -37,7 +37,8 @@ const handler = (req, res) => {
     req.on('end', () => { fs.mkdirSync(path.join(ROOT, 'tools', 'runs'), { recursive: true }); fs.appendFile(path.join(ROOT, 'tools', 'runs', 'client-log.txt'), new Date().toISOString() + ' ' + body.slice(0, 65536) + '\n', () => send(204, '')); });
     return;
   }
-  // ?xrbench reports (loopback only): POST /__bench?run=<id>&name=<file> writes tools/runs/xrbench-<id>/<file>.
+  // ?xrbench reports (loopback only): POST /__bench?run=<id>&name=<file> writes tools/runs/xrbench-<id>/<file>
+  // (?bench, the desktop benchmark, adds &kind=desktop: tools/runs/bench-<id>/<file>).
   // A custom header keeps other web pages out (cross-origin requests with it need a preflight this server never grants).
   if (url === '/__bench' && req.method === 'POST') {
     const a = req.socket.remoteAddress || '';
@@ -45,7 +46,7 @@ const handler = (req, res) => {
     if (req.headers.origin) { let o = ''; try { o = new URL(req.headers.origin).host; } catch {} if (o !== req.headers.host) return send(403, 'forbidden'); }
     const q = new URL(req.url, 'http://x').searchParams, run = q.get('run') || '', name = q.get('name') || '';
     if (!/^[\w-]{1,40}$/.test(run) || !/^[\w-][\w.-]{0,80}\.(png|json|html|txt)$/.test(name) || name.includes('..')) return send(400, 'bad name');
-    const dir = path.join(ROOT, 'tools', 'runs', 'xrbench-' + run), file = path.join(dir, name);
+    const dir = path.join(ROOT, 'tools', 'runs', (q.get('kind') === 'desktop' ? 'bench-' : 'xrbench-') + run), file = path.join(dir, name);   // ?bench (desktop) / ?xrbench
     if (path.dirname(file) !== dir) return send(400, 'bad name');
     const LIMIT = 64 << 20; let size = 0, over = false; const parts = [];
     req.on('data', c => { size += c.length; if (size > LIMIT) { over = true; parts.length = 0; } else parts.push(c); });

@@ -8,6 +8,7 @@ import { buildJetMesh, JET } from './jetmodel.js';
 import { buildJetCockpit, JEYE } from './jetcockpit.js';
 import { createJetDamage, JPARTS } from './jetdamage.js';
 import { createDispenser, RWR } from './units/defence/cm.js';   // ngc/cmpolish: ALE-39 flares / chaff, radar warning picture
+import { mergeUnit } from './renderkit/merge.js';   // ngc/perf-render
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
@@ -25,6 +26,7 @@ export function createJetPlay(ctx) {
   const J = createJetSim(GRAV), D = createJetDamage();
   const model = buildJetMesh(1, 0), cockpit = buildJetCockpit();   // FSD #3, BuNo 160777
   model.group.add(cockpit.group); model.group.visible = false; scene.add(model.group);
+  mergeUnit(model.group, [model, cockpit], { name: 'hornet' });   // ngc/perf-render: static parts one draw per material per rigid frame (every handle kept)
   const shadow = new THREE.Mesh(new THREE.PlaneGeometry(11.4, 17).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: 0.35, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
   shadow.visible = false; scene.add(shadow);
   // the ejected pilot under his parachute

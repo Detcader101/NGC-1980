@@ -5,6 +5,8 @@
 #   NGC-1980 EXPERIMENTAL      the experimental worktree next to it (NGC-1980), port 8766
 #   NGC-1980 SIM MODE          the same experimental server, opened with ?sim (CPU vs CPU war to watch)
 #   NGC-1980 FULL TECH TREE    the same experimental server, opened with ?tech=max (every research node done, both sides)
+#   NGC-1980 BENCHMARK         the same experimental server, opened with ?bench (the desktop benchmark: ~15 min hands off,
+#                              report in tools/runs/bench-<run>/report.html; docs/ngc1980/PERF-BUDGETS.md)
 #     (git worktree add --track -b experimental ../thrust-zarch-experimental origin/experimental)
 # Re-run it after moving the checkouts; it's safe to run again.
 set -euo pipefail
@@ -25,7 +27,8 @@ cat > "$dst/config.json" <<EOF
     "main": { "name": "Thrust Zarch", "root": "$main", "port": 8765, "icon": "thrust-zarch.ico" },
     "experimental": { "name": "NGC-1980 EXPERIMENTAL", "root": "$exp", "port": 8766, "icon": "thrust-zarch-exp.ico" },
     "experimental-sim": { "name": "NGC-1980 SIM MODE", "root": "$exp", "port": 8766, "icon": "thrust-zarch-sim.ico", "query": "sim" },
-    "experimental-tech": { "name": "NGC-1980 FULL TECH TREE", "root": "$exp", "port": 8766, "icon": "thrust-zarch-tech.ico", "query": "tech=max" }
+    "experimental-tech": { "name": "NGC-1980 FULL TECH TREE", "root": "$exp", "port": 8766, "icon": "thrust-zarch-tech.ico", "query": "tech=max" },
+    "experimental-bench": { "name": "NGC-1980 BENCHMARK", "root": "$exp", "port": 8766, "icon": "thrust-zarch-tech.ico", "query": "bench" }
   }
 }
 EOF

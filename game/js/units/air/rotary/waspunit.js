@@ -7,12 +7,13 @@ import { createPilot, stateOf } from './pilot.js';
 import { createWaspAI, WASP_PILOT, waspTiltLimit } from './waspai.js';
 import { buildWaspMesh } from './waspmodel.js';
 import { clamp } from './rb.js';
+import { mergeUnit } from '../../../renderkit/merge.js';   // ngc/perf-render
 
 const _p = new THREE.Vector3(), _d = new THREE.Vector3(), _aim = new THREE.Vector3();
 export function createWaspUnit(o) {
   const S = createWaspSim(), P = createPilot(WASP_PILOT), st = {}, me = {};
   S.reset([o.start.x, o.start.y, o.start.z], o.start.yaw ?? 0, false); S.power = 0.6 * WASP.P_MAX; P.reset(0.6);
-  const model = buildWaspMesh(); o.parent.add(model.group);
+  const model = buildWaspMesh(); o.parent.add(model.group); mergeUnit(model.group, [model], { name: 'wasp' });   // ngc/perf-render: static parts one draw per material per rigid frame (every handle kept)
   const AI = createWaspAI({ id: o.id ?? Math.random(), slot: o.slot ?? 0, slots: o.slots ?? 1, home: o.home });
   const U = { S, P, AI, model, dead: false, cd: Math.random() * 2, burst: 0, firing: 0, target: null };
   const animS = { fan: 0.6, pitch: 0, roll: 0, aim: null, firing: false, gear: 0, alert: 0 };
