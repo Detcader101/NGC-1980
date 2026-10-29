@@ -27,14 +27,17 @@ import { createSling, loadOf, HOOKS, hookCheck, hookExt, downwashAt, LOADS } fro
 import { createSquad } from '../rotary/squad.js';
 import { FIGURES } from '../rotary/figures.js';
 import { createAirliftAudio } from './airliftaudio.js';
+import { TROOP_SEATS, TROOP_CAPACITY, ENTRY_Z } from '../../../hueycabin.js';
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const KT = 1.94384, LB = 0.45359237;
 const HK = HOOKS.uh1h;
-export const TROOPS = { N: 6, KG: 105, COST: 30 };   // a squad of six with their kit (~105 kg a man), materiel to call one up (game)
+// ngc/look-huey: a full cabin - the UH-1H's nine troop places with the crew chief and the gunner aboard (TM 55-1520-210-23
+// seating, hueycabin.js), ~105 kg a man with kit; materiel to call one up (game)
+export const TROOPS = { N: TROOP_CAPACITY, KG: 105, COST: 30 };
 // seats in the Huey's frame (x right, y up, -z forward; FIGURES origin at the feet, 'seated' drops onto a seat):
-// four on the rear troop bench, two in the doorways facing out, legs over the side
-const SEATS = [[-0.82, -1.05, 2.0, 0], [-0.27, -1.05, 2.0, 0], [0.27, -1.05, 2.0, 0], [0.82, -1.05, 2.0, 0], [-1.02, -1.5, 1.2, Math.PI / 2], [1.02, -1.5, 1.2, -Math.PI / 2]];
+// [x, y, z, yaw] from the shared seating table
+const SEATS = TROOP_SEATS.map(T => [T.x, -1.05, T.z, T.yaw]);
 
 export function createAirlift(ctx) {
   const { scene, H, crafts, pool, war, fx, sfx, say, feed, groundY, waterAt, G } = ctx;
@@ -307,12 +310,15 @@ export function createAirlift(ctx) {
     const Q = createSquad({ parent: scene, side: 1, n: TROOPS.N, kind: 'marine', groundY });
     const SK = -1.84;   // skid line, local y
     // the stick: two files of three, kneeling off the nose at 45 deg, clear of the 7.3 m disc
-    const stick = []; for (let i = 0; i < TROOPS.N; i++) { const s = i % 2 ? 1 : -1, k = Math.floor(i / 2); stick.push({ x: s * (6.2 + k * 1.1), y: SK, z: -6.4 - k * 1.2, yaw: s > 0 ? Math.PI * 0.75 : -Math.PI * 0.75, g: true }); }
+    const stick = []; for (let i = 0; i < TROOPS.N; i++) { const s = SEATS[i][0] < 0 ? -1 : 1, k = SEATS.slice(0, i).filter(q => (q[0] < 0 ? -1 : 1) === s).length; stick.push({ x: s * (6.2 + k * 1.1), y: SK, z: -6.4 - k * 1.2, yaw: s > 0 ? Math.PI * 0.75 : -Math.PI * 0.75, g: true }); }
     Q.stick(stick, [], toWorld, heliYaw);
     Q.figs.forEach((F, i) => {
       const seat = SEATS[i], s = seat[0] < 0 ? -1 : 1;
       // in at the side of the seat: bent under the disc to the door, up onto the floor, to the seat
-      F.lpath = [stick[i], { x: s * 2.7, y: SK, z: 0.4, g: true }, { x: s * 2.2, y: SK, z: 1.1, g: true }, { x: s * 1.3, y: -1.08, z: 1.15 }, { x: seat[0] * 0.8, y: -1.07, z: Math.min(1.6, seat[2]) }, { x: seat[0], y: -1.07, z: seat[2] }];
+      const sz = ENTRY_Z, front = seat[2] < -1 ? seat[2] + 0.35 : seat[2] > -0.2 ? seat[2] : seat[2] - 0.32;   // through the doorway, then in front of the seat
+      // in over the sill aft of the pod, forward along the door side (outboard of the well seat), round the bench end
+      const lane = [{ x: s * 1.12, y: -1.07, z: sz - 0.35 }, ...(seat[2] < -0.5 ? [{ x: s * 1.12, y: -1.07, z: -0.98 }] : [])];
+      F.lpath = [stick[i], { x: s * 2.7, y: SK, z: sz + 0.3, g: true }, { x: s * 2.0, y: SK, z: sz, g: true }, { x: s * 1.25, y: -1.08, z: sz }, ...lane, { x: Math.abs(seat[3]) === Math.PI / 2 ? seat[0] * 1.15 : seat[0], y: -1.07, z: front }, { x: seat[0], y: -1.07, z: seat[2] }];
     });
     AL.troops = { Q, st: 'boarding', t: 0, where, aboard: () => Q.figs.filter(F => F.st === 'aboard').length };
     feed(`${where}: A SQUAD OF ${TROOPS.N} MARINES FOR THE HUEY (${TROOPS.COST} MATERIEL)`, 'good');
@@ -330,7 +336,7 @@ export function createAirlift(ctx) {
       G.mat += TROOPS.COST; Q.dispose(); AL.troops = null; feed(`${svc.name}: THE SQUAD IS BACK IN THE BARRACKS`, 'info'); say('SQUAD DISMOUNTED  -  BACK TO THE BARRACKS', 1.6); return;
     }
     // out of both doors: seat -> door sill -> the ground beside the skid, a few metres out
-    const paths = [-1, 1].map(s => [[s * 0.6, -1.07, 1.4], [s * 1.35, -1.07, 1.15], [s * 2.3, -1.84, 1.0], [s * 4.5, -1.84, 0.6]].map(([x, y, z]) => toWorld(x, y, z, { x: 0, y: 0, z: 0 })));
+    const paths = [-1, 1].map(s => [[s * 0.6, -1.07, ENTRY_Z - 0.2], [s * 1.35, -1.07, ENTRY_Z], [s * 2.3, -1.84, ENTRY_Z + 0.1], [s * 4.5, -1.84, ENTRY_Z + 0.6]].map(([x, y, z]) => toWorld(x, y, z, { x: 0, y: 0, z: 0 })));
     for (const p of paths) for (let k = 2; k < p.length; k++) p[k].y = groundY(p[k].x, p[k].z);
     Q.deploy(paths[0], [{ x: paths[0][3].x, z: paths[0][3].z, yaw: 0 }], 0.5);
     let k = 0;
@@ -358,7 +364,7 @@ export function createAirlift(ctx) {
     Q.figs.forEach((F, i) => {
       if (F.st !== 'aboard') return;
       let s = SEATS[i]; const Gp = F.f.group;
-      if (rider && Math.abs(rider[0] - s[0]) < 0.3 && Math.abs(rider[2] - s[2]) < 0.4) s = [s[0] * 0.5, -1.07, 0.85, Math.PI, 'kneel'];
+      if (rider && Math.abs(rider[0] - s[0]) < 0.3 && Math.abs(rider[2] - s[2]) < 0.4) s = [s[0] * 0.5, -1.07, -1.0, 0, 'kneel'];   // the player has his seat: he kneels on the floor
       _sv.set(s[0], s[1], s[2]); obj.localToWorld(_sv);
       Gp.position.copy(_sv); Gp.quaternion.copy(_q).multiply(_q2.setFromAxisAngle(_up, s[3])); Gp.visible = obj.visible;
       F.f.pose(s[4] || 'seated', 0); F.x = _sv.x; F.y = _sv.y; F.z = _sv.z;

@@ -1,0 +1,35 @@
+// Actual game controllers; the fixture supplies resources and a squad, never a successful mission outcome.
+export default {name:'radioops',query:'?debug&auto&kb&res=0.45&peace&tech=max',async run(h){
+  await h.waitFor('window.__radioCommands && __G.G.state === "play"',30000);
+  await h.eval(`(()=>{__G.G.bench=true;__G.G.mat=800;__G.G.res=800;const T=__G.war.tech[1];for(const n of T.nodes)T.done.add(n.id);window.__radioReceipts=[];const receive=__radioCommands.net.receive;__radioCommands.net.receive=a=>{const before=__G.G.mat;const result=receive(a);__radioReceipts.push({before,after:__G.G.mat,result});return result;};return true;})()`);
+  await h.key('tap','Backslash');
+  await h.expect('__radioCommands.isOpen && !__G.commander.isOpen','Backslash opens radio command desk');
+  await h.expect('__radioCommands.net.targets().some(t=>t.call==="Transport") && __radioCommands.net.targets().some(t=>t.call==="Air Boss")','live flight/support controllers present');
+  await h.eval(`(__radioCommands.compose('control:air','cap','Albatross'),true)`);
+  await h.page.click('#radioCommand [data-send]');
+  await h.expect('__radioCommands.net.pending().length===1 && __radioReceipts.at(-1).after===__radioReceipts.at(-1).before','assisted CAP request waits for readback without spending');
+  await h.shot('patrol-readback');
+  await h.eval(`__radioCommands.submit([{transcript:'Air Boss, this is Command. Request combat air patrol over Albatross. Over.',confidence:1}])`);
+  await h.eval(`__radioCommands.submit([{transcript:'Air Boss, this is Command. Correct. Over.',confidence:1}])`);
+  await h.expect('__radioReceipts.at(-1).after===__radioReceipts.at(-1).before-30 && (__G.war.air.pending.some(u=>u.type==="escort") || __G.war.units.some(u=>u.type==="escort"))','confirmed patrol spends actual materiel and queues a real Tomcat');
+  await h.expect('__radioCommands.net.tasks.some(t=>t.state==="active"&&t.label.includes("combat air patrol"))','patrol task remains active while aircraft launches');
+  await h.eval(`__radioCommands.submit([{transcript:'Air Boss, this is Command. Correct. Over.',confidence:1}])`);
+  await h.expect('__radioReceipts.at(-1).after===__radioReceipts.at(-1).before && !__radioCommands.net.last.ok','duplicate confirmation cannot buy a second flight');
+  await h.eval(`(()=>{const i=__G.ISLANDS.find(i=>i.name==='SANDBAR');window.__radioSquad=__G.war.ground.addSquad(1,i,4,i.pad.x,i.pad.z,{order:{type:'defend',x:i.pad.x,z:i.pad.z,r:20}}).squads[0];return true;})()`);
+  await h.eval(`__radioCommands.submit([{transcript:'Hotel one, this is Command. Formation column. Over.',confidence:1}])`);
+  await h.expect('__radioSquad.formation==="column" && __radioCommands.net.last.ok','live squad accepts formation order');
+  await h.eval(`__radioCommands.submit([{transcript:'Hotel one, this is Command. Cease fire. Over.',confidence:1}])`);
+  await h.expect('__radioSquad.firePolicy==="hold"','live squad receives persistent cease fire');
+  await h.eval(`(()=>{const s=__radioSquad;window.__radioPoint=__radioCommands.net.mark(s.B.I.pad.x+20,s.B.I.pad.z,s.B.I);return __radioCommands.submit([{transcript:'Hotel one, this is Command. Move to '+__radioPoint.name+'. Over.',confidence:1}]);})()`);
+  await h.expect('__radioSquad.order.type==="take" && __radioSquad.order.x===__radioPoint.x && __radioSquad.firePolicy==="hold"','marked point moves actual squad without revoking cease fire');
+  await h.eval(`(__radioCommands.open('tasks'),true)`);await h.shot('mission-ledger');
+  await h.eval(`(__radioCommands.open('traffic'),true)`);await h.shot('command-traffic');
+  await h.eval(`(__radioCommands.open('orders'),true)`);await h.page.click('#radioCommand [data-board]');
+  await h.expect('__G.commander.isOpen && !__radioCommands.isOpen','fleet board handoff closes radio desk');
+  await h.eval(`(__G.commander.close(),__radioCommands.compose('carrier','proceed','SANDBAR'),true)`);
+  await h.page.click('#radioCommand [data-send]');
+  await h.expect('__radioCommands.net.pending().some(p=>p.station==="carrier")','carrier course also waits for readback');
+  await h.eval(`(__G.openMenu(),__radioCommands.net.update(.1),true)`);
+  await h.expect('__radioCommands.net.pending().length===0','pausing cancels unconfirmed orders');
+  await h.expect('!__radioCommands.rec.active','radio desk never opened the physical microphone');
+}};

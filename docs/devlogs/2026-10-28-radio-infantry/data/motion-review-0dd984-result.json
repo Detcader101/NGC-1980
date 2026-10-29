@@ -1,0 +1,82 @@
+{
+  "name": "Saved clip frame review",
+  "ok": true,
+  "startedAt": "2026-10-28T22:26:23.282Z",
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7839427d84197e7273289e6158e6d8a45fbbe26b",
+    "branch": "ngc/look-voices",
+    "gameTree": "515bc2c65213bfffcc64c05603aa5a3469c998f6",
+    "gameSha256": "2c28cb3482f3fdfa6a00e294e963b1f4d9c54296cbf75d7bc230409b53796d57",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/dev/voices.html\n M game/js/main.js\n M game/js/units/air/rotary/figures.js\n M game/js/units/commander/board.js\n M game/js/units/groundwar/marineai.js\n M game/js/units/groundwar/marinefigure.js\n M game/js/units/infantry/bodyvm.js\n M game/js/units/infantry/handkit.js\n M game/js/units/infantry/meshkit.js\n M game/js/units/infantry/soldiermodel.js\n M game/js/units/infantry/viewmodel.js\n M game/js/units/infantry/weaponmodels.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/commands.js\n M game/js/voice/localrecognition.js\n M game/js/voice/voice.js\n M tools/scenes/offlinevoice.mjs\n M tools/scenes/voices.mjs\n M tools/serve.mjs\n?? game/dev/people.html\n?? game/dev/people.js\n?? game/js/units/infantry/figurematerials.js\n?? game/js/units/infantry/handposes.js\n?? game/js/units/infantry/humanmesh.js\n?? game/js/voice/commanddesk.css.js\n?? game/js/voice/delivery.js\n?? game/js/voice/fieldstations.js\n?? game/js/voice/localvoices.js\n?? game/js/voice/operations.js\n?? tools/figuresurfacebench.mjs\n?? tools/firstpersonbench.mjs\n?? tools/livevoicebench.mjs\n?? tools/peoplebench.mjs\n?? tools/radiodeskbench.mjs\n?? tools/radionetbench.mjs\n?? tools/radiooperationsbench.mjs\n?? tools/scenes/figuresurfaces.mjs\n?? tools/scenes/firstpersondiagnostic.mjs\n?? tools/scenes/firstpersonmotion.mjs\n?? tools/scenes/firstpersonpolish.mjs\n?? tools/scenes/handanatomy.mjs\n?? tools/scenes/livevoices.mjs\n?? tools/scenes/people.mjs\n?? tools/scenes/radioops.mjs\n?? tools/voice-server.mjs\n?? tools/voice-synthesize.ps1"
+  },
+  "sourceQualification": "Derived images decoded from the saved MP4s, not new game rendering. Original capture provenance remains in each linked source run.",
+  "browser": "HeadlessChrome/156.0.8078.47 saved-video decoder",
+  "expects": [
+    {
+      "ok": true,
+      "label": "Twelve decoded saved-video frames reviewed for each clip"
+    }
+  ],
+  "shots": [
+    {
+      "name": "people-12frames",
+      "file": "people-12frames.png"
+    },
+    {
+      "name": "hands-12frames",
+      "file": "hands-12frames.png"
+    }
+  ],
+  "clips": [],
+  "errors": [],
+  "consoleErrors": [],
+  "reviews": [
+    {
+      "name": "people-12frames",
+      "sourceRun": "people-after",
+      "clip": "01-walking-and-stance.mp4",
+      "clipSha256": "685227ce86235cf43a008344454d1b7c74328bdb3ad4d45258a011dcb2dd7efc",
+      "duration": 4.878733,
+      "samples": [
+        0.12196832500000002,
+        0.5433134477272727,
+        0.9646585704545455,
+        1.3860036931818183,
+        1.8073488159090911,
+        2.228693938636364,
+        2.650039061363636,
+        3.0713841840909093,
+        3.492729306818182,
+        3.9140744295454546,
+        4.335419552272728,
+        4.756764675
+      ],
+      "playbackAdvanced": true
+    },
+    {
+      "name": "hands-12frames",
+      "sourceRun": "firstperson-motion",
+      "clip": "01-first-person-transitions.mp4",
+      "clipSha256": "d970a9fcbb4a7d0db16bcd4944374bfeb3e6bf5efb36fdd957373c4fb30b8639",
+      "duration": 2.2392,
+      "samples": [
+        0.05598,
+        0.24936545454545453,
+        0.44275090909090903,
+        0.6361363636363635,
+        0.8295218181818181,
+        1.0229072727272728,
+        1.216292727272727,
+        1.4096781818181816,
+        1.6030636363636364,
+        1.7964490909090907,
+        1.9898345454545454,
+        2.18322
+      ],
+      "playbackAdvanced": false
+    }
+  ],
+  "qualification": "The hands playbackAdvanced probe ran near EOF after decoding the final frame and returned false. The report check separately seeks to45% and requires playback advancement. Neither clip covers every intended transition."
+}

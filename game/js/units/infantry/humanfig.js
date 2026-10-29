@@ -22,7 +22,7 @@ import { SdfKit, mat } from './sdfmesh.js';
 import { FigBuilder, figMaterial, makeSkinned, bakePose, mergeFig } from './figgeo.js';
 import { Kit, COL } from './meshkit.js';
 import { m67Into } from './grenademodel.js';
-import { tpHand } from './handkit.js';
+import { tpHand, tpGripFrame } from './handkit.js';
 
 // the rig (soldiermodel.js BONES: [name, parent, rest offset]); copied so this module has no import cycle
 /** @type {Array<[string, string | null, [number, number, number]]>} */
@@ -569,10 +569,12 @@ const cached = (key, fn) => { if (!CACHE.has(key)) CACHE.set(key, fn()); return 
 const surf = (key, S, h, o) => cached(key, () => S().mesh(h, o));
 // the TP hand in the hand bone's frame (tpHand layout) as an SDF surface
 
-function handSurface(side, shape, h, glove = null) {
-  return cached(`hand|${side}|${shape}|${h}|${glove ? glove.col : ''}`, () => {
+function handSurface(side, shape, h, glove = null, profile = null) {
+  const active = shape === 'open' ? null : profile;
+  if (active) tpGripFrame(active); // finite named profiles only; no unbounded diameter cache
+  return cached(`hand|${side}|${shape}|${h}|${glove ? glove.col : ''}` + (active ? `|${active}` : ''), () => {
     const S = new SdfKit(), rec = new SdfHandRecorder(S, { xf: bindPose()['hand' + side], skin: 'hand' + side, k: 0.006, mat: glove });
-    tpHand(rec, { side, open: shape === 'open' });
+    tpHand(rec, { side, open: shape === 'open', profile: active });
     // the wrist into the forearm
     rec.capsule([0, 0.012, 0.0], [0, -0.035, 0.002], 0.027, 0.03, SKIN0);   // (gloved: the glove's cuff)
     return S.mesh(h);
@@ -580,14 +582,19 @@ function handSurface(side, shape, h, glove = null) {
 }
 // one person's geometry (cached per combination): o = { lod, face, sleeves, vest, helmet, pack, frags, camo, hands }
 export function marineGeometry(o = {}) {
-  const L = LODS[o.lod || 'near'], key = JSON.stringify(['marine', o.lod, o.face % 3, o.sleeves, !!o.vest, o.helmet !== false, !!o.pack, o.frags !== 0, o.camo === 'og107', o.hands || 'grip']);
+  const left = o.gripProfiles?.L || null, right = o.gripProfiles?.R || null;
+  tpGripFrame(left); tpGripFrame(right); // reject unknown IDs even when open hands will ignore their shape
+  const profiles = o.hands === 'open' ? {} : { L: left, R: right };
+  const L = LODS[o.lod || 'near'], keyParts = ['marine', o.lod, o.face % 3, o.sleeves, !!o.vest, o.helmet !== false, !!o.pack, o.frags !== 0, o.camo === 'og107', o.hands || 'grip'];
+  if (profiles.L || profiles.R) keyParts.push(profiles.L || null, profiles.R || null);
+  const key = JSON.stringify(keyParts);
   return cached(key, () => {
     const B = new FigBuilder(), lod = o.lod || 'near', helmet = o.helmet !== false;
     B.addSurface(surf(`body|${lod}|${o.sleeves}|${!!o.vest}|${o.camo === 'og107'}`, () => bodySdf({ sleeves: o.sleeves, vest: o.vest, camo: o.camo }), L.body));
     if (o.vest) B.addSurface(surf(`vest|${lod}`, vestSdf, L.vest));
     B.addSurface(surf(`head|${lod}|${o.face % 3}|${helmet}`, () => headSdf(o.face || 0), L.head, helmet ? { clipFn: headClip() } : undefined));
     if (helmet) B.addSurface(surf(`helmet|${lod}`, helmetSdf, L.helmet, { paint: helmetPaint(), clipFn: helmetClip() }));
-    for (const sd of ['L', 'R']) B.addSurface(handSurface(sd, o.hands || 'grip', L.hand));
+    for (const sd of ['L', 'R']) B.addSurface(handSurface(sd, o.hands || 'grip', L.hand, null, profiles[sd] || null));
     if (L.hq) { const ke = new Kit(); eyesKit(ke, o.face || 0, lod === 'hero'); B.addKit(ke, { rough: 0.15 }, 'head'); }
     for (const [k, m, bone, off] of gearKits(o, L.hq)) B.addKit(k, m, bone, new THREE.Matrix4().makeTranslation(...off));
     if (helmet) B.addKit(helmetKit(L.hq), { rough: 0.7 }, 'head', bindPose().head);
@@ -611,8 +618,20 @@ export function attachMarine(sk, o = {}) {
     sk.root.remove(m); lod.addLevel(m, dist); meshes.push(m);
   }
   sk.root.add(lod);
-  sk.person = { lod, meshes, material: matl, tris: meshes.map(m => m.geometry.userData.tris) };
+  sk.person = { lod, meshes, material: matl, tris: meshes.map(m => m.geometry.userData.tris), gripBase: base, gripProfiles: { L: null, R: null } };
   return sk.person;
+}
+// Optional weapon grips only change Marine geometry on the existing LOD meshes. Skeletons, materials and cached
+// default person/crew/crowd geometry remain shared and untouched. Call only when the requested profile changes.
+export function setMarineGripProfiles(sk, profiles = {}) {
+  const person = sk.person; if (!person) return false;
+  const L = profiles.L || null, R = profiles.R || null;
+  tpGripFrame(L); tpGripFrame(R);
+  if (person.gripProfiles.L === L && person.gripProfiles.R === R) return false;
+  const next = { L, R };
+  for (const mesh of person.meshes) mesh.geometry = marineGeometry({ ...person.gripBase, lod: mesh.geometry.userData.lod, gripProfiles: next });
+  person.gripProfiles = next; person.tris = person.meshes.map(m => m.geometry.userData.tris);
+  return true;
 }
 // bake a person into a static geometry in a pose (crowds, instanced crews): pose = { bone: [rx, ry, rz] } Euler XYZ
 // on top of the rig's rest pose; returns a geometry with position, normal, color, aFig, aRM (no skin)

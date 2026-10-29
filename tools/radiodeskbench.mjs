@@ -1,0 +1,61 @@
+#!/usr/bin/env node
+// Real DOM and parser/transaction integration on a lightweight fixture. No game renderer or microphone.
+import fs from 'node:fs';
+import path from 'node:path';
+import http from 'node:http';
+import puppeteer from 'puppeteer-core';
+import {sourceInfo,stamp} from './evidence.mjs';
+const root=path.resolve(import.meta.dirname,'..'),out=path.join(root,'tools/runs',stamp()+'-radiodesk');fs.mkdirSync(out,{recursive:true});
+const checks=[],errors=[];const check=(ok,label,data)=>{checks.push({ok:!!ok,label,data});console.log((ok?'PASS ':'FAIL ')+label);if(!ok)throw Error(label);};
+const html=`<!doctype html><html><head><title>Command radio interaction fixture</title><style>body{margin:0;background:#263b43;color:#c6d0cd;font:14px system-ui}main{padding:32px;max-width:420px}h1{font-size:22px}</style></head><body><main><h1>Command radio interaction fixture</h1><p>Production radio panel and command parser with a scripted carrier. No live world, microphone or speech synthesis.</p></main><script type="module">
+import {createCommandPanel} from '/js/voice/commandpanel.js';
+import {createCommandNet} from '/js/voice/commandnet.js';
+const island={name:'SANDBAR',pad:{x:100,z:200}},carrier={p:{x:0,z:0}},loop={};loop.self=loop;carrier.mesh=loop;
+window.fixture={executed:0,board:0,mic:0,allowed:true,keys:0};
+addEventListener('keydown',()=>fixture.keys++);
+const voices={vol:6,stop(){},speak(){},speechInfo:()=>({backend:'Fixture',voices:['One','Two','Three']})};
+const war={carrier,orderCarrier(x,z){fixture.executed++;carrier.goal=[x,z];return true;}};
+const net=createCommandNet({war,roster:[],islands:[island],allowed:()=>fixture.allowed,voices});
+window.desk=createCommandPanel({net,allowed:()=>fixture.allowed,voices,places:[island],openBoard:()=>fixture.board++});
+Object.defineProperty(navigator.mediaDevices,'getUserMedia',{configurable:true,value:async()=>{fixture.mic++;throw Error('Physical microphone must not open.');}});
+desk.update(.1);desk.open();window.ready=true;
+</script></body></html>`;
+const server=http.createServer((req,res)=>{const url=new URL(req.url,'http://localhost').pathname;if(url==='/'){res.setHeader('Content-Type','text/html');return res.end(html);}if(url==='/version.json'){res.setHeader('Content-Type','application/json');return res.end('{"speech":null}');}if(url==='/favicon.ico'){res.statusCode=204;return res.end();}const file=path.join(root,'game',url);if(!file.startsWith(path.join(root,'game')+path.sep)){res.statusCode=403;return res.end();}fs.readFile(file,(err,b)=>{if(err){res.statusCode=404;res.end();}else{res.setHeader('Content-Type','text/javascript');res.end(b);}});});
+await new Promise(r=>server.listen(0,'127.0.0.1',r));let browser;
+try{
+  browser=await puppeteer.launch({executablePath:process.env.CHROME_PATH,headless:true,defaultViewport:{width:1280,height:800},args:['--no-first-run','--mute-audio']});
+  const page=await browser.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
+  await page.goto('http://127.0.0.1:'+server.address().port,{waitUntil:'networkidle0'});await page.waitForFunction('window.ready');
+  check(await page.evaluate(()=>fixture.mic===0&&!desk.rec.active),'Opening the desk never opens a microphone');
+  check(await page.evaluate(()=>desk.compose('carrier','proceed','SANDBAR')&&document.querySelector('[data-preview]').textContent==='Albatross, this is Command. Proceed to SANDBAR. Over.'),'Assisted destination selection prepares the exact addressed call');
+  check(await page.evaluate(()=>fixture.executed===0),'Selecting a task does not execute it');
+  await page.click('[data-send]');
+  check(await page.evaluate(()=>fixture.executed===0&&desk.net.pending().length===1),'Written request reaches production parser and waits for readback');
+  await page.screenshot({path:path.join(out,'readback-desktop.png')});
+  await page.click('[data-again]');
+  check(await page.evaluate(()=>fixture.executed===0&&desk.net.pending().length===1),'Say again repeats a readback without sending the order');
+  await page.click('[data-correct]');
+  check(await page.evaluate(()=>fixture.executed===1&&desk.net.pending().length===0&&desk.net.tasks[0].state==='active'),'Correct executes the requested carrier order once');
+  await page.click('[data-tab="tasks"]');
+  check(await page.evaluate(()=>document.querySelector('[data-tasks]').textContent.includes('Under way toward SANDBAR')),'Mission ledger displays the actual task outcome without serializing live world objects');
+  await page.screenshot({path:path.join(out,'mission-desktop.png')});
+  await page.click('[data-tab="traffic"]');
+  check(await page.evaluate(()=>document.querySelector('[data-traffic]').textContent.includes('I read back.')&&document.querySelector('[data-traffic]').textContent.includes('Correct. Over.')),'Traffic shows the request, readback and confirmation');
+  await page.click('[data-tab="settings"]');await page.click('[data-bind-key]');await page.keyboard.press('v');
+  check(await page.evaluate(()=>desk.ptt.key==='KeyV'&&fixture.mic===0),'PTT rebinding remains available without capturing audio');
+  await page.evaluate(()=>desk.open('orders'));await page.focus('input[name=call]');await page.keyboard.type('v');
+  check(await page.evaluate(()=>fixture.mic===0&&fixture.keys===0),'Typed radio input owns its keys and never activates bound PTT');
+  await page.$eval('input[name=call]',e=>e.value='Albatross, hold position.');await page.$eval('form',e=>e.requestSubmit());
+  check(await page.evaluate(()=>!desk.net.last.ok&&fixture.executed===1),'Invalid manual procedure is rejected by the same parser');
+  await page.evaluate(()=>{desk.compose('carrier','proceed','SANDBAR');desk.net.tasks.length=0;});await page.click('[data-send]');await page.click('[data-disregard]');
+  check(await page.evaluate(()=>fixture.executed===1&&desk.net.pending().length===0&&desk.net.tasks[0].state==='cancelled'),'Disregard withdraws an unconfirmed request without executing it');
+  await page.setViewport({width:390,height:844});await page.evaluate(()=>desk.open('orders'));
+  const layout=await page.evaluate(()=>{const p=document.querySelector('.radio-desk').getBoundingClientRect(),f=document.querySelector('.radio-foot').getBoundingClientRect();return{overflow:document.documentElement.scrollWidth>innerWidth,panel:p.toJSON(),footer:f.toJSON()};});
+  check(!layout.overflow&&layout.panel.x>=0&&layout.panel.right<=390&&layout.footer.bottom<=844,'390px layout keeps radio controls inside the viewport',layout);
+  await page.screenshot({path:path.join(out,'orders-mobile.png')});
+  await page.click('[data-tab="settings"]');await page.screenshot({path:path.join(out,'settings-mobile.png')});
+  await page.keyboard.press('Escape');check(await page.evaluate(()=>!desk.isOpen&&!desk.rec.active),'Escape closes the panel and cancels unfinished input');
+  await page.evaluate(()=>desk.open('orders'));await page.click('[data-board]');check(await page.evaluate(()=>fixture.board===1&&!desk.isOpen),'Legacy fleet board opens through a single explicit handoff');
+  check(errors.length===0,'No browser errors',errors);
+}catch(e){errors.push(e.message);console.error(e.stack);}finally{if(browser)await browser.close();await new Promise(r=>server.close(r));}
+fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({ok:!errors.length,source:sourceInfo(root),checks,errors},null,2));console.log(`${checks.filter(x=>x.ok).length}/${checks.length}; ${out}`);process.exitCode=errors.length?1:0;

@@ -11,6 +11,7 @@
 import * as THREE from 'three';
 import { createGroundSim, RW_HURT } from './groundsim.js';
 import { buildMarineFigure } from './marinefigure.js';
+import { applyRiflemanWeaponPose } from '../infantry/soldiermodel.js';
 import { buildLCAC, LCAC } from './lcacmodel.js';
 import { buildStrider } from '../runaway/stridermodel.js';
 import { buildHoverTank } from '../runaway/hovertankmodel.js';
@@ -25,6 +26,7 @@ import { hypot2, hypot3 } from '../../hypot.js';   // (ngc/perf-cpu) Math.hypot 
 
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const LAW_READY = {law:1,lawSights:1,armed:true}; // the lightweight AI's existing firing intent, presentation only
 // the rotary module's squads (the CH-46 cabin and ramp) show INFANTRY's Marine from now on (FIGURES contract)
 FIGURES.marine = o => buildMarineFigure({ detail: 'full', ...o });   // (ngc/perf-cpu: a caller may ask for 'lite': the war's CH-46 sticks, see squad.js)
 export const GW_T = {
@@ -134,7 +136,7 @@ export function createGroundWar(ctx) {
     _carried.x = M.x + rx * 0.12 - _cv.x - fx * 0.05; _carried.y = M.y + 1.6 - 0.16 - _cv.y; _carried.z = M.z + rz * 0.12 - _cv.z - fz * 0.05; _carried.q.copy(_cq);
     return _carried;
   }
-  const _pose = { stance: 'stand', stanceFrom: 'stand', stanceTo: 'stand', stanceT: 1, speed: 0, gaitPhase: 0, aimPitch: 0, down: false, cls: 'rifle', ads: 0, gait: 'walk' }, _rp = {};
+  const _pose = { stance: 'stand', stanceFrom: 'stand', stanceTo: 'stand', stanceT: 1, speed: 0, gaitPhase: 0, aimPitch: 0, down: false, cls: 'rifle', ads: 0, gait: 'walk', weaponState: null }, _rp = {};
   function renderUnits(dt) {
     const cx = ear.x, cy = ear.y, cz = ear.z;
     for (const u of GS.units) {
@@ -156,15 +158,18 @@ export function createGroundWar(ctx) {
         const va = u.viewAt || (u.cas && u.cas.carry != null ? carriedView(u) : null);
         if (va) { _pose.hands = null; _pose.sling = 0; _pose.grenade = false; g.visible = !va.hidden; g.position.set(va.x, va.y, va.z); g.quaternion.copy(va.q); _pose.down = true; _pose.speed = 0; _pose.stance = _pose.stanceFrom = _pose.stanceTo = 'stand'; _pose.stanceT = 1; V.poseFull(_pose, dt); continue; }
         if (u.richOn && u.rich && M.alive && (M.able || (u.crawl && u.crawl.walk))) {
-          const R = u.rich.R, p = u.rich.S.pose(_rp); p.cls = R.cls === 'gl' ? 'rifle' : R.cls === 'none' ? 'rifle' : R.cls; p.action = R.cur && R.cur.act ? { name: R.cur.act.name, p: R.cur.act.t / R.cur.act.dur } : null; p.down = false;
+          const R = u.rich.R, p = applyRiflemanWeaponPose(u.rich.S.pose(_rp), R); p.down = false;
           careLook(u, p);
-          if (V.skeleton && R.carrier && V.setWeapon) V.setWeapon(u.ai && u.ai.fire === 'law' && u.laws > 0 ? 'M72A2' : R.carrier.key === 'M16A1' && R.carrier.gl ? 'M16A1/M203' : R.carrier.key);
+          const lawDraw=u.ai&&u.ai.fire==='law'&&u.laws>0;
+          if(lawDraw&&R.carrier?.key!=='M72A2'){p.cls='law';p.weaponState=LAW_READY;}
+          if (V.skeleton && R.carrier && V.setWeapon) V.setWeapon(lawDraw ? 'M72A2' : R.carrier.key === 'M16A1' && R.carrier.gl ? 'M16A1/M203' : R.carrier.key);
           V.poseFull(p, dt); continue;
         }
         if (u.ai && u.ai.fire === 'law' && u.laws > 0) V.setWeapon('M72A2'); else V.setWeapon(u.role === 'gren' ? 'M16A1/M203' : 'M16A1');
         _pose.stance = M.stance; _pose.stanceFrom = M.stanceFrom; _pose.stanceTo = M.stanceTo; _pose.stanceT = M.stanceT;
         _pose.speed = M.speed; _pose.gaitPhase = M.gait; _pose.down = !M.able && !(u.crawl && u.crawl.walk); _pose.gait = M.speed > 3.5 ? 'sprint' : M.speed > 2 ? 'run' : 'walk';
         _pose.cls = u.ai && u.ai.fire === 'law' ? 'law' : 'rifle'; _pose.ads = u.ai && u.ai.fire && u.firedT < 1.5 ? 1 : 0;
+        _pose.weaponState=_pose.cls==='law'?LAW_READY:null;
         _pose.aimPitch = u.ai && u.ai.aim ? clamp(Math.atan2(u.ai.aim[1] - (M.y + 1.5), hypot2(u.ai.aim[0] - M.x, u.ai.aim[2] - M.z)), -0.6, 0.6) : 0;
         careLook(u, _pose);
         // the dead lie still (posed once)
@@ -579,6 +584,7 @@ export function createGroundWar(ctx) {
     const evs = GS.step(dt, { cam: ear, peace });
     for (const e of evs) { if (e.e === 'kia') tally(e.I, 'kia'); else if (e.e === 'wia') tally(e.I, 'wia'); }
     CV.update(dt); careNews(evs);   // ngc/infdepth
+    GW.onEvents?.(evs);   // VOICES: contacts, casualties, the corpsman, the RUNAWAY signals (voice/hooks.js)
     updateProxies();
     updateLCACs(dt);
     renderUnits(dt);

@@ -1,0 +1,319 @@
+{
+  "ok": true,
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7839427d84197e7273289e6158e6d8a45fbbe26b",
+    "branch": "ngc/look-voices",
+    "gameTree": "515bc2c65213bfffcc64c05603aa5a3469c998f6",
+    "gameSha256": "adb288fd737d50dfca78b2215953e2235a4282af87c23b11aa5dd0e054485233",
+    "dirty": true,
+    "status": "M game/dev/voices.html\n M game/js/main.js\n M game/js/units/groundwar/marineai.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/commands.js\n M game/js/voice/localrecognition.js\n M game/js/voice/voice.js\n M tools/serve.mjs\n?? game/js/voice/commanddesk.css.js\n?? game/js/voice/delivery.js\n?? game/js/voice/fieldstations.js\n?? game/js/voice/localvoices.js\n?? game/js/voice/operations.js\n?? tools/livevoicebench.mjs\n?? tools/radiodeskbench.mjs\n?? tools/radiooperationsbench.mjs\n?? tools/scenes/livevoices.mjs\n?? tools/voice-server.mjs\n?? tools/voice-synthesize.ps1"
+  },
+  "checks": [
+    {
+      "ok": true,
+      "label": "Opening the desk never opens a microphone"
+    },
+    {
+      "ok": true,
+      "label": "Assisted destination selection prepares the exact addressed call"
+    },
+    {
+      "ok": true,
+      "label": "Selecting a task does not execute it"
+    },
+    {
+      "ok": true,
+      "label": "Written request reaches production parser and waits for readback"
+    },
+    {
+      "ok": true,
+      "label": "Say again repeats a readback without sending the order"
+    },
+    {
+      "ok": true,
+      "label": "Correct executes the requested carrier order once"
+    },
+    {
+      "ok": true,
+      "label": "Mission ledger displays the actual task outcome without serializing live world objects"
+    },
+    {
+      "ok": true,
+      "label": "Traffic shows the request, readback and confirmation"
+    },
+    {
+      "ok": true,
+      "label": "PTT rebinding remains available without capturing audio"
+    },
+    {
+      "ok": true,
+      "label": "Typed radio input owns its keys and never activates bound PTT"
+    },
+    {
+      "ok": true,
+      "label": "Invalid manual procedure is rejected by the same parser"
+    },
+    {
+      "ok": true,
+      "label": "Disregard withdraws an unconfirmed request without executing it"
+    },
+    {
+      "ok": true,
+      "label": "390px layout keeps radio controls inside the viewport",
+      "data": {
+        "overflow": false,
+        "panel": {
+          "x": 12,
+          "y": 12,
+          "width": 366,
+          "height": 820,
+          "top": 12,
+          "right": 378,
+          "bottom": 832,
+          "left": 12
+        },
+        "footer": {
+          "x": 13,
+          "y": 715.90625,
+          "width": 364,
+          "height": 115.09375,
+          "top": 715.90625,
+          "right": 377,
+          "bottom": 831,
+          "left": 13
+        }
+      }
+    },
+    {
+      "ok": true,
+      "label": "Escape closes the panel and cancels unfinished input"
+    },
+    {
+      "ok": true,
+      "label": "Legacy fleet board opens through a single explicit handoff"
+    },
+    {
+      "ok": true,
+      "label": "No browser errors",
+      "data": []
+    }
+  ],
+  "errors": [],
+  "name": "radiodesk",
+  "expects": [
+    {
+      "ok": true,
+      "label": "Opening the desk never opens a microphone"
+    },
+    {
+      "ok": true,
+      "label": "Assisted destination selection prepares the exact addressed call"
+    },
+    {
+      "ok": true,
+      "label": "Selecting a task does not execute it"
+    },
+    {
+      "ok": true,
+      "label": "Written request reaches production parser and waits for readback"
+    },
+    {
+      "ok": true,
+      "label": "Say again repeats a readback without sending the order"
+    },
+    {
+      "ok": true,
+      "label": "Correct executes the requested carrier order once"
+    },
+    {
+      "ok": true,
+      "label": "Mission ledger displays the actual task outcome without serializing live world objects"
+    },
+    {
+      "ok": true,
+      "label": "Traffic shows the request, readback and confirmation"
+    },
+    {
+      "ok": true,
+      "label": "PTT rebinding remains available without capturing audio"
+    },
+    {
+      "ok": true,
+      "label": "Typed radio input owns its keys and never activates bound PTT"
+    },
+    {
+      "ok": true,
+      "label": "Invalid manual procedure is rejected by the same parser"
+    },
+    {
+      "ok": true,
+      "label": "Disregard withdraws an unconfirmed request without executing it"
+    },
+    {
+      "ok": true,
+      "label": "390px layout keeps radio controls inside the viewport",
+      "data": {
+        "overflow": false,
+        "panel": {
+          "x": 12,
+          "y": 12,
+          "width": 366,
+          "height": 820,
+          "top": 12,
+          "right": 378,
+          "bottom": 832,
+          "left": 12
+        },
+        "footer": {
+          "x": 13,
+          "y": 715.90625,
+          "width": 364,
+          "height": 115.09375,
+          "top": 715.90625,
+          "right": 377,
+          "bottom": 831,
+          "left": 13
+        }
+      }
+    },
+    {
+      "ok": true,
+      "label": "Escape closes the panel and cancels unfinished input"
+    },
+    {
+      "ok": true,
+      "label": "Legacy fleet board opens through a single explicit handoff"
+    },
+    {
+      "ok": true,
+      "label": "No browser errors",
+      "data": []
+    }
+  ],
+  "shots": [
+    {
+      "name": "mission-desktop",
+      "file": "mission-desktop.png"
+    },
+    {
+      "name": "orders-mobile",
+      "file": "orders-mobile.png"
+    },
+    {
+      "name": "readback-desktop",
+      "file": "readback-desktop.png"
+    },
+    {
+      "name": "settings-mobile",
+      "file": "settings-mobile.png"
+    }
+  ],
+  "clips": [],
+  "consoleErrors": [],
+  "sourceQualification": "Derived evidence adapter: original isolated UI checks and unchanged screenshots; not a new game run.",
+  "originalRun": "tools/runs/2026-10-28T21-23-13-972Z-radiodesk",
+  "originalResult": {
+    "ok": true,
+    "source": {
+      "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+      "commit": "7839427d84197e7273289e6158e6d8a45fbbe26b",
+      "branch": "ngc/look-voices",
+      "gameTree": "515bc2c65213bfffcc64c05603aa5a3469c998f6",
+      "gameSha256": "adb288fd737d50dfca78b2215953e2235a4282af87c23b11aa5dd0e054485233",
+      "dirty": true,
+      "status": "M game/dev/voices.html\n M game/js/main.js\n M game/js/units/groundwar/marineai.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/commands.js\n M game/js/voice/localrecognition.js\n M game/js/voice/voice.js\n M tools/serve.mjs\n?? game/js/voice/commanddesk.css.js\n?? game/js/voice/delivery.js\n?? game/js/voice/fieldstations.js\n?? game/js/voice/localvoices.js\n?? game/js/voice/operations.js\n?? tools/livevoicebench.mjs\n?? tools/radiodeskbench.mjs\n?? tools/radiooperationsbench.mjs\n?? tools/scenes/livevoices.mjs\n?? tools/voice-server.mjs\n?? tools/voice-synthesize.ps1"
+    },
+    "checks": [
+      {
+        "ok": true,
+        "label": "Opening the desk never opens a microphone"
+      },
+      {
+        "ok": true,
+        "label": "Assisted destination selection prepares the exact addressed call"
+      },
+      {
+        "ok": true,
+        "label": "Selecting a task does not execute it"
+      },
+      {
+        "ok": true,
+        "label": "Written request reaches production parser and waits for readback"
+      },
+      {
+        "ok": true,
+        "label": "Say again repeats a readback without sending the order"
+      },
+      {
+        "ok": true,
+        "label": "Correct executes the requested carrier order once"
+      },
+      {
+        "ok": true,
+        "label": "Mission ledger displays the actual task outcome without serializing live world objects"
+      },
+      {
+        "ok": true,
+        "label": "Traffic shows the request, readback and confirmation"
+      },
+      {
+        "ok": true,
+        "label": "PTT rebinding remains available without capturing audio"
+      },
+      {
+        "ok": true,
+        "label": "Typed radio input owns its keys and never activates bound PTT"
+      },
+      {
+        "ok": true,
+        "label": "Invalid manual procedure is rejected by the same parser"
+      },
+      {
+        "ok": true,
+        "label": "Disregard withdraws an unconfirmed request without executing it"
+      },
+      {
+        "ok": true,
+        "label": "390px layout keeps radio controls inside the viewport",
+        "data": {
+          "overflow": false,
+          "panel": {
+            "x": 12,
+            "y": 12,
+            "width": 366,
+            "height": 820,
+            "top": 12,
+            "right": 378,
+            "bottom": 832,
+            "left": 12
+          },
+          "footer": {
+            "x": 13,
+            "y": 715.90625,
+            "width": 364,
+            "height": 115.09375,
+            "top": 715.90625,
+            "right": 377,
+            "bottom": 831,
+            "left": 13
+          }
+        }
+      },
+      {
+        "ok": true,
+        "label": "Escape closes the panel and cancels unfinished input"
+      },
+      {
+        "ok": true,
+        "label": "Legacy fleet board opens through a single explicit handoff"
+      },
+      {
+        "ok": true,
+        "label": "No browser errors",
+        "data": []
+      }
+    ],
+    "errors": []
+  }
+}

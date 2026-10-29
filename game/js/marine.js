@@ -14,7 +14,7 @@ import * as THREE from 'three';
 import { createMarineSim } from './marinesim.js';
 import { hitZone } from './foot.js';
 import { createViewmodel } from './units/infantry/viewmodel.js';
-import { buildMarine, poseSkeleton, raycastHitboxes } from './units/infantry/soldiermodel.js';
+import { buildMarine, poseSkeleton, raycastHitboxes, applyRiflemanWeaponPose } from './units/infantry/soldiermodel.js';
 import { InfantryAudio } from './units/infantry/infantryaudio.js';
 import { buildItemModel } from './units/infantry/weaponmodels.js';
 import * as I from './units/infantry/inventory.js';
@@ -460,6 +460,7 @@ export function createMarine(ctx) {
     } else if (e.e === 'wpn') {
       const v = e.ev, wk = e.weapon, m = MECH[v.e];
       if (m) a?.mech(m, wk);
+      if (v.e === 'action' && /^(reload|speed|tactical)$/.test(v.name)) window.__voiceEngine?.event('reload', { pos: S.eye });   // VOICES: accepted reload, including a partly used magazine
       if (v.e === 'selector') say(`${wk}: ${String(v.mode).toUpperCase()}`, 1.2);
       else if (v.e === 'sight') say(`${wk} SIGHT: ${String(v.label).toUpperCase()}`, 1.4);
       else if (v.e === 'info') say(`CHAMBER: ${String(v.chamber).toUpperCase()}${v.malf ? '  -  STOPPAGE: ' + (MALF[v.malf] || v.malf) : ''}  ·  MAGAZINE: ${String(v.mag).toUpperCase()}`, 3.5);
@@ -595,7 +596,7 @@ export function createMarine(ctx) {
     if (me.root.visible) {
       me.root.position.set(S.pos.x, S.pos.y, S.pos.z); me.root.rotation.y = S.yaw;
       const key = R.carrier ? (R.carrier.key === 'M16A1' && R.carrier.gl ? 'M16A1/M203' : R.carrier.key) : null; if (me.weaponKey !== key) me.setWeapon(key);
-      const p = S.pose(); p.cls = R.cls === 'gl' ? 'rifle' : R.cls; p.action = R.cur && R.cur.act ? { name: R.cur.act.name, p: R.cur.act.t / R.cur.act.dur } : null;
+      const p = applyRiflemanWeaponPose(S.pose(), R);
       // ngc/infdepth: hands off the rifle (slung on the back): bent over a casualty on the drag strap, under one in a
       // fireman's carry, or the grenade drill (carepose.js); the grenade in the right hand until it leaves it
       p.hands = null; p.sling = 0;

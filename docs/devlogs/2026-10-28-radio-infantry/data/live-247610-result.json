@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 2,
+  "name": "livevoices",
+  "query": "dev/voices.html",
+  "seed": null,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "0aaac96806b5f7b253ba7204d471e49562dedc9569134b06c793c32b9ac0e104",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/snap.mjs",
+    "scenes/livevoices.mjs",
+    "--out",
+    "runs/livevoices",
+    "--url",
+    "http://127.0.0.1:8826/"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7839427d84197e7273289e6158e6d8a45fbbe26b",
+    "branch": "ngc/look-voices",
+    "gameTree": "515bc2c65213bfffcc64c05603aa5a3469c998f6",
+    "gameSha256": "2c28cb3482f3fdfa6a00e294e963b1f4d9c54296cbf75d7bc230409b53796d57",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/dev/voices.html\n M game/js/main.js\n M game/js/units/air/rotary/figures.js\n M game/js/units/commander/board.js\n M game/js/units/groundwar/marineai.js\n M game/js/units/groundwar/marinefigure.js\n M game/js/units/infantry/bodyvm.js\n M game/js/units/infantry/handkit.js\n M game/js/units/infantry/meshkit.js\n M game/js/units/infantry/soldiermodel.js\n M game/js/units/infantry/viewmodel.js\n M game/js/units/infantry/weaponmodels.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/commands.js\n M game/js/voice/localrecognition.js\n M game/js/voice/voice.js\n M tools/scenes/offlinevoice.mjs\n M tools/scenes/voices.mjs\n M tools/serve.mjs\n?? game/dev/people.html\n?? game/dev/people.js\n?? game/js/units/infantry/figurematerials.js\n?? game/js/units/infantry/handposes.js\n?? game/js/units/infantry/humanmesh.js\n?? game/js/voice/commanddesk.css.js\n?? game/js/voice/delivery.js\n?? game/js/voice/fieldstations.js\n?? game/js/voice/localvoices.js\n?? game/js/voice/operations.js\n?? tools/figuresurfacebench.mjs\n?? tools/firstpersonbench.mjs\n?? tools/livevoicebench.mjs\n?? tools/peoplebench.mjs\n?? tools/radiodeskbench.mjs\n?? tools/radionetbench.mjs\n?? tools/radiooperationsbench.mjs\n?? tools/scenes/figuresurfaces.mjs\n?? tools/scenes/firstpersondiagnostic.mjs\n?? tools/scenes/firstpersonmotion.mjs\n?? tools/scenes/firstpersonpolish.mjs\n?? tools/scenes/handanatomy.mjs\n?? tools/scenes/livevoices.mjs\n?? tools/scenes/people.mjs\n?? tools/scenes/radioops.mjs\n?? tools/voice-server.mjs\n?? tools/voice-synthesize.ps1"
+  },
+  "url": "http://127.0.0.1:8826/dev/voices.html",
+  "ok": true,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": null,
+  "shots": [
+    {
+      "name": "complete-local-line",
+      "file": "01-complete-local-line.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 45.3,
+      "litFraction": 0.9979,
+      "colors": 80
+    }
+  ],
+  "clips": [],
+  "benchmarks": [],
+  "evals": [
+    {
+      "expr": "(window.__voicePeak=0,window.__voicePeakTimer=setInterval(()=>{__voicePeak=Math.max(__voicePeak,__voices.V.peak());},20),true)",
+      "value": true
+    },
+    {
+      "expr": "(clearInterval(__voicePeakTimer),__voices.V.stop(\"fixture\"),__holdVoice=true,true)",
+      "value": true
+    },
+    {
+      "expr": "__voices.V.speak({who:'radio-cancel-fixture',role:'command',text:'Command, this is Supply. Vehicle delivery is standing by at Home Island. Over.',net:'uhf',pri:1,cd:0,key:'late-voice'})?.i",
+      "value": 2
+    },
+    {
+      "expr": "(__voices.V.ctx.state=\"paused\",__voices.V.update(.02),__releaseVoice(),__holdVoice=false,true)",
+      "value": true
+    },
+    {
+      "expr": "(__voices.V.ctx.state=\"play\",__voices.V.update(.02),true)",
+      "value": true
+    },
+    {
+      "expr": "(__voices.V.stop(\"fixture\"),__voices.V.vol=0,__voices.V.speak({who:\"mute\",role:\"command\",text:\"Command, this is Tower. Radio check. Over.\",net:\"uhf\",cd:0,key:\"mute\"}),true)",
+      "value": true
+    },
+    {
+      "expr": "(__voices.V.stop(\"fixture\"),__voices.V.vol=6,true)",
+      "value": true
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__voices.V.cur.actor === \"Microsoft Mark\" && __voices.V.cur.source.playbackRate.value === 1",
+      "label": "whole sentence uses installed Mark with natural synthesis cadence, no playback pitch shift",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.V.cur.net === \"uhf\" && !!__voices.V.cur.bed && __voices.V.cur.audioDuration > 2",
+      "label": "complete controller line reaches the real radio chain and squelch bed",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voicePeak>.001 && __voicePeak<.3",
+      "label": "normalized speech produces controlled output on the dedicated voice bus",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.V.log.find(e=>e.key===\"late-voice\").state === \"paused\" && __voices.V.log.find(e=>e.key===\"late-voice\").start===null && !__voices.cur",
+      "label": "pausing while synthesis is pending discards the late PCM without speaking",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.V.log.some(e=>e.actor===\"Microsoft Mark\"&&e.state===\"interrupted\")",
+      "label": "urgent wave-off stops the currently speaking controller",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "!__voices.V.cur.source && !__voices.V.cur.bed",
+      "label": "zero volume creates neither a speech source nor radio noise",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.overlaps() === 0",
+      "label": "complete-line and fallback playback remain serialized",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.V.speechInfo().voices.length===3",
+      "label": "all three installed actors are exposed to the listening room",
+      "ok": true,
+      "value": true
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-28T22:12:09.143Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7839427",
+    "dirty": true,
+    "date": "2026-10-28_20:41",
+    "served": "2026-10-28T22:12:09.284Z",
+    "speech": "windows"
+  },
+  "sourceQualification": "External server version is recorded separately; the local source fingerprint alone does not prove remote content.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": null,
+    "state": null
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7839427d84197e7273289e6158e6d8a45fbbe26b",
+    "branch": "ngc/look-voices",
+    "gameTree": "515bc2c65213bfffcc64c05603aa5a3469c998f6",
+    "gameSha256": "2c28cb3482f3fdfa6a00e294e963b1f4d9c54296cbf75d7bc230409b53796d57",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/dev/voices.html\n M game/js/main.js\n M game/js/units/air/rotary/figures.js\n M game/js/units/commander/board.js\n M game/js/units/groundwar/marineai.js\n M game/js/units/groundwar/marinefigure.js\n M game/js/units/infantry/bodyvm.js\n M game/js/units/infantry/handkit.js\n M game/js/units/infantry/meshkit.js\n M game/js/units/infantry/soldiermodel.js\n M game/js/units/infantry/viewmodel.js\n M game/js/units/infantry/weaponmodels.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/commands.js\n M game/js/voice/localrecognition.js\n M game/js/voice/voice.js\n M tools/scenes/offlinevoice.mjs\n M tools/scenes/voices.mjs\n M tools/serve.mjs\n?? game/dev/people.html\n?? game/dev/people.js\n?? game/js/units/infantry/figurematerials.js\n?? game/js/units/infantry/handposes.js\n?? game/js/units/infantry/humanmesh.js\n?? game/js/voice/commanddesk.css.js\n?? game/js/voice/delivery.js\n?? game/js/voice/fieldstations.js\n?? game/js/voice/localvoices.js\n?? game/js/voice/operations.js\n?? tools/figuresurfacebench.mjs\n?? tools/firstpersonbench.mjs\n?? tools/livevoicebench.mjs\n?? tools/peoplebench.mjs\n?? tools/radiodeskbench.mjs\n?? tools/radionetbench.mjs\n?? tools/radiooperationsbench.mjs\n?? tools/scenes/figuresurfaces.mjs\n?? tools/scenes/firstpersondiagnostic.mjs\n?? tools/scenes/firstpersonmotion.mjs\n?? tools/scenes/firstpersonpolish.mjs\n?? tools/scenes/handanatomy.mjs\n?? tools/scenes/livevoices.mjs\n?? tools/scenes/people.mjs\n?? tools/scenes/radioops.mjs\n?? tools/voice-server.mjs\n?? tools/voice-synthesize.ps1"
+  },
+  "summary": "PASS: 8/8 expects, 0 page errors, 0 console errors",
+  "durationMs": 3772,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/runs/livevoices"
+}

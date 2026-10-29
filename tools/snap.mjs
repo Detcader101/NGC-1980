@@ -15,6 +15,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import puppeteer from 'puppeteer-core';
 import { sourceInfo, hostInfo, digest, fixtureDigest } from './evidence.mjs';
 import { createEvidenceCapture } from './browser-evidence.mjs';
+import { voiceBankIndex } from './voice-bank.mjs';
 
 const TOOLS = path.dirname(fileURLToPath(import.meta.url));
 const GAME = path.resolve(TOOLS, '..', 'game');
@@ -77,6 +78,7 @@ function startServer(root, source) {
       let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
       if (p === '/favicon.ico' && !fs.existsSync(path.join(root, 'favicon.ico'))) { res.writeHead(204); return res.end(); }
       if (p === '/version.json') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(source)); }
+      if (p === '/audio/voices/index.json') { res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); return res.end(JSON.stringify(voiceBankIndex(root))); }
       if (p.endsWith('/')) p += 'index.html';
       const f = path.resolve(root, '.' + p);
       if (!f.startsWith(root)) { res.writeHead(403); return res.end(); }
@@ -237,7 +239,7 @@ async function main() {
         evidence.assertIdle();
         const u = new URL(q ?? query, base).href;
         log('goto', u);
-        await page.goto(u, { waitUntil: 'load' });
+        await page.goto(u, { waitUntil: 'load', timeout: +(process.env.SNAP_NAV_MS || 30000) });   // SNAP_NAV_MS: a loaded machine needs longer than 30 s to boot the game
         await page.bringToFront();
       },
       wait: async (ms) => { log('wait', `${ms} ms`); await gameSleep(ms); },

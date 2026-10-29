@@ -1,0 +1,242 @@
+{
+  "schemaVersion": 1,
+  "title": "Command by radio, with a more coherent infantry rig",
+  "createdAt": "2026-10-28T23:09:09.625Z",
+  "artifacts": [
+    {
+      "file": "data/radio-aa3a05-result.json",
+      "bytes": 14884,
+      "sha256": "de9711dc0915da34c540c1f9b6574cd01e18761837bae798522d26026ec21df2"
+    },
+    {
+      "file": "data/desk-49be41-result.json",
+      "bytes": 9370,
+      "sha256": "97da560c3e0ff67010000b47a626d2d6c0941da304cc9d185db523fae5743b45"
+    },
+    {
+      "file": "data/voices-db9cf1-result.json",
+      "bytes": 35601,
+      "sha256": "5551620de7b8d1af35be9a666b78b6b6f1520ac835e998c44a5b19f29c8c9845"
+    },
+    {
+      "file": "data/smoke-04d588-result.json",
+      "bytes": 9627,
+      "sha256": "59cf7e5a39d4fbe17d7e4331c39f4db9035c4d107287e45c7df8c83c1db05421"
+    },
+    {
+      "file": "data/mic-224948-result.json",
+      "bytes": 9548,
+      "sha256": "b30b900cd112f792edefe5260fb862de49eb268ddfafdc6d06033120bca6e7df"
+    },
+    {
+      "file": "data/live-247610-result.json",
+      "bytes": 9080,
+      "sha256": "8e3c06a1e986b327151d0e2640d554b4fd44a701f76eef4da1c1b44c3aa24b32"
+    },
+    {
+      "file": "data/hands-before-32bcd1-result.json",
+      "bytes": 30931,
+      "sha256": "d40bcca4054470239752c42fed583b07f145af15fd461e7265672c1e2a4ccfd8"
+    },
+    {
+      "file": "data/hands-before-32bcd1-benchmark.json",
+      "bytes": 13058,
+      "sha256": "592384985b5360a5c4be021b0adb7c6d89a00e19273c2bf78e05da2106d0b83e"
+    },
+    {
+      "file": "data/hands-after-02b35e-result.json",
+      "bytes": 33069,
+      "sha256": "11ad781c75853baee68073de8f7223aa9f44ff0ad2869196aaf7b70f1b24fa7b"
+    },
+    {
+      "file": "data/hands-after-02b35e-benchmark.json",
+      "bytes": 14928,
+      "sha256": "caff56596e4666f13e29899c5164c21f50649f0be2c5c756eca15e2eb88f634c"
+    },
+    {
+      "file": "data/hands-motion-736422-result.json",
+      "bytes": 10731,
+      "sha256": "e65e9983c22b6619007aa07c187a65ac88abe897cd87181ee786706fcaef8857"
+    },
+    {
+      "file": "data/anatomy-dd54b4-result.json",
+      "bytes": 9943,
+      "sha256": "428d2d7ba73b4eec27f384003243797f3623cee73fc985ddb3db94218b5487e4"
+    },
+    {
+      "file": "data/people-before-fc40dd-result.json",
+      "bytes": 12779,
+      "sha256": "4198a114b6f3d78008f77cc4fa32776ba108441e38dbf3b3b35dc44d8ae68f2d"
+    },
+    {
+      "file": "data/people-after-436962-result.json",
+      "bytes": 16304,
+      "sha256": "207bba08195b96c6b9ac70833d762b0586d78ec9f8a556e614f22b8fe6950675"
+    },
+    {
+      "file": "data/figure-tiers-86ad30-result.json",
+      "bytes": 15935,
+      "sha256": "2dfb45a0cac5d4a8f86d572afdd4a093f53615c467d3e86725ad36dbe6cba9a0"
+    },
+    {
+      "file": "data/marine-8fe26e-result.json",
+      "bytes": 16425,
+      "sha256": "1e1377953a65b6c1777795d31dea81a74a8d37ad6ec93bf0c0d86e6f3defdddc"
+    },
+    {
+      "file": "data/recovery-8c5853-result.json",
+      "bytes": 11806,
+      "sha256": "280a6b46bd2a721f70605c5a0c3ffce7f222a169957c2dc43fa8d4d2565b8e00"
+    },
+    {
+      "file": "data/node-545ea5-result.json",
+      "bytes": 96815,
+      "sha256": "2d123af6df59909c34ca51890d6138b0aa138e4bd05083c3fd1d45ce0e645282"
+    },
+    {
+      "file": "data/motion-review-0dd984-result.json",
+      "bytes": 4203,
+      "sha256": "08fee8752d97639b268548ee9c3ad5365e25feae5053d795d317102ba40da454"
+    },
+    {
+      "file": "data/static-diagnostic-f4fc42-result.json",
+      "bytes": 5240,
+      "sha256": "3fa07f13b5ebeee941deaccaaa7c5be1af6fc2022dd7e0f4d73174fd290b8639"
+    },
+    {
+      "file": "data/economy-diagnostic-a5506f-result.json",
+      "bytes": 11845,
+      "sha256": "f162224493a8da53ab30e385bb2abd5fa4af76eb2f318893db406d86961858a2"
+    },
+    {
+      "file": "data/receipt-diagnostic-0f1db4-result.json",
+      "bytes": 12244,
+      "sha256": "f33c9a394b2d0b43a4532c9efbb06e01287d3642a31ae819ce5a58379571a830"
+    },
+    {
+      "file": "data/marine-slow-91697e-result.json",
+      "bytes": 15370,
+      "sha256": "fde7224161b2b8c88437de4f1d336c419e5d4d6335d67054f892e34397387645"
+    },
+    {
+      "file": "data/marine-fuse-9734f7-result.json",
+      "bytes": 16447,
+      "sha256": "de686c8b45cf7680e857619a5ca568e7dc5274131d0d3e7330063e939f6ed606"
+    },
+    {
+      "file": "data/recovery-landing-7b9887-result.json",
+      "bytes": 11981,
+      "sha256": "d6e0953ab22f539e02a201b50ca8d94439d127043ebec55c627fa71429b700af"
+    },
+    {
+      "file": "data/marine-ladder-eb5d52-result.json",
+      "bytes": 16670,
+      "sha256": "fc8079230f3e9e50569d1fb836df0661344d297d5b171b3eb0a91d4b828dcfe6"
+    },
+    {
+      "file": "data/notes.json",
+      "bytes": 16619,
+      "sha256": "64571ef97c5b7c0eb4c66e82919a638862a3a39efe608c32830ceb34e2286fbb"
+    },
+    {
+      "file": "assets/12b493461ae7-01-patrol-readback.png",
+      "bytes": 513487,
+      "sha256": "12b493461ae76bef6ce04ab05bd0bacb7c72b643970700217dd6e95d3cc2b6b8"
+    },
+    {
+      "file": "assets/68d66c35dc98-02-mission-ledger.png",
+      "bytes": 538202,
+      "sha256": "68d66c35dc98b694b3fe2b7c04a81f243522402293b6a9539d6d79010fb0d2fd"
+    },
+    {
+      "file": "assets/487537094d3b-settings-mobile.png",
+      "bytes": 56353,
+      "sha256": "487537094d3bdfcc8da66bce7603113502c5d1d46deb2334ddbac083eb7f086c"
+    },
+    {
+      "file": "assets/099787898016-01-complete-local-line.png",
+      "bytes": 47815,
+      "sha256": "099787898016268e36dc96c6120091e1dd12f240f7ec86f79f76a228326d56d2"
+    },
+    {
+      "file": "assets/4a7a7bce7280-01-offline-radio-reply.png",
+      "bytes": 523367,
+      "sha256": "4a7a7bce7280276c0e9e610789ffefeaac1b1ed48f3a555b04f1a7d8dbc8176b"
+    },
+    {
+      "file": "assets/da3dc1655222-02-m16-support.png",
+      "bytes": 127712,
+      "sha256": "da3dc1655222223a3392907f26fc05589678cebe88219a751565e49d27bb9fb6"
+    },
+    {
+      "file": "assets/78f4633475cc-02-m16-support.png",
+      "bytes": 198044,
+      "sha256": "78f4633475ccc87ee40310f199572764f2ca854ca29de4fdbcaf81da119447f9"
+    },
+    {
+      "file": "assets/d970a9fcbb4a-01-first-person-transitions.mp4",
+      "bytes": 33289,
+      "sha256": "d970a9fcbb4a7d0db16bcd4944374bfeb3e6bf5efb36fdd957373c4fb30b8639"
+    },
+    {
+      "file": "assets/21997b9e551f-01-first-person-transitions-poster.png",
+      "bytes": 71852,
+      "sha256": "21997b9e551f0e35c6a02de480cbadbb001556389545aaf7ca9564fe4a85a4f7"
+    },
+    {
+      "file": "assets/4404328fdcb9-01-first-person-transitions-contact.png",
+      "bytes": 245658,
+      "sha256": "4404328fdcb965f5f9b07869f7f5bf7f70a42f96b32e9516636d916d095c6b5b"
+    },
+    {
+      "file": "assets/2fc6d714659e-hands-12frames.png",
+      "bytes": 757335,
+      "sha256": "2fc6d714659efb1f820a2e31004b2754dbfc2d9f057a33f5514dc123e1e9e545"
+    },
+    {
+      "file": "assets/69cc36e6e749-01-ladder-first-person.png",
+      "bytes": 246317,
+      "sha256": "69cc36e6e74994ae9d11e21cd77dffa49cde500b310eba314a09963802ff058e"
+    },
+    {
+      "file": "assets/693c4901e5d2-02-swim-first-person.png",
+      "bytes": 341694,
+      "sha256": "693c4901e5d28019677fbb351ea1adadf0648d634a37fab23f4398bbf0f39a61"
+    },
+    {
+      "file": "assets/621573a07823-02-face.png",
+      "bytes": 152504,
+      "sha256": "621573a07823e420207dee024e521dd21bc536fd7ad6b2b269f5b8f9823bc87b"
+    },
+    {
+      "file": "assets/c84d65d51f9a-02-face.png",
+      "bytes": 229633,
+      "sha256": "c84d65d51f9a479df25d49fe279dac961e34f2124ac476c7b292d813d668ef5a"
+    },
+    {
+      "file": "assets/685227ce8623-01-walking-and-stance.mp4",
+      "bytes": 59810,
+      "sha256": "685227ce86235cf43a008344454d1b7c74328bdb3ad4d45258a011dcb2dd7efc"
+    },
+    {
+      "file": "assets/8aca92194fe0-01-walking-and-stance-poster.png",
+      "bytes": 49755,
+      "sha256": "8aca92194fe0ece827bfc44379511a725bc3dae7e4712219ab7570ab0091c9b1"
+    },
+    {
+      "file": "assets/0ad59e1e5156-01-walking-and-stance-contact.png",
+      "bytes": 151892,
+      "sha256": "0ad59e1e5156b1db234d20448f7812bd77e9e7980cd5e6a373d5c91417156dd2"
+    },
+    {
+      "file": "assets/f82deed9d755-people-12frames.png",
+      "bytes": 678482,
+      "sha256": "f82deed9d75503de249ad284ffd32cada76b6449fcd8f87a2a102af6d14a7c09"
+    },
+    {
+      "file": "devlog.html",
+      "bytes": 109956,
+      "sha256": "ded16bde179e5c60ca94b792d35361b43af12d82620ec941cf7d92d14661a3a9"
+    }
+  ]
+}

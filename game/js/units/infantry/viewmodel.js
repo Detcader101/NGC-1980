@@ -13,20 +13,71 @@
 import * as THREE from 'three';
 import { Kit, KITMAT, CAMO, COL, FIG, figMat } from './meshkit.js';
 import { fpHand, sleeveGeo } from './handkit.js';   // RENDERKIT figures
+import { handSocket } from './handposes.js';
 import { SdfKit } from './sdfmesh.js';   // ngc/look-people: the first-person hands as one blended surface
 import { SdfHandRecorder } from './humanfig.js';
 import { figMaterial } from './figgeo.js';
 const PARTS = (() => { try { return new URLSearchParams(location.search).has('figparts'); } catch (e) { return false; } })();
-// the hand fpHand() describes (phalanges, knuckles, nails, thumb, palm, heel, wrist) meshed as ONE smooth surface: the
-// fingers blend into the palm with webbing, the knuckles and the thenar are part of it, creases stay between fingers
-function sdfHandGeo(o) {
-  const S = new SdfKit(), rec = new SdfHandRecorder(S, { k: 0.0026, skin: 'handR' });
-  const w = fpHand(rec, o), s = S.mesh(0.0031, { iters: 4 });
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(s.pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(s.nor, 3)); g.setAttribute('color', new THREE.BufferAttribute(s.col, 3));
-  g.setAttribute('aFig', new THREE.BufferAttribute(s.fig, 4)); g.setAttribute('aRM', new THREE.BufferAttribute(s.rm, 2));
-  g.setIndex(s.index.length / 3 * 3 > 0 && s.verts > 65535 ? new THREE.Uint32BufferAttribute(s.index, 1) : new THREE.Uint16BufferAttribute(s.index, 1)); g.computeBoundingSphere();
-  return { g, w, tris: s.tris };
+// One LP SDF surface per side, meshed in a relaxed pose so fingers are not accidentally welded together when a
+// fist touches itself. The SDF's own smooth-union weights bind each surface vertex to its anatomical primitives.
+// Corresponding primitive frames then produce cached grip/open/rail targets with identical topology. No surface
+// remeshing or vertex work happens during animation; the GPU blends the targets on one visible skin mesh.
+const handSurfaces = new Map();
+function handDescription(o) {
+  const S = new SdfKit(), rec = new SdfHandRecorder(S, { k: 0.0026, skin: 'hand' + o.side });
+  const w = fpHand(rec, o);
+  // A nail is part of its distal phalanx. Independently rotating the embedded nail ellipsoid twists the welded
+  // skin between them (especially the thumb's large roll), folding faces into apparently floating slices.
+  const parents = S.prims.map((p, i) => p.mat === rec.nail && S.prims[i - 1]?.t === 0 ? i - 1 : i);
+  return { S, w, parents };
+}
+function primitiveFrame(p) {
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), scale = new THREE.Vector3(), centre = new THREE.Vector3();
+  if (p.t === 0) {
+    const z = new THREE.Vector3(p.bax, p.bay, p.baz), len = z.length(); z.multiplyScalar(1 / len);
+    const x = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), z).normalize();
+    const y = new THREE.Vector3().crossVectors(z, x);
+    q.setFromRotationMatrix(m.makeBasis(x, y, z)); centre.fromArray(p.a);
+    scale.set((p.ra + p.rb) / 2, (p.ra + p.rb) / 2, len);
+  } else {
+    if (p.R) { const r = p.R; q.setFromRotationMatrix(m.set(r[0],r[1],r[2],0,r[3],r[4],r[5],0,r[6],r[7],r[8],0,0,0,0,1)); }
+    centre.fromArray(p.c);
+    if (p.t === 1) scale.fromArray(p.r);
+    else if (p.t === 2) scale.set(p.b[0] + p.rad, p.b[1] + p.rad, p.b[2] + p.rad);
+    else throw new Error('Unsupported hand primitive ' + p.t);
+  }
+  return m.compose(centre, q, scale);
+}
+export function sdfHandGeo(o) {
+  let bind = handSurfaces.get(o.side);
+  if (!bind) {
+    const { S, parents } = handDescription({ side: o.side, gripR: 0.024, trigger: false, open: true });
+    for (let i = 0; i < S.prims.length; i++) S.prims[i].skin = String(i);
+    const s = S.mesh(0.0031, { iters: 4 }), geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(s.pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(s.nor, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(s.col, 3)); geo.setAttribute('aFig', new THREE.BufferAttribute(s.fig, 4)); geo.setAttribute('aRM', new THREE.BufferAttribute(s.rm, 2));
+    geo.setIndex(s.verts > 65535 ? new THREE.Uint32BufferAttribute(s.index, 1) : new THREE.Uint16BufferAttribute(s.index, 1));
+    const weights = s.skinAcc.map(acc => {
+      const list = Object.entries(acc), total = list.reduce((sum, [, w]) => sum + w, 0);
+      if (!(total > 0)) throw new Error('Unbound SDF hand vertex');
+      return list.map(([i, w]) => [Number(i), w / total]);
+    });
+    bind = { geo, weights, parents, inverse: S.prims.map(p => primitiveFrame(p).invert()), tris: s.tris };
+    handSurfaces.set(o.side, bind);
+  }
+  const { S, w } = handDescription(o);
+  if (S.prims.length !== bind.inverse.length) throw new Error('Hand pose changed primitive topology');
+  const transforms = bind.parents.map(i => primitiveFrame(S.prims[i]).multiply(bind.inverse[i]));
+  const g = bind.geo.clone(), p = g.attributes.position, rest = bind.geo.attributes.position;
+  const v = new THREE.Vector3(), sum = new THREE.Vector3();
+  for (let i = 0; i < p.count; i++) {
+    sum.set(0, 0, 0);
+    for (const [j, weight] of bind.weights[i]) sum.addScaledVector(v.fromBufferAttribute(rest, i).applyMatrix4(transforms[j]), weight);
+    p.setXYZ(i, sum.x, sum.y, sum.z);
+  }
+  g.computeVertexNormals(); g.computeBoundingSphere();
+  g.userData.handSurface = 'LP/SDF';
+  return { g, w, tris: bind.tris };
 }
 import { buildWeaponModel, buildItemModel, setLawReticle } from './weaponmodels.js';
 import { WEAPONS } from './weapons.js';
@@ -120,20 +171,13 @@ function evalTrack(track, p) {
 function sleeveMat() { return KITMAT.lambert(); }
 // RENDERKIT figures: smooth physical hands and sleeves (handkit.js); one material each, made once
 let _fpSkin = null, _fpCloth = null;
-const fpSkinMat = () => _fpSkin || (_fpSkin = figMat('skin'));
+const fpSkinMat = () => _fpSkin || (_fpSkin = figMaterial({ camo: 'erdl', seed: 1, skin: 0xc69a78 }));
 const fpClothMat = () => _fpCloth || (_fpCloth = figMat('fabric', { side: THREE.DoubleSide }));
-function buildHand(side) {   // a fist around a ~32 mm grip; grip axis = local y, grip centre at the origin, wrist toward +z
-  if (FIG && !PARTS) {   // ngc/look-people: the same hand as one smooth skin surface, the person's skin material
-    const gr = side === 'L' ? 0.024 : 0.017, a = sdfHandGeo({ side, gripR: gr, trigger: side === 'R' }), b = sdfHandGeo({ side, gripR: gr, open: true });
-    const mat = figMaterial({ camo: 'erdl', seed: 1, skin: 0xc69a78 });
-    const g = new THREE.Group(), grip = new THREE.Mesh(a.g, mat), open = new THREE.Mesh(b.g, mat); grip.name = 'hand' + side; open.name = 'handOpen' + side; open.visible = false; g.add(grip, open);
-    g.userData.wrist = a.w.wrist; g.userData.tris = a.tris; g.userData.shapes = { grip, open }; return g;
-  }
-  if (FIG) {   // RENDERKIT figures: fingers in three phalanges, knuckles, nails, thumb, palm, heel and wrist
-    const k = new Kit(), w = fpHand(k, { side, gripR: side === 'L' ? 0.024 : 0.017, trigger: side === 'R' }), ko = new Kit();
-    fpHand(ko, { side, gripR: side === 'L' ? 0.024 : 0.017, open: true });   // the relaxed / flat hand (swimming, aid): same wrist
-    const g = new THREE.Group(), grip = k.mesh(fpSkinMat(), 'hand' + side), open = ko.mesh(fpSkinMat(), 'handOpen' + side); open.visible = false; g.add(grip, open);
-    g.userData.wrist = w.wrist; g.userData.tris = k.tris; g.userData.shapes = { grip, open }; return g;
+function buildHand(side) {
+  if (FIG) {   // LP welded SDF skin is the only figure hand; every profile carries the same presentation metadata.
+    const g = new THREE.Group();
+    Object.assign(g.userData, { profiles: new Map(), side, shape: 'grip', openAmount: 0, railAmount: 0, wrist: V3() });
+    fitHand(g, side === 'L' ? 0.024 : 0.017, side === 'R'); return g;
   }
   const s = side === 'L' ? -1 : 1, k = new Kit(), skin = CAMO.vary(COL.skin, 0.05, 0.02), knuckle = 0xbb8c68, crease = 0x9c6c4c, nail = 0xd8b8a0;
   k.box(0.024, 0.086, 0.07, skin, [s * 0.031, 0, 0.024]);                                                       // palm (on the near side of the grip)
@@ -153,10 +197,35 @@ function buildHand(side) {   // a fist around a ~32 mm grip; grip axis = local y
   const m = k.mesh(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide }), 'hand' + side);
   const g = new THREE.Group(); g.add(m); g.userData.wrist = V3(s * 0.036, 0, 0.097); return g;
 }
+function fitHand(g,gripR,trigger,thumb='wrap') {
+  const data=g.userData;if(!data.profiles)return;
+  if(data.gripR===gripR&&data.trigger===trigger&&data.thumb===thumb)return;data.gripR=gripR;data.trigger=trigger;data.thumb=thumb;
+  const key=gripR+':'+trigger+':'+thumb;if(data.profile===key)return;
+  if(data.shapes)for(const mesh of Object.values(data.shapes))mesh.visible=false;
+  let profile=data.profiles.get(key);
+  if(!profile){
+    const side = data.side, a = sdfHandGeo({ side, gripR, trigger, thumb }), b = sdfHandGeo({ side, gripR, trigger, thumb, open: true });
+    if (!data.rail) { const rail = sdfHandGeo({ side, gripR: 0.017, trigger: false }); data.rail = { geometry: rail.g, wrist: rail.w.wrist }; }
+    const grip = new THREE.Mesh(a.g, fpSkinMat()), open = new THREE.Mesh(b.g, fpSkinMat());
+    grip.name = 'hand' + side; open.name = 'handOpen' + side;
+    // All profiles deform the same welded SDF surface: fingers, webbing and nails have matching vertices.
+    grip.geometry.morphAttributes.position = [open.geometry.attributes.position, data.rail.geometry.attributes.position];
+    grip.geometry.morphAttributes.normal = [open.geometry.attributes.normal, data.rail.geometry.attributes.normal]; grip.updateMorphTargets();
+    g.add(grip); profile = { shapes: { grip, open }, wrist: a.w.wrist, tris: a.tris }; data.profiles.set(key, profile);
+  }
+  data.profile=key;data.activeProfile=profile;data.wrist.copy(profile.wrist);data.tris=profile.tris;data.shapes=profile.shapes;
+  profile.shapes.grip.visible=true;profile.shapes.open.visible=false;profile.shapes.grip.morphTargetInfluences[0]=data.openAmount;
+}
+function railGrip(g,amount){
+  const d=g.userData;if(!d.rail)return;
+  d.railAmount=clamp(amount,0,1);d.wrist.copy(d.activeProfile.wrist).lerp(d.rail.wrist,d.railAmount);
+  d.shapes.grip.morphTargetInfluences[1]=d.railAmount;
+}
 function buildSegment(len, r0, r1, side, watch, fore = false) {   // along -y from the joint; sleeve camo
   if (FIG) {   // RENDERKIT figures: a round sleeve with fabric folds, the cuff standing off the wrist, the GI watch
     const k = new Kit(), cloth = CAMO.erdl(0.06, side === 'L' ? 3 : 5), sd = side === 'L' ? 3 : 7;
     k.add(sleeveGeo(len, r0 * 1.04, r1 * (fore ? 1.1 : 1.0), { seed: sd + (fore ? 1 : 0), folds: 1, cuff: fore, seg: 24, rows: 18 }), cloth, [0, 0, 0], [0, 0, 0], null, 'local');
+    if(!fore)k.ellip(r1*1.07,r1*1.07,r1,cloth,[0,-len+0.008,0],[0,0,0],20,'local'); // fabric over the flexing elbow, closes both sleeve ends
     let kSleeve = k.pos.length / 3;   // (ngc/look-people: the cloth vertices so far)
     if (fore) {   // the cuff's hem: a rolled edge round the opening (the sleeve's inside is not a dark hole), the button tab
       const rc = r1 * 1.1 * 1.05 + 0.002;
@@ -167,9 +236,9 @@ function buildSegment(len, r0, r1, side, watch, fore = false) {   // along -y fr
     }
     if (watch) {   // GI watch on the left wrist, under the cuff's edge: OD nylon band, black case, crystal
       const y = -len + 0.03;
-      k.add(new THREE.TorusGeometry(r1 * 0.98, 0.004, 6, 20).rotateX(Math.PI / 2), 0x3e4030, [0, y, 0], [0, 0, 0], [1, 2.2, 1]);
-      k.cyl(0.017, 0.018, 0.009, 0x151515, [0, y, -(r1 + 0.004)], 'z', 16);
-      k.cyl(0.0145, 0.0145, 0.002, 0xcfcbb8, [0, y, -(r1 + 0.009)], 'z', 16);
+      k.add(new THREE.TorusGeometry(r1 * 0.98, 0.004, 6, 20).rotateX(Math.PI / 2), CAMO.surface(0x3e4030,'webbing'), [0, y, 0], [0, 0, 0], [1, 2.2, 1]);
+      k.cyl(0.017, 0.018, 0.009, CAMO.surface(0x151515,'steel'), [0, y, -(r1 + 0.004)], 'z', 16);
+      k.cyl(0.0145, 0.0145, 0.002, CAMO.surface(0xcfcbb8,'plastic'), [0, y, -(r1 + 0.009)], 'z', 16);
       k.box(0.0012, 0.009, 0.0005, 0x101010, [0, y + 0.0035, -(r1 + 0.0102)]); k.box(0.007, 0.0012, 0.0005, 0x101010, [0.003, y, -(r1 + 0.0102)]);
       k.cyl(0.0025, 0.0025, 0.004, 0x2a2a2a, [0.0185, y, -(r1 + 0.004)], 'x', 8);   // crown
     }
@@ -189,14 +258,27 @@ function buildSegment(len, r0, r1, side, watch, fore = false) {   // along -y fr
   const g = new THREE.Group(); g.add(k.mesh(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide }))); return g;
 }
 const DOWN = V3(0, -1, 0);
+const _armS=V3(),_rollX=V3(),_rollY=V3(),_rollZ=V3(),_armBasis=new THREE.Matrix4();
 export function solveArm(arm, wrist) {   // all in viewmodel (camera) space; arm = { up, fo, sh }  (exported: throwvm.js, ngc/infdepth)
-  const S = arm.sh, d = _v.subVectors(wrist, S); let L = clamp(d.length(), 0.1, UPPER + FORE - 0.003); d.normalize();
+  const d=_v.subVectors(wrist,arm.sh),distance=d.length();
+  if(distance>1e-7)d.multiplyScalar(1/distance);else d.set(0,0,-1);
+  const L=clamp(distance,Math.abs(UPPER-FORE)+0.005,UPPER+FORE-0.003);
+  // A small clavicle/reach translation keeps the sleeve connected when a presentation target is outside the
+  // rigid two-bone chain. Clamping only the triangle distance left the old hand floating beyond its cuff.
+  const S=_armS.copy(wrist).addScaledVector(d,-L);arm.reachShift=Math.abs(distance-L);
   const x = (UPPER * UPPER - FORE * FORE + L * L) / (2 * L), h = Math.sqrt(Math.max(0, UPPER * UPPER - x * x));
-  const pole = _w.copy(arm.pole); pole.addScaledVector(d, -pole.dot(d)).normalize();
+  const pole=_w.copy(arm.pole);pole.addScaledVector(d,-pole.dot(d));
+  if(pole.lengthSq()<1e-8){pole.set(0,1,0);pole.addScaledVector(d,-pole.dot(d));if(pole.lengthSq()<1e-8)pole.set(1,0,0);}
+  pole.normalize();
   const E = _a.copy(S).addScaledVector(d, x).addScaledVector(pole, h);
   arm.up.position.copy(S); arm.up.quaternion.setFromUnitVectors(DOWN, _b.subVectors(E, S).normalize());
-  arm.fo.position.copy(E); arm.fo.quaternion.setFromUnitVectors(DOWN, _b.subVectors(wrist, E).normalize());
-  // spin the forearm so the watch face shows on top (look along the arm, roll toward -z of the camera)
+  arm.fo.position.copy(E);_rollY.subVectors(E,wrist).normalize();
+  // Roll the oval cuff with the hand's dorsal direction; the watch stays on the back of the left wrist.
+  _rollZ.set(arm.side==='L'?1:-1,0,0).applyQuaternion(arm.hand.quaternion);
+  _rollZ.addScaledVector(_rollY,-_rollZ.dot(_rollY));
+  if(_rollZ.lengthSq()<1e-8){_rollZ.copy(pole);_rollZ.addScaledVector(_rollY,-_rollZ.dot(_rollY));}
+  _rollZ.normalize();_rollX.crossVectors(_rollY,_rollZ).normalize();_rollZ.crossVectors(_rollX,_rollY);
+  arm.fo.quaternion.setFromRotationMatrix(_armBasis.makeBasis(_rollX,_rollY,_rollZ));
 }
 
 // ------------------------------------------------------------------------------------------------ the viewmodel
@@ -209,7 +291,7 @@ export function createViewmodel(o = {}) {
   for (const sd of ['L', 'R']) {
     const up = buildSegment(UPPER, 0.052, 0.045, sd, false), fo = buildSegment(FORE, 0.045, 0.036, sd, sd === 'L', true), hand = buildHand(sd);
     root.add(up, fo, hand);
-    arms[sd] = { up, fo, hand, sh: SHOULDER[sd].clone(), pole: sd === 'R' ? V3(0.7, -1, 0.3) : V3(-0.35, -1, 0.1) };
+    arms[sd] = { up, fo, hand, side:sd, sh: SHOULDER[sd].clone(), pole: sd === 'R' ? V3(0.7, -1, 0.3) : V3(-0.35, -1, 0.1) };
   }
   const handMag = new THREE.Group(); arms.L.hand.add(handMag);
   const flashMat = new THREE.MeshBasicMaterial({ color: 0xffc070, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
@@ -219,7 +301,7 @@ export function createViewmodel(o = {}) {
   const vm = {
     scene, camera: cam, root, arms, model: null, key: null, cls: 'rifle', t: 0,
     kick: { z: 0, zv: 0, p: 0, pv: 0 }, lag: { x: 0, y: 0, vx: 0, vy: 0 }, flashT: 0, boltT: 0, swapY: 0, adsE: 0, lastYaw: null, lastPitch: null,
-    state: {}, debugHands: false,
+    state: {}, debugHands: false, gaitE:0,
   };
   vm.setWeapon = function (key, gl) {
     const k = key + (gl ? '/M203' : '');
@@ -237,27 +319,31 @@ export function createViewmodel(o = {}) {
   // weapon placement (camera space) for the current state
   const basePos = V3(), baseQ = new THREE.Quaternion();
   function place(R, S, W, cls, dt) {
-    const key = W.key, gl = cls === 'gl', ads = S.ads, adsE = sstep(ads), prone = S.stance === 'prone' && S.stanceT >= 1 ? 1 : 0;
-    const hip = (prone ? PRONE : HIP)[cls] || HIP.rifle, spr = SPRINT[cls] || SPRINT.rifle, low = sstep(S.lower);
+    const key=W.key,gl=cls==='gl',ads=S.ads,adsE=sstep(ads),st=sstep(clamp(S.stanceT,0,1));
+    const prone=S.stanceT<1?lerp(S.stanceFrom==='prone'?1:0,S.stanceTo==='prone'?1:0,st):S.stance==='prone'?1:0;
+    const hip=HIP[cls]||HIP.rifle,pr=PRONE[cls]||PRONE.rifle,spr=SPRINT[cls]||SPRINT.rifle,low=sstep(S.lower);
     // ADS: rear sight eyeRelief in front of the eye; M203: through the quadrant sight, raised by its elevation
     const er = vm.model.sight.eyeRelief;
     let ap = [0, 0, -er, 0, 0, 0];
     if (gl && vm.model.sight.quad) { const qd = vm.model.sight.quad, el = W.sightElevation(); ap = [-qd.rear[0], -qd.rear[1], -er - 0.02, el, 0, 0]; }
     if (cls === 'law') ap = [0, 0, -er, 0, 0, 0];
     const P = _P;
-    for (let i = 0; i < 6; i++) P[i] = lerp(lerp(hip[i], ap[i], adsE), spr[i], low);
+    for (let i = 0; i < 6; i++) P[i] = lerp(lerp(lerp(hip[i],pr[i],prone), ap[i], adsE), spr[i], low);
     // the gun follows the aim relative to the camera (deadzone, sway, recoil, free look) - on the sights the camera IS the aim
     const dyaw = wrapA(S.aimYaw - S.camYaw), dp = S.aimPitch - S.camPitch;
     // inertia: turning drags the gun behind (a spring on the camera's angular rate)
     if (vm.lastYaw !== null && dt > 0) {
       const ry = wrapA(S.camYaw - vm.lastYaw) / dt, rp = (S.camPitch - vm.lastPitch) / dt, k = 140, c = 2 * Math.sqrt(k), m = (1 - 0.7 * adsE) * (cls === 'mg' ? 1.6 : cls === 'pistol' ? 0.7 : 1);
-      vm.lag.vx += (k * (clamp(-ry * 0.012, -0.05, 0.05) * m - vm.lag.x) - c * vm.lag.vx) * dt; vm.lag.vy += (k * (clamp(-rp * 0.012, -0.05, 0.05) * m - vm.lag.y) - c * vm.lag.vy) * dt;
-      vm.lag.x += vm.lag.vx * dt; vm.lag.y += vm.lag.vy * dt;
+      const omega=Math.sqrt(k),decay=Math.exp(-omega*dt),tx=clamp(-ry*0.012,-0.05,0.05)*m,ty=clamp(-rp*0.012,-0.05,0.05)*m;
+      const dx=vm.lag.x-tx,dy=vm.lag.y-ty,bx=vm.lag.vx+omega*dx,by=vm.lag.vy+omega*dy;
+      vm.lag.x=tx+(dx+bx*dt)*decay;vm.lag.y=ty+(dy+by*dt)*decay;
+      vm.lag.vx=(vm.lag.vx-omega*bx*dt)*decay;vm.lag.vy=(vm.lag.vy-omega*by*dt)*decay;
     }
     vm.lastYaw = S.camYaw; vm.lastPitch = S.camPitch;
     // bob (less on the sights), breathing drift at the hip
-    const bobK = (1 - 0.85 * adsE) * (1 - 0.5 * prone), ph = S.gaitPhase, gm = S.gait === 'idle' ? 0 : S.gait === 'sprint' ? 2.2 : S.gait === 'run' ? 1.4 : 0.8;
-    P[0] += Math.sin(ph) * 0.006 * gm * bobK + vm.lag.x * 0.4; P[1] += -Math.abs(Math.cos(ph)) * 0.008 * gm * bobK + vm.lag.y * 0.4 + Math.sin(S.breathPhase) * 0.0012 * (1 - adsE) * (0.5 + S.breathDepth);
+    const bobK=(1-0.92*adsE)*(1-0.5*prone),ph=S.gaitPhase,targetGait=S.gait==='idle'?0:S.gait==='sprint'?1.8:S.gait==='run'?1.2:0.7;
+    vm.gaitE+=(targetGait-vm.gaitE)*(1-Math.exp(-dt*9));const gm=vm.gaitE;
+    P[0] += Math.sin(ph) * 0.006 * gm * bobK + vm.lag.x * 0.4; P[1] += -0.5*(1+Math.cos(ph*2)) * 0.008 * gm * bobK + vm.lag.y * 0.4 + Math.sin(S.breathPhase) * 0.0012 * (1 - adsE) * (0.5 + S.breathDepth);
     P[4] += dyaw + vm.lag.x * 1.2 + Math.sin(ph) * 0.01 * gm * bobK; P[3] += dp + vm.lag.y * 1.2;
     P[5] += -vm.lag.x * 0.8 + Math.sin(ph) * 0.015 * gm * bobK;
     // lean: the camera rolls; cant the gun a touch less than the head (shooters keep the sights near level)
@@ -283,9 +369,10 @@ export function createViewmodel(o = {}) {
     const M = vm.model, g = M.group;
     if (typeof spec === 'string') {
       const a = M.anchors[spec] || M.anchors.grip;
-      outPos.set(a[0], a[1], a[2]).applyQuaternion(g.quaternion).add(g.position);
+      const socket=handSocket(M.key,side,spec,!!M.parts.glBarrel);
+      outPos.set(a[0],a[1],a[2]);if(socket)outPos.add(_w.fromArray(socket.offset));outPos.applyQuaternion(g.quaternion).add(g.position);
       const r = (vm.cls === 'pistol' && PISTOL_ROT[spec]) || (vm.cls === 'law' && LAW_ROT[spec]) || HANDROT[spec] || [0, 0, 0];
-      _q.setFromEuler(_e.set(r[0], r[1], r[2] * (side === 'L' ? -1 : 1), 'XYZ'));
+      if(socket)_q.copy(socket.rotation);else _q.setFromEuler(_e.set(r[0], r[1], r[2] * (side === 'L' ? -1 : 1), 'XYZ'));
       outQ.copy(g.quaternion).multiply(_q);
     } else {
       outPos.set(spec.c[0], spec.c[1], spec.c[2]);
@@ -297,6 +384,7 @@ export function createViewmodel(o = {}) {
 
   // ---------------------------------------------------------------- per frame
   vm.update = function (dt, R) {
+    dt=clamp(dt,0,0.1);
     const S = R.soldier, carrier = R.carrier, W = R.cur; vm.t += dt;
     if (!carrier) { root.visible = false; return; }
     root.visible = true;
@@ -355,8 +443,11 @@ export function createViewmodel(o = {}) {
     if (cls === 'law' && carrier.law === 'closed' && !act) { defL = 'fore'; defR = 'grip'; }
     for (const sd of ['L', 'R']) {
       const a = arms[sd], spec = st[sd] ?? (sd === 'L' ? defL : defR), nspec = nx[sd] ?? spec, rot = st[sd + 'r'];
+      const socket=handSocket(M.key,sd,sd==='L'?defL:defR,!!M.parts.glBarrel);
+      fitHand(a.hand,socket?.gripR??(sd==='L'?0.024:0.017),socket?.trigger??(sd==='R'),socket?.thumb??'wrap');
+      railGrip(a.hand,0); // bodyvm blends its own rail grip after the weapon pose, independent of gun furniture
       handTarget(sd, spec === 'grip' && sd === 'L' ? defL : spec, rot, _hp, _hq);
-      if (nspec !== spec && tr) { handTarget(sd, nspec, nx[sd + 'r'] || rot, _np, _nq); _hp.lerp(_np, tt); _hq.slerp(_nq, tt); }
+      if (nspec !== spec && tr) { handTarget(sd, nspec === 'grip' && sd === 'L' ? defL : nspec, nx[sd + 'r'] || rot, _np, _nq); _hp.lerp(_np, tt); _hq.slerp(_nq, tt); }
       a.hand.position.copy(_hp); a.hand.quaternion.copy(_hq);
       a.hand.updateMatrix();
       const wr = _b.copy(a.hand.userData.wrist).applyMatrix4(a.hand.matrix);
@@ -377,7 +468,8 @@ export function createViewmodel(o = {}) {
   }
   vm.fov = (base, ads) => base / (1 + 0.18 * sstep(ads));
   // RENDERKIT figures: 'grip' (the fist on the weapon, default) | 'open' (relaxed: swimming, pressing on a wound); no-op classic
-  vm.handShape = (side, shape) => { const S = arms[side].hand.userData.shapes; if (!S) return; S.grip.visible = shape !== 'open'; S.open.visible = shape === 'open'; };
+  vm.handShape = (side, shape, amount=null) => { const d=arms[side].hand.userData,S=d.shapes;if(!S)return;d.shape=shape;d.openAmount=shape==='open'?clamp(amount??1,0,1):0;S.grip.visible=true;S.open.visible=false;S.grip.morphTargetInfluences[0]=d.openAmount; };
+  vm.railGrip=(side,amount)=>railGrip(arms[side].hand,amount);
   const xrPos = new THREE.Vector3(), xrQ = new THREE.Quaternion(), xrModelQ = new THREE.Quaternion(), xrGrip = new THREE.Vector3(), xrForward = new THREE.Vector3(0,0,-1);
   const xrHead = new THREE.Vector3(), xrHeadQ = new THREE.Quaternion(), xrInverse = new THREE.Quaternion(), xrShoulder = new THREE.Vector3(), xrWrist = new THREE.Vector3();
   vm.render = function (renderer, worldCam, trackedRay = null) {

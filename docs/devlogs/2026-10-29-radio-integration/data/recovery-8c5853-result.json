@@ -1,0 +1,159 @@
+{
+  "schemaVersion": 2,
+  "name": "radiorecovery",
+  "query": "?debug&auto&kb&res=0.35&peace&tech=max",
+  "seed": null,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "af1fa3db8a3e18fe08b17a008da95e66234c9d6f72699cadc7cf82e00d76156c",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/snap.mjs",
+    "scenes/radiorecovery.mjs",
+    "--out",
+    "runs/radio-merge-recovery"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "787b4c17fa3ee149fa7d3b13bd3f66a2fce96ff2",
+    "branch": "ngc/look-voices",
+    "gameTree": "29426da431d131f4755554436e6bfb53174b7329",
+    "gameSha256": "2c86e9b56cba59d6cba5f5ec6fa7d99d81093a275448f18325f19f493208cb97",
+    "dirty": true,
+    "status": "MM MODLOG.md\n M README.md\nM  docs/ngc1980/BIBLE.md\n M docs/ngc1980/COORDINATION.md\nM  docs/ngc1980/LOOK-PLAN.md\nA  docs/ngc1980/PERF-BUDGETS.md\nA  docs/ngc1980/TYPESCRIPT.md\nA  docs/ngc1980/evidence/look-nature/sbs-01-hq.png\nA  docs/ngc1980/evidence/look-nature/sbs-02-oak.png\nA  docs/ngc1980/evidence/look-nature/sbs-03-pine.png\nA  docs/ngc1980/evidence/look-nature/sbs-04-fir.png\nA  docs/ngc1980/evidence/look-nature/sbs-05-backlit.png\nA  docs/ngc1980/evidence/look-nature/sbs-06-forest.png\nA  docs/ngc1980/evidence/look-nature/sbs-07-village.png\nA  docs/ngc1980/evidence/look-nature/sbs-08-village30.png\nA  docs/ngc1980/evidence/look-nature/sbs-09-heli30.png\nA  docs/ngc1980/evidence/look-nature/sbs-10-heli200.png\nA  docs/ngc1980/evidence/look-nature/sbs-11-jet1200.png\nA  docs/ngc1980/evidence/look-people/crews-seated-kneeling.png\nA  docs/ngc1980/evidence/look-people/deck-crew-close.png\nA  docs/ngc1980/evidence/look-people/deck-crew.png\nA  docs/ngc1980/evidence/look-people/face-bare.png\nA  docs/ngc1980/evidence/look-people/face-helmet-34.png\nA  docs/ngc1980/evidence/look-people/face-helmet.png\nA  docs/ngc1980/evidence/look-people/fp-hip-at-home.png\nA  docs/ngc1980/evidence/look-people/fp-self-aid.png\nA  docs/ngc1980/evidence/look-people/fp-swim.png\nA  docs/ngc1980/evidence/look-people/heads-navy.png\nA  docs/ngc1980/evidence/look-people/heads-pilots.png\nA  docs/ngc1980/evidence/look-people/huey-pilots-after.png\nA  docs/ngc1980/evidence/look-people/roles.png\nA  docs/ngc1980/evidence/look-people/squad-10m.png\nA  docs/ngc1980/evidence/look-people/squad-40m-crowd-lod-after.png\nA  docs/ngc1980/evidence/look-people/tomcat-crew-close.png\nA  docs/ngc1980/evidence/look-people/tomcat-crew-side.png\nA  docs/ngc1980/evidence/look-people/townsfolk.png\nA  docs/ngc1980/evidence/look-people/tp-carry-after.png\nA  docs/ngc1980/evidence/look-people/tp-front-close.png\nA  docs/ngc1980/evidence/look-people/tp-swim-after.png\nA  docs/ngc1980/evidence/look-people/vm-grip-close.png\nA  docs/ngc1980/evidence/look-people/vm-side-r.png\nA  docs/ngc1980/evidence/look-people/weapons-after.png\nA  docs/ngc1980/evidence/perf-render/sbs-deck.png\nA  docs/ngc1980/evidence/perf-render/sbs-hard.png\nA  docs/ngc1980/evidence/perf-render/sbs-home200.png\nA  docs/ngc1980/evidence/perf-render/sbs-hq.png\nA  docs/ngc1980/evidence/perf-render/sbs-jeep.png\nA  docs/ngc1980/evidence/perf-render/sbs-jet1200.png\nA  docs/ngc1980/evidence/perf-render/sbs-m113.png\nA  docs/ngc1980/evidence/perf-render/sbs-msaa-hq.png\nA  docs/ngc1980/evidence/perf-render/sbs-pad.png\nA  docs/ngc1980/evidence/perf-render/sbs-tank.png\nA  docs/ngc1980/findings/look-nature.md\nA  docs/ngc1980/findings/look-people.md\n M docs/ngc1980/findings/look-voices.md\nA  docs/ngc1980/findings/perf-cpu.md\nA  docs/ngc1980/findings/perf-render.md\nA  docs/ngc1980/findings/typecheck.md\nA  docs/ngc1980/findings/xr-fix.md\nA  docs/ngc1980/reference/people/SOURCES.md\n M game/dev/people.js\nM  game/index.html\nM  game/js/craft.js\nM  game/js/craftjet.js\nM  game/js/crafttomcat.js\nM  game/js/fog.js\nM  game/js/ground.js\nM  game/js/heli.js\nMM game/js/hotas.js\nA  game/js/hypot.js\nM  game/js/interiors/crewfig.js\nM  game/js/jetplay.js\nM  game/js/main.js\nM  game/js/marine.js\nA  game/js/perf/bench.js\nA  game/js/perfhud.js\nM  game/js/renderkit/adopt.js\nM  game/js/renderkit/effects.js\nM  game/js/renderkit/gamemats.js\nM  game/js/renderkit/gamepost.js\nM  game/js/renderkit/light.js\nA  game/js/renderkit/lod.js\nM  game/js/renderkit/materials.js\nA  game/js/renderkit/merge.js\nM  game/js/renderkit/nature.js\nM  game/js/renderkit/ui.js\nM  game/js/sim/zone.js\nM  game/js/ui/markerlayer.js\nM  game/js/units/air/rotary/ch46craft.js\nM  game/js/units/air/rotary/ch46unit.js\nM  game/js/units/air/rotary/figures.js\nM  game/js/units/air/rotary/mv22unit.js\nM  game/js/units/air/rotary/rb.js\nM  game/js/units/air/rotary/rotary.js\nM  game/js/units/air/rotary/rotor.js\nM  game/js/units/air/rotary/squad.js\nM  game/js/units/air/rotary/waspfm.js\nM  game/js/units/air/rotary/waspunit.js\nM  game/js/units/air/tomcatmodel.js\nM  game/js/units/armor/armorcraft.js\nM  game/js/units/armor/tankmodel.js\nM  game/js/units/defence/brain.js\nM  game/js/units/groundwar/groundsim.js\nM  game/js/units/groundwar/groundwar.js\nM  game/js/units/groundwar/marine.js\n M game/js/units/groundwar/marinefigure.js\nA  game/js/units/infantry/figgeo.js\nA  game/js/units/infantry/figinst.js\n M game/js/units/infantry/figurematerials.js\nMM game/js/units/infantry/handkit.js\n M game/js/units/infantry/handposes.js\nA  game/js/units/infantry/humanfig.js\nD  game/js/units/infantry/humanmesh.js\nM  game/js/units/infantry/invui.js\nM  game/js/units/infantry/items.js\n M game/js/units/infantry/meshkit.js\nA  game/js/units/infantry/sdfmesh.js\nMM game/js/units/infantry/soldiermodel.js\nMM game/js/units/infantry/viewmodel.js\nM  game/js/units/infantry/weaponmodels.js\nM  game/js/units/naval/deckcrew.js\nM  game/js/units/naval/fishsim.js\nM  game/js/units/naval/kraken.js\nM  game/js/units/naval/navalfx.js\nM  game/js/units/naval/seamotion.js\nM  game/js/units/wheeled/index.js\nM  game/js/units/wheeled/tyre.js\nM  game/js/units/wheeled/vehiclefm.js\nM  game/js/units/wheeled/wheeledcraft.js\nM  game/js/units/wheeled/wheeledenv.js\nM  game/js/vehicle.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/hooks.js\n M game/js/voice/localrecognition.js\n M game/js/voice/microphone.js\n M game/js/voice/operations.js\n M game/js/voice/ptt.js\n M game/js/voice/recognition.js\n M game/js/voice/voice.js\nM  game/js/war.js\nM  game/js/world.js\nM  game/js/world/ambient.js\nM  game/js/world/chunkgen.js\nM  game/js/world/life.js\nM  game/js/world/worldworker.js\nM  game/js/xr/bench.js\nAM game/types/globals.d.ts\nA  game/vendor/html2canvas.d.ts\nM  launcher/install.sh\nM  tools/README.md\nM  tools/check.mjs\n M tools/figuresurfacebench.mjs\n M tools/firstpersonbench.mjs\nA  tools/grid.mjs\nA  tools/hypotbench.mjs\nM  tools/package-lock.json\nM  tools/package.json\n M tools/peoplebench.mjs\nA  tools/profsummary.mjs\nA  tools/profunder.mjs\nA  tools/scenes/cpuprofile.mjs\nA  tools/scenes/looknature.mjs\nA  tools/scenes/lookpeople.mjs\nA  tools/scenes/lpcrews.mjs\nA  tools/scenes/lpstats.mjs\nA  tools/scenes/lpstudio.mjs\nA  tools/scenes/lpweapons.mjs\nA  tools/scenes/mergecheck.mjs\n M tools/scenes/people.mjs\nA  tools/scenes/perfab.mjs\nA  tools/scenes/perfbench.mjs\nA  tools/scenes/perfbudget.mjs\nA  tools/scenes/perflod.mjs\nM  tools/serve.mjs\n M tools/servebench.mjs\nM  tools/sim/headless.mjs\nA  tools/simdiff.mjs\nA  tools/typecheck-baseline.json\nA  tools/typecheck.mjs\nA  tools/warprof.mjs\nA  tsconfig.json\n?? tools/scenes/radiofiguremerge.mjs\n?? tools/scenes/radiogripmerge.mjs"
+  },
+  "url": "http://127.0.0.1:34879/?debug&auto&kb&res=0.35&peace&tech=max",
+  "ok": true,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": "0 fps  ·  res 35%",
+  "shots": [],
+  "clips": [],
+  "benchmarks": [],
+  "evals": [
+    {
+      "expr": "(()=>{\n    __G.G.bench=true;for(const n of __G.war.tech[1].nodes)__G.war.tech[1].done.add(n.id);\n    const i=__G.ISLANDS.find(i=>i.name==='SANDBAR'),x=i.pad.x+40,z=i.pad.z+40;\n    __G.H.reset(new __G.THREE.Vector3(x,__G.terrainH(x,z)+1.9,z),0,true,1);__G.HI.setCollective(0);\n    window.__requestRepair=()=>{__G.G.fuel=10;__G.Z.svc=null;const n=__radioCommands.net;\n      n.receive([{transcript:'Supply, this is Command. Request fuel and field repair. Over.',confidence:1}]);\n      const result=n.receive([{transcript:'Supply, this is Command. Correct. Over.',confidence:1}]);\n      window.__repairTask=n.tasks.findLast(t=>t.label==='Request fuel and field repair');return result.ok;\n    };return true;\n  })()",
+      "value": true
+    },
+    {
+      "expr": "(()=>{const m=__G.G.rescue.mission;\n      if('partial'!=='cancel'){m.fixed='partial'==='partial';m.arrived='partial'==='partial'?1:0;m.ended=true;}\n      __G.G.fuel='partial'==='cancel'?80:20;__G.G.rescue=null;\n      __radioCommands.net.update(1);__G.drop.cancel();return {state:__repairTask.state,detail:__repairTask.detail};\n    })()",
+      "value": {
+        "state": "complete",
+        "detail": "Field repair complete. 1 crew reached the Huey. Return to base for full service."
+      }
+    },
+    {
+      "expr": "(()=>{const m=__G.G.rescue.mission;\n      if('cancel'!=='cancel'){m.fixed='cancel'==='partial';m.arrived='cancel'==='partial'?1:0;m.ended=true;}\n      __G.G.fuel='cancel'==='cancel'?80:20;__G.G.rescue=null;\n      __radioCommands.net.update(1);__G.drop.cancel();return {state:__repairTask.state,detail:__repairTask.detail};\n    })()",
+      "value": {
+        "state": "cancelled",
+        "detail": "Field support interrupted."
+      }
+    },
+    {
+      "expr": "(()=>{const m=__G.G.rescue.mission;\n      if('failed'!=='cancel'){m.fixed='failed'==='partial';m.arrived='failed'==='partial'?1:0;m.ended=true;}\n      __G.G.fuel='failed'==='cancel'?80:20;__G.G.rescue=null;\n      __radioCommands.net.update(1);__G.drop.cancel();return {state:__repairTask.state,detail:__repairTask.detail};\n    })()",
+      "value": {
+        "state": "failed",
+        "detail": "Field support failed. No repair crew reached the Huey."
+      }
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__requestRepair()",
+      "label": "field support request accepted: partial",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__G.G.rescue.mission===__G.drop.state && __repairTask.state===\"active\"",
+      "label": "request retains the actual active drop mission: partial",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__repairTask.state==='complete'",
+      "label": "actual mission outcome wins over remaining fuel: partial",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__requestRepair()",
+      "label": "field support request accepted: cancel",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__G.G.rescue.mission===__G.drop.state && __repairTask.state===\"active\"",
+      "label": "request retains the actual active drop mission: cancel",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__repairTask.state==='cancelled'",
+      "label": "actual mission outcome wins over remaining fuel: cancel",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__requestRepair()",
+      "label": "field support request accepted: failed",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__G.G.rescue.mission===__G.drop.state && __repairTask.state===\"active\"",
+      "label": "request retains the actual active drop mission: failed",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__repairTask.state==='failed'",
+      "label": "actual mission outcome wins over remaining fuel: failed",
+      "ok": true,
+      "value": true
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-29T09:44:14.475Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "787b4c17fa3ee149fa7d3b13bd3f66a2fce96ff2",
+    "branch": "ngc/look-voices",
+    "gameTree": "29426da431d131f4755554436e6bfb53174b7329",
+    "gameSha256": "2c86e9b56cba59d6cba5f5ec6fa7d99d81093a275448f18325f19f493208cb97",
+    "dirty": true,
+    "status": "MM MODLOG.md\n M README.md\nM  docs/ngc1980/BIBLE.md\n M docs/ngc1980/COORDINATION.md\nM  docs/ngc1980/LOOK-PLAN.md\nA  docs/ngc1980/PERF-BUDGETS.md\nA  docs/ngc1980/TYPESCRIPT.md\nA  docs/ngc1980/evidence/look-nature/sbs-01-hq.png\nA  docs/ngc1980/evidence/look-nature/sbs-02-oak.png\nA  docs/ngc1980/evidence/look-nature/sbs-03-pine.png\nA  docs/ngc1980/evidence/look-nature/sbs-04-fir.png\nA  docs/ngc1980/evidence/look-nature/sbs-05-backlit.png\nA  docs/ngc1980/evidence/look-nature/sbs-06-forest.png\nA  docs/ngc1980/evidence/look-nature/sbs-07-village.png\nA  docs/ngc1980/evidence/look-nature/sbs-08-village30.png\nA  docs/ngc1980/evidence/look-nature/sbs-09-heli30.png\nA  docs/ngc1980/evidence/look-nature/sbs-10-heli200.png\nA  docs/ngc1980/evidence/look-nature/sbs-11-jet1200.png\nA  docs/ngc1980/evidence/look-people/crews-seated-kneeling.png\nA  docs/ngc1980/evidence/look-people/deck-crew-close.png\nA  docs/ngc1980/evidence/look-people/deck-crew.png\nA  docs/ngc1980/evidence/look-people/face-bare.png\nA  docs/ngc1980/evidence/look-people/face-helmet-34.png\nA  docs/ngc1980/evidence/look-people/face-helmet.png\nA  docs/ngc1980/evidence/look-people/fp-hip-at-home.png\nA  docs/ngc1980/evidence/look-people/fp-self-aid.png\nA  docs/ngc1980/evidence/look-people/fp-swim.png\nA  docs/ngc1980/evidence/look-people/heads-navy.png\nA  docs/ngc1980/evidence/look-people/heads-pilots.png\nA  docs/ngc1980/evidence/look-people/huey-pilots-after.png\nA  docs/ngc1980/evidence/look-people/roles.png\nA  docs/ngc1980/evidence/look-people/squad-10m.png\nA  docs/ngc1980/evidence/look-people/squad-40m-crowd-lod-after.png\nA  docs/ngc1980/evidence/look-people/tomcat-crew-close.png\nA  docs/ngc1980/evidence/look-people/tomcat-crew-side.png\nA  docs/ngc1980/evidence/look-people/townsfolk.png\nA  docs/ngc1980/evidence/look-people/tp-carry-after.png\nA  docs/ngc1980/evidence/look-people/tp-front-close.png\nA  docs/ngc1980/evidence/look-people/tp-swim-after.png\nA  docs/ngc1980/evidence/look-people/vm-grip-close.png\nA  docs/ngc1980/evidence/look-people/vm-side-r.png\nA  docs/ngc1980/evidence/look-people/weapons-after.png\nA  docs/ngc1980/evidence/perf-render/sbs-deck.png\nA  docs/ngc1980/evidence/perf-render/sbs-hard.png\nA  docs/ngc1980/evidence/perf-render/sbs-home200.png\nA  docs/ngc1980/evidence/perf-render/sbs-hq.png\nA  docs/ngc1980/evidence/perf-render/sbs-jeep.png\nA  docs/ngc1980/evidence/perf-render/sbs-jet1200.png\nA  docs/ngc1980/evidence/perf-render/sbs-m113.png\nA  docs/ngc1980/evidence/perf-render/sbs-msaa-hq.png\nA  docs/ngc1980/evidence/perf-render/sbs-pad.png\nA  docs/ngc1980/evidence/perf-render/sbs-tank.png\nA  docs/ngc1980/findings/look-nature.md\nA  docs/ngc1980/findings/look-people.md\n M docs/ngc1980/findings/look-voices.md\nA  docs/ngc1980/findings/perf-cpu.md\nA  docs/ngc1980/findings/perf-render.md\nA  docs/ngc1980/findings/typecheck.md\nA  docs/ngc1980/findings/xr-fix.md\nA  docs/ngc1980/reference/people/SOURCES.md\n M game/dev/people.js\nM  game/index.html\nM  game/js/craft.js\nM  game/js/craftjet.js\nM  game/js/crafttomcat.js\nM  game/js/fog.js\nM  game/js/ground.js\nM  game/js/heli.js\nMM game/js/hotas.js\nA  game/js/hypot.js\nM  game/js/interiors/crewfig.js\nM  game/js/jetplay.js\nM  game/js/main.js\nM  game/js/marine.js\nA  game/js/perf/bench.js\nA  game/js/perfhud.js\nM  game/js/renderkit/adopt.js\nM  game/js/renderkit/effects.js\nM  game/js/renderkit/gamemats.js\nM  game/js/renderkit/gamepost.js\nM  game/js/renderkit/light.js\nA  game/js/renderkit/lod.js\nM  game/js/renderkit/materials.js\nA  game/js/renderkit/merge.js\nM  game/js/renderkit/nature.js\nM  game/js/renderkit/ui.js\nM  game/js/sim/zone.js\nM  game/js/ui/markerlayer.js\nM  game/js/units/air/rotary/ch46craft.js\nM  game/js/units/air/rotary/ch46unit.js\nM  game/js/units/air/rotary/figures.js\nM  game/js/units/air/rotary/mv22unit.js\nM  game/js/units/air/rotary/rb.js\nM  game/js/units/air/rotary/rotary.js\nM  game/js/units/air/rotary/rotor.js\nM  game/js/units/air/rotary/squad.js\nM  game/js/units/air/rotary/waspfm.js\nM  game/js/units/air/rotary/waspunit.js\nM  game/js/units/air/tomcatmodel.js\nM  game/js/units/armor/armorcraft.js\nM  game/js/units/armor/tankmodel.js\nM  game/js/units/defence/brain.js\nM  game/js/units/groundwar/groundsim.js\nM  game/js/units/groundwar/groundwar.js\nM  game/js/units/groundwar/marine.js\n M game/js/units/groundwar/marinefigure.js\nA  game/js/units/infantry/figgeo.js\nA  game/js/units/infantry/figinst.js\n M game/js/units/infantry/figurematerials.js\nMM game/js/units/infantry/handkit.js\n M game/js/units/infantry/handposes.js\nA  game/js/units/infantry/humanfig.js\nD  game/js/units/infantry/humanmesh.js\nM  game/js/units/infantry/invui.js\nM  game/js/units/infantry/items.js\n M game/js/units/infantry/meshkit.js\nA  game/js/units/infantry/sdfmesh.js\nMM game/js/units/infantry/soldiermodel.js\nMM game/js/units/infantry/viewmodel.js\nM  game/js/units/infantry/weaponmodels.js\nM  game/js/units/naval/deckcrew.js\nM  game/js/units/naval/fishsim.js\nM  game/js/units/naval/kraken.js\nM  game/js/units/naval/navalfx.js\nM  game/js/units/naval/seamotion.js\nM  game/js/units/wheeled/index.js\nM  game/js/units/wheeled/tyre.js\nM  game/js/units/wheeled/vehiclefm.js\nM  game/js/units/wheeled/wheeledcraft.js\nM  game/js/units/wheeled/wheeledenv.js\nM  game/js/vehicle.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/hooks.js\n M game/js/voice/localrecognition.js\n M game/js/voice/microphone.js\n M game/js/voice/operations.js\n M game/js/voice/ptt.js\n M game/js/voice/recognition.js\n M game/js/voice/voice.js\nM  game/js/war.js\nM  game/js/world.js\nM  game/js/world/ambient.js\nM  game/js/world/chunkgen.js\nM  game/js/world/life.js\nM  game/js/world/worldworker.js\nM  game/js/xr/bench.js\nAM game/types/globals.d.ts\nA  game/vendor/html2canvas.d.ts\nM  launcher/install.sh\nM  tools/README.md\nM  tools/check.mjs\n M tools/figuresurfacebench.mjs\n M tools/firstpersonbench.mjs\nA  tools/grid.mjs\nA  tools/hypotbench.mjs\nM  tools/package-lock.json\nM  tools/package.json\n M tools/peoplebench.mjs\nA  tools/profsummary.mjs\nA  tools/profunder.mjs\nA  tools/scenes/cpuprofile.mjs\nA  tools/scenes/looknature.mjs\nA  tools/scenes/lookpeople.mjs\nA  tools/scenes/lpcrews.mjs\nA  tools/scenes/lpstats.mjs\nA  tools/scenes/lpstudio.mjs\nA  tools/scenes/lpweapons.mjs\nA  tools/scenes/mergecheck.mjs\n M tools/scenes/people.mjs\nA  tools/scenes/perfab.mjs\nA  tools/scenes/perfbench.mjs\nA  tools/scenes/perfbudget.mjs\nA  tools/scenes/perflod.mjs\nM  tools/serve.mjs\n M tools/servebench.mjs\nM  tools/sim/headless.mjs\nA  tools/simdiff.mjs\nA  tools/typecheck-baseline.json\nA  tools/typecheck.mjs\nA  tools/warprof.mjs\nA  tsconfig.json\n?? tools/scenes/radiofiguremerge.mjs\n?? tools/scenes/radiogripmerge.mjs"
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": "zarch",
+    "state": "play"
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "787b4c17fa3ee149fa7d3b13bd3f66a2fce96ff2",
+    "branch": "ngc/look-voices",
+    "gameTree": "29426da431d131f4755554436e6bfb53174b7329",
+    "gameSha256": "2c86e9b56cba59d6cba5f5ec6fa7d99d81093a275448f18325f19f493208cb97",
+    "dirty": true,
+    "status": "MM MODLOG.md\n M README.md\nM  docs/ngc1980/BIBLE.md\n M docs/ngc1980/COORDINATION.md\nM  docs/ngc1980/LOOK-PLAN.md\nA  docs/ngc1980/PERF-BUDGETS.md\nA  docs/ngc1980/TYPESCRIPT.md\nA  docs/ngc1980/evidence/look-nature/sbs-01-hq.png\nA  docs/ngc1980/evidence/look-nature/sbs-02-oak.png\nA  docs/ngc1980/evidence/look-nature/sbs-03-pine.png\nA  docs/ngc1980/evidence/look-nature/sbs-04-fir.png\nA  docs/ngc1980/evidence/look-nature/sbs-05-backlit.png\nA  docs/ngc1980/evidence/look-nature/sbs-06-forest.png\nA  docs/ngc1980/evidence/look-nature/sbs-07-village.png\nA  docs/ngc1980/evidence/look-nature/sbs-08-village30.png\nA  docs/ngc1980/evidence/look-nature/sbs-09-heli30.png\nA  docs/ngc1980/evidence/look-nature/sbs-10-heli200.png\nA  docs/ngc1980/evidence/look-nature/sbs-11-jet1200.png\nA  docs/ngc1980/evidence/look-people/crews-seated-kneeling.png\nA  docs/ngc1980/evidence/look-people/deck-crew-close.png\nA  docs/ngc1980/evidence/look-people/deck-crew.png\nA  docs/ngc1980/evidence/look-people/face-bare.png\nA  docs/ngc1980/evidence/look-people/face-helmet-34.png\nA  docs/ngc1980/evidence/look-people/face-helmet.png\nA  docs/ngc1980/evidence/look-people/fp-hip-at-home.png\nA  docs/ngc1980/evidence/look-people/fp-self-aid.png\nA  docs/ngc1980/evidence/look-people/fp-swim.png\nA  docs/ngc1980/evidence/look-people/heads-navy.png\nA  docs/ngc1980/evidence/look-people/heads-pilots.png\nA  docs/ngc1980/evidence/look-people/huey-pilots-after.png\nA  docs/ngc1980/evidence/look-people/roles.png\nA  docs/ngc1980/evidence/look-people/squad-10m.png\nA  docs/ngc1980/evidence/look-people/squad-40m-crowd-lod-after.png\nA  docs/ngc1980/evidence/look-people/tomcat-crew-close.png\nA  docs/ngc1980/evidence/look-people/tomcat-crew-side.png\nA  docs/ngc1980/evidence/look-people/townsfolk.png\nA  docs/ngc1980/evidence/look-people/tp-carry-after.png\nA  docs/ngc1980/evidence/look-people/tp-front-close.png\nA  docs/ngc1980/evidence/look-people/tp-swim-after.png\nA  docs/ngc1980/evidence/look-people/vm-grip-close.png\nA  docs/ngc1980/evidence/look-people/vm-side-r.png\nA  docs/ngc1980/evidence/look-people/weapons-after.png\nA  docs/ngc1980/evidence/perf-render/sbs-deck.png\nA  docs/ngc1980/evidence/perf-render/sbs-hard.png\nA  docs/ngc1980/evidence/perf-render/sbs-home200.png\nA  docs/ngc1980/evidence/perf-render/sbs-hq.png\nA  docs/ngc1980/evidence/perf-render/sbs-jeep.png\nA  docs/ngc1980/evidence/perf-render/sbs-jet1200.png\nA  docs/ngc1980/evidence/perf-render/sbs-m113.png\nA  docs/ngc1980/evidence/perf-render/sbs-msaa-hq.png\nA  docs/ngc1980/evidence/perf-render/sbs-pad.png\nA  docs/ngc1980/evidence/perf-render/sbs-tank.png\nA  docs/ngc1980/findings/look-nature.md\nA  docs/ngc1980/findings/look-people.md\n M docs/ngc1980/findings/look-voices.md\nA  docs/ngc1980/findings/perf-cpu.md\nA  docs/ngc1980/findings/perf-render.md\nA  docs/ngc1980/findings/typecheck.md\nA  docs/ngc1980/findings/xr-fix.md\nA  docs/ngc1980/reference/people/SOURCES.md\n M game/dev/people.js\nM  game/index.html\nM  game/js/craft.js\nM  game/js/craftjet.js\nM  game/js/crafttomcat.js\nM  game/js/fog.js\nM  game/js/ground.js\nM  game/js/heli.js\nMM game/js/hotas.js\nA  game/js/hypot.js\nM  game/js/interiors/crewfig.js\nM  game/js/jetplay.js\nM  game/js/main.js\nM  game/js/marine.js\nA  game/js/perf/bench.js\nA  game/js/perfhud.js\nM  game/js/renderkit/adopt.js\nM  game/js/renderkit/effects.js\nM  game/js/renderkit/gamemats.js\nM  game/js/renderkit/gamepost.js\nM  game/js/renderkit/light.js\nA  game/js/renderkit/lod.js\nM  game/js/renderkit/materials.js\nA  game/js/renderkit/merge.js\nM  game/js/renderkit/nature.js\nM  game/js/renderkit/ui.js\nM  game/js/sim/zone.js\nM  game/js/ui/markerlayer.js\nM  game/js/units/air/rotary/ch46craft.js\nM  game/js/units/air/rotary/ch46unit.js\nM  game/js/units/air/rotary/figures.js\nM  game/js/units/air/rotary/mv22unit.js\nM  game/js/units/air/rotary/rb.js\nM  game/js/units/air/rotary/rotary.js\nM  game/js/units/air/rotary/rotor.js\nM  game/js/units/air/rotary/squad.js\nM  game/js/units/air/rotary/waspfm.js\nM  game/js/units/air/rotary/waspunit.js\nM  game/js/units/air/tomcatmodel.js\nM  game/js/units/armor/armorcraft.js\nM  game/js/units/armor/tankmodel.js\nM  game/js/units/defence/brain.js\nM  game/js/units/groundwar/groundsim.js\nM  game/js/units/groundwar/groundwar.js\nM  game/js/units/groundwar/marine.js\n M game/js/units/groundwar/marinefigure.js\nA  game/js/units/infantry/figgeo.js\nA  game/js/units/infantry/figinst.js\n M game/js/units/infantry/figurematerials.js\nMM game/js/units/infantry/handkit.js\n M game/js/units/infantry/handposes.js\nA  game/js/units/infantry/humanfig.js\nD  game/js/units/infantry/humanmesh.js\nM  game/js/units/infantry/invui.js\nM  game/js/units/infantry/items.js\n M game/js/units/infantry/meshkit.js\nA  game/js/units/infantry/sdfmesh.js\nMM game/js/units/infantry/soldiermodel.js\nMM game/js/units/infantry/viewmodel.js\nM  game/js/units/infantry/weaponmodels.js\nM  game/js/units/naval/deckcrew.js\nM  game/js/units/naval/fishsim.js\nM  game/js/units/naval/kraken.js\nM  game/js/units/naval/navalfx.js\nM  game/js/units/naval/seamotion.js\nM  game/js/units/wheeled/index.js\nM  game/js/units/wheeled/tyre.js\nM  game/js/units/wheeled/vehiclefm.js\nM  game/js/units/wheeled/wheeledcraft.js\nM  game/js/units/wheeled/wheeledenv.js\nM  game/js/vehicle.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/hooks.js\n M game/js/voice/localrecognition.js\n M game/js/voice/microphone.js\n M game/js/voice/operations.js\n M game/js/voice/ptt.js\n M game/js/voice/recognition.js\n M game/js/voice/voice.js\nM  game/js/war.js\nM  game/js/world.js\nM  game/js/world/ambient.js\nM  game/js/world/chunkgen.js\nM  game/js/world/life.js\nM  game/js/world/worldworker.js\nM  game/js/xr/bench.js\nAM game/types/globals.d.ts\nA  game/vendor/html2canvas.d.ts\nM  launcher/install.sh\nM  tools/README.md\nM  tools/check.mjs\n M tools/figuresurfacebench.mjs\n M tools/firstpersonbench.mjs\nA  tools/grid.mjs\nA  tools/hypotbench.mjs\nM  tools/package-lock.json\nM  tools/package.json\n M tools/peoplebench.mjs\nA  tools/profsummary.mjs\nA  tools/profunder.mjs\nA  tools/scenes/cpuprofile.mjs\nA  tools/scenes/looknature.mjs\nA  tools/scenes/lookpeople.mjs\nA  tools/scenes/lpcrews.mjs\nA  tools/scenes/lpstats.mjs\nA  tools/scenes/lpstudio.mjs\nA  tools/scenes/lpweapons.mjs\nA  tools/scenes/mergecheck.mjs\n M tools/scenes/people.mjs\nA  tools/scenes/perfab.mjs\nA  tools/scenes/perfbench.mjs\nA  tools/scenes/perfbudget.mjs\nA  tools/scenes/perflod.mjs\nM  tools/serve.mjs\n M tools/servebench.mjs\nM  tools/sim/headless.mjs\nA  tools/simdiff.mjs\nA  tools/typecheck-baseline.json\nA  tools/typecheck.mjs\nA  tools/warprof.mjs\nA  tsconfig.json\n?? tools/scenes/radiofiguremerge.mjs\n?? tools/scenes/radiogripmerge.mjs"
+  },
+  "summary": "PASS: 9/9 expects, 0 page errors, 0 console errors",
+  "durationMs": 40437,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/runs/radio-merge-recovery"
+}

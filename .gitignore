@@ -15,3 +15,10 @@ launcher/.last-open
 # agent worktrees
 .claude/worktrees/
 tools/node_modules
+
+# Speech generated on this PC from installed voices; never redistribute in Git.
+game/audio/voices/*.logpcm.gz
+game/audio/voices/local-index.json
+game/audio/voices/*.wav
+game/audio/voices/*.pcm
+docs/ngc1980/reference/private/

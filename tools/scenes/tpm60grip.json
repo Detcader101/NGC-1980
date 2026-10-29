@@ -1,0 +1,13 @@
+{
+  "name": "tpm60grip",
+  "query": "dev/people.html?debug&res=1&ui=0",
+  "steps": [
+    "waitFor 30000 window.__H",
+    "log Additional after-only inspection: centre the rearward M60 forearm grip. The original comparison camera remains unchanged in radiogripmerge.",
+    "eval __H.set('aim',{weapon:'M60',cls:'mg',detail:0,inspect:{pos:[-.48,-.04,-.13],look:[0,-.13,-.14]},weaponState:{bipod:0,handle:0}})",
+    "eval ({camera:{position:__H.camera.position.toArray(),quaternion:__H.camera.quaternion.toArray(),projection:__H.camera.projectionMatrix.toArray()},profiles:__H.active().person.gripProfiles,weaponMatrix:__H.active().weaponModel.group.matrixWorld.toArray()})",
+    "expect __H.active().weaponKey==='M60' && __H.counts().skinned===1 && __H.active().person.gripProfiles.L==='tube41'",
+    "shot m60-forearm-grip-centred",
+    "notblank 0.05"
+  ]
+}

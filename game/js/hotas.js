@@ -13,6 +13,7 @@ export const ACTIONS = [
   { id: 'bomb', label: 'DROP BOMB · HUEY BOMBS' }, { id: 'airbrake', label: 'SPEED BRAKE (HOLD) · HUEY HOIST' }, { id: 'gear', label: 'LANDING GEAR · HUEY STAB ASSIST' },
   { id: 'flaps', label: 'FLAPS CYCLE · HUEY FORCE TRIM' }, { id: 'hook', label: 'TAIL HOOK · HUEY LANDING LIGHT' }, { id: 'view', label: 'COCKPIT / CHASE VIEW' },
   { id: 'zoom', label: 'ZOOM VIEW (HOLD)' }, { id: 'wheelbrake', label: 'WHEEL BRAKES (HOLD) · HUEY STARTER (HOLD)' }, { id: 'eject', label: 'EJECT (HOLD 1S)' },
+  { id: 'ptt', label: 'RADIO PUSH-TO-TALK (HOLD)' },
   // TOMCAT: the wing sweep switch on the outboard throttle (no default buttons: bind them in the J panel)
   { id: 'sweepfwd', label: 'WING SWEEP FWD (HOLD, TOMCAT)' }, { id: 'sweepaft', label: 'WING SWEEP AFT (HOLD, TOMCAT)' }, { id: 'sweepauto', label: 'WING SWEEP AUTO (TOMCAT)' },
   { id: 'flare', label: 'FLARES (COUNTERMEASURES)' }, { id: 'chaff', label: 'CHAFF (COUNTERMEASURES)' },   // ngc/cmpolish: Huey M130, Hornet ALE-39
@@ -59,7 +60,7 @@ export function classify(pads) {
     devs.push({ index: p.index, id: p.id, key, short: PID_NAME[P.pid] || P.name.slice(0, 28), kind, role: kind === 'hotas4' ? 'stick' : kind, pad: p });
   }
   // several sticks: a known HOTAS wins, then the one with the most axes; one pedal set; one gamepad
-  const sticks = devs.filter(d => d.role === 'stick').sort((a, b) => (b.kind === 'hotas4') - (a.kind === 'hotas4') || b.pad.axes.length - a.pad.axes.length);
+  const sticks = devs.filter(d => d.role === 'stick').sort((a, b) => Number(b.kind === 'hotas4') - Number(a.kind === 'hotas4') || b.pad.axes.length - a.pad.axes.length);
   for (const d of sticks.slice(1)) d.role = 'other';
   for (const r of ['pedals', 'gamepad']) devs.filter(d => d.role === r).slice(1).forEach(d => d.role = 'other');
   return devs;
@@ -91,6 +92,7 @@ export function createControls({ say = () => {}, getPads, storage, now } = {}) {
   let cfg = load(), devs = [], byKey = {}, prim = null, ped = null, thrInt = 0, lastPoll = -1e9;
   let wig = null, bindBtn = null, wizard = null, promptText = '', open = false, ui = null, timer = 0, suspendWas = false;
   const rest = {}, hatAx = {}, prevHeld = {}, known = {}, val = {}, held = {};
+  const radioPads=new Map(), releasedButton=Object.freeze({pressed:false,touched:false,value:0});
   const S = { stick: null, twist: 0, rudder: 0, hasPedals: false, throttle: null, rocker: 0, brakeL: 0, brakeR: 0, hatX: 0, hatY: 0,
     buttons: [], actions: {}, pressed: {}, source: 'NONE', devices: [] };
 
@@ -144,6 +146,15 @@ export function createControls({ say = () => {}, getPads, storage, now } = {}) {
     get state() { return S; },
     get isOpen() { return open; },
     get lookhat() { return cfg.lookhat; },
+    hasButton(id) { const b=btnOf(id); return !!(b && byKey[b.dev]?.pad.buttons[b.btn]); },
+    // Legacy infantry/vehicle/Huey readers also consume raw buttons. Reserve PTT there as well as in actions.
+    gameplayPad(p) {
+      const b=btnOf('ptt');if(!p||!b||byKey[b.dev]?.index!==p.index)return p;
+      let view=radioPads.get(p.index);if(!view){view={buttons:[]};radioPads.set(p.index,view);}
+      for(const k of ['id','index','connected','mapping','timestamp','axes'])view[k]=p[k];
+      view.buttons.length=p.buttons.length;for(let i=0;i<p.buttons.length;i++)view.buttons[i]=i===b.btn?releasedButton:p.buttons[i];
+      return view;
+    },
     get bindings() {
       const ax = {}, bt = {};
       for (const f of AXIS_FNS) { const b = axisOf(f.id); ax[f.id] = b && { ...b, short: byKey[b.dev]?.short || b.dev, user: !!cfg.axes[f.id] }; }
@@ -171,12 +182,13 @@ export function createControls({ say = () => {}, getPads, storage, now } = {}) {
       for (const d of devs) { const a = d.pad.axes; if (hatAx[d.key] === undefined && a.length > 9) hatAx[d.key] = 9; for (let i = 0; i < a.length; i++) if (Math.abs(a[i]) > 1.05 && Math.abs(a[i]) < 4) hatAx[d.key] = i; }
       // gamepad throttle: triggers wind it down/up
       const tb = axisOf('throttle');
-      if (tb && tb.trig) { const bs = byKey[tb.dev].pad.buttons, v = i => bs[i] ? +bs[i].value || (bs[i].pressed ? 1 : 0) : 0; thrInt = clamp(thrInt + (v(tb.trig[1]) - v(tb.trig[0])) * dt * 0.7, 0, 1); }
+      if (tb && tb.trig) { const bs = byKey[tb.dev].pad.buttons, radio=btnOf('ptt'), v = i => radio?.dev===tb.dev&&radio.btn===i?0:bs[i] ? +bs[i].value || (bs[i].pressed ? 1 : 0) : 0; thrInt = clamp(thrInt + (v(tb.trig[1]) - v(tb.trig[0])) * dt * 0.7, 0, 1); }
       for (const f of AXIS_FNS) val[f.id] = readFn(f.id);
       S.stick = prim ? { x: val.roll ?? 0, y: val.pitch ?? 0 } : null;
       S.twist = val.twist ?? 0; S.hasPedals = val.rudder !== null; S.rudder = S.hasPedals ? val.rudder : S.twist;
       S.throttle = val.throttle; S.rocker = val.rocker ?? 0; S.brakeL = val.brakeL ?? 0; S.brakeR = val.brakeR ?? 0;
-      S.hatX = S.hatY = 0; S.buttons = prim ? Array.from(prim.pad.buttons, btnDown) : [];
+      const radio=btnOf('ptt');
+      S.hatX = S.hatY = 0; S.buttons = prim ? Array.from(prim.pad.buttons, (b,i)=>!(radio?.dev===prim.key&&radio.btn===i)&&btnDown(b)) : [];
       if (prim) {
         [S.hatX, S.hatY] = hatDir(prim.pad.axes[hatAx[prim.key] ?? 9]);
         if (prim.pad.mapping === 'standard') { const b = S.buttons; if (b[12]) S.hatY = 1; if (b[13]) S.hatY = -1; if (b[14]) S.hatX = -1; if (b[15]) S.hatX = 1; }
@@ -217,11 +229,11 @@ export function createControls({ say = () => {}, getPads, storage, now } = {}) {
     if (!w.tMove && t - w.t0 > 10000) { wig = null; tell(`NO MOVEMENT DETECTED - ${FN[w.fn].label} UNCHANGED`, 3); return nextWizard(); }
     if (!w.tMove || t - w.tMove < 3000) return;
     let best = null;
-    for (const k in w.smp) w.smp[k].forEach((s, i) => { if (s && !s.bad && byKey[k] && s.hi - s.lo >= 0.3 && (!best || s.hi - s.lo > best.r)) best = { k, i, s, r: s.hi - s.lo }; });
+    for (const k in w.smp) for (let i = 0; i < w.smp[k].length; i++) { const s = w.smp[k][i]; if (s && !s.bad && byKey[k] && s.hi - s.lo >= 0.3 && (!best || s.hi - s.lo > best.r)) best = { k, i, s, r: s.hi - s.lo }; }
     wig = null;
     const nb = best && wiggleBinding(FN[w.fn].type, best.s);
     if (!nb) { tell(`${FN[w.fn].label}: NOT ENOUGH TRAVEL - TRY AGAIN`, 3); return nextWizard(); }
-    const b = { dev: best.k, axis: best.i, ...nb }; if (DZ[w.fn]) b.dz = DZ[w.fn];
+    const b = { dev: best.k, axis: best.i, ...nb, ...(DZ[w.fn] ? { dz: DZ[w.fn] } : {}) };
     for (const f of AXIS_FNS) { const o = axisOf(f.id); if (f.id !== w.fn && o && o.dev === b.dev && o.axis === b.axis) cfg.axes[f.id] = null; }   // one axis, one job
     cfg.axes[w.fn] = b; save();
     tell(`${FN[w.fn].label} = ${byKey[b.dev].short.toUpperCase()} AXIS ${b.axis}${b.inv ? ' (INVERTED)' : ''}`, 3);
@@ -294,14 +306,14 @@ background:rgba(0,10,25,.92);border:1px solid #4aa;color:#9ff;font:12px/1.35 Con
 <div class="ft"><button data-a="wizard">CALIBRATE ALL</button><button data-a="reset">RESET TO DEFAULTS</button><span>DEVICE MISSING? PRESS ONE OF ITS BUTTONS OR MOVE IT - THE BROWSER HIDES PADS UNTIL THEY ARE USED</span></div>`;
       document.body.appendChild(root);
       const q = s => root.querySelector(s);
-      ui = { root, src: q('.src'), pr: q('.pr'), devs: q('.devs'), out: q('.out'), sig: '', axRow: {}, btRow: {}, devEls: [] };
-      root.querySelectorAll('.axt tr').forEach(tr => ui.axRow[tr.dataset.f] = { b: tr.querySelector('.b'), i: tr.querySelector('i'), bind: tr.querySelector('button') });
-      root.querySelectorAll('.btt tr').forEach(tr => ui.btRow[tr.dataset.id] = { b: tr.querySelector('.b'), l: tr.querySelector('.lmp'), bind: tr.querySelector('button') });
+      ui = { root, src: q('.src'), pr: q('.pr'), devs: q('.devs'), out: q('.out'), sig: '', axRow: {}, btRow: {}, devEls: [], outEls: [] };
+      /** @type {NodeListOf<HTMLTableRowElement>} */ (root.querySelectorAll('.axt tr')).forEach(tr => ui.axRow[tr.dataset.f] = { b: tr.querySelector('.b'), i: tr.querySelector('i'), bind: tr.querySelector('button') });
+      /** @type {NodeListOf<HTMLTableRowElement>} */ (root.querySelectorAll('.btt tr')).forEach(tr => ui.btRow[tr.dataset.id] = { b: tr.querySelector('.b'), l: tr.querySelector('.lmp'), bind: tr.querySelector('button') });
       const outs = [['STICK X', 'c'], ['STICK Y (AFT +)', 'c'], ['THROTTLE', ''], ['RUDDER', 'c'], ['TWIST', 'c'], ['ROCKER', 'c'], ['BRAKE L', ''], ['BRAKE R', ''], ['HAT', 'h']];
       ui.out.innerHTML = outs.map(([l, c]) => `<tr><td>${l}</td><td>${c === 'h' ? '' : `<span class="br${c ? ' c' : ''}"><i></i></span>`}</td><td class="v"></td></tr>`).join('');
       ui.outEls = Array.from(ui.out.querySelectorAll('tr'), tr => ({ i: tr.querySelector('i'), v: tr.querySelector('.v') }));
       root.addEventListener('click', e => {
-        const bt = e.target.closest('button'); if (!bt) return; const a = bt.dataset.a, tr = bt.closest('tr'), f = tr?.dataset.f, id = tr?.dataset.id;
+        const bt = e.target instanceof Element ? e.target.closest('button') : null; if (!bt) return; const a = bt.dataset.a, tr = bt.closest('tr'), f = tr?.dataset.f, id = tr?.dataset.id;
         if (a === 'close') C.close(); else if (a === 'reset') C.reset();
         else if (a === 'wizard') { wizard = ['roll', 'pitch', 'throttle', 'twist', ...(ped ? ['rudder', 'brakeL', 'brakeR'] : [])]; nextWizard(); }
         else if (a === 'wig') { wizard = null; startWiggle(f); }
