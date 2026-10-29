@@ -13,8 +13,13 @@
 import * as THREE from 'three';
 import { KT, FT, LB, HORNET, DECKOPS } from './jetfm.js';
 import { drawRwr } from './units/defence/cm.js';   // ngc/cmpolish: the radar warning scope
+import { COCKPIT_SHIFT } from './jetmodel.js';      // ngc/look-units: the cockpit moved with the drawn airframe
 
-export const JEYE = new THREE.Vector3(0, 0.98, -4.35);
+// The cockpit is built in its original frame (eye at E0) and shifted as a block onto the drawn airframe's design eye
+// (jetmodel.js COCKPIT_SHIFT: 0.70 m forward, 0.10 m down). JEYE is the eye in the jet frame (the camera); the HUD maths
+// works in the build frame (E0 and HUD), where the combiner sits.
+const E0 = new THREE.Vector3(0, 0.98, -4.35);
+export const JEYE = E0.clone().add(new THREE.Vector3(...COCKPIT_SHIFT));
 const HUD = { z: -5.1, cy: 1.0, hw: 0.15, hh: 0.135, W: 600, H: 540 };   // ~22° wide from the eye
 const GRN = '#6dff7c', AMB = '#ffb21e', RED = '#ff3a2a';
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -429,7 +434,7 @@ export function buildJetCockpit() {
   const _pr = [0, 0];
   function projLocal(d) {
     if (d.z > -1e-4) return null;
-    const t = (HUD.z - JEYE.z) / d.z, x = JEYE.x + d.x * t, y = JEYE.y + d.y * t - HUD.cy;
+    const t = (HUD.z - E0.z) / d.z, x = E0.x + d.x * t, y = E0.y + d.y * t - HUD.cy;
     _pr[0] = HUD.W / 2 + x / HUD.hw * HUD.W / 2; _pr[1] = HUD.H / 2 - y / HUD.hh * HUD.H / 2; return _pr;
   }
   function projWorldDir(J, dw) { _v.copy(dw).applyQuaternion(_iq); return projLocal(_v); }
@@ -567,6 +572,9 @@ export function buildJetCockpit() {
     L.forEach(([t, on, col, off], i) => lampAt(c, 4 + (i % 4) * 83, 8 + Math.floor(i / 4) * 96, 79, 88, t, on, col, off, 18));
     advD.tex.needsUpdate = true;
   }
+
+  // ngc/look-units: everything above was built in the original frame; shift it as a block onto the drawn airframe
+  { const sh = new THREE.Group(); sh.name = 'cockpitShift'; sh.position.set(...COCKPIT_SHIFT); for (const c of [...g.children]) sh.add(c); g.add(sh); }
 
   // ---------------------------------------------------------------- per frame
   let t = 0, slot = 0, artKey = '', mcFlash = 0;

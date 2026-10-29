@@ -1,0 +1,8 @@
+{
+ "image": "../../../docs/ngc1980/reference/fa18a/nasa-fa18-3view-2865-mirrored.png",
+ "out": "trace-top.json",
+ "source": "the same NASA three-view mirrored left-right (nose to the left), so the top view's columns run nose to tail: x' = 2864 - x",
+ "frame": "as side-front.config.json; top centre line px 815 (the radome and tip-rail mid line)",
+ "threshold": 140, "eraseLen": 600, "dilate": 2,
+ "top": { "x0": 946, "x1": 2848, "rows": [140, 1500], "s": 111.42, "xRef": 946, "zRef": -10.475, "centrePx": 815, "probe": [0, -40, 40], "exclude": [] }
+}

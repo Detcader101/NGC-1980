@@ -13,6 +13,7 @@
 //   SE.afterWar(dt)   after war.update: the aboard squads seated, the pilot shown, the rider kept in his seat
 import * as THREE from 'three';
 import { crewGeometry, crewMaterial } from './crewfig.js';
+import { JET } from '../jetmodel.js';   // ngc/look-units: the HORNET's seat station
 
 // seat layouts in each host's model frame (x right, y up, -z forward; the figure origin under the hips, facing yaw:
 // 0 = the craft's forward)
@@ -148,7 +149,7 @@ export function createSeats(ctx) {
   let jetPilot = null;
   if (ctx.jet && ctx.jet.model) {
     jetPilot = new THREE.Mesh(crewGeometry('jetPilot', 'seated', { arms: 'controls', seed: 2 }), crewMaterial()); jetPilot.name = 'hornet-pilot';
-    jetPilot.position.set(0, 0.02, -4.22); jetPilot.rotation.y = Math.PI; jetPilot.visible = false; ctx.jet.model.group.add(jetPilot);
+    jetPilot.position.set(...JET.SEAT); jetPilot.rotation.y = Math.PI; jetPilot.visible = false; ctx.jet.model.group.add(jetPilot);   // (ngc/look-units: the seat moved with the drawn airframe)
   }
   const _seat = new THREE.Vector3();
   SE.afterWar = dt => {

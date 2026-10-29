@@ -6,13 +6,13 @@ const VIEWS = [
   ['top', '0,1.5,26', {}],
   ['below_gear', '2.5,-0.4,18,0,-1,0', {}],
   ['rear_ab', '0.55,0.18,20,0,0,3', { ab: [1, 1], nozzle: [1, 1], n: [1.02, 1.02], brake: 1, hook: 1 }],
-  ['cockpit_close', '2.2,0.5,6,0,0.7,-4.3', {}],
-  ['cockpit_top', '0,1.5,5,0,0.7,-4.3', { canopy: 1 }],
-  ['canopy_open', '1.9,0.25,9,0,0.8,-4', { canopy: 1, launchBar: true }],
+  ['cockpit_close', '2.2,0.5,6,0,0.6,-5.0', {}],
+  ['cockpit_top', '0,1.5,5,0,0.6,-5.0', { canopy: 1 }],
+  ['canopy_open', '1.9,0.25,9,0,0.7,-4.8', { canopy: 1, launchBar: true }],
   ['gear_up', '2.4,-0.3,20', { gear: 0 }],
   ['surfaces', '0.8,0.45,20', { stab: 0.42, ail: 0.44, rud: 0.52, flap: 1, lef: 1, brake: 1 }],
   ['surfaces_rear', '0,0.12,18', { stab: 0.42, ail: 0.44, rud: 0.52, flap: 1, lef: 1 }],
-  ['nose_gear', '2.0,0.05,6,0,-1.3,-4.6', { launchBar: true, steer: 0.4 }],
+  ['nose_gear', '2.0,0.05,6,0,-1.3,-4.9', { launchBar: true, steer: 0.4 }],
 ];
 export default async function (h) {
   await h.goto('dev/jet-preview.html?ui=0');
@@ -34,14 +34,17 @@ export default async function (h) {
     // anything other than the shell inside the cockpit volume?
     const shell = new Set(); J.jet.shell.forEach(s => s.traverse(o => shell.add(o)));
     const v = new T.Vector3(), hits = {};
-    J.jet.group.traverse(o => { if (!o.isMesh || shell.has(o) || !o.visible) return; const p = o.geometry.attributes.position;
-      for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld); if (Math.abs(v.x) < 0.5 && v.y > -0.58 && v.y < 1.48 && v.z > -5.73 && v.z < -2.92) hits[o.name] = (hits[o.name] || 0) + 1; } });
+    J.jet.group.traverse(o => { if (!o.isMesh || shell.has(o) || !o.visible) return; const p = o.geometry.attributes.position, ix = o.geometry.index ? new Set(o.geometry.index.array) : null;   // (indexed lofts: only vertices a triangle uses)
+      for (let i = 0; i < p.count; i++) { if (ix && !ix.has(i)) continue; v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld); if (Math.abs(v.x) < 0.36 && v.y > -0.5 && v.y < 1.38 && v.z > -6.43 && v.z < -4.55) hits[o.name] = (hits[o.name] || 0) + 1; } });
     out.intrusions = hits; window.__chk = out; return out; })()`);
   await h.expect(`Object.entries(__chk).filter(([k]) => k.startsWith('tyre')).every(([, v]) => Math.abs(+v[0] + 2.05) < 0.03)`);
-  await h.expect(`Math.abs(__chk.hookTip[1] + 1.95) < 0.05 && Math.abs(__chk.hookTip[2] - 6.9) < 0.1`);
+  await h.expect(`Math.abs(__chk.hookTip[1] + 1.95) < 0.05 && Math.abs(__chk.hookTip[2] - 5.89) < 0.1`);   // ngc/look-units: the drawn hook (jetfm HOOK_TIP)
+  await h.expect(`Object.keys(__chk.intrusions).length === 0`);   // nothing but the canopy shell in the cockpit volume (shifted with the cockpit: jetmodel COCKPIT_SHIFT; |x| < 0.36 = inside the drawn canopy rails, 0.43-0.45)
   // control-surface senses: centre of each skin before/after a positive input (bulk of each surface is aft of its hinge)
   await h.eval(`(() => { const J = __J, T = J.THREE, bb = new T.Box3(), c = new T.Vector3();
-    const at = (st, name) => { Object.assign(J.S, ${base}, st); J.render(); J.jet.group.updateMatrixWorld(true); bb.setFromObject(J.jet.group.getObjectByName(name)); return bb.getCenter(c).clone(); };
+    const tipOf = (o, lead) => { const p = o.geometry.attributes.position, v = new T.Vector3(); let best = null, bz = lead ? 1e9 : -1e9; for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld); if (lead ? v.z < bz : v.z > bz) { bz = v.z; best = v.clone(); } } return best; };
+    // (ngc/look-units: the edge farthest from the hinge, not the box centre: the drawn stabilator's root runs far ahead of its pivot)
+    const at = (st, name) => { Object.assign(J.S, ${base}, st); J.render(); J.jet.group.updateMatrixWorld(true); const o = J.jet.group.getObjectByName(name); if (/^(stab|ail|flap|rudder|lef)/.test(name)) return tipOf(o, name.startsWith('lef')); bb.setFromObject(o); return bb.getCenter(c).clone(); };
     const d = (st, name, ax) => +(at(st, name)[ax] - at({}, name)[ax]).toFixed(3);
     return window.__sg = { stabR_up: d({ stab: .42 }, 'stabRSkin', 'y'), stabL_up: d({ stab: .42 }, 'stabLSkin', 'y'), diffR_up: d({ stabDiff: .1 }, 'stabRSkin', 'y'), diffL_dn: -d({ stabDiff: .1 }, 'stabLSkin', 'y'),
       ailR_up: d({ ail: .44 }, 'ailRSkin', 'y'), ailL_dn: -d({ ail: .44 }, 'ailLSkin', 'y'), rudR_px: d({ rud: .52 }, 'rudderRSkin', 'x'), rudL_px: d({ rud: .52 }, 'rudderLSkin', 'x'),
