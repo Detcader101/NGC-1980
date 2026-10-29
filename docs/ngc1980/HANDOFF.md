@@ -20,7 +20,7 @@ He explicitly OKd merging into the `experimental` branch (worktree `/home/jayjay
 | Agent | Task | Done | State | Branch head |
 |---|---|---|---|---|
 | look-airbases | SR-71 sorties from WESTGATE (shelter, takeoff, autopilot home, chute landing, park) | ~85% | landing solved; final sr71/airbase scenes running | ngc/look-airbases 18968e4 |
-| look-terrain | grainy grass from the air, map zoom + view outside the zone, Huey pulled in | ~75% | grass fade + map zoom committed, shader-library merged; lookterrain scene running | ngc/look-terrain 822d667 |
+| look-terrain | grain fade by pixel footprint (?rkgrain = off for A/B), map zoom + world out to ~7 km past the zone, shader-library d6d0bad merged | closed out | grain fix not yet verified at full resolution (Jay Jay to eye it); no gameplay scenes run on the merged build; gamepad/XR map input untested; lookmap 2/2 | ngc/look-terrain 2430ab0 |
 | look-units | CH-46E from NADC-81118-60 | ~70% of the CH-46 | fit side 0.833 -> 0.985, evidence capture running; stops after the CH-46 | ngc/look-units 15c7713 |
 | look-units | whole blueprint list (Hornet, CH-46, C-130, M60A3, M113A2, M151A2, M35A2, LCM-8, ships, weapons last) | ~20% | 2 of ~10 units | |
 | Codex | radio/voices; next: XR desk route + WESTGATE sortie on the radio desk | 100% for today | closed out, next task in CHAT.md | ngc/look-voices-clean 45a6798 |
