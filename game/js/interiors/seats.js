@@ -149,7 +149,7 @@ export function createSeats(ctx) {
   let jetPilot = null;
   if (ctx.jet && ctx.jet.model) {
     jetPilot = new THREE.Mesh(crewGeometry('jetPilot', 'seated', { arms: 'controls', seed: 2 }), crewMaterial()); jetPilot.name = 'hornet-pilot';
-    jetPilot.position.set(...JET.SEAT); jetPilot.rotation.y = Math.PI; jetPilot.visible = false; ctx.jet.model.group.add(jetPilot);   // (ngc/look-units: the seat moved with the drawn airframe)
+    jetPilot.position.set(JET.SEAT[0], JET.SEAT[1], JET.SEAT[2]); jetPilot.rotation.y = Math.PI; jetPilot.visible = false; ctx.jet.model.group.add(jetPilot);   // (ngc/look-units: the seat moved with the drawn airframe)
   }
   const _seat = new THREE.Vector3();
   SE.afterWar = dt => {

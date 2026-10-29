@@ -1,0 +1,11 @@
+{
+ "image": "../../../docs/ngc1980/reference/ch46e/nadc-81118-60-fig2-1-traceable.png",
+ "out": "trace-side-top.json",
+ "source": "NADC-81118-60 Vol. 1 (Naval Air Development Center, 1981: CH-46E handling qualities, DTIC ADA134320, public domain) fig. 2-1 Helicopter Geometry, page rendered at 6x (3456 x 4808 px); traceable copy with the ground line and everything under it whitened (rows 2846-3345) and the 4 deg 25 min ground-angle line under the tail (x 2300-2720, y 2813-2846): with the extension lines they closed the gap under the belly. Scale 99.4 px/m from the side view's labelled 45 ft 8 in fuselage (1384 px = 13.92 m); the same scale reads 24 ft 10 in as 7.52 m (-0.8 %), 16 ft 8 in as 5.10 m (+0.4 %), the 7 ft 3 in cabin width in the top view as 2.24 m (+1.4 %); the top view's rotor discs read 50 ft against the 51 ft label (drawing kept, both recorded)",
+ "frame": "CH-46 model metres (ch46model.js): x right, y up, z aft (nose -z); z 0 midway between the rotor hubs (side px 2005, top px 1900), ground (side py 2862) at y -1.80 = CH46M.GROUND; top centre line py 1308. Side view nose left, top view nose left",
+ "threshold": 150, "eraseLen": 420, "dilate": 3,
+ "side": { "x0": 1318, "x1": 2702, "rows": [2300, 2840], "s": 99.4, "zAtX0": -6.911, "groundPx": 2862, "yGround": -1.80,
+   "centre": [[-6.9, 0.05], [-5.0, 0.2], [0.0, 0.0], [5.0, 0.3], [7.0, 0.6]],
+   "exclude": { "top": [[-6.95, -6.86], [-5.4, -4.5], [4.5, 5.35], [6.93, 7.1]], "bottom": [[-6.95, -6.86], [-5.35, -4.75], [2.15, 2.75], [6.93, 7.1]] } },
+ "top": { "x0": 1228, "x1": 2597, "rows": [1100, 1520], "s": 99.4, "xRef": 1228, "zRef": -6.761, "centrePx": 1308, "probe": [0, -25, 25], "exclude": [[-5.6, -4.7], [4.4, 5.6]] }
+}

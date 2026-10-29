@@ -1,5 +1,14 @@
 # MODLOG — NGC-1980 (formerly Thrust/Zarch)
 
+## 2026-10-29 — CH-46E Sea Knight rebuilt on the Navy's geometry figure (branch ngc/look-units)
+
+Second unit of the blueprint pass. Source: NADC-81118-60 (Naval Air Development Center 1981, public domain) fig. 2-1, a
+dimensioned three-view of the CH-46E, plus a dated 1983 photo of an HMM-261 CH-46. Silhouette fit side 0.833 → **0.985**,
+top 0.888 → **0.977** IoU. Fuselage stations every 0.06-0.2 m from the traced outline, the drawn 3.4° nose-up
+posture on the gear, round cabin windows, sponsons with their real plan shape, gear, hubs, shaft angles and 51 ft blades
+at the drawn stations, the ramp along the drawn underside; flight-model gear contacts moved to match. LODs 54 / 54 / 3
+draws. Evidence docs/ngc1980/evidence/look-units/ch46e/.
+
 ## 2026-10-29 — Blueprint audit of every unit; the Hornet rebuilt from NASA drawings (branch ngc/look-units)
 
 The user: "make sure you have an agent blueprint skill every unit". **docs/ngc1980/BLUEPRINT-AUDIT.md** lists every

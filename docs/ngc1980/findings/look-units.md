@@ -135,3 +135,55 @@ session (SwiftShader, res 0.6, a loaded machine): median 1.37 s (base 1.08 s) lo
 panel, 0.45 / 0.48 s (0.43 / 0.48 s) at the consoles. Frames sit near the 1 s limit of snap.mjs's waitFor (it gives up
 once 40 s have passed and a single frame takes over 1 s). The base trips that limit less often, the new jet a little more.
 On a real GPU these are 1-2 ms frames.
+
+## 2026-10-29 - CH-46E Sea Knight: pin, sources, dimensions
+
+**Sources:** NADC-81118-60 (Naval Air Development Center 1981, DTIC ADA134320, public domain) fig. 2-1 "Helicopter
+Geometry": a dimensioned three-view of the CH-46E, the master; a dated 1983 USMC photo of an HMM-261 CH-46 on USS Guam.
+No CH-46 NATOPS manual is publicly available (only sold copies), so the cockpit panels were not traced; the CH-46
+cockpit (ch46cockpit.js) is unchanged.
+
+| Dimension | Value | Source |
+|---|---|---|
+| Fuselage length | 45 ft 8 in = 13.92 m (calibration: 99.4 px/m) | fig. 2-1 |
+| Rotor diameter | 51 ft = 15.54 m (the figure's top view draws 50 ft) | fig. 2-1 label, NNAM, NASM |
+| Hub spacing | 33 ft 4 in = 10.16 m label; STA 96.1 / 492.4 = 10.07 m, drawn 10.06 m | fig. 2-1 |
+| Height to the aft hub | 16 ft 8 in = 5.08 m (drawn 5.10 m) | fig. 2-1 |
+| Wheelbase | 24 ft 10 in = 7.57 m (drawn 7.52 m): nose 5.08 m ahead of the hub midpoint, mains 2.43 m behind | fig. 2-1 |
+| Main gear track | 3.78 m (top view; the front view's 14 ft 4 in reads 8 % short: the front view is too small to trust) | fig. 2-1 |
+| Cabin width | 7 ft 3 in = 2.21 m (top view 2.24 m) | fig. 2-1 |
+| Shaft angles | 9.5 / 7.0 deg forward of the datum; the datum sits 3.4 deg nose-up on the gear -> 6.1 / 3.6 deg | fig. 2-1 |
+
+## 2026-10-29 - CH-46E: rebuilt on the drawing
+
+**Finding:** the old model (20 hand stations, a level box cabin 2.26 m tall, nose gear at -4.6, mains 1.6 m aft)
+fit fig. 2-1 at side IoU 0.833 (max gap 0.96 m), top 0.888. **Action:**
+* `tools/blueprint/ch46e/`: the side view traced by trace3view.mjs from a cleaned copy (the dimension extension lines
+  closed the area under the belly); the top view, crossed by blades and disc arcs, read by a column scan in `merge.mjs`
+  (outermost run inside the cabin / sponson band, to the line's centre; blade crossings left null) -> `ch46trace.js`.
+* `ch46model.js`: fuselage stations every 0.06-0.2 m from the traced profiles (side outline, the drawn cabin roof line
+  under the pylons, top-view widths; the nose rounds into a bulb), pylons with traced tops, sponsons with the top view's
+  plan (bulging to x 2.0 only between z 1.0 and 2.55), round cabin windows and the escape hatch at the drawn stations,
+  gear, hubs (2.53 / 3.33 m, 10.06 m apart), shaft tilts 6.1 / 3.6 deg, blades 51 ft, nacelles on the pylon flanks, the
+  ramp as the drawn sloping underside (hinge z 3.55, 3.77 m, lip on the deck when lowered). The drawn 3.4 deg nose-up
+  posture is kept (the cabin floor starts at z -4.3: ahead of it the drawn belly rises to the floor line).
+* `ch46fm.js`: gear contact points moved to the drawn stations (were INFERRED).
+
+**Fit after** (`node tools/blueprint/ch46e/fitall.mjs`, masks from `dev/ch46-ref.html?ref=<view>&mask=1`):
+
+| view | IoU before | IoU after | max gap after |
+|---|---|---|---|
+| side (masts, gear masked) | 0.833 | **0.985** | 0.22 m (1.59 %): the pylon's trailing-edge corner and the forward mast's edge |
+| top (to z 6.15) | 0.888 | **0.977** | 0.20 m (1.45 %) without z 1.15-1.21, where the drawn sponson outline has a break; 0.48 m with it |
+
+**Deviations (on the list, not fudged):** aft of z 6.15 the drawing's plan tapers to 0.5 m at the tail while the ramp
+(the squads walk on it) stays 2 m wide; the flight model keeps its 50 ft rotors and its hubs 0.3 m lower with 4.5 deg
+shafts (fig. 2-1 gives STA / WL and 9.5 / 7.0 deg: for the flight-model owner).
+
+**Levels (perf recipe):** past 700 m the CH-46 is one coarse draw (fuselage every 4th station, pylons, sponsons);
+every other part dissolves by 700 m. `perfbudget.mjs`: 54 / 54 / 3 draws at near / 200 m / 800 m (budget 160 / 100 /
+40): `enforce: ALL`.
+
+**Tests:** `scenes/ch46fly.mjs` (the player's CH-46 end to end: cold start, 13 Marines up the ramp, flight, landing,
+dismount) 16/19 on look-units and 16/19 on the base under the same load, identical failures (the boarding waitFor and
+the 45 kt waitFor time out at ~1 fps in SwiftShader); every screenshot checked (deck, cockpit, cabin, LZ, dismount).

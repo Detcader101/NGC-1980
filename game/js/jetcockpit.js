@@ -184,7 +184,7 @@ export function buildJetCockpit() {
   // DDI / HI bezel page buttons (top row of each display)
   const PAGES = ['RDR', 'SMS', 'FCS', 'ENG', 'CHK'];   // CHK = the takeoff / landing CHECKLIST page (the HSI is on the HI)
   const BY = L.ddi[1] + L.ddiBez / 2 - 0.006, HY = L.hi[1] + L.hi[2] / 2 + 0.014;   // the top row of bezel buttons (FO-1: five over each DDI, the HI's over its screen)
-  for (const [d, cx] of [['L', -L.ddi[0]], ['R', L.ddi[0]]]) PAGES.forEach((pg, i) => { box(0.016, 0.012, 0.01, M(0x55585c), cx - 0.06 + i * 0.03, BY, 0.004, P); hit(`ddi${d}:${pg}`, 0.026, 0.02, 0.03, cx - 0.06 + i * 0.03, BY, 0.01, P, `DDI ${pg} PAGE`); });
+  for (const [d, cx] of /** @type {Array<[string, number]>} */ ([['L', -L.ddi[0]], ['R', L.ddi[0]]])) PAGES.forEach((pg, i) => { box(0.016, 0.012, 0.01, M(0x55585c), cx - 0.06 + i * 0.03, BY, 0.004, P); hit(`ddi${d}:${pg}`, 0.026, 0.02, 0.03, cx - 0.06 + i * 0.03, BY, 0.01, P, `DDI ${pg} PAGE`); });
   ['MAP', 'MAP+', 'MAP-'].forEach((pg, i) => { box(0.016, 0.012, 0.01, M(0x55585c), -0.03 + i * 0.03, HY, 0.004, P); hit(`ampcd:${pg}`, 0.026, 0.02, 0.03, -0.03 + i * 0.03, HY, 0.01, P, pg === 'MAP' ? 'HI  NORTH UP / TRACK UP' : pg === 'MAP+' ? 'HI  MAP SCALE IN' : 'HI  MAP SCALE OUT'); });
   // hover marker: a thin yellow frame that sits on whatever the crosshair / cursor is over
   const hov = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color: 0xffd040, depthTest: false, transparent: true })); hov.renderOrder = 9; hov.visible = false; g.add(hov);
