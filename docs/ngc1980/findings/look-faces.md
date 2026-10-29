@@ -99,10 +99,11 @@ knee down for crews (it was already), with the seat back.
 | `node tools/check.mjs syntax` | 675 / 675, no conflict markers | |
 | `node tools/check.mjs types` | 572 (baseline 572) | 572 |
 | `node tools/facebake.mjs --check` | current | n/a |
+| `node tools/facebench.mjs` | pass (bank current, 5 faces x 6 LODs within the old head / figure triangle counts, crew kneel on the floor: lowest point -0.008 m) | n/a |
 | smoke.json | 5 / 5 | |
-| people.mjs | see below | |
-| foot.mjs | see below | |
-| xrgameplay.mjs | see below | |
+| people.mjs | 1 / 1 (one skinned body per LOD; near Marine with M16A1 25.7 k visible incl. weapon) | |
+| faces.mjs / kneel.mjs / lpstudio.mjs / lpcrews.mjs | pass, 0 errors, screenshots checked | same scenes run on a `git archive` of the base for the before shots |
+| foot.mjs (load average ~50) | 9 / 20 | look-people logged 8 / 20 on its branch and 8 / 21 on its base with the SAME failing steps: the carrier-moving wait, the ladders, the walk to the pad, "GET IN THE UH-1H" (wall-clock waits under SwiftShader load) |
 
 ## Open items
 - The near Marine is 22 k triangles against the 15 k LOD0 budget (unchanged by this branch, which saved ~0.6 k). The
