@@ -332,8 +332,15 @@ void rtSample(int L, vec3 P, vec3 N, float k, float near, float tri, out vec4 A,
     D=D*bw.y+vec3(0.,bx.y-.5,bx.x-.5)*bw.x+vec3(bz.x-.5,bz.y-.5,0.)*bw.z;
   }
 }
+// (ngc/look-terrain) how much of the small detail to keep: 1 on foot, 0 where a pixel covers more ground than the
+// detail has (from the screen-space footprint). The blades / pebbles / cracks are mipmapped, but the normal map's
+// lighting, the height blend and the specular are non-linear in them, so a minified texel still flickers (the "grainy"
+// ground from a Huey at 200 m and the jet). Past the footprint they fade to the layer's mean colour and a flat normal;
+// the macro variation (rtMacro, the splat weights) carries the look from the air.
+float rtDetail(vec3 P){ vec3 a=dFdx(P), b=dFdy(P); float fp=sqrt(max(dot(a,a),dot(b,b))); return 1.-smoothstep(.035,.22,fp); }
 RtOut rtSplat(vec3 P, vec3 N, float w[${NL}], vec3 tint[${NL}], float dist, float hblend){
   RtOut o; o.a=vec3(0.); o.n=N; o.r=1.; o.ao=1.;
+  float det=rtDetail(P); hblend*=det;
   float near=uTer.z*(1.-step(uTer.w,dist)), tri=near*step(.22,1.-N.y);
   int K=int(uTer.y+.5); if(dist>uTer.w*1.8) K=min(K,2);
   float k=(rkN2(P.xz*.11)*.7+rkN2(P.xz*.37+5.)*.3)*8.;   // anti-tiling: which offsets where (cells ~3-9 m)
@@ -349,10 +356,10 @@ RtOut rtSplat(vec3 P, vec3 N, float w[${NL}], vec3 tint[${NL}], float dist, floa
   // height blend: a layer shows where its height + weight is within .2 of the highest (grass in the cracks of the rock)
   float bs=0.; vec3 a=vec3(0.), d=vec3(0.); vec2 r=vec2(0.);
   for(int j=0;j<4;j++){ if(j>=K||wt[j]<=.001) continue; float b=max(A[j].a*hblend+wt[j]/tot-hm+.2,0.); b*=b;
-    a+=A[j].rgb*tint[id[j]]*b; d+=D[j]*b; r+=R[j]*b; bs+=b; }
+    a+=mix(RT_BASE[id[j]],A[j].rgb,.25+.75*det)*tint[id[j]]*b; d+=D[j]*b; r+=mix(vec2(R[j].x,1.),R[j],det)*b; bs+=b; }
   bs=max(bs,1e-5); o.a=a/bs; d/=bs; r/=bs; o.r=r.x; o.ao=r.y;
   d-=N*dot(d,N);   // the bump as a tilt of the smooth normal
-  o.n=normalize(N+d*2.);
+  o.n=normalize(N+d*2.*det);
   return o;
 }
 // a cheap sun specular from the roughness (display values): wet sand, mud, snow glints, tarmac

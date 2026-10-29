@@ -69,7 +69,7 @@ function rockMaterial({ ter, fog, uTime, lodU, near }) {
       float ocDoor(){ return fract(52.9829189*fract(dot(floor(gl_FragCoord.xy),vec2(.06711056,.00583715)))); }
       vec3 ocBump=vec3(0.);\n` + sh.fragmentShader
       .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
-        { float d=length(vOW-cameraPosition), wN=1.-smoothstep(uOcLod.x-uOcLod.y,uOcLod.x+uOcLod.y,d), wR=1.-smoothstep(uOcLod.z*.85,uOcLod.z,d), dr=ocDoor();
+        { float d=length(vOW-cameraPosition), wN=1.-smoothstep(uOcLod.x-uOcLod.y,uOcLod.x+uOcLod.y,d), Rz=min(uOcLod.z,70.+vOS*55.), wR=1.-smoothstep(Rz*.8,Rz,d), dr=ocDoor();
           ${near ? 'if(dr>=wN||dr>=wR) discard;' : 'if(dr<wN||dr>=wR) discard;'} }`)
       .replace('#include <color_fragment>', `#include <color_fragment>
         { // the terrain's rock layer, triplanar in world space (scaled per rock so a boulder is not a tiny cliff)

@@ -69,7 +69,7 @@ import { createWorldSolid } from './world/solid.js';   // SEAWORLD: buildings as
 import { createInteriors } from './interiors/interiors.js';   // ngc/interiors: enterable buildings, doors / hatches, the ALBATROSS inside
 import { createSeats } from './interiors/seats.js';           // ngc/interiors: passenger seats in the Huey / CH-46, the people in the seats
 import { DOORS } from './interiors/doors.js';
-import { createWorldLife } from './world/life.js'; import { clearedAt, clearingAt, structAngle as natStructAngle, bedBuckets } from './world/net.js';   // WORLD: the lived-in world (towns, roads, traffic, people, faction structures)
+import { createWorldLife } from './world/life.js'; import { clearedAt, clearingAt, structAngle as natStructAngle, bedBuckets, settlementsNear, netState } from './world/net.js';   // WORLD: the lived-in world (towns, roads, traffic, people, faction structures)
 // ARMOUR (wave 2): the M60A3 TTS and M113A2 as crafts on the island world, their sights, the LCM-8 delivery
 import { createArmorWorld } from './units/armor/armorworld.js';
 import { createArmorCraft } from './units/armor/armorcraft.js';
@@ -133,6 +133,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyJ') HI.startCalibration();   // the controls panel: bind and calibrate HOTAS / pedals (hotas.js)
   if (e.code === 'KeyT' && (G.craft === 'heli' || isJet())) toggleFreeLook();
   if (e.code === 'KeyM') { bigMap = !bigMap; setMapSize(); if (bigMap && document.pointerLockElement) document.exitPointerLock(); }
+  if (bigMap && ['Equal', 'NumpadAdd', 'Minus', 'NumpadSubtract'].includes(e.code)) { e.preventDefault(); mapZoomBy(e.code === 'Equal' || e.code === 'NumpadAdd' ? 1.4 : 1 / 1.4); }   // (ngc/look-terrain) map zoom
   if (['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Digit0'].includes(e.code)) command(+e.code.slice(5));   // TOMCAT: 8; ARMOUR: 9 M60A3, 0 M113A2
   if (e.code === 'Tab') { e.preventDefault(); toggleHelm(); }
   if (G.craft !== 'heli' && !isJet()) { /* foot / vehicles: V and C belong to the craft (above) */ }
@@ -473,6 +474,7 @@ const previousNear = new THREE.DataTexture(HW[0].tex.image.data.slice(), HW_N, H
 previousNear.minFilter = previousNear.magFilter = THREE.NearestFilter; previousNear.needsUpdate = true;
 const terrainWorker = new Worker(new URL('./terrainworker.js', import.meta.url), { type: 'module' });
 terrainWorker.onmessage = ({ data: d }) => {
+  if (d.id === 2) { buildWorldMap(d); return; }   // (ngc/look-terrain) the map's wide image
   const L = HW[d.id]; L.busy = false;
   if (d.id === 0 && L.ready) {
     previousNear.image = { ...L.tex.image }; previousNear.needsUpdate = true;
@@ -480,6 +482,7 @@ terrainWorker.onmessage = ({ data: d }) => {
   }
   L.tex.image.data = d.h; L.tex.needsUpdate = true; L.ready = true; terrainUni[L.uni].value.set(d.ox, d.oz, d.c);
   if (d.id === 1) { buildFarMap(d); atmo?.farHeights(d); }   // RENDERKIT sky: the land past the draw distance
+  if (d.id === 1 && !worldMap.asked) { worldMap.asked = true; const n = worldMap.N, c = 2 * worldMap.E / n; terrainWorker.postMessage({ id: 2, n, c, ox: -worldMap.E + c / 2, oz: -worldMap.E + c / 2 }); }   // (after the first windows: never ahead of them)
 };
 function terrainStream(x, z, dt = 0) {
   terrainUni.uHMNblend.value = Math.min(1, terrainUni.uHMNblend.value + dt / 1.2);
@@ -501,6 +504,26 @@ function buildFarMap(d) {
     im.data[o] = col[0]; im.data[o + 1] = col[1]; im.data[o + 2] = col[2]; im.data[o + 3] = 255;
   }
   x.putImageData(im, 0, 0); Object.assign(farMap, { ox: d.ox, oz: d.oz, size: d.n * d.c, ready: true });
+}
+// (ngc/look-terrain) the map's view past the control zone: the world round it (coasts, wild land, the air base) out to
+// BOUND + 7 km at ~43 m (WESTGATE AFB included), baked once by the terrain worker from rawH (the same height function the ground uses) and
+// coloured / hill-shaded here; the zone itself keeps landImg (11 m) and the fog of war on top.
+const worldMap = { E: BOUND + 7040, N: 448, cv: document.createElement('canvas'), ready: false, asked: false };
+function buildWorldMap(d) {
+  const N = d.n, cv = worldMap.cv; cv.width = cv.height = N; const x = cv.getContext('2d'), im = x.createImageData(N, N), h = d.h;
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const y = h[j * N + i], o = (j * N + i) * 4; let col;
+    if (y <= 0) { const t = clamp(-y / 30, 0, 1); col = [lerp(28, 8, t), lerp(92, 34, t), lerp(118, 78, t)]; }
+    else if (y < 2.5) col = [176, 164, 112];
+    else {
+      const t1 = clamp((y - 4) / 60, 0, 1), t2 = clamp((y - 60) / 140, 0, 1), t3 = clamp((y - 200) / 250, 0, 1), t4 = clamp((y - 600) / 500, 0, 1);
+      col = [lerp(lerp(lerp(lerp(52, 92, t1), 128, t2), 150, t3), 235, t4), lerp(lerp(lerp(lerp(112, 120, t1), 112, t2), 146, t3), 238, t4), lerp(lerp(lerp(lerp(52, 62, t1), 78, t2), 140, t3), 244, t4)];
+      const hx = h[j * N + Math.min(N - 1, i + 1)] - h[j * N + Math.max(0, i - 1)], hz = h[Math.min(N - 1, j + 1) * N + i] - h[Math.max(0, j - 1) * N + i];
+      const sh = clamp(1 + (hx + hz) / (4 * d.c) * 1.4, 0.5, 1.4); col = col.map(v => clamp(v * sh, 0, 255));
+    }
+    im.data[o] = col[0]; im.data[o + 1] = col[1]; im.data[o + 2] = col[2]; im.data[o + 3] = 255;
+  }
+  x.putImageData(im, 0, 0); worldMap.ready = true;
 }
 const fog = createFog(BOUND, Math.round(224 * BOUND / 1280)); fog.enabled = false; fog.update([]);   // (11.4 m cells at any zone size)
 const terrainGeo = new THREE.PlaneGeometry(TG * TN, TG * TN, TN, TN); terrainGeo.rotateX(-Math.PI / 2);
@@ -671,10 +694,11 @@ const terrainFS = `
       // RENDERKIT terrain: what the ground is made of here, as weights over the generated layers (renderkit/terrainmat.js
       // TL order: grass dry meadow soil mud forest cliff granite sand wetsand snow gravel tarmac track), then the splat
       if(vRaw>0. && uTer.x>.5){
+        float rtDet=rtDetail(vW);   // (ngc/look-terrain) small detail fades with the pixel footprint (renderkit/terrainmat.js)
         float W[14]; vec3 TI[14]; for(int L=0;L<14;L++){ W[L]=0.; TI[L]=vec3(1.); }
         vec2 xz=vW.xz; float y=vW.y, nA=rkN2(xz*.43+17.);
         float beach=1.-smoothstep(0.,3.+2.5*(rkM2-.5),y), rockW=rk*(1.-rkSnow)*(1.-beach), snowW=rkSnow*(1.-beach);
-        float soilN=smoothstep(.8,.92,rkN2(xz*.19+3.)*.72+rkN2(xz*.83+9.)*.28+rkSl*.35);   // bare soil patches (nature's; ngc/look-terrain: fewer)
+        float soilN=smoothstep(.8,.92,rkN2(xz*.19+3.)*.72+mix(.14,rkN2(xz*.83+9.)*.28,rtDet)+rkSl*.35);   // bare soil patches (nature's; ngc/look-terrain: fewer)
         float scree=wild*smoothstep(.16,.28,rkSl)*(1.-smoothstep(.34,.48,rkSl))*smoothstep(.5,.7,rkN2(xz*.05+1.7));   // loose stone at the foot of slopes
         float forestF=wild*smoothstep(.62,.8,rkN2(xz*.013+8.2))*smoothstep(40.,120.,y)*(1.-smoothstep(380.,450.,y));
         float mudW=0., soilW=0., gravW=0., sandW=beach, strata=wild>.5?step(.5,rkN2(xz*.0011+2.)):(gi>=0?uGeoS[gi]:1.);
@@ -694,14 +718,14 @@ const terrainFS = `
         W[6]=rockW*strata*(1.-scree*.6); W[7]=rockW*(1.-strata)*(1.-scree*.6); W[11]=gravW+rockW*scree*.6;
         float wet=1.-smoothstep(.25,.9+.3*sin(uTime*.55+rkN2(xz*.05)*6.)*.5+.3*nA,y);   // the swash: wet sand comes and goes
         W[8]=sandW*(1.-wet); W[9]=sandW*wet; W[10]=snowW;
-        for(int L=0;L<14;L++) W[L]*=.75+.5*(L<3?nA:1.-nA);   // ragged edges between the families
+        for(int L=0;L<14;L++) W[L]*=1.+(.5*(L<3?nA:1.-nA)-.25)*(.3+.7*rtDet);   // ragged edges between the families
         TI[6]=rkT; TI[7]=rkT; TI[8]=sdT; TI[9]=sdT; TI[11]=mix(vec3(1.),rkT,.5);
         RtOut o=rtSplat(vW,n,W,TI,rkD,1.);
         float m=rtMacro(xz);
         c=o.a*(.86+.28*m)*mix(vec3(1.),vec3(1.06,1.03,.9),smoothstep(.55,.9,m));   // the same macro variation as rtGrassMean (the tufts)
         // the shore: the dark intertidal band on rock (weed and wet stone)
         float tide=1.15+.25*rkN2(xz*.15)+.08*sin(uTime*.4+xz.x*.03), inter=(1.-smoothstep(tide-.35,tide,y))*(W[6]+W[7]+W[11])/max(.001,dot(vec4(W[6],W[7],W[11],grassW+sandW+mudW+soilW),vec4(1.)));
-        c=mix(c,mix(vec3(.11,.12,.09),vec3(.16,.2,.11),rkN2(xz*1.7))*(.8+.4*rkN2(xz*5.)),inter*.8); o.r=mix(o.r,.3,inter);
+        c=mix(c,mix(vec3(.11,.12,.09),vec3(.16,.2,.11),mix(.5,rkN2(xz*1.7),rtDet))*(1.+(.4*rkN2(xz*5.)-.2)*rtDet),inter*.8); o.r=mix(o.r,.3,inter);
         n=o.n; rtR=o.r; rtAO=o.ao; rtOn=1.;
       }
       #endif
@@ -2423,21 +2447,67 @@ const KIND_TAG = { hq: 'HQ', fortress: 'C', fuel: 'F', factory: 'M', radar: 'R' 
 const OWN_COL = ['#e8e4d0', '#4cf', '#f54'];
 let mapView = null;
 const _mapF = { x: 0, y: 0, z: 0, yaw: 0 };
+// (ngc/look-terrain) map zoom and pan: the big map zooms (wheel about the cursor, + / - keys, the on-map buttons, a
+// gamepad's shoulder buttons) from the whole world image (BOUND + 5.1 km) in to ~8x, and drags to pan; the minimap zooms
+// with the wheel over it. mapZ.zoom 1 = the control zone fitted to the screen.
+const mapZ = { zoom: 1, cx: 0, cz: 0, mini: 1, drag: null, wild: null };
+const MAPZ = { min: 0.32, max: 8, miniMin: 0.35, miniMax: 4 };
+function mapClampPan() { const E = worldMap.E; mapZ.cx = clamp(mapZ.cx, -E, E); mapZ.cz = clamp(mapZ.cz, -E, E); }
+function mapZoomBy(f, sx, sy) {
+  const v = mapView; if (!bigMap || !v) return;
+  if (sx === undefined) { sx = v.cx; sy = v.cy; }
+  const wx = v.ox + (sx - v.cx) / v.half, wz = v.oz + (sy - v.cy) / v.half;
+  mapZ.zoom = clamp(mapZ.zoom * f, MAPZ.min, MAPZ.max); const nh = v.base * mapZ.zoom;
+  mapZ.cx = wx - (sx - v.cx) / nh; mapZ.cz = wz - (sy - v.cy) / nh; mapClampPan(); Z.mapT = 0;
+}
+const mapSeesOutside = (x, z) => {   // past the zone there is no fog of war: an enemy shows where something of ours can see it
+  if (!fog.enabled || Math.hypot(x - Z.pos.x, z - Z.pos.z) < 1500) return true;
+  for (const u of war.units) if (u.side === 1 && Math.hypot(x - u.p.x, z - u.p.z) < 1200) return true;
+  return false;
+};
 function drawMap() {
   const W = radar.canvas.width, Hh = radar.canvas.height; radar.clearRect(0, 0, W, Hh);
-  const big = bigMap, half = big ? Math.min(W, Hh - 120) * 0.47 / BOUND : 72 / 260, cx = W / 2, cy = big ? (Hh - 60) / 2 : Hh / 2;
-  const ox = big ? 0 : Z.pos.x, oz = big ? 0 : Z.pos.z;
+  const big = bigMap, base = big ? Math.min(W, Hh - 120) * 0.47 / BOUND : 72 / 260, half = base * (big ? mapZ.zoom : mapZ.mini), cx = W / 2, cy = big ? (Hh - 60) / 2 : Hh / 2;
+  if (big) {   // a gamepad: shoulder buttons zoom, the d-pad pans
+    const gp = navigator.getGamepads ? [...navigator.getGamepads()].find(g => g && g.connected) : null;
+    if (gp) { const b = i => gp.buttons[i] && gp.buttons[i].pressed; if (b(5)) mapZ.zoom = Math.min(MAPZ.max, mapZ.zoom * 1.05); if (b(4)) mapZ.zoom = Math.max(MAPZ.min, mapZ.zoom / 1.05);
+      const st = 30 / half; if (b(12)) mapZ.cz -= st; if (b(13)) mapZ.cz += st; if (b(14)) mapZ.cx -= st; if (b(15)) mapZ.cx += st; mapClampPan(); }
+  }
+  const ox = big ? mapZ.cx : Z.pos.x, oz = big ? mapZ.cz : Z.pos.z;
   const px = x => cx + (x - ox) * half, py = z => cy + (z - oz) * half;
-  mapView = { half, cx, cy, ox, oz };
+  mapView = { half, base, cx, cy, ox, oz, btns: /** @type {any[]} */ ([]) };
   radar.save();
   if (!big) { radar.beginPath(); radar.arc(cx, cy, 74, 0, 6.283); radar.clip(); }
   else { radar.fillStyle = 'rgba(2,8,16,.88)'; radar.fillRect(0, 0, W, Hh); }
   radar.imageSmoothingEnabled = true;
-  if (!big) { radar.fillStyle = 'rgb(10,38,74)'; radar.fillRect(0, 0, W, Hh); if (farMap.ready) radar.drawImage(farMap.cv, px(farMap.ox), py(farMap.oz), farMap.size * half, farMap.size * half); }
+  if (!big) { radar.fillStyle = 'rgb(10,38,74)'; radar.fillRect(0, 0, W, Hh); }
+  if (worldMap.ready) radar.drawImage(worldMap.cv, px(-worldMap.E), py(-worldMap.E), 2 * worldMap.E * half, 2 * worldMap.E * half);   // the world round the zone
+  if (!big && farMap.ready) radar.drawImage(farMap.cv, px(farMap.ox), py(farMap.oz), farMap.size * half, farMap.size * half);
   radar.drawImage(landImg, px(-BOUND), py(-BOUND), 2 * BOUND * half, 2 * BOUND * half);
+  if (big) {   // (ngc/look-terrain) roads: the zone's and the wild ones built so far (under the fog of war)
+    radar.lineCap = 'round';
+    for (const R of netState.roads) {
+      if (R.kind === 'track' && half < 0.6) continue;
+      radar.strokeStyle = R.type === 'tarmac' ? 'rgba(52,52,58,.9)' : 'rgba(96,82,62,.85)'; radar.lineWidth = Math.max(1, (R.type === 'tarmac' ? 6.6 : 4.4) * half);
+      radar.beginPath(); const st = Math.max(1, Math.round(4 / Math.max(half, 0.05) / 8)); radar.moveTo(px(R.xs[0]), py(R.zs[0]));
+      for (let i = st; i < R.xs.length; i += st) radar.lineTo(px(R.xs[i]), py(R.zs[i])); radar.lineTo(px(R.xs[R.xs.length - 1]), py(R.zs[R.zs.length - 1])); radar.stroke();
+    }
+  }
   radar.drawImage(fogImg, px(-BOUND), py(-BOUND), 2 * BOUND * half, 2 * BOUND * half);
   radar.strokeStyle = 'rgba(255,220,120,.5)'; radar.lineWidth = 1; radar.setLineDash([4, 4]); radar.strokeRect(px(-BOUND), py(-BOUND), 2 * BOUND * half, 2 * BOUND * half); radar.setLineDash([]);   // the control zone
   if (big) { radar.fillStyle = 'rgba(255,220,120,.8)'; radar.font = 'bold 12px monospace'; radar.textAlign = 'left'; radar.fillText('CONTROL ZONE', px(-BOUND) + 6, py(-BOUND) + 16); }
+  if (big) {   // (ngc/look-terrain) the wild settlements past the zone
+    const vx0 = ox - cx / half, vx1 = ox + cx / half, vz0 = oz - cy / half, vz1 = oz + (Hh - cy) / half;
+    if (vx0 < -BOUND || vx1 > BOUND || vz0 < -BOUND || vz1 > BOUND) {
+      mapZ.wild ||= settlementsNear(0, 0, worldMap.E);   // (once: the settlement candidates of the whole world image)
+      radar.font = '11px monospace'; radar.textAlign = 'left';
+      for (const S of mapZ.wild) {
+        const X = px(S.x), Y = py(S.z); if (X < -20 || Y < -20 || X > W + 20 || Y > Hh + 20) continue;
+        const r = Math.max(2.5, S.R * half * 0.5); radar.fillStyle = 'rgba(200,170,140,.85)'; radar.fillRect(X - r, Y - r, 2 * r, 2 * r);
+        if (half > 0.06) { radar.fillStyle = 'rgba(230,220,200,.8)'; radar.fillText(S.size.toUpperCase(), X + r + 4, Y + 4); }
+      }
+    }
+  }
   drawAirbaseMap(radar, AIRBASE, px, py, half, { big, W, H: Hh, from: Z.pos });   // (ngc/look-airbases)
   // islands, as last seen
   for (const I of ISLANDS) {
@@ -2463,7 +2533,7 @@ function drawMap() {
   }
   // units
   for (const u of war.units) {
-    if (u.side === 2 && !fog.visibleAt(u.p.x, u.p.z)) continue;
+    if (u.side === 2 && !(inZone(u.p.x, u.p.z) ? fog.visibleAt(u.p.x, u.p.z) : mapSeesOutside(u.p.x, u.p.z))) continue;   // (outside the zone: no fog of war, only what we can see)
     const X = px(u.p.x), Y = py(u.p.z), col = u.side === 1 ? '#6ef' : '#f64';
     if (u.dims) {
       radar.save(); radar.translate(X, Y); radar.rotate(-u.yaw); radar.fillStyle = u.sinking !== undefined ? '#555' : col;
@@ -2487,6 +2557,12 @@ function drawMap() {
   radar.moveTo(X + fx_ * sz, Y + fz * sz); radar.lineTo(X - fx_ * sz - fz * sz * .6, Y - fz * sz + fx_ * sz * .6); radar.lineTo(X - fx_ * sz + fz * sz * .6, Y - fz * sz - fx_ * sz * .6); radar.fill();
   radar.restore();
   if (big) {
+    {   // (ngc/look-terrain) zoom buttons, top right (mouse and the XR pointer)
+      const bw = 44, bx = W - 3 * (bw + 8) - 16, by = 16, btns = [['+', 1.5], ['−', 1 / 1.5], ['ZONE', 0]];
+      mapView.btns = btns.map(([t, f], i) => ({ x: bx + i * (bw + 8), y: by, w: i === 2 ? bw + 16 : bw, h: 34, t, f }));
+      for (const B of mapView.btns) { radar.fillStyle = 'rgba(20,34,44,.92)'; radar.fillRect(B.x, B.y, B.w, B.h); radar.strokeStyle = 'rgba(190,230,240,.7)'; radar.lineWidth = 1.5; radar.strokeRect(B.x, B.y, B.w, B.h); radar.fillStyle = '#dff'; radar.font = B.t.length > 1 ? 'bold 13px monospace' : 'bold 22px monospace'; radar.textAlign = 'center'; radar.fillText(B.t, B.x + B.w / 2, B.y + (B.t.length > 1 ? 22 : 25)); }
+      radar.font = '12px monospace'; radar.textAlign = 'right'; radar.fillStyle = '#9bc'; radar.fillText(`ZOOM ${mapZ.zoom.toFixed(1)}x  ·  WHEEL / + - / LB RB  ·  DRAG TO PAN`, W - 16, by + 52);
+    }
     radar.font = '14px monospace'; radar.textAlign = 'center'; radar.fillStyle = '#bfe';
     // (TECH TREE: the orders on two lines, each shrunk to fit - the one long line ran off both edges at 1280 px)
     const fit = (t, y, px) => { radar.font = `${px}px monospace`; const w = radar.measureText(t).width; if (w > W - 24) radar.font = `${Math.floor(px * (W - 24) / w)}px monospace`; radar.fillText(t, W / 2, y); };
@@ -2510,12 +2586,33 @@ function drawMap() {
 $('radar').addEventListener('mousedown', e => {
   if (!bigMap || !mapView) return;
   e.stopPropagation(); e.preventDefault();
+  const rc = $('radar').getBoundingClientRect(), mx = e.clientX - rc.left, my = e.clientY - rc.top;
+  const B = (mapView.btns || []).find(B => mx >= B.x && mx <= B.x + B.w && my >= B.y && my <= B.y + B.h);
+  if (B) { if (B.f) mapZoomBy(B.f); else { mapZ.zoom = 1; mapZ.cx = mapZ.cz = 0; Z.mapT = 0; } return; }
+  mapZ.drag = { x: e.clientX, y: e.clientY, cx: mapZ.cx, cz: mapZ.cz, moved: false };
+});
+addEventListener('mousemove', e => {
+  const D = mapZ.drag; if (!D || !bigMap || !mapView) return;
+  const dx = e.clientX - D.x, dy = e.clientY - D.y; if (Math.hypot(dx, dy) > 5) D.moved = true;
+  if (D.moved) { mapZ.cx = D.cx - dx / mapView.half; mapZ.cz = D.cz - dy / mapView.half; mapClampPan(); Z.mapT = 0; }
+});
+addEventListener('mouseup', e => {
+  const D = mapZ.drag; mapZ.drag = null; if (!D || D.moved || !bigMap || !mapView) return;
+  mapClick(e);
+});
+$('radar').addEventListener('wheel', e => {
+  if (document.pointerLockElement) return;
+  e.preventDefault(); const f = e.deltaY < 0 ? 1.25 : 1 / 1.25;
+  if (bigMap) { const rc = $('radar').getBoundingClientRect(); mapZoomBy(f, e.clientX - rc.left, e.clientY - rc.top); }
+  else { mapZ.mini = clamp(mapZ.mini * f, MAPZ.miniMin, MAPZ.miniMax); Z.mapT = 0; }
+}, { passive: false });
+function mapClick(e) {
   const v = mapView, rc = $('radar').getBoundingClientRect(), mx = e.clientX - rc.left, my = e.clientY - rc.top;
   const wx = v.ox + (mx - v.cx) / v.half, wz = v.oz + (my - v.cy) / v.half;
   const I = ISLANDS.find(I => (fog.exploredAt(I.x, I.z) || fog.exploredAt(I.pad.x, I.pad.z)) && Math.hypot(v.cx + (I.pad.x - v.ox) * v.half - mx, v.cy + (I.pad.z - v.oz) * v.half - my) < 16);
   if (I) { selIsl = I; sfx.blip?.(500, 700, 0.06, 'square', 0.06); return; }
   if (war.orderCarrier(wx, wz)) { feed('ALBATROSS: COURSE SET'); sfx.blip?.(400, 300, 0.08, 'square', 0.06); }
-});
+}
 $('radar').addEventListener('contextmenu', e => e.preventDefault());
 const _hud = {};
 function setText(id, v) { if (_hud[id] !== v) { _hud[id] = v; $(id).textContent = v; } }
