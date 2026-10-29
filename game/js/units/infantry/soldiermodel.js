@@ -1,5 +1,5 @@
-// NGC-1980 infantry: the third-person soldier. A SHARED SKELETON (rigid bone groups, no skinning: one mesh per bone, the
-// house style), a procedural POSER (stand / crouch-kneel / prone / down, walk-run-sprint-crawl cycles, lean, aim,
+// NGC-1980 infantry: the third-person soldier. A SHARED SKELETON with a continuous skinned person and cached LODs,
+// a procedural POSER (stand / crouch-kneel / prone / down, walk-run-sprint-crawl cycles, lean, aim,
 // stance blending, two-bone arm IK onto the weapon), HITBOXES per bone for hit registration, and the 1980 MARINE built
 // on it (M1 helmet with Mitchell cover, ERDL or OG-107 utilities, M1955 flak vest, ALICE belt / suspenders / pouches /
 // canteens, boots).
@@ -12,10 +12,10 @@
 // Bone frame: model space +y up, facing -z, +x = the soldier's right. Lengths are a 50th-percentile man (1.75 m).
 import * as THREE from 'three';
 import { Kit, KITMAT, CAMO, COL, FIG, weldNormals } from './meshkit.js';
-import { tpHand } from './handkit.js';   // RENDERKIT figures
+import { tpHand, tpGripFrame } from './handkit.js';   // RENDERKIT figures
 import { buildWeaponModel } from './weaponmodels.js';
 import { m67Geometry, m67Into, grenadeMaterial } from './grenademodel.js';   // ngc/marine-polish
-import { attachMarine } from './humanfig.js';   // ngc/look-people
+import { attachMarine, setMarineGripProfiles } from './humanfig.js';   // ngc/look-people
 // ngc/look-people: ?figparts=1 keeps the previous (depth-figures) part-built figure for A/B shots
 const PARTS = (() => { try { return new URLSearchParams(location.search).has('figparts'); } catch (e) { return false; } })();
 
@@ -23,6 +23,7 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const sstep = t => t * t * (3 - 2 * t);
 // ------------------------------------------------------------------------------------------------ skeleton
 // [name, parent, rest position relative to the parent]
+/** @type {Array<[string, string, [number, number, number]]>} */
 export const BONES = [
   ['pelvis', 'root', [0, 0.98, 0]], ['spine', 'pelvis', [0, 0.1, 0]], ['chest', 'spine', [0, 0.2, 0]], ['neck', 'chest', [0, 0.21, 0]], ['head', 'neck', [0, 0.08, 0]],
   ['upperArmL', 'chest', [-0.19, 0.15, 0]], ['forearmL', 'upperArmL', [0, -0.3, 0]], ['handL', 'forearmL', [0, -0.27, 0]],
@@ -31,11 +32,12 @@ export const BONES = [
   ['thighR', 'pelvis', [0.095, -0.06, 0]], ['shinR', 'thighR', [0, -0.44, 0]], ['footR', 'shinR', [0, -0.42, 0]],
 ];
 export const LEN = { upperArm: 0.3, forearm: 0.27, thigh: 0.44, shin: 0.42 };
+/** @type {[number, number, number]} */
 export const EYE_LOCAL = [0, 0.09, -0.095];   // eye in the head bone frame
 export function createSkeleton() {
   const root = new THREE.Group(); root.name = 'soldier';
   const bones = { root };
-  for (const [n, p, pos] of BONES) { const b = new THREE.Group(); b.name = n; b.position.set(...pos); b.userData.rest = new THREE.Vector3(...pos); bones[p].add(b); bones[n] = b; }
+  for (const [n, p, pos] of BONES) { const b = new THREE.Bone(); b.name = n; b.position.set(...pos); b.userData.rest = new THREE.Vector3(...pos); bones[p].add(b); bones[n] = b; }
   const sk = { root, bones, weapon: null, weaponModel: null, state: { quats: {}, t: 0 }, _tmp: {} };
   return sk;
 }
@@ -98,10 +100,9 @@ export function raycastHitboxes(sk, ox, oy, oz, dx, dy, dz, maxDist = Infinity, 
   }
   if (!best) return null;
   _hit.set(ox + dx * best.dist, oy + dy * best.dist, oz + dz * best.dist);
-  best.x = _hit.x; best.y = _hit.y; best.z = _hit.z;
   // the helmet covers the dome (above the brow), the vest the trunk (not the pelvis)
-  best.armour = best.armourKey === 'helmet' && kit.helmet !== false && best.local[1] > 0.08 ? KIT_ARMOUR.helmet : best.armourKey === 'vest' && kit.vest !== false ? KIT_ARMOUR.vest : [];
-  return best;
+  const armour = best.armourKey === 'helmet' && kit.helmet !== false && best.local[1] > 0.08 ? KIT_ARMOUR.helmet : best.armourKey === 'vest' && kit.vest !== false ? KIT_ARMOUR.vest : [];
+  return { ...best, x: _hit.x, y: _hit.y, z: _hit.z, armour };
 }
 
 // ------------------------------------------------------------------------------------------------ the 1980 Marine
@@ -113,7 +114,7 @@ export function buildMarine(o = {}) {
   sk.kit = { helmet: o.helmet !== false, vest: o.vest !== false };
   const put = (bone, build) => { const k = new Kit(); build(k); const m = k.mesh(KITMAT.lambert(), bone + 'Mesh'); m.castShadow = false; B[bone].add(m); return m; };
   // RENDERKIT figures (ngc/look-people): one continuous skinned person on these bones (humanfig.js); the part-built
-  // rounded figure (marineFig) stays for ?rk=figures-parts comparisons only
+  // rounded figure (marineFig) stays for ?figparts=1 comparisons only
   if (FIG && !PARTS) attachMarine(sk, { ...o, seed, skin: o.skin, vest: sk.kit.vest, helmet: sk.kit.helmet });
   else if (FIG) marineFig(sk, o, put, { cloth, skin, od, web, vestC });
   else {
@@ -325,14 +326,42 @@ function marineFig(sk, o, put, { cloth, skin, od, web, vestC }) {
 // ------------------------------------------------------------------------------------------------ the poser
 const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new THREE.Vector3(), _w = new THREE.Vector3(), _m = new THREE.Matrix4();
 const _wq = new THREE.Quaternion(), _pq = new THREE.Quaternion(), _down = new THREE.Vector3(0, -1, 0), _a = new THREE.Vector3(), _b = new THREE.Vector3(), _eye = new THREE.Vector3();
+const SIDES = ['L','R'], SOLE_X = [-.054,.054], SOLE_Z = [-.189,.069];
 const POSE_BONES = ['pelvis', 'spine', 'chest', 'neck', 'head', 'thighL', 'shinL', 'footL', 'thighR', 'shinR', 'footR', 'upperArmL', 'forearmL', 'upperArmR', 'forearmR'];
+// Two-link sagittal leg solve. Boot soles remain level during support; each leg keeps its original rig lengths.
+function plantLeg(E,side,hipY,forward,ankleY){
+  const a=LEN.thigh,b=LEN.shin,down=hipY-ankleY,d=clamp(Math.hypot(down,forward),.12,a+b-.001);
+  const knee=-Math.acos(clamp((d*d-a*a-b*b)/(2*a*b),-1,1));
+  const hip=Math.atan2(forward,down)+Math.acos(clamp((a*a+d*d-b*b)/(2*a*d),-1,1));
+  E['thigh'+side][0]=hip;E['shin'+side][0]=knee;E['foot'+side][0]=-hip-knee;
+}
 // one stance's pose: Euler angles per bone + pelvis position, as plain numbers
-function stancePose(st, p, out) {
+function stancePose(st, p, out, time = 0) {
   const ph = p.gaitPhase || 0, sp = p.speed || 0, dirF = (p.moveF ?? sp) >= -0.05 ? 1 : -1, side = clamp((p.moveR || 0) / Math.max(0.3, sp), -1, 1);
   const E = out.e; for (const n of POSE_BONES) { E[n] = E[n] || [0, 0, 0]; E[n][0] = E[n][1] = E[n][2] = 0; }
   out.pos[0] = 0; out.pos[1] = 0.98; out.pos[2] = 0;
   const s = Math.sin(ph) * dirF, c = Math.cos(ph) * dirF;
-  if (st === 'stand') {
+  if (st === 'stand' && FIG) {
+    const mv=clamp(sp/.8,0,1),run=clamp((sp-1.6)/1.8,0,1),spr=p.gait==='sprint'?1:0;
+    // The support foot travels backwards at a constant rate during its planted half-cycle. The other foot
+    // clears the floor and eases forward; knee flexion follows the actual ankle target instead of a free sine.
+    const step=sp<1.52?.5+.17*sp:sp<2.74?.76+(sp-1.52)*.123:.91+(sp-2.74)*.23;
+    const stride=Math.min(.43,step*.5)*mv*(1-.65*Math.abs(side));
+    out.pos[1]=.986-mv*(.021+.060*Math.abs(Math.cos(ph)))-.025*run;
+    for(const sd of SIDES){
+      const q=((ph+(sd==='R'?Math.PI:0))%(Math.PI*2)+Math.PI*2)%(Math.PI*2),u=q/Math.PI,swing=u<1;
+      const f=(swing?-1+2*sstep(u):3-2*u)*stride*dirF;
+      const lift=swing?Math.pow(Math.sin(q),1.35)*(.075+.08*run)*mv:0;
+      plantLeg(E,sd,out.pos[1]-.06,f,.071+lift);
+      E['thigh'+sd][2]=(sd==='L'?-.018:.018)-Math.sin(q)*side*.22*mv;
+      E['foot'+sd][2]=-E['thigh'+sd][2];
+    }
+    E.spine[0]=-.045*mv-.075*run-.11*spr;E.chest[0]=.025*run;
+    E.pelvis[1]=-.045*Math.sin(ph)*mv;E.spine[1]=.055*Math.sin(ph)*mv;
+    E.pelvis[2]=.012*Math.sin(ph)*mv+.005*Math.sin(time*.7)*(1-mv);
+    E.neck[1]=.014*Math.sin(time*.43)*(1-mv)*(1-(p.ads||0));
+    if(p.limp>.3){E.thighL[0]*=.75;E.shinL[0]*=.85;out.pos[1]-=.014*Math.max(0,Math.sin(ph));}
+  } else if (st === 'stand') {
     const run = clamp((sp - 1.3) / 2, 0, 1), spr = p.gait === 'sprint' ? 1 : 0, mv = clamp(sp / 1.2, 0, 1);
     const At = mv * (0.32 + 0.3 * run + 0.15 * spr) * (1 - 0.6 * Math.abs(side)), Ak = mv * (0.5 + 0.7 * run);
     E.thighL[0] = s * At - 0.05 * run; E.thighR[0] = -s * At - 0.05 * run;
@@ -352,10 +381,28 @@ function stancePose(st, p, out) {
     E.thighL[2] = -0.12 * kneel; E.thighR[2] = 0.05 * kneel;
     out.pos[1] = 0.55 * kneel + 0.68 * mv - 0.02 * mv * Math.abs(c); out.pos[2] = 0.02 * kneel;
     E.spine[0] = -0.12 - 0.12 * mv; E.chest[0] = 0.04;
+    if(FIG){
+      const w=sstep(mv);out.pos[1]=.565*(1-w)+(.68-.012*Math.abs(c))*w;
+      E.thighL[0]=1.54*(1-w)+E.thighL[0]*w;E.shinL[0]=-1.54*(1-w)+E.shinL[0]*w;
+      E.thighR[0]=-.08*(1-w)+E.thighR[0]*w;E.shinR[0]=-1.5*(1-w)+E.shinR[0]*w;
+      E.footR[0]=1.58*(1-w)+E.footR[0]*w;
+      if(w>.001){
+        for(const sd of SIDES){
+          const q=((ph+(sd==='R'?Math.PI:0))%(Math.PI*2)+Math.PI*2)%(Math.PI*2),u=q/Math.PI,swing=u<1;
+          const f=(swing?-1+2*sstep(u):3-2*u)*.17*dirF, lift=swing?.045*Math.sin(q):0;
+          const oldT=E['thigh'+sd][0],oldK=E['shin'+sd][0],oldF=E['foot'+sd][0];
+          plantLeg(E,sd,out.pos[1]-.06,f,.071+lift);
+          E['thigh'+sd][0]=oldT*(1-w)+E['thigh'+sd][0]*w;E['shin'+sd][0]=oldK*(1-w)+E['shin'+sd][0]*w;E['foot'+sd][0]=oldF*(1-w)+E['foot'+sd][0]*w;
+        }
+      }
+    }
   } else if (st === 'prone') {
     // lying on the belly, head toward -z; up on the elbows, legs apart, toes down; crawl: alternate knee pulls
     const mv = clamp(sp / 0.2, 0, 1);
-    E.pelvis[0] = -Math.PI / 2 + 0.04; out.pos[1] = 0.14; out.pos[2] = 0.68;
+    E.pelvis[0] = -Math.PI / 2 + 0.04;
+    // LP's welded belt pouches project 19 cm in front of the pelvis. Rest them above the floor while the
+    // chest is supported on the elbows; the older part-built / classic bodies retain their original height.
+    out.pos[1] = FIG && !PARTS ? 0.195 : 0.14; out.pos[2] = 0.68;
     E.spine[0] = 0.14; E.chest[0] = 0.3; E.neck[0] = 0.45;
     // The pelvis is on its belly: its local XY plane is now the ground plane.
     // Pull each knee outward in that plane. The old thigh-X crawl bend drove the
@@ -395,6 +442,41 @@ const _poseA = { e: {}, pos: [0, 0, 0] }, _poseB = { e: {}, pos: [0, 0, 0] };
 const HANDS_RATE = 4;   // 1 / s: ~0.25 s to let go of the rifle (or take it up again)
 const GREN_GEO = m67Geometry(), GREN_MAT = grenadeMaterial();   // M67 (ngc/marine-polish: grenademodel.js, fuze, spoon and ring)
 const _hR = new THREE.Vector3(), _hL = new THREE.Vector3(), _pR = new THREE.Vector3(), _pL = new THREE.Vector3(), _mw = new THREE.Vector3(), _pch = new THREE.Vector3();
+// TP fingers wrap around local X; -Z faces the palm and the wrist is the bone origin. Weapon anchors describe
+// grasp/contact points, so solve the arm to the wrist offset from that point instead of burying the wrist in it.
+const gripFrame = (x, y, z) => new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3().fromArray(x), new THREE.Vector3().fromArray(y), new THREE.Vector3().fromArray(z)));
+const TP_UNDER_L = gripFrame([0,0,1],[-1,0,0],[0,-1,0]), TP_UNDER_R = gripFrame([0,0,-1],[1,0,0],[0,-1,0]);
+const TP_MAG_L = gripFrame([0,1,0],[-1,0,0],[0,0,1]);
+const TP_GRIP_R = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-.22).multiply(gripFrame([0,-1,0],[1,0,0],[0,0,1]));
+/** @typedef {{anchor: string, offset: THREE.Vector3, rotation: THREE.Quaternion, profile: string | null, contact: number[] | null}} TPGripSocket */
+/** @returns {TPGripSocket} */
+const gripSocket = (anchor, offset, rotation, profile = null, contact = null) => ({anchor,offset:new THREE.Vector3().fromArray(offset),rotation,profile,contact});
+const TP_GRIPS = {
+  rifleR: gripSocket('grip',[0,0,0],TP_GRIP_R),
+  m203L: gripSocket('fore',[0,-.052,.02],TP_UNDER_L,'tube28'),
+  // The trigger is a fingertip contact, not a palm centre. The index tip is in the unchanged closed TP hand.
+  glR: gripSocket('glTrigger',[0,0,0],gripFrame([0,-1,0],[1,0,0],[0,0,1]),null,[-.027,-.1104,-.05]),
+  glL: gripSocket('magGrip',[-.012,0,.020],TP_MAG_L,'tube28'),
+  // Rearward of the folded bipod feet; still over the M60 forearm rather than its gas cylinder.
+  mgL: gripSocket('fore',[0,.036,.23],TP_UNDER_L,'tube41'),
+  // Roll the support palm around the tube so the fingertips clear its right-side sling.
+  lawL: gripSocket('fore',[.028,.01,.03],new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),-Math.PI/6).multiply(TP_UNDER_L),'tube41'),
+  lawR: gripSocket('grip',[-.028,0,.015],TP_UNDER_R,'tube41'),
+};
+/** @returns {{L: TPGripSocket | null, R: TPGripSocket | null} | null} */
+function fittedGrips(sk, cls, prone) {
+  if (!FIG || PARTS || !sk.person || !sk.weaponModel) return null;
+  const W=sk.weaponModel;
+  if(W.key==='M72A2')return {L:TP_GRIPS.lawL,R:TP_GRIPS.lawR};
+  if(W.key==='M60')return {L:prone>.5?null:TP_GRIPS.mgL,R:TP_GRIPS.rifleR};
+  if(W.sub==='M203')return cls==='gl'?{L:TP_GRIPS.glL,R:TP_GRIPS.glR}:{L:TP_GRIPS.m203L,R:TP_GRIPS.rifleR};
+  return null;
+}
+function fittedWrist(W, socket, out) {
+  W.anchor(socket.anchor,out).add(socket.offset);
+  _v.fromArray(socket.contact || tpGripFrame(socket.profile).centre).applyQuaternion(socket.rotation);
+  W.group.localToWorld(out.sub(_v));
+}
 // arms: solve shoulder -> elbow -> hand to a target (all in WORLD space), elbow toward `pole`
 function ikArm(sk, side, target, pole) {
   const up = sk.bones['upperArm' + side], fo = sk.bones['forearm' + side];
@@ -420,7 +502,7 @@ export function poseSkeleton(sk, pose, dt = 0.016) {
   st.t += dt;
   const from = pose.stanceT < 1 ? pose.stanceFrom : pose.stance, to = pose.stanceT < 1 ? pose.stanceTo : pose.stance, k = pose.stanceT < 1 ? sstep(pose.stanceT) : 1;
   const st2 = pose.down ? 'down' : pose.seat ? 'sit' : pose.climb != null ? 'climb' : pose.swim ? 'swim' : null;   // (ngc/marine-polish: seated, ladder, swimming)
-  stancePose(st2 || from, pose, _poseA); stancePose(st2 || to, pose, _poseB);
+  stancePose(st2 || from, pose, _poseA, st.t); stancePose(st2 || to, pose, _poseB, st.t);
   for (const n of POSE_BONES) {
     const ea = _poseA.e[n], eb = _poseB.e[n];
     _q.setFromEuler(_e.set(ea[0], ea[1], ea[2], 'YXZ')); _q2.setFromEuler(_e.set(eb[0], eb[1], eb[2], 'YXZ'));
@@ -428,6 +510,25 @@ export function poseSkeleton(sk, pose, dt = 0.016) {
   }
   const P = _poseA.pos, Q = _poseB.pos;
   B.pelvis.position.set(P[0] + (Q[0] - P[0]) * k, P[1] + (Q[1] - P[1]) * k, P[2] + (Q[2] - P[2]) * k);
+  // Seat, ladder, water and casualty overrides share the same transition path. Keep the previous base pose
+  // (before aim/care IK) so entering or leaving a seat does not snap the body or double-apply aim angles.
+  if(FIG){
+    const mode=st2||'ground';
+    if(!st.posture){st.posture={};st.modeFrom={};for(const n of POSE_BONES){st.posture[n]=new THREE.Quaternion();st.modeFrom[n]=new THREE.Quaternion();}st.posturePos=new THREE.Vector3();st.modePos=new THREE.Vector3();st.mode=mode;st.modeT=1;}
+    if(st.mode!==mode){for(const n of POSE_BONES)st.modeFrom[n].copy(st.posture[n]);st.modePos.copy(st.posturePos);st.mode=mode;st.modeT=dt>0?0:1;}
+    st.modeT=dt>0?Math.min(1,st.modeT+dt/.32):1;
+    if(st.modeT<1){const t=sstep(st.modeT);for(const n of POSE_BONES){_q.copy(B[n].quaternion);B[n].quaternion.copy(st.modeFrom[n]).slerp(_q,t);}B.pelvis.position.lerpVectors(st.modePos,B.pelvis.position,t);}
+    if(mode==='ground' && from!=='prone' && to!=='prone' && !pose.airborne && !pose.hands){
+      sk.root.updateMatrixWorld(true);let min=Infinity;
+      for(const sd of SIDES)for(const x of SOLE_X)for(const z of SOLE_Z){
+        B['foot'+sd].localToWorld(_v.set(x,-.07,z));sk.root.worldToLocal(_v);min=Math.min(min,_v.y);
+      }
+      B.pelvis.position.y+=clamp(-min,0,.15*sstep(st.modeT));
+    }
+    for(const n of POSE_BONES)st.posture[n].copy(B[n].quaternion);st.posturePos.copy(B.pelvis.position);
+    st.seatW=st.seatW===undefined||dt===0?(pose.seat?1:0):st.seatW+clamp((pose.seat?1:0)-st.seatW,-dt*4,dt*4);
+  }
+
   // ngc/infdepth: the hands off the rifle (pose.hands: carepose.js - a drag, a fireman's carry, buddy aid, the grenade
   // drill). Blended in and out over ~0.25 s (the last targets are kept for the way out), with the rifle going onto the
   // back (pose.sling) and the back bent / turned by the same weight
@@ -454,6 +555,13 @@ export function poseSkeleton(sk, pose, dt = 0.016) {
   sk.root.updateMatrixWorld(true);
   // weapon placement + arm IK
   const W = sk.weaponModel;
+  // Keep the fitted weapon pose underneath care interpolation on both entry and exit. Switching to the old
+  // wrist-on-anchor baseline during that blend adds a 5–10 cm discontinuity when the care weight crosses zero.
+  const grips=fittedGrips(sk,pose.cls||'rifle',prone);
+  const freeHands=hw>=1||pose.down||(pose.sling>0&&!pose.hands);
+  const profileL=freeHands?null:grips?.L?.profile||null,profileR=freeHands?null:grips?.R?.profile||null;
+  const profileKey=(profileL||'')+'|'+(profileR||'');
+  if(sk.person&&profileKey!==(st.tpProfileKey||'|')){setMarineGripProfiles(sk,{L:profileL,R:profileR});st.tpProfileKey=profileKey;}
   if (W) {
     const g = W.group, cls = pose.cls || 'rifle';
     B.head.localToWorld(_eye.set(...EYE_LOCAL));
@@ -471,7 +579,7 @@ export function poseSkeleton(sk, pose, dt = 0.016) {
       const bt = W.anchors.butt || [0, -0.1, 0.3]; _b.set(0.15, 0.13, -0.12); B.chest.localToWorld(_b); sk.root.worldToLocal(_b);
       _b.sub(_v.set(bt[0], bt[1], bt[2]).applyQuaternion(_q2));
     }
-    const k2 = ads * ads * (3 - 2 * ads);
+    const k2 = Math.max(ads * ads * (3 - 2 * ads),FIG?prone*.72:0); // prone ready keeps the grip clear of the terrain
     g.position.copy(_b).lerp(_a, k2); g.quaternion.copy(_q2).slerp(_q, k2);
     // ngc/infdepth: slung across the back, muzzle up over the left shoulder (both hands busy: a casualty, a grenade)
     if (sling > 0) {
@@ -481,10 +589,10 @@ export function poseSkeleton(sk, pose, dt = 0.016) {
     }
     // ngc/marine-polish: seated (a troop seat, a bench) the rifle stands upright between the knees, the butt on the floor,
     // muzzle up, both hands on it (the way a squad rides in a CH-46 or a Huey)
-    if (pose.seat && sling <= 0) {
+    if ((FIG ? st.seatW > 0 : pose.seat) && sling <= 0) {
       const bt = W.anchors.butt || [0, -0.1, 0.3];
       _q.setFromEuler(_e.set(Math.PI / 2 - 0.12, 0, 0, 'XYZ'));
-      g.quaternion.copy(_q); g.position.set(0, 0.03, -0.42).sub(_v.set(bt[0], bt[1], bt[2]).applyQuaternion(_q));
+      const seated=FIG?sstep(st.seatW):1;g.quaternion.slerp(_q,seated);_b.set(0,0.03,-0.42).sub(_v.set(bt[0],bt[1],bt[2]).applyQuaternion(_q));g.position.lerp(_b,seated);
     }
     if (pose.weaponState) W.setState(pose.weaponState);
     g.updateMatrixWorld(true);
@@ -495,20 +603,30 @@ export function poseSkeleton(sk, pose, dt = 0.016) {
     if (cls === 'gl') fore = 'magGrip';
     g.localToWorld(W.anchor(fore, L));
     if (cls === 'pistol') g.localToWorld(W.anchor('fore', L));
+    if(grips?.R)fittedWrist(W,grips.R,R);
+    if(grips?.L)fittedWrist(W,grips.L,L);
+    let actionWeight=0;
     if (act && act.p < 1 && /reload|speed|tactical|checkMag|ia|charge|barrel/.test(act.name)) {
       const pouch = B.pelvis.localToWorld(_pch.set(-0.1, 0.0, -0.17)), mw = g.localToWorld(W.anchor(act.name === 'charge' || act.name === 'ia' ? 'charging' : 'magwell', _mw));
       const w = Math.sin(Math.PI * act.p);
       L.lerp(act.p < 0.5 ? mw : pouch, w);
+      actionWeight=w;
     }
-    const poleR = _pR.set(0.6, -1, 0.3).applyQuaternion(sk.root.getWorldQuaternion(_wq)), poleL = _pL.set(-0.5, -1, 0.1).applyQuaternion(_wq);
+    const poleR = _pR.set(0.6+(FIG?prone*.5:0), -1+(FIG?prone*.65:0), 0.3).applyQuaternion(sk.root.getWorldQuaternion(_wq)), poleL = _pL.set(-0.5-(FIG?prone*.45:0), -1+(FIG?prone*.6:0), 0.1).applyQuaternion(_wq);
     ikArm(sk, 'R', R, poleR); ikArm(sk, 'L', L, poleL);
     // hands follow the weapon's orientation (palm in), wrists straight-ish
-    for (const sd of ['L', 'R']) { const hnd = B['hand' + sd]; hnd.parent.getWorldQuaternion(_pq); g.getWorldQuaternion(_wq); _q.setFromEuler(_e.set(-Math.PI / 2 + 0.3, 0, sd === 'L' ? 0.5 : -0.4, 'XYZ')); hnd.quaternion.copy(_pq.invert().multiply(_wq).multiply(_q)); }
+    for (const sd of ['L', 'R']) {
+      const hnd=B['hand'+sd],socket=grips?.[sd];hnd.parent.getWorldQuaternion(_pq);g.getWorldQuaternion(_wq);
+      _q.setFromEuler(_e.set(-Math.PI/2+.3,0,sd==='L'?.5:-.4,'XYZ'));
+      if(socket){_q2.copy(socket.rotation);if(sd==='L'&&actionWeight>0)_q2.slerp(_q,actionWeight);_q.copy(_q2);}
+      hnd.quaternion.copy(_pq.invert().multiply(_wq).multiply(_q));
+    }
   } else {
     // empty hands: arms hang, swing with the gait
     const s = Math.sin(pose.gaitPhase || 0) * clamp((pose.speed || 0) / 2, 0, 1);
     B.upperArmL.quaternion.setFromEuler(_e.set(-s * 0.5, 0, -0.08)); B.upperArmR.quaternion.setFromEuler(_e.set(s * 0.5, 0, 0.08));
     B.forearmL.quaternion.setFromEuler(_e.set(0.3, 0, 0)); B.forearmR.quaternion.setFromEuler(_e.set(0.3, 0, 0));
+    B.handL.quaternion.identity(); B.handR.quaternion.identity();
   }
   // ngc/infdepth: the hands somewhere else (drag strap, a casualty on the shoulders, a grenade drill, a wound being
   // dressed): pose.hands = { L?: [x, y, z], R?: [x, y, z] } in the figure's own frame (feet origin, facing -z)
@@ -531,4 +649,14 @@ export function poseSkeleton(sk, pose, dt = 0.016) {
 // a stand-alone pose for previews / AI (no soldier sim): stance, gait, speed, phase, aim...
 export function makePose(o = {}) {
   return { stance: 'stand', stanceFrom: 'stand', stanceTo: 'stand', stanceT: 1, speed: 0, gait: 'idle', gaitPhase: 0, lean: 0, ads: 0, lower: 0, aimPitch: 0, aimYaw: 0, headYaw: 0, headPitch: 0, moveF: 0, moveR: 0, breath: 0, cls: 'rifle', ...o };
+}
+// Shared by the player and rich squad adapters. Keep the selected firing mode (GL is not rifle grip), and show
+// the real LAW deployment state. This only projects existing simulation state; it does not operate the weapon.
+export function applyRiflemanWeaponPose(p, R) {
+  const carrier=R.carrier,act=R.cur?.act,law=carrier?.key==='M72A2'?carrier.law:null;
+  return Object.assign(p,{
+    cls:R.cls==='none'?'rifle':R.cls,
+    action:act?{name:act.name,p:act.t/act.dur}:null,
+    weaponState:law?{law:law==='closed'?0:1,lawSights:law==='closed'?0:1,armed:law==='armed'}:null,
+  });
 }

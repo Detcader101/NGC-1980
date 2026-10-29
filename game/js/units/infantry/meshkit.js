@@ -1,11 +1,13 @@
-// NGC-1980 infantry: a tiny geometry kit for the house style (flat-shaded Lambert, colours in the geometry, no textures).
+// NGC-1980 infantry: merged rigid-part geometry, smooth authored normals and shared physical surface detail.
 // A Kit collects primitives (box, cylinder, cone, sphere, extruded profile, tube between points) as non-indexed
 // triangles with per-vertex colours, each placed by a transform, into ONE BufferGeometry: one mesh (one draw call) per
 // rigid part. Colours can be a constant or a function of the (local, pre-transform or world) position: that is how the
-// ERDL / woodland camouflage and the helmet cover are painted, per triangle, without textures.
+// Legacy colours remain per triangle; the figure path carries rest coordinates and surface tags for pixel-level camo.
 import * as THREE from 'three';
 import { pbr } from '../../renderkit/gamemats.js';   // RENDERKIT surface
 import { RK } from '../../renderkit/adopt.js';         // RENDERKIT figures
+import { tagFigurePaint, surfacePaint, applyFigureMaterial } from './figurematerials.js';
+export { applyFigureAttributes } from './figurematerials.js';
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new THREE.Vector3(), _s = new THREE.Vector3(1, 1, 1);
 const _c = new THREE.Color(), _a = new THREE.Vector3(), _b = new THREE.Vector3(), _cc = new THREE.Vector3();
@@ -24,21 +26,23 @@ const fbm = (x, y, z) => 0.65 * noise3(x, y, z) + 0.35 * noise3(x * 2.1 + 7, y *
 // camouflage colour functions: (x, y, z) -> hex. scale = blotch size in m.
 export const CAMO = {
   // ERDL "lowland" leaf pattern (1967-1981): light green, olive green, brown and black leaf shapes
-  erdl: (s = 0.11, seed = 0) => (x, y, z) => {
+  erdl: (s = 0.11, seed = 0) => tagFigurePaint((x, y, z) => {
     const n = fbm(x / s + seed, y / s * 0.8, z / s), m = fbm(x / s * 1.3 + 40 + seed, y / s * 1.1 + 9, z / s * 1.3 + 3);
     if (m > 0.66) return 0x1d1f17;            // black
     if (n > 0.6) return 0x5a4a30;             // brown
     if (n < 0.38) return 0x7d8a52;            // light green
     return 0x4c5a35;                          // olive / dark green
-  },
+  }, { pattern: 1, scale: s, seed }),
   // OG-107 sateen utilities: plain olive green with a slight fade / stain
-  og107: () => (x, y, z) => { const n = fbm(x * 4, y * 4, z * 4); return n > 0.7 ? 0x4a4c34 : n < 0.3 ? 0x5b5e40 : 0x53563a; },
+  og107: () => tagFigurePaint((x, y, z) => { const n = fbm(x * 4, y * 4, z * 4); return n > 0.7 ? 0x4a4c34 : n < 0.3 ? 0x5b5e40 : 0x53563a; }, { pattern: 2 }),
   // the 1960s-80s Mitchell helmet cover, green leaf side
-  mitchell: (s = 0.05) => (x, y, z) => { const n = fbm(x / s, y / s, z / s), m = fbm(x / s * 1.7 + 5, y / s * 1.7, z / s * 1.7 + 2); return m > 0.68 ? 0x2c321f : n > 0.58 ? 0x6e7a40 : n < 0.36 ? 0x3d4a2a : 0x56643a; },
+  mitchell: (s = 0.05) => tagFigurePaint((x, y, z) => { const n = fbm(x / s, y / s, z / s), m = fbm(x / s * 1.7 + 5, y / s * 1.7, z / s * 1.7 + 2); return m > 0.68 ? 0x2c321f : n > 0.58 ? 0x6e7a40 : n < 0.36 ? 0x3d4a2a : 0x56643a; }, { pattern: 3, scale: s }),
   // olive drab nylon with wear (ALICE gear, flak vest): slight mottling
-  od: (base = 0x575a3b) => (x, y, z) => { const n = fbm(x * 9, y * 9, z * 9); _c.setHex(base).multiplyScalar(0.9 + 0.2 * n); return _c.getHex(); },
+  od: (base = 0x575a3b) => tagFigurePaint((x, y, z) => { const n = fbm(x * 9, y * 9, z * 9); _c.setHex(base).multiplyScalar(0.9 + 0.2 * n); return _c.getHex(); }, { role: 'webbing' }),
   // anything with a little variation (wood, dirt, skin)
   vary: (base, amt = 0.12, s = 0.05) => (x, y, z) => { const n = fbm(x / s, y / s, z / s); _c.setHex(base).multiplyScalar(1 - amt + 2 * amt * n); return _c.getHex(); },
+  // A mixed Kit can keep one draw call while boots, watch cases and straps have their own physical finish.
+  surface: surfacePaint,
 };
 
 // ------------------------------------------------------------------------------------------------ the kit
@@ -49,10 +53,11 @@ export const CAMO = {
 export const FIG = RK.on('figures');
 const _nm = new THREE.Matrix3(), _n0 = new THREE.Vector3(), _n1 = new THREE.Vector3(), _n2 = new THREE.Vector3();
 export class Kit {
-  constructor(o = {}) { this.pos = []; this.col = []; this.smooth = o.smooth ?? FIG; this.nor = this.smooth ? [] : null; }
+  constructor(o = {}) { this.pos = []; this.col = []; this.smooth = o.smooth ?? FIG; this.nor = this.smooth ? [] : null; this.surf = FIG ? [] : null; }
   // add a THREE geometry: transform (pos [x,y,z], rot [rx,ry,rz] Euler XYZ or quaternion, scale), colour hex or fn(x,y,z)
   // `paint` = 'world' (default) evaluates colour fns at the transformed centroid, 'local' before the transform,
   // 'vertex' per vertex (soft gradients: skin, shading on a face)
+  /** @param {number[] | THREE.Quaternion} [rot] */
   add(geo, color, pos = [0, 0, 0], rot = [0, 0, 0], scale = null, paint = 'world') {
     if (this.smooth && !geo.attributes.normal) geo.computeVertexNormals();
     const g = geo.index ? geo.toNonIndexed() : geo;
@@ -60,6 +65,7 @@ export class Kit {
     if (scale) _s.set(scale[0], scale[1], scale[2]); else _s.set(1, 1, 1);
     _m.compose(_v.set(pos[0], pos[1], pos[2]), _q, _s);
     const p = g.attributes.position, n = p.count, fn = typeof color === 'function' ? color : null, N = this.nor ? g.attributes.normal : null;
+    const surface = fn?.figureSurface;
     if (N) _nm.getNormalMatrix(_m);
     if (!fn) _c.setHex(color);
     for (let i = 0; i < n; i += 3) {
@@ -69,6 +75,7 @@ export class Kit {
       _a.applyMatrix4(_m); _b.applyMatrix4(_m); _cc.applyMatrix4(_m);
       if (fn && paint !== 'local') { cx = (_a.x + _b.x + _cc.x) / 3; cy = (_a.y + _b.y + _cc.y) / 3; cz = (_a.z + _b.z + _cc.z) / 3; }
       this.pos.push(_a.x, _a.y, _a.z, _b.x, _b.y, _b.z, _cc.x, _cc.y, _cc.z);
+      if (this.surf) for (let k = 0; k < 3; k++) this.surf.push(surface?.pattern ?? 0, surface?.scale ?? 0.1, surface?.seed ?? 0, surface?.role ?? -1);
       if (N) {
         _n0.fromBufferAttribute(N, i).applyMatrix3(_nm).normalize(); _n1.fromBufferAttribute(N, i + 1).applyMatrix3(_nm).normalize(); _n2.fromBufferAttribute(N, i + 2).applyMatrix3(_nm).normalize();
         this.nor.push(_n0.x, _n0.y, _n0.z, _n1.x, _n1.y, _n1.z, _n2.x, _n2.y, _n2.z);
@@ -136,6 +143,10 @@ export class Kit {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(this.pos, 3));
     g.setAttribute('color', new THREE.Float32BufferAttribute(this.col, 3));
+    if (this.surf) {
+      g.setAttribute('figCoord', g.attributes.position.clone());
+      g.setAttribute('figSurface', new THREE.Float32BufferAttribute(this.surf, 4));
+    }
     if (this.nor) g.setAttribute('normal', new THREE.Float32BufferAttribute(this.nor, 3)); else g.computeVertexNormals();
     g.computeBoundingSphere();
     return g;
@@ -220,8 +231,10 @@ export const FIGROLE = Object.freeze({
   steel: { roughness: 0.5, metalness: 0.22 },     // parkerized / blued steel, anodized aluminium receiver
   plastic: { roughness: 0.44, metalness: 0 },     // the M16's black furniture: a dull sheen
   rubber: { roughness: 0.9, metalness: 0 },
+  leather: { roughness: 0.72, metalness: 0 },
+  webbing: { roughness: 0.86, metalness: 0 },
 });
-export const figMat = (role, o = {}) => { const m = new THREE.MeshStandardMaterial({ vertexColors: true, ...FIGROLE[role], ...o }); m.name = 'RKfig/' + role; return m; };
+export const figMat = (role, o = {}) => { const m = new THREE.MeshStandardMaterial({ vertexColors: true, ...FIGROLE[role], ...o }); m.name = 'RKfig/' + role; return applyFigureMaterial(m, role); };
 export const KITMAT = {
   _l: null, _s: null, _k: null, _p: null,
   // RENDERKIT surface: cloth / webbing / skin read as dielectric fabric; weapon steel as parkerized metal (?rk=0: Lambert)
@@ -231,6 +244,9 @@ export const KITMAT = {
   // RENDERKIT figures (FIG; otherwise the classic ones): bare skin, black plastic furniture
   skin() { return this._k || (this._k = FIG ? figMat('skin') : this.lambert()); },
   plastic() { return this._p || (this._p = FIG ? figMat('plastic', { emissive: 0x030303 }) : this.steel()); },
+  leather() { return this._leather || (this._leather = FIG ? figMat('leather') : this.lambert()); },
+  webbing() { return this._webbing || (this._webbing = FIG ? figMat('webbing') : this.lambert()); },
+  rubber() { return this._rubber || (this._rubber = FIG ? figMat('rubber') : this.lambert()); },
 };
 // colour constants used across the infantry models
 export const COL = {

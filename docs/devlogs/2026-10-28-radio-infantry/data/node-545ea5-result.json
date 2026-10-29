@@ -1,0 +1,3046 @@
+{
+  "name": "radio-infantry-node",
+  "startedAt": "2026-10-28T22:00:20.419Z",
+  "ok": true,
+  "expects": [
+    {
+      "ok": true,
+      "label": "node tools/pttbench.mjs — 23/23 passed"
+    },
+    {
+      "ok": true,
+      "label": "node tools/hotas-selftest.mjs — rocker countermeasures self-test OK"
+    },
+    {
+      "ok": true,
+      "label": "node tools/voicebench.mjs — 19/19 passed"
+    },
+    {
+      "ok": true,
+      "label": "node tools/voicecommandbench.mjs — 38/38 passed"
+    },
+    {
+      "ok": true,
+      "label": "node tools/speechbench.mjs --windows — 27/27 passed"
+    },
+    {
+      "ok": true,
+      "label": "node tools/livevoicebench.mjs --windows — 25/25 passed"
+    },
+    {
+      "ok": true,
+      "label": "node tools/firstpersonbench.mjs — PASS 886 weapon/action/body/degenerate poses; maximum cuff error 2.83e-16 m; 115252 resident vertices; watertight palms/fingers, support chirality, sleeve taper, hand morphs, inertial and overlay continuity checks."
+    },
+    {
+      "ok": true,
+      "label": "node tools/peoplebench.mjs — 6 figure checks passed"
+    },
+    {
+      "ok": true,
+      "label": "node tools/figuresurfacebench.mjs — PASS figure surfaces: 4 modes, 5 weapons × 3 states per mode; Node contracts only (GPU checks separate)."
+    },
+    {
+      "ok": true,
+      "label": "node tools/infantrybench.mjs — 90 passed, 0 failed"
+    },
+    {
+      "ok": true,
+      "label": "node tools/unit-groundbench.mjs — 15 passed, 0 failed (13 ground types, prone geometry and live lineup)"
+    },
+    {
+      "ok": true,
+      "label": "node tools/radionetbench.mjs — 56/56 passed"
+    },
+    {
+      "ok": true,
+      "label": "node tools/radiooperationsbench.mjs — 46/46 passed"
+    },
+    {
+      "ok": true,
+      "label": "node tools/check.mjs syntax — 580/580 modules"
+    }
+  ],
+  "shots": [],
+  "clips": [],
+  "errors": [],
+  "consoleErrors": [],
+  "browser": "Node / installed Windows speech",
+  "sourceQualification": "Collected Node command outputs. No rendered/browser claim; game fingerprint not captured for this CPU batch. Each affected implementation remained unchanged after its final check.",
+  "nodeLogs": {
+    "ptt": "PASS F9 is the default PTT binding\nPASS held keyboard key starts only one transmission\nPASS releasing keyboard while talk button is held does not send early\nPASS last held input releases one transmission\nPASS rebinding does not start the microphone\nPASS keyboard PTT binding survives reload\nPASS typing a bound letter in a text field does not transmit\nPASS browser modifier shortcuts are not captured as PTT\nPASS blur/cancel drops an unsent keyboard transmission\nPASS reload key cannot be bound\nPASS Escape cancels binding without changing the key\nPASS reset restores F9\nPASS a controller already held on connection must first be released\nPASS fresh bound controller press begins PTT\nPASS controller disconnect cancels without sending\nPASS reconnecting with the button held cannot start a transmission\nPASS controller release sends after a fresh press\nPASS paused game cannot start keyboard PTT\nPASS HOTAS PTT binding takes ownership of its button without firing a weapon\nPASS legacy raw button readers cannot fire while PTT owns the trigger\nPASS HOTAS PTT binding survives reload\nPASS unplugged controller has no active PTT binding\nPASS PTT on a gamepad trigger does not also increase throttle\n23/23 passed\n",
+    "hotas": "hotas self-test OK\nwiggle self-test OK\nrocker countermeasures self-test OK\n",
+    "voice-bank": "PASS generated asset SHA-256 matches manifest\nPASS generated PCM length matches index\nPASS all authored phrase fragments available: male\nPASS sample offsets valid: male\nPASS all authored phrase fragments available: female\nPASS sample offsets valid: female\nPASS own door gun action belongs to gunner\nPASS Huey hit produces urgent directional call\nPASS Tomcat lock, Phoenix and engine failure use RIO intercom\nPASS AI modex has its own radio identity\nPASS Hornet launch and tower departure\nPASS nearby actual plane captain speaks\nPASS player reload and grenade call-outs\nPASS command board and controller identity\nPASS ground event stream provides relative contact and casualty calls\nPASS narrow door leaves muffle speech\nPASS villagers sharing a doorway remain different people\nPASS villager identities persist between polls\nPASS different vehicle crews have separate identities\n19/19 passed\n",
+    "voice-commands": "PASS accepted ground call: check\nPASS accepted ground call: status\nPASS accepted ground call: hold\nPASS accepted ground call: move\nPASS accepted ground call: defend\nPASS STT digits match spoken callsign; return to mother\nPASS reject: hold position\nPASS reject: Hotel one hold position over\nPASS reject: Hotel one this is Enemy hold position over\nPASS reject: Hotel one this is Command hold position out\nPASS reject: Hotel one this is Command hold position over and out\nPASS reject: Hotel one this is Command do not hold position over\nPASS reject: Hotel one this is Command hold position and move to Sandbar over\nPASS reject: Hotel one this is Command move to Unknown over\nPASS reject: All stations this is Command hold position over\nPASS reject: Hotel one this is Command fire over\nPASS reject: Falcon one one this is Command hold position over\nPASS uncertain recognition rejects command\nPASS different valid recognition alternatives reject command\nPASS cannot salvage valid words from an invalid primary transcript\nPASS PTT starts after explicit call\nPASS final result never executes while PTT held\nPASS release submits completed transmission once\nPASS repeated end and release cannot double-submit\nPASS release stops listening but waits for end\nPASS end after release submits once\nPASS cancel drops a final but unsent transcript\nPASS pause cancels pending recognition and ignores old sessions\nPASS permission denial is handled without exception\nPASS network failure is handled without exception\nPASS unsupported browser has no recognition calls\nPASS interim text cannot execute\nPASS multiple final segments cannot execute a partial order\nPASS valid command reaches existing squad order API\nPASS unit acknowledges once using its existing voice identity\nPASS SAY AGAIN repeats the reply without repeating an order\nPASS bad procedure cannot mutate a unit\nPASS unit dying before transcript arrives cannot receive order\n38/38 passed\n",
+    "speech-windows": "PASS offline grammar contains complete addressed calls only\nPASS 48 kHz input produces valid one-second mono 16 kHz WAV\nPASS invalid WAV rejected\nPASS oversized WAV rejected\nPASS cancel before audio context resumes never requests microphone permission\nPASS cold-start capability timeout retries without opening a microphone\nPASS capability detection never opens the microphone\nPASS release during permission opening closes a late stream without sending\nPASS release waits for local transcript\nPASS local transcript submits once after release\nPASS cancelled local HTTP response cannot dispatch\nPASS pause before local response prevents dispatch\nPASS uncertain local audio shows rejection without dispatch\nPASS local permission denial is actionable and releases PTT\nPASS native recognition cannot stay stuck opening\nPASS speech endpoint rejects requests without its custom header\nPASS speech endpoint rejects a cross-origin caller\nPASS installed Windows recognizer is available\nPASS endpoint validates PCM before invoking recognizer\nRECOGNIZED 0 {\"reason\":\"\",\"alternatives\":[{\"confidence\":0.921190739,\"transcript\":\"Albatross, this is Command. Radio check. Over.\"}]}\nPASS actual Windows recognition: authored valid call 0\nRECOGNIZED 1 {\"reason\":\"\",\"alternatives\":[{\"confidence\":0.91438967,\"transcript\":\"Albatross, this is Command. Proceed to Sandbar. Over.\"}]}\nPASS actual Windows recognition: authored valid call 1\nRECOGNIZED 2 {\"reason\":\"\",\"alternatives\":[{\"confidence\":0.818760753,\"transcript\":\"Albatross hold position\"},{\"confidence\":0.818760753,\"transcript\":\"albatross hold position\"},{\"confidence\":0.88172853,\"transcript\":\"albatross to hold position\"}]}\nPASS actual Windows recognition does not turn invalid speech into a valid call 2\nRECOGNIZED 3 {\"reason\":\"Reception unclear. Say again, including the callsigns and OVER.\",\"alternatives\":[]}\nPASS actual Windows recognition does not turn invalid speech into a valid call 3\nRECOGNIZED 4 {\"reason\":\"Reception unclear. Say again, including the callsigns and OVER.\",\"alternatives\":[]}\nPASS actual Windows recognition does not turn invalid speech into a valid call 4\nRECOGNIZED 5 {\"reason\":\"Reception unclear. Say again, including the callsigns and OVER.\",\"alternatives\":[]}\nPASS actual Windows recognition does not turn invalid speech into a valid call 5\nRECOGNIZED 6 {\"reason\":\"Reception unclear. Say again, including the callsigns and OVER.\",\"alternatives\":[]}\nPASS actual Windows recognition does not turn invalid speech into a valid call 6\nPASS actual Windows silence produces no command\n27/27 passed\n",
+    "voice-windows": "PASS speaker identity and delivery are deterministic\nPASS installed male cast alternates and warning voice stays female\nPASS urgent delivery changes synthesis cadence independently of playback speed\nPASS speech text cannot inject SSML tags\nPASS spoken abbreviations are expanded while sentence boundaries remain\nPASS invalid and oversized utterances are rejected\nPASS outer silence is trimmed and voiced RMS normalized to quiet consistent level\nPASS malformed synthesis output cannot reach the browser\nPASS voice service requires its same-origin custom header\nPASS cross-origin voice requests are refused\nPASS service rejects empty calls before synthesis\nPASS service returns normalized PCM with the selected installed actor\nPASS complete-line cache avoids resynthesizing an identical call\nPASS one synthesis request contains the entire punctuated reply and delivery\nPASS cancelled synthesis cannot become ready after its response arrives\nPASS client decodes a whole line and preserves actor identity\nPASS decoded PCM is reused from a bounded client cache\nPASS client bounds work to two requests and six waiting lines\nPASS stopping audio cancels active and waiting synthesis work\nPASS no installed service leaves generated/silent fallback in control\nPASS ordinary static host is never asked for an unadvertised voice endpoint\nPASS real WinRT exposes installed Mark in addition to desktop voices\nPASS real installed synthesis delivers full PCM: Microsoft David\nPASS real installed synthesis delivers full PCM: Microsoft Zira\nPASS real installed synthesis delivers full PCM: Microsoft Mark\n25/25 passed\n",
+    "hands": "PASS 886 weapon/action/body/degenerate poses; maximum cuff error 2.83e-16 m; 115252 resident vertices; watertight palms/fingers, support chirality, sleeve taper, hand morphs, inertial and overlay continuity checks.\n",
+    "people": "PASS close and squad geometry stay inside former packed budgets {\"high\":{\"tris\":25660,\"meshes\":29,\"skin\":2},\"low\":{\"tris\":10616,\"meshes\":29,\"skin\":2}}\nPASS named rig, lengths and normalized garment weights {\"weightedVertices\":1948}\nPASS walk and crouch support feet clear flat ground across full cycles {\"phases\":192,\"minSoleY\":0.000999999999999765,\"maxSupportSoleY\":0.0018872528823440787}\nPASS care, prone, swim, climb and seated poses retain finite connected limbs {\"poses\":6,\"minProneClothY\":0.018431063463072744}\nPASS seat entry and exit blend without changing final sockets {\"maxPelvisStepM\":0.048303780084770265}\nPASS lite seated, prone and casualty states do not leak into standing {\"states\":4}\n6 figure checks passed\n",
+    "materials": "PASS high: mixed surfaces, skinning attributes, colour retention, 15 weapon poses, shared texture and shader tier contract\nPASS low: mixed surfaces, skinning attributes, colour retention, 15 weapon poses, shared texture and shader tier contract\nPASS detail-off: mixed surfaces, skinning attributes, colour retention, 15 weapon poses, shared texture and shader tier contract\nPASS legacy: mixed surfaces, skinning attributes, colour retention, 15 weapon poses, shared texture and shader tier contract\nPASS figure surfaces: 4 modes, 5 weapons × 3 states per mode; Node contracts only (GPU checks separate).\n",
+    "infantry": "=== EXTERIOR BALLISTICS (point mass, ICAO sea level 15 C, no wind) ===\nPASS  M193 muzzle velocity                                       991 m/s   (want 991 m/s)  [CONFIRMED TM 43-0001-27: 3,250 fps, 20 in barrel]\nPASS  M80 muzzle velocity                                        853 m/s   (want 853 m/s)  [CONFIRMED FM 23-67: 2,800 fps from the M60]\nPASS  M1911 muzzle velocity                                      253 m/s   (want 253 m/s)  [CONFIRMED FM 23-35: 830 fps]\nPASS  M433 muzzle velocity                                       76 m/s   (want 76 m/s)  [CONFIRMED FM 23-31: 76 m/s]\nPASS  M72 muzzle velocity                                        145 m/s   (want 145 m/s)  [CONFIRMED FM 23-33: 145 m/s]\nPASS  M193 muzzle energy                                         1748 J   (want ~1,750-1,770 J)  [INFERRED: 55 gr at 3,250 fps]\nPASS  M193 maximum range                                         2861 m at 30.3 deg   (want 2653 m +-12%)  [CONFIRMED FM 23-9 (M16A1 max range 2,653 m)]\nPASS  M80 maximum range                                          3959 m at 32.6 deg   (want 3725 m +-12%)  [CONFIRMED FM 23-67 (M60 max range 3,725 m)]\nPASS  M1911 maximum range                                        1547 m at 33.7 deg   (want 1500 m +-8%)  [CONFIRMED FM 23-35 (1,500 m)]\nPASS  M433 maximum range                                         402 m at 42.0 deg   (want 400 m +-5%)  [CONFIRMED FM 23-31 (400 m; Cd fitted)]\nPASS  M72 maximum range                                          996 m at 39.2 deg   (want 1000 m +-5%)  [CONFIRMED FM 23-33 (1,000 m; Cd fitted)]\nPASS  M16A1 250 m zero: near crossing                            39 m   (want 25-45 m (FM 23-9 zeroes at 25 m))  [CONFIRMED 25 m zero procedure; crossing INFERRED]\nPASS  a true 25 m zero gives a far zero of                       350 m   (want ~300-400 m)  [INFERRED (why FM 23-9 calls it \"about 250 m\")]\nPASS  250 m zero: max ordinate (centre-mass hold 0-300 m)        8.7 cm at ~150 m   (want < 12 cm)  [INFERRED: FM 23-9 battlesight aims centre mass to 300 m]\nPASS  250 m zero: impact at 300 m                                -12.1 cm   (want -5..-20 cm)  [INFERRED]\nPASS  'L' aperture adds elevation over the short aperture        3.9 MOA (375 m zero)   (want ~2-6 MOA)  [INFERRED (FM 23-9: L for 300-500 m)]\nPASS  M60 grazing fire: 600 m sight, max ordinate over the LOS   1.12 m   (want ~1 m (+-15 %: our M80 drop matches published tables, the FM rounds it))  [CONFIRMED FM 23-67: 600 m of grazing fire (cone centre <= 1 m above level ground)]\nPASS  M203 quadrant: elevations rise with range, 400 m reachable 50m 2.5deg 0.7s, 150m 8.3deg 2.2s, 250m 15.6deg 3.9s, 350m 26.4deg 6.3s, 400m 38.9deg 8.8s  [CONFIRMED quadrant 50-400 m (FM 23-31)]\nPASS  M433 time of flight to 150 m (point-target max range)      2.17 s   (want ~2-2.5 s)  [INFERRED (76 m/s, high drag)]\nPASS  M72 time of flight to 200 m (max effective)                1.50 s, line 3.00 deg   (want ~1.4-1.6 s)  [INFERRED (145 m/s)]\nPASS  ICAO sea level air density                                 1.2250 kg/m3   (want 1.2250)  [CONFIRMED ICAO Doc 7488]\nPASS  speed of sound at 15 C                                     340.3 m/s   (want 340.3)  [CONFIRMED]\nPASS  hot humid air: less drop than cold air at 400 m            35C -121.8 cm vs -10C -131.3 cm   (want hot > cold)  [INFERRED (thinner air)]\n=== HITS (game table: cover that works) ===\nPASS  a sandbag layer (300 mm) stops rifle ball at 25 m          M80 260 mm, M193 161 mm   (want < 300 mm)  [GAME]\nPASS  a plank wall (25 mm) does not stop rifle ball              719 mm   (want > 25 mm)  [GAME]\nPASS  M80 beats M193 through cover                               200 vs 125 mm brick  [GAME]\nPASS  a 10 mm steel plate stops small arms                       8.0 mm   (want < 10 mm)  [GAME]\nPASS  car bodywork does not stop rifle ball                      29.4 mm   (want > 2 mm)  [GAME]\nPASS  the .45 is stopped by a brick wall                         38 mm   (want < 100 mm)  [GAME]\nPASS  a shallow shot onto water mostly skips                     111/200   (want > 50 %)  [GAME]\nPASS  hit info carries the MEDINV fields                         16 fields  [contract]\n=== WEAPONS ===\nPASS  M16A1 cyclic rate                                          750 rpm, 20 shots (20 + 1)   (want 700-800 rpm)  [CONFIRMED FM 23-9]\nPASS  M16A1 bolt locks open on the last round                    bolt locked   (want locked)  [CONFIRMED]\nPASS  M60 cyclic rate                                            550 rpm   (want 550 rpm)  [CONFIRMED FM 23-67]\nPASS  M60 belt: every 5th round a M62 tracer                     5 of 28   (want 1 in 5)  [CONFIRMED FM 23-67 (4:1)]\nPASS  M16A1 SEMI: one round per press                            5 shots in 5 presses   (want 5)\nPASS  tactical reload keeps the partial magazine as an item      stowed a 10-round mag, 3.7 s   (want ~4 s)  [INFERRED time]\nPASS  speed reload from bolt lock: drops the empty, chambers     2.4 s, chamber live   (want ~2.5 s)  [INFERRED time]\nPASS  M60 barrel after 1 min at the cyclic rate                  504 C   (want ~500 C = change point)  [CONFIRMED schedule FM 23-67; temps INFERRED]\nPASS  M60 barrel after 10 min sustained (100 rpm)                497 C   (want ~500 C = change point)  [CONFIRMED schedule FM 23-67]\nPASS  M60 barrel after 2 min rapid (200 rpm)                     347 C   (want below the limit (doctrine conservative))  [INFERRED]\nPASS  M60 barrel change swaps in the cool spare                  9.0 s; in the gun 21 C, spare 512 C   (want ~6-10 s)  [INFERRED]\nPASS  M16A1 at ~150 rounds rapid: barrel in the cook-off zone    292 C after 160 rounds in 109 s   (want > 270 C)  [CONFIRMED warning TM 9-1005-249-10; temp INFERRED]\nPASS  M16A1 MRBS clean, 18-round loads                           2000 rounds (stoppages + duds)   (want ~2,000-3,000)  [INFERRED (1980 chromed-chamber M16A1)]\nPASS  full 20-round loads jam more (tired 1980 springs)          1111 rounds   (want < 80 % of 18-round)  [INFERRED (why Marines loaded 18)]\nPASS  fouled (2,000 rounds uncleaned) and sandy are worse        fouled 714, sandy 714   (want < half)  [INFERRED]\nPASS  SPORTS clears feed / dud / out-of-battery / stovepipe      feed ok, dud ok, oob ok, stovepipe ok  [CONFIRMED procedure FM 23-9]\nPASS  a stuck case survives SPORTS (needs the cleaning rod)      after IA: double   (want still jammed)  [CONFIRMED FM 23-9 (remedial action)]\nPASS  M203: one shot, then the breech must be reloaded           1 then 0   (want 1 then 0)  [CONFIRMED single shot]\nPASS  M72: no fire closed or extended-safe; fires once armed; spent 0/0/1, spent   (want 0/0/1 spent)  [CONFIRMED sequence FM 23-33]\nPASS  M16A1 free recoil energy                                   5.3 J, impulse 5.84 N s, 1.83 m/s   (want 4-6.5 J)  [INFERRED published AR-15/M16 free recoil ~3.5-4.5 ft-lbf]\nPASS  M60 free recoil energy                                     6.5 J, impulse 11.85 N s, 1.10 m/s   (want 5-9 J)  [INFERRED heavy gun, M80]\nPASS  M1911A1 free recoil energy                                 6.3 J, impulse 3.89 N s, 3.24 m/s   (want 5-8.5 J)  [INFERRED .45 in a 2.5 lb pistol ~5-6 ft-lbf]\n=== RECOIL AND SWAY IN THE HANDS ===\nPASS  M16A1 10-round burst, standing: muzzle climb               3.5 deg   (want ~2-6 deg (hard to hold))  [INFERRED (FM 23-9 discourages auto)]\nPASS  ... prone climbs less                                      2.0 deg   (want < 75 % of standing)  [INFERRED]\nPASS  M60 6-round burst on the bipod stays tight                 0.20 deg, bipod true   (want < 1 deg)  [INFERRED (FM 23-67 6-9 round bursts)]\nPASS  sway: stand > crouch > prone, rested less                  stand 3.1, crouch 2.0, prone 0.9, rested 1.7 MOA rms  [INFERRED (marksmanship hold data)]\nPASS  sway after a sprint (HR 185) is much worse                 12.6 MOA rms   (want > 1.8x rested)  [INFERRED]\nPASS  medical: pain tremor and an arm wound add sway             pain 3.9, arm 6.9 MOA rms  [hooks]\nPASS  holding the breath steadies (first seconds)                2.4 vs 3.1 MOA rms  [INFERRED]\n=== MOVEMENT AND STAMINA ===\nPASS  walk = quick time                                          1.52 m/s   (want 1.52 m/s (120 x 30 in /min))  [CONFIRMED FM 22-5]\nPASS  run = double time                                          2.74 m/s   (want 2.74 m/s (180 x 36 in /min))  [CONFIRMED FM 22-5]\nPASS  double-time cadence                                        180 steps/min   (want 180)  [CONFIRMED FM 22-5]\nPASS  sprint, 20 kg fighting load                                5.63 m/s   (want 5-6.5 m/s)  [INFERRED]\nPASS  prone crawl                                                0.32 m/s   (want 0.2-0.6 m/s)  [INFERRED]\nPASS  run to a stop (inertia)                                    0.43 s   (want ~0.4-0.7 s)  [UNVERIFIED (Arma-like feel)]\nPASS  Pandolf: 70 kg + 20 kg at 1.34 m/s, treadmill              362 W   (want 362 W)  [CONFIRMED equation (Pandolf 1977)]\nPASS  road march 33 kg, 4 km/h, 2 h: aerobic, not blown          reserve 100 %, fatigue 0.00, HR 102, 31 % VO2max, 8.0 km  [CONFIRMED rate & load FM 21-18]\nPASS  double time 22 kg for 10 min is sustainable                reserve 99 %, HR 182, 96 % VO2max  [INFERRED]\nPASS  sprint until blown, 22 kg                                  24.5 s, 121 m   (want 20-35 s)  [INFERRED (all-out effort ~3x VO2max)]\nPASS  more load = shorter, slower sprint                         10 kg 27 s / 140 m, 40 kg 22 s / 97 m  [INFERRED]\nPASS  heart rate recovery, first minute of rest                  169 -> 140 bpm (-29), breathing 43/min   (want -15..-60 bpm)  [INFERRED: Cole et al. NEJM 1999, < 12 bpm is abnormal]\nPASS  recovery after being blown: sprint again / 90 %            13 s / 165 s   (want <20 s / 1.5-5 min)  [INFERRED (EPOC)]\nPASS  4 s rushes with 10 s down before blown                     5 rushes   (want 4-20)  [INFERRED (FM 7-8 3-5 s rushes)]\nPASS  stand -> prone, 22 kg                                      1.50 s   (want 1-2 s)  [INFERRED]\nPASS  prone -> stand, 22 kg                                      2.19 s   (want 1.5-3 s)  [INFERRED]\nPASS  walking up a 20 % grade (Tobler)                           0.75 m/s (50 % of flat)   (want 50 %)  [CONFIRMED function (Tobler 1993)]\nPASS  ... and it costs more than the flat                        33 vs 21 ml/kg/min  [CONFIRMED Pandolf grade term]\nPASS  loose sand costs ~2x a dirt road (eta 2.1 vs 1.1)          25 vs 15  [CONFIRMED eta (Pandolf 1977)]\nPASS  breath hold: ~8 s rested, a few s when blown               8.4 s / 2.7 s   (want 6-10 / < 4 s)  [UNVERIFIED (Arma-like)]\nPASS  broken leg: limp, no sprint                                0.90 m/s, sprint false   (want <= 0.9)  [hook (MEDINV)]\nPASS  a 4 m fall raises a fallInjury event                       land 8.8 m/s   (want > 6 m/s)  [hook (MEDINV)]\n=== RIFLEMAN (whole loop: shot -> projectile -> hit info) ===\nPASS  a prone shot at a man at 100 m registers a hit             thorax, 846 m/s, dmg 0.85\nPASS  load includes weapons, ammo and kit                        22.2 kg   (want ~20-25 kg fighting load)  [CONFIRMED FM 21-18 (<= 22 kg recommended)]\n=== HITBOXES (soldiermodel.js: the shared skeleton, posed, raycast like a bullet) ===\nPASS  standing Marine: shots land on the named parts             {\"head\":\"head+M1 helmet\",\"thorax\":\"thorax+M1955 flak vest\",\"stomach\":\"stomach+M1955 flak vest\",\"legL\":\"legL\",\"legR\":\"legR\"}  [contract]\nPASS  helmet over the dome, flak vest over the trunk             head+M1 helmet, thorax+M1955 flak vest  [contract]\nPASS  at low ready the support arm covers the stomach            armL   (want armL)  [contract]\nPASS  a miss beside him is a miss                                no hit  [contract]\nPASS  prone Marine: a low shot from the front finds the head     head at 0.44 m  [contract]\n=== SYNTAX (every infantry module and the dev page parse as ES modules) ===\nPASS  all modules parse                                          25 files\n\n90 passed, 0 failed\n",
+    "ground": "PASS m151 {\"distanceM\":25.47,\"speedBeforeBrake\":10.22,\"stopMps\":0}\nPASS m35 {\"distanceM\":9.91,\"speedBeforeBrake\":5.13,\"stopMps\":0}\nPASS landrover {\"distanceM\":25.61,\"speedBeforeBrake\":10.55,\"stopMps\":0}\nPASS hilux {\"distanceM\":33.27,\"speedBeforeBrake\":13.01,\"stopMps\":-0.004}\nPASS beetle {\"distanceM\":26.53,\"speedBeforeBrake\":11.02,\"stopMps\":0}\nPASS lada {\"distanceM\":30.34,\"speedBeforeBrake\":12.62,\"stopMps\":-0.001}\nPASS m60 {\"pivotRadS\":0.599,\"driftM\":0.12}\nPASS m113 {\"troopsUnloaded\":11,\"payloadRemovedKg\":1045,\"ramp\":0.13,\"vane\":1}\nPASS marine {\"runMps\":2.74,\"crawlMps\":0.32,\"lightReserve\":0.740675084000988,\"heavyReserve\":0.923354260793586}\nPASS rw1 {\"distanceM\":11.606188182240853,\"steps\":13,\"maxStretch\":0.9730469655089897}\nPASS rw7 {\"hoverY\":0.9712107117369033,\"strafeM\":12.060918292003041,\"coastM\":7.565049953523257}\nPASS m1a2 {\"distanceM\":26.24924172708302,\"roadWheelsPerSide\":7,\"reverseBeforeLOD\":-4.468238143155345,\"reverseAfterLOD\":-4.468238143155345,\"coverage\":\"live-game full drive and distant fallback\"}\nPASS t90m {\"distanceM\":24.51821153964121,\"roadWheelsPerSide\":6,\"reverseBeforeLOD\":-4.305603346837649,\"reverseAfterLOD\":-4.305603346837649,\"coverage\":\"live-game full drive and distant fallback\"}\nPASS marine-prone-geometry {\"phases\":72,\"minJointY\":0.11831231695666232,\"minLegMeshY\":0.004835968717410599}\nPASS live-lineup {\"units\":5,\"time\":1.0000000000000013}\n15 passed, 0 failed (13 ground types, prone geometry and live lineup)\n",
+    "radio-net": "PASS request reads back without spending or launching\nPASS readback appears in mission ledger\nPASS duplicate request repeats same readback without multiplying tasks\nPASS say again never executes a pending order\nPASS recognizer grammar includes exact pending cancellation procedure\nPASS another station cannot confirm this request\nPASS wrong ending cannot confirm\nPASS correct readback executes exactly once\nPASS repeated confirmation cannot spend twice\nPASS active duplicate task is rejected\nPASS mission follows actual controller progress\nPASS actual completion generates station report\nPASS disregard cancels only an unexecuted request\nPASS changed price requires a fresh readback\nPASS changed unit identity invalidates pending confirmation\nPASS execution revalidates availability\nPASS expired readback cannot execute\nPASS pause clears unconfirmed requests\nPASS dead station cannot receive late recognition\nPASS move uses the real AI take objective, so arrival is recognized\nPASS ground squad cannot walk between islands\nPASS rally snapshots actual Command position\nPASS formation message changes squad formation\nPASS cease fire persists on squad\nPASS new movement does not silently resume fire\nPASS explicit resume returns fire decisions to squad leader\nPASS contact report has no access to hidden world enemies\nPASS stale perception is reported as last known, never current visual\nPASS named map point reaches actual ground controller\nPASS invalid map coordinates rejected\nPASS new war clears all orders, traffic and map points\nPASS new war resets unit callsigns\nPASS column changes actual AI movement destinations\nPASS line changes actual AI lateral spacing\nPASS squad can engage a perceived contact before cease fire\nPASS cease fire inhibits subsequent AI fire decisions while contact remains\nPASS resume fire restores existing AI engagement decisions\nPASS thirteen-Marine column advances its centroid toward the objective\nPASS full column retains five-meter longitudinal spacing\nPASS carrier must finish slowing before reporting arrival\nPASS carrier arrival recognizes empty path while actual controller retains its goal\nPASS carrier status reports stopped after route is consumed\nPASS changed carrier goal cancels old task even when near its old destination\nPASS roster jet recall stays active while crew flies home\nPASS duplicate active recall cannot create another watcher or recall execution\nPASS roster jet recovery completes only when parked on deck\nPASS pilot takeover cancels automated jet recovery task\nPASS jet lost during recovery fails the task\nPASS Huey structured host result retains its actual recovery watcher\nPASS Huey recovery task follows host landing outcome\nPASS thirteenth immediate movement cannot execute or allocate a watcher\nPASS cease fire remains available with twelve open tasks\nPASS new movement reuses the same squad’s task slot\nPASS hold remains available and immediately closes superseded movement\nPASS freed movement slot accepts another squad\nPASS repeated immediate orders retain bounded history and live watchers\n56/56 passed\n",
+    "radio-operations": "PASS four controllers expose live stations, status and requests\nPASS resource requests all require readback and live validation\nPASS controller identity survives roster refresh\nPASS listing/quoting orders cannot spend or launch\nPASS composer separates the order, destination and actual sortie cost\nPASS research refusal persists through execution\nPASS resource changes after readback are revalidated\nPASS carrier loss prevents launch\nPASS CAP dispatch charges existing launch API and remains active in the deck queue\nPASS airborne patrol is not incorrectly called complete\nPASS task follows return to carrier\nPASS actual recovery completes a patrol even after unit stow\nPASS lost flight does not report mission completion\nPASS deck queue counts toward existing three-flight limit\nPASS troop lift refuses friendly islands without an enemy landing\nPASS troop lift cannot bypass cave objectives\nPASS friendly island under attack accepts reinforcement\nPASS recovered Marine credit uses the existing troop-lift price\nPASS touchdown alone does not complete troop delivery\nPASS disembarkation completes transport without claiming objective capture\nPASS aborted lift returning with troops reports failure\nPASS heavy drop spends one reserve and the ten-materiel sortie\nPASS landed load waits for the ground crew\nPASS real de-rigged vehicle completes heavy drop\nPASS vehicle creation failure is not reported as successful delivery\nPASS logistics heavy drop requires a friendly destination\nPASS captured destination cannot consume a reserve after readback\nPASS no reserve charges vehicle purchase plus sortie once\nPASS refused drop rolls back purchase, reserves and capped ledger history\nPASS launch exception before creation cannot spend resources\nPASS late presentation exception cannot create an unpaid flight\nPASS lost load remains spent rather than silently refunding\nPASS AA request starts actual paid construction\nPASS AA completion waits for construction\nPASS lost construction cannot be acknowledged as friendly\nPASS full island build slots refuse without spending\nPASS replacement requisition pays the real fleet ledger\nPASS replacement request cannot bypass equipment research\nPASS research request pays the existing technology ledger\nPASS research reports live progress\nPASS research completion follows actual technology unlock\nPASS cancelled research does not remain permanently active\nPASS fuel costs are quoted and enforced as well as materiel\nPASS field support uses the active craft logistics gate\nPASS field support dispatches once and tracks the supplied job\nPASS field support completes only when the existing controller says so\n46/46 passed\n"
+  },
+  "syntax": {
+    "mode": "syntax",
+    "passed": 580,
+    "failed": 0,
+    "results": [
+      {
+        "name": "game/dev/air.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/dev/c130.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/dev/defence-sandbox.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/dev/fish.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/dev/infantry-range.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/dev/infantry.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/dev/interiors-preview.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/dev/jet-preview.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/dev/medinv.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/dev/people.js",
+        "ok": true,
+        "seconds": 0.07
+      },
+      {
+        "name": "game/dev/renderkit-checks.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/dev/renderkit.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/dev/rotary-dev.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/dev/rotary-units.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/dev/runaway.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/dev/rwmodels.js",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "game/dev/ships-dev.js",
+        "ok": true,
+        "seconds": 0.07
+      },
+      {
+        "name": "game/dev/structure-unit.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/dev/tank.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/dev/tomcat-dev.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/dev/vehicle-ground.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/dev/vehicle.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/dev/world-preview.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/audio.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/cave3d.js",
+        "ok": true,
+        "seconds": 0.08
+      },
+      {
+        "name": "game/js/craft.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/craftjet.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/crafttomcat.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/damage.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/drop.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/fixedwing.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/fog.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/foot.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/footsim.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/fx.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/ground.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/heli.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/helm.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/hotas.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/hueycockpit.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/hueyfm.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/hueymodel.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/interiors/crewfig.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/interiors/doors.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/interiors/furniture.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/interiors/interiors.js",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "game/js/interiors/rooms.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/interiors/roomsolid.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/interiors/seats.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/interiors/shipgeo.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/interiors/shipint.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/jetcockpit.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/jetdamage.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/jetfm.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/jetmodel.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/jetplay.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/level.js",
+        "ok": true,
+        "seconds": 0.08
+      },
+      {
+        "name": "game/js/main.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/marine.js",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "game/js/marinecare.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/marinesim.js",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "game/js/platform.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/renderkit/adopt.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/renderkit/atmosphere.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/renderkit/core.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/renderkit/detail.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/renderkit/effects.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/renderkit/gamefx.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/renderkit/gamemats.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/renderkit/gamepost.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/renderkit/glsl.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/renderkit/index.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/renderkit/light.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/renderkit/materials.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/renderkit/nature.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/renderkit/ngcui.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/renderkit/post.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/renderkit/surfclass.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/renderkit/ui.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/renderkit/world.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/ships.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/sim/commanderai.js",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "game/js/sim/doctrine.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/sim/policy.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/sim/redai.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/sim/rng.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/sim/spectator.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/sim/strike.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/sim/telemetry.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/sim/zone.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/techtree.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/techui.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/terrainworker.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/ui/markerlayer.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/ui/unitmarkers.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/air/airframe.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/air/airlift/airdrop.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/air/airlift/airlift.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/air/airlift/airliftaudio.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/air/airlift/heavydrop.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/units/air/airlift/heavydropmodel.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/units/air/airlift/sling.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/air/airsound.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/air/airwar.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/units/air/c130audio.js",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "game/js/units/air/c130cockpit.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/air/c130fm.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/air/c130model.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/air/fd.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/air/gameproj.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/air/gaugekit.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/air/jumper.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/air/meshkit.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/air/pilot.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/air/rotary/ch46ai.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/air/rotary/ch46cockpit.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/air/rotary/ch46craft.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/units/air/rotary/ch46fm.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/air/rotary/ch46model.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/air/rotary/ch46play.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/air/rotary/ch46troops.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/air/rotary/ch46unit.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/air/rotary/devworld.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/air/rotary/embark.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/air/rotary/figures.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/air/rotary/modelkit.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/air/rotary/mv22ai.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/air/rotary/mv22fm.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/air/rotary/mv22model.js",
+        "ok": true,
+        "seconds": 0.09
+      },
+      {
+        "name": "game/js/units/air/rotary/mv22unit.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/air/rotary/pilot.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/air/rotary/rb.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/air/rotary/rotary.js",
+        "ok": true,
+        "seconds": 0.08
+      },
+      {
+        "name": "game/js/units/air/rotary/rotor.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/units/air/rotary/rotorsound.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/air/rotary/squad.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/units/air/rotary/tiltpilot.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/air/rotary/transportai.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/air/rotary/waspai.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/air/rotary/waspfm.js",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "game/js/units/air/rotary/waspmodel.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/units/air/rotary/waspunit.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/air/rwfm.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/air/rwmodel.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/air/tomcatcockpit.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/air/tomcatdamage.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/units/air/tomcatfm.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/units/air/tomcatmodel.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/units/air/tomcatplay.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/air/tomcatsound.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/air/tomcatsys.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/armor/armoraudio.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/armor/armorballistics.js",
+        "ok": true,
+        "seconds": 0.07
+      },
+      {
+        "name": "game/js/units/armor/armorcraft.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/armor/armordelivery.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/armor/armordriver.js",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "game/js/units/armor/armorenv.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/armor/armorgunnery.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/armor/armorsight.js",
+        "ok": true,
+        "seconds": 0.07
+      },
+      {
+        "name": "game/js/units/armor/armorstations.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/units/armor/armorworld.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/armor/landinghard.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/armor/lcm8.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/armor/m113.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/armor/m113model.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/armor/m60a3.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/armor/tankinterior.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/armor/tankmodel.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/armor/testground.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/armor/trackfm.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/commander/board.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/units/commander/fleet.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/units/commander/heliai.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/commander/wingman.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/defence/brain.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/units/defence/cm.js",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "game/js/units/defence/kit.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/defence/models.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/defence/sound.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/defence/tune.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/units/groundwar/casevac.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/units/groundwar/fieldcare.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/groundwar/groundsim.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/units/groundwar/groundwar.js",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "game/js/units/groundwar/gwmap.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/groundwar/lcacmodel.js",
+        "ok": true,
+        "seconds": 0.09
+      },
+      {
+        "name": "game/js/units/groundwar/marine.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/groundwar/marineai.js",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "game/js/units/groundwar/marinefigure.js",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "game/js/units/groundwar/mbttrack.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/groundwar/richmarine.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/infantry/ballistics.js",
+        "ok": true,
+        "seconds": 0.07
+      },
+      {
+        "name": "game/js/units/infantry/bodyvm.js",
+        "ok": true,
+        "seconds": 0.07
+      },
+      {
+        "name": "game/js/units/infantry/carepose.js",
+        "ok": true,
+        "seconds": 0.07
+      },
+      {
+        "name": "game/js/units/infantry/figurematerials.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/infantry/grenademodel.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/infantry/handkit.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/infantry/handposes.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/infantry/humanmesh.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/infantry/infantryaudio.js",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "game/js/units/infantry/invbridge.js",
+        "ok": true,
+        "seconds": 0.07
+      },
+      {
+        "name": "game/js/units/infantry/inventory.js",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "game/js/units/infantry/invui.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/infantry/items.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/infantry/medical.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/infantry/medui.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/infantry/meshkit.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/infantry/rifleman.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/infantry/soldier.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/infantry/soldiermodel.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/infantry/throwvm.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/infantry/viewmodel.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/infantry/weaponmodels.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/units/infantry/weapons.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/naval/albatross.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/naval/containership.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/naval/deckcrew.js",
+        "ok": true,
+        "seconds": 0.08
+      },
+      {
+        "name": "game/js/units/naval/deckops.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/naval/fishlooks.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/units/naval/fishsim.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/units/naval/kraken.js",
+        "ok": true,
+        "seconds": 0.07
+      },
+      {
+        "name": "game/js/units/naval/leviathan.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/naval/mounts.js",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "game/js/units/naval/navalfx.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/naval/navkit.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/naval/seabirds.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/naval/sealife.js",
+        "ok": true,
+        "seconds": 0.09
+      },
+      {
+        "name": "game/js/units/naval/sealifegfx.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/naval/seamotion.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/naval/seasurface.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/naval/seavisibility.js",
+        "ok": true,
+        "seconds": 0.08
+      },
+      {
+        "name": "game/js/units/naval/seaweather.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/placeholder/boxcar.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/placeholder/boxcarmodel.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/runaway/hit.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/runaway/hovertank.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/runaway/hovertankmodel.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/runaway/mbt.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/runaway/mbtmodel.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/runaway/rwaudio.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/units/runaway/rwkit.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/runaway/rwworld.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/units/runaway/sandbox.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/units/runaway/squadai.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/runaway/strider.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/runaway/stridermodel.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/wheeled/cabin.js",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "game/js/units/wheeled/civilian.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/wheeled/civmodel.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/wheeled/delivery.js",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "game/js/units/wheeled/driver.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/wheeled/index.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/wheeled/interior.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/wheeled/lcm8model.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/wheeled/m151.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/wheeled/m151model.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/wheeled/m35.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/wheeled/m35model.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/wheeled/modelkit.js",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "game/js/units/wheeled/motorpool.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/wheeled/tyre.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/wheeled/vehicledamage.js",
+        "ok": true,
+        "seconds": 0.07
+      },
+      {
+        "name": "game/js/units/wheeled/vehiclefm.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/units/wheeled/vehicleguns.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/wheeled/wheeledaudio.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/wheeled/wheeledbake.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/wheeled/wheeledcraft.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/wheeled/wheeledenv.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/units/wheeled/wheeledworld.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/units/wheeled/wheelinput.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/vehicle.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/voice/commanddesk.css.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/voice/commandnet.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/voice/commandpanel.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/voice/commands.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/voice/delivery.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/voice/fieldstations.js",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "game/js/voice/hooks.js",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "game/js/voice/localrecognition.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/voice/localvoices.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/voice/mic-worklet.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/voice/microphone.js",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "game/js/voice/occlusion.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/voice/operations.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/voice/phrases.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/voice/ptt.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/voice/radio.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/voice/recognition.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/voice/samples.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/voice/voice.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/war.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/world.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/world/ambient.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/world/chunkgen.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/world/damage.js",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "game/js/world/forest.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/world/gfx.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/world/kit.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/world/layout.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/world/life.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/world/models.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/world/net.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/world/parked.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/world/rng.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/world/solid.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/world/structures.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/world/terrain.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/world/townkit.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/world/visibility.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/js/world/worldworker.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/xr/bench.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/xr/input.js",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "game/js/xr/panel.js",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "game/js/xr/runtime.js",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "game/vendor/html2canvas.js",
+        "ok": true,
+        "seconds": 0.07
+      },
+      {
+        "name": "game/vendor/three.module.min.js",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/airbench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/armorgamebench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/badge-icon.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/benchmark.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/boxcarbench.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/browser-evidence.mjs",
+        "ok": true,
+        "seconds": 0.07
+      },
+      {
+        "name": "tools/buddyaidbench.mjs",
+        "ok": true,
+        "seconds": 0.08
+      },
+      {
+        "name": "tools/c130bench.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/catdeckbench.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/cavebench.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/ch46bench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/ch46playbench.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/check.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/commanderbench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/deckopsbench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/defenceunitsbench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/devlog.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/devlogcheck.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/economybench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/embarkbench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/evidence.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/evidencebench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/figuresurfacebench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/firstpersonbench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/fishbench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/fishlooksbench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/fishvisibilitybench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/footbench.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/groundwarbench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/healthbarbench.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/hotas-selftest.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/hueybench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/hueypilot.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/infantrybench.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/install-skills.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/jetbench.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/jetfingerprint.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/livevoicebench.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/make-icon.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/marinebench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/medinvbench.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/mv22bench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/navalbench.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/navalunitsbench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/peoplebench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/pttbench.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/radiodeskbench.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/radionetbench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/radiooperationsbench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/rotarycontactbench.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/rotarydeck.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/rotarykit.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/rotarymission.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/rotaryperf.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/runawaybench.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/runscenes.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/scenes/airdrop.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/scenes/airfly.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/airlift.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/airmodels.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/armorgame.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/armorpolish.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/armorprobe.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/buddyaid.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/c130.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/c130model.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/carepose.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/catshot.mjs",
+        "ok": true,
+        "seconds": 0.07
+      },
+      {
+        "name": "tools/scenes/caves.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/scenes/ch46capture.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/ch46fly.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/commander.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/countermeasures.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/deckseq.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/defbalance.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/defence.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/defencewar.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/depthaid.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/depthdeck.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/depthfig.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/depthgame.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/depthlook.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/depthmat.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/depthmicro.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/depthnature.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/depthpost.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/scenes/depthsky.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/scenes/depthstats.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/escorts.mjs",
+        "ok": true,
+        "seconds": 0.07
+      },
+      {
+        "name": "tools/scenes/evidence-xr.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/evidence.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/figuresurfaces.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/firstpersondiagnostic.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/firstpersonmotion.mjs",
+        "ok": true,
+        "seconds": 0.07
+      },
+      {
+        "name": "tools/scenes/firstpersonpolish.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/fish-species.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/fish.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/foot.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/fov.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/groundwar.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/handanatomy.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/healthbars.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/scenes/hornetcockpit.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/hueycockpit.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/hueyhotas.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/hueymodel.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/infantry.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/infantryaudio.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/infantrydiag.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/infantrydrills.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/scenes/infantryhands.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/infantryhits.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/infantrymalf.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/infantrymodels.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/infantrymove.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/infantrysights.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/infantryviews.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/infinite.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/interiors.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/interiorsprev.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/jet.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/jetmodel.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/scenes/jetperf.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/scenes/jetsystems.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/jetterrain.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/jettrap.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/scenes/jetweapons.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/ladder.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/livevoices.mjs",
+        "ok": true,
+        "seconds": 0.07
+      },
+      {
+        "name": "tools/scenes/marine.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/marinefire.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/marinelife.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/marinepolish.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/marinepolishfocused.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/medinv.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/medinv_ui.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/mv22landing.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/naval.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/offlinevoice.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/people.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/qa_repro.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/qa_ship.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/radioops.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/radiorecovery.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/renderkit.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/rkfx-motion.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/rkfx-perf.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/rkfx-xr.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/rkfx.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/rklight-calls.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/rklight-interiors.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/rklight-xr.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/rklight.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/rkmatcheck.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/rksurface.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/rksurfmicro.mjs",
+        "ok": true,
+        "seconds": 0.11
+      },
+      {
+        "name": "tools/scenes/rksurfperf.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/rkui.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/rkworld.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/rotarydamage.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/rotarydev.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/scenes/runaway.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/runawaycloseup.mjs",
+        "ok": true,
+        "seconds": 0.12
+      },
+      {
+        "name": "tools/scenes/runawaylive.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/rwmodels.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/sealife.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/seaworld.mjs",
+        "ok": true,
+        "seconds": 0.09
+      },
+      {
+        "name": "tools/scenes/shipsdev.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/startup.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/striderfall.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/stridergait.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/structprev.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/tankaudio.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/tankdrive.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/tankinterior.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/tankm113.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/tankmodel.mjs",
+        "ok": true,
+        "seconds": 0.07
+      },
+      {
+        "name": "tools/scenes/techtree.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/tomcat.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/tomcatcockpit.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/tomcatdev.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/tomcatpanels.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/scenes/underwater.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/scenes/unit.mjs",
+        "ok": true,
+        "seconds": 0.08
+      },
+      {
+        "name": "tools/scenes/vehicle.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/scenes/visibility.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/scenes/voicecommands.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/voicequality.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/voices.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/wasp.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/scenes/waspbalance.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/wheeledaudio.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/wheeledcockpit.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/wheeleddeliver.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/wheeleddrive.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/wheeledgame.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/wheeledmodel.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/world.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/worlddamage.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/worldjet.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/worldperf.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/worldpolish.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/worldprev.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/worldvisibility.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/xr.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/xrbenchrun.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/scenes/xrextras.mjs",
+        "ok": true,
+        "seconds": 0.07
+      },
+      {
+        "name": "tools/scenes/xrgameplay.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/scenes/xrlifecycle.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/scenes/xrperf.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/seabench.mjs",
+        "ok": true,
+        "seconds": 0.07
+      },
+      {
+        "name": "tools/serve.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/servebench.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/sidebyside.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/sim/checkall.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/sim/headless.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/sim/profcallers.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/sim/profsum.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/sim/reaggregate.mjs",
+        "ok": true,
+        "seconds": 0.09
+      },
+      {
+        "name": "tools/sim/report.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/sim/try.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/sim/trycarrier.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/sim/tryescort.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/sim/trystrike.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/sim/worker.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/simbench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/simreportbench.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/slingbench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/snap.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/speech-server.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/speechbench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/tankbench.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/techbench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/telemetrybench.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/tomcatbench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/tomcatsysbench.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/transportbench.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/unit-air-bench.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/unit-benchmark.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/unit-cases/air.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/unit-cases/defence.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/unit-cases/ground.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/unit-cases/naval.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/unit-cases/structure.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/unit-catalog.mjs",
+        "ok": true,
+        "seconds": 0.08
+      },
+      {
+        "name": "tools/unit-groundbench.mjs",
+        "ok": true,
+        "seconds": 0.07
+      },
+      {
+        "name": "tools/unitcatalogbench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/visibilitybench.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/voice-build.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/voice-server.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/voicebench.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/voicecommandbench.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/warsim.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/warsimbench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/waspbench.mjs",
+        "ok": true,
+        "seconds": 0.07
+      },
+      {
+        "name": "tools/waspmission.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/wheeledbench.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/wheelinputbench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/worldbench.mjs",
+        "ok": true,
+        "seconds": 0.06
+      },
+      {
+        "name": "tools/worldpolishbench.mjs",
+        "ok": true,
+        "seconds": 0.04
+      },
+      {
+        "name": "tools/worldsolidbench.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/xr-harness.mjs",
+        "ok": true,
+        "seconds": 0.05
+      },
+      {
+        "name": "tools/xrbench.mjs",
+        "ok": true,
+        "seconds": 0.03
+      },
+      {
+        "name": "tools/xrbenchreport.mjs",
+        "ok": true,
+        "seconds": 0.04
+      }
+    ]
+  },
+  "captureHostObservations": {
+    "at": "2026-10-28T22:19:34.861Z",
+    "note": "Read-only snapshot after the 30-frame sample. Other active browsers in unrelated worktrees contaminate isolated performance interpretation. None was terminated.",
+    "processes": [
+      {
+        "pid": 531742,
+        "parent": 531738,
+        "elapsed": "13:20",
+        "command": "node snap.mjs scenes/hueymodel.mjs",
+        "cwd": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-a47a6169f36749ceb/tools"
+      },
+      {
+        "pid": 533554,
+        "parent": 529964,
+        "elapsed": "09:33",
+        "command": "node snap.mjs scenes/catshot.mjs --name reg-catshotmjs",
+        "cwd": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-ae36575963405f071/tools"
+      },
+      {
+        "pid": 539235,
+        "parent": 539234,
+        "elapsed": "08:18",
+        "command": "node snap.mjs scenes/xr.mjs",
+        "cwd": "/home/jayjay/thrust-zarch/.claude/worktrees/rk-verify/tools"
+      },
+      {
+        "pid": 558212,
+        "parent": 558210,
+        "elapsed": "05:04",
+        "command": "node snap.mjs scenes/perfbench.mjs",
+        "cwd": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-adb1b8ec1a2329ded/tools"
+      },
+      {
+        "pid": 558231,
+        "parent": 558226,
+        "elapsed": "05:04",
+        "command": "node snap.mjs scenes/jet.mjs",
+        "cwd": "/tmp/claude-1000/-home-jayjay-thrust-zarch/af34cd2d-2432-4e15-8818-55d59098ebb7/scratchpad/base2/tools"
+      },
+      {
+        "pid": 559407,
+        "parent": 559399,
+        "elapsed": "02:26",
+        "command": "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node /home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/snap.mjs /home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/scenes/firstpersonpolish.mjs --out /home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/runs/firstperson-after --seed 1980",
+        "cwd": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838"
+      },
+      {
+        "pid": 559773,
+        "parent": 559772,
+        "elapsed": "01:17",
+        "command": "node snap.mjs scenes/depthsky.mjs",
+        "cwd": "/home/jayjay/thrust-zarch/.claude/worktrees/rk-verify/tools"
+      }
+    ]
+  }
+}

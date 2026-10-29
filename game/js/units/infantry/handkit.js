@@ -27,7 +27,7 @@ function nail(k, C, D, out, r) {
 // closes on (pistol grip ~17 mm, handguard ~26 mm). trigger: the right index finger lies on the trigger (hand frame
 // ~(0, 0.047, -0.038)) instead of curling round the grip.
 // open: a relaxed, flat hand (swimming strokes, pressing on a wound) with the same wrist point, so the IK is unchanged.
-export function fpHand(k, { side = 'R', gripR = 0.017, trigger = false, open = false, skin = SKIN_TONES[0], seg = 10 } = {}) {
+export function fpHand(k, { side = 'R', gripR = 0.017, trigger = false, open = false, thumb = 'wrap', skin = SKIN_TONES[0], seg = 10 } = {}) {
   const s = side === 'L' ? -1 : 1, sk = skinPaint(skin), P = (x, y, z) => [s * x, y, z];
   const fingers = trigger ? [0.046, 0.021, -0.001, -0.022] : [0.031, 0.01, -0.011, -0.031];
   const scale = [0.96, 1.0, 0.95, 0.8], R0 = 0.0098;
@@ -68,8 +68,13 @@ export function fpHand(k, { side = 'R', gripR = 0.017, trigger = false, open = f
   // the thumb: base (thenar) on the palm side, over the top of the grip to the far side
   // (ngc/look-people) the thumb WRAPS the grip: from the web of the hand round the back of the grip, just under the
   // receiver, to the far side with the tip pointing forward (it used to cross over the top of the grip into the receiver)
-  const A = P(gripR + 0.01, 0.024, 0.06), B = open ? P(gripR + 0.002, top + 0.008, 0.026) : P(gripR * 0.55, top - 0.004, gripR + 0.016),
+  const A = P(gripR + 0.01, 0.024, 0.06);
+  let B = open ? P(gripR + 0.002, top + 0.008, 0.026) : P(gripR * 0.55, top - 0.004, gripR + 0.016),
     C = open ? P(gripR - 0.006, top + 0.02, -0.004) : P(-gripR * 0.75, top - 0.006, gripR + 0.006), D = open ? P(gripR - 0.012, top + 0.024, -0.026) : P(-(gripR + 0.009), top - 0.008, -0.008);
+  // Support thumbs rest along the side of stacked furniture / the LAW tube. A full cylindrical wrap put the
+  // thumb through the M203's upper handguard and across the LAW reticle. Keep the same primitive correspondence.
+  if (!open && thumb === 'm203') { B = P(0.027,0.038,0.033); C = P(0.005,0.045,0.011); D = P(-0.007,0.047,0.002); }
+  if (!open && thumb === 'law') { B = P(0.035,0.038,0.040); C = P(0.012,0.055,0.015); D = P(-0.006,0.060,0.005); }
   k.ellip(0.016, 0.022, 0.03, sk, P(gripR + 0.008, 0.026, 0.046), [0.5, 0, 0], 10, 'vertex');   // thenar
   k.capsule(A, B, 0.0135, 0.012, sk, seg, 'vertex');
   k.capsule(B, C, 0.0115, 0.0105, sk, seg, 'vertex');
@@ -82,8 +87,15 @@ export function fpHand(k, { side = 'R', gripR = 0.017, trigger = false, open = f
 // A sleeve along -y from the joint (length len, radius r0 at the joint, r1 at the far end), with soft fabric folds:
 // bunching rings near the far end (a cuff over the wrist / the elbow), a couple of long diagonal creases. Returns a
 // BufferGeometry (indexed, smooth normals, seam welded) for Kit.add.
+function weldRingNormals(g,seg,rows) {
+  const n=g.attributes.normal;
+  for(let r=0;r<rows;r++) {
+    const a=r*(seg+1),b=a+seg,x=n.getX(a)+n.getX(b),y=n.getY(a)+n.getY(b),z=n.getZ(a)+n.getZ(b),l=Math.hypot(x,y,z)||1;
+    n.setXYZ(a,x/l,y/l,z/l);n.setXYZ(b,x/l,y/l,z/l);
+  }
+}
 export function sleeveGeo(len, r0, r1, { seg = 16, rows = 12, folds = 1, seed = 0, cuff = true } = {}) {
-  const g = new THREE.CylinderGeometry(r1, r0, len, seg, rows, true), p = g.attributes.position;
+  const g = new THREE.CylinderGeometry(r0, r1, len, seg, rows, true), p = g.attributes.position;
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i), y = p.getY(i), z = p.getZ(i), u = (y + len / 2) / len;   // 0 at the far end (bottom), 1 at the joint
     const a = Math.atan2(z, x);
@@ -92,10 +104,11 @@ export function sleeveGeo(len, r0, r1, { seg = 16, rows = 12, folds = 1, seed = 
       + 0.035 * Math.sin(a * 2 + u * 7 + seed) * (1 - nearEnd)
       + 0.02 * Math.sin(a * 5 - u * 11 + seed * 3));
     if (cuff && u < 0.12) d += 0.05;   // the cuff stands off the wrist
-    const k = 1 + d; p.setX(i, x * k); p.setZ(i, z * k);
+    const k = 1 + d, muscle=1+0.08*Math.sin(Math.PI*u); p.setX(i, x*k*muscle); p.setZ(i,z*k*(0.91+0.05*u));
   }
   g.translate(0, -len / 2, 0);
   g.computeVertexNormals();
+  weldRingNormals(g,seg,rows+1);
   return g;
 }
 
@@ -103,9 +116,35 @@ export function sleeveGeo(len, r0, r1, { seg = 16, rows = 12, folds = 1, seed = 
 // The soldier's hand bone: the hand hangs along -y from the wrist, palm toward -z, thumb on the inner side (s * -x).
 // A cheap closed hand (~300 tris): palm slab, four curled fingers in two phalanges, the thumb. grip: fingers round
 // something (the rifle); open: relaxed.
-export function tpHand(k, { side = 'R', skin = SKIN_TONES[0], seg = 6, rings = 2, open = false } = {}) {
+const TP_GRIP_DEFAULT = { centre: [0,-0.095,-0.030], axis: [1,0,0], palm: [0,0,-1], radius: 0.0185 };
+const TP_GRIP_TUBE28 = { centre: [0,-0.075,-0.041], axis: [1,0,0], palm: [0,0,-1], radius: 0.028 };
+const TP_GRIP_TUBE41 = { centre: [0,-0.075,-0.054], axis: [1,0,0], palm: [0,0,-1], radius: 0.041 };
+export function tpGripFrame(profile = null) {
+  if (profile === 'tube28') return TP_GRIP_TUBE28;
+  if (profile === 'tube41') return TP_GRIP_TUBE41;
+  if (profile != null) throw new Error('Unknown TP grip profile: ' + profile);
+  return TP_GRIP_DEFAULT;
+}
+export function tpHand(k, { side = 'R', skin = SKIN_TONES[0], seg = 6, rings = 2, open = false, profile = null } = {}) {
   const s = side === 'L' ? -1 : 1, sk = skin;
   k.rbox(0.078, 0.09, 0.03, 0.011, sk, [0, -0.05, 0.002], [0, 0, 0], 1);   // palm
+  if (profile && !open) {
+    const grip = tpGripFrame(profile), cy = grip.centre[1], cz = grip.centre[2];
+    // The wide tube uses the same X grasp axis for every finger. Scale the angular travel, not absolute Y:
+    // shortening the little finger around the wrist origin folded it through the middle of the LAW tube.
+    for (let i = 0; i < 4; i++) {
+      const x = s * (0.027 - i * 0.018) * -1, f = [0.96,1,0.95,0.82][i], r = 0.0088 * (i === 3 ? 0.9 : 1);
+      const rho = grip.radius + r * 1.06, start = Math.atan2(cy + 0.092, -0.002 - cz);
+      const point = angle => [x, cy - rho * Math.sin(angle), cz + rho * Math.cos(angle)];
+      const A = [x,-0.092,-0.002], B = point(start + 0.035 * f / rho), C = point(start + 0.063 * f / rho);
+      k.capsule(A, B, r * 1.05, r * 0.95, sk, seg, undefined, null, rings);
+      k.capsule(B, C, r * 0.92, r * 0.78, sk, seg, undefined, null, rings);
+    }
+    const T0 = [s * -0.036,-0.025,-0.008], T1 = [s * -0.05,cy + grip.radius + 0.014,cz + grip.radius * 0.51], T2 = [s * -0.03,cy + grip.radius + 0.008,cz - grip.radius * 0.46];
+    k.capsule(T0, T1, 0.013, 0.011, sk, seg, undefined, null, rings);
+    k.capsule(T1, T2, 0.0105, 0.0085, sk, seg, undefined, null, rings);
+    return;
+  }
   for (let i = 0; i < 4; i++) {
     const x = s * (0.027 - i * 0.018) * -1, f = [0.96, 1, 0.95, 0.82][i], r = 0.0088 * (i === 3 ? 0.9 : 1);
     const A = [x, -0.092, -0.002], B = open ? [x, -0.13 * f, -0.012] : [x, -0.125 * f, -0.024], C = open ? [x * 1.02, -0.155 * f, -0.03] : [x, -0.115 * f, -0.05];

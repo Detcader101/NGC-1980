@@ -1,0 +1,164 @@
+{
+  "schemaVersion": 2,
+  "name": "radiorecovery",
+  "query": "?debug&auto&kb&res=0.35&peace&tech=max",
+  "seed": null,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "6b34d5f11d5bb25a62622158e9c8f02c1b4298a533047062795d8c0c4d601237",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/snap.mjs",
+    "scenes/radiorecovery.mjs",
+    "--out",
+    "runs/radio-recovery-final"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7839427d84197e7273289e6158e6d8a45fbbe26b",
+    "branch": "ngc/look-voices",
+    "gameTree": "515bc2c65213bfffcc64c05603aa5a3469c998f6",
+    "gameSha256": "8d873c7eec457df0a5cc4dd5cf4f5967916b3bac68b8e391b690866d30ab19c6",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/dev/voices.html\n M game/js/main.js\n M game/js/units/air/rotary/figures.js\n M game/js/units/commander/board.js\n M game/js/units/groundwar/marineai.js\n M game/js/units/groundwar/marinefigure.js\n M game/js/units/infantry/bodyvm.js\n M game/js/units/infantry/handkit.js\n M game/js/units/infantry/meshkit.js\n M game/js/units/infantry/soldiermodel.js\n M game/js/units/infantry/viewmodel.js\n M game/js/units/infantry/weaponmodels.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/commands.js\n M game/js/voice/localrecognition.js\n M game/js/voice/voice.js\n M tools/scenes/offlinevoice.mjs\n M tools/scenes/voices.mjs\n M tools/serve.mjs\n?? game/dev/people.html\n?? game/dev/people.js\n?? game/js/units/infantry/figurematerials.js\n?? game/js/units/infantry/handposes.js\n?? game/js/units/infantry/humanmesh.js\n?? game/js/voice/commanddesk.css.js\n?? game/js/voice/delivery.js\n?? game/js/voice/fieldstations.js\n?? game/js/voice/localvoices.js\n?? game/js/voice/operations.js\n?? tools/figuresurfacebench.mjs\n?? tools/firstpersonbench.mjs\n?? tools/livevoicebench.mjs\n?? tools/peoplebench.mjs\n?? tools/radiodeskbench.mjs\n?? tools/radionetbench.mjs\n?? tools/radiooperationsbench.mjs\n?? tools/scenes/figuresurfaces.mjs\n?? tools/scenes/firstpersondiagnostic.mjs\n?? tools/scenes/firstpersonmotion.mjs\n?? tools/scenes/firstpersonpolish.mjs\n?? tools/scenes/handanatomy.mjs\n?? tools/scenes/livevoices.mjs\n?? tools/scenes/marinepolishfocused.mjs\n?? tools/scenes/people.mjs\n?? tools/scenes/radioops.mjs\n?? tools/scenes/radiorecovery.mjs\n?? tools/voice-server.mjs\n?? tools/voice-synthesize.ps1"
+  },
+  "url": "http://127.0.0.1:42907/?debug&auto&kb&res=0.35&peace&tech=max",
+  "ok": false,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": "1 fps  ·  res 35%",
+  "shots": [],
+  "clips": [],
+  "benchmarks": [],
+  "evals": [
+    {
+      "expr": "(()=>{\n    __G.G.bench=true;for(const n of __G.war.tech[1].nodes)__G.war.tech[1].done.add(n.id);\n    const i=__G.ISLANDS.find(i=>i.name==='SANDBAR'),x=i.pad.x+40,z=i.pad.z+40;\n    __G.H.reset(new __G.THREE.Vector3(x,__G.terrainH(x,z)+1.9,z),0,true,1);__G.HI.setCollective(0);\n    window.__requestRepair=()=>{__G.G.fuel=10;__G.Z.svc=null;const n=__radioCommands.net;\n      n.receive([{transcript:'Supply, this is Command. Request fuel and field repair. Over.',confidence:1}]);\n      const result=n.receive([{transcript:'Supply, this is Command. Correct. Over.',confidence:1}]);\n      window.__repairTask=n.tasks.findLast(t=>t.label==='Request fuel and field repair');return result.ok;\n    };return true;\n  })()",
+      "value": true
+    },
+    {
+      "expr": "(()=>{const m=__G.G.rescue.mission;\n      if('partial'!=='cancel'){m.fixed='partial'==='partial';m.arrived='partial'==='partial'?1:0;m.ended=true;}\n      __G.G.fuel='partial'==='cancel'?80:20;__G.G.rescue=null;\n      __radioCommands.net.update(1);__G.drop.cancel();return {state:__repairTask.state,detail:__repairTask.detail};\n    })()",
+      "value": {
+        "__error": "Cannot read properties of undefined (reading 'mission')"
+      }
+    },
+    {
+      "expr": "(()=>{const m=__G.G.rescue.mission;\n      if('cancel'!=='cancel'){m.fixed='cancel'==='partial';m.arrived='cancel'==='partial'?1:0;m.ended=true;}\n      __G.G.fuel='cancel'==='cancel'?80:20;__G.G.rescue=null;\n      __radioCommands.net.update(1);__G.drop.cancel();return {state:__repairTask.state,detail:__repairTask.detail};\n    })()",
+      "value": {
+        "state": "cancelled",
+        "detail": "Field support interrupted."
+      }
+    },
+    {
+      "expr": "(()=>{const m=__G.G.rescue.mission;\n      if('failed'!=='cancel'){m.fixed='failed'==='partial';m.arrived='failed'==='partial'?1:0;m.ended=true;}\n      __G.G.fuel='failed'==='cancel'?80:20;__G.G.rescue=null;\n      __radioCommands.net.update(1);__G.drop.cancel();return {state:__repairTask.state,detail:__repairTask.detail};\n    })()",
+      "value": {
+        "state": "failed",
+        "detail": "Field support failed. No repair crew reached the Huey."
+      }
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__requestRepair()",
+      "label": "field support request accepted: partial",
+      "ok": false,
+      "value": false
+    },
+    {
+      "ok": false,
+      "msg": "waitFor timed out: __G.G.rescue?.mission"
+    },
+    {
+      "expr": "__G.G.rescue.mission===__G.drop.state && __repairTask.state===\"active\"",
+      "label": "request retains the actual active drop mission: partial",
+      "ok": false,
+      "value": null,
+      "error": "Cannot read properties of undefined (reading 'mission')"
+    },
+    {
+      "expr": "__repairTask.state==='complete'",
+      "label": "actual mission outcome wins over remaining fuel: partial",
+      "ok": false,
+      "value": null,
+      "error": "Cannot read properties of undefined (reading 'state')"
+    },
+    {
+      "expr": "__requestRepair()",
+      "label": "field support request accepted: cancel",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__G.G.rescue.mission===__G.drop.state && __repairTask.state===\"active\"",
+      "label": "request retains the actual active drop mission: cancel",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__repairTask.state==='cancelled'",
+      "label": "actual mission outcome wins over remaining fuel: cancel",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__requestRepair()",
+      "label": "field support request accepted: failed",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__G.G.rescue.mission===__G.drop.state && __repairTask.state===\"active\"",
+      "label": "request retains the actual active drop mission: failed",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__repairTask.state==='failed'",
+      "label": "actual mission outcome wins over remaining fuel: failed",
+      "ok": true,
+      "value": true
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-28T22:47:57.043Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7839427d84197e7273289e6158e6d8a45fbbe26b",
+    "branch": "ngc/look-voices",
+    "gameTree": "515bc2c65213bfffcc64c05603aa5a3469c998f6",
+    "gameSha256": "8d873c7eec457df0a5cc4dd5cf4f5967916b3bac68b8e391b690866d30ab19c6",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/dev/voices.html\n M game/js/main.js\n M game/js/units/air/rotary/figures.js\n M game/js/units/commander/board.js\n M game/js/units/groundwar/marineai.js\n M game/js/units/groundwar/marinefigure.js\n M game/js/units/infantry/bodyvm.js\n M game/js/units/infantry/handkit.js\n M game/js/units/infantry/meshkit.js\n M game/js/units/infantry/soldiermodel.js\n M game/js/units/infantry/viewmodel.js\n M game/js/units/infantry/weaponmodels.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/commands.js\n M game/js/voice/localrecognition.js\n M game/js/voice/voice.js\n M tools/scenes/offlinevoice.mjs\n M tools/scenes/voices.mjs\n M tools/serve.mjs\n?? game/dev/people.html\n?? game/dev/people.js\n?? game/js/units/infantry/figurematerials.js\n?? game/js/units/infantry/handposes.js\n?? game/js/units/infantry/humanmesh.js\n?? game/js/voice/commanddesk.css.js\n?? game/js/voice/delivery.js\n?? game/js/voice/fieldstations.js\n?? game/js/voice/localvoices.js\n?? game/js/voice/operations.js\n?? tools/figuresurfacebench.mjs\n?? tools/firstpersonbench.mjs\n?? tools/livevoicebench.mjs\n?? tools/peoplebench.mjs\n?? tools/radiodeskbench.mjs\n?? tools/radionetbench.mjs\n?? tools/radiooperationsbench.mjs\n?? tools/scenes/figuresurfaces.mjs\n?? tools/scenes/firstpersondiagnostic.mjs\n?? tools/scenes/firstpersonmotion.mjs\n?? tools/scenes/firstpersonpolish.mjs\n?? tools/scenes/handanatomy.mjs\n?? tools/scenes/livevoices.mjs\n?? tools/scenes/marinepolishfocused.mjs\n?? tools/scenes/people.mjs\n?? tools/scenes/radioops.mjs\n?? tools/scenes/radiorecovery.mjs\n?? tools/voice-server.mjs\n?? tools/voice-synthesize.ps1"
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": "zarch",
+    "state": "play"
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7839427d84197e7273289e6158e6d8a45fbbe26b",
+    "branch": "ngc/look-voices",
+    "gameTree": "515bc2c65213bfffcc64c05603aa5a3469c998f6",
+    "gameSha256": "8d873c7eec457df0a5cc4dd5cf4f5967916b3bac68b8e391b690866d30ab19c6",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/dev/voices.html\n M game/js/main.js\n M game/js/units/air/rotary/figures.js\n M game/js/units/commander/board.js\n M game/js/units/groundwar/marineai.js\n M game/js/units/groundwar/marinefigure.js\n M game/js/units/infantry/bodyvm.js\n M game/js/units/infantry/handkit.js\n M game/js/units/infantry/meshkit.js\n M game/js/units/infantry/soldiermodel.js\n M game/js/units/infantry/viewmodel.js\n M game/js/units/infantry/weaponmodels.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/commands.js\n M game/js/voice/localrecognition.js\n M game/js/voice/voice.js\n M tools/scenes/offlinevoice.mjs\n M tools/scenes/voices.mjs\n M tools/serve.mjs\n?? game/dev/people.html\n?? game/dev/people.js\n?? game/js/units/infantry/figurematerials.js\n?? game/js/units/infantry/handposes.js\n?? game/js/units/infantry/humanmesh.js\n?? game/js/voice/commanddesk.css.js\n?? game/js/voice/delivery.js\n?? game/js/voice/fieldstations.js\n?? game/js/voice/localvoices.js\n?? game/js/voice/operations.js\n?? tools/figuresurfacebench.mjs\n?? tools/firstpersonbench.mjs\n?? tools/livevoicebench.mjs\n?? tools/peoplebench.mjs\n?? tools/radiodeskbench.mjs\n?? tools/radionetbench.mjs\n?? tools/radiooperationsbench.mjs\n?? tools/scenes/figuresurfaces.mjs\n?? tools/scenes/firstpersondiagnostic.mjs\n?? tools/scenes/firstpersonmotion.mjs\n?? tools/scenes/firstpersonpolish.mjs\n?? tools/scenes/handanatomy.mjs\n?? tools/scenes/livevoices.mjs\n?? tools/scenes/marinepolishfocused.mjs\n?? tools/scenes/people.mjs\n?? tools/scenes/radioops.mjs\n?? tools/scenes/radiorecovery.mjs\n?? tools/voice-server.mjs\n?? tools/voice-synthesize.ps1"
+  },
+  "summary": "FAIL: 6/10 expects, 0 page errors, 0 console errors",
+  "durationMs": 58289,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/runs/radio-recovery-final"
+}

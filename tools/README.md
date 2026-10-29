@@ -34,6 +34,31 @@ artifact boundaries and report behavior. Browser capture and HTML playback check
 `CHROME_PATH=/path/to/chrome node tools/devlogcheck.mjs PATH/devlog.html` checks the offline report and captures
 desktop/mobile previews. [Completed example devlog](../docs/devlogs/2026-10-26-evidence/devlog.html).
 
+Third-person grip checks use the production SDF body and its existing LOD meshes:
+
+```sh
+node tools/tpgripprofilebench.mjs
+node tools/figurecrowdbench.mjs --out tools/runs/crowd-before.json
+# After a figure change, compare against the saved pre-edit snapshot:
+node tools/figurecrowdbench.mjs --baseline tools/runs/crowd-before.json --out tools/runs/crowd-after.json
+# From tools/, capture the same views before and after:
+CHROME_PATH=/path/to/chrome node snap.mjs scenes/radiogripmerge.mjs
+CHROME_PATH=/path/to/chrome node snap.mjs scenes/tpgripcrowd.mjs
+```
+
+The profile check measures actual meshed hand clearance/contact, cache reuse and default restoration. The crowd
+snapshot checks geometry buffers, materials and shader contracts; a snapshot without `--baseline` cannot prove
+that a change preserved them. Inspect the close-ups as well: structural assertions do not establish a convincing
+grasp. The crowd scene is an isolated production-model fixture, not a live-world behavior or performance test.
+
+The generated speech bank is optional and stays local. At the repo root, run `node tools/voice-build.mjs`
+(WSL with Windows US English voices installed) before the audio-producing `scenes/voices.mjs` test. The bank and
+its `local-index.json` are ignored; the provided server and harness expose them without changing the tracked
+silent manifest. `node tools/voicebankbench.mjs` tests actual absent/partial files and numerical PCM loading;
+`scenes/voicebankmissing.mjs` tests the live game's text-only fallback using the server's unavailable descriptor.
+`node tools/voicebench.mjs` always runs hook checks and explicitly skips six optional asset-integrity checks if
+no local bank is present. Do not distribute generated speech in Git, releases or devlogs.
+
 ## Screenshot harness
 
 `snap.mjs` opens the game in headless Chrome with software WebGL (SwiftShader), runs a scene

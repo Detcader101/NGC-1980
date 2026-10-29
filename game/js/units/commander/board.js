@@ -218,14 +218,14 @@ export function createCommander(h) {
   strip?.addEventListener('click', e => {
     if (h.canOpen && !h.canOpen()) return;
     if (e.target.closest('[data-research]')) { C.close(); h.research?.(); }
-    else if (e.target.closest('[data-command]')) C.toggle();
+    else if (e.target.closest('[data-command]')) h.radio ? h.radio() : C.toggle();
   });
   C.update = (dt, show) => {
     if (C.isOpen) { rt -= dt; if (rt <= 0) { rt = 0.25; render(false); } }
     if (!strip) return;
     st -= dt; if (st > 0 && show === shown) return; st = 0.25; shown = show;   // the strip: 4x a second is plenty
     const s = fleet.strip(id => { const r = h.roster.find(r => r.id === id); return r ? (r.outCount ? r.outCount() : r.out() ? 1 : 0) : 0; });
-    const html = show ? `FLEET ${s.map(x => `<b>${x.short}</b> <i>${x.n}</i>${x.out ? `<span class="out">+${x.out}</span>` : ''}`).join('  ')}<div class="hint"><button class="boardAction" data-command>COMMAND \\</button> <button class="boardAction" data-research>RESEARCH / TECH TREE</button> · / NEXT UNIT · +N = OUT</div>` : '';
+    const html = show ? `FLEET ${s.map(x => `<b>${x.short}</b> <i>${x.n}</i>${x.out ? `<span class="out">+${x.out}</span>` : ''}`).join('  ')}<div class="hint"><button class="boardAction" data-command>${h.radio ? 'RADIO' : 'COMMAND'} \\</button> <button class="boardAction" data-research>RESEARCH / TECH TREE</button> · / NEXT UNIT · +N = OUT</div>` : '';
     if (strip._h !== html) { strip._h = html; strip.innerHTML = html; }
   };
   return C;

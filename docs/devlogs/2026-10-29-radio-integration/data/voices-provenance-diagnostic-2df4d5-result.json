@@ -1,0 +1,892 @@
+{
+  "schemaVersion": 2,
+  "name": "voices",
+  "query": "?debug&auto",
+  "seed": null,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "3890063f94bcaa7923c030f95194b830fadcc7e95f45a3032498245b3da9626c",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/snap.mjs",
+    "scenes/voices.mjs",
+    "--out",
+    "runs/radio-merge-voices"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "787b4c17fa3ee149fa7d3b13bd3f66a2fce96ff2",
+    "branch": "ngc/look-voices",
+    "gameTree": "29426da431d131f4755554436e6bfb53174b7329",
+    "gameSha256": "a0e1850f87fe2cd93bc6b47137e783afa6d781cc7796983329811693454430ef",
+    "dirty": true,
+    "status": "M  MODLOG.md\n M README.md\nM  docs/ngc1980/BIBLE.md\n M docs/ngc1980/COORDINATION.md\nM  docs/ngc1980/LOOK-PLAN.md\nA  docs/ngc1980/PERF-BUDGETS.md\nA  docs/ngc1980/TYPESCRIPT.md\nA  docs/ngc1980/evidence/look-nature/sbs-01-hq.png\nA  docs/ngc1980/evidence/look-nature/sbs-02-oak.png\nA  docs/ngc1980/evidence/look-nature/sbs-03-pine.png\nA  docs/ngc1980/evidence/look-nature/sbs-04-fir.png\nA  docs/ngc1980/evidence/look-nature/sbs-05-backlit.png\nA  docs/ngc1980/evidence/look-nature/sbs-06-forest.png\nA  docs/ngc1980/evidence/look-nature/sbs-07-village.png\nA  docs/ngc1980/evidence/look-nature/sbs-08-village30.png\nA  docs/ngc1980/evidence/look-nature/sbs-09-heli30.png\nA  docs/ngc1980/evidence/look-nature/sbs-10-heli200.png\nA  docs/ngc1980/evidence/look-nature/sbs-11-jet1200.png\nA  docs/ngc1980/evidence/look-people/crews-seated-kneeling.png\nA  docs/ngc1980/evidence/look-people/deck-crew-close.png\nA  docs/ngc1980/evidence/look-people/deck-crew.png\nA  docs/ngc1980/evidence/look-people/face-bare.png\nA  docs/ngc1980/evidence/look-people/face-helmet-34.png\nA  docs/ngc1980/evidence/look-people/face-helmet.png\nA  docs/ngc1980/evidence/look-people/fp-hip-at-home.png\nA  docs/ngc1980/evidence/look-people/fp-self-aid.png\nA  docs/ngc1980/evidence/look-people/fp-swim.png\nA  docs/ngc1980/evidence/look-people/heads-navy.png\nA  docs/ngc1980/evidence/look-people/heads-pilots.png\nA  docs/ngc1980/evidence/look-people/huey-pilots-after.png\nA  docs/ngc1980/evidence/look-people/roles.png\nA  docs/ngc1980/evidence/look-people/squad-10m.png\nA  docs/ngc1980/evidence/look-people/squad-40m-crowd-lod-after.png\nA  docs/ngc1980/evidence/look-people/tomcat-crew-close.png\nA  docs/ngc1980/evidence/look-people/tomcat-crew-side.png\nA  docs/ngc1980/evidence/look-people/townsfolk.png\nA  docs/ngc1980/evidence/look-people/tp-carry-after.png\nA  docs/ngc1980/evidence/look-people/tp-front-close.png\nA  docs/ngc1980/evidence/look-people/tp-swim-after.png\nA  docs/ngc1980/evidence/look-people/vm-grip-close.png\nA  docs/ngc1980/evidence/look-people/vm-side-r.png\nA  docs/ngc1980/evidence/look-people/weapons-after.png\nA  docs/ngc1980/evidence/perf-render/sbs-deck.png\nA  docs/ngc1980/evidence/perf-render/sbs-hard.png\nA  docs/ngc1980/evidence/perf-render/sbs-home200.png\nA  docs/ngc1980/evidence/perf-render/sbs-hq.png\nA  docs/ngc1980/evidence/perf-render/sbs-jeep.png\nA  docs/ngc1980/evidence/perf-render/sbs-jet1200.png\nA  docs/ngc1980/evidence/perf-render/sbs-m113.png\nA  docs/ngc1980/evidence/perf-render/sbs-msaa-hq.png\nA  docs/ngc1980/evidence/perf-render/sbs-pad.png\nA  docs/ngc1980/evidence/perf-render/sbs-tank.png\nA  docs/ngc1980/findings/look-nature.md\nA  docs/ngc1980/findings/look-people.md\n M docs/ngc1980/findings/look-voices.md\nA  docs/ngc1980/findings/perf-cpu.md\nA  docs/ngc1980/findings/perf-render.md\nA  docs/ngc1980/findings/typecheck.md\nA  docs/ngc1980/findings/xr-fix.md\nA  docs/ngc1980/reference/people/SOURCES.md\n M game/dev/people.js\nM  game/index.html\nM  game/js/craft.js\nM  game/js/craftjet.js\nM  game/js/crafttomcat.js\nM  game/js/fog.js\nM  game/js/ground.js\nM  game/js/heli.js\nMM game/js/hotas.js\nA  game/js/hypot.js\nM  game/js/interiors/crewfig.js\nM  game/js/jetplay.js\nM  game/js/main.js\nM  game/js/marine.js\nA  game/js/perf/bench.js\nA  game/js/perfhud.js\nM  game/js/renderkit/adopt.js\nM  game/js/renderkit/effects.js\nM  game/js/renderkit/gamemats.js\nM  game/js/renderkit/gamepost.js\nM  game/js/renderkit/light.js\nA  game/js/renderkit/lod.js\nM  game/js/renderkit/materials.js\nA  game/js/renderkit/merge.js\nM  game/js/renderkit/nature.js\nM  game/js/renderkit/ui.js\nM  game/js/sim/zone.js\nM  game/js/ui/markerlayer.js\nM  game/js/units/air/rotary/ch46craft.js\nM  game/js/units/air/rotary/ch46unit.js\nM  game/js/units/air/rotary/figures.js\nM  game/js/units/air/rotary/mv22unit.js\nM  game/js/units/air/rotary/rb.js\nM  game/js/units/air/rotary/rotary.js\nM  game/js/units/air/rotary/rotor.js\nM  game/js/units/air/rotary/squad.js\nM  game/js/units/air/rotary/waspfm.js\nM  game/js/units/air/rotary/waspunit.js\nM  game/js/units/air/tomcatmodel.js\nM  game/js/units/armor/armorcraft.js\nM  game/js/units/armor/tankmodel.js\nM  game/js/units/defence/brain.js\nM  game/js/units/groundwar/groundsim.js\nM  game/js/units/groundwar/groundwar.js\nM  game/js/units/groundwar/marine.js\n M game/js/units/groundwar/marinefigure.js\nA  game/js/units/infantry/figgeo.js\nA  game/js/units/infantry/figinst.js\n M game/js/units/infantry/figurematerials.js\nM  game/js/units/infantry/handkit.js\nA  game/js/units/infantry/humanfig.js\n D game/js/units/infantry/humanmesh.js\nM  game/js/units/infantry/invui.js\nM  game/js/units/infantry/items.js\n M game/js/units/infantry/meshkit.js\nA  game/js/units/infantry/sdfmesh.js\nMM game/js/units/infantry/soldiermodel.js\nM  game/js/units/infantry/viewmodel.js\nM  game/js/units/infantry/weaponmodels.js\nM  game/js/units/naval/deckcrew.js\nM  game/js/units/naval/fishsim.js\nM  game/js/units/naval/kraken.js\nM  game/js/units/naval/navalfx.js\nM  game/js/units/naval/seamotion.js\nM  game/js/units/wheeled/index.js\nM  game/js/units/wheeled/tyre.js\nM  game/js/units/wheeled/vehiclefm.js\nM  game/js/units/wheeled/wheeledcraft.js\nM  game/js/units/wheeled/wheeledenv.js\nM  game/js/vehicle.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/hooks.js\n M game/js/voice/localrecognition.js\n M game/js/voice/microphone.js\n M game/js/voice/operations.js\n M game/js/voice/ptt.js\n M game/js/voice/recognition.js\n M game/js/voice/voice.js\nM  game/js/war.js\nM  game/js/world.js\nM  game/js/world/ambient.js\nM  game/js/world/chunkgen.js\nM  game/js/world/life.js\nM  game/js/world/worldworker.js\nM  game/js/xr/bench.js\nAM game/types/globals.d.ts\nA  game/vendor/html2canvas.d.ts\nM  launcher/install.sh\nM  tools/README.md\nM  tools/check.mjs\n M tools/figuresurfacebench.mjs\n M tools/firstpersonbench.mjs\nA  tools/grid.mjs\nA  tools/hypotbench.mjs\nM  tools/package-lock.json\nM  tools/package.json\n M tools/peoplebench.mjs\nA  tools/profsummary.mjs\nA  tools/profunder.mjs\nA  tools/scenes/cpuprofile.mjs\nA  tools/scenes/looknature.mjs\nA  tools/scenes/lookpeople.mjs\nA  tools/scenes/lpcrews.mjs\nA  tools/scenes/lpstats.mjs\nA  tools/scenes/lpstudio.mjs\nA  tools/scenes/lpweapons.mjs\nA  tools/scenes/mergecheck.mjs\n M tools/scenes/people.mjs\nA  tools/scenes/perfab.mjs\nA  tools/scenes/perfbench.mjs\nA  tools/scenes/perfbudget.mjs\nA  tools/scenes/perflod.mjs\nM  tools/serve.mjs\n M tools/servebench.mjs\nM  tools/sim/headless.mjs\nA  tools/simdiff.mjs\nA  tools/typecheck-baseline.json\nA  tools/typecheck.mjs\nA  tools/warprof.mjs\nA  tsconfig.json\n?? tools/scenes/radiofiguremerge.mjs"
+  },
+  "url": "http://127.0.0.1:33035/?debug&auto",
+  "ok": false,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": "1 fps  ·  res 45%",
+  "shots": [
+    {
+      "name": "huey-lift",
+      "file": "01-huey-lift.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 79.3,
+      "litFraction": 0.9974,
+      "colors": 511
+    },
+    {
+      "name": "contact",
+      "file": "02-contact.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 94.6,
+      "litFraction": 0.9881,
+      "colors": 485
+    },
+    {
+      "name": "lso",
+      "file": "03-lso.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 110.2,
+      "litFraction": 0.9993,
+      "colors": 428
+    },
+    {
+      "name": "menu",
+      "file": "04-menu.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 42.9,
+      "litFraction": 1,
+      "colors": 80
+    }
+  ],
+  "clips": [],
+  "benchmarks": [],
+  "evals": [
+    {
+      "expr": "(__G.HI.setCollective(0.62), {dead:__G.H.dead,landed:__G.H.landed})",
+      "value": {
+        "dead": false,
+        "landed": true
+      }
+    },
+    {
+      "expr": "__voices.log.filter(e => e.role === 'huey').map(e => [e.who, e.text, e.net, e.state, e.start, e.end])",
+      "value": [
+        [
+          "huey:crewchief",
+          "Clear up left.",
+          "ic",
+          "done",
+          65.89130000000074,
+          66.76180000000075
+        ],
+        [
+          "huey:gunner",
+          "Clear up right.",
+          "ic",
+          "done",
+          67.90940000000224,
+          68.75390000000223
+        ],
+        [
+          "huey:crewchief",
+          "Clear above and behind.",
+          "ic",
+          "done",
+          69.91430000000075,
+          71.24130000000075
+        ],
+        [
+          "pilot",
+          "Picking it up.",
+          "ic",
+          "done",
+          71.88119999999925,
+          72.64390000000223
+        ],
+        [
+          "huey:crewchief",
+          "Skids are up.",
+          "ic",
+          "done",
+          73.85669999999925,
+          74.6311000000015
+        ]
+      ]
+    },
+    {
+      "expr": "(() => { const P = __G.H.pos, hd = __G.H.heading(); const L = { x: P.x - Math.cos(hd) * 60, y: P.y, z: P.z - Math.sin(hd) * 60 }; __G.hurtPlayer(0.5, 'TEST ROUND', L); return { hd, L }; })()",
+      "value": {
+        "hd": 0.8407808160099338,
+        "L": {
+          "x": -492.8584369975907,
+          "y": 21.175499078814152,
+          "z": 566.7237000077976
+        }
+      }
+    },
+    {
+      "expr": "(() => { const c = __G.war.carrier; __G.H.reset(new __G.THREE.Vector3(c.p.x - 5.5 * Math.cos(c.yaw) + 32 * Math.sin(c.yaw), c.p.y + 8 + 1.9, c.p.z + 5.5 * Math.sin(c.yaw) + 32 * Math.cos(c.yaw)), c.yaw, true, 1); __G.HI.setCollective(0); return true; })()",
+      "value": true
+    },
+    {
+      "expr": "__G.commander.deploy(\"heli\")",
+      "value": true
+    },
+    {
+      "expr": "(() => { const I = __G.ISLANDS.find(i => i.name === 'SANDBAR'); window.__I = I; const W = __G.war; W.E.mat = 0; W.transT = 1e9; __G.G.bench = true; W.ground.godPlayer = true;\n    const x = I.pad.x - 22, z = I.pad.z + 14; __G.H.reset(new __G.THREE.Vector3(x, __G.terrainH(x, z) + 1.9, z), 0.6, true, 1); __G.HI.setCollective(0);\n    window.__marines = W.ground.addSquad(1, I, 13, x + 15, z + 10, { order: { type: 'defend', x, z, r: 25 } });\n    window.__enemy = W.ground.addSquad(2, I, 3, x + 55, z - 10, { order: { type: 'take', x, z, r: 30 } });\n    window.__ff = (secs, until) => { for (let i = 0; i < secs * 30; i++) { W.update(1 / 30, __G.PL, false); if (until && until()) return i / 30; } return -1; };\n    return { pad: [I.pad.x, I.pad.z] }; })()",
+      "value": {
+        "pad": [
+          270,
+          414
+        ]
+      }
+    },
+    {
+      "expr": "(() => { const s=__enemy.members[0], m=__marines.members[0], gs=__G.war.ground.sim, n=gs.events.length; gs.shoot(2,s,'xm7',[s.x,s.y+1.5,s.z],[m.x,m.y+1.5,m.z],0); __G.war.ground.onEvents(gs.events.slice(n)); return {source:s.id,marine:m.id}; })()",
+      "value": {
+        "source": 14,
+        "marine": 1
+      }
+    },
+    {
+      "expr": "(() => { const v=__voices.V, e=v.ctx.ear; v.stop('fixture'); v.recent.clear(); const u = __G.war.ground.sim.units.filter(u => u.side===1 && u.kind === 'marine' && u.alive).sort((a,b)=>Math.hypot(a.x-e.x,a.z-e.z)-Math.hypot(b.x-e.x,b.z-e.z))[0]; __G.war.ground.onEvents([{ e: 'callout', id: u.id, x: u.x, y: u.y + 1.6, z: u.z, text: 'CORPSMAN UP!' }]); return {injected:u.id}; })()",
+      "value": {
+        "injected": 10
+      }
+    },
+    {
+      "expr": "({ marine: __voices.log.filter(e => e.role === 'marine' || e.role === 'sl' || e.role === 'rto').slice(-14).map(e => [e.who, e.cat, e.text, e.state, e.dist]) })",
+      "value": {
+        "marine": [
+          [
+            "albatross",
+            "ack",
+            "Hotel two, this is Albatross. Roger. Out.",
+            "done",
+            null
+          ],
+          [
+            "m6",
+            "walker",
+            "It's a walker! right, fifty meters!",
+            "done",
+            33
+          ],
+          [
+            "m6",
+            "manDown",
+            "Man down!",
+            "expired",
+            55
+          ],
+          [
+            "m6",
+            "doc",
+            "Stay with me, Marine.",
+            "expired",
+            46
+          ],
+          [
+            "m5",
+            "cover",
+            "Suppress!",
+            "expired",
+            28
+          ],
+          [
+            "m6",
+            "walker",
+            "Walker! right!",
+            "cooldown",
+            35
+          ],
+          [
+            "m6",
+            "walker",
+            "Walker! right!",
+            "cooldown",
+            33
+          ],
+          [
+            "m11",
+            "hit",
+            "I'm hit! I'm hit!",
+            "done",
+            38
+          ],
+          [
+            "m6",
+            "walker",
+            "It's a walker! right, fifty meters!",
+            "cooldown",
+            34
+          ],
+          [
+            "m6",
+            "move",
+            "Go, go!",
+            "expired",
+            34
+          ],
+          [
+            "m6",
+            "walker",
+            "Strider right!",
+            "done",
+            34
+          ],
+          [
+            "m6",
+            "manDown",
+            "He's down! Man down!",
+            "expired",
+            34
+          ],
+          [
+            "m2",
+            "set",
+            "Set!",
+            "expired",
+            22
+          ],
+          [
+            "m10",
+            "corpsman",
+            "Corpsman up!",
+            "queued",
+            22
+          ]
+        ]
+      }
+    },
+    {
+      "expr": "(() => { const c = __G.war.carrier; __G.H.reset(new __G.THREE.Vector3(c.p.x - 5.5 * Math.cos(c.yaw) + 32 * Math.sin(c.yaw), c.p.y + 8 + 1.9, c.p.z + 5.5 * Math.sin(c.yaw) + 32 * Math.cos(c.yaw)), c.yaw, true, 1); return true; })()",
+      "value": true
+    },
+    {
+      "expr": "(() => { const J = __G.JP.J, c = __G.war.carrier, co = Math.cos(c.yaw), si = Math.sin(c.yaw), lz = 37 + 1000, lx = -2.5 + 0;\n    const x = c.p.x + lx * co + lz * si, z = c.p.z - lx * si + lz * co; J.cat = null; J.launchBar = false;\n    J.reset(x, 0, z, c.yaw, { running: true, airborne: true, alt: c.p.y + 8 + 3 + Math.tan(3.5 * Math.PI / 180) * 1000 + 0, speed: 70 });\n    J.gearCmd = J.gear = 1; J.hookCmd = J.hook = 1; J.flapSel = 2; return { x, z, y: J.pos.y }; })()",
+      "value": {
+        "x": -1046.5496310507328,
+        "z": 1423.6790867861594,
+        "y": 74.08262015048432
+      }
+    },
+    {
+      "expr": "(() => { const J = __G.JP.J, c = __G.war.carrier, co = Math.cos(c.yaw), si = Math.sin(c.yaw), lz = 37 + 700, lx = -2.5 + 0;\n    const x = c.p.x + lx * co + lz * si, z = c.p.z - lx * si + lz * co; J.cat = null; J.launchBar = false;\n    J.reset(x, 0, z, c.yaw, { running: true, airborne: true, alt: c.p.y + 8 + 3 + Math.tan(3.5 * Math.PI / 180) * 700 + 25, speed: 70 });\n    J.gearCmd = J.gear = 1; J.hookCmd = J.hook = 1; J.flapSel = 2; return { x, z, y: J.pos.y }; })()",
+      "value": {
+        "x": -874.6474881056714,
+        "z": 1177.3284241578422,
+        "y": 80.73383410533901
+      }
+    },
+    {
+      "expr": "(() => { const J = __G.JP.J, c = __G.war.carrier, co = Math.cos(c.yaw), si = Math.sin(c.yaw), lz = 37 + 200, lx = -2.5 + 0;\n    const x = c.p.x + lx * co + lz * si, z = c.p.z - lx * si + lz * co; J.cat = null; J.launchBar = false;\n    J.reset(x, 0, z, c.yaw, { running: true, airborne: true, alt: c.p.y + 8 + 3 + Math.tan(3.5 * Math.PI / 180) * 200 + 25, speed: 70 });\n    J.gearCmd = J.gear = 1; J.hookCmd = J.hook = 1; J.flapSel = 2; return { x, z, y: J.pos.y }; })()",
+      "value": {
+        "x": -574.9927371575293,
+        "z": 776.9183798948991,
+        "y": 50.15252403009686
+      }
+    },
+    {
+      "expr": "__voices.log.filter(e => e.role === 'lso' || e.role === 'pilotBall').map(e => [e.text, e.state, e.start, e.end])",
+      "value": [
+        [
+          "three zero five, Hornet ball, 6 point 0.",
+          "done",
+          181.30019999999925,
+          185.13110000000148
+        ],
+        [
+          "Roger ball.",
+          "done",
+          185.5315,
+          186.38669999999925
+        ],
+        [
+          "You're on and on.",
+          "expired",
+          null,
+          null
+        ],
+        [
+          "You're high.",
+          "done",
+          187.237,
+          187.79130000000075
+        ],
+        [
+          "Wave off! Wave off! Wave off!",
+          "done",
+          188.248,
+          192.02580000000074
+        ]
+      ]
+    },
+    {
+      "expr": "(__voices.V.stop('fixture'), __voices.V.speak({ who: 'test', role: 'command', key:'pause-test', text: 'All stations, Albatross. Radio check. Over. '.repeat(8), net: 'fm', pri: 1 }))",
+      "value": {
+        "i": 51,
+        "who": "test",
+        "role": "command",
+        "cat": "",
+        "net": "fm",
+        "text": "All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. ",
+        "pri": 1,
+        "pos": null,
+        "shout": false,
+        "unit": null,
+        "key": "pause-test",
+        "queued": 218.68880000000075,
+        "start": null,
+        "end": null,
+        "state": "queued",
+        "src": "event",
+        "maxAge": 10,
+        "notBefore": 218.68880000000075,
+        "gain": 1,
+        "pan": 0,
+        "muffle": false,
+        "local": null
+      }
+    },
+    {
+      "expr": "(window.__pk = 0, window.__pkI = setInterval(() => { window.__pk = Math.max(window.__pk, __voices.V.peak()); }, 50), true)",
+      "value": true
+    },
+    {
+      "expr": "clearInterval(window.__pkI)",
+      "value": null
+    },
+    {
+      "expr": "({ peak: window.__pk, stats: __voices.stats, played: __voices.played().length, overlaps: __voices.overlaps(), timeline: __voices.played().map(e => [e.start.toFixed(2), e.end && e.end.toFixed(2), e.pri, e.net, e.role, e.who, e.text, e.state]) })",
+      "value": {
+        "peak": 0.10339638590812683,
+        "stats": {
+          "spoken": 21,
+          "culled": 8,
+          "cooldown": 5,
+          "expired": 15,
+          "interrupted": 0,
+          "dropped": 0
+        },
+        "played": 21,
+        "overlaps": 0,
+        "timeline": [
+          [
+            "28.05",
+            "33.40",
+            1,
+            "pa",
+            "boss",
+            "boss",
+            "Flight quarters, flight quarters. All hands man your flight quarters stations.",
+            "done"
+          ],
+          [
+            "65.89",
+            "66.76",
+            1,
+            "ic",
+            "huey",
+            "huey:crewchief",
+            "Clear up left.",
+            "done"
+          ],
+          [
+            "67.91",
+            "68.75",
+            1,
+            "ic",
+            "huey",
+            "huey:gunner",
+            "Clear up right.",
+            "done"
+          ],
+          [
+            "69.91",
+            "71.24",
+            1,
+            "ic",
+            "huey",
+            "huey:crewchief",
+            "Clear above and behind.",
+            "done"
+          ],
+          [
+            "71.88",
+            "72.64",
+            1,
+            "ic",
+            "huey",
+            "pilot",
+            "Picking it up.",
+            "done"
+          ],
+          [
+            "73.86",
+            "74.63",
+            1,
+            "ic",
+            "huey",
+            "huey:crewchief",
+            "Skids are up.",
+            "done"
+          ],
+          [
+            "110.71",
+            "113.30",
+            3,
+            "ic",
+            "huey",
+            "huey:crewchief",
+            "We're taking hits! nine o'clock!",
+            "done"
+          ],
+          [
+            "116.67",
+            "122.54",
+            1,
+            "fm",
+            "command",
+            "albatross",
+            "Marine rifleman launching. Albatross out.",
+            "done"
+          ],
+          [
+            "136.64",
+            "142.94",
+            0,
+            "fm",
+            "rto",
+            "rto:SANDBAR",
+            "Albatross, Hotel two. Sitrep follows: Sandbar, in contact, holding. Over.",
+            "done"
+          ],
+          [
+            "147.97",
+            "152.53",
+            0,
+            "fm",
+            "rto",
+            "albatross",
+            "Hotel two, this is Albatross. Roger. Out.",
+            "done"
+          ],
+          [
+            "143.44",
+            "145.55",
+            2,
+            "air",
+            "marine",
+            "m6",
+            "It's a walker! right, fifty meters!",
+            "done"
+          ],
+          [
+            "154.26",
+            "156.11",
+            2,
+            "air",
+            "marine",
+            "m11",
+            "I'm hit! I'm hit!",
+            "done"
+          ],
+          [
+            "161.07",
+            "173.99",
+            2,
+            "air",
+            "marine",
+            "m6",
+            "Strider right!",
+            "done"
+          ],
+          [
+            "174.64",
+            "174.98",
+            2,
+            "air",
+            "marine",
+            "m10",
+            "Corpsman up!",
+            "too-far"
+          ],
+          [
+            "175.31",
+            "180.28",
+            0,
+            "uhf",
+            "command",
+            "conn",
+            "Albatross, coming to new course.",
+            "done"
+          ],
+          [
+            "181.30",
+            "185.13",
+            2,
+            "uhf",
+            "pilotBall",
+            "player",
+            "three zero five, Hornet ball, 6 point 0.",
+            "done"
+          ],
+          [
+            "185.53",
+            "186.39",
+            2,
+            "uhf",
+            "lso",
+            "lso",
+            "Roger ball.",
+            "done"
+          ],
+          [
+            "187.24",
+            "187.79",
+            2,
+            "uhf",
+            "lso",
+            "lso",
+            "You're high.",
+            "done"
+          ],
+          [
+            "188.25",
+            "192.03",
+            3,
+            "uhf",
+            "lso",
+            "lso",
+            "Wave off! Wave off! Wave off!",
+            "done"
+          ],
+          [
+            "207.35",
+            "218.59",
+            2,
+            "fm",
+            "rto",
+            "rto:SANDBAR",
+            "Albatross, Hotel two, we need a bird at Sandbar. Priority. Over.",
+            "done"
+          ],
+          [
+            "218.94",
+            "221.11",
+            1,
+            "fm",
+            "command",
+            "test",
+            "All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. ",
+            "paused"
+          ]
+        ]
+      }
+    },
+    {
+      "expr": "(async () => {\n    const { RadioBed } = await import('./js/voice/radio.js');\n    const rms = a => Math.sqrt(a.reduce((s, x) => s + x*x, 0) / a.length);\n    const levels = [];\n    for (const hz of [80, 1000, 6500]) {\n      const c = new OfflineAudioContext(1, 24000, 24000), out = c.createGain(); out.connect(c.destination);\n      const bed = new RadioBed({ctx:c}), src = c.createOscillator(); src.frequency.value = hz;\n      const level = c.createGain(); level.gain.value = 0.08; src.connect(level); level.connect(bed.chain('fm', out)); src.start();\n      const b = await c.startRendering(); levels.push(rms(b.getChannelData(0).slice(4000)));\n    }\n    const { crossesBox, wallBetween } = await import('./js/voice/occlusion.js');\n    const a = {x:-4,y:1.6,z:0}, b = {x:4,y:1.6,z:0}, wall={x:0,z:0,hw:.1,hl:3,y0:0,y1:3};\n    const geometry = crossesBox(a,b,wall) && !crossesBox({...a,y:4},{...b,y:4},wall)\n      && crossesBox(a,b,{...wall,yaw:Math.PI/4}) && wallBetween(a,b,{near:()=>[wall]},null)\n      && !wallBetween(a,b,{near:()=>[]},null);\n    return {levels, geometry, bandpass:levels[1]>levels[0]*5 && levels[1]>levels[2]*3};\n  })()",
+      "value": {
+        "levels": [
+          0.00005327984787325042,
+          0.09158507558308196,
+          0.00031404947577900403
+        ],
+        "geometry": true,
+        "bandpass": true
+      }
+    },
+    {
+      "expr": "(async () => {\n    window.__liveVoices = window.__voices; window.__liveVoiceEngine = window.__voiceEngine;\n    const {createVoices} = await import('./js/voice/voice.js');\n    const c=__G.sfx.ctx, master=c.createGain(); master.gain.value=.5; master.connect(c.destination);\n    window.__vsfx={ctx:c,master,noise:__G.sfx.noise};\n    window.__vtest=createVoices({sfx:__vsfx,params:new URLSearchParams('debug&voices=generated')});\n    __vtest.ctx={state:'play',unit:'heli',ear:{x:0,y:1.6,z:0,yaw:0},inside:false};\n    window.__vtick=setInterval(()=>__vtest.update(.02),20);\n    return true;\n  })()",
+      "value": true
+    },
+    {
+      "expr": "(__vtest.speak({who:'chief',role:'huey',text:'Clear left. Clear right. Tail rotor clear.',net:'ic',unit:'heli',key:'long',pri:0,cd:0}),true)",
+      "value": true
+    },
+    {
+      "expr": "({effects:__vsfx.master.gain.value,voices:__vsfx.voiceMaster.gain.value})",
+      "value": {
+        "effects": 0.36000001430511475,
+        "voices": 0.3199999928474426
+      }
+    },
+    {
+      "expr": "(__vtest.speak({who:'lso',role:'lso',cat:'waveoff',net:'uhf',pri:3,cd:0}),true)",
+      "value": true
+    },
+    {
+      "expr": "(__vtest.stop('fixture'), __vtest.occluded=()=>false, __vtest.speak({who:'m1',role:'marine',text:'Corpsman up! '.repeat(15),net:'air',pos:{x:2,y:1.6,z:0},shout:true,cd:0}),true)",
+      "value": true
+    },
+    {
+      "expr": "(window.__nearGain=__vtest.cur.gain, __vtest.ctx.ear.x=50, true)",
+      "value": true
+    },
+    {
+      "expr": "(__vtest.occluded=()=>true,true)",
+      "value": true
+    },
+    {
+      "expr": "(__vtest.ctx.ear.x=250,true)",
+      "value": true
+    },
+    {
+      "expr": "(__vtest.setMode('radio'), __vtest.ctx.ear.x=0, __vtest.speak({text:'Frag out!',net:'air',pos:{x:0,y:1.6,z:0},cd:0}),true)",
+      "value": true
+    },
+    {
+      "expr": "(__vtest.setMode('on'),__vtest.vol=0,__vtest.speak({text:'Radio check.',net:'fm',cd:0}),true)",
+      "value": true
+    },
+    {
+      "expr": "(__vtest.stop('fixture'), __vtest.vol=8,__vtest.speak({text:'All stations, Albatross. Radio check. Over.',net:'fm',cd:0}),true)",
+      "value": true
+    },
+    {
+      "expr": "(__vtest.setMode('off'),true)",
+      "value": true
+    },
+    {
+      "expr": "(() => {const v=__vtest; v.setMode('on'); v.recent.clear();\n    v.speak({text:'Expired call.',net:'fm',key:'expired',maxAge:-1,pri:3});\n    v.speak({text:'Wrong crew.',net:'ic',unit:'tomcat',key:'wrong'});\n    for(let i=0;i<12;i++) v.speak({text:'Standing by '+i,net:'fm',key:'backlog'+i,pri:0,after:60});\n    v.speak({text:'Break! Break!',net:'uhf',key:'due',pri:3,cd:0});return true;})()",
+      "value": true
+    },
+    {
+      "expr": "(__vtest.stop('paused'),clearInterval(__vtick),__vsfx.voiceMaster.disconnect(),__vsfx.master.disconnect(),true)",
+      "value": true
+    },
+    {
+      "expr": "(async () => {\n    const {createVoices}=await import('./js/voice/voice.js');\n    const original=Object.getOwnPropertyDescriptor(window,'speechSynthesis');\n    let speechCalls=0;\n    Object.defineProperty(window,'speechSynthesis',{configurable:true,value:{getVoices:()=>[],speak:()=>speechCalls++,addEventListener(){}}});\n    localStorage.setItem('tz_voices','on');\n    const v=createVoices({sfx:__vsfx,params:new URLSearchParams('voices=on')});\n    v.update(.1,{state:'play',unit:'heli'}); v.speak({text:'Radio check.',net:'fm'}); v.update(.1);\n    const result=v.backend()==='silent' && !v.cur?.source && !v.cur?.bed && speechCalls===0;\n    v.stop('done'); if(original) Object.defineProperty(window,'speechSynthesis',original); else delete window.speechSynthesis;\n    window.__voices=window.__liveVoices;window.__voiceEngine=window.__liveVoiceEngine;\n    return result;\n  })()",
+      "value": true
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__voices.backend === 'generated' && __voices.mode === 'on'",
+      "label": "generated PCM backend, voices ON",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "!!__G.sfx.ctx && __G.sfx.ctx.state === 'running'",
+      "label": "the AudioContext runs",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.played().some(e => e.role === 'boss' && /flight quarters/i.test(e.text))",
+      "label": "the Air Boss calls flight quarters on the 5MC when the war starts",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.played().some(e => e.role === 'huey' && e.cat === 'clearR' && e.who === 'huey:gunner')",
+      "label": "gunner: clear right",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.log.some(e => e.cat === 'takingFire' && e.who === 'huey:crewchief' && /(eight|nine|ten) o'clock/.test(e.text) && e.pri === 3)",
+      "label": "crew chief (left door): taking fire, nine o'clock, priority 3",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__G.G.craft === 'foot'",
+      "label": "a Marine out from the board",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.log.some(e => e.role === 'marine' && /contact|walker|armour/.test(e.cat) && /(front|left|right|rear)/i.test(e.text) && e.net === 'air' && e.dist !== undefined)",
+      "label": "a Marine calls the contact: direction and range, open air, from where he stands",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.played().some(e => e.role === 'marine' && /corpsman|man down|hit|doc/i.test(e.text))",
+      "label": "a casualty call: corpsman / doc / man down",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__G.G.craft === 'jet'",
+      "label": "in the Hornet",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.log.some(e => e.role === 'pilotBall' && /Hornet ball/.test(e.text))",
+      "label": "the ball call: side number, Hornet ball, fuel",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.log.some(e => e.cat === 'waveoff' && e.pri === 3 && e.net === 'uhf')",
+      "label": "LSO: wave off, priority 3 on the recovery freq",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__G.G.state === 'paused' && !__voices.cur && __voices.queue.length === 0",
+      "label": "pause: the voice stops and the queue clears",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.V.log.some(e => e.key === 'pause-test' && e.state === 'paused' && e.end !== null && e.source === null)",
+      "label": "the cut line is logged as paused and its source stopped",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "[...document.querySelectorAll('#menuItems button')].some(b => /VOICES: ON/.test(b.textContent))",
+      "label": "the pause menu has VOICES: ON / RADIO ONLY / OFF",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "window.__pk > 0.001",
+      "label": "speech produced samples on the isolated voice bus",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.overlaps() === 0",
+      "label": "no two utterances overlapped",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": true,
+      "label": "wall intersection, rotated wall, above-wall clearance and open doorway",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": true,
+      "label": "rendered radio PCM passes voice band and rejects bass / high frequencies",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__vsfx.master.gain.value < .4 && Math.abs(__vsfx.voiceMaster.gain.value-.32)<.000001",
+      "label": "effects duck without lowering the voice bus",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__vtest.log.some(e=>e.key===\"long\" && e.state===\"interrupted\" && e.source===null)",
+      "label": "urgent wave-off interrupts and stops the previous audio source",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__vtest.persona(\"chief\",\"huey\")===__vtest.persona(\"chief\",\"marine\") && __vtest.persona(\"chief\",\"huey\").pitch!==__vtest.persona(\"gunner\",\"huey\").pitch",
+      "label": "person keeps a stable voice across roles; crew members have distinct voices",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__vtest.cur.gain < __nearGain && __vtest.cur.lowpass.frequency.value > 1800",
+      "label": "open-air speech fades as listener moves away",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__vtest.cur.muffle && __vtest.cur.lowpass.frequency.value < 950",
+      "label": "wall muffling changes the live speech low-pass",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "!__vtest.cur && __vtest.log.at(-1).state === \"too-far\"",
+      "label": "moving out of range stops the actual open-air voice",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__vtest.log.at(-1).state === \"radio-only\"",
+      "label": "radio-only mode rejects open-air calls",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "!__vtest.cur.out && !__vtest.cur.bed",
+      "label": "zero voice volume creates no speech, hiss or squelch",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__vtest.peak() < .00001 && Math.abs(__vsfx.master.gain.value-.5)<.01",
+      "label": "OFF immediately silences speech and radio tails and restores effects gain",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__vtest.queue.length<=8 && __vtest.stats.expired>0 && __vtest.stats.dropped>0 && __vtest.log.some(e=>e.state===\"not-your-crew\")",
+      "label": "bounded priority queue expires stale calls, skips delayed chatter and rejects another crew",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": true,
+      "label": "no installed system voices: silent subtitles, no native speech call, no radio noise, no errors",
+      "ok": true,
+      "value": true
+    }
+  ],
+  "errors": [
+    "Game source changed during this run"
+  ],
+  "consoleErrors": [],
+  "startedAt": "2026-10-29T09:13:37.605Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "787b4c17fa3ee149fa7d3b13bd3f66a2fce96ff2",
+    "branch": "ngc/look-voices",
+    "gameTree": "29426da431d131f4755554436e6bfb53174b7329",
+    "gameSha256": "a0e1850f87fe2cd93bc6b47137e783afa6d781cc7796983329811693454430ef",
+    "dirty": true,
+    "status": "M  MODLOG.md\n M README.md\nM  docs/ngc1980/BIBLE.md\n M docs/ngc1980/COORDINATION.md\nM  docs/ngc1980/LOOK-PLAN.md\nA  docs/ngc1980/PERF-BUDGETS.md\nA  docs/ngc1980/TYPESCRIPT.md\nA  docs/ngc1980/evidence/look-nature/sbs-01-hq.png\nA  docs/ngc1980/evidence/look-nature/sbs-02-oak.png\nA  docs/ngc1980/evidence/look-nature/sbs-03-pine.png\nA  docs/ngc1980/evidence/look-nature/sbs-04-fir.png\nA  docs/ngc1980/evidence/look-nature/sbs-05-backlit.png\nA  docs/ngc1980/evidence/look-nature/sbs-06-forest.png\nA  docs/ngc1980/evidence/look-nature/sbs-07-village.png\nA  docs/ngc1980/evidence/look-nature/sbs-08-village30.png\nA  docs/ngc1980/evidence/look-nature/sbs-09-heli30.png\nA  docs/ngc1980/evidence/look-nature/sbs-10-heli200.png\nA  docs/ngc1980/evidence/look-nature/sbs-11-jet1200.png\nA  docs/ngc1980/evidence/look-people/crews-seated-kneeling.png\nA  docs/ngc1980/evidence/look-people/deck-crew-close.png\nA  docs/ngc1980/evidence/look-people/deck-crew.png\nA  docs/ngc1980/evidence/look-people/face-bare.png\nA  docs/ngc1980/evidence/look-people/face-helmet-34.png\nA  docs/ngc1980/evidence/look-people/face-helmet.png\nA  docs/ngc1980/evidence/look-people/fp-hip-at-home.png\nA  docs/ngc1980/evidence/look-people/fp-self-aid.png\nA  docs/ngc1980/evidence/look-people/fp-swim.png\nA  docs/ngc1980/evidence/look-people/heads-navy.png\nA  docs/ngc1980/evidence/look-people/heads-pilots.png\nA  docs/ngc1980/evidence/look-people/huey-pilots-after.png\nA  docs/ngc1980/evidence/look-people/roles.png\nA  docs/ngc1980/evidence/look-people/squad-10m.png\nA  docs/ngc1980/evidence/look-people/squad-40m-crowd-lod-after.png\nA  docs/ngc1980/evidence/look-people/tomcat-crew-close.png\nA  docs/ngc1980/evidence/look-people/tomcat-crew-side.png\nA  docs/ngc1980/evidence/look-people/townsfolk.png\nA  docs/ngc1980/evidence/look-people/tp-carry-after.png\nA  docs/ngc1980/evidence/look-people/tp-front-close.png\nA  docs/ngc1980/evidence/look-people/tp-swim-after.png\nA  docs/ngc1980/evidence/look-people/vm-grip-close.png\nA  docs/ngc1980/evidence/look-people/vm-side-r.png\nA  docs/ngc1980/evidence/look-people/weapons-after.png\nA  docs/ngc1980/evidence/perf-render/sbs-deck.png\nA  docs/ngc1980/evidence/perf-render/sbs-hard.png\nA  docs/ngc1980/evidence/perf-render/sbs-home200.png\nA  docs/ngc1980/evidence/perf-render/sbs-hq.png\nA  docs/ngc1980/evidence/perf-render/sbs-jeep.png\nA  docs/ngc1980/evidence/perf-render/sbs-jet1200.png\nA  docs/ngc1980/evidence/perf-render/sbs-m113.png\nA  docs/ngc1980/evidence/perf-render/sbs-msaa-hq.png\nA  docs/ngc1980/evidence/perf-render/sbs-pad.png\nA  docs/ngc1980/evidence/perf-render/sbs-tank.png\nA  docs/ngc1980/findings/look-nature.md\nA  docs/ngc1980/findings/look-people.md\n M docs/ngc1980/findings/look-voices.md\nA  docs/ngc1980/findings/perf-cpu.md\nA  docs/ngc1980/findings/perf-render.md\nA  docs/ngc1980/findings/typecheck.md\nA  docs/ngc1980/findings/xr-fix.md\nA  docs/ngc1980/reference/people/SOURCES.md\n M game/dev/people.js\nM  game/index.html\nM  game/js/craft.js\nM  game/js/craftjet.js\nM  game/js/crafttomcat.js\nM  game/js/fog.js\nM  game/js/ground.js\nM  game/js/heli.js\nMM game/js/hotas.js\nA  game/js/hypot.js\nM  game/js/interiors/crewfig.js\nM  game/js/jetplay.js\nM  game/js/main.js\nM  game/js/marine.js\nA  game/js/perf/bench.js\nA  game/js/perfhud.js\nM  game/js/renderkit/adopt.js\nM  game/js/renderkit/effects.js\nM  game/js/renderkit/gamemats.js\nM  game/js/renderkit/gamepost.js\nM  game/js/renderkit/light.js\nA  game/js/renderkit/lod.js\nM  game/js/renderkit/materials.js\nA  game/js/renderkit/merge.js\nM  game/js/renderkit/nature.js\nM  game/js/renderkit/ui.js\nM  game/js/sim/zone.js\nM  game/js/ui/markerlayer.js\nM  game/js/units/air/rotary/ch46craft.js\nM  game/js/units/air/rotary/ch46unit.js\nM  game/js/units/air/rotary/figures.js\nM  game/js/units/air/rotary/mv22unit.js\nM  game/js/units/air/rotary/rb.js\nM  game/js/units/air/rotary/rotary.js\nM  game/js/units/air/rotary/rotor.js\nM  game/js/units/air/rotary/squad.js\nM  game/js/units/air/rotary/waspfm.js\nM  game/js/units/air/rotary/waspunit.js\nM  game/js/units/air/tomcatmodel.js\nM  game/js/units/armor/armorcraft.js\nM  game/js/units/armor/tankmodel.js\nM  game/js/units/defence/brain.js\nM  game/js/units/groundwar/groundsim.js\nM  game/js/units/groundwar/groundwar.js\nM  game/js/units/groundwar/marine.js\n M game/js/units/groundwar/marinefigure.js\nA  game/js/units/infantry/figgeo.js\nA  game/js/units/infantry/figinst.js\n M game/js/units/infantry/figurematerials.js\nM  game/js/units/infantry/handkit.js\nA  game/js/units/infantry/humanfig.js\n D game/js/units/infantry/humanmesh.js\nM  game/js/units/infantry/invui.js\nM  game/js/units/infantry/items.js\n M game/js/units/infantry/meshkit.js\nA  game/js/units/infantry/sdfmesh.js\nMM game/js/units/infantry/soldiermodel.js\nM  game/js/units/infantry/viewmodel.js\nM  game/js/units/infantry/weaponmodels.js\nM  game/js/units/naval/deckcrew.js\nM  game/js/units/naval/fishsim.js\nM  game/js/units/naval/kraken.js\nM  game/js/units/naval/navalfx.js\nM  game/js/units/naval/seamotion.js\nM  game/js/units/wheeled/index.js\nM  game/js/units/wheeled/tyre.js\nM  game/js/units/wheeled/vehiclefm.js\nM  game/js/units/wheeled/wheeledcraft.js\nM  game/js/units/wheeled/wheeledenv.js\nM  game/js/vehicle.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/hooks.js\n M game/js/voice/localrecognition.js\n M game/js/voice/microphone.js\n M game/js/voice/operations.js\n M game/js/voice/ptt.js\n M game/js/voice/recognition.js\n M game/js/voice/voice.js\nM  game/js/war.js\nM  game/js/world.js\nM  game/js/world/ambient.js\nM  game/js/world/chunkgen.js\nM  game/js/world/life.js\nM  game/js/world/worldworker.js\nM  game/js/xr/bench.js\nAM game/types/globals.d.ts\nA  game/vendor/html2canvas.d.ts\nM  launcher/install.sh\nM  tools/README.md\nM  tools/check.mjs\n M tools/figuresurfacebench.mjs\n M tools/firstpersonbench.mjs\nA  tools/grid.mjs\nA  tools/hypotbench.mjs\nM  tools/package-lock.json\nM  tools/package.json\n M tools/peoplebench.mjs\nA  tools/profsummary.mjs\nA  tools/profunder.mjs\nA  tools/scenes/cpuprofile.mjs\nA  tools/scenes/looknature.mjs\nA  tools/scenes/lookpeople.mjs\nA  tools/scenes/lpcrews.mjs\nA  tools/scenes/lpstats.mjs\nA  tools/scenes/lpstudio.mjs\nA  tools/scenes/lpweapons.mjs\nA  tools/scenes/mergecheck.mjs\n M tools/scenes/people.mjs\nA  tools/scenes/perfab.mjs\nA  tools/scenes/perfbench.mjs\nA  tools/scenes/perfbudget.mjs\nA  tools/scenes/perflod.mjs\nM  tools/serve.mjs\n M tools/servebench.mjs\nM  tools/sim/headless.mjs\nA  tools/simdiff.mjs\nA  tools/typecheck-baseline.json\nA  tools/typecheck.mjs\nA  tools/warprof.mjs\nA  tsconfig.json\n?? tools/scenes/radiofiguremerge.mjs"
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": "zarch",
+    "state": "paused"
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "787b4c17fa3ee149fa7d3b13bd3f66a2fce96ff2",
+    "branch": "ngc/look-voices",
+    "gameTree": "29426da431d131f4755554436e6bfb53174b7329",
+    "gameSha256": "3e7f8bfa87785914b5f0264d11d9c2db8c0c5e38ff39d78a0408cf8293aac3a0",
+    "dirty": true,
+    "status": "M  MODLOG.md\n M README.md\nM  docs/ngc1980/BIBLE.md\n M docs/ngc1980/COORDINATION.md\nM  docs/ngc1980/LOOK-PLAN.md\nA  docs/ngc1980/PERF-BUDGETS.md\nA  docs/ngc1980/TYPESCRIPT.md\nA  docs/ngc1980/evidence/look-nature/sbs-01-hq.png\nA  docs/ngc1980/evidence/look-nature/sbs-02-oak.png\nA  docs/ngc1980/evidence/look-nature/sbs-03-pine.png\nA  docs/ngc1980/evidence/look-nature/sbs-04-fir.png\nA  docs/ngc1980/evidence/look-nature/sbs-05-backlit.png\nA  docs/ngc1980/evidence/look-nature/sbs-06-forest.png\nA  docs/ngc1980/evidence/look-nature/sbs-07-village.png\nA  docs/ngc1980/evidence/look-nature/sbs-08-village30.png\nA  docs/ngc1980/evidence/look-nature/sbs-09-heli30.png\nA  docs/ngc1980/evidence/look-nature/sbs-10-heli200.png\nA  docs/ngc1980/evidence/look-nature/sbs-11-jet1200.png\nA  docs/ngc1980/evidence/look-people/crews-seated-kneeling.png\nA  docs/ngc1980/evidence/look-people/deck-crew-close.png\nA  docs/ngc1980/evidence/look-people/deck-crew.png\nA  docs/ngc1980/evidence/look-people/face-bare.png\nA  docs/ngc1980/evidence/look-people/face-helmet-34.png\nA  docs/ngc1980/evidence/look-people/face-helmet.png\nA  docs/ngc1980/evidence/look-people/fp-hip-at-home.png\nA  docs/ngc1980/evidence/look-people/fp-self-aid.png\nA  docs/ngc1980/evidence/look-people/fp-swim.png\nA  docs/ngc1980/evidence/look-people/heads-navy.png\nA  docs/ngc1980/evidence/look-people/heads-pilots.png\nA  docs/ngc1980/evidence/look-people/huey-pilots-after.png\nA  docs/ngc1980/evidence/look-people/roles.png\nA  docs/ngc1980/evidence/look-people/squad-10m.png\nA  docs/ngc1980/evidence/look-people/squad-40m-crowd-lod-after.png\nA  docs/ngc1980/evidence/look-people/tomcat-crew-close.png\nA  docs/ngc1980/evidence/look-people/tomcat-crew-side.png\nA  docs/ngc1980/evidence/look-people/townsfolk.png\nA  docs/ngc1980/evidence/look-people/tp-carry-after.png\nA  docs/ngc1980/evidence/look-people/tp-front-close.png\nA  docs/ngc1980/evidence/look-people/tp-swim-after.png\nA  docs/ngc1980/evidence/look-people/vm-grip-close.png\nA  docs/ngc1980/evidence/look-people/vm-side-r.png\nA  docs/ngc1980/evidence/look-people/weapons-after.png\nA  docs/ngc1980/evidence/perf-render/sbs-deck.png\nA  docs/ngc1980/evidence/perf-render/sbs-hard.png\nA  docs/ngc1980/evidence/perf-render/sbs-home200.png\nA  docs/ngc1980/evidence/perf-render/sbs-hq.png\nA  docs/ngc1980/evidence/perf-render/sbs-jeep.png\nA  docs/ngc1980/evidence/perf-render/sbs-jet1200.png\nA  docs/ngc1980/evidence/perf-render/sbs-m113.png\nA  docs/ngc1980/evidence/perf-render/sbs-msaa-hq.png\nA  docs/ngc1980/evidence/perf-render/sbs-pad.png\nA  docs/ngc1980/evidence/perf-render/sbs-tank.png\nA  docs/ngc1980/findings/look-nature.md\nA  docs/ngc1980/findings/look-people.md\n M docs/ngc1980/findings/look-voices.md\nA  docs/ngc1980/findings/perf-cpu.md\nA  docs/ngc1980/findings/perf-render.md\nA  docs/ngc1980/findings/typecheck.md\nA  docs/ngc1980/findings/xr-fix.md\nA  docs/ngc1980/reference/people/SOURCES.md\n M game/dev/people.js\nM  game/index.html\nM  game/js/craft.js\nM  game/js/craftjet.js\nM  game/js/crafttomcat.js\nM  game/js/fog.js\nM  game/js/ground.js\nM  game/js/heli.js\nMM game/js/hotas.js\nA  game/js/hypot.js\nM  game/js/interiors/crewfig.js\nM  game/js/jetplay.js\nM  game/js/main.js\nM  game/js/marine.js\nA  game/js/perf/bench.js\nA  game/js/perfhud.js\nM  game/js/renderkit/adopt.js\nM  game/js/renderkit/effects.js\nM  game/js/renderkit/gamemats.js\nM  game/js/renderkit/gamepost.js\nM  game/js/renderkit/light.js\nA  game/js/renderkit/lod.js\nM  game/js/renderkit/materials.js\nA  game/js/renderkit/merge.js\nM  game/js/renderkit/nature.js\nM  game/js/renderkit/ui.js\nM  game/js/sim/zone.js\nM  game/js/ui/markerlayer.js\nM  game/js/units/air/rotary/ch46craft.js\nM  game/js/units/air/rotary/ch46unit.js\nM  game/js/units/air/rotary/figures.js\nM  game/js/units/air/rotary/mv22unit.js\nM  game/js/units/air/rotary/rb.js\nM  game/js/units/air/rotary/rotary.js\nM  game/js/units/air/rotary/rotor.js\nM  game/js/units/air/rotary/squad.js\nM  game/js/units/air/rotary/waspfm.js\nM  game/js/units/air/rotary/waspunit.js\nM  game/js/units/air/tomcatmodel.js\nM  game/js/units/armor/armorcraft.js\nM  game/js/units/armor/tankmodel.js\nM  game/js/units/defence/brain.js\nM  game/js/units/groundwar/groundsim.js\nM  game/js/units/groundwar/groundwar.js\nM  game/js/units/groundwar/marine.js\n M game/js/units/groundwar/marinefigure.js\nA  game/js/units/infantry/figgeo.js\nA  game/js/units/infantry/figinst.js\n M game/js/units/infantry/figurematerials.js\nM  game/js/units/infantry/handkit.js\nA  game/js/units/infantry/humanfig.js\nD  game/js/units/infantry/humanmesh.js\nM  game/js/units/infantry/invui.js\nM  game/js/units/infantry/items.js\n M game/js/units/infantry/meshkit.js\nA  game/js/units/infantry/sdfmesh.js\nMM game/js/units/infantry/soldiermodel.js\nM  game/js/units/infantry/viewmodel.js\nM  game/js/units/infantry/weaponmodels.js\nM  game/js/units/naval/deckcrew.js\nM  game/js/units/naval/fishsim.js\nM  game/js/units/naval/kraken.js\nM  game/js/units/naval/navalfx.js\nM  game/js/units/naval/seamotion.js\nM  game/js/units/wheeled/index.js\nM  game/js/units/wheeled/tyre.js\nM  game/js/units/wheeled/vehiclefm.js\nM  game/js/units/wheeled/wheeledcraft.js\nM  game/js/units/wheeled/wheeledenv.js\nM  game/js/vehicle.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/hooks.js\n M game/js/voice/localrecognition.js\n M game/js/voice/microphone.js\n M game/js/voice/operations.js\n M game/js/voice/ptt.js\n M game/js/voice/recognition.js\n M game/js/voice/voice.js\nM  game/js/war.js\nM  game/js/world.js\nM  game/js/world/ambient.js\nM  game/js/world/chunkgen.js\nM  game/js/world/life.js\nM  game/js/world/worldworker.js\nM  game/js/xr/bench.js\nAM game/types/globals.d.ts\nA  game/vendor/html2canvas.d.ts\nM  launcher/install.sh\nM  tools/README.md\nM  tools/check.mjs\n M tools/figuresurfacebench.mjs\n M tools/firstpersonbench.mjs\nA  tools/grid.mjs\nA  tools/hypotbench.mjs\nM  tools/package-lock.json\nM  tools/package.json\n M tools/peoplebench.mjs\nA  tools/profsummary.mjs\nA  tools/profunder.mjs\nA  tools/scenes/cpuprofile.mjs\nA  tools/scenes/looknature.mjs\nA  tools/scenes/lookpeople.mjs\nA  tools/scenes/lpcrews.mjs\nA  tools/scenes/lpstats.mjs\nA  tools/scenes/lpstudio.mjs\nA  tools/scenes/lpweapons.mjs\nA  tools/scenes/mergecheck.mjs\n M tools/scenes/people.mjs\nA  tools/scenes/perfab.mjs\nA  tools/scenes/perfbench.mjs\nA  tools/scenes/perfbudget.mjs\nA  tools/scenes/perflod.mjs\nM  tools/serve.mjs\n M tools/servebench.mjs\nM  tools/sim/headless.mjs\nA  tools/simdiff.mjs\nA  tools/typecheck-baseline.json\nA  tools/typecheck.mjs\nA  tools/warprof.mjs\nA  tsconfig.json\n?? tools/scenes/radiofiguremerge.mjs"
+  },
+  "summary": "FAIL: 29/29 expects, 1 page errors, 0 console errors",
+  "durationMs": 298280,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/runs/radio-merge-voices"
+}

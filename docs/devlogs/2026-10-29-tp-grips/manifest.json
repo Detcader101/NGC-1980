@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "title": "Local speech and third-person weapon grips",
+  "createdAt": "2026-10-29T14:58:00.925Z",
+  "artifacts": [
+    {
+      "file": "data/grips-before-e3fae4-result.json",
+      "bytes": 41875,
+      "sha256": "7552127f6a047d7f9c6e1f0cb2ec3ea43374b3c953f1302333895658830f5765"
+    },
+    {
+      "file": "data/grips-diagnostic-bdc5e1-result.json",
+      "bytes": 26594,
+      "sha256": "df652e187bc6d666721378f874dc7ce90b72a710ea2cf38c1d5b6e02ca341c35"
+    },
+    {
+      "file": "data/grips-after-84bb86-result.json",
+      "bytes": 26658,
+      "sha256": "47e198425188600b061a63f3a0e6eae4af5319347df6fcb296b245ed9129992b"
+    },
+    {
+      "file": "data/m60-detail-4ba0ce-result.json",
+      "bytes": 6435,
+      "sha256": "8258fc74f9ebab33802c623eeb61af6e45a600432d3167ef39a37079c7650dbe"
+    },
+    {
+      "file": "data/crowd-before-0c7db4-result.json",
+      "bytes": 12577,
+      "sha256": "6b06b1b3c9412d4c8a11c4511f611f0a08f792d2fa796d2d341b785276b8ac8b"
+    },
+    {
+      "file": "data/crowd-after-823b94-result.json",
+      "bytes": 13676,
+      "sha256": "32096f728591b2d4eccc5ddee4c17f94b98203fa52b69ed6dab9d507be3440bd"
+    },
+    {
+      "file": "data/game-diagnostic-8c83ce-result.json",
+      "bytes": 13553,
+      "sha256": "2d23f578ff0b9569d0ec466bea0678f7a0b8d0c3814d473e8a7654cf68fb6e76"
+    },
+    {
+      "file": "data/game-after-3f7d71-result.json",
+      "bytes": 14948,
+      "sha256": "78d1b320461e7c8031bc1ad87fdecb096410d4afe1a0d4ed5435b8a1a3165cab"
+    },
+    {
+      "file": "data/node-545ea5-result.json",
+      "bytes": 260951,
+      "sha256": "cd8dfdeced46fb032e2e0098c16f974e0f04f38abafccac6a78ffd7028c39f13"
+    },
+    {
+      "file": "data/missing-bank-82f95f-result.json",
+      "bytes": 7166,
+      "sha256": "704bc66005642a7f0a3c9316afecc32912093e77ee875048c3429698b6b9f3e1"
+    },
+    {
+      "file": "data/bank-node-2cc2d6-result.json",
+      "bytes": 85577,
+      "sha256": "aa333236f5fd756de1e230a234c020dcbe2b2636c07fb2eb202df2b4c0cdce61"
+    },
+    {
+      "file": "data/voices-db9cf1-result.json",
+      "bytes": 33318,
+      "sha256": "9306100b61f8aafcab8e29aa7ec14d89eab8b28b8810ca2222498d47e5838c17"
+    },
+    {
+      "file": "data/smoke-04d588-result.json",
+      "bytes": 7481,
+      "sha256": "7c11bb00cdf1a97731e48bf09c814e89e1f31ca49aff89925351f362b6eaaac0"
+    },
+    {
+      "file": "data/notes.json",
+      "bytes": 13457,
+      "sha256": "7b49faf2aaf6c0e5062909014e143631b15e765ecd47e1273a15a7c60ea72b7b"
+    },
+    {
+      "file": "assets/93b56f016e46-01-tp-m203-rifle-support.png",
+      "bytes": 294093,
+      "sha256": "93b56f016e46a80470f21f181797fac5ad3347c77f8ab3f402559e4baca36fc8"
+    },
+    {
+      "file": "assets/9c30a23a0c8a-01-tp-m203-rifle-support.png",
+      "bytes": 256209,
+      "sha256": "9c30a23a0c8a6faeaa0cd97c353a847a001fa3f1a7bdacfd0b257e263278567e"
+    },
+    {
+      "file": "assets/d8535caf288a-02-tp-m203-gl-support.png",
+      "bytes": 384940,
+      "sha256": "d8535caf288a84e5d15f42f7ed1c5c8e5f2243c5d1c389d00a4ffc16495be489"
+    },
+    {
+      "file": "assets/fa186fbb66c4-02-tp-m203-gl-support.png",
+      "bytes": 422798,
+      "sha256": "fa186fbb66c41d017da661cab521f1fd36279c05b0e43b3be18fc3c668885c21"
+    },
+    {
+      "file": "assets/f75859300ccf-07-tp-m203-gl-trigger.png",
+      "bytes": 395853,
+      "sha256": "f75859300ccf025b8e2837429eb16acd0a41298ef801b1e927c041cf65f54480"
+    },
+    {
+      "file": "assets/24b176fc5a69-04-tp-law-support.png",
+      "bytes": 265680,
+      "sha256": "24b176fc5a69b093021b93be1af85bcc40728cecf5376a543d74f1809c16500f"
+    },
+    {
+      "file": "assets/1904cbc9b285-04-tp-law-support.png",
+      "bytes": 252794,
+      "sha256": "1904cbc9b2855d1bdcd856dff3b10d0959f4f9711c90047a104e82a6fe00e027"
+    },
+    {
+      "file": "assets/648b40126a6d-05-tp-law-trigger.png",
+      "bytes": 317951,
+      "sha256": "648b40126a6d4bad123d03c150f16ce520f8b187ec0e9b8d89e034d67a398568"
+    },
+    {
+      "file": "assets/ddec5229c138-03-tp-m60-support.png",
+      "bytes": 259499,
+      "sha256": "ddec5229c138db9681165e3e397d329566955dc0682d52be0bffb4fba457a545"
+    },
+    {
+      "file": "assets/bcbd8aa173bf-03-tp-m60-support.png",
+      "bytes": 221299,
+      "sha256": "bcbd8aa173bfc9a2abd093f80b8a8f9a51f5c9a9d95fe664fd3cfcbd8464314d"
+    },
+    {
+      "file": "assets/639378702199-01-m60-forearm-grip-centred.png",
+      "bytes": 366614,
+      "sha256": "6393787021990cf434ea67b8c802062c3ac09c6178acf5ad3eea0a181dc927f4"
+    },
+    {
+      "file": "assets/d72b45e5ccc8-01-deck-instanced-fixed.png",
+      "bytes": 90023,
+      "sha256": "d72b45e5ccc8df184bdb1d047c67e4dbbf62f2d4d6018cd3b4405e220c32b1c0"
+    },
+    {
+      "file": "assets/8bad3b4d11db-02-town-instanced-fixed.png",
+      "bytes": 95394,
+      "sha256": "8bad3b4d11dbd245d40e38ce5ae1f165ee15b84b597f6dfa598750be6c2bbb85"
+    },
+    {
+      "file": "assets/0ad18d7c6728-04-marine-mid-fixed.png",
+      "bytes": 97210,
+      "sha256": "0ad18d7c67289c379ee0cf73ff6b601c39ac018a781a068bb2ac7dd60681424b"
+    },
+    {
+      "file": "assets/82ea5fd8712f-01-player-m203-launch.png",
+      "bytes": 588805,
+      "sha256": "82ea5fd8712ff4b1a3d47f0ddcea2a5a9cec9944d4f7f62db4e762e6837ea8e2"
+    },
+    {
+      "file": "assets/6314ef0efca1-04-rich-ai-law-selected.png",
+      "bytes": 536267,
+      "sha256": "6314ef0efca173663f91dfec089eacabe4a8b26b96c6384153cdcda38c2fada0"
+    },
+    {
+      "file": "assets/c66559861dbc-01-text-only-radio.png",
+      "bytes": 700943,
+      "sha256": "c66559861dbc90ac1600e335bca1eb80f5fab0f1dfec3e98b11387a486680643"
+    },
+    {
+      "file": "devlog.html",
+      "bytes": 64038,
+      "sha256": "92faa2b2a8862923b3a7636550a600ad65415dde097f496360e83937e4088c7a"
+    }
+  ]
+}

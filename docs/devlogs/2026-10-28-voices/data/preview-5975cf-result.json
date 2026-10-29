@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 2,
+  "name": "voice-preview",
+  "query": "dev/voices.html",
+  "seed": null,
+  "viewport": {
+    "width": 1280,
+    "height": 1000,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "1928c5e2652826544187ff538fbd7d5c81aecf5a13057d3507858eba428165af",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/snap.mjs",
+    "--name",
+    "voice-preview",
+    "--query",
+    "dev/voices.html",
+    "--height",
+    "1000",
+    "--steps",
+    "eval (document.getElementById('play').click(), window.__heard=0, window.__meter=setInterval(()=>{window.__heard=Math.max(window.__heard,window.__voices?.V.peak()||0)},20),true)",
+    "waitFor 15000 window.__voices && __voices.backend === 'generated'",
+    "wait 600",
+    "expect window.__heard > .001",
+    "eval (clearInterval(window.__meter),true)",
+    "shot listening-room",
+    "expect document.getElementById('role').options.length >= 16"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "be546c63dd589aa62b74ab6a93828f465ddac6ec",
+    "branch": "ngc/look-voices",
+    "gameTree": "a794ad19bd9da9e7e414ed6d797619b5d7ad0c3e",
+    "gameSha256": "2dd63bbad194c38a55db68ad7d5709875526ecfafbf61859c6e77bc92e3762d7",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M game/js/main.js\n M game/js/marine.js\n M game/js/voice/hooks.js\n M game/js/voice/phrases.js\n M game/js/voice/radio.js\n M game/js/voice/voice.js\n M tools/scenes/voices.mjs\n?? docs/devlogs/voices-notes.json\n?? docs/ngc1980/findings/look-voices.md\n?? game/audio/\n?? game/dev/voices.html\n?? game/js/voice/commandnet.js\n?? game/js/voice/commandpanel.js\n?? game/js/voice/commands.js\n?? game/js/voice/occlusion.js\n?? game/js/voice/recognition.js\n?? game/js/voice/samples.js\n?? tools/scenes/voicecommands.mjs\n?? tools/voice-build.mjs\n?? tools/voicebench.mjs\n?? tools/voicecommandbench.mjs"
+  },
+  "url": "http://127.0.0.1:43987/dev/voices.html",
+  "ok": true,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": null,
+  "shots": [
+    {
+      "name": "listening-room",
+      "file": "01-listening-room.png",
+      "w": 1280,
+      "h": 1000,
+      "meanLuma": 32.6,
+      "litFraction": 0.9995,
+      "colors": 83
+    }
+  ],
+  "clips": [],
+  "benchmarks": [],
+  "evals": [
+    {
+      "expr": "(document.getElementById('play').click(), window.__heard=0, window.__meter=setInterval(()=>{window.__heard=Math.max(window.__heard,window.__voices?.V.peak()||0)},20),true)",
+      "value": true
+    },
+    {
+      "expr": "(clearInterval(window.__meter),true)",
+      "value": true
+    }
+  ],
+  "expects": [
+    {
+      "expr": "window.__heard > .001",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "document.getElementById('role').options.length >= 16",
+      "ok": true,
+      "value": true
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-28T19:11:01.650Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "be546c63dd589aa62b74ab6a93828f465ddac6ec",
+    "branch": "ngc/look-voices",
+    "gameTree": "a794ad19bd9da9e7e414ed6d797619b5d7ad0c3e",
+    "gameSha256": "2dd63bbad194c38a55db68ad7d5709875526ecfafbf61859c6e77bc92e3762d7",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M game/js/main.js\n M game/js/marine.js\n M game/js/voice/hooks.js\n M game/js/voice/phrases.js\n M game/js/voice/radio.js\n M game/js/voice/voice.js\n M tools/scenes/voices.mjs\n?? docs/devlogs/voices-notes.json\n?? docs/ngc1980/findings/look-voices.md\n?? game/audio/\n?? game/dev/voices.html\n?? game/js/voice/commandnet.js\n?? game/js/voice/commandpanel.js\n?? game/js/voice/commands.js\n?? game/js/voice/occlusion.js\n?? game/js/voice/recognition.js\n?? game/js/voice/samples.js\n?? tools/scenes/voicecommands.mjs\n?? tools/voice-build.mjs\n?? tools/voicebench.mjs\n?? tools/voicecommandbench.mjs"
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": null,
+    "state": null
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "be546c63dd589aa62b74ab6a93828f465ddac6ec",
+    "branch": "ngc/look-voices",
+    "gameTree": "a794ad19bd9da9e7e414ed6d797619b5d7ad0c3e",
+    "gameSha256": "2dd63bbad194c38a55db68ad7d5709875526ecfafbf61859c6e77bc92e3762d7",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M game/js/main.js\n M game/js/marine.js\n M game/js/voice/hooks.js\n M game/js/voice/phrases.js\n M game/js/voice/radio.js\n M game/js/voice/voice.js\n M tools/scenes/voices.mjs\n?? docs/devlogs/voices-notes.json\n?? docs/ngc1980/findings/look-voices.md\n?? game/audio/\n?? game/dev/voices.html\n?? game/js/voice/commandnet.js\n?? game/js/voice/commandpanel.js\n?? game/js/voice/commands.js\n?? game/js/voice/occlusion.js\n?? game/js/voice/recognition.js\n?? game/js/voice/samples.js\n?? tools/scenes/voicecommands.mjs\n?? tools/voice-build.mjs\n?? tools/voicebench.mjs\n?? tools/voicecommandbench.mjs"
+  },
+  "summary": "PASS: 2/2 expects, 0 page errors, 0 console errors",
+  "durationMs": 1608,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/runs/2026-10-28_19-11-01-voice-preview"
+}

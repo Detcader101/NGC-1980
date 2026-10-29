@@ -1,0 +1,292 @@
+{
+  "schemaVersion": 2,
+  "name": "tpgripcrowd",
+  "query": "dev/people.html?debug&res=1&ui=0&seed=1980&rk=all",
+  "seed": null,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "cd87dc0c2d5400a94ab75ab27582fe1febd44ec7a74f8d8e1833a36ef73157c1",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/snap.mjs",
+    "scenes/tpgripcrowd.mjs",
+    "--out",
+    "runs/tp-crowd-before"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7add6fc60a720a0829959d1b4d6062816d874ee5",
+    "branch": "ngc/look-voices",
+    "gameTree": "5a1b91781451e3b80f92db7b0c38eb42257ca374",
+    "gameSha256": "2c86e9b56cba59d6cba5f5ec6fa7d99d81093a275448f18325f19f493208cb97",
+    "dirty": true,
+    "status": "M docs/ngc1980/findings/look-voices.md\n?? tools/figurecrowdbench.mjs\n?? tools/scenes/tpgripcrowd.mjs"
+  },
+  "url": "http://127.0.0.1:44087/dev/people.html?debug&res=1&ui=0&seed=1980&rk=all",
+  "ok": true,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": null,
+  "shots": [
+    {
+      "name": "deck-instanced-fixed",
+      "file": "01-deck-instanced-fixed.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 115.1,
+      "litFraction": 0.9995,
+      "colors": 283
+    },
+    {
+      "name": "town-instanced-fixed",
+      "file": "02-town-instanced-fixed.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 114.6,
+      "litFraction": 0.9992,
+      "colors": 141
+    },
+    {
+      "name": "marine-near-fixed",
+      "file": "03-marine-near-fixed.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 117.7,
+      "litFraction": 0.9988,
+      "colors": 100
+    },
+    {
+      "name": "marine-mid-fixed",
+      "file": "04-marine-mid-fixed.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 111,
+      "litFraction": 0.9988,
+      "colors": 86
+    }
+  ],
+  "clips": [],
+  "benchmarks": [],
+  "evals": [
+    {
+      "expr": "(async()=>{\n      const THREE=await import('three');\n      const {createCrew}=await import('../js/units/naval/deckcrew.js');\n      const {restPerson,patchLimbs}=await import('../js/units/infantry/figinst.js');\n      const {personGeo}=await import('../js/world/ambient.js');\n      const {worldMaterial}=await import('../js/world/gfx.js');\n      __H.state.play=false;\n      const scene=new THREE.Scene();scene.background=new THREE.Color(0x89969a);\n      scene.add(new THREE.HemisphereLight(0xdde8ef,0x57584c,1.7));\n      const sun=new THREE.DirectionalLight(0xffedda,2.2);sun.position.set(-3,6,-5);scene.add(sun);\n      const fill=new THREE.DirectionalLight(0xb7ccd7,.65);fill.position.set(3,2,3);scene.add(fill);\n      scene.add(new THREE.Mesh(new THREE.PlaneGeometry(100,100).rotateX(-Math.PI/2),new THREE.MeshStandardMaterial({color:0x636b63,roughness:1})));\n      const camera=new THREE.PerspectiveCamera(32,innerWidth/innerHeight,.01,100);\n      camera.position.set(3,2.05,-7.2);camera.lookAt(0,.9,0);camera.updateMatrixWorld(true);\n      const members=['signal','march','talk','lso'].map((mode,i)=>({x:(i-1.5)*1.15,y:0,z:0,yaw:0,mode,jersey:['yellow','green','brown','white'][i]}));\n      const deck=createCrew(members,{seed:1980});scene.add(deck.group);\n      members.forEach((p,i)=>{p.ph=.75+i*.3;p.lookT=10;});deck.update(0,.75);\n      // personGeo is the actual townsperson geometry, including its sqrt-coded world colours.\n      // instMat is private in ambient.js: use its same extra shader with the exported worldMaterial.\n      const geometry=personGeo(),base=restPerson('civil',{lod:'far'}),walk=new THREE.InstancedBufferAttribute(new Float32Array(10),2);\n      geometry.setAttribute('aWalk',walk);\n      const extra=sh=>{\n        sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\\nattribute float aPaint; attribute float aPart; attribute vec2 aWalk;')\n          .replace('#include <fog_vertex>','#include <fog_vertex>\\n#ifdef USE_INSTANCING_COLOR\\n vColor.rgb = mix(color.rgb * color.rgb, instanceColor.rgb, aPaint);\\n#endif');\n        patchLimbs(sh,'walk');\n      };extra.key='instwalk';\n      const town=new THREE.InstancedMesh(geometry,worldMaterial({extra}),5),matrix=new THREE.Matrix4(),color=new THREE.Color();\n      town.name='fixture-townsfolk';town.frustumCulled=false;\n      [0x785b4c,0x76858e,0x7c8766,0xb7a079,0x865d66].forEach((c,i)=>{\n        matrix.makeRotationY([0,.35,-.4,.7,-.6][i]);matrix.setPosition((i-2)*1.05,0,0);town.setMatrixAt(i,matrix);town.setColorAt(i,color.setHex(c));\n        walk.setXY(i,.75+i*.8,.48);\n      });town.instanceMatrix.needsUpdate=true;town.instanceColor.needsUpdate=true;walk.needsUpdate=true;scene.add(town);\n      const render=__H.renderer.render.bind(__H.renderer);let mode=null;\n      __H.renderer.render=(s,c)=>render(mode?scene:s,mode?camera:c);\n      const info=()=>({mode,deckMembers:deck.members.length,identities:deck.members===members,\n        near:deck.people?.count,far:deck.peopleFar?.count,townCount:town.count,townRole:geometry.userData.role,\n        townLOD:geometry.userData.lod,townBaseVertices:base.attributes.position.count,townVertices:geometry.attributes.position.count,\n        camera:{position:camera.position.toArray(),quaternion:camera.quaternion.toArray(),fov:camera.fov},\n        compiled:__H.renderer.info.programs.every(p=>!p.diagnostics||p.diagnostics.runnable!==false)});\n      window.__crowd={info,show(which){mode=which;deck.group.visible=which==='deck';town.visible=which==='town';\n        render(scene,camera);deck.update(0,.75);render(scene,camera);return info();},marine(){mode=null;}};\n      return {roles:['deck','civil'],fixedPhase:.75};\n    })()",
+      "value": {
+        "roles": [
+          "deck",
+          "civil"
+        ],
+        "fixedPhase": 0.75
+      }
+    },
+    {
+      "expr": "__crowd.show(\"deck\")",
+      "label": "Fixed production deck crew",
+      "value": {
+        "mode": "deck",
+        "deckMembers": 4,
+        "identities": true,
+        "near": 4,
+        "far": 0,
+        "townCount": 5,
+        "townRole": "civil",
+        "townLOD": "far",
+        "townBaseVertices": 647,
+        "townVertices": 647,
+        "camera": {
+          "position": [
+            3,
+            2.05,
+            -7.2
+          ],
+          "quaternion": [
+            -0.014341058417956765,
+            0.9779554246614619,
+            0.07170529208978382,
+            0.1955910849322924
+          ],
+          "fov": 32
+        },
+        "compiled": true
+      }
+    },
+    {
+      "expr": "__crowd.show(\"town\")",
+      "label": "Fixed production townsperson geometry and walk shader",
+      "value": {
+        "mode": "town",
+        "deckMembers": 4,
+        "identities": true,
+        "near": 4,
+        "far": 0,
+        "townCount": 5,
+        "townRole": "civil",
+        "townLOD": "far",
+        "townBaseVertices": 647,
+        "townVertices": 647,
+        "camera": {
+          "position": [
+            3,
+            2.05,
+            -7.2
+          ],
+          "quaternion": [
+            -0.014341058417956765,
+            0.9779554246614619,
+            0.07170529208978382,
+            0.1955910849322924
+          ],
+          "fov": 32
+        },
+        "compiled": true
+      }
+    },
+    {
+      "expr": "__crowd.marine()",
+      "value": null
+    },
+    {
+      "expr": "(()=>{__H.camera.fov=18;__H.camera.updateProjectionMatrix();const counts=__H.set('aim',{detail:0,distance:10,time:.15,yaw:Math.PI-.65,weapon:'M16A1'});return {counts,position:__H.camera.position.toArray(),quaternion:__H.camera.quaternion.toArray(),fov:__H.camera.fov,time:__H.state.time};})()",
+      "label": "Fixed Marine near camera",
+      "value": {
+        "counts": {
+          "triangles": 31836,
+          "meshes": 12,
+          "skinned": 1,
+          "lod": "near",
+          "view": "aim",
+          "detail": "high",
+          "weapon": "M16A1",
+          "cls": "rifle"
+        },
+        "position": [
+          6.040973969671603,
+          1.599640064794446,
+          -7.946512775453359
+        ],
+        "quaternion": [
+          -0.009577826750832314,
+          0.9472243155701816,
+          0.028425257556070765,
+          0.31916510767971357
+        ],
+        "fov": 18,
+        "time": 0.15
+      }
+    },
+    {
+      "expr": "(()=>{__H.camera.fov=5.67;__H.camera.updateProjectionMatrix();const counts=__H.set('aim',{detail:0,distance:32,time:.15,yaw:Math.PI-.65,weapon:'M16A1'});return {counts,position:__H.camera.position.toArray(),quaternion:__H.camera.quaternion.toArray(),fov:__H.camera.fov,time:__H.state.time};})()",
+      "label": "Fixed Marine mid camera",
+      "value": {
+        "counts": {
+          "triangles": 16452,
+          "meshes": 12,
+          "skinned": 1,
+          "lod": "mid",
+          "view": "aim",
+          "detail": "high",
+          "weapon": "M16A1",
+          "cls": "rifle"
+        },
+        "position": [
+          19.331116702949128,
+          2.918848207342227,
+          -25.428840881450746
+        ],
+        "quaternion": [
+          -0.009577826750832314,
+          0.9472243155701817,
+          0.02842525755607076,
+          0.31916510767971346
+        ],
+        "fov": 5.67,
+        "time": 0.15
+      }
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__crowd.info().identities && __crowd.info().deckMembers===4 && __crowd.info().near===4 && __crowd.info().far===0",
+      "label": "Four persistent crew records use the actual near instanced deck renderer",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__crowd.info().compiled",
+      "label": "Deck pose shader compiles",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__crowd.info().townCount===5 && __crowd.info().townRole===\"civil\" && __crowd.info().townLOD===\"far\" && __crowd.info().townVertices===__crowd.info().townBaseVertices",
+      "label": "Five townsfolk preserve the actual far crowd geometry",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__crowd.info().compiled",
+      "label": "Town walk shader compiles",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__H.counts().lod==='near' && __H.counts().skinned===1 && !__H.state.play && __H.state.time===.15",
+      "label": "Actual near Marine LOD, one body, frozen pose",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__H.counts().lod==='mid' && __H.counts().skinned===1 && !__H.state.play && __H.state.time===.15",
+      "label": "Actual mid Marine LOD, one body, frozen pose",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(marine-mid-fixed)",
+      "ok": true,
+      "value": 0.9988
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-29T10:01:51.038Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7add6fc60a720a0829959d1b4d6062816d874ee5",
+    "branch": "ngc/look-voices",
+    "gameTree": "5a1b91781451e3b80f92db7b0c38eb42257ca374",
+    "gameSha256": "2c86e9b56cba59d6cba5f5ec6fa7d99d81093a275448f18325f19f493208cb97",
+    "dirty": true,
+    "status": "M docs/ngc1980/findings/look-voices.md\n?? tools/figurecrowdbench.mjs\n?? tools/scenes/tpgripcrowd.mjs"
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": null,
+    "state": null
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7add6fc60a720a0829959d1b4d6062816d874ee5",
+    "branch": "ngc/look-voices",
+    "gameTree": "5a1b91781451e3b80f92db7b0c38eb42257ca374",
+    "gameSha256": "2c86e9b56cba59d6cba5f5ec6fa7d99d81093a275448f18325f19f493208cb97",
+    "dirty": true,
+    "status": "M docs/ngc1980/findings/look-voices.md\n?? tools/figurecrowdbench.mjs\n?? tools/scenes/tpgripcrowd.mjs"
+  },
+  "summary": "PASS: 7/7 expects, 0 page errors, 0 console errors",
+  "durationMs": 13281,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/runs/tp-crowd-before"
+}

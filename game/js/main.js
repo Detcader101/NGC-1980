@@ -2,6 +2,10 @@ import * as THREE from 'three';
 import { buildLevel } from './level.js';
 import { buildCaveMesh, makeTurret, makeTank, makePod, makeRope } from './cave3d.js';
 import { Sfx } from './audio.js';
+import { createVoices } from './voice/voice.js';   // VOICES
+import { createCommandNet } from './voice/commandnet.js';
+import { createRadioOperations } from './voice/operations.js';
+import { createCommandPanel } from './voice/commandpanel.js';
 import { createDamage, PARTS } from './damage.js';
 import { HELI, EYE, buildHeliMesh, buildCockpit, createHeliSim, createHeliInput, createHeliSystems, fuelBurnPct } from './heli.js';
 import { BOUND, ISLANDS, islandH, createNav, SEA_FLOOR, inZone, fleetStart } from './world.js';
@@ -85,6 +89,7 @@ const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t
 const rnd = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
 const params = new URLSearchParams(location.search);
 const sfx = new Sfx();
+const voices = createVoices({ sfx, feed: (t, k) => feed(t, k), params });   // VOICES: crews, pilots, controllers, troops (voice/)
 
 // ---------------------------------------------------------------- input
 const keys = new Set();
@@ -161,7 +166,7 @@ function readGamepad() {
     if (!p || !p.connected || p.mapping !== 'standard') continue;
     if (/044f|thrustmaster|t\.?flight|hotas|throttle|rudder|pedal|joystick/i.test(p.id)) continue;
     if (devs.some(d => d.index === p.index && d.role && d.role !== 'gamepad')) continue;
-    return p;
+    return CTL.gameplayPad(p);
   }
   return null;
 }
@@ -170,10 +175,10 @@ function readPad() {
   if (keyboardOnly) return null;
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
   const d = CTL.state && CTL.state.devices && CTL.state.devices.find(d => d.role === 'stick' || d.role === 'gamepad');
-  if (d && pads[d.index] && pads[d.index].connected) return pads[d.index];
+  if (d && pads[d.index] && pads[d.index].connected) return CTL.gameplayPad(pads[d.index]);
   let best = null;   // never the rudder pedals: with pedals plugged in they may come first
   for (const p of pads) if (p && p.connected && !/b679|rudder|pedal/i.test(p.id)) { best = p; if (p.axes.length >= 2) break; }
-  return best;
+  return CTL.gameplayPad(best);
 }
 function readInput() {
   const kx = (kd('ArrowRight', 'KeyD') ? 1 : 0) - (kd('ArrowLeft', 'KeyA') ? 1 : 0);
@@ -345,6 +350,7 @@ function setSeaDrift(on) { SEA_PREF.drift = !!on; try { localStorage.setItem('tz
 // the pause menu's sliders: value, range, label, the small print, the step for LEFT / RIGHT
 const SLIDERS = {
   fov: { min: CK_FOV.min, max: CK_FOV.max, nudge: 5, get: () => ckFov, set: v => setCkFov(v), show: v => `${v}°`, small: `FIRST-PERSON VIEWS: HUEY, HORNET, DROPSHIP, ON FOOT, VEHICLES  ·  LEFT / RIGHT  ·  DEFAULT ${CK_FOV.def}°` },
+  voicevol: voices.slider,   // VOICES
   sea: { min: 0, max: 7, nudge: 1, get: () => SEA_PREF.ss, set: v => setSeaPref(v), show: v => `${v}  ${war ? war.sea.name : ''}${SEA_PREF.drift && war ? `  (NOW ${war.sea.ss.toFixed(1)})` : ''}`, small: `SWELL, WHITECAPS AND HOW THE SHIPS PITCH AND ROLL  ·  0 GLASSY ... 7 HIGH  ·  DEFAULT ${4}` },
 };
 function addScore(n) { G.score += n; if (G.score > G.hi) { G.hi = G.score; try { localStorage.setItem('tz_hi', G.hi); } catch (e) {} } }
@@ -353,7 +359,7 @@ let war = null;   // the island war (created once the world exists)
 let SIM = null;   // SIM MODE (?sim): CPU vs CPU, you watch (sim/spectator.js)
 let markerFP = '';   // UNIT MARKERS: the first-person view this frame ('' outside; see markerView)
 const sayMsg = (t, s) => say(t, s);
-function say(t, secs = 2) { const m = $('msg'); m.textContent = t; m.style.opacity = t ? 1 : 0; G.msgT = secs; }
+function say(t, secs = 2) { if (t) voices.hud(t, 'say');   /* VOICES */ const m = $('msg'); m.textContent = t; m.style.opacity = t ? 1 : 0; G.msgT = secs; }
 
 // ================================================================ ZARCH
 const PAD_R = 8.5, BASE_R = 18, GRAV = 9.0, THRUST = 21, MAXLEAN = 0.8;
@@ -942,7 +948,7 @@ const PSTORE = { get fuel() { return G.res; }, set fuel(v) { G.res = v; }, get m
 const crafts = createCraftHost({ G, Z, say: (t, s) => say(t, s) });
 const PL = crafts.PL;
 const feedItems = [];
-function feed(t, kind = 'info') { feedItems.unshift({ t, kind, at: performance.now() }); feedItems.length = Math.min(feedItems.length, 6); }
+function feed(t, kind = 'info') { voices.hud(t, 'feed', kind);   /* VOICES */ feedItems.unshift({ t, kind, at: performance.now() }); feedItems.length = Math.min(feedItems.length, 6); }
 function islandOwnerChanged(I, was) {
   padUniform[PADS.indexOf(I.pad)].copy(SIDE_COL[I.owner]);
   const b = I.base; if (!b) return;
@@ -1120,7 +1126,7 @@ function updateRescue(dt, landed, inCave) {
     if (!landed) G.rescueHinted = false;
     return;
   }
-  if (!R.cave) { if (!R.drop) { R.drop = true; const sp = spawnSpot(); drop.start(Z.pos, { x: sp.x, y: sp.y, z: sp.z }); } return; }   // on land: the para-drop
+  if (!R.cave) { if (!R.drop) { R.drop = true; const sp = spawnSpot(); drop.start(Z.pos, { x: sp.x, y: sp.y, z: sp.z }); R.mission = drop.state; } return; }   // on land: the para-drop
   R.t -= dt;
   if (!R.cave && R.t < 6 && !crate.visible) {   // the drop: a crate on a chute lands a few metres off the nose
     const f = H.forward(); R.cx = Z.pos.x + f.x * 7 + 3; R.cz = Z.pos.z + f.z * 7; crate.visible = true; crate.userData.chute.visible = true;
@@ -1161,6 +1167,7 @@ function toggleEngine() {
 // war.js hits the player: route to the craft you are in (at = the round's position, dir = its velocity: body parts)
 function hurtPlayer(amount, why, at, dir, kind) {   // kind (wave 2): the war.js projectile, for the Marine's wounds
   if (G.bench) return;
+  voices.event('hurt', { at, dir, why });   // VOICES: "taking fire, nine o'clock"
   if (G.craft === 'heli') hurtHeli(amount, why); else crafts.active.hurt(amount, why, at, dir, kind);
 }
 function hurtHeli(amount, why, part) {
@@ -1367,7 +1374,7 @@ function updateHeli(dt, inp, piloted) {
   // weapons: door gun (F / trigger), rocket pods (G / button 3), bombs (B / button 5)
   Z.fireCd -= dt; Z.rkCd = (Z.rkCd || 0) - dt; Z.bmCd = (Z.bmCd || 0) - dt;
   if ((inp.fire || ctl.fire) && Z.fireCd <= 0) {
-    Z.fireCd = 0.14; sfx.shot();
+    Z.fireCd = 0.14; sfx.shot(); voices.event('doorGun');   // VOICES: only this Huey's gun, not every shot on the effects bus
     war.fireBullet(P.clone().addScaledVector(Z.aim, 5), Z.aim.clone().multiplyScalar(75).addScaledVector(Z.vel, 0.5));
   }
   if (((kd('KeyG') && !drop.controlling) || ctl.rocket) && Z.rkCd <= 0) {
@@ -1472,6 +1479,7 @@ const tomcatC = crafts.register(createTomcatCraft({
   stowHeli: () => stowHeli(), unstowHeli: () => unstowHeli(), spotHeli: () => spotHeli(), heliStowed: () => G.heliStowed,
   toHeli: msg => autoNext(msg), ...jetCmd,   // COMMANDER: after a lost jet the next unit (the Huey unless you pick); the wingman, losses, cat 1
 }));
+voices.attach({ G, H, Z, JP, tomcatC, war, world, worldSolid, crafts, cockpit: () => cockpitCam, sfx, get cam() { return zCam; } });   // VOICES: what the call-out hooks read (voice/hooks.js)
 // --- ngc/ch46fly: the CH-46E SEA KNIGHT (units/air/rotary/ch46craft.js): from the command board, Marines in the back
 const ch46C = crafts.register(createCH46Craft({
   scene: zScene, war, G, Z, CTL, keyDown: kd, hwOn: () => !!XR?.motionInput || !keyboardOnly, say, feed, sfx, fx, crafts, head, params, ISLANDS, terrainH, waterAt,
@@ -1806,7 +1814,7 @@ function clearHandOn() {   // the commander picked a unit: no automatic hand-on 
   if (JP.active && !JP.alive) JP.stow(); if (tomcatC.TP.active && !tomcatC.TP.alive) tomcatC.TP.stow();
 }
 const commander = createCommander({
-  fleet, say, feed, sfx, hud: $('hud'), roster, bases: commandBases, store: PSTORE,
+  fleet, say, feed, sfx, hud: $('hud'), roster, bases: commandBases, store: PSTORE, radio: () => radioCommands.toggle(),
   airdrop: { cost: AIR_COST, lines: () => airdrop.lines(), watch: () => airdrop.watch() },   // AIRLIFT: C on the board, V to watch
   canOpen: () => { if (G.state !== 'play') return false; if (G.mode !== 'zarch') { say('CLIMB OUT OF THE CAVE FIRST', 1.4); return false; } return true; },
   gate: id => war.allow(1, id) ? '' : war.gateMsg(1, id), research: () => techUI.open(),   // TECH TREE
@@ -1819,14 +1827,53 @@ const commander = createCommander({
   leaving: () => ({ foot: crafts.active === foot && foot.exists && foot.alive && foot.fromReserve }),
   left: tok => { if (tok && tok.foot && crafts.active !== foot) { fleet.give('marine'); foot.fromReserve = false; feed('THE RIFLEMAN IS BACK WITH HIS PLATOON  -  MARINES IN RESERVE +1', 'info'); } },
 });
+// (ngc/look-voices) Strict, addressed command net; all actions use the existing unit controllers.
+const radioAllowed = () => G.state === 'play' && G.mode === 'zarch' && !G.over && !marine.ui;
+const radioOperations = createRadioOperations({war, roster, fleet, store:PSTORE, airdrop, airCost:AIR_COST,
+  logistics: {
+    check: () => !war.allow(1,'logistics') ? war.gateMsg(1,'logistics') : crafts.active!==heliC ? 'Field repair serves the Huey. Contact Supply from the helicopter.' :
+      G.rescue ? 'Field support already inbound.' : !Z.alive||!H.landed ? 'Land the Huey before requesting field support.' : Z.svc ? 'Fuel and repairs are automatic at this service point.' :
+      !D.damaged()&&G.fuel>=RESCUE_FUEL ? 'No field repair required; fuel above half.' : '',
+    status: () => G.rescue ? 'Field support en route. '+rescueStatus()+'.' : 'Field support standing by.',
+    request: () => {
+      callLogistics();const rescue=G.rescue;
+      if(!rescue)return {ok:false,reason:'Field support unable to launch.'};
+      return {ok:true,detail:'Fuel and repair team dispatched. Remain on the ground.',watch:()=>{
+        if(!Z.alive)return {state:'failed',detail:'Huey lost before field support completed.'};
+        const mission=rescue.mission;
+        if(mission?.ended)return mission.fixed?{state:'complete',detail:'Field repair complete. '+mission.arrived+' crew reached the Huey. Return to base for full service.'}:{state:'failed',detail:'Field support failed. No repair crew reached the Huey.'};
+        if(G.rescue===rescue)return {state:'active',detail:'Field support en route. '+rescueStatus()};
+        return {state:'cancelled',detail:'Field support interrupted.'};
+      }};
+    }
+  }
+});
+const radioNet = createCommandNet({ war, roster, islands: ISLANDS, allowed: radioAllowed, voices, feed, operations:radioOperations,
+  heliHome: () => {
+    if(H.landed)return {ok:false,reason:'Huey is on the ground.'};
+    heliHome();const target=heliAI.target;
+    return {ok:true,detail:'Returning to base.',watch:()=>{
+      if(!Z.alive)return {state:'failed',detail:'Huey lost during recovery.'};
+      if(crafts.active===heliC)return {state:'cancelled',detail:'Pilot took control of the Huey.'};
+      if(H.landed&&H.c.coll<.05)return {state:'complete',detail:'Huey down safely '+whereIs(H.pos.x,H.pos.z)+'.'};
+      if(heliAI.target!==target)return {state:'cancelled',detail:'Huey recovery superseded.'};
+      return {state:'active',detail:'Crew flying to '+(heliAI.dest||'the nearest clearing')+'.'};
+    }};
+  },
+  playerPosition: () => { const p=PL.pos, island=ISLANDS.find(I=>Math.hypot(p.x-I.x,p.z-I.z)<I.r && terrainH(p.x,p.z)>0.5); return {x:p.x,z:p.z,island}; },
+  standDown: r => {if(r.active()||!r.out()||!r.canStandDown?.())return 'Unit must be parked at a friendly base.';const why=r.standDown();if(!why)fleet.give(r.id);return why||'';}
+});
+const radioCommands = createCommandPanel({ net: radioNet, allowed: radioAllowed, voices, places: ISLANDS, controls: CTL,
+  onOpen: () => { commander.close(); techUI.close(); }, openBoard: () => commander.open() });
+if (params.has('debug')) window.__radioCommands = radioCommands;
 // TECH TREE: the RESEARCH page (techui.js); the command board's T and SHIFT+\ open it, T / \ go back to the board
 const techUI = createTechUI({ war, hud: $('hud'), say, feed, sfx, store: PSTORE, onBoard: () => commander.open(),
-  onOpen: () => { commander.close(); if (document.pointerLockElement) document.exitPointerLock(); if (bigMap) { bigMap = false; setMapSize(); } } });
+  onOpen: () => { radioCommands.close(); commander.close(); if (document.pointerLockElement) document.exitPointerLock(); if (bigMap) { bigMap = false; setMapSize(); } } });
 applyUI();   // RENDERKIT ui: html.ngc-rkui and .rk-ui on the menu roots (the boards exist from here)
 function commandKey(code, shift = false) {   // \ the board, SHIFT+\ the RESEARCH page, / the next unit out (main's keydown, before the craft's own keys)
   if (code !== 'Backslash' && code !== 'IntlBackslash' && code !== 'Slash') return false;
   if (G.mode !== 'zarch') { say('CLIMB OUT OF THE CAVE FIRST', 1.4); return true; }
-  if (code === 'Slash') commander.next(); else if (shift) { commander.close(); techUI.toggle(); } else commander.toggle();
+  if (code === 'Slash') commander.next(); else if (shift) { radioCommands.close(); commander.close(); techUI.toggle(); } else radioCommands.toggle();
   return true;
 }
 // the per-frame entry for the surface: the active craft flies / drives / walks, the parked ones idle (craft.js)
@@ -2093,6 +2140,7 @@ function gameOver() {
 }
 function startTransition(label, swap) { G.state = 'trans'; G.tr = { t: 0, phase: 0, swap }; $('fadeText').textContent = label; }
 function newGame() {
+  radioNet.reset(); radioCommands.close();
   cancelRescue(); D.reset(); stowCrafts(); G.jetDownT = 0; G.tomcatDownT = 0;
   fleet.reset(); commander.close(); techUI.close(); commander.lossMode = false; foot.fromReserve = false; heliAI.off();   // COMMANDER: a full fleet in reserve
   airlift.reset(); airdrop.clear();   // AIRLIFT
@@ -2112,6 +2160,7 @@ let rkPick = null;   // RENDERKIT: the choice made in this session's menu (appli
 // SEAWORLD: the sea state slider and the weather drift switch (in every variant of the menu)
 const seaItems = () => [{ id: 'sea', label: 'SEA STATE', slider: true }, { id: 'seadrift', label: `WEATHER DRIFT: ${SEA_PREF.drift ? 'ON' : 'OFF'}`, note: SEA_PREF.drift ? 'THE SEA WANDERS UP TO 2 STATES ROUND YOUR CHOICE OVER THE WAR' : 'THE SEA STAYS WHERE YOU SET IT' },
   { id: 'markers', label: `UNIT MARKERS: ${markers.label()}`, note: 'ICON + HEALTH BAR OVER THE UNITS YOU CAN SEE  ·  ALL / DAMAGED ONLY / OFF  ·  F8 IN THE GAME' },
+  ...voices.menuItems(),   // VOICES
   { id: 'sealife', label: `SEA LIFE: ${slQ.toUpperCase()}`, note: 'FISH, DOLPHINS AND SEABIRDS ROUND THE SHIPS AND THE CAMERA  ·  OFF / LOW / MEDIUM / HIGH' },
   { id: 'renderkit', label: `RENDERKIT GRAPHICS: ${rkPick ?? RK.label}${rkPick ? ' (RELOAD)' : ''}`, note: 'PHYSICAL MATERIALS, TERRAIN, WATER, SKY, SMOKE, POST AND UI  ·  ON / OFF  ·  APPLIES AFTER RELOAD  ·  ?rk=' }];   // SEALIFE, RENDERKIT
 
@@ -2192,6 +2241,7 @@ function menuPick() {
   if ((it.id === 'respawn' || it.id === 'quit') && menu.confirm !== it.id) { menu.confirm = it.id; renderMenu(); return; }
   if (it.id === 'resume') closeMenu();
   else if (it.id === 'logistics') { closeMenu(); callLogistics(); }
+  else if (voices.menuPick(it.id)) renderMenu();   // VOICES
   else if (it.id === 'seadrift') { setSeaDrift(!SEA_PREF.drift); renderMenu(); }   // SEAWORLD
   else if (it.id === 'markers') { markers.cycle(); renderMenu(); }   // UNIT MARKERS
   else if (it.id === 'renderkit') { const next = (rkPick ?? RK.label) === 'OFF'; RK.save(next); rkPick = next ? 'ON' : 'OFF'; renderMenu(); }   // RENDERKIT
@@ -2287,6 +2337,7 @@ function drawMap() {
   if (!big) { radar.fillStyle = 'rgb(10,38,74)'; radar.fillRect(0, 0, W, Hh); if (farMap.ready) radar.drawImage(farMap.cv, px(farMap.ox), py(farMap.oz), farMap.size * half, farMap.size * half); }
   radar.drawImage(landImg, px(-BOUND), py(-BOUND), 2 * BOUND * half, 2 * BOUND * half);
   radar.drawImage(fogImg, px(-BOUND), py(-BOUND), 2 * BOUND * half, 2 * BOUND * half);
+  for(const p of radioNet.marks){radar.strokeStyle='#e9c884';radar.fillStyle='#e9c884';radar.lineWidth=1;radar.beginPath();radar.arc(px(p.x),py(p.z),4,0,Math.PI*2);radar.stroke();if(big){radar.font='12px monospace';radar.fillText(p.name,px(p.x)+7,py(p.z)-6);}}
   radar.strokeStyle = 'rgba(255,220,120,.5)'; radar.lineWidth = 1; radar.setLineDash([4, 4]); radar.strokeRect(px(-BOUND), py(-BOUND), 2 * BOUND * half, 2 * BOUND * half); radar.setLineDash([]);   // the control zone
   if (big) { radar.fillStyle = 'rgba(255,220,120,.8)'; radar.font = 'bold 12px monospace'; radar.textAlign = 'left'; radar.fillText('CONTROL ZONE', px(-BOUND) + 6, py(-BOUND) + 16); }
   // islands, as last seen
@@ -2340,7 +2391,7 @@ function drawMap() {
     radar.font = '14px monospace'; radar.textAlign = 'center'; radar.fillStyle = '#bfe';
     // (TECH TREE: the orders on two lines, each shrunk to fit - the one long line ran off both edges at 1280 px)
     const fit = (t, y, px) => { radar.font = `${px}px monospace`; const w = radar.measureText(t).width; if (w > W - 24) radar.font = `${Math.floor(px * (W - 24) / w)}px monospace`; radar.fillText(t, W / 2, y); };
-    fit('CLICK THE SEA: SAIL THE ALBATROSS THERE   ·   CLICK AN ISLAND: SELECT IT   ·   SHIFT+\\ RESEARCH   ·   M: CLOSE', Hh - 86, 14);
+    fit('CLICK THE MAP: MARK A RADIO DESTINATION   ·   CLICK AN ISLAND: SELECT IT   ·   SHIFT+\\ RESEARCH   ·   M: CLOSE', Hh - 86, 14);
     radar.fillStyle = '#ff8';
     const lk = (key, t) => war.allow(1, key) ? t : `${t.replace(/ \(\d+\)$/, '')} [RESEARCH]`;   // TECH TREE: locked orders say so
     fit(`1: ${lk('drone', `SEA KNIGHT + 13 MARINES (${COST.drone})`)}  ·  2: ${lk('aa', `AA GUN ON OUR ISLAND (${COST.aa})`)}  ·  3: ${lk('heli', `NEW HELICOPTER (${COST.heli})`)}  ·  4: ${lk('escort', `TOMCAT ESCORT (${COST.escort})`)}`, Hh - 64, 14);
@@ -2364,7 +2415,8 @@ $('radar').addEventListener('mousedown', e => {
   const wx = v.ox + (mx - v.cx) / v.half, wz = v.oz + (my - v.cy) / v.half;
   const I = ISLANDS.find(I => (fog.exploredAt(I.x, I.z) || fog.exploredAt(I.pad.x, I.pad.z)) && Math.hypot(v.cx + (I.pad.x - v.ox) * v.half - mx, v.cy + (I.pad.z - v.oz) * v.half - my) < 16);
   if (I) { selIsl = I; sfx.blip?.(500, 700, 0.06, 'square', 0.06); return; }
-  if (war.orderCarrier(wx, wz)) { feed('ALBATROSS: COURSE SET'); sfx.blip?.(400, 300, 0.08, 'square', 0.06); }
+  const island=ISLANDS.find(J=>Math.hypot(wx-J.x,wz-J.z)<J.r&&terrainH(wx,wz)>0.5);
+  const point=radioNet.mark(wx,wz,island);if(point){feed(point.name.toUpperCase()+': RADIO DESTINATION MARKED');radioCommands.compose('carrier','proceed',point.name);sfx.blip?.(400,300,0.08,'square',0.06);}
 });
 $('radar').addEventListener('contextmenu', e => e.preventDefault());
 const _hud = {};
@@ -2684,6 +2736,9 @@ function frame(now, xrFrame) {
   padWasStart = inp.start;
   PF?.lap('input');
   if (G.state !== 'paused') war.tickSea(dt);   // SEAWORLD: the sea's clock and the weather (the title screen too)
+  radioNet.update(dt);   // (ngc/look-voices) Input cancellation also runs outside play.
+  radioCommands.update(dt);
+  voices.update(dt, { state: G.state });   // VOICES: stops on pause / title, the queue, the call-out polls
   if (G.msgT > 0) { G.msgT -= dt; if (G.msgT <= 0 && G.state !== 'paused') say(''); }
   if (G.state === 'play') {
     PF?.lap('sea');
@@ -2817,7 +2872,7 @@ renderer.setAnimationLoop(frame);
 // ?debug: the test / debug bridge (window.__G; tools/scenes read it with page.evaluate). DebugBridge is its type, so
 // game/types/globals.d.ts types window.__G and a renamed or removed member shows up in node tools/check.mjs types.
 /** @typedef {ReturnType<typeof debugBridge>} DebugBridge */
-function debugBridge() { return { XR, G, airlift, airdrop, ch46C, heliAIenv, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, get forest() { return { count: world.stats.forestTrees || 0 }; }, world, terrainUni, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, rkPost /* RENDERKIT post */, MERGES, RKLOD /* ngc/perf-render */, rkLight /* RENDERKIT light */, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, get tech() { return war.tech; }, techUI /* TECH TREE: tech = [null, player, enemy] */, say, feed /* RENDERKIT ui: tools/scenes/rkui.mjs */ }; }
+function debugBridge() { return { XR, G, sfx /* ngc/look-voices: audio verification */, airlift, airdrop, ch46C, heliAIenv, m60C, m113C, AW, HARDS, armDelivery, deliverArmour, cmH, RWR , tomcatC, Z, T, H, HI, SY, HELI, helm, toggleHelm, get ckFov() { return ckFov; }, setCkFov, menuKey, D, JP, CTL, view, islandH, HW, get forest() { return { count: world.stats.forestTrees || 0 }; }, world, terrainUni, groundY, inZone, launchJet, swapToHeli, get cockpitCam() { return cockpitCam; }, set cockpitCam(v) { cockpitCam = v; }, THREE, fx, PL, ISLANDS, PADS, PAD, HOME_B, terrainH, head, hurtHeli, cockpit, drop, callLogistics, openMenu, menuPick, get menu() { return menu; }, zCam, PROF, renderer, rkPost /* RENDERKIT post */, MERGES, RKLOD /* ngc/perf-render */, rkLight /* RENDERKIT light */, newGame, war, fog, nav, BASES, command, get selIsl() { return selIsl; }, set selIsl(v) { selIsl = v; }, enterCave, respawnHome, exitCave, get camB() { return camB; }, crafts, foot, GR, pool, get carC() { return pool.first('m151'); }, jetC, heliC, getInOut, deliverVehicle, toHeli, stowCrafts, hurtPlayer, marine, sealife, fleet, commander, roster, heliAI, autoNext, killPlayerZ, get tech() { return war.tech; }, techUI /* TECH TREE: tech = [null, player, enemy] */, say, feed /* RENDERKIT ui: tools/scenes/rkui.mjs */ }; }
 if (params.has('debug')) { window.__G = debugBridge(); if (params.has("auto")) newGame(); if (params.has('thrust')) { newGame(); const b = BASES[+params.get('thrust') || 0]; Z.pos.set(b.x, b.h - 1, b.z); Z.vel.set(0, -4, 0); H.reset(H.pos.clone(), 0, false, 1); SY.grip = 1; SY.auto = null; enterCave(b); }   /* (ngc/bugsweep) ?thrust=N starts in the cave already flying: engine at flight power, throttle rolled on (it came in at ground idle with the throttle rolling on, the rotor drooped and caveaim / caves crashed in the shaft) */ }
 // ngc/ch46fly dev: ?fly=ch46 puts you in a CH-46E on the ALBATROSS (with ?auto; ?fly=ch46&cold cold and dark; &at=island at the nearest friendly pad)
 if (params.get('fly') === 'ch46') { const t0 = performance.now(), go = () => { if (G.state === 'play' && G.mode === 'zarch' && Z.alive && H.landed) { const isl = commandBases().filter(b => b.kind === 'island').sort((a, b) => Math.hypot(a.x - Z.pos.x, a.z - Z.pos.z) - Math.hypot(b.x - Z.pos.x, b.z - Z.pos.z))[0]; commander.deploy('ch46', params.get('at') === 'island' && isl ? isl.key : 'ship'); return; } if (performance.now() - t0 < 30000) setTimeout(go, 200); }; setTimeout(go, 300); }

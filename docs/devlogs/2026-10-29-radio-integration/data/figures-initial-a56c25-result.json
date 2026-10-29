@@ -1,0 +1,888 @@
+{
+  "schemaVersion": 2,
+  "name": "radiofiguremerge",
+  "query": "dev/infantry.html?debug&fixed&nosway&res=1&ui=0&seed=1980",
+  "seed": null,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "482650de879017766debc8e38926dedf7049906395b4cc1b2ceec2bcb8abc88d",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/snap.mjs",
+    "scenes/radiofiguremerge.mjs",
+    "--out",
+    "runs/radio-merge-figures"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "787b4c17fa3ee149fa7d3b13bd3f66a2fce96ff2",
+    "branch": "ngc/look-voices",
+    "gameTree": "29426da431d131f4755554436e6bfb53174b7329",
+    "gameSha256": "a0e1850f87fe2cd93bc6b47137e783afa6d781cc7796983329811693454430ef",
+    "dirty": true,
+    "status": "M  MODLOG.md\nM  docs/ngc1980/BIBLE.md\n M docs/ngc1980/COORDINATION.md\nM  docs/ngc1980/LOOK-PLAN.md\nA  docs/ngc1980/PERF-BUDGETS.md\nA  docs/ngc1980/TYPESCRIPT.md\nA  docs/ngc1980/evidence/look-nature/sbs-01-hq.png\nA  docs/ngc1980/evidence/look-nature/sbs-02-oak.png\nA  docs/ngc1980/evidence/look-nature/sbs-03-pine.png\nA  docs/ngc1980/evidence/look-nature/sbs-04-fir.png\nA  docs/ngc1980/evidence/look-nature/sbs-05-backlit.png\nA  docs/ngc1980/evidence/look-nature/sbs-06-forest.png\nA  docs/ngc1980/evidence/look-nature/sbs-07-village.png\nA  docs/ngc1980/evidence/look-nature/sbs-08-village30.png\nA  docs/ngc1980/evidence/look-nature/sbs-09-heli30.png\nA  docs/ngc1980/evidence/look-nature/sbs-10-heli200.png\nA  docs/ngc1980/evidence/look-nature/sbs-11-jet1200.png\nA  docs/ngc1980/evidence/look-people/crews-seated-kneeling.png\nA  docs/ngc1980/evidence/look-people/deck-crew-close.png\nA  docs/ngc1980/evidence/look-people/deck-crew.png\nA  docs/ngc1980/evidence/look-people/face-bare.png\nA  docs/ngc1980/evidence/look-people/face-helmet-34.png\nA  docs/ngc1980/evidence/look-people/face-helmet.png\nA  docs/ngc1980/evidence/look-people/fp-hip-at-home.png\nA  docs/ngc1980/evidence/look-people/fp-self-aid.png\nA  docs/ngc1980/evidence/look-people/fp-swim.png\nA  docs/ngc1980/evidence/look-people/heads-navy.png\nA  docs/ngc1980/evidence/look-people/heads-pilots.png\nA  docs/ngc1980/evidence/look-people/huey-pilots-after.png\nA  docs/ngc1980/evidence/look-people/roles.png\nA  docs/ngc1980/evidence/look-people/squad-10m.png\nA  docs/ngc1980/evidence/look-people/squad-40m-crowd-lod-after.png\nA  docs/ngc1980/evidence/look-people/tomcat-crew-close.png\nA  docs/ngc1980/evidence/look-people/tomcat-crew-side.png\nA  docs/ngc1980/evidence/look-people/townsfolk.png\nA  docs/ngc1980/evidence/look-people/tp-carry-after.png\nA  docs/ngc1980/evidence/look-people/tp-front-close.png\nA  docs/ngc1980/evidence/look-people/tp-swim-after.png\nA  docs/ngc1980/evidence/look-people/vm-grip-close.png\nA  docs/ngc1980/evidence/look-people/vm-side-r.png\nA  docs/ngc1980/evidence/look-people/weapons-after.png\nA  docs/ngc1980/evidence/perf-render/sbs-deck.png\nA  docs/ngc1980/evidence/perf-render/sbs-hard.png\nA  docs/ngc1980/evidence/perf-render/sbs-home200.png\nA  docs/ngc1980/evidence/perf-render/sbs-hq.png\nA  docs/ngc1980/evidence/perf-render/sbs-jeep.png\nA  docs/ngc1980/evidence/perf-render/sbs-jet1200.png\nA  docs/ngc1980/evidence/perf-render/sbs-m113.png\nA  docs/ngc1980/evidence/perf-render/sbs-msaa-hq.png\nA  docs/ngc1980/evidence/perf-render/sbs-pad.png\nA  docs/ngc1980/evidence/perf-render/sbs-tank.png\nA  docs/ngc1980/findings/look-nature.md\nA  docs/ngc1980/findings/look-people.md\nA  docs/ngc1980/findings/perf-cpu.md\nA  docs/ngc1980/findings/perf-render.md\nA  docs/ngc1980/findings/typecheck.md\nA  docs/ngc1980/findings/xr-fix.md\nA  docs/ngc1980/reference/people/SOURCES.md\n M game/dev/people.js\nM  game/index.html\nM  game/js/craft.js\nM  game/js/craftjet.js\nM  game/js/crafttomcat.js\nM  game/js/fog.js\nM  game/js/ground.js\nM  game/js/heli.js\nMM game/js/hotas.js\nA  game/js/hypot.js\nM  game/js/interiors/crewfig.js\nM  game/js/jetplay.js\nM  game/js/main.js\nM  game/js/marine.js\nA  game/js/perf/bench.js\nA  game/js/perfhud.js\nM  game/js/renderkit/adopt.js\nM  game/js/renderkit/effects.js\nM  game/js/renderkit/gamemats.js\nM  game/js/renderkit/gamepost.js\nM  game/js/renderkit/light.js\nA  game/js/renderkit/lod.js\nM  game/js/renderkit/materials.js\nA  game/js/renderkit/merge.js\nM  game/js/renderkit/nature.js\nM  game/js/renderkit/ui.js\nM  game/js/sim/zone.js\nM  game/js/ui/markerlayer.js\nM  game/js/units/air/rotary/ch46craft.js\nM  game/js/units/air/rotary/ch46unit.js\nM  game/js/units/air/rotary/figures.js\nM  game/js/units/air/rotary/mv22unit.js\nM  game/js/units/air/rotary/rb.js\nM  game/js/units/air/rotary/rotary.js\nM  game/js/units/air/rotary/rotor.js\nM  game/js/units/air/rotary/squad.js\nM  game/js/units/air/rotary/waspfm.js\nM  game/js/units/air/rotary/waspunit.js\nM  game/js/units/air/tomcatmodel.js\nM  game/js/units/armor/armorcraft.js\nM  game/js/units/armor/tankmodel.js\nM  game/js/units/defence/brain.js\nM  game/js/units/groundwar/groundsim.js\nM  game/js/units/groundwar/groundwar.js\nM  game/js/units/groundwar/marine.js\n M game/js/units/groundwar/marinefigure.js\nA  game/js/units/infantry/figgeo.js\nA  game/js/units/infantry/figinst.js\n M game/js/units/infantry/figurematerials.js\nM  game/js/units/infantry/handkit.js\nA  game/js/units/infantry/humanfig.js\n D game/js/units/infantry/humanmesh.js\nM  game/js/units/infantry/invui.js\nM  game/js/units/infantry/items.js\n M game/js/units/infantry/meshkit.js\nA  game/js/units/infantry/sdfmesh.js\nMM game/js/units/infantry/soldiermodel.js\nM  game/js/units/infantry/viewmodel.js\nM  game/js/units/infantry/weaponmodels.js\nM  game/js/units/naval/deckcrew.js\nM  game/js/units/naval/fishsim.js\nM  game/js/units/naval/kraken.js\nM  game/js/units/naval/navalfx.js\nM  game/js/units/naval/seamotion.js\nM  game/js/units/wheeled/index.js\nM  game/js/units/wheeled/tyre.js\nM  game/js/units/wheeled/vehiclefm.js\nM  game/js/units/wheeled/wheeledcraft.js\nM  game/js/units/wheeled/wheeledenv.js\nM  game/js/vehicle.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/hooks.js\n M game/js/voice/localrecognition.js\n M game/js/voice/microphone.js\n M game/js/voice/operations.js\n M game/js/voice/ptt.js\n M game/js/voice/recognition.js\n M game/js/voice/voice.js\nM  game/js/war.js\nM  game/js/world.js\nM  game/js/world/ambient.js\nM  game/js/world/chunkgen.js\nM  game/js/world/life.js\nM  game/js/world/worldworker.js\nM  game/js/xr/bench.js\nAM game/types/globals.d.ts\nA  game/vendor/html2canvas.d.ts\nM  launcher/install.sh\nM  tools/README.md\nM  tools/check.mjs\n M tools/figuresurfacebench.mjs\n M tools/firstpersonbench.mjs\nA  tools/grid.mjs\nA  tools/hypotbench.mjs\nM  tools/package-lock.json\nM  tools/package.json\n M tools/peoplebench.mjs\nA  tools/profsummary.mjs\nA  tools/profunder.mjs\nA  tools/scenes/cpuprofile.mjs\nA  tools/scenes/looknature.mjs\nA  tools/scenes/lookpeople.mjs\nA  tools/scenes/lpcrews.mjs\nA  tools/scenes/lpstats.mjs\nA  tools/scenes/lpstudio.mjs\nA  tools/scenes/lpweapons.mjs\nA  tools/scenes/mergecheck.mjs\n M tools/scenes/people.mjs\nA  tools/scenes/perfab.mjs\nA  tools/scenes/perfbench.mjs\nA  tools/scenes/perfbudget.mjs\nA  tools/scenes/perflod.mjs\nM  tools/serve.mjs\n M tools/servebench.mjs\nM  tools/sim/headless.mjs\nA  tools/simdiff.mjs\nA  tools/typecheck-baseline.json\nA  tools/typecheck.mjs\nA  tools/warprof.mjs\nA  tsconfig.json\n?? tools/scenes/radiofiguremerge.mjs"
+  },
+  "url": "http://127.0.0.1:34591/dev/infantry.html?debug&fixed&nosway&res=1&ui=0&seed=1980",
+  "ok": true,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": null,
+  "shots": [
+    {
+      "name": "m16-player",
+      "file": "01-m16-player.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 124.3,
+      "litFraction": 0.9979,
+      "colors": 118
+    },
+    {
+      "name": "m16-support",
+      "file": "02-m16-support.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 111.2,
+      "litFraction": 0.9341,
+      "colors": 98
+    },
+    {
+      "name": "m16-trigger",
+      "file": "03-m16-trigger.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 99.1,
+      "litFraction": 0.9778,
+      "colors": 104
+    },
+    {
+      "name": "m203-player",
+      "file": "04-m203-player.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 123,
+      "litFraction": 0.9974,
+      "colors": 123
+    },
+    {
+      "name": "m60-support",
+      "file": "05-m60-support.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 114.7,
+      "litFraction": 0.9436,
+      "colors": 133
+    },
+    {
+      "name": "m1911-support",
+      "file": "06-m1911-support.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 114.2,
+      "litFraction": 0.9574,
+      "colors": 107
+    },
+    {
+      "name": "m1911-aim",
+      "file": "07-m1911-aim.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 121.4,
+      "litFraction": 0.9993,
+      "colors": 112
+    },
+    {
+      "name": "law-support",
+      "file": "08-law-support.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 106.2,
+      "litFraction": 0.9672,
+      "colors": 144
+    },
+    {
+      "name": "law-aim",
+      "file": "09-law-aim.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 121,
+      "litFraction": 0.9975,
+      "colors": 119
+    },
+    {
+      "name": "ladder-hands",
+      "file": "10-ladder-hands.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 123.8,
+      "litFraction": 0.9977,
+      "colors": 115
+    },
+    {
+      "name": "swim-hands",
+      "file": "11-swim-hands.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 124.4,
+      "litFraction": 0.9994,
+      "colors": 111
+    },
+    {
+      "name": "stand",
+      "file": "12-stand.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 107.4,
+      "litFraction": 0.9968,
+      "colors": 142
+    },
+    {
+      "name": "face",
+      "file": "13-face.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 103.7,
+      "litFraction": 0.9979,
+      "colors": 149
+    },
+    {
+      "name": "prone",
+      "file": "14-prone.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 96.7,
+      "litFraction": 0.9993,
+      "colors": 131
+    },
+    {
+      "name": "seated",
+      "file": "15-seated.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 104.6,
+      "litFraction": 0.9975,
+      "colors": 136
+    },
+    {
+      "name": "walk-0p3",
+      "file": "16-walk-0p3.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 106.3,
+      "litFraction": 0.997,
+      "colors": 142
+    },
+    {
+      "name": "transition-0p4",
+      "file": "17-transition-0p4.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 104.4,
+      "litFraction": 0.9969,
+      "colors": 139
+    }
+  ],
+  "clips": [],
+  "benchmarks": [],
+  "evals": [
+    {
+      "expr": "(() => {\n    __I.aimTarget(100); __I.advance(0.8);\n    window.__handFinite = () => {\n      let finite = true;\n      __I.vm.root.updateMatrixWorld(true);\n      __I.vm.root.traverse(o => { if (!o.matrixWorld.elements.every(Number.isFinite)) finite = false; });\n      return finite;\n    };\n    window.__handMetrics = () => Object.fromEntries(Object.entries(__I.vm.arms).map(([side,a]) => {\n      const wrist = a.hand.localToWorld(a.hand.userData.wrist.clone());\n      const cuff = a.fo.localToWorld(new __I.THREE.Vector3(0,-0.28,0));\n      return [side, { wrist: wrist.toArray(), cuffGap: cuff.distanceTo(wrist) }];\n    }));\n    return true;\n  })()",
+      "value": true
+    },
+    {
+      "expr": "(__I.clear(), __I.slot(0), __I.R.glMode=false, __I.aimTarget(100), __I.advance(0.8,{ads:false}), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.inspect={\"pos\":[-0.48,-0.28,-0.23],\"look\":[0.02,-0.22,-0.27]}, __I.render(), __handMetrics())",
+      "value": {
+        "L": {
+          "wrist": [
+            0.021493577727959887,
+            -0.3016164317754535,
+            -0.4204183463532698
+          ],
+          "cuffGap": 6.206335383118183e-17
+        },
+        "R": {
+          "wrist": [
+            0.1605734297782786,
+            -0.25703000066498044,
+            -0.05839134657742334
+          ],
+          "cuffGap": 1.6653345369377348e-16
+        }
+      }
+    },
+    {
+      "expr": "(__I.vm.inspect={pos:[0.5,-0.11,-0.09],look:[0.06,-0.27,-0.12]}, __I.render(), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.inspect=null, __I.render(), true)",
+      "value": true
+    },
+    {
+      "expr": "__I.advance(1,{ads:true})",
+      "value": {
+        "pos": [
+          0,
+          0,
+          1.2
+        ],
+        "stance": "stand",
+        "speed": 0,
+        "ads": 1,
+        "rounds": 20,
+        "act": null,
+        "malf": null,
+        "bolt": "fwd"
+      }
+    },
+    {
+      "expr": "(__I.clear(), __I.slot(0), __I.R.glMode=true, __I.aimTarget(100), __I.advance(0.8,{ads:false}), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.inspect={\"pos\":[-0.48,-0.28,-0.23],\"look\":[0.02,-0.22,-0.27]}, __I.render(), __handMetrics())",
+      "value": {
+        "L": {
+          "wrist": [
+            0.02797368650749507,
+            -0.2914503522684449,
+            -0.2341198784311229
+          ],
+          "cuffGap": 8.326672684688674e-17
+        },
+        "R": {
+          "wrist": [
+            0.10519017057450647,
+            -0.21682720446369266,
+            -0.37644660492272697
+          ],
+          "cuffGap": 1.1775693440128312e-16
+        }
+      }
+    },
+    {
+      "expr": "(__I.vm.inspect=null, __I.render(), true)",
+      "value": true
+    },
+    {
+      "expr": "__I.advance(1,{ads:true})",
+      "value": {
+        "pos": [
+          0,
+          0,
+          1.2
+        ],
+        "stance": "stand",
+        "speed": 0,
+        "ads": 1,
+        "rounds": 1,
+        "act": null,
+        "malf": null,
+        "bolt": "fwd"
+      }
+    },
+    {
+      "expr": "(__I.clear(), __I.slot(1), __I.R.glMode=false, __I.aimTarget(100), __I.advance(0.8,{ads:false}), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.inspect={\"pos\":[-0.48,-0.28,-0.23],\"look\":[0.02,-0.22,-0.27]}, __I.render(), __handMetrics())",
+      "value": {
+        "L": {
+          "wrist": [
+            0.046590700098194465,
+            -0.29148740106100923,
+            -0.43880158309644535
+          ],
+          "cuffGap": 1.3092278833360675e-16
+        },
+        "R": {
+          "wrist": [
+            0.18738459947165478,
+            -0.31044646700783163,
+            -0.04824141711161781
+          ],
+          "cuffGap": 1.2719202621569003e-16
+        }
+      }
+    },
+    {
+      "expr": "(__I.vm.inspect=null, __I.render(), true)",
+      "value": true
+    },
+    {
+      "expr": "__I.advance(1,{ads:true})",
+      "value": {
+        "pos": [
+          0,
+          0,
+          1.2
+        ],
+        "stance": "stand",
+        "speed": 0,
+        "ads": 1,
+        "rounds": 100,
+        "act": null,
+        "malf": null,
+        "bolt": "cocked"
+      }
+    },
+    {
+      "expr": "(__I.clear(), __I.slot(3), __I.R.glMode=false, __I.aimTarget(100), __I.advance(0.8,{ads:false}), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.inspect={\"pos\":[-0.48,-0.28,-0.23],\"look\":[0.02,-0.22,-0.27]}, __I.render(), __handMetrics())",
+      "value": {
+        "L": {
+          "wrist": [
+            0.013885524712586639,
+            -0.23618368102749784,
+            -0.24815525370207053
+          ],
+          "cuffGap": 7.850462293418876e-17
+        },
+        "R": {
+          "wrist": [
+            0.10140800659672475,
+            -0.20671964315799057,
+            -0.23475595143031858
+          ],
+          "cuffGap": 1.3877787807814457e-16
+        }
+      }
+    },
+    {
+      "expr": "(__I.vm.inspect=null, __I.render(), true)",
+      "value": true
+    },
+    {
+      "expr": "__I.advance(1,{ads:true})",
+      "value": {
+        "pos": [
+          0,
+          0,
+          1.2
+        ],
+        "stance": "stand",
+        "speed": 0,
+        "ads": 1,
+        "rounds": 7,
+        "act": null,
+        "malf": null,
+        "bolt": "fwd"
+      }
+    },
+    {
+      "expr": "(__I.clear(), __I.slot(2), __I.R.glMode=false, __I.aimTarget(100), __I.advance(0.8,{ads:false}), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.inspect={\"pos\":[-0.48,-0.28,-0.23],\"look\":[0.02,-0.22,-0.27]}, __I.render(), __handMetrics())",
+      "value": {
+        "L": {
+          "wrist": [
+            0.02400194295586225,
+            -0.16193572356170408,
+            -0.22464142057833647
+          ],
+          "cuffGap": 1.1102230246251565e-16
+        },
+        "R": {
+          "wrist": [
+            0.18912108510352088,
+            -0.16193572356170408,
+            -0.06452220359628195
+          ],
+          "cuffGap": 1.3947004136484323e-16
+        }
+      }
+    },
+    {
+      "expr": "(__I.vm.inspect=null, __I.render(), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.press('law'), __I.advance(3.4), __I.press('law'), __I.advance(1), true)",
+      "value": true
+    },
+    {
+      "expr": "__I.advance(1,{ads:true})",
+      "value": {
+        "pos": [
+          0,
+          0,
+          1.2
+        ],
+        "stance": "stand",
+        "speed": 0,
+        "ads": 1,
+        "rounds": 1,
+        "act": null,
+        "malf": null,
+        "bolt": "fwd"
+      }
+    },
+    {
+      "expr": "(__I.slot(0), __I.clear(), __I.advance(0.8,{ads:false}), true)",
+      "value": true
+    },
+    {
+      "expr": "__I.advance(0.7,{move:[0,1],sprint:true})",
+      "value": {
+        "pos": [
+          -0.01,
+          0,
+          0.45
+        ],
+        "stance": "stand",
+        "speed": 2.12,
+        "ads": 0,
+        "rounds": 20,
+        "act": null,
+        "malf": null,
+        "bolt": "fwd"
+      }
+    },
+    {
+      "expr": "(__I.advance(0.5,{move:[0,0],sprint:false}), __I.input({stance:'prone'}), __I.advance(0.7), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.advance(2), __I.press('reload'), __I.advance(0.9), true)",
+      "value": true
+    },
+    {
+      "expr": "(__I.advance(5), __I.clear(), __I.teleport(0,1.2,0), __I.advance(0.7), true)",
+      "value": true
+    },
+    {
+      "expr": "import('../js/units/infantry/bodyvm.js').then(m => { window.__BV=m.createBodyVM(__I.vm); return true; })",
+      "value": true
+    },
+    {
+      "expr": "(() => { for(let i=0;i<30;i++){__I.vm.update(1/60,__I.R);__BV.update(1/60,{\"mode\":\"ladder\",\"climbY\":1.83,\"pitch\":0.15});}return __handFinite();})()",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.update(1/60,__I.R), __BV.update(1/60,null), __handMetrics())",
+      "value": {
+        "L": {
+          "wrist": [
+            -0.20522773844541198,
+            -0.006692403203473505,
+            -0.31891814529330503
+          ],
+          "cuffGap": 3.469446951953614e-18
+        },
+        "R": {
+          "wrist": [
+            0.20641684784533865,
+            -0.30085419945743336,
+            -0.27126583035636986
+          ],
+          "cuffGap": 1.2412670766236366e-16
+        }
+      }
+    },
+    {
+      "expr": "(() => {for(let i=0;i<30;i++){__I.vm.update(1/60,__I.R);__BV.update(1/60,null);}return true;})()",
+      "value": true
+    },
+    {
+      "expr": "(() => { for(let i=0;i<30;i++){__I.vm.update(1/60,__I.R);__BV.update(1/60,{\"mode\":\"swim\",\"speed\":0.8,\"pitch\":-0.2});}return __handFinite();})()",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.update(1/60,__I.R), __BV.update(1/60,null), __handMetrics())",
+      "value": {
+        "L": {
+          "wrist": [
+            -0.22406419260009325,
+            -0.16926004999687244,
+            -0.459590739936918
+          ],
+          "cuffGap": 5.551115123125783e-17
+        },
+        "R": {
+          "wrist": [
+            0.22871037308532327,
+            -0.15253413354554388,
+            -0.4564582996677442
+          ],
+          "cuffGap": 8.326672684688674e-17
+        }
+      }
+    },
+    {
+      "expr": "(() => {for(let i=0;i<30;i++){__I.vm.update(1/60,__I.R);__BV.update(1/60,null);}return true;})()",
+      "value": true
+    },
+    {
+      "expr": "(() => { for(let i=0;i<30;i++){__I.vm.update(1/60,__I.R);__BV.update(1/60,{\"mode\":\"aid\",\"region\":\"legL\",\"item\":\"dress\",\"pitch\":-0.65});}return __handFinite();})()",
+      "value": true
+    },
+    {
+      "expr": "(__I.vm.update(1/60,__I.R), __BV.update(1/60,null), __handMetrics())",
+      "value": {
+        "L": {
+          "wrist": [
+            -0.2133256246424699,
+            -0.05290179705212096,
+            -0.4618070531547933
+          ],
+          "cuffGap": 2.7755575615628914e-17
+        },
+        "R": {
+          "wrist": [
+            -0.05616888978315354,
+            -0.06501137280049199,
+            -0.4595648536620841
+          ],
+          "cuffGap": 1.7772239894833365e-16
+        }
+      }
+    },
+    {
+      "expr": "(() => {for(let i=0;i<30;i++){__I.vm.update(1/60,__I.R);__BV.update(1/60,null);}return true;})()",
+      "value": true
+    },
+    {
+      "expr": "__H.set('stand')",
+      "value": {
+        "triangles": 84864,
+        "meshes": 12,
+        "skinned": 1,
+        "lod": "hero",
+        "view": "stand",
+        "detail": "high"
+      }
+    },
+    {
+      "expr": "__H.set('face')",
+      "value": {
+        "triangles": 84864,
+        "meshes": 12,
+        "skinned": 1,
+        "lod": "hero",
+        "view": "face",
+        "detail": "high"
+      }
+    },
+    {
+      "expr": "__H.set('cloth')",
+      "value": {
+        "triangles": 63524,
+        "meshes": 1,
+        "skinned": 1,
+        "lod": "hero",
+        "view": "cloth",
+        "detail": "high"
+      }
+    },
+    {
+      "expr": "__H.set('aim')",
+      "value": {
+        "triangles": 84864,
+        "meshes": 12,
+        "skinned": 1,
+        "lod": "hero",
+        "view": "aim",
+        "detail": "high"
+      }
+    },
+    {
+      "expr": "__H.set('kneel')",
+      "value": {
+        "triangles": 84864,
+        "meshes": 12,
+        "skinned": 1,
+        "lod": "hero",
+        "view": "kneel",
+        "detail": "high"
+      }
+    },
+    {
+      "expr": "__H.set('prone')",
+      "value": {
+        "triangles": 84864,
+        "meshes": 12,
+        "skinned": 1,
+        "lod": "hero",
+        "view": "prone",
+        "detail": "high"
+      }
+    },
+    {
+      "expr": "__H.set('seated')",
+      "value": {
+        "triangles": 84864,
+        "meshes": 12,
+        "skinned": 1,
+        "lod": "hero",
+        "view": "seated",
+        "detail": "high"
+      }
+    },
+    {
+      "expr": "__H.set('climb')",
+      "value": {
+        "triangles": 84864,
+        "meshes": 12,
+        "skinned": 1,
+        "lod": "hero",
+        "view": "climb",
+        "detail": "high"
+      }
+    },
+    {
+      "expr": "__H.set('swim')",
+      "value": {
+        "triangles": 84864,
+        "meshes": 12,
+        "skinned": 1,
+        "lod": "hero",
+        "view": "swim",
+        "detail": "high"
+      }
+    },
+    {
+      "expr": "__H.set('aid')",
+      "value": {
+        "triangles": 84864,
+        "meshes": 12,
+        "skinned": 1,
+        "lod": "hero",
+        "view": "aid",
+        "detail": "high"
+      }
+    },
+    {
+      "expr": "__H.set('stand',{detail:1})",
+      "value": {
+        "triangles": 26144,
+        "meshes": 12,
+        "skinned": 1,
+        "lod": "near",
+        "view": "stand",
+        "detail": "low"
+      }
+    },
+    {
+      "expr": "[__H.set('stand',{detail:0}),__H.set('stand',{detail:1}),__H.set('cloth',{detail:0}),__H.set('stand',{detail:0,distance:40})]",
+      "value": [
+        {
+          "triangles": 84864,
+          "meshes": 12,
+          "skinned": 1,
+          "lod": "hero",
+          "view": "stand",
+          "detail": "high"
+        },
+        {
+          "triangles": 26144,
+          "meshes": 12,
+          "skinned": 1,
+          "lod": "near",
+          "view": "stand",
+          "detail": "low"
+        },
+        {
+          "triangles": 63524,
+          "meshes": 1,
+          "skinned": 1,
+          "lod": "hero",
+          "view": "cloth",
+          "detail": "high"
+        },
+        {
+          "triangles": 16452,
+          "meshes": 12,
+          "skinned": 1,
+          "lod": "mid",
+          "view": "stand",
+          "detail": "high"
+        }
+      ]
+    },
+    {
+      "expr": "__H.set('walk',{detail:0,time:0})",
+      "value": {
+        "triangles": 84864,
+        "meshes": 12,
+        "skinned": 1,
+        "lod": "hero",
+        "view": "walk",
+        "detail": "high"
+      }
+    },
+    {
+      "expr": "__H.set('walk',{detail:0,time:0.3})",
+      "value": {
+        "triangles": 84864,
+        "meshes": 12,
+        "skinned": 1,
+        "lod": "hero",
+        "view": "walk",
+        "detail": "high"
+      }
+    },
+    {
+      "expr": "__H.set('walk',{detail:0,time:0.6})",
+      "value": {
+        "triangles": 84864,
+        "meshes": 12,
+        "skinned": 1,
+        "lod": "hero",
+        "view": "walk",
+        "detail": "high"
+      }
+    },
+    {
+      "expr": "__H.set('run',{detail:0,time:0.3})",
+      "value": {
+        "triangles": 84864,
+        "meshes": 12,
+        "skinned": 1,
+        "lod": "hero",
+        "view": "run",
+        "detail": "high"
+      }
+    },
+    {
+      "expr": "__H.set('transition',{detail:0,time:0.4})",
+      "value": {
+        "triangles": 84864,
+        "meshes": 12,
+        "skinned": 1,
+        "lod": "hero",
+        "view": "transition",
+        "detail": "high"
+      }
+    },
+    {
+      "expr": "__H.set('transition',{detail:0,time:2.5})",
+      "value": {
+        "triangles": 84864,
+        "meshes": 12,
+        "skinned": 1,
+        "lod": "hero",
+        "view": "transition",
+        "detail": "high"
+      }
+    },
+    {
+      "expr": "__H.set('walk',{detail:0,play:true})",
+      "value": {
+        "triangles": 84864,
+        "meshes": 12,
+        "skinned": 1,
+        "lod": "hero",
+        "view": "walk",
+        "detail": "high"
+      }
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__handFinite()",
+      "label": "m16: finite first-person transforms",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__handFinite()",
+      "label": "m203: finite first-person transforms",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__handFinite()",
+      "label": "m60: finite first-person transforms",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__handFinite()",
+      "label": "m1911: finite first-person transforms",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__handFinite()",
+      "label": "law: finite first-person transforms",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__handFinite()",
+      "label": "stance/reload: finite first-person transforms",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__handFinite()",
+      "label": "body overlays: finite first-person transforms",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "Object.values(__I.vm.arms).every(a=>a.hand.userData.shapes.grip.geometry.userData.handSurface==='LP/SDF'&&a.hand.children.filter(c=>c.isMesh&&c.visible).length===1)",
+      "label": "One visible SDF hand per arm retains the fitted profile",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(transition-0p4)",
+      "ok": true,
+      "value": 0.9969
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-29T09:07:03.557Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "787b4c17fa3ee149fa7d3b13bd3f66a2fce96ff2",
+    "branch": "ngc/look-voices",
+    "gameTree": "29426da431d131f4755554436e6bfb53174b7329",
+    "gameSha256": "a0e1850f87fe2cd93bc6b47137e783afa6d781cc7796983329811693454430ef",
+    "dirty": true,
+    "status": "M  MODLOG.md\nM  docs/ngc1980/BIBLE.md\n M docs/ngc1980/COORDINATION.md\nM  docs/ngc1980/LOOK-PLAN.md\nA  docs/ngc1980/PERF-BUDGETS.md\nA  docs/ngc1980/TYPESCRIPT.md\nA  docs/ngc1980/evidence/look-nature/sbs-01-hq.png\nA  docs/ngc1980/evidence/look-nature/sbs-02-oak.png\nA  docs/ngc1980/evidence/look-nature/sbs-03-pine.png\nA  docs/ngc1980/evidence/look-nature/sbs-04-fir.png\nA  docs/ngc1980/evidence/look-nature/sbs-05-backlit.png\nA  docs/ngc1980/evidence/look-nature/sbs-06-forest.png\nA  docs/ngc1980/evidence/look-nature/sbs-07-village.png\nA  docs/ngc1980/evidence/look-nature/sbs-08-village30.png\nA  docs/ngc1980/evidence/look-nature/sbs-09-heli30.png\nA  docs/ngc1980/evidence/look-nature/sbs-10-heli200.png\nA  docs/ngc1980/evidence/look-nature/sbs-11-jet1200.png\nA  docs/ngc1980/evidence/look-people/crews-seated-kneeling.png\nA  docs/ngc1980/evidence/look-people/deck-crew-close.png\nA  docs/ngc1980/evidence/look-people/deck-crew.png\nA  docs/ngc1980/evidence/look-people/face-bare.png\nA  docs/ngc1980/evidence/look-people/face-helmet-34.png\nA  docs/ngc1980/evidence/look-people/face-helmet.png\nA  docs/ngc1980/evidence/look-people/fp-hip-at-home.png\nA  docs/ngc1980/evidence/look-people/fp-self-aid.png\nA  docs/ngc1980/evidence/look-people/fp-swim.png\nA  docs/ngc1980/evidence/look-people/heads-navy.png\nA  docs/ngc1980/evidence/look-people/heads-pilots.png\nA  docs/ngc1980/evidence/look-people/huey-pilots-after.png\nA  docs/ngc1980/evidence/look-people/roles.png\nA  docs/ngc1980/evidence/look-people/squad-10m.png\nA  docs/ngc1980/evidence/look-people/squad-40m-crowd-lod-after.png\nA  docs/ngc1980/evidence/look-people/tomcat-crew-close.png\nA  docs/ngc1980/evidence/look-people/tomcat-crew-side.png\nA  docs/ngc1980/evidence/look-people/townsfolk.png\nA  docs/ngc1980/evidence/look-people/tp-carry-after.png\nA  docs/ngc1980/evidence/look-people/tp-front-close.png\nA  docs/ngc1980/evidence/look-people/tp-swim-after.png\nA  docs/ngc1980/evidence/look-people/vm-grip-close.png\nA  docs/ngc1980/evidence/look-people/vm-side-r.png\nA  docs/ngc1980/evidence/look-people/weapons-after.png\nA  docs/ngc1980/evidence/perf-render/sbs-deck.png\nA  docs/ngc1980/evidence/perf-render/sbs-hard.png\nA  docs/ngc1980/evidence/perf-render/sbs-home200.png\nA  docs/ngc1980/evidence/perf-render/sbs-hq.png\nA  docs/ngc1980/evidence/perf-render/sbs-jeep.png\nA  docs/ngc1980/evidence/perf-render/sbs-jet1200.png\nA  docs/ngc1980/evidence/perf-render/sbs-m113.png\nA  docs/ngc1980/evidence/perf-render/sbs-msaa-hq.png\nA  docs/ngc1980/evidence/perf-render/sbs-pad.png\nA  docs/ngc1980/evidence/perf-render/sbs-tank.png\nA  docs/ngc1980/findings/look-nature.md\nA  docs/ngc1980/findings/look-people.md\nA  docs/ngc1980/findings/perf-cpu.md\nA  docs/ngc1980/findings/perf-render.md\nA  docs/ngc1980/findings/typecheck.md\nA  docs/ngc1980/findings/xr-fix.md\nA  docs/ngc1980/reference/people/SOURCES.md\n M game/dev/people.js\nM  game/index.html\nM  game/js/craft.js\nM  game/js/craftjet.js\nM  game/js/crafttomcat.js\nM  game/js/fog.js\nM  game/js/ground.js\nM  game/js/heli.js\nMM game/js/hotas.js\nA  game/js/hypot.js\nM  game/js/interiors/crewfig.js\nM  game/js/jetplay.js\nM  game/js/main.js\nM  game/js/marine.js\nA  game/js/perf/bench.js\nA  game/js/perfhud.js\nM  game/js/renderkit/adopt.js\nM  game/js/renderkit/effects.js\nM  game/js/renderkit/gamemats.js\nM  game/js/renderkit/gamepost.js\nM  game/js/renderkit/light.js\nA  game/js/renderkit/lod.js\nM  game/js/renderkit/materials.js\nA  game/js/renderkit/merge.js\nM  game/js/renderkit/nature.js\nM  game/js/renderkit/ui.js\nM  game/js/sim/zone.js\nM  game/js/ui/markerlayer.js\nM  game/js/units/air/rotary/ch46craft.js\nM  game/js/units/air/rotary/ch46unit.js\nM  game/js/units/air/rotary/figures.js\nM  game/js/units/air/rotary/mv22unit.js\nM  game/js/units/air/rotary/rb.js\nM  game/js/units/air/rotary/rotary.js\nM  game/js/units/air/rotary/rotor.js\nM  game/js/units/air/rotary/squad.js\nM  game/js/units/air/rotary/waspfm.js\nM  game/js/units/air/rotary/waspunit.js\nM  game/js/units/air/tomcatmodel.js\nM  game/js/units/armor/armorcraft.js\nM  game/js/units/armor/tankmodel.js\nM  game/js/units/defence/brain.js\nM  game/js/units/groundwar/groundsim.js\nM  game/js/units/groundwar/groundwar.js\nM  game/js/units/groundwar/marine.js\n M game/js/units/groundwar/marinefigure.js\nA  game/js/units/infantry/figgeo.js\nA  game/js/units/infantry/figinst.js\n M game/js/units/infantry/figurematerials.js\nM  game/js/units/infantry/handkit.js\nA  game/js/units/infantry/humanfig.js\n D game/js/units/infantry/humanmesh.js\nM  game/js/units/infantry/invui.js\nM  game/js/units/infantry/items.js\n M game/js/units/infantry/meshkit.js\nA  game/js/units/infantry/sdfmesh.js\nMM game/js/units/infantry/soldiermodel.js\nM  game/js/units/infantry/viewmodel.js\nM  game/js/units/infantry/weaponmodels.js\nM  game/js/units/naval/deckcrew.js\nM  game/js/units/naval/fishsim.js\nM  game/js/units/naval/kraken.js\nM  game/js/units/naval/navalfx.js\nM  game/js/units/naval/seamotion.js\nM  game/js/units/wheeled/index.js\nM  game/js/units/wheeled/tyre.js\nM  game/js/units/wheeled/vehiclefm.js\nM  game/js/units/wheeled/wheeledcraft.js\nM  game/js/units/wheeled/wheeledenv.js\nM  game/js/vehicle.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/hooks.js\n M game/js/voice/localrecognition.js\n M game/js/voice/microphone.js\n M game/js/voice/operations.js\n M game/js/voice/ptt.js\n M game/js/voice/recognition.js\n M game/js/voice/voice.js\nM  game/js/war.js\nM  game/js/world.js\nM  game/js/world/ambient.js\nM  game/js/world/chunkgen.js\nM  game/js/world/life.js\nM  game/js/world/worldworker.js\nM  game/js/xr/bench.js\nAM game/types/globals.d.ts\nA  game/vendor/html2canvas.d.ts\nM  launcher/install.sh\nM  tools/README.md\nM  tools/check.mjs\n M tools/figuresurfacebench.mjs\n M tools/firstpersonbench.mjs\nA  tools/grid.mjs\nA  tools/hypotbench.mjs\nM  tools/package-lock.json\nM  tools/package.json\n M tools/peoplebench.mjs\nA  tools/profsummary.mjs\nA  tools/profunder.mjs\nA  tools/scenes/cpuprofile.mjs\nA  tools/scenes/looknature.mjs\nA  tools/scenes/lookpeople.mjs\nA  tools/scenes/lpcrews.mjs\nA  tools/scenes/lpstats.mjs\nA  tools/scenes/lpstudio.mjs\nA  tools/scenes/lpweapons.mjs\nA  tools/scenes/mergecheck.mjs\n M tools/scenes/people.mjs\nA  tools/scenes/perfab.mjs\nA  tools/scenes/perfbench.mjs\nA  tools/scenes/perfbudget.mjs\nA  tools/scenes/perflod.mjs\nM  tools/serve.mjs\n M tools/servebench.mjs\nM  tools/sim/headless.mjs\nA  tools/simdiff.mjs\nA  tools/typecheck-baseline.json\nA  tools/typecheck.mjs\nA  tools/warprof.mjs\nA  tsconfig.json\n?? tools/scenes/radiofiguremerge.mjs"
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": null,
+    "state": null
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "787b4c17fa3ee149fa7d3b13bd3f66a2fce96ff2",
+    "branch": "ngc/look-voices",
+    "gameTree": "29426da431d131f4755554436e6bfb53174b7329",
+    "gameSha256": "a0e1850f87fe2cd93bc6b47137e783afa6d781cc7796983329811693454430ef",
+    "dirty": true,
+    "status": "M  MODLOG.md\n M README.md\nM  docs/ngc1980/BIBLE.md\n M docs/ngc1980/COORDINATION.md\nM  docs/ngc1980/LOOK-PLAN.md\nA  docs/ngc1980/PERF-BUDGETS.md\nA  docs/ngc1980/TYPESCRIPT.md\nA  docs/ngc1980/evidence/look-nature/sbs-01-hq.png\nA  docs/ngc1980/evidence/look-nature/sbs-02-oak.png\nA  docs/ngc1980/evidence/look-nature/sbs-03-pine.png\nA  docs/ngc1980/evidence/look-nature/sbs-04-fir.png\nA  docs/ngc1980/evidence/look-nature/sbs-05-backlit.png\nA  docs/ngc1980/evidence/look-nature/sbs-06-forest.png\nA  docs/ngc1980/evidence/look-nature/sbs-07-village.png\nA  docs/ngc1980/evidence/look-nature/sbs-08-village30.png\nA  docs/ngc1980/evidence/look-nature/sbs-09-heli30.png\nA  docs/ngc1980/evidence/look-nature/sbs-10-heli200.png\nA  docs/ngc1980/evidence/look-nature/sbs-11-jet1200.png\nA  docs/ngc1980/evidence/look-people/crews-seated-kneeling.png\nA  docs/ngc1980/evidence/look-people/deck-crew-close.png\nA  docs/ngc1980/evidence/look-people/deck-crew.png\nA  docs/ngc1980/evidence/look-people/face-bare.png\nA  docs/ngc1980/evidence/look-people/face-helmet-34.png\nA  docs/ngc1980/evidence/look-people/face-helmet.png\nA  docs/ngc1980/evidence/look-people/fp-hip-at-home.png\nA  docs/ngc1980/evidence/look-people/fp-self-aid.png\nA  docs/ngc1980/evidence/look-people/fp-swim.png\nA  docs/ngc1980/evidence/look-people/heads-navy.png\nA  docs/ngc1980/evidence/look-people/heads-pilots.png\nA  docs/ngc1980/evidence/look-people/huey-pilots-after.png\nA  docs/ngc1980/evidence/look-people/roles.png\nA  docs/ngc1980/evidence/look-people/squad-10m.png\nA  docs/ngc1980/evidence/look-people/squad-40m-crowd-lod-after.png\nA  docs/ngc1980/evidence/look-people/tomcat-crew-close.png\nA  docs/ngc1980/evidence/look-people/tomcat-crew-side.png\nA  docs/ngc1980/evidence/look-people/townsfolk.png\nA  docs/ngc1980/evidence/look-people/tp-carry-after.png\nA  docs/ngc1980/evidence/look-people/tp-front-close.png\nA  docs/ngc1980/evidence/look-people/tp-swim-after.png\nA  docs/ngc1980/evidence/look-people/vm-grip-close.png\nA  docs/ngc1980/evidence/look-people/vm-side-r.png\nA  docs/ngc1980/evidence/look-people/weapons-after.png\nA  docs/ngc1980/evidence/perf-render/sbs-deck.png\nA  docs/ngc1980/evidence/perf-render/sbs-hard.png\nA  docs/ngc1980/evidence/perf-render/sbs-home200.png\nA  docs/ngc1980/evidence/perf-render/sbs-hq.png\nA  docs/ngc1980/evidence/perf-render/sbs-jeep.png\nA  docs/ngc1980/evidence/perf-render/sbs-jet1200.png\nA  docs/ngc1980/evidence/perf-render/sbs-m113.png\nA  docs/ngc1980/evidence/perf-render/sbs-msaa-hq.png\nA  docs/ngc1980/evidence/perf-render/sbs-pad.png\nA  docs/ngc1980/evidence/perf-render/sbs-tank.png\nA  docs/ngc1980/findings/look-nature.md\nA  docs/ngc1980/findings/look-people.md\n M docs/ngc1980/findings/look-voices.md\nA  docs/ngc1980/findings/perf-cpu.md\nA  docs/ngc1980/findings/perf-render.md\nA  docs/ngc1980/findings/typecheck.md\nA  docs/ngc1980/findings/xr-fix.md\nA  docs/ngc1980/reference/people/SOURCES.md\n M game/dev/people.js\nM  game/index.html\nM  game/js/craft.js\nM  game/js/craftjet.js\nM  game/js/crafttomcat.js\nM  game/js/fog.js\nM  game/js/ground.js\nM  game/js/heli.js\nMM game/js/hotas.js\nA  game/js/hypot.js\nM  game/js/interiors/crewfig.js\nM  game/js/jetplay.js\nM  game/js/main.js\nM  game/js/marine.js\nA  game/js/perf/bench.js\nA  game/js/perfhud.js\nM  game/js/renderkit/adopt.js\nM  game/js/renderkit/effects.js\nM  game/js/renderkit/gamemats.js\nM  game/js/renderkit/gamepost.js\nM  game/js/renderkit/light.js\nA  game/js/renderkit/lod.js\nM  game/js/renderkit/materials.js\nA  game/js/renderkit/merge.js\nM  game/js/renderkit/nature.js\nM  game/js/renderkit/ui.js\nM  game/js/sim/zone.js\nM  game/js/ui/markerlayer.js\nM  game/js/units/air/rotary/ch46craft.js\nM  game/js/units/air/rotary/ch46unit.js\nM  game/js/units/air/rotary/figures.js\nM  game/js/units/air/rotary/mv22unit.js\nM  game/js/units/air/rotary/rb.js\nM  game/js/units/air/rotary/rotary.js\nM  game/js/units/air/rotary/rotor.js\nM  game/js/units/air/rotary/squad.js\nM  game/js/units/air/rotary/waspfm.js\nM  game/js/units/air/rotary/waspunit.js\nM  game/js/units/air/tomcatmodel.js\nM  game/js/units/armor/armorcraft.js\nM  game/js/units/armor/tankmodel.js\nM  game/js/units/defence/brain.js\nM  game/js/units/groundwar/groundsim.js\nM  game/js/units/groundwar/groundwar.js\nM  game/js/units/groundwar/marine.js\n M game/js/units/groundwar/marinefigure.js\nA  game/js/units/infantry/figgeo.js\nA  game/js/units/infantry/figinst.js\n M game/js/units/infantry/figurematerials.js\nM  game/js/units/infantry/handkit.js\nA  game/js/units/infantry/humanfig.js\n D game/js/units/infantry/humanmesh.js\nM  game/js/units/infantry/invui.js\nM  game/js/units/infantry/items.js\n M game/js/units/infantry/meshkit.js\nA  game/js/units/infantry/sdfmesh.js\nMM game/js/units/infantry/soldiermodel.js\nM  game/js/units/infantry/viewmodel.js\nM  game/js/units/infantry/weaponmodels.js\nM  game/js/units/naval/deckcrew.js\nM  game/js/units/naval/fishsim.js\nM  game/js/units/naval/kraken.js\nM  game/js/units/naval/navalfx.js\nM  game/js/units/naval/seamotion.js\nM  game/js/units/wheeled/index.js\nM  game/js/units/wheeled/tyre.js\nM  game/js/units/wheeled/vehiclefm.js\nM  game/js/units/wheeled/wheeledcraft.js\nM  game/js/units/wheeled/wheeledenv.js\nM  game/js/vehicle.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/hooks.js\n M game/js/voice/localrecognition.js\n M game/js/voice/microphone.js\n M game/js/voice/operations.js\n M game/js/voice/ptt.js\n M game/js/voice/recognition.js\n M game/js/voice/voice.js\nM  game/js/war.js\nM  game/js/world.js\nM  game/js/world/ambient.js\nM  game/js/world/chunkgen.js\nM  game/js/world/life.js\nM  game/js/world/worldworker.js\nM  game/js/xr/bench.js\nAM game/types/globals.d.ts\nA  game/vendor/html2canvas.d.ts\nM  launcher/install.sh\nM  tools/README.md\nM  tools/check.mjs\n M tools/figuresurfacebench.mjs\n M tools/firstpersonbench.mjs\nA  tools/grid.mjs\nA  tools/hypotbench.mjs\nM  tools/package-lock.json\nM  tools/package.json\n M tools/peoplebench.mjs\nA  tools/profsummary.mjs\nA  tools/profunder.mjs\nA  tools/scenes/cpuprofile.mjs\nA  tools/scenes/looknature.mjs\nA  tools/scenes/lookpeople.mjs\nA  tools/scenes/lpcrews.mjs\nA  tools/scenes/lpstats.mjs\nA  tools/scenes/lpstudio.mjs\nA  tools/scenes/lpweapons.mjs\nA  tools/scenes/mergecheck.mjs\n M tools/scenes/people.mjs\nA  tools/scenes/perfab.mjs\nA  tools/scenes/perfbench.mjs\nA  tools/scenes/perfbudget.mjs\nA  tools/scenes/perflod.mjs\nM  tools/serve.mjs\n M tools/servebench.mjs\nM  tools/sim/headless.mjs\nA  tools/simdiff.mjs\nA  tools/typecheck-baseline.json\nA  tools/typecheck.mjs\nA  tools/warprof.mjs\nA  tsconfig.json\n?? tools/scenes/radiofiguremerge.mjs"
+  },
+  "summary": "PASS: 9/9 expects, 0 page errors, 0 console errors",
+  "durationMs": 91355,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/runs/radio-merge-figures"
+}

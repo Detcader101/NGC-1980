@@ -7,7 +7,7 @@
 //     sight: { eyeRelief, ... }, setState(st) (drive the moving parts) }
 // Moving parts are separate meshes (one draw call each); the static body is one mesh.
 import * as THREE from 'three';
-import { Kit, KITMAT, COL, FIG, creaseNormals, roundPoly, weldNormals, figMat } from './meshkit.js';
+import { Kit, KITMAT, CAMO, COL, FIG, creaseNormals, roundPoly, weldNormals, figMat } from './meshkit.js';
 
 const D = Math.PI / 180;
 // thin flat plate from a 2D outline with optional round holes, in the XY plane (extruded along z)
@@ -34,7 +34,7 @@ function sectionBar(outline, z0, z1, taper = 1, cy = 0) {
 // smooth round barrel / delta ring / buffer; anodized-aluminium + parkerized steel in one mesh, the black plastic
 // furniture (stock, grip, handguards) in another (dull sheen vs metal).
 function m16Fig(G, hi, gl, BY) {
-  const k = new Kit(), kf = new Kit(), P = 0x3c3f43, PD = 0x26282b, PE = 0x33363a, F = 0x232426, FD = 0x151617, HOLE = 0x070708;
+  const k = new Kit(), kf = new Kit(), P = 0x3c3f43, PD = 0x26282b, PE = 0x33363a, F = CAMO.surface(0x232426, 'plastic'), FD = CAMO.surface(0x151617, 'plastic'), HOLE = 0x070708;
   const seg = hi ? 16 : 8, bv = hi ? 0.0022 : 0;
   // upper receiver: side profile, bevelled; the flat top under the handle; the ejection port boss on the right
   k.prism([[0.095, -0.036], [0.095, -0.09], [-0.13, -0.09], [-0.165, -0.084], [-0.165, -0.04], [-0.12, -0.036]], 0.032, P, [0, 0, 0], 'zy', [0, 0, 0], bv);
@@ -192,7 +192,7 @@ function m203Anchors(anchors, sight, TY) {
 function addM203(G, parts, anchors, sight, hi) {
   if (FIG) return m203Fig(G, parts, anchors, sight, hi);
   const k = new Kit(), BY = -0.066, TY = -0.122, P = COL.park, PD = COL.parkDark;
-  k.cyl(0.03, 0.03, 0.25, COL.furniture, [0, BY - 0.006, -0.3], 'z', 10);           // M203 handguard round the rifle barrel
+  k.cyl(0.03, 0.03, 0.25, CAMO.surface(COL.furniture, 'plastic'), [0, BY - 0.006, -0.3], 'z', 10); // M203 handguard round the rifle barrel
   if (hi) for (let i = 0; i < 11; i++) k.box(0.064, 0.004, 0.01, PD, [0, BY + 0.022, -0.19 - i * 0.021]);   // top ribs
   k.box(0.05, 0.05, 0.1, P, [0, TY + 0.008, -0.215]);                              // M203 receiver
   k.prism([[-0.165, -0.15], [-0.235, -0.15], [-0.235, -0.165], [-0.165, -0.165]], 0.01, PD, [0, 0, 0], 'zy');   // its trigger guard
@@ -220,7 +220,7 @@ export function buildM60(o = {}) {
   const hi = o.detail !== 'low';
   if (FIG) return m60Fig(hi);
   const G = new THREE.Group(); G.name = 'M60';
-  const k = new Kit(), BY = -0.075, P = COL.park, PD = COL.parkDark, F = COL.furniture;
+  const k = new Kit(), BY = -0.075, P = COL.park, PD = COL.parkDark, F = CAMO.surface(COL.furniture, 'plastic');
   k.box(0.064, 0.09, 0.22, P, [0, -0.08, 0.06]);                                     // receiver
   k.box(0.05, 0.02, 0.05, PD, [0, -0.03, -0.015]);                                   // rear sight base (ahead of the cover)
   k.prism([[0.17, -0.05], [0.44, -0.058], [0.448, -0.065], [0.448, -0.2], [0.44, -0.205], [0.2, -0.135], [0.17, -0.13]], 0.05, F, [0, 0, 0], 'zy');   // buttstock
@@ -276,16 +276,16 @@ export function buildM72(o = {}) {
   if (FIG) return m72Fig(hi);
   const G = new THREE.Group(); G.name = 'M72A2';
   const BY = -0.07, R = 0.039, parts = {};
-  const outer = new Kit(); outer.cyl(R, R, 0.655, COL.od, [0, 0, -0.06], 'z', 14);
-  outer.cyl(R + 0.0015, R + 0.0015, 0.03, COL.yellow, [0, 0, -0.33], 'z', 14);       // yellow band
-  outer.box(0.016, 0.014, 0.05, COL.odDark, [0, R + 0.004, -0.08]);                  // trigger housing (rubber boot)
+  const outer = new Kit(); outer.cyl(R, R, 0.655, CAMO.surface(COL.od, 'plastic'), [0, 0, -0.06], 'z', 14);
+  outer.cyl(R + 0.0015, R + 0.0015, 0.03, CAMO.surface(COL.yellow, 'plastic'), [0, 0, -0.33], 'z', 14); // yellow band
+  outer.box(0.016, 0.014, 0.05, CAMO.surface(COL.odDark, 'rubber'), [0, R + 0.004, -0.08]); // trigger housing boot
   outer.box(0.02, 0.008, 0.03, COL.odDark, [0, R + 0.003, 0.02]);                    // rear sight housing
-  if (hi) { outer.box(0.018, 0.006, 0.12, COL.odDark, [0, R + 0.002, -0.2]); outer.box(0.004, 0.06, 0.5, COL.webbing, [R + 0.002, -0.01, -0.06]); }   // stencil strip, sling
+  if (hi) { outer.box(0.018, 0.006, 0.12, COL.odDark, [0, R + 0.002, -0.2]); outer.box(0.004, 0.06, 0.5, CAMO.surface(COL.webbing, 'webbing'), [R + 0.002, -0.01, -0.06]); } // stencil strip, sling
   const tube = part(outer, 'outer', G, [0, BY, 0], KITMAT.lambert());
   const inner = new Kit(); inner.cyl(R - 0.004, R - 0.004, 0.25, 0x3f4229, [0, 0, 0.0], 'z', 14); inner.cyl(R - 0.002, R - 0.002, 0.02, COL.black, [0, 0, 0.12], 'z', 14);
   parts.inner = part(inner, 'inner', tube, [0, 0, 0.14], KITMAT.lambert());          // slides back by 0.238 when extended
-  const caps = new Kit(); caps.cyl(R + 0.002, R + 0.002, 0.012, COL.black, [0, 0, 0], 'z', 14); parts.frontCap = part(caps, 'frontCap', tube, [0, 0, -0.39], KITMAT.lambert());
-  const caps2 = new Kit(); caps2.cyl(R + 0.002, R + 0.002, 0.012, COL.black, [0, 0, 0], 'z', 14); parts.rearCap = part(caps2, 'rearCap', parts.inner, [0, 0, 0.131], KITMAT.lambert());
+  const caps = new Kit(); caps.cyl(R + 0.002, R + 0.002, 0.012, CAMO.surface(COL.black, 'rubber'), [0, 0, 0], 'z', 14); parts.frontCap = part(caps, 'frontCap', tube, [0, 0, -0.39], KITMAT.lambert());
+  const caps2 = new Kit(); caps2.cyl(R + 0.002, R + 0.002, 0.012, CAMO.surface(COL.black, 'rubber'), [0, 0, 0], 'z', 14); parts.rearCap = part(caps2, 'rearCap', parts.inner, [0, 0, 0.131], KITMAT.lambert());
   const kt = new Kit(); kt.box(0.012, 0.01, 0.03, COL.rubber, [0, 0, 0]); parts.triggerBar = part(kt, 'triggerBar', tube, [0, R + 0.012, -0.08]);
   const ka = new Kit(); ka.box(0.01, 0.008, 0.02, COL.black, [0, 0, 0]); parts.armHandle = part(ka, 'armHandle', tube, [0.012, R + 0.01, -0.03]);
   // rear sight: a peep on a spring leaf (pops up when extended)
@@ -320,8 +320,8 @@ export function buildM1911(o = {}) {
   k.prism([[0.022, -0.032], [-0.152, -0.032], [-0.152, -0.044], [-0.07, -0.046], [-0.06, -0.05], [0.0, -0.05], [0.022, -0.045]], 0.022, P, [0, 0, 0], 'zy');   // frame (dust cover, rails)
   k.prism([[-0.012, -0.046], [-0.065, -0.046], [-0.07, -0.062], [-0.06, -0.075], [-0.012, -0.075], [-0.012, -0.068], [-0.055, -0.068], [-0.058, -0.06], [-0.012, -0.056]], 0.012, P, [0, 0, 0], 'zy');   // trigger guard
   k.prism([[0.024, -0.042], [-0.008, -0.048], [0.012, -0.16], [0.047, -0.162], [0.05, -0.05], [0.034, -0.035]], 0.027, P, [0, 0, 0], 'zy');   // grip frame (mainspring housing)
-  k.prism([[0.022, -0.05], [-0.004, -0.054], [0.014, -0.15], [0.042, -0.152], [0.044, -0.06]], 0.031, 0x3b2a1e, [0, 0, 0], 'zy');   // brown plastic grips
-  if (hi) for (let i = 0; i < 6; i++) k.box(0.0315, 0.002, 0.03, 0x2b1d14, [0, -0.065 - i * 0.015, 0.02 + i * 0.003]);
+  k.prism([[0.022, -0.05], [-0.004, -0.054], [0.014, -0.15], [0.042, -0.152], [0.044, -0.06]], 0.031, CAMO.surface(0x3b2a1e, 'plastic'), [0, 0, 0], 'zy'); // brown plastic grips
+  if (hi) for (let i = 0; i < 6; i++) k.box(0.0315, 0.002, 0.03, CAMO.surface(0x2b1d14, 'plastic'), [0, -0.065 - i * 0.015, 0.02 + i * 0.003]);
   k.box(0.006, 0.01, 0.01, PD, [-0.012, -0.036, 0.008]);                              // thumb safety
   k.box(0.004, 0.01, 0.02, PD, [-0.0125, -0.04, -0.04]);                              // slide stop
   k.prism([[0.024, -0.04], [0.04, -0.035], [0.045, -0.044], [0.03, -0.05]], 0.02, P, [0, 0, 0], 'zy');   // grip safety tang
@@ -385,7 +385,7 @@ function beltRoundFig(k, hi, x, y, z, tracer) {
 // bipod yoke, handle clamp, front sight and prong flash suppressor; plastic stock with buttplate and shoulder rest.
 function m60Fig(hi) {
   const G = new THREE.Group(); G.name = 'M60';
-  const BY = -0.075, P = 0x3b3e42, PD = 0x27292c, PE = 0x34373b, F = 0x232426, FD = 0x151617, HOLE = 0x070708;
+  const BY = -0.075, P = 0x3b3e42, PD = 0x27292c, PE = 0x34373b, F = CAMO.surface(0x232426, 'plastic'), FD = CAMO.surface(0x151617, 'plastic'), HOLE = 0x070708;
   const k = new Kit(), kf = new Kit(), seg = hi ? 16 : 8, c = hi ? 2 : 1;
   // receiver: the stamped box (rounded lower edges), the longitudinal stamped ribs, the top rails, rivet rows
   k.add(sectionBar(roundPoly([[-0.03, -0.043, 0.003], [0.03, -0.043, 0.003], [0.03, -0.124, hi ? 0.01 : 0.006], [-0.03, -0.124, hi ? 0.01 : 0.006]], hi ? 3 : 1), 0.17, -0.05), P);
@@ -506,7 +506,7 @@ function m60Fig(hi) {
 // trigger housing, guard, safety and barrel latch; the leaf sight folded on the handguard; the quadrant sight on the
 // carry handle; the 12 in aluminium barrel tube (open bore, rifled-dark) that slides forward to load.
 function m203Fig(G, parts, anchors, sight, hi) {
-  const BY = -0.066, TY = -0.122, A = 0x3e4145, AD = 0x2a2c2f, P = 0x3c3f43, PD = 0x26282b, F = 0x232426, FD = 0x151617, HOLE = 0x070708;
+  const BY = -0.066, TY = -0.122, A = 0x3e4145, AD = 0x2a2c2f, P = 0x3c3f43, PD = 0x26282b, F = CAMO.surface(0x232426, 'plastic'), FD = CAMO.surface(0x151617, 'plastic'), HOLE = 0x070708;
   const k = new Kit(), kf = new Kit(), seg = hi ? 20 : 10, c = hi ? 2 : 1;
   // handguard: round, the bottom flat where the receiver bolts on, tapering slightly forward; raised ribs over the top
   const R = 0.029, cy = BY - 0.004, ol = [];
@@ -566,7 +566,7 @@ function m203Fig(G, parts, anchors, sight, hi) {
 // housing with the rubber boot over the trigger bar, the arming handle, the pop-up sights, the sling.
 function m72Fig(hi) {
   const G = new THREE.Group(); G.name = 'M72A2';
-  const BY = -0.07, R = 0.039, parts = {}, seg = hi ? 32 : 14, OD = 0x575a3b, ODD = 0x44462e, ODI = 0x4b4e33, BLK = 0x171717, IN = 0x1d1e19, HOLE = 0x0a0a0a;
+  const BY = -0.07, R = 0.039, parts = {}, seg = hi ? 32 : 14, OD = CAMO.surface(0x575a3b, 'plastic'), ODD = CAMO.surface(0x44462e, 'plastic'), ODI = CAMO.surface(0x4b4e33, 'plastic'), BLK = CAMO.surface(0x171717, 'rubber'), IN = 0x1d1e19, HOLE = 0x0a0a0a;
   const ko = new Kit();
   ko.lathe([[R, 0], [R, 0.655]], OD, [0, 0, -0.3875], 'z', seg);
   ko.lathe([[R - 0.003, 0.655], [R - 0.003, 0.004]], IN, [0, 0, -0.3875], 'z', seg);
@@ -582,7 +582,7 @@ function m72Fig(hi) {
   ko.rbox(0.026, 0.01, 0.034, 0.003, ODD, [0, R + 0.002, 0.018], [0, 0, 0], hi ? 2 : 1);
   if (hi) { for (const z of [-0.12, -0.01]) for (const sx of [-1, 1]) rivet(ko, sx, 0.0112, R + 0.002, z, ODI, 0.0022); ko.rbox(0.008, 0.004, 0.008, 0.0015, ODD, [-0.013, R + 0.0, -0.03], [0, 0, 0], 1); }
   // the sling (right side, a nylon strap clipped to both covers; hangs slightly)
-  { const n = hi ? 8 : 1, z0 = -0.375, z1 = 0.255, W = 0x5a5c3c;
+  { const n = hi ? 8 : 1, z0 = -0.375, z1 = 0.255, W = CAMO.surface(0x5a5c3c, 'webbing');
     for (let i = 0; i < n; i++) { const za = z0 + (z1 - z0) * i / n, zb = z0 + (z1 - z0) * (i + 1) / n, sag = t => -0.004 - (n > 1 ? 0.012 * (1 - (2 * t - 1) ** 2) : 0.006);
       const ya = sag(i / n), yb = sag((i + 1) / n), L = Math.hypot(zb - za, yb - ya);
       ko.rbox(0.003, 0.018, L + 0.001, 0.001, W, [R + 0.0035, (ya + yb) / 2, (za + zb) / 2], [Math.atan2(yb - ya, zb - za) * -1, 0, 0], 1); }
@@ -632,7 +632,7 @@ function m72Fig(hi) {
 // their screw bushings; spur hammer; the trigger shoe. The grip follows the magazine's 12.6 deg rake.
 function m1911Fig(hi) {
   const G = new THREE.Group(); G.name = 'M1911A1';
-  const P = 0x37393b, PD = 0x232527, PE = 0x2f3134, GR = 0x3d2b1e, GRD = 0x22170f, HOLE = 0x070708;
+  const P = 0x37393b, PD = 0x232527, PE = 0x2f3134, GR = CAMO.surface(0x3d2b1e, 'plastic'), GRD = CAMO.surface(0x22170f, 'plastic'), HOLE = 0x070708;
   const k = new Kit(), kg = new Kit(), seg = hi ? 16 : 8, c = hi ? 2 : 1;
   const cz = y => 0.022 + (-0.05 - y) * 0.2236, arch = y => (y < -0.08 ? 0.0035 * Math.sin(Math.PI * Math.min(1, (-0.08 - y) / 0.085)) : 0);
   const fz = y => cz(y) - 0.021, bz = y => cz(y) + 0.021 + arch(y);

@@ -1,0 +1,279 @@
+{
+  "schemaVersion": 2,
+  "name": "radioops",
+  "query": "?debug&auto&kb&res=0.45&peace&tech=max",
+  "seed": null,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "3c071a01ffed4507e3a4efec5f130fd8d6ff5eb499cac2b2353cc9dcae08024e",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/snap.mjs",
+    "scenes/radioops.mjs"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7839427d84197e7273289e6158e6d8a45fbbe26b",
+    "branch": "ngc/look-voices",
+    "gameTree": "515bc2c65213bfffcc64c05603aa5a3469c998f6",
+    "gameSha256": "dc6a4eedbd2fc213760ee12070b353d3ed6efefa02ad20393e45f78558d71e8c",
+    "dirty": true,
+    "status": "M game/dev/voices.html\n M game/js/main.js\n M game/js/units/groundwar/marineai.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/commands.js\n M game/js/voice/localrecognition.js\n M game/js/voice/voice.js\n M tools/scenes/offlinevoice.mjs\n M tools/scenes/voices.mjs\n M tools/serve.mjs\n?? game/js/voice/commanddesk.css.js\n?? game/js/voice/delivery.js\n?? game/js/voice/fieldstations.js\n?? game/js/voice/localvoices.js\n?? game/js/voice/operations.js\n?? tools/livevoicebench.mjs\n?? tools/radiodeskbench.mjs\n?? tools/radionetbench.mjs\n?? tools/radiooperationsbench.mjs\n?? tools/scenes/livevoices.mjs\n?? tools/scenes/radioops.mjs\n?? tools/voice-server.mjs\n?? tools/voice-synthesize.ps1"
+  },
+  "url": "http://127.0.0.1:43253/?debug&auto&kb&res=0.45&peace&tech=max",
+  "ok": false,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": "10 fps  ·  res 45%",
+  "shots": [
+    {
+      "name": "patrol-readback",
+      "file": "01-patrol-readback.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 66.8,
+      "litFraction": 1,
+      "colors": 422
+    },
+    {
+      "name": "mission-ledger",
+      "file": "02-mission-ledger.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 65,
+      "litFraction": 0.9999,
+      "colors": 411
+    },
+    {
+      "name": "command-traffic",
+      "file": "03-command-traffic.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 66.5,
+      "litFraction": 0.9998,
+      "colors": 404
+    }
+  ],
+  "clips": [],
+  "benchmarks": [],
+  "evals": [
+    {
+      "expr": "(()=>{__G.G.bench=true;__G.G.mat=800;__G.G.res=800;const T=__G.war.tech[1];for(const n of T.nodes)T.done.add(n.id);window.__beforeRadio=__G.G.mat;return true;})()",
+      "value": true
+    },
+    {
+      "expr": "(__radioCommands.compose('control:air','cap','Albatross'),true)",
+      "value": true
+    },
+    {
+      "expr": "__radioCommands.submit([{transcript:'Air Boss, this is Command. Request combat air patrol over Albatross. Over.',confidence:1}])",
+      "value": {
+        "ok": true,
+        "pending": true,
+        "reason": "Command, this is Air Boss. I read back. Request combat air patrol over Albatross. 30 materiel. Confirm. Over.",
+        "task": 2,
+        "action": "cap",
+        "target": "control:air",
+        "transcript": "Air Boss, this is Command. Request combat air patrol over Albatross. Over."
+      }
+    },
+    {
+      "expr": "__radioCommands.submit([{transcript:'Air Boss, this is Command. Correct. Over.',confidence:1}])",
+      "value": {
+        "ok": true,
+        "reason": "Command, this is Air Boss. VICTORY 201 assigned. Launch sequence in progress. Wilco. Out.",
+        "task": 2,
+        "action": "correct",
+        "target": "control:air",
+        "transcript": "Air Boss, this is Command. Correct. Over."
+      }
+    },
+    {
+      "expr": "__radioCommands.submit([{transcript:'Air Boss, this is Command. Correct. Over.',confidence:1}])",
+      "value": {
+        "ok": false,
+        "reason": "Say again. Use one of this station’s listed orders and the complete destination."
+      }
+    },
+    {
+      "expr": "(()=>{const i=__G.ISLANDS.find(i=>i.name==='SANDBAR');window.__radioSquad=__G.war.ground.addSquad(1,i,4,i.pad.x,i.pad.z,{order:{type:'defend',x:i.pad.x,z:i.pad.z,r:20}}).squads[0];return true;})()",
+      "value": true
+    },
+    {
+      "expr": "__radioCommands.submit([{transcript:'Hotel one, this is Command. Formation column. Over.',confidence:1}])",
+      "value": {
+        "ok": true,
+        "reason": "Command, this is Hotel one. column formation. Wilco. Out.",
+        "task": 10,
+        "action": "formation:column",
+        "target": "squad:1",
+        "transcript": "Hotel one, this is Command. Formation column. Over."
+      }
+    },
+    {
+      "expr": "__radioCommands.submit([{transcript:'Hotel one, this is Command. Cease fire. Over.',confidence:1}])",
+      "value": {
+        "ok": true,
+        "reason": "Command, this is Hotel one. Holding fire. Wilco. Out.",
+        "task": 13,
+        "action": "ceasefire",
+        "target": "squad:1",
+        "transcript": "Hotel one, this is Command. Cease fire. Over."
+      }
+    },
+    {
+      "expr": "(()=>{const s=__radioSquad;window.__radioPoint=__radioCommands.net.mark(s.B.I.pad.x+20,s.B.I.pad.z,s.B.I);return __radioCommands.submit([{transcript:'Hotel one, this is Command. Move to '+__radioPoint.name+'. Over.',confidence:1}]);})()",
+      "value": {
+        "ok": true,
+        "reason": "Command, this is Hotel one. Moving to Point Alpha. Wilco. Out.",
+        "task": 16,
+        "action": "move",
+        "target": "squad:1",
+        "transcript": "Hotel one, this is Command. Move to Point Alpha. Over."
+      }
+    },
+    {
+      "expr": "(__radioCommands.open('tasks'),true)",
+      "value": true
+    },
+    {
+      "expr": "(__radioCommands.open('traffic'),true)",
+      "value": true
+    },
+    {
+      "expr": "(__radioCommands.open('orders'),true)",
+      "value": true
+    },
+    {
+      "expr": "(__G.commander.close(),__radioCommands.compose('carrier','proceed','SANDBAR'),true)",
+      "value": true
+    },
+    {
+      "expr": "(__G.openMenu(),__radioCommands.net.update(.1),true)",
+      "value": true
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__radioCommands.isOpen && !__G.commander.isOpen",
+      "label": "Backslash opens radio command desk",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__radioCommands.net.targets().some(t=>t.call===\"Transport\") && __radioCommands.net.targets().some(t=>t.call===\"Air Boss\")",
+      "label": "live flight/support controllers present",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__radioCommands.net.pending().length===1 && __G.G.mat===__beforeRadio",
+      "label": "assisted CAP request waits for readback without spending",
+      "ok": false,
+      "value": false
+    },
+    {
+      "expr": "__G.G.mat===__beforeRadio-30 && (__G.war.air.pending.some(u=>u.type===\"escort\") || __G.war.units.some(u=>u.type===\"escort\"))",
+      "label": "confirmed patrol spends actual materiel and queues a real Tomcat",
+      "ok": false,
+      "value": false
+    },
+    {
+      "expr": "__radioCommands.net.tasks.some(t=>t.state===\"active\"&&t.label.includes(\"combat air patrol\"))",
+      "label": "patrol task remains active while aircraft launches",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__G.G.mat===__beforeRadio-30 && !__radioCommands.net.last.ok",
+      "label": "duplicate confirmation cannot buy a second flight",
+      "ok": false,
+      "value": false
+    },
+    {
+      "expr": "__radioSquad.formation===\"column\" && __radioCommands.net.last.ok",
+      "label": "live squad accepts formation order",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__radioSquad.firePolicy===\"hold\"",
+      "label": "live squad receives persistent cease fire",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__radioSquad.order.type===\"take\" && __radioSquad.order.x===__radioPoint.x && __radioSquad.firePolicy===\"hold\"",
+      "label": "marked point moves actual squad without revoking cease fire",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__G.commander.isOpen && !__radioCommands.isOpen",
+      "label": "fleet board handoff closes radio desk",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__radioCommands.net.pending().some(p=>p.station===\"carrier\")",
+      "label": "carrier course also waits for readback",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__radioCommands.net.pending().length===0",
+      "label": "pausing cancels unconfirmed orders",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "!__radioCommands.rec.active",
+      "label": "radio desk never opened the physical microphone",
+      "ok": true,
+      "value": true
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-28T21:29:20.184Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7839427d84197e7273289e6158e6d8a45fbbe26b",
+    "branch": "ngc/look-voices",
+    "gameTree": "515bc2c65213bfffcc64c05603aa5a3469c998f6",
+    "gameSha256": "dc6a4eedbd2fc213760ee12070b353d3ed6efefa02ad20393e45f78558d71e8c",
+    "dirty": true,
+    "status": "M game/dev/voices.html\n M game/js/main.js\n M game/js/units/groundwar/marineai.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/commands.js\n M game/js/voice/localrecognition.js\n M game/js/voice/voice.js\n M tools/scenes/offlinevoice.mjs\n M tools/scenes/voices.mjs\n M tools/serve.mjs\n?? game/js/voice/commanddesk.css.js\n?? game/js/voice/delivery.js\n?? game/js/voice/fieldstations.js\n?? game/js/voice/localvoices.js\n?? game/js/voice/operations.js\n?? tools/livevoicebench.mjs\n?? tools/radiodeskbench.mjs\n?? tools/radionetbench.mjs\n?? tools/radiooperationsbench.mjs\n?? tools/scenes/livevoices.mjs\n?? tools/scenes/radioops.mjs\n?? tools/voice-server.mjs\n?? tools/voice-synthesize.ps1"
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": "zarch",
+    "state": "paused"
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "7839427d84197e7273289e6158e6d8a45fbbe26b",
+    "branch": "ngc/look-voices",
+    "gameTree": "515bc2c65213bfffcc64c05603aa5a3469c998f6",
+    "gameSha256": "dc6a4eedbd2fc213760ee12070b353d3ed6efefa02ad20393e45f78558d71e8c",
+    "dirty": true,
+    "status": "M game/dev/voices.html\n M game/js/main.js\n M game/js/units/groundwar/marineai.js\n M game/js/voice/commandnet.js\n M game/js/voice/commandpanel.js\n M game/js/voice/commands.js\n M game/js/voice/localrecognition.js\n M game/js/voice/voice.js\n M tools/scenes/offlinevoice.mjs\n M tools/scenes/voices.mjs\n M tools/serve.mjs\n?? game/js/voice/commanddesk.css.js\n?? game/js/voice/delivery.js\n?? game/js/voice/fieldstations.js\n?? game/js/voice/localvoices.js\n?? game/js/voice/operations.js\n?? tools/livevoicebench.mjs\n?? tools/radiodeskbench.mjs\n?? tools/radionetbench.mjs\n?? tools/radiooperationsbench.mjs\n?? tools/scenes/livevoices.mjs\n?? tools/scenes/radioops.mjs\n?? tools/voice-server.mjs\n?? tools/voice-synthesize.ps1"
+  },
+  "summary": "FAIL: 10/13 expects, 0 page errors, 0 console errors",
+  "durationMs": 141569,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/runs/2026-10-28_21-29-20-radioops"
+}

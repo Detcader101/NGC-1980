@@ -1,0 +1,888 @@
+{
+  "schemaVersion": 2,
+  "name": "voices",
+  "query": "?debug&auto",
+  "seed": null,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "0ab13d8cb340cf40af103a57033ed7f6e7a34d27b57d2968f34d5ba9da665895",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/snap.mjs",
+    "scenes/voices.mjs"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "be546c63dd589aa62b74ab6a93828f465ddac6ec",
+    "branch": "ngc/look-voices",
+    "gameTree": "a794ad19bd9da9e7e414ed6d797619b5d7ad0c3e",
+    "gameSha256": "31f52a6d5bd5e3510e416c9ef619ca42677476f0a7da122f5e07c9602f1af104",
+    "dirty": true,
+    "status": "M game/js/main.js\n M game/js/marine.js\n M game/js/voice/hooks.js\n M game/js/voice/phrases.js\n M game/js/voice/radio.js\n M game/js/voice/voice.js\n M tools/scenes/voices.mjs\n?? docs/ngc1980/findings/look-voices.md\n?? game/audio/\n?? game/dev/voices.html\n?? game/js/voice/occlusion.js\n?? game/js/voice/samples.js\n?? tools/voice-build.mjs\n?? tools/voicebench.mjs"
+  },
+  "url": "http://127.0.0.1:35257/?debug&auto",
+  "ok": false,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": "1 fps  ·  res 45%",
+  "shots": [
+    {
+      "name": "huey-lift",
+      "file": "01-huey-lift.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 79.7,
+      "litFraction": 0.9972,
+      "colors": 490
+    },
+    {
+      "name": "contact",
+      "file": "02-contact.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 91.8,
+      "litFraction": 0.9874,
+      "colors": 470
+    },
+    {
+      "name": "lso",
+      "file": "03-lso.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 109.2,
+      "litFraction": 0.9993,
+      "colors": 430
+    },
+    {
+      "name": "menu",
+      "file": "04-menu.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 42.9,
+      "litFraction": 1,
+      "colors": 79
+    }
+  ],
+  "clips": [],
+  "benchmarks": [],
+  "evals": [
+    {
+      "expr": "(__G.HI.setCollective(0.62), {dead:__G.H.dead,landed:__G.H.landed})",
+      "value": {
+        "dead": false,
+        "landed": true
+      }
+    },
+    {
+      "expr": "__voices.log.filter(e => e.role === 'huey').map(e => [e.who, e.text, e.net, e.state, e.start, e.end])",
+      "value": [
+        [
+          "huey:crewchief",
+          "Clear left.",
+          "ic",
+          "done",
+          49.15389999999991,
+          49.72989999999991
+        ],
+        [
+          "huey:gunner",
+          "Clear on the right.",
+          "ic",
+          "done",
+          50.885600000000096,
+          51.83020000000019
+        ],
+        [
+          "huey:crewchief",
+          "Tail's clear.",
+          "ic",
+          "done",
+          52.577700000000185,
+          53.18030000000028
+        ],
+        [
+          "pilot",
+          "Picking it up.",
+          "ic",
+          "done",
+          54.22539999999991,
+          54.890100000000096
+        ],
+        [
+          "huey:crewchief",
+          "Skids up.",
+          "ic",
+          "done",
+          55.83030000000028,
+          56.331899999999905
+        ]
+      ]
+    },
+    {
+      "expr": "(() => { const P = __G.H.pos, hd = __G.H.heading(); const L = { x: P.x - Math.cos(hd) * 60, y: P.y, z: P.z - Math.sin(hd) * 60 }; __G.hurtPlayer(0.5, 'TEST ROUND', L); return { hd, L }; })()",
+      "value": {
+        "hd": 0.899561749845367,
+        "L": {
+          "x": -489.5547109645172,
+          "y": 24.45308916704701,
+          "z": 564.8549081112201
+        }
+      }
+    },
+    {
+      "expr": "(() => { const c = __G.war.carrier; __G.H.reset(new __G.THREE.Vector3(c.p.x - 5.5 * Math.cos(c.yaw) + 32 * Math.sin(c.yaw), c.p.y + 8 + 1.9, c.p.z + 5.5 * Math.sin(c.yaw) + 32 * Math.cos(c.yaw)), c.yaw, true, 1); __G.HI.setCollective(0); return true; })()",
+      "value": true
+    },
+    {
+      "expr": "__G.commander.deploy(\"heli\")",
+      "value": true
+    },
+    {
+      "expr": "(() => { const I = __G.ISLANDS.find(i => i.name === 'SANDBAR'); window.__I = I; const W = __G.war; W.E.mat = 0; W.transT = 1e9; __G.G.bench = true; W.ground.godPlayer = true;\n    const x = I.pad.x - 22, z = I.pad.z + 14; __G.H.reset(new __G.THREE.Vector3(x, __G.terrainH(x, z) + 1.9, z), 0.6, true, 1); __G.HI.setCollective(0);\n    window.__marines = W.ground.addSquad(1, I, 13, x + 15, z + 10, { order: { type: 'defend', x, z, r: 25 } });\n    window.__enemy = W.ground.addSquad(2, I, 3, x + 55, z - 10, { order: { type: 'take', x, z, r: 30 } });\n    window.__ff = (secs, until) => { for (let i = 0; i < secs * 30; i++) { W.update(1 / 30, __G.PL, false); if (until && until()) return i / 30; } return -1; };\n    return { pad: [I.pad.x, I.pad.z] }; })()",
+      "value": {
+        "pad": [
+          270,
+          414
+        ]
+      }
+    },
+    {
+      "expr": "(() => { const s=__enemy.members[0], m=__marines.members[0], gs=__G.war.ground.sim, n=gs.events.length; gs.shoot(2,s,'xm7',[s.x,s.y+1.5,s.z],[m.x,m.y+1.5,m.z],0); __G.war.ground.onEvents(gs.events.slice(n)); return {source:s.id,marine:m.id}; })()",
+      "value": {
+        "source": 14,
+        "marine": 1
+      }
+    },
+    {
+      "expr": "__ff(40, () => __voices.log.some(e => e.role === 'marine' && /corpsman|manDown|hit/.test(e.cat)))",
+      "value": 0
+    },
+    {
+      "expr": "({ marine: __voices.log.filter(e => e.role === 'marine' || e.role === 'sl' || e.role === 'rto').slice(-14).map(e => [e.who, e.cat, e.text, e.state, e.dist]) })",
+      "value": {
+        "marine": [
+          [
+            "m11",
+            "walker",
+            "Walker! right front!",
+            "too-far",
+            126
+          ],
+          [
+            "rto:SANDBAR",
+            "sitrep",
+            "Albatross, this is Hotel two. In contact at Sandbar. Over.",
+            "done",
+            null
+          ],
+          [
+            "albatross",
+            "ack",
+            "Hotel two, roger, out.",
+            "done",
+            null
+          ],
+          [
+            "m11",
+            "walker",
+            "Strider right!",
+            "done",
+            48
+          ],
+          [
+            "m7",
+            "cover",
+            "Keep their heads down!",
+            "expired",
+            28
+          ],
+          [
+            "m11",
+            "walker",
+            "It's a walker! front, fifty meters!",
+            "cooldown",
+            41
+          ],
+          [
+            "m9",
+            "walker",
+            "Walker! right!",
+            "cooldown",
+            32
+          ],
+          [
+            "m6",
+            "corpsman",
+            "Doc! Doc, over here!",
+            "done",
+            33
+          ],
+          [
+            "m8",
+            "cover",
+            "Suppress!",
+            "done",
+            31
+          ],
+          [
+            "m6",
+            "doc",
+            "Stay with me, Marine.",
+            "done",
+            33
+          ],
+          [
+            "m9",
+            "walker",
+            "It's a walker! right, fifty meters!",
+            "cooldown",
+            31
+          ],
+          [
+            "m5",
+            "set",
+            "Set!",
+            "playing",
+            23
+          ],
+          [
+            "m11",
+            "hit",
+            "I'm hit! I'm hit!",
+            "queued",
+            38
+          ],
+          [
+            "m9",
+            "walker",
+            "Strider front!",
+            "queued",
+            32
+          ]
+        ]
+      }
+    },
+    {
+      "expr": "(() => { const c = __G.war.carrier; __G.H.reset(new __G.THREE.Vector3(c.p.x - 5.5 * Math.cos(c.yaw) + 32 * Math.sin(c.yaw), c.p.y + 8 + 1.9, c.p.z + 5.5 * Math.sin(c.yaw) + 32 * Math.cos(c.yaw)), c.yaw, true, 1); return true; })()",
+      "value": true
+    },
+    {
+      "expr": "(() => { const J = __G.JP.J, c = __G.war.carrier, co = Math.cos(c.yaw), si = Math.sin(c.yaw), lz = 37 + 1000, lx = -2.5 + 0;\n    const x = c.p.x + lx * co + lz * si, z = c.p.z - lx * si + lz * co; J.cat = null; J.launchBar = false;\n    J.reset(x, 0, z, c.yaw, { running: true, airborne: true, alt: c.p.y + 8 + 3 + Math.tan(3.5 * Math.PI / 180) * 1000 + 0, speed: 70 });\n    J.gearCmd = J.gear = 1; J.hookCmd = J.hook = 1; J.flapSel = 2; return { x, z, y: J.pos.y }; })()",
+      "value": {
+        "x": -1044.610344362584,
+        "z": 1425.178266238133,
+        "y": 74.08262015048432
+      }
+    },
+    {
+      "expr": "(() => { const J = __G.JP.J, c = __G.war.carrier, co = Math.cos(c.yaw), si = Math.sin(c.yaw), lz = 37 + 700, lx = -2.5 + 0;\n    const x = c.p.x + lx * co + lz * si, z = c.p.z - lx * si + lz * co; J.cat = null; J.launchBar = false;\n    J.reset(x, 0, z, c.yaw, { running: true, airborne: true, alt: c.p.y + 8 + 3 + Math.tan(3.5 * Math.PI / 180) * 700 + 25, speed: 70 });\n    J.gearCmd = J.gear = 1; J.hookCmd = J.hook = 1; J.flapSel = 2; return { x, z, y: J.pos.y }; })()",
+      "value": {
+        "x": -871.2237836450106,
+        "z": 1180.0782559280146,
+        "y": 80.73383410533901
+      }
+    },
+    {
+      "expr": "(() => { const J = __G.JP.J, c = __G.war.carrier, co = Math.cos(c.yaw), si = Math.sin(c.yaw), lz = 37 + 200, lx = -2.5 + 0;\n    const x = c.p.x + lx * co + lz * si, z = c.p.z - lx * si + lz * co; J.cat = null; J.launchBar = false;\n    J.reset(x, 0, z, c.yaw, { running: true, airborne: true, alt: c.p.y + 8 + 3 + Math.tan(3.5 * Math.PI / 180) * 200 + 25, speed: 70 });\n    J.gearCmd = J.gear = 1; J.hookCmd = J.hook = 1; J.flapSel = 2; return { x, z, y: J.pos.y }; })()",
+      "value": {
+        "x": -573.7932115707225,
+        "z": 778.0455126591401,
+        "y": 50.15252403009686
+      }
+    },
+    {
+      "expr": "__voices.log.filter(e => e.role === 'lso' || e.role === 'pilotBall').map(e => [e.text, e.state, e.start, e.end])",
+      "value": [
+        [
+          "three zero five, Hornet ball, 6 point 0.",
+          "done",
+          137.3566000000001,
+          140.91189999999992
+        ],
+        [
+          "Roger ball.",
+          "done",
+          141.6522000000002,
+          142.4608999999999
+        ],
+        [
+          "You're on and on.",
+          "done",
+          146.799,
+          147.70030000000028
+        ],
+        [
+          "Easy with it.",
+          "done",
+          143.4901000000001,
+          144.2132000000002
+        ],
+        [
+          "Wave off, wave off!",
+          "done",
+          145.13430000000028,
+          146.3315
+        ]
+      ]
+    },
+    {
+      "expr": "(__voices.V.stop('fixture'), __voices.V.speak({ who: 'test', role: 'command', key:'pause-test', text: 'All stations, Albatross. Radio check. Over. '.repeat(8), net: 'fm', pri: 1 }))",
+      "value": {
+        "i": 39,
+        "who": "test",
+        "role": "command",
+        "cat": "",
+        "net": "fm",
+        "text": "All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. ",
+        "pri": 1,
+        "pos": null,
+        "shout": false,
+        "unit": null,
+        "key": "pause-test",
+        "queued": 168.91370000000018,
+        "start": null,
+        "end": null,
+        "state": "queued",
+        "src": "event",
+        "maxAge": 10,
+        "notBefore": 168.91370000000018,
+        "gain": 1,
+        "pan": 0,
+        "muffle": false
+      }
+    },
+    {
+      "expr": "(window.__pk = 0, window.__pkI = setInterval(() => { window.__pk = Math.max(window.__pk, __voices.V.peak()); }, 50), true)",
+      "value": true
+    },
+    {
+      "expr": "clearInterval(window.__pkI)",
+      "value": null
+    },
+    {
+      "expr": "({ peak: window.__pk, stats: __voices.stats, played: __voices.played().length, overlaps: __voices.overlaps(), timeline: __voices.played().map(e => [e.start.toFixed(2), e.end && e.end.toFixed(2), e.pri, e.net, e.role, e.who, e.text, e.state]) })",
+      "value": {
+        "peak": 0.18082216382026672,
+        "stats": {
+          "spoken": 22,
+          "culled": 8,
+          "cooldown": 4,
+          "expired": 3,
+          "interrupted": 0,
+          "dropped": 0
+        },
+        "played": 22,
+        "overlaps": 0,
+        "timeline": [
+          [
+            "20.90",
+            "24.51",
+            1,
+            "pa",
+            "boss",
+            "boss",
+            "Flight quarters, flight quarters. All hands man your flight quarters stations.",
+            "done"
+          ],
+          [
+            "49.15",
+            "49.73",
+            1,
+            "ic",
+            "huey",
+            "huey:crewchief",
+            "Clear left.",
+            "done"
+          ],
+          [
+            "50.89",
+            "51.83",
+            1,
+            "ic",
+            "huey",
+            "huey:gunner",
+            "Clear on the right.",
+            "done"
+          ],
+          [
+            "52.58",
+            "53.18",
+            1,
+            "ic",
+            "huey",
+            "huey:crewchief",
+            "Tail's clear.",
+            "done"
+          ],
+          [
+            "54.23",
+            "54.89",
+            1,
+            "ic",
+            "huey",
+            "pilot",
+            "Picking it up.",
+            "done"
+          ],
+          [
+            "55.83",
+            "56.33",
+            1,
+            "ic",
+            "huey",
+            "huey:crewchief",
+            "Skids up.",
+            "done"
+          ],
+          [
+            "89.29",
+            "90.91",
+            3,
+            "ic",
+            "huey",
+            "huey:crewchief",
+            "We're taking hits! nine o'clock!",
+            "done"
+          ],
+          [
+            "92.89",
+            "97.89",
+            1,
+            "fm",
+            "command",
+            "albatross",
+            "Albatross. Marine rifleman outbound to Albatross. Out.",
+            "done"
+          ],
+          [
+            "113.64",
+            "117.22",
+            0,
+            "fm",
+            "rto",
+            "rto:SANDBAR",
+            "Albatross, this is Hotel two. In contact at Sandbar. Over.",
+            "done"
+          ],
+          [
+            "117.79",
+            "119.14",
+            0,
+            "fm",
+            "rto",
+            "albatross",
+            "Hotel two, roger, out.",
+            "done"
+          ],
+          [
+            "111.92",
+            "112.84",
+            2,
+            "air",
+            "marine",
+            "m11",
+            "Strider right!",
+            "done"
+          ],
+          [
+            "120.57",
+            "121.42",
+            2,
+            "air",
+            "marine",
+            "m6",
+            "Doc! Doc, over here!",
+            "done"
+          ],
+          [
+            "123.69",
+            "124.19",
+            0,
+            "air",
+            "marine",
+            "m8",
+            "Suppress!",
+            "done"
+          ],
+          [
+            "122.51",
+            "123.34",
+            1,
+            "air",
+            "marine",
+            "m6",
+            "Stay with me, Marine.",
+            "done"
+          ],
+          [
+            "133.54",
+            "134.03",
+            0,
+            "air",
+            "marine",
+            "m5",
+            "Set!",
+            "done"
+          ],
+          [
+            "134.35",
+            "135.83",
+            0,
+            "uhf",
+            "command",
+            "conn",
+            "Albatross, coming to new course.",
+            "done"
+          ],
+          [
+            "137.36",
+            "140.91",
+            2,
+            "uhf",
+            "pilotBall",
+            "player",
+            "three zero five, Hornet ball, 6 point 0.",
+            "done"
+          ],
+          [
+            "141.65",
+            "142.46",
+            2,
+            "uhf",
+            "lso",
+            "lso",
+            "Roger ball.",
+            "done"
+          ],
+          [
+            "146.80",
+            "147.70",
+            1,
+            "uhf",
+            "lso",
+            "lso",
+            "You're on and on.",
+            "done"
+          ],
+          [
+            "143.49",
+            "144.21",
+            2,
+            "uhf",
+            "lso",
+            "lso",
+            "Easy with it.",
+            "done"
+          ],
+          [
+            "145.13",
+            "146.33",
+            3,
+            "uhf",
+            "lso",
+            "lso",
+            "Wave off, wave off!",
+            "done"
+          ],
+          [
+            "168.91",
+            "170.93",
+            1,
+            "fm",
+            "command",
+            "test",
+            "All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. All stations, Albatross. Radio check. Over. ",
+            "paused"
+          ]
+        ]
+      }
+    },
+    {
+      "expr": "(async () => {\n    const { RadioBed } = await import('./js/voice/radio.js');\n    const rms = a => Math.sqrt(a.reduce((s, x) => s + x*x, 0) / a.length);\n    const levels = [];\n    for (const hz of [80, 1000, 6500]) {\n      const c = new OfflineAudioContext(1, 24000, 24000), out = c.createGain(); out.connect(c.destination);\n      const bed = new RadioBed({ctx:c}), src = c.createOscillator(); src.frequency.value = hz;\n      const level = c.createGain(); level.gain.value = 0.08; src.connect(level); level.connect(bed.chain('fm', out)); src.start();\n      const b = await c.startRendering(); levels.push(rms(b.getChannelData(0).slice(4000)));\n    }\n    const { crossesBox, wallBetween } = await import('./js/voice/occlusion.js');\n    const a = {x:-4,y:1.6,z:0}, b = {x:4,y:1.6,z:0}, wall={x:0,z:0,hw:.1,hl:3,y0:0,y1:3};\n    const geometry = crossesBox(a,b,wall) && !crossesBox({...a,y:4},{...b,y:4},wall)\n      && crossesBox(a,b,{...wall,yaw:Math.PI/4}) && wallBetween(a,b,{near:()=>[wall]},null)\n      && !wallBetween(a,b,{near:()=>[]},null);\n    return {levels, geometry, bandpass:levels[1]>levels[0]*5 && levels[1]>levels[2]*3};\n  })()",
+      "value": {
+        "levels": [
+          0.0035638690368436027,
+          0.06831592876712049,
+          0.007015825075628879
+        ],
+        "geometry": true,
+        "bandpass": true
+      }
+    },
+    {
+      "expr": "(async () => {\n    window.__liveVoices = window.__voices; window.__liveVoiceEngine = window.__voiceEngine;\n    const {createVoices} = await import('./js/voice/voice.js');\n    const c=__G.sfx.ctx, master=c.createGain(); master.gain.value=.5; master.connect(c.destination);\n    window.__vsfx={ctx:c,master,noise:__G.sfx.noise};\n    window.__vtest=createVoices({sfx:__vsfx,params:new URLSearchParams('debug&voices=generated')});\n    __vtest.ctx={state:'play',unit:'heli',ear:{x:0,y:1.6,z:0,yaw:0},inside:false};\n    window.__vtick=setInterval(()=>__vtest.update(.02),20);\n    return true;\n  })()",
+      "value": true
+    },
+    {
+      "expr": "(__vtest.speak({who:'chief',role:'huey',text:'Clear left. Clear right. Tail rotor clear.',net:'ic',unit:'heli',key:'long',pri:0,cd:0}),true)",
+      "value": true
+    },
+    {
+      "expr": "(__vtest.speak({who:'lso',role:'lso',cat:'waveoff',net:'uhf',pri:3,cd:0}),true)",
+      "value": true
+    },
+    {
+      "expr": "(__vtest.stop('fixture'), __vtest.occluded=()=>false, __vtest.speak({who:'m1',role:'marine',text:'Corpsman up! '.repeat(15),net:'air',pos:{x:2,y:1.6,z:0},shout:true,cd:0}),true)",
+      "value": true
+    },
+    {
+      "expr": "(window.__nearGain=__vtest.cur.gain, __vtest.ctx.ear.x=50, true)",
+      "value": true
+    },
+    {
+      "expr": "(__vtest.occluded=()=>true,true)",
+      "value": true
+    },
+    {
+      "expr": "(__vtest.ctx.ear.x=250,true)",
+      "value": true
+    },
+    {
+      "expr": "(__vtest.setMode('radio'), __vtest.ctx.ear.x=0, __vtest.speak({text:'Frag out!',net:'air',pos:{x:0,y:1.6,z:0},cd:0}),true)",
+      "value": true
+    },
+    {
+      "expr": "(__vtest.setMode('on'),__vtest.vol=0,__vtest.speak({text:'Radio check.',net:'fm',cd:0}),true)",
+      "value": true
+    },
+    {
+      "expr": "(__vtest.stop('fixture'), __vtest.vol=8,__vtest.speak({text:'All stations, Albatross. Radio check. Over.',net:'fm',cd:0}),true)",
+      "value": true
+    },
+    {
+      "expr": "(__vtest.setMode('off'),true)",
+      "value": true
+    },
+    {
+      "expr": "(() => {const v=__vtest; v.setMode('on'); v.recent.clear();\n    v.speak({text:'Expired call.',net:'fm',key:'expired',maxAge:-1,pri:3});\n    v.speak({text:'Wrong crew.',net:'ic',unit:'tomcat',key:'wrong'});\n    for(let i=0;i<12;i++) v.speak({text:'Standing by '+i,net:'fm',key:'backlog'+i,pri:0,after:60});\n    v.speak({text:'Break! Break!',net:'uhf',key:'due',pri:3,cd:0});return true;})()",
+      "value": true
+    },
+    {
+      "expr": "(__vtest.stop('paused'),clearInterval(__vtick),__vsfx.voiceMaster.disconnect(),__vsfx.master.disconnect(),true)",
+      "value": true
+    },
+    {
+      "expr": "(async () => {\n    const {createVoices}=await import('./js/voice/voice.js');\n    const original=Object.getOwnPropertyDescriptor(window,'speechSynthesis');\n    let speechCalls=0;\n    Object.defineProperty(window,'speechSynthesis',{configurable:true,value:{getVoices:()=>[],speak:()=>speechCalls++,addEventListener(){}}});\n    localStorage.setItem('tz_voices','on');\n    const v=createVoices({sfx:__vsfx,params:new URLSearchParams('voices=on')});\n    v.update(.1,{state:'play',unit:'heli'}); v.speak({text:'Radio check.',net:'fm'}); v.update(.1);\n    const result=v.backend()==='silent' && !v.cur?.source && !v.cur?.bed && speechCalls===0;\n    v.stop('done'); if(original) Object.defineProperty(window,'speechSynthesis',original); else delete window.speechSynthesis;\n    window.__voices=window.__liveVoices;window.__voiceEngine=window.__liveVoiceEngine;\n    return result;\n  })()",
+      "value": true
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__voices.backend === 'generated' && __voices.mode === 'on'",
+      "label": "generated PCM backend, voices ON",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "!!__G.sfx.ctx && __G.sfx.ctx.state === 'running'",
+      "label": "the AudioContext runs",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.played().some(e => e.role === 'boss' && /flight quarters/i.test(e.text))",
+      "label": "the Air Boss calls flight quarters on the 5MC when the war starts",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.played().some(e => e.role === 'huey' && e.cat === 'clearR' && e.who === 'huey:gunner')",
+      "label": "gunner: clear right",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.log.some(e => e.cat === 'takingFire' && e.who === 'huey:crewchief' && /(eight|nine|ten) o'clock/.test(e.text) && e.pri === 3)",
+      "label": "crew chief (left door): taking fire, nine o'clock, priority 3",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__G.G.craft === 'foot'",
+      "label": "a Marine out from the board",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.log.some(e => e.role === 'marine' && /contact|walker|armour/.test(e.cat) && /(front|left|right|rear)/i.test(e.text) && e.net === 'air' && e.dist !== undefined)",
+      "label": "a Marine calls the contact: direction and range, open air, from where he stands",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.played().some(e => e.role === 'marine' && /corpsman|man down|hit/i.test(e.text))",
+      "label": "a casualty call: corpsman up / man down",
+      "ok": false,
+      "value": false
+    },
+    {
+      "expr": "__G.G.craft === 'jet'",
+      "label": "in the Hornet",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.log.some(e => e.role === 'pilotBall' && /Hornet ball/.test(e.text))",
+      "label": "the ball call: side number, Hornet ball, fuel",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.log.some(e => e.cat === 'waveoff' && e.pri === 3 && e.net === 'uhf')",
+      "label": "LSO: wave off, priority 3 on the recovery freq",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__G.G.state === 'paused' && !__voices.cur && __voices.queue.length === 0",
+      "label": "pause: the voice stops and the queue clears",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.V.log.some(e => e.key === 'pause-test' && e.state === 'paused' && e.end !== null && e.source === null)",
+      "label": "the cut line is logged as paused and its source stopped",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "[...document.querySelectorAll('#menuItems button')].some(b => /VOICES: ON/.test(b.textContent))",
+      "label": "the pause menu has VOICES: ON / RADIO ONLY / OFF",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "window.__pk > 0.001",
+      "label": "speech produced samples on the isolated voice bus",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.overlaps() === 0",
+      "label": "no two utterances overlapped",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": true,
+      "label": "wall intersection, rotated wall, above-wall clearance and open doorway",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": true,
+      "label": "rendered radio PCM passes voice band and rejects bass / high frequencies",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__vsfx.master.gain.value < .32 && __vsfx.voiceMaster.gain.value === .5",
+      "label": "effects duck without lowering the voice bus",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__vtest.log.some(e=>e.key===\"long\" && e.state===\"interrupted\" && e.source===null)",
+      "label": "urgent wave-off interrupts and stops the previous audio source",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__vtest.persona(\"chief\",\"huey\")===__vtest.persona(\"chief\",\"marine\") && __vtest.persona(\"chief\",\"huey\").pitch!==__vtest.persona(\"gunner\",\"huey\").pitch",
+      "label": "person keeps a stable voice across roles; crew members have distinct voices",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__vtest.cur.gain < __nearGain && __vtest.cur.lowpass.frequency.value > 1800",
+      "label": "open-air speech fades as listener moves away",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__vtest.cur.muffle && __vtest.cur.lowpass.frequency.value < 950",
+      "label": "wall muffling changes the live speech low-pass",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "!__vtest.cur && __vtest.log.at(-1).state === \"too-far\"",
+      "label": "moving out of range stops the actual open-air voice",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__vtest.log.at(-1).state === \"radio-only\"",
+      "label": "radio-only mode rejects open-air calls",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "!__vtest.cur.out && !__vtest.cur.bed",
+      "label": "zero voice volume creates no speech, hiss or squelch",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__vtest.peak() < .00001 && Math.abs(__vsfx.master.gain.value-.5)<.01",
+      "label": "OFF immediately silences speech and radio tails and restores effects gain",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__vtest.queue.length<=8 && __vtest.stats.expired>0 && __vtest.stats.dropped>0 && __vtest.log.some(e=>e.state===\"not-your-crew\")",
+      "label": "bounded priority queue expires stale calls, skips delayed chatter and rejects another crew",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": true,
+      "label": "no installed system voices: silent subtitles, no native speech call, no radio noise, no errors",
+      "ok": true,
+      "value": true
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-28T18:41:46.443Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "be546c63dd589aa62b74ab6a93828f465ddac6ec",
+    "branch": "ngc/look-voices",
+    "gameTree": "a794ad19bd9da9e7e414ed6d797619b5d7ad0c3e",
+    "gameSha256": "31f52a6d5bd5e3510e416c9ef619ca42677476f0a7da122f5e07c9602f1af104",
+    "dirty": true,
+    "status": "M game/js/main.js\n M game/js/marine.js\n M game/js/voice/hooks.js\n M game/js/voice/phrases.js\n M game/js/voice/radio.js\n M game/js/voice/voice.js\n M tools/scenes/voices.mjs\n?? docs/ngc1980/findings/look-voices.md\n?? game/audio/\n?? game/dev/voices.html\n?? game/js/voice/occlusion.js\n?? game/js/voice/samples.js\n?? tools/voice-build.mjs\n?? tools/voicebench.mjs"
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": "zarch",
+    "state": "paused"
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "be546c63dd589aa62b74ab6a93828f465ddac6ec",
+    "branch": "ngc/look-voices",
+    "gameTree": "a794ad19bd9da9e7e414ed6d797619b5d7ad0c3e",
+    "gameSha256": "31f52a6d5bd5e3510e416c9ef619ca42677476f0a7da122f5e07c9602f1af104",
+    "dirty": true,
+    "status": "M game/js/main.js\n M game/js/marine.js\n M game/js/voice/hooks.js\n M game/js/voice/phrases.js\n M game/js/voice/radio.js\n M game/js/voice/voice.js\n M tools/scenes/voices.mjs\n?? docs/ngc1980/findings/look-voices.md\n?? game/audio/\n?? game/dev/voices.html\n?? game/js/voice/occlusion.js\n?? game/js/voice/samples.js\n?? tools/voice-build.mjs\n?? tools/voicebench.mjs"
+  },
+  "summary": "FAIL: 28/29 expects, 0 page errors, 0 console errors",
+  "durationMs": 236320,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/runs/2026-10-28_18-41-46-voices"
+}

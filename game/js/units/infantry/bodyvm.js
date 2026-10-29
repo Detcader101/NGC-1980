@@ -23,6 +23,7 @@ const RUNG = 0.6;          // m of climb per hand cycle (two rungs of a ~0.3 m p
 const GRIP = 0.6;          // fraction of the cycle the hand holds the rail (0.36 m of climb past it), the rest is the reach up
 export function createBodyVM(vm) {
   const BV = { k: 0, mode: null, t: 0, swimPh: 0 };
+  const last={mode:null,pitch:0,climbY:0,speed:0,region:'legL',item:null};
   const _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _qp = new THREE.Quaternion(), _e = new THREE.Euler(), _wr = new THREE.Vector3(), X = new THREE.Vector3(1, 0, 0);
   const _from = { L: { p: new THREE.Vector3(), q: new THREE.Quaternion() }, R: { p: new THREE.Vector3(), q: new THREE.Quaternion() } };
   // an OD field dressing (the 1980 first field dressing: an olive-drab pad, tails) in the right hand for self aid
@@ -42,6 +43,10 @@ export function createBodyVM(vm) {
   BV.update = (dt, st) => {
     BV.t += dt;
     const want = st ? 1 : 0;
+    // Keep the final body frame through the exit blend. Resetting pitch/rail phase/wound on the first null
+    // frame used to snap both hands before their 300 ms return to the weapon had even started.
+    if(st){last.mode=st.mode;last.pitch=st.pitch||0;last.climbY=st.climbY||0;last.speed=st.speed||0;last.region=st.region||'legL';last.item=st.item;}
+    const pose=st||last;
     BV.k = clamp(BV.k + (want ? dt / 0.25 : -dt / 0.3), 0, 1);
     if (st) BV.mode = st.mode;
     const g = vm.model && vm.model.group;
@@ -49,12 +54,15 @@ export function createBodyVM(vm) {
     const hide = BV.k > 0.5 && (BV.mode === 'ladder' || BV.mode === 'swim');
     if (g) g.visible = !hide;
     // RENDERKIT figures: open hands for the stroke and on a wound, fists on the rails / the rifle
-    const shape = BV.k > 0.5 && (BV.mode === 'swim' || BV.mode === 'aid') ? 'open' : 'grip';
-    if (vm.handShape) { vm.handShape('L', shape); vm.handShape('R', shape); }
+    const shape = BV.k > 0 && (BV.mode === 'swim' || BV.mode === 'aid') ? 'open' : 'grip';
+    if (vm.handShape) { vm.handShape('L', shape,sstep(BV.k)); vm.handShape('R', shape,sstep(BV.k)); }
+    // A rail needs a closed grip and curled index, regardless of the previously held weapon. Blend geometry
+    // and wrist together with the body action so entering/exiting a ladder does not pop to a new hand shape.
+    if(vm.railGrip){const rail=BV.mode==='ladder'?sstep(BV.k):0;vm.railGrip('L',rail);vm.railGrip('R',rail);}
     if (BV.k <= 0) { BV.mode = null; pad.visible = false; return; }
-    const w = sstep(BV.k), pitch = st ? st.pitch || 0 : 0;
+    const w = sstep(BV.k), pitch = pose.pitch || 0;
     if (BV.mode === 'ladder') {
-      const y = st ? st.climbY || 0 : 0;
+      const y = pose.climbY || 0;
       for (const [sd, s, off] of [['L', -1, 0], ['R', 1, 0.5]]) {
         const u = frac(y / RUNG + off);
         // gripping: the hand stays on the rail as the body rises past it; reaching: up to the next hold, off the rail
@@ -63,8 +71,8 @@ export function createBodyVM(vm) {
         put(sd, s * (0.17 - 0.03 * reach), hy, -0.42 + 0.06 * reach, 0.1, 0, s * 0.08, pitch, w);
       }
     } else if (BV.mode === 'swim') {
-      const sp = st ? st.speed || 0 : 0, rate = 0.55 + 0.5 * clamp(sp / 0.9, 0, 1);
-      BV.swimPh = (BV.swimPh + dt * rate) % 1;
+      const sp = pose.speed || 0, rate = 0.55 + 0.5 * clamp(sp / 0.9, 0, 1);
+      if(st)BV.swimPh = (BV.swimPh + dt * rate) % 1;
       const ph = BV.swimPh, moving = sp > 0.15;
       for (const [sd, s] of [['L', -1], ['R', 1]]) {
         let x, y, z, rz = s * -1.3;
@@ -78,7 +86,7 @@ export function createBodyVM(vm) {
         put(sd, x, y, z, -0.2, 0, rz, pitch, w);
       }
     } else if (BV.mode === 'aid') {
-      const r = st ? st.region || 'legL' : 'legL', work = Math.sin(BV.t * 5.5) * 0.012;
+      const r = pose.region || 'legL', work = Math.sin(BV.t * 5.5) * 0.012;
       // where the wound is, seen from the eye (body frame, m): looking down at it
       const at = r.startsWith('leg') ? [r === 'legL' ? -0.13 : 0.13, -0.5, -0.42] : r === 'armL' ? [-0.2, -0.42, -0.3] : r === 'armR' ? [0.22, -0.42, -0.26]
         : r === 'head' ? [0.02, -0.12, -0.22] : r === 'stomach' ? [0, -0.58, -0.22] : [0.02, -0.38, -0.2];

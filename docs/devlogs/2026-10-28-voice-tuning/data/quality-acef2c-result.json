@@ -1,0 +1,159 @@
+{
+  "schemaVersion": 2,
+  "name": "voicequality",
+  "query": "?debug&auto",
+  "seed": null,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "aea1a2ef123555171578c048cc77a374895ebb53ec38b393d6e7093b312bf3c4",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/snap.mjs",
+    "tools/scenes/voicequality.mjs"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "c2ece5a311242f5a9647230ce46ac015e4424f7f",
+    "branch": "ngc/look-voices",
+    "gameTree": "f641e810a13a64760c612070301f6a3f657cd905",
+    "gameSha256": "96623ec1dd9b48ba59949a92b3050b7dd50f3b1d4ac38b38a0385c3d9c8be509",
+    "dirty": true,
+    "status": "M game/audio/voices/index.json\n M game/audio/voices/speech.logpcm.gz\n M game/js/voice/commandpanel.js\n M game/js/voice/radio.js\n M game/js/voice/recognition.js\n M game/js/voice/samples.js\n M game/js/voice/voice.js\n M tools/scenes/voices.mjs\n M tools/serve.mjs\n M tools/voice-build.mjs\n M tools/voicecommandbench.mjs\n?? game/js/voice/localrecognition.js\n?? game/js/voice/mic-worklet.js\n?? game/js/voice/microphone.js\n?? tools/scenes/voicequality.mjs\n?? tools/speech-recognize.ps1\n?? tools/speech-server.mjs\n?? tools/speechbench.mjs"
+  },
+  "url": "http://127.0.0.1:33885/?debug&auto",
+  "ok": true,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": null,
+  "shots": [
+    {
+      "name": "quieter-radio-preview",
+      "file": "01-quieter-radio-preview.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 35.1,
+      "litFraction": 0.9993,
+      "colors": 76
+    }
+  ],
+  "clips": [],
+  "benchmarks": [],
+  "evals": [
+    {
+      "expr": "(async()=>{\n    const {RadioBed}=await import('../js/voice/radio.js');\n    const render=async(f,old)=>{\n      const ctx=new OfflineAudioContext(1,48000,48000),out=ctx.createGain();out.gain.value=1;out.connect(ctx.destination);\n      let input;\n      if(old){const hp=ctx.createBiquadFilter();hp.type='highpass';hp.frequency.value=320;hp.Q.value=.9;\n        const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=2900;lp.Q.value=.9;\n        const pk=ctx.createBiquadFilter();pk.type='peaking';pk.frequency.value=1700;pk.gain.value=5;pk.Q.value=1;\n        const ws=ctx.createWaveShaper();ws.curve=Float32Array.from({length:1024},(_,i)=>Math.tanh(1.6*(i/1023*2-1))/Math.tanh(1.6));ws.oversample='2x';\n        const gain=ctx.createGain();gain.gain.value=.6/Math.sqrt(1.6);hp.connect(lp);lp.connect(pk);pk.connect(ws);ws.connect(gain);gain.connect(out);input=hp;\n      }else input=new RadioBed({ctx}).chain('uhf',out);\n      const osc=ctx.createOscillator(),g=ctx.createGain();g.gain.value=.1;osc.frequency.value=f;osc.connect(g);g.connect(input);osc.start();\n      const a=(await ctx.startRendering()).getChannelData(0);let sum=0;for(let i=12000;i<36000;i++)sum+=a[i]*a[i];return Math.sqrt(sum/24000);\n    };\n    const values={};for(const f of [120,1100,6000])values[f]={before:await render(f,true),after:await render(f,false)};\n    window.__filter=values;\n    const {createSamples,speechKey}=await import('../js/voice/samples.js');const s=createSamples();await s.load();\n    const index=await(await fetch('../audio/voices/index.json')).json(),key=speechKey('Command, this is Albatross. Read you. Out.');\n    const b=s.buffer(new OfflineAudioContext(1,1,16000),'Command, this is Albatross. Read you. Out.');\n    window.__wholeSentence=!!index.clips.male[key]&&b.length===index.clips.male[key][1]+Math.round(index.rate*.008);\n    return values;\n  })()",
+      "value": {
+        "120": {
+          "before": 0.008898373727563203,
+          "after": 0.00046451989575235027
+        },
+        "1100": {
+          "before": 0.08944844792116728,
+          "after": 0.11301840644656407
+        },
+        "6000": {
+          "before": 0.01477645684982232,
+          "after": 0.0016421712874775559
+        }
+      }
+    },
+    {
+      "expr": "(async()=>{\n    const {openMicrophone}=await import('../js/voice/microphone.js');\n    const ctx=new AudioContext();await ctx.resume();const tone=ctx.createOscillator(),gain=ctx.createGain(),dest=ctx.createMediaStreamDestination();\n    tone.frequency.value=600;gain.gain.value=.2;tone.connect(gain);gain.connect(dest);tone.start();\n    window.__testMic={ctx,tone,dest,abort:new AbortController(),peak:0};\n    __testMic.capture=await openMicrophone({signal:__testMic.abort.signal,media:{getUserMedia:async()=>dest.stream},level:n=>__testMic.peak=Math.max(__testMic.peak,n)});return true;\n  })()",
+      "value": true
+    },
+    {
+      "expr": "(async()=>{const m=__testMic,b=await m.capture.finish();m.waveBytes=b.length;m.tracksClosed=m.dest.stream.getTracks().every(t=>t.readyState===\"ended\");m.tone.stop();await m.ctx.close();return {bytes:m.waveBytes,peak:m.peak,closed:m.tracksClosed};})()",
+      "value": {
+        "bytes": 21498,
+        "peak": 0.19998866319656372,
+        "closed": true
+      }
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__filter[120].after/__filter[120].before < .25",
+      "label": "stronger radio filter removes more bass than previous chain",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__filter[6000].after/__filter[6000].before < .25",
+      "label": "post-clipping low-pass removes more high-frequency energy",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__filter[1100].after > .025",
+      "label": "speech midrange remains audible through the stronger radio filter",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__wholeSentence",
+      "label": "common acknowledgement is a single synthesized sentence, not word splices",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.V.vol===6 && __voices.V.persona(\"chief\",\"huey\").pitch>=.96 && __voices.V.persona(\"chief\",\"huey\").pitch<=1.04",
+      "label": "quieter default and restrained voice pitch",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__testMic.peak>.05 && __testMic.waveBytes>10000",
+      "label": "real AudioWorklet records generated microphone input and exposes level",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__testMic.tracksClosed",
+      "label": "release closes every microphone track",
+      "ok": true,
+      "value": true
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-28T20:07:29.660Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "c2ece5a311242f5a9647230ce46ac015e4424f7f",
+    "branch": "ngc/look-voices",
+    "gameTree": "f641e810a13a64760c612070301f6a3f657cd905",
+    "gameSha256": "96623ec1dd9b48ba59949a92b3050b7dd50f3b1d4ac38b38a0385c3d9c8be509",
+    "dirty": true,
+    "status": "M game/audio/voices/index.json\n M game/audio/voices/speech.logpcm.gz\n M game/js/voice/commandpanel.js\n M game/js/voice/radio.js\n M game/js/voice/recognition.js\n M game/js/voice/samples.js\n M game/js/voice/voice.js\n M tools/scenes/voices.mjs\n M tools/serve.mjs\n M tools/voice-build.mjs\n M tools/voicecommandbench.mjs\n?? game/js/voice/localrecognition.js\n?? game/js/voice/mic-worklet.js\n?? game/js/voice/microphone.js\n?? tools/scenes/voicequality.mjs\n?? tools/speech-recognize.ps1\n?? tools/speech-server.mjs\n?? tools/speechbench.mjs"
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": null,
+    "state": null
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "c2ece5a311242f5a9647230ce46ac015e4424f7f",
+    "branch": "ngc/look-voices",
+    "gameTree": "f641e810a13a64760c612070301f6a3f657cd905",
+    "gameSha256": "96623ec1dd9b48ba59949a92b3050b7dd50f3b1d4ac38b38a0385c3d9c8be509",
+    "dirty": true,
+    "status": "M game/audio/voices/index.json\n M game/audio/voices/speech.logpcm.gz\n M game/js/voice/commandpanel.js\n M game/js/voice/radio.js\n M game/js/voice/recognition.js\n M game/js/voice/samples.js\n M game/js/voice/voice.js\n M tools/scenes/voices.mjs\n M tools/serve.mjs\n M tools/voice-build.mjs\n M tools/voicecommandbench.mjs\n?? game/js/voice/localrecognition.js\n?? game/js/voice/mic-worklet.js\n?? game/js/voice/microphone.js\n?? tools/scenes/voicequality.mjs\n?? tools/speech-recognize.ps1\n?? tools/speech-server.mjs\n?? tools/speechbench.mjs"
+  },
+  "summary": "PASS: 7/7 expects, 0 page errors, 0 console errors",
+  "durationMs": 31858,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/runs/2026-10-28_20-07-29-voicequality"
+}

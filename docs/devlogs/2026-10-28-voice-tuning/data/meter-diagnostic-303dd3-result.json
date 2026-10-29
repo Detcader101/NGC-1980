@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 2,
+  "name": "offlinevoice",
+  "query": "?debug&auto&kb&res=0.45&voices=generated",
+  "seed": null,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "4ecc81678e3217de6a9575f7e793c8541ae90232d706f25d741404e648257251",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/snap.mjs",
+    "tools/scenes/offlinevoice.mjs",
+    "--url",
+    "http://127.0.0.1:8827/"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "c2ece5a311242f5a9647230ce46ac015e4424f7f",
+    "branch": "ngc/look-voices",
+    "gameTree": "f641e810a13a64760c612070301f6a3f657cd905",
+    "gameSha256": "267af9763418a42c1def625eb9515c08f0baeccb5fc4f1081e7a67203a9cb298",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/audio/voices/index.json\n M game/audio/voices/speech.logpcm.gz\n M game/js/voice/commandpanel.js\n M game/js/voice/radio.js\n M game/js/voice/recognition.js\n M game/js/voice/samples.js\n M game/js/voice/voice.js\n M tools/scenes/voices.mjs\n M tools/serve.mjs\n M tools/voice-build.mjs\n M tools/voicecommandbench.mjs\n?? game/js/voice/localrecognition.js\n?? game/js/voice/mic-worklet.js\n?? game/js/voice/microphone.js\n?? tools/scenes/offlinevoice.mjs\n?? tools/scenes/voicequality.mjs\n?? tools/speech-recognize.ps1\n?? tools/speech-server.mjs\n?? tools/speechbench.mjs"
+  },
+  "url": "http://127.0.0.1:8827/?debug&auto&kb&res=0.45&voices=generated",
+  "ok": false,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": "0 fps  ·  res 45%",
+  "shots": [
+    {
+      "name": "offline-radio-reply",
+      "file": "01-offline-radio-reply.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 67,
+      "litFraction": 0.9632,
+      "colors": 466
+    }
+  ],
+  "clips": [],
+  "benchmarks": [],
+  "evals": [
+    {
+      "expr": "(async()=>{await __radioCommands.rec.ready;return {backend:__radioCommands.rec.backend,error:__radioCommands.rec.probeError,requests:performance.getEntriesByType(\"resource\").filter(e=>e.name.includes(\"/version\")||e.name.includes(\"/__speech\")).map(e=>({name:e.name,ms:e.duration}))};})()",
+      "value": {
+        "backend": "Windows offline",
+        "error": "",
+        "requests": []
+      }
+    }
+  ],
+  "expects": [
+    {
+      "expr": "__micFixture.opened===0 && !__radioCommands.rec.active",
+      "label": "opening RADIO never opens the microphone",
+      "ok": true,
+      "value": true
+    },
+    {
+      "ok": false,
+      "msg": "waitFor timed out: document.querySelector(\"[data-level]\").value>.02"
+    },
+    {
+      "expr": "__radioCommands.rec.active && !__radioCommands.net.last",
+      "label": "held microphone shows level without issuing an order",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__radioCommands.net.last.action===\"check\" && __radioCommands.net.last.target===\"carrier\"",
+      "label": "actual offline transcript reaches the live carrier command net",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "document.querySelector(\"#radioCommand output\").textContent.includes(\"Read you. Out.\")",
+      "label": "carrier reply is visible after local recognition",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__micFixture.dest.stream.getTracks().every(t=>t.readyState===\"ended\") && !__radioCommands.rec.active",
+      "label": "release closes actual captured tracks after transcription",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "document.querySelector(\"[data-heard]\").textContent.toLowerCase().includes(\"this is command\")",
+      "label": "recognized call remains visible for diagnosis",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__voices.V.vol===4 && document.querySelector(\"[data-volume]\").textContent===\"4/10\"",
+      "label": "RADIO voice slider controls the actual voice mixer",
+      "ok": true,
+      "value": true
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-28T20:18:15.812Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "c2ece5a",
+    "dirty": true,
+    "date": "2026-10-28_19:15",
+    "served": "2026-10-28T20:18:15.965Z",
+    "speech": "windows"
+  },
+  "sourceQualification": "External server version is recorded separately; the local source fingerprint alone does not prove remote content.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": "zarch",
+    "state": "play"
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "c2ece5a311242f5a9647230ce46ac015e4424f7f",
+    "branch": "ngc/look-voices",
+    "gameTree": "f641e810a13a64760c612070301f6a3f657cd905",
+    "gameSha256": "267af9763418a42c1def625eb9515c08f0baeccb5fc4f1081e7a67203a9cb298",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/audio/voices/index.json\n M game/audio/voices/speech.logpcm.gz\n M game/js/voice/commandpanel.js\n M game/js/voice/radio.js\n M game/js/voice/recognition.js\n M game/js/voice/samples.js\n M game/js/voice/voice.js\n M tools/scenes/voices.mjs\n M tools/serve.mjs\n M tools/voice-build.mjs\n M tools/voicecommandbench.mjs\n?? game/js/voice/localrecognition.js\n?? game/js/voice/mic-worklet.js\n?? game/js/voice/microphone.js\n?? tools/scenes/offlinevoice.mjs\n?? tools/scenes/voicequality.mjs\n?? tools/speech-recognize.ps1\n?? tools/speech-server.mjs\n?? tools/speechbench.mjs"
+  },
+  "summary": "FAIL: 7/8 expects, 0 page errors, 0 console errors",
+  "durationMs": 79761,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/runs/2026-10-28_20-18-15-offlinevoice"
+}

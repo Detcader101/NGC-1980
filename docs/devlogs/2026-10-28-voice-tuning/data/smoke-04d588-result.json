@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 2,
+  "name": "smoke",
+  "query": "?debug&auto&kb&res=0.45",
+  "seed": null,
+  "viewport": {
+    "width": 1280,
+    "height": 720,
+    "deviceScaleFactor": 1
+  },
+  "sceneSha256": "a3c8b4f4c19d182e16e80b33abf4116bd94213414304c4e3a936f8982a6c268b",
+  "command": [
+    "/home/jayjay/.local/opt/node-v22.23.3-linux-x64/bin/node",
+    "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/snap.mjs",
+    "scenes/smoke.json"
+  ],
+  "rendererMode": "swiftshader",
+  "host": {
+    "platform": "linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+    "logicalCpus": 32,
+    "memoryGiB": 15.2,
+    "node": "v22.23.3"
+  },
+  "source": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "c2ece5a311242f5a9647230ce46ac015e4424f7f",
+    "branch": "ngc/look-voices",
+    "gameTree": "f641e810a13a64760c612070301f6a3f657cd905",
+    "gameSha256": "7ac04219fc0f0a46f83fdaf605ca7044a82acbad0c186bf032886fce843939bc",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/audio/voices/index.json\n M game/audio/voices/speech.logpcm.gz\n M game/js/hotas.js\n M game/js/main.js\n M game/js/voice/commandpanel.js\n M game/js/voice/radio.js\n M game/js/voice/recognition.js\n M game/js/voice/samples.js\n M game/js/voice/voice.js\n M tools/scenes/voices.mjs\n M tools/serve.mjs\n M tools/voice-build.mjs\n M tools/voicecommandbench.mjs\n?? game/js/voice/localrecognition.js\n?? game/js/voice/mic-worklet.js\n?? game/js/voice/microphone.js\n?? game/js/voice/ptt.js\n?? tools/pttbench.mjs\n?? tools/scenes/offlinevoice.mjs\n?? tools/scenes/voicequality.mjs\n?? tools/speech-recognize.ps1\n?? tools/speech-server.mjs\n?? tools/speechbench.mjs"
+  },
+  "url": "http://127.0.0.1:42321/?debug&auto&kb&res=0.45",
+  "ok": true,
+  "browser": "/home/jayjay/.cache/chs/chrome.sh",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "fps": "0 fps  ·  res 45%",
+  "shots": [
+    {
+      "name": "landscape",
+      "file": "01-landscape.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 77.3,
+      "litFraction": 0.9973,
+      "colors": 514
+    },
+    {
+      "name": "after-thrust",
+      "file": "02-after-thrust.png",
+      "w": 1280,
+      "h": 720,
+      "meanLuma": 105.4,
+      "litFraction": 0.9958,
+      "colors": 517
+    }
+  ],
+  "clips": [],
+  "benchmarks": [],
+  "evals": [
+    {
+      "expr": "({mode:__G.G.mode, state:__G.G.state, pos:__G.Z.pos.toArray(), alive:__G.Z.alive, landed:__G.Z.landed, gpu:document.getElementById('gpuinfo').textContent, fps:document.getElementById('dbg').textContent})",
+      "value": {
+        "mode": "zarch",
+        "state": "play",
+        "pos": [
+          -453.2880259004398,
+          9.889470931061675,
+          612.6131200930371
+        ],
+        "alive": true,
+        "landed": true,
+        "gpu": "GPU: ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+        "fps": "0 fps  ·  res 45%"
+      }
+    },
+    {
+      "expr": "(__G.H.reset(new __G.THREE.Vector3(__G.HOME_B.x+18.0, 40, __G.HOME_B.z+18.0), 0, false, 1), __G.HI.setCollective(0.6), window.__y0 = 40)",
+      "value": 40
+    },
+    {
+      "expr": "({y0: window.__y0, y1: __G.Z.pos.y, vy: __G.Z.vel.y, throttle: __G.Z.throttle, lives: __G.G.lives, fuel: __G.G.fuel})",
+      "value": {
+        "y0": 40,
+        "y1": 41.95256683417219,
+        "vy": 4.677229293592119,
+        "throttle": 0.7943970621317623,
+        "lives": 3,
+        "fuel": 99.76930669003134
+      }
+    }
+  ],
+  "expects": [
+    {
+      "expr": "notblank(landscape)",
+      "ok": true,
+      "value": 0.9973
+    },
+    {
+      "expr": "__G.G.mode==='zarch'",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "notblank(after-thrust)",
+      "ok": true,
+      "value": 0.9958
+    },
+    {
+      "expr": "__G.G.mode==='zarch'",
+      "ok": true,
+      "value": true
+    },
+    {
+      "expr": "__G.Z.pos.y > window.__y0 + 1",
+      "ok": true,
+      "value": true
+    }
+  ],
+  "errors": [],
+  "consoleErrors": [],
+  "startedAt": "2026-10-28T20:36:20.364Z",
+  "servedSource": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "c2ece5a311242f5a9647230ce46ac015e4424f7f",
+    "branch": "ngc/look-voices",
+    "gameTree": "f641e810a13a64760c612070301f6a3f657cd905",
+    "gameSha256": "7ac04219fc0f0a46f83fdaf605ca7044a82acbad0c186bf032886fce843939bc",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/audio/voices/index.json\n M game/audio/voices/speech.logpcm.gz\n M game/js/hotas.js\n M game/js/main.js\n M game/js/voice/commandpanel.js\n M game/js/voice/radio.js\n M game/js/voice/recognition.js\n M game/js/voice/samples.js\n M game/js/voice/voice.js\n M tools/scenes/voices.mjs\n M tools/serve.mjs\n M tools/voice-build.mjs\n M tools/voicecommandbench.mjs\n?? game/js/voice/localrecognition.js\n?? game/js/voice/mic-worklet.js\n?? game/js/voice/microphone.js\n?? game/js/voice/ptt.js\n?? tools/pttbench.mjs\n?? tools/scenes/offlinevoice.mjs\n?? tools/scenes/voicequality.mjs\n?? tools/speech-recognize.ps1\n?? tools/speech-server.mjs\n?? tools/speechbench.mjs"
+  },
+  "sourceQualification": "Owned server serves the fingerprinted local game tree.",
+  "browserVersion": "HeadlessChrome/156.0.8078.47",
+  "final": {
+    "mode": "zarch",
+    "state": "play"
+  },
+  "sourceEnd": {
+    "root": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838",
+    "commit": "c2ece5a311242f5a9647230ce46ac015e4424f7f",
+    "branch": "ngc/look-voices",
+    "gameTree": "f641e810a13a64760c612070301f6a3f657cd905",
+    "gameSha256": "7ac04219fc0f0a46f83fdaf605ca7044a82acbad0c186bf032886fce843939bc",
+    "dirty": true,
+    "status": "M MODLOG.md\n M README.md\n M docs/ngc1980/findings/look-voices.md\n M game/audio/voices/index.json\n M game/audio/voices/speech.logpcm.gz\n M game/js/hotas.js\n M game/js/main.js\n M game/js/voice/commandpanel.js\n M game/js/voice/radio.js\n M game/js/voice/recognition.js\n M game/js/voice/samples.js\n M game/js/voice/voice.js\n M tools/scenes/voices.mjs\n M tools/serve.mjs\n M tools/voice-build.mjs\n M tools/voicecommandbench.mjs\n?? docs/devlogs/2026-10-28-voice-tuning-notes.json\n?? game/js/voice/localrecognition.js\n?? game/js/voice/mic-worklet.js\n?? game/js/voice/microphone.js\n?? game/js/voice/ptt.js\n?? tools/pttbench.mjs\n?? tools/scenes/offlinevoice.mjs\n?? tools/scenes/voicequality.mjs\n?? tools/speech-recognize.ps1\n?? tools/speech-server.mjs\n?? tools/speechbench.mjs"
+  },
+  "summary": "PASS: 5/5 expects, 0 page errors, 0 console errors",
+  "durationMs": 119787,
+  "runDir": "/home/jayjay/thrust-zarch/.claude/worktrees/agent-acb3f3f66119cd838/tools/runs/2026-10-28_20-36-20-smoke"
+}
