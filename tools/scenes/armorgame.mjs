@@ -124,7 +124,8 @@ export default async function (h) {
   await h.wait(5000); await h.shot('lcm8-ramp-down');
   await h.waitFor("__G.armDelivery.runs[0].state === 'rampUp' || __G.armDelivery.runs[0].state === 'backing'", 240000);
   await h.eval('(__A.T().orbit.yaw = 0.5, 1)'); await h.wait(2500); await h.shot('lcm8-tank-ashore');
+  // (ngc/look-terrain: > 1.2 m, was > 3: on the new land the run can go to a beach hard, whose top is on the sand ~1.5 m up)
   await h.waitFor(`__A.T().driver.state !== 'driving'`, 240000);
   await h.eval('({ st: __A.st(__A.T()), gun: __A.T().V.armor.COMPS.find(c => c.id === "gun").hp })');
-  await h.expect(`__A.T().fm.origin()[1] > 3 && !__A.T().fm.water.afloat && __A.T().driver.state === 'arrived'`);
+  await h.expect(`__A.T().fm.origin()[1] > 1.2 && !__A.T().fm.water.afloat && __A.T().driver.state === 'arrived'`);
 }

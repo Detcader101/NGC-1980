@@ -59,7 +59,8 @@ export default async function (h) {
   // spots (~3.7-4.3 km east) moved with the zone. A village or town past 5 km east, a bridge on a road near it, shallows
   // for the ford; window.__FIX.
   await h.eval(`(() => { const S = __WORLD.net.settlementsNear(6200, 1300, 3200).filter(s => s.size !== 'hamlet' && Math.max(Math.abs(s.x), Math.abs(s.z)) > 4900).sort((a, b) => Math.hypot(a.x - 6200, a.z - 1300) - Math.hypot(b.x - 6200, b.z - 1300)), T = S[0];
-    let br = null; for (let r = 150; r < 3200 && !br; r += 40) for (let k = 0; k < 32 && !br; k++) { const x = T.x + Math.cos(k / 32 * 6.283) * r, z = T.z + Math.sin(k / 32 * 6.283) * r, q = __WORLD.roadAt(x, z); if (q && q.bridge) { const R = __WORLD.roadById(q.road); if (q.s > 130 && q.s < R.len - 160) br = [x, z]; } }
+    for (let r = 0; r < 3200; r += 400) for (let k = 0; k < 8; k++) __WORLD.roadAt(T.x + Math.cos(k / 8 * 6.283) * r, T.z + Math.sin(k / 8 * 6.283) * r);   // (generates the road cells round the town)
+    let br = null, bd = 1e9; for (const R of __WORLD.net.netState.roads) { if (!R.br || !R.s) continue; for (let i = 0; i < R.br.length; i++) if (R.br[i] && R.s[i] > 130 && R.s[i] < R.len - 160) { const d = Math.hypot(R.xs[i] - T.x, R.zs[i] - T.z); if (d < bd && d < 5000) { bd = d; br = [R.xs[i], R.zs[i]]; } } }
     const fd = []; for (let r = 100; r < 4000 && fd.length < 6; r += 25) for (let k = 0; k < 48 && fd.length < 6; k++) { const x = T.x + Math.cos(k / 48 * 6.283) * r, z = T.z + Math.sin(k / 48 * 6.283) * r, y = __G.terrainH(x, z); if (y < -0.3 && y > -0.42 && fd.every(c => Math.hypot(c[0] - x, c[1] - z) > 40)) fd.push([Math.round(x), Math.round(z)]); }
     window.__FIX = { town: [T.x, T.z], br, ford: fd }; return __FIX; })()`);
   // the village / town: its main street
