@@ -19,7 +19,7 @@ He explicitly OKd merging into the `experimental` branch (worktree `/home/jayjay
 
 | Agent | Task | Done | State | Branch head |
 |---|---|---|---|---|
-| look-airbases | SR-71 sorties from WESTGATE (shelter, takeoff, autopilot home, chute landing, park) | ~85% | landing solved; final sr71/airbase scenes running | ngc/look-airbases 18968e4 |
+| look-airbases | SR-71 sorties from WESTGATE (basesr71.js attachSR71: shelter start, I start cart, SHIFT+L tow to runway, N sr71Home autopilot, chute landing, O / SHIFT+O hand-in), base HAWK battery, fuel dump, sr71fm g-check airborne only | closed out | airbasebench all pass at 60 Hz, sr71bench 24/24; airbasesr71.mjs 11/11 at 18968e4 but NOT rerun at the final head; smoke/sr71/airbase/c130 not rerun on the merged head; copy shots from tools/runs/2026-10-29_16-20-34-airbasesr71 into evidence; add untested items to its findings | ngc/look-airbases ae46ff2 |
 | look-terrain | grain fade by pixel footprint (?rkgrain = off for A/B), map zoom + world out to ~7 km past the zone, shader-library d6d0bad merged | closed out | grain fix not yet verified at full resolution (Jay Jay to eye it); no gameplay scenes run on the merged build; gamepad/XR map input untested; lookmap 2/2 | ngc/look-terrain 2430ab0 |
 | look-units | CH-46E from NADC-81118-60 | ~70% of the CH-46 | fit side 0.833 -> 0.985, evidence capture running; stops after the CH-46 | ngc/look-units 15c7713 |
 | look-units | whole blueprint list (Hornet, CH-46, C-130, M60A3, M113A2, M151A2, M35A2, LCM-8, ships, weapons last) | ~20% | 2 of ~10 units | |
