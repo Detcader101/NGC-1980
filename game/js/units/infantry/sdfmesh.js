@@ -77,6 +77,9 @@ export class SdfKit {
     const R = RM(rot), m = Math.hypot(Math.max(rx, rz) + th, hh);
     return this._push({ t: 6, c, rx, rz, hh, th, rad: Math.min(rad, th * 0.99, hh * 0.99), R, box: [c[0] - m, c[1] - m, c[2] - m, c[0] + m, c[1] + m, c[2] + m] }, o);
   }
+  // a CUSTOM field fn(x, y, z) -> signed distance (a conservative bound: never more than the true distance outside),
+  // inside the world box [x0, y0, z0, x1, y1, z1] (look-faces: the lofted face and skull)
+  field(fn, box, o) { return this._push({ t: 7, fn, box }, o); }
   // a half-space cut (keep the side where n.(p - c) < 0), only inside a box (for trimming): `sub` is implied
   plane(c, n, box, o = {}) {
     const l = Math.hypot(n[0], n[1], n[2]);
@@ -87,7 +90,7 @@ export class SdfKit {
 // distance of one primitive at (x, y, z) (no blend, no displacement)
 function primDist(p, x, y, z) {
   let lx, ly, lz;
-  if (p.t !== 0 && p.t !== 5) {
+  if (p.t !== 0 && p.t !== 5 && p.t !== 7) {
     lx = x - p.c[0]; ly = y - p.c[1]; lz = z - p.c[2];
     if (p.R) { const R = p.R, a = R[0] * lx + R[3] * ly + R[6] * lz, b = R[1] * lx + R[4] * ly + R[7] * lz, c = R[2] * lx + R[5] * ly + R[8] * lz; lx = a; ly = b; lz = c; }
   }
@@ -122,6 +125,7 @@ function primDist(p, x, y, z) {
       return Math.min(Math.max(dr, dy), 0) + Math.hypot(Math.max(dr, 0), Math.max(dy, 0)) - p.rad;
     }
     case 5: return (x - p.c[0]) * p.n[0] + (y - p.c[1]) * p.n[1] + (z - p.c[2]) * p.n[2];
+    case 7: return p.fn(x, y, z);
   }
   return 1e9;
 }
@@ -144,7 +148,8 @@ function field(list, x, y, z, guard) {
 
 // ------------------------------------------------------------------------------------------------ materials
 // a material record: { col: hex | fn(x,y,z)->hex, erdl 0..1 (utility camo in the shader), mitch 0..1 (helmet cover
-// camo), skin 0..1 (takes the person's skin tone), fold 0..1 (cloth bump detail), rough, metal }
+// camo), skin 0..1 (takes the person's skin tone), fold 0..1 (cloth bump detail; on SKIN it is the hair / stubble
+// density instead), rough, metal }; fold and rough may also be fn(x, y, z) (look-faces: hair density, the T-zone)
 export const mat = (col, o = {}) => ({ col, erdl: 0, mitch: 0, skin: 0, fold: 0, rough: 0.9, metal: 0, paint: 0, ...o });   // paint: takes a per-person / per-instance tint (jerseys, shirts)
 
 // ------------------------------------------------------------------------------------------------ skin weights
@@ -193,6 +198,11 @@ SdfKit.prototype.mesh = function (h = 0.015, o = {}) {
     BL[bi / BS + nbx * (bj / BS + nby * (bk / BS))] = list;
     const ie = Math.min(nx, bi + BS), je = Math.min(ny, bj + BS), ke = Math.min(nz, bk + BS);
     if (!list.some(p => !p.sub)) { for (let k = bk; k < ke; k++) for (let j = bj; j < je; j++) for (let i = bi; i < ie; i++) F[idx(i, j, k)] = FAR; continue; }
+    if (o.band) {   // narrow band (look-faces): a block whose centre is farther from the surface than its half diagonal
+      // (times o.band, the bound's slack) is all one sign: fill it without evaluating every corner
+      const hd = Math.sqrt(3) * BS * h * 0.5, dc = field(list, (x0 + x1) * 0.5, (y0 + y1) * 0.5, (z0 + z1) * 0.5, hd + G2);
+      if (Math.abs(dc) > hd * o.band + 2 * h) { const fill = dc > 0 ? Math.max(dc - hd * o.band, h) : Math.min(dc + hd * o.band, -h); for (let k = bk; k < ke; k++) for (let j = bj; j < je; j++) for (let i = bi; i < ie; i++) F[idx(i, j, k)] = fill; continue; }
+    }
     for (let k = bk; k < ke; k++) for (let j = bj; j < je; j++) for (let i = bi; i < ie; i++) F[idx(i, j, k)] = field(list, ox + i * h, oy + j * h, oz + k * h, guard);
   }
   if (o.clipFn) for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const q = idx(i, j, k); F[q] = Math.max(F[q], o.clipFn(ox + i * h, oy + j * h, oz + k * h)); }
@@ -263,7 +273,8 @@ SdfKit.prototype.mesh = function (h = 0.015, o = {}) {
       const m = p.mat;
       if (m) {
         const c = hexRGB(typeof m.col === 'function' ? m.col(x, y, z) : m.col);
-        cr += lin(c[0]) * w; cg += lin(c[1]) * w; cb += lin(c[2]) * w; f0 += m.erdl * w; f1 += m.mitch * w; f2 += m.skin * w; f3 += m.fold * w; r0 += m.rough * w; r1 += m.metal * w; p0 += (m.paint || 0) * w; wt += w;
+        const mf = typeof m.fold === 'function' ? m.fold(x, y, z) : m.fold, mr = typeof m.rough === 'function' ? m.rough(x, y, z) : m.rough;
+        cr += lin(c[0]) * w; cg += lin(c[1]) * w; cb += lin(c[2]) * w; f0 += m.erdl * w; f1 += m.mitch * w; f2 += m.skin * w; f3 += mf * w; r0 += mr * w; r1 += m.metal * w; p0 += (m.paint || 0) * w; wt += w;
       }
       if (p.skin) { const a = {}; chainWeights(p.skin, x, y, z, a); for (const kb in a) acc[kb] = (acc[kb] || 0) + a[kb] * w; }
     }

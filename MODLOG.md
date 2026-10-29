@@ -49,6 +49,25 @@ outside the zone join without a seam. The jet's far land draws the whole zone fr
 (generated layers, splat, triplanar cliffs, rock outcrops) from the WIP is kept and toned down. Overview maps:
 docs/ngc1980/evidence/look-terrain/map-old.png and map-new.png. Findings: docs/ngc1980/findings/look-terrain.md.
 
+## 2026-10-29 — Faces you can look at from a metre away, and a real kneel (branch ngc/look-faces)
+
+Jay Jay: no blocky or uncanny look; realistic soldiers. Close-up faces were lumpy, with wide glossy eyes and odd lips and
+jaws, and the kneel read as a lunge.
+
+- **Heads from measured landmarks** (`humanfig.js headSdf`): a lofted face (a new custom-field SDF primitive) through
+  ANSUR 1988 and Farkas norms (head 197 x 152, bizygomatic 140.5, n-me 122, IPD 64.7, nose 34.9 wide, mouth 54.5...),
+  small-blend nose, lips, brow, jaw, ears and neck; eyes in a real fissure (lids over the iris, caruncle, matte sclera,
+  iris fibres). Five faces (young, broad, lean, African-American proportions, an older man with a 1980 moustache), picked
+  by skin tone and role. Sources: `docs/ngc1980/reference/faces/SOURCES.md`.
+- **Skin**: wrapped diffuse light (warm, soft terminator), roughness by zone, hair / stubble / brows drawn per pixel.
+- **Detail where it counts, same budget**: each face is meshed once at 2.6 mm and reduced by a new quadric simplifier
+  (`sdfsimplify.js`) to hero 7 k / near 4.2 k / crew 2.9 k triangles (no figure got heavier); baked into
+  `headbank.js` (`node tools/facebake.mjs`) so loading is faster than before.
+- **Kneel**: FM 23-9's kneeling position (knee down, toes tucked, seat back over the heel, trunk upright) for soldiers and
+  crews. White hat, garrison cap and civilian hair refitted to the new head.
+- Tools: `game/dev/faces.html` + `tools/scenes/faces.mjs` (face studio), `tools/scenes/kneel.mjs`, `tools/facebench.mjs`.
+  Findings: docs/ngc1980/findings/look-faces.md. Evidence: docs/ngc1980/evidence/look-faces/.
+
 ## 2026-10-29 — WESTGATE AFB: an air base outside the zone, C-130 sorties from it (branch ngc/look-airbases)
 
 User: "have another agent work on our bases outside the control zone that has big hangers and such to fly the
