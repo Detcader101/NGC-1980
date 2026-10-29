@@ -3,6 +3,18 @@
 Last updated: 2026-10-29, by the orchestrating Claude session. Update the tables when a branch merges or an agent reports.
 The desktop shortcut `NGC-1980 CLAUDE.bat` starts a session that reads this file first.
 
+## FIRST THING NEXT SESSION: Jay Jay asked for a clean playable experimental build
+
+Jay Jay (2026-10-29): "make sure to merge the newer models and what codex has done into a clean experimental version I can play".
+He explicitly OKd merging into the `experimental` branch (worktree `/home/jayjay/thrust-zarch-experimental`, played by the
+**NGC-1980 EXPERIMENTAL** desktop shortcut on :8766). main and GitHub still need his OK. Steps:
+1. Merge into `ngc/shader-library` whatever the in-flight agents committed at closeout (look-terrain, look-airbases,
+   look-units: Hornet done, CH-46 partial) after reading their findings and running smoke + their scenes one at a time.
+2. Run on shader-library: syntax, types, smoke, xrgameplay, airbase, sr71, hueycockpit, tomcatdev, foot.
+3. Merge `ngc/shader-library` into `experimental` (not a fast-forward: experimental = main 81ffeef has a README commit),
+   copy the local voice bank (`game/audio/voices/speech.logpcm.gz` + `local-index.json`, gitignored) into the
+   experimental worktree, run smoke there, then tell Jay Jay it is ready on the EXPERIMENTAL shortcut.
+
 ## Progress (2026-10-29 16:55 UTC; estimates from commits and running tests)
 
 | Agent | Task | Done | State | Branch head |
@@ -13,7 +25,7 @@ The desktop shortcut `NGC-1980 CLAUDE.bat` starts a session that reads this file
 | look-units | whole blueprint list (Hornet, CH-46, C-130, M60A3, M113A2, M151A2, M35A2, LCM-8, ships, weapons last) | ~20% | 2 of ~10 units | |
 | Codex | radio/voices; next: XR desk route + WESTGATE sortie on the radio desk | 100% for today | closed out, next task in CHAT.md | ngc/look-voices-clean 45a6798 |
 | Held: Huey | merged (3e1eaf7) | 100% | rerun hueymodel/airlift/interiors/foot on a quiet PC | |
-| Held: Tomcat | done, not merged | 95% | quiet-PC reruns, then merge | ngc/look-tomcat 73a5eff |
+| Tomcat | merged into shader-library (35608e6), types 572 | 100% | smoke + tomcatdev on the merge not run yet; quiet-PC reruns owed (tomcat, tomcatlook, tomcatcockpit, catshot, deckseq, escorts, jets.json) | |
 | Held: terrain (first pass) | done, not merged | see above | quiet-PC reruns of airbase/armorgame/wheeledgame/foot, then merge | |
 
 **When a fresh session starts:** for each row, compare the branch head with the hash above; if it moved, read that
@@ -82,7 +94,7 @@ local bank in the worktree (copy `game/audio/voices/speech.logpcm.gz` + `local-i
 
 | Branch | Worktree | Head | Rerun these scenes |
 |---|---|---|---|
-| ngc/look-tomcat | .claude/worktrees/agent-ae36575963405f071 | 73a5eff | tomcat, tomcatlook, tomcatcockpit, catshot, deckseq, escorts, jets.json |
+| ngc/look-tomcat (merged 35608e6, follow-up reruns) | .claude/worktrees/agent-ae36575963405f071 | 73a5eff | smoke, tomcatdev, tomcat, tomcatlook, tomcatcockpit, catshot, deckseq, escorts, jets.json |
 | ngc/look-terrain | .claude/worktrees/agent-a3aaabf206e997942 | 5f0aee0+ | airbase, armorgame, wheeledgame, foot, groundwar (compare with base) |
 | ngc/look-huey (merged 3e1eaf7, follow-up reruns) | .claude/worktrees/agent-a47a6169f36749ceb | b109cff | hueymodel (rotor spin-up wait), airlift, interiors, foot |
 
@@ -111,6 +123,6 @@ local bank in the worktree (copy `game/audio/voices/speech.logpcm.gz` + `local-i
 
 | Port | Serves | Owner |
 |---|---|---|
-| 8812 | Tomcat branch (dev/tomcat.html) | orchestrator; stop when the Tomcat merges |
-| 8813 | terrain branch (Jay Jay's preview) | orchestrator; serves the live worktree |
+| 8812 | (stopped at closeout 2026-10-29) | orchestrator |
+| 8813 | (stopped at closeout; restart `node tools/serve.mjs --port 8813` in the look-terrain worktree for a preview) | orchestrator |
 | 8826 | (stopped by Codex at closeout; restart `node tools/serve.mjs --port 8826 --speech windows` in its worktree for mic tests) | Codex |
