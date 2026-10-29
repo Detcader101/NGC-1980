@@ -70,13 +70,13 @@ sortie(0, `from ${A.ends[0].num}`); sortie(1, `from ${A.ends[1].num}`);
   const sr = (endSel, label) => {
     const S = createSR71Sim(), gy = (x, z) => Math.max(W.rawH(x, z), 0), env = { groundY: gy, water: () => false };
     const e0 = endSel, [tx, tz] = A.toW(e0.u + e0.dir * 80, 0);
-    S.resetGround(tx, A.E, tz, A.yawOf(e0.dir, 0)); S.fuel = 45000 / 2.20462;
+    S.resetGround(tx, A.E, tz, A.yawOf(e0.dir, 0)); S.fuel = (label === 'other end' ? 45000 : 64000) / 2.20462;
     const dt = 1 / 60, H = {}, c = { pitch: 0, roll: 0, yaw: 0, throttle: [1, 1], brakeL: 0, brakeR: 0, trimRate: 0 };
     let t = 0, lift = null, td = null, phase = 'roll', chute = false, maxKeas = 0;
     for (; t < 1500 && !S.dead; t += dt) {
       c.pitch = c.roll = c.yaw = 0; c.brakeL = c.brakeR = 0;
       if (phase === 'roll') { c.throttle = [1, 1]; const att = S.attitude().pitch; if (S.kias > 188) c.pitch = Math.max(-1, Math.min(1, (0.165 - att) * 8 - S.w.y * 2)); if (!S.onGround) { lift = { kias: S.kias, at: A.toL(S.pos.x, S.pos.z, [0, 0]) }; phase = 'climb'; } }
-      else if (phase === 'climb') { c.throttle = [0.66, 0.66]; S.ap.on = true; S.ap.pitch = 'alt'; S.ap.alt = A.E + 800; S.ap.roll = 'hdg'; S.ap.hdg = A.yawOf(e0.dir, 0); if (S.pos.y - A.E > 60) S.gearCmd = 0; if (S.pos.y - A.E > 500) phase = 'home'; }
+      else if (phase === 'climb') { c.throttle = S.keas < 280 ? [0.85, 0.85] : [0.6, 0.6]; S.ap.on = true; S.ap.pitch = 'alt'; S.ap.alt = A.E + 800; S.ap.roll = 'hdg'; S.ap.hdg = A.yawOf(e0.dir, 0); if (S.pos.y - A.E > 60) S.gearCmd = 0; if (S.pos.y - A.E > 500) phase = 'home'; }
       else { const ph = sr71Home(S, H, A, dt, gy, c); if (ph === 'rollout' && !td) td = { kias: S.kias, at: A.toL(S.pos.x, S.pos.z, [0, 0]) }; if (S.chute === 'deployed' || S.chute === 'jettisoned') chute = true; if (ph === 'rollout' && Math.hypot(S.vel.x, S.vel.z) < 0.5) break; }
       maxKeas = Math.max(maxKeas, S.keas);
       const ev = S.step(dt, c, env); for (const x of ev) if (x.e === 'touchdown' && td === null && phase === 'home') td = { kias: x.kias, at: A.toL(S.pos.x, S.pos.z, [0, 0]) };

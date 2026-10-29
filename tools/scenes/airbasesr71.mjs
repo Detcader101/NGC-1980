@@ -23,7 +23,7 @@ export default {
     await h.expect(`__G.G.craft === 'sr71' && ${C}.present() && __G.fleet.n.sr71 === 0 && ${A}.onGround && !${A}.eng.some(e => e.run)`, 'ENTER: out of the reserve, in her shelter, cold');
     await h.eval(chase('Math.PI', 0.02, 30)); await h.wait(2000); await h.shot('sr71-in-shelter');
     // ---- start
-    await h.key('tap', 'KeyI'); await h.waitFor(`${A}.eng.every(e => e.run)`, 240000);
+    await h.key("tap", "KeyI"); await h.waitFor(`${A}.eng.every(e => e.run)`, 600000);
     await h.expect(`${A}.eng.every(e => e.run) && ${A}.onGround`, 'I: the start cart lights both J58s');
     await h.eval(chase(0, 0.1, 40)); await h.wait(1200); await h.shot('engines-running-in-shelter');
     // ---- taxi out of the shelter

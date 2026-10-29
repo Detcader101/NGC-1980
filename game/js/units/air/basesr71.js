@@ -43,6 +43,9 @@ export function sr71Home(A, H, L, dt, groundY, c, say = null) {
   let hdg, alt, kt;
   const sp = Math.max(30, gs); let fl = groundY(A.pos.x, A.pos.z);
   for (const k of [8, 16, 30, 45]) fl = Math.max(fl, groundY(A.pos.x + A.vel.x / sp * k * sp, A.pos.z + A.vel.z / sp * k * sp));
+  // landing weight: she lands with ~10-15,000 lb of JP-7 (the flight manual's normal landing fuel); heavier, the way home
+  // dumps the rest on the way to the fix (the SR-71 has a fuel dump; the rate is fast-forwarded for the game)
+  if (!H.final && A.fuel * 2.20462 > 18000) { if (!H.dumping) { H.dumping = true; say?.('SR-71: DUMPING FUEL TO LANDING WEIGHT'); } A.fuel = Math.max(15000 / 2.20462, A.fuel - 450 / 2.20462 * dt); }
   if (!H.final) {
     const [fx, fz] = L.toW(e.u - d * 9000, 0), dist = Math.hypot(fx - A.pos.x, fz - A.pos.z);
     hdg = Math.atan2(-(fx - A.pos.x), -(fz - A.pos.z)); alt = Math.max(L.E + 490, fl + 250);

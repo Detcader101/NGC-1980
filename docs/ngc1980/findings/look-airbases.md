@@ -147,3 +147,14 @@ SR-71 API to call. The base is ready for it:
   ?fly=sr71air unchanged.
 - **Bench** (`node tools/airbasebench.mjs`): SR-71 sorties from both ends on sr71fm: lift-off 217 KIAS (manual ~210),
   home, touchdown 148 KIAS (manual 155), chute out, stopped on the centreline (0.0 m), ~440 m short of the far end.
+- **Landing weight**: a 64,000 lb sortie could not hold the 175 KEAS final at MIL (high and slow over the runway in the
+  first scene run). The way home now dumps fuel to ~15,000 lb on the way to the fix (the SR-71 has a dump; the rate is
+  fast-forwarded, 450 lb/s, and announced). Bench: a heavy (64,000 lb) and a light (45,000 lb) sortie both land, 149
+  KIAS touchdown, chute, stop on the centreline.
+- **SAMs at the base**: look-sr71's SA-2 sites reach 45 km, and with BOUND 1280 IRONHOLD is ~7 km from the field's
+  approach: they fired at her on the runway (first scene run: lost on the take-off). The adapter gives the base a HAWK
+  battery: within 15 km of the field below 20,000 ft enemy SAMs are destroyed (feed line). Open: with runways pointing
+  at the zone the clear approach can lead over enemy ground; a proper fix is SAM coverage that respects the zone.
+- Scene: `tools/scenes/airbasesr71.mjs` (board, shelter, cart start, taxi out, tow, take-off, N home, chute, stop, O,
+  parked). The take-off rotation is a test pilot's law through P.override (a held S key is full back stick and scrapes
+  the tail: a keyboard player has to ease it, as in look-sr71's own scene).
