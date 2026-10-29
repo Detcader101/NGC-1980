@@ -76,7 +76,7 @@ local bank in the worktree (copy `game/audio/voices/speech.logpcm.gz` + `local-i
 | look-units (ngc/look-units) | .claude/worktrees/look-units | blueprint rebuild of every unit, one at a time: Hornet done (0151b52), CH-46 next, then C-130 (keep C130M / createC130Sim / buildC130Deck stable), M60A3, M113A2, M151A2, M35A2, LCM-8, ships; weapons LAST and only after coordinating with Codex (its hand fits measure weapon geometry) | review fit numbers + evidence, merge per unit |
 | look-airbases (ngc/look-airbases) | .claude/worktrees/look-airbases | plug the SR-71 into the base: shelter start, taxi, takeoff, autopilot home, chute landing, park, board row | merge after airbase.mjs + sr71.mjs pass |
 | look-terrain (ngc/look-terrain) | .claude/worktrees/agent-a3aaabf206e997942 | next: grainy/aliasing grass texture when flying; map zoom and showing outside the control zone; merge shader-library to pick up the Huey | Jay Jay views it on :8813 |
-| Codex (ngc/look-voices-clean → new branch) | .claude/worktrees/agent-acb3f3f66119cd838 | xr.mjs radio-desk expectation, one-step WESTGATE sortie on the radio desk, airbase.mjs opening step | posts a hash in CHAT.md |
+| Codex (ngc/look-voices-clean, closed out 2026-10-29 16:44 UTC) | .claude/worktrees/agent-acb3f3f66119cd838 | NEXT when restarted: xr.mjs radio-desk expectation + VR reach to both desks, one-step WESTGATE C-130/SR-71 request on the radio desk via baseOps, airbase.mjs opening step; its checkpoint: docs/ngc1980/handoffs/2026-10-29-codex-closeout.md | posts a hash in CHAT.md |
 
 ## Open items queue (after the above)
 
@@ -96,4 +96,4 @@ local bank in the worktree (copy `game/audio/voices/speech.logpcm.gz` + `local-i
 |---|---|---|
 | 8812 | Tomcat branch (dev/tomcat.html) | orchestrator; stop when the Tomcat merges |
 | 8813 | terrain branch (Jay Jay's preview) | orchestrator; serves the live worktree |
-| 8826 | Codex worktree with `--speech windows` | Codex |
+| 8826 | (stopped by Codex at closeout; restart `node tools/serve.mjs --port 8826 --speech windows` in its worktree for mic tests) | Codex |
