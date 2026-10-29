@@ -137,8 +137,9 @@ Rows done: 27 of 30 (90%); the panel/fastener row needs the -2 manuals.
 
 ## 6. Deviations kept on purpose
 
-- The sim's HOOK_TIP (0, -2.35, 8.0) is 0.88 m aft of the drawn hook's tip (7.12); the drawn hook (pivot, length) is
-  modelled and swings down to the sim's tip height. Changing HOOK_TIP moves the AI's trap aim (FM-adjacent): left, reported.
+- HOOK_TIP (tomcatfm.js) moved from an inferred (0, -2.35, 8.0) to the drawn hook's tip (0, -2.35, 7.12): the wire used to
+  catch 0.88 m behind the visible hook (a glitch). Geometry only; tomcatbench 32/32 (cat shot, touchdown, wire, stop)
+  and airbench 28/28 pass with it; airmodels.mjs now expects the drawn tip.
 - STATIONS 1A/8A (the AIM-9 shoulder rails) moved from inside the glove to the pylons' outer faces (geometry only).
 - Fin spacing: the drawn 3.46 m between tips (NATOPS fig 1-1, CR-163098), not the labelled 10 ft 8 in (see the table).
 
@@ -183,12 +184,27 @@ LOD 1/2 thin the fuselage, canopy and nacelle lofts and hide ~25 small parts; th
 
 ## 9. Tests
 
-- `node tools/check.mjs syntax`: 560/560 pass (after the merge); no conflict markers.
-- Fit: `node tools/blueprint/f14a/fitall.mjs` (numbers in 4).
-- Browser scenes (SwiftShader, the PC heavily loaded: 0-3 fps): see the final report for the last full list. Before the
-  traced panel: smoke PASS 5/5, tomcatdev PASS 1/1, tomcatpanels PASS. catshot FAIL 3/12 expects: every failure is a
-  wall-clock waitFor timeout at 0 fps (the Tomcat's own hands-off cat shot and flyaway PASSED; the Hornet's and the AI
-  escort's parts timed out waiting), not an assertion about the model.
+The PC was heavily loaded the whole evening (SwiftShader at 0-3 fps), so scenes with wall-clock waitFor limits time out
+in cascade; every FAIL below was read in its log.
+
+| Test | Result |
+|---|---|
+| `node tools/check.mjs syntax` | 560/560 pass; no conflict markers |
+| fit (`tools/blueprint/f14a/fitall.mjs`) | side 0.988 / 1.0% PASS, top 0.983 / 1.7%, front 0.976 / 0.5% PASS |
+| tomcatbench (node) | 32/32 pass (with the drawn hook tip) |
+| airbench (node: AI Tomcats, patrols, traps) | 28/28 pass |
+| smoke.json | PASS 5/5 |
+| tomcatdev.mjs | PASS 1/1 |
+| tomcatpanels.mjs | PASS (0 errors) |
+| airmodels.mjs | PASS 2/2 (first run FAILED the hook-tip check at 8.0: fixed by the drawn HOOK_TIP) |
+| catshot.mjs | FAIL 3/12: the Tomcat's hands-off shot and flyaway PASS; the Hornet's and the AI escort's parts time out at 0 fps |
+| tomcatcockpit.mjs | FAIL 15/53: the first failure is the 90 s wait for the engines to spin down (0 fps); the start sequence cascades from it |
+| deckseq.mjs | FAIL 2/6: four launches did not finish inside the wall-clock limit (1 fps) |
+| escorts.mjs | FAIL 1/15: the first AI escort never reached the cat inside 60 s; the rest cascades |
+| jets.json, commander.mjs, xr.mjs, tomcat.mjs, tomcatlook.mjs (after) | see the final report (still running at the deadline, or not reached) |
+
+Not established here: whether catshot / tomcatcockpit / deckseq / escorts pass at a normal frame rate; rerun them on an
+idle machine before merging.
 
 ## 10. Open items
 
@@ -196,5 +212,7 @@ LOD 1/2 thin the fuselage, canopy and nacelle lofts and hide ~25 small parts; th
   from PD walkaround close-ups (not done in this pass).
 - RIO panel per NATOPS fig. 1-4; the pilot's missing items listed in 7.
 - LOD 2 airfoil reduction; adopt renderkit/lod.js when ngc/perf-render lands.
-- HOOK_TIP vs the drawn hook (0.88 m).
+- Adopt ngc/perf-render's renderkit/merge.js mergeUnit and lod.js createLOD (now in ngc/shader-library) per
+  PERF-BUDGETS.md's Tomcat recipe: merge ngc/shader-library again and run mergecheck / perfbudget (not done: deadline).
+- Rerun the timed-out scenes on an idle machine.
 - The Hornet's blob shadow square (jetplay.js) is the same G1 glitch.
