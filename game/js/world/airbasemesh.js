@@ -17,7 +17,7 @@ const FT = 0.3048;
 // palette (hexes from renderkit/surfclass.js so the RenderKit detail shader gives each its texture)
 const C = {
   rwy: col(0x8e8b84), rwyB: col(0x86847c), twy: col(0x9a978e), ramp: col(0xa8a49a), floor: col(0x8a8780), ovr: col(0x4c4d50), shoulder: col(0x5e5c5a),
-  rubber: col(0x3e3f42), joint: col(0x76736c), jointT: col(0x86847c), white: col(0xe8e6dc), yellow: col(0xd8b84a), black: col(0x1c1c1e),
+  rubber: col(0x5e5c5a), joint: col(0x76736c), jointT: col(0x86847c), white: col(0xe8e6dc), yellow: col(0xd8b84a), black: col(0x1c1c1e),
   wall: col(0xd9c79a), wall2: col(0xe8e0c8), core: col(0xc8c4b0), concrete: col(0xa8a49a), conc2: col(0x9a958a), roof: col(0x6a6a6a), roofD: col(0x575d66),
   metal: col(0x9aa0a6), metal2: col(0x7c8186), metalD: col(0x6c7276), red: col(0x8a2a1a), glass: col(0x2b3846), glassL: col(0x3d4e5c), frame: col(0x18191a),
   tank: col(0xe8e6e0), earth: col(0x6e6a52), orange: col(0xd8b84a, 1.0), lamp: col(0x9aa0a6), sign: col(0x1c1c1e),

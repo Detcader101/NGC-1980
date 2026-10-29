@@ -6,6 +6,7 @@
 // range, the C-130 in its hangar, the cockpit, and the map.
 //   from tools/:  CHROME_PATH=/home/jayjay/.cache/chs/chrome.sh node snap.mjs scenes/airbase.mjs
 const C = '__AIRBASE.c130C', L = '__AIRBASE.AIRBASE';
+const CS = `(${L}.ends[0].obst < ${L}.ends[1].obst ? -1 : 1)`;   // the side the clear approach comes in from (-u for RWY end 0)
 const cam = (u, v, y, lu, lv, ly) => `(() => { const A = ${L}, p = A.toW(${u}, ${v}), q = A.toW(${lu}, ${lv}); ${C}.camAt = [p[0], A.E + ${y}, p[1], q[0], A.E + ${ly}, q[1]]; return 1; })()`;
 export default {
   name: 'airbase',
@@ -33,9 +34,10 @@ export default {
       ['hangar-row', cam(-560, 420, 3, -560, 560, 8)],
       ['tower-firestation', cam(-60, 470, 2, -150, 545, 14)],
       ['runway-threshold', cam(-1829 - 120, 0, 4, 0, 0, 0)],
-      ['air-300m', cam(-1400, -900, 300, -400, 300, 0)],
-      ['air-3000m', cam(-3500, -2500, 3000, 0, 300, 0)],
-      ['long-range', cam(-5200, -2600, 900, 0, 200, 0)],
+      ['air-300m', cam(`${CS} * 1400`, -900, 300, -400, 300, 0)],
+      ['air-3000m', cam(`${CS} * 3500`, -2500, 3000, 0, 300, 0)],
+      ['long-range', cam(`${CS} * 6500`, -1200, 700, 0, 200, 0)],
+      ['final-approach-view', cam(`${CS} * 4200`, 0, 230, 0, 0, 0)],
     ];
     for (const [n, js] of views) { await h.eval(js); await h.wait(2500); await h.shot(n); }
     // the C-130 in its hangar: parked there for the picture (the hangar slot the sortie ends in), then back on the ramp
