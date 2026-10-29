@@ -46,7 +46,7 @@ export default async function (h) {
       for (let i = 0; i < pa.count; i++) { v.fromBufferAttribute(pa, i).applyMatrix4(m); bb.expandByPoint(v); } });
     const fb = new T.Box3(); ship.traverse(o => { if (!o.isMesh || ck.has(o) || /^(blade|disc|landingBeam|trDisc)/.test(o.name)) return; const pa = o.geometry.attributes.position; m.multiplyMatrices(inv, o.matrixWorld);
       for (let i = 0; i < pa.count; i++) { v.fromBufferAttribute(pa, i).applyMatrix4(m); fb.expandByPoint(v); } });
-    out.fuselage = +(fb.max.z - fb.min.z).toFixed(2); out.overall = +(fb.max.z - Math.min(fb.min.z, -0.12 - 7.32)).toFixed(2); out.height = +(fb.max.y - fb.min.y).toFixed(2);
+    out.fuselage = +(fb.max.z - fb.min.z).toFixed(2); const trz = (ship.getObjectByName('tailRotor') || { position: { z: 8.7 } }).position.z; out.overall = +(Math.max(fb.max.z, trz + 1.295) - Math.min(fb.min.z, -0.12 - 7.32)).toFixed(2);   /* rotors turning: the tail rotor disc, whatever the blade phase */ out.height = +(fb.max.y - fb.min.y).toFixed(2);
     out.size = bb.getSize(v).toArray().map(x => +x.toFixed(2)); out.min = bb.min.toArray().map(x => +x.toFixed(2)); out.max = bb.max.toArray().map(x => +x.toFixed(2));
     window.__chk = out; return out; })()`);
   await h.expect('Math.abs(__chk.min[1] + 1.84) < 0.03', 'skids on the ground line');
