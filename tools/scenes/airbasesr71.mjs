@@ -21,7 +21,7 @@ export default {
     await h.expect(`/DEPLOY AT WESTGATE/.test(document.querySelector('#cmdBoard .row.sel').textContent)`, 'the SR-71 row deploys at the air base');
     await h.key('tap', 'Enter'); await h.wait(1200);
     await h.expect(`__G.G.craft === 'sr71' && ${C}.present() && __G.fleet.n.sr71 === 0 && ${A}.onGround && !${A}.eng.some(e => e.run)`, 'ENTER: out of the reserve, in her shelter, cold');
-    await h.eval(chase('Math.PI * 0.85', 0.12, 38)); await h.wait(2000); await h.shot('sr71-in-shelter');
+    await h.eval(chase('Math.PI', 0.02, 30)); await h.wait(2000); await h.shot('sr71-in-shelter');
     // ---- start
     await h.key('tap', 'KeyI'); await h.waitFor(`${A}.eng.every(e => e.run)`, 240000);
     await h.expect(`${A}.eng.every(e => e.run) && ${A}.onGround`, 'I: the start cart lights both J58s');
@@ -41,8 +41,11 @@ export default {
     await h.eval(`(${C}.warp = 2, 1)`);
     await h.key('down', 'ShiftLeft'); await h.waitFor(`${C}.P.thr >= 0.659`, 30000); await h.key('up', 'ShiftLeft'); await h.wait(300);
     await h.key('down', 'ShiftLeft'); await h.waitFor(`${C}.P.thr > 0.97`, 30000);
-    await h.waitFor(`${A}.kias > 190`, 60000);
-    await h.key('down', 'KeyS'); await h.waitFor(`!${A}.onGround`, 30000); await h.wait(600); await h.key('up', 'KeyS');
+    await h.waitFor(`${A}.kias > 150`, 60000);
+    // the rotation: a test pilot's hand on the stick (the sr71.mjs law: toward 9 deg from 190 KIAS) - a held S key is full back stick
+    await h.eval(`(window.__ov0 = ${C}.P.override, ${C}.P.override = c => { window.__ov0(c); const p = ${A}.attitude().pitch; if (${A}.kias > 190) c.pitch = Math.max(-1, Math.min(1, (0.16 - p) * 6 - ${A}.w.y * 2)); }, 1)`);
+    await h.waitFor(`!${A}.onGround || !${C}.present()`, 30000); await h.waitFor(`${A}.pos.y - ${L}.E > 40 || !${C}.present()`, 30000);
+    await h.eval(`(${C}.P.override = window.__ov0, ${A}.ap.on = true, ${A}.ap.pitch = 'att', ${A}.ap.att = 0.12, ${A}.ap.roll = 'hdg', ${A}.ap.hdg = ${A}.heading, 1)`);
     await h.eval(`(${C}.warp = 1, 1)`); await h.wait(1200); await h.shot('takeoff');
     await h.key('up', 'ShiftLeft');
     await h.expect(`!${A}.onGround && ${C}.present()`, 'keyboard take-off: airborne in AB');

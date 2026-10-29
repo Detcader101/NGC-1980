@@ -126,3 +126,24 @@ SR-71 API to call. The base is ready for it:
 - Keyboard flying: letting go of the yoke holds heading and height (as RAIDER 21 does); in the climb-out it holds a
   climb to 1,000 ft AGL. A HOTAS flies it raw.
 - The site search costs ~220 ms per thread at load (main + 2 workers); it could be cached if load time matters.
+
+## 2026-10-29 (afternoon) - The SR-71 at the base (after merging ngc/shader-library with ngc/look-sr71)
+
+`units/air/basesr71.js attachSR71(BASE_CTX, sr71C)` gives look-sr71's craft the base contract on top of its own API
+(placeOnGround, addStrip, P.override, its altitude / heading autopilot); main.js: `baseOps.add(attachSR71(BASE_CTX, sr71C))`.
+- **Board**: the SR-71 row (`\`, down, ENTER) puts the crew in her in **shelter 1**, cold (`?quick`: engines running).
+  I: the start cart lights both J58s; she taxis out of the shelter on her own power (the shelters, hangar, tanks and
+  buildings stop her: `hitBuilding`). SHIFT+L: towed to the runway (the departure end), engines running.
+- **Pavement**: every paved rectangle of the field (runway + overruns, taxiways, ramp, shelter and hangar floors) is
+  registered with `sr71C.addStrip({ ..., mesh: false })`, so she rolls on it exactly (never "sea").
+- **N: home** (`sr71Home`, pure): the initial fix 9 km out at 1,600 ft over the field (500 ft over the ground ahead
+  at least), 250 KEAS, 200 KEAS and gear down inside 5 km, a 175 KEAS final on a 3 deg path (165 short final), the flare
+  law of sr71bench to touchdown, power off, the **drag chute below 205 KIAS** (jettisoned at a walk), brakes below 80
+  KIAS, nose wheel on the centreline. It flies her own autopilot (altitude + heading hold) and the throttles; any stick
+  input hands back. SHIFT+N is now her lights (N was).
+- **End**: stopped on the base, O (engines off) - the crew tows her into the shelter after 2 s; SHIFT+O at once. Fleet:
+  back in reserve; a loss is booked by craftsr71's `onUnitLost('sr71')`. Left in the air for another unit, the crew flies
+  her home. New game: she is parked in her shelter. **?fly=sr71** now lines her up on the base runway (engines running);
+  ?fly=sr71air unchanged.
+- **Bench** (`node tools/airbasebench.mjs`): SR-71 sorties from both ends on sr71fm: lift-off 217 KIAS (manual ~210),
+  home, touchdown 148 KIAS (manual 155), chute out, stopped on the centreline (0.0 m), ~440 m short of the far end.

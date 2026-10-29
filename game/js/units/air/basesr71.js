@@ -112,6 +112,9 @@ export function attachSR71(ctx, sr71) {
     if (!A.onGround && A.pos.y - groundY(A.pos.x, A.pos.z) > 15) so.airborne = true;
     so.onBase = A.onGround && !!L.onPavement(A.pos.x, A.pos.z, 10); so.stopped = so.onBase && gs < 1;
     so.stopT = so.stopped ? so.stopT + dt : 0;
+    // the base's own air defence (a HAWK battery, 1980 USAF practice at forward bases): no enemy SAM reaches her within
+    // 15 km of the field below 20,000 ft - the zone's SA-2 sites (45 km) would otherwise fire at her on the runway
+    if (P.sams.length && Math.hypot(A.pos.x - L.x, A.pos.z - L.z) < 15000 && A.altFt < 20000) { P.sams.length = 0; P.rwr = 0; if (crafts.active === D) feed(`${L.name} HAWK BATTERY: SAM ENGAGED AND DESTROYED`, 'good'); }
     // hangars, tanks and buildings stop her (the flight model only knows the ground)
     if (A.onGround) { const b = L.hitBuilding(A.pos.x, A.pos.z, 3); if (b && gs > 0.3) { A.vel.set(0, 0, 0); if (crafts.active === D) say(`STOP  -  THE ${b.name} IS IN THE WAY`, 1.4); } }
     if (D.home && D.home.phase === 'rollout' && gs < 0.5) { D.home = null; if (D.crew) so.done = true; else say('STOPPED  -  O ENGINES OFF (THE CREW TOWS HER IN)  ·  SHIFT+O HAND HER IN NOW', 3); }
