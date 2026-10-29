@@ -1,5 +1,13 @@
 # MODLOG — NGC-1980 (formerly Thrust/Zarch)
 
+## 2026-10-29 — VR: deck crew no longer corrupts the eye cameras (branch ngc/xr-fix)
+
+xr.mjs was 17/19 on ngc/shader-library (sky dome and near terrain window "not following the eye"). Cause: the deck
+crew's render hook (`units/naval/deckcrew.js`, look-people b70d756) called `camera.getWorldPosition()` on the XR eye
+camera, which has no parent, so three re-derived its matrixWorld from the local head pose mid-render. In a headset,
+later draws in that eye pass could pick up a view at the tracking origin. Now it reads `matrixWorld` without updating it.
+Findings: docs/ngc1980/findings/xr-fix.md.
+
 ## 2026-10-28 — Render performance: desktop benchmark, budgets, LODs, merges (branch ngc/perf-render)
 
 A one-click **desktop benchmark** (`?bench`, the new NGC-1980 BENCHMARK shortcut) tours 8 seeded views (on foot at the
